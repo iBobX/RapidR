@@ -1,0 +1,11 @@
+[package]
+name = "rapidr-preprocessor"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rapidr-diagnostics.workspace = true
+
+[lib]
+path = "src/lib.rs"

@@ -1,0 +1,137 @@
+' Demo: RMatPlotLib with GUI - Sine & Cosine Graph Viewer
+' Generates a sine/cosine plot and displays it inside a RImage on a RForm.
+
+$APPTYPE GUI
+
+DIM plt AS RMatPlotLib
+DIM xArr AS RNumPy
+DIM ySin AS RNumPy
+DIM yCos AS RNumPy
+
+' --- Event Handlers ---
+
+SUB BtnPlotClick
+    ' Generate X values from 0 to 2*PI with 100 points
+    xArr.linspace 0, 6.283185, 100
+
+    ' Use numpy's vectorized sin/cos on the raw array data
+    ySin.data = RNumPy.sin(xArr.data)
+    yCos.data = RNumPy.cos(xArr.data)
+
+    ' Create the plot
+    plt.clear
+    plt.title = "Sine & Cosine Waves"
+    plt.xlabel = "Angle (radians)"
+    plt.ylabel = "Amplitude"
+    plt.grid = 1
+    plt.width = 7
+    plt.height = 4
+    plt.plot xArr, ySin, "Sine", "blue", "-"
+    plt.plot xArr, yCos, "Cosine", "red", "--"
+    plt.legend
+
+    ' Load into the RImage on the form
+    ImgPlot.loadfromplot plt
+
+    LblStatus.Caption = "Plot generated: Sine & Cosine (100 points)"
+END SUB
+
+SUB BtnBarClick
+    ' Generate a bar chart of sample categories
+    DIM categories AS RNumPy
+    DIM values AS RNumPy
+    categories.arange 1, 7, 1
+    values.data = RNumPy.array(RNumPy.random.randint(10, 100, 6))
+
+    plt.clear
+    plt.title = "Random Bar Chart"
+    plt.xlabel = "Category"
+    plt.ylabel = "Value"
+    plt.grid = 1
+    plt.width = 7
+    plt.height = 4
+    plt.bar categories, values, "Values", "steelblue"
+    plt.legend
+
+    ImgPlot.loadfromplot plt
+    LblStatus.Caption = "Bar chart generated with 6 random categories."
+END SUB
+
+SUB BtnClearClick
+    plt.clear
+    ImgPlot.Cls
+    LblStatus.Caption = "Plot cleared."
+END SUB
+
+SUB BtnCloseClick
+    Form1.Close
+END SUB
+
+' --- GUI Layout ---
+
+CREATE Form1 AS RForm
+    Caption = "RMatPlotLib Demo - Graph Viewer"
+    Width = 780
+    Height = 560
+
+    CREATE LblTitle AS RLabel
+        Left = 20
+        Top = 10
+        Width = 700
+        Caption = "Matplotlib Integration: Click a button to generate a chart in the image below"
+    END CREATE
+
+    CREATE ImgPlot AS RImage
+        Left = 20
+        Top = 40
+        Width = 730
+        Height = 400
+        Stretch = 1
+    END CREATE
+
+    CREATE BtnPlot AS RButton
+        Left = 20
+        Top = 460
+        Width = 130
+        Height = 30
+        Caption = "Sine/Cosine"
+        OnClick = BtnPlotClick
+    END CREATE
+
+    CREATE BtnBar AS RButton
+        Left = 170
+        Top = 460
+        Width = 130
+        Height = 30
+        Caption = "Bar Chart"
+        OnClick = BtnBarClick
+    END CREATE
+
+    CREATE BtnClear AS RButton
+        Left = 320
+        Top = 460
+        Width = 130
+        Height = 30
+        Caption = "Clear Plot"
+        OnClick = BtnClearClick
+    END CREATE
+
+    CREATE BtnClose AS RButton
+        Left = 620
+        Top = 460
+        Width = 130
+        Height = 30
+        Caption = "Close"
+        OnClick = BtnCloseClick
+    END CREATE
+
+    CREATE LblStatus AS RLabel
+        Left = 20
+        Top = 500
+        Width = 730
+        Caption = "Ready. Click 'Sine/Cosine' or 'Bar Chart' to begin."
+    END CREATE
+END CREATE
+
+Form1.Center
+Form1.ShowModal

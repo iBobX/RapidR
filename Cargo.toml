@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/rapidr-cli",
+    "crates/rapidr-diagnostics",
+    "crates/rapidr-ast",
+    "crates/rapidr-lexer",
+    "crates/rapidr-parser",
+    "crates/rapidr-preprocessor",
+    "crates/rapidr-runtime-core",
+    "crates/rapidr-codegen-rust",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+
+[workspace.dependencies]
+rapidr-ast = { path = "crates/rapidr-ast" }
+rapidr-diagnostics = { path = "crates/rapidr-diagnostics" }
+rapidr-lexer = { path = "crates/rapidr-lexer" }
+rapidr-parser = { path = "crates/rapidr-parser" }
+rapidr-preprocessor = { path = "crates/rapidr-preprocessor" }
+rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
+rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }

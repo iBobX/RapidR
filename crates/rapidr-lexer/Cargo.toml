@@ -1,0 +1,12 @@
+[package]
+name = "rapidr-lexer"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rapidr-diagnostics.workspace = true
+rapidr-preprocessor.workspace = true
+
+[lib]
+path = "src/lib.rs"

@@ -1,0 +1,14 @@
+$TYPECHECK ON
+
+DIM form AS RForm
+
+WITH form
+    .Caption = "My Form from WITH block"
+    .Width = 800
+    .Height = 600
+END WITH
+
+PRINT "Form caption is: ", form.Caption
+PRINT "Form geometry: ", form.Width, "x", form.Height
+
+SHOWMESSAGE "This is a test UI builtin component!"

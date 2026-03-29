@@ -1,0 +1,155 @@
+' Test: New GUI Components (TreeView, Image, TrackBar, StringGrid, ScrollBox, Splitter)
+' This test creates each new component, sets properties, and auto-closes.
+
+DIM TestsPassed AS INTEGER
+TestsPassed = 0
+
+' --- TreeView test handler ---
+SUB OnTreeClick
+    PRINT "TreeView clicked"
+END SUB
+
+' --- TrackBar test handler ---
+SUB OnTrackChange
+    PRINT "TrackBar changed to: " + STR$(Track1.Position)
+END SUB
+
+' --- StringGrid test handler ---
+SUB OnGridChange
+    PRINT "Grid changed"
+END SUB
+
+SUB OnGridClick
+    PRINT "Grid clicked"
+END SUB
+
+' --- Auto-close after setup ---
+SUB AutoClose
+    PRINT "All components created successfully!"
+    PRINT "Tests passed: " + STR$(TestsPassed)
+    Form1.Close
+END SUB
+
+CREATE Form1 AS RFORM
+    Caption = "New Components Test"
+    Width = 800
+    Height = 600
+
+    ' --- RTreeView ---
+    CREATE Tree1 AS RTREEVIEW
+        Left = 10
+        Top = 10
+        Width = 150
+        Height = 150
+        OnClick = OnTreeClick
+    END CREATE
+
+    ' --- RImage ---
+    CREATE Img1 AS RIMAGE
+        Left = 170
+        Top = 10
+        Width = 150
+        Height = 150
+        Stretch = 1
+    END CREATE
+
+    ' --- RTrackBar ---
+    CREATE Track1 AS RTRACKBAR
+        Left = 10
+        Top = 170
+        Width = 200
+        Height = 30
+        Min = 0
+        Max = 100
+        Position = 50
+        OnChange = OnTrackChange
+    END CREATE
+
+    ' --- RStringGrid ---
+    CREATE Grid1 AS RSTRINGGRID
+        Left = 10
+        Top = 210
+        Width = 300
+        Height = 150
+        Cols = 3
+        OnChange = OnGridChange
+        OnClick = OnGridClick
+    END CREATE
+
+    ' --- RScrollBox ---
+    CREATE Scroll1 AS RSCROLLBOX
+        Left = 330
+        Top = 10
+        Width = 200
+        Height = 150
+    END CREATE
+
+    ' --- RSplitter ---
+    CREATE Split1 AS RSPLITTER
+        Left = 330
+        Top = 170
+        Width = 300
+        Height = 200
+    END CREATE
+
+    ' --- Timer to auto-close ---
+    CREATE CloseTimer AS RTIMER
+        Interval = 500
+        OnTimer = AutoClose
+    END CREATE
+END CREATE
+
+' --- Post-CREATE tests ---
+' TreeView
+Tree1.AddItem("Root Item")
+Tree1.AddItem("Second Item")
+TestsPassed = TestsPassed + 1
+PRINT "PASS: RTreeView created and items added"
+
+' Image
+Img1.Stretch = 1
+TestsPassed = TestsPassed + 1
+PRINT "PASS: RImage created with Stretch=1"
+
+' TrackBar
+Track1.Position = 75
+IF Track1.Position = 75 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: RTrackBar position set to 75"
+ELSE
+    PRINT "FAIL: RTrackBar position is " + STR$(Track1.Position) + " expected 75"
+END IF
+
+IF Track1.Min = 0 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: RTrackBar min is 0"
+END IF
+
+IF Track1.Max = 100 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: RTrackBar max is 100"
+END IF
+
+' StringGrid
+Grid1.AddRow("Name", "Age", "City")
+Grid1.AddRow("Alice", "30", "London")
+Grid1.AddRow("Bob", "25", "Paris")
+TestsPassed = TestsPassed + 1
+PRINT "PASS: RStringGrid rows added"
+
+IF Grid1.Cols = 3 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: RStringGrid has 3 columns"
+END IF
+
+' ScrollBox
+TestsPassed = TestsPassed + 1
+PRINT "PASS: RScrollBox created"
+
+' Splitter
+TestsPassed = TestsPassed + 1
+PRINT "PASS: RSplitter created"
+
+PRINT ""
+PRINT "Total tests passed: " + STR$(TestsPassed)
+Form1.ShowModal

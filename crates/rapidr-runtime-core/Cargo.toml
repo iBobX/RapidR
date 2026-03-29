@@ -1,0 +1,27 @@
+[package]
+name = "rapidr-runtime-core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rand = "0.9"
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+ureq = { version = "2", optional = true }
+fltk = { version = "1.4", optional = true }
+fltk-theme = { version = "0.7", optional = true }
+mysql = { version = "25", optional = true }
+ndarray = { version = "0.16", optional = true }
+polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "dtype-full"] }
+plotters = { version = "0.3", optional = true }
+rodio = { version = "0.19", optional = true }
+libloading = { version = "0.8", optional = true }
+
+[features]
+default = ["database", "network", "gui", "datascience", "audio", "ffi"]
+database = ["dep:rusqlite", "dep:mysql"]
+network = ["dep:ureq"]
+gui = ["dep:fltk", "dep:fltk-theme"]
+datascience = ["dep:ndarray", "dep:polars", "dep:plotters"]
+audio = ["dep:rodio"]
+ffi = ["dep:libloading"]

@@ -1,0 +1,13 @@
+[package]
+name = "rapidr-codegen-rust"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rapidr-ast.workspace = true
+rapidr-diagnostics.workspace = true
+rapidr-parser.workspace = true
+
+[dev-dependencies]
+rapidr-lexer.workspace = true

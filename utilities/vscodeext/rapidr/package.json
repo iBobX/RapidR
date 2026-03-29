@@ -1,0 +1,128 @@
+{
+  "name": "rapidr",
+  "displayName": "RapidR",
+  "description": "Full language support for RapidR (.rp) — BASIC-to-Rust transpiler. Syntax highlighting, autocomplete, hover docs, snippets, and compile integration.",
+  "version": "1.0.0",
+  "publisher": "rapidr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iBobX/RapidR/tree/main/utilities/vscodeext/rapidr"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "rapidr",
+    "basic",
+    "transpiler",
+    "rapidq",
+    "gui"
+  ],
+  "activationEvents": [
+    "onLanguage:rapidr"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rapidr",
+        "aliases": [
+          "RapidR",
+          "rapidr",
+          "rp"
+        ],
+        "extensions": [
+          ".rp"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rapidr",
+        "scopeName": "source.rapidr",
+        "path": "./syntaxes/rapidr.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "rapidr",
+        "path": "./snippets/rapidr.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "rapidr.compile",
+        "title": "RapidR: Compile Current File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "rapidr.compileAndRun",
+        "title": "RapidR: Compile and Run",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "rapidr.compileToExe",
+        "title": "RapidR: Build Standalone Executable"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "rapidr.compile",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "editorLangId == rapidr"
+      },
+      {
+        "command": "rapidr.compileAndRun",
+        "key": "f5",
+        "mac": "f5",
+        "when": "editorLangId == rapidr"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "rapidr.compileAndRun",
+          "when": "editorLangId == rapidr",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "RapidR",
+      "properties": {
+        "rapidr.compilerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to compile.py. Leave empty to auto-detect from workspace."
+        },
+        "rapidr.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python 3 interpreter."
+        },
+        "rapidr.runAfterCompile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run the compiled file after compilation."
+        },
+        "rapidr.encoding": {
+          "type": "string",
+          "default": "utf-8",
+          "enum": [
+            "utf-8",
+            "latin-1"
+          ],
+          "description": "Source file encoding for the compiler."
+        }
+      }
+    }
+  }
+}

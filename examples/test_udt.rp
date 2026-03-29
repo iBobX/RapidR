@@ -1,0 +1,19 @@
+$TYPECHECK ON
+
+TYPE Rect
+    Left AS INTEGER
+    Top AS INTEGER
+    Right AS INTEGER
+    Bottom AS INTEGER
+    Names(2) AS STRING
+END TYPE
+
+DIM r AS Rect
+r.Left = 10
+r.Top = 20
+r.Right = 100
+r.Bottom = 200
+r.Names(1) = "First"
+
+PRINT "Rect: ", r.Left, " to ", r.Right
+PRINT "String: ", r.Names(1)

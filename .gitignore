@@ -1,0 +1,12 @@
+.DS_Store
+.vscode
+*.bak
+*_old.*
+*.db
+examples/*.db
+examples/*_rust
+examples/_ide_output
+examples/_ide_output.rp
+examples/_ide_errors.json
+utilities/vscodeext/rapidr/*.vsix
+target

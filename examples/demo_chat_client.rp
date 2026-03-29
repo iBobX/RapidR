@@ -1,0 +1,31 @@
+' ── RapidR Chat Client Demo ──
+' Simple TCP client that connects to the chat server
+$APPTYPE CONSOLE
+
+DIM sock AS RSocket
+
+sock.host = "127.0.0.1"
+sock.port = 9999
+
+PRINT "Connecting to chat server..."
+IF sock.connect THEN
+    PRINT "Connected! Type messages (blank line to quit):"
+    ' Read welcome message
+    DIM welcome AS STRING
+    welcome = sock.read
+    PRINT welcome
+
+    DO
+        INPUT "> ", msg$
+        IF msg$ = "" THEN EXIT DO
+        sock.writeline msg$
+        DIM response AS STRING
+        response = sock.read
+        IF response <> "" THEN PRINT response
+    LOOP
+
+    sock.close
+    PRINT "Disconnected."
+ELSE
+    PRINT "Failed to connect!"
+END IF

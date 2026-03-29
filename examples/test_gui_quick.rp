@@ -1,0 +1,72 @@
+$TYPECHECK ON
+
+DIM MainForm AS RForm
+DIM Btn1 AS RButton
+DIM Btn2 AS RButton
+DIM Label1 AS RLabel
+DIM Edit1 AS REdit
+DIM ListBox1 AS RListBox
+DIM Timer1 AS RTimer
+DIM TickCount AS INTEGER
+TickCount = 0
+
+SUB OnBtn1Click
+    Label1.Caption = "Button 1 clicked!"
+END SUB
+
+SUB OnBtn2Click
+    Label1.Caption = "Button 2 clicked!"
+    ListBox1.AddItem "Item " + STR$(TickCount)
+END SUB
+
+SUB OnTick
+    TickCount = TickCount + 1
+    Label1.Caption = "Timer tick: " + STR$(TickCount)
+END SUB
+
+CREATE MainForm AS RForm
+    Caption = "GUI Quick Test"
+    Width = 500
+    Height = 400
+    CREATE Btn1 AS RButton
+        Left = 20
+        Top = 20
+        Width = 120
+        Height = 30
+        Caption = "Click Me"
+    END CREATE
+    CREATE Btn2 AS RButton
+        Left = 160
+        Top = 20
+        Width = 120
+        Height = 30
+        Caption = "Add Item"
+    END CREATE
+    CREATE Label1 AS RLabel
+        Left = 20
+        Top = 70
+        Width = 300
+        Height = 25
+        Caption = "Waiting for input..."
+    END CREATE
+    CREATE Edit1 AS REdit
+        Left = 20
+        Top = 100
+        Width = 300
+        Height = 25
+        Text = "Type here"
+    END CREATE
+    CREATE ListBox1 AS RListBox
+        Left = 20
+        Top = 140
+        Width = 300
+        Height = 200
+    END CREATE
+END CREATE
+
+Btn1.OnClick = OnBtn1Click
+Btn2.OnClick = OnBtn2Click
+Timer1.Interval = 1000
+Timer1.OnTimer = OnTick
+Timer1.Enabled = 1
+MainForm.ShowModal

@@ -1,0 +1,46 @@
+{
+  "comments": {
+    "lineComment": "'",
+    "blockComment": null
+  },
+  "brackets": [
+    ["(", ")"]
+  ],
+  "autoClosingPairs": [
+    { "open": "(", "close": ")" },
+    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] }
+  ],
+  "surroundingPairs": [
+    ["(", ")"],
+    ["\"", "\""]
+  ],
+  "folding": {
+    "markers": {
+      "start": "(?i)^\\s*(IF\\b.*\\bTHEN\\s*$|FOR\\b|WHILE\\b|DO\\b|SUB\\b|FUNCTION\\b|SELECT\\s+CASE\\b|TYPE\\b|CREATE\\b|WITH\\b|\\$IFDEF\\b|\\$IFNDEF\\b)",
+      "end": "(?i)^\\s*(END\\s+IF|NEXT\\b|WEND\\b|LOOP\\b|END\\s+SUB|END\\s+FUNCTION|END\\s+SELECT|END\\s+TYPE|END\\s+CREATE|END\\s+WITH|\\$ENDIF\\b)"
+    }
+  },
+  "wordPattern": "[A-Za-z_][A-Za-z0-9_]*[\\$%#&!]?",
+  "indentationRules": {
+    "increaseIndentPattern": "(?i)^\\s*(IF\\b.*\\bTHEN\\s*$|ELSE\\b|ELSEIF\\b.*\\bTHEN\\s*$|FOR\\b|WHILE\\b|DO\\b|SUB\\b|FUNCTION\\b|SELECT\\s+CASE\\b|CASE\\b|TYPE\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b)",
+    "decreaseIndentPattern": "(?i)^\\s*(END\\s+IF|ELSE\\b|ELSEIF\\b|NEXT\\b|WEND\\b|LOOP\\b|END\\s+SUB|END\\s+FUNCTION|END\\s+SELECT|END\\s+TYPE|END\\s+CREATE|END\\s+WITH|END\\s+CONSTRUCTOR|CASE\\b)"
+  },
+  "onEnterRules": [
+    {
+      "beforeText": "(?i)^\\s*(IF\\b.*\\bTHEN)\\s*$",
+      "action": { "indent": "indent" }
+    },
+    {
+      "beforeText": "(?i)^\\s*(FOR\\b|WHILE\\b|DO\\b|SUB\\b|FUNCTION\\b|SELECT\\s+CASE\\b|TYPE\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b)",
+      "action": { "indent": "indent" }
+    },
+    {
+      "beforeText": "(?i)^\\s*(ELSE|ELSEIF\\b.*\\bTHEN)\\s*$",
+      "action": { "indent": "indent" }
+    },
+    {
+      "beforeText": "(?i)^\\s*CASE\\b",
+      "action": { "indent": "indent" }
+    }
+  ]
+}

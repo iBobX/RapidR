@@ -1,0 +1,1828 @@
+' ============================================================
+' RapidR Visual IDE
+' Enhanced: all component types, database events, full support
+' ============================================================
+
+' --- Global State ---
+DIM SelIndex AS INTEGER      ' 0 = Form selected, 1+ = component (1-based)
+DIM ShowingCode AS INTEGER
+DIM SyncGuard AS INTEGER
+DIM CurrentTool AS STRING
+DIM ProjectFile AS STRING
+
+' --- Component counters for naming ---
+DIM BtnCount AS INTEGER
+DIM LblCount AS INTEGER
+DIM EdtCount AS INTEGER
+DIM ChkCount AS INTEGER
+DIM CmbCount AS INTEGER
+DIM PnlCount AS INTEGER
+DIM RadCount AS INTEGER
+DIM LstCount AS INTEGER
+DIM GrpCount AS INTEGER
+DIM PrgCount AS INTEGER
+DIM TmrCount AS INTEGER
+DIM RchCount AS INTEGER
+DIM MySqlCount AS INTEGER
+DIM SQLiteCount AS INTEGER
+DIM CnvCount AS INTEGER
+DIM TrvCount AS INTEGER
+DIM ImgCount AS INTEGER
+DIM TrkCount AS INTEGER
+DIM SplCount AS INTEGER
+DIM SgdCount AS INTEGER
+DIM SbxCount AS INTEGER
+
+' --- Form events ---
+DIM FormOnShow AS STRING
+DIM FormOnClose AS STRING
+DIM FormOnResize AS STRING
+DIM FormOnKeyDown AS STRING
+DIM FormOnKeyPress AS STRING
+DIM FormOnKeyUp AS STRING
+DIM FormOnClick AS STRING
+DIM FormOnMouseDown AS STRING
+DIM FormOnMouseMove AS STRING
+DIM FormOnMouseUp AS STRING
+DIM FormOnPaint AS STRING
+
+' --- Component event arrays (max 80) ---
+DIM EvtOnClick(80) AS STRING
+DIM EvtOnDblClick(80) AS STRING
+DIM EvtOnChange(80) AS STRING
+DIM EvtOnMouseDown(80) AS STRING
+DIM EvtOnMouseMove(80) AS STRING
+DIM EvtOnMouseUp(80) AS STRING
+DIM EvtOnKeyDown(80) AS STRING
+DIM EvtOnKeyPress(80) AS STRING
+DIM EvtOnKeyUp(80) AS STRING
+DIM EvtOnTimer(80) AS STRING
+DIM EvtOnPaint(80) AS STRING
+DIM EvtOnEnter(80) AS STRING
+DIM EvtOnConnect(80) AS STRING
+DIM EvtOnDisconnect(80) AS STRING
+DIM EvtOnError(80) AS STRING
+DIM EvtOnQueryDone(80) AS STRING
+
+' --- Design surface size ---
+CONST DESIGN_W = 640
+CONST DESIGN_H = 480
+
+' --- IDE Widgets ---
+DIM IDE AS RFORM
+DIM MainMenu AS RMAINMENU
+DIM FileMenu AS RMENUITEM
+DIM NewItem AS RMENUITEM
+DIM SaveItem AS RMENUITEM
+DIM ExitItem AS RMENUITEM
+DIM RunMenu AS RMENUITEM
+DIM CodeItem AS RMENUITEM
+DIM RunItem AS RMENUITEM
+DIM BytecodeItem AS RMENUITEM
+DIM StandaloneItem AS RMENUITEM
+
+' --- Toolbar ---
+DIM ToolPanel AS RPANEL
+DIM ActionPanel AS RPANEL
+
+' --- Toolbar row 1: Standard ---
+DIM BtnPointer AS RBUTTON
+DIM BtnAddLabel AS RBUTTON
+DIM BtnAddEdit AS RBUTTON
+DIM BtnAddButton AS RBUTTON
+DIM BtnAddCheck AS RBUTTON
+DIM BtnAddCombo AS RBUTTON
+DIM BtnAddPanel AS RBUTTON
+DIM BtnAddRadio AS RBUTTON
+DIM BtnAddList AS RBUTTON
+DIM BtnAddGroup AS RBUTTON
+
+' --- Toolbar row 2: Advanced ---
+DIM BtnAddProgress AS RBUTTON
+DIM BtnAddTimer AS RBUTTON
+DIM BtnAddRichEdit AS RBUTTON
+DIM BtnAddCanvas AS RBUTTON
+DIM BtnAddTreeView AS RBUTTON
+DIM BtnAddImage AS RBUTTON
+DIM BtnAddTrackBar AS RBUTTON
+DIM BtnAddSplitter AS RBUTTON
+DIM BtnAddStringGrid AS RBUTTON
+DIM BtnAddScrollBox AS RBUTTON
+
+' --- Toolbar row 3: Database ---
+DIM BtnAddMySQL AS RBUTTON
+DIM BtnAddSQLite AS RBUTTON
+
+' --- Action Buttons ---
+DIM BtnDelete AS RBUTTON
+DIM BtnSave AS RBUTTON
+DIM BtnRun AS RBUTTON
+DIM BtnCode AS RBUTTON
+DIM BtnStandalone AS RBUTTON
+
+' --- Properties Panel ---
+DIM ObjCombo AS RCOMBOBOX
+DIM PropEvtTabs AS RTABCONTROL
+DIM PropGrid AS RSTRINGGRID
+DIM EvtGrid AS RSTRINGGRID
+
+' --- Design Surface ---
+DIM DesignSurface AS RDESIGNSURFACE
+
+' --- Code Editor & Status ---
+DIM CodeEditor AS RCODEEDITOR
+DIM StatusBar AS RLABEL
+DIM ErrorList AS RLISTBOX
+DIM ErrorLines(100) AS INTEGER
+DIM ErrorCount AS INTEGER
+DIM SaveDlg AS RSAVEDIALOG
+DIM ColorDlg AS RCOLORDIALOG
+DIM FontDlg AS RFONTDIALOG
+
+' ============================================================
+' HELPER FUNCTIONS
+' ============================================================
+
+FUNCTION SnapToGrid(V AS INTEGER) AS INTEGER
+    SnapToGrid = INT((V + 4) / 8) * 8
+END FUNCTION
+
+FUNCTION DefaultWidth(CompType AS STRING) AS INTEGER
+    DIM CT AS STRING
+    CT = UCASE$(CompType)
+    IF CT = "RBUTTON" THEN DefaultWidth = 80 : EXIT FUNCTION
+    IF CT = "RLABEL" THEN DefaultWidth = 100 : EXIT FUNCTION
+    IF CT = "REDIT" THEN DefaultWidth = 120 : EXIT FUNCTION
+    IF CT = "RCHECKBOX" THEN DefaultWidth = 100 : EXIT FUNCTION
+    IF CT = "RCOMBOBOX" THEN DefaultWidth = 120 : EXIT FUNCTION
+    IF CT = "RPANEL" THEN DefaultWidth = 200 : EXIT FUNCTION
+    IF CT = "RRADIOBUTTON" THEN DefaultWidth = 100 : EXIT FUNCTION
+    IF CT = "RLISTBOX" THEN DefaultWidth = 120 : EXIT FUNCTION
+    IF CT = "RGROUPBOX" THEN DefaultWidth = 200 : EXIT FUNCTION
+    IF CT = "RPROGRESSBAR" THEN DefaultWidth = 150 : EXIT FUNCTION
+    IF CT = "RTIMER" THEN DefaultWidth = 32 : EXIT FUNCTION
+    IF CT = "RRICHEDIT" THEN DefaultWidth = 200 : EXIT FUNCTION
+    IF CT = "RCANVAS" THEN DefaultWidth = 200 : EXIT FUNCTION
+    IF CT = "RMYSQL" THEN DefaultWidth = 48 : EXIT FUNCTION
+    IF CT = "RSQLITE" THEN DefaultWidth = 48 : EXIT FUNCTION
+    IF CT = "RTREEVIEW" THEN DefaultWidth = 150 : EXIT FUNCTION
+    IF CT = "RIMAGE" THEN DefaultWidth = 100 : EXIT FUNCTION
+    IF CT = "RTRACKBAR" THEN DefaultWidth = 150 : EXIT FUNCTION
+    IF CT = "RSPLITTER" THEN DefaultWidth = 300 : EXIT FUNCTION
+    IF CT = "RSTRINGGRID" THEN DefaultWidth = 200 : EXIT FUNCTION
+    IF CT = "RSCROLLBOX" THEN DefaultWidth = 200 : EXIT FUNCTION
+    DefaultWidth = 100
+END FUNCTION
+
+FUNCTION DefaultHeight(CompType AS STRING) AS INTEGER
+    DIM CT AS STRING
+    CT = UCASE$(CompType)
+    IF CT = "RBUTTON" THEN DefaultHeight = 30 : EXIT FUNCTION
+    IF CT = "RLABEL" THEN DefaultHeight = 20 : EXIT FUNCTION
+    IF CT = "REDIT" THEN DefaultHeight = 24 : EXIT FUNCTION
+    IF CT = "RCHECKBOX" THEN DefaultHeight = 24 : EXIT FUNCTION
+    IF CT = "RCOMBOBOX" THEN DefaultHeight = 24 : EXIT FUNCTION
+    IF CT = "RPANEL" THEN DefaultHeight = 150 : EXIT FUNCTION
+    IF CT = "RRADIOBUTTON" THEN DefaultHeight = 24 : EXIT FUNCTION
+    IF CT = "RLISTBOX" THEN DefaultHeight = 100 : EXIT FUNCTION
+    IF CT = "RGROUPBOX" THEN DefaultHeight = 150 : EXIT FUNCTION
+    IF CT = "RPROGRESSBAR" THEN DefaultHeight = 20 : EXIT FUNCTION
+    IF CT = "RTIMER" THEN DefaultHeight = 32 : EXIT FUNCTION
+    IF CT = "RRICHEDIT" THEN DefaultHeight = 120 : EXIT FUNCTION
+    IF CT = "RCANVAS" THEN DefaultHeight = 150 : EXIT FUNCTION
+    IF CT = "RMYSQL" THEN DefaultHeight = 48 : EXIT FUNCTION
+    IF CT = "RSQLITE" THEN DefaultHeight = 48 : EXIT FUNCTION
+    IF CT = "RTREEVIEW" THEN DefaultHeight = 150 : EXIT FUNCTION
+    IF CT = "RIMAGE" THEN DefaultHeight = 100 : EXIT FUNCTION
+    IF CT = "RTRACKBAR" THEN DefaultHeight = 25 : EXIT FUNCTION
+    IF CT = "RSPLITTER" THEN DefaultHeight = 200 : EXIT FUNCTION
+    IF CT = "RSTRINGGRID" THEN DefaultHeight = 120 : EXIT FUNCTION
+    IF CT = "RSCROLLBOX" THEN DefaultHeight = 150 : EXIT FUNCTION
+    DefaultHeight = 30
+END FUNCTION
+
+FUNCTION GenerateCompName(CompType AS STRING) AS STRING
+    DIM CT AS STRING
+    CT = UCASE$(CompType)
+    IF CT = "RBUTTON" THEN BtnCount = BtnCount + 1 : GenerateCompName = "Button" + STR$(BtnCount) : EXIT FUNCTION
+    IF CT = "RLABEL" THEN LblCount = LblCount + 1 : GenerateCompName = "Label" + STR$(LblCount) : EXIT FUNCTION
+    IF CT = "REDIT" THEN EdtCount = EdtCount + 1 : GenerateCompName = "Edit" + STR$(EdtCount) : EXIT FUNCTION
+    IF CT = "RCHECKBOX" THEN ChkCount = ChkCount + 1 : GenerateCompName = "CheckBox" + STR$(ChkCount) : EXIT FUNCTION
+    IF CT = "RCOMBOBOX" THEN CmbCount = CmbCount + 1 : GenerateCompName = "ComboBox" + STR$(CmbCount) : EXIT FUNCTION
+    IF CT = "RPANEL" THEN PnlCount = PnlCount + 1 : GenerateCompName = "Panel" + STR$(PnlCount) : EXIT FUNCTION
+    IF CT = "RRADIOBUTTON" THEN RadCount = RadCount + 1 : GenerateCompName = "Radio" + STR$(RadCount) : EXIT FUNCTION
+    IF CT = "RLISTBOX" THEN LstCount = LstCount + 1 : GenerateCompName = "ListBox" + STR$(LstCount) : EXIT FUNCTION
+    IF CT = "RGROUPBOX" THEN GrpCount = GrpCount + 1 : GenerateCompName = "GroupBox" + STR$(GrpCount) : EXIT FUNCTION
+    IF CT = "RPROGRESSBAR" THEN PrgCount = PrgCount + 1 : GenerateCompName = "ProgressBar" + STR$(PrgCount) : EXIT FUNCTION
+    IF CT = "RTIMER" THEN TmrCount = TmrCount + 1 : GenerateCompName = "Timer" + STR$(TmrCount) : EXIT FUNCTION
+    IF CT = "RRICHEDIT" THEN RchCount = RchCount + 1 : GenerateCompName = "RichEdit" + STR$(RchCount) : EXIT FUNCTION
+    IF CT = "RCANVAS" THEN CnvCount = CnvCount + 1 : GenerateCompName = "Canvas" + STR$(CnvCount) : EXIT FUNCTION
+    IF CT = "RMYSQL" THEN MySqlCount = MySqlCount + 1 : GenerateCompName = "MySQL" + STR$(MySqlCount) : EXIT FUNCTION
+    IF CT = "RSQLITE" THEN SQLiteCount = SQLiteCount + 1 : GenerateCompName = "SQLite" + STR$(SQLiteCount) : EXIT FUNCTION
+    IF CT = "RTREEVIEW" THEN TrvCount = TrvCount + 1 : GenerateCompName = "TreeView" + STR$(TrvCount) : EXIT FUNCTION
+    IF CT = "RIMAGE" THEN ImgCount = ImgCount + 1 : GenerateCompName = "Image" + STR$(ImgCount) : EXIT FUNCTION
+    IF CT = "RTRACKBAR" THEN TrkCount = TrkCount + 1 : GenerateCompName = "TrackBar" + STR$(TrkCount) : EXIT FUNCTION
+    IF CT = "RSPLITTER" THEN SplCount = SplCount + 1 : GenerateCompName = "Splitter" + STR$(SplCount) : EXIT FUNCTION
+    IF CT = "RSTRINGGRID" THEN SgdCount = SgdCount + 1 : GenerateCompName = "StringGrid" + STR$(SgdCount) : EXIT FUNCTION
+    IF CT = "RSCROLLBOX" THEN SbxCount = SbxCount + 1 : GenerateCompName = "ScrollBox" + STR$(SbxCount) : EXIT FUNCTION
+    GenerateCompName = "Component1"
+END FUNCTION
+
+FUNCTION GetEventParams(EvtName AS STRING) AS STRING
+    DIM UE AS STRING
+    UE = UCASE$(EvtName)
+    IF UE = "ONMOUSEDOWN" OR UE = "ONMOUSEUP" THEN
+        GetEventParams = "(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)"
+        EXIT FUNCTION
+    END IF
+    IF UE = "ONMOUSEMOVE" THEN
+        GetEventParams = "(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)"
+        EXIT FUNCTION
+    END IF
+    IF UE = "ONKEYDOWN" OR UE = "ONKEYUP" THEN
+        GetEventParams = "(Key AS WORD, Shift AS INTEGER)"
+        EXIT FUNCTION
+    END IF
+    IF UE = "ONKEYPRESS" THEN
+        GetEventParams = "(Key AS BYTE)"
+        EXIT FUNCTION
+    END IF
+    IF UE = "ONCLOSE" THEN
+        GetEventParams = "(Action AS INTEGER)"
+        EXIT FUNCTION
+    END IF
+    IF UE = "ONERROR" THEN
+        GetEventParams = "(ErrMsg AS STRING)"
+        EXIT FUNCTION
+    END IF
+    GetEventParams = ""
+END FUNCTION
+
+FUNCTION GetDefaultEvent(CompType AS STRING) AS STRING
+    DIM CT AS STRING
+    CT = UCASE$(CompType)
+    IF CT = "RBUTTON" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RLABEL" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "REDIT" THEN GetDefaultEvent = "OnChange" : EXIT FUNCTION
+    IF CT = "RCHECKBOX" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RCOMBOBOX" THEN GetDefaultEvent = "OnChange" : EXIT FUNCTION
+    IF CT = "RPANEL" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RRADIOBUTTON" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RLISTBOX" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RGROUPBOX" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RTIMER" THEN GetDefaultEvent = "OnTimer" : EXIT FUNCTION
+    IF CT = "RRICHEDIT" THEN GetDefaultEvent = "OnChange" : EXIT FUNCTION
+    IF CT = "RCANVAS" THEN GetDefaultEvent = "OnPaint" : EXIT FUNCTION
+    IF CT = "RPROGRESSBAR" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RTREEVIEW" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RIMAGE" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RTRACKBAR" THEN GetDefaultEvent = "OnChange" : EXIT FUNCTION
+    IF CT = "RMYSQL" THEN GetDefaultEvent = "OnConnect" : EXIT FUNCTION
+    IF CT = "RSQLITE" THEN GetDefaultEvent = "OnConnect" : EXIT FUNCTION
+    IF CT = "RSTRINGGRID" THEN GetDefaultEvent = "OnChange" : EXIT FUNCTION
+    IF CT = "RSPLITTER" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    IF CT = "RSCROLLBOX" THEN GetDefaultEvent = "OnClick" : EXIT FUNCTION
+    GetDefaultEvent = ""
+END FUNCTION
+
+FUNCTION ExtractSub(Source AS STRING, SubName AS STRING) AS STRING
+    DIM NL AS STRING
+    DIM SLine AS STRING
+    DIM Remaining AS STRING
+    DIM Pos AS INTEGER
+    DIM InSub AS INTEGER
+    DIM Body AS STRING
+    DIM UCLine AS STRING
+
+    NL = CHR$(10)
+    ExtractSub = ""
+    Remaining = Source
+    InSub = 0
+    Body = ""
+
+    DO WHILE LEN(Remaining) > 0
+        Pos = INSTR(Remaining, NL)
+        IF Pos > 0 THEN
+            SLine = LEFT$(Remaining, Pos - 1)
+            Remaining = MID$(Remaining, Pos + 1)
+        ELSE
+            SLine = Remaining
+            Remaining = ""
+        END IF
+        UCLine = UCASE$(LTRIM$(SLine))
+        IF InSub = 0 THEN
+            IF LEFT$(UCLine, 4) = "SUB " AND INSTR(UCASE$(SLine), UCASE$(SubName)) > 0 THEN
+                InSub = 1
+                Body = SLine + NL
+            END IF
+        ELSE
+            Body = Body + SLine + NL
+            IF UCLine = "END SUB" THEN
+                ExtractSub = Body
+                EXIT FUNCTION
+            END IF
+        END IF
+    LOOP
+END FUNCTION
+
+FUNCTION GenerateSubCode(ExistingCode AS STRING, HandlerName AS STRING, CompName AS STRING, EvtName AS STRING) AS STRING
+    DIM NL AS STRING
+    DIM Existing AS STRING
+    DIM Params AS STRING
+    NL = CHR$(10)
+    Existing = ExtractSub(ExistingCode, HandlerName)
+    IF Existing <> "" THEN
+        GenerateSubCode = Existing + NL
+    ELSE
+        Params = GetEventParams(EvtName)
+        GenerateSubCode = "SUB " + HandlerName + Params + NL + "    ' TODO: Handle " + CompName + " " + EvtName + NL + "END SUB" + NL + NL
+    END IF
+END FUNCTION
+
+' ============================================================
+' UPDATE OBJECT COMBO
+' ============================================================
+SUB UpdateObjCombo
+    DIM I AS INTEGER
+    ObjCombo.Clear
+    ObjCombo.AddItems("Form1")
+    FOR I = 0 TO DesignSurface.CompCount - 1
+        ObjCombo.AddItems(DesignSurface.GetName(I))
+    NEXT I
+    IF SelIndex = 0 THEN
+        ObjCombo.ItemIndex = 0
+    ELSEIF SelIndex > 0 AND SelIndex <= DesignSurface.CompCount THEN
+        ObjCombo.ItemIndex = SelIndex
+    END IF
+END SUB
+
+' ============================================================
+' UPDATE EVENT SUGGESTIONS
+' ============================================================
+SUB UpdateEventSuggestions
+    DIM SubNames AS STRING
+    SubNames = CodeEditor.GetSubList
+    EvtGrid.SetSuggestions(SubNames)
+END SUB
+
+' ============================================================
+' SAVE EVENTS
+' ============================================================
+SUB SaveEvents
+    DIM I AS INTEGER
+    DIM R AS INTEGER
+
+    IF SelIndex = 0 THEN
+        FOR R = 0 TO EvtGrid.Rows - 1
+            DIM FEvt AS STRING
+            FEvt = UCASE$(EvtGrid.Cell(R, 0))
+            IF FEvt = "ONSHOW" THEN FormOnShow = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONCLOSE" THEN FormOnClose = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONRESIZE" THEN FormOnResize = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONKEYDOWN" THEN FormOnKeyDown = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONKEYPRESS" THEN FormOnKeyPress = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONKEYUP" THEN FormOnKeyUp = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONCLICK" THEN FormOnClick = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONMOUSEDOWN" THEN FormOnMouseDown = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONMOUSEMOVE" THEN FormOnMouseMove = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONMOUSEUP" THEN FormOnMouseUp = EvtGrid.Cell(R, 1)
+            IF FEvt = "ONPAINT" THEN FormOnPaint = EvtGrid.Cell(R, 1)
+        NEXT R
+    ELSEIF SelIndex >= 1 AND SelIndex <= DesignSurface.CompCount THEN
+        I = SelIndex
+        FOR R = 0 TO EvtGrid.Rows - 1
+            DIM EName AS STRING
+            EName = UCASE$(EvtGrid.Cell(R, 0))
+            IF EName = "ONCLICK" THEN EvtOnClick(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONDBLCLICK" THEN EvtOnDblClick(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONCHANGE" THEN EvtOnChange(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONMOUSEDOWN" THEN EvtOnMouseDown(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONMOUSEMOVE" THEN EvtOnMouseMove(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONMOUSEUP" THEN EvtOnMouseUp(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONKEYDOWN" THEN EvtOnKeyDown(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONKEYPRESS" THEN EvtOnKeyPress(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONKEYUP" THEN EvtOnKeyUp(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONTIMER" THEN EvtOnTimer(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONPAINT" THEN EvtOnPaint(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONENTER" THEN EvtOnEnter(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONCONNECT" THEN EvtOnConnect(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONDISCONNECT" THEN EvtOnDisconnect(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONERROR" THEN EvtOnError(I) = EvtGrid.Cell(R, 1)
+            IF EName = "ONQUERYDONE" THEN EvtOnQueryDone(I) = EvtGrid.Cell(R, 1)
+        NEXT R
+    END IF
+END SUB
+
+' ============================================================
+' FILL PROPERTIES
+' ============================================================
+SUB FillProperties
+    DIM R AS INTEGER
+    DIM CT AS STRING
+    DIM CI AS INTEGER
+
+    SyncGuard = 1
+    PropGrid.Clear
+
+    IF SelIndex = 0 THEN
+        PropGrid.AddRow("(Name)", "Form1")
+        PropGrid.AddRow("Caption", "Form1")
+        PropGrid.AddRow("Width", STR$(DESIGN_W))
+        PropGrid.AddRow("Height", STR$(DESIGN_H))
+        PropGrid.AddRow("BorderStyle", "2")
+        PropGrid.AddRow("Color", "")
+        PropGrid.AddRow("Font.Name", "Helvetica")
+        PropGrid.AddRow("Font.Size", "9")
+        PropGrid.AddRow("Font.Bold", "False")
+        PropGrid.AddRow("KeyPreview", "False")
+        SyncGuard = 0
+        EXIT SUB
+    END IF
+
+    CI = SelIndex - 1
+    CT = UCASE$(DesignSurface.GetType(CI))
+
+    PropGrid.AddRow("(Name)", DesignSurface.GetName(CI))
+    PropGrid.AddRow("Left", STR$(DesignSurface.GetCompX(CI)))
+    PropGrid.AddRow("Top", STR$(DesignSurface.GetCompY(CI)))
+    PropGrid.AddRow("Width", STR$(DesignSurface.GetCompW(CI)))
+    PropGrid.AddRow("Height", STR$(DesignSurface.GetCompH(CI)))
+
+    IF CT = "RBUTTON" OR CT = "RLABEL" OR CT = "RCHECKBOX" OR CT = "RRADIOBUTTON" OR CT = "RGROUPBOX" OR CT = "RPANEL" THEN
+        PropGrid.AddRow("Caption", DesignSurface.GetProp(CI, "caption"))
+    END IF
+    IF CT = "REDIT" OR CT = "RRICHEDIT" THEN
+        PropGrid.AddRow("Text", DesignSurface.GetProp(CI, "text"))
+    END IF
+
+    IF CT = "RLABEL" THEN
+        DIM AlVal AS STRING
+        AlVal = DesignSurface.GetProp(CI, "alignment")
+        IF AlVal = "" THEN AlVal = "0"
+        PropGrid.AddRow("Alignment", AlVal)
+        PropGrid.AddRow("WordWrap", DesignSurface.GetProp(CI, "wordwrap"))
+    END IF
+
+    IF CT = "RCHECKBOX" OR CT = "RRADIOBUTTON" THEN
+        DIM ChkVal AS STRING
+        ChkVal = DesignSurface.GetProp(CI, "checked")
+        IF ChkVal = "" THEN ChkVal = "False"
+        PropGrid.AddRow("Checked", ChkVal)
+    END IF
+
+    IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" THEN
+        DIM CVal AS STRING
+        CVal = DesignSurface.GetProp(CI, "color")
+        PropGrid.AddRow("Color", CVal)
+    END IF
+
+    IF CT = "RPANEL" OR CT = "REDIT" OR CT = "RLISTBOX" OR CT = "RRICHEDIT" THEN
+        DIM BSVal AS STRING
+        BSVal = DesignSurface.GetProp(CI, "borderstyle")
+        IF BSVal = "" THEN BSVal = "1"
+        PropGrid.AddRow("BorderStyle", BSVal)
+    END IF
+
+    IF CT = "RPANEL" THEN
+        DIM BIVal AS STRING
+        DIM BOVal AS STRING
+        BIVal = DesignSurface.GetProp(CI, "bevelinner")
+        BOVal = DesignSurface.GetProp(CI, "bevelouter")
+        IF BIVal = "" THEN BIVal = "0"
+        IF BOVal = "" THEN BOVal = "2"
+        PropGrid.AddRow("BevelInner", BIVal)
+        PropGrid.AddRow("BevelOuter", BOVal)
+    END IF
+
+    IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" AND CT <> "RPROGRESSBAR" THEN
+        PropGrid.AddRow("Font.Name", DesignSurface.GetProp(CI, "font.name"))
+        PropGrid.AddRow("Font.Size", DesignSurface.GetProp(CI, "font.size"))
+        PropGrid.AddRow("Font.Bold", DesignSurface.GetProp(CI, "font.bold"))
+        PropGrid.AddRow("FontColor", DesignSurface.GetProp(CI, "fontcolor"))
+    END IF
+
+    IF CT = "REDIT" THEN
+        DIM RDVal AS STRING
+        RDVal = DesignSurface.GetProp(CI, "readonly")
+        IF RDVal = "" THEN RDVal = "False"
+        PropGrid.AddRow("ReadOnly", RDVal)
+        PropGrid.AddRow("MaxLength", DesignSurface.GetProp(CI, "maxlength"))
+        PropGrid.AddRow("PasswordChar", DesignSurface.GetProp(CI, "passwordchar"))
+    END IF
+
+    IF CT = "RRICHEDIT" THEN
+        DIM RORch AS STRING
+        RORch = DesignSurface.GetProp(CI, "readonly")
+        IF RORch = "" THEN RORch = "False"
+        PropGrid.AddRow("ReadOnly", RORch)
+        DIM WWVal AS STRING
+        WWVal = DesignSurface.GetProp(CI, "wordwrap")
+        IF WWVal = "" THEN WWVal = "True"
+        PropGrid.AddRow("WordWrap", WWVal)
+        PropGrid.AddRow("ScrollBars", DesignSurface.GetProp(CI, "scrollbars"))
+    END IF
+
+    IF CT = "RLISTBOX" THEN
+        DIM MSVal AS STRING
+        MSVal = DesignSurface.GetProp(CI, "multiselect")
+        IF MSVal = "" THEN MSVal = "False"
+        PropGrid.AddRow("MultiSelect", MSVal)
+        DIM SortVal AS STRING
+        SortVal = DesignSurface.GetProp(CI, "sorted")
+        IF SortVal = "" THEN SortVal = "False"
+        PropGrid.AddRow("Sorted", SortVal)
+    END IF
+
+    IF CT = "RCOMBOBOX" THEN
+        PropGrid.AddRow("Sorted", DesignSurface.GetProp(CI, "sorted"))
+    END IF
+
+    IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" THEN
+        PropGrid.AddRow("Enabled", "True")
+        PropGrid.AddRow("Visible", "True")
+    END IF
+
+    IF CT = "RTIMER" THEN
+        PropGrid.AddRow("Interval", DesignSurface.GetProp(CI, "interval"))
+        PropGrid.AddRow("Enabled", "True")
+    END IF
+
+    IF CT = "RMYSQL" THEN
+        PropGrid.AddRow("Host", DesignSurface.GetProp(CI, "host"))
+        PropGrid.AddRow("User", DesignSurface.GetProp(CI, "user"))
+        PropGrid.AddRow("Password", DesignSurface.GetProp(CI, "password"))
+        PropGrid.AddRow("Port", DesignSurface.GetProp(CI, "port"))
+    END IF
+
+    IF CT = "RSQLITE" THEN
+        PropGrid.AddRow("DB", DesignSurface.GetProp(CI, "db"))
+    END IF
+
+    IF CT = "RTRACKBAR" THEN
+        DIM TBMin AS STRING
+        DIM TBMax AS STRING
+        DIM TBPos AS STRING
+        TBMin = DesignSurface.GetProp(CI, "min")
+        TBMax = DesignSurface.GetProp(CI, "max")
+        TBPos = DesignSurface.GetProp(CI, "position")
+        IF TBMin = "" THEN TBMin = "0"
+        IF TBMax = "" THEN TBMax = "100"
+        IF TBPos = "" THEN TBPos = "0"
+        PropGrid.AddRow("Min", TBMin)
+        PropGrid.AddRow("Max", TBMax)
+        PropGrid.AddRow("Position", TBPos)
+    END IF
+
+    IF CT = "RIMAGE" THEN
+        PropGrid.AddRow("Stretch", DesignSurface.GetProp(CI, "stretch"))
+    END IF
+
+    IF CT = "RSPLITTER" THEN
+        DIM SOr AS STRING
+        SOr = DesignSurface.GetProp(CI, "orientation")
+        IF SOr = "" THEN SOr = "0"
+        PropGrid.AddRow("Orientation", SOr)
+    END IF
+
+    SyncGuard = 0
+END SUB
+
+' ============================================================
+' FILL EVENTS
+' ============================================================
+SUB FillEvents
+    DIM CT AS STRING
+    DIM CI AS INTEGER
+
+    SyncGuard = 1
+    EvtGrid.Clear
+    UpdateEventSuggestions
+
+    IF SelIndex = 0 THEN
+        EvtGrid.AddRow("OnShow", FormOnShow)
+        EvtGrid.AddRow("OnClose", FormOnClose)
+        EvtGrid.AddRow("OnResize", FormOnResize)
+        EvtGrid.AddRow("OnClick", FormOnClick)
+        EvtGrid.AddRow("OnKeyDown", FormOnKeyDown)
+        EvtGrid.AddRow("OnKeyPress", FormOnKeyPress)
+        EvtGrid.AddRow("OnKeyUp", FormOnKeyUp)
+        EvtGrid.AddRow("OnMouseDown", FormOnMouseDown)
+        EvtGrid.AddRow("OnMouseMove", FormOnMouseMove)
+        EvtGrid.AddRow("OnMouseUp", FormOnMouseUp)
+        EvtGrid.AddRow("OnPaint", FormOnPaint)
+        SyncGuard = 0
+        EXIT SUB
+    END IF
+
+    CI = SelIndex - 1
+    CT = UCASE$(DesignSurface.GetType(CI))
+
+    IF CT = "RBUTTON" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+        EvtGrid.AddRow("OnKeyDown", EvtOnKeyDown(SelIndex))
+        EvtGrid.AddRow("OnKeyPress", EvtOnKeyPress(SelIndex))
+        EvtGrid.AddRow("OnKeyUp", EvtOnKeyUp(SelIndex))
+    END IF
+    IF CT = "RLABEL" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+    END IF
+    IF CT = "REDIT" THEN
+        EvtGrid.AddRow("OnChange", EvtOnChange(SelIndex))
+        EvtGrid.AddRow("OnKeyDown", EvtOnKeyDown(SelIndex))
+        EvtGrid.AddRow("OnKeyPress", EvtOnKeyPress(SelIndex))
+        EvtGrid.AddRow("OnKeyUp", EvtOnKeyUp(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+    END IF
+    IF CT = "RCHECKBOX" OR CT = "RRADIOBUTTON" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+    END IF
+    IF CT = "RCOMBOBOX" THEN
+        EvtGrid.AddRow("OnChange", EvtOnChange(SelIndex))
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+    END IF
+    IF CT = "RPANEL" OR CT = "RGROUPBOX" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+    END IF
+    IF CT = "RLISTBOX" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+        EvtGrid.AddRow("OnKeyDown", EvtOnKeyDown(SelIndex))
+        EvtGrid.AddRow("OnKeyPress", EvtOnKeyPress(SelIndex))
+    END IF
+    IF CT = "RTIMER" THEN
+        EvtGrid.AddRow("OnTimer", EvtOnTimer(SelIndex))
+    END IF
+    IF CT = "RRICHEDIT" THEN
+        EvtGrid.AddRow("OnChange", EvtOnChange(SelIndex))
+        EvtGrid.AddRow("OnKeyDown", EvtOnKeyDown(SelIndex))
+        EvtGrid.AddRow("OnKeyPress", EvtOnKeyPress(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+    END IF
+    IF CT = "RCANVAS" THEN
+        EvtGrid.AddRow("OnPaint", EvtOnPaint(SelIndex))
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+    END IF
+    IF CT = "RPROGRESSBAR" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+    END IF
+    IF CT = "RTREEVIEW" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+        EvtGrid.AddRow("OnChange", EvtOnChange(SelIndex))
+    END IF
+    IF CT = "RIMAGE" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(SelIndex))
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(SelIndex))
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(SelIndex))
+    END IF
+    IF CT = "RTRACKBAR" THEN
+        EvtGrid.AddRow("OnChange", EvtOnChange(SelIndex))
+    END IF
+    IF CT = "RSTRINGGRID" THEN
+        EvtGrid.AddRow("OnChange", EvtOnChange(SelIndex))
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(SelIndex))
+    END IF
+    IF CT = "RSPLITTER" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+    END IF
+    IF CT = "RSCROLLBOX" THEN
+        EvtGrid.AddRow("OnClick", EvtOnClick(SelIndex))
+    END IF
+    IF CT = "RMYSQL" OR CT = "RSQLITE" THEN
+        EvtGrid.AddRow("OnConnect", EvtOnConnect(SelIndex))
+        EvtGrid.AddRow("OnDisconnect", EvtOnDisconnect(SelIndex))
+        EvtGrid.AddRow("OnError", EvtOnError(SelIndex))
+        EvtGrid.AddRow("OnQueryDone", EvtOnQueryDone(SelIndex))
+    END IF
+
+    SyncGuard = 0
+END SUB
+
+' ============================================================
+' TOOL SELECTION HANDLERS
+' ============================================================
+
+SUB SetToolPointer
+    CurrentTool = ""
+    StatusBar.Caption = "Pointer - click to select components"
+END SUB
+SUB SetToolLabel
+    CurrentTool = "RLabel"
+    StatusBar.Caption = "Click on form to place RLabel"
+END SUB
+SUB SetToolEdit
+    CurrentTool = "REdit"
+    StatusBar.Caption = "Click on form to place REdit"
+END SUB
+SUB SetToolButton
+    CurrentTool = "RButton"
+    StatusBar.Caption = "Click on form to place RButton"
+END SUB
+SUB SetToolCheck
+    CurrentTool = "RCheckBox"
+    StatusBar.Caption = "Click on form to place RCheckBox"
+END SUB
+SUB SetToolCombo
+    CurrentTool = "RComboBox"
+    StatusBar.Caption = "Click on form to place RComboBox"
+END SUB
+SUB SetToolPanel
+    CurrentTool = "RPanel"
+    StatusBar.Caption = "Click on form to place RPanel"
+END SUB
+SUB SetToolRadio
+    CurrentTool = "RRadioButton"
+    StatusBar.Caption = "Click on form to place RRadioButton"
+END SUB
+SUB SetToolList
+    CurrentTool = "RListBox"
+    StatusBar.Caption = "Click on form to place RListBox"
+END SUB
+SUB SetToolGroup
+    CurrentTool = "RGroupBox"
+    StatusBar.Caption = "Click on form to place RGroupBox"
+END SUB
+SUB SetToolProgress
+    CurrentTool = "RProgressBar"
+    StatusBar.Caption = "Click on form to place RProgressBar"
+END SUB
+SUB SetToolTimer
+    CurrentTool = "RTimer"
+    StatusBar.Caption = "Click on form to place RTimer"
+END SUB
+SUB SetToolRichEdit
+    CurrentTool = "RRichEdit"
+    StatusBar.Caption = "Click on form to place RRichEdit"
+END SUB
+SUB SetToolCanvas
+    CurrentTool = "RCanvas"
+    StatusBar.Caption = "Click on form to place RCanvas"
+END SUB
+SUB SetToolMySQL
+    CurrentTool = "RMySQL"
+    StatusBar.Caption = "Click on form to place RMySQL"
+END SUB
+SUB SetToolSQLite
+    CurrentTool = "RSQLite"
+    StatusBar.Caption = "Click on form to place RSQLite"
+END SUB
+SUB SetToolTreeView
+    CurrentTool = "RTreeView"
+    StatusBar.Caption = "Click on form to place RTreeView"
+END SUB
+SUB SetToolImage
+    CurrentTool = "RImage"
+    StatusBar.Caption = "Click on form to place RImage"
+END SUB
+SUB SetToolTrackBar
+    CurrentTool = "RTrackBar"
+    StatusBar.Caption = "Click on form to place RTrackBar"
+END SUB
+SUB SetToolSplitter
+    CurrentTool = "RSplitter"
+    StatusBar.Caption = "Click on form to place RSplitter"
+END SUB
+SUB SetToolStringGrid
+    CurrentTool = "RStringGrid"
+    StatusBar.Caption = "Click on form to place RStringGrid"
+END SUB
+SUB SetToolScrollBox
+    CurrentTool = "RScrollBox"
+    StatusBar.Caption = "Click on form to place RScrollBox"
+END SUB
+
+' ============================================================
+' DESIGN SURFACE CALLBACKS
+' ============================================================
+
+SUB DesignSelect(Index AS INTEGER)
+    IF Index < 0 THEN
+        SelIndex = 0
+    ELSE
+        SelIndex = Index + 1
+    END IF
+    FillProperties
+    FillEvents
+    UpdateObjCombo
+    IF SelIndex = 0 THEN
+        StatusBar.Caption = "Form1 selected"
+    ELSE
+        StatusBar.Caption = DesignSurface.GetName(Index) + " selected"
+    END IF
+END SUB
+
+SUB DesignMove(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)
+    IF SelIndex = Index + 1 THEN
+        SyncGuard = 1
+        FillProperties
+        SyncGuard = 0
+    END IF
+END SUB
+
+SUB DesignDblClick(Index AS INTEGER)
+    DIM CT AS STRING
+    DIM CName AS STRING
+    DIM DefEvt AS STRING
+    DIM HandlerName AS STRING
+    DIM SI AS INTEGER
+
+    SI = Index + 1
+    CT = DesignSurface.GetType(Index)
+    CName = DesignSurface.GetName(Index)
+    DefEvt = GetDefaultEvent(CT)
+    IF DefEvt = "" THEN EXIT SUB
+
+    HandlerName = CName + "_" + DefEvt
+
+    DIM UEvt AS STRING
+    UEvt = UCASE$(DefEvt)
+    IF UEvt = "ONCLICK" THEN
+        IF EvtOnClick(SI) <> "" THEN
+            HandlerName = EvtOnClick(SI)
+        ELSE
+            EvtOnClick(SI) = HandlerName
+        END IF
+    END IF
+    IF UEvt = "ONCHANGE" THEN
+        IF EvtOnChange(SI) <> "" THEN
+            HandlerName = EvtOnChange(SI)
+        ELSE
+            EvtOnChange(SI) = HandlerName
+        END IF
+    END IF
+    IF UEvt = "ONTIMER" THEN
+        IF EvtOnTimer(SI) <> "" THEN
+            HandlerName = EvtOnTimer(SI)
+        ELSE
+            EvtOnTimer(SI) = HandlerName
+        END IF
+    END IF
+    IF UEvt = "ONPAINT" THEN
+        IF EvtOnPaint(SI) <> "" THEN
+            HandlerName = EvtOnPaint(SI)
+        ELSE
+            EvtOnPaint(SI) = HandlerName
+        END IF
+    END IF
+    IF UEvt = "ONCONNECT" THEN
+        IF EvtOnConnect(SI) <> "" THEN
+            HandlerName = EvtOnConnect(SI)
+        ELSE
+            EvtOnConnect(SI) = HandlerName
+        END IF
+    END IF
+
+    GenerateCode
+
+    DesignSurface.Hide
+    CodeEditor.Visible = 1
+    ShowingCode = 1
+    FillEvents
+
+    CodeEditor.GotoSub(HandlerName)
+    StatusBar.Caption = "Editing: " + HandlerName
+END SUB
+
+SUB DesignBgClick(X AS INTEGER, Y AS INTEGER)
+    IF CurrentTool <> "" THEN
+        DIM CName AS STRING
+        DIM SX AS INTEGER
+        DIM SY AS INTEGER
+        DIM DW AS INTEGER
+        DIM DH AS INTEGER
+        SX = SnapToGrid(X)
+        SY = SnapToGrid(Y)
+        DW = DefaultWidth(CurrentTool)
+        DH = DefaultHeight(CurrentTool)
+        CName = GenerateCompName(CurrentTool)
+        DesignSurface.AddComponent(CurrentTool, CName, SX, SY, DW, DH)
+        SelIndex = DesignSurface.CompCount
+        DesignSurface.SelectComp(SelIndex - 1)
+        DIM CI AS INTEGER
+        CI = SelIndex - 1
+        DesignSurface.SetProp(CI, "caption", CName)
+        IF UCASE$(CurrentTool) = "RTIMER" THEN
+            DesignSurface.SetProp(CI, "interval", "1000")
+        END IF
+        IF UCASE$(CurrentTool) = "RMYSQL" THEN
+            DesignSurface.SetProp(CI, "host", "localhost")
+            DesignSurface.SetProp(CI, "user", "root")
+            DesignSurface.SetProp(CI, "password", "")
+            DesignSurface.SetProp(CI, "port", "3306")
+        END IF
+        IF UCASE$(CurrentTool) = "RSQLITE" THEN
+            DesignSurface.SetProp(CI, "db", "my_data.db")
+        END IF
+        IF UCASE$(CurrentTool) = "RTRACKBAR" THEN
+            DesignSurface.SetProp(CI, "min", "0")
+            DesignSurface.SetProp(CI, "max", "100")
+            DesignSurface.SetProp(CI, "position", "0")
+        END IF
+        CurrentTool = ""
+        FillProperties
+        FillEvents
+        UpdateObjCombo
+        StatusBar.Caption = CName + " placed"
+    ELSE
+        SelIndex = 0
+        FillProperties
+        FillEvents
+        UpdateObjCombo
+        StatusBar.Caption = "Form1 selected"
+    END IF
+END SUB
+
+SUB PropGridChange
+    IF SyncGuard = 1 THEN EXIT SUB
+    DIM PropName AS STRING
+    DIM PropVal AS STRING
+    DIM I AS INTEGER
+    DIM CI AS INTEGER
+    SyncGuard = 1
+
+    IF SelIndex = 0 THEN
+        FOR I = 0 TO PropGrid.Rows - 1
+            PropName = UCASE$(PropGrid.Cell(I, 0))
+            PropVal = PropGrid.Cell(I, 1)
+            IF PropName = "CAPTION" THEN DesignSurface.FormCaption = PropVal
+            IF PropName = "WIDTH" THEN DesignSurface.Width = VAL(PropVal)
+            IF PropName = "HEIGHT" THEN DesignSurface.Height = VAL(PropVal)
+        NEXT I
+        SyncGuard = 0
+        EXIT SUB
+    END IF
+
+    CI = SelIndex - 1
+    FOR I = 0 TO PropGrid.Rows - 1
+        PropName = UCASE$(PropGrid.Cell(I, 0))
+        PropVal = PropGrid.Cell(I, 1)
+        IF PropName = "(NAME)" AND PropVal <> "" THEN
+            DesignSurface.SetName(CI, PropVal)
+            UpdateObjCombo
+        END IF
+        IF PropName = "LEFT" THEN DesignSurface.SetCompBounds(CI, VAL(PropVal), DesignSurface.GetCompY(CI), DesignSurface.GetCompW(CI), DesignSurface.GetCompH(CI))
+        IF PropName = "TOP" THEN DesignSurface.SetCompBounds(CI, DesignSurface.GetCompX(CI), VAL(PropVal), DesignSurface.GetCompW(CI), DesignSurface.GetCompH(CI))
+        IF PropName = "WIDTH" THEN DesignSurface.SetCompBounds(CI, DesignSurface.GetCompX(CI), DesignSurface.GetCompY(CI), VAL(PropVal), DesignSurface.GetCompH(CI))
+        IF PropName = "HEIGHT" THEN DesignSurface.SetCompBounds(CI, DesignSurface.GetCompX(CI), DesignSurface.GetCompY(CI), DesignSurface.GetCompW(CI), VAL(PropVal))
+        IF PropName = "CAPTION" THEN DesignSurface.SetProp(CI, "caption", PropVal)
+        IF PropName = "TEXT" THEN DesignSurface.SetProp(CI, "text", PropVal)
+        IF PropName = "COLOR" THEN DesignSurface.SetProp(CI, "color", PropVal)
+        IF PropName = "FONTCOLOR" THEN DesignSurface.SetProp(CI, "fontcolor", PropVal)
+        IF PropName = "FONT.NAME" THEN DesignSurface.SetProp(CI, "font.name", PropVal)
+        IF PropName = "FONT.SIZE" THEN DesignSurface.SetProp(CI, "font.size", PropVal)
+        IF PropName = "FONT.BOLD" THEN DesignSurface.SetProp(CI, "font.bold", PropVal)
+        IF PropName = "BORDERSTYLE" THEN DesignSurface.SetProp(CI, "borderstyle", PropVal)
+        IF PropName = "BEVELINNER" THEN DesignSurface.SetProp(CI, "bevelinner", PropVal)
+        IF PropName = "BEVELOUTER" THEN DesignSurface.SetProp(CI, "bevelouter", PropVal)
+        IF PropName = "ALIGNMENT" THEN DesignSurface.SetProp(CI, "alignment", PropVal)
+        IF PropName = "READONLY" THEN DesignSurface.SetProp(CI, "readonly", PropVal)
+        IF PropName = "CHECKED" THEN DesignSurface.SetProp(CI, "checked", PropVal)
+        IF PropName = "WORDWRAP" THEN DesignSurface.SetProp(CI, "wordwrap", PropVal)
+        IF PropName = "ENABLED" THEN DesignSurface.SetProp(CI, "enabled", PropVal)
+        IF PropName = "VISIBLE" THEN DesignSurface.SetProp(CI, "visible", PropVal)
+        IF PropName = "INTERVAL" THEN DesignSurface.SetProp(CI, "interval", PropVal)
+        IF PropName = "HOST" THEN DesignSurface.SetProp(CI, "host", PropVal)
+        IF PropName = "USER" THEN DesignSurface.SetProp(CI, "user", PropVal)
+        IF PropName = "PASSWORD" THEN DesignSurface.SetProp(CI, "password", PropVal)
+        IF PropName = "PORT" THEN DesignSurface.SetProp(CI, "port", PropVal)
+        IF PropName = "DB" THEN DesignSurface.SetProp(CI, "db", PropVal)
+        IF PropName = "MIN" THEN DesignSurface.SetProp(CI, "min", PropVal)
+        IF PropName = "MAX" THEN DesignSurface.SetProp(CI, "max", PropVal)
+        IF PropName = "POSITION" THEN DesignSurface.SetProp(CI, "position", PropVal)
+        IF PropName = "STRETCH" THEN DesignSurface.SetProp(CI, "stretch", PropVal)
+        IF PropName = "ORIENTATION" THEN DesignSurface.SetProp(CI, "orientation", PropVal)
+        IF PropName = "MULTISELECT" THEN DesignSurface.SetProp(CI, "multiselect", PropVal)
+        IF PropName = "SORTED" THEN DesignSurface.SetProp(CI, "sorted", PropVal)
+        IF PropName = "MAXLENGTH" THEN DesignSurface.SetProp(CI, "maxlength", PropVal)
+        IF PropName = "PASSWORDCHAR" THEN DesignSurface.SetProp(CI, "passwordchar", PropVal)
+        IF PropName = "SCROLLBARS" THEN DesignSurface.SetProp(CI, "scrollbars", PropVal)
+    NEXT I
+    SyncGuard = 0
+END SUB
+
+SUB EvtGridChange
+    IF SyncGuard = 1 THEN EXIT SUB
+    SaveEvents
+END SUB
+
+SUB EvtGridDblClick
+    DIM R AS INTEGER
+    DIM EvtName AS STRING
+    DIM CurVal AS STRING
+    DIM CName AS STRING
+    DIM HandlerName AS STRING
+    DIM SI AS INTEGER
+
+    R = EvtGrid.SelectedRow
+    IF R < 0 THEN EXIT SUB
+    EvtName = EvtGrid.Cell(R, 0)
+    CurVal = EvtGrid.Cell(R, 1)
+    IF CurVal <> "" THEN
+        GenerateCode
+        DesignSurface.Hide
+        CodeEditor.Visible = 1
+        ShowingCode = 1
+        CodeEditor.GotoSub(CurVal)
+        StatusBar.Caption = "Editing: " + CurVal
+        EXIT SUB
+    END IF
+
+    IF SelIndex = 0 THEN
+        CName = "Form1"
+    ELSE
+        SI = SelIndex - 1
+        CName = DesignSurface.GetName(SI)
+    END IF
+    HandlerName = CName + "_" + EvtName
+    EvtGrid.SetCell(R, 1, HandlerName)
+    SaveEvents
+    GenerateCode
+    DesignSurface.Hide
+    CodeEditor.Visible = 1
+    ShowingCode = 1
+    FillEvents
+    CodeEditor.GotoSub(HandlerName)
+    StatusBar.Caption = "Editing: " + HandlerName
+END SUB
+
+' ============================================================
+' CODE GENERATION
+' ============================================================
+SUB GenerateCode
+    DIM Code AS STRING
+    DIM I AS INTEGER
+    DIM NL AS STRING
+    DIM ExistingCode AS STRING
+    DIM CI AS INTEGER
+    DIM CT AS STRING
+    DIM CName AS STRING
+    NL = CHR$(10)
+
+    SaveEvents
+    ExistingCode = CodeEditor.Text
+    Code = "' Generated by RapidR Visual IDE" + NL + NL
+
+    DIM HdrLines AS STRING
+    DIM HdrLine AS STRING
+    DIM HdrIdx AS INTEGER
+    DIM HdrULine AS STRING
+    DIM FoundSub AS INTEGER
+    DIM UserHeader AS STRING
+    UserHeader = ""
+    FoundSub = 0
+    HdrLines = ExistingCode
+    DO WHILE LEN(HdrLines) > 0 AND FoundSub = 0
+        HdrIdx = INSTR(HdrLines, NL)
+        IF HdrIdx > 0 THEN
+            HdrLine = LEFT$(HdrLines, HdrIdx - 1)
+            HdrLines = MID$(HdrLines, HdrIdx + 1)
+        ELSE
+            HdrLine = HdrLines
+            HdrLines = ""
+        END IF
+        HdrULine = UCASE$(LTRIM$(HdrLine))
+        IF LEFT$(HdrULine, 4) = "SUB " OR LEFT$(HdrULine, 9) = "FUNCTION " OR LEFT$(HdrULine, 7) = "CREATE " OR HdrULine = "' GENERATED BY RAPIDP VISUAL IDE" THEN
+            FoundSub = 1
+        ELSE
+            IF LTRIM$(HdrLine) <> "" AND LEFT$(LTRIM$(HdrLine), 1) <> "'" THEN
+                UserHeader = UserHeader + HdrLine + NL
+            END IF
+        END IF
+    LOOP
+    IF UserHeader <> "" THEN
+        Code = Code + UserHeader + NL
+    END IF
+
+    ' Generate Form event handlers
+    IF FormOnShow <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnShow, "Form1", "OnShow")
+    IF FormOnClose <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnClose, "Form1", "OnClose")
+    IF FormOnResize <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnResize, "Form1", "OnResize")
+    IF FormOnClick <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnClick, "Form1", "OnClick")
+    IF FormOnKeyDown <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnKeyDown, "Form1", "OnKeyDown")
+    IF FormOnKeyPress <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnKeyPress, "Form1", "OnKeyPress")
+    IF FormOnKeyUp <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnKeyUp, "Form1", "OnKeyUp")
+    IF FormOnMouseDown <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnMouseDown, "Form1", "OnMouseDown")
+    IF FormOnMouseMove <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnMouseMove, "Form1", "OnMouseMove")
+    IF FormOnMouseUp <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnMouseUp, "Form1", "OnMouseUp")
+    IF FormOnPaint <> "" THEN Code = Code + GenerateSubCode(ExistingCode, FormOnPaint, "Form1", "OnPaint")
+
+    ' Generate component event handlers
+    FOR I = 1 TO DesignSurface.CompCount
+        IF EvtOnClick(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnClick(I), DesignSurface.GetName(I - 1), "OnClick")
+        IF EvtOnDblClick(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnDblClick(I), DesignSurface.GetName(I - 1), "OnDblClick")
+        IF EvtOnChange(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnChange(I), DesignSurface.GetName(I - 1), "OnChange")
+        IF EvtOnMouseDown(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnMouseDown(I), DesignSurface.GetName(I - 1), "OnMouseDown")
+        IF EvtOnMouseMove(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnMouseMove(I), DesignSurface.GetName(I - 1), "OnMouseMove")
+        IF EvtOnMouseUp(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnMouseUp(I), DesignSurface.GetName(I - 1), "OnMouseUp")
+        IF EvtOnKeyDown(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnKeyDown(I), DesignSurface.GetName(I - 1), "OnKeyDown")
+        IF EvtOnKeyPress(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnKeyPress(I), DesignSurface.GetName(I - 1), "OnKeyPress")
+        IF EvtOnKeyUp(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnKeyUp(I), DesignSurface.GetName(I - 1), "OnKeyUp")
+        IF EvtOnTimer(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnTimer(I), DesignSurface.GetName(I - 1), "OnTimer")
+        IF EvtOnPaint(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnPaint(I), DesignSurface.GetName(I - 1), "OnPaint")
+        IF EvtOnConnect(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnConnect(I), DesignSurface.GetName(I - 1), "OnConnect")
+        IF EvtOnDisconnect(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnDisconnect(I), DesignSurface.GetName(I - 1), "OnDisconnect")
+        IF EvtOnError(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnError(I), DesignSurface.GetName(I - 1), "OnError")
+        IF EvtOnQueryDone(I) <> "" THEN Code = Code + GenerateSubCode(ExistingCode, EvtOnQueryDone(I), DesignSurface.GetName(I - 1), "OnQueryDone")
+    NEXT I
+
+    ' Generate CREATE Form1
+    Code = Code + "CREATE Form1 AS RFORM" + NL
+    Code = Code + "    Caption = " + CHR$(34) + "Form1" + CHR$(34) + NL
+    Code = Code + "    Width = " + STR$(DESIGN_W) + NL
+    Code = Code + "    Height = " + STR$(DESIGN_H) + NL
+    Code = Code + "    Center" + NL
+    IF FormOnShow <> "" THEN Code = Code + "    OnShow = " + FormOnShow + NL
+    IF FormOnClose <> "" THEN Code = Code + "    OnClose = " + FormOnClose + NL
+    IF FormOnResize <> "" THEN Code = Code + "    OnResize = " + FormOnResize + NL
+    IF FormOnClick <> "" THEN Code = Code + "    OnClick = " + FormOnClick + NL
+    IF FormOnKeyDown <> "" THEN Code = Code + "    OnKeyDown = " + FormOnKeyDown + NL
+    IF FormOnKeyPress <> "" THEN Code = Code + "    OnKeyPress = " + FormOnKeyPress + NL
+    IF FormOnKeyUp <> "" THEN Code = Code + "    OnKeyUp = " + FormOnKeyUp + NL
+    IF FormOnMouseDown <> "" THEN Code = Code + "    OnMouseDown = " + FormOnMouseDown + NL
+    IF FormOnMouseMove <> "" THEN Code = Code + "    OnMouseMove = " + FormOnMouseMove + NL
+    IF FormOnMouseUp <> "" THEN Code = Code + "    OnMouseUp = " + FormOnMouseUp + NL
+    IF FormOnPaint <> "" THEN Code = Code + "    OnPaint = " + FormOnPaint + NL
+
+    FOR I = 0 TO DesignSurface.CompCount - 1
+        CT = DesignSurface.GetType(I)
+        CName = DesignSurface.GetName(I)
+        Code = Code + "    CREATE " + CName + " AS " + CT + NL
+
+        IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" THEN
+            Code = Code + "        Left = " + STR$(DesignSurface.GetCompX(I)) + NL
+            Code = Code + "        Top = " + STR$(DesignSurface.GetCompY(I)) + NL
+            Code = Code + "        Width = " + STR$(DesignSurface.GetCompW(I)) + NL
+            Code = Code + "        Height = " + STR$(DesignSurface.GetCompH(I)) + NL
+        END IF
+
+        IF CT = "RBUTTON" OR CT = "RLABEL" OR CT = "RCHECKBOX" OR CT = "RRADIOBUTTON" OR CT = "RGROUPBOX" OR CT = "RPANEL" THEN
+            DIM CaptVal AS STRING
+            CaptVal = DesignSurface.GetProp(I, "caption")
+            IF CaptVal <> "" THEN Code = Code + "        Caption = " + CHR$(34) + CaptVal + CHR$(34) + NL
+        END IF
+
+        DIM AlnVal AS STRING
+        AlnVal = DesignSurface.GetProp(I, "alignment")
+        IF AlnVal <> "" AND AlnVal <> "0" THEN
+            Code = Code + "        Alignment = " + AlnVal + NL
+        END IF
+
+        DIM ChkedVal AS STRING
+        ChkedVal = DesignSurface.GetProp(I, "checked")
+        IF UCASE$(ChkedVal) = "TRUE" OR ChkedVal = "1" OR ChkedVal = "-1" THEN
+            Code = Code + "        Checked = True" + NL
+        END IF
+
+        DIM ColVal AS STRING
+        ColVal = DesignSurface.GetProp(I, "color")
+        IF ColVal <> "" AND ColVal <> "0" THEN
+            Code = Code + "        Color = " + ColVal + NL
+        END IF
+
+        DIM BdrVal AS STRING
+        BdrVal = DesignSurface.GetProp(I, "borderstyle")
+        IF BdrVal <> "" AND BdrVal <> "1" THEN
+            Code = Code + "        BorderStyle = " + BdrVal + NL
+        END IF
+
+        DIM FNVal AS STRING
+        DIM FSVal AS STRING
+        DIM FBVal AS STRING
+        DIM FCVal AS STRING
+        FNVal = DesignSurface.GetProp(I, "font.name")
+        FSVal = DesignSurface.GetProp(I, "font.size")
+        FBVal = DesignSurface.GetProp(I, "font.bold")
+        FCVal = DesignSurface.GetProp(I, "fontcolor")
+        IF FNVal <> "" THEN Code = Code + "        Font.Name = " + CHR$(34) + FNVal + CHR$(34) + NL
+        IF FSVal <> "" AND FSVal <> "0" THEN Code = Code + "        Font.Size = " + FSVal + NL
+        IF FBVal <> "" AND FBVal <> "0" AND UCASE$(FBVal) <> "FALSE" THEN Code = Code + "        Font.Bold = " + FBVal + NL
+        IF FCVal <> "" AND FCVal <> "0" THEN Code = Code + "        FontColor = " + FCVal + NL
+
+        DIM RDVal2 AS STRING
+        RDVal2 = DesignSurface.GetProp(I, "readonly")
+        IF UCASE$(RDVal2) = "TRUE" OR RDVal2 = "1" THEN
+            Code = Code + "        ReadOnly = True" + NL
+        END IF
+
+        DIM WrpVal AS STRING
+        WrpVal = DesignSurface.GetProp(I, "wordwrap")
+        IF UCASE$(WrpVal) = "TRUE" OR WrpVal = "1" THEN
+            Code = Code + "        WordWrap = True" + NL
+        END IF
+
+        IF CT = "RTIMER" THEN
+            DIM IntVal AS STRING
+            IntVal = DesignSurface.GetProp(I, "interval")
+            IF IntVal <> "" THEN Code = Code + "        Interval = " + IntVal + NL
+            Code = Code + "        Enabled = True" + NL
+        END IF
+
+        IF CT = "RMYSQL" THEN
+            Code = Code + "        Host = " + CHR$(34) + DesignSurface.GetProp(I, "host") + CHR$(34) + NL
+            Code = Code + "        User = " + CHR$(34) + DesignSurface.GetProp(I, "user") + CHR$(34) + NL
+            Code = Code + "        Password = " + CHR$(34) + DesignSurface.GetProp(I, "password") + CHR$(34) + NL
+            Code = Code + "        Port = " + DesignSurface.GetProp(I, "port") + NL
+        END IF
+
+        IF CT = "RSQLITE" THEN
+            Code = Code + "        DB = " + CHR$(34) + DesignSurface.GetProp(I, "db") + CHR$(34) + NL
+        END IF
+
+        IF CT = "RTRACKBAR" THEN
+            DIM TMin AS STRING
+            DIM TMax AS STRING
+            DIM TPos AS STRING
+            TMin = DesignSurface.GetProp(I, "min")
+            TMax = DesignSurface.GetProp(I, "max")
+            TPos = DesignSurface.GetProp(I, "position")
+            IF TMin <> "" AND TMin <> "0" THEN Code = Code + "        Min = " + TMin + NL
+            IF TMax <> "" AND TMax <> "100" THEN Code = Code + "        Max = " + TMax + NL
+            IF TPos <> "" AND TPos <> "0" THEN Code = Code + "        Position = " + TPos + NL
+        END IF
+
+        DIM SI AS INTEGER
+        SI = I + 1
+        IF EvtOnClick(SI) <> "" THEN Code = Code + "        OnClick = " + EvtOnClick(SI) + NL
+        IF EvtOnDblClick(SI) <> "" THEN Code = Code + "        OnDblClick = " + EvtOnDblClick(SI) + NL
+        IF EvtOnChange(SI) <> "" THEN Code = Code + "        OnChange = " + EvtOnChange(SI) + NL
+        IF EvtOnMouseDown(SI) <> "" THEN Code = Code + "        OnMouseDown = " + EvtOnMouseDown(SI) + NL
+        IF EvtOnMouseMove(SI) <> "" THEN Code = Code + "        OnMouseMove = " + EvtOnMouseMove(SI) + NL
+        IF EvtOnMouseUp(SI) <> "" THEN Code = Code + "        OnMouseUp = " + EvtOnMouseUp(SI) + NL
+        IF EvtOnKeyDown(SI) <> "" THEN Code = Code + "        OnKeyDown = " + EvtOnKeyDown(SI) + NL
+        IF EvtOnKeyPress(SI) <> "" THEN Code = Code + "        OnKeyPress = " + EvtOnKeyPress(SI) + NL
+        IF EvtOnKeyUp(SI) <> "" THEN Code = Code + "        OnKeyUp = " + EvtOnKeyUp(SI) + NL
+        IF EvtOnTimer(SI) <> "" THEN Code = Code + "        OnTimer = " + EvtOnTimer(SI) + NL
+        IF EvtOnPaint(SI) <> "" THEN Code = Code + "        OnPaint = " + EvtOnPaint(SI) + NL
+        IF EvtOnConnect(SI) <> "" THEN Code = Code + "        OnConnect = " + EvtOnConnect(SI) + NL
+        IF EvtOnDisconnect(SI) <> "" THEN Code = Code + "        OnDisconnect = " + EvtOnDisconnect(SI) + NL
+        IF EvtOnError(SI) <> "" THEN Code = Code + "        OnError = " + EvtOnError(SI) + NL
+        IF EvtOnQueryDone(SI) <> "" THEN Code = Code + "        OnQueryDone = " + EvtOnQueryDone(SI) + NL
+
+        Code = Code + "    END CREATE" + NL
+    NEXT I
+
+    Code = Code + "END CREATE" + NL + NL
+    Code = Code + "Form1.ShowModal" + NL
+    CodeEditor.Text = Code
+    StatusBar.Caption = "Code generated for " + STR$(DesignSurface.CompCount) + " components"
+END SUB
+
+' ============================================================
+' TOGGLE CODE/DESIGN VIEW
+' ============================================================
+SUB ToggleCodeView
+    IF ShowingCode = 0 THEN
+        GenerateCode
+        DesignSurface.Hide
+        CodeEditor.Visible = 1
+        ShowingCode = 1
+        StatusBar.Caption = "Code View"
+    ELSE
+        CodeEditor.Visible = 0
+        DesignSurface.Show
+        ShowingCode = 0
+        StatusBar.Caption = "Design View"
+    END IF
+END SUB
+
+' ============================================================
+' FILE / PROJECT OPERATIONS
+' ============================================================
+SUB NewProject
+    DIM I AS INTEGER
+    DesignSurface.ClearAll
+    BtnCount = 0 : LblCount = 0 : EdtCount = 0
+    ChkCount = 0 : CmbCount = 0 : PnlCount = 0
+    RadCount = 0 : LstCount = 0 : GrpCount = 0
+    PrgCount = 0 : TmrCount = 0 : RchCount = 0
+    CnvCount = 0 : MySqlCount = 0 : SQLiteCount = 0
+    TrvCount = 0 : ImgCount = 0 : TrkCount = 0
+    SplCount = 0 : SgdCount = 0 : SbxCount = 0
+    SelIndex = 0
+    FormOnShow = "" : FormOnClose = "" : FormOnResize = "" : FormOnKeyDown = "" : FormOnKeyPress = ""
+    FormOnKeyUp = "" : FormOnClick = "" : FormOnMouseDown = "" : FormOnMouseMove = "" : FormOnMouseUp = ""
+    FormOnPaint = ""
+    FOR I = 1 TO 80
+        EvtOnClick(I) = "" : EvtOnDblClick(I) = "" : EvtOnChange(I) = ""
+        EvtOnMouseDown(I) = "" : EvtOnMouseMove(I) = "" : EvtOnMouseUp(I) = ""
+        EvtOnKeyDown(I) = "" : EvtOnKeyPress(I) = "" : EvtOnKeyUp(I) = ""
+        EvtOnTimer(I) = "" : EvtOnPaint(I) = "" : EvtOnEnter(I) = ""
+        EvtOnConnect(I) = "" : EvtOnDisconnect(I) = "" : EvtOnError(I) = "" : EvtOnQueryDone(I) = ""
+    NEXT I
+    ProjectFile = ""
+    CodeEditor.Text = ""
+    DesignSurface.FormCaption = "Form1"
+    DesignSurface.Width = DESIGN_W
+    DesignSurface.Height = DESIGN_H
+    DesignSurface.Show
+    UpdateObjCombo
+    FillProperties
+    FillEvents
+    StatusBar.Caption = "New project created"
+END SUB
+
+SUB SaveProject
+    GenerateCode
+    IF SaveDlg.Execute THEN
+        DIM FS AS RFileStream
+        FS.Open(SaveDlg.FileName, 1)
+        FS.WriteLine(CodeEditor.Text)
+        FS.Close
+        ProjectFile = SaveDlg.FileName
+        StatusBar.Caption = "Saved: " + ProjectFile
+    END IF
+END SUB
+
+SUB CompileAndRun
+    GenerateCode
+    DIM FS AS RFileStream
+    DIM OutFile AS STRING
+    OutFile = "_ide_output.rp"
+    FS.Open(OutFile, 1)
+    FS.WriteLine(CodeEditor.Text)
+    FS.Close
+
+    ErrorList.Clear
+    ErrorCount = 0
+    ErrorList.Visible = 0
+
+    SHELLWAIT("python3 compile.py _ide_output.rp --json-errors > _ide_errors.json 2>&1")
+
+    DIM ErrFS AS RFileStream
+    DIM ErrJSON AS STRING
+    ErrJSON = ""
+    IF FileExists("_ide_errors.json") THEN
+        ErrFS.Open("_ide_errors.json", 0)
+        DO WHILE NOT ErrFS.EOF
+            ErrJSON = ErrJSON + ErrFS.ReadLine + CHR$(10)
+        LOOP
+        ErrFS.Close
+    END IF
+
+    ErrJSON = TRIM$(ErrJSON)
+
+    IF LEFT$(ErrJSON, 1) = "[" AND LEN(ErrJSON) > 2 THEN
+        DIM Pos AS INTEGER
+        DIM LineNum AS INTEGER
+        DIM Msg AS STRING
+        DIM ErrType AS STRING
+        DIM HasErrors AS INTEGER
+        HasErrors = 0
+        Pos = 1
+        DO WHILE Pos < LEN(ErrJSON)
+            DIM TypePos AS INTEGER
+            TypePos = INSTR(Pos, ErrJSON, CHR$(34) + "type" + CHR$(34))
+            IF TypePos = 0 THEN EXIT DO
+
+            DIM TypeValPos AS INTEGER
+            TypeValPos = INSTR(TypePos + 7, ErrJSON, CHR$(34))
+            IF TypeValPos > 0 THEN
+                DIM TypeEndPos AS INTEGER
+                TypeEndPos = INSTR(TypeValPos + 1, ErrJSON, CHR$(34))
+                IF TypeEndPos > 0 THEN
+                    ErrType = MID$(ErrJSON, TypeValPos + 1, TypeEndPos - TypeValPos - 1)
+                END IF
+            END IF
+
+            DIM LinePos AS INTEGER
+            LinePos = INSTR(TypePos, ErrJSON, CHR$(34) + "line" + CHR$(34))
+            IF LinePos > 0 THEN
+                DIM LineValStart AS INTEGER
+                LineValStart = INSTR(LinePos + 7, ErrJSON, ":") + 1
+                DO WHILE MID$(ErrJSON, LineValStart, 1) = " "
+                    LineValStart = LineValStart + 1
+                LOOP
+                DIM LineValEnd AS INTEGER
+                LineValEnd = LineValStart
+                DO WHILE LineValEnd <= LEN(ErrJSON) AND INSTR(1, "0123456789", MID$(ErrJSON, LineValEnd, 1)) > 0
+                    LineValEnd = LineValEnd + 1
+                LOOP
+                LineNum = VAL(MID$(ErrJSON, LineValStart, LineValEnd - LineValStart))
+            END IF
+
+            DIM MsgPos AS INTEGER
+            MsgPos = INSTR(TypePos, ErrJSON, CHR$(34) + "message" + CHR$(34))
+            IF MsgPos > 0 THEN
+                DIM MsgValPos AS INTEGER
+                MsgValPos = INSTR(MsgPos + 11, ErrJSON, CHR$(34))
+                IF MsgValPos > 0 THEN
+                    DIM MsgEndPos AS INTEGER
+                    MsgEndPos = INSTR(MsgValPos + 1, ErrJSON, CHR$(34))
+                    IF MsgEndPos > 0 THEN
+                        Msg = MID$(ErrJSON, MsgValPos + 1, MsgEndPos - MsgValPos - 1)
+                    END IF
+                END IF
+            END IF
+
+            IF LEN(Msg) > 0 THEN
+                DIM Prefix AS STRING
+                IF ErrType = "warning" THEN
+                    Prefix = "Warning"
+                ELSE
+                    Prefix = "Error"
+                    HasErrors = 1
+                END IF
+                ErrorList.AddItems("[Line " + STR$(LineNum) + "] " + Prefix + ": " + Msg)
+                ErrorCount = ErrorCount + 1
+                IF ErrorCount <= 100 THEN
+                    ErrorLines(ErrorCount) = LineNum
+                END IF
+            END IF
+
+            Pos = MsgPos + 10
+            IF Pos < 1 THEN EXIT DO
+        LOOP
+
+        IF HasErrors = 1 THEN
+            ErrorList.Visible = 1
+            StatusBar.Caption = STR$(ErrorCount) + " error(s) found. Double-click to jump to line."
+        ELSE
+            IF ErrorCount > 0 THEN
+                ErrorList.Visible = 1
+                StatusBar.Caption = STR$(ErrorCount) + " warning(s). Running..."
+            END IF
+            SHELL("python3 compile.py _ide_output.rp -r")
+        END IF
+    ELSE
+        StatusBar.Caption = "Compiled successfully. Running..."
+        SHELL("python3 compile.py _ide_output.rp -r")
+    END IF
+END SUB
+
+SUB ErrorListClick
+    DIM Idx AS INTEGER
+    Idx = ErrorList.ItemIndex + 1
+    IF Idx >= 1 AND Idx <= ErrorCount THEN
+        DIM TargetLine AS INTEGER
+        TargetLine = ErrorLines(Idx)
+        IF TargetLine > 0 THEN
+            IF ShowingCode = 0 THEN
+                ToggleCodeView
+            END IF
+            CodeEditor.GotoLine(TargetLine)
+            StatusBar.Caption = "Line " + STR$(TargetLine)
+        END IF
+    END IF
+END SUB
+
+SUB CompileBytecode
+    GenerateCode
+    DIM FS AS RFileStream
+    DIM OutFile AS STRING
+    OutFile = "_ide_output.rp"
+    FS.Open(OutFile, 1)
+    FS.WriteLine(CodeEditor.Text)
+    FS.Close
+    StatusBar.Caption = "Compiling to bytecode..."
+    SHELLWAIT("python3 compile.py _ide_output.rp -b")
+    StatusBar.Caption = "Bytecode compilation complete."
+END SUB
+
+SUB BuildStandalone
+    GenerateCode
+    DIM FS AS RFileStream
+    DIM OutFile AS STRING
+    OutFile = "_ide_output.rp"
+    FS.Open(OutFile, 1)
+    FS.WriteLine(CodeEditor.Text)
+    FS.Close
+    StatusBar.Caption = "Building standalone executable (this may take a while)..."
+    SHELLWAIT("python3 compile.py _ide_output.rp -s")
+    StatusBar.Caption = "Standalone build complete. Check dist/ folder."
+END SUB
+
+SUB ExitIDE
+    IDE.Close
+END SUB
+
+SUB DeleteSelected
+    IF SelIndex >= 1 AND SelIndex <= DesignSurface.CompCount THEN
+        DIM CI AS INTEGER
+        CI = SelIndex - 1
+        DesignSurface.RemoveComponent(CI)
+        SelIndex = 0
+        FillProperties
+        FillEvents
+        UpdateObjCombo
+        StatusBar.Caption = "Component deleted"
+    END IF
+END SUB
+
+SUB ObjComboChange
+    DIM I AS INTEGER
+    DIM Sel AS STRING
+    Sel = ObjCombo.Text
+    IF Sel = "Form1" THEN
+        SelIndex = 0
+        DesignSurface.SelectComp(-1)
+    ELSE
+        FOR I = 0 TO DesignSurface.CompCount - 1
+            IF DesignSurface.GetName(I) = Sel THEN
+                SelIndex = I + 1
+                DesignSurface.SelectComp(I)
+            END IF
+        NEXT I
+    END IF
+    FillProperties
+    FillEvents
+END SUB
+
+' ============================================================
+' CREATE THE IDE  (VB6-style layout: toolbar top, props right)
+' ============================================================
+
+CREATE IDE AS RFORM
+    Caption = "RapidR Visual IDE"
+    Width = 1100
+    Height = 800
+    Center
+
+    CREATE MainMenu AS RMAINMENU
+        CREATE FileMenu AS RMENUITEM
+            Caption = "&File"
+            CREATE NewItem AS RMENUITEM
+                Caption = "&New Project"
+                OnClick = NewProject
+            END CREATE
+            CREATE SaveItem AS RMENUITEM
+                Caption = "&Save As..."
+                OnClick = SaveProject
+            END CREATE
+            CREATE ExitItem AS RMENUITEM
+                Caption = "E&xit"
+                OnClick = ExitIDE
+            END CREATE
+        END CREATE
+        CREATE RunMenu AS RMENUITEM
+            Caption = "&Run"
+            CREATE CodeItem AS RMENUITEM
+                Caption = "Toggle &Code / Design"
+                OnClick = ToggleCodeView
+            END CREATE
+            CREATE RunItem AS RMENUITEM
+                Caption = "Compile && &Run"
+                OnClick = CompileAndRun
+            END CREATE
+            CREATE BytecodeItem AS RMENUITEM
+                Caption = "Compile to &Bytecode"
+                OnClick = CompileBytecode
+            END CREATE
+            CREATE StandaloneItem AS RMENUITEM
+                Caption = "Build &Standalone EXE"
+                OnClick = BuildStandalone
+            END CREATE
+        END CREATE
+    END CREATE
+
+    ' === Component Toolbar (3 rows, below menu bar) ===
+    CREATE ToolPanel AS RPANEL
+        Left = 0 : Top = 30
+        Width = 1100 : Height = 90
+    END CREATE
+
+    ' --- Row 1: Standard controls ---
+    CREATE BtnPointer AS RBUTTON
+        Caption = "Ptr"
+        Left = 4 : Top = 34 : Width = 36 : Height = 26
+        OnClick = SetToolPointer
+    END CREATE
+    CREATE BtnAddLabel AS RBUTTON
+        Caption = "Label"
+        Left = 42 : Top = 34 : Width = 44 : Height = 26
+        OnClick = SetToolLabel
+    END CREATE
+    CREATE BtnAddEdit AS RBUTTON
+        Caption = "Edit"
+        Left = 88 : Top = 34 : Width = 40 : Height = 26
+        OnClick = SetToolEdit
+    END CREATE
+    CREATE BtnAddButton AS RBUTTON
+        Caption = "Btn"
+        Left = 130 : Top = 34 : Width = 36 : Height = 26
+        OnClick = SetToolButton
+    END CREATE
+    CREATE BtnAddCheck AS RBUTTON
+        Caption = "Chk"
+        Left = 168 : Top = 34 : Width = 36 : Height = 26
+        OnClick = SetToolCheck
+    END CREATE
+    CREATE BtnAddCombo AS RBUTTON
+        Caption = "Cmb"
+        Left = 206 : Top = 34 : Width = 38 : Height = 26
+        OnClick = SetToolCombo
+    END CREATE
+    CREATE BtnAddPanel AS RBUTTON
+        Caption = "Pnl"
+        Left = 246 : Top = 34 : Width = 36 : Height = 26
+        OnClick = SetToolPanel
+    END CREATE
+    CREATE BtnAddRadio AS RBUTTON
+        Caption = "Rad"
+        Left = 284 : Top = 34 : Width = 36 : Height = 26
+        OnClick = SetToolRadio
+    END CREATE
+    CREATE BtnAddList AS RBUTTON
+        Caption = "List"
+        Left = 322 : Top = 34 : Width = 38 : Height = 26
+        OnClick = SetToolList
+    END CREATE
+    CREATE BtnAddGroup AS RBUTTON
+        Caption = "Grp"
+        Left = 362 : Top = 34 : Width = 36 : Height = 26
+        OnClick = SetToolGroup
+    END CREATE
+
+    ' --- Row 2: Advanced controls ---
+    CREATE BtnAddProgress AS RBUTTON
+        Caption = "Prog"
+        Left = 4 : Top = 62 : Width = 40 : Height = 26
+        OnClick = SetToolProgress
+    END CREATE
+    CREATE BtnAddTimer AS RBUTTON
+        Caption = "Tmr"
+        Left = 46 : Top = 62 : Width = 36 : Height = 26
+        OnClick = SetToolTimer
+    END CREATE
+    CREATE BtnAddRichEdit AS RBUTTON
+        Caption = "Rich"
+        Left = 84 : Top = 62 : Width = 40 : Height = 26
+        OnClick = SetToolRichEdit
+    END CREATE
+    CREATE BtnAddCanvas AS RBUTTON
+        Caption = "Cvs"
+        Left = 126 : Top = 62 : Width = 36 : Height = 26
+        OnClick = SetToolCanvas
+    END CREATE
+    CREATE BtnAddTreeView AS RBUTTON
+        Caption = "Tree"
+        Left = 164 : Top = 62 : Width = 40 : Height = 26
+        OnClick = SetToolTreeView
+    END CREATE
+    CREATE BtnAddImage AS RBUTTON
+        Caption = "Img"
+        Left = 206 : Top = 62 : Width = 36 : Height = 26
+        OnClick = SetToolImage
+    END CREATE
+    CREATE BtnAddTrackBar AS RBUTTON
+        Caption = "Trk"
+        Left = 244 : Top = 62 : Width = 36 : Height = 26
+        OnClick = SetToolTrackBar
+    END CREATE
+    CREATE BtnAddSplitter AS RBUTTON
+        Caption = "Spl"
+        Left = 282 : Top = 62 : Width = 36 : Height = 26
+        OnClick = SetToolSplitter
+    END CREATE
+    CREATE BtnAddStringGrid AS RBUTTON
+        Caption = "Grid"
+        Left = 320 : Top = 62 : Width = 40 : Height = 26
+        OnClick = SetToolStringGrid
+    END CREATE
+    CREATE BtnAddScrollBox AS RBUTTON
+        Caption = "Scrl"
+        Left = 362 : Top = 62 : Width = 38 : Height = 26
+        OnClick = SetToolScrollBox
+    END CREATE
+
+    ' --- Row 3: Database + Action Buttons ---
+    CREATE BtnAddMySQL AS RBUTTON
+        Caption = "MySQL"
+        Left = 4 : Top = 92 : Width = 50 : Height = 24
+        OnClick = SetToolMySQL
+    END CREATE
+    CREATE BtnAddSQLite AS RBUTTON
+        Caption = "SQLite"
+        Left = 56 : Top = 92 : Width = 50 : Height = 24
+        OnClick = SetToolSQLite
+    END CREATE
+
+    CREATE ActionPanel AS RPANEL
+        Left = 540 : Top = 30
+        Width = 300 : Height = 90
+    END CREATE
+
+    CREATE BtnDelete AS RBUTTON
+        Caption = "Del"
+        Left = 544 : Top = 34 : Width = 40 : Height = 26
+        OnClick = DeleteSelected
+    END CREATE
+    CREATE BtnSave AS RBUTTON
+        Caption = "Save"
+        Left = 588 : Top = 34 : Width = 44 : Height = 26
+        OnClick = SaveProject
+    END CREATE
+    CREATE BtnRun AS RBUTTON
+        Caption = "Run"
+        Left = 636 : Top = 34 : Width = 40 : Height = 26
+        OnClick = CompileAndRun
+    END CREATE
+    CREATE BtnCode AS RBUTTON
+        Caption = "Code"
+        Left = 680 : Top = 34 : Width = 44 : Height = 26
+        OnClick = ToggleCodeView
+    END CREATE
+    CREATE BtnStandalone AS RBUTTON
+        Caption = "Build"
+        Left = 544 : Top = 62 : Width = 48 : Height = 26
+        OnClick = BuildStandalone
+    END CREATE
+
+    ' === Right Panel: Object Combo + Properties/Events (VB6-style) ===
+    CREATE ObjCombo AS RCOMBOBOX
+        Left = 840 : Top = 124
+        Width = 256 : Height = 24
+        OnChange = ObjComboChange
+    END CREATE
+
+    CREATE PropEvtTabs AS RTABCONTROL
+        Left = 840 : Top = 152
+        Width = 256 : Height = 616
+    END CREATE
+
+    CREATE PropGrid AS RSTRINGGRID
+        Left = 0 : Top = 0
+        Width = 248 : Height = 576
+        Visible = 0
+        OnChange = PropGridChange
+    END CREATE
+
+    CREATE EvtGrid AS RSTRINGGRID
+        Left = 0 : Top = 0
+        Width = 248 : Height = 576
+        Visible = 0
+        OnChange = EvtGridChange
+        OnDblClick = EvtGridDblClick
+    END CREATE
+
+    ' === Code Editor (hidden in design mode, fills left/center) ===
+    CREATE CodeEditor AS RCODEEDITOR
+        Left = 4 : Top = 124
+        Width = 832 : Height = 580
+        Visible = 0
+    END CREATE
+
+    ' === Error List (hidden by default) ===
+    CREATE ErrorList AS RLISTBOX
+        Left = 4 : Top = 710
+        Width = 832 : Height = 54
+        Visible = 0
+        OnClick = ErrorListClick
+    END CREATE
+
+    ' === Status Bar ===
+    CREATE StatusBar AS RLABEL
+        Left = 0 : Top = 776
+        Width = 1100 : Height = 24
+        Caption = "Ready - RapidR Visual IDE"
+    END CREATE
+END CREATE
+
+' === Design Surface (separate window, non-blocking) ===
+CREATE DesignSurface AS RDESIGNSURFACE
+    Width = 640
+    Height = 480
+    FormCaption = "Form1"
+    OnSelect = DesignSelect
+    OnMove = DesignMove
+    OnDblClick = DesignDblClick
+    OnBgClick = DesignBgClick
+END CREATE
+
+' === Post-CREATE initialization ===
+PropEvtTabs.AddTabs("Properties", "Events")
+PropGrid.Parent = PropEvtTabs.Tab(0)
+EvtGrid.Parent = PropEvtTabs.Tab(1)
+PropGrid.Visible = 1
+EvtGrid.Visible = 1
+PropGrid.Cols = 2
+EvtGrid.Cols = 2
+ObjCombo.AddItems("Form1")
+FillProperties
+FillEvents
+
+DesignSurface.Show
+IDE.ShowModal

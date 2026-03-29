@@ -1,0 +1,21 @@
+$TYPECHECK ON
+
+PRINT "--- Math Tests ---"
+PRINT "CEIL(2.3) = " + STR$(CEIL(2.3))
+PRINT "ACOS(0.5) = " + STR$(ACOS(0.5))
+PRINT "ASIN(0.5) = " + STR$(ASIN(0.5))
+
+PRINT "--- Filesystem Tests ---"
+DIM F AS STRING
+
+PRINT "Does '.' exist? " + STR$(DIREXISTS("."))
+PRINT "Does 'NOOOOO' exist? " + STR$(DIREXISTS("NOOOOO"))
+
+PRINT "Listing .rp files in current directory:"
+F = DIR$("*.rp", 0)
+WHILE F <> ""
+    PRINT F
+    F = DIR$("", 0)
+WEND
+
+PRINT "Done testing builtins!"

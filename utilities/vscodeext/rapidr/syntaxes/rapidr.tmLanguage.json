@@ -1,0 +1,255 @@
+{
+  "scopeName": "source.rapidr",
+  "name": "RapidR",
+  "fileTypes": ["rp"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#directives" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#constants-language" },
+    { "include": "#keywords-declaration" },
+    { "include": "#keywords-control" },
+    { "include": "#keywords-type" },
+    { "include": "#keywords-operator" },
+    { "include": "#keywords-other" },
+    { "include": "#component-types" },
+    { "include": "#builtin-functions" },
+    { "include": "#identifiers" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.apostrophe.rapidr",
+          "match": "'.*$"
+        },
+        {
+          "name": "comment.line.rem.rapidr",
+          "match": "(?i)\\bREM\\b.*$"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "meta.preprocessor.rapidr",
+          "match": "(?i)^\\s*(\\$(?:INCLUDE|DEFINE|UNDEF|IFDEF|IFNDEF|ELSE|ENDIF|MACRO|APPTYPE|OPTIMIZE|ESCAPECHARS|TYPECHECK|OPTION))\\b(.*)?$",
+          "captures": {
+            "1": { "name": "keyword.control.directive.rapidr" },
+            "2": { "name": "string.unquoted.directive-value.rapidr" }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rapidr",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.rapidr",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.rapidr",
+          "match": "(?i)&H[0-9A-Fa-f]+"
+        },
+        {
+          "name": "constant.numeric.octal.rapidr",
+          "match": "(?i)&O[0-7]+"
+        },
+        {
+          "name": "constant.numeric.binary.rapidr",
+          "match": "(?i)&B[01]+"
+        },
+        {
+          "name": "constant.numeric.float.rapidr",
+          "match": "\\b\\d+\\.\\d*(?:[eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.scientific.rapidr",
+          "match": "\\b\\d+[eE][+-]?\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.rapidr",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "constants-language": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.rapidr",
+          "match": "(?i)\\b(TRUE|FALSE)\\b"
+        },
+        {
+          "name": "constant.language.null.rapidr",
+          "match": "(?i)\\b(NOTHING|NULL)\\b"
+        }
+      ]
+    },
+    "keywords-declaration": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.rapidr",
+          "match": "(?i)\\b(DIM|CONST|TYPE|DECLARE|IMPORT|AS|LIB|ALIAS|EXTENDS|PROPERTY|SET|BYVAL|BYREF|CONSTRUCTOR|BIND|PRIVATE|PUBLIC)\\b"
+        }
+      ]
+    },
+    "keywords-control": {
+      "patterns": [
+        {
+          "name": "keyword.control.rapidr",
+          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|END\\s+IF|END\\s+SUB|END\\s+FUNCTION|END\\s+TYPE|END\\s+CREATE|END\\s+WITH|END\\s+SELECT|END\\s+CONSTRUCTOR|END)\\b"
+        },
+        {
+          "name": "keyword.control.loop.rapidr",
+          "match": "(?i)\\b(FOR|TO|STEP|NEXT|WHILE|WEND|DO|LOOP|UNTIL)\\b"
+        },
+        {
+          "name": "keyword.control.flow.rapidr",
+          "match": "(?i)\\b(SELECT|CASE|EXIT|RETURN|GOTO|GOSUB|CALL)\\b"
+        },
+        {
+          "name": "keyword.control.block.rapidr",
+          "match": "(?i)\\b(SUB|FUNCTION|CREATE|WITH)\\b"
+        }
+      ]
+    },
+    "keywords-type": {
+      "patterns": [
+        {
+          "name": "storage.type.rapidr",
+          "match": "(?i)\\b(INTEGER|STRING|DOUBLE|SINGLE|BYTE|WORD|DWORD|LONG|INT64|CURRENCY|POBJECT|VARIANT)\\b"
+        }
+      ]
+    },
+    "keywords-operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logical.rapidr",
+          "match": "(?i)\\b(AND|OR|NOT|XOR)\\b"
+        },
+        {
+          "name": "keyword.operator.arithmetic.rapidr",
+          "match": "(?i)\\b(MOD)\\b"
+        }
+      ]
+    },
+    "keywords-other": {
+      "patterns": [
+        {
+          "name": "keyword.other.rapidr",
+          "match": "(?i)\\b(PRINT|INPUT|DEFSTR|DEFINT|DEFBYTE|DEFWORD|DEFDWORD|DEFLONG|DEFSNG|DEFDBL|DEFCUR)\\b"
+        }
+      ]
+    },
+    "component-types": {
+      "patterns": [
+        {
+          "name": "entity.name.type.component.rapidr",
+          "match": "(?i)\\b(RForm|RButton|RLabel|REdit|RCanvas|RPanel|RTimer|RMainMenu|RMenuItem|RComboBox|RListBox|RCheckBox|RRadioButton|RRichEdit|RStringGrid|RImage|RScrollBar|RTabControl|RGroupBox|RMySQL|RSQLite|RProgressBar|RListView|ROpenDialog|RSaveDialog|RFileStream|RFileDialog|RCodeEditor|RLine|RIcon|RImageList|RSocket|RServerSocket|RHTTP|RStatusBar|RColorDialog|RFontDialog|RDesignSurface|RTreeView|RSplitter|RTrackBar|RScrollBox|RPopupMenu|RIni|RMemoryStream|RStringList|RPrinter|RNumPy|RMatPlotLib|RPandas)\\b"
+        },
+        {
+          "name": "entity.name.type.component.rapidr",
+          "match": "(?i)\\b(QForm|QButton|QLabel|QEdit|QCanvas|QPanel|QTimer|QMainMenu|QMenuItem|QComboBox|QListBox|QCheckBox|QRadioButton|QRichEdit|QStringGrid|QImage|QScrollBar|QTabControl|QGroupBox)\\b"
+        }
+      ]
+    },
+    "builtin-functions": {
+      "patterns": [
+        {
+          "name": "support.function.string.rapidr",
+          "match": "(?i)\\b(CHR\\$?|ASC|LEFT\\$?|RIGHT\\$?|MID\\$?|LEN|INSTR|RINSTR|UCASE\\$?|LCASE\\$?|LTRIM\\$?|RTRIM\\$?|TRIM\\$?|SPACE\\$?|STRING\\$?|REPLACE|REPLACESUBSTR|INSERT|REVERSE|FIELD|TALLY|STRF|STR\\$?)\\b"
+        },
+        {
+          "name": "support.function.math.rapidr",
+          "match": "(?i)\\b(ABS|ATN|COS|SIN|TAN|EXP|LOG|SQR|RND|CEIL|ACOS|ASIN|FLOOR|FIX|FRAC|ROUND|SGN|CINT|CLNG|INT|FLOAT|VAL|HEXTODEC|CONVBASE|RANDOMIZE)\\b"
+        },
+        {
+          "name": "support.function.io.rapidr",
+          "match": "(?i)\\b(OPEN|CLOSE|PRINT|INPUT|DIR\\$?|CURDIR\\$?|DIREXISTS|CHDIR|MKDIR|RMDIR|KILL|RENAME|FILEEXISTS)\\b"
+        },
+        {
+          "name": "support.function.system.rapidr",
+          "match": "(?i)\\b(SHELL|SHELLWAIT|RUN|END|SLEEP|TIMER|DATE\\$?|TIME\\$?|COMMAND\\$?|ENVIRON\\$?|DOEVENTS|SOUND|PLAYWAV)\\b"
+        },
+        {
+          "name": "support.function.gui.rapidr",
+          "match": "(?i)\\b(SHOWMESSAGE|MESSAGEBOX|MESSAGEDLG|RGB|CALLBACK|CALLFUNC|VARPTR\\$?|VARTYPE|IIF)\\b"
+        },
+        {
+          "name": "support.function.conversion.rapidr",
+          "match": "(?i)\\b(HEX\\$?|BIN\\$?|OCT\\$?|FORMAT\\$?)\\b"
+        },
+        {
+          "name": "support.function.array.rapidr",
+          "match": "(?i)\\b(LBOUND|UBOUND|QUICKSORT|INITARRAY|SWAP|REDIM)\\b"
+        },
+        {
+          "name": "support.function.delete.rapidr",
+          "match": "(?i)\\b(DELETE)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.rapidr",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*[\\$%#&!]?\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.rapidr",
+          "match": "<>|<=|>=|<|>|="
+        },
+        {
+          "name": "keyword.operator.arithmetic.rapidr",
+          "match": "[+\\-*/\\\\^&]"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.parenthesis.open.rapidr",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.parenthesis.close.rapidr",
+          "match": "\\)"
+        },
+        {
+          "name": "punctuation.separator.comma.rapidr",
+          "match": ","
+        },
+        {
+          "name": "punctuation.separator.colon.rapidr",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.terminator.semicolon.rapidr",
+          "match": ";"
+        },
+        {
+          "name": "punctuation.accessor.dot.rapidr",
+          "match": "\\."
+        }
+      ]
+    }
+  }
+}

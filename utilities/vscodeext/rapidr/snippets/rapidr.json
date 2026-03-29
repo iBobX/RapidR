@@ -1,0 +1,531 @@
+{
+  "DIM Variable": {
+    "prefix": "dim",
+    "body": [
+      "DIM ${1:name} AS ${2|INTEGER,STRING,DOUBLE,SINGLE,LONG,BYTE,WORD,DWORD,INT64,CURRENCY,VARIANT,POBJECT|}"
+    ],
+    "description": "Declare a variable with DIM"
+  },
+  "DIM Array": {
+    "prefix": "dima",
+    "body": [
+      "DIM ${1:name}(${2:size}) AS ${3|INTEGER,STRING,DOUBLE,SINGLE,LONG|}"
+    ],
+    "description": "Declare an array with DIM"
+  },
+  "CONST": {
+    "prefix": "const",
+    "body": [
+      "CONST ${1:NAME} = ${2:value}"
+    ],
+    "description": "Declare a constant"
+  },
+  "IF...THEN...END IF": {
+    "prefix": "if",
+    "body": [
+      "IF ${1:condition} THEN",
+      "\t${2:' code here}",
+      "END IF"
+    ],
+    "description": "IF block"
+  },
+  "IF...THEN...ELSE...END IF": {
+    "prefix": "ife",
+    "body": [
+      "IF ${1:condition} THEN",
+      "\t${2:' then code}",
+      "ELSE",
+      "\t${3:' else code}",
+      "END IF"
+    ],
+    "description": "IF...ELSE block"
+  },
+  "IF...ELSEIF...ELSE...END IF": {
+    "prefix": "ifeif",
+    "body": [
+      "IF ${1:condition1} THEN",
+      "\t${2:' code}",
+      "ELSEIF ${3:condition2} THEN",
+      "\t${4:' code}",
+      "ELSE",
+      "\t${5:' code}",
+      "END IF"
+    ],
+    "description": "IF...ELSEIF...ELSE block"
+  },
+  "FOR...NEXT": {
+    "prefix": "for",
+    "body": [
+      "FOR ${1:i} = ${2:1} TO ${3:10}",
+      "\t${4:' code here}",
+      "NEXT ${1:i}"
+    ],
+    "description": "FOR loop"
+  },
+  "FOR...STEP...NEXT": {
+    "prefix": "fors",
+    "body": [
+      "FOR ${1:i} = ${2:start} TO ${3:end} STEP ${4:step}",
+      "\t${5:' code here}",
+      "NEXT ${1:i}"
+    ],
+    "description": "FOR loop with STEP"
+  },
+  "WHILE...WEND": {
+    "prefix": "while",
+    "body": [
+      "WHILE ${1:condition}",
+      "\t${2:' code here}",
+      "WEND"
+    ],
+    "description": "WHILE loop"
+  },
+  "DO...LOOP WHILE": {
+    "prefix": "dowhile",
+    "body": [
+      "DO",
+      "\t${1:' code here}",
+      "LOOP WHILE ${2:condition}"
+    ],
+    "description": "DO...LOOP WHILE (post-condition)"
+  },
+  "DO...LOOP UNTIL": {
+    "prefix": "dountil",
+    "body": [
+      "DO",
+      "\t${1:' code here}",
+      "LOOP UNTIL ${2:condition}"
+    ],
+    "description": "DO...LOOP UNTIL (post-condition)"
+  },
+  "DO WHILE...LOOP": {
+    "prefix": "dowhilepre",
+    "body": [
+      "DO WHILE ${1:condition}",
+      "\t${2:' code here}",
+      "LOOP"
+    ],
+    "description": "DO WHILE...LOOP (pre-condition)"
+  },
+  "SELECT CASE": {
+    "prefix": "select",
+    "body": [
+      "SELECT CASE ${1:expression}",
+      "\tCASE ${2:value1}",
+      "\t\t${3:' code}",
+      "\tCASE ${4:value2}",
+      "\t\t${5:' code}",
+      "\tCASE ELSE",
+      "\t\t${6:' default code}",
+      "END SELECT"
+    ],
+    "description": "SELECT CASE block"
+  },
+  "SUB": {
+    "prefix": "sub",
+    "body": [
+      "SUB ${1:Name}(${2:params})",
+      "\t${3:' code here}",
+      "END SUB"
+    ],
+    "description": "Subroutine definition"
+  },
+  "FUNCTION": {
+    "prefix": "func",
+    "body": [
+      "FUNCTION ${1:Name}(${2:params}) AS ${3|INTEGER,STRING,DOUBLE,LONG,VARIANT|}",
+      "\t${4:' code here}",
+      "\t${1:Name} = ${5:result}",
+      "END FUNCTION"
+    ],
+    "description": "Function definition"
+  },
+  "TYPE": {
+    "prefix": "type",
+    "body": [
+      "TYPE ${1:TypeName}",
+      "\t${2:Field1} AS ${3|INTEGER,STRING,DOUBLE,LONG|}",
+      "\t${4:Field2} AS ${5|INTEGER,STRING,DOUBLE,LONG|}",
+      "END TYPE"
+    ],
+    "description": "User-defined type (struct)"
+  },
+  "TYPE with CONSTRUCTOR": {
+    "prefix": "typec",
+    "body": [
+      "TYPE ${1:TypeName}",
+      "\t${2:Field1} AS ${3|STRING,INTEGER,DOUBLE,LONG|}",
+      "",
+      "\tCONSTRUCTOR",
+      "\t\t.${2:Field1} = ${4:defaultValue}",
+      "\tEND CONSTRUCTOR",
+      "",
+      "\tSUB ${5:MethodName}()",
+      "\t\t${6:' code}",
+      "\tEND SUB",
+      "END TYPE"
+    ],
+    "description": "User-defined type with constructor and method"
+  },
+  "CREATE Form": {
+    "prefix": "createform",
+    "body": [
+      "CREATE ${1:Form1} AS RForm",
+      "\tCaption = \"${2:My Application}\"",
+      "\tWidth = ${3:800}",
+      "\tHeight = ${4:600}",
+      "\tCenter",
+      "\t",
+      "\t${5:' Add child components here}",
+      "END CREATE",
+      "",
+      "${1:Form1}.ShowModal"
+    ],
+    "description": "Create a RForm window"
+  },
+  "CREATE Button": {
+    "prefix": "createbutton",
+    "body": [
+      "CREATE ${1:Button1} AS RButton",
+      "\tCaption = \"${2:Click Me}\"",
+      "\tLeft = ${3:10}",
+      "\tTop = ${4:10}",
+      "\tWidth = ${5:100}",
+      "\tHeight = ${6:30}",
+      "\tOnClick = ${7:HandleClick}",
+      "END CREATE"
+    ],
+    "description": "Create a RButton"
+  },
+  "CREATE Label": {
+    "prefix": "createlabel",
+    "body": [
+      "CREATE ${1:Label1} AS RLabel",
+      "\tCaption = \"${2:Label Text}\"",
+      "\tLeft = ${3:10}",
+      "\tTop = ${4:10}",
+      "\tAutoSize = TRUE",
+      "END CREATE"
+    ],
+    "description": "Create a RLabel"
+  },
+  "CREATE Edit": {
+    "prefix": "createedit",
+    "body": [
+      "CREATE ${1:Edit1} AS REdit",
+      "\tText = \"${2:}\"",
+      "\tLeft = ${3:10}",
+      "\tTop = ${4:10}",
+      "\tWidth = ${5:200}",
+      "\tHeight = ${6:25}",
+      "END CREATE"
+    ],
+    "description": "Create a REdit text field"
+  },
+  "CREATE Panel": {
+    "prefix": "createpanel",
+    "body": [
+      "CREATE ${1:Panel1} AS RPanel",
+      "\tLeft = ${2:0}",
+      "\tTop = ${3:0}",
+      "\tWidth = ${4:400}",
+      "\tHeight = ${5:300}",
+      "\tColor = ${6:&HFFFFFF}",
+      "\t",
+      "\t${7:' Add child components here}",
+      "END CREATE"
+    ],
+    "description": "Create a RPanel container"
+  },
+  "CREATE Timer": {
+    "prefix": "createtimer",
+    "body": [
+      "CREATE ${1:Timer1} AS RTimer",
+      "\tInterval = ${2:1000}",
+      "\tEnabled = ${3:TRUE}",
+      "\tOnTimer = ${4:HandleTimer}",
+      "END CREATE"
+    ],
+    "description": "Create a RTimer"
+  },
+  "CREATE ListBox": {
+    "prefix": "createlistbox",
+    "body": [
+      "CREATE ${1:ListBox1} AS RListBox",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:200}",
+      "\tHeight = ${5:150}",
+      "END CREATE"
+    ],
+    "description": "Create a RListBox"
+  },
+  "CREATE ComboBox": {
+    "prefix": "createcombo",
+    "body": [
+      "CREATE ${1:ComboBox1} AS RComboBox",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:200}",
+      "END CREATE"
+    ],
+    "description": "Create a RComboBox"
+  },
+  "CREATE StringGrid": {
+    "prefix": "creategrid",
+    "body": [
+      "CREATE ${1:Grid1} AS RStringGrid",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:400}",
+      "\tHeight = ${5:200}",
+      "\tCols = ${6:5}",
+      "\tRows = ${7:10}",
+      "\tFixedCols = ${8:1}",
+      "\tFixedRows = ${9:1}",
+      "END CREATE"
+    ],
+    "description": "Create a RStringGrid"
+  },
+  "CREATE RichEdit": {
+    "prefix": "createrichedit",
+    "body": [
+      "CREATE ${1:RichEdit1} AS RRichEdit",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:400}",
+      "\tHeight = ${5:300}",
+      "END CREATE"
+    ],
+    "description": "Create a RRichEdit multiline text editor"
+  },
+  "CREATE Canvas": {
+    "prefix": "createcanvas",
+    "body": [
+      "CREATE ${1:Canvas1} AS RCanvas",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:400}",
+      "\tHeight = ${5:300}",
+      "\tColor = ${6:&HFFFFFF}",
+      "END CREATE"
+    ],
+    "description": "Create a RCanvas for drawing"
+  },
+  "CREATE CodeEditor": {
+    "prefix": "createcodeeditor",
+    "body": [
+      "CREATE ${1:CodeEditor1} AS RCodeEditor",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:600}",
+      "\tHeight = ${5:400}",
+      "\tLineNumbers = TRUE",
+      "END CREATE"
+    ],
+    "description": "Create a RCodeEditor with code editing features"
+  },
+  "CREATE Menu": {
+    "prefix": "createmenu",
+    "body": [
+      "CREATE ${1:MainMenu1} AS RMainMenu",
+      "\tCREATE ${2:FileMenu} AS RMenuItem",
+      "\t\tCaption = \"${3:&File}\"",
+      "\t\tCREATE ${4:MenuItem1} AS RMenuItem",
+      "\t\t\tCaption = \"${5:&Open}\"",
+      "\t\t\tOnClick = ${6:HandleOpen}",
+      "\t\tEND CREATE",
+      "\tEND CREATE",
+      "END CREATE"
+    ],
+    "description": "Create a RMainMenu with menu items"
+  },
+  "CREATE MySQL": {
+    "prefix": "createmysql",
+    "body": [
+      "CREATE ${1:db} AS RMySQL",
+      "\tHost = \"${2:localhost}\"",
+      "\tUser = \"${3:root}\"",
+      "\tPassword = \"${4:}\"",
+      "\tDatabase = \"${5:mydb}\"",
+      "END CREATE",
+      "",
+      "${1:db}.Connect"
+    ],
+    "description": "Create a RMySQL database connection"
+  },
+  "CREATE SQLite": {
+    "prefix": "createsqlite",
+    "body": [
+      "CREATE ${1:db} AS RSQLite",
+      "\tDatabase = \"${2:data.db}\"",
+      "END CREATE",
+      "",
+      "${1:db}.Connect"
+    ],
+    "description": "Create a RSQLite database connection"
+  },
+  "CREATE Socket": {
+    "prefix": "createsocket",
+    "body": [
+      "CREATE ${1:Socket1} AS RSocket",
+      "\tHost = \"${2:localhost}\"",
+      "\tPort = ${3:8080}",
+      "END CREATE"
+    ],
+    "description": "Create a RSocket network connection"
+  },
+  "CREATE HTTP": {
+    "prefix": "createhttp",
+    "body": [
+      "CREATE ${1:Http1} AS RHTTP",
+      "\tHost = \"${2:api.example.com}\"",
+      "\tPort = ${3:443}",
+      "\tUseSSL = TRUE",
+      "END CREATE"
+    ],
+    "description": "Create a RHTTP client"
+  },
+  "WITH block": {
+    "prefix": "with",
+    "body": [
+      "WITH ${1:object}",
+      "\t.${2:Property} = ${3:value}",
+      "END WITH"
+    ],
+    "description": "WITH block for object property access"
+  },
+  "IMPORT": {
+    "prefix": "import",
+    "body": [
+      "IMPORT \"${1:module}\" AS ${2:alias}"
+    ],
+    "description": "Import a Python module"
+  },
+  "DECLARE": {
+    "prefix": "declare",
+    "body": [
+      "DECLARE ${1|SUB,FUNCTION|} ${2:Name} LIB \"${3:library}\" ALIAS \"${4:Alias}\" (${5:params})"
+    ],
+    "description": "Declare an external function from a library"
+  },
+  "BIND": {
+    "prefix": "bind",
+    "body": [
+      "BIND ${1:Component}.${2:OnClick} TO ${3:HandlerSub}"
+    ],
+    "description": "Bind an event to a handler"
+  },
+  "$INCLUDE": {
+    "prefix": "$include",
+    "body": [
+      "$$INCLUDE \"${1:filename.rp}\""
+    ],
+    "description": "Include an external source file"
+  },
+  "$DEFINE": {
+    "prefix": "$define",
+    "body": [
+      "$$DEFINE ${1:SYMBOL} ${2:value}"
+    ],
+    "description": "Define a text substitution macro"
+  },
+  "$IFDEF": {
+    "prefix": "$ifdef",
+    "body": [
+      "$$IFDEF ${1:SYMBOL}",
+      "\t${2:' conditional code}",
+      "$$ENDIF"
+    ],
+    "description": "Conditional compilation block"
+  },
+  "$APPTYPE": {
+    "prefix": "$apptype",
+    "body": [
+      "$$APPTYPE ${1|GUI,CONSOLE,CGI|}"
+    ],
+    "description": "Set application type"
+  },
+  "$TYPECHECK": {
+    "prefix": "$typecheck",
+    "body": [
+      "$$TYPECHECK ${1|ON,OFF|}"
+    ],
+    "description": "Enable or disable strict type checking"
+  },
+  "Console App Skeleton": {
+    "prefix": "rpcons",
+    "body": [
+      "' ${1:Program Name}",
+      "' RapidR Console Application",
+      "$$APPTYPE CONSOLE",
+      "",
+      "${2:' Your code here}",
+      "PRINT \"Hello, World!\"",
+      ""
+    ],
+    "description": "RapidR console application template"
+  },
+  "GUI App Skeleton": {
+    "prefix": "rpgui",
+    "body": [
+      "' ${1:Program Name}",
+      "' RapidR GUI Application",
+      "$$APPTYPE GUI",
+      "",
+      "CREATE ${2:MainForm} AS RForm",
+      "\tCaption = \"${3:My Application}\"",
+      "\tWidth = ${4:800}",
+      "\tHeight = ${5:600}",
+      "\tCenter",
+      "\t",
+      "\tCREATE ${6:Label1} AS RLabel",
+      "\t\tCaption = \"Welcome to RapidR!\"",
+      "\t\tLeft = 20",
+      "\t\tTop = 20",
+      "\t\tAutoSize = TRUE",
+      "\tEND CREATE",
+      "\t",
+      "\tCREATE ${7:Button1} AS RButton",
+      "\t\tCaption = \"Click Me\"",
+      "\t\tLeft = 20",
+      "\t\tTop = 50",
+      "\t\tWidth = 100",
+      "\t\tHeight = 30",
+      "\t\tOnClick = ${8:OnButtonClick}",
+      "\tEND CREATE",
+      "END CREATE",
+      "",
+      "SUB ${8:OnButtonClick}(Sender AS POBJECT)",
+      "\tSHOWMESSAGE \"Hello from RapidR!\"",
+      "END SUB",
+      "",
+      "${2:MainForm}.ShowModal",
+      ""
+    ],
+    "description": "RapidR GUI application template"
+  },
+  "Database App Skeleton": {
+    "prefix": "rpdb",
+    "body": [
+      "' ${1:Program Name}",
+      "' RapidR Database Application",
+      "$$APPTYPE CONSOLE",
+      "",
+      "CREATE ${2:db} AS RSQLite",
+      "\tDatabase = \"${3:data.db}\"",
+      "END CREATE",
+      "",
+      "${2:db}.Connect",
+      "${2:db}.Query \"${4:SELECT * FROM table1}\"",
+      "",
+      "WHILE ${2:db}.FetchRow",
+      "\tPRINT ${2:db}.FetchField(0)",
+      "WEND",
+      "",
+      "${2:db}.Close",
+      ""
+    ],
+    "description": "RapidR database application template"
+  }
+}

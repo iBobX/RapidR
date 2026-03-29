@@ -1,0 +1,13 @@
+[package]
+name = "rapidr-parser"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rapidr-ast.workspace = true
+rapidr-diagnostics.workspace = true
+rapidr-lexer.workspace = true
+
+[lib]
+path = "src/lib.rs"
