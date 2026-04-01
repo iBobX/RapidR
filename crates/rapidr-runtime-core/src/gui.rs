@@ -12,7 +12,7 @@ use fltk::{
     button::{Button, CheckButton, RadioRoundButton},
     dialog,
     draw,
-    enums::{Align, Color, Event, Font, FrameType},
+    enums::{Align, Color, Event, Font, FrameType, Key},
     frame::Frame,
     group::{Group, Scroll, Tabs},
     image::SharedImage,
@@ -215,28 +215,53 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             btn.set_label(&caption);
             btn.set_frame(FrameType::UpBox);
 
-            // Visual feedback: swap frame type on hover/press
+            // Color-based visual feedback (FrameType changes are invisible with fltk-theme)
+            let normal_color = btn.color();
+            let hover_color = normal_color.lighter();
+            let press_color = normal_color.darker();
             btn.handle(move |b, ev| {
                 match ev {
                     Event::Enter => {
-                        b.set_frame(FrameType::ThinUpBox);
+                        b.set_color(hover_color);
                         b.redraw();
                         true
                     }
                     Event::Leave => {
+                        b.set_color(normal_color);
                         b.set_frame(FrameType::UpBox);
                         b.redraw();
                         true
                     }
                     Event::Push => {
+                        b.set_color(press_color);
                         b.set_frame(FrameType::DownBox);
                         b.redraw();
                         false // let default handle process the click
                     }
                     Event::Released => {
+                        b.set_color(normal_color);
                         b.set_frame(FrameType::UpBox);
                         b.redraw();
                         false
+                    }
+                    Event::Focus => {
+                        b.set_frame(FrameType::ThinUpBox);
+                        b.redraw();
+                        true
+                    }
+                    Event::Unfocus => {
+                        b.set_frame(FrameType::UpBox);
+                        b.redraw();
+                        true
+                    }
+                    Event::KeyDown => {
+                        let key = app::event_key();
+                        if key == Key::Enter || key == Key::from_char(' ') {
+                            b.do_callback();
+                            true
+                        } else {
+                            false
+                        }
                     }
                     _ => false,
                 }
@@ -743,6 +768,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     Event::Push => {
                         let mx = app::event_x();
                         let my = app::event_y();
+                        rp_fire_event(&name_for_cb, "onclick");
                         rp_fire_event_2(&name_for_cb, "onmousedown", v_int(mx as i64), v_int(my as i64));
                         true
                     }
@@ -894,9 +920,15 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
         }
     }
 
-    // Apply initial visibility — hide widgets where Visible = 0
-    let vis = rp_comp_get(name, "visible").to_i64();
-    if vis == 0 {
+    // Apply initial visibility — hide widgets where Visible is explicitly set to 0
+    // (missing or unset 'visible' defaults to visible)
+    let vis_val = rp_comp_get(name, "visible");
+    let explicitly_hidden = match &vis_val {
+        v if v.to_string_val() == "false" => true,
+        v if v.to_string_val() == "0" => true,
+        _ => false,
+    };
+    if explicitly_hidden {
         gui_set_visible(name, false);
     }
 }
@@ -2171,7 +2203,7 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             let y1 = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let x2 = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let y2 = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "pencolor").to_i64();
+            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::Line(x1, y1, x2, y2, bgr_to_fltk_color(color_val)));
@@ -2184,7 +2216,7 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             let y = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let w = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let h = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "pencolor").to_i64();
+            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::Rect(x, y, w, h, bgr_to_fltk_color(color_val)));
@@ -2197,7 +2229,7 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             let y = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let w = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let h = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "brushcolor").to_i64();
+            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "brushcolor").to_i64());
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::FillRect(x, y, w, h, bgr_to_fltk_color(color_val)));
@@ -2209,7 +2241,7 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             let cx = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
             let cy = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let r = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "pencolor").to_i64();
+            let color_val = args.get(3).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::Circle(cx, cy, r, bgr_to_fltk_color(color_val)));
@@ -2218,11 +2250,26 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "drawtext" => {
-            let text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let x = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "fontcolor").to_i64();
-            let font_size = rp_comp_get(name, "fontsize").to_i64() as i32;
+            // Support both conventions:
+            //   drawtext text, x, y [, color [, fontsize]]
+            //   drawtext x, y, text [, color [, fontsize]] (if first arg is numeric)
+            let first_is_number = match args.first() {
+                Some(Value::Integer(_)) | Some(Value::Double(_)) => true,
+                _ => false,
+            };
+            let (text, x, y) = if first_is_number {
+                let xv = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
+                let yv = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
+                let tv = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
+                (tv, xv, yv)
+            } else {
+                let tv = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+                let xv = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
+                let yv = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
+                (tv, xv, yv)
+            };
+            let color_val = args.get(3).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "fontcolor").to_i64());
+            let font_size = args.get(4).map(|v| v.to_i64() as i32).unwrap_or_else(|| rp_comp_get(name, "fontsize").to_i64() as i32);
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::DrawText(text, x, y, bgr_to_fltk_color(color_val), font_size));
@@ -2241,7 +2288,7 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
         "pset" | "setpixel" => {
             let px = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
             let py = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "pencolor").to_i64();
+            let color_val = args.get(2).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::Pixel(px, py, bgr_to_fltk_color(color_val)));
@@ -2254,7 +2301,7 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             let ey = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let ew = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
             let eh = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = rp_comp_get(name, "pencolor").to_i64();
+            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
             CANVAS_CMDS.with(|cmds| {
                 cmds.borrow_mut().entry(name_lower.clone()).or_default()
                     .push(DrawCmd::Ellipse(ex, ey, ew, eh, bgr_to_fltk_color(color_val)));
@@ -2262,7 +2309,10 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
             redraw_widget(&name_lower);
             v_null()
         }
-        "paint" => canvas_method(name, "fillrect", args),
+        "paint" | "refresh" | "update" => {
+            redraw_widget(&name_lower);
+            v_null()
+        }
         "show" => { gui_show(name); v_null() }
         "hide" => { gui_close(name); v_null() }
         _ => {

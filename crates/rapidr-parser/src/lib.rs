@@ -1273,7 +1273,8 @@ impl<'a> Parser<'a> {
                 continue;
             }
             if self.match_kind(TokenType::Dot) {
-                let member = self.expect(TokenType::Identifier)?;
+                // Accept any token as member name (keywords like Close, Show, Open, Clear are valid method/property names)
+                let member = self.advance()?;
                 expr = Expression::MemberAccess(MemberAccessExpression {
                     span: TextSpan::new(expression_span(&expr).start, member.span.end),
                     object: Box::new(expr),
@@ -1315,7 +1316,8 @@ impl<'a> Parser<'a> {
             // WITH-dot access: `.Property`
             TokenType::Dot => {
                 let dot_tok = self.advance()?;
-                let member = self.expect(TokenType::Identifier)?;
+                // Accept any token as member name (keywords like Close, Show, Clear are valid after dot)
+                let member = self.advance()?;
                 Some(Expression::MemberAccess(MemberAccessExpression {
                     span: TextSpan::new(dot_tok.span.start, member.span.end),
                     object: Box::new(Expression::Identifier(Identifier {

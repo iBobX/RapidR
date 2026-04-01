@@ -1068,6 +1068,12 @@ impl RustCodegen {
             self.emit_statement(stmt);
         }
         self.create_stack.pop();
+
+        // Register timers declared in CREATE blocks
+        if type_upper == "RTIMER" {
+            self.write_indent();
+            let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
+        }
     }
 
     fn emit_with(&mut self, w: &WithStatement) {
