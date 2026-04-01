@@ -593,12 +593,16 @@ pub fn rp_strf(val: &Value) -> Value {
 // ---------------------------------------------------------------------------
 
 /// SHELL — execute a command asynchronously
-pub fn rp_shell(command: &Value) {
+pub fn rp_shell(command: &Value) -> Value {
     let cmd = command.to_string_val();
-    let _ = std::process::Command::new("sh")
+    match std::process::Command::new("sh")
         .arg("-c")
         .arg(&cmd)
-        .spawn();
+        .status()
+    {
+        Ok(status) => v_int(status.code().unwrap_or(-1) as i64),
+        Err(_) => v_int(-1),
+    }
 }
 
 /// SHELLWAIT — execute a command and wait, return exit code

@@ -382,6 +382,14 @@ thread_local! {
 
 /// Create a new component and register it in the global registry.
 pub fn rp_create_component(name: &str, type_name: &str) {
+    let name_lower = name.to_lowercase();
+    // Idempotent: if component already exists with the same type, skip
+    let already_exists = COMPONENTS.with(|c| {
+        c.borrow().contains_key(&name_lower)
+    });
+    if already_exists {
+        return;
+    }
     let mut comp = RpComponent::new(type_name);
     let order = CREATION_COUNTER.with(|c| {
         let mut counter = c.borrow_mut();
@@ -391,7 +399,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     });
     comp.creation_order = order;
     COMPONENTS.with(|c| {
-        c.borrow_mut().insert(name.to_lowercase(), comp);
+        c.borrow_mut().insert(name_lower, comp);
     });
 }
 

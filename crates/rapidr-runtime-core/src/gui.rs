@@ -81,6 +81,9 @@ struct DesignState {
     form_w: i32,
     form_h: i32,
     form_caption: String,
+    drag_mode: i32,      // 0=move, 1=resize-right, 2=resize-bottom, 3=resize-BR
+    drag_offset_x: i32,  // mouse offset from component origin
+    drag_offset_y: i32,
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +194,12 @@ fn bgr_to_fltk_color(bgr: i64) -> Color {
 pub fn gui_create_widget(name: &str, comp_type: &str) {
     ensure_app();
     let name_lower = name.to_lowercase();
+
+    // Idempotent: if widget already exists, skip creation
+    let already_exists = GUI_WIDGETS.with(|gw| gw.borrow().contains_key(&name_lower));
+    if already_exists {
+        return;
+    }
 
     match comp_type {
         "RFORM" => {
@@ -527,6 +536,15 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             // Menu items are added to their parent MenuBar
             let caption = rp_comp_get(name, "caption").to_string_val();
             let parent = rp_comp_get(name, "parent").to_string_val();
+
+            // Skip submenu headers (items that have children) — FLTK auto-creates
+            // parent submenus when child items use path separators like "&File/&New".
+            let has_children = !crate::object::get_children_of(name).is_empty();
+            if has_children {
+                // This is a submenu header — let children create the submenu automatically
+                return;
+            }
+
             if !parent.is_empty() {
                 // Walk up to find the MenuBar ancestor
                 let mut mb_name = parent.to_lowercase();
@@ -568,38 +586,75 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             // MenuItems don't get their own widget entry
         }
         "RDESIGNSURFACE" => {
+            let x = rp_comp_get(name, "left").to_i64() as i32;
+            let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let caption = rp_comp_get(name, "formcaption").to_string_val();
             let cap = if caption.is_empty() { "Form1".to_string() } else { caption.clone() };
-            // Create a separate window for the design surface
-            let mut win = Window::new(200, 200, w, h, None);
-            win.set_label(&cap);
-            win.set_color(Color::White);
-            // Draw callback — renders grid + components
-            let ds_name = name_lower.clone();
-            win.draw(move |wid| {
-                draw_design_surface(&ds_name, wid.x(), wid.y(), wid.w(), wid.h());
-            });
-            // Handle mouse events on the design surface
-            let ds_name2 = name_lower.clone();
-            win.handle(move |wid, ev| {
-                handle_design_surface_event(&ds_name2, wid, ev)
-            });
-            win.end();
-            // Initialize design surface state
-            DESIGN_SURFACES.with(|ds| {
-                ds.borrow_mut().insert(name_lower.clone(), DesignState {
-                    components: Vec::new(),
-                    selected: -1,
-                    form_w: w,
-                    form_h: h,
-                    form_caption: cap,
+
+            // Check if this design surface has a parent (embedded in a form)
+            let parent = rp_comp_get(name, "parent").to_string_val();
+            let embedded = !parent.is_empty();
+
+            if embedded {
+                // Embedded design surface: use a Frame with custom draw/handle
+                let mut frm = Frame::new(x, y, w, h, None);
+                frm.set_frame(FrameType::DownBox);
+                frm.set_color(Color::White);
+                let ds_name = name_lower.clone();
+                frm.draw(move |wid| {
+                    draw_design_surface(&ds_name, wid.x(), wid.y(), wid.w(), wid.h());
                 });
-            });
-            GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
-            });
+                let ds_name2 = name_lower.clone();
+                frm.handle(move |wid, ev| {
+                    handle_design_surface_frame_event(&ds_name2, wid, ev)
+                });
+                DESIGN_SURFACES.with(|ds| {
+                    ds.borrow_mut().insert(name_lower.clone(), DesignState {
+                        components: Vec::new(),
+                        selected: -1,
+                        form_w: w,
+                        form_h: h,
+                        form_caption: cap,
+                        drag_mode: 0,
+                        drag_offset_x: 0,
+                        drag_offset_y: 0,
+                    });
+                });
+                GUI_WIDGETS.with(|gw| {
+                    gw.borrow_mut().insert(name_lower, GuiWidget::Frame(frm));
+                });
+            } else {
+                // Standalone design surface: use a Window
+                let mut win = Window::new(200, 200, w, h, None);
+                win.set_label(&cap);
+                win.set_color(Color::White);
+                let ds_name = name_lower.clone();
+                win.draw(move |wid| {
+                    draw_design_surface(&ds_name, wid.x(), wid.y(), wid.w(), wid.h());
+                });
+                let ds_name2 = name_lower.clone();
+                win.handle(move |wid, ev| {
+                    handle_design_surface_event(&ds_name2, wid, ev)
+                });
+                win.end();
+                DESIGN_SURFACES.with(|ds| {
+                    ds.borrow_mut().insert(name_lower.clone(), DesignState {
+                        components: Vec::new(),
+                        selected: -1,
+                        form_w: w,
+                        form_h: h,
+                        form_caption: cap,
+                        drag_mode: 0,
+                        drag_offset_x: 0,
+                        drag_offset_y: 0,
+                    });
+                });
+                GUI_WIDGETS.with(|gw| {
+                    gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
+                });
+            }
         }
         "RSTRINGGRID" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -1050,44 +1105,79 @@ fn handle_design_surface_event(ds_name: &str, wid: &mut Window, ev: Event) -> bo
             let my = app::event_y() - wid.y();
             let clicks = app::event_clicks();
 
-            // Check if clicking on an existing component
-            let hit = DESIGN_SURFACES.with(|ds| {
+            // Check if clicking on a resize handle of the selected component first
+            let handle_hit = DESIGN_SURFACES.with(|ds| {
                 let surfaces = ds.borrow();
                 if let Some(state) = surfaces.get(ds_name) {
-                    // Search in reverse so topmost component wins
-                    for i in (0..state.components.len()).rev() {
-                        let c = &state.components[i];
-                        if mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h {
-                            return Some(i as i32);
+                    let idx = state.selected;
+                    if idx >= 0 && (idx as usize) < state.components.len() {
+                        let c = &state.components[idx as usize];
+                        let hsz = 5;
+                        // Bottom-right handle
+                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
+                            return Some(3); // resize BR
+                        }
+                        // Right-middle handle
+                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h / 2)).abs() <= hsz {
+                            return Some(1); // resize right
+                        }
+                        // Bottom-middle handle
+                        if (mx - (c.x + c.w / 2)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
+                            return Some(2); // resize bottom
                         }
                     }
                 }
                 None
             });
 
-            if let Some(idx) = hit {
-                // Select the component
+            if let Some(mode) = handle_hit {
+                // Start resize drag
+                DESIGN_SURFACES.with(|ds| {
+                    let mut surfaces = ds.borrow_mut();
+                    if let Some(state) = surfaces.get_mut(ds_name) {
+                        state.drag_mode = mode;
+                    }
+                });
+                return true;
+            }
+
+            // Check if clicking on an existing component
+            let hit = DESIGN_SURFACES.with(|ds| {
+                let surfaces = ds.borrow();
+                if let Some(state) = surfaces.get(ds_name) {
+                    for i in (0..state.components.len()).rev() {
+                        let c = &state.components[i];
+                        if mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h {
+                            return Some((i as i32, mx - c.x, my - c.y));
+                        }
+                    }
+                }
+                None
+            });
+
+            if let Some((idx, off_x, off_y)) = hit {
                 DESIGN_SURFACES.with(|ds| {
                     let mut surfaces = ds.borrow_mut();
                     if let Some(state) = surfaces.get_mut(ds_name) {
                         state.selected = idx;
+                        state.drag_mode = 0; // move
+                        state.drag_offset_x = off_x;
+                        state.drag_offset_y = off_y;
                     }
                 });
                 wid.redraw();
 
                 if clicks {
-                    // Double-click — fire OnDblClick(index)
                     rp_fire_event_1(ds_name, "ondblclick", v_int(idx as i64));
                 } else {
-                    // Single click — fire OnSelect(index)
                     rp_fire_event_1(ds_name, "onselect", v_int(idx as i64));
                 }
             } else {
-                // Clicked on background
                 DESIGN_SURFACES.with(|ds| {
                     let mut surfaces = ds.borrow_mut();
                     if let Some(state) = surfaces.get_mut(ds_name) {
                         state.selected = -1;
+                        state.drag_mode = 0;
                     }
                 });
                 wid.redraw();
@@ -1098,29 +1188,200 @@ fn handle_design_surface_event(ds_name: &str, wid: &mut Window, ev: Event) -> bo
         Event::Drag => {
             let mx = app::event_x() - wid.x();
             let my = app::event_y() - wid.y();
-            // Move selected component
-            let moved = DESIGN_SURFACES.with(|ds| {
+
+            let result = DESIGN_SURFACES.with(|ds| {
                 let mut surfaces = ds.borrow_mut();
                 if let Some(state) = surfaces.get_mut(ds_name) {
                     let idx = state.selected;
                     if idx >= 0 && (idx as usize) < state.components.len() {
+                        let mode = state.drag_mode;
                         let c = &mut state.components[idx as usize];
-                        // Snap to grid (8px)
-                        c.x = ((mx - c.w / 2) / 8) * 8;
-                        c.y = ((my - c.h / 2) / 8) * 8;
-                        if c.x < 0 { c.x = 0; }
-                        if c.y < 0 { c.y = 0; }
+                        match mode {
+                            1 => {
+                                // Resize right edge
+                                let new_w = ((mx - c.x + 4) / 8) * 8;
+                                c.w = new_w.max(16);
+                            }
+                            2 => {
+                                // Resize bottom edge
+                                let new_h = ((my - c.y + 4) / 8) * 8;
+                                c.h = new_h.max(16);
+                            }
+                            3 => {
+                                // Resize bottom-right corner
+                                let new_w = ((mx - c.x + 4) / 8) * 8;
+                                let new_h = ((my - c.y + 4) / 8) * 8;
+                                c.w = new_w.max(16);
+                                c.h = new_h.max(16);
+                            }
+                            _ => {
+                                // Move, using offset from Push
+                                let new_x = ((mx - state.drag_offset_x + 4) / 8) * 8;
+                                let new_y = ((my - state.drag_offset_y + 4) / 8) * 8;
+                                c.x = new_x.max(0);
+                                c.y = new_y.max(0);
+                            }
+                        }
                         return Some((idx, c.x, c.y, c.w, c.h));
                     }
                 }
                 None
             });
-            if let Some((idx, cx, cy, cw, ch)) = moved {
+            if let Some((idx, cx, cy, cw, ch)) = result {
                 wid.redraw();
                 rp_fire_event_5(ds_name, "onmove",
                     v_int(idx as i64), v_int(cx as i64), v_int(cy as i64),
                     v_int(cw as i64), v_int(ch as i64));
             }
+            true
+        }
+        Event::Released => {
+            // Reset drag mode
+            DESIGN_SURFACES.with(|ds| {
+                let mut surfaces = ds.borrow_mut();
+                if let Some(state) = surfaces.get_mut(ds_name) {
+                    state.drag_mode = 0;
+                }
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+fn handle_design_surface_frame_event(ds_name: &str, wid: &mut Frame, ev: Event) -> bool {
+    match ev {
+        Event::Push => {
+            let mx = app::event_x() - wid.x();
+            let my = app::event_y() - wid.y();
+            let clicks = app::event_clicks();
+
+            let handle_hit = DESIGN_SURFACES.with(|ds| {
+                let surfaces = ds.borrow();
+                if let Some(state) = surfaces.get(ds_name) {
+                    let idx = state.selected;
+                    if idx >= 0 && (idx as usize) < state.components.len() {
+                        let c = &state.components[idx as usize];
+                        let hsz = 5;
+                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
+                            return Some(3);
+                        }
+                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h / 2)).abs() <= hsz {
+                            return Some(1);
+                        }
+                        if (mx - (c.x + c.w / 2)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
+                            return Some(2);
+                        }
+                    }
+                }
+                None
+            });
+
+            if let Some(mode) = handle_hit {
+                DESIGN_SURFACES.with(|ds| {
+                    let mut surfaces = ds.borrow_mut();
+                    if let Some(state) = surfaces.get_mut(ds_name) {
+                        state.drag_mode = mode;
+                    }
+                });
+                return true;
+            }
+
+            let hit = DESIGN_SURFACES.with(|ds| {
+                let surfaces = ds.borrow();
+                if let Some(state) = surfaces.get(ds_name) {
+                    for i in (0..state.components.len()).rev() {
+                        let c = &state.components[i];
+                        if mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h {
+                            return Some((i as i32, mx - c.x, my - c.y));
+                        }
+                    }
+                }
+                None
+            });
+
+            if let Some((idx, off_x, off_y)) = hit {
+                DESIGN_SURFACES.with(|ds| {
+                    let mut surfaces = ds.borrow_mut();
+                    if let Some(state) = surfaces.get_mut(ds_name) {
+                        state.selected = idx;
+                        state.drag_mode = 0;
+                        state.drag_offset_x = off_x;
+                        state.drag_offset_y = off_y;
+                    }
+                });
+                wid.redraw();
+                if clicks {
+                    rp_fire_event_1(ds_name, "ondblclick", v_int(idx as i64));
+                } else {
+                    rp_fire_event_1(ds_name, "onselect", v_int(idx as i64));
+                }
+            } else {
+                DESIGN_SURFACES.with(|ds| {
+                    let mut surfaces = ds.borrow_mut();
+                    if let Some(state) = surfaces.get_mut(ds_name) {
+                        state.selected = -1;
+                        state.drag_mode = 0;
+                    }
+                });
+                wid.redraw();
+                rp_fire_event_2(ds_name, "onbgclick", v_int(mx as i64), v_int(my as i64));
+            }
+            true
+        }
+        Event::Drag => {
+            let mx = app::event_x() - wid.x();
+            let my = app::event_y() - wid.y();
+
+            let result = DESIGN_SURFACES.with(|ds| {
+                let mut surfaces = ds.borrow_mut();
+                if let Some(state) = surfaces.get_mut(ds_name) {
+                    let idx = state.selected;
+                    if idx >= 0 && (idx as usize) < state.components.len() {
+                        let mode = state.drag_mode;
+                        let c = &mut state.components[idx as usize];
+                        match mode {
+                            1 => {
+                                let new_w = ((mx - c.x + 4) / 8) * 8;
+                                c.w = new_w.max(16);
+                            }
+                            2 => {
+                                let new_h = ((my - c.y + 4) / 8) * 8;
+                                c.h = new_h.max(16);
+                            }
+                            3 => {
+                                let new_w = ((mx - c.x + 4) / 8) * 8;
+                                let new_h = ((my - c.y + 4) / 8) * 8;
+                                c.w = new_w.max(16);
+                                c.h = new_h.max(16);
+                            }
+                            _ => {
+                                let new_x = ((mx - state.drag_offset_x + 4) / 8) * 8;
+                                let new_y = ((my - state.drag_offset_y + 4) / 8) * 8;
+                                c.x = new_x.max(0);
+                                c.y = new_y.max(0);
+                            }
+                        }
+                        return Some((idx, c.x, c.y, c.w, c.h));
+                    }
+                }
+                None
+            });
+            if let Some((idx, cx, cy, cw, ch)) = result {
+                wid.redraw();
+                rp_fire_event_5(ds_name, "onmove",
+                    v_int(idx as i64), v_int(cx as i64), v_int(cy as i64),
+                    v_int(cw as i64), v_int(ch as i64));
+            }
+            true
+        }
+        Event::Released => {
+            DESIGN_SURFACES.with(|ds| {
+                let mut surfaces = ds.borrow_mut();
+                if let Some(state) = surfaces.get_mut(ds_name) {
+                    state.drag_mode = 0;
+                }
+            });
             true
         }
         _ => false,
@@ -1278,6 +1539,32 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
                 v_int(0)
             }
         }
+        "RCOLORDIALOG" => {
+            // Show FLTK color chooser dialog
+            if let Some((r, g, b)) = dialog::color_chooser("Choose Color", dialog::ColorMode::Rgb) {
+                let hex = format!("#{:02X}{:02X}{:02X}", r, g, b);
+                rp_comp_set(name, "color", v_str(&hex));
+                v_int(1)
+            } else {
+                v_int(0)
+            }
+        }
+        "RFONTDIALOG" => {
+            // FLTK doesn't have a native font dialog. Use a simple input dialog.
+            let current = rp_comp_get(name, "fontname").to_string_val();
+            let prompt = format!("Font name (current: {}):", if current.is_empty() { "Helvetica" } else { &current });
+            let result = dialog::input_default(&prompt, &current);
+            if let Some(font_name) = result {
+                if !font_name.is_empty() {
+                    rp_comp_set(name, "fontname", v_str(&font_name));
+                    v_int(1)
+                } else {
+                    v_int(0)
+                }
+            } else {
+                v_int(0)
+            }
+        }
         _ => v_int(0),
     }
 }
@@ -1418,8 +1705,10 @@ pub fn gui_show(name: &str) {
     if already_exists {
         GUI_WIDGETS.with(|gw| {
             let mut widgets = gw.borrow_mut();
-            if let Some(GuiWidget::Window(ref mut win)) = widgets.get_mut(&name_lower) {
-                win.show();
+            match widgets.get_mut(&name_lower) {
+                Some(GuiWidget::Window(ref mut win)) => { win.show(); }
+                Some(GuiWidget::Frame(ref mut frm)) => { frm.show(); }
+                _ => {}
             }
         });
         return;
@@ -1434,8 +1723,10 @@ pub fn gui_show(name: &str) {
 
     GUI_WIDGETS.with(|gw| {
         let mut widgets = gw.borrow_mut();
-        if let Some(GuiWidget::Window(ref mut win)) = widgets.get_mut(&name_lower) {
-            win.show();
+        match widgets.get_mut(&name_lower) {
+            Some(GuiWidget::Window(ref mut win)) => { win.show(); }
+            Some(GuiWidget::Frame(ref mut frm)) => { frm.show(); }
+            _ => {}
         }
     });
 }

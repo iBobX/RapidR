@@ -3,7 +3,7 @@
 > **Purpose:** This is a comprehensive reference for AI assistants (and humans) working on the RapidR transpiler. It documents the Rust workspace, language syntax, compiler internals, runtime architecture, known limitations, and coding patterns.
 > **Instructions for AI:** Always read this manual first when working on this repository. Keep this manual updated as features are added or changed.
 >
-> **Last Updated:** June 25, 2025
+> **Last Updated:** April 1, 2026
 
 ---
 
@@ -935,6 +935,34 @@ FOR i = 1 TO 10 STEP 2         →  i = 1
 NEXT i                          →      rp_print(i)
                                 →      i += 2
 ```
+
+---
+
+## Changelog (April 2026)
+
+### Parser Fixes
+- **Dot-member access after keywords**: `parse_postfix_expression` and `parse_primary` (WITH-dot case) now accept ANY token after `.`, not just `Identifier`. This fixes `Form1.Close`, `Form1.Show`, `ListBox1.Clear`, etc., where the member name is also a keyword.
+
+### Codegen Fixes
+- **RTIMER registration**: `emit_create()` now emits `gui_register_timer("{name}")` after the CREATE block body for RTIMER components.
+
+### Runtime GUI Fixes (`gui.rs`)
+- **Visibility default**: Components without an explicit `visible` property are now visible by default. Previously, missing/null `visible` was treated as 0 (hidden), making RListBox, RCanvas, RImage, etc. invisible. Now only explicitly set `"false"` or `"0"` hides a widget.
+- **RButton visual feedback**: Replaced FrameType-based hover/press effects (invisible with themes) with color-based feedback. Added Focus/Unfocus/KeyDown handlers for keyboard interaction.
+- **RCanvas inline color**: All drawing methods (`line`, `rect`, `fillrect`, `circle`, `ellipse`, `arc`, `drawtext`) accept an optional trailing color argument.
+- **RCanvas drawtext**: Supports dual argument conventions — `drawtext(text, x, y)` and `drawtext(x, y, text)`.
+- **RCanvas paint method**: Now calls `redraw_widget` instead of delegating to `fillrect`.
+- **RCanvas onclick event**: Push handler now fires `rp_fire_event(name, "onclick")`.
+- **Menu duplication fix**: RMENUITEM entries that have children (submenu headers like "&File") are no longer added to the MenuBar via `mb.add()`. Their children's full-path entries (e.g., `"&File/&New"`) auto-create the submenu, preventing duplicate top-level menu entries.
+- **RDESIGNSURFACE positioning**: Reads `left`/`top` from component properties instead of hardcoding (200, 200), enabling embedded MDI-style placement inside parent forms.
+- **Component idempotency**: `rp_create_component` and `gui_create_widget` skip creation if the component/widget already exists, preventing duplicate widgets from DIM+CREATE patterns.
+
+### IDE Example (`ide.rp`)
+- **MDI layout**: DesignSurface is now created inside the IDE form's CREATE block with `Left=4, Top=124, Width=832, Height=580`, embedding it directly in the center area rather than as a separate floating window.
+- **Import `Key`**: Added `fltk::enums::Key` to imports for button keyboard handling.
+
+### CLI
+- The `rapidr` binary can be installed globally via `cargo install --path crates/rapidr-cli`.
 
 ---
 
