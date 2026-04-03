@@ -419,7 +419,7 @@
   "$INCLUDE": {
     "prefix": "$include",
     "body": [
-      "$$INCLUDE \"${1:filename.rp}\""
+      "$$INCLUDE \"${1:filename.rr}\""
     ],
     "description": "Include an external source file"
   },

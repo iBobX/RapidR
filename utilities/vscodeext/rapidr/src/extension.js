@@ -108,22 +108,21 @@ function activate(context) {
 }
 
 function findCompilerPath() {
+    const path = require('path');
+    const fs = require('fs');
     const config = vscode.workspace.getConfiguration('rapidr');
     const configuredPath = config.get('compilerPath');
-    if (configuredPath) {
+    if (configuredPath && fs.existsSync(configuredPath)) {
         return configuredPath;
     }
-    // Auto-detect: look for compile.py relative to the workspace
+    // Auto-detect: look for rapidr binary relative to the workspace, then in PATH
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
         for (const folder of workspaceFolders) {
-            const path = require('path');
-            const fs = require('fs');
-            // Check common locations
             const candidates = [
-                path.join(folder.uri.fsPath, 'compile.py'),
-                path.join(folder.uri.fsPath, '..', 'compile.py'),
-                path.join(folder.uri.fsPath, '..', '..', 'compile.py'),
+                path.join(folder.uri.fsPath, 'rapidr'),
+                path.join(folder.uri.fsPath, '..', 'rapidr'),
+                path.join(folder.uri.fsPath, '..', '..', 'rapidr'),
             ];
             for (const candidate of candidates) {
                 try {
@@ -137,7 +136,8 @@ function findCompilerPath() {
             }
         }
     }
-    return null;
+    // Fall back to PATH
+    return 'rapidr';
 }
 
 function compileFile(run) {
@@ -149,24 +149,20 @@ function compileFile(run) {
     editor.document.save().then(() => {
         const filePath = editor.document.uri.fsPath;
         const compilerPath = findCompilerPath();
-        if (!compilerPath) {
-            vscode.window.showErrorMessage('Could not find compile.py. Set rapidr.compilerPath in settings.');
-            return;
-        }
         const config = vscode.workspace.getConfiguration('rapidr');
-        const pythonPath = config.get('pythonPath') || 'python3';
-        const encoding = config.get('encoding') || 'utf-8';
 
-        const args = [compilerPath, filePath, '--encoding', encoding, '--json-errors'];
+        // Use the shortcut syntax: rapidr --release <file.rr>
+        // This builds the file and places the binary alongside the source
+        let cmd = `"${compilerPath}" --release "${filePath}"`;
         if (run || config.get('runAfterCompile')) {
-            args.push('-r');
+            const path = require('path');
+            const baseName = path.basename(filePath, path.extname(filePath));
+            const binaryPath = path.join(path.dirname(filePath), baseName);
+            cmd += ` && "${binaryPath}"`;
         }
 
-        const terminal = vscode.window.createTerminal({
-            name: 'RapidR',
-            shellPath: pythonPath,
-            shellArgs: args
-        });
+        const terminal = vscode.window.createTerminal({ name: 'RapidR' });
+        terminal.sendText(cmd);
         terminal.show();
     });
 }
@@ -180,19 +176,10 @@ function compileToExe() {
     editor.document.save().then(() => {
         const filePath = editor.document.uri.fsPath;
         const compilerPath = findCompilerPath();
-        if (!compilerPath) {
-            vscode.window.showErrorMessage('Could not find compile.py. Set rapidr.compilerPath in settings.');
-            return;
-        }
-        const config = vscode.workspace.getConfiguration('rapidr');
-        const pythonPath = config.get('pythonPath') || 'python3';
-        const encoding = config.get('encoding') || 'utf-8';
 
-        const terminal = vscode.window.createTerminal({
-            name: 'RapidR Build',
-            shellPath: pythonPath,
-            shellArgs: [compilerPath, filePath, '--encoding', encoding, '-s']
-        });
+        const cmd = `"${compilerPath}" --release "${filePath}"`;
+        const terminal = vscode.window.createTerminal({ name: 'RapidR Build' });
+        terminal.sendText(cmd);
         terminal.show();
     });
 }

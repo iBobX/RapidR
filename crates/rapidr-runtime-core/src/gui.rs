@@ -12,7 +12,7 @@ use fltk::{
     button::{Button, CheckButton, RadioRoundButton},
     dialog,
     draw,
-    enums::{Align, Color, Event, Font, FrameType, Key},
+    enums::{Align, CallbackTrigger, Color, Event, Font, FrameType, Key},
     frame::Frame,
     group::{Group, Scroll, Tabs},
     image::SharedImage,
@@ -21,7 +21,7 @@ use fltk::{
     misc::Progress as FltkProgress,
     output::Output,
     prelude::*,
-    text::{TextBuffer, TextEditor},
+    text::{TextBuffer, TextEditor, StyleTableEntry},
     tree::Tree,
     valuator::HorNiceSlider,
     window::Window,
@@ -121,6 +121,7 @@ thread_local! {
     static GUI_WIDGETS: RefCell<HashMap<String, GuiWidget>> = RefCell::new(HashMap::new());
     static GUI_APP: RefCell<Option<app::App>> = RefCell::new(None);
     static GUI_TEXT_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
+    static GUI_STYLE_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
     static DESIGN_SURFACES: RefCell<HashMap<String, DesignState>> = RefCell::new(HashMap::new());
     static STRING_GRIDS: RefCell<HashMap<String, StringGridState>> = RefCell::new(HashMap::new());
     /// Maps tab control names to their child group names (tab_name -> group_widget_key)
@@ -140,6 +141,11 @@ pub fn set_theme(theme: &str) {
 }
 
 fn ensure_app() {
+    // Check with an immutable borrow first to avoid conflicts with the event loop
+    let needs_init = GUI_APP.with(|a| a.borrow().is_none());
+    if !needs_init {
+        return;
+    }
     GUI_APP.with(|a| {
         let mut app_ref = a.borrow_mut();
         if app_ref.is_none() {
@@ -206,13 +212,33 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let caption = rp_comp_get(name, "caption").to_string_val();
-            let mut win = Window::new(100, 100, w, h, None);
-            win.set_label(&caption);
-            win.make_resizable(true);
-            win.end();
-            GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
-            });
+
+            // Check for parent form (RapidQ-style: assigning Parent removes from taskbar)
+            let parent = rp_comp_get(name, "parent").to_string_val().to_lowercase();
+            let has_parent = !parent.is_empty() && parent != "0";
+
+            if has_parent {
+                // Child form: position relative to parent, non-modal
+                let lx = rp_comp_get(name, "left").to_i64() as i32;
+                let ly = rp_comp_get(name, "top").to_i64() as i32;
+                let x = if lx > 0 { lx } else { 50 };
+                let y = if ly > 0 { ly } else { 50 };
+                let mut win = Window::new(x, y, w, h, None);
+                win.set_label(&caption);
+                win.make_resizable(true);
+                win.end();
+                GUI_WIDGETS.with(|gw| {
+                    gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
+                });
+            } else {
+                let mut win = Window::new(100, 100, w, h, None);
+                win.set_label(&caption);
+                win.make_resizable(true);
+                win.end();
+                GUI_WIDGETS.with(|gw| {
+                    gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
+                });
+            }
         }
         "RBUTTON" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -224,19 +250,38 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             btn.set_label(&caption);
             btn.set_frame(FrameType::UpBox);
 
-            // Color-based visual feedback (FrameType changes are invisible with fltk-theme)
+            // Color-based visual feedback (more pronounced for themed apps)
             let normal_color = btn.color();
-            let hover_color = normal_color.lighter();
-            let press_color = normal_color.darker();
+            let normal_label_color = btn.label_color();
+            let (r, g, b_c) = normal_color.to_rgb();
+            let hover_color = Color::from_rgb(
+                r.saturating_add(25).min(245),
+                g.saturating_add(25).min(245),
+                b_c.saturating_add(35).min(255),
+            );
+            let press_color = Color::from_rgb(
+                r.saturating_sub(35),
+                g.saturating_sub(35),
+                b_c.saturating_sub(25),
+            );
+            let hover_label = Color::from_rgb(0, 60, 180);
+            let focus_color = Color::from_rgb(
+                r.saturating_add(10).min(245),
+                g.saturating_add(15).min(248),
+                b_c.saturating_add(40).min(255),
+            );
             btn.handle(move |b, ev| {
                 match ev {
                     Event::Enter => {
                         b.set_color(hover_color);
+                        b.set_label_color(hover_label);
+                        b.set_frame(FrameType::UpBox);
                         b.redraw();
                         true
                     }
                     Event::Leave => {
                         b.set_color(normal_color);
+                        b.set_label_color(normal_label_color);
                         b.set_frame(FrameType::UpBox);
                         b.redraw();
                         true
@@ -245,20 +290,24 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         b.set_color(press_color);
                         b.set_frame(FrameType::DownBox);
                         b.redraw();
-                        false // let default handle process the click
+                        true // we handle the visual; Released will fire callback
                     }
                     Event::Released => {
-                        b.set_color(normal_color);
+                        b.set_color(hover_color);
                         b.set_frame(FrameType::UpBox);
                         b.redraw();
-                        false
+                        b.do_callback();
+                        true
                     }
                     Event::Focus => {
+                        b.set_color(focus_color);
                         b.set_frame(FrameType::ThinUpBox);
                         b.redraw();
                         true
                     }
                     Event::Unfocus => {
+                        b.set_color(normal_color);
+                        b.set_label_color(normal_label_color);
                         b.set_frame(FrameType::UpBox);
                         b.redraw();
                         true
@@ -310,6 +359,15 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 rp_comp_set(&name_for_cb, "text", v_str(&i.value()));
                 rp_fire_event(&name_for_cb, "onchange");
             });
+            let normal_frame = FrameType::DownBox;
+            let focus_frame = FrameType::BorderBox;
+            inp.handle(move |w, ev| {
+                match ev {
+                    Event::Focus => { w.set_frame(focus_frame); w.redraw(); false }
+                    Event::Unfocus => { w.set_frame(normal_frame); w.redraw(); false }
+                    _ => false,
+                }
+            });
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::Input(inp));
             });
@@ -333,6 +391,23 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let caption = rp_comp_get(name, "caption").to_string_val();
             let mut cb = CheckButton::new(x, y, w, h, None);
             cb.set_label(&caption);
+            let normal_lbl_color = cb.label_color();
+            let hover_lbl_color = Color::from_rgb(0, 60, 180);
+            cb.handle(move |c, ev| {
+                match ev {
+                    Event::Enter => {
+                        c.set_label_color(hover_lbl_color);
+                        c.redraw();
+                        true
+                    }
+                    Event::Leave => {
+                        c.set_label_color(normal_lbl_color);
+                        c.redraw();
+                        true
+                    }
+                    _ => false,
+                }
+            });
             let name_for_cb = name.to_lowercase();
             cb.set_callback(move |c| {
                 rp_comp_set(&name_for_cb, "checked", v_int(if c.is_checked() { 1 } else { 0 }));
@@ -350,6 +425,23 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let caption = rp_comp_get(name, "caption").to_string_val();
             let mut rb = RadioRoundButton::new(x, y, w, h, None);
             rb.set_label(&caption);
+            let normal_rb_color = rb.label_color();
+            let hover_rb_color = Color::from_rgb(0, 60, 180);
+            rb.handle(move |r, ev| {
+                match ev {
+                    Event::Enter => {
+                        r.set_label_color(hover_rb_color);
+                        r.redraw();
+                        true
+                    }
+                    Event::Leave => {
+                        r.set_label_color(normal_rb_color);
+                        r.redraw();
+                        true
+                    }
+                    _ => false,
+                }
+            });
             let name_for_cb = name.to_lowercase();
             rb.set_callback(move |b| {
                 let is_checked = b.value();
@@ -506,11 +598,53 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let text = rp_comp_get(name, "text").to_string_val();
             let mut buf = TextBuffer::default();
             buf.set_text(&text);
+
+            // Create style buffer for syntax highlighting
+            let mut style_buf = TextBuffer::default();
+            let style_text = basic_syntax_highlight(&text);
+            style_buf.set_text(&style_text);
+
+            // Style table: A=keyword(blue), B=string(burgundy), C=comment(green), D=number(maroon), E=normal
+            let styles = vec![
+                StyleTableEntry { color: Color::from_rgb(0, 0, 180), font: Font::CourierBold, size: 13 },    // A - keywords
+                StyleTableEntry { color: Color::from_rgb(163, 21, 21), font: Font::Courier, size: 13 },       // B - strings
+                StyleTableEntry { color: Color::from_rgb(0, 128, 0), font: Font::CourierItalic, size: 13 },   // C - comments
+                StyleTableEntry { color: Color::from_rgb(128, 0, 0), font: Font::Courier, size: 13 },         // D - numbers
+                StyleTableEntry { color: Color::Black, font: Font::Courier, size: 13 },                       // E - normal
+            ];
+
             let mut editor = TextEditor::new(x, y, w, h, None);
             editor.set_buffer(buf.clone());
             editor.set_text_font(Font::Courier);
             editor.set_text_size(13);
             editor.set_linenumber_width(40);
+            editor.set_highlight_data(style_buf.clone(), styles);
+
+            // Store style buffer for re-highlighting when text changes
+            GUI_STYLE_BUFFERS.with(|sb| {
+                sb.borrow_mut().insert(name_lower.clone(), style_buf);
+            });
+
+            // Re-highlight syntax on every text modification (typing, paste, etc.)
+            {
+                let nl = name_lower.clone();
+                buf.add_modify_callback(move |_pos, _ins, _del, _restyled, _deleted_text| {
+                    GUI_TEXT_BUFFERS.with(|tb| {
+                        let bufs = tb.borrow();
+                        if let Some(text_buf) = bufs.get(&nl) {
+                            let text = text_buf.text();
+                            let new_styles = basic_syntax_highlight(&text);
+                            GUI_STYLE_BUFFERS.with(|sb| {
+                                let mut styles = sb.borrow_mut();
+                                if let Some(style_buf) = styles.get_mut(&nl) {
+                                    style_buf.set_text(&new_styles);
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+
             GUI_TEXT_BUFFERS.with(|tb| {
                 tb.borrow_mut().insert(name_lower.clone(), buf);
             });
@@ -689,7 +823,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         let mut inp = Input::new(cell_x, row_y, col_w, row_h, None);
                         inp.set_value(col_val);
                         inp.set_frame(FrameType::ThinUpBox);
+                        inp.set_trigger(CallbackTrigger::Changed);
                         let sg_cb = sg_name.clone();
+                        let sg_dbl = sg_name.clone();
+                        let sg_unfocus = sg_name.clone();
                         let ri = row_idx;
                         let ci = col_idx;
                         inp.set_callback(move |i| {
@@ -704,6 +841,37 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                                 }
                             });
                             rp_fire_event(&sg_cb, "onchange");
+                        });
+                        // Double-click and Unfocus handler
+                        inp.handle(move |w, ev| {
+                            match ev {
+                                Event::Push if app::event_clicks() => {
+                                    STRING_GRIDS.with(|sg| {
+                                        let mut grids = sg.borrow_mut();
+                                        if let Some(state) = grids.get_mut(&sg_dbl) {
+                                            state.selected_row = ri as i32;
+                                        }
+                                    });
+                                    rp_fire_event(&sg_dbl, "ondblclick");
+                                    true
+                                }
+                                Event::Unfocus => {
+                                    // Sync value back to grid state on losing focus
+                                    let val = w.value();
+                                    STRING_GRIDS.with(|sg| {
+                                        let mut grids = sg.borrow_mut();
+                                        if let Some(state) = grids.get_mut(&sg_unfocus) {
+                                            if ri < state.rows.len() && ci < state.rows[ri].cols.len() {
+                                                state.rows[ri].cols[ci] = val;
+                                                state.selected_row = ri as i32;
+                                            }
+                                        }
+                                    });
+                                    rp_fire_event(&sg_unfocus, "onchange");
+                                    false
+                                }
+                                _ => false,
+                            }
                         });
                     }
                 }
@@ -734,7 +902,15 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let mut tree = Tree::new(x, y, w, h, None);
             tree.set_show_root(false);
             let name_for_cb = name.to_lowercase();
-            tree.set_callback(move |_t| {
+            tree.set_callback(move |t| {
+                // Store the selected item label as a property
+                if let Some(item) = t.first_selected_item() {
+                    if let Some(label) = item.label() {
+                        // Extract just the leaf label (after last '/')
+                        let leaf = label.rsplit('/').next().unwrap_or(&label);
+                        rp_comp_set(&name_for_cb, "selecteditem", v_str(leaf));
+                    }
+                }
                 rp_fire_event(&name_for_cb, "onclick");
             });
             GUI_WIDGETS.with(|gw| {
@@ -1019,8 +1195,124 @@ fn build_menu_path(name: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// BASIC syntax highlighting for code editor
+// ---------------------------------------------------------------------------
+
+/// Generate a style string for BASIC syntax highlighting.
+/// A=keyword, B=string, C=comment, D=number, E=normal
+fn basic_syntax_highlight(source: &str) -> String {
+    static KEYWORDS: &[&str] = &[
+        "SUB", "END", "FUNCTION", "DIM", "AS", "IF", "THEN", "ELSE", "ELSEIF",
+        "FOR", "TO", "STEP", "NEXT", "WHILE", "WEND", "DO", "LOOP", "UNTIL",
+        "SELECT", "CASE", "EXIT", "CREATE", "INTEGER", "STRING", "DOUBLE", "BOOLEAN",
+        "AND", "OR", "NOT", "MOD", "TRUE", "FALSE", "CONST", "RETURN",
+        "PRINT", "MSGBOX", "SHELL", "SHELLWAIT", "CALL",
+        "RFORM", "RBUTTON", "RLABEL", "REDIT", "RCHECKBOX", "RRADIOBUTTON",
+        "RCOMBOBOX", "RLISTBOX", "RPANEL", "RGROUPBOX", "RDESIGNSURFACE",
+        "RCODEEDITOR", "RSTRINGGRID", "RTREEVIEW", "RCANVAS", "RTIMER",
+        "RIMAGE", "RRICHEDIT", "RPROGRESSBAR", "RTRACKBAR", "RSCROLLBAR",
+        "RSPLITTER", "RMAINMENU", "RMENUITEM", "RMYSQL", "RSQLITE",
+        "ROPENDIALOG", "RSAVEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
+        "RFILESTREAM", "RHTTP", "RSOCKET", "$THEME",
+        "LEFT", "RIGHT", "MID", "LEN", "INSTR", "UCASE", "LCASE",
+        "VAL", "STR", "CHR", "ASC", "TRIM",
+    ];
+
+    let chars: Vec<char> = source.chars().collect();
+    let len = chars.len();
+    let mut styles = vec![b'E'; len];
+    let mut i = 0;
+
+    while i < len {
+        let ch = chars[i];
+
+        // Comment: ' to end of line
+        if ch == '\'' {
+            let start = i;
+            while i < len && chars[i] != '\n' {
+                i += 1;
+            }
+            for j in start..i {
+                styles[j] = b'C';
+            }
+            continue;
+        }
+
+        // String literal: "..."
+        if ch == '"' {
+            let start = i;
+            i += 1;
+            while i < len && chars[i] != '"' && chars[i] != '\n' {
+                i += 1;
+            }
+            if i < len && chars[i] == '"' {
+                i += 1;
+            }
+            for j in start..i {
+                styles[j] = b'B';
+            }
+            continue;
+        }
+
+        // Number
+        if ch.is_ascii_digit() || (ch == '.' && i + 1 < len && chars[i + 1].is_ascii_digit()) {
+            let start = i;
+            while i < len && (chars[i].is_ascii_digit() || chars[i] == '.') {
+                i += 1;
+            }
+            for j in start..i {
+                styles[j] = b'D';
+            }
+            continue;
+        }
+
+        // Word (identifier or keyword)
+        if ch.is_ascii_alphabetic() || ch == '_' || ch == '$' {
+            let start = i;
+            while i < len && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+                i += 1;
+            }
+            let word: String = chars[start..i].iter().collect();
+            let upper = word.to_uppercase();
+            if KEYWORDS.contains(&upper.as_str()) {
+                for j in start..i {
+                    styles[j] = b'A';
+                }
+            }
+            continue;
+        }
+
+        i += 1;
+    }
+
+    String::from_utf8(styles).unwrap_or_default()
+}
+
+// ---------------------------------------------------------------------------
 // Design surface rendering
 // ---------------------------------------------------------------------------
+
+/// Parse a color string (hex like "#RRGGBB" or "rgb(r,g,b)") into an FLTK Color.
+fn parse_color_prop(s: &str) -> Option<Color> {
+    let s = s.trim();
+    if s.starts_with('#') && s.len() >= 7 {
+        let r = u8::from_str_radix(&s[1..3], 16).ok()?;
+        let g = u8::from_str_radix(&s[3..5], 16).ok()?;
+        let b = u8::from_str_radix(&s[5..7], 16).ok()?;
+        return Some(Color::from_rgb(r, g, b));
+    }
+    if s.starts_with("rgb(") && s.ends_with(')') {
+        let inner = &s[4..s.len()-1];
+        let parts: Vec<&str> = inner.split(',').collect();
+        if parts.len() == 3 {
+            let r = parts[0].trim().parse::<u8>().ok()?;
+            let g = parts[1].trim().parse::<u8>().ok()?;
+            let b = parts[2].trim().parse::<u8>().ok()?;
+            return Some(Color::from_rgb(r, g, b));
+        }
+    }
+    None
+}
 
 fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
     // White background
@@ -1039,39 +1331,292 @@ fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
         gx += 8;
     }
 
-    // Draw placed components
+    // Draw placed components with realistic widget appearances
     DESIGN_SURFACES.with(|ds| {
         let surfaces = ds.borrow();
         if let Some(state) = surfaces.get(ds_name) {
             for (i, comp) in state.components.iter().enumerate() {
                 let cx = x + comp.x;
                 let cy = y + comp.y;
-
-                // Component background
-                draw::set_draw_color(Color::from_rgb(236, 236, 236));
-                draw::draw_rectf(cx, cy, comp.w, comp.h);
-
-                // Border (blue if selected)
-                if i as i32 == state.selected {
-                    draw::set_draw_color(Color::Blue);
-                } else {
-                    draw::set_draw_color(Color::Black);
-                }
-                draw::draw_rect(cx, cy, comp.w, comp.h);
-
-                // Component label
-                draw::set_draw_color(Color::Black);
-                draw::set_font(Font::Helvetica, 11);
                 let label = comp.props.get("caption").unwrap_or(&comp.name);
-                draw::draw_text2(label, cx + 2, cy + 2, comp.w - 4, comp.h - 4, Align::Center);
+                let tn = comp.type_name.as_str();
 
-                // Type tag (small, top-left)
-                draw::set_font(Font::Helvetica, 9);
-                draw::set_draw_color(Color::from_rgb(100, 100, 100));
-                draw::draw_text2(&comp.type_name, cx + 2, cy + 1, comp.w - 4, 12, Align::TopLeft);
+                // Resolve font from font.name/fontname property
+                let comp_font = comp.props.get("font.name")
+                    .or_else(|| comp.props.get("fontname"))
+                    .and_then(|fn_name| {
+                        if fn_name.is_empty() { return None; }
+                        let font_names = app::get_font_names();
+                        font_names.iter().position(|n| n.eq_ignore_ascii_case(fn_name))
+                            .map(|idx| Font::by_index(idx))
+                    })
+                    .unwrap_or(Font::Helvetica);
+                let comp_font_size = comp.props.get("font.size")
+                    .or_else(|| comp.props.get("fontsize"))
+                    .and_then(|s| s.parse::<i32>().ok())
+                    .unwrap_or(12);
 
-                // Selection handles
+                match tn {
+                    "RBUTTON" => {
+                        // 3D raised button look
+                        let bg = comp.props.get("color").and_then(|c| parse_color_prop(c)).unwrap_or(Color::from_rgb(225, 225, 225));
+                        let (br, bg_g, bb) = bg.to_rgb();
+                        draw::set_draw_color(bg);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        // Highlight (top-left)
+                        draw::set_draw_color(Color::from_rgb(br.saturating_add(30).min(255), bg_g.saturating_add(30).min(255), bb.saturating_add(30).min(255)));
+                        draw::draw_line(cx, cy, cx + comp.w - 1, cy);
+                        draw::draw_line(cx, cy, cx, cy + comp.h - 1);
+                        // Shadow (bottom-right)
+                        draw::set_draw_color(Color::from_rgb(br.saturating_sub(85), bg_g.saturating_sub(85), bb.saturating_sub(85)));
+                        draw::draw_line(cx + comp.w - 1, cy, cx + comp.w - 1, cy + comp.h - 1);
+                        draw::draw_line(cx, cy + comp.h - 1, cx + comp.w - 1, cy + comp.h - 1);
+                        // Label centered
+                        let fc = comp.props.get("fontcolor").and_then(|c| parse_color_prop(c)).unwrap_or(Color::Black);
+                        draw::set_draw_color(fc);
+                        draw::set_font(comp_font, comp_font_size);
+                        draw::draw_text2(label, cx, cy, comp.w, comp.h, Align::Center);
+                    }
+                    "RLABEL" => {
+                        // Labels: transparent background, just text
+                        let fc = comp.props.get("fontcolor").and_then(|c| parse_color_prop(c)).unwrap_or(Color::Black);
+                        draw::set_draw_color(fc);
+                        draw::set_font(comp_font, comp_font_size);
+                        draw::draw_text2(label, cx + 2, cy, comp.w - 4, comp.h, Align::Left | Align::Inside);
+                    }
+                    "REDIT" => {
+                        // Sunken text field
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        // Sunken border
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_line(cx, cy, cx + comp.w - 1, cy);
+                        draw::draw_line(cx, cy, cx, cy + comp.h - 1);
+                        draw::set_draw_color(Color::from_rgb(245, 245, 245));
+                        draw::draw_line(cx + comp.w - 1, cy, cx + comp.w - 1, cy + comp.h - 1);
+                        draw::draw_line(cx, cy + comp.h - 1, cx + comp.w - 1, cy + comp.h - 1);
+                        // Text content
+                        let text = comp.props.get("text").map(|s| s.as_str()).unwrap_or(&comp.name);
+                        draw::set_draw_color(Color::Black);
+                        draw::set_font(Font::Helvetica, 12);
+                        draw::draw_text2(text, cx + 4, cy, comp.w - 8, comp.h, Align::Left | Align::Inside);
+                    }
+                    "RCHECKBOX" => {
+                        // Checkbox: box + label
+                        let bx = cx + 2;
+                        let by = cy + (comp.h - 13) / 2;
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(bx, by, 13, 13);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_rect(bx, by, 13, 13);
+                        let checked = comp.props.get("checked").map(|s| s.as_str()).unwrap_or("0");
+                        if checked == "1" || checked.eq_ignore_ascii_case("true") {
+                            draw::set_draw_color(Color::Black);
+                            draw::draw_line(bx + 2, by + 6, bx + 5, by + 10);
+                            draw::draw_line(bx + 5, by + 10, bx + 11, by + 2);
+                        }
+                        draw::set_draw_color(Color::Black);
+                        draw::set_font(Font::Helvetica, 12);
+                        draw::draw_text2(label, cx + 18, cy, comp.w - 20, comp.h, Align::Left | Align::Inside);
+                    }
+                    "RRADIOBUTTON" => {
+                        // Radiobutton: circle + label
+                        let rx = cx + 8;
+                        let ry = cy + comp.h / 2;
+                        draw::set_draw_color(Color::White);
+                        draw::draw_pie(cx + 2, ry - 6, 13, 13, 0.0, 360.0);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_arc(cx + 2, ry - 6, 13, 13, 0.0, 360.0);
+                        draw::set_draw_color(Color::Black);
+                        draw::set_font(Font::Helvetica, 12);
+                        draw::draw_text2(label, cx + 18, cy, comp.w - 20, comp.h, Align::Left | Align::Inside);
+                    }
+                    "RCOMBOBOX" => {
+                        // Combo: edit field + dropdown arrow
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(cx, cy, comp.w - 18, comp.h);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        // Arrow button
+                        draw::set_draw_color(Color::from_rgb(225, 225, 225));
+                        draw::draw_rectf(cx + comp.w - 18, cy + 1, 17, comp.h - 2);
+                        draw::set_draw_color(Color::Black);
+                        let ax = cx + comp.w - 12;
+                        let ay = cy + comp.h / 2 - 1;
+                        draw::draw_line(ax - 3, ay, ax + 3, ay);
+                        draw::draw_line(ax - 2, ay + 1, ax + 2, ay + 1);
+                        draw::draw_line(ax - 1, ay + 2, ax + 1, ay + 2);
+                        // Text
+                        draw::set_draw_color(Color::Black);
+                        draw::set_font(Font::Helvetica, 12);
+                        draw::draw_text2(&comp.name, cx + 4, cy, comp.w - 22, comp.h, Align::Left | Align::Inside);
+                    }
+                    "RLISTBOX" => {
+                        // Listbox: sunken box with lines
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        // Draw a few placeholder lines
+                        draw::set_draw_color(Color::from_rgb(180, 180, 180));
+                        draw::set_font(Font::Helvetica, 11);
+                        draw::draw_text2("(ListBox)", cx + 4, cy + 2, comp.w - 8, 16, Align::Left | Align::Inside);
+                    }
+                    "RPANEL" | "RGROUPBOX" => {
+                        // Panel/Group: etched border with optional caption
+                        let bg = comp.props.get("color").and_then(|c| parse_color_prop(c)).unwrap_or(Color::from_rgb(240, 240, 240));
+                        draw::set_draw_color(bg);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        if tn == "RGROUPBOX" {
+                            // Group box with caption in top border
+                            draw::set_font(Font::Helvetica, 11);
+                            let tw = draw::width(label) as i32 + 8;
+                            draw::set_draw_color(Color::from_rgb(160, 160, 160));
+                            draw::draw_line(cx, cy + 8, cx + 6, cy + 8);
+                            draw::draw_line(cx + 6 + tw, cy + 8, cx + comp.w - 1, cy + 8);
+                            draw::draw_line(cx, cy + 8, cx, cy + comp.h - 1);
+                            draw::draw_line(cx + comp.w - 1, cy + 8, cx + comp.w - 1, cy + comp.h - 1);
+                            draw::draw_line(cx, cy + comp.h - 1, cx + comp.w - 1, cy + comp.h - 1);
+                            draw::set_draw_color(Color::Black);
+                            draw::draw_text2(label, cx + 10, cy, tw, 16, Align::Left | Align::Inside);
+                        } else {
+                            draw::set_draw_color(Color::from_rgb(180, 180, 180));
+                            draw::draw_rect(cx, cy, comp.w, comp.h);
+                        }
+                    }
+                    "RPROGRESSBAR" => {
+                        // Progress bar
+                        draw::set_draw_color(Color::from_rgb(230, 230, 230));
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(60, 130, 200));
+                        draw::draw_rectf(cx + 1, cy + 1, comp.w / 3, comp.h - 2);
+                        draw::set_draw_color(Color::from_rgb(160, 160, 160));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                    }
+                    "RTIMER" => {
+                        // Timer: non-visual component icon
+                        draw::set_draw_color(Color::from_rgb(240, 240, 255));
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(100, 100, 200));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(60, 60, 160));
+                        draw::set_font(Font::Helvetica, 10);
+                        draw::draw_text2(&comp.name, cx, cy, comp.w, comp.h, Align::Center);
+                        draw::set_font(Font::Helvetica, 8);
+                        draw::draw_text2("[Timer]", cx, cy + comp.h / 2 + 2, comp.w, comp.h / 2, Align::Top | Align::Center);
+                    }
+                    "RRICHEDIT" | "RMEMO" => {
+                        // Multi-line text box: sunken
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(180, 180, 180));
+                        draw::set_font(Font::Courier, 11);
+                        draw::draw_text2("(RichEdit)", cx + 4, cy + 2, comp.w - 8, 16, Align::Left | Align::Inside);
+                    }
+                    "RCANVAS" => {
+                        // Canvas area
+                        let bg = comp.props.get("color").and_then(|c| parse_color_prop(c)).unwrap_or(Color::White);
+                        draw::set_draw_color(bg);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(160, 160, 160));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        // Draw crosshairs to indicate canvas
+                        draw::set_draw_color(Color::from_rgb(210, 210, 210));
+                        draw::draw_line(cx + comp.w / 2, cy, cx + comp.w / 2, cy + comp.h);
+                        draw::draw_line(cx, cy + comp.h / 2, cx + comp.w, cy + comp.h / 2);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::set_font(Font::Helvetica, 10);
+                        draw::draw_text2(&comp.name, cx, cy, comp.w, comp.h, Align::Center);
+                    }
+                    "RIMAGE" => {
+                        // Image placeholder
+                        draw::set_draw_color(Color::from_rgb(245, 245, 245));
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(180, 180, 180));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        // Diagonal lines to indicate image area
+                        draw::draw_line(cx, cy, cx + comp.w, cy + comp.h);
+                        draw::draw_line(cx + comp.w, cy, cx, cy + comp.h);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::set_font(Font::Helvetica, 10);
+                        draw::draw_text2(&comp.name, cx, cy, comp.w, comp.h, Align::Center);
+                    }
+                    "RTREEVIEW" => {
+                        // Tree view
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(100, 100, 100));
+                        draw::set_font(Font::Helvetica, 10);
+                        draw::draw_text2("+ Item 1", cx + 6, cy + 4, comp.w - 12, 14, Align::Left | Align::Inside);
+                        draw::draw_text2("+ Item 2", cx + 6, cy + 18, comp.w - 12, 14, Align::Left | Align::Inside);
+                    }
+                    "RTRACKBAR" => {
+                        // Trackbar / slider
+                        let track_y = cy + comp.h / 2;
+                        draw::set_draw_color(Color::from_rgb(180, 180, 180));
+                        draw::draw_rectf(cx + 4, track_y - 2, comp.w - 8, 4);
+                        // Thumb
+                        let thumb_x = cx + comp.w / 3;
+                        draw::set_draw_color(Color::from_rgb(200, 200, 200));
+                        draw::draw_rectf(thumb_x - 5, cy + 4, 10, comp.h - 8);
+                        draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                        draw::draw_rect(thumb_x - 5, cy + 4, 10, comp.h - 8);
+                    }
+                    "RSTRINGGRID" => {
+                        // Grid
+                        draw::set_draw_color(Color::White);
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(200, 210, 230));
+                        draw::draw_rectf(cx, cy, comp.w, 20);
+                        draw::set_draw_color(Color::from_rgb(160, 160, 160));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        // Grid lines
+                        let mid_x = cx + comp.w / 2;
+                        draw::draw_line(mid_x, cy, mid_x, cy + comp.h);
+                        for row in 0..4 {
+                            let ly = cy + row * 20;
+                            draw::draw_line(cx, ly, cx + comp.w, ly);
+                        }
+                        draw::set_draw_color(Color::Black);
+                        draw::set_font(Font::Helvetica, 10);
+                        draw::draw_text2(&comp.name, cx + 2, cy + 2, comp.w - 4, 16, Align::Left | Align::Inside);
+                    }
+                    "RMYSQL" | "RSQLITE" => {
+                        // Database: non-visual icon
+                        draw::set_draw_color(Color::from_rgb(255, 245, 230));
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(180, 140, 80));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(120, 80, 30));
+                        draw::set_font(Font::Helvetica, 10);
+                        let db_label = if tn == "RMYSQL" { "MySQL" } else { "SQLite" };
+                        draw::draw_text2(db_label, cx, cy + 2, comp.w, comp.h / 2, Align::Center);
+                        draw::set_font(Font::Helvetica, 9);
+                        draw::draw_text2(&comp.name, cx, cy + comp.h / 2, comp.w, comp.h / 2, Align::Center);
+                    }
+                    _ => {
+                        // Generic fallback
+                        draw::set_draw_color(Color::from_rgb(236, 236, 236));
+                        draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::from_rgb(160, 160, 160));
+                        draw::draw_rect(cx, cy, comp.w, comp.h);
+                        draw::set_draw_color(Color::Black);
+                        draw::set_font(Font::Helvetica, 11);
+                        draw::draw_text2(label, cx + 2, cy + 2, comp.w - 4, comp.h - 4, Align::Center);
+                        draw::set_font(Font::Helvetica, 9);
+                        draw::set_draw_color(Color::from_rgb(100, 100, 100));
+                        draw::draw_text2(&comp.type_name, cx + 2, cy + 1, comp.w - 4, 12, Align::TopLeft);
+                    }
+                }
+
+                // Selection border (blue highlight over everything)
                 if i as i32 == state.selected {
+                    draw::set_draw_color(Color::from_rgb(0, 120, 215));
+                    draw::draw_rect(cx, cy, comp.w, comp.h);
                     draw_selection_handles(cx, cy, comp.w, comp.h);
                 }
             }
@@ -1449,25 +1994,22 @@ pub fn gui_showmodal(name: &str) {
     // Start all registered timers
     start_timers();
 
-    // Run the FLTK event loop
-    GUI_APP.with(|a| {
-        if let Some(ref app) = *a.borrow() {
-            while app.wait() {
-                // Check if the main window is still shown
-                let shown = GUI_WIDGETS.with(|gw| {
-                    let widgets = gw.borrow();
-                    if let Some(GuiWidget::Window(ref win)) = widgets.get(&name_lower) {
-                        win.shown()
-                    } else {
-                        false
-                    }
-                });
-                if !shown {
-                    break;
-                }
+    // Run the FLTK event loop — do NOT hold a borrow on GUI_APP during wait()
+    // because callbacks may call ensure_app() which needs borrow_mut.
+    while app::wait() {
+        // Check if the main window is still shown
+        let shown = GUI_WIDGETS.with(|gw| {
+            let widgets = gw.borrow();
+            if let Some(GuiWidget::Window(ref win)) = widgets.get(&name_lower) {
+                win.shown()
+            } else {
+                false
             }
+        });
+        if !shown {
+            break;
         }
-    });
+    }
 }
 
 /// Close a form.
@@ -1550,17 +2092,192 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
             }
         }
         "RFONTDIALOG" => {
-            // FLTK doesn't have a native font dialog. Use a simple input dialog.
-            let current = rp_comp_get(name, "fontname").to_string_val();
-            let prompt = format!("Font name (current: {}):", if current.is_empty() { "Helvetica" } else { &current });
-            let result = dialog::input_default(&prompt, &current);
-            if let Some(font_name) = result {
-                if !font_name.is_empty() {
-                    rp_comp_set(name, "fontname", v_str(&font_name));
-                    v_int(1)
-                } else {
-                    v_int(0)
+            // Full font picker with list, size, bold/italic, and live preview
+            use std::rc::Rc;
+
+            let current_name = rp_comp_get(name, "fontname").to_string_val();
+            let current_name = if current_name.is_empty() { "Helvetica".to_string() } else { current_name };
+            let current_size: i32 = rp_comp_get(name, "fontsize").to_string_val().parse().unwrap_or(12);
+
+            let font_names = app::get_font_names();
+
+            let mut win = Window::new(100, 100, 560, 430, None);
+            win.set_label("Font Picker");
+
+            // Font list
+            let mut fl_lbl = Frame::new(10, 5, 250, 20, None);
+            fl_lbl.set_label("Font:");
+            fl_lbl.set_align(Align::Left | Align::Inside);
+            let mut font_browser = HoldBrowser::new(10, 25, 250, 290, None);
+            let mut cur_font_idx = 0i32;
+            for (i, fn_name) in font_names.iter().enumerate() {
+                font_browser.add(fn_name);
+                if fn_name.eq_ignore_ascii_case(&current_name) {
+                    cur_font_idx = i as i32 + 1;
                 }
+            }
+            if cur_font_idx > 0 {
+                font_browser.select(cur_font_idx);
+            }
+
+            // Size list
+            let mut sz_lbl = Frame::new(270, 5, 80, 20, None);
+            sz_lbl.set_label("Size:");
+            sz_lbl.set_align(Align::Left | Align::Inside);
+            let mut size_browser = HoldBrowser::new(270, 25, 70, 290, None);
+            let sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 48, 72];
+            let mut cur_size_idx = 0i32;
+            for (i, &sz) in sizes.iter().enumerate() {
+                size_browser.add(&sz.to_string());
+                if sz == current_size { cur_size_idx = i as i32 + 1; }
+            }
+            if cur_size_idx > 0 { size_browser.select(cur_size_idx); }
+
+            // Bold / Italic checkboxes
+            let mut bold_cb = CheckButton::new(350, 30, 90, 25, None);
+            bold_cb.set_label("Bold");
+            let mut italic_cb = CheckButton::new(450, 30, 90, 25, None);
+            italic_cb.set_label("Italic");
+
+            // Preview area
+            let mut pv_lbl = Frame::new(350, 65, 200, 20, None);
+            pv_lbl.set_label("Preview:");
+            pv_lbl.set_align(Align::Left | Align::Inside);
+            let mut preview = Frame::new(350, 85, 200, 230, None);
+            preview.set_frame(FrameType::DownBox);
+            preview.set_color(Color::White);
+            preview.set_label("AaBbCc 123");
+            preview.set_label_size(current_size);
+            if cur_font_idx > 0 {
+                preview.set_label_font(Font::by_index(cur_font_idx as usize - 1));
+            }
+
+            // OK / Cancel
+            let mut ok_btn = Button::new(350, 390, 90, 30, None);
+            ok_btn.set_label("OK");
+            let mut cancel_btn = Button::new(450, 390, 90, 30, None);
+            cancel_btn.set_label("Cancel");
+
+            win.end();
+            win.make_modal(true);
+            win.show();
+
+            let confirmed = Rc::new(std::cell::RefCell::new(false));
+
+            // Helper: update preview from current selections
+            macro_rules! update_preview_fn {
+                ($preview:expr, $font_browser:expr, $size_browser:expr, $bold_cb:expr, $italic_cb:expr, $font_names:expr) => {{
+                    let fi = $font_browser.value();
+                    if fi > 0 && (fi as usize - 1) < $font_names.len() {
+                        let mut idx = fi as usize - 1;
+                        // In FLTK, bold = idx|1, italic = idx|2
+                        if $bold_cb.value() { idx |= 1; }
+                        if $italic_cb.value() { idx |= 2; }
+                        if idx < $font_names.len() {
+                            $preview.set_label_font(Font::by_index(idx));
+                        } else {
+                            $preview.set_label_font(Font::by_index(fi as usize - 1));
+                        }
+                    }
+                    let si = $size_browser.value();
+                    if si > 0 {
+                        if let Some(sz_str) = $size_browser.text(si) {
+                            if let Ok(sz) = sz_str.parse::<i32>() {
+                                $preview.set_label_size(sz);
+                            }
+                        }
+                    }
+                    $preview.set_label("AaBbCc 123");
+                    $preview.redraw();
+                }};
+            }
+
+            // Font browser callback
+            {
+                let mut pv = preview.clone();
+                let fb = font_browser.clone();
+                let sb = size_browser.clone();
+                let bc = bold_cb.clone();
+                let ic = italic_cb.clone();
+                let fns = font_names.clone();
+                font_browser.set_callback(move |_| {
+                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
+                });
+            }
+            // Size browser callback
+            {
+                let mut pv = preview.clone();
+                let fb = font_browser.clone();
+                let sb = size_browser.clone();
+                let bc = bold_cb.clone();
+                let ic = italic_cb.clone();
+                let fns = font_names.clone();
+                size_browser.set_callback(move |_| {
+                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
+                });
+            }
+            // Bold checkbox callback
+            {
+                let mut pv = preview.clone();
+                let fb = font_browser.clone();
+                let sb = size_browser.clone();
+                let bc = bold_cb.clone();
+                let ic = italic_cb.clone();
+                let fns = font_names.clone();
+                bold_cb.set_callback(move |_| {
+                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
+                });
+            }
+            // Italic checkbox callback
+            {
+                let mut pv = preview.clone();
+                let fb = font_browser.clone();
+                let sb = size_browser.clone();
+                let bc = bold_cb.clone();
+                let ic = italic_cb.clone();
+                let fns = font_names.clone();
+                italic_cb.set_callback(move |_| {
+                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
+                });
+            }
+
+            // OK button
+            {
+                let c = confirmed.clone();
+                let mut w = win.clone();
+                ok_btn.set_callback(move |_| {
+                    *c.borrow_mut() = true;
+                    w.hide();
+                });
+            }
+            // Cancel button
+            {
+                let mut w = win.clone();
+                cancel_btn.set_callback(move |_| {
+                    w.hide();
+                });
+            }
+
+            while win.shown() {
+                app::wait();
+            }
+
+            if *confirmed.borrow() {
+                let fi = font_browser.value();
+                let font_name = if fi > 0 && (fi as usize - 1) < font_names.len() {
+                    font_names[fi as usize - 1].clone()
+                } else {
+                    "Helvetica".to_string()
+                };
+                let si = size_browser.value();
+                let font_size = if si > 0 {
+                    size_browser.text(si).unwrap_or_default().parse::<i32>().unwrap_or(12)
+                } else { 12 };
+                rp_comp_set(name, "fontname", v_str(&font_name));
+                rp_comp_set(name, "fontsize", v_int(font_size as i64));
+                rp_comp_set(name, "fontbold", v_int(if bold_cb.value() { 1 } else { 0 }));
+                rp_comp_set(name, "fontitalic", v_int(if italic_cb.value() { 1 } else { 0 }));
+                v_int(1)
             } else {
                 v_int(0)
             }
@@ -1572,11 +2289,8 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
 /// Start the GUI event loop (standalone, not attached to a form).
 pub fn run_gui_event_loop() {
     ensure_app();
-    GUI_APP.with(|a| {
-        if let Some(ref app) = *a.borrow() {
-            app.run().ok();
-        }
-    });
+    // Don't hold a borrow on GUI_APP during the event loop
+    app::run().ok();
 }
 
 // ---------------------------------------------------------------------------
@@ -1849,6 +2563,7 @@ pub fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value 
                     }
                 }
             });
+            redraw_widget(&name_lower);
             v_null()
         }
         "getprop" => {
@@ -2084,10 +2799,13 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                             lbl.set_color(Color::from_rgb(200, 210, 230));
                             lbl.set_align(Align::Left | Align::Inside);
                         } else {
-                            let mut inp = Output::new(cell_x, row_y, col_w, row_h, None);
+                            let mut inp = Input::new(cell_x, row_y, col_w, row_h, None);
                             inp.set_value(cell_val);
                             inp.set_frame(FrameType::ThinUpBox);
+                            inp.set_trigger(CallbackTrigger::Changed);
                             let sg_cb = sg_name.clone();
+                            let sg_focus = sg_name.clone();
+                            let sg_unfocus = sg_name.clone();
                             let ri = row_idx;
                             let col_i = ci;
                             inp.set_callback(move |i| {
@@ -2102,6 +2820,39 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                                     }
                                 });
                                 rp_fire_event(&sg_cb, "onchange");
+                            });
+                            // Track selected row on focus, sync value on unfocus
+                            inp.handle(move |w, ev| {
+                                match ev {
+                                    Event::Focus | Event::Push => {
+                                        STRING_GRIDS.with(|sg| {
+                                            let mut grids = sg.borrow_mut();
+                                            if let Some(state) = grids.get_mut(&sg_focus) {
+                                                state.selected_row = ri as i32;
+                                            }
+                                        });
+                                        if ev == Event::Push && app::event_clicks() {
+                                            rp_fire_event(&sg_focus, "ondblclick");
+                                            return true;
+                                        }
+                                        false
+                                    }
+                                    Event::Unfocus => {
+                                        let val = w.value();
+                                        STRING_GRIDS.with(|sg| {
+                                            let mut grids = sg.borrow_mut();
+                                            if let Some(state) = grids.get_mut(&sg_unfocus) {
+                                                if ri < state.rows.len() && col_i < state.rows[ri].cols.len() {
+                                                    state.rows[ri].cols[col_i] = val;
+                                                    state.selected_row = ri as i32;
+                                                }
+                                            }
+                                        });
+                                        rp_fire_event(&sg_unfocus, "onchange");
+                                        false
+                                    }
+                                    _ => false,
+                                }
                             });
                         }
                     }
@@ -2434,7 +3185,7 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
             let plot_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             #[cfg(feature = "datascience")]
             {
-                let png_path = crate::datascience::matplotlib_render_to_file(&plot_name);
+                let png_path = crate::datascience::plot_render_to_file(&plot_name);
                 load_image_file(&name_lower, &png_path);
             }
             #[cfg(not(feature = "datascience"))]
@@ -2749,6 +3500,14 @@ pub fn gui_set_text(name: &str, text: &str) {
         let mut bufs = tb.borrow_mut();
         if let Some(buf) = bufs.get_mut(&name_lower) {
             buf.set_text(text);
+        }
+    });
+    // Re-highlight syntax for code editors
+    GUI_STYLE_BUFFERS.with(|sb| {
+        let mut styles = sb.borrow_mut();
+        if let Some(style_buf) = styles.get_mut(&name_lower) {
+            let new_styles = basic_syntax_highlight(text);
+            style_buf.set_text(&new_styles);
         }
     });
 }

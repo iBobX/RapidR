@@ -297,19 +297,19 @@ const COMPONENT_REGISTRY = {
         methods: ['begindoc', 'enddoc', 'newpage', 'textout', 'printline'],
         events: []
     },
-    'RNUMPY': {
+    'RNUM': {
         props: ['data', 'shape', 'size', 'dtype', 'tag'],
         methods: ['zeros', 'ones', 'arange', 'linspace', 'reshape', 'sum', 'mean', 'std',
                   'min', 'max', 'dot', 'transpose', 'tolist', 'sort', 'savetofile', 'loadfromfile'],
         events: []
     },
-    'RMATPLOTLIB': {
+    'RPLOT': {
         props: ['title', 'xlabel', 'ylabel', 'width', 'height', 'grid', 'tag'],
         methods: ['plot', 'scatter', 'bar', 'hist', 'pie', 'legend', 'clear',
                   'savetofile', 'show', 'saveto_buffer'],
         events: []
     },
-    'RPANDAS': {
+    'RDATAFRAME': {
         props: ['data', 'rowcount', 'colcount', 'columns', 'tag'],
         methods: ['loadfromcsv', 'savetocsv', 'loadfromjson', 'savetojson', 'head', 'tail',
                   'describe', 'sort', 'filter', 'groupby', 'addcolumn', 'deletecolumn',
@@ -454,7 +454,7 @@ const TYPE_KEYWORDS = [
 
 const DIRECTIVES = [
     { name: 'APPTYPE', description: 'Set application type: GUI, CONSOLE, or CGI', snippet: 'APPTYPE ${1|GUI,CONSOLE,CGI|}' },
-    { name: 'INCLUDE', description: 'Include an external source file', snippet: 'INCLUDE "${1:filename.rp}"' },
+    { name: 'INCLUDE', description: 'Include an external source file', snippet: 'INCLUDE "${1:filename.rr}"' },
     { name: 'DEFINE', description: 'Define a text substitution macro', snippet: 'DEFINE ${1:SYMBOL} ${2:value}' },
     { name: 'UNDEF', description: 'Remove a defined symbol', snippet: 'UNDEF ${1:SYMBOL}' },
     { name: 'IFDEF', description: 'Conditional: compile if symbol is defined', snippet: 'IFDEF ${1:SYMBOL}' },

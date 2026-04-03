@@ -407,6 +407,27 @@ pub fn rp_create_component(name: &str, type_name: &str) {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
 
+    // Normalize dot-notation font properties → flat names for compatibility
+    let aliases: &[(&str, &str)] = &[
+        ("font.name", "fontname"),
+        ("font.size", "fontsize"),
+        ("font.bold", "fontbold"),
+        ("font.italic", "fontitalic"),
+        ("font.color", "fontcolor"),
+    ];
+    for &(dotted, flat) in aliases {
+        if prop_lower == dotted {
+            rp_comp_set(name, flat, val.clone());
+        } else if prop_lower == flat {
+            // Also store the dotted version
+            COMPONENTS.with(|c| {
+                if let Some(comp) = c.borrow_mut().get_mut(&name.to_lowercase()) {
+                    comp.properties.insert(dotted.to_string(), val.clone());
+                }
+            });
+        }
+    }
+
     // Handle runtime GUI property updates
     #[cfg(feature = "gui")]
     {
@@ -443,8 +464,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     {
         let comp_type = rp_comp_type(name);
         match comp_type.as_str() {
-            "RNUMPY" => crate::datascience::numpy_set_prop(name, &prop_lower, &val),
-            "RMATPLOTLIB" => crate::datascience::matplotlib_set_prop(name, &prop_lower, &val),
+            "RNUM" => crate::datascience::num_set_prop(name, &prop_lower, &val),
+            "RPLOT" => crate::datascience::plot_set_prop(name, &prop_lower, &val),
             _ => {}
         }
     }
@@ -489,16 +510,16 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     {
         let comp_type = rp_comp_type(name);
         match comp_type.as_str() {
-            "RNUMPY" => {
-                let v = crate::datascience::numpy_get_prop(name, &prop_lower);
+            "RNUM" => {
+                let v = crate::datascience::num_get_prop(name, &prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
-            "RPANDAS" => {
-                let v = crate::datascience::pandas_get_prop(name, &prop_lower);
+            "RDATAFRAME" => {
+                let v = crate::datascience::dataframe_get_prop(name, &prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
-            "RMATPLOTLIB" => {
-                let v = crate::datascience::matplotlib_get_prop(name, &prop_lower);
+            "RPLOT" => {
+                let v = crate::datascience::plot_get_prop(name, &prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             _ => {}
@@ -605,11 +626,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         "RFORMMDI" => crate::gui::formmdi_method(name, &method_lower, args),
         // Data science component methods
         #[cfg(feature = "datascience")]
-        "RNUMPY" => crate::datascience::numpy_method(name, &method_lower, args),
+        "RNUM" => crate::datascience::num_method(name, &method_lower, args),
         #[cfg(feature = "datascience")]
-        "RPANDAS" => crate::datascience::pandas_method(name, &method_lower, args),
+        "RDATAFRAME" => crate::datascience::dataframe_method(name, &method_lower, args),
         #[cfg(feature = "datascience")]
-        "RMATPLOTLIB" => crate::datascience::matplotlib_method(name, &method_lower, args),
+        "RPLOT" => crate::datascience::plot_method(name, &method_lower, args),
         // RImage methods
         #[cfg(feature = "gui")]
         "RIMAGE" => crate::gui::image_method(name, &method_lower, args),
@@ -1107,7 +1128,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RSQLITE" | "RMYSQL"
         | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
         | "RLISTVIEW" | "RPROGRESSBAR"
-        | "RNUMPY" | "RMATPLOTLIB" | "RPANDAS"
+        | "RNUM" | "RPLOT" | "RDATAFRAME"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
     )
 }

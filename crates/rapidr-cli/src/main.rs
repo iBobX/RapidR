@@ -8,10 +8,41 @@ use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
 fn main() -> ExitCode {
-    let mut args = env::args();
-    let _program = args.next();
+    let mut args: Vec<String> = env::args().collect();
+    args.remove(0); // program name
 
-    match (args.next().as_deref(), args.next()) {
+    // Shortcut: rapidr [--release|--debug] <file.rr|file.rr>
+    // When the first non-flag argument looks like a source file and no subcommand is given
+    if !args.is_empty() {
+        let first_non_flag = args.iter().find(|a| !a.starts_with('-'));
+        let has_subcommand = matches!(
+            args.first().map(|s| s.as_str()),
+            Some("version" | "parse" | "preprocess" | "lex" | "codegen" | "build")
+        );
+        if !has_subcommand {
+            if let Some(file) = first_non_flag {
+                if file.ends_with(".rr") || file.ends_with(".rr") {
+                    let mut release = true; // default to release
+                    let mut source_path = String::new();
+                    for arg in &args {
+                        match arg.as_str() {
+                            "--release" | "-r" => release = true,
+                            "--debug" | "-d" => release = false,
+                            _ if !arg.starts_with('-') => source_path = arg.clone(),
+                            _ => {}
+                        }
+                    }
+                    return build_source_file(&source_path, None, release);
+                }
+            }
+        }
+    }
+
+    let first = args.first().map(|s| s.as_str());
+    let second = args.get(1).cloned();
+    let rest: Vec<String> = if args.len() > 2 { args[2..].to_vec() } else { vec![] };
+
+    match (first, second) {
         (Some("version"), _) => {
             println!("RapidR 0.1.0");
             ExitCode::SUCCESS
@@ -20,17 +51,17 @@ fn main() -> ExitCode {
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
         (Some("lex"), Some(path)) => lex_source_file(&path),
         (Some("codegen"), Some(path)) => {
-            let next = args.next();
+            let next = rest.first().cloned();
             codegen_source_file(&path, next)
         }
         (Some("build"), Some(path)) => {
             let mut output_dir = None;
             let mut release = false;
-            for arg in args {
+            for arg in &rest {
                 match arg.as_str() {
                     "--release" | "-r" => release = true,
                     "--debug" | "-d" => release = false,
-                    _ => output_dir = Some(arg),
+                    _ => output_dir = Some(arg.clone()),
                 }
             }
             build_source_file(&path, output_dir, release)
@@ -38,11 +69,12 @@ fn main() -> ExitCode {
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
-            eprintln!("  rapidr parse <file.rp>");
-            eprintln!("  rapidr preprocess <file.rp>");
-            eprintln!("  rapidr lex <file.rp>");
-            eprintln!("  rapidr codegen <file.rp> [output_dir]");
-            eprintln!("  rapidr build <file.rp> [output_dir] [--release|-r] [--debug|-d]");
+            eprintln!("  rapidr [--release|--debug] <file.rr>     Build source file");
+            eprintln!("  rapidr parse <file.rr>");
+            eprintln!("  rapidr preprocess <file.rr>");
+            eprintln!("  rapidr lex <file.rr>");
+            eprintln!("  rapidr codegen <file.rr> [output_dir]");
+            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d]");
             ExitCode::from(2)
         }
     }
@@ -99,7 +131,7 @@ fn lex_source_file(path: &str) -> ExitCode {
     }
 }
 
-/// Generate Rust source code from a .rp file into an output directory.
+/// Generate Rust source code from a .rr file into an output directory.
 fn codegen_source_file(path: &str, output_dir: Option<String>) -> ExitCode {
     let source_path = Path::new(path);
     let stem = source_path
@@ -190,7 +222,7 @@ fn build_source_file(path: &str, output_dir: Option<String>, release: bool) -> E
 
     match status {
         Ok(s) if s.success() => {
-            // Copy the built binary to the same directory as the .rp source
+            // Copy the built binary to the same directory as the .rr source
             let binary_name = stem;
             let built_binary = out_dir.join("target").join(profile).join(binary_name);
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
@@ -225,7 +257,16 @@ fn build_source_file(path: &str, output_dir: Option<String>, release: bool) -> E
 }
 
 /// Walk up from CWD to find the RapidR workspace root (contains Cargo.toml with [workspace]).
+/// Also checks the RAPIDR_HOME environment variable.
 fn find_workspace_root() -> Option<std::path::PathBuf> {
+    // Check RAPIDR_HOME environment variable first
+    if let Ok(home) = env::var("RAPIDR_HOME") {
+        let p = Path::new(&home);
+        if p.join("Cargo.toml").exists() {
+            return Some(p.to_path_buf());
+        }
+    }
+
     let cwd = env::current_dir().ok()?;
     let mut dir = cwd.as_path();
     loop {

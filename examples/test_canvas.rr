@@ -1,0 +1,60 @@
+' Test: RCanvas drawing operations
+' Tests line, rectangle, circle, text, and pixel operations
+
+SUB AutoClose
+    PRINT "Canvas tests completed!"
+    Form1.Close
+END SUB
+
+SUB OnCanvasClick
+    PRINT "Canvas clicked"
+END SUB
+
+CREATE Form1 AS RFORM
+    Caption = "Canvas Drawing Test"
+    Width = 500
+    Height = 400
+
+    CREATE Canvas1 AS RCANVAS
+        Left = 10
+        Top = 10
+        Width = 460
+        Height = 340
+        OnClick = OnCanvasClick
+    END CREATE
+
+    CREATE CloseTimer AS RTIMER
+        Interval = 1000
+        OnTimer = AutoClose
+    END CREATE
+END CREATE
+
+' Draw on the canvas
+Canvas1.Cls
+PRINT "PASS: Canvas cleared"
+
+Canvas1.Line(10, 10, 200, 10, 255)
+PRINT "PASS: Line drawn"
+
+Canvas1.Rectangle(10, 20, 200, 80, 65280)
+PRINT "PASS: Rectangle drawn"
+
+Canvas1.FillRect(10, 90, 200, 150, 16711680)
+PRINT "PASS: FillRect drawn"
+
+Canvas1.Circle(300, 100, 50, 16776960)
+PRINT "PASS: Circle drawn"
+
+Canvas1.DrawText(10, 160, "Hello Canvas!", 0, 14)
+PRINT "PASS: Text drawn"
+
+Canvas1.Pset(250, 50, 16777215)
+PRINT "PASS: Pixel set"
+
+Canvas1.Paint
+PRINT "PASS: Canvas painted"
+
+PRINT ""
+PRINT "All canvas drawing tests passed!"
+
+Form1.ShowModal

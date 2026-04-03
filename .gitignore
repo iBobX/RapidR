@@ -10,3 +10,4 @@ examples/_ide_output.rp
 examples/_ide_errors.json
 utilities/vscodeext/rapidr/*.vsix
 target
+rapidr

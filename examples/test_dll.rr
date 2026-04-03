@@ -1,0 +1,10 @@
+$TYPECHECK ON
+
+' Test FFI: call real C functions from libm.dylib (macOS) / libm.so.6 (Linux)
+DECLARE FUNCTION Root LIB "libm.dylib" ALIAS "sqrt" (number AS DOUBLE) AS DOUBLE
+DECLARE FUNCTION Cosine LIB "libm.dylib" ALIAS "cos" (angle AS DOUBLE) AS DOUBLE
+DECLARE FUNCTION Sine LIB "libm.dylib" ALIAS "sin" (angle AS DOUBLE) AS DOUBLE
+
+PRINT "sqrt(25.0) = ", Root(25.0)
+PRINT "cos(0.0) = ", Cosine(0.0)
+PRINT "sin(0.0) = ", Sine(0.0)

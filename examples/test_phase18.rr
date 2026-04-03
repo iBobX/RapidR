@@ -1,0 +1,21 @@
+$TYPECHECK ON
+
+PRINT "--- Pointer and Variable Type Tests ---"
+DIM S AS STRING
+S = "Hello World"
+PRINT "VarType(S) = " + STR$(VarType(S))
+PRINT "VarPTR(S) = " + STR$(VarPTR(S))
+PRINT "VarPTR$(S) = " + VarPTR$(S)
+
+PRINT "--- String Formatting and Parsing ---"
+PRINT "DATE$ = " + DATE$
+PRINT "DELETE$('RapidPRulez', 7, 5) = " + DELETE$("RapidPRulez", 7, 5)
+PRINT "FORMAT$('#.##', 3.1415) = " + FORMAT$("#.##", 3.1415)
+PRINT "HEXtoDEC('&HFF') = " + STR$(HEXtoDEC("&HFF"))
+
+PRINT "--- Delay AND Beep ---"
+PRINT "Waiting 500ms..."
+Sleep(500)
+PRINT "Beep!"
+SOUND(1000, 500)
+PRINT "Done!"

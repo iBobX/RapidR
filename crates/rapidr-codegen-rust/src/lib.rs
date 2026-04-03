@@ -1576,7 +1576,7 @@ impl RustCodegen {
                             }
                         }
 
-                        // Static component type method: RNumPy.sin(x) → builtin route
+                        // Static component type method: RNum.sin(x) → builtin route
                         if is_component_type_name(&id.name) || var_lower == "math" {
                             let method_lower = ma.member.to_lowercase();
                             // Try mapping to a builtin
@@ -1923,7 +1923,7 @@ fn is_component_type_name(type_name: &str) -> bool {
         | "RSQLITE" | "RMYSQL"
         | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
         | "RLISTVIEW" | "RPROGRESSBAR"
-        | "RNUMPY" | "RPANDAS" | "RMATPLOTLIB"
+        | "RNUM" | "RDATAFRAME" | "RPLOT"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
     )
 }

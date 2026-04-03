@@ -3,9 +3,9 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RapidR** is a BASIC-to-Rust transpiler and native runtime that compiles `.rp` source files into standalone Rust projects, producing fast, native executables. It provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK.
+**RapidR** is a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. It provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK.
 
-> **Note:** RapidR is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidR extends the language with data science components (RNumPy, RMatPlotLib, RPandas), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
+> **Note:** RapidR is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidR extends the language with data science components (RNum, RPlot, RDataFrame), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
 
 ---
 
@@ -34,16 +34,16 @@
 
 ## System Architecture
 
-The Rust workspace under `crates/` provides a full transpilation pipeline that generates standalone Rust projects from `.rp` source files:
+The Rust workspace under `crates/` provides a full transpilation pipeline that generates standalone Rust projects from `.rr` source files:
 
 1. **Compiler Frontend (`crates/rapidr-{lexer,parser,preprocessor,ast,diagnostics}/`)** — Lexes, preprocesses, and parses BASIC syntax into an AST.
 2. **Code Generator (`crates/rapidr-codegen-rust/`)** — Walks the AST and emits Rust source code targeting the native runtime.
 3. **Native Runtime (`crates/rapidr-runtime-core/`)** — FLTK-based GUI, built-in functions, database (MySQL + SQLite), networking, data science, and file I/O.
-4. **CLI (`crates/rapidr-cli/`)** — Command-line interface with `codegen` command to generate Rust projects from `.rp` files.
+4. **CLI (`crates/rapidr-cli/`)** — Command-line interface with `codegen` command to generate Rust projects from `.rr` files.
 
 ## Status
 
-RapidR has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rp` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
+RapidR has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rr` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
 
 ### Crate Architecture (8 crates)
 
@@ -67,9 +67,9 @@ RapidR has reached **functional transpiler status**. The Rust workspace provides
 - **Database** — MySQL (via `mysql` crate) and SQLite (via `rusqlite`) with property-based API
 - **Networking** — TCP sockets, server sockets, HTTP client
 - **100+ built-in functions** — String, math, file I/O, system operations
-- **Self-hosted IDE** — The visual form designer (`examples/ide.rp`) compiles to a native FLTK application
-- **Data science** — RNumPy (ndarray), RPandas (polars), RMatPlotLib (plotters) components for array math, dataframes, and plotting
-- **Raw Rust injection** — `RUSTSTART`/`RUSTEND` blocks allow inline Rust code in `.rp` sources
+- **Self-hosted IDE** — The visual form designer (`examples/ide.rr`) compiles to a native FLTK application
+- **Data science** — RNum (ndarray), RDataFrame (polars), RPlot (plotters) components for array math, dataframes, and plotting
+- **Raw Rust injection** — `RUSTSTART`/`RUSTEND` blocks allow inline Rust code in `.rr` sources
 
 ### Validation
 
@@ -78,11 +78,11 @@ RapidR has reached **functional transpiler status**. The Rust workspace provides
 cargo test
 
 # Generate and build an example
-cargo run -- codegen examples/hello_world.rp /tmp/hello
+cargo run -- codegen examples/hello_world.rr /tmp/hello
 cd /tmp/hello && cargo build && ./target/debug/hello_world
 
 # Generate and run the IDE
-cargo run -- codegen examples/ide.rp /tmp/ide_rust
+cargo run -- codegen examples/ide.rr /tmp/ide_rust
 cd /tmp/ide_rust && cargo build && ./target/debug/ide
 ```
 
@@ -109,14 +109,14 @@ cargo build --release
 
 ### Hello World
 
-Create `hello.rp`:
+Create `hello.rr`:
 ```basic
 PRINT "Hello, World!"
 ```
 
 Generate a Rust project, build, and run:
 ```bash
-cargo run -- codegen hello.rp /tmp/hello
+cargo run -- codegen hello.rr /tmp/hello
 cd /tmp/hello && cargo build
 ./target/debug/hello
 ```
@@ -124,7 +124,7 @@ cd /tmp/hello && cargo build
 ### Launch the IDE
 
 ```bash
-cargo run -- codegen examples/ide.rp /tmp/ide_rust
+cargo run -- codegen examples/ide.rr /tmp/ide_rust
 cd /tmp/ide_rust && cargo build && ./target/debug/ide
 ```
 
@@ -136,10 +136,10 @@ cargo run -- <command> [options]
 
 | Command | Description |
 |---------|-------------|
-| `codegen <file.rp> <outdir>` | Generate a Rust project from a `.rp` file |
-| `lex <file.rp>` | Dump token stream |
-| `parse <file.rp>` | Dump AST |
-| `preprocess <file.rp>` | Dump preprocessed source |
+| `codegen <file.rr> <outdir>` | Generate a Rust project from a `.rr` file |
+| `lex <file.rr>` | Dump token stream |
+| `parse <file.rr>` | Dump AST |
+| `preprocess <file.rr>` | Dump preprocessed source |
 | `version` | Print version |
 
 Optional flags for `codegen`:
@@ -497,16 +497,16 @@ PRINT http.document
 
 ---
 
-### Data Science Components: RNumPy, RMatPlotLib, RPandas
+### Data Science Components: RNum, RPlot, RDataFrame
 
 These components provide data science capabilities backed by native Rust crates: **ndarray** for array math, **polars** for dataframes, and **plotters** for chart rendering. They are feature-gated under the `datascience` feature (enabled by default).
 
-#### RNumPy
+#### RNum
 
 Backed by the `ndarray` crate:
 
 ```basic
-DIM arr AS RNumPy
+DIM arr AS RNum
 arr.arange 0, 10, 1
 PRINT arr.sum       ' 45.0
 PRINT arr.mean      ' 4.5
@@ -524,12 +524,12 @@ PRINT arr.mean      ' 4.5
 | `sort` | Sort in place |
 | `save(file)` / `load(file)` | NumPy `.npy` file I/O |
 
-#### RMatPlotLib
+#### RPlot
 
 Backed by the `plotters` crate:
 
 ```basic
-DIM plt AS RMatPlotLib
+DIM plt AS RPlot
 plt.plot x_array, y_array, "b-", "Series 1"
 plt.title = "My Plot"
 plt.savetofile "plot.png"
@@ -547,12 +547,12 @@ plt.savetofile "plot.png"
 | `saveto_buffer` | Save to BytesIO (for `RImage.loadfromplot`) |
 | `show` / `clear` | Display / reset |
 
-#### RPandas
+#### RDataFrame
 
 Backed by the `polars` crate:
 
 ```basic
-DIM df AS RPandas
+DIM df AS RDataFrame
 df.loadfromcsv "data.csv"
 PRINT df.describe
 df.sort "age", 0     ' ascending
@@ -576,7 +576,7 @@ df.sort "age", 0     ' ascending
 `RImage` can display Matplotlib plots directly:
 
 ```basic
-DIM plt AS RMatPlotLib
+DIM plt AS RPlot
 DIM img AS RImage
 plt.plot x, y, "r-", "Data"
 img.loadfromplot plt
@@ -586,7 +586,7 @@ img.loadfromplot plt
 
 ## The Self-Hosted IDE
 
-The project ships with its own robust **Visual Form Designer & Code Editor** (`ide.rp`).
+The project ships with its own robust **Visual Form Designer & Code Editor** (`ide.rr`).
 
 - **Self-hosting**: Written purely in RapidR BASIC, serving as the ultimate benchmark of the transpiler's completeness.
 - **Native compilation**: Compiles to a native FLTK GUI application.
@@ -595,11 +595,11 @@ The project ships with its own robust **Visual Form Designer & Code Editor** (`i
 - **Property Grid**: Double-editable spreadsheet for properties like `Caption`, `Color` (with popup pickers), and `Font`.
 - **Event Grid**: Browse and bind event handlers; double-clicking auto-generates SUB stubs.
 - **Code Editor**: Integrated `RCodeEditor` with syntax highlighting.
-- **Code Generation**: VB-style auto-stub generation — the IDE transpiles your visual design into `.rp` source code.
+- **Code Generation**: VB-style auto-stub generation — the IDE transpiles your visual design into `.rr` source code.
 - **Global state management**: Module-level variables (SelIndex, ShowingCode, event arrays) are properly shared across all callbacks via thread-local storage.
 
 ```bash
-cargo run -- codegen examples/ide.rp /tmp/ide_rust
+cargo run -- codegen examples/ide.rr /tmp/ide_rust
 cd /tmp/ide_rust && cargo build && ./target/debug/ide
 ```
 
@@ -611,17 +611,17 @@ Three demo applications showcase the data science components with full GUI integ
 
 | Demo | Components | Description |
 |------|-----------|-------------|
-| `demo_matplotlib.rp` | `RMatPlotLib` + `RImage` | Generates sine/cosine plots and bar charts, displays them inside a `RImage` on a form |
-| `demo_numpy.rp` | `RNumPy` + `RStringGrid` | Array math operations (element-wise, statistics, linspace, dot product) shown in a grid |
-| `demo_pandas.rp` | `RPandas` + `RStringGrid` | Loads CSV data, supports sort, filter, group-by, and summary statistics in a grid |
+| `demo_plot.rr` | `RPlot` + `RImage` | Generates sine/cosine plots and bar charts, displays them inside a `RImage` on a form |
+| `demo_num.rr` | `RNum` + `RStringGrid` | Array math operations (element-wise, statistics, linspace, dot product) shown in a grid |
+| `demo_dataframe.rr` | `RDataFrame` + `RStringGrid` | Loads CSV data, supports sort, filter, group-by, and summary statistics in a grid |
 
 Run any of them:
 ```bash
-cargo run -- codegen examples/demo_numpy.rp /tmp/demo_numpy
+cargo run -- codegen examples/demo_num.rr /tmp/demo_numpy
 cd /tmp/demo_numpy && cargo build && ./target/debug/demo_numpy
 ```
 
-> **Note:** The pandas demo expects `examples/demo_pandas_data.csv` (included) for sample employee data.
+> **Note:** The pandas demo expects `examples/demo_dataframe_data.csv` (included) for sample employee data.
 
 ---
 

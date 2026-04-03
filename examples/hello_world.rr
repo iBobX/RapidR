@@ -1,0 +1,20 @@
+$TYPECHECK ON
+PRINT "Hello World from RapidR!"
+
+DIM i AS INTEGER
+
+FOR i = 1 TO 5
+    PRINT "Count: ", i
+NEXT i
+
+PRINT "Length of 'RapidR': ", LEN("RapidR")
+PRINT "Mid of 'RapidR': ", MID$("RapidR", 1, 5)
+
+IMPORT "math" AS math
+PRINT "Pi is roughly: ", math.pi
+
+SUB TestSub(msg AS STRING)
+    PRINT "Message from SUB: ", msg
+END SUB
+
+CALL TestSub("It works!")

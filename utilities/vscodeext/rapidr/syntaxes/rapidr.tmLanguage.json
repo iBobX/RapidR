@@ -1,7 +1,7 @@
 {
   "scopeName": "source.rapidr",
   "name": "RapidR",
-  "fileTypes": ["rp"],
+  "fileTypes": ["rr"],
   "patterns": [
     { "include": "#comments" },
     { "include": "#directives" },
@@ -13,6 +13,7 @@
     { "include": "#keywords-type" },
     { "include": "#keywords-operator" },
     { "include": "#keywords-other" },
+    { "include": "#rust-block" },
     { "include": "#component-types" },
     { "include": "#builtin-functions" },
     { "include": "#identifiers" },
@@ -155,11 +156,23 @@
         }
       ]
     },
+    "rust-block": {
+      "patterns": [
+        {
+          "name": "meta.embedded.block.rust.rapidr",
+          "begin": "(?i)^\\s*(RUSTSTART)\\b",
+          "end": "(?i)^\\s*(RUSTEND)\\b",
+          "beginCaptures": { "1": { "name": "keyword.control.ruststart.rapidr" } },
+          "endCaptures": { "1": { "name": "keyword.control.rustend.rapidr" } },
+          "contentName": "meta.embedded.block.rust"
+        }
+      ]
+    },
     "component-types": {
       "patterns": [
         {
           "name": "entity.name.type.component.rapidr",
-          "match": "(?i)\\b(RForm|RButton|RLabel|REdit|RCanvas|RPanel|RTimer|RMainMenu|RMenuItem|RComboBox|RListBox|RCheckBox|RRadioButton|RRichEdit|RStringGrid|RImage|RScrollBar|RTabControl|RGroupBox|RMySQL|RSQLite|RProgressBar|RListView|ROpenDialog|RSaveDialog|RFileStream|RFileDialog|RCodeEditor|RLine|RIcon|RImageList|RSocket|RServerSocket|RHTTP|RStatusBar|RColorDialog|RFontDialog|RDesignSurface|RTreeView|RSplitter|RTrackBar|RScrollBox|RPopupMenu|RIni|RMemoryStream|RStringList|RPrinter|RNumPy|RMatPlotLib|RPandas)\\b"
+          "match": "(?i)\\b(RForm|RButton|RLabel|REdit|RCanvas|RPanel|RTimer|RMainMenu|RMenuItem|RComboBox|RListBox|RCheckBox|RRadioButton|RRichEdit|RStringGrid|RImage|RScrollBar|RTabControl|RGroupBox|RMySQL|RSQLite|RProgressBar|RListView|ROpenDialog|RSaveDialog|RFileStream|RFileDialog|RCodeEditor|RLine|RIcon|RImageList|RSocket|RServerSocket|RHTTP|RStatusBar|RColorDialog|RFontDialog|RDesignSurface|RTreeView|RSplitter|RTrackBar|RScrollBox|RPopupMenu|RIni|RMemoryStream|RStringList|RPrinter|RNum|RPlot|RDataFrame)\\b"
         },
         {
           "name": "entity.name.type.component.rapidr",

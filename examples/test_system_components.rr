@@ -1,0 +1,38 @@
+$TYPECHECK ON
+
+DIM Timer AS RTimer
+DIM FList AS PFileListBox
+DIM Dialog AS PFileDialog
+DIM FStream AS RFileStream
+
+SUB TestSound
+    SOUND(1500, 200)
+    SOUND(2000, 200)
+    SOUND(2500, 300)
+END SUB
+
+CREATE Form AS RFormMDI
+    Caption = "Phase 20 System Features Demo"
+    Height = 400
+    Width = 400
+    Center
+    
+    CREATE Cmd AS RBUTTON
+        Caption = "Play Math Sine Wave (Pygame)"
+        Width = 350
+        Top = 10
+        Left = 20
+        OnClick = TestSound
+    END CREATE
+    
+    CREATE DirFiles AS PFILELISTBOX
+        Width = 350
+        Top = 50
+        Left = 20
+        Height = 250
+        Directory = "."
+        Mask = "*.py"
+    END CREATE
+END CREATE
+
+Form.ShowModal

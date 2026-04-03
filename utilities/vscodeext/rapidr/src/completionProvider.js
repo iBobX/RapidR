@@ -358,8 +358,8 @@ class RapidRCompletionProvider {
             'RTREEVIEW': 'RTreeView', 'RSPLITTER': 'RSplitter', 'RTRACKBAR': 'RTrackBar',
             'RSCROLLBOX': 'RScrollBox', 'RPOPUPMENU': 'RPopupMenu',
             'RINI': 'RIni', 'RMEMORYSTREAM': 'RMemoryStream', 'RSTRINGLIST': 'RStringList',
-            'RPRINTER': 'RPrinter', 'RNUMPY': 'RNumPy', 'RMATPLOTLIB': 'RMatPlotLib',
-            'RPANDAS': 'RPandas'
+            'RPRINTER': 'RPrinter', 'RNUM': 'RNum', 'RPLOT': 'RPlot',
+            'RDATAFRAME': 'RDataFrame'
         };
         return nameMap[upperName] || upperName;
     }

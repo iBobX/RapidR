@@ -1,0 +1,34 @@
+$TYPECHECK ON
+
+PRINT "=== File I/O Test ==="
+
+DIM fnum AS INTEGER
+DIM line1 AS STRING
+
+' Write a file
+fnum = FREEFILE()
+PRINT "Writing to temp file using handle #" + STR$(fnum)
+
+OPEN "/tmp/rapidr_fileio_test.txt" FOR OUTPUT AS #1
+PRINT #1, "Hello from RapidR!"
+PRINT #1, "Line two"
+PRINT #1, "Line three"
+CLOSE #1
+
+' Verify file exists
+PRINT "FILEEXISTS = " + STR$(FILEEXISTS("/tmp/rapidr_fileio_test.txt"))
+PRINT "FILELEN = " + STR$(FILELEN("/tmp/rapidr_fileio_test.txt"))
+
+' Read it back
+OPEN "/tmp/rapidr_fileio_test.txt" FOR INPUT AS #1
+WHILE NOT EOF(1)
+    line1 = LINE INPUT(1)
+    PRINT "READ: " + line1
+WEND
+CLOSE #1
+
+' Cleanup
+KILL "/tmp/rapidr_fileio_test.txt"
+PRINT "File deleted: FILEEXISTS = " + STR$(FILEEXISTS("/tmp/rapidr_fileio_test.txt"))
+
+PRINT "=== File I/O test complete ==="

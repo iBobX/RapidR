@@ -1,7 +1,7 @@
 {
   "name": "rapidr",
   "displayName": "RapidR",
-  "description": "Full language support for RapidR (.rp) — BASIC-to-Rust transpiler. Syntax highlighting, autocomplete, hover docs, snippets, and compile integration.",
+  "description": "Full language support for RapidR (.rr) — BASIC-to-Rust transpiler. Syntax highlighting, autocomplete, hover docs, snippets, and compile integration.",
   "version": "1.0.0",
   "publisher": "rapidr",
   "license": "MIT",
@@ -35,10 +35,10 @@
         "aliases": [
           "RapidR",
           "rapidr",
-          "rp"
+          "rr"
         ],
         "extensions": [
-          ".rp"
+          ".rr"
         ],
         "configuration": "./language-configuration.json"
       }
@@ -101,12 +101,7 @@
         "rapidr.compilerPath": {
           "type": "string",
           "default": "",
-          "description": "Path to compile.py. Leave empty to auto-detect from workspace."
-        },
-        "rapidr.pythonPath": {
-          "type": "string",
-          "default": "python3",
-          "description": "Path to Python 3 interpreter."
+          "description": "Path to rapidr compiler binary. Leave empty to auto-detect from workspace or PATH."
         },
         "rapidr.runAfterCompile": {
           "type": "boolean",

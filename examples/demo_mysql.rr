@@ -1,0 +1,235 @@
+$TYPECHECK ON
+
+DIM MySQL AS RMySQL
+MySQL.Host = "localhost"
+MySQL.User = "rqdevtest"
+MySQL.Password = "DeV%Tes1T$"
+
+DIM CurrentID AS INTEGER
+DIM Timer1 AS RTimer
+DIM SaveDialog AS RSaveDialog
+DIM OpenDialog AS ROpenDialog
+DIM File AS RFileStream
+DIM fmCreate AS INTEGER
+fmCreate = 65535
+DIM fmOpenRead AS INTEGER
+fmOpenRead = 0
+
+SUB TickTock
+    StatusBar.SimpleText = "RapidR MySQL Capstone  |  Time: " + TIME$ + "  |  Date: " + DATE$
+END SUB
+
+SUB SaveData
+    IF SaveDialog.Execute THEN
+        File.Open(SaveDialog.FileName, fmCreate)
+        File.WriteLine("-- MySQL Database Export")
+        File.WriteLine("CREATE TABLE IF NOT EXISTS Users (ID INTEGER PRIMARY KEY AUTO_INCREMENT, FirstName VARCHAR(50), LastName VARCHAR(50), Address VARCHAR(100), Phone VARCHAR(20));")
+        MySQL.Query("SELECT ID, FirstName, LastName, Address, Phone FROM Users")
+        WHILE MySQL.FetchRow() = 1
+            DIM Q AS STRING
+            Q = "INSERT INTO Users (ID, FirstName, LastName, Address, Phone) VALUES (" + MySQL.Row(0) + ", '" + MySQL.EscapeString(MySQL.Row(1)) + "', '" + MySQL.EscapeString(MySQL.Row(2)) + "', '" + MySQL.EscapeString(MySQL.Row(3)) + "', '" + MySQL.EscapeString(MySQL.Row(4)) + "');"
+            File.WriteLine(Q)
+        WEND
+        File.Close()
+        SOUND(1200, 200)
+        StatusBar.SimpleText = "Exported SQL to: " + SaveDialog.FileName
+    END IF
+END SUB
+
+SUB LoadDataSQL
+    IF OpenDialog.Execute THEN
+        File.Open(OpenDialog.FileName, fmOpenRead)
+        DIM L AS STRING
+        WHILE File.EOF() = 0
+            L = File.ReadLine()
+            IF LEFT$(L, 2) <> "--" AND L <> "" THEN
+                MySQL.Query(L)
+            END IF
+        WEND
+        File.Close()
+        LoadData()
+        SOUND(1200, 200)
+        StatusBar.SimpleText = "Imported SQL from: " + OpenDialog.FileName
+    END IF
+END SUB
+
+SUB LoadData
+    ListBox1.Clear
+    MySQL.Query("SELECT ID, FirstName, LastName FROM Users")
+    WHILE MySQL.FetchRow() = 1
+        ListBox1.AddItems MySQL.Row(0) + " - " + MySQL.Row(1) + " " + MySQL.Row(2)
+    WEND
+END SUB
+
+SUB InitDB
+    IF MySQL.Connect() = 1 THEN
+        PRINT "Connected successfully to MySQL!"
+        MySQL.Query("CREATE DATABASE IF NOT EXISTS rapidqdevtestdb")
+        MySQL.SelectDB("rapidqdevtestdb")
+        
+        MySQL.Query("SHOW TABLES LIKE 'Users'")
+        IF MySQL.FetchRow() = 0 THEN
+            MySQL.Query("CREATE TABLE Users (ID INTEGER PRIMARY KEY AUTO_INCREMENT, FirstName VARCHAR(50), LastName VARCHAR(50), Address VARCHAR(100), Phone VARCHAR(20))")
+        END IF
+        LoadData()
+    ELSE
+        SHOWMESSAGE("Failed to connect to MySQL. Please check your connection settings.")
+    END IF
+END SUB
+
+SUB ListClick
+    DIM idx AS INTEGER
+    idx = ListBox1.ItemIndex
+    IF idx >= 0 THEN
+        MySQL.Query("SELECT ID, FirstName, LastName, Address, Phone FROM Users")
+        MySQL.RowSeek(idx)
+        IF MySQL.FetchRow() = 1 THEN
+            CurrentID = VAL(MySQL.Row(0))
+            NameEdit.Text = MySQL.Row(1)
+            LastEdit.Text = MySQL.Row(2)
+            AddrEdit.Text = MySQL.Row(3)
+            PhEdit.Text = MySQL.Row(4)
+        END IF
+    END IF
+END SUB
+
+SUB AddUser
+    DIM Q AS STRING
+    Q = "INSERT INTO Users (FirstName, LastName, Address, Phone) VALUES ('" + MySQL.EscapeString(NameEdit.Text) + "', '" + MySQL.EscapeString(LastEdit.Text) + "', '" + MySQL.EscapeString(AddrEdit.Text) + "', '" + MySQL.EscapeString(PhEdit.Text) + "')"
+    MySQL.Query(Q)
+    LoadData()
+    SOUND(1500, 100)
+    NameEdit.Text = ""
+    LastEdit.Text = ""
+    AddrEdit.Text = ""
+    PhEdit.Text = ""
+END SUB
+
+SUB EditUser
+    IF CurrentID > 0 THEN
+        DIM Q AS STRING
+        Q = "UPDATE Users SET FirstName='" + MySQL.EscapeString(NameEdit.Text) + "', LastName='" + MySQL.EscapeString(LastEdit.Text) + "', Address='" + MySQL.EscapeString(AddrEdit.Text) + "', Phone='" + MySQL.EscapeString(PhEdit.Text) + "' WHERE ID=" + STR$(CurrentID)
+        MySQL.Query(Q)
+        LoadData()
+        SOUND(1000, 100)
+    END IF
+END SUB
+
+SUB DeleteUser
+    IF CurrentID > 0 THEN
+        DIM Q AS STRING
+        Q = "DELETE FROM Users WHERE ID=" + STR$(CurrentID)
+        MySQL.Query(Q)
+        LoadData()
+        SOUND(200, 150)
+        NameEdit.Text = ""
+        LastEdit.Text = ""
+        AddrEdit.Text = ""
+        PhEdit.Text = ""
+        CurrentID = 0
+    END IF
+END SUB
+
+CREATE MainForm AS RFORM
+    Caption = "RapidR Database Scaffolding (MySQL)"
+    Height = 350
+    Width = 400
+    Center
+    
+    CREATE MainMenu AS RMainMenu
+        CREATE FileMenu AS RMenuItem
+            Caption = "&File"
+            CREATE SaveItem AS RMenuItem
+                Caption = "&Save DB as SQL..."
+                OnClick = SaveData
+            END CREATE
+            CREATE ImportItem AS RMenuItem
+                Caption = "&Import SQL..."
+                OnClick = LoadDataSQL
+            END CREATE
+        END CREATE
+    END CREATE
+    
+    CREATE NameLabel AS RLABEL
+        Caption = "First Name:"
+        Top = 13
+        Left = 20
+    END CREATE
+    CREATE LastLabel AS RLABEL
+        Caption = "Last Name:"
+        Top = 38
+        Left = 20
+    END CREATE
+    CREATE AddrLabel AS RLABEL
+        Caption = "Address:"
+        Top = 63
+        Left = 20
+    END CREATE
+    CREATE PhLabel AS RLABEL
+        Caption = "Phone #:"
+        Top = 88
+        Left = 20
+    END CREATE
+
+    CREATE NameEdit AS REDIT
+        Left = 90
+        Top = 10
+        Width = 200
+    END CREATE
+    CREATE LastEdit AS REDIT
+        Left = 90
+        Top = 35
+        Width = 200
+    END CREATE
+    CREATE AddrEdit AS REDIT
+        Left = 90
+        Top = 60
+        Width = 200
+    END CREATE
+    CREATE PhEdit AS REDIT
+        Left = 90
+        Top = 85
+        Width = 200
+    END CREATE
+
+    CREATE AddButton AS RBUTTON
+        Left = 20
+        Top = 120
+        Width = 80
+        Caption = "&Add User"
+        OnClick = AddUser
+    END CREATE
+    CREATE EditButton AS RBUTTON
+        Left = 110
+        Top = 120
+        Width = 80
+        Caption = "&Edit"
+        OnClick = EditUser
+    END CREATE
+    CREATE DeleteButton AS RBUTTON
+        Left = 200
+        Top = 120
+        Width = 80
+        Caption = "&Delete"
+        OnClick = DeleteUser
+    END CREATE
+
+    CREATE ListBox1 AS RLISTBOX
+        Top = 160
+        Left = 20
+        Width = 350
+        Height = 120
+        OnClick = ListClick
+    END CREATE
+
+    CREATE StatusBar AS RStatusBar
+        SimpleText = "Initializing..."
+    END CREATE
+END CREATE
+
+Timer1.Interval = 1000
+Timer1.OnTimer = TickTock
+Timer1.Enabled = 1
+
+InitDB()
+MainForm.ShowModal

@@ -30,20 +30,20 @@
   - [3.15 String Suffixes](#315-string-suffixes)
 - [4. Preprocessor Directives](#4-preprocessor-directives)
 - [5. Compiler Internals](#5-compiler-internals)
-  - [5.1 Lexer (compiler/lexer.py)](#51-lexer-compilerlexerpy)
-  - [5.2 Parser (compiler/parser.py)](#52-parser-compilerparserpy)
-  - [5.3 AST Nodes (compiler/ast_nodes.py)](#53-ast-nodes-compilerast_nodespy)
-  - [5.4 Code Generator (compiler/codegen.py)](#54-code-generator-compilercodgenpy)
-  - [5.5 Preprocessor (compiler/preprocessor.py)](#55-preprocessor-compilerpreprocessorpy)
-  - [5.6 Error System (compiler/errors.py)](#56-error-system-compilererrorspy)
+  - [5.1 Lexer (rapidr-lexer)](#51-lexer-rapidr-lexer)
+  - [5.2 Parser (rapidr-parser)](#52-parser-rapidr-parser)
+  - [5.3 AST (rapidr-ast)](#53-ast-rapidr-ast)
+  - [5.4 Code Generator (rapidr-codegen-rust)](#54-code-generator-rapidr-codegen-rust)
+  - [5.5 Preprocessor (rapidr-preprocessor)](#55-preprocessor-rapidr-preprocessor)
+  - [5.6 Diagnostics (rapidr-diagnostics)](#56-diagnostics-rapidr-diagnostics)
   - [5.7 Symbol Table](#57-symbol-table)
   - [5.8 Component Registry](#58-component-registry)
 - [6. Runtime Library](#6-runtime-library)
-  - [6.1 Builtins (rp_runtime/builtins.py)](#61-builtins-rp_runtimebuiltinspy)
-  - [6.2 GUI (rp_runtime/gui.py)](#62-gui-rp_runtimeguipy)
-  - [6.3 Database (rp_runtime/database.py)](#63-database-rp_runtimedatabasepy)
-  - [6.4 Network (rp_runtime/network.py)](#64-network-rp_runtimenetworkpy)
-  - [6.5 PyComponents (rp_runtime/pycomponents.py)](#65-pycomponents-rp_runtimepycomponentspy)
+  - [6.1 Builtins (builtins.rs)](#61-builtins-builtinsrs)
+  - [6.2 GUI (gui.rs)](#62-gui-guirs)
+  - [6.3 Database (database.rs)](#63-database-databasers)
+  - [6.4 Network (network.rs)](#64-network-networkrs)
+  - [6.5 Data Science (datascience.rs)](#65-data-science-datasciencers)
 - [7. Code Generation Patterns](#7-code-generation-patterns)
 - [8. Known Limitations & Gotchas](#8-known-limitations--gotchas)
 - [9. How to Add New Features](#9-how-to-add-new-features)
@@ -53,19 +53,25 @@
 
 ## 1. Project Overview
 
-**RapidR** is a BASIC-to-Rust transpiler that reads `.rp` source files (BASIC-like syntax inspired by RapidQ) and produces standalone Rust projects that compile to native executables. The project directory structure:
+**RapidR** is a BASIC-to-Rust transpiler that reads `.rr` source files (BASIC-like syntax inspired by RapidQ) and produces standalone Rust projects that compile to native executables. The project directory structure:
 
 ```
 crates/                 — RapidR Rust workspace crates (8 crates)
-compiler/               — Legacy Python transpiler backend (reference implementation)
-rp_runtime/             — Legacy Python runtime library (reference implementation)
-examples/               — Demo and test .rp programs
-tests/                  — Test suite
+  rapidr-cli/           — CLI entry point (version, lex, parse, codegen, shortcut build)
+  rapidr-diagnostics/   — TextSpan, SourceLocation, Diagnostic types
+  rapidr-ast/           — Shared AST data structures
+  rapidr-lexer/         — Tokenization (keywords, literals, operators, directives)
+  rapidr-parser/        — Recursive-descent parser → AST
+  rapidr-preprocessor/  — $INCLUDE, $DEFINE, $IFDEF, $MACRO, $THEME
+  rapidr-codegen-rust/  — AST → Rust source code generator
+  rapidr-runtime-core/  — Native runtime (GUI, builtins, database, networking, data science)
+examples/               — Demo and test .rr programs
+utilities/vscodeext/    — VS Code extension
 ```
 
 ### 1.1 RapidR Bootstrap Status
 
-The Rust migration has reached **functional transpiler status** with a complete pipeline from `.rp` source to native executables. The Cargo workspace contains 8 crates:
+The Rust migration has reached **functional transpiler status** with a complete pipeline from `.rr` source to native executables. The Cargo workspace contains 8 crates:
 
 | Crate | Lines | Description |
 |-------|-------|-------------|
@@ -87,26 +93,35 @@ The Rust migration has reached **functional transpiler status** with a complete 
 **Current validation:**
 - All Rust unit tests pass across all crates
 - All 29 example programs generate, compile, and run
-- The self-hosted IDE (`examples/ide.rp`) compiles to a native FLTK application with working properties, events, code view, and design surface
+- The self-hosted IDE (`examples/ide.rr`) compiles to a native FLTK application with working properties, events, code view, and design surface
 
 ```bash
 cargo test                  # Run all tests
-cargo run -- codegen examples/ide.rp /tmp/ide_rust  # Generate IDE
+cargo run -- codegen examples/ide.rr /tmp/ide_rust  # Generate IDE
 cd /tmp/ide_rust && cargo build && ./target/debug/ide  # Build and run
 ```
 
 ### CLI Usage
 
 ```bash
-cargo run -- <command> [options]
+# Shortcut syntax — builds and places binary alongside source
+rapidr --release examples/hello_world.rr
+rapidr --debug examples/hello_world.rr
+
+# Full subcommand syntax
+rapidr codegen <file.rr> <outdir> [--release|--debug]
+rapidr lex <file.rr>
+rapidr parse <file.rr>
+rapidr preprocess <file.rr>
+rapidr version
 ```
 
 | Command | Description |
 |---------|-------------|
-| `codegen <file.rp> <outdir>` | Generate a Rust project from a `.rp` file |
-| `lex <file.rp>` | Dump token stream |
-| `parse <file.rp>` | Dump AST |
-| `preprocess <file.rp>` | Dump preprocessed source |
+| `codegen <file.rr> <outdir>` | Generate a Rust project from a `.rr` file |
+| `lex <file.rr>` | Dump token stream |
+| `parse <file.rr>` | Dump AST |
+| `preprocess <file.rr>` | Dump preprocessed source |
 | `version` | Print version |
 
 Optional flags for `codegen`:
@@ -123,7 +138,7 @@ Optional flags for `codegen`:
 The compilation pipeline:
 
 ```
-Source (.rp)
+Source (.rr)
     ↓
 Preprocessor (rapidr-preprocessor) — $INCLUDE, $DEFINE, $IFDEF, $MACRO, $THEME expansion
     ↓
@@ -298,12 +313,13 @@ FOR j = 10 TO 0 STEP -1
 NEXT j
 ```
 
-**Generated as `while` loop** (using `loop` with `break` in Rust):
-```python
-i = 1
-while i <= 10:
-    rp_print(str_func(i))
-    i += 1
+**Generated as `while` loop** in Rust:
+```rust
+gs("i", v_int(1));
+while (gv("i").rp_le(&v_int(10))).to_bool() {
+    rp_print(&[rp_str_func(&gv("i"))], true);
+    gs("i", &gv("i") + &v_int(1));
+}
 ```
 This correctly handles both positive and negative STEP values, including floating-point steps.
 
@@ -390,20 +406,20 @@ result = Add(3, 4)
 
 **Parameter passing:** `BYVAL` and `BYREF` keywords are accepted by the parser. In the Rust codegen, all parameters are passed by value (clone semantics).
 
-**Global variable scoping:** Every SUB/FUNCTION gets a `global` declaration for all top-level variables (excluding parameters and the function name itself).
+**Global variable scoping:** Global variables are accessed via `gv()`/`gs()` thread-local storage. All SUB/FUNCTION bodies automatically access globals through these functions without explicit declarations.
 
 ### 3.8 CREATE Blocks (GUI)
 
 ```basic
-CREATE Form1 AS PForm
+CREATE Form1 AS RForm
     Caption = "My App"
     Width = 640
     Height = 480
     
-    CREATE Panel1 AS PPanel
+    CREATE Panel1 AS RPanel
         Align = 5
         
-        CREATE Button1 AS PButton
+        CREATE Button1 AS RButton
             Caption = "OK"
             Left = 10
             Top = 10
@@ -414,19 +430,19 @@ END CREATE
 ```
 
 **Semantics:**
-- `CREATE X AS PType` generates `x = PType(parent=<enclosing_object>)` (or without parent for top-level)
-- Property assignments inside CREATE become `x.prop = value`
-- Method calls inside CREATE become `x.method(args)`
+- `CREATE X AS RType` generates `rp_comp_create("x", "RTYPE")` plus `rp_comp_set` for the parent
+- Property assignments inside CREATE become `rp_comp_set("x", "prop", value)`
+- Method calls inside CREATE become `rp_comp_method("x", "method", &[args])`
 - Nested CREATEs pass the parent automatically
 - Builtin function calls inside CREATE blocks are NOT prefixed (they're detected via a known-builtins list)
-- The `create_obj_stack` tracks nesting, `_create_type_stack` tracks component types for validation
+- The `create_stack` tracks nesting for implicit parent assignment
 
-**Q-prefix backward compatibility:** Types prefixed with `Q` (from RapidQ) are automatically normalized to `P` prefix by `_normalize_comp_type()`.
+**Q-prefix backward compatibility:** Types prefixed with `Q` (from RapidQ) are automatically normalized to `R` prefix in the codegen.
 
 ### 3.9 WITH Blocks
 
 ```basic
-DIM form AS PForm
+DIM form AS RForm
 
 WITH form
     .Caption = "My Form"
@@ -440,12 +456,10 @@ The parser maintains a `with_stack`. When a `.` is encountered at the start of a
 ### 3.10 IMPORT Statement
 
 ```basic
-IMPORT "numpy" AS np
 IMPORT "math" AS math
-IMPORT os
 ```
 
-Generated as a comment in Rust. The `math` module provides access to `std::f64::consts`. Data science modules (`numpy`, `pandas`, `matplotlib`) are handled via their respective P-component types.
+Generated as a comment in Rust. Data science functionality is provided via `RNum`, `RPlot`, and `RDataFrame` component types.
 
 ### 3.11 DECLARE Statement (DLL/FFI)
 
@@ -454,7 +468,7 @@ DECLARE SUB Sleep LIB "kernel32" ALIAS "Sleep" (ms AS LONG)
 DECLARE FUNCTION GetTickCount LIB "kernel32" ALIAS "GetTickCount" () AS LONG
 ```
 
-Translated to `from <lib> import <alias> as <name>`. The `.dll`/`.so` extension is stripped. Empty LIB defaults to `builtins`.
+Translated to FFI calls via `libloading`. The shared library is loaded at runtime and functions are called through the `ffi.rs` module.
 
 ### 3.12 BIND Statement
 
@@ -578,7 +592,7 @@ Handled in `compiler/preprocessor.py` before lexing.
 
 **Line continuation:** `_` at end of line (before newline) is swallowed as whitespace.
 
-**CRITICAL LIMITATION:** The lexer does NOT support `[`, `]`, `{`, or `}` characters. Workarounds: use component methods (PNumPy.arange, PPandas.loadfromcsv) or RUSTSTART/RUSTEND blocks for raw Rust code.
+**CRITICAL LIMITATION:** The lexer does NOT support `[`, `]`, `{`, or `}` characters. Workarounds: use component methods (RNum.arange, RDataFrame.loadfromcsv) or RUSTSTART/RUSTEND blocks for raw Rust code.
 
 ### 5.2 Parser (`compiler/parser.py`)
 
@@ -609,223 +623,152 @@ parse_expression → parse_logical_or → parse_logical_and → parse_equality
 
 **The array/function ambiguity in expressions:** In `parse_primary()`, `IDENTIFIER(args)` is always parsed as `FunctionCallNode`. The codegen resolves whether it's actually array indexing.
 
-### 5.3 AST Nodes (`compiler/ast_nodes.py`)
+### 5.3 AST (`rapidr-ast`)
 
-**192 lines.** All nodes are `@dataclass` classes inheriting from `ASTNode(line, column)`.
+Located in `crates/rapidr-ast/src/lib.rs`. Defines all AST node types as Rust enums and structs.
 
-**Expression nodes** (inherit `ExpressionNode`):
-- `IdentifierNode(name)` — variable or function name
-- `LiteralNode(value, type_name)` — string, number literal
-- `BinaryOpNode(left, op, right)` — binary operation
-- `UnaryOpNode(op, operand)` — unary operation
-- `ArrayAccessNode(array, index)` — explicit array access (from statement-level parsing)
-- `MemberAccessNode(obj, member)` — dot access
-- `FunctionCallNode(name, args)` — function call OR array access (ambiguous)
-- `MethodCallNode(obj, method, args)` — method call
+**Expression nodes:**
+- `Identifier(name)` — variable or function name
+- `Literal(value, type_name)` — string, number literal
+- `BinaryOp(left, op, right)` — binary operation
+- `UnaryOp(op, operand)` — unary operation
+- `ArrayAccess(array, index)` — explicit array access
+- `MemberAccess(obj, member)` — dot access
+- `FunctionCall(name, args)` — function call OR array access (ambiguous)
+- `MethodCall(obj, method, args)` — method call
+- `RustBlock(code)` — raw Rust code (RUSTSTART/RUSTEND)
 
-**Statement nodes** (inherit `StatementNode`):
-- `DimStatementNode(variables: List[tuple], var_type)` — variable is `(name, array_dims_or_None)`
-- `AssignmentNode(target, value)`
-- `IfStatementNode(condition, then_branch, elseif_branches, else_branch)`
-- `ForStatementNode(variable, start, end, step, body)`
-- `WhileStatementNode(condition, body)`
-- `DoLoopStatementNode(condition, pre_condition, is_until, body)`
-- `SelectCaseStatementNode(expression, cases, case_else)`
-- `PrintStatementNode(items, append_newline)`
-- `SubroutineDefNode(name, params, body)`
-- `FunctionDefNode(name, params, return_type, body)`
-- `CallStatementNode(name, args)`
-- `MethodCallStatementNode(method_call: MethodCallNode)`
-- `ImportStatementNode(module_name, alias)`
-- `WithStatementNode(obj, body)`
-- `CreateStatementNode(name, obj_type, body)`
-- `ReturnStatementNode(value)`
-- `ExitStatementNode(exit_type)`
-- `DirectiveNode(name, value)`
-- `ConstStatementNode(name, value)`
-- `DeclareStatementNode(name, lib, alias, params, return_type)`
-- `TypeStatementNode(name, fields, methods, constructor, extends)`
-- `BindStatementNode(target, function)`
+**Statement nodes:**
+- `DimStatement`, `AssignmentStatement`, `IfStatement`, `ForStatement`, `WhileStatement`
+- `DoLoopStatement`, `SelectCaseStatement`, `PrintStatement`
+- `SubroutineDef`, `FunctionDef`, `CallStatement`, `MethodCallStatement`
+- `ImportStatement`, `WithStatement`, `CreateStatement`
+- `ReturnStatement`, `ExitStatement`, `DirectiveStatement`
+- `ConstStatement`, `DeclareStatement`, `TypeStatement`, `BindStatement`
 
-### 5.4 Code Generator (`compiler/codegen.py`) — Legacy Python Reference
+### 5.4 Code Generator (`rapidr-codegen-rust`)
 
-> **Note:** This section documents the Python codegen. The Rust codegen is in `crates/rapidr-codegen-rust/src/lib.rs`.
+Located in `crates/rapidr-codegen-rust/src/lib.rs` (~2,200 lines). Walks AST and emits Rust source code targeting `rapidr-runtime-core`.
 
-**1464 lines.** Visits AST nodes and emits Python 3 code.
+**Key state:**
+- `output` — String buffer for generated code
+- `indent` — current Rust indentation depth
+- `global_vars`, `arrays`, `consts` — collected from pre-passes
+- `components` — set of CREATE'd component names
+- `udts` — user-defined type names
+- `sub_signatures`, `func_signatures` — SUB/FUNCTION parameter info
+- `create_stack` — stack of current CREATE block names (for implicit property prefixing)
 
-**Key class: `CodeGenerator`**
+**Three pre-passes before code generation:**
+1. Collect UDT type names
+2. Collect global variables, arrays, constants, and CREATE components
+3. Collect SUB/FUNCTION signatures, DECLARE, IMPORT modules
 
-**State tracking:**
-- `output` — collected code lines
-- `indent_level` — current Python indentation depth
-- `imported_modules` — set of import statements to add to preamble
-- `create_obj_stack` — stack of current CREATE block object names (for implicit property prefixing)
-- `_create_type_stack` — parallel stack of component type names (for validation)
-- `global_vars` — set of all top-level variable names
-- `arrays` — set of all explicitly DIM'd array names
-- `udts` — dict of `UPPER_NAME → original_name` for TYPE definitions
-- `udt_array_fields` — set of field names that are arrays inside TYPEs
-- `symbols` — `SymbolTable` instance
-- `typecheck` — bool, whether `$TYPECHECK ON` is active
-- `apptype` — string: `'GUI'`, `'CONSOLE'`, or `'CGI'`
-- `_current_function_name` — tracks current FUNCTION name for `EXIT FUNCTION` → `return <name>`
-
-**Generated Python preamble:**
-```python
-from rp_runtime.builtins import *
-from rp_runtime.gui import *          # Omitted if $APPTYPE CONSOLE
-from rp_runtime.database import *
-from rp_runtime.network import *
-from rp_runtime.pycomponents import *
-# + any user IMPORT statements
+**Generated Rust structure:**
+```rust
+use rapidr_runtime_core::*;
+// + thread_local globals, helper functions
+fn main() {
+    // Global initializations (gs/ga_init/rp_comp_create)
+    // Top-level statements
+    // gui_showmodal() if GUI app
+}
+// SUB/FUNCTION definitions as standalone fn's
 ```
 
-**Name intercepts:** Many BASIC function names conflict with Python builtins. The codegen maps them:
-```
-str → str_func, dir → dir_func, format → format_func, input → input_func,
-delete → delete_func, sleep → sleep_func, hex → hex_func, bin → bin_func,
-oct → oct_func, round → round_func, insert → insert_func, replace → replace_func,
-reverse → reverse_func, field → field_func, mkdir → mkdir_func, rmdir → rmdir_func,
-kill → kill_func, rename → rename_func, messagebox → messagebox_func,
-run → run_func, end → end_func, floor → floor_func, command → command_func,
-date → date_func,  varptr$ → varptr_str
-```
+### 5.5 Preprocessor (`rapidr-preprocessor`)
 
-**Special identifier mappings:**
-- `TRUE` → `True`, `FALSE` → `False`
-- `DATE$` → `date_func()`, `TIME$` → `time_func()`, `TIMER` → `timer()`
-- `COMMAND$` → `command_func()`, `DIR$` → `dir_func()`
-
-**Zero-argument method auto-call:** Some method names are detected and `()` is appended if accessed without parentheses: `fetchrow`, `fetchfield`, `close`, `showmodal`, `clear`, `show`, `center`, `cls`, `paint`, `update`, `refresh`.
-
-**FOR loop generation:** Uses `while` loop pattern instead of Python `for/range` to correctly handle:
-- Inclusive end bounds (BASIC: `FOR I=1 TO 10` includes 10)
-- Negative STEP values
-- Float STEPs
-
-**GUI component type maps:** There are TWO `gui_types` dictionaries (one in `visit_DimStatementNode` around line 764, one in `visit_CreateStatementNode` around line 1266). **Both must be updated** when adding new component types.
-
-**The `visit_FunctionCallNode` array-indexing fix (critical):**
-```python
-# 1. Check explicit arrays set
-if name in self.arrays:
-    return f"{name}[{idx}]"
-
-# 2. Check symbol table for known variables being indexed
-sym = self.symbols.lookup(name)
-if sym and sym.get('kind') in ('variable', 'array', 'component') and node.args:
-    return f"{name}[{idx}]"
-
-# 3. Otherwise, emit as function call
-return f"{target}({args})"
-```
-
-### 5.5 Preprocessor (`compiler/preprocessor.py`)
-
-**190 lines.** Pure text-based preprocessing before lexing.
+Located in `crates/rapidr-preprocessor/src/lib.rs`. Pure text-based preprocessing before lexing.
 
 Key features:
-- Recursive `$INCLUDE` with circular-include detection (via `include_stack`)
+- Recursive `$INCLUDE` with circular-include detection
 - Nested `$IFDEF`/`$IFNDEF` with skip stack
-- `$MACRO` with optional parameters — expanded before `$DEFINE` substitution
-- Line-number preservation (consumed directives → empty lines)
+- `$MACRO` with optional parameters
+- `$THEME` for FLTK theming
+- Line-number preservation
 
-### 5.6 Error System (`compiler/errors.py`)
+### 5.6 Diagnostics (`rapidr-diagnostics`)
 
-**104 lines.** Three classes:
-- `RapidPSyntaxError(RapidPError)` — raised immediately by lexer/parser
-- `RapidPCompileError(RapidPError)` — collected by `ErrorCollector`
-- `RapidPWarning` — non-fatal, collected
-
-`ErrorCollector` accumulates errors/warnings and can output as text or JSON (for IDE).
+Located in `crates/rapidr-diagnostics/src/lib.rs`. Defines `TextSpan`, `SourceLocation`, and `Diagnostic` types used throughout the compiler for error reporting with line/column information.
 
 ### 5.7 Symbol Table
 
-Located in `codegen.py`. Scoped stack of dictionaries.
-
-```python
-class SymbolTable:
-    _scopes = [{}]           # Stack; index 0 = global
-    sub_signatures = {}       # name → param_count
-    func_signatures = {}      # name → param_count
-    const_names = set()
-```
-
-Each symbol entry: `{'type': str, 'kind': str, 'component_type': str|None}`
-
-`kind` values: `'variable'`, `'array'`, `'component'`, `'constant'`, `'parameter'`, `'function'`, `'sub'`, `'module'`, `'function_result'`
+The codegen maintains symbol information collected during pre-passes. Global variables, arrays, constants, component names, and SUB/FUNCTION signatures are all tracked for correct code emission.
 
 ### 5.8 Component Registry
 
-`COMPONENT_REGISTRY` in `codegen.py` — dict mapping component type (uppercase) → `{props, methods, events}` sets. Used for semantic validation (warnings for unknown properties, not errors).
+The component registry is distributed across:
+- `crates/rapidr-runtime-core/src/gui.rs` — widget creation (`gui_create_widget`)
+- `crates/rapidr-runtime-core/src/object.rs` — property get/set/method dispatch
+- `crates/rapidr-codegen-rust/src/lib.rs` — `is_component_type_name()` and `is_component_method_name()`
 
-Covers 40+ component types including: `PFORM`, `PBUTTON`, `PLABEL`, `PEDIT`, `PCANVAS`, `PPANEL`, `PTIMER`, `PSTRINGGRID`, `PIMAGE`, `PCODEEDITOR`, `PMYSQL`, `PSQLITE`, `PSOCKET`, `PSERVERSOCKET`, `PHTTP`, `PNUMPY`, `PMATPLOTLIB`, `PPANDAS`, `PDESIGNSURFACE`, etc.
+Covers 49+ component types: `RFORM`, `RBUTTON`, `RLABEL`, `REDIT`, `RCANVAS`, `RPANEL`, `RTIMER`, `RSTRINGGRID`, `RIMAGE`, `RCODEEDITOR`, `RMYSQL`, `RSQLITE`, `RSOCKET`, `RSERVERSOCKET`, `RHTTP`, `RNUM`, `RPLOT`, `RDATAFRAME`, `RDESIGNSURFACE`, `RTREEVIEW`, `RLISTVIEW`, `RSPLITTER`, `RTRACKBAR`, `RSCROLLBOX`, `RPOPUPMENU`, `RINI`, `RMEMORYSTREAM`, `RSTRINGLIST`, `RPRINTER`, `RCOLORDIALOG`, `RFONTDIALOG`, `RSTATUSBAR`, `RLINE`, `RICON`, `RIMAGELIST`, etc.
 
 ---
 
 ## 6. Runtime Library
 
-> **Note:** This section documents the legacy Python runtime (`rp_runtime/`). The Rust runtime is in `crates/rapidr-runtime-core/src/` with modules: `builtins.rs`, `gui.rs`, `database.rs`, `network.rs`, `datascience.rs`, `object.rs`, `value.rs`.
+The Rust runtime is in `crates/rapidr-runtime-core/src/` with modules:
 
-All Python runtime modules are in `rp_runtime/` and are imported via `from rp_runtime.<module> import *`.
+| Module | Lines | Description |
+|--------|-------|-------------|
+| `value.rs` | ~300 | `Value` enum (Int, Dbl, Str, Null) with arithmetic and comparison operators |
+| `builtins.rs` | ~450 | 100+ built-in BASIC functions (string, math, I/O, system) |
+| `gui.rs` | ~3,600 | FLTK-based GUI — 49+ component types, event system, design surface |
+| `object.rs` | ~1,200 | Component property get/set/method dispatch via `rp_comp_*` API |
+| `database.rs` | ~350 | MySQL (`mysql` crate) and SQLite (`rusqlite` crate) components |
+| `network.rs` | ~400 | TCP socket, server socket, HTTP client components |
+| `datascience.rs` | ~700 | `RNum` (ndarray), `RPlot` (plotters), `RDataFrame` (polars) |
+| `file_io.rs` | ~200 | RFileStream, RIni, RMemoryStream, RStringList implementations |
+| `ffi.rs` | ~200 | DECLARE/DLL foreign function interface via `libloading` |
 
-### 6.1 Builtins (`rp_runtime/builtins.py`)
+### 6.1 Builtins (`builtins.rs`)
 
-**825 lines.** 100+ functions implementing BASIC string, math, file I/O, and system operations.
+Implements 100+ BASIC functions as Rust functions operating on the `Value` type:
 
-**CRITICAL: `len()` function:** `def len(var): return builtins.len(str(var))` — converts to string first! This means `len(python_list)` returns the string length of the list representation, NOT the list length. Use `.size` for PNumPy arrays or Python's `builtins.len()` for real list length.
+- **String functions:** `rp_chr`, `rp_asc`, `rp_left`, `rp_right`, `rp_mid`, `rp_len`, `rp_instr`, `rp_ucase`, `rp_lcase`, `rp_trim`, `rp_replace`, etc.
+- **Math functions:** `rp_abs`, `rp_sin`, `rp_cos`, `rp_sqr`, `rp_rnd`, `rp_round`, `rp_ceil`, `rp_floor`, etc.
+- **I/O functions:** `rp_print`, `rp_dir`, `rp_fileexists`, `rp_direxists`, `rp_mkdir`, `rp_rmdir`, `rp_kill`, `rp_rename`
+- **System functions:** `rp_shell`, `rp_sleep`, `rp_timer`, `rp_date`, `rp_time`, `rp_environ`, `rp_command`
+- **GUI functions:** `rp_showmessage`, `rp_messagebox`, `rp_rgb`
 
-**File I/O system:** Uses a global `_file_handles` dict mapping file numbers to file objects. Functions: `open_func()`, `close_func()`, `print_hash()`, `line_input()`, `eof()`, `lof()`, `seek()`, `freefile()`.
+### 6.2 GUI (`gui.rs`)
 
-**Console emulation:** `PEEK`/`POKE` work on a 80×25 `_screen_buffer` array. `LOCATE`, `COLOR`, `CLS` manipulate console state. `CSRLIN`/`POS` return cursor position.
+The largest runtime module (~3,600 lines). Implements 49+ FLTK-based GUI components.
 
-### 6.2 GUI (`rp_runtime/gui.py`)
+**Component lifecycle:**
+1. `rp_comp_create(name, type)` — registers component in `GUI_COMPONENTS` thread-local
+2. `gui_create_widget(name, type)` — creates FLTK widget, stores in `GUI_WIDGETS`
+3. `rp_comp_set(name, prop, value)` — sets properties (before or after widget creation)
+4. `gui_showmodal(form_name)` — starts FLTK event loop
 
-**3235 lines.** The largest runtime file. Implements 49+ Tkinter-based GUI components.
+**Key component types:**
+- `RFORM` — FLTK `Window` with menu bar, status bar, timer support
+- `RBUTTON` — Push button with hover/press color feedback
+- `RLABEL`, `REDIT`, `RRICHEDIT` — Text display/input
+- `RCANVAS` — Drawing surface with pset/line/circle/fillrect/textout methods
+- `RSTRINGGRID` — Editable grid with column/row management
+- `RCODEEDITOR` — Syntax-highlighted text editor with line numbers
+- `RDESIGNSURFACE` — Visual form designer (used by the IDE)
+- `RFONTDIALOG` — Font picker with preview
+- `RCOLORDIALOG` — System color picker
 
-**Class hierarchy:**
-```
-PObject → PWidget → PForm, PButton, PLabel, PEdit, PPanel, ...
-PObject → PTimer, PFont, PIcon, PMainMenu, PMenuItem, ...
-PObject → PCanvas, PImage (special drawing surfaces)
-PObject → PStringGrid, PListView, PTreeView (data displays)
-```
+### 6.3 Database (`database.rs`)
 
-**Event binding pattern:**
-```python
-@property
-def onclick(self): return self._onclick
-@onclick.setter
-def onclick(self, handler):
-    self._onclick = handler
-    if self._widget:
-        self._widget.bind("<Button-1>", lambda e: handler())
-```
+- **RMYSQL** — MySQL client via `mysql` crate. Connect, query, fetch rows/fields, iterate databases/tables.
+- **RSQLITE** — SQLite via `rusqlite` crate. Same interface as RMYSQL.
 
-**Parent-child relationship:** Components accept `parent=` in constructor. Visual components create their Tkinter widget in `_build_widget()`, called from constructor or when parent is set.
+### 6.4 Network (`network.rs`)
 
-### 6.3 Database (`rp_runtime/database.py`)
+- **RSOCKET** — TCP client with connect/write/read, event callbacks
+- **RSERVERSOCKET** — Threaded TCP server with per-client management, broadcast
+- **RHTTP** — HTTP GET/POST client via `ureq` crate
 
-**361 lines.** `PMySQL` (pymysql) and `PSQLite` (sqlite3) with identical-ish interfaces.
+### 6.5 Data Science (`datascience.rs`)
 
-Both support: `connect`/`open`/`close`, `query`, `fetchrow`/`fetchfield`, `rowcount`/`colcount`, `sql` property (sets query text), event callbacks.
-
-### 6.4 Network (`rp_runtime/network.py`)
-
-**323 lines.** `PSocket`, `PServerSocket`, `PHTTP`.
-
-- `PSocket` — TCP client with optional SSL, event-driven I/O
-- `PServerSocket` — threaded TCP server, per-client management, `broadcast()`
-- `PHTTP` — HTTP GET/POST via urllib
-
-### 6.5 PyComponents (`rp_runtime/pycomponents.py`)
-
-**419 lines.** `PNumPy`, `PMatPlotLib`, `PPandas`.
-
-- **PNumPy:** Wraps numpy arrays. Key: `.data` property (get/set raw array), `.size`, `.tolist()`, `.arange()`, `.linspace()`, `.sum()`, `.mean()`, `.std()`, `.dot()`, `.save()`/`.load()`.
-  - **Class methods:** `PNumPy.sin()`, `PNumPy.cos()`, `PNumPy.array()`, `PNumPy.random.*` — these are accessed as static-like calls from RapidP code.
-- **PMatPlotLib:** Wraps matplotlib. `.plot()`, `.bar()`, `.scatter()`, `.hist()`, `.pie()`, `.saveto_buffer()`, `.savetofile()`. The `.saveto_buffer()` returns a `BytesIO` for `PImage.loadfromplot()`.
-- **PPandas:** Wraps pandas DataFrames. `.loadfromcsv()`, `.savetocsv()`, `.sort()`, `.filter()`, `.groupby()`, `.describe`, `.cell()`, `.setcell()`, `.columns`, `.rowcount`, `.colcount`.
+- **RNUM** — Numeric arrays via `ndarray` crate. Methods: `zeros`, `ones`, `arange`, `linspace`, `reshape`, `sum`, `mean`, `std`, `min`, `max`, `dot`, `transpose`, `sort`, `savetofile`, `loadfromfile`.
+- **RPLOT** — Chart generation via `plotters` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savetofile`, `saveto_buffer`.
+- **RDATAFRAME** — DataFrames via `polars` crate. Methods: `loadfromcsv`, `savetocsv`, `loadfromjson`, `savetojson`, `head`, `tail`, `describe`, `sort`, `filter`, `groupby`, `addcolumn`, `deletecolumn`, `cell`, `setcell`, `query`, `tostring`, `tolist`.
 
 ---
 
@@ -859,16 +802,16 @@ PRINT Counter                   → rp_print(&[gv("counter")], true);  ' Read
 DIM x AS INTEGER        →  gs("x", v_int(0));              ' Global (top-level)
 DIM x AS INTEGER        →  let mut x = v_int(0);           ' Local (inside SUB/FUNCTION)
 DIM s AS STRING         →  gs("s", v_str(""));             ' Global string
-DIM f AS PForm          →  rp_comp_create("f", "PForm");   ' GUI component
+DIM f AS RForm          →  rp_comp_create("f", "RFORM");   ' GUI component
 DIM a(10) AS DOUBLE     →  ga_init("a", 11, v_dbl(0.0));   ' Global array (0-10 = 11 elements)
 DIM p AS PersonType     →  let mut p = PersonType::default(); ' UDT instance
 ```
 
 #### How a CREATE block becomes Rust
 ```basic
-CREATE Form1 AS PForm           →  rp_comp_create("form1", "PForm");
+CREATE Form1 AS RForm           →  rp_comp_create("form1", "RFORM");
     Caption = "Test"            →  rp_comp_set("form1", "caption", v_str("Test"));
-    CREATE Btn AS PButton       →  rp_comp_create("btn", "PButton");
+    CREATE Btn AS RButton       →  rp_comp_create("btn", "RBUTTON");
         Parent = Form1          →  rp_comp_set("btn", "parent", v_str("form1"));
         Caption = "OK"          →  rp_comp_set("btn", "caption", v_str("OK"));
     END CREATE
@@ -884,57 +827,6 @@ SUB Foo(x AS STRING)            →  fn foo(x: Value) {
 END SUB                         →  }
 ```
 Global variables are accessed via `gv()`/`gs()` — no `global` declarations needed (thread-local storage handles sharing).
-
-### Python Code Generation (RapidP)
-
-#### How a DIM becomes Python
-```basic
-DIM x AS INTEGER        →  x = 0
-DIM s AS STRING         →  s = ""
-DIM f AS PForm          →  f = PForm()         (or f = None if later CREATE'd)
-DIM a(10) AS DOUBLE     →  a = [0] * (10 + 1)
-DIM p AS PersonType     →  p = PersonType()
-```
-
-#### How a CREATE block becomes Python
-```basic
-CREATE Form1 AS PForm           →  form1 = PForm()
-    Caption = "Test"            →  form1.caption = "Test"
-    CREATE Btn AS PButton       →  btn = PButton(parent=form1)
-        Caption = "OK"          →  btn.caption = "OK"
-    END CREATE
-END CREATE
-```
-
-#### How a SUB becomes Python
-```basic
-SUB Foo(x AS INTEGER)           →  def foo(x):
-    DIM local AS STRING         →      global <all_globals_except_x>
-    local = "hello"             →      local = ""
-    PRINT local                 →      local = "hello"
-END SUB                         →      rp_print(local)
-```
-
-#### How a FUNCTION becomes Python
-```basic
-FUNCTION Add(a AS INTEGER, b AS INTEGER) AS INTEGER
-    Add = a + b
-END FUNCTION
-→
-def add(a, b):
-    global <globals_except_a_b_add>
-    add = None
-    add = (a + b)
-    return add
-```
-
-#### How FOR loops work
-```basic
-FOR i = 1 TO 10 STEP 2         →  i = 1
-    PRINT i                     →  while i <= 10:
-NEXT i                          →      rp_print(i)
-                                →      i += 2
-```
 
 ---
 
@@ -957,7 +849,7 @@ NEXT i                          →      rp_print(i)
 - **RDESIGNSURFACE positioning**: Reads `left`/`top` from component properties instead of hardcoding (200, 200), enabling embedded MDI-style placement inside parent forms.
 - **Component idempotency**: `rp_create_component` and `gui_create_widget` skip creation if the component/widget already exists, preventing duplicate widgets from DIM+CREATE patterns.
 
-### IDE Example (`ide.rp`)
+### IDE Example (`ide.rr`)
 - **MDI layout**: DesignSurface is now created inside the IDE form's CREATE block with `Left=4, Top=124, Width=832, Height=580`, embedding it directly in the center area rather than as a separate floating window.
 - **Import `Key`**: Added `fltk::enums::Key` to imports for button keyboard handling.
 
@@ -969,7 +861,7 @@ NEXT i                          →      rp_print(i)
 ## 8. Known Limitations & Gotchas
 
 ### Language Limitations
-1. **No `[`, `]`, `{`, `}` in source code.** The lexer rejects these characters. Workaround: use component methods (PNumPy.arange, PPandas.loadfromcsv) or `RUSTSTART`/`RUSTEND` blocks for raw Rust.
+1. **No `[`, `]`, `{`, `}` in source code.** The lexer rejects these characters. Workaround: use component methods (RNum.arange, RDataFrame.loadfromcsv) or `RUSTSTART`/`RUSTEND` blocks for raw Rust.
 2. **`LEN()` function** converts to string first — `LEN(x)` returns the length of the string representation.
 3. **Array/function ambiguity.** `foo(i)` in expressions is always parsed as a function call. The codegen resolves it via symbol table lookup. If a variable isn't tracked (e.g., returned from a method, stored in VARIANT), it may be incorrectly emitted as a function call.
 4. **All identifiers are lowercased.** `MyVar` and `MYVAR` are the same variable.
@@ -986,7 +878,7 @@ NEXT i                          →      rp_print(i)
 ### Runtime Gotchas (Rust)
 1. **FLTK event loop.** `gui_showmodal()` runs `app.run()` which blocks. The first form shown should be the main form.
 2. **Thread-local storage.** All global variables and component state use `thread_local!`. Cross-thread GUI access is not supported.
-3. **PStringGrid.AddRow** — takes variable positional string args. Column count must be set first.
+3. **RStringGrid.AddRow** — takes variable positional string args. Column count must be set first.
 
 ---
 

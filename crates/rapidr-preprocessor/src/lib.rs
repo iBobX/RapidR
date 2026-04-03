@@ -558,7 +558,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("rapidr-preprocess-{unique}"));
         fs::create_dir_all(&root).unwrap();
         let include = root.join("shared.inc");
-        let main = root.join("main.rp");
+        let main = root.join("main.rr");
         fs::write(&include, "PRINT 123").unwrap();
         fs::write(&main, "$INCLUDE \"shared.inc\"").unwrap();
 

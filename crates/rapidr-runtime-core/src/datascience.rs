@@ -1,4 +1,4 @@
-//! Data science component backends: RNumPy (ndarray), RPandas (polars), RMatPlotLib (plotters).
+//! Data science component backends: RNum (ndarray), RDataFrame (polars), RPlot (plotters).
 //!
 //! Each component stores its internal state in thread-local maps and exposes
 //! a `*_method(name, method, args) -> Value` entry point for the component system.
@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use crate::value::{v_dbl, v_int, v_null, v_str, Value};
 
 // ---------------------------------------------------------------------------
-// RNumPy — backed by ndarray
+// RNum — backed by ndarray
 // ---------------------------------------------------------------------------
 
 use ndarray::Array1;
@@ -18,20 +18,20 @@ thread_local! {
     static NUMPY_ARRAYS: RefCell<HashMap<String, Array1<f64>>> = RefCell::new(HashMap::new());
 }
 
-fn numpy_get(name: &str) -> Array1<f64> {
+fn num_arr_get(name: &str) -> Array1<f64> {
     NUMPY_ARRAYS.with(|m| {
         m.borrow().get(&name.to_lowercase()).cloned().unwrap_or_else(|| Array1::zeros(0))
     })
 }
 
-fn numpy_set(name: &str, arr: Array1<f64>) {
+fn num_arr_set(name: &str, arr: Array1<f64>) {
     NUMPY_ARRAYS.with(|m| {
         m.borrow_mut().insert(name.to_lowercase(), arr);
     });
 }
 
-/// Dispatch method calls on RNumPy components.
-pub fn numpy_method(name: &str, method: &str, args: &[Value]) -> Value {
+/// Dispatch method calls on RNum components.
+pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "arange" => {
             let start = args.first().map(|v| v.to_f64()).unwrap_or(0.0);
@@ -43,7 +43,7 @@ pub fn numpy_method(name: &str, method: &str, args: &[Value]) -> Value {
                 vals.push(cur);
                 cur += step;
             }
-            numpy_set(name, Array1::from(vals));
+            num_arr_set(name, Array1::from(vals));
             v_null()
         }
         "linspace" => {
@@ -51,38 +51,38 @@ pub fn numpy_method(name: &str, method: &str, args: &[Value]) -> Value {
             let stop = args.get(1).map(|v| v.to_f64()).unwrap_or(1.0);
             let num = args.get(2).map(|v| v.to_i64()).unwrap_or(50) as usize;
             let arr = Array1::linspace(start, stop, num);
-            numpy_set(name, arr);
+            num_arr_set(name, arr);
             v_null()
         }
         "zeros" => {
             let n = args.first().map(|v| v.to_i64()).unwrap_or(10) as usize;
-            numpy_set(name, Array1::zeros(n));
+            num_arr_set(name, Array1::zeros(n));
             v_null()
         }
         "ones" => {
             let n = args.first().map(|v| v.to_i64()).unwrap_or(10) as usize;
-            numpy_set(name, Array1::ones(n));
+            num_arr_set(name, Array1::ones(n));
             v_null()
         }
         "sum" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             v_dbl(arr.sum())
         }
         "mean" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let len = arr.len();
             if len == 0 { v_dbl(0.0) } else { v_dbl(arr.sum() / len as f64) }
         }
         "min" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             v_dbl(arr.iter().cloned().fold(f64::INFINITY, f64::min))
         }
         "max" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             v_dbl(arr.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
         }
         "std" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let len = arr.len() as f64;
             if len <= 0.0 {
                 v_dbl(0.0)
@@ -95,40 +95,40 @@ pub fn numpy_method(name: &str, method: &str, args: &[Value]) -> Value {
         "dot" => {
             // dot product with another named array
             let other_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let a = numpy_get(name);
-            let b = numpy_get(&other_name);
+            let a = num_arr_get(name);
+            let b = num_arr_get(&other_name);
             let result = a.dot(&b);
             // Store result back into the calling array (or we return it)
             v_dbl(result)
         }
         "tolist" => {
             // Return all values as a comma-separated string
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let s: String = arr.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
             v_str(&s)
         }
         "sin" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let result = arr.mapv(f64::sin);
-            numpy_set(name, result);
+            num_arr_set(name, result);
             v_null()
         }
         "cos" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let result = arr.mapv(f64::cos);
-            numpy_set(name, result);
+            num_arr_set(name, result);
             v_null()
         }
         "sqrt" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let result = arr.mapv(f64::sqrt);
-            numpy_set(name, result);
+            num_arr_set(name, result);
             v_null()
         }
         "abs" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let result = arr.mapv(f64::abs);
-            numpy_set(name, result);
+            num_arr_set(name, result);
             v_null()
         }
         "reshape" => {
@@ -136,22 +136,22 @@ pub fn numpy_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         _ => {
-            eprintln!("[WARN] RNumPy.{}() not implemented", method);
+            eprintln!("[WARN] RNum.{}() not implemented", method);
             v_null()
         }
     }
 }
 
-/// Get a RNumPy property.
-pub fn numpy_get_prop(name: &str, prop: &str) -> Value {
+/// Get a RNum property.
+pub fn num_get_prop(name: &str, prop: &str) -> Value {
     match prop {
         "size" => {
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             v_int(arr.len() as i64)
         }
         "data" => {
             // Return as comma-separated string
-            let arr = numpy_get(name);
+            let arr = num_arr_get(name);
             let s: String = arr.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
             v_str(&s)
         }
@@ -159,8 +159,8 @@ pub fn numpy_get_prop(name: &str, prop: &str) -> Value {
     }
 }
 
-/// Set a RNumPy property.
-pub fn numpy_set_prop(name: &str, prop: &str, val: &Value) {
+/// Set a RNum property.
+pub fn num_set_prop(name: &str, prop: &str, val: &Value) {
     match prop {
         "data" => {
             // Parse comma-separated float values
@@ -168,14 +168,14 @@ pub fn numpy_set_prop(name: &str, prop: &str, val: &Value) {
             let vals: Vec<f64> = s.split(',')
                 .filter_map(|v| v.trim().parse::<f64>().ok())
                 .collect();
-            numpy_set(name, Array1::from(vals));
+            num_arr_set(name, Array1::from(vals));
         }
         _ => {}
     }
 }
 
 // ---------------------------------------------------------------------------
-// RPandas — backed by polars
+// RDataFrame — backed by polars
 // ---------------------------------------------------------------------------
 
 use polars::prelude::*;
@@ -184,20 +184,20 @@ thread_local! {
     static PANDAS_FRAMES: RefCell<HashMap<String, DataFrame>> = RefCell::new(HashMap::new());
 }
 
-fn pandas_get(name: &str) -> DataFrame {
+fn df_store_get(name: &str) -> DataFrame {
     PANDAS_FRAMES.with(|m| {
         m.borrow().get(&name.to_lowercase()).cloned().unwrap_or_else(|| DataFrame::empty())
     })
 }
 
-fn pandas_set(name: &str, df: DataFrame) {
+fn df_store_set(name: &str, df: DataFrame) {
     PANDAS_FRAMES.with(|m| {
         m.borrow_mut().insert(name.to_lowercase(), df);
     });
 }
 
-/// Dispatch method calls on RPandas components.
-pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
+/// Dispatch method calls on RDataFrame components.
+pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "loadfromcsv" | "readcsv" => {
             let path = args.first().map(|v| v.to_string_val()).unwrap_or_default();
@@ -207,21 +207,21 @@ pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
             {
                 Ok(reader) => match reader.finish() {
                     Ok(df) => {
-                        pandas_set(name, df);
+                        df_store_set(name, df);
                     }
-                    Err(e) => eprintln!("[ERROR] RPandas.loadfromcsv: {}", e),
+                    Err(e) => eprintln!("[ERROR] RDataFrame.loadfromcsv: {}", e),
                 },
-                Err(e) => eprintln!("[ERROR] RPandas.loadfromcsv: {}", e),
+                Err(e) => eprintln!("[ERROR] RDataFrame.loadfromcsv: {}", e),
             }
             v_null()
         }
         "sort" => {
             let col_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             let ascending = args.get(1).map(|v| v.to_i64() != 0).unwrap_or(true);
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             match df.sort([&col_name], SortMultipleOptions::default().with_order_descending(!ascending)) {
-                Ok(sorted) => pandas_set(name, sorted),
-                Err(e) => eprintln!("[ERROR] RPandas.sort: {}", e),
+                Ok(sorted) => df_store_set(name, sorted),
+                Err(e) => eprintln!("[ERROR] RDataFrame.sort: {}", e),
             }
             v_null()
         }
@@ -229,7 +229,7 @@ pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
             let col_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             let op = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
             let val = args.get(2).cloned().unwrap_or_else(v_null);
-            let df = pandas_get(name);
+            let df = df_store_get(name);
 
             // Use lazy API for filtering
             let lazy = df.lazy();
@@ -251,15 +251,15 @@ pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
             };
 
             match lazy.filter(filter_expr).collect() {
-                Ok(filtered) => pandas_set(name, filtered),
-                Err(e) => eprintln!("[ERROR] RPandas.filter: {}", e),
+                Ok(filtered) => df_store_set(name, filtered),
+                Err(e) => eprintln!("[ERROR] RDataFrame.filter: {}", e),
             }
             v_null()
         }
         "groupby" => {
             let col_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             let agg = args.get(1).map(|v| v.to_string_val()).unwrap_or_else(|| "mean".to_string());
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             let lazy = df.lazy();
             let group_col = polars::lazy::dsl::col(&col_name);
             let agg_expr = polars::lazy::dsl::all().exclude([&col_name]);
@@ -272,21 +272,21 @@ pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
                 _ => lazy.group_by([group_col]).agg([agg_expr.mean()]),
             };
             match grouped.collect() {
-                Ok(result) => pandas_set(name, result),
-                Err(e) => eprintln!("[ERROR] RPandas.groupby: {}", e),
+                Ok(result) => df_store_set(name, result),
+                Err(e) => eprintln!("[ERROR] RDataFrame.groupby: {}", e),
             }
             v_null()
         }
         "head" => {
             let n = args.first().map(|v| v.to_i64()).unwrap_or(5) as usize;
-            let df = pandas_get(name);
-            pandas_set(name, df.head(Some(n)));
+            let df = df_store_get(name);
+            df_store_set(name, df.head(Some(n)));
             v_null()
         }
         "cell" => {
             let row = args.first().map(|v| v.to_i64()).unwrap_or(0) as usize;
             let col_idx = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as usize;
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             if col_idx < df.width() && row < df.height() {
                 let series = df.get_columns()[col_idx].as_materialized_series();
                 match series.get(row) {
@@ -299,7 +299,7 @@ pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         "describe" => {
             // Polars 0.46 may not have describe; provide manual summary
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             let mut cols_vec: Vec<Column> = Vec::new();
             let stat_names: Column = Series::new(
                 PlSmallStr::from("statistic"),
@@ -327,39 +327,39 @@ pub fn pandas_method(name: &str, method: &str, args: &[Value]) -> Value {
                 cols_vec.push(col_series);
             }
             if let Ok(desc_df) = DataFrame::new(cols_vec) {
-                pandas_set(name, desc_df);
+                df_store_set(name, desc_df);
             }
             v_null()
         }
         "clear" => {
-            pandas_set(name, DataFrame::empty());
+            df_store_set(name, DataFrame::empty());
             v_null()
         }
         "columns" => {
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             let cols: Vec<&str> = df.get_column_names().into_iter().map(|c| c.as_str()).collect();
             v_str(&cols.join(","))
         }
         "rows" | "rowcount" => {
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             v_int(df.height() as i64)
         }
         "tostring" | "show" | "print" => {
-            let df = pandas_get(name);
+            let df = df_store_get(name);
             let s = format!("{}", df);
             println!("{}", s);
             v_str(&s)
         }
         _ => {
-            eprintln!("[WARN] RPandas.{}() not implemented", method);
+            eprintln!("[WARN] RDataFrame.{}() not implemented", method);
             v_null()
         }
     }
 }
 
-/// Get a RPandas property.
-pub fn pandas_get_prop(name: &str, prop: &str) -> Value {
-    let df = pandas_get(name);
+/// Get a RDataFrame property.
+pub fn dataframe_get_prop(name: &str, prop: &str) -> Value {
+    let df = df_store_get(name);
     match prop {
         "rowcount" => v_int(df.height() as i64),
         "colcount" => v_int(df.width() as i64),
@@ -372,7 +372,7 @@ pub fn pandas_get_prop(name: &str, prop: &str) -> Value {
 }
 
 // ---------------------------------------------------------------------------
-// RMatPlotLib — backed by plotters (bitmap output)
+// RPlot — backed by plotters (bitmap output)
 // ---------------------------------------------------------------------------
 
 use plotters::prelude::*;
@@ -447,8 +447,8 @@ fn parse_color(color_name: &str) -> RGBColor {
     }
 }
 
-/// Dispatch method calls on RMatPlotLib components.
-pub fn matplotlib_method(name: &str, method: &str, args: &[Value]) -> Value {
+/// Dispatch method calls on RPlot components.
+pub fn plot_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "clear" => {
             plot_set(name, PlotState::default());
@@ -522,14 +522,14 @@ pub fn matplotlib_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         _ => {
-            eprintln!("[WARN] RMatPlotLib.{}() not implemented", method);
+            eprintln!("[WARN] RPlot.{}() not implemented", method);
             v_null()
         }
     }
 }
 
-/// Get a RMatPlotLib property.
-pub fn matplotlib_get_prop(name: &str, prop: &str) -> Value {
+/// Get a RPlot property.
+pub fn plot_get_prop(name: &str, prop: &str) -> Value {
     let state = plot_get(name);
     match prop {
         "title" => v_str(&state.title),
@@ -542,8 +542,8 @@ pub fn matplotlib_get_prop(name: &str, prop: &str) -> Value {
     }
 }
 
-/// Set a RMatPlotLib property.
-pub fn matplotlib_set_prop(name: &str, prop: &str, val: &Value) {
+/// Set a RPlot property.
+pub fn plot_set_prop(name: &str, prop: &str, val: &Value) {
     let mut state = plot_get(name);
     match prop {
         "title" => state.title = val.to_string_val(),
@@ -606,7 +606,7 @@ fn render_plot(name: &str, filename: &str) {
     let mut chart = match chart_result {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[ERROR] RMatPlotLib chart build: {}", e);
+            eprintln!("[ERROR] RPlot chart build: {}", e);
             return;
         }
     };
@@ -681,7 +681,7 @@ fn render_plot(name: &str, filename: &str) {
 }
 
 /// Render plot to a temp file and return the path.
-pub fn matplotlib_render_to_file(name: &str) -> String {
+pub fn plot_render_to_file(name: &str) -> String {
     let filename = format!("/tmp/rapidr_plot_{}.png", name.to_lowercase());
     render_plot(name, &filename);
     filename

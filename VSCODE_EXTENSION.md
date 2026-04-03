@@ -1,16 +1,16 @@
-# RapidP — VS Code Extension
+# RapidR — VS Code Extension
 
-> The official Visual Studio Code extension for RapidP, providing a complete development environment for the RapidP programming language.
+> The official Visual Studio Code extension for RapidR, providing a complete development environment for the RapidR programming language.
 
 ---
 
 ## Why This Extension Exists
 
-**RapidP** is a modern BASIC-to-Python transpiler that lets you write desktop GUI applications, console tools, database programs, and network clients/servers using a clean, familiar BASIC syntax. The compiler translates `.rp` source files into Python, which can then be run directly or packaged as standalone executables.
+**RapidR** is a modern BASIC-to-Rust transpiler that lets you write desktop GUI applications, console tools, database programs, and network clients/servers using a clean, familiar BASIC syntax. The compiler translates `.rr` source files into standalone Rust projects that compile to native executables.
 
-Without editor support, writing RapidP means working in a plain text file with no visual feedback — no colour-coded keywords, no autocomplete for the 40+ built-in GUI components, no way to quickly check a function's signature, and no one-click compilation. Every property name, event handler, and function call has to be typed from memory or looked up in the manual.
+Without editor support, writing RapidR means working in a plain text file with no visual feedback — no colour-coded keywords, no autocomplete for the 40+ built-in GUI components, no way to quickly check a function's signature, and no one-click compilation. Every property name, event handler, and function call has to be typed from memory or looked up in the manual.
 
-**This extension solves all of that.** It turns VS Code into a first-class RapidP IDE where you can write, understand, navigate, and compile RapidP programs without ever leaving the editor.
+**This extension solves all of that.** It turns VS Code into a first-class RapidR IDE where you can write, understand, navigate, and compile RapidR programs without ever leaving the editor.
 
 ---
 
@@ -31,7 +31,7 @@ At a high level, the extension provides six integrated capabilities:
 
 ### Syntax Highlighting
 
-The extension registers a comprehensive TextMate grammar (`syntaxes/rapidp.tmLanguage.json`) that applies accurate scopes to every language construct. VS Code's theme engine then colours them according to whatever colour theme you use (Dark+, Monokai, Solarized, etc.).
+The extension registers a comprehensive TextMate grammar (`syntaxes/rapidr.tmLanguage.json`) that applies accurate scopes to every language construct. VS Code's theme engine then colours them according to whatever colour theme you use (Dark+, Monokai, Solarized, etc.).
 
 What gets highlighted:
 
@@ -75,7 +75,7 @@ The hover provider (`src/hoverProvider.js`) shows inline documentation when you 
 - **User-defined TYPE members** — Hovering a member like `r.Left` (where `r` is a `Rect`) shows whether it's a field or method, its type or signature, and which TYPE it belongs to.
 - **User-defined TYPE instances** — Hovering a variable like `r` (where `r` is a `DIM r AS Rect`) shows the variable's type and lists all available members.
 - **Built-in functions** — Shows the function signature as a code block plus a description. For example, hovering `MID$` shows: `MID$(str, start [, length])` — *"Returns substring from position"*.
-- **Data types** — Shows the type name and what Python type it maps to (e.g., `DOUBLE` → *"Double-precision float"*).
+- **Data types** — Shows the type name and its Rust equivalent (e.g., `DOUBLE` → *"Double-precision float (f64)"*).
 - **Directives** — Shows the directive's purpose (e.g., `$APPTYPE` → *"Set application type: GUI, CONSOLE, or CGI"*).
 - **User variables** — If you hover a variable that was created with `CREATE`, it shows the variable name and its component type. If it's an instance of a user-defined TYPE, it shows the type name and its members.
 
@@ -97,7 +97,7 @@ Each symbol is tagged with an appropriate icon (function, struct, object, consta
 
 ### Snippets (40+)
 
-The extension includes over 40 code snippets (`snippets/rapidp.json`) that expand common patterns with a single Tab press. Snippet placeholders let you jump between fields with Tab.
+The extension includes over 40 code snippets (`snippets/rapidr.json`) that expand common patterns with a single Tab press. Snippet placeholders let you jump between fields with Tab.
 
 | Prefix | What It Generates |
 |--------|-------------------|
@@ -150,22 +150,22 @@ The extension includes over 40 code snippets (`snippets/rapidp.json`) that expan
 
 ### Compile & Run Integration
 
-The extension integrates directly with the RapidP compiler (`compile.py`) so you never need to switch to a terminal:
+The extension integrates directly with the RapidR compiler (`rapidr`) so you never need to switch to a terminal:
 
 | Action | Shortcut | Command Palette |
 |--------|----------|-----------------|
-| Compile current file | `Ctrl+Shift+B` (`Cmd+Shift+B` on Mac) | *RapidP: Compile Current File* |
-| Compile and run | `F5` | *RapidP: Compile and Run* |
-| Build standalone executable | — | *RapidP: Build Standalone Executable* |
+| Compile current file | `Ctrl+Shift+B` (`Cmd+Shift+B` on Mac) | *RapidR: Compile Current File* |
+| Compile and run | `F5` | *RapidR: Compile and Run* |
+| Build standalone executable | — | *RapidR: Build Standalone Executable* |
 
 Additionally:
-- A **play button** appears in the editor title bar when a `.rp` file is active.
-- A **status bar item** (`▶ RapidP`) at the bottom of VS Code shows when a RapidP file is open. Click it to compile and run.
-- The compiler path is **auto-detected** from your workspace (it searches for `compile.py` in the workspace root and parent directories). You can also set it manually in settings.
+- A **play button** appears in the editor title bar when a `.rr` file is active.
+- A **status bar item** (`▶ RapidR`) at the bottom of VS Code shows when a RapidR file is open. Click it to compile and run.
+- The compiler path is **auto-detected** from your workspace (it searches for `rapidr` in the workspace root and parent directories). You can also set it manually in settings.
 
 ### Diagnostics
 
-Every time you save a `.rp` file (and when you first open one), the extension performs lightweight validation and reports problems in the **Problems panel**:
+Every time you save a `.rr` file (and when you first open one), the extension performs lightweight validation and reports problems in the **Problems panel**:
 
 - **Unclosed blocks** — Detects when a `IF` is missing its `END IF`, a `FOR` is missing its `NEXT`, a `SUB` is missing its `END SUB`, etc. The diagnostic appears on the opening line of the unclosed block, telling you exactly which closing keyword is missing.
 - **Unterminated strings** — Detects lines where a string literal is opened with `"` but never closed.
@@ -179,17 +179,17 @@ These diagnostics appear as yellow/red squiggly underlines in the editor and in 
 The extension is a pure JavaScript VS Code extension (no TypeScript compilation or bundler required). Here's how the source files are organised:
 
 ```
-utilities/vscodeext/rapidp/
+utilities/vscodeext/rapidr/
 ├── package.json                          # Extension manifest: commands, keybindings,
 │                                         # settings, language & grammar registration
 ├── language-configuration.json           # Bracket matching, folding regions,
 │                                         # auto-indentation rules, comment toggling
 ├── README.md                             # This file
 ├── syntaxes/
-│   └── rapidp.tmLanguage.json            # TextMate grammar: regex-based tokenisation
+│   └── rapidr.tmLanguage.json            # TextMate grammar: regex-based tokenisation
 │                                         # for syntax highlighting (15 pattern groups)
 ├── snippets/
-│   └── rapidp.json                       # 40+ code snippets with Tab-stop placeholders
+│   └── rapidr.json                       # 40+ code snippets with Tab-stop placeholders
 └── src/
     ├── extension.js                      # Main entry point: registers all providers,
     │                                     # commands, diagnostics, and status bar
@@ -211,12 +211,12 @@ utilities/vscodeext/rapidp/
 
 **How it works:**
 
-1. When VS Code opens a `.rp` file, the extension activates (`onLanguage:rapidp` activation event).
+1. When VS Code opens a `.rr` file, the extension activates (`onLanguage:rapidr` activation event).
 2. The TextMate grammar handles all syntax highlighting passively — no JavaScript needed.
 3. The four provider classes (`completionProvider`, `hoverProvider`, `signatureProvider`, `symbolProvider`) are registered with the VS Code language API and respond to editor events.
-4. All providers share a single language database (`languageData.js`) containing the full RapidP component registry, built-in function catalogue, keyword list, type definitions, and directive definitions — all extracted directly from the RapidP compiler source code.
+4. All providers share a single language database (`languageData.js`) containing the full RapidR component registry, built-in function catalogue, keyword list, type definitions, and directive definitions — all extracted directly from the RapidR compiler source code.
 5. A shared `typeParser.js` module scans the document for `TYPE ... END TYPE` blocks on demand and extracts fields, methods, constructors, properties, and inheritance (`EXTENDS`). Both the completion and hover providers use this when a variable's type is not found in the built-in component registry.
-6. The compile commands invoke `compile.py` in a VS Code terminal, passing the active file path and configured flags.
+6. The compile commands invoke `rapidr` in a VS Code terminal, passing the active file path and configured flags.
 6. The diagnostic validator runs on save/open and pushes warnings to VS Code's Problems panel.
 
 ---
@@ -229,24 +229,24 @@ The simplest way to install — create a symbolic link from VS Code's extensions
 
 ```bash
 # macOS / Linux
-ln -s /path/to/RapidP/utilities/vscodeext/rapidp ~/.vscode/extensions/rapidp
+ln -s /path/to/RapidR/utilities/vscodeext/rapidr ~/.vscode/extensions/rapidr
 
-# Example with the default RapidP project location:
-ln -s ~/Programming/Python/RapidP/utilities/vscodeext/rapidp ~/.vscode/extensions/rapidp
+# Example with the default RapidR project location:
+ln -s ~/Programming/rust/RapidR/utilities/vscodeext/rapidr ~/.vscode/extensions/rapidr
 ```
 
 Then reload VS Code:
 - Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
 - Type **Developer: Reload Window** and press Enter
 
-Open any `.rp` file and the extension activates automatically.
+Open any `.rr` file and the extension activates automatically.
 
 ### Method 2: Copy the Folder
 
 If you prefer not to symlink, copy the entire extension folder:
 
 ```bash
-cp -r /path/to/RapidP/utilities/vscodeext/rapidp ~/.vscode/extensions/rapidp
+cp -r /path/to/RapidR/utilities/vscodeext/rapidr ~/.vscode/extensions/rapidr
 ```
 
 Reload VS Code as described above.
@@ -256,7 +256,7 @@ Reload VS Code as described above.
 To create a distributable `.vsix` package that can be shared with others or installed on any machine:
 
 ```bash
-cd /path/to/RapidP/utilities/vscodeext/rapidp
+cd /path/to/RapidR/utilities/vscodeext/rapidr
 
 # Install the packaging tool (one-time)
 npm install -g @vscode/vsce
@@ -265,10 +265,10 @@ npm install -g @vscode/vsce
 vsce package
 ```
 
-This produces `rapidp-1.0.0.vsix`. Install it with:
+This produces `rapidr-1.0.0.vsix`. Install it with:
 
 ```bash
-code --install-extension rapidp-1.0.0.vsix
+code --install-extension rapidr-1.0.0.vsix
 ```
 
 Or from within VS Code: `Extensions` sidebar → `...` menu → **Install from VSIX...** → select the file.
@@ -277,8 +277,8 @@ Or from within VS Code: `Extensions` sidebar → `...` menu → **Install from V
 
 After installing and reloading:
 
-1. Open a `.rp` file — you should see syntax colouring immediately.
-2. Check the bottom-left status bar for the `▶ RapidP` indicator.
+1. Open a `.rr` file — you should see syntax colouring immediately.
+2. Check the bottom-left status bar for the `▶ RapidR` indicator.
 3. Try typing `DIM x AS ` — you should see type completions appear.
 4. Open the Outline panel (`Cmd+Shift+O`) — SUBs and FUNCTIONs should appear.
 
@@ -286,23 +286,21 @@ After installing and reloading:
 
 ## Configuration
 
-All settings are under the `rapidp.*` namespace in VS Code Settings (`Cmd+,` / `Ctrl+,`):
+All settings are under the `rapidr.*` namespace in VS Code Settings (`Cmd+,` / `Ctrl+,`):
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `rapidp.compilerPath` | `string` | `""` (auto-detect) | Absolute path to `compile.py`. When left empty, the extension searches the workspace root and up to two parent directories automatically. |
-| `rapidp.pythonPath` | `string` | `python3` | The Python 3 interpreter used to run the compiler. Change this if your Python is installed under a different name (e.g., `python`, `/usr/local/bin/python3.11`). |
-| `rapidp.runAfterCompile` | `boolean` | `true` | When enabled, the compiled Python output is executed immediately after a successful compile. Disable if you only want to transpile without running. |
-| `rapidp.encoding` | `string` | `utf-8` | Source file encoding passed to the compiler. Choose `latin-1` if your `.rp` files use Latin-1 encoded characters. |
+| `rapidr.compilerPath` | `string` | `""` (auto-detect) | Absolute path to `rapidr` binary. When left empty, the extension searches the workspace root, parent directories, and PATH automatically. |
+| `rapidr.runAfterCompile` | `boolean` | `true` | When enabled, the compiled binary is executed immediately after a successful compile. Disable if you only want to compile without running. |
+| `rapidr.encoding` | `string` | `utf-8` | Source file encoding passed to the compiler. Choose `latin-1` if your `.rr` files use Latin-1 encoded characters. |
 
 ### Example `settings.json`
 
 ```json
 {
-    "rapidp.compilerPath": "/Users/you/Projects/RapidP/compile.py",
-    "rapidp.pythonPath": "python3",
-    "rapidp.runAfterCompile": true,
-    "rapidp.encoding": "utf-8"
+    "rapidr.compilerPath": "/Users/you/Projects/RapidR/rapidr",
+    "rapidr.runAfterCompile": true,
+    "rapidr.encoding": "utf-8"
 }
 ```
 
@@ -313,8 +311,8 @@ All settings are under the `rapidp.*` namespace in VS Code Settings (`Cmd+,` / `
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
 | VS Code | 1.75 or later | Extension host API compatibility |
-| Python | 3.x | Required to run `compile.py` (the RapidP transpiler) |
-| RapidP compiler | — | The `compile.py` script and `compiler/` + `rp_runtime/` directories from the RapidP project |
+| Rust | stable | The generated Rust projects are compiled with `cargo build` |
+| RapidR compiler | — | The `rapidr` script and `compiler/` + `rp_runtime/` directories from the RapidR project |
 
 No additional npm packages or native dependencies are required. The extension is pure JavaScript with zero runtime dependencies beyond the VS Code API.
 
@@ -324,14 +322,14 @@ No additional npm packages or native dependencies are required. The extension is
 
 | Language ID | File Extension | MIME Type |
 |-------------|---------------|-----------|
-| `rapidp` | `.rp` | `text/x-rapidp` |
+| `rapidr` | `.rr` | `text/x-rapidr` |
 
 ---
 
 ## Known Limitations
 
 - Diagnostics are lightweight (block matching and string checking only). Full semantic analysis (undefined variables, type mismatches) is handled by the compiler itself — use `Ctrl+Shift+B` to get full compiler diagnostics.
-- The extension does not include a debugger. Run/debug is handled by compiling to Python and using Python's debugging tools.
+- The extension does not include a debugger. Run/debug is handled by compiling to native executables.
 
 ---
 
