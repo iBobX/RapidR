@@ -1560,6 +1560,22 @@ impl RustCodegen {
                         return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[{args_str}])");
                     }
 
+                    // Nested static call: Type.namespace.method(args) e.g. RNum.random.randint()
+                    if let Expression::MemberAccess(inner_ma) = ma.object.as_ref() {
+                        if let Expression::Identifier(id) = inner_ma.object.as_ref() {
+                            let var_lower = id.name.to_lowercase();
+                            if is_component_type_name(&id.name) || var_lower == "math" {
+                                let namespace = inner_ma.member.to_lowercase();
+                                let method = ma.member.to_lowercase();
+                                let combined = format!("{namespace}_{method}");
+                                if let Some(rust_call) = builtin_function_call(&combined, &args) {
+                                    return rust_call;
+                                }
+                                return format!("{{ eprintln!(\"[WARN] {}.{}.{}() not implemented\"); v_null() }}", id.name, inner_ma.member, ma.member);
+                            }
+                        }
+                    }
+
                     if let Expression::Identifier(id) = ma.object.as_ref() {
                         let var_lower = id.name.to_lowercase();
                         // UDT array field access
@@ -1870,6 +1886,10 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "beep" => Some("rp_beep()".to_string()),
         "date_func" | "date$" => Some("rp_date()".to_string()),
         "time_func" | "time$" => Some("rp_time()".to_string()),
+
+        // RNum static helpers
+        "array" => Some(format!("{a0}.clone()")),
+        "random_randint" => Some(format!("rp_randint(&{a0}, &{a1}, &{a2})")),
 
         // Array functions
         "lbound" => Some(format!("rp_lbound(&{a0})")),

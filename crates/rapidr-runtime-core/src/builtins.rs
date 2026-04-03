@@ -103,6 +103,9 @@ pub fn rp_instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
     let h = haystack.to_string_val();
     let n = needle.to_string_val();
     let from = (start.to_i64() - 1).max(0) as usize;
+    if from >= h.len() {
+        return v_int(0);
+    }
     match h[from..].find(&n) {
         Some(pos) => v_int((pos + from + 1) as i64), // 1-indexed result
         None => v_int(0),
@@ -172,11 +175,31 @@ pub fn rp_sqr(val: &Value) -> Value {
 }
 
 pub fn rp_sin(val: &Value) -> Value {
-    v_dbl(val.to_f64().sin())
+    let s = val.to_string_val();
+    if s.contains(',') {
+        // Vectorized: apply sin to each element of comma-separated array
+        let result: String = s.split(',')
+            .map(|v| v.trim().parse::<f64>().unwrap_or(0.0).sin().to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        v_str(&result)
+    } else {
+        v_dbl(val.to_f64().sin())
+    }
 }
 
 pub fn rp_cos(val: &Value) -> Value {
-    v_dbl(val.to_f64().cos())
+    let s = val.to_string_val();
+    if s.contains(',') {
+        // Vectorized: apply cos to each element of comma-separated array
+        let result: String = s.split(',')
+            .map(|v| v.trim().parse::<f64>().unwrap_or(0.0).cos().to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        v_str(&result)
+    } else {
+        v_dbl(val.to_f64().cos())
+    }
 }
 
 pub fn rp_tan(val: &Value) -> Value {
@@ -242,6 +265,18 @@ pub fn rp_randomize(seed: &Value) {
     // Seed is acknowledged but rand crate uses thread_rng automatically.
     // Full deterministic seeding would require a custom RNG wrapper.
     let _ = seed;
+}
+
+pub fn rp_randint(low: &Value, high: &Value, size: &Value) -> Value {
+    use rand::Rng;
+    let mut rng = rand::rng();
+    let lo = low.to_i64();
+    let hi = high.to_i64();
+    let n = size.to_i64().max(0) as usize;
+    let vals: Vec<String> = (0..n)
+        .map(|_| rng.random_range(lo..=hi).to_string())
+        .collect();
+    v_str(&vals.join(","))
 }
 
 // ---------------------------------------------------------------------------

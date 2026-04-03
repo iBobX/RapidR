@@ -560,8 +560,9 @@ pub fn plot_set_prop(name: &str, prop: &str, val: &Value) {
 /// Render the accumulated plot state to a PNG file.
 fn render_plot(name: &str, filename: &str) {
     let state = plot_get(name);
-    let w = state.width;
-    let h = state.height;
+    // If width/height look like matplotlib-style inches (< 100), convert to pixels at 100 DPI
+    let w = if state.width < 100 { state.width * 100 } else { state.width };
+    let h = if state.height < 100 { state.height * 100 } else { state.height };
 
     let root = BitMapBackend::new(filename, (w, h)).into_drawing_area();
     if root.fill(&WHITE).is_err() { return; }

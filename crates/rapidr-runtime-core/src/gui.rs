@@ -534,8 +534,13 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
         }
         "RSTATUSBAR" => {
-            // StatusBar will be drawn as an Output at the bottom of a form
-            let mut out = Output::new(0, 0, 100, 25, None);
+            // StatusBar anchored to the bottom of its parent form
+            let parent_name = rp_comp_get(name, "parent").to_string_val();
+            let pw = if parent_name.is_empty() { 800 } else { rp_comp_get(&parent_name, "width").to_i64() as i32 };
+            let ph = if parent_name.is_empty() { 600 } else { rp_comp_get(&parent_name, "height").to_i64() as i32 };
+            let bar_h = 25;
+            let mut out = Output::new(0, ph - bar_h, pw, bar_h, None);
+            out.set_text_size(12);
             let text = rp_comp_get(name, "simpletext").to_string_val();
             out.set_value(&text);
             GUI_WIDGETS.with(|gw| {
@@ -3195,7 +3200,7 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
             v_null()
         }
-        "clear" => {
+        "clear" | "cls" => {
             GUI_WIDGETS.with(|gw| {
                 let mut widgets = gw.borrow_mut();
                 if let Some(GuiWidget::ImageFrame(ref mut frm)) = widgets.get_mut(&name_lower) {

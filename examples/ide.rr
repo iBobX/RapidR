@@ -322,7 +322,16 @@ FUNCTION GenerateSubCode(ExistingCode AS STRING, HandlerName AS STRING, CompName
     Stub = CHR$(10) + "SUB " + HandlerName + Params + CHR$(10)
     Stub = Stub + "    ' TODO: " + CompName + "." + EvtName + " handler" + CHR$(10)
     Stub = Stub + "END SUB" + CHR$(10)
-    GenerateSubCode = ExistingCode + Stub
+
+    ' Insert before the CREATE marker so SUBs stay above the GUI block
+    DIM InsertPos AS INTEGER
+    InsertPos = INSTR(ExistingCode, "' === Main Form ===")
+    IF InsertPos = 0 THEN InsertPos = INSTR(UCASE$(ExistingCode), "CREATE FORM1 AS RFORM")
+    IF InsertPos > 0 THEN
+        GenerateSubCode = LEFT$(ExistingCode, InsertPos - 1) + Stub + CHR$(10) + MID$(ExistingCode, InsertPos)
+    ELSE
+        GenerateSubCode = ExistingCode + Stub
+    END IF
 END FUNCTION
 
 ' ============================================================
@@ -1103,6 +1112,19 @@ SUB GenerateCode
         SubPart = ""
     END IF
 
+    ' Also collect any SUBs after the CREATE block (in case stubs ended up there)
+    DIM EndCreatePos AS INTEGER
+    EndCreatePos = INSTR(UCASE$(ExistingCode), "FORM1.SHOWMODAL")
+    IF EndCreatePos > 0 THEN
+        DIM AfterCreate AS STRING
+        AfterCreate = MID$(ExistingCode, EndCreatePos + 15)
+        DIM PostSubStart AS INTEGER
+        PostSubStart = INSTR(UCASE$(AfterCreate), "SUB ")
+        IF PostSubStart > 0 THEN
+            SubPart = SubPart + MID$(AfterCreate, PostSubStart)
+        END IF
+    END IF
+
     Code = Code + SubPart + CHR$(10) + CHR$(10)
     Code = Code + "' === Main Form ===" + CHR$(10)
     Code = Code + "CREATE Form1 AS RFORM" + CHR$(10)
@@ -1233,6 +1255,7 @@ END SUB
 
 SUB ToggleCodeView
     IF ShowingCode = 0 THEN
+        SaveEvents
         IF CodeDirty = 1 OR CodeEditor.Text = "" THEN
             GenerateCode
             CodeDirty = 0
@@ -1260,6 +1283,7 @@ END SUB
 
 SUB ShowCodeView
     IF ShowingCode = 0 THEN
+        SaveEvents
         IF CodeDirty = 1 OR CodeEditor.Text = "" THEN
             GenerateCode
             CodeDirty = 0
