@@ -1,5 +1,6 @@
 const vscode = require('vscode');
-const { BUILTIN_FUNCTIONS } = require('./languageData');
+const { BUILTIN_FUNCTIONS, COMPONENT_REGISTRY } = require('./languageData');
+const { resolveVariableType } = require('./typeParser');
 
 class RapidRSignatureHelpProvider {
     provideSignatureHelp(document, position) {
@@ -28,8 +29,13 @@ class RapidRSignatureHelpProvider {
 
         if (funcEnd < 0) return null;
 
-        // Extract function name (may include $)
+        // Extract function name (may include $) and possible object.method
         const before = textBefore.substring(0, funcEnd);
+        const methodMatch = before.match(/([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s*$/);
+        if (methodMatch) {
+            return this._getComponentMethodSignature(document, methodMatch[1], methodMatch[2], commaCount);
+        }
+
         const nameMatch = before.match(/([A-Za-z_]\w*\$?)\s*$/);
         if (!nameMatch) return null;
 
@@ -55,6 +61,33 @@ class RapidRSignatureHelpProvider {
         help.activeSignature = 0;
         help.activeParameter = Math.min(commaCount, sig.parameters.length - 1);
 
+        return help;
+    }
+
+    _getComponentMethodSignature(document, varName, methodName, commaCount) {
+        const text = document.getText();
+        const compType = resolveVariableType(text, varName);
+        if (!compType) return null;
+
+        const comp = COMPONENT_REGISTRY[compType];
+        if (!comp || !comp.methodSignatures) return null;
+
+        const sigData = comp.methodSignatures[methodName.toLowerCase()];
+        if (!sigData) return null;
+
+        const sig = new vscode.SignatureInformation(sigData.sig, sigData.desc);
+        const paramMatch = sigData.sig.match(/\(([^)]*)\)/);
+        if (paramMatch) {
+            const params = paramMatch[1].split(',').map(p => p.trim()).filter(p => p);
+            for (const p of params) {
+                sig.parameters.push(new vscode.ParameterInformation(p));
+            }
+        }
+
+        const help = new vscode.SignatureHelp();
+        help.signatures = [sig];
+        help.activeSignature = 0;
+        help.activeParameter = Math.min(commaCount, sig.parameters.length - 1);
         return help;
     }
 }

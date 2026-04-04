@@ -1,8 +1,8 @@
 {
   "name": "rapidr",
   "displayName": "RapidR",
-  "description": "Full language support for RapidR (.rr) — BASIC-to-Rust transpiler. Syntax highlighting, autocomplete, hover docs, snippets, and compile integration.",
-  "version": "1.0.0",
+  "description": "Full language support for RapidR (.rr) — a modern BASIC-to-Rust transpiler with 45+ GUI/data science components, Pandas/NumPy/Matplotlib-compatible data science, SQL databases, sockets, HTTP, and a visual IDE. Syntax highlighting, IntelliSense, hover docs, signature help, code snippets, diagnostics, and compile integration.",
+  "version": "2.0.0",
   "publisher": "rapidr",
   "license": "MIT",
   "repository": {
@@ -22,7 +22,12 @@
     "basic",
     "transpiler",
     "rapidq",
-    "gui"
+    "gui",
+    "data-science",
+    "rust",
+    "numpy",
+    "pandas",
+    "matplotlib"
   ],
   "activationEvents": [
     "onLanguage:rapidr"

@@ -527,5 +527,162 @@
       ""
     ],
     "description": "RapidR database application template"
+  },
+  "CREATE RNum": {
+    "prefix": "createnum",
+    "body": [
+      "CREATE ${1:Num1} AS RNum",
+      "END CREATE",
+      "",
+      "${1:Num1}.${2|Arange,Linspace,Zeros,Ones,FromList|}(${3:0, 10})"
+    ],
+    "description": "Create an RNum numeric array (NumPy-compatible)"
+  },
+  "CREATE RDataFrame": {
+    "prefix": "createdf",
+    "body": [
+      "CREATE ${1:DF1} AS RDataFrame",
+      "END CREATE",
+      "",
+      "${1:DF1}.LoadFromCSV \"${2:data.csv}\"",
+      "PRINT ${1:DF1}.Head"
+    ],
+    "description": "Create an RDataFrame and load CSV (Pandas-compatible)"
+  },
+  "CREATE RPlot": {
+    "prefix": "createplot",
+    "body": [
+      "CREATE ${1:Plot1} AS RPlot",
+      "\tTitle = \"${2:My Plot}\"",
+      "\tXLabel = \"${3:X}\"",
+      "\tYLabel = \"${4:Y}\"",
+      "\tGrid = TRUE",
+      "END CREATE"
+    ],
+    "description": "Create an RPlot chart (Matplotlib-compatible)"
+  },
+  "Data Science App Skeleton": {
+    "prefix": "rpdata",
+    "body": [
+      "' ${1:Program Name}",
+      "' RapidR Data Science Application",
+      "$$APPTYPE CONSOLE",
+      "",
+      "CREATE DF AS RDataFrame",
+      "END CREATE",
+      "",
+      "CREATE Plot AS RPlot",
+      "\tTitle = \"${2:Analysis}\"",
+      "\tXLabel = \"${3:X}\"",
+      "\tYLabel = \"${4:Y}\"",
+      "\tGrid = TRUE",
+      "END CREATE",
+      "",
+      "DF.LoadFromCSV \"${5:data.csv}\"",
+      "PRINT DF.Describe",
+      "",
+      "' Plot the data",
+      "DIM xData AS STRING",
+      "DIM yData AS STRING",
+      "xData = \"${6:1,2,3,4,5}\"",
+      "yData = \"${7:10,20,30,40,50}\"",
+      "Plot.Plot xData, yData, \"blue\", \"Series 1\"",
+      "Plot.Legend",
+      "Plot.SaveFig \"${8:output.png}\"",
+      ""
+    ],
+    "description": "RapidR data science application template with DataFrame and Plot"
+  },
+  "RNum Arange": {
+    "prefix": "numarange",
+    "body": [
+      "${1:Num1}.Arange ${2:0}, ${3:100}, ${4:1}"
+    ],
+    "description": "Create evenly spaced array values"
+  },
+  "RNum Linspace": {
+    "prefix": "numlinspace",
+    "body": [
+      "${1:Num1}.Linspace ${2:0}, ${3:1}, ${4:50}"
+    ],
+    "description": "Create linearly spaced array values"
+  },
+  "RNum Random": {
+    "prefix": "numrand",
+    "body": [
+      "${1:Num1}.Rand ${2:100}"
+    ],
+    "description": "Fill array with random values"
+  },
+  "DataFrame LoadCSV": {
+    "prefix": "dfload",
+    "body": [
+      "${1:DF1}.LoadFromCSV \"${2:data.csv}\""
+    ],
+    "description": "Load CSV into DataFrame"
+  },
+  "DataFrame Filter": {
+    "prefix": "dffilter",
+    "body": [
+      "${1:DF1}.Filter \"${2:column}\", \"${3|>,<,>=,<=,=,!=,contains|}\", \"${4:value}\""
+    ],
+    "description": "Filter DataFrame rows"
+  },
+  "DataFrame GroupBy": {
+    "prefix": "dfgroupby",
+    "body": [
+      "${1:DF1}.GroupBy \"${2:groupColumn}\", \"${3:aggColumn}\", \"${4|mean,sum,count,min,max,first,last|}\""
+    ],
+    "description": "Group DataFrame by column and aggregate"
+  },
+  "DataFrame to Grid": {
+    "prefix": "dftogrid",
+    "body": [
+      "${1:DF1}.ToGrid \"${2:Grid1}\""
+    ],
+    "description": "Populate RStringGrid from DataFrame"
+  },
+  "Plot Line": {
+    "prefix": "plotline",
+    "body": [
+      "${1:Plot1}.Plot \"${2:x1,x2,x3}\", \"${3:y1,y2,y3}\", \"${4:blue}\", \"${5:Series 1}\""
+    ],
+    "description": "Draw a line plot"
+  },
+  "Plot Bar": {
+    "prefix": "plotbar",
+    "body": [
+      "${1:Plot1}.Bar \"${2:A,B,C}\", \"${3:10,20,30}\", \"${4:steelblue}\", \"${5:Values}\""
+    ],
+    "description": "Draw a bar chart"
+  },
+  "Plot Scatter": {
+    "prefix": "plotscatter",
+    "body": [
+      "${1:Plot1}.Scatter \"${2:x1,x2,x3}\", \"${3:y1,y2,y3}\", \"${4:red}\", \"${5:Points}\""
+    ],
+    "description": "Draw a scatter plot"
+  },
+  "Plot Histogram": {
+    "prefix": "plothist",
+    "body": [
+      "${1:Plot1}.Hist \"${2:data values}\", ${3:10}, \"${4:steelblue}\", \"${5:Distribution}\""
+    ],
+    "description": "Draw a histogram"
+  },
+  "Plot Pie": {
+    "prefix": "plotpie",
+    "body": [
+      "${1:Plot1}.Pie \"${2:A,B,C}\", \"${3:30,50,20}\""
+    ],
+    "description": "Draw a pie chart"
+  },
+  "Plot Save": {
+    "prefix": "plotsave",
+    "body": [
+      "${1:Plot1}.Legend",
+      "${1:Plot1}.SaveFig \"${2:output.png}\""
+    ],
+    "description": "Add legend and save plot to PNG"
   }
 }

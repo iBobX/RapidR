@@ -298,23 +298,167 @@ const COMPONENT_REGISTRY = {
         events: []
     },
     'RNUM': {
-        props: ['data', 'shape', 'size', 'dtype', 'tag'],
-        methods: ['zeros', 'ones', 'arange', 'linspace', 'reshape', 'sum', 'mean', 'std',
-                  'min', 'max', 'dot', 'transpose', 'tolist', 'sort', 'savetofile', 'loadfromfile'],
-        events: []
+        description: 'NumPy-compatible numeric array component (backed by ndarray). Supports creation, aggregation, element-wise math, arithmetic, sorting, cumulative ops, linear algebra, random generation, and more.',
+        props: ['data', 'shape', 'size', 'length', 'len', 'ndim', 'dtype', 'tag'],
+        methods: [
+            // Creation
+            'arange', 'linspace', 'zeros', 'ones', 'full', 'fromlist',
+            // Aggregation
+            'sum', 'mean', 'min', 'max', 'std', 'var', 'median', 'argmin', 'argmax', 'count', 'ptp',
+            // Element-wise math
+            'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sqrt', 'abs', 'exp', 'log', 'log2', 'log10',
+            'floor', 'ceil', 'round', 'sign', 'reciprocal', 'square', 'negative',
+            // Arithmetic
+            'add', 'subtract', 'multiply', 'divide', 'power', 'mod', 'clip',
+            // Ordering
+            'sort', 'reverse', 'unique', 'shuffle', 'append', 'slice',
+            // Cumulative
+            'cumsum', 'cumprod', 'diff',
+            // Linear algebra
+            'dot', 'norm', 'normalize',
+            // Boolean / search
+            'any', 'all', 'where', 'nonzero', 'searchsorted',
+            // Random
+            'rand', 'randn', 'uniform', 'randint', 'choice',
+            // Output
+            'tolist', 'tostring', 'print', 'show', 'reshape', 'clear'
+        ],
+        events: [],
+        methodSignatures: {
+            'arange': { sig: 'arange(start, stop [, step])', desc: 'Creates evenly spaced values in [start, stop) with given step (default 1)' },
+            'linspace': { sig: 'linspace(start, stop [, num])', desc: 'Creates num evenly spaced values between start and stop (default 50)' },
+            'zeros': { sig: 'zeros(n)', desc: 'Creates array of n zeros' },
+            'ones': { sig: 'ones(n)', desc: 'Creates array of n ones' },
+            'full': { sig: 'full(n, fillValue)', desc: 'Creates array of n elements filled with fillValue' },
+            'fromlist': { sig: 'fromlist("v1,v2,v3,...")', desc: 'Creates array from comma-separated string of numbers' },
+            'sum': { sig: 'sum()', desc: 'Returns sum of all elements' },
+            'mean': { sig: 'mean()', desc: 'Returns arithmetic mean' },
+            'std': { sig: 'std()', desc: 'Returns standard deviation' },
+            'var': { sig: 'var()', desc: 'Returns variance' },
+            'median': { sig: 'median()', desc: 'Returns median value' },
+            'argmin': { sig: 'argmin()', desc: 'Returns index of minimum value' },
+            'argmax': { sig: 'argmax()', desc: 'Returns index of maximum value' },
+            'count': { sig: 'count()', desc: 'Returns number of elements' },
+            'ptp': { sig: 'ptp()', desc: 'Returns peak-to-peak (max - min) range' },
+            'clip': { sig: 'clip(low, high)', desc: 'Clips values to [low, high] range' },
+            'add': { sig: 'add(value)', desc: 'Adds scalar or another array element-wise' },
+            'subtract': { sig: 'subtract(value)', desc: 'Subtracts scalar or another array element-wise' },
+            'multiply': { sig: 'multiply(value)', desc: 'Multiplies by scalar or another array element-wise' },
+            'divide': { sig: 'divide(value)', desc: 'Divides by scalar or another array element-wise' },
+            'power': { sig: 'power(exp)', desc: 'Raises elements to the given power' },
+            'mod': { sig: 'mod(divisor)', desc: 'Computes element-wise modulo' },
+            'slice': { sig: 'slice(start, end)', desc: 'Returns elements from start to end index' },
+            'append': { sig: 'append("v1,v2,...")', desc: 'Appends comma-separated values to the array' },
+            'dot': { sig: 'dot(otherArray)', desc: 'Computes dot product with another RNum array' },
+            'searchsorted': { sig: 'searchsorted(value)', desc: 'Finds insertion index for value in sorted array' },
+            'rand': { sig: 'rand(n)', desc: 'Fills with n random values in [0,1)' },
+            'randn': { sig: 'randn(n)', desc: 'Fills with n standard-normal random values' },
+            'uniform': { sig: 'uniform(low, high, n)', desc: 'Fills with n uniform random values in [low,high)' },
+            'randint': { sig: 'randint(low, high, n)', desc: 'Fills with n random integers in [low,high)' },
+            'choice': { sig: 'choice(n)', desc: 'Randomly samples n elements from the array' },
+            'round': { sig: 'round([decimals])', desc: 'Rounds elements to given decimal places (default 0)' },
+        }
     },
     'RPLOT': {
-        props: ['title', 'xlabel', 'ylabel', 'width', 'height', 'grid', 'tag'],
-        methods: ['plot', 'scatter', 'bar', 'hist', 'pie', 'legend', 'clear',
-                  'savetofile', 'show', 'saveto_buffer'],
-        events: []
+        description: 'Matplotlib-compatible plotting component (backed by plotters). Supports line, bar, scatter, step, area, histogram, pie charts, annotations, and image export.',
+        props: ['title', 'xlabel', 'ylabel', 'width', 'height', 'grid', 'dpi', 'tag'],
+        methods: [
+            'clear', 'plot', 'bar', 'barh', 'scatter', 'step', 'area', 'fill_between',
+            'hist', 'pie', 'hline', 'axhline', 'vline', 'axvline',
+            'annotate', 'legend', 'savefig', 'save', 'figsize', 'xlim', 'ylim', 'xscale', 'yscale'
+        ],
+        events: [],
+        methodSignatures: {
+            'plot': { sig: 'plot(xData, yData [, color [, label]])', desc: 'Draws a line plot. xData/yData are comma-separated strings.' },
+            'bar': { sig: 'bar(labels, values [, color [, label]])', desc: 'Draws a vertical bar chart.' },
+            'barh': { sig: 'barh(labels, values [, color [, label]])', desc: 'Draws a horizontal bar chart.' },
+            'scatter': { sig: 'scatter(xData, yData [, color [, label]])', desc: 'Draws a scatter plot.' },
+            'step': { sig: 'step(xData, yData [, color [, label]])', desc: 'Draws a step plot.' },
+            'area': { sig: 'area(xData, yData [, color [, label]])', desc: 'Draws a filled area chart.' },
+            'hist': { sig: 'hist(data [, bins [, color [, label]]])', desc: 'Draws a histogram. Default 10 bins.' },
+            'pie': { sig: 'pie(labels, values [, colors])', desc: 'Draws a pie chart.' },
+            'hline': { sig: 'hline(y [, color [, label]])', desc: 'Draws a horizontal reference line at y.' },
+            'vline': { sig: 'vline(x [, color [, label]])', desc: 'Draws a vertical reference line at x.' },
+            'annotate': { sig: 'annotate(text, x, y [, color])', desc: 'Places text annotation at (x,y).' },
+            'legend': { sig: 'legend([position])', desc: 'Enables legend display. Position: "top-right" (default).' },
+            'savefig': { sig: 'savefig(filename)', desc: 'Renders and saves the plot to a PNG file.' },
+            'figsize': { sig: 'figsize(width, height [, dpi])', desc: 'Sets figure dimensions in pixels and optional DPI.' },
+            'xlim': { sig: 'xlim(min, max)', desc: 'Sets the X axis range.' },
+            'ylim': { sig: 'ylim(min, max)', desc: 'Sets the Y axis range.' },
+            'xscale': { sig: 'xscale(type)', desc: 'Sets X axis scale: "linear" or "log".' },
+            'yscale': { sig: 'yscale(type)', desc: 'Sets Y axis scale: "linear" or "log".' },
+            'clear': { sig: 'clear()', desc: 'Clears all series, annotations and resets the plot.' },
+        }
     },
     'RDATAFRAME': {
-        props: ['data', 'rowcount', 'colcount', 'columns', 'tag'],
-        methods: ['loadfromcsv', 'savetocsv', 'loadfromjson', 'savetojson', 'head', 'tail',
-                  'describe', 'sort', 'filter', 'groupby', 'addcolumn', 'deletecolumn',
-                  'cell', 'setcell', 'query', 'tostring', 'tolist'],
-        events: []
+        description: 'Pandas-compatible data frame component (backed by Polars). Supports CSV/JSON I/O, selection, filtering, grouping, column operations, statistics, sampling, joins, transforms, and grid binding.',
+        props: ['rowcount', 'height', 'nrows', 'colcount', 'width', 'ncols', 'columns', 'shape', 'empty', 'tag'],
+        methods: [
+            // I/O
+            'loadfromcsv', 'readcsv', 'savetocsv', 'loadfromjson', 'savetojson',
+            // Selection / indexing
+            'head', 'tail', 'cell', 'cellbyname', 'at', 'setcell', 'iloc', 'select',
+            // Sorting / filtering
+            'sort', 'sort_values', 'filter', 'query',
+            // Grouping
+            'groupby',
+            // Column operations
+            'drop', 'rename', 'addcolumn',
+            // Missing data
+            'fillna', 'dropna',
+            // Statistics
+            'describe', 'value_counts', 'nunique', 'corr',
+            // Sampling
+            'sample', 'nlargest', 'nsmallest',
+            // Info
+            'info', 'dtypes', 'shape',
+            // Merge / join
+            'merge', 'join', 'concat',
+            // Transform
+            'transpose', 'apply', 'replace',
+            // Display
+            'clear', 'columns', 'rows', 'tostring', 'show', 'print', 'togrid'
+        ],
+        events: [],
+        methodSignatures: {
+            'loadfromcsv': { sig: 'loadfromcsv(filename)', desc: 'Loads a CSV file into the DataFrame. Auto-resolves paths relative to project.' },
+            'readcsv': { sig: 'readcsv(filename)', desc: 'Alias for loadfromcsv.' },
+            'savetocsv': { sig: 'savetocsv(filename)', desc: 'Saves the DataFrame to a CSV file.' },
+            'loadfromjson': { sig: 'loadfromjson(filename)', desc: 'Loads a JSON file into the DataFrame.' },
+            'savetojson': { sig: 'savetojson(filename)', desc: 'Saves the DataFrame to a JSON file.' },
+            'head': { sig: 'head([n])', desc: 'Returns the first n rows as a string (default 5).' },
+            'tail': { sig: 'tail([n])', desc: 'Returns the last n rows as a string (default 5).' },
+            'cell': { sig: 'cell(row, col)', desc: 'Returns cell value by numeric row and column indices.' },
+            'cellbyname': { sig: 'cellbyname(row, columnName)', desc: 'Returns cell value by row index and column name.' },
+            'setcell': { sig: 'setcell(row, col, value)', desc: 'Sets a cell value by row and column indices.' },
+            'iloc': { sig: 'iloc(row)', desc: 'Returns an entire row as comma-separated string.' },
+            'select': { sig: 'select("col1,col2,...")', desc: 'Selects specified columns into a new DataFrame.' },
+            'sort': { sig: 'sort(column [, ascending])', desc: 'Sorts by column. ascending: 1 (default) or 0.' },
+            'sort_values': { sig: 'sort_values(column [, ascending])', desc: 'Alias for sort with Pandas naming.' },
+            'filter': { sig: 'filter(column, operator, value)', desc: 'Filters rows. Operators: >, <, >=, <=, =, !=, contains.' },
+            'query': { sig: 'query(expression)', desc: 'Filters using a query expression string.' },
+            'groupby': { sig: 'groupby(column, aggColumn, aggFunc)', desc: 'Groups by column, aggregates aggColumn with aggFunc (mean/sum/count/min/max/first/last).' },
+            'drop': { sig: 'drop(column)', desc: 'Removes a column from the DataFrame.' },
+            'rename': { sig: 'rename(oldName, newName)', desc: 'Renames a column.' },
+            'addcolumn': { sig: 'addcolumn(name, values)', desc: 'Adds a column with comma-separated values.' },
+            'fillna': { sig: 'fillna(value)', desc: 'Fills null/missing values with the given value.' },
+            'dropna': { sig: 'dropna()', desc: 'Removes rows containing null values.' },
+            'describe': { sig: 'describe()', desc: 'Returns statistical summary (count, mean, std, min, max, etc.).' },
+            'value_counts': { sig: 'value_counts(column)', desc: 'Returns frequency counts for a column.' },
+            'nunique': { sig: 'nunique(column)', desc: 'Returns number of unique values in a column.' },
+            'corr': { sig: 'corr(col1, col2)', desc: 'Returns Pearson correlation coefficient between two columns.' },
+            'sample': { sig: 'sample(n)', desc: 'Returns n random rows.' },
+            'nlargest': { sig: 'nlargest(n, column)', desc: 'Returns n largest rows by column value.' },
+            'nsmallest': { sig: 'nsmallest(n, column)', desc: 'Returns n smallest rows by column value.' },
+            'info': { sig: 'info()', desc: 'Prints DataFrame info: columns, types, non-null counts.' },
+            'dtypes': { sig: 'dtypes()', desc: 'Returns column data types.' },
+            'merge': { sig: 'merge(otherDf, onColumn [, how])', desc: 'Joins with another DataFrame. how: inner (default), left, right, outer, cross.' },
+            'concat': { sig: 'concat(otherDf)', desc: 'Vertically concatenates another DataFrame.' },
+            'transpose': { sig: 'transpose()', desc: 'Transposes rows and columns.' },
+            'apply': { sig: 'apply(column, function)', desc: 'Applies a transform to a column: upper, lower, abs, round, sqrt, log.' },
+            'replace': { sig: 'replace(column, oldValue, newValue)', desc: 'Replaces values in a column.' },
+            'togrid': { sig: 'togrid(gridName)', desc: 'Populates an RStringGrid with the DataFrame contents.' },
+        }
     }
 };
 

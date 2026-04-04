@@ -98,6 +98,13 @@ class RapidRHoverProvider {
                 );
             }
             if (comp.methods.includes(memberLower)) {
+                const sigData = comp.methodSignatures && comp.methodSignatures[memberLower];
+                if (sigData) {
+                    const md = new vscode.MarkdownString();
+                    md.appendCodeblock(sigData.sig, 'rapidr');
+                    md.appendMarkdown(`\n${sigData.desc}`);
+                    return new vscode.Hover(md);
+                }
                 return new vscode.Hover(
                     new vscode.MarkdownString(`**${member}** — *method* of \`${compType}\``)
                 );
@@ -136,7 +143,13 @@ class RapidRHoverProvider {
     _hoverComponent(name) {
         const comp = COMPONENT_REGISTRY[name];
         const md = new vscode.MarkdownString();
-        md.appendMarkdown(`**${name}** — *GUI component*\n\n`);
+        const category = (name === 'RNUM' || name === 'RDATAFRAME' || name === 'RPLOT')
+            ? 'data science component' : 'GUI component';
+        md.appendMarkdown(`**${name}** — *${category}*\n\n`);
+
+        if (comp.description) {
+            md.appendMarkdown(`${comp.description}\n\n`);
+        }
 
         if (comp.props.length) {
             md.appendMarkdown(`**Properties:** ${comp.props.join(', ')}\n\n`);

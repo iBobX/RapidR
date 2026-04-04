@@ -166,7 +166,7 @@ CREATE Form1 AS RForm
         Left = 20
         Top = 8
         Width = 660
-        Caption = "Pandas Integration: Load employee data, then filter, sort, group, or analyze"
+        Caption = "RDataFrame Integration: Load employee data, then filter, sort, group, or analyze"
     END CREATE
 
     CREATE BtnLoad AS RButton

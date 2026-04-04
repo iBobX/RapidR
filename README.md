@@ -3,7 +3,7 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RapidR** is a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. It provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK.
+**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK.
 
 > **Note:** RapidR is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidR extends the language with data science components (RNum, RPlot, RDataFrame), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
 
@@ -22,8 +22,9 @@
   - [Built-in Functions](#built-in-functions)
   - [Database](#database)
   - [Networking](#networking)
-  - [Data Science Components](#data-science-components-pnumpy-pmatplotlib-ppandas)
+  - [Data Science Components](#data-science-components-rnum-rplot-rdataframe)
 - [The Self-Hosted IDE](#the-self-hosted-ide)
+- [VS Code Extension](#vs-code-extension)
 - [Syntax Reference](#syntax-reference)
 - [Test Suite](#test-suite)
 - [Development Conventions](#development-conventions)
@@ -501,85 +502,102 @@ PRINT http.document
 
 These components provide data science capabilities backed by native Rust crates: **ndarray** for array math, **polars** for dataframes, and **plotters** for chart rendering. They are feature-gated under the `datascience` feature (enabled by default).
 
-#### RNum
+#### RNum (With some NumPy-Compatibility)
 
-Backed by the `ndarray` crate:
+Backed by the `ndarray` crate — **60+ methods** for creation, aggregation, element-wise math, arithmetic, ordering, cumulative operations, linear algebra, boolean/search, and random generation.
 
 ```basic
 DIM arr AS RNum
 arr.arange 0, 10, 1
 PRINT arr.sum       ' 45.0
 PRINT arr.mean      ' 4.5
+arr.sin             ' Apply sin() element-wise
+arr.normalize       ' Normalize to unit vector
 ```
 
-| Method | Description |
-|--------|-------------|
-| `zeros(n)` / `ones(n)` | Create arrays |
-| `arange(start, stop, step)` | Range array |
-| `linspace(start, stop, n)` | Linearly spaced |
-| `reshape(rows, cols)` | Reshape array |
-| `sum` / `mean` / `std` / `min` / `max` | Statistics |
-| `dot(other)` | Matrix multiplication |
-| `transpose` | Transpose matrix |
-| `sort` | Sort in place |
-| `save(file)` / `load(file)` | NumPy `.npy` file I/O |
+| Category | Methods |
+|----------|---------|
+| **Creation** | `arange(start,stop,step)`, `linspace(start,stop,n)`, `zeros(n)`, `ones(n)`, `full(n,val)`, `fromlist("v1,v2,...")` |
+| **Aggregation** | `sum`, `mean`, `min`, `max`, `std`, `var`, `median`, `argmin`, `argmax`, `count`, `ptp` |
+| **Element-wise** | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sqrt`, `abs`, `exp`, `log`, `log2`, `log10`, `floor`, `ceil`, `round`, `sign`, `reciprocal`, `square`, `negative` |
+| **Arithmetic** | `add(val)`, `subtract(val)`, `multiply(val)`, `divide(val)`, `power(exp)`, `mod(div)`, `clip(lo,hi)` |
+| **Ordering** | `sort`, `reverse`, `unique`, `shuffle`, `append("vals")`, `slice(start,end)` |
+| **Cumulative** | `cumsum`, `cumprod`, `diff` |
+| **Linear Algebra** | `dot(other)`, `norm`, `normalize` |
+| **Boolean/Search** | `any`, `all`, `where`/`nonzero`, `searchsorted(val)` |
+| **Random** | `rand(n)`, `randn(n)`, `uniform(lo,hi,n)`, `randint(lo,hi,n)`, `choice(n)` |
+| **Output** | `tolist`, `print`/`show`, `clear` |
+| **Properties** | `size`/`length`/`len`, `data`, `shape`, `ndim`, `dtype` |
 
-#### RPlot
+#### RPlot (With some Matplotlib-Compatibility)
 
-Backed by the `plotters` crate:
+Backed by the `plotters` crate — **20+ methods** for line, bar, scatter, step, area, histogram, pie charts, annotations, and image export.
 
 ```basic
 DIM plt AS RPlot
-plt.plot x_array, y_array, "b-", "Series 1"
-plt.title = "My Plot"
-plt.savetofile "plot.png"
+plt.title = "Sales Analysis"
+plt.xlabel = "Quarter"
+plt.ylabel = "Revenue"
+plt.grid = TRUE
+plt.bar "Q1,Q2,Q3,Q4", "120,340,250,410", "steelblue", "Revenue"
+plt.hline 280, "red", "Average"
+plt.legend
+plt.savefig "sales.png"
 ```
 
-| Method | Description |
-|--------|-------------|
-| `plot(x, y, fmt, label)` | Line plot |
-| `scatter(x, y, label)` | Scatter plot |
-| `bar(x, heights, label)` | Bar chart |
-| `hist(data, bins)` | Histogram |
-| `pie(sizes, labels)` | Pie chart |
-| `legend` | Show legend |
-| `savetofile(path)` | Save to PNG/PDF/SVG |
-| `saveto_buffer` | Save to BytesIO (for `RImage.loadfromplot`) |
-| `show` / `clear` | Display / reset |
+| Category | Methods |
+|----------|---------|
+| **Line/Series** | `plot(x,y,color,label)`, `step(x,y,color,label)`, `area(x,y,color,label)`/`fill_between` |
+| **Bar Charts** | `bar(labels,values,color,label)`, `barh(labels,values,color,label)` |
+| **Scatter** | `scatter(x,y,color,label)` |
+| **Statistical** | `hist(data,bins,color,label)`, `pie(labels,values,colors)` |
+| **References** | `hline(y,color,label)`/`axhline`, `vline(x,color,label)`/`axvline` |
+| **Annotations** | `annotate(text,x,y,color)` |
+| **Layout** | `legend(position)`, `figsize(w,h,dpi)`, `xlim(min,max)`, `ylim(min,max)`, `xscale(type)`, `yscale(type)` |
+| **Output** | `savefig(filename)`/`save`, `clear` |
+| **Properties** | `title`, `xlabel`, `ylabel`, `grid`, `width`, `height`, `dpi` |
+| **Colors** | 30+ named colors (red, blue, steelblue, coral, etc.) plus hex `#RRGGBB`; auto-color palette for multi-series |
 
-#### RDataFrame
+#### RDataFrame (With some Pandas-Compatibility)
 
-Backed by the `polars` crate:
+Backed by the `polars` crate — **40+ methods** for CSV/JSON I/O, selection, filtering, grouping, column operations, statistics, sampling, joins, transforms, and GUI grid binding.
 
 ```basic
 DIM df AS RDataFrame
-df.loadfromcsv "data.csv"
+df.loadfromcsv "employees.csv"
 PRINT df.describe
-df.sort "age", 0     ' ascending
+df.filter "salary", ">", "50000"
+df.sort "name", 1
+df.togrid "Grid1"          ' Populate RStringGrid with DataFrame
 ```
 
-| Method | Description |
-|--------|-------------|
-| `loadfromcsv(file)` / `savetocsv(file)` | CSV I/O |
-| `loadfromjson(file)` / `savetojson(file)` | JSON I/O |
-| `head(n)` / `tail(n)` | Preview rows |
-| `describe` | Statistical summary |
-| `sort(col, asc)` | Sort by column |
-| `filter(col, op, val)` | Filter rows |
-| `groupby(col, agg)` | Group and aggregate |
-| `addcolumn(name, vals)` / `deletecolumn(name)` | Column operations |
-| `cell(row, col)` / `setcell(row, col, val)` | Cell access |
-| `query(expr)` | Pandas query expression |
+| Category | Methods |
+|----------|---------|
+| **I/O** | `loadfromcsv(file)`/`readcsv`, `savetocsv(file)`, `loadfromjson(file)`, `savetojson(file)` |
+| **Selection** | `head(n)`, `tail(n)`, `cell(row,col)`, `cellbyname(row,name)`/`at`, `setcell(row,col,val)`, `iloc(row)`, `select("col1,col2,...")` |
+| **Sorting** | `sort(col,asc)`, `sort_values(col,asc)` |
+| **Filtering** | `filter(col,op,val)` (operators: `>`, `<`, `>=`, `<=`, `=`, `!=`, `contains`), `query(expr)` |
+| **Grouping** | `groupby(col,aggCol,func)` — functions: `mean`, `sum`, `count`, `min`, `max`, `first`, `last` |
+| **Columns** | `drop(col)`, `rename(old,new)`, `addcolumn(name,values)` |
+| **Missing Data** | `fillna(value)`, `dropna()` |
+| **Statistics** | `describe`, `value_counts(col)`, `nunique(col)`, `corr(col1,col2)` |
+| **Sampling** | `sample(n)`, `nlargest(n,col)`, `nsmallest(n,col)` |
+| **Info** | `info`, `dtypes`, `shape`, `columns`, `rows`/`rowcount` |
+| **Merge/Join** | `merge(otherDf,onCol,how)` (inner/left/right/outer/cross), `concat(otherDf)` |
+| **Transform** | `transpose`, `apply(col,func)` (upper/lower/abs/round/sqrt/log), `replace(col,old,new)` |
+| **Display** | `tostring`/`show`/`print`, `togrid(gridName)` — populates RStringGrid with headers and data |
+| **Properties** | `rowcount`/`height`/`nrows`, `colcount`/`width`/`ncols`, `columns`, `shape`, `empty` |
 
-#### RImage + Matplotlib Integration
+#### RImage + Plot Integration
 
-`RImage` can display Matplotlib plots directly:
+`RImage` can display plots directly:
 
 ```basic
 DIM plt AS RPlot
 DIM img AS RImage
-plt.plot x, y, "r-", "Data"
-img.loadfromplot plt
+plt.plot x, y, "red", "Data"
+plt.savefig "temp.png"
+img.loadfromfile "temp.png"
 ```
 
 ---
@@ -590,18 +608,67 @@ The project ships with its own robust **Visual Form Designer & Code Editor** (`i
 
 - **Self-hosting**: Written purely in RapidR BASIC, serving as the ultimate benchmark of the transpiler's completeness.
 - **Native compilation**: Compiles to a native FLTK GUI application.
-- **Component Palette**: Drag-and-drop components onto a visual `RCanvas` design surface.
+- **Component Palette**: Drag-and-drop components onto a visual `RCanvas` design surface — includes all GUI components plus data science components (RNum, RDataFrame, RPlot).
 - **8-Handle Resize**: Full directional drag-and-resize with hit-testing mathematics.
-- **Property Grid**: Double-editable spreadsheet for properties like `Caption`, `Color` (with popup pickers), and `Font`.
+- **Property Grid**: Double-editable spreadsheet for properties like `Caption`, `Color` (with popup pickers), `Font`, `CsvFile`, `DataSource`, `Title`, `XLabel`, `YLabel`, `Grid`.
 - **Event Grid**: Browse and bind event handlers; double-clicking auto-generates SUB stubs.
 - **Code Editor**: Integrated `RCodeEditor` with syntax highlighting.
-- **Code Generation**: VB-style auto-stub generation — the IDE transpiles your visual design into `.rr` source code.
+- **Code Generation**: VB-style auto-stub generation — the IDE transpiles your visual design into `.rr` source code, including data science property emission.
+- **Data Science Integration**: Non-visual RNum, RDataFrame, and RPlot components appear in the toolbar and are managed as 48×48 icon placeholders; RDataFrame supports `CsvFile` and `DataSource` properties; RStringGrid supports `DataSource` binding to a DataFrame.
 - **Global state management**: Module-level variables (SelIndex, ShowingCode, event arrays) are properly shared across all callbacks via thread-local storage.
 
 ```bash
 cargo run -- codegen examples/ide.rr /tmp/ide_rust
 cd /tmp/ide_rust && cargo build && ./target/debug/ide
 ```
+
+---
+
+## VS Code Extension
+
+A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` providing production-grade language support for `.rr` files.
+
+### Features
+
+- **Syntax Highlighting** — Full TextMate grammar: keywords, types, components (45+), built-in functions (100+), directives, comments, strings, numbers, Rust blocks (`RUSTSTART`/`RUSTEND`)
+- **IntelliSense** — Context-aware autocomplete for:
+  - Component properties, methods, and events (dot-completion: `Button1.`)
+  - WITH block member access (`.Property`)
+  - CREATE block property/event suggestions
+  - Preprocessor directives (`$INCLUDE`, `$DEFINE`, etc.)
+  - Type completions after `AS`
+  - All built-in functions with snippet insertion
+  - User-defined SUBs, FUNCTIONs, variables, constants, and TYPE members
+- **Hover Documentation** — Rich Markdown hover for:
+  - All 45+ component types with property/method/event listings
+  - Data science method signatures with parameter descriptions
+  - Built-in function signatures
+  - Keyword descriptions
+  - User-defined TYPE structures with field and method listings
+- **Signature Help** — Parameter hints when typing function calls, including both built-in functions and component methods (RNum, RDataFrame, RPlot)
+- **Document Symbols** — Outline view showing SUBs, FUNCTIONs, TYPEs, CREATE blocks, CONSTs, and DIM variables
+- **Diagnostics** — Real-time validation on save: unclosed block detection, unterminated strings
+- **Code Snippets** — 40+ snippets including:
+  - Language constructs: `if`, `for`, `while`, `select`, `sub`, `func`, `type`
+  - Component creation: `createform`, `createbutton`, `creategrid`, `createcodeeditor`, ...
+  - Data science: `createnum`, `createdf`, `createplot`, `dfload`, `dffilter`, `dfgroupby`, `plotline`, `plotbar`, `plotscatter`
+  - Application templates: `rpcons` (console), `rpgui` (GUI), `rpdb` (database), `rpdata` (data science)
+- **Compile Integration** — Compile and run from VS Code:
+  - `Ctrl+Shift+B` / `Cmd+Shift+B` — Compile
+  - `F5` — Compile and Run
+  - Status bar button: "▶ RapidR"
+- **Code Folding** — Automatic folding for IF/FOR/WHILE/DO/SUB/FUNCTION/TYPE/CREATE/WITH blocks and `$IFDEF`/`$ENDIF` regions
+- **Auto-Indent** — Smart indentation rules for all block structures
+
+### Installation
+
+```bash
+cd utilities/vscodeext/rapidr
+vsce package --no-dependencies
+code --install-extension rapidr-2.0.0.vsix
+```
+
+Or install the pre-built `.vsix` from the `utilities/vscodeext/rapidr/` directory.
 
 ---
 
@@ -617,11 +684,11 @@ Three demo applications showcase the data science components with full GUI integ
 
 Run any of them:
 ```bash
-cargo run -- codegen examples/demo_num.rr /tmp/demo_numpy
-cd /tmp/demo_numpy && cargo build && ./target/debug/demo_numpy
+cargo run -- codegen examples/demo_num.rr /tmp/demo_num
+cd /tmp/demo_num && cargo build && ./target/debug/demo_num
 ```
 
-> **Note:** The pandas demo expects `examples/demo_dataframe_data.csv` (included) for sample employee data.
+> **Note:** The RDataFrame demo expects `examples/demo_dataframe_data.csv` (included) for sample employee data.
 
 ---
 

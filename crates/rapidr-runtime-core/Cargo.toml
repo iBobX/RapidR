@@ -12,7 +12,7 @@ fltk = { version = "1.4", optional = true }
 fltk-theme = { version = "0.7", optional = true }
 mysql = { version = "25", optional = true }
 ndarray = { version = "0.16", optional = true }
-polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "dtype-full"] }
+polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log"] }
 plotters = { version = "0.3", optional = true }
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }

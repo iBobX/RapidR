@@ -38,6 +38,9 @@ DIM SgdCount AS INTEGER
 DIM SbxCount AS INTEGER
 DIM MySqlCount AS INTEGER
 DIM SQLiteCount AS INTEGER
+DIM NumCount AS INTEGER
+DIM DfCount AS INTEGER
+DIM PlotCount AS INTEGER
 
 ' --- Form properties ---
 DIM FormOnShow AS STRING
@@ -205,6 +208,9 @@ FUNCTION DefaultWidth(CompType AS STRING) AS INTEGER
     IF CT = "RSTRINGGRID" THEN DefaultWidth = 200 : EXIT FUNCTION
     IF CT = "RSCROLLBOX" THEN DefaultWidth = 160 : EXIT FUNCTION
     IF CT = "RCODEEDITOR" THEN DefaultWidth = 300 : EXIT FUNCTION
+    IF CT = "RNUM" THEN DefaultWidth = 48 : EXIT FUNCTION
+    IF CT = "RDATAFRAME" THEN DefaultWidth = 48 : EXIT FUNCTION
+    IF CT = "RPLOT" THEN DefaultWidth = 48 : EXIT FUNCTION
     DefaultWidth = 80
 END FUNCTION
 
@@ -233,6 +239,9 @@ FUNCTION DefaultHeight(CompType AS STRING) AS INTEGER
     IF CT = "RSTRINGGRID" THEN DefaultHeight = 120 : EXIT FUNCTION
     IF CT = "RSCROLLBOX" THEN DefaultHeight = 120 : EXIT FUNCTION
     IF CT = "RCODEEDITOR" THEN DefaultHeight = 200 : EXIT FUNCTION
+    IF CT = "RNUM" THEN DefaultHeight = 48 : EXIT FUNCTION
+    IF CT = "RDATAFRAME" THEN DefaultHeight = 48 : EXIT FUNCTION
+    IF CT = "RPLOT" THEN DefaultHeight = 48 : EXIT FUNCTION
     DefaultHeight = 28
 END FUNCTION
 
@@ -260,6 +269,9 @@ FUNCTION GenerateCompName(CompType AS STRING) AS STRING
     IF CT = "RSPLITTER" THEN SplCount = SplCount + 1 : GenerateCompName = "Splitter" + STR$(SplCount) : EXIT FUNCTION
     IF CT = "RSTRINGGRID" THEN SgdCount = SgdCount + 1 : GenerateCompName = "Grid" + STR$(SgdCount) : EXIT FUNCTION
     IF CT = "RSCROLLBOX" THEN SbxCount = SbxCount + 1 : GenerateCompName = "ScrollBox" + STR$(SbxCount) : EXIT FUNCTION
+    IF CT = "RNUM" THEN NumCount = NumCount + 1 : GenerateCompName = "Num" + STR$(NumCount) : EXIT FUNCTION
+    IF CT = "RDATAFRAME" THEN DfCount = DfCount + 1 : GenerateCompName = "DataFrame" + STR$(DfCount) : EXIT FUNCTION
+    IF CT = "RPLOT" THEN PlotCount = PlotCount + 1 : GenerateCompName = "Plot" + STR$(PlotCount) : EXIT FUNCTION
     GenerateCompName = "Widget1"
 END FUNCTION
 
@@ -528,7 +540,29 @@ SUB FillProperties
             END IF
         END IF
 
-        IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" THEN
+        IF CT = "RDATAFRAME" THEN
+            PropGrid.AddRow("CsvFile", DesignSurface.GetProp(CI, "csvfile"))
+            PropGrid.AddRow("DataSource", DesignSurface.GetProp(CI, "datasource"))
+        END IF
+
+        IF CT = "RSTRINGGRID" THEN
+            DIM DSrcVal AS STRING
+            DSrcVal = DesignSurface.GetProp(CI, "datasource")
+            IF DSrcVal <> "" THEN
+                PropGrid.AddRow("DataSource", DSrcVal)
+            ELSE
+                PropGrid.AddRow("DataSource", "")
+            END IF
+        END IF
+
+        IF CT = "RPLOT" THEN
+            PropGrid.AddRow("Title", DesignSurface.GetProp(CI, "title"))
+            PropGrid.AddRow("XLabel", DesignSurface.GetProp(CI, "xlabel"))
+            PropGrid.AddRow("YLabel", DesignSurface.GetProp(CI, "ylabel"))
+            PropGrid.AddRow("Grid", DesignSurface.GetProp(CI, "grid"))
+        END IF
+
+        IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" AND CT <> "RNUM" AND CT <> "RDATAFRAME" AND CT <> "RPLOT" THEN
             DIM VisVal AS STRING
             VisVal = DesignSurface.GetProp(CI, "visible")
             IF VisVal = "" THEN VisVal = "True"
@@ -543,7 +577,7 @@ SUB FillProperties
         END IF
 
         ' Font & Color properties for all visual widgets
-        IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" THEN
+        IF CT <> "RTIMER" AND CT <> "RMYSQL" AND CT <> "RSQLITE" AND CT <> "RNUM" AND CT <> "RDATAFRAME" AND CT <> "RPLOT" THEN
             DIM FnVal AS STRING
             FnVal = DesignSurface.GetProp(CI, "font.name")
             IF FnVal = "" THEN FnVal = "Helvetica"
@@ -716,6 +750,18 @@ END SUB
 
 SUB SetToolSQLite
     SetTool("RSQLITE")
+END SUB
+
+SUB SetToolNum
+    SetTool("RNUM")
+END SUB
+
+SUB SetToolDataFrame
+    SetTool("RDATAFRAME")
+END SUB
+
+SUB SetToolPlot
+    SetTool("RPLOT")
 END SUB
 
 ' ============================================================
@@ -1217,6 +1263,25 @@ SUB GenerateCode
 
         PropV = DesignSurface.GetProp(I, "host")
         IF PropV <> "" THEN Code = Code + "        Host = " + CHR$(34) + PropV + CHR$(34) + CHR$(10)
+
+        ' Data Science properties
+        PropV = DesignSurface.GetProp(I, "csvfile")
+        IF PropV <> "" AND UCT = "RDATAFRAME" THEN Code = Code + "        CsvFile = " + CHR$(34) + PropV + CHR$(34) + CHR$(10)
+
+        PropV = DesignSurface.GetProp(I, "datasource")
+        IF PropV <> "" THEN Code = Code + "        DataSource = " + CHR$(34) + PropV + CHR$(34) + CHR$(10)
+
+        PropV = DesignSurface.GetProp(I, "title")
+        IF PropV <> "" AND UCT = "RPLOT" THEN Code = Code + "        Title = " + CHR$(34) + PropV + CHR$(34) + CHR$(10)
+
+        PropV = DesignSurface.GetProp(I, "xlabel")
+        IF PropV <> "" AND UCT = "RPLOT" THEN Code = Code + "        XLabel = " + CHR$(34) + PropV + CHR$(34) + CHR$(10)
+
+        PropV = DesignSurface.GetProp(I, "ylabel")
+        IF PropV <> "" AND UCT = "RPLOT" THEN Code = Code + "        YLabel = " + CHR$(34) + PropV + CHR$(34) + CHR$(10)
+
+        PropV = DesignSurface.GetProp(I, "grid")
+        IF PropV <> "" AND UCT = "RPLOT" THEN Code = Code + "        Grid = " + PropV + CHR$(10)
 
         PropV = DesignSurface.GetProp(I, "min")
         IF PropV <> "" THEN Code = Code + "        Min = " + PropV + CHR$(10)
@@ -1842,6 +1907,23 @@ CREATE IDE AS RFORM
         Caption = "SQLite"
         Left = 420 : Top = 34 : Width = 48 : Height = 24
         OnClick = SetToolSQLite
+    END CREATE
+
+    ' --- Data Science buttons ---
+    CREATE BtnAddNum AS RBUTTON
+        Caption = "Num"
+        Left = 370 : Top = 60 : Width = 36 : Height = 24
+        OnClick = SetToolNum
+    END CREATE
+    CREATE BtnAddDF AS RBUTTON
+        Caption = "DFrm"
+        Left = 408 : Top = 60 : Width = 40 : Height = 24
+        OnClick = SetToolDataFrame
+    END CREATE
+    CREATE BtnAddPlot AS RBUTTON
+        Caption = "Plot"
+        Left = 450 : Top = 60 : Width = 36 : Height = 24
+        OnClick = SetToolPlot
     END CREATE
 
     ' --- Action buttons (right side of toolbar) ---
