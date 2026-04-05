@@ -2,7 +2,7 @@
   "name": "rapidr",
   "displayName": "RapidR",
   "description": "Full language support for RapidR (.rr) — a modern BASIC-to-Rust transpiler with 45+ GUI/data science components, data science, SQL databases, sockets, HTTP, and a visual IDE. Syntax highlighting, IntelliSense, hover docs, signature help, code snippets, diagnostics, and compile integration.",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "publisher": "rapidr",
   "license": "MIT",
   "repository": {
@@ -75,6 +75,16 @@
       {
         "command": "rapidr.compileToExe",
         "title": "RapidR: Build Standalone Executable"
+      },
+      {
+        "command": "rapidr.compileWeb",
+        "title": "RapidR: Compile for Web (WASM)",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "rapidr.compileWebAndServe",
+        "title": "RapidR: Compile for Web and Serve",
+        "icon": "$(broadcast)"
       }
     ],
     "keybindings": [
@@ -89,12 +99,23 @@
         "key": "f5",
         "mac": "f5",
         "when": "editorLangId == rapidr"
+      },
+      {
+        "command": "rapidr.compileWeb",
+        "key": "ctrl+shift+w",
+        "mac": "cmd+shift+w",
+        "when": "editorLangId == rapidr"
       }
     ],
     "menus": {
       "editor/title": [
         {
           "command": "rapidr.compileAndRun",
+          "when": "editorLangId == rapidr",
+          "group": "navigation"
+        },
+        {
+          "command": "rapidr.compileWeb",
           "when": "editorLangId == rapidr",
           "group": "navigation"
         }
@@ -121,6 +142,11 @@
             "latin-1"
           ],
           "description": "Source file encoding for the compiler."
+        },
+        "rapidr.webServerPort": {
+          "type": "number",
+          "default": 8080,
+          "description": "Port for the local HTTP server when serving web builds."
         }
       }
     }

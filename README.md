@@ -3,7 +3,7 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK.
+**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **9 web-exclusive components** (`RWebView`, `RDOM`, `RJavaScript`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK or to **WebAssembly** for browser deployment.
 
 > **Note:** RapidR is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidR extends the language with data science components (RNum, RPlot, RDataFrame), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
 
@@ -24,6 +24,7 @@
   - [Networking](#networking)
   - [Data Science Components](#data-science-components-rnum-rplot-rdataframe)
 - [The Self-Hosted IDE](#the-self-hosted-ide)
+- [Web Compilation (WASM)](#web-compilation-wasm)
 - [VS Code Extension](#vs-code-extension)
 - [Syntax Reference](#syntax-reference)
 - [Test Suite](#test-suite)
@@ -38,15 +39,16 @@
 The Rust workspace under `crates/` provides a full transpilation pipeline that generates standalone Rust projects from `.rr` source files:
 
 1. **Compiler Frontend (`crates/rapidr-{lexer,parser,preprocessor,ast,diagnostics}/`)** — Lexes, preprocesses, and parses BASIC syntax into an AST.
-2. **Code Generator (`crates/rapidr-codegen-rust/`)** — Walks the AST and emits Rust source code targeting the native runtime.
+2. **Code Generator (`crates/rapidr-codegen-rust/`)** — Walks the AST and emits Rust source code targeting either the native or web runtime.
 3. **Native Runtime (`crates/rapidr-runtime-core/`)** — FLTK-based GUI, built-in functions, database (MySQL + SQLite), networking, data science, and file I/O.
-4. **CLI (`crates/rapidr-cli/`)** — Command-line interface with `codegen` command to generate Rust projects from `.rr` files.
+4. **Web Runtime (`crates/rapidr-runtime-web/`)** — Browser-based GUI via DOM/Canvas, web-exclusive components, WASM-compatible built-ins, and `wasm-bindgen` interop.
+5. **CLI (`crates/rapidr-cli/`)** — Command-line interface with `codegen` and `--web` commands.
 
 ## Status
 
 RapidR has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rr` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
 
-### Crate Architecture (8 crates)
+### Crate Architecture (9 crates)
 
 | Crate | Description |
 |-------|-------------|
@@ -58,10 +60,12 @@ RapidR has reached **functional transpiler status**. The Rust workspace provides
 | `rapidr-parser` | Recursive-descent parser producing typed AST from token stream |
 | `rapidr-codegen-rust` | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` (~2,100 lines) |
 | `rapidr-runtime-core` | **Native runtime** — GUI (FLTK), builtins, database (MySQL/SQLite), networking, data science (ndarray/polars/plotters), file I/O |
+| `rapidr-runtime-web` | **Web runtime** — Browser GUI (DOM/Canvas), web-exclusive components, WASM-compatible builtins, wasm-bindgen interop |
 
 ### Key Capabilities
 
 - **Native GUI via FLTK** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, MDI, splitters, scroll boxes, and more
+- **Web GUI via WASM** — Same component API compiled to WebAssembly for browser deployment, plus 9 web-exclusive components (RWebView, RDOM, RJavaScript, RWebStorage, RWebAudio, RWebVideo, RWebNotification, RWebGeolocation, RRouter)
 - **FLTK Themes** — `$THEME` directive supports: Classic, Aero, Metro, AquaClassic, Greybird, Blue, Dark, HighContrast; also `$THEME AUTO` for OS-based selection
 - **Global variable mechanism** — Module-level `DIM` variables use thread-local storage (`gv()`/`gs()` accessors), correctly shared across all SUBs/FUNCTIONs
 - **User-Defined Types** — `TYPE...END TYPE` with fields, inheritance, constructors, and methods
@@ -85,6 +89,11 @@ cd /tmp/hello && cargo build && ./target/debug/hello_world
 # Generate and run the IDE
 cargo run -- codegen examples/ide.rr /tmp/ide_rust
 cd /tmp/ide_rust && cargo build && ./target/debug/ide
+
+# Compile for the web (WASM)
+cargo run -- codegen --web examples/hello_web.rr
+# Serve and open in browser
+cd examples/hello_web_web && python3 -m http.server 8080
 ```
 
 ---
@@ -138,6 +147,7 @@ cargo run -- <command> [options]
 | Command | Description |
 |---------|-------------|
 | `codegen <file.rr> <outdir>` | Generate a Rust project from a `.rr` file |
+| `codegen --web <file.rr>` | Compile to WebAssembly for browser deployment |
 | `lex <file.rr>` | Dump token stream |
 | `parse <file.rr>` | Dump AST |
 | `preprocess <file.rr>` | Dump preprocessed source |
@@ -176,7 +186,7 @@ The transpilation pipeline mirrors a classic multi-pass compiler:
 | `$IFDEF` / `$IFNDEF` | Conditional compilation | `$IFDEF DEBUG` |
 | `$ELSE` / `$ENDIF` | Conditional branches | `$ELSE` … `$ENDIF` |
 | `$MACRO` | Define a simple or parameterized macro | `$MACRO SQUARE(x) = (x) * (x)` |
-| `$APPTYPE` | Set application type (`GUI` or `CONSOLE`) | `$APPTYPE CONSOLE` |
+| `$APPTYPE` | Set application type (`GUI`, `CONSOLE`, or `WEB`) | `$APPTYPE WEB` |
 | `$OPTIMIZE` | Optimization hint (pass-through) | `$OPTIMIZE ON` |
 | `$ESCAPECHARS` | Enable escape character processing | `$ESCAPECHARS ON` |
 | `$THEME` | Set FLTK theme (Rust only) | `$THEME AquaClassic` or `$THEME AUTO` |
@@ -602,6 +612,155 @@ img.loadfromfile "temp.png"
 
 ---
 
+## Web Compilation (WASM)
+
+RapidR can compile `.rr` programs to **WebAssembly** for deployment in any modern browser. The same BASIC source code that runs natively via FLTK can be compiled to WASM with a single flag — GUI components are rendered as HTML elements via the DOM.
+
+### How It Works
+
+The `--web` flag activates the web compilation pipeline:
+
+1. **Code generation** — The codegen emits Rust code targeting `rapidr-runtime-web` instead of `rapidr-runtime-core`
+2. **Rust → WASM** — The generated project is compiled with `cargo build --target wasm32-unknown-unknown`
+3. **wasm-bindgen** — Post-processes the `.wasm` file to generate JavaScript glue code
+4. **Output** — A ready-to-serve directory with `index.html`, `.js` bindings, and `_bg.wasm`
+
+### Web Form Window Management
+
+Web forms (`RForm`) behave like desktop windows:
+
+- **Titlebar** — Each form has a styled titlebar displaying the caption with minimize (−), maximize (□), and close (✕) buttons
+- **Drag-to-move** — Click and drag the titlebar to reposition forms anywhere on the page
+- **Z-index stacking** — Clicking a form brings it to front; multiple overlapping forms work as expected
+- **Minimize** — Collapses the form to a taskbar button at the bottom of the viewport; click to restore
+- **Maximize** — Expands to fill the viewport; click again to restore to original size and position
+- **Close** — Hides the form (sets `display: none`)
+- **Tab controls** — Tab buttons are clickable with visual active-state highlighting and `OnChange` event firing
+
+### Prerequisites
+
+```bash
+# Add the WASM target
+rustup target add wasm32-unknown-unknown
+
+# Install wasm-bindgen CLI
+cargo install wasm-bindgen-cli
+```
+
+### Usage
+
+```bash
+# Compile for web
+cargo run -- codegen --web examples/hello_web.rr
+
+# Output is in examples/hello_web_web/
+ls examples/hello_web_web/
+# index.html  hello_web.js  hello_web_bg.wasm
+
+# Serve locally
+cd examples/hello_web_web
+python3 -m http.server 8080
+# Open http://localhost:8080 in your browser
+```
+
+You can also use `$APPTYPE WEB` in your source to indicate a web application:
+
+```basic
+' My Web App
+$APPTYPE WEB
+
+CREATE MainForm AS RForm
+    Caption = "Hello Web"
+    Width = 600
+    Height = 400
+
+    CREATE Label1 AS RLabel
+        Caption = "Welcome to RapidR Web!"
+        Left = 20
+        Top = 20
+    END CREATE
+
+    CREATE Button1 AS RButton
+        Caption = "Click Me"
+        Left = 20
+        Top = 60
+        Width = 120
+        Height = 35
+        OnClick = OnButtonClick
+    END CREATE
+END CREATE
+
+SUB OnButtonClick(Sender AS POBJECT)
+    SHOWMESSAGE "Hello from the browser!"
+END SUB
+```
+
+### Component Compatibility
+
+Most standard GUI components work in both native and web targets:
+
+| Component | Native (FLTK) | Web (WASM) | Notes |
+|-----------|:---:|:---:|-------|
+| RForm | ✅ | ✅ | Rendered as a `<div>` with titlebar, minimize/maximize/close, drag-to-move, z-index stacking |
+| RButton | ✅ | ✅ | HTML `<button>` element |
+| RLabel | ✅ | ✅ | HTML `<span>` element |
+| REdit | ✅ | ✅ | HTML `<input>` element |
+| RCanvas | ✅ | ✅ | HTML `<canvas>` element |
+| RPanel | ✅ | ✅ | `<div>` container |
+| RListBox | ✅ | ✅ | HTML `<select>` element |
+| RComboBox | ✅ | ✅ | HTML `<select>` element |
+| RCheckBox | ✅ | ✅ | HTML `<input type="checkbox">` |
+| RRadioButton | ✅ | ✅ | HTML `<input type="radio">` |
+| RStringGrid | ✅ | ✅ | HTML `<table>` element |
+| RTabControl | ✅ | ✅ | Tabbed `<div>` with clickable tab buttons and visual highlighting |
+| RProgressBar | ✅ | ✅ | HTML `<progress>` element |
+| RTimer | ✅ | ✅ | JavaScript `setInterval` |
+| RRichEdit | ✅ | ✅ | HTML `<textarea>` |
+| RCodeEditor | ✅ | ✅ | HTML `<textarea>` with monospace |
+| RImage | ✅ | ✅ | HTML `<img>` element |
+
+### Web-Exclusive Components
+
+These components are **only available** when compiling with `--web`:
+
+| Component | Description |
+|-----------|-------------|
+| `RWebView` | Embedded HTML viewer (renders as `<iframe>`) — properties: `url`, `html`, `sandbox` |
+| `RDOM` | Direct DOM element creation — create arbitrary HTML tags, set `innerHTML`, `cssClass`, `cssStyle`, call `setAttribute`, `addClass`, `querySelector` |
+| `RJavaScript` | Execute arbitrary JavaScript — `Eval("code")` returns result, `Call("func", args...)` invokes JS functions |
+| `RWebStorage` | Browser localStorage/sessionStorage — `Set(key, val)`, `Get(key)`, `Remove(key)`, `Clear`, `Keys`, `HasKey(key)` |
+| `RWebAudio` | HTML5 audio player — properties: `src`, `volume`, `loop`, `controls`; methods: `Play`, `Pause`, `Stop`, `Seek(time)` |
+| `RWebVideo` | HTML5 video player — same API as RWebAudio plus `poster`, `fullscreen`, visual positioning |
+| `RWebNotification` | Browser push notifications — `RequestPermission`, then `Show` with `title` and `body` properties |
+| `RWebGeolocation` | Browser geolocation — `GetPosition` stores `latitude`, `longitude`, `accuracy` |
+| `RRouter` | SPA hash-based router — `Navigate(route)`, `Back`, `Forward`, `OnRouteChange` event |
+
+### Web Examples
+
+Six example programs demonstrate web compilation:
+
+| Example | Components Used | Description |
+|---------|----------------|-------------|
+| `hello_web.rr` | RForm, RLabel, REdit, RButton | Basic form with a click counter |
+| `web_calculator.rr` | RForm, REdit, RButton, RLabel | Calculator with 17 buttons and display |
+| `web_canvas.rr` | RForm, RCanvas, RButton, RLabel | Drawing app with freehand, circle, rectangle modes |
+| `web_todo.rr` | RForm, RListBox, REdit, RButton, RCheckBox, RLabel | Todo list with add/remove/clear |
+| `web_dashboard.rr` | RForm, RTimer, RTabControl, RStringGrid, RComboBox, RProgressBar, RLabel | Dashboard with live clock, tabs, and data grid |
+| `web_datascience.rr` | RForm, RTabControl, RStringGrid, RNum, RDataFrame, RPlot, RSQLite | Data science demo with RNum math, DataFrame CRUD, line/bar/pie charts, and in-memory SQL |
+
+Compile and test any of them:
+```bash
+# Compile
+cargo run -- codegen --web examples/web_calculator.rr
+
+# Serve
+cd examples/web_calculator_web
+python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+---
+
 ## The Self-Hosted IDE
 
 The project ships with its own robust **Visual Form Designer & Code Editor** (`ide.rr`).
@@ -630,7 +789,7 @@ A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` p
 
 ### Features
 
-- **Syntax Highlighting** — Full TextMate grammar: keywords, types, components (45+), built-in functions (100+), directives, comments, strings, numbers, Rust blocks (`RUSTSTART`/`RUSTEND`)
+- **Syntax Highlighting** — Full TextMate grammar: keywords, types, components (55+, including web-exclusive), built-in functions (100+), directives, comments, strings, numbers, Rust blocks (`RUSTSTART`/`RUSTEND`)
 - **IntelliSense** — Context-aware autocomplete for:
   - Component properties, methods, and events (dot-completion: `Button1.`)
   - WITH block member access (`.Property`)
@@ -648,14 +807,17 @@ A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` p
 - **Signature Help** — Parameter hints when typing function calls, including both built-in functions and component methods (RNum, RDataFrame, RPlot)
 - **Document Symbols** — Outline view showing SUBs, FUNCTIONs, TYPEs, CREATE blocks, CONSTs, and DIM variables
 - **Diagnostics** — Real-time validation on save: unclosed block detection, unterminated strings
-- **Code Snippets** — 40+ snippets including:
+- **Code Snippets** — 50+ snippets including:
   - Language constructs: `if`, `for`, `while`, `select`, `sub`, `func`, `type`
   - Component creation: `createform`, `createbutton`, `creategrid`, `createcodeeditor`, ...
+  - Web components: `createwebview`, `createdom`, `createjs`, `createwebstorage`, `createwebaudio`, `createwebvideo`, `createnotification`, `createrouter`
   - Data science: `createnum`, `createdf`, `createplot`, `dfload`, `dffilter`, `dfgroupby`, `plotline`, `plotbar`, `plotscatter`
-  - Application templates: `rpcons` (console), `rpgui` (GUI), `rpdb` (database), `rpdata` (data science)
+  - Application templates: `rpcons` (console), `rpgui` (GUI), `rpweb` (web/WASM), `rpdb` (database), `rpdata` (data science)
 - **Compile Integration** — Compile and run from VS Code:
   - `Ctrl+Shift+B` / `Cmd+Shift+B` — Compile
   - `F5` — Compile and Run
+  - `Ctrl+Shift+W` / `Cmd+Shift+W` — Compile for Web (WASM)
+  - "Compile for Web and Serve" — Compiles, starts a local HTTP server, and opens browser
   - Status bar button: "▶ RapidR"
 - **Code Folding** — Automatic folding for IF/FOR/WHILE/DO/SUB/FUNCTION/TYPE/CREATE/WITH blocks and `$IFDEF`/`$ENDIF` regions
 - **Auto-Indent** — Smart indentation rules for all block structures
@@ -664,8 +826,8 @@ A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` p
 
 ```bash
 cd utilities/vscodeext/rapidr
-vsce package --no-dependencies
-code --install-extension rapidr-2.0.0.vsix
+npx @vscode/vsce package --no-dependencies
+code --install-extension rapidr-2.2.0.vsix
 ```
 
 Or install the pre-built `.vsix` from the `utilities/vscodeext/rapidr/` directory.
@@ -673,6 +835,8 @@ Or install the pre-built `.vsix` from the `utilities/vscodeext/rapidr/` director
 ---
 
 ## Demo Examples
+
+### Native Demos
 
 Three demo applications showcase the data science components with full GUI integration:
 
@@ -689,6 +853,26 @@ cd /tmp/demo_num && cargo build && ./target/debug/demo_num
 ```
 
 > **Note:** The RDataFrame demo expects `examples/demo_dataframe_data.csv` (included) for sample employee data.
+
+### Web Demos
+
+Five web applications demonstrate browser deployment via WASM:
+
+| Demo | Components | Description |
+|------|-----------|-------------|
+| `hello_web.rr` | RForm, RLabel, REdit, RButton | Basic "Hello Web" with click counter |
+| `web_calculator.rr` | RForm, REdit, RButton, RLabel | Full calculator with 17 buttons, display, and history |
+| `web_canvas.rr` | RForm, RCanvas, RButton, RLabel | Drawing app with freehand, circles, rectangles, and color picker |
+| `web_todo.rr` | RForm, RListBox, REdit, RButton, RCheckBox, RLabel | Todo list with add, remove, clear, and item counter |
+| `web_dashboard.rr` | RForm, RTimer, RTabControl, RStringGrid, RComboBox, RProgressBar, RLabel | Live dashboard with clock, tabs, data grid, and progress animation |
+| `web_datascience.rr` | RForm, RTabControl, RStringGrid, RNum, RDataFrame, RPlot, RSQLite | Data science demo: array math, DataFrame CRUD, sin/cos plots, bar/pie charts, in-memory SQL |
+
+Run any of them:
+```bash
+cargo run -- codegen --web examples/web_calculator.rr
+cd examples/web_calculator_web && python3 -m http.server 8080
+# Open http://localhost:8080
+```
 
 ---
 

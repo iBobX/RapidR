@@ -442,7 +442,7 @@
   "$APPTYPE": {
     "prefix": "$apptype",
     "body": [
-      "$$APPTYPE ${1|GUI,CONSOLE,CGI|}"
+      "$$APPTYPE ${1|GUI,CONSOLE,CGI,WEB|}"
     ],
     "description": "Set application type"
   },
@@ -684,5 +684,137 @@
       "${1:Plot1}.SaveFig \"${2:output.png}\""
     ],
     "description": "Add legend and save plot to PNG"
+  },
+
+  "Web App Skeleton": {
+    "prefix": "rpweb",
+    "body": [
+      "' ${1:Program Name}",
+      "' RapidR Web Application (compiles to WASM)",
+      "$$APPTYPE WEB",
+      "",
+      "CREATE ${2:MainForm} AS RForm",
+      "\tCaption = \"${3:My Web App}\"",
+      "\tWidth = ${4:800}",
+      "\tHeight = ${5:600}",
+      "\t",
+      "\tCREATE ${6:Label1} AS RLabel",
+      "\t\tCaption = \"Welcome to RapidR Web!\"",
+      "\t\tLeft = 20",
+      "\t\tTop = 20",
+      "\tEND CREATE",
+      "\t",
+      "\tCREATE ${7:Button1} AS RButton",
+      "\t\tCaption = \"Click Me\"",
+      "\t\tLeft = 20",
+      "\t\tTop = 60",
+      "\t\tWidth = 120",
+      "\t\tHeight = 35",
+      "\t\tOnClick = ${8:OnButtonClick}",
+      "\tEND CREATE",
+      "END CREATE",
+      "",
+      "SUB ${8:OnButtonClick}(Sender AS POBJECT)",
+      "\tSHOWMESSAGE \"Hello from the browser!\"",
+      "END SUB",
+      ""
+    ],
+    "description": "RapidR web application template (WASM)"
+  },
+  "CREATE WebView": {
+    "prefix": "createwebview",
+    "body": [
+      "CREATE ${1:WebView1} AS RWebView",
+      "\tLeft = ${2:10}",
+      "\tTop = ${3:10}",
+      "\tWidth = ${4:400}",
+      "\tHeight = ${5:300}",
+      "\tUrl = \"${6:https://example.com}\"",
+      "END CREATE"
+    ],
+    "description": "Create an RWebView (iframe) — web only"
+  },
+  "CREATE DOM Element": {
+    "prefix": "createdom",
+    "body": [
+      "CREATE ${1:Div1} AS RDOM",
+      "\tTagName = \"${2:div}\"",
+      "\tInnerHTML = \"${3:<p>Hello</p>}\"",
+      "\tCSSClass = \"${4:my-class}\"",
+      "END CREATE"
+    ],
+    "description": "Create an RDOM element — web only"
+  },
+  "CREATE JavaScript": {
+    "prefix": "createjs",
+    "body": [
+      "CREATE ${1:JS1} AS RJavaScript",
+      "END CREATE",
+      "",
+      "DIM ${2:result} AS STRING",
+      "${2:result} = ${1:JS1}.Eval(\"${3:document.title}\")"
+    ],
+    "description": "Create an RJavaScript helper — web only"
+  },
+  "CREATE WebStorage": {
+    "prefix": "createwebstorage",
+    "body": [
+      "CREATE ${1:Storage1} AS RWebStorage",
+      "\tStorageType = \"${2|local,session|}\"",
+      "END CREATE",
+      "",
+      "${1:Storage1}.Set \"${3:key}\", \"${4:value}\"",
+      "DIM ${5:val} AS STRING",
+      "${5:val} = ${1:Storage1}.Get(\"${3:key}\")"
+    ],
+    "description": "Create an RWebStorage — web only"
+  },
+  "CREATE WebAudio": {
+    "prefix": "createwebaudio",
+    "body": [
+      "CREATE ${1:Audio1} AS RWebAudio",
+      "\tSrc = \"${2:audio.mp3}\"",
+      "\tControls = TRUE",
+      "END CREATE"
+    ],
+    "description": "Create an RWebAudio player — web only"
+  },
+  "CREATE WebVideo": {
+    "prefix": "createwebvideo",
+    "body": [
+      "CREATE ${1:Video1} AS RWebVideo",
+      "\tSrc = \"${2:video.mp4}\"",
+      "\tWidth = ${3:640}",
+      "\tHeight = ${4:360}",
+      "\tControls = TRUE",
+      "END CREATE"
+    ],
+    "description": "Create an RWebVideo player — web only"
+  },
+  "CREATE WebNotification": {
+    "prefix": "createnotification",
+    "body": [
+      "CREATE ${1:Notify1} AS RWebNotification",
+      "\tTitle = \"${2:Alert}\"",
+      "\tBody = \"${3:Something happened!}\"",
+      "END CREATE",
+      "",
+      "${1:Notify1}.RequestPermission",
+      "${1:Notify1}.Show"
+    ],
+    "description": "Create an RWebNotification — web only"
+  },
+  "CREATE Router": {
+    "prefix": "createrouter",
+    "body": [
+      "CREATE ${1:Router1} AS RRouter",
+      "\tOnRouteChange = ${2:HandleRoute}",
+      "END CREATE",
+      "",
+      "SUB ${2:HandleRoute}(Sender AS POBJECT)",
+      "\t' Handle route change",
+      "END SUB"
+    ],
+    "description": "Create an RRouter for SPA navigation — web only"
   }
 }

@@ -1,0 +1,150 @@
+' ============================================================
+' web_todo.rr — Todo List App for RapidR Web (WASM)
+' ============================================================
+' Build with:  rapidr --web web_todo.rr
+' ============================================================
+$APPTYPE WEB
+
+DIM Form1 AS RFORM
+DIM LblTitle AS RLABEL
+DIM EditTask AS REDIT
+DIM BtnAdd AS RBUTTON
+DIM BtnRemove AS RBUTTON
+DIM BtnClear AS RBUTTON
+DIM ListTasks AS RLISTBOX
+DIM LblCount AS RLABEL
+DIM ChkDone AS RCHECKBOX
+DIM LblInfo AS RLABEL
+
+DIM taskCount AS INTEGER
+taskCount = 0
+
+CREATE Form1 AS RFORM
+    .Caption = "RapidR Todo List"
+    .Width = 450
+    .Height = 480
+    .Left = 100
+    .Top = 50
+END CREATE
+
+CREATE LblTitle AS RLABEL
+    .Caption = "My Todo List"
+    .Left = 20
+    .Top = 10
+    .Width = 400
+    .Height = 30
+    .FontSize = 18
+    .FontBold = 1
+END CREATE
+
+CREATE EditTask AS REDIT
+    .Text = ""
+    .Left = 20
+    .Top = 50
+    .Width = 300
+    .Height = 30
+END CREATE
+
+CREATE BtnAdd AS RBUTTON
+    .Caption = "Add"
+    .Left = 330
+    .Top = 50
+    .Width = 80
+    .Height = 30
+END CREATE
+
+CREATE ListTasks AS RLISTBOX
+    .Left = 20
+    .Top = 90
+    .Width = 390
+    .Height = 260
+END CREATE
+
+CREATE BtnRemove AS RBUTTON
+    .Caption = "Remove Selected"
+    .Left = 20
+    .Top = 360
+    .Width = 130
+    .Height = 35
+END CREATE
+
+CREATE BtnClear AS RBUTTON
+    .Caption = "Clear All"
+    .Left = 160
+    .Top = 360
+    .Width = 100
+    .Height = 35
+END CREATE
+
+CREATE ChkDone AS RCHECKBOX
+    .Caption = "Mark as Done"
+    .Left = 280
+    .Top = 365
+    .Width = 130
+    .Height = 25
+END CREATE
+
+CREATE LblCount AS RLABEL
+    .Caption = "Tasks: 0"
+    .Left = 20
+    .Top = 410
+    .Width = 200
+    .Height = 25
+    .FontSize = 13
+END CREATE
+
+CREATE LblInfo AS RLABEL
+    .Caption = "Type a task and click Add."
+    .Left = 20
+    .Top = 440
+    .Width = 400
+    .Height = 20
+END CREATE
+
+SUB UpdateCount()
+    taskCount = ListTasks.ListCount
+    LblCount.Caption = "Tasks: " + STR(taskCount)
+END SUB
+
+SUB BtnAdd_OnClick()
+    DIM task AS STRING
+    task = EditTask.Text
+    IF task = "" THEN
+        LblInfo.Caption = "Please enter a task first!"
+        EXIT SUB
+    END IF
+    ListTasks.AddItem(task)
+    EditTask.Text = ""
+    EditTask.SetFocus
+    UpdateCount
+    LblInfo.Caption = "Added: " + task
+    PRINT "Added task: " + task
+END SUB
+
+SUB BtnRemove_OnClick()
+    DIM idx AS INTEGER
+    idx = ListTasks.ListIndex
+    IF idx >= 0 THEN
+        ListTasks.RemoveItem(idx)
+        UpdateCount
+        LblInfo.Caption = "Task removed."
+        PRINT "Removed task at index " + STR(idx)
+    ELSE
+        LblInfo.Caption = "Select a task to remove."
+    END IF
+END SUB
+
+SUB BtnClear_OnClick()
+    ListTasks.Clear
+    taskCount = 0
+    LblCount.Caption = "Tasks: 0"
+    LblInfo.Caption = "All tasks cleared."
+    PRINT "All tasks cleared"
+END SUB
+
+' --- Wire up events ---
+BtnAdd.OnClick = BtnAdd_OnClick
+BtnRemove.OnClick = BtnRemove_OnClick
+BtnClear.OnClick = BtnClear_OnClick
+
+PRINT "Todo app ready!"

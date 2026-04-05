@@ -26,6 +26,8 @@ pub struct PreprocessOptions {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreprocessResult {
     pub source: String,
+    /// The value of `$APPTYPE` if present (e.g. "GUI", "CONSOLE", "WEB").
+    pub app_type: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,6 +110,7 @@ fn preprocess_with_state(
     let mut macros = HashMap::<String, MacroDefinition>::new();
     let mut output_lines = Vec::new();
     let mut skip_stack: Vec<bool> = Vec::new();
+    let mut app_type: Option<String> = None;
     let file_label = file_path.as_ref().map(|path| path.display().to_string());
 
     for (line_index, original_line) in source.split('\n').enumerate() {
@@ -211,6 +214,15 @@ fn preprocess_with_state(
             || upper_line.starts_with("$ESCAPECHARS")
             || upper_line.starts_with("$THEME")
         {
+            // Extract $APPTYPE value
+            if upper_line.starts_with("$APPTYPE") {
+                if let Some((_, value)) = line.split_once(char::is_whitespace) {
+                    let val = strip_inline_comment(value).trim().to_uppercase();
+                    if !val.is_empty() {
+                        app_type = Some(val);
+                    }
+                }
+            }
             output_lines.push(original_line.to_string());
             continue;
         }
@@ -282,6 +294,7 @@ fn preprocess_with_state(
 
     Ok(PreprocessResult {
         source: output_lines.join("\n"),
+        app_type,
     })
 }
 

@@ -3,7 +3,7 @@
 > **Purpose:** This is a comprehensive reference for AI assistants (and humans) working on the RapidR transpiler. It documents the Rust workspace, language syntax, compiler internals, runtime architecture, known limitations, and coding patterns.
 > **Instructions for AI:** Always read this manual first when working on this repository. Keep this manual updated as features are added or changed.
 >
-> **Last Updated:** April 1, 2026
+> **Last Updated:** April 4, 2026
 
 ---
 
@@ -44,6 +44,7 @@
   - [6.3 Database (database.rs)](#63-database-databasers)
   - [6.4 Network (network.rs)](#64-network-networkrs)
   - [6.5 Data Science (datascience.rs)](#65-data-science-datasciencers)
+- [6b. Web Runtime (rapidr-runtime-web)](#6b-web-runtime-rapidr-runtime-web)
 - [7. Code Generation Patterns](#7-code-generation-patterns)
 - [8. Known Limitations & Gotchas](#8-known-limitations--gotchas)
 - [9. How to Add New Features](#9-how-to-add-new-features)
@@ -56,7 +57,7 @@
 **RapidR** is a BASIC-to-Rust transpiler that reads `.rr` source files (BASIC-like syntax inspired by RapidQ) and produces standalone Rust projects that compile to native executables. The project directory structure:
 
 ```
-crates/                 — RapidR Rust workspace crates (8 crates)
+crates/                 — RapidR Rust workspace crates (9 crates)
   rapidr-cli/           — CLI entry point (version, lex, parse, codegen, shortcut build)
   rapidr-diagnostics/   — TextSpan, SourceLocation, Diagnostic types
   rapidr-ast/           — Shared AST data structures
@@ -65,13 +66,14 @@ crates/                 — RapidR Rust workspace crates (8 crates)
   rapidr-preprocessor/  — $INCLUDE, $DEFINE, $IFDEF, $MACRO, $THEME
   rapidr-codegen-rust/  — AST → Rust source code generator
   rapidr-runtime-core/  — Native runtime (GUI, builtins, database, networking, data science)
+  rapidr-runtime-web/   — Web/WASM runtime (DOM GUI, web builtins, in-memory DB, data science)
 examples/               — Demo and test .rr programs
 utilities/vscodeext/    — VS Code extension
 ```
 
 ### 1.1 RapidR Bootstrap Status
 
-The Rust migration has reached **functional transpiler status** with a complete pipeline from `.rr` source to native executables. The Cargo workspace contains 8 crates:
+The Rust migration has reached **functional transpiler status** with a complete pipeline from `.rr` source to native executables or WebAssembly. The Cargo workspace contains 9 crates:
 
 | Crate | Lines | Description |
 |-------|-------|-------------|
@@ -81,8 +83,9 @@ The Rust migration has reached **functional transpiler status** with a complete 
 | `rapidr-preprocessor` | — | Directives: `$DEFINE`, `$UNDEF`, `$IFDEF`, `$IFNDEF`, `$ELSE`, `$ENDIF`, `$MACRO`, `$INCLUDE`, `$THEME` |
 | `rapidr-lexer` | — | Lexer covering keywords, literals, directives, operators, suffixes, line continuations |
 | `rapidr-parser` | — | Recursive-descent parser producing typed AST |
-| `rapidr-codegen-rust` | ~2,100 | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` |
+| `rapidr-codegen-rust` | ~2,100 | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
 | `rapidr-runtime-core` | ~5,700 | **Native runtime** — FLTK GUI (~2,200 lines), builtins, database (MySQL/SQLite), networking, file I/O |
+| `rapidr-runtime-web` | ~5,600 | **Web runtime** — DOM/Canvas GUI, web builtins, in-memory SQLite, data science, wasm-bindgen interop |
 
 **Key architecture decisions:**
 - Generated code uses `thread_local!` storage for module-level variables (`gv()`/`gs()` scalar accessors, `ga_get()`/`ga_set()` array accessors), correctly sharing state across SUBs/FUNCTIONs
@@ -108,8 +111,12 @@ cd /tmp/ide_rust && cargo build && ./target/debug/ide  # Build and run
 rapidr --release examples/hello_world.rr
 rapidr --debug examples/hello_world.rr
 
+# Web compilation — builds WASM and generates HTML/JS output
+rapidr --web examples/hello_web.rr
+
 # Full subcommand syntax
 rapidr codegen <file.rr> <outdir> [--release|--debug]
+rapidr codegen --web <file.rr>
 rapidr lex <file.rr>
 rapidr parse <file.rr>
 rapidr preprocess <file.rr>
@@ -119,6 +126,7 @@ rapidr version
 | Command | Description |
 |---------|-------------|
 | `codegen <file.rr> <outdir>` | Generate a Rust project from a `.rr` file |
+| `codegen --web <file.rr>` | Generate a WASM web project, compile to wasm32, run wasm-bindgen, produce HTML/JS/WASM output |
 | `lex <file.rr>` | Dump token stream |
 | `parse <file.rr>` | Dump AST |
 | `preprocess <file.rr>` | Dump preprocessed source |
@@ -130,6 +138,7 @@ Optional flags for `codegen`:
 |------|-------------|
 | `--release` | Build in release mode (optimized) |
 | `--debug` | Build in debug mode (default) |
+| `--web` | Compile to WebAssembly targeting `rapidr-runtime-web` instead of `rapidr-runtime-core` |
 
 ---
 
@@ -770,13 +779,95 @@ The largest runtime module (~3,600 lines). Implements 49+ FLTK-based GUI compone
 - **RPLOT** — Chart generation via `plotters` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savetofile`, `saveto_buffer`.
 - **RDATAFRAME** — DataFrames via `polars` crate. Methods: `loadfromcsv`, `savetocsv`, `loadfromjson`, `savetojson`, `head`, `tail`, `describe`, `sort`, `filter`, `groupby`, `addcolumn`, `deletecolumn`, `cell`, `setcell`, `query`, `tostring`, `tolist`.
 
+- **RNUM** — Numeric arrays via `ndarray` crate. Methods: `zeros`, `ones`, `arange`, `linspace`, `reshape`, `sum`, `mean`, `std`, `min`, `max`, `dot`, `transpose`, `sort`, `savetofile`, `loadfromfile`.
+- **RPLOT** — Chart generation via `plotters` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savetofile`, `saveto_buffer`.
+- **RDATAFRAME** — DataFrames via `polars` crate. Methods: `loadfromcsv`, `savetocsv`, `loadfromjson`, `savetojson`, `head`, `tail`, `describe`, `sort`, `filter`, `groupby`, `addcolumn`, `deletecolumn`, `cell`, `setcell`, `query`, `tostring`, `tolist`.
+
+---
+
+## 6b. Web Runtime (rapidr-runtime-web)
+
+The `rapidr-runtime-web` crate (`crates/rapidr-runtime-web/`) provides a browser-based runtime that mirrors the native `rapidr-runtime-core` API using web-sys, js-sys, and wasm-bindgen. When the codegen runs with `--web`, it targets this crate instead of `rapidr-runtime-core`.
+
+### Web Runtime Modules
+
+| Module | File | Purpose |
+|--------|------|---------|
+| `gui_web` | `gui_web.rs` (~2,300 lines) | HTML5 DOM widget creation for all GUI components: forms, buttons, labels, edits, panels, tabs, grids, canvas, etc. Form window management: titlebar, drag, minimize/maximize/close, z-index stacking, taskbar |
+| `object_web` | `object_web.rs` (~1,200 lines) | Component creation, property storage, event dispatch. Central `rp_comp_create`, `rp_comp_get`, `rp_comp_set`, `rp_comp_method` API backed by thread-local `GUI_COMPONENTS` |
+| `builtins_web` | `builtins_web.rs` | WASM-compatible built-in functions: string, math, I/O stubs, system functions |
+| `datascience_web` | `datascience_web.rs` (~1,550 lines) | RNum (Vec<f64>), RDataFrame (column-oriented Vec<Vec<String>>), RPlot (HTML5 Canvas) |
+| `database_web` | `database_web.rs` (~590 lines) | In-memory SQLite emulation: CREATE TABLE, INSERT, SELECT, UPDATE, DELETE, DROP TABLE with SQL parsing |
+| `value` | `value.rs` | Shared `Value` enum (Int, Float, String, Null) for the web runtime |
+
+### Web Build Pipeline
+
+When `--web` is used:
+
+1. **Codegen** emits Rust source targeting `rapidr-runtime-web` (different `use` paths, `#[wasm_bindgen(start)]` main function)
+2. **Cargo** compiles to `wasm32-unknown-unknown` target in release mode
+3. **wasm-bindgen** post-processes the `.wasm` to generate JS glue (`<name>.js`, `<name>_bg.wasm`)
+4. **Index.html** is auto-generated to load the JS/WASM module
+5. **Output** goes to `examples/<name>_web/` directory, ready to serve
+
+```bash
+cargo run -- --web examples/hello_web.rr
+python3 -m http.server -d examples/hello_web_web 8080
+```
+
+### Form Window Management (Web)
+
+Web `RForm` components behave like desktop windows:
+
+- **Titlebar** — Flexbox layout with caption text span + minimize (−), maximize (□), close (✕) buttons
+- **Drag-to-move** — `mousedown` on titlebar starts drag, `mousemove` updates `left`/`top`, `mouseup` ends drag
+- **Z-index stacking** — Thread-local `FORM_Z_COUNTER` increments on each focus; `mousedown` on any form calls `form_bring_to_front()`
+- **Minimize** — Hides form, creates a restore button in a fixed-position taskbar at viewport bottom
+- **Maximize** — Saves current geometry in `FORM_SAVED_GEOMETRY` HashMap, sets form to viewport-filling dimensions; toggle restores
+- **Close** — Sets `display: none`
+- **Tab controls** — Tab buttons have click handlers calling `tab_switch()` which updates visual state and fires `onchange`
+
+### Web-Exclusive Components
+
+9 components available only with `--web`:
+
+| Component | HTML Element | Key Features |
+|-----------|-------------|--------------|
+| `RWebView` | `<iframe>` | `sethtml()`, `navigate(url)` |
+| `RDOM` | any `<tag>` | `create()`, `setAttribute()`, `addClass()`, `querySelector()` |
+| `RJavaScript` | (none) | `eval(code)`, `call(func, args)` |
+| `RWebStorage` | (none) | localStorage/sessionStorage: `set`, `get`, `remove`, `clear`, `keys` |
+| `RWebAudio` | `<audio>` | `play`, `pause`, `stop`, `seek` |
+| `RWebVideo` | `<video>` | `play`, `pause`, `stop`, `seek`, `fullscreen` |
+| `RWebNotification` | (none) | `requestpermission`, `show` |
+| `RWebGeolocation` | (none) | `getposition` → latitude, longitude, accuracy |
+| `RRouter` | (none) | SPA hash router: `navigate`, `back`, `forward`, `onroutechange` |
+
+### Data Science on Web
+
+The web runtime provides pure Rust + web-sys implementations (no ndarray, polars, or plotters):
+
+- **RNum** — Backed by `Vec<f64>`. Supports arange, linspace, zeros, ones, fromlist, element-wise math (sin, cos, sqrt, exp, log, etc.), arithmetic (add, subtract, multiply, divide), aggregation (sum, mean, std, min, max, median), sorting, random generation, and more.
+- **RDataFrame** — Column-oriented `Vec<Vec<String>>`. Supports addcolumn, setcell(col, row, val), cell(col, row), filter, sort, groupby, togrid, readcsv, and more. Auto-expands rows on setcell.
+- **RPlot** — Renders to HTML5 Canvas. Supports line, bar, barh, scatter, step, area, histogram, pie charts, annotations, and legend.
+- **RSQLite** — Full in-memory SQL emulation with CREATE TABLE, INSERT, SELECT (with WHERE, ORDER BY, LIMIT), UPDATE, DELETE, DROP TABLE. Methods: `connect`, `query`/`exec`, `fetchrow`, `fetchfield`, `row`.
+
+### Web Build Cache Gotcha
+
+After modifying source in `crates/rapidr-runtime-web/`, you must `cargo clean` inside each `examples/*_rust/` directory before rebuilding. Cargo's WASM cross-compilation target cache does not always detect path dependency changes:
+
+```bash
+# After changing runtime-web source
+for d in examples/*_rust; do (cd "$d" && cargo clean); done
+```
+
 ---
 
 ## 7. Code Generation Patterns
 
 ### Rust Code Generation (RapidR)
 
-The Rust codegen (`rapidr-codegen-rust`) generates a standalone Rust project with `Cargo.toml` and `src/main.rs`. Generated code targets `rapidr-runtime-core`.
+The Rust codegen (`rapidr-codegen-rust`) generates a standalone Rust project with `Cargo.toml` and `src/main.rs`. Generated code targets `rapidr-runtime-core` (native) or `rapidr-runtime-web` (WASM).
 
 #### Global Variable Mechanism
 
@@ -888,7 +979,9 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 1. **`crates/rapidr-runtime-core/src/gui.rs`** — Add widget creation in `gui_create_widget()` match arm
 2. **`crates/rapidr-runtime-core/src/object.rs`** — Add default properties in `rp_comp_create()` match arm
 3. **`crates/rapidr-codegen-rust/src/lib.rs`** — Add to `is_component_type_name()` and `is_component_method_name()`
-4. **Add tests** in the appropriate crate
+4. **`crates/rapidr-runtime-web/src/gui_web.rs`** — Add DOM element creation for the web target
+5. **`crates/rapidr-runtime-web/src/object_web.rs`** — Add default properties and method dispatch for web
+6. **Add tests** in the appropriate crate
 
 ### Adding a New Builtin Function (Rust)
 1. **`crates/rapidr-runtime-core/src/builtins.rs`** — Implement the function

@@ -1,0 +1,364 @@
+' ============================================================
+' web_calculator.rr — Calculator App for RapidR Web (WASM)
+' ============================================================
+' Build with:  rapidr --web web_calculator.rr
+' ============================================================
+$APPTYPE WEB
+
+DIM Form1 AS RFORM
+DIM Display AS REDIT
+DIM Btn0 AS RBUTTON
+DIM Btn1 AS RBUTTON
+DIM Btn2 AS RBUTTON
+DIM Btn3 AS RBUTTON
+DIM Btn4 AS RBUTTON
+DIM Btn5 AS RBUTTON
+DIM Btn6 AS RBUTTON
+DIM Btn7 AS RBUTTON
+DIM Btn8 AS RBUTTON
+DIM Btn9 AS RBUTTON
+DIM BtnAdd AS RBUTTON
+DIM BtnSub AS RBUTTON
+DIM BtnMul AS RBUTTON
+DIM BtnDiv AS RBUTTON
+DIM BtnEq AS RBUTTON
+DIM BtnClr AS RBUTTON
+DIM BtnDot AS RBUTTON
+DIM LblTitle AS RLABEL
+DIM LblHistory AS RLABEL
+
+DIM current AS STRING
+DIM accumulator AS DOUBLE
+DIM op AS STRING
+DIM newNumber AS INTEGER
+
+current = "0"
+accumulator = 0
+op = ""
+newNumber = 1
+
+CREATE Form1 AS RFORM
+    .Caption = "RapidR Web Calculator"
+    .Width = 340
+    .Height = 500
+    .Left = 80
+    .Top = 30
+END CREATE
+
+CREATE LblTitle AS RLABEL
+    .Caption = "RapidR Calculator"
+    .Left = 20
+    .Top = 10
+    .Width = 300
+    .Height = 25
+    .FontSize = 16
+    .FontBold = 1
+END CREATE
+
+CREATE LblHistory AS RLABEL
+    .Caption = ""
+    .Left = 20
+    .Top = 40
+    .Width = 300
+    .Height = 20
+    .FontSize = 11
+END CREATE
+
+CREATE Display AS REDIT
+    .Text = "0"
+    .Left = 20
+    .Top = 65
+    .Width = 290
+    .Height = 45
+    .FontSize = 24
+    .ReadOnly = 1
+END CREATE
+
+' --- Row 1: 7 8 9 / ---
+CREATE Btn7 AS RBUTTON
+    .Caption = "7"
+    .Left = 20
+    .Top = 125
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE Btn8 AS RBUTTON
+    .Caption = "8"
+    .Left = 95
+    .Top = 125
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE Btn9 AS RBUTTON
+    .Caption = "9"
+    .Left = 170
+    .Top = 125
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE BtnDiv AS RBUTTON
+    .Caption = "/"
+    .Left = 245
+    .Top = 125
+    .Width = 65
+    .Height = 55
+END CREATE
+
+' --- Row 2: 4 5 6 * ---
+CREATE Btn4 AS RBUTTON
+    .Caption = "4"
+    .Left = 20
+    .Top = 190
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE Btn5 AS RBUTTON
+    .Caption = "5"
+    .Left = 95
+    .Top = 190
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE Btn6 AS RBUTTON
+    .Caption = "6"
+    .Left = 170
+    .Top = 190
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE BtnMul AS RBUTTON
+    .Caption = "*"
+    .Left = 245
+    .Top = 190
+    .Width = 65
+    .Height = 55
+END CREATE
+
+' --- Row 3: 1 2 3 - ---
+CREATE Btn1 AS RBUTTON
+    .Caption = "1"
+    .Left = 20
+    .Top = 255
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE Btn2 AS RBUTTON
+    .Caption = "2"
+    .Left = 95
+    .Top = 255
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE Btn3 AS RBUTTON
+    .Caption = "3"
+    .Left = 170
+    .Top = 255
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE BtnSub AS RBUTTON
+    .Caption = "-"
+    .Left = 245
+    .Top = 255
+    .Width = 65
+    .Height = 55
+END CREATE
+
+' --- Row 4: 0 . = + ---
+CREATE Btn0 AS RBUTTON
+    .Caption = "0"
+    .Left = 20
+    .Top = 320
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE BtnDot AS RBUTTON
+    .Caption = "."
+    .Left = 95
+    .Top = 320
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE BtnEq AS RBUTTON
+    .Caption = "="
+    .Left = 170
+    .Top = 320
+    .Width = 65
+    .Height = 55
+END CREATE
+
+CREATE BtnAdd AS RBUTTON
+    .Caption = "+"
+    .Left = 245
+    .Top = 320
+    .Width = 65
+    .Height = 55
+END CREATE
+
+' --- Clear button ---
+CREATE BtnClr AS RBUTTON
+    .Caption = "C"
+    .Left = 20
+    .Top = 385
+    .Width = 290
+    .Height = 45
+END CREATE
+
+' --- Digit handler ---
+SUB AppendDigit(d AS STRING)
+    IF newNumber = 1 THEN
+        current = d
+        newNumber = 0
+    ELSE
+        IF current = "0" AND d <> "." THEN
+            current = d
+        ELSE
+            current = current + d
+        END IF
+    END IF
+    Display.Text = current
+END SUB
+
+' --- Operator handler ---
+SUB DoOperator(newOp AS STRING)
+    DIM val AS DOUBLE
+    val = VAL(current)
+    IF op = "" THEN
+        accumulator = val
+    ELSE
+        IF op = "+" THEN accumulator = accumulator + val
+        IF op = "-" THEN accumulator = accumulator - val
+        IF op = "*" THEN accumulator = accumulator * val
+        IF op = "/" THEN
+            IF val <> 0 THEN
+                accumulator = accumulator / val
+            ELSE
+                Display.Text = "Error"
+                op = ""
+                newNumber = 1
+                current = "0"
+                LblHistory.Caption = "Division by zero!"
+                EXIT SUB
+            END IF
+        END IF
+    END IF
+    op = newOp
+    newNumber = 1
+    IF newOp = "=" THEN
+        Display.Text = STR(accumulator)
+        LblHistory.Caption = STR(accumulator)
+        op = ""
+        current = STR(accumulator)
+    ELSE
+        LblHistory.Caption = STR(accumulator) + " " + newOp
+    END IF
+END SUB
+
+' --- Button click handlers ---
+SUB Btn0_OnClick()
+    AppendDigit("0")
+END SUB
+
+SUB Btn1_OnClick()
+    AppendDigit("1")
+END SUB
+
+SUB Btn2_OnClick()
+    AppendDigit("2")
+END SUB
+
+SUB Btn3_OnClick()
+    AppendDigit("3")
+END SUB
+
+SUB Btn4_OnClick()
+    AppendDigit("4")
+END SUB
+
+SUB Btn5_OnClick()
+    AppendDigit("5")
+END SUB
+
+SUB Btn6_OnClick()
+    AppendDigit("6")
+END SUB
+
+SUB Btn7_OnClick()
+    AppendDigit("7")
+END SUB
+
+SUB Btn8_OnClick()
+    AppendDigit("8")
+END SUB
+
+SUB Btn9_OnClick()
+    AppendDigit("9")
+END SUB
+
+SUB BtnDot_OnClick()
+    IF INSTR(current, ".") = 0 THEN
+        AppendDigit(".")
+    END IF
+END SUB
+
+SUB BtnAdd_OnClick()
+    DoOperator("+")
+END SUB
+
+SUB BtnSub_OnClick()
+    DoOperator("-")
+END SUB
+
+SUB BtnMul_OnClick()
+    DoOperator("*")
+END SUB
+
+SUB BtnDiv_OnClick()
+    DoOperator("/")
+END SUB
+
+SUB BtnEq_OnClick()
+    DoOperator("=")
+END SUB
+
+SUB BtnClr_OnClick()
+    current = "0"
+    accumulator = 0
+    op = ""
+    newNumber = 1
+    Display.Text = "0"
+    LblHistory.Caption = ""
+    PRINT "Calculator cleared"
+END SUB
+
+' --- Wire up events ---
+Btn0.OnClick = Btn0_OnClick
+Btn1.OnClick = Btn1_OnClick
+Btn2.OnClick = Btn2_OnClick
+Btn3.OnClick = Btn3_OnClick
+Btn4.OnClick = Btn4_OnClick
+Btn5.OnClick = Btn5_OnClick
+Btn6.OnClick = Btn6_OnClick
+Btn7.OnClick = Btn7_OnClick
+Btn8.OnClick = Btn8_OnClick
+Btn9.OnClick = Btn9_OnClick
+BtnDot.OnClick = BtnDot_OnClick
+BtnAdd.OnClick = BtnAdd_OnClick
+BtnSub.OnClick = BtnSub_OnClick
+BtnMul.OnClick = BtnMul_OnClick
+BtnDiv.OnClick = BtnDiv_OnClick
+BtnEq.OnClick = BtnEq_OnClick
+BtnClr.OnClick = BtnClr_OnClick
+
+PRINT "Calculator ready!"

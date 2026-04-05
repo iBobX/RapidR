@@ -38,8 +38,8 @@ const COMPONENT_REGISTRY = {
         props: ['width', 'height', 'top', 'left', 'visible', 'color', 'pencolor', 'penwidth',
                 'brushcolor', 'font', 'fontsize', 'fontcolor', 'hint', 'showhint', 'cursor',
                 'tag', 'parent'],
-        methods: ['cls', 'pset', 'line', 'circle', 'fillrect', 'rectangle', 'textout', 'drawtext',
-                  'paint', 'repaint', 'refresh'],
+        methods: ['cls', 'pset', 'line', 'circle', 'fillcircle', 'rect', 'fillrect', 'rectangle', 'textout', 'drawtext',
+                  'setpixel', 'paint', 'repaint', 'refresh'],
         events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove', 'onpaint']
     },
     'RPANEL': {
@@ -223,7 +223,8 @@ const COMPONENT_REGISTRY = {
     'RSQLITE': {
         props: ['database', 'db', 'connected', 'rowcount', 'colcount', 'fieldcount',
                 'fieldname', 'row', 'tablecount', 'table', 'dbcount', 'tag'],
-        methods: ['connect', 'close', 'query', 'fetchrow', 'fetchfield', 'rowseek', 'fieldseek'],
+        methods: ['connect', 'close', 'query', 'exec', 'fetchrow', 'fetchfield', 'rowseek', 'fieldseek',
+                  'escapestring'],
         events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone']
     },
     'RSOCKET': {
@@ -297,6 +298,70 @@ const COMPONENT_REGISTRY = {
         methods: ['begindoc', 'enddoc', 'newpage', 'textout', 'printline'],
         events: []
     },
+
+    // ── Web-exclusive components (WASM target) ──────────────────────────
+    'RWEBVIEW': {
+        description: 'Embedded HTML content viewer (iframe). Web-only component.',
+        props: ['left', 'top', 'width', 'height', 'visible', 'enabled', 'html', 'url', 'sandbox',
+                'color', 'font', 'fontsize', 'fontcolor', 'tag', 'parent'],
+        methods: ['sethtml', 'navigate', 'show', 'hide', 'setfocus'],
+        events: ['onclick', 'ondblclick', 'onload']
+    },
+    'RDOM': {
+        description: 'Direct DOM element. Create arbitrary HTML elements. Web-only component.',
+        props: ['innerhtml', 'innertext', 'cssclass', 'cssstyle', 'tagname',
+                'left', 'top', 'width', 'height', 'visible', 'enabled', 'color',
+                'font', 'fontsize', 'fontcolor', 'tag', 'parent'],
+        methods: ['create', 'appendto', 'setattribute', 'getattribute', 'addclass',
+                  'removeclass', 'toggleclass', 'remove', 'queryselector'],
+        events: ['onclick', 'ondblclick', 'onchange', 'onmousedown', 'onmouseup',
+                 'onmousemove', 'onfocus', 'onblur', 'onscroll']
+    },
+    'RJAVASCRIPT': {
+        description: 'Execute arbitrary JavaScript from RapidR. Web-only component.',
+        props: ['tag'],
+        methods: ['eval', 'call'],
+        events: []
+    },
+    'RWEBSTORAGE': {
+        description: 'Browser localStorage / sessionStorage access. Web-only component.',
+        props: ['storagetype', 'tag'],
+        methods: ['set', 'get', 'remove', 'clear', 'keys', 'haskey'],
+        events: []
+    },
+    'RWEBAUDIO': {
+        description: 'HTML5 audio player. Web-only component.',
+        props: ['src', 'volume', 'loop', 'autoplay', 'controls', 'currenttime', 'duration',
+                'playing', 'paused', 'tag', 'parent'],
+        methods: ['play', 'pause', 'stop', 'seek'],
+        events: ['onplay', 'onpause', 'onended', 'ontimeupdate']
+    },
+    'RWEBVIDEO': {
+        description: 'HTML5 video player. Web-only component.',
+        props: ['src', 'volume', 'loop', 'autoplay', 'controls', 'poster', 'currenttime',
+                'duration', 'playing', 'paused', 'left', 'top', 'width', 'height',
+                'visible', 'tag', 'parent'],
+        methods: ['play', 'pause', 'stop', 'seek', 'fullscreen'],
+        events: ['onplay', 'onpause', 'onended', 'ontimeupdate', 'onclick']
+    },
+    'RWEBNOTIFICATION': {
+        description: 'Browser push notification. Web-only component.',
+        props: ['title', 'body', 'tag'],
+        methods: ['requestpermission', 'show'],
+        events: []
+    },
+    'RWEBGEOLOCATION': {
+        description: 'Browser geolocation API. Web-only component.',
+        props: ['latitude', 'longitude', 'accuracy', 'tag'],
+        methods: ['getposition'],
+        events: []
+    },
+    'RROUTER': {
+        description: 'Single-page app hash-based router. Web-only component.',
+        props: ['tag'],
+        methods: ['navigate', 'back', 'forward'],
+        events: ['onroutechange']
+    },
     'RNUM': {
         description: 'NumPy-compatible numeric array component (backed by ndarray). Supports creation, aggregation, element-wise math, arithmetic, sorting, cumulative ops, linear algebra, random generation, and more.',
         props: ['data', 'shape', 'size', 'length', 'len', 'ndim', 'dtype', 'tag'],
@@ -365,7 +430,8 @@ const COMPONENT_REGISTRY = {
         methods: [
             'clear', 'plot', 'bar', 'barh', 'scatter', 'step', 'area', 'fill_between',
             'hist', 'pie', 'hline', 'axhline', 'vline', 'axvline',
-            'annotate', 'legend', 'savefig', 'save', 'figsize', 'xlim', 'ylim', 'xscale', 'yscale'
+            'annotate', 'legend', 'savefig', 'save', 'figsize', 'xlim', 'ylim', 'xscale', 'yscale',
+            'render'
         ],
         events: [],
         methodSignatures: {
@@ -428,9 +494,9 @@ const COMPONENT_REGISTRY = {
             'savetojson': { sig: 'savetojson(filename)', desc: 'Saves the DataFrame to a JSON file.' },
             'head': { sig: 'head([n])', desc: 'Returns the first n rows as a string (default 5).' },
             'tail': { sig: 'tail([n])', desc: 'Returns the last n rows as a string (default 5).' },
-            'cell': { sig: 'cell(row, col)', desc: 'Returns cell value by numeric row and column indices.' },
+            'cell': { sig: 'cell(col, row)', desc: 'Returns cell value by column and row indices.' },
             'cellbyname': { sig: 'cellbyname(row, columnName)', desc: 'Returns cell value by row index and column name.' },
-            'setcell': { sig: 'setcell(row, col, value)', desc: 'Sets a cell value by row and column indices.' },
+            'setcell': { sig: 'setcell(col, row, value)', desc: 'Sets a cell value by column and row indices. Auto-expands rows as needed.' },
             'iloc': { sig: 'iloc(row)', desc: 'Returns an entire row as comma-separated string.' },
             'select': { sig: 'select("col1,col2,...")', desc: 'Selects specified columns into a new DataFrame.' },
             'sort': { sig: 'sort(column [, ascending])', desc: 'Sorts by column. ascending: 1 (default) or 0.' },
@@ -597,7 +663,7 @@ const TYPE_KEYWORDS = [
 ];
 
 const DIRECTIVES = [
-    { name: 'APPTYPE', description: 'Set application type: GUI, CONSOLE, or CGI', snippet: 'APPTYPE ${1|GUI,CONSOLE,CGI|}' },
+    { name: 'APPTYPE', description: 'Set application type: GUI, CONSOLE, CGI, or WEB', snippet: 'APPTYPE ${1|GUI,CONSOLE,CGI,WEB|}' },
     { name: 'INCLUDE', description: 'Include an external source file', snippet: 'INCLUDE "${1:filename.rr}"' },
     { name: 'DEFINE', description: 'Define a text substitution macro', snippet: 'DEFINE ${1:SYMBOL} ${2:value}' },
     { name: 'UNDEF', description: 'Remove a defined symbol', snippet: 'UNDEF ${1:SYMBOL}' },

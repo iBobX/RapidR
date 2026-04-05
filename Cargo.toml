@@ -8,6 +8,7 @@ members = [
     "crates/rapidr-parser",
     "crates/rapidr-preprocessor",
     "crates/rapidr-runtime-core",
+    "crates/rapidr-runtime-web",
     "crates/rapidr-codegen-rust",
 ]
 
@@ -23,4 +24,5 @@ rapidr-lexer = { path = "crates/rapidr-lexer" }
 rapidr-parser = { path = "crates/rapidr-parser" }
 rapidr-preprocessor = { path = "crates/rapidr-preprocessor" }
 rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
+rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }

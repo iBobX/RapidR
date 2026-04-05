@@ -1,0 +1,637 @@
+' ============================================================
+' web_datascience.rr — Data Science Demo (RNum, RDataFrame,
+'                       RPlot, RSQLite) in the browser
+' ============================================================
+' Build with:  rapidr --web web_datascience.rr
+' ============================================================
+$APPTYPE WEB
+
+DIM Form1 AS RFORM
+DIM LblTitle AS RLABEL
+DIM Tabs1 AS RTABCONTROL
+
+' -- Num tab --
+DIM BtnNumBasic AS RBUTTON
+DIM BtnNumStats AS RBUTTON
+DIM BtnNumMath AS RBUTTON
+DIM GridNum AS RSTRINGGRID
+DIM LblNumStatus AS RLABEL
+DIM arr1 AS RNUM
+DIM arr2 AS RNUM
+
+' -- DataFrame tab --
+DIM BtnDfCreate AS RBUTTON
+DIM BtnDfFilter AS RBUTTON
+DIM BtnDfStats AS RBUTTON
+DIM GridDf AS RSTRINGGRID
+DIM LblDfStatus AS RLABEL
+DIM df1 AS RDATAFRAME
+
+' -- Plot tab --
+DIM BtnPlotLine AS RBUTTON
+DIM BtnPlotBar AS RBUTTON
+DIM BtnPlotPie AS RBUTTON
+DIM Plot1 AS RPLOT
+DIM LblPlotStatus AS RLABEL
+
+' -- SQLite tab --
+DIM BtnDbCreate AS RBUTTON
+DIM BtnDbQuery AS RBUTTON
+DIM BtnDbInsert AS RBUTTON
+DIM GridDb AS RSTRINGGRID
+DIM LblDbStatus AS RLABEL
+DIM db AS RSQLITE
+
+' ============================================================
+' Form
+' ============================================================
+CREATE Form1 AS RFORM
+    .Caption = "RapidR Data Science Demo"
+    .Width = 720
+    .Height = 560
+    .Left = 40
+    .Top = 20
+END CREATE
+
+CREATE LblTitle AS RLABEL
+    .Caption = "Data Science Components"
+    .Left = 20
+    .Top = 8
+    .Width = 350
+    .Height = 28
+    .FontSize = 17
+    .FontBold = 1
+END CREATE
+
+CREATE Tabs1 AS RTABCONTROL
+    .Left = 20
+    .Top = 42
+    .Width = 680
+    .Height = 36
+END CREATE
+
+Tabs1.AddTab("RNum")
+Tabs1.AddTab("DataFrame")
+Tabs1.AddTab("Plot")
+Tabs1.AddTab("SQLite")
+
+' ============================================================
+' RNum panel
+' ============================================================
+CREATE BtnNumBasic AS RBUTTON
+    .Caption = "Basic Ops"
+    .Left = 20
+    .Top = 86
+    .Width = 100
+    .Height = 28
+END CREATE
+
+CREATE BtnNumStats AS RBUTTON
+    .Caption = "Statistics"
+    .Left = 130
+    .Top = 86
+    .Width = 100
+    .Height = 28
+END CREATE
+
+CREATE BtnNumMath AS RBUTTON
+    .Caption = "Math"
+    .Left = 240
+    .Top = 86
+    .Width = 100
+    .Height = 28
+END CREATE
+
+CREATE LblNumStatus AS RLABEL
+    .Caption = "Click a button to run RNum operations"
+    .Left = 350
+    .Top = 90
+    .Width = 340
+    .Height = 22
+END CREATE
+
+CREATE GridNum AS RSTRINGGRID
+    .Left = 20
+    .Top = 120
+    .Width = 680
+    .Height = 380
+END CREATE
+
+' ============================================================
+' DataFrame panel (hidden initially)
+' ============================================================
+CREATE BtnDfCreate AS RBUTTON
+    .Caption = "Create DF"
+    .Left = 20
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE BtnDfFilter AS RBUTTON
+    .Caption = "Filter"
+    .Left = 130
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE BtnDfStats AS RBUTTON
+    .Caption = "Describe"
+    .Left = 240
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE LblDfStatus AS RLABEL
+    .Caption = ""
+    .Left = 350
+    .Top = 90
+    .Width = 340
+    .Height = 22
+    .Visible = 0
+END CREATE
+
+CREATE GridDf AS RSTRINGGRID
+    .Left = 20
+    .Top = 120
+    .Width = 680
+    .Height = 380
+    .Visible = 0
+END CREATE
+
+' ============================================================
+' Plot panel (hidden initially)
+' ============================================================
+CREATE BtnPlotLine AS RBUTTON
+    .Caption = "Line Chart"
+    .Left = 20
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE BtnPlotBar AS RBUTTON
+    .Caption = "Bar Chart"
+    .Left = 130
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE BtnPlotPie AS RBUTTON
+    .Caption = "Pie Chart"
+    .Left = 240
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE LblPlotStatus AS RLABEL
+    .Caption = ""
+    .Left = 350
+    .Top = 90
+    .Width = 340
+    .Height = 22
+    .Visible = 0
+END CREATE
+
+CREATE Plot1 AS RPLOT
+    .Left = 20
+    .Top = 120
+    .Width = 680
+    .Height = 380
+END CREATE
+
+' ============================================================
+' SQLite panel (hidden initially)
+' ============================================================
+CREATE BtnDbCreate AS RBUTTON
+    .Caption = "Create DB"
+    .Left = 20
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE BtnDbQuery AS RBUTTON
+    .Caption = "Query"
+    .Left = 130
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE BtnDbInsert AS RBUTTON
+    .Caption = "Insert Row"
+    .Left = 240
+    .Top = 86
+    .Width = 100
+    .Height = 28
+    .Visible = 0
+END CREATE
+
+CREATE LblDbStatus AS RLABEL
+    .Caption = ""
+    .Left = 350
+    .Top = 90
+    .Width = 340
+    .Height = 22
+    .Visible = 0
+END CREATE
+
+CREATE GridDb AS RSTRINGGRID
+    .Left = 20
+    .Top = 120
+    .Width = 680
+    .Height = 380
+    .Visible = 0
+END CREATE
+
+' ============================================================
+' Tab switching
+' ============================================================
+SUB ShowTab(idx AS INTEGER)
+    ' Hide all tab content
+    BtnNumBasic.Visible = 0
+    BtnNumStats.Visible = 0
+    BtnNumMath.Visible = 0
+    GridNum.Visible = 0
+    LblNumStatus.Visible = 0
+
+    BtnDfCreate.Visible = 0
+    BtnDfFilter.Visible = 0
+    BtnDfStats.Visible = 0
+    GridDf.Visible = 0
+    LblDfStatus.Visible = 0
+
+    BtnPlotLine.Visible = 0
+    BtnPlotBar.Visible = 0
+    BtnPlotPie.Visible = 0
+    Plot1.Visible = 0
+    LblPlotStatus.Visible = 0
+
+    BtnDbCreate.Visible = 0
+    BtnDbQuery.Visible = 0
+    BtnDbInsert.Visible = 0
+    GridDb.Visible = 0
+    LblDbStatus.Visible = 0
+
+    IF idx = 0 THEN
+        BtnNumBasic.Visible = 1
+        BtnNumStats.Visible = 1
+        BtnNumMath.Visible = 1
+        GridNum.Visible = 1
+        LblNumStatus.Visible = 1
+    END IF
+    IF idx = 1 THEN
+        BtnDfCreate.Visible = 1
+        BtnDfFilter.Visible = 1
+        BtnDfStats.Visible = 1
+        GridDf.Visible = 1
+        LblDfStatus.Visible = 1
+    END IF
+    IF idx = 2 THEN
+        BtnPlotLine.Visible = 1
+        BtnPlotBar.Visible = 1
+        BtnPlotPie.Visible = 1
+        Plot1.Visible = 1
+        LblPlotStatus.Visible = 1
+    END IF
+    IF idx = 3 THEN
+        BtnDbCreate.Visible = 1
+        BtnDbQuery.Visible = 1
+        BtnDbInsert.Visible = 1
+        GridDb.Visible = 1
+        LblDbStatus.Visible = 1
+    END IF
+END SUB
+
+SUB Tabs1_OnChange()
+    DIM idx AS INTEGER
+    idx = Tabs1.TabIndex
+    ShowTab(idx)
+END SUB
+
+' ============================================================
+' RNum handlers
+' ============================================================
+DIM insertRow AS INTEGER
+
+SUB BtnNumBasic_OnClick()
+    arr1.arange(1, 11, 1)
+    arr2.arange(10, 110, 10)
+
+    GridNum.SetColCount(4)
+    GridNum.SetRowCount(11)
+    GridNum.SetCell(0, 0, "Index")
+    GridNum.SetCell(1, 0, "A")
+    GridNum.SetCell(2, 0, "B")
+    GridNum.SetCell(3, 0, "A + B")
+
+    DIM i AS INTEGER
+    FOR i = 0 TO 9
+        GridNum.SetCell(0, i + 1, STR(i + 1))
+        GridNum.SetCell(1, i + 1, STR(i + 1))
+        GridNum.SetCell(2, i + 1, STR((i + 1) * 10))
+        GridNum.SetCell(3, i + 1, STR((i + 1) + (i + 1) * 10))
+    NEXT i
+
+    LblNumStatus.Caption = "A=[1..10], B=[10..100 step 10]"
+END SUB
+
+SUB BtnNumStats_OnClick()
+    arr1.arange(1, 51, 1)
+
+    GridNum.SetColCount(2)
+    GridNum.SetRowCount(8)
+    GridNum.SetCell(0, 0, "Statistic")
+    GridNum.SetCell(1, 0, "Value")
+    GridNum.SetCell(0, 1, "Sum")
+    GridNum.SetCell(1, 1, STR(arr1.sum()))
+    GridNum.SetCell(0, 2, "Mean")
+    GridNum.SetCell(1, 2, STR(arr1.mean()))
+    GridNum.SetCell(0, 3, "Std Dev")
+    GridNum.SetCell(1, 3, STR(arr1.std()))
+    GridNum.SetCell(0, 4, "Min")
+    GridNum.SetCell(1, 4, STR(arr1.min()))
+    GridNum.SetCell(0, 5, "Max")
+    GridNum.SetCell(1, 5, STR(arr1.max()))
+    GridNum.SetCell(0, 6, "Median")
+    GridNum.SetCell(1, 6, STR(arr1.median()))
+    GridNum.SetCell(0, 7, "Count")
+    GridNum.SetCell(1, 7, STR(arr1.count()))
+
+    LblNumStatus.Caption = "Stats for array [1..50]"
+END SUB
+
+SUB BtnNumMath_OnClick()
+    arr1.linspace(0, 6.28318, 10)
+
+    GridNum.SetColCount(4)
+    GridNum.SetRowCount(11)
+    GridNum.SetCell(0, 0, "X")
+    GridNum.SetCell(1, 0, "sin(X)")
+    GridNum.SetCell(2, 0, "cos(X)")
+    GridNum.SetCell(3, 0, "sqrt(|X|)")
+
+    DIM i AS INTEGER
+    DIM step AS DOUBLE
+    DIM x AS DOUBLE
+    step = 6.28318 / 9
+    FOR i = 0 TO 9
+        x = i * step
+        GridNum.SetCell(0, i + 1, STR(INT(x * 100) / 100))
+        GridNum.SetCell(1, i + 1, STR(INT(SIN(x) * 1000) / 1000))
+        GridNum.SetCell(2, i + 1, STR(INT(COS(x) * 1000) / 1000))
+        GridNum.SetCell(3, i + 1, STR(INT(SQR(ABS(x)) * 1000) / 1000))
+    NEXT i
+
+    LblNumStatus.Caption = "Trig functions over [0, 2pi]"
+END SUB
+
+' ============================================================
+' DataFrame handlers
+' ============================================================
+SUB BtnDfCreate_OnClick()
+    ' Build a DataFrame from inline data
+    df1.addcolumn("Name")
+    df1.addcolumn("Age")
+    df1.addcolumn("Score")
+    df1.addcolumn("City")
+
+    ' We'll use setcell to populate rows
+    df1.setcell(0, 0, "Alice")
+    df1.setcell(1, 0, "30")
+    df1.setcell(2, 0, "92")
+    df1.setcell(3, 0, "NYC")
+
+    df1.setcell(0, 1, "Bob")
+    df1.setcell(1, 1, "25")
+    df1.setcell(2, 1, "85")
+    df1.setcell(3, 1, "LA")
+
+    df1.setcell(0, 2, "Carol")
+    df1.setcell(1, 2, "35")
+    df1.setcell(2, 2, "95")
+    df1.setcell(3, 2, "NYC")
+
+    df1.setcell(0, 3, "Dave")
+    df1.setcell(1, 3, "28")
+    df1.setcell(2, 3, "78")
+    df1.setcell(3, 3, "LA")
+
+    df1.setcell(0, 4, "Eve")
+    df1.setcell(1, 4, "32")
+    df1.setcell(2, 4, "88")
+    df1.setcell(3, 4, "NYC")
+
+    df1.togrid("GridDf")
+
+    LblDfStatus.Caption = "Created DataFrame: 5 rows x 4 cols"
+END SUB
+
+SUB BtnDfFilter_OnClick()
+    ' Show a filtered view in the grid
+    GridDf.SetColCount(4)
+    GridDf.SetRowCount(1)
+    GridDf.SetCell(0, 0, "Name")
+    GridDf.SetCell(1, 0, "Age")
+    GridDf.SetCell(2, 0, "Score")
+    GridDf.SetCell(3, 0, "City")
+
+    DIM r AS INTEGER
+    DIM rowNum AS INTEGER
+    rowNum = 1
+    FOR r = 0 TO 4
+        DIM score AS INTEGER
+        score = VAL(df1.cell(2, r))
+        IF score >= 88 THEN
+            GridDf.SetRowCount(rowNum + 1)
+            GridDf.SetCell(0, rowNum, df1.cell(0, r))
+            GridDf.SetCell(1, rowNum, df1.cell(1, r))
+            GridDf.SetCell(2, rowNum, df1.cell(2, r))
+            GridDf.SetCell(3, rowNum, df1.cell(3, r))
+            rowNum = rowNum + 1
+        END IF
+    NEXT r
+
+    LblDfStatus.Caption = "Filtered: score >= 88 (" + STR(rowNum - 1) + " rows)"
+END SUB
+
+SUB BtnDfStats_OnClick()
+    GridDf.SetColCount(2)
+    GridDf.SetRowCount(6)
+    GridDf.SetCell(0, 0, "Metric")
+    GridDf.SetCell(1, 0, "Value")
+    GridDf.SetCell(0, 1, "Rows")
+    GridDf.SetCell(1, 1, STR(df1.rows()))
+    GridDf.SetCell(0, 2, "Columns")
+    GridDf.SetCell(1, 2, STR(df1.columns()))
+    GridDf.SetCell(0, 3, "Info")
+    GridDf.SetCell(1, 3, df1.info())
+
+    ' Compute average score manually
+    DIM total AS DOUBLE
+    DIM r AS INTEGER
+    total = 0
+    FOR r = 0 TO 4
+        total = total + VAL(df1.cell(2, r))
+    NEXT r
+    GridDf.SetCell(0, 4, "Avg Score")
+    GridDf.SetCell(1, 4, STR(INT(total / 5 * 10) / 10))
+    GridDf.SetCell(0, 5, "Shape")
+    GridDf.SetCell(1, 5, STR(df1.rows()) + " x " + STR(df1.columns()))
+
+    LblDfStatus.Caption = "DataFrame description"
+END SUB
+
+' ============================================================
+' Plot handlers
+' ============================================================
+SUB BtnPlotLine_OnClick()
+    Plot1.clear()
+    Plot1.title = "Sine & Cosine Waves"
+    Plot1.xlabel = "X"
+    Plot1.ylabel = "Y"
+
+    arr1.linspace(0, 6.28318, 50)
+    arr2.linspace(0, 6.28318, 50)
+    arr2.sin()
+    Plot1.plot(arr1, arr2, "sin(x)", "blue")
+
+    arr2.linspace(0, 6.28318, 50)
+    arr2.cos()
+    Plot1.plot(arr1, arr2, "cos(x)", "red")
+
+    Plot1.render()
+    LblPlotStatus.Caption = "Line chart: sin(x) and cos(x)"
+END SUB
+
+SUB BtnPlotBar_OnClick()
+    Plot1.clear()
+    Plot1.title = "Quarterly Revenue"
+    Plot1.xlabel = "Quarter"
+    Plot1.ylabel = "Revenue ($K)"
+
+    arr1.fromlist("1,2,3,4")
+    arr2.fromlist("120,185,150,210")
+    Plot1.bar(arr1, arr2, "Revenue", "steelblue")
+    Plot1.render()
+    LblPlotStatus.Caption = "Bar chart rendered"
+END SUB
+
+SUB BtnPlotPie_OnClick()
+    Plot1.clear()
+    Plot1.title = "Market Share"
+    Plot1.pie("35,25,20,15,5", "ProductA,ProductB,ProductC,ProductD,Other", "#4a90d9,#e74c3c,#2ecc71,#f39c12,#9b59b6")
+    Plot1.render()
+    LblPlotStatus.Caption = "Pie chart rendered"
+END SUB
+
+' ============================================================
+' SQLite handlers
+' ============================================================
+DIM nextId AS INTEGER
+nextId = 4
+
+SUB BtnDbCreate_OnClick()
+    db.connect("demo")
+    db.query("CREATE TABLE products (id INTEGER, name TEXT, price REAL, stock INTEGER)")
+    db.query("INSERT INTO products VALUES (1, 'Widget', 9.99, 150)")
+    db.query("INSERT INTO products VALUES (2, 'Gadget', 24.50, 75)")
+    db.query("INSERT INTO products VALUES (3, 'Doohickey', 4.25, 300)")
+
+    ' Query and show results in grid
+    db.query("SELECT id, name, price, stock FROM products")
+
+    GridDb.SetColCount(4)
+    GridDb.SetRowCount(4)
+    GridDb.SetCell(0, 0, "ID")
+    GridDb.SetCell(1, 0, "Name")
+    GridDb.SetCell(2, 0, "Price")
+    GridDb.SetCell(3, 0, "Stock")
+
+    DIM r AS INTEGER
+    r = 1
+    WHILE db.fetchrow() = 1
+        GridDb.SetCell(0, r, db.row(0))
+        GridDb.SetCell(1, r, db.row(1))
+        GridDb.SetCell(2, r, db.row(2))
+        GridDb.SetCell(3, r, db.row(3))
+        r = r + 1
+    WEND
+
+    LblDbStatus.Caption = "Created products table with 3 rows"
+END SUB
+
+SUB BtnDbQuery_OnClick()
+    db.query("SELECT id, name, price, stock FROM products ORDER BY price DESC")
+
+    GridDb.SetColCount(4)
+    GridDb.SetRowCount(1)
+    GridDb.SetCell(0, 0, "ID")
+    GridDb.SetCell(1, 0, "Name")
+    GridDb.SetCell(2, 0, "Price")
+    GridDb.SetCell(3, 0, "Stock")
+
+    DIM r AS INTEGER
+    r = 1
+    WHILE db.fetchrow() = 1
+        GridDb.SetRowCount(r + 1)
+        GridDb.SetCell(0, r, db.row(0))
+        GridDb.SetCell(1, r, db.row(1))
+        GridDb.SetCell(2, r, db.row(2))
+        GridDb.SetCell(3, r, db.row(3))
+        r = r + 1
+    WEND
+
+    LblDbStatus.Caption = "Query: ORDER BY price DESC (" + STR(r - 1) + " rows)"
+END SUB
+
+SUB BtnDbInsert_OnClick()
+    nextId = nextId + 1
+    DIM nm AS STRING
+    DIM pr AS DOUBLE
+    DIM st AS INTEGER
+    nm = "Item" + STR(nextId)
+    pr = INT(RND(1) * 5000) / 100 + 1
+    st = INT(RND(1) * 500) + 1
+
+    db.query("INSERT INTO products VALUES (" + STR(nextId) + ", '" + nm + "', " + STR(pr) + ", " + STR(st) + ")")
+    LblDbStatus.Caption = "Inserted: " + nm + " ($" + STR(pr) + ")"
+
+    ' Refresh grid
+    BtnDbQuery_OnClick()
+END SUB
+
+' ============================================================
+' Wire events
+' ============================================================
+Tabs1.OnChange = Tabs1_OnChange
+BtnNumBasic.OnClick = BtnNumBasic_OnClick
+BtnNumStats.OnClick = BtnNumStats_OnClick
+BtnNumMath.OnClick = BtnNumMath_OnClick
+BtnDfCreate.OnClick = BtnDfCreate_OnClick
+BtnDfFilter.OnClick = BtnDfFilter_OnClick
+BtnDfStats.OnClick = BtnDfStats_OnClick
+BtnPlotLine.OnClick = BtnPlotLine_OnClick
+BtnPlotBar.OnClick = BtnPlotBar_OnClick
+BtnPlotPie.OnClick = BtnPlotPie_OnClick
+BtnDbCreate.OnClick = BtnDbCreate_OnClick
+BtnDbQuery.OnClick = BtnDbQuery_OnClick
+BtnDbInsert.OnClick = BtnDbInsert_OnClick
+
+' Start on RNum tab
+ShowTab(0)
+
+PRINT "Data Science Demo ready!"

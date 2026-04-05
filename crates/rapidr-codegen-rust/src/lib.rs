@@ -8,9 +8,29 @@ use std::fmt::Write;
 
 use rapidr_ast::*;
 
+/// Target platform for code generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppTarget {
+    /// Desktop (native) — uses `rapidr-runtime-core`.
+    Desktop,
+    /// Web (WASM) — uses `rapidr-runtime-web`.
+    Web,
+}
+
+impl Default for AppTarget {
+    fn default() -> Self {
+        Self::Desktop
+    }
+}
+
 /// Generate a complete Rust `main.rs` from a parsed RapidP program.
 pub fn generate(program: &Program) -> String {
-    let mut gen = RustCodegen::new();
+    generate_for_target(program, AppTarget::Desktop)
+}
+
+/// Generate code for a specific target platform.
+pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
+    let mut gen = RustCodegen::new(target);
     gen.emit_program(program);
     gen.output
 }
@@ -18,6 +38,8 @@ pub fn generate(program: &Program) -> String {
 struct RustCodegen {
     output: String,
     indent: usize,
+    /// Target platform.
+    target: AppTarget,
     /// Names of subs/functions defined at the top level.
     defined_functions: HashSet<String>,
     /// Names of variables declared with DIM at top level.
@@ -51,10 +73,11 @@ struct RustCodegen {
 }
 
 impl RustCodegen {
-    fn new() -> Self {
+    fn new(target: AppTarget) -> Self {
         Self {
             output: String::with_capacity(4096),
             indent: 0,
+            target,
             defined_functions: HashSet::new(),
             top_level_vars: HashSet::new(),
             array_vars: HashSet::new(),
@@ -244,7 +267,10 @@ impl RustCodegen {
         // Second pass: collect all referenced variable names for implicit variable detection
         collect_all_refs(&program.statements, &mut self.all_referenced_vars);
 
-        self.line("use rapidr_runtime_core::prelude::*;");
+        self.line(match self.target {
+            AppTarget::Desktop => "use rapidr_runtime_core::prelude::*;",
+            AppTarget::Web => "use rapidr_runtime_web::prelude::*;",
+        });
         self.line("use std::cell::RefCell;");
         self.line("use std::collections::HashMap;");
         self.blank();
@@ -276,7 +302,14 @@ impl RustCodegen {
         }
 
         // Emit main
-        self.line("fn main() {");
+        if self.target == AppTarget::Web {
+            self.line("use wasm_bindgen::prelude::*;");
+            self.blank();
+            self.line("#[wasm_bindgen(start)]");
+            self.line("pub fn main() {");
+        } else {
+            self.line("fn main() {");
+        }
         self.indent += 1;
 
         // Auto-declare implicit variables (referenced but never DIM'd)
@@ -307,6 +340,11 @@ impl RustCodegen {
                 }
                 _ => self.emit_statement(stmt),
             }
+        }
+
+        // For web targets, finalize: auto-parent orphan widgets and show forms
+        if self.target == AppTarget::Web {
+            self.line("gui_web_finalize();");
         }
 
         self.indent -= 1;
@@ -384,7 +422,7 @@ impl RustCodegen {
                 let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_name}\");");
                 if type_name == "RTIMER" {
                     self.write_indent();
-                    let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
+                    let _ = writeln!(self.output, "gui_register_timer(\"{name}\", 1000);");
                 }
                 continue;
             }
@@ -1064,15 +1102,17 @@ impl RustCodegen {
         }
 
         self.create_stack.push(name.clone());
+        self.with_component_stack.push(name.clone());
         for stmt in &c.body {
             self.emit_statement(stmt);
         }
+        self.with_component_stack.pop();
         self.create_stack.pop();
 
         // Register timers declared in CREATE blocks
         if type_upper == "RTIMER" {
             self.write_indent();
-            let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
+            let _ = writeln!(self.output, "gui_register_timer(\"{name}\", 1000);");
         }
     }
 
@@ -1460,9 +1500,10 @@ impl RustCodegen {
                     "true" | "vttrue" => "v_bool(true)".to_string(),
                     "false" | "vtfalse" => "v_bool(false)".to_string(),
                     "pi" => "v_dbl(std::f64::consts::PI)".to_string(),
-                    "time$" => "rp_time()".to_string(),
-                    "date$" => "rp_date()".to_string(),
+                    "time" | "time$" => "rp_time()".to_string(),
+                    "date" | "date$" => "rp_date()".to_string(),
                     "command$" => "rp_command()".to_string(),
+                    "timer" => "rp_timer()".to_string(),
                     _ => {
                         let name = strip_type_suffix(&id.name);
                         let snake = to_snake(&name);
@@ -1923,6 +1964,26 @@ rapidr-runtime-core = {{ path = "{runtime_path}" }}
     )
 }
 
+/// Generate a Cargo.toml for a web (WASM) project.
+pub fn generate_cargo_toml_web(project_name: &str, runtime_web_path: &str) -> String {
+    format!(
+        r#"[package]
+name = "{project_name}"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rapidr-runtime-web = {{ path = "{runtime_web_path}" }}
+wasm-bindgen = "0.2"
+"#
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Component system helpers (compile-time, no runtime dependency)
 // ---------------------------------------------------------------------------
@@ -1945,6 +2006,10 @@ fn is_component_type_name(type_name: &str) -> bool {
         | "RLISTVIEW" | "RPROGRESSBAR"
         | "RNUM" | "RDATAFRAME" | "RPLOT"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
+        // Web-exclusive components
+        | "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE"
+        | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION" | "RWEBGEOLOCATION"
+        | "RROUTER"
     )
 }
 
@@ -2028,6 +2093,13 @@ fn is_component_method_name(member: &str) -> bool {
         | "getsublist" | "gotosub" | "gotoline"
         // TabControl methods
         | "addtabs" | "tab"
+        // Web-exclusive methods
+        | "sethtml" | "navigate" | "appendto" | "setattribute" | "getattribute"
+        | "addclass" | "removeclass" | "toggleclass" | "queryselector" | "queryselectorall"
+        | "eval" | "call" | "set" | "haskey" | "keys"
+        | "play" | "pause" | "stop" | "seek" | "fullscreen"
+        | "requestpermission" | "getposition" | "watchposition" | "clearwatch"
+        | "addroute" | "back" | "forward"
     )
 }
 

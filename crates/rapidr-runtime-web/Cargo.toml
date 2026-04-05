@@ -1,0 +1,89 @@
+[package]
+name = "rapidr-runtime-web"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    # Core DOM
+    "Window",
+    "Document",
+    "Element",
+    "HtmlElement",
+    "HtmlInputElement",
+    "HtmlTextAreaElement",
+    "HtmlSelectElement",
+    "HtmlOptionElement",
+    "HtmlButtonElement",
+    "HtmlCanvasElement",
+    "HtmlImageElement",
+    "HtmlAudioElement",
+    "HtmlVideoElement",
+    "HtmlIFrameElement",
+    "HtmlDivElement",
+    "HtmlTableElement",
+    "HtmlTableRowElement",
+    "HtmlTableCellElement",
+    "HtmlTableSectionElement",
+    "HtmlCollection",
+    "HtmlOptionsCollection",
+    "HtmlProgressElement",
+    "Node",
+    "NodeList",
+    "Text",
+    "CssStyleDeclaration",
+    "DomTokenList",
+
+    # Events
+    "Event",
+    "EventTarget",
+    "MouseEvent",
+    "KeyboardEvent",
+    "InputEvent",
+    "HashChangeEvent",
+    "CustomEvent",
+    "AddEventListenerOptions",
+
+    # Canvas 2D
+    "CanvasRenderingContext2d",
+
+    # Network
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "WebSocket",
+    "MessageEvent",
+    "CloseEvent",
+    "BinaryType",
+    "Blob",
+
+    # Storage
+    "Storage",
+    "StorageEvent",
+
+    # Notifications & Geolocation
+    "Notification",
+    "NotificationOptions",
+    "NotificationPermission",
+    "Geolocation",
+    "Position",
+    "Coordinates",
+    "PositionError",
+    "PositionOptions",
+
+    # Timers & misc
+    "Performance",
+    "console",
+    "Location",
+    "History",
+    "Url",
+]

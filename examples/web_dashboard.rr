@@ -1,0 +1,193 @@
+' ============================================================
+' web_dashboard.rr — Dashboard with Timer, Tabs, Grid
+' ============================================================
+' Build with:  rapidr --web web_dashboard.rr
+' ============================================================
+$APPTYPE WEB
+
+DIM Form1 AS RFORM
+DIM LblTitle AS RLABEL
+DIM Tabs1 AS RTABCONTROL
+DIM Timer1 AS RTIMER
+DIM LblClock AS RLABEL
+DIM Progress1 AS RPROGRESSBAR
+DIM Grid1 AS RSTRINGGRID
+DIM BtnResetProgress AS RBUTTON
+DIM Combo1 AS RCOMBOBOX
+DIM LblSelected AS RLABEL
+DIM LblTimerCount AS RLABEL
+
+DIM progressVal AS INTEGER
+DIM timerTicks AS INTEGER
+
+progressVal = 0
+timerTicks = 0
+
+CREATE Form1 AS RFORM
+    .Caption = "RapidR Web Dashboard"
+    .Width = 600
+    .Height = 520
+    .Left = 60
+    .Top = 30
+END CREATE
+
+CREATE LblTitle AS RLABEL
+    .Caption = "Dashboard Demo"
+    .Left = 20
+    .Top = 10
+    .Width = 300
+    .Height = 30
+    .FontSize = 18
+    .FontBold = 1
+END CREATE
+
+CREATE LblClock AS RLABEL
+    .Caption = "Time: --:--:--"
+    .Left = 380
+    .Top = 10
+    .Width = 200
+    .Height = 30
+    .FontSize = 14
+END CREATE
+
+' --- Timer ---
+CREATE Timer1 AS RTIMER
+    .Interval = 1000
+    .Enabled = 1
+END CREATE
+
+' --- Progress bar ---
+CREATE Progress1 AS RPROGRESSBAR
+    .Left = 20
+    .Top = 50
+    .Width = 450
+    .Height = 25
+    .Min = 0
+    .Max = 100
+    .Position = 0
+END CREATE
+
+CREATE BtnResetProgress AS RBUTTON
+    .Caption = "Reset"
+    .Left = 480
+    .Top = 50
+    .Width = 100
+    .Height = 25
+END CREATE
+
+CREATE LblTimerCount AS RLABEL
+    .Caption = "Ticks: 0"
+    .Left = 20
+    .Top = 80
+    .Width = 200
+    .Height = 20
+END CREATE
+
+' --- Tabs ---
+CREATE Tabs1 AS RTABCONTROL
+    .Left = 20
+    .Top = 110
+    .Width = 560
+    .Height = 40
+END CREATE
+
+' --- Combo box ---
+CREATE Combo1 AS RCOMBOBOX
+    .Left = 20
+    .Top = 165
+    .Width = 250
+    .Height = 30
+END CREATE
+
+CREATE LblSelected AS RLABEL
+    .Caption = "Selected: (none)"
+    .Left = 280
+    .Top = 170
+    .Width = 300
+    .Height = 25
+END CREATE
+
+' --- Grid ---
+CREATE Grid1 AS RSTRINGGRID
+    .Left = 20
+    .Top = 210
+    .Width = 560
+    .Height = 250
+END CREATE
+
+' --- Populate combo box ---
+Combo1.AddItem("Dashboard")
+Combo1.AddItem("Analytics")
+Combo1.AddItem("Settings")
+Combo1.AddItem("Profile")
+
+' --- Populate tabs ---
+Tabs1.AddTab("Overview")
+Tabs1.AddTab("Data")
+Tabs1.AddTab("Settings")
+
+' --- Populate grid ---
+Grid1.SetColCount(4)
+Grid1.SetRowCount(6)
+Grid1.SetCell(0, 0, "Name")
+Grid1.SetCell(1, 0, "Value")
+Grid1.SetCell(2, 0, "Status")
+Grid1.SetCell(3, 0, "Action")
+Grid1.SetCell(0, 1, "CPU Usage")
+Grid1.SetCell(1, 1, "45%")
+Grid1.SetCell(2, 1, "Normal")
+Grid1.SetCell(3, 1, "Monitor")
+Grid1.SetCell(0, 2, "Memory")
+Grid1.SetCell(1, 2, "2.1 GB")
+Grid1.SetCell(2, 2, "Normal")
+Grid1.SetCell(3, 2, "Monitor")
+Grid1.SetCell(0, 3, "Disk")
+Grid1.SetCell(1, 3, "78%")
+Grid1.SetCell(2, 3, "Warning")
+Grid1.SetCell(3, 3, "Expand")
+Grid1.SetCell(0, 4, "Network")
+Grid1.SetCell(1, 4, "125 Mbps")
+Grid1.SetCell(2, 4, "Good")
+Grid1.SetCell(3, 4, "---")
+Grid1.SetCell(0, 5, "Uptime")
+Grid1.SetCell(1, 5, "14 days")
+Grid1.SetCell(2, 5, "Good")
+Grid1.SetCell(3, 5, "---")
+
+' --- Timer event ---
+SUB Timer1_OnTimer()
+    timerTicks = timerTicks + 1
+    LblTimerCount.Caption = "Ticks: " + STR(timerTicks)
+
+    ' Update clock
+    LblClock.Caption = "Time: " + TIME
+
+    ' Animate progress bar
+    progressVal = progressVal + 2
+    IF progressVal > 100 THEN progressVal = 0
+    Progress1.Position = progressVal
+END SUB
+
+' --- Combo change ---
+SUB Combo1_OnChange()
+    DIM idx AS INTEGER
+    idx = Combo1.ItemIndex
+    LblSelected.Caption = "Selected: item #" + STR(idx)
+    PRINT "Combo selection: " + STR(idx)
+END SUB
+
+' --- Reset progress ---
+SUB BtnResetProgress_OnClick()
+    progressVal = 0
+    Progress1.Position = 0
+    timerTicks = 0
+    LblTimerCount.Caption = "Ticks: 0"
+    PRINT "Progress reset"
+END SUB
+
+' --- Wire up events ---
+Timer1.OnTimer = Timer1_OnTimer
+Combo1.OnChange = Combo1_OnChange
+BtnResetProgress.OnClick = BtnResetProgress_OnClick
+
+PRINT "Dashboard ready!"

@@ -56,6 +56,16 @@ function activate(context) {
         vscode.commands.registerCommand('rapidr.compileToExe', () => compileToExe())
     );
 
+    // Register compile for web (WASM) command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.compileWeb', () => compileWeb(false))
+    );
+
+    // Register compile for web and serve command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.compileWebAndServe', () => compileWeb(true))
+    );
+
     // Setup diagnostics
     const diagnostics = vscode.languages.createDiagnosticCollection('rapidr');
     context.subscriptions.push(diagnostics);
@@ -181,6 +191,41 @@ function compileToExe() {
         const terminal = vscode.window.createTerminal({ name: 'RapidR Build' });
         terminal.sendText(cmd);
         terminal.show();
+    });
+}
+
+function compileWeb(serve) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'rapidr') {
+        vscode.window.showWarningMessage('No RapidR file is open.');
+        return;
+    }
+    editor.document.save().then(() => {
+        const path = require('path');
+        const filePath = editor.document.uri.fsPath;
+        const compilerPath = findCompilerPath();
+        const baseName = path.basename(filePath, path.extname(filePath));
+        const webDir = path.join(path.dirname(filePath), baseName + '_web');
+
+        let cmd = `"${compilerPath}" --web "${filePath}"`;
+        if (serve) {
+            const config = vscode.workspace.getConfiguration('rapidr');
+            const port = config.get('webServerPort') || 8080;
+            cmd += ` && echo "\\nServing at http://localhost:${port}" && python3 -m http.server -d "${webDir}" ${port}`;
+        }
+
+        const terminal = vscode.window.createTerminal({ name: 'RapidR Web' });
+        terminal.sendText(cmd);
+        terminal.show();
+
+        if (serve) {
+            const config = vscode.workspace.getConfiguration('rapidr');
+            const port = config.get('webServerPort') || 8080;
+            // Open browser after a short delay to let the server start
+            setTimeout(() => {
+                vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
+            }, 3000);
+        }
     });
 }
 

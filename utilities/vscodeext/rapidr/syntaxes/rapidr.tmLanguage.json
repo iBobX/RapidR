@@ -172,7 +172,7 @@
       "patterns": [
         {
           "name": "entity.name.type.component.rapidr",
-          "match": "(?i)\\b(RForm|RButton|RLabel|REdit|RCanvas|RPanel|RTimer|RMainMenu|RMenuItem|RComboBox|RListBox|RCheckBox|RRadioButton|RRichEdit|RStringGrid|RImage|RScrollBar|RTabControl|RGroupBox|RMySQL|RSQLite|RProgressBar|RListView|ROpenDialog|RSaveDialog|RFileStream|RFileDialog|RCodeEditor|RLine|RIcon|RImageList|RSocket|RServerSocket|RHTTP|RStatusBar|RColorDialog|RFontDialog|RDesignSurface|RTreeView|RSplitter|RTrackBar|RScrollBox|RPopupMenu|RIni|RMemoryStream|RStringList|RPrinter|RNum|RPlot|RDataFrame)\\b"
+          "match": "(?i)\\b(RForm|RButton|RLabel|REdit|RCanvas|RPanel|RTimer|RMainMenu|RMenuItem|RComboBox|RListBox|RCheckBox|RRadioButton|RRichEdit|RStringGrid|RImage|RScrollBar|RTabControl|RGroupBox|RMySQL|RSQLite|RProgressBar|RListView|ROpenDialog|RSaveDialog|RFileStream|RFileDialog|RCodeEditor|RLine|RIcon|RImageList|RSocket|RServerSocket|RHTTP|RStatusBar|RColorDialog|RFontDialog|RDesignSurface|RTreeView|RSplitter|RTrackBar|RScrollBox|RPopupMenu|RIni|RMemoryStream|RStringList|RPrinter|RNum|RPlot|RDataFrame|RWebView|RDOM|RJavaScript|RWebStorage|RWebAudio|RWebVideo|RWebNotification|RWebGeolocation|RRouter)\\b"
         },
         {
           "name": "entity.name.type.component.rapidr",

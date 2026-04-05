@@ -1,0 +1,223 @@
+' ============================================================
+' web_canvas.rr — Canvas Drawing App for RapidR Web (WASM)
+' ============================================================
+' Build with:  rapidr --web web_canvas.rr
+' ============================================================
+$APPTYPE WEB
+
+DIM Form1 AS RFORM
+DIM Canvas1 AS RCANVAS
+DIM BtnClear AS RBUTTON
+DIM BtnRed AS RBUTTON
+DIM BtnGreen AS RBUTTON
+DIM BtnBlue AS RBUTTON
+DIM BtnBlack AS RBUTTON
+DIM BtnCircle AS RBUTTON
+DIM BtnRect AS RBUTTON
+DIM LblColor AS RLABEL
+DIM LblStatus AS RLABEL
+DIM LblCoords AS RLABEL
+
+DIM drawColor AS STRING
+DIM isDrawing AS INTEGER
+DIM lastX AS INTEGER
+DIM lastY AS INTEGER
+DIM shapeMode AS STRING
+
+drawColor = "#000000"
+isDrawing = 0
+lastX = 0
+lastY = 0
+shapeMode = "free"
+
+CREATE Form1 AS RFORM
+    .Caption = "RapidR Canvas Drawing"
+    .Width = 650
+    .Height = 520
+    .Left = 50
+    .Top = 20
+END CREATE
+
+CREATE LblColor AS RLABEL
+    .Caption = "Color: Black | Mode: Free Draw"
+    .Left = 20
+    .Top = 10
+    .Width = 400
+    .Height = 25
+    .FontSize = 13
+    .FontBold = 1
+END CREATE
+
+CREATE LblCoords AS RLABEL
+    .Caption = "X: 0, Y: 0"
+    .Left = 430
+    .Top = 10
+    .Width = 200
+    .Height = 25
+END CREATE
+
+CREATE Canvas1 AS RCANVAS
+    .Left = 20
+    .Top = 40
+    .Width = 600
+    .Height = 380
+END CREATE
+
+' --- Color buttons ---
+CREATE BtnBlack AS RBUTTON
+    .Caption = "Black"
+    .Left = 20
+    .Top = 430
+    .Width = 70
+    .Height = 35
+END CREATE
+
+CREATE BtnRed AS RBUTTON
+    .Caption = "Red"
+    .Left = 100
+    .Top = 430
+    .Width = 70
+    .Height = 35
+END CREATE
+
+CREATE BtnGreen AS RBUTTON
+    .Caption = "Green"
+    .Left = 180
+    .Top = 430
+    .Width = 70
+    .Height = 35
+END CREATE
+
+CREATE BtnBlue AS RBUTTON
+    .Caption = "Blue"
+    .Left = 260
+    .Top = 430
+    .Width = 70
+    .Height = 35
+END CREATE
+
+' --- Shape buttons ---
+CREATE BtnCircle AS RBUTTON
+    .Caption = "Circle"
+    .Left = 360
+    .Top = 430
+    .Width = 80
+    .Height = 35
+END CREATE
+
+CREATE BtnRect AS RBUTTON
+    .Caption = "Rectangle"
+    .Left = 450
+    .Top = 430
+    .Width = 80
+    .Height = 35
+END CREATE
+
+CREATE BtnClear AS RBUTTON
+    .Caption = "Clear"
+    .Left = 540
+    .Top = 430
+    .Width = 80
+    .Height = 35
+END CREATE
+
+CREATE LblStatus AS RLABEL
+    .Caption = "Click and drag to draw. Use buttons to change color or shape."
+    .Left = 20
+    .Top = 475
+    .Width = 600
+    .Height = 25
+END CREATE
+
+' --- Color handlers ---
+SUB BtnBlack_OnClick()
+    drawColor = "#000000"
+    LblColor.Caption = "Color: Black | Mode: " + shapeMode
+    PRINT "Color set to Black"
+END SUB
+
+SUB BtnRed_OnClick()
+    drawColor = "#FF0000"
+    LblColor.Caption = "Color: Red | Mode: " + shapeMode
+    PRINT "Color set to Red"
+END SUB
+
+SUB BtnGreen_OnClick()
+    drawColor = "#00AA00"
+    LblColor.Caption = "Color: Green | Mode: " + shapeMode
+    PRINT "Color set to Green"
+END SUB
+
+SUB BtnBlue_OnClick()
+    drawColor = "#0000FF"
+    LblColor.Caption = "Color: Blue | Mode: " + shapeMode
+    PRINT "Color set to Blue"
+END SUB
+
+' --- Shape mode handlers ---
+SUB BtnCircle_OnClick()
+    shapeMode = "circle"
+    LblColor.Caption = "Color: " + drawColor + " | Mode: Circle"
+    LblStatus.Caption = "Click on canvas to place circles."
+    PRINT "Shape mode: Circle"
+END SUB
+
+SUB BtnRect_OnClick()
+    shapeMode = "rect"
+    LblColor.Caption = "Color: " + drawColor + " | Mode: Rectangle"
+    LblStatus.Caption = "Click on canvas to place rectangles."
+    PRINT "Shape mode: Rectangle"
+END SUB
+
+' --- Canvas mouse events ---
+SUB Canvas1_OnMouseDown(x AS INTEGER, y AS INTEGER, button AS INTEGER)
+    isDrawing = 1
+    lastX = x
+    lastY = y
+    IF shapeMode = "circle" THEN
+        Canvas1.FillCircle(x, y, 25, drawColor)
+        LblStatus.Caption = "Drew circle at " + STR(x) + ", " + STR(y)
+    ELSE
+        IF shapeMode = "rect" THEN
+            Canvas1.FillRect(x - 20, y - 15, x + 20, y + 15, drawColor)
+            LblStatus.Caption = "Drew rect at " + STR(x) + ", " + STR(y)
+        END IF
+    END IF
+END SUB
+
+SUB Canvas1_OnMouseMove(x AS INTEGER, y AS INTEGER, button AS INTEGER)
+    LblCoords.Caption = "X: " + STR(x) + ", Y: " + STR(y)
+    IF isDrawing = 1 AND shapeMode = "free" THEN
+        Canvas1.Line(lastX, lastY, x, y, drawColor)
+        lastX = x
+        lastY = y
+    END IF
+END SUB
+
+SUB Canvas1_OnMouseUp(x AS INTEGER, y AS INTEGER, button AS INTEGER)
+    isDrawing = 0
+END SUB
+
+' --- Clear canvas ---
+SUB BtnClear_OnClick()
+    Canvas1.Cls
+    LblStatus.Caption = "Canvas cleared."
+    PRINT "Canvas cleared"
+END SUB
+
+' --- Wire up events ---
+BtnBlack.OnClick = BtnBlack_OnClick
+BtnRed.OnClick = BtnRed_OnClick
+BtnGreen.OnClick = BtnGreen_OnClick
+BtnBlue.OnClick = BtnBlue_OnClick
+BtnCircle.OnClick = BtnCircle_OnClick
+BtnRect.OnClick = BtnRect_OnClick
+BtnClear.OnClick = BtnClear_OnClick
+Canvas1.OnMouseDown = Canvas1_OnMouseDown
+Canvas1.OnMouseMove = Canvas1_OnMouseMove
+Canvas1.OnMouseUp = Canvas1_OnMouseUp
+
+' Draw initial welcome text
+Canvas1.DrawText(150, 180, "Welcome to RapidR Canvas!", "#333333")
+
+PRINT "Canvas drawing app ready!"
