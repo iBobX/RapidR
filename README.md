@@ -64,7 +64,7 @@ RapidR has reached **functional transpiler status**. The Rust workspace provides
 
 ### Key Capabilities
 
-- **Native GUI via FLTK** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, MDI, splitters, scroll boxes, and more
+- **Native GUI via FLTK** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, splitters, scroll boxes, and more
 - **Web GUI via WASM** — Same component API compiled to WebAssembly for browser deployment, plus 9 web-exclusive components (RWebView, RDOM, RJavaScript, RWebStorage, RWebAudio, RWebVideo, RWebNotification, RWebGeolocation, RRouter)
 - **FLTK Themes** — `$THEME` directive supports: Classic, Aero, Metro, AquaClassic, Greybird, Blue, Dark, HighContrast; also `$THEME AUTO` for OS-based selection
 - **Global variable mechanism** — Module-level `DIM` variables use thread-local storage (`gv()`/`gs()` accessors), correctly shared across all SUBs/FUNCTIONs
@@ -104,6 +104,8 @@ cd examples/hello_web_web && python3 -m http.server 8080
 
 - Rust toolchain (edition 2021+) — install via [rustup](https://rustup.rs/)
 - A C/C++ compiler (for FLTK compilation) — Xcode Command Line Tools on macOS, `build-essential` on Linux, MSVC on Windows
+
+Google is your best friend!
 
 ### Building
 
@@ -208,7 +210,7 @@ Powered by **FLTK** (via the `fltk` crate), the runtime provides **49+ component
 | Component | Description |
 |-----------|-------------|
 | `RForm` | Top-level window |
-| `RFormMDI` | MDI parent form |
+| `RFormMDI` | MDI parent form (WIP) |
 | `RPanel` | Container panel |
 | `RGroupBox` | Labeled group container |
 | `RTabControl` | Tabbed container |
@@ -763,7 +765,7 @@ python3 -m http.server 8080
 
 ## The Self-Hosted IDE
 
-The project ships with its own robust **Visual Form Designer & Code Editor** (`ide.rr`).
+The project ships with its own experimental and WIP **Visual Form Designer & Code Editor** (`ide.rr`).
 
 - **Self-hosting**: Written purely in RapidR BASIC, serving as the ultimate benchmark of the transpiler's completeness.
 - **Native compilation**: Compiles to a native FLTK GUI application.
@@ -780,6 +782,7 @@ The project ships with its own robust **Visual Form Designer & Code Editor** (`i
 cargo run -- codegen examples/ide.rr /tmp/ide_rust
 cd /tmp/ide_rust && cargo build && ./target/debug/ide
 ```
+**Important:** The IDE is a work in progress and has lots of quirks, but it demonstrates the full capabilities of the RapidR runtime. For Code Editor syntax highlighting and IntelliSense, I recommend using the VS Code extension described below.
 
 ---
 
