@@ -96,7 +96,7 @@ The Rust migration has reached **functional transpiler status** with a complete 
 **Current validation:**
 - All Rust unit tests pass across all crates
 - All 29 example programs generate, compile, and run
-- The self-hosted IDE (`examples/ide.rr`) compiles to a native FLTK application with working properties, events, code view, and design surface
+- The self-hosted IDE (`examples/ide.rr`) compiles to a native FLTK application with working properties, events, code view, and design surface, still WIP but demonstrates the full pipeline.
 
 ```bash
 cargo test                  # Run all tests
