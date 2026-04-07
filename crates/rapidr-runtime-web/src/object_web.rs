@@ -1478,6 +1478,6 @@ pub fn set_theme(_theme: &str) {
     // Themes don't apply to web — Tailwind provides the styling
 }
 
-pub fn gui_register_timer(_name: &str, _interval: i32) {
+pub fn gui_register_timer(_name: &str) {
     // Timers are handled via DOM setInterval in update_timer()
 }

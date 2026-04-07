@@ -5,19 +5,6 @@
 ' ============================================================
 $APPTYPE WEB
 
-DIM Form1 AS RFORM
-DIM Canvas1 AS RCANVAS
-DIM BtnClear AS RBUTTON
-DIM BtnRed AS RBUTTON
-DIM BtnGreen AS RBUTTON
-DIM BtnBlue AS RBUTTON
-DIM BtnBlack AS RBUTTON
-DIM BtnCircle AS RBUTTON
-DIM BtnRect AS RBUTTON
-DIM LblColor AS RLABEL
-DIM LblStatus AS RLABEL
-DIM LblCoords AS RLABEL
-
 DIM drawColor AS STRING
 DIM isDrawing AS INTEGER
 DIM lastX AS INTEGER
@@ -31,103 +18,104 @@ lastY = 0
 shapeMode = "free"
 
 CREATE Form1 AS RFORM
-    .Caption = "RapidR Canvas Drawing"
-    .Width = 650
-    .Height = 520
-    .Left = 50
-    .Top = 20
+    Caption = "RapidR Canvas Drawing"
+    Width = 650
+    Height = 520
+    Left = 50
+    Top = 20
+
+    CREATE LblColor AS RLABEL
+        Caption = "Color: Black | Mode: Free Draw"
+        Left = 20
+        Top = 10
+        Width = 400
+        Height = 25
+        FontSize = 13
+        FontBold = 1
+    END CREATE
+
+    CREATE LblCoords AS RLABEL
+        Caption = "X: 0, Y: 0"
+        Left = 430
+        Top = 10
+        Width = 200
+        Height = 25
+    END CREATE
+
+    CREATE Canvas1 AS RCANVAS
+        Left = 20
+        Top = 40
+        Width = 600
+        Height = 380
+    END CREATE
+
+    ' --- Color buttons ---
+    CREATE BtnBlack AS RBUTTON
+        Caption = "Black"
+        Left = 20
+        Top = 430
+        Width = 70
+        Height = 35
+    END CREATE
+
+    CREATE BtnRed AS RBUTTON
+        Caption = "Red"
+        Left = 100
+        Top = 430
+        Width = 70
+        Height = 35
+    END CREATE
+
+    CREATE BtnGreen AS RBUTTON
+        Caption = "Green"
+        Left = 180
+        Top = 430
+        Width = 70
+        Height = 35
+    END CREATE
+
+    CREATE BtnBlue AS RBUTTON
+        Caption = "Blue"
+        Left = 260
+        Top = 430
+        Width = 70
+        Height = 35
+    END CREATE
+
+    ' --- Shape buttons ---
+    CREATE BtnCircle AS RBUTTON
+        Caption = "Circle"
+        Left = 360
+        Top = 430
+        Width = 80
+        Height = 35
+    END CREATE
+
+    CREATE BtnRect AS RBUTTON
+        Caption = "Rectangle"
+        Left = 450
+        Top = 430
+        Width = 80
+        Height = 35
+    END CREATE
+
+    CREATE BtnClear AS RBUTTON
+        Caption = "Clear"
+        Left = 540
+        Top = 430
+        Width = 80
+        Height = 35
+    END CREATE
+
+    CREATE LblStatus AS RLABEL
+        Caption = "Click and drag to draw Use buttons to change color or shape."
+        Left = 20
+        Top = 475
+        Width = 600
+        Height = 25
+    END CREATE
 END CREATE
 
-CREATE LblColor AS RLABEL
-    .Caption = "Color: Black | Mode: Free Draw"
-    .Left = 20
-    .Top = 10
-    .Width = 400
-    .Height = 25
-    .FontSize = 13
-    .FontBold = 1
-END CREATE
-
-CREATE LblCoords AS RLABEL
-    .Caption = "X: 0, Y: 0"
-    .Left = 430
-    .Top = 10
-    .Width = 200
-    .Height = 25
-END CREATE
-
-CREATE Canvas1 AS RCANVAS
-    .Left = 20
-    .Top = 40
-    .Width = 600
-    .Height = 380
-END CREATE
-
-' --- Color buttons ---
-CREATE BtnBlack AS RBUTTON
-    .Caption = "Black"
-    .Left = 20
-    .Top = 430
-    .Width = 70
-    .Height = 35
-END CREATE
-
-CREATE BtnRed AS RBUTTON
-    .Caption = "Red"
-    .Left = 100
-    .Top = 430
-    .Width = 70
-    .Height = 35
-END CREATE
-
-CREATE BtnGreen AS RBUTTON
-    .Caption = "Green"
-    .Left = 180
-    .Top = 430
-    .Width = 70
-    .Height = 35
-END CREATE
-
-CREATE BtnBlue AS RBUTTON
-    .Caption = "Blue"
-    .Left = 260
-    .Top = 430
-    .Width = 70
-    .Height = 35
-END CREATE
-
-' --- Shape buttons ---
-CREATE BtnCircle AS RBUTTON
-    .Caption = "Circle"
-    .Left = 360
-    .Top = 430
-    .Width = 80
-    .Height = 35
-END CREATE
-
-CREATE BtnRect AS RBUTTON
-    .Caption = "Rectangle"
-    .Left = 450
-    .Top = 430
-    .Width = 80
-    .Height = 35
-END CREATE
-
-CREATE BtnClear AS RBUTTON
-    .Caption = "Clear"
-    .Left = 540
-    .Top = 430
-    .Width = 80
-    .Height = 35
-END CREATE
-
-CREATE LblStatus AS RLABEL
-    .Caption = "Click and drag to draw. Use buttons to change color or shape."
-    .Left = 20
-    .Top = 475
-    .Width = 600
-    .Height = 25
-END CREATE
 
 ' --- Color handlers ---
 SUB BtnBlack_OnClick()

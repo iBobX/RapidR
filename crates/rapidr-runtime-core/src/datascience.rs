@@ -1526,8 +1526,19 @@ pub fn plot_set_prop(name: &str, prop: &str, val: &Value) {
     plot_set(name, state);
 }
 
-/// Render the accumulated plot state to a PNG file.
-fn render_plot(name: &str, filename: &str) {
+/// Encode an RGB pixel buffer to PNG bytes in memory.
+fn encode_rgb_to_png(buf: &[u8], w: u32, h: u32) -> Vec<u8> {
+    let mut png_bytes: Vec<u8> = Vec::new();
+    {
+        let encoder = image::codecs::png::PngEncoder::new(std::io::Cursor::new(&mut png_bytes));
+        use image::ImageEncoder;
+        let _ = encoder.write_image(buf, w, h, image::ColorType::Rgb8);
+    }
+    png_bytes
+}
+
+/// Render the accumulated plot state to PNG bytes in memory.
+fn render_plot_bytes(name: &str) -> Vec<u8> {
     let state = plot_get(name);
     // If width/height look like matplotlib-style inches (< 100), convert to pixels at DPI
     let dpi = state.dpi.max(50);
@@ -1536,12 +1547,13 @@ fn render_plot(name: &str, filename: &str) {
 
     // Check for pie chart (special rendering)
     if state.series.iter().any(|s| s.style == "pie") {
-        render_pie_chart(&state, filename, w, h);
-        return;
+        return render_pie_chart_bytes(&state, w, h);
     }
 
-    let root = BitMapBackend::new(filename, (w, h)).into_drawing_area();
-    if root.fill(&WHITE).is_err() { return; }
+    let mut pixel_buf = vec![0u8; (w * h * 3) as usize];
+    {
+    let root = BitMapBackend::with_buffer(&mut pixel_buf, (w, h)).into_drawing_area();
+    if root.fill(&WHITE).is_err() { return Vec::new(); }
 
     // Compute data bounds
     let mut x_min = f64::INFINITY;
@@ -1594,7 +1606,7 @@ fn render_plot(name: &str, filename: &str) {
     );
     let mut chart = match chart_result {
         Ok(c) => c,
-        Err(e) => { eprintln!("[ERROR] RPlot chart build: {}", e); return; }
+        Err(e) => { eprintln!("[ERROR] RPlot chart build: {}", e); return Vec::new(); }
     };
 
     let mut mesh = chart.configure_mesh();
@@ -1712,12 +1724,24 @@ fn render_plot(name: &str, filename: &str) {
     }
 
     let _ = root.present();
+    } // drop root / pixel_buf borrow
+    encode_rgb_to_png(&pixel_buf, w, h)
 }
 
-/// Render pie chart (special case - no cartesian axes)
-fn render_pie_chart(state: &PlotState, filename: &str, w: u32, h: u32) {
-    let root = BitMapBackend::new(filename, (w, h)).into_drawing_area();
-    if root.fill(&WHITE).is_err() { return; }
+/// Render the accumulated plot state to a PNG file (used by savefig).
+fn render_plot(name: &str, filename: &str) {
+    let bytes = render_plot_bytes(name);
+    if !bytes.is_empty() {
+        let _ = std::fs::write(filename, &bytes);
+    }
+}
+
+/// Render pie chart to PNG bytes (special case - no cartesian axes)
+fn render_pie_chart_bytes(state: &PlotState, w: u32, h: u32) -> Vec<u8> {
+    let mut pixel_buf = vec![0u8; (w * h * 3) as usize];
+    {
+    let root = BitMapBackend::with_buffer(&mut pixel_buf, (w, h)).into_drawing_area();
+    if root.fill(&WHITE).is_err() { return Vec::new(); }
 
     if !state.title.is_empty() {
         let _ = root.titled(&state.title, ("sans-serif", 20));
@@ -1725,10 +1749,10 @@ fn render_pie_chart(state: &PlotState, filename: &str, w: u32, h: u32) {
 
     let pie_data: Vec<f64> = state.series.iter()
         .flat_map(|s| s.x_data.iter().cloned()).collect();
-    if pie_data.is_empty() { return; }
+    if pie_data.is_empty() { return Vec::new(); }
 
     let total: f64 = pie_data.iter().sum();
-    if total <= 0.0 { return; }
+    if total <= 0.0 { return Vec::new(); }
 
     let labels_str = state.series.first().map(|s| &s.label).cloned().unwrap_or_default();
     let labels: Vec<&str> = if labels_str.is_empty() {
@@ -1780,11 +1804,11 @@ fn render_pie_chart(state: &PlotState, filename: &str, w: u32, h: u32) {
     }
 
     let _ = root.present();
+    } // drop root / pixel_buf borrow
+    encode_rgb_to_png(&pixel_buf, w, h)
 }
 
-/// Render plot to a temp file and return the path.
-pub fn plot_render_to_file(name: &str) -> String {
-    let filename = format!("/tmp/rapidr_plot_{}.png", name.to_lowercase());
-    render_plot(name, &filename);
-    filename
+/// Render plot to PNG bytes in memory.
+pub fn plot_render_to_bytes(name: &str) -> Vec<u8> {
+    render_plot_bytes(name)
 }

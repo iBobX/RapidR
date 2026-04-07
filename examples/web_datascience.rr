@@ -6,256 +6,239 @@
 ' ============================================================
 $APPTYPE WEB
 
-DIM Form1 AS RFORM
-DIM LblTitle AS RLABEL
-DIM Tabs1 AS RTABCONTROL
-
-' -- Num tab --
-DIM BtnNumBasic AS RBUTTON
-DIM BtnNumStats AS RBUTTON
-DIM BtnNumMath AS RBUTTON
-DIM GridNum AS RSTRINGGRID
-DIM LblNumStatus AS RLABEL
-DIM arr1 AS RNUM
-DIM arr2 AS RNUM
-
-' -- DataFrame tab --
-DIM BtnDfCreate AS RBUTTON
-DIM BtnDfFilter AS RBUTTON
-DIM BtnDfStats AS RBUTTON
-DIM GridDf AS RSTRINGGRID
-DIM LblDfStatus AS RLABEL
 DIM df1 AS RDATAFRAME
+DIM arr1 AS RNum
+DIM arr2 AS RNum
+DIM insertRow AS INTEGER
+DIM nextId AS INTEGER
 
-' -- Plot tab --
-DIM BtnPlotLine AS RBUTTON
-DIM BtnPlotBar AS RBUTTON
-DIM BtnPlotPie AS RBUTTON
-DIM Plot1 AS RPLOT
-DIM LblPlotStatus AS RLABEL
-
-' -- SQLite tab --
-DIM BtnDbCreate AS RBUTTON
-DIM BtnDbQuery AS RBUTTON
-DIM BtnDbInsert AS RBUTTON
-DIM GridDb AS RSTRINGGRID
-DIM LblDbStatus AS RLABEL
+' -- SQLite DB --
 DIM db AS RSQLITE
 
 ' ============================================================
 ' Form
 ' ============================================================
 CREATE Form1 AS RFORM
-    .Caption = "RapidR Data Science Demo"
-    .Width = 720
-    .Height = 560
-    .Left = 40
-    .Top = 20
+    Caption = "RapidR Data Science Demo"
+    Width = 720
+    Height = 560
+    Left = 40
+    Top = 20
+    CREATE LblTitle AS RLABEL
+        Caption = "Data Science Components"
+        Left = 20
+        Top = 8
+        Width = 350
+        Height = 28
+        FontSize = 17
+        FontBold = 1
+    END CREATE
+
+    CREATE Tabs1 AS RTABCONTROL
+        Left = 20
+        Top = 42
+        Width = 680
+        Height = 36
+        OnChange = Tabs1_OnChange
+    END CREATE
+
+    ' ============================================================
+    ' RNum panel
+    ' ============================================================
+    CREATE BtnNumBasic AS RBUTTON
+        Caption = "Basic Ops"
+        Left = 20
+        Top = 86
+        Width = 100
+        Height = 28
+        OnClick = BtnNumBasic_OnClick
+    END CREATE
+
+    CREATE BtnNumStats AS RBUTTON
+        Caption = "Statistics"
+        Left = 130
+        Top = 86
+        Width = 100
+        Height = 28
+        OnClick = BtnNumStats_OnClick
+    END CREATE
+
+    CREATE BtnNumMath AS RBUTTON
+        Caption = "Math"
+        Left = 240
+        Top = 86
+        Width = 100
+        Height = 28
+        OnClick = BtnNumMath_OnClick
+    END CREATE
+
+    CREATE LblNumStatus AS RLABEL
+        Caption = "Click a button to run RNum operations"
+        Left = 350
+        Top = 90
+        Width = 340
+        Height = 22
+    END CREATE
+
+    CREATE GridNum AS RSTRINGGRID
+        Left = 20
+        Top = 120
+        Width = 680
+        Height = 380
+    END CREATE
+
+    ' ============================================================
+    ' DataFrame panel (hidden initially)
+    ' ============================================================
+    CREATE BtnDfCreate AS RBUTTON
+        Caption = "Create DF"
+        Left = 20
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnDfCreate_OnClick
+    END CREATE
+
+    CREATE BtnDfFilter AS RBUTTON
+        Caption = "Filter"
+        Left = 130
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnDfFilter_OnClick
+    END CREATE
+
+    CREATE BtnDfStats AS RBUTTON
+        Caption = "Describe"
+        Left = 240
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnDfStats_OnClick
+    END CREATE
+
+    CREATE LblDfStatus AS RLABEL
+        Caption = ""
+        Left = 350
+        Top = 90
+        Width = 340
+        Height = 22
+        Visible = 0
+    END CREATE
+
+    CREATE GridDf AS RSTRINGGRID
+        Left = 20
+        Top = 120
+        Width = 680
+        Height = 380
+        Visible = 0
+    END CREATE
+
+    ' ============================================================
+    ' Plot panel (hidden initially)
+    ' ============================================================
+    CREATE BtnPlotLine AS RBUTTON
+        Caption = "Line Chart"
+        Left = 20
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnPlotLine_OnClick
+    END CREATE
+
+    CREATE BtnPlotBar AS RBUTTON
+        Caption = "Bar Chart"
+        Left = 130
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnPlotBar_OnClick
+    END CREATE
+
+    CREATE BtnPlotPie AS RBUTTON
+        Caption = "Pie Chart"
+        Left = 240
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnPlotPie_OnClick
+    END CREATE
+
+    CREATE LblPlotStatus AS RLABEL
+        Caption = ""
+        Left = 350
+        Top = 90
+        Width = 340
+        Height = 22
+        Visible = 0
+    END CREATE
+
+    CREATE Plot1 AS RPLOT
+        Left = 20
+        Top = 120
+        Width = 680
+        Height = 380
+    END CREATE
+
+    ' ============================================================
+    ' SQLite panel (hidden initially)
+    ' ============================================================
+    CREATE BtnDbCreate AS RBUTTON
+        Caption = "Create DB"
+        Left = 20
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnDbCreate_OnClick
+    END CREATE
+
+    CREATE BtnDbQuery AS RBUTTON
+        Caption = "Query"
+        Left = 130
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnDbQuery_OnClick
+    END CREATE
+
+    CREATE BtnDbInsert AS RBUTTON
+        Caption = "Insert Row"
+        Left = 240
+        Top = 86
+        Width = 100
+        Height = 28
+        Visible = 0
+        OnClick = BtnDbInsert_OnClick
+    END CREATE
+
+    CREATE LblDbStatus AS RLABEL
+        Caption = ""
+        Left = 350
+        Top = 90
+        Width = 340
+        Height = 22
+        Visible = 0
+    END CREATE
+
+    CREATE GridDb AS RSTRINGGRID
+        Left = 20
+        Top = 120
+        Width = 680
+        Height = 380
+        Visible = 0
+    END CREATE
+
 END CREATE
 
-CREATE LblTitle AS RLABEL
-    .Caption = "Data Science Components"
-    .Left = 20
-    .Top = 8
-    .Width = 350
-    .Height = 28
-    .FontSize = 17
-    .FontBold = 1
-END CREATE
 
-CREATE Tabs1 AS RTABCONTROL
-    .Left = 20
-    .Top = 42
-    .Width = 680
-    .Height = 36
-END CREATE
-
-Tabs1.AddTab("RNum")
-Tabs1.AddTab("DataFrame")
-Tabs1.AddTab("Plot")
-Tabs1.AddTab("SQLite")
-
-' ============================================================
-' RNum panel
-' ============================================================
-CREATE BtnNumBasic AS RBUTTON
-    .Caption = "Basic Ops"
-    .Left = 20
-    .Top = 86
-    .Width = 100
-    .Height = 28
-END CREATE
-
-CREATE BtnNumStats AS RBUTTON
-    .Caption = "Statistics"
-    .Left = 130
-    .Top = 86
-    .Width = 100
-    .Height = 28
-END CREATE
-
-CREATE BtnNumMath AS RBUTTON
-    .Caption = "Math"
-    .Left = 240
-    .Top = 86
-    .Width = 100
-    .Height = 28
-END CREATE
-
-CREATE LblNumStatus AS RLABEL
-    .Caption = "Click a button to run RNum operations"
-    .Left = 350
-    .Top = 90
-    .Width = 340
-    .Height = 22
-END CREATE
-
-CREATE GridNum AS RSTRINGGRID
-    .Left = 20
-    .Top = 120
-    .Width = 680
-    .Height = 380
-END CREATE
-
-' ============================================================
-' DataFrame panel (hidden initially)
-' ============================================================
-CREATE BtnDfCreate AS RBUTTON
-    .Caption = "Create DF"
-    .Left = 20
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE BtnDfFilter AS RBUTTON
-    .Caption = "Filter"
-    .Left = 130
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE BtnDfStats AS RBUTTON
-    .Caption = "Describe"
-    .Left = 240
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE LblDfStatus AS RLABEL
-    .Caption = ""
-    .Left = 350
-    .Top = 90
-    .Width = 340
-    .Height = 22
-    .Visible = 0
-END CREATE
-
-CREATE GridDf AS RSTRINGGRID
-    .Left = 20
-    .Top = 120
-    .Width = 680
-    .Height = 380
-    .Visible = 0
-END CREATE
-
-' ============================================================
-' Plot panel (hidden initially)
-' ============================================================
-CREATE BtnPlotLine AS RBUTTON
-    .Caption = "Line Chart"
-    .Left = 20
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE BtnPlotBar AS RBUTTON
-    .Caption = "Bar Chart"
-    .Left = 130
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE BtnPlotPie AS RBUTTON
-    .Caption = "Pie Chart"
-    .Left = 240
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE LblPlotStatus AS RLABEL
-    .Caption = ""
-    .Left = 350
-    .Top = 90
-    .Width = 340
-    .Height = 22
-    .Visible = 0
-END CREATE
-
-CREATE Plot1 AS RPLOT
-    .Left = 20
-    .Top = 120
-    .Width = 680
-    .Height = 380
-END CREATE
-
-' ============================================================
-' SQLite panel (hidden initially)
-' ============================================================
-CREATE BtnDbCreate AS RBUTTON
-    .Caption = "Create DB"
-    .Left = 20
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE BtnDbQuery AS RBUTTON
-    .Caption = "Query"
-    .Left = 130
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE BtnDbInsert AS RBUTTON
-    .Caption = "Insert Row"
-    .Left = 240
-    .Top = 86
-    .Width = 100
-    .Height = 28
-    .Visible = 0
-END CREATE
-
-CREATE LblDbStatus AS RLABEL
-    .Caption = ""
-    .Left = 350
-    .Top = 90
-    .Width = 340
-    .Height = 22
-    .Visible = 0
-END CREATE
-
-CREATE GridDb AS RSTRINGGRID
-    .Left = 20
-    .Top = 120
-    .Width = 680
-    .Height = 380
-    .Visible = 0
-END CREATE
 
 ' ============================================================
 ' Tab switching
@@ -325,8 +308,6 @@ END SUB
 ' ============================================================
 ' RNum handlers
 ' ============================================================
-DIM insertRow AS INTEGER
-
 SUB BtnNumBasic_OnClick()
     arr1.arange(1, 11, 1)
     arr2.arange(10, 110, 10)
@@ -541,8 +522,6 @@ END SUB
 ' ============================================================
 ' SQLite handlers
 ' ============================================================
-DIM nextId AS INTEGER
-nextId = 4
 
 SUB BtnDbCreate_OnClick()
     db.connect("demo")
@@ -614,22 +593,18 @@ SUB BtnDbInsert_OnClick()
     BtnDbQuery_OnClick()
 END SUB
 
+
+
 ' ============================================================
-' Wire events
+' ADD Tabs
 ' ============================================================
-Tabs1.OnChange = Tabs1_OnChange
-BtnNumBasic.OnClick = BtnNumBasic_OnClick
-BtnNumStats.OnClick = BtnNumStats_OnClick
-BtnNumMath.OnClick = BtnNumMath_OnClick
-BtnDfCreate.OnClick = BtnDfCreate_OnClick
-BtnDfFilter.OnClick = BtnDfFilter_OnClick
-BtnDfStats.OnClick = BtnDfStats_OnClick
-BtnPlotLine.OnClick = BtnPlotLine_OnClick
-BtnPlotBar.OnClick = BtnPlotBar_OnClick
-BtnPlotPie.OnClick = BtnPlotPie_OnClick
-BtnDbCreate.OnClick = BtnDbCreate_OnClick
-BtnDbQuery.OnClick = BtnDbQuery_OnClick
-BtnDbInsert.OnClick = BtnDbInsert_OnClick
+
+Tabs1.AddTab("RNum")
+Tabs1.AddTab("DataFrame")
+Tabs1.AddTab("Plot")
+Tabs1.AddTab("SQLite")
+
+nextId = 4
 
 ' Start on RNum tab
 ShowTab(0)

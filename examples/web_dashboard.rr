@@ -5,18 +5,6 @@
 ' ============================================================
 $APPTYPE WEB
 
-DIM Form1 AS RFORM
-DIM LblTitle AS RLABEL
-DIM Tabs1 AS RTABCONTROL
-DIM Timer1 AS RTIMER
-DIM LblClock AS RLABEL
-DIM Progress1 AS RPROGRESSBAR
-DIM Grid1 AS RSTRINGGRID
-DIM BtnResetProgress AS RBUTTON
-DIM Combo1 AS RCOMBOBOX
-DIM LblSelected AS RLABEL
-DIM LblTimerCount AS RLABEL
-
 DIM progressVal AS INTEGER
 DIM timerTicks AS INTEGER
 
@@ -24,96 +12,97 @@ progressVal = 0
 timerTicks = 0
 
 CREATE Form1 AS RFORM
-    .Caption = "RapidR Web Dashboard"
-    .Width = 600
-    .Height = 520
-    .Left = 60
-    .Top = 30
+    Caption = "RapidR Web Dashboard"
+    Width = 600
+    Height = 520
+    Left = 60
+    Top = 30
+
+    CREATE LblTitle AS RLABEL
+        Caption = "Dashboard Demo"
+        Left = 20
+        Top = 10
+        Width = 300
+        Height = 30
+        FontSize = 18
+        FontBold = 1
+    END CREATE
+
+    CREATE LblClock AS RLABEL
+        Caption = "Time: --:--:--"
+        Left = 380
+        Top = 10
+        Width = 200
+        Height = 30
+        FontSize = 14
+    END CREATE
+
+    ' --- Timer ---
+    CREATE Timer1 AS RTIMER
+        Interval = 1000
+        Enabled = 1
+    END CREATE
+
+    ' --- Progress bar ---
+    CREATE Progress1 AS RPROGRESSBAR
+        Left = 20
+        Top = 50
+        Width = 450
+        Height = 25
+        Min = 0
+        Max = 100
+        Position = 0
+    END CREATE
+
+    CREATE BtnResetProgress AS RBUTTON
+        Caption = "Reset"
+        Left = 480
+        Top = 50
+        Width = 100
+        Height = 25
+    END CREATE
+
+    CREATE LblTimerCount AS RLABEL
+        Caption = "Ticks: 0"
+        Left = 20
+        Top = 80
+        Width = 200
+        Height = 20
+    END CREATE
+
+    ' --- Tabs ---
+    CREATE Tabs1 AS RTABCONTROL
+        Left = 20
+        Top = 110
+        Width = 560
+        Height = 40
+    END CREATE
+
+    ' --- Combo box ---
+    CREATE Combo1 AS RCOMBOBOX
+        Left = 20
+        Top = 165
+        Width = 250
+        Height = 30
+    END CREATE
+
+    CREATE LblSelected AS RLABEL
+        Caption = "Selected: (none)"
+        Left = 280
+        Top = 170
+        Width = 300
+        Height = 25
+    END CREATE
+
+    ' --- Grid ---
+    CREATE Grid1 AS RSTRINGGRID
+        Left = 20
+        Top = 210
+        Width = 560
+        Height = 250
+    END CREATE
 END CREATE
 
-CREATE LblTitle AS RLABEL
-    .Caption = "Dashboard Demo"
-    .Left = 20
-    .Top = 10
-    .Width = 300
-    .Height = 30
-    .FontSize = 18
-    .FontBold = 1
-END CREATE
-
-CREATE LblClock AS RLABEL
-    .Caption = "Time: --:--:--"
-    .Left = 380
-    .Top = 10
-    .Width = 200
-    .Height = 30
-    .FontSize = 14
-END CREATE
-
-' --- Timer ---
-CREATE Timer1 AS RTIMER
-    .Interval = 1000
-    .Enabled = 1
-END CREATE
-
-' --- Progress bar ---
-CREATE Progress1 AS RPROGRESSBAR
-    .Left = 20
-    .Top = 50
-    .Width = 450
-    .Height = 25
-    .Min = 0
-    .Max = 100
-    .Position = 0
-END CREATE
-
-CREATE BtnResetProgress AS RBUTTON
-    .Caption = "Reset"
-    .Left = 480
-    .Top = 50
-    .Width = 100
-    .Height = 25
-END CREATE
-
-CREATE LblTimerCount AS RLABEL
-    .Caption = "Ticks: 0"
-    .Left = 20
-    .Top = 80
-    .Width = 200
-    .Height = 20
-END CREATE
-
-' --- Tabs ---
-CREATE Tabs1 AS RTABCONTROL
-    .Left = 20
-    .Top = 110
-    .Width = 560
-    .Height = 40
-END CREATE
-
-' --- Combo box ---
-CREATE Combo1 AS RCOMBOBOX
-    .Left = 20
-    .Top = 165
-    .Width = 250
-    .Height = 30
-END CREATE
-
-CREATE LblSelected AS RLABEL
-    .Caption = "Selected: (none)"
-    .Left = 280
-    .Top = 170
-    .Width = 300
-    .Height = 25
-END CREATE
-
-' --- Grid ---
-CREATE Grid1 AS RSTRINGGRID
-    .Left = 20
-    .Top = 210
-    .Width = 560
-    .Height = 250
-END CREATE
 
 ' --- Populate combo box ---
 Combo1.AddItem("Dashboard")

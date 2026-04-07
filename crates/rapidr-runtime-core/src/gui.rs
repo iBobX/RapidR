@@ -3529,13 +3529,28 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "loadfromplot" => {
-            // Render the current matplotlib plot and load it into this image widget.
-            // The first arg is the matplotlib component name.
+            // Render the plot to PNG bytes in memory and load directly into the widget.
             let plot_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             #[cfg(feature = "datascience")]
             {
-                let png_path = crate::datascience::plot_render_to_file(&plot_name);
-                load_image_file(&name_lower, &png_path);
+                let png_bytes = crate::datascience::plot_render_to_bytes(&plot_name);
+                if !png_bytes.is_empty() {
+                    if let Ok(mut img) = fltk::image::PngImage::from_data(&png_bytes) {
+                        GUI_WIDGETS.with(|gw| {
+                            let mut widgets = gw.borrow_mut();
+                            if let Some(GuiWidget::ImageFrame(ref mut frm)) = widgets.get_mut(&name_lower) {
+                                let w = frm.w();
+                                let h = frm.h();
+                                let stretch = rp_comp_get(&name_lower, "stretch").to_i64() != 0;
+                                if stretch && w > 0 && h > 0 {
+                                    img.scale(w, h, true, true);
+                                }
+                                frm.set_image(Some(img));
+                                frm.redraw();
+                            }
+                        });
+                    }
+                }
             }
             #[cfg(not(feature = "datascience"))]
             {

@@ -688,8 +688,7 @@ df.togrid "Grid1"          ' Populate RStringGrid with DataFrame
 DIM plt AS RPlot
 DIM img AS RImage
 plt.plot x, y, "red", "Data"
-plt.savefig "temp.png"
-img.loadfromfile "temp.png"
+img.loadfromplot plt
 ```
 
 ---

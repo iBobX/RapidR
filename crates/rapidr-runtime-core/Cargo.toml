@@ -15,6 +15,7 @@ mysql = { version = "25", optional = true }
 ndarray = { version = "0.16", optional = true }
 polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log"] }
 plotters = { version = "0.3", optional = true }
+image = { version = "0.24", optional = true, default-features = false, features = ["png"] }
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
 
@@ -23,6 +24,6 @@ default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rusqlite", "dep:mysql"]
 network = ["dep:ureq"]
 gui = ["dep:fltk", "dep:fltk-theme"]
-datascience = ["dep:ndarray", "dep:polars", "dep:plotters"]
+datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
 ffi = ["dep:libloading"]
