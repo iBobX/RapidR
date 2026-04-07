@@ -359,7 +359,7 @@ class RapidRCompletionProvider {
             'RSCROLLBOX': 'RScrollBox', 'RPOPUPMENU': 'RPopupMenu',
             'RINI': 'RIni', 'RMEMORYSTREAM': 'RMemoryStream', 'RSTRINGLIST': 'RStringList',
             'RPRINTER': 'RPrinter', 'RNUM': 'RNum', 'RPLOT': 'RPlot',
-            'RDATAFRAME': 'RDataFrame'
+            'RDATAFRAME': 'RDataFrame', 'RJSON': 'RJson'
         };
         return nameMap[upperName] || upperName;
     }

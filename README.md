@@ -3,7 +3,7 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **49+ GUI components** (P-prefixed: `RForm`, `RButton`, `RStringGrid`, …), **9 web-exclusive components** (`RWebView`, `RDOM`, `RJavaScript`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK or to **WebAssembly** for browser deployment.
+**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **52+ GUI components** (R-prefixed: `RForm`, `RButton`, `RCoolBtn`, `ROvalBtn`, `RJson`, `RStringGrid`, …), **9 web-exclusive components** (`RWebView`, `RDOM`, `RJavaScript`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, JSON processing, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK or to **WebAssembly** for browser deployment.
 
 > **Note:** RapidR is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidR extends the language with data science components (RNum, RPlot, RDataFrame), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
 
@@ -46,7 +46,7 @@ The Rust workspace under `crates/` provides a full transpilation pipeline that g
 
 ## Status
 
-RapidR has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rr` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
+RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rr` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
 
 ### Crate Architecture (9 crates)
 
@@ -71,6 +71,7 @@ RapidR has reached **functional transpiler status**. The Rust workspace provides
 - **User-Defined Types** — `TYPE...END TYPE` with fields, inheritance, constructors, and methods
 - **Database** — MySQL (via `mysql` crate) and SQLite (via `rusqlite`) with property-based API
 - **Networking** — TCP sockets, server sockets, HTTP client
+- **JSON** — `RJson` component for parsing, generating, dot-path access, and file I/O (cross-platform: desktop + web)
 - **100+ built-in functions** — String, math, file I/O, system operations
 - **Self-hosted IDE** — The visual form designer (`examples/ide.rr`) compiles to a native FLTK application
 - **Data science** — RNum (ndarray), RDataFrame (polars), RPlot (plotters) components for array math, dataframes, and plotting
@@ -79,19 +80,19 @@ RapidR has reached **functional transpiler status**. The Rust workspace provides
 ### Validation
 
 ```bash
-# Run all 70 Rust unit tests
+# Run all unit tests
 cargo test
 
-# Generate and build an example
-cargo run -- codegen examples/hello_world.rr /tmp/hello
-cd /tmp/hello && cargo build && ./target/debug/hello_world
+# Compile and run an example
+./rapidr --release examples/hello_world.rr
+./examples/hello_world
 
-# Generate and run the IDE
-cargo run -- codegen examples/ide.rr /tmp/ide_rust
-cd /tmp/ide_rust && cargo build && ./target/debug/ide
+# Generate and build the IDE
+./rapidr build examples/ide.rr examples/ide_rust --release
+./examples/ide
 
 # Compile for the web (WASM)
-cargo run -- codegen --web examples/hello_web.rr
+./rapidr --web examples/hello_web.rr
 # Serve and open in browser
 cd examples/hello_web_web && python3 -m http.server 8080
 ```
@@ -102,17 +103,85 @@ cd examples/hello_web_web && python3 -m http.server 8080
 
 ### Prerequisites
 
-- Rust toolchain (edition 2021+) — install via [rustup](https://rustup.rs/)
-- A C/C++ compiler (for FLTK compilation) — Xcode Command Line Tools on macOS, `build-essential` on Linux, MSVC on Windows
+- **Rust toolchain** (edition 2021+) — install via [rustup](https://rustup.rs/):
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  source $HOME/.cargo/env
+  ```
+- **C/C++ compiler** (needed to build the FLTK GUI library):
+  - **macOS:** `xcode-select --install`
+  - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake libx11-dev libxext-dev libxft-dev libxinerama-dev libfontconfig1-dev libpango1.0-dev`
+  - **Windows:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (MSVC)
+- **CMake** (FLTK build dependency):
+  - **macOS:** `brew install cmake`
+  - **Linux:** `sudo apt install cmake`
+  - **Windows:** Bundled with Visual Studio Build Tools
+- **(Optional) Node.js + npm** — needed only if you want to build the VS Code extension:
+  - Install from [nodejs.org](https://nodejs.org/) or via your package manager
+  - Install the VS Code Extension packaging tool: `npm install -g @vscode/vsce`
+- **(Optional) wasm-pack** — needed only for WebAssembly compilation:
+  ```bash
+  rustup target add wasm32-unknown-unknown
+  cargo install wasm-bindgen-cli
+  ```
 
-Google is your best friend!
-
-### Building
+### Step-by-Step: Build the Compiler
 
 ```bash
-git clone https://github.com/iBobX/RapidP-BASIC.git
-cd RapidP-BASIC
-cargo build --release
+# 1. Clone the repository
+git clone https://github.com/iBobX/RapidR.git
+cd RapidR
+
+# 2. Build the compiler (release mode, produces ./rapidr binary)
+./build.sh
+
+# 3. Verify the binary works
+./rapidr version
+```
+
+The `build.sh` script compiles all crates in release mode and copies the binary to `./rapidr` at the project root.
+
+### Step-by-Step: Build & Run the Visual IDE
+
+```bash
+# 1. Generate the Rust project for the IDE
+./rapidr codegen examples/ide.rr examples/ide_rust --release
+
+# 2. The IDE binary is at examples/ide — run it
+./examples/ide
+```
+
+Or build from a fresh checkout:
+```bash
+./rapidr build examples/ide.rr examples/ide_rust --release
+```
+
+### Step-by-Step: Build the VS Code Extension
+
+The extension provides syntax highlighting, snippets, and theme support for `.rr` files.
+
+```bash
+# 1. Make sure you have Node.js, npm, and vsce installed
+npm install -g @vscode/vsce
+
+# 2. Package the extension (creates a .vsix file)
+./build_vsc_extension.sh
+
+# 3. Or package and install directly into VS Code
+./build_vsc_extension.sh install
+```
+
+### Step-by-Step: Compile a Web (WASM) Project
+
+```bash
+# 1. Compile a .rr file for the web
+./rapidr --web examples/hello_web.rr
+
+# 2. Serve the generated files
+cd examples/hello_web_web
+python3 -m http.server 8080
+
+# 3. Open http://localhost:8080 in your browser
 ```
 
 ---
@@ -126,9 +195,15 @@ Create `hello.rr`:
 PRINT "Hello, World!"
 ```
 
-Generate a Rust project, build, and run:
+Compile and run:
 ```bash
-cargo run -- codegen hello.rr /tmp/hello
+./rapidr --release hello.rr
+./hello
+```
+
+Or generate a Rust project manually:
+```bash
+./rapidr codegen hello.rr /tmp/hello
 cd /tmp/hello && cargo build
 ./target/debug/hello
 ```
@@ -136,20 +211,22 @@ cd /tmp/hello && cargo build
 ### Launch the IDE
 
 ```bash
-cargo run -- codegen examples/ide.rr /tmp/ide_rust
-cd /tmp/ide_rust && cargo build && ./target/debug/ide
+./rapidr build examples/ide.rr examples/ide_rust --release
+./examples/ide
 ```
 
 ### CLI Options
 
 ```
-cargo run -- <command> [options]
+./rapidr <command> [options]
 ```
 
 | Command | Description |
 |---------|-------------|
 | `codegen <file.rr> <outdir>` | Generate a Rust project from a `.rr` file |
-| `codegen --web <file.rr>` | Compile to WebAssembly for browser deployment |
+| `build <file.rr> <outdir> [--release]` | Generate, build, and copy binary alongside source |
+| `--release <file.rr>` | Shortcut: compile `.rr`, output binary alongside source |
+| `--web <file.rr>` | Compile to WebAssembly for browser deployment |
 | `lex <file.rr>` | Dump token stream |
 | `parse <file.rr>` | Dump AST |
 | `preprocess <file.rr>` | Dump preprocessed source |
@@ -199,11 +276,11 @@ The transpilation pipeline mirrors a classic multi-pass compiler:
 
 ## The Runtime Library
 
-The runtime (`crates/rapidr-runtime-core/`) provides all the P-prefixed components and built-in functions that compiled programs link against.
+The runtime (`crates/rapidr-runtime-core/`) provides all the R-prefixed components and built-in functions that compiled programs link against.
 
 ### GUI Components
 
-Powered by **FLTK** (via the `fltk` crate), the runtime provides **49+ component classes**.
+Powered by **FLTK** (via the `fltk` crate), the runtime provides **51+ component classes**.
 
 #### Forms & Containers
 
@@ -222,6 +299,8 @@ Powered by **FLTK** (via the `fltk` crate), the runtime provides **49+ component
 | Component | Description |
 |-----------|-------------|
 | `RButton` | Push button |
+| `RCoolBtn` | Flat/toggle toolbar button with multi-state BMP images and group behavior |
+| `ROvalBtn` | Oval/round button with custom Color, ColorHighlight, ColorShadow |
 | `REdit` | Single-line text input |
 | `RRichEdit` | Multi-line rich text editor |
 | `RCodeEditor` | Code editor with syntax highlighting |
@@ -286,6 +365,7 @@ Powered by **FLTK** (via the `fltk` crate), the runtime provides **49+ component
 | `RPrinter` | Print support |
 | `RMidi` | MIDI playback |
 | `RDesignSurface` | Visual form designer surface (used by IDE) |
+| `RJson`          | JSON parsing, generation, dot-path access, and file I/O |
 
 #### Event Handling
 

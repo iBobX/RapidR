@@ -73,6 +73,8 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
     match comp_type {
         "RFORM" => create_form(&id, props),
         "RBUTTON" => create_button(&id, name, props),
+        "RCOOLBTN" => create_coolbtn(&id, name, props),
+        "ROVALBTN" => create_ovalbtn(&id, name, props),
         "RLABEL" => create_label(&id, name, props),
         "REDIT" => create_edit(&id, name, props),
         "RMEMO" | "RRICHEDIT" => create_textarea(&id, name, props),
@@ -107,7 +109,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI"
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI"
         | "RNUM" | "RDATAFRAME" | "RPLOT" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
@@ -1221,6 +1223,62 @@ fn create_button(id: &str, name: &str, props: &HashMap<String, Value>) {
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
     el.set_inner_text(&caption);
     el.set_class_name("rr-widget");
+    setup_widget(&el, id, name, props);
+}
+
+fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("button");
+    let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
+    el.set_inner_text(&caption);
+    el.set_class_name("rr-widget rr-coolbtn");
+
+    let flat = props.get("flat").map(|v| v.to_i64() != 0).unwrap_or(false);
+    let style = el.style();
+    if flat {
+        let _ = style.set_property("border", "none");
+        let _ = style.set_property("background", "transparent");
+    } else {
+        let _ = style.set_property("border", "1px solid #999");
+        let _ = style.set_property("background", "#e1e1e1");
+    }
+    let _ = style.set_property("cursor", "pointer");
+
+    // Load BMP if specified
+    let bmp_path = props.get("bmp").map(|v| v.to_string_val()).unwrap_or_default();
+    if !bmp_path.is_empty() {
+        let img = document().create_element("img").unwrap();
+        let _ = img.set_attribute("src", &bmp_path);
+        let _ = img.set_attribute("style", "vertical-align: middle; margin-right: 4px;");
+        let _ = el.prepend_with_node_1(&img);
+    }
+
+    setup_widget(&el, id, name, props);
+}
+
+fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("button");
+    let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
+    el.set_inner_text(&caption);
+    el.set_class_name("rr-widget rr-ovalbtn");
+
+    let color = props.get("color").map(|v| {
+        let c = v.to_i64();
+        let r = c & 0xFF;
+        let g = (c >> 8) & 0xFF;
+        let b = (c >> 16) & 0xFF;
+        format!("rgb({},{},{})", r, g, b)
+    }).unwrap_or_else(|| "#dcdcdc".to_string());
+    let hl = props.get("colorhighlight").map(|v| {
+        let c = v.to_i64();
+        format!("rgb({},{},{})", c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF)
+    }).unwrap_or_else(|| "#fff".to_string());
+
+    let style = el.style();
+    let _ = style.set_property("border-radius", "50%");
+    let _ = style.set_property("background", &color);
+    let _ = style.set_property("border", &format!("2px outset {}", hl));
+    let _ = style.set_property("cursor", "pointer");
+
     setup_widget(&el, id, name, props);
 }
 

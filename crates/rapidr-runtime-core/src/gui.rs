@@ -17,7 +17,7 @@ use fltk::{
     group::{Group, Scroll, Tabs},
     image::SharedImage,
     input::Input,
-    menu::{Choice, MenuBar},
+    menu::{Choice, MenuBar, SysMenuBar},
     misc::Progress as FltkProgress,
     output::Output,
     prelude::*,
@@ -52,6 +52,7 @@ enum GuiWidget {
     Group(Group),
     Tabs(Tabs),
     MenuBar(MenuBar),
+    SysMenuBar(SysMenuBar),
     Progress(FltkProgress),
     Scroll(Scroll),
     Tree(Tree),
@@ -326,6 +327,174 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
 
             let name_for_cb = name.to_lowercase();
+            btn.set_callback(move |_| {
+                rp_fire_event(&name_for_cb, "onclick");
+            });
+            GUI_WIDGETS.with(|gw| {
+                gw.borrow_mut().insert(name_lower, GuiWidget::Button(btn));
+            });
+        }
+        "RCOOLBTN" => {
+            // RCoolBtn — flat button with toggle (GroupIndex), multi-state BMP
+            let x = rp_comp_get(name, "left").to_i64() as i32;
+            let y = rp_comp_get(name, "top").to_i64() as i32;
+            let w = rp_comp_get(name, "width").to_i64() as i32;
+            let h = rp_comp_get(name, "height").to_i64() as i32;
+            let caption = rp_comp_get(name, "caption").to_string_val();
+            let flat = rp_comp_get(name, "flat").to_i64() != 0;
+            let group_idx = rp_comp_get(name, "groupindex").to_i64();
+
+            let mut btn = Button::new(x, y, w, h, None);
+            btn.set_label(&caption);
+            if flat {
+                btn.set_frame(FrameType::FlatBox);
+            } else {
+                btn.set_frame(FrameType::UpBox);
+            }
+
+            // Load BMP image if specified
+            let bmp_path = rp_comp_get(name, "bmp").to_string_val();
+            if !bmp_path.is_empty() {
+                if let Ok(mut img) = SharedImage::load(&bmp_path) {
+                    let num_bmps = rp_comp_get(name, "numbmps").to_i64().max(1) as i32;
+                    if num_bmps > 1 {
+                        // Multi-state BMP: crop to first frame (up state)
+                        let iw = img.width() / num_bmps;
+                        let ih = img.height();
+                        img.scale(iw, ih, true, true);
+                    }
+                    btn.set_image(Some(img));
+                }
+            }
+
+            let name_for_cb = name.to_lowercase();
+            let name_for_handle = name.to_lowercase();
+            let is_flat = flat;
+
+            btn.handle(move |b, ev| {
+                match ev {
+                    Event::Enter => {
+                        if is_flat {
+                            b.set_frame(FrameType::ThinUpBox);
+                            b.redraw();
+                        }
+                        true
+                    }
+                    Event::Leave => {
+                        if is_flat {
+                            b.set_frame(FrameType::FlatBox);
+                            b.redraw();
+                        }
+                        true
+                    }
+                    Event::Push => {
+                        b.set_frame(FrameType::DownBox);
+                        b.redraw();
+                        true
+                    }
+                    Event::Released => {
+                        let gi = rp_comp_get(&name_for_handle, "groupindex").to_i64();
+                        if gi > 0 {
+                            // Toggle behavior
+                            let cur_down = rp_comp_get(&name_for_handle, "down").to_i64() != 0;
+                            let allow_all_up = rp_comp_get(&name_for_handle, "allowallup").to_i64() != 0;
+                            if cur_down && !allow_all_up {
+                                // Can't un-toggle if AllowAllUp is false
+                                return true;
+                            }
+                            rp_comp_set(&name_for_handle, "down", v_int(if cur_down { 0 } else { 1 }));
+                            if !cur_down {
+                                b.set_frame(FrameType::DownBox);
+                            } else {
+                                b.set_frame(if is_flat { FrameType::FlatBox } else { FrameType::UpBox });
+                            }
+                        } else {
+                            b.set_frame(if is_flat { FrameType::FlatBox } else { FrameType::UpBox });
+                        }
+                        b.redraw();
+                        b.do_callback();
+                        true
+                    }
+                    _ => false,
+                }
+            });
+
+            btn.set_callback(move |_| {
+                rp_fire_event(&name_for_cb, "onclick");
+            });
+            GUI_WIDGETS.with(|gw| {
+                gw.borrow_mut().insert(name_lower, GuiWidget::Button(btn));
+            });
+        }
+        "ROVALBTN" => {
+            // ROvalBtn — oval/round button with color properties and toggle support
+            let x = rp_comp_get(name, "left").to_i64() as i32;
+            let y = rp_comp_get(name, "top").to_i64() as i32;
+            let w = rp_comp_get(name, "width").to_i64() as i32;
+            let h = rp_comp_get(name, "height").to_i64() as i32;
+            let caption = rp_comp_get(name, "caption").to_string_val();
+            let color_val = rp_comp_get(name, "color").to_i64();
+            let highlight_val = rp_comp_get(name, "colorhighlight").to_i64();
+            let shadow_val = rp_comp_get(name, "colorshadow").to_i64();
+            let base_color = if color_val != 0 { bgr_to_fltk_color(color_val) } else { Color::from_rgb(220, 220, 220) };
+            let hl_color = if highlight_val != 0 { bgr_to_fltk_color(highlight_val) } else { Color::from_rgb(255, 255, 255) };
+            let sh_color = if shadow_val != 0 { bgr_to_fltk_color(shadow_val) } else { Color::from_rgb(128, 128, 128) };
+
+            let mut btn = Button::new(x, y, w, h, None);
+            btn.set_label(&caption);
+            btn.set_frame(FrameType::OFlatFrame);
+
+            // Custom draw for oval shape
+            let name_for_draw = name.to_lowercase();
+            let cap_for_draw = caption.clone();
+            btn.draw(move |b| {
+                let bx = b.x();
+                let by = b.y();
+                let bw = b.w();
+                let bh = b.h();
+                let is_down = rp_comp_get(&name_for_draw, "down").to_i64() != 0;
+                // Draw oval background
+                if is_down {
+                    draw::set_draw_color(sh_color);
+                } else {
+                    draw::set_draw_color(base_color);
+                }
+                draw::draw_pie(bx, by, bw, bh, 0.0, 360.0);
+                // Highlight arc (top-left)
+                draw::set_draw_color(if is_down { sh_color } else { hl_color });
+                draw::draw_arc(bx, by, bw, bh, 45.0, 225.0);
+                // Shadow arc (bottom-right)
+                draw::set_draw_color(if is_down { hl_color } else { sh_color });
+                draw::draw_arc(bx, by, bw, bh, 225.0, 405.0);
+                // Label centered
+                draw::set_draw_color(Color::Black);
+                draw::set_font(Font::Helvetica, 12);
+                draw::draw_text2(&cap_for_draw, bx, by, bw, bh, Align::Center);
+            });
+
+            let name_for_cb = name.to_lowercase();
+            let name_for_handle = name.to_lowercase();
+
+            btn.handle(move |b, ev| {
+                match ev {
+                    Event::Push => {
+                        let gi = rp_comp_get(&name_for_handle, "groupindex").to_i64();
+                        if gi > 0 {
+                            let cur_down = rp_comp_get(&name_for_handle, "down").to_i64() != 0;
+                            let allow_all_up = rp_comp_get(&name_for_handle, "allowallup").to_i64() != 0;
+                            if cur_down && !allow_all_up {
+                                return true;
+                            }
+                            rp_comp_set(&name_for_handle, "down", v_int(if cur_down { 0 } else { 1 }));
+                        }
+                        b.redraw();
+                        b.do_callback();
+                        true
+                    }
+                    _ => false,
+                }
+            });
+
             btn.set_callback(move |_| {
                 rp_fire_event(&name_for_cb, "onclick");
             });
@@ -659,16 +828,18 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
         }
         "RMAINMENU" => {
             // MenuBar placed at the top of the parent form
+            // SysMenuBar: on macOS it becomes the native system menu bar,
+            // on other platforms it behaves like a normal in-window MenuBar.
             let parent = rp_comp_get(name, "parent").to_string_val();
             let pw = if parent.is_empty() {
                 800
             } else {
                 rp_comp_get(&parent, "width").to_i64() as i32
             };
-            let mut mb = MenuBar::new(0, 0, pw, 30, None);
+            let mut mb = SysMenuBar::new(0, 0, pw, 30, None);
             mb.set_text_size(13);
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::MenuBar(mb));
+                gw.borrow_mut().insert(name_lower, GuiWidget::SysMenuBar(mb));
             });
         }
         "RMENUITEM" => {
@@ -704,17 +875,32 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     let name_for_cb = name.to_lowercase();
                     GUI_WIDGETS.with(|gw| {
                         let mut widgets = gw.borrow_mut();
-                        if let Some(GuiWidget::MenuBar(ref mut mb)) = widgets.get_mut(&mb_name) {
+                        // Try SysMenuBar first (main menus), then MenuBar (popup menus)
+                        if let Some(GuiWidget::SysMenuBar(ref mut mb)) = widgets.get_mut(&mb_name) {
                             if caption == "-" {
-                                // Separator — add a dummy disabled item
                                 mb.add_choice(&path);
                             } else {
+                                let cb_name = name_for_cb.clone();
                                 mb.add(
                                     &path,
                                     fltk::enums::Shortcut::None,
                                     fltk::menu::MenuFlag::Normal,
                                     move |_| {
-                                        rp_fire_event(&name_for_cb, "onclick");
+                                        rp_fire_event(&cb_name, "onclick");
+                                    },
+                                );
+                            }
+                        } else if let Some(GuiWidget::MenuBar(ref mut mb)) = widgets.get_mut(&mb_name) {
+                            if caption == "-" {
+                                mb.add_choice(&path);
+                            } else {
+                                let cb_name = name_for_cb.clone();
+                                mb.add(
+                                    &path,
+                                    fltk::enums::Shortcut::None,
+                                    fltk::menu::MenuFlag::Normal,
+                                    move |_| {
+                                        rp_fire_event(&cb_name, "onclick");
                                     },
                                 );
                             }
@@ -1217,8 +1403,9 @@ fn basic_syntax_highlight(source: &str) -> String {
         "RCODEEDITOR", "RSTRINGGRID", "RTREEVIEW", "RCANVAS", "RTIMER",
         "RIMAGE", "RRICHEDIT", "RPROGRESSBAR", "RTRACKBAR", "RSCROLLBAR",
         "RSPLITTER", "RMAINMENU", "RMENUITEM", "RMYSQL", "RSQLITE",
+        "RCOOLBTN", "ROVALBTN",
         "ROPENDIALOG", "RSAVEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
-        "RFILESTREAM", "RHTTP", "RSOCKET", "$THEME",
+        "RFILESTREAM", "RJSON", "RHTTP", "RSOCKET", "$THEME",
         "LEFT", "RIGHT", "MID", "LEN", "INSTR", "UCASE", "LCASE",
         "VAL", "STR", "CHR", "ASC", "TRIM",
     ];
@@ -1602,6 +1789,49 @@ fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
                         draw::draw_text2(db_label, cx, cy + 2, comp.w, comp.h / 2, Align::Center);
                         draw::set_font(Font::Helvetica, 9);
                         draw::draw_text2(&comp.name, cx, cy + comp.h / 2, comp.w, comp.h / 2, Align::Center);
+                    }
+                    "RCOOLBTN" => {
+                        // Cool button: flat style with optional pressed look
+                        let is_down = comp.props.get("down").map(|s| s == "1" || s.eq_ignore_ascii_case("true")).unwrap_or(false);
+                        let is_flat = comp.props.get("flat").map(|s| s == "1" || s.eq_ignore_ascii_case("true")).unwrap_or(false);
+                        if is_down {
+                            draw::set_draw_color(Color::from_rgb(200, 210, 230));
+                            draw::draw_rectf(cx, cy, comp.w, comp.h);
+                            draw::set_draw_color(Color::from_rgb(130, 130, 130));
+                            draw::draw_rect(cx, cy, comp.w, comp.h);
+                        } else if !is_flat {
+                            let bg = Color::from_rgb(225, 225, 225);
+                            let (br, bg_g, bb) = bg.to_rgb();
+                            draw::set_draw_color(bg);
+                            draw::draw_rectf(cx, cy, comp.w, comp.h);
+                            draw::set_draw_color(Color::from_rgb(br.saturating_add(30).min(255), bg_g.saturating_add(30).min(255), bb.saturating_add(30).min(255)));
+                            draw::draw_line(cx, cy, cx + comp.w - 1, cy);
+                            draw::draw_line(cx, cy, cx, cy + comp.h - 1);
+                            draw::set_draw_color(Color::from_rgb(br.saturating_sub(85), bg_g.saturating_sub(85), bb.saturating_sub(85)));
+                            draw::draw_line(cx + comp.w - 1, cy, cx + comp.w - 1, cy + comp.h - 1);
+                            draw::draw_line(cx, cy + comp.h - 1, cx + comp.w - 1, cy + comp.h - 1);
+                        } else {
+                            draw::set_draw_color(Color::from_rgb(240, 240, 240));
+                            draw::draw_rectf(cx, cy, comp.w, comp.h);
+                        }
+                        let fc = comp.props.get("fontcolor").and_then(|c| parse_color_prop(c)).unwrap_or(Color::Black);
+                        draw::set_draw_color(fc);
+                        draw::set_font(comp_font, comp_font_size);
+                        draw::draw_text2(label, cx, cy, comp.w, comp.h, Align::Center);
+                    }
+                    "ROVALBTN" => {
+                        // Oval button
+                        let bg_c = comp.props.get("color").and_then(|c| parse_color_prop(c)).unwrap_or(Color::from_rgb(220, 220, 220));
+                        draw::set_draw_color(bg_c);
+                        draw::draw_pie(cx, cy, comp.w, comp.h, 0.0, 360.0);
+                        draw::set_draw_color(Color::from_rgb(255, 255, 255));
+                        draw::draw_arc(cx, cy, comp.w, comp.h, 45.0, 225.0);
+                        draw::set_draw_color(Color::from_rgb(128, 128, 128));
+                        draw::draw_arc(cx, cy, comp.w, comp.h, 225.0, 405.0);
+                        let fc = comp.props.get("fontcolor").and_then(|c| parse_color_prop(c)).unwrap_or(Color::Black);
+                        draw::set_draw_color(fc);
+                        draw::set_font(comp_font, comp_font_size);
+                        draw::draw_text2(label, cx, cy, comp.w, comp.h, Align::Center);
                     }
                     _ => {
                         // Generic fallback
@@ -2017,13 +2247,15 @@ pub fn gui_showmodal(name: &str) {
     }
 }
 
-/// Close a form.
+/// Close/hide a widget (form window or embedded frame).
 pub fn gui_close(name: &str) {
     let name_lower = name.to_lowercase();
     GUI_WIDGETS.with(|gw| {
         let mut widgets = gw.borrow_mut();
-        if let Some(GuiWidget::Window(ref mut win)) = widgets.get_mut(&name_lower) {
-            win.hide();
+        match widgets.get_mut(&name_lower) {
+            Some(GuiWidget::Window(ref mut win)) => { win.hide(); }
+            Some(GuiWidget::Frame(ref mut frm)) => { frm.hide(); }
+            _ => {}
         }
     });
 }
@@ -2319,6 +2551,11 @@ fn build_children_recursive(parent_name: &str) {
     // Get parent widget offset for relative positioning
     let (parent_x, parent_y) = get_widget_offset(parent_name);
 
+    // Check if the parent form has a main menu — if so, offset children below it.
+    // On macOS, SysMenuBar goes to the system menu bar so no in-window offset needed.
+    let has_menu = children.iter().any(|(_, t)| t == "RMAINMENU");
+    let menu_offset = if has_menu && !cfg!(target_os = "macos") { 30 } else { 0 };
+
     // Begin adding children to the parent widget
     begin_widget(parent_name);
 
@@ -2328,15 +2565,19 @@ fn build_children_recursive(parent_name: &str) {
         // if this function is ever called again.
         let orig_left = rp_comp_get(child_name, "left").to_i64() as i32;
         let orig_top = rp_comp_get(child_name, "top").to_i64() as i32;
-        if parent_x != 0 || parent_y != 0 {
+
+        // Menu and StatusBar don't get the menu offset
+        let extra_y = if child_type != "RMAINMENU" && child_type != "RSTATUSBAR" { menu_offset } else { 0 };
+
+        if parent_x != 0 || parent_y != 0 || extra_y != 0 {
             rp_comp_set(child_name, "left", v_int((orig_left + parent_x) as i64));
-            rp_comp_set(child_name, "top", v_int((orig_top + parent_y) as i64));
+            rp_comp_set(child_name, "top", v_int((orig_top + parent_y + extra_y) as i64));
         }
 
         gui_create_widget(child_name, child_type);
 
         // Restore original relative positions
-        if parent_x != 0 || parent_y != 0 {
+        if parent_x != 0 || parent_y != 0 || extra_y != 0 {
             rp_comp_set(child_name, "left", v_int(orig_left as i64));
             rp_comp_set(child_name, "top", v_int(orig_top as i64));
         }
@@ -3471,6 +3712,7 @@ pub fn gui_set_visible(name: &str, visible: bool) {
                 GuiWidget::Group(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Tabs(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::MenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
+                GuiWidget::SysMenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Progress(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Scroll(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Tree(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
@@ -3526,6 +3768,31 @@ pub fn gui_get_text(name: &str) -> String {
     })
 }
 
+/// Get the current value of an Input widget (REDIT).
+/// Returns None if the widget doesn't exist or isn't an Input.
+pub fn gui_get_input_value(name: &str) -> Option<String> {
+    let name_lower = name.to_lowercase();
+    GUI_WIDGETS.with(|gw| {
+        let widgets = gw.borrow();
+        if let Some(GuiWidget::Input(ref inp)) = widgets.get(&name_lower) {
+            Some(inp.value())
+        } else {
+            None
+        }
+    })
+}
+
+/// Set the value of an Input widget (REDIT).
+pub fn gui_set_input_value(name: &str, text: &str) {
+    let name_lower = name.to_lowercase();
+    GUI_WIDGETS.with(|gw| {
+        let mut widgets = gw.borrow_mut();
+        if let Some(GuiWidget::Input(ref mut inp)) = widgets.get_mut(&name_lower) {
+            let _ = inp.set_value(text);
+        }
+    });
+}
+
 /// Trigger a widget redraw.
 fn redraw_widget(name: &str) {
     GUI_WIDGETS.with(|gw| {
@@ -3547,6 +3814,7 @@ fn redraw_widget(name: &str) {
                 GuiWidget::TextEditor(ref mut w) => { w.redraw(); }
                 GuiWidget::Tabs(ref mut w) => { w.redraw(); }
                 GuiWidget::MenuBar(ref mut w) => { w.redraw(); }
+                GuiWidget::SysMenuBar(ref mut w) => { w.redraw(); }
                 GuiWidget::Progress(ref mut w) => { w.redraw(); }
                 GuiWidget::Tree(ref mut w) => { w.redraw(); }
                 GuiWidget::Slider(ref mut w) => { w.redraw(); }

@@ -70,6 +70,8 @@ struct RustCodegen {
     array_init_info: HashMap<String, (String, String)>,
     /// Whether we are inside a SUB or FUNCTION body (as opposed to top-level / main).
     in_sub_or_function: bool,
+    /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
+    create_declared_names: HashSet<String>,
 }
 
 impl RustCodegen {
@@ -93,6 +95,7 @@ impl RustCodegen {
             declared_functions: HashSet::new(),
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
+            create_declared_names: HashSet::new(),
         }
     }
 
@@ -249,7 +252,9 @@ impl RustCodegen {
                     // Register CREATE targets as component variables
                     self.component_vars.insert(c.name.to_lowercase(), c.type_name.to_uppercase());
                     self.top_level_vars.insert(c.name.to_lowercase());
+                    self.create_declared_names.insert(c.name.to_lowercase());
                     collect_nested_creates(&c.body, &mut self.component_vars, &mut self.top_level_vars);
+                    collect_nested_create_names(&c.body, &mut self.create_declared_names);
                 }
                 Statement::Const(c) => {
                     self.top_level_vars.insert(c.name.to_lowercase());
@@ -415,14 +420,16 @@ impl RustCodegen {
             let name_lower = decl.name.to_lowercase();
             self.array_vars.remove(&name_lower); // re-insert if has dims
 
-            // Component variable → create via registry
+            // Component variable → create via registry (skip if a CREATE block handles it)
             if self.component_vars.contains_key(&name_lower) {
-                let type_name = self.component_vars[&name_lower].clone();
-                self.write_indent();
-                let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_name}\");");
-                if type_name == "RTIMER" {
+                if !self.create_declared_names.contains(&name_lower) {
+                    let type_name = self.component_vars[&name_lower].clone();
                     self.write_indent();
-                    let _ = writeln!(self.output, "gui_register_timer(\"{name}\", 1000);");
+                    let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_name}\");");
+                    if type_name == "RTIMER" {
+                        self.write_indent();
+                        let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
+                    }
                 }
                 continue;
             }
@@ -1112,7 +1119,7 @@ impl RustCodegen {
         // Register timers declared in CREATE blocks
         if type_upper == "RTIMER" {
             self.write_indent();
-            let _ = writeln!(self.output, "gui_register_timer(\"{name}\", 1000);");
+            let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
         }
     }
 
@@ -2006,6 +2013,8 @@ fn is_component_type_name(type_name: &str) -> bool {
         | "RLISTVIEW" | "RPROGRESSBAR"
         | "RNUM" | "RDATAFRAME" | "RPLOT"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
+        | "RCOOLBTN" | "ROVALBTN"
+        | "RJSON"
         // Web-exclusive components
         | "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE"
         | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION" | "RWEBGEOLOCATION"
@@ -2037,6 +2046,9 @@ fn is_component_method_name(member: &str) -> bool {
         | "get" | "post"
         // FileStream methods
         | "open" | "readall" | "eof"
+        // JSON methods
+        | "parse" | "stringify" | "prettify" | "has" | "remove" | "keys"
+        | "loadfile" | "savefile"
         // StringList methods
         | "loadfromfile" | "savetofile" | "add" | "delete"
         // Canvas methods
@@ -2114,6 +2126,16 @@ fn collect_nested_creates(
             component_vars.insert(c.name.to_lowercase(), c.type_name.to_uppercase());
             top_level_vars.insert(c.name.to_lowercase());
             collect_nested_creates(&c.body, component_vars, top_level_vars);
+        }
+    }
+}
+
+/// Collect names declared in nested CREATE blocks for DIM deduplication.
+fn collect_nested_create_names(stmts: &[Statement], names: &mut HashSet<String>) {
+    for stmt in stmts {
+        if let Statement::Create(c) = stmt {
+            names.insert(c.name.to_lowercase());
+            collect_nested_create_names(&c.body, names);
         }
     }
 }

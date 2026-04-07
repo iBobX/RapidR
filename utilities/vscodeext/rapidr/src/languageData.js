@@ -298,6 +298,24 @@ const COMPONENT_REGISTRY = {
         methods: ['begindoc', 'enddoc', 'newpage', 'textout', 'printline'],
         events: []
     },
+    'RCOOLBTN': {
+        description: 'Flat/toggle toolbar button with optional multi-state BMP image. Supports GroupIndex for radio-button-like groups.',
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'flat', 'groupindex', 'down', 'allowallup',
+                'bmp', 'numbmps', 'layout', 'spacing', 'align',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'ROVALBTN': {
+        description: 'Oval/round button with customizable colors and highlight/shadow effects.',
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'colorhighlight', 'colorshadow', 'transparent',
+                'flat', 'groupindex', 'down', 'allowallup',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
 
     // ── Web-exclusive components (WASM target) ──────────────────────────
     'RWEBVIEW': {
@@ -524,6 +542,31 @@ const COMPONENT_REGISTRY = {
             'apply': { sig: 'apply(column, function)', desc: 'Applies a transform to a column: upper, lower, abs, round, sqrt, log.' },
             'replace': { sig: 'replace(column, oldValue, newValue)', desc: 'Replaces values in a column.' },
             'togrid': { sig: 'togrid(gridName)', desc: 'Populates an RStringGrid with the DataFrame contents.' },
+        }
+    },
+    'RJSON': {
+        description: 'JSON parsing and generation component. Supports parse, stringify, prettify, dot-path get/set, file I/O, and key enumeration.',
+        props: ['text', 'filename', 'count'],
+        methods: [
+            'parse', 'stringify', 'prettify',
+            'get', 'set', 'has', 'remove',
+            'count', 'keys',
+            'loadfile', 'savefile', 'clear'
+        ],
+        events: [],
+        methodSignatures: {
+            'parse': { sig: 'parse(jsonString)', desc: 'Parses a JSON string into the internal store. Returns 1 on success, 0 on error.' },
+            'stringify': { sig: 'stringify()', desc: 'Returns the stored JSON as a compact string.' },
+            'prettify': { sig: 'prettify()', desc: 'Returns the stored JSON as a pretty-printed string with indentation.' },
+            'get': { sig: 'get(path)', desc: 'Returns the value at the dot-path (e.g. "user.name" or "items.0"). Returns "" if not found.' },
+            'set': { sig: 'set(path, value)', desc: 'Sets the value at the dot-path, creating intermediate objects as needed.' },
+            'has': { sig: 'has(path)', desc: 'Returns 1 if the path exists, 0 otherwise.' },
+            'remove': { sig: 'remove(path)', desc: 'Removes the key at the given path.' },
+            'count': { sig: 'count()', desc: 'Returns the number of top-level keys (object) or elements (array).' },
+            'keys': { sig: 'keys()', desc: 'Returns a comma-separated list of top-level keys.' },
+            'loadfile': { sig: 'loadfile(filename)', desc: 'Loads and parses a JSON file. Returns 1 on success, 0 on error.' },
+            'savefile': { sig: 'savefile(filename)', desc: 'Saves the stored JSON to a file (pretty-printed). Returns 1 on success, 0 on error.' },
+            'clear': { sig: 'clear()', desc: 'Clears the stored JSON data.' }
         }
     }
 };

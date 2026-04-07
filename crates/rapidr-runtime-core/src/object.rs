@@ -219,6 +219,11 @@ impl RpComponent {
                 props.insert("position".into(), v_int(0));
                 props.insert("size".into(), v_int(0));
             }
+            "RJSON" => {
+                props.insert("text".into(), v_str(""));
+                props.insert("filename".into(), v_str(""));
+                props.insert("count".into(), v_int(0));
+            }
             "RSTRINGLIST" => {
                 props.insert("count".into(), v_int(0));
                 props.insert("text".into(), v_str(""));
@@ -457,6 +462,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if prop_lower == "text" && (comp_type == "RCODEEDITOR" || comp_type == "RRICHEDIT" || comp_type == "RMEMO") {
             crate::gui::gui_set_text(name, &val.to_string_val());
         }
+        // Update text on Input (REDIT)
+        if prop_lower == "text" && comp_type == "REDIT" {
+            crate::gui::gui_set_input_value(name, &val.to_string_val());
+        }
     }
 
     // Data science property updates
@@ -499,6 +508,13 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             "RCODEEDITOR" | "RRICHEDIT" | "RMEMO" => {
                 if prop_lower == "text" {
                     return v_str(&crate::gui::gui_get_text(name));
+                }
+            }
+            "REDIT" => {
+                if prop_lower == "text" {
+                    if let Some(val) = crate::gui::gui_get_input_value(name) {
+                        return v_str(&val);
+                    }
                 }
             }
             _ => {}
@@ -608,6 +624,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
         }
         "RFILESTREAM" => filestream_method(name, &method_lower, args),
+        "RJSON" => json_method(name, &method_lower, args),
         "RSTRINGLIST" => stringlist_method(name, &method_lower, args),
         // Specialized GUI component method dispatch
         #[cfg(feature = "gui")]
@@ -879,6 +896,240 @@ fn filestream_method(name: &str, method: &str, args: &[Value]) -> Value {
 }
 
 // ---------------------------------------------------------------------------
+// RJSON methods
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    static JSON_STORES: RefCell<HashMap<String, serde_json::Value>> = RefCell::new(HashMap::new());
+}
+
+fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let name_lower = name.to_lowercase();
+    match method {
+        "parse" => {
+            let text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            match serde_json::from_str::<serde_json::Value>(&text) {
+                Ok(val) => {
+                    rp_comp_set(name, "text", v_str(&text));
+                    JSON_STORES.with(|s| s.borrow_mut().insert(name_lower, val));
+                    v_int(1)
+                }
+                Err(e) => {
+                    eprintln!("[WARN] RJSON.Parse() failed: {}", e);
+                    v_int(0)
+                }
+            }
+        }
+        "stringify" => {
+            JSON_STORES.with(|s| {
+                if let Some(val) = s.borrow().get(&name_lower) {
+                    v_str(&val.to_string())
+                } else {
+                    v_str("{}")
+                }
+            })
+        }
+        "prettify" => {
+            JSON_STORES.with(|s| {
+                if let Some(val) = s.borrow().get(&name_lower) {
+                    v_str(&serde_json::to_string_pretty(val).unwrap_or_else(|_| "{}".into()))
+                } else {
+                    v_str("{}")
+                }
+            })
+        }
+        "get" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_STORES.with(|s| {
+                if let Some(root) = s.borrow().get(&name_lower) {
+                    json_get_path(root, &key)
+                } else {
+                    v_str("")
+                }
+            })
+        }
+        "set" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            let val = args.get(1).cloned().unwrap_or(v_null());
+            JSON_STORES.with(|s| {
+                let mut store = s.borrow_mut();
+                let root = store.entry(name_lower.clone()).or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+                json_set_path(root, &key, &val);
+            });
+            v_null()
+        }
+        "has" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_STORES.with(|s| {
+                if let Some(root) = s.borrow().get(&name_lower) {
+                    if let Some(obj) = root.as_object() {
+                        v_int(if obj.contains_key(&key) { 1 } else { 0 })
+                    } else { v_int(0) }
+                } else { v_int(0) }
+            })
+        }
+        "remove" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_STORES.with(|s| {
+                if let Some(root) = s.borrow_mut().get_mut(&name_lower) {
+                    if let Some(obj) = root.as_object_mut() {
+                        obj.remove(&key);
+                    }
+                }
+            });
+            v_null()
+        }
+        "count" => {
+            JSON_STORES.with(|s| {
+                if let Some(root) = s.borrow().get(&name_lower) {
+                    match root {
+                        serde_json::Value::Object(m) => v_int(m.len() as i64),
+                        serde_json::Value::Array(a) => v_int(a.len() as i64),
+                        _ => v_int(0),
+                    }
+                } else { v_int(0) }
+            })
+        }
+        "keys" => {
+            JSON_STORES.with(|s| {
+                if let Some(root) = s.borrow().get(&name_lower) {
+                    if let Some(obj) = root.as_object() {
+                        let keys: Vec<String> = obj.keys().cloned().collect();
+                        v_str(&keys.join(","))
+                    } else { v_str("") }
+                } else { v_str("") }
+            })
+        }
+        "loadfile" => {
+            let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            match std::fs::read_to_string(&filename) {
+                Ok(text) => {
+                    match serde_json::from_str::<serde_json::Value>(&text) {
+                        Ok(val) => {
+                            rp_comp_set(name, "filename", v_str(&filename));
+                            rp_comp_set(name, "text", v_str(&text));
+                            JSON_STORES.with(|s| s.borrow_mut().insert(name_lower, val));
+                            v_int(1)
+                        }
+                        Err(e) => {
+                            eprintln!("[WARN] RJSON.LoadFile() parse error: {}", e);
+                            v_int(0)
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[WARN] RJSON.LoadFile() read error: {}", e);
+                    v_int(0)
+                }
+            }
+        }
+        "savefile" => {
+            let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_STORES.with(|s| {
+                if let Some(val) = s.borrow().get(&name_lower) {
+                    let pretty = serde_json::to_string_pretty(val).unwrap_or_else(|_| "{}".into());
+                    match std::fs::write(&filename, &pretty) {
+                        Ok(()) => {
+                            rp_comp_set(name, "filename", v_str(&filename));
+                            v_int(1)
+                        }
+                        Err(e) => {
+                            eprintln!("[WARN] RJSON.SaveFile() write error: {}", e);
+                            v_int(0)
+                        }
+                    }
+                } else {
+                    match std::fs::write(&filename, "{}") {
+                        Ok(()) => v_int(1),
+                        Err(e) => {
+                            eprintln!("[WARN] RJSON.SaveFile() write error: {}", e);
+                            v_int(0)
+                        }
+                    }
+                }
+            })
+        }
+        "clear" => {
+            JSON_STORES.with(|s| {
+                s.borrow_mut().insert(name_lower, serde_json::Value::Object(serde_json::Map::new()));
+            });
+            v_null()
+        }
+        _ => {
+            eprintln!("[WARN] RJSON.{}() not implemented", method);
+            v_null()
+        }
+    }
+}
+
+fn json_get_path(root: &serde_json::Value, path: &str) -> Value {
+    let mut current = root;
+    for part in path.split('.') {
+        if part.is_empty() { continue; }
+        if let Ok(idx) = part.parse::<usize>() {
+            if let Some(arr) = current.as_array() {
+                if let Some(v) = arr.get(idx) { current = v; } else { return v_str(""); }
+            } else { return v_str(""); }
+        } else if let Some(obj) = current.as_object() {
+            if let Some(v) = obj.get(part) { current = v; } else { return v_str(""); }
+        } else { return v_str(""); }
+    }
+    match current {
+        serde_json::Value::Null => v_str(""),
+        serde_json::Value::Bool(b) => v_int(if *b { 1 } else { 0 }),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() { v_int(i) }
+            else if let Some(f) = n.as_f64() { v_dbl(f) }
+            else { v_str(&n.to_string()) }
+        }
+        serde_json::Value::String(s) => v_str(s),
+        other => v_str(&other.to_string()),
+    }
+}
+
+fn json_set_path(root: &mut serde_json::Value, path: &str, val: &Value) {
+    let parts: Vec<&str> = path.split('.').filter(|p| !p.is_empty()).collect();
+    if parts.is_empty() { return; }
+    let mut current = root;
+    for part in &parts[..parts.len()-1] {
+        if let Ok(_idx) = part.parse::<usize>() {
+            // array navigation not supported for set yet
+            return;
+        }
+        if !current.as_object().map_or(false, |o| o.contains_key(*part)) {
+            if let Some(obj) = current.as_object_mut() {
+                obj.insert(part.to_string(), serde_json::Value::Object(serde_json::Map::new()));
+            }
+        }
+        if let Some(obj) = current.as_object_mut() {
+            current = obj.get_mut(*part).unwrap();
+        } else { return; }
+    }
+    let last = parts.last().unwrap();
+    let json_val = value_to_json(val);
+    if let Some(obj) = current.as_object_mut() {
+        obj.insert(last.to_string(), json_val);
+    }
+}
+
+fn value_to_json(val: &Value) -> serde_json::Value {
+    let s = val.to_string_val();
+    if let Ok(i) = s.parse::<i64>() {
+        serde_json::Value::Number(serde_json::Number::from(i))
+    } else if let Ok(f) = s.parse::<f64>() {
+        serde_json::Number::from_f64(f)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::String(s))
+    } else if s == "true" || s == "1" {
+        serde_json::Value::Bool(true)
+    } else if s == "false" || s == "0" {
+        serde_json::Value::Bool(false)
+    } else {
+        serde_json::Value::String(s)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // RStringList methods
 // ---------------------------------------------------------------------------
 
@@ -1123,7 +1374,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
         | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
         | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
-        | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RSTRINGLIST"
+        | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"
         | "RTRACKBAR" | "RSCROLLBOX" | "RSPLITTER" | "RPRINTER"
         | "RSQLITE" | "RMYSQL"
         | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"

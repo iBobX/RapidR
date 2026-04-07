@@ -516,7 +516,15 @@ pub fn rp_showmessage(msg: &Value) {
 }
 
 pub fn rp_msgbox(msg: &Value) -> Value {
-    println!("[MSGBOX] {}", msg.to_string_val());
+    let text = msg.to_string_val();
+    #[cfg(feature = "gui")]
+    {
+        fltk::dialog::message_default(&text);
+    }
+    #[cfg(not(feature = "gui"))]
+    {
+        println!("[MSGBOX] {}", text);
+    }
     v_int(0)
 }
 

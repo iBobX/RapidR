@@ -194,6 +194,36 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("colcount".to_string(), v_int(0));
             props.insert("fieldcount".to_string(), v_int(0));
         }
+        "RCOOLBTN" => {
+            props.insert("caption".to_string(), v_str(""));
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+            props.insert("width".to_string(), v_int(80));
+            props.insert("height".to_string(), v_int(30));
+            props.insert("flat".to_string(), v_bool(false));
+            props.insert("groupindex".to_string(), v_int(0));
+            props.insert("down".to_string(), v_bool(false));
+            props.insert("allowallup".to_string(), v_bool(false));
+            props.insert("numbmps".to_string(), v_int(1));
+        }
+        "ROVALBTN" => {
+            props.insert("caption".to_string(), v_str(""));
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+            props.insert("width".to_string(), v_int(60));
+            props.insert("height".to_string(), v_int(60));
+            props.insert("color".to_string(), v_int(0xDCDCDC));
+            props.insert("colorhighlight".to_string(), v_int(0xFFFFFF));
+            props.insert("colorshadow".to_string(), v_int(0x808080));
+            props.insert("flat".to_string(), v_bool(false));
+            props.insert("groupindex".to_string(), v_int(0));
+            props.insert("down".to_string(), v_bool(false));
+        }
+        "RJSON" => {
+            props.insert("text".to_string(), v_str(""));
+            props.insert("filename".to_string(), v_str(""));
+            props.insert("count".to_string(), v_int(0));
+        }
         _ => {
             // Generic defaults
             props.insert("left".to_string(), v_int(0));
@@ -417,6 +447,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         return stringlist_method(&uname, &lmethod, args);
     }
 
+    // JSON special handling
+    if comp_type == "RJSON" {
+        return json_web_method(&uname, &lmethod, args);
+    }
+
     // HTTP special handling
     if comp_type == "RHTTP" {
         return crate::network_web::http_method(&uname, &lmethod, args);
@@ -445,6 +480,225 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
 
     // Delegate to GUI layer
     gui_web::gui_web_method(&uname, &comp_type, &lmethod, args)
+}
+
+// ---------------------------------------------------------------------------
+// RJSON web methods — uses js_sys::JSON for parsing/stringifying
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    static JSON_WEB_STORES: std::cell::RefCell<std::collections::HashMap<String, String>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let name_lower = name.to_lowercase();
+    match method {
+        "parse" => {
+            let text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            // Validate JSON via js_sys
+            let js_str = wasm_bindgen::JsValue::from_str(&text);
+            match js_sys::JSON::parse(&text) {
+                Ok(_) => {
+                    rp_comp_set(name, "text", v_str(&text));
+                    JSON_WEB_STORES.with(|s| s.borrow_mut().insert(name_lower, text));
+                    v_int(1)
+                }
+                Err(_) => {
+                    web_sys::console::warn_1(&js_str);
+                    v_int(0)
+                }
+            }
+        }
+        "stringify" | "prettify" => {
+            JSON_WEB_STORES.with(|s| {
+                if let Some(text) = s.borrow().get(&name_lower) {
+                    if method == "prettify" {
+                        // Parse to JsValue then stringify with indent
+                        if let Ok(val) = js_sys::JSON::parse(text) {
+                            let indent = wasm_bindgen::JsValue::from_f64(2.0);
+                            if let Ok(pretty) = js_sys::JSON::stringify_with_replacer_and_space(
+                                &val,
+                                &wasm_bindgen::JsValue::NULL,
+                                &indent,
+                            ) {
+                                return v_str(&pretty.as_string().unwrap_or_default());
+                            }
+                        }
+                    }
+                    v_str(text)
+                } else {
+                    v_str("{}")
+                }
+            })
+        }
+        "get" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_WEB_STORES.with(|s| {
+                if let Some(text) = s.borrow().get(&name_lower) {
+                    if let Ok(root) = js_sys::JSON::parse(text) {
+                        let result = json_web_get_path(&root, &key);
+                        return result;
+                    }
+                }
+                v_str("")
+            })
+        }
+        "set" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            let val = args.get(1).cloned().unwrap_or(v_null());
+            JSON_WEB_STORES.with(|s| {
+                let mut store = s.borrow_mut();
+                let text = store.entry(name_lower.clone()).or_insert_with(|| "{}".to_string());
+                if let Ok(root) = js_sys::JSON::parse(text) {
+                    json_web_set_path(&root, &key, &val);
+                    if let Ok(updated) = js_sys::JSON::stringify(&root) {
+                        *text = updated.as_string().unwrap_or_default();
+                    }
+                }
+            });
+            v_null()
+        }
+        "has" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_WEB_STORES.with(|s| {
+                if let Some(text) = s.borrow().get(&name_lower) {
+                    if let Ok(root) = js_sys::JSON::parse(text) {
+                        let js_key = wasm_bindgen::JsValue::from_str(&key);
+                        let has = js_sys::Reflect::has(&root, &js_key).unwrap_or(false);
+                        return v_int(if has { 1 } else { 0 });
+                    }
+                }
+                v_int(0)
+            })
+        }
+        "remove" => {
+            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            JSON_WEB_STORES.with(|s| {
+                let mut store = s.borrow_mut();
+                if let Some(text) = store.get_mut(&name_lower) {
+                    if let Ok(root) = js_sys::JSON::parse(text) {
+                        let js_key = wasm_bindgen::JsValue::from_str(&key);
+                        if let Some(obj) = root.dyn_ref::<js_sys::Object>() {
+                            let _ = js_sys::Reflect::delete_property(obj, &js_key);
+                        }
+                        if let Ok(updated) = js_sys::JSON::stringify(&root) {
+                            *text = updated.as_string().unwrap_or_default();
+                        }
+                    }
+                }
+            });
+            v_null()
+        }
+        "count" => {
+            JSON_WEB_STORES.with(|s| {
+                if let Some(text) = s.borrow().get(&name_lower) {
+                    if let Ok(root) = js_sys::JSON::parse(text) {
+                        if let Some(obj) = root.dyn_ref::<js_sys::Object>() {
+                            let keys = js_sys::Object::keys(obj);
+                            return v_int(keys.length() as i64);
+                        }
+                        if let Some(arr) = root.dyn_ref::<js_sys::Array>() {
+                            return v_int(arr.length() as i64);
+                        }
+                    }
+                }
+                v_int(0)
+            })
+        }
+        "keys" => {
+            JSON_WEB_STORES.with(|s| {
+                if let Some(text) = s.borrow().get(&name_lower) {
+                    if let Ok(root) = js_sys::JSON::parse(text) {
+                        if let Some(obj) = root.dyn_ref::<js_sys::Object>() {
+                            let keys = js_sys::Object::keys(obj);
+                            let mut result = Vec::new();
+                            for i in 0..keys.length() {
+                                if let Some(k) = keys.get(i).as_string() {
+                                    result.push(k);
+                                }
+                            }
+                            return v_str(&result.join(","));
+                        }
+                    }
+                }
+                v_str("")
+            })
+        }
+        "loadfile" | "savefile" => {
+            // File operations not available in web context
+            web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
+                &format!("RJSON.{}() is not available in web context", method)
+            ));
+            v_int(0)
+        }
+        "clear" => {
+            JSON_WEB_STORES.with(|s| {
+                s.borrow_mut().insert(name_lower, "{}".to_string());
+            });
+            v_null()
+        }
+        _ => {
+            web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
+                &format!("RJSON.{}() not implemented", method)
+            ));
+            v_null()
+        }
+    }
+}
+
+fn json_web_get_path(root: &wasm_bindgen::JsValue, path: &str) -> Value {
+    let mut current = root.clone();
+    for part in path.split('.') {
+        if part.is_empty() { continue; }
+        let js_key = wasm_bindgen::JsValue::from_str(part);
+        match js_sys::Reflect::get(&current, &js_key) {
+            Ok(val) => {
+                if val.is_undefined() || val.is_null() { return v_str(""); }
+                current = val;
+            }
+            Err(_) => return v_str(""),
+        }
+    }
+    if let Some(s) = current.as_string() {
+        v_str(&s)
+    } else if let Some(b) = current.as_bool() {
+        v_int(if b { 1 } else { 0 })
+    } else if let Some(f) = current.as_f64() {
+        if f == f.floor() && f.abs() < i64::MAX as f64 {
+            v_int(f as i64)
+        } else {
+            use crate::value::v_dbl;
+            v_dbl(f)
+        }
+    } else if let Ok(s) = js_sys::JSON::stringify(&current) {
+        v_str(&s.as_string().unwrap_or_default())
+    } else {
+        v_str("")
+    }
+}
+
+fn json_web_set_path(root: &wasm_bindgen::JsValue, path: &str, val: &Value) {
+    let parts: Vec<&str> = path.split('.').filter(|p| !p.is_empty()).collect();
+    if parts.is_empty() { return; }
+    let mut current = root.clone();
+    for part in &parts[..parts.len()-1] {
+        let js_key = wasm_bindgen::JsValue::from_str(part);
+        match js_sys::Reflect::get(&current, &js_key) {
+            Ok(val) if !val.is_undefined() && !val.is_null() => {
+                current = val;
+            }
+            _ => {
+                let new_obj = js_sys::Object::new();
+                let _ = js_sys::Reflect::set(&current, &js_key, &new_obj.into());
+                if let Ok(v) = js_sys::Reflect::get(&current, &js_key) {
+                    current = v;
+                } else { return; }
+            }
+        }
+    }
+    let last_key = wasm_bindgen::JsValue::from_str(parts.last().unwrap());
+    let js_val = wasm_bindgen::JsValue::from_str(&val.to_string_val());
+    let _ = js_sys::Reflect::set(&current, &last_key, &js_val);
 }
 
 fn stringlist_method(name: &str, method: &str, args: &[Value]) -> Value {
@@ -904,6 +1158,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RRICHEDIT"
             | "RMEMO"
             | "RFILESTREAM"
+            | "RJSON"
             | "RSTRINGLIST"
             | "RTOOLBAR"
             | "RSCROLLBAR"

@@ -816,5 +816,15 @@
       "END SUB"
     ],
     "description": "Create an RRouter for SPA navigation — web only"
+  },
+  "CREATE JSON": {
+    "prefix": "createjson",
+    "body": [
+      "DIM ${1:Json1} AS RJSON",
+      "CREATE ${1:Json1} AS RJSON",
+      "END CREATE",
+      "${1:Json1}.Parse(\"${2:{}}\")"
+    ],
+    "description": "Create an RJSON component for JSON parsing and generation"
   }
 }
