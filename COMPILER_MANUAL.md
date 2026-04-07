@@ -3,7 +3,7 @@
 > **Purpose:** This is a comprehensive reference for AI assistants (and humans) working on the RapidR transpiler. It documents the Rust workspace, language syntax, compiler internals, runtime architecture, known limitations, and coding patterns.
 > **Instructions for AI:** Always read this manual first when working on this repository. Keep this manual updated as features are added or changed.
 >
-> **Last Updated:** April 4, 2026
+> **Last Updated:** April 7, 2026
 
 ---
 
@@ -727,7 +727,7 @@ The Rust runtime is in `crates/rapidr-runtime-core/src/` with modules:
 | `object.rs` | ~1,200 | Component property get/set/method dispatch via `rp_comp_*` API |
 | `database.rs` | ~350 | MySQL (`mysql` crate) and SQLite (`rusqlite` crate) components |
 | `network.rs` | ~400 | TCP socket, server socket, HTTP client components |
-| `datascience.rs` | ~700 | `RNum` (ndarray), `RPlot` (plotters), `RDataFrame` (polars) |
+| `datascience.rs` | ~700 | `RNum` (ndarray), `RPlot` (plotters + image), `RDataFrame` (polars) |
 | `file_io.rs` | ~200 | RFileStream, RIni, RMemoryStream, RStringList implementations |
 | `ffi.rs` | ~200 | DECLARE/DLL foreign function interface via `libloading` |
 
@@ -779,7 +779,7 @@ The largest runtime module (~3,600 lines). Implements 49+ FLTK-based GUI compone
 ### 6.5 Data Science (`datascience.rs`)
 
 - **RNUM** — Numeric arrays via `ndarray` crate. Methods: `zeros`, `ones`, `arange`, `linspace`, `reshape`, `sum`, `mean`, `std`, `min`, `max`, `dot`, `transpose`, `sort`, `savetofile`, `loadfromfile`.
-- **RPLOT** — Chart generation via `plotters` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savetofile`, `saveto_buffer`.
+- **RPLOT** — Chart generation via `plotters` crate with in-memory PNG encoding via `image` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savefig`. Plot rendering uses `BitMapBackend::with_buffer()` to render into an RGB pixel buffer, then encodes to PNG bytes in memory — no temporary files are created. `RImage.loadfromplot` loads the PNG bytes directly via `PngImage::from_data()`.
 - **RDATAFRAME** — DataFrames via `polars` crate. Methods: `loadfromcsv`, `savetocsv`, `loadfromjson`, `savetojson`, `head`, `tail`, `describe`, `sort`, `filter`, `groupby`, `addcolumn`, `deletecolumn`, `cell`, `setcell`, `query`, `tostring`, `tolist`.
 
 ### 6.6 JSON (`object.rs`)
@@ -962,6 +962,28 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 
 ### CLI
 - The `rapidr` binary can be installed globally via `cargo install --path crates/rapidr-cli`.
+
+### Runtime GUI Fixes (April 7, 2026)
+- **StringGrid clear corruption fix**: `scroll.clear()` was destroying FLTK's internal scrollbar children (scrollbar and hscrollbar), corrupting the Scroll container and making subsequently added widgets non-interactive. Replaced with a safe `while scroll.children() > 2 { scroll.remove_by_index(0); }` loop that preserves the 2 internal scrollbar widgets. Also resets `selected_col` and scroll position on clear.
+- **RFORM top-level window fix**: Added `Group::set_current(None::<&Group>)` before creating non-child RFORM windows in `gui_create_widget`. Without this, FLTK's current group context could cause new forms (e.g., dialog windows opened at runtime) to become embedded child widgets instead of top-level windows.
+- **OnShow event**: `gui_showmodal` and `gui_show` now fire `rp_fire_event(name, "onshow")` after building form widgets and calling `win.show()`. This enables post-build initialization (e.g., populating widget text after the widget is guaranteed to exist).
+- **RPlot in-memory rendering**: Plot rendering refactored from file-based to fully in-memory. `render_plot_bytes()` uses `BitMapBackend::with_buffer()` to render into an RGB pixel buffer, then `encode_rgb_to_png()` encodes to PNG bytes via the `image` crate. `loadfromplot` in gui.rs now calls `PngImage::from_data(&bytes)` instead of writing/reading temp files. This eliminates FLTK's `SharedImage` cache stale-image bug and removes all temporary file I/O from the plot→image pipeline. The `savefig`/`save` method still writes to disk via `std::fs::write()` of the same bytes.
+
+### IDE Example Fixes (April 7, 2026)
+- **Event Editor dialog**: Added EventEditorDlg form with `edtEvtCode` (RCodeEditor), OK/Cancel buttons, and `EventEditorOnShow` handler. The "..." column in EvtGrid opens the event editor dialog.
+- **Event code storage**: Added `GetEventCodeBody`, `SetEventCodeBody`, `SyncEventCodeFromSource` functions and updated all 34 `GenerateSubCode` callers to use stored event code bodies from arrays.
+- **EditorTempCode + OnShow pattern**: Added `EditorTempCode` global variable. `OpenEventEditor` sets it before `ShowModal`; `EventEditorOnShow` force-sets `edtEvtCode.Text = EditorTempCode` after widgets are guaranteed to exist, fixing text not appearing on second invocation.
+- **DIM removed for visual components**: `GenerateCode` in ide.rr no longer emits `DIM` for visual components (RFORM, RBUTTON, etc.). Only non-visual dialog types (ROPENDIALOG, RSAVEDIALOG, RCOLORDIALOG, RFONTDIALOG) get `DIM` declarations.
+
+### Web Runtime Fixes (April 7, 2026)
+- **gui_register_timer signature**: Fixed `gui_register_timer` in `object_web.rs` from 2-arg `(_name: &str, _interval: i32)` to 1-arg `(_name: &str)` to match desktop runtime and codegen.
+- **web_datascience.rr RNUM declarations**: Added missing `DIM arr1 AS RNum` and `DIM arr2 AS RNum` declarations. Without these, the codegen couldn't identify them as RNUM components and fell back to `rp_comp_get(...)()` (property-get + call) instead of `rp_comp_method(...)`.
+
+### Dependencies (April 7, 2026)
+- **image crate**: Added `image = { version = "0.24", optional = true, default-features = false, features = ["png"] }` to `rapidr-runtime-core` Cargo.toml, gated under the `datascience` feature. Used for in-memory PNG encoding of plot renders.
+
+### Demo Updates (April 7, 2026)
+- **demo_plot.rr**: Added "Pie Chart" button (`BtnPieClick`) that renders a "Browser Market Share" pie chart with 5 labeled/colored slices using `plt.pie`. Buttons rearranged: Sine/Cosine, Bar Chart, Pie Chart, Clear Plot, Close.
 
 ---
 
