@@ -177,7 +177,7 @@ impl RustCodegen {
                 Statement::Subroutine(s) => {
                     self.defined_functions.insert(s.name.to_lowercase());
                     self.function_param_counts.insert(s.name.to_lowercase(), s.params.len());
-                    // Scan body for local component DIMs
+                    // Scan body for local component DIMs and CREATEs
                     for body_stmt in &s.body {
                         if let Statement::Dim(d) = body_stmt {
                             for decl in &d.declarators {
@@ -186,12 +186,16 @@ impl RustCodegen {
                                 }
                             }
                         }
+                        if let Statement::Create(c) = body_stmt {
+                            self.create_declared_names.insert(c.name.to_lowercase());
+                            collect_nested_create_names(&c.body, &mut self.create_declared_names);
+                        }
                     }
                 }
                 Statement::Function(f) => {
                     self.defined_functions.insert(f.name.to_lowercase());
                     self.function_param_counts.insert(f.name.to_lowercase(), f.params.len());
-                    // Scan body for local component DIMs
+                    // Scan body for local component DIMs and CREATEs
                     for body_stmt in &f.body {
                         if let Statement::Dim(d) = body_stmt {
                             for decl in &d.declarators {
@@ -199,6 +203,10 @@ impl RustCodegen {
                                     self.component_vars.insert(decl.name.to_lowercase(), d.type_name.to_uppercase());
                                 }
                             }
+                        }
+                        if let Statement::Create(c) = body_stmt {
+                            self.create_declared_names.insert(c.name.to_lowercase());
+                            collect_nested_create_names(&c.body, &mut self.create_declared_names);
                         }
                     }
                 }

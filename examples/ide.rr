@@ -76,6 +76,44 @@ DIM EvtOnDisconnect(100) AS STRING
 DIM EvtOnError(100) AS STRING
 DIM EvtOnQueryDone(100) AS STRING
 
+' --- Component event CODE BODY arrays (parallel to EvtOn* arrays) ---
+DIM EvtCodeOnClick(100) AS STRING
+DIM EvtCodeOnDblClick(100) AS STRING
+DIM EvtCodeOnChange(100) AS STRING
+DIM EvtCodeOnMouseDown(100) AS STRING
+DIM EvtCodeOnMouseMove(100) AS STRING
+DIM EvtCodeOnMouseUp(100) AS STRING
+DIM EvtCodeOnKeyDown(100) AS STRING
+DIM EvtCodeOnKeyPress(100) AS STRING
+DIM EvtCodeOnKeyUp(100) AS STRING
+DIM EvtCodeOnTimer(100) AS STRING
+DIM EvtCodeOnPaint(100) AS STRING
+DIM EvtCodeOnEnter(100) AS STRING
+DIM EvtCodeOnConnect(100) AS STRING
+DIM EvtCodeOnDisconnect(100) AS STRING
+DIM EvtCodeOnError(100) AS STRING
+DIM EvtCodeOnQueryDone(100) AS STRING
+
+' --- Form-level event CODE BODY variables ---
+DIM FormCodeOnShow AS STRING
+DIM FormCodeOnClose AS STRING
+DIM FormCodeOnResize AS STRING
+DIM FormCodeOnKeyDown AS STRING
+DIM FormCodeOnKeyPress AS STRING
+DIM FormCodeOnKeyUp AS STRING
+DIM FormCodeOnClick AS STRING
+DIM FormCodeOnMouseDown AS STRING
+DIM FormCodeOnMouseMove AS STRING
+DIM FormCodeOnMouseUp AS STRING
+DIM FormCodeOnPaint AS STRING
+
+' --- Event Editor state ---
+DIM EditingEvtIndex AS INTEGER
+DIM EditingEvtName AS STRING
+DIM EditingEvtHandler AS STRING
+DIM EventEditorResult AS INTEGER
+DIM EditorTempCode AS STRING
+
 ' --- Design surface size ---
 CONST DESIGN_W = 640
 CONST DESIGN_H = 480
@@ -340,18 +378,208 @@ FUNCTION ExtractSub(Source AS STRING, SubName AS STRING) AS STRING
     ExtractSub = ""
 END FUNCTION
 
-FUNCTION GenerateSubCode(ExistingCode AS STRING, HandlerName AS STRING, CompName AS STRING, EvtName AS STRING) AS STRING
+FUNCTION GetEventCodeBody(CI AS INTEGER, EvtName AS STRING) AS STRING
+    ' CI=0 means form-level events, CI>0 means component events
+    DIM UE AS STRING
+    UE = UCASE$(EvtName)
+    IF CI = 0 THEN
+        IF UE = "ONSHOW" THEN GetEventCodeBody = FormCodeOnShow
+        IF UE = "ONCLOSE" THEN GetEventCodeBody = FormCodeOnClose
+        IF UE = "ONRESIZE" THEN GetEventCodeBody = FormCodeOnResize
+        IF UE = "ONCLICK" THEN GetEventCodeBody = FormCodeOnClick
+        IF UE = "ONKEYDOWN" THEN GetEventCodeBody = FormCodeOnKeyDown
+        IF UE = "ONPAINT" THEN GetEventCodeBody = FormCodeOnPaint
+        IF UE = "ONMOUSEDOWN" THEN GetEventCodeBody = FormCodeOnMouseDown
+        IF UE = "ONMOUSEMOVE" THEN GetEventCodeBody = FormCodeOnMouseMove
+        IF UE = "ONMOUSEUP" THEN GetEventCodeBody = FormCodeOnMouseUp
+    ELSE
+        IF UE = "ONCLICK" THEN GetEventCodeBody = EvtCodeOnClick(CI)
+        IF UE = "ONDBLCLICK" THEN GetEventCodeBody = EvtCodeOnDblClick(CI)
+        IF UE = "ONCHANGE" THEN GetEventCodeBody = EvtCodeOnChange(CI)
+        IF UE = "ONTIMER" THEN GetEventCodeBody = EvtCodeOnTimer(CI)
+        IF UE = "ONPAINT" THEN GetEventCodeBody = EvtCodeOnPaint(CI)
+        IF UE = "ONMOUSEDOWN" THEN GetEventCodeBody = EvtCodeOnMouseDown(CI)
+        IF UE = "ONMOUSEMOVE" THEN GetEventCodeBody = EvtCodeOnMouseMove(CI)
+        IF UE = "ONMOUSEUP" THEN GetEventCodeBody = EvtCodeOnMouseUp(CI)
+        IF UE = "ONKEYDOWN" THEN GetEventCodeBody = EvtCodeOnKeyDown(CI)
+        IF UE = "ONQUERYDONE" THEN GetEventCodeBody = EvtCodeOnQueryDone(CI)
+    END IF
+END FUNCTION
+
+FUNCTION ExtractSubBody(Source AS STRING, SubName AS STRING) AS STRING
+    DIM SN AS STRING
+    SN = "SUB " + UCASE$(SubName)
+    DIM P AS INTEGER
+    P = INSTR(UCASE$(Source), SN)
+    IF P > 0 THEN
+        ' Find end of SUB header line
+        DIM LineEnd AS INTEGER
+        LineEnd = INSTR(P, Source, CHR$(10))
+        IF LineEnd = 0 THEN
+            ExtractSubBody = ""
+            EXIT FUNCTION
+        END IF
+        DIM E AS INTEGER
+        E = INSTR(LineEnd + 1, UCASE$(Source), "END SUB")
+        IF E > 0 THEN
+            DIM Body AS STRING
+            Body = MID$(Source, LineEnd + 1, E - LineEnd - 1)
+            ' Trim leading/trailing whitespace lines
+            DO WHILE LEFT$(Body, 1) = CHR$(10)
+                Body = MID$(Body, 2)
+            LOOP
+            DO WHILE RIGHT$(Body, 1) = CHR$(10)
+                Body = LEFT$(Body, LEN(Body) - 1)
+            LOOP
+            ExtractSubBody = Body
+            EXIT FUNCTION
+        END IF
+    END IF
+    ExtractSubBody = ""
+END FUNCTION
+
+SUB SetEventCodeBody(CI AS INTEGER, EvtName AS STRING, CodeBody AS STRING)
+    ' CI=0 means form-level events, CI>0 means component events
+    DIM UE AS STRING
+    UE = UCASE$(EvtName)
+    IF CI = 0 THEN
+        IF UE = "ONSHOW" THEN FormCodeOnShow = CodeBody
+        IF UE = "ONCLOSE" THEN FormCodeOnClose = CodeBody
+        IF UE = "ONRESIZE" THEN FormCodeOnResize = CodeBody
+        IF UE = "ONCLICK" THEN FormCodeOnClick = CodeBody
+        IF UE = "ONKEYDOWN" THEN FormCodeOnKeyDown = CodeBody
+        IF UE = "ONPAINT" THEN FormCodeOnPaint = CodeBody
+        IF UE = "ONMOUSEDOWN" THEN FormCodeOnMouseDown = CodeBody
+        IF UE = "ONMOUSEMOVE" THEN FormCodeOnMouseMove = CodeBody
+        IF UE = "ONMOUSEUP" THEN FormCodeOnMouseUp = CodeBody
+    ELSE
+        IF UE = "ONCLICK" THEN EvtCodeOnClick(CI) = CodeBody
+        IF UE = "ONDBLCLICK" THEN EvtCodeOnDblClick(CI) = CodeBody
+        IF UE = "ONCHANGE" THEN EvtCodeOnChange(CI) = CodeBody
+        IF UE = "ONTIMER" THEN EvtCodeOnTimer(CI) = CodeBody
+        IF UE = "ONPAINT" THEN EvtCodeOnPaint(CI) = CodeBody
+        IF UE = "ONMOUSEDOWN" THEN EvtCodeOnMouseDown(CI) = CodeBody
+        IF UE = "ONMOUSEMOVE" THEN EvtCodeOnMouseMove(CI) = CodeBody
+        IF UE = "ONMOUSEUP" THEN EvtCodeOnMouseUp(CI) = CodeBody
+        IF UE = "ONKEYDOWN" THEN EvtCodeOnKeyDown(CI) = CodeBody
+        IF UE = "ONQUERYDONE" THEN EvtCodeOnQueryDone(CI) = CodeBody
+    END IF
+END SUB
+
+SUB SyncEventCodeFromSource
+    ' Extract all event handler code bodies from CodeEditor.Text back into EvtCode* arrays
+    DIM Src AS STRING
+    Src = CodeEditor.Text
+    IF Src = "" THEN EXIT SUB
+
+    DIM N AS INTEGER
+    N = DesignSurface.CompCount
+
+    ' Sync form-level events
+    DIM FEvts(6) AS STRING
+    FEvts(0) = "OnShow"
+    FEvts(1) = "OnClose"
+    FEvts(2) = "OnResize"
+    FEvts(3) = "OnClick"
+    FEvts(4) = "OnKeyDown"
+    FEvts(5) = "OnPaint"
+    DIM FI AS INTEGER
+    FOR FI = 0 TO 5
+        DIM FHandler AS STRING
+        FHandler = ""
+        IF FEvts(FI) = "OnShow" AND FormOnShow <> "" THEN FHandler = FormOnShow
+        IF FEvts(FI) = "OnClose" AND FormOnClose <> "" THEN FHandler = FormOnClose
+        IF FEvts(FI) = "OnResize" AND FormOnResize <> "" THEN FHandler = FormOnResize
+        IF FEvts(FI) = "OnClick" AND FormOnClick <> "" THEN FHandler = FormOnClick
+        IF FEvts(FI) = "OnKeyDown" AND FormOnKeyDown <> "" THEN FHandler = FormOnKeyDown
+        IF FEvts(FI) = "OnPaint" AND FormOnPaint <> "" THEN FHandler = FormOnPaint
+        IF FHandler <> "" THEN
+            DIM FBody AS STRING
+            FBody = ExtractSubBody(Src, FHandler)
+            IF FBody <> "" THEN
+                SetEventCodeBody 0, FEvts(FI), FBody
+            END IF
+        END IF
+    NEXT FI
+
+    ' Sync component events
+    DIM SI AS INTEGER
+    FOR SI = 0 TO N - 1
+        DIM SCI AS INTEGER
+        SCI = SI + 1
+        DIM EvtNames(10) AS STRING
+        EvtNames(0) = "OnClick"
+        EvtNames(1) = "OnDblClick"
+        EvtNames(2) = "OnChange"
+        EvtNames(3) = "OnTimer"
+        EvtNames(4) = "OnPaint"
+        EvtNames(5) = "OnMouseDown"
+        EvtNames(6) = "OnMouseMove"
+        EvtNames(7) = "OnMouseUp"
+        EvtNames(8) = "OnKeyDown"
+        EvtNames(9) = "OnQueryDone"
+        DIM EI AS INTEGER
+        FOR EI = 0 TO 9
+            DIM HName AS STRING
+            HName = ""
+            IF EvtNames(EI) = "OnClick" AND EvtOnClick(SCI) <> "" THEN HName = EvtOnClick(SCI)
+            IF EvtNames(EI) = "OnDblClick" AND EvtOnDblClick(SCI) <> "" THEN HName = EvtOnDblClick(SCI)
+            IF EvtNames(EI) = "OnChange" AND EvtOnChange(SCI) <> "" THEN HName = EvtOnChange(SCI)
+            IF EvtNames(EI) = "OnTimer" AND EvtOnTimer(SCI) <> "" THEN HName = EvtOnTimer(SCI)
+            IF EvtNames(EI) = "OnPaint" AND EvtOnPaint(SCI) <> "" THEN HName = EvtOnPaint(SCI)
+            IF EvtNames(EI) = "OnMouseDown" AND EvtOnMouseDown(SCI) <> "" THEN HName = EvtOnMouseDown(SCI)
+            IF EvtNames(EI) = "OnMouseMove" AND EvtOnMouseMove(SCI) <> "" THEN HName = EvtOnMouseMove(SCI)
+            IF EvtNames(EI) = "OnMouseUp" AND EvtOnMouseUp(SCI) <> "" THEN HName = EvtOnMouseUp(SCI)
+            IF EvtNames(EI) = "OnKeyDown" AND EvtOnKeyDown(SCI) <> "" THEN HName = EvtOnKeyDown(SCI)
+            IF EvtNames(EI) = "OnQueryDone" AND EvtOnQueryDone(SCI) <> "" THEN HName = EvtOnQueryDone(SCI)
+            IF HName <> "" THEN
+                DIM EBody AS STRING
+                EBody = ExtractSubBody(Src, HName)
+                IF EBody <> "" THEN
+                    SetEventCodeBody SCI, EvtNames(EI), EBody
+                END IF
+            END IF
+        NEXT EI
+    NEXT SI
+END SUB
+
+FUNCTION GenerateSubCode(ExistingCode AS STRING, HandlerName AS STRING, CompName AS STRING, EvtName AS STRING, CodeBody AS STRING) AS STRING
     DIM Params AS STRING
     Params = GetEventParams(EvtName)
     DIM Existing AS STRING
     Existing = ExtractSub(ExistingCode, HandlerName)
     IF Existing <> "" THEN
+        ' If we have a stored code body, replace the existing SUB body
+        IF CodeBody <> "" THEN
+            DIM NewSub AS STRING
+            NewSub = "SUB " + HandlerName + Params + CHR$(10)
+            NewSub = NewSub + CodeBody + CHR$(10)
+            NewSub = NewSub + "END SUB"
+            DIM BeforeSub AS STRING
+            DIM AfterSub AS STRING
+            DIM SubPos AS INTEGER
+            SubPos = INSTR(UCASE$(ExistingCode), "SUB " + UCASE$(HandlerName))
+            IF SubPos > 0 THEN
+                BeforeSub = LEFT$(ExistingCode, SubPos - 1)
+                DIM EndSubPos AS INTEGER
+                EndSubPos = INSTR(SubPos, UCASE$(ExistingCode), "END SUB")
+                IF EndSubPos > 0 THEN
+                    AfterSub = MID$(ExistingCode, EndSubPos + 7)
+                    GenerateSubCode = BeforeSub + NewSub + AfterSub
+                    EXIT FUNCTION
+                END IF
+            END IF
+        END IF
         GenerateSubCode = ExistingCode
         EXIT FUNCTION
     END IF
     DIM Stub AS STRING
     Stub = CHR$(10) + "SUB " + HandlerName + Params + CHR$(10)
-    Stub = Stub + "    ' TODO: " + CompName + "." + EvtName + " handler" + CHR$(10)
+    IF CodeBody <> "" THEN
+        Stub = Stub + CodeBody + CHR$(10)
+    ELSE
+        Stub = Stub + "    '-- Enter your code here" + CHR$(10)
+    END IF
     Stub = Stub + "END SUB" + CHR$(10)
 
     ' Insert before the CREATE marker so SUBs stay above the GUI block
@@ -661,18 +889,21 @@ SUB FillEvents
     SyncGuard = 1
     EvtGrid.Clear
 
+    ' Header row (row 0 is always rendered as non-editable header)
+    EvtGrid.AddRow("Event", "Handler", "...")
+
     IF SelIndex = 0 THEN
-        EvtGrid.AddRow("OnShow", FormOnShow)
-        EvtGrid.AddRow("OnClose", FormOnClose)
-        EvtGrid.AddRow("OnResize", FormOnResize)
-        EvtGrid.AddRow("OnClick", FormOnClick)
-        EvtGrid.AddRow("OnKeyDown", FormOnKeyDown)
-        EvtGrid.AddRow("OnKeyPress", FormOnKeyPress)
-        EvtGrid.AddRow("OnKeyUp", FormOnKeyUp)
-        EvtGrid.AddRow("OnMouseDown", FormOnMouseDown)
-        EvtGrid.AddRow("OnMouseMove", FormOnMouseMove)
-        EvtGrid.AddRow("OnMouseUp", FormOnMouseUp)
-        EvtGrid.AddRow("OnPaint", FormOnPaint)
+        EvtGrid.AddRow("OnShow", FormOnShow, "...")
+        EvtGrid.AddRow("OnClose", FormOnClose, "...")
+        EvtGrid.AddRow("OnResize", FormOnResize, "...")
+        EvtGrid.AddRow("OnClick", FormOnClick, "...")
+        EvtGrid.AddRow("OnKeyDown", FormOnKeyDown, "...")
+        EvtGrid.AddRow("OnKeyPress", FormOnKeyPress, "...")
+        EvtGrid.AddRow("OnKeyUp", FormOnKeyUp, "...")
+        EvtGrid.AddRow("OnMouseDown", FormOnMouseDown, "...")
+        EvtGrid.AddRow("OnMouseMove", FormOnMouseMove, "...")
+        EvtGrid.AddRow("OnMouseUp", FormOnMouseUp, "...")
+        EvtGrid.AddRow("OnPaint", FormOnPaint, "...")
     ELSE
         DIM CI AS INTEGER
         DIM CT AS STRING
@@ -680,27 +911,27 @@ SUB FillEvents
         IF CI < 1 OR CI > 100 THEN SyncGuard = 0 : EXIT SUB
         CT = UCASE$(DesignSurface.GetType(CI - 1))
 
-        EvtGrid.AddRow("OnClick", EvtOnClick(CI))
-        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(CI))
-        EvtGrid.AddRow("OnChange", EvtOnChange(CI))
-        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(CI))
-        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(CI))
-        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(CI))
-        EvtGrid.AddRow("OnKeyDown", EvtOnKeyDown(CI))
-        EvtGrid.AddRow("OnKeyPress", EvtOnKeyPress(CI))
-        EvtGrid.AddRow("OnKeyUp", EvtOnKeyUp(CI))
+        EvtGrid.AddRow("OnClick", EvtOnClick(CI), "...")
+        EvtGrid.AddRow("OnDblClick", EvtOnDblClick(CI), "...")
+        EvtGrid.AddRow("OnChange", EvtOnChange(CI), "...")
+        EvtGrid.AddRow("OnMouseDown", EvtOnMouseDown(CI), "...")
+        EvtGrid.AddRow("OnMouseMove", EvtOnMouseMove(CI), "...")
+        EvtGrid.AddRow("OnMouseUp", EvtOnMouseUp(CI), "...")
+        EvtGrid.AddRow("OnKeyDown", EvtOnKeyDown(CI), "...")
+        EvtGrid.AddRow("OnKeyPress", EvtOnKeyPress(CI), "...")
+        EvtGrid.AddRow("OnKeyUp", EvtOnKeyUp(CI), "...")
 
         IF CT = "RTIMER" THEN
-            EvtGrid.AddRow("OnTimer", EvtOnTimer(CI))
+            EvtGrid.AddRow("OnTimer", EvtOnTimer(CI), "...")
         END IF
         IF CT = "RCANVAS" THEN
-            EvtGrid.AddRow("OnPaint", EvtOnPaint(CI))
+            EvtGrid.AddRow("OnPaint", EvtOnPaint(CI), "...")
         END IF
         IF CT = "RMYSQL" OR CT = "RSQLITE" THEN
-            EvtGrid.AddRow("OnConnect", EvtOnConnect(CI))
-            EvtGrid.AddRow("OnDisconnect", EvtOnDisconnect(CI))
-            EvtGrid.AddRow("OnError", EvtOnError(CI))
-            EvtGrid.AddRow("OnQueryDone", EvtOnQueryDone(CI))
+            EvtGrid.AddRow("OnConnect", EvtOnConnect(CI), "...")
+            EvtGrid.AddRow("OnDisconnect", EvtOnDisconnect(CI), "...")
+            EvtGrid.AddRow("OnError", EvtOnError(CI), "...")
+            EvtGrid.AddRow("OnQueryDone", EvtOnQueryDone(CI), "...")
         END IF
     END IF
 
@@ -896,7 +1127,7 @@ SUB DesignDblClick(Index AS INTEGER)
     CodeDirty = 0
     DIM Code AS STRING
     Code = CodeEditor.Text
-    Code = GenerateSubCode(Code, HandlerName, CN, DefEvt)
+    Code = GenerateSubCode(Code, HandlerName, CN, DefEvt, GetEventCodeBody(CI, DefEvt))
     CodeEditor.Text = Code
 
     IF ShowingCode = 0 THEN
@@ -1142,11 +1373,28 @@ SUB EvtGridDblClick
         SaveEvents
     END IF
 
+    DIM EvtCI AS INTEGER
+    IF SelIndex = 0 THEN
+        EvtCI = 0
+    ELSE
+        EvtCI = SelIndex
+    END IF
+
+    ' Check if "..." column was clicked — open Event Editor dialog
+    DIM ClickedCol AS INTEGER
+    ClickedCol = EvtGrid.SelectedCol
+    IF ClickedCol = 2 THEN
+        OpenEventEditor EvtCI, EvtName, HandlerName
+        FillEvents
+        EXIT SUB
+    END IF
+
+    ' Otherwise, switch to code view (existing behavior)
     GenerateCode
     CodeDirty = 0
     DIM Code AS STRING
     Code = CodeEditor.Text
-    Code = GenerateSubCode(Code, HandlerName, CompName, EvtName)
+    Code = GenerateSubCode(Code, HandlerName, CompName, EvtName, GetEventCodeBody(EvtCI, EvtName))
     CodeEditor.Text = Code
 
     IF ShowingCode = 0 THEN
@@ -1176,10 +1424,12 @@ SUB GenerateCode
     DeclBlock = "' [AUTO-DECLARATIONS]" + CHR$(10)
     DeclBlock = DeclBlock + "' Generated by RapidR Visual IDE" + CHR$(10)
     DeclBlock = DeclBlock + "$THEME AquaClassic" + CHR$(10) + CHR$(10)
-    DeclBlock = DeclBlock + "DIM Form1 AS RFORM" + CHR$(10)
+    ' Only DIM non-visual components (dialogs) — visual components use CREATE blocks
     FOR I = 0 TO N - 1
-        CT = DesignSurface.GetType(I)
-        DeclBlock = DeclBlock + "DIM " + DesignSurface.GetName(I) + " AS " + CT + CHR$(10)
+        CT = UCASE$(DesignSurface.GetType(I))
+        IF CT = "ROPENDIALOG" OR CT = "RSAVEDIALOG" OR CT = "RCOLORDIALOG" OR CT = "RFONTDIALOG" THEN
+            DeclBlock = DeclBlock + "DIM " + DesignSurface.GetName(I) + " AS " + CT + CHR$(10)
+        END IF
     NEXT I
     DeclBlock = DeclBlock + "' [END AUTO-DECLARATIONS]" + CHR$(10)
 
@@ -1385,56 +1635,56 @@ SUB GenerateCode
         AfterForm = MID$(ExistingCode, AfterFormEnd)
 
         ' Ensure event handler stubs exist in the middle section
-        IF FormOnShow <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnShow, "Form1", "OnShow")
-        IF FormOnClose <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnClose, "Form1", "OnClose")
-        IF FormOnResize <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnResize, "Form1", "OnResize")
-        IF FormOnClick <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnClick, "Form1", "OnClick")
-        IF FormOnKeyDown <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnKeyDown, "Form1", "OnKeyDown")
-        IF FormOnPaint <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnPaint, "Form1", "OnPaint")
+        IF FormOnShow <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnShow, "Form1", "OnShow", FormCodeOnShow)
+        IF FormOnClose <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnClose, "Form1", "OnClose", FormCodeOnClose)
+        IF FormOnResize <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnResize, "Form1", "OnResize", FormCodeOnResize)
+        IF FormOnClick <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnClick, "Form1", "OnClick", FormCodeOnClick)
+        IF FormOnKeyDown <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnKeyDown, "Form1", "OnKeyDown", FormCodeOnKeyDown)
+        IF FormOnPaint <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, FormOnPaint, "Form1", "OnPaint", FormCodeOnPaint)
 
         FOR I = 0 TO N - 1
             DIM CI4 AS INTEGER
             CI4 = I + 1
             DIM CmpN2 AS STRING
             CmpN2 = DesignSurface.GetName(I)
-            IF EvtOnClick(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnClick(CI4), CmpN2, "OnClick")
-            IF EvtOnDblClick(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnDblClick(CI4), CmpN2, "OnDblClick")
-            IF EvtOnChange(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnChange(CI4), CmpN2, "OnChange")
-            IF EvtOnTimer(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnTimer(CI4), CmpN2, "OnTimer")
-            IF EvtOnPaint(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnPaint(CI4), CmpN2, "OnPaint")
-            IF EvtOnMouseDown(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnMouseDown(CI4), CmpN2, "OnMouseDown")
-            IF EvtOnMouseMove(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnMouseMove(CI4), CmpN2, "OnMouseMove")
-            IF EvtOnMouseUp(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnMouseUp(CI4), CmpN2, "OnMouseUp")
-            IF EvtOnKeyDown(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnKeyDown(CI4), CmpN2, "OnKeyDown")
-            IF EvtOnQueryDone(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnQueryDone(CI4), CmpN2, "OnQueryDone")
+            IF EvtOnClick(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnClick(CI4), CmpN2, "OnClick", EvtCodeOnClick(CI4))
+            IF EvtOnDblClick(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnDblClick(CI4), CmpN2, "OnDblClick", EvtCodeOnDblClick(CI4))
+            IF EvtOnChange(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnChange(CI4), CmpN2, "OnChange", EvtCodeOnChange(CI4))
+            IF EvtOnTimer(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnTimer(CI4), CmpN2, "OnTimer", EvtCodeOnTimer(CI4))
+            IF EvtOnPaint(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnPaint(CI4), CmpN2, "OnPaint", EvtCodeOnPaint(CI4))
+            IF EvtOnMouseDown(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnMouseDown(CI4), CmpN2, "OnMouseDown", EvtCodeOnMouseDown(CI4))
+            IF EvtOnMouseMove(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnMouseMove(CI4), CmpN2, "OnMouseMove", EvtCodeOnMouseMove(CI4))
+            IF EvtOnMouseUp(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnMouseUp(CI4), CmpN2, "OnMouseUp", EvtCodeOnMouseUp(CI4))
+            IF EvtOnKeyDown(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnKeyDown(CI4), CmpN2, "OnKeyDown", EvtCodeOnKeyDown(CI4))
+            IF EvtOnQueryDone(CI4) <> "" THEN MiddlePart = GenerateSubCode(MiddlePart, EvtOnQueryDone(CI4), CmpN2, "OnQueryDone", EvtCodeOnQueryDone(CI4))
         NEXT I
 
         Code = BeforeDecl + DeclBlock + MiddlePart + FormBlock + AfterForm
     ELSE
         ' === No markers (first generation or legacy code) ===
         ' Preserve existing SUBs/FUNCTIONs from old code
-        IF FormOnShow <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnShow, "Form1", "OnShow")
-        IF FormOnClose <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnClose, "Form1", "OnClose")
-        IF FormOnResize <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnResize, "Form1", "OnResize")
-        IF FormOnClick <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnClick, "Form1", "OnClick")
-        IF FormOnKeyDown <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnKeyDown, "Form1", "OnKeyDown")
-        IF FormOnPaint <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnPaint, "Form1", "OnPaint")
+        IF FormOnShow <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnShow, "Form1", "OnShow", FormCodeOnShow)
+        IF FormOnClose <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnClose, "Form1", "OnClose", FormCodeOnClose)
+        IF FormOnResize <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnResize, "Form1", "OnResize", FormCodeOnResize)
+        IF FormOnClick <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnClick, "Form1", "OnClick", FormCodeOnClick)
+        IF FormOnKeyDown <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnKeyDown, "Form1", "OnKeyDown", FormCodeOnKeyDown)
+        IF FormOnPaint <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, FormOnPaint, "Form1", "OnPaint", FormCodeOnPaint)
 
         FOR I = 0 TO N - 1
             DIM CI2 AS INTEGER
             CI2 = I + 1
             DIM CmpN AS STRING
             CmpN = DesignSurface.GetName(I)
-            IF EvtOnClick(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnClick(CI2), CmpN, "OnClick")
-            IF EvtOnDblClick(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnDblClick(CI2), CmpN, "OnDblClick")
-            IF EvtOnChange(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnChange(CI2), CmpN, "OnChange")
-            IF EvtOnTimer(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnTimer(CI2), CmpN, "OnTimer")
-            IF EvtOnPaint(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnPaint(CI2), CmpN, "OnPaint")
-            IF EvtOnMouseDown(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnMouseDown(CI2), CmpN, "OnMouseDown")
-            IF EvtOnMouseMove(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnMouseMove(CI2), CmpN, "OnMouseMove")
-            IF EvtOnMouseUp(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnMouseUp(CI2), CmpN, "OnMouseUp")
-            IF EvtOnKeyDown(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnKeyDown(CI2), CmpN, "OnKeyDown")
-            IF EvtOnQueryDone(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnQueryDone(CI2), CmpN, "OnQueryDone")
+            IF EvtOnClick(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnClick(CI2), CmpN, "OnClick", EvtCodeOnClick(CI2))
+            IF EvtOnDblClick(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnDblClick(CI2), CmpN, "OnDblClick", EvtCodeOnDblClick(CI2))
+            IF EvtOnChange(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnChange(CI2), CmpN, "OnChange", EvtCodeOnChange(CI2))
+            IF EvtOnTimer(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnTimer(CI2), CmpN, "OnTimer", EvtCodeOnTimer(CI2))
+            IF EvtOnPaint(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnPaint(CI2), CmpN, "OnPaint", EvtCodeOnPaint(CI2))
+            IF EvtOnMouseDown(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnMouseDown(CI2), CmpN, "OnMouseDown", EvtCodeOnMouseDown(CI2))
+            IF EvtOnMouseMove(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnMouseMove(CI2), CmpN, "OnMouseMove", EvtCodeOnMouseMove(CI2))
+            IF EvtOnMouseUp(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnMouseUp(CI2), CmpN, "OnMouseUp", EvtCodeOnMouseUp(CI2))
+            IF EvtOnKeyDown(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnKeyDown(CI2), CmpN, "OnKeyDown", EvtCodeOnKeyDown(CI2))
+            IF EvtOnQueryDone(CI2) <> "" THEN ExistingCode = GenerateSubCode(ExistingCode, EvtOnQueryDone(CI2), CmpN, "OnQueryDone", EvtCodeOnQueryDone(CI2))
         NEXT I
 
         DIM SubPart AS STRING
@@ -1489,6 +1739,7 @@ SUB ToggleCodeView
         BtnCode.Caption = "< Design"
         StatusBar.Caption = "Code View"
     ELSE
+        SyncEventCodeFromSource
         CodeEditor.Visible = 0
         DesignSurface.Show
         ShowingCode = 0
@@ -1499,6 +1750,7 @@ END SUB
 
 SUB ShowDesignView
     IF ShowingCode = 1 THEN
+        SyncEventCodeFromSource
         CodeEditor.Visible = 0
         DesignSurface.Show
         ShowingCode = 0
@@ -1553,12 +1805,20 @@ SUB NewProject
     FormOnShow = "" : FormOnClose = "" : FormOnResize = "" : FormOnKeyDown = "" : FormOnKeyPress = ""
     FormOnKeyUp = "" : FormOnClick = "" : FormOnMouseDown = "" : FormOnMouseMove = "" : FormOnMouseUp = ""
     FormOnPaint = ""
+    FormCodeOnShow = "" : FormCodeOnClose = "" : FormCodeOnResize = "" : FormCodeOnKeyDown = ""
+    FormCodeOnKeyPress = "" : FormCodeOnKeyUp = "" : FormCodeOnClick = ""
+    FormCodeOnMouseDown = "" : FormCodeOnMouseMove = "" : FormCodeOnMouseUp = "" : FormCodeOnPaint = ""
     FOR I = 1 TO 100
         EvtOnClick(I) = "" : EvtOnDblClick(I) = "" : EvtOnChange(I) = ""
         EvtOnMouseDown(I) = "" : EvtOnMouseMove(I) = "" : EvtOnMouseUp(I) = ""
         EvtOnKeyDown(I) = "" : EvtOnKeyPress(I) = "" : EvtOnKeyUp(I) = ""
         EvtOnTimer(I) = "" : EvtOnPaint(I) = "" : EvtOnEnter(I) = ""
         EvtOnConnect(I) = "" : EvtOnDisconnect(I) = "" : EvtOnError(I) = "" : EvtOnQueryDone(I) = ""
+        EvtCodeOnClick(I) = "" : EvtCodeOnDblClick(I) = "" : EvtCodeOnChange(I) = ""
+        EvtCodeOnMouseDown(I) = "" : EvtCodeOnMouseMove(I) = "" : EvtCodeOnMouseUp(I) = ""
+        EvtCodeOnKeyDown(I) = "" : EvtCodeOnKeyPress(I) = "" : EvtCodeOnKeyUp(I) = ""
+        EvtCodeOnTimer(I) = "" : EvtCodeOnPaint(I) = "" : EvtCodeOnEnter(I) = ""
+        EvtCodeOnConnect(I) = "" : EvtCodeOnDisconnect(I) = "" : EvtCodeOnError(I) = "" : EvtCodeOnQueryDone(I) = ""
     NEXT I
     ProjectFile = ""
     CodeEditor.Text = ""
@@ -1972,6 +2232,128 @@ SUB ProjectTreeClick
 END SUB
 
 ' ============================================================
+' EVENT EDITOR HANDLERS
+' ============================================================
+
+SUB OpenEventEditor(CompIdx AS INTEGER, EvtName AS STRING, HandlerName AS STRING)
+    ' Store editing state
+    EditingEvtIndex = CompIdx
+    EditingEvtName = EvtName
+    EditingEvtHandler = HandlerName
+    EventEditorResult = 0
+
+    ' Get event params for the header
+    DIM Params AS STRING
+    Params = GetEventParams(EvtName)
+    IF Params <> "" THEN
+        lblEvtHeader.Caption = "SUB " + HandlerName + "(" + Params + ")"
+    ELSE
+        lblEvtHeader.Caption = "SUB " + HandlerName
+    END IF
+    lblEvtFooter.Caption = "END SUB"
+
+    ' Load existing code body from stored arrays only
+    DIM ExistingBody AS STRING
+    ExistingBody = GetEventCodeBody(CompIdx, EvtName)
+
+    IF ExistingBody = "" THEN
+        EditorTempCode = "    '-- Enter your code here" + CHR$(10)
+    ELSE
+        EditorTempCode = ExistingBody
+    END IF
+
+    ' Set the text BEFORE showing — first time won't have a widget yet,
+    ' so also store it for the CREATE-time initialization
+    edtEvtCode.Text = EditorTempCode
+
+    EventEditorDlg.ShowModal
+
+    ' After ShowModal returns, force-set the text again on next open
+    ' (ensures the buffer is correctly synced with the widget)
+END SUB
+
+SUB EventEditorOK
+    ' Save the code body back to the arrays
+    DIM Body AS STRING
+    Body = edtEvtCode.Text
+
+    ' Trim trailing newlines
+    DO WHILE RIGHT$(Body, 1) = CHR$(10)
+        Body = LEFT$(Body, LEN(Body) - 1)
+    LOOP
+
+    SetEventCodeBody EditingEvtIndex, EditingEvtName, Body
+    EventEditorResult = 1
+
+    ' If code view is showing, regenerate to update the SUB
+    IF ShowingCode = 1 THEN
+        GenerateCode
+        CodeDirty = 0
+    END IF
+
+    EventEditorDlg.Close
+    StatusBar.Caption = "Event code saved: " + EditingEvtHandler
+END SUB
+
+SUB EventEditorCancel
+    EventEditorResult = 0
+    EventEditorDlg.Close
+END SUB
+
+SUB EventEditorOnShow
+    ' Force-set the code editor text after the dialog window is fully shown.
+    ' This ensures the widget and TextBuffer exist before we set text.
+    edtEvtCode.Text = EditorTempCode
+END SUB
+
+' ============================================================
+' EVENT EDITOR DIALOG
+' ============================================================
+
+CREATE EventEditorDlg AS RFORM
+    Caption = "Event Editor"
+    Width = 620
+    Height = 520
+    OnShow = EventEditorOnShow
+    Center
+
+    CREATE lblEvtHeader AS RLABEL
+        Left = 10 : Top = 10
+        Width = 596 : Height = 20
+        Caption = "SUB EventHandler"
+        Font.Name = "Courier New"
+        Font.Size = 11
+    END CREATE
+
+    CREATE edtEvtCode AS RCODEEDITOR
+        Left = 10 : Top = 34
+        Width = 596 : Height = 400
+    END CREATE
+
+    CREATE lblEvtFooter AS RLABEL
+        Left = 10 : Top = 438
+        Width = 596 : Height = 20
+        Caption = "END SUB"
+        Font.Name = "Courier New"
+        Font.Size = 11
+    END CREATE
+
+    CREATE btnEvtOK AS RBUTTON
+        Left = 420 : Top = 462
+        Width = 90 : Height = 28
+        Caption = "OK"
+        OnClick = EventEditorOK
+    END CREATE
+
+    CREATE btnEvtCancel AS RBUTTON
+        Left = 516 : Top = 462
+        Width = 90 : Height = 28
+        Caption = "Cancel"
+        OnClick = EventEditorCancel
+    END CREATE
+END CREATE
+
+' ============================================================
 ' CREATE IDE FORM — VB6-Style Layout
 ' ============================================================
 
@@ -2315,8 +2697,8 @@ CREATE IDE AS RFORM
     CREATE EvtGrid AS RSTRINGGRID
         Left = 906 : Top = 174
         Width = 288 : Height = 484
-        Cols = 2
-        ColWidth = 140
+        Cols = 3
+        ColWidth = 95
         Visible = 0
         OnChange = EvtGridChange
         OnDblClick = EvtGridDblClick

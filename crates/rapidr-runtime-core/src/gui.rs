@@ -114,6 +114,7 @@ impl StringGridRow {
 struct StringGridState {
     rows: Vec<StringGridRow>,
     selected_row: i32,
+    selected_col: i32,
     cols: i32,
     suggestions: Vec<String>,
 }
@@ -232,6 +233,11 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
             } else {
+                // Ensure this window is created as a TOP-LEVEL window, not
+                // embedded inside whatever FLTK group/window is currently open.
+                // This is critical for modal dialogs opened from within an
+                // existing event loop (e.g. EventEditor opened from the IDE).
+                Group::set_current(None::<&Group>);
                 let mut win = Window::new(100, 100, w, h, None);
                 win.set_label(&caption);
                 win.make_resizable(true);
@@ -803,17 +809,21 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             {
                 let nl = name_lower.clone();
                 buf.add_modify_callback(move |_pos, _ins, _del, _restyled, _deleted_text| {
+                    // Use try_borrow to avoid panicking if we're inside gui_set_text
+                    // which may still hold a borrow on GUI_TEXT_BUFFERS.
                     GUI_TEXT_BUFFERS.with(|tb| {
-                        let bufs = tb.borrow();
-                        if let Some(text_buf) = bufs.get(&nl) {
-                            let text = text_buf.text();
-                            let new_styles = basic_syntax_highlight(&text);
-                            GUI_STYLE_BUFFERS.with(|sb| {
-                                let mut styles = sb.borrow_mut();
-                                if let Some(style_buf) = styles.get_mut(&nl) {
-                                    style_buf.set_text(&new_styles);
-                                }
-                            });
+                        if let Ok(bufs) = tb.try_borrow() {
+                            if let Some(text_buf) = bufs.get(&nl) {
+                                let text = text_buf.text();
+                                let new_styles = basic_syntax_highlight(&text);
+                                GUI_STYLE_BUFFERS.with(|sb| {
+                                    if let Ok(mut styles) = sb.try_borrow_mut() {
+                                        if let Some(style_buf) = styles.get_mut(&nl) {
+                                            style_buf.set_text(&new_styles);
+                                        }
+                                    }
+                                });
+                            }
                         }
                     });
                 });
@@ -1010,6 +1020,32 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         lbl.set_frame(FrameType::FlatBox);
                         lbl.set_color(Color::from_rgb(200, 210, 230));
                         lbl.set_align(Align::Left | Align::Inside);
+                    } else if col_val == "..." {
+                        // Render "..." cells as clickable button-style labels
+                        let mut btn = Frame::new(cell_x, row_y, col_w, row_h, None);
+                        btn.set_label("...");
+                        btn.set_frame(FrameType::UpBox);
+                        btn.set_color(Color::from_rgb(230, 230, 230));
+                        btn.set_align(Align::Center | Align::Inside);
+                        let sg_btn = sg_name.clone();
+                        let ri = row_idx;
+                        let ci_btn = col_idx;
+                        btn.handle(move |_w, ev| {
+                            match ev {
+                                Event::Push => {
+                                    STRING_GRIDS.with(|sg| {
+                                        let mut grids = sg.borrow_mut();
+                                        if let Some(state) = grids.get_mut(&sg_btn) {
+                                            state.selected_row = ri as i32;
+                                            state.selected_col = ci_btn as i32;
+                                        }
+                                    });
+                                    rp_fire_event(&sg_btn, "ondblclick");
+                                    true
+                                }
+                                _ => false,
+                            }
+                        });
                     } else {
                         let mut inp = Input::new(cell_x, row_y, col_w, row_h, None);
                         inp.set_value(col_val);
@@ -1028,6 +1064,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                                     if ri < state.rows.len() && ci < state.rows[ri].cols.len() {
                                         state.rows[ri].cols[ci] = val.clone();
                                         state.selected_row = ri as i32;
+                                        state.selected_col = ci as i32;
                                     }
                                 }
                             });
@@ -1041,6 +1078,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                                         let mut grids = sg.borrow_mut();
                                         if let Some(state) = grids.get_mut(&sg_dbl) {
                                             state.selected_row = ri as i32;
+                                            state.selected_col = ci as i32;
                                         }
                                     });
                                     rp_fire_event(&sg_dbl, "ondblclick");
@@ -1055,6 +1093,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                                             if ri < state.rows.len() && ci < state.rows[ri].cols.len() {
                                                 state.rows[ri].cols[ci] = val;
                                                 state.selected_row = ri as i32;
+                                                state.selected_col = ci as i32;
                                             }
                                         }
                                     });
@@ -1079,6 +1118,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     grids.insert(name_lower, StringGridState {
                         rows: Vec::new(),
                         selected_row: -1,
+                        selected_col: -1,
                         cols: 2,
                         suggestions: Vec::new(),
                     });
@@ -2226,6 +2266,9 @@ pub fn gui_showmodal(name: &str) {
         }
     });
 
+    // Fire OnShow event after widgets are built and window is shown
+    rp_fire_event(name, "onshow");
+
     // Start all registered timers
     start_timers();
 
@@ -2689,6 +2732,9 @@ pub fn gui_show(name: &str) {
             _ => {}
         }
     });
+
+    // Fire OnShow event after widgets are built and shown
+    rp_fire_event(name, "onshow");
 }
 
 // ---------------------------------------------------------------------------
@@ -2905,6 +2951,16 @@ pub fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value 
             gui_close(name);
             v_null()
         }
+        "count" => {
+            DESIGN_SURFACES.with(|ds| {
+                let surfaces = ds.borrow();
+                if let Some(state) = surfaces.get(&name_lower) {
+                    v_int(state.components.len() as i64)
+                } else {
+                    v_int(0)
+                }
+            })
+        }
         _ => {
             eprintln!("[WARN] DesignSurface.{}() not implemented", method);
             v_null()
@@ -2912,12 +2968,12 @@ pub fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value 
     }
 }
 
-/// Get a design surface property (CompCount, FormCaption, etc.)
+/// Get a design surface property
 pub fn design_surface_get(name: &str, prop: &str) -> Option<Value> {
     let name_lower = name.to_lowercase();
     let prop_lower = prop.to_lowercase();
     match prop_lower.as_str() {
-        "compcount" => {
+        "compcount" | "count" => {
             Some(DESIGN_SURFACES.with(|ds| {
                 let surfaces = ds.borrow();
                 if let Some(state) = surfaces.get(&name_lower) {
@@ -2985,17 +3041,23 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let state = grids.entry(name_lower.clone()).or_insert_with(|| StringGridState {
                     rows: Vec::new(),
                     selected_row: -1,
+                    selected_col: -1,
                     cols: 2,
                     suggestions: Vec::new(),
                 });
                 state.rows.clear();
                 state.selected_row = -1;
+                state.selected_col = -1;
             });
-            // Clear the visual scroll widget
+            // Clear visual children safely — Scroll has 2 internal scrollbar
+            // children that must NOT be removed (they are the last 2 children).
             GUI_WIDGETS.with(|gw| {
                 let mut widgets = gw.borrow_mut();
                 if let Some(GuiWidget::Scroll(ref mut scroll)) = widgets.get_mut(&name_lower) {
-                    scroll.clear();
+                    while scroll.children() > 2 {
+                        scroll.remove_by_index(0);
+                    }
+                    scroll.scroll_to(0, 0);
                     scroll.redraw();
                 }
             });
@@ -3009,6 +3071,7 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let state = grids.entry(name_lower.clone()).or_insert_with(|| StringGridState {
                     rows: Vec::new(),
                     selected_row: -1,
+                    selected_col: -1,
                     cols: row_values.len() as i32,
                     suggestions: Vec::new(),
                 });
@@ -3044,6 +3107,32 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                             lbl.set_frame(FrameType::FlatBox);
                             lbl.set_color(Color::from_rgb(200, 210, 230));
                             lbl.set_align(Align::Left | Align::Inside);
+                        } else if cell_val == "..." {
+                            // Render "..." cells as clickable button-style labels
+                            let mut btn = Frame::new(cell_x, row_y, col_w, row_h, None);
+                            btn.set_label("...");
+                            btn.set_frame(FrameType::UpBox);
+                            btn.set_color(Color::from_rgb(230, 230, 230));
+                            btn.set_align(Align::Center | Align::Inside);
+                            let sg_btn = sg_name.clone();
+                            let ri = row_idx;
+                            let col_i = ci;
+                            btn.handle(move |_w, ev| {
+                                match ev {
+                                    Event::Push => {
+                                        STRING_GRIDS.with(|sg| {
+                                            let mut grids = sg.borrow_mut();
+                                            if let Some(state) = grids.get_mut(&sg_btn) {
+                                                state.selected_row = ri as i32;
+                                                state.selected_col = col_i as i32;
+                                            }
+                                        });
+                                        rp_fire_event(&sg_btn, "ondblclick");
+                                        true
+                                    }
+                                    _ => false,
+                                }
+                            });
                         } else {
                             let mut inp = Input::new(cell_x, row_y, col_w, row_h, None);
                             inp.set_value(cell_val);
@@ -3062,6 +3151,7 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                                         if ri < state.rows.len() && col_i < state.rows[ri].cols.len() {
                                             state.rows[ri].cols[col_i] = val.clone();
                                             state.selected_row = ri as i32;
+                                            state.selected_col = col_i as i32;
                                         }
                                     }
                                 });
@@ -3075,6 +3165,7 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                                             let mut grids = sg.borrow_mut();
                                             if let Some(state) = grids.get_mut(&sg_focus) {
                                                 state.selected_row = ri as i32;
+                                                state.selected_col = col_i as i32;
                                             }
                                         });
                                         if ev == Event::Push && app::event_clicks() {
@@ -3091,6 +3182,7 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                                                 if ri < state.rows.len() && col_i < state.rows[ri].cols.len() {
                                                     state.rows[ri].cols[col_i] = val;
                                                     state.selected_row = ri as i32;
+                                                    state.selected_col = col_i as i32;
                                                 }
                                             }
                                         });
@@ -3148,6 +3240,7 @@ pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let state = grids.entry(name_lower.clone()).or_insert_with(|| StringGridState {
                     rows: Vec::new(),
                     selected_row: -1,
+                    selected_col: -1,
                     cols: 2,
                     suggestions: Vec::new(),
                 });
@@ -3181,6 +3274,16 @@ pub fn string_grid_get(name: &str, prop: &str) -> Option<Value> {
                 let grids = sg.borrow();
                 if let Some(state) = grids.get(&name_lower) {
                     v_int(state.selected_row as i64)
+                } else {
+                    v_int(-1)
+                }
+            }))
+        }
+        "selectedcol" => {
+            Some(STRING_GRIDS.with(|sg| {
+                let grids = sg.borrow();
+                if let Some(state) = grids.get(&name_lower) {
+                    v_int(state.selected_col as i64)
                 } else {
                     v_int(-1)
                 }
@@ -3743,20 +3846,17 @@ pub fn gui_set_caption(name: &str, text: &str) {
 /// Update the text content of a TextEditor/TextBuffer.
 pub fn gui_set_text(name: &str, text: &str) {
     let name_lower = name.to_lowercase();
-    GUI_TEXT_BUFFERS.with(|tb| {
-        let mut bufs = tb.borrow_mut();
-        if let Some(buf) = bufs.get_mut(&name_lower) {
-            buf.set_text(text);
-        }
+    // Clone the buffer handle (cheap pointer clone) and release the RefCell borrow
+    // BEFORE calling set_text, because set_text fires the modify callback synchronously
+    // which tries to borrow the same RefCell → "RefCell already mutably borrowed" panic.
+    let buf_clone = GUI_TEXT_BUFFERS.with(|tb| {
+        tb.borrow().get(&name_lower).cloned()
     });
-    // Re-highlight syntax for code editors
-    GUI_STYLE_BUFFERS.with(|sb| {
-        let mut styles = sb.borrow_mut();
-        if let Some(style_buf) = styles.get_mut(&name_lower) {
-            let new_styles = basic_syntax_highlight(text);
-            style_buf.set_text(&new_styles);
-        }
-    });
+    if let Some(mut buf) = buf_clone {
+        buf.set_text(text);
+    }
+    // The modify callback already handles syntax re-highlighting,
+    // so no explicit re-highlight is needed here.
 }
 
 /// Get the text content of a TextEditor/TextBuffer.
