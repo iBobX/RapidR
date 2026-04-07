@@ -5,28 +5,6 @@
 ' ============================================================
 $APPTYPE WEB
 
-DIM Form1 AS RFORM
-DIM Display AS REDIT
-DIM Btn0 AS RBUTTON
-DIM Btn1 AS RBUTTON
-DIM Btn2 AS RBUTTON
-DIM Btn3 AS RBUTTON
-DIM Btn4 AS RBUTTON
-DIM Btn5 AS RBUTTON
-DIM Btn6 AS RBUTTON
-DIM Btn7 AS RBUTTON
-DIM Btn8 AS RBUTTON
-DIM Btn9 AS RBUTTON
-DIM BtnAdd AS RBUTTON
-DIM BtnSub AS RBUTTON
-DIM BtnMul AS RBUTTON
-DIM BtnDiv AS RBUTTON
-DIM BtnEq AS RBUTTON
-DIM BtnClr AS RBUTTON
-DIM BtnDot AS RBUTTON
-DIM LblTitle AS RLABEL
-DIM LblHistory AS RLABEL
-
 DIM current AS STRING
 DIM accumulator AS DOUBLE
 DIM op AS STRING
@@ -38,182 +16,183 @@ op = ""
 newNumber = 1
 
 CREATE Form1 AS RFORM
-    .Caption = "RapidR Web Calculator"
-    .Width = 340
-    .Height = 500
-    .Left = 80
-    .Top = 30
+    Caption = "RapidR Web Calculator"
+    Width = 340
+    Height = 500
+    Left = 80
+    Top = 30
+
+    CREATE LblTitle AS RLABEL
+        Caption = "RapidR Calculator"
+        Left = 20
+        Top = 10
+        Width = 300
+        Height = 25
+        FontSize = 16
+        FontBold = 1
+    END CREATE
+
+    CREATE LblHistory AS RLABEL
+        Caption = ""
+        Left = 20
+        Top = 40
+        Width = 300
+        Height = 20
+        FontSize = 11
+    END CREATE
+
+    CREATE Display AS REDIT
+        Text = "0"
+        Left = 20
+        Top = 65
+        Width = 290
+        Height = 45
+        FontSize = 24
+        ReadOnly = 1
+    END CREATE
+
+    ' --- Row 1: 7 8 9 / ---
+    CREATE Btn7 AS RBUTTON
+        Caption = "7"
+        Left = 20
+        Top = 125
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE Btn8 AS RBUTTON
+        Caption = "8"
+        Left = 95
+        Top = 125
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE Btn9 AS RBUTTON
+        Caption = "9"
+        Left = 170
+        Top = 125
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE BtnDiv AS RBUTTON
+        Caption = "/"
+        Left = 245
+        Top = 125
+        Width = 65
+        Height = 55
+    END CREATE
+
+    ' --- Row 2: 4 5 6 * ---
+    CREATE Btn4 AS RBUTTON
+        Caption = "4"
+        Left = 20
+        Top = 190
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE Btn5 AS RBUTTON
+        Caption = "5"
+        Left = 95
+        Top = 190
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE Btn6 AS RBUTTON
+        Caption = "6"
+        Left = 170
+        Top = 190
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE BtnMul AS RBUTTON
+        Caption = "*"
+        Left = 245
+        Top = 190
+        Width = 65
+        Height = 55
+    END CREATE
+
+    ' --- Row 3: 1 2 3 - ---
+    CREATE Btn1 AS RBUTTON
+        Caption = "1"
+        Left = 20
+        Top = 255
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE Btn2 AS RBUTTON
+        Caption = "2"
+        Left = 95
+        Top = 255
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE Btn3 AS RBUTTON
+        Caption = "3"
+        Left = 170
+        Top = 255
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE BtnSub AS RBUTTON
+        Caption = "-"
+        Left = 245
+        Top = 255
+        Width = 65
+        Height = 55
+    END CREATE
+
+    ' --- Row 4: 0  = + ---
+    CREATE Btn0 AS RBUTTON
+        Caption = "0"
+        Left = 20
+        Top = 320
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE BtnDot AS RBUTTON
+        Caption = ""
+        Left = 95
+        Top = 320
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE BtnEq AS RBUTTON
+        Caption = "="
+        Left = 170
+        Top = 320
+        Width = 65
+        Height = 55
+    END CREATE
+
+    CREATE BtnAdd AS RBUTTON
+        Caption = "+"
+        Left = 245
+        Top = 320
+        Width = 65
+        Height = 55
+    END CREATE
+
+    ' --- Clear button ---
+    CREATE BtnClr AS RBUTTON
+        Caption = "C"
+        Left = 20
+        Top = 385
+        Width = 290
+        Height = 45
+    END CREATE
 END CREATE
 
-CREATE LblTitle AS RLABEL
-    .Caption = "RapidR Calculator"
-    .Left = 20
-    .Top = 10
-    .Width = 300
-    .Height = 25
-    .FontSize = 16
-    .FontBold = 1
-END CREATE
-
-CREATE LblHistory AS RLABEL
-    .Caption = ""
-    .Left = 20
-    .Top = 40
-    .Width = 300
-    .Height = 20
-    .FontSize = 11
-END CREATE
-
-CREATE Display AS REDIT
-    .Text = "0"
-    .Left = 20
-    .Top = 65
-    .Width = 290
-    .Height = 45
-    .FontSize = 24
-    .ReadOnly = 1
-END CREATE
-
-' --- Row 1: 7 8 9 / ---
-CREATE Btn7 AS RBUTTON
-    .Caption = "7"
-    .Left = 20
-    .Top = 125
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE Btn8 AS RBUTTON
-    .Caption = "8"
-    .Left = 95
-    .Top = 125
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE Btn9 AS RBUTTON
-    .Caption = "9"
-    .Left = 170
-    .Top = 125
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE BtnDiv AS RBUTTON
-    .Caption = "/"
-    .Left = 245
-    .Top = 125
-    .Width = 65
-    .Height = 55
-END CREATE
-
-' --- Row 2: 4 5 6 * ---
-CREATE Btn4 AS RBUTTON
-    .Caption = "4"
-    .Left = 20
-    .Top = 190
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE Btn5 AS RBUTTON
-    .Caption = "5"
-    .Left = 95
-    .Top = 190
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE Btn6 AS RBUTTON
-    .Caption = "6"
-    .Left = 170
-    .Top = 190
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE BtnMul AS RBUTTON
-    .Caption = "*"
-    .Left = 245
-    .Top = 190
-    .Width = 65
-    .Height = 55
-END CREATE
-
-' --- Row 3: 1 2 3 - ---
-CREATE Btn1 AS RBUTTON
-    .Caption = "1"
-    .Left = 20
-    .Top = 255
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE Btn2 AS RBUTTON
-    .Caption = "2"
-    .Left = 95
-    .Top = 255
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE Btn3 AS RBUTTON
-    .Caption = "3"
-    .Left = 170
-    .Top = 255
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE BtnSub AS RBUTTON
-    .Caption = "-"
-    .Left = 245
-    .Top = 255
-    .Width = 65
-    .Height = 55
-END CREATE
-
-' --- Row 4: 0 . = + ---
-CREATE Btn0 AS RBUTTON
-    .Caption = "0"
-    .Left = 20
-    .Top = 320
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE BtnDot AS RBUTTON
-    .Caption = "."
-    .Left = 95
-    .Top = 320
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE BtnEq AS RBUTTON
-    .Caption = "="
-    .Left = 170
-    .Top = 320
-    .Width = 65
-    .Height = 55
-END CREATE
-
-CREATE BtnAdd AS RBUTTON
-    .Caption = "+"
-    .Left = 245
-    .Top = 320
-    .Width = 65
-    .Height = 55
-END CREATE
-
-' --- Clear button ---
-CREATE BtnClr AS RBUTTON
-    .Caption = "C"
-    .Left = 20
-    .Top = 385
-    .Width = 290
-    .Height = 45
-END CREATE
 
 ' --- Digit handler ---
 SUB AppendDigit(d AS STRING)

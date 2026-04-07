@@ -57,6 +57,21 @@ SUB BtnBarClick
     LblStatus.Caption = "Bar chart generated with 6 random categories."
 END SUB
 
+SUB BtnPieClick
+    ' Generate a pie chart of market share data
+    DIM slices AS RNum
+    slices.fromlist "35,25,20,12,8"
+
+    plt.clear
+    plt.title = "Browser Market Share"
+    plt.width = 7
+    plt.height = 4
+    plt.pie slices, "Chrome,Firefox,Safari,Edge,Other", "steelblue,orange,green,purple,gray"
+
+    ImgPlot.loadfromplot plt
+    LblStatus.Caption = "Pie chart generated: Browser Market Share (5 slices)"
+END SUB
+
 SUB BtnClearClick
     plt.clear
     ImgPlot.Cls
@@ -107,8 +122,17 @@ CREATE Form1 AS RForm
         OnClick = BtnBarClick
     END CREATE
 
-    CREATE BtnClear AS RButton
+    CREATE BtnPie AS RButton
         Left = 320
+        Top = 460
+        Width = 130
+        Height = 30
+        Caption = "Pie Chart"
+        OnClick = BtnPieClick
+    END CREATE
+
+    CREATE BtnClear AS RButton
+        Left = 470
         Top = 460
         Width = 130
         Height = 30

@@ -1,11 +1,5 @@
 $TYPECHECK ON
 
-DIM MainForm AS RForm
-DIM Btn1 AS RButton
-DIM Btn2 AS RButton
-DIM Label1 AS RLabel
-DIM Edit1 AS REdit
-DIM ListBox1 AS RListBox
 DIM Timer1 AS RTimer
 DIM TickCount AS INTEGER
 TickCount = 0

@@ -3066,14 +3066,14 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ast"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rapidr-codegen-rust",
  "rapidr-lexer",
@@ -3083,7 +3083,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-codegen-rust"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -3093,11 +3093,11 @@ dependencies = [
 
 [[package]]
 name = "rapidr-diagnostics"
-version = "0.1.0"
+version = "1.0.0"
 
 [[package]]
 name = "rapidr-lexer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rapidr-diagnostics",
  "rapidr-preprocessor",
@@ -3105,7 +3105,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-parser"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -3114,17 +3114,18 @@ dependencies = [
 
 [[package]]
 name = "rapidr-preprocessor"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-runtime-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "fltk",
  "fltk-theme",
+ "image",
  "libloading",
  "mysql",
  "ndarray",
@@ -3133,12 +3134,13 @@ dependencies = [
  "rand 0.9.2",
  "rodio",
  "rusqlite",
+ "serde_json",
  "ureq",
 ]
 
 [[package]]
 name = "rapidr-runtime-web"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

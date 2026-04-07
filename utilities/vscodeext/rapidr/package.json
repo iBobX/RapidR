@@ -1,8 +1,8 @@
 {
   "name": "rapidr",
   "displayName": "RapidR",
-  "description": "Full language support for RapidR (.rr) — a modern BASIC-to-Rust transpiler with 45+ GUI/data science components, data science, SQL databases, sockets, HTTP, and a visual IDE. Syntax highlighting, IntelliSense, hover docs, signature help, code snippets, diagnostics, and compile integration.",
-  "version": "2.2.0",
+  "description": "Full language support for RapidR (.rr) — a modern BASIC-to-Rust transpiler with 50+ GUI/data science components, data science, SQL databases, sockets, HTTP, JSON, and a visual IDE. Syntax highlighting, IntelliSense, hover docs, signature help, code snippets, diagnostics, and compile integration.",
+  "version": "2.4.0",
   "publisher": "rapidr",
   "license": "MIT",
   "repository": {

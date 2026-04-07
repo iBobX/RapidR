@@ -711,7 +711,7 @@ The component registry is distributed across:
 - `crates/rapidr-runtime-core/src/object.rs` — property get/set/method dispatch
 - `crates/rapidr-codegen-rust/src/lib.rs` — `is_component_type_name()` and `is_component_method_name()`
 
-Covers 49+ component types: `RFORM`, `RBUTTON`, `RLABEL`, `REDIT`, `RCANVAS`, `RPANEL`, `RTIMER`, `RSTRINGGRID`, `RIMAGE`, `RCODEEDITOR`, `RMYSQL`, `RSQLITE`, `RSOCKET`, `RSERVERSOCKET`, `RHTTP`, `RNUM`, `RPLOT`, `RDATAFRAME`, `RDESIGNSURFACE`, `RTREEVIEW`, `RLISTVIEW`, `RSPLITTER`, `RTRACKBAR`, `RSCROLLBOX`, `RPOPUPMENU`, `RINI`, `RMEMORYSTREAM`, `RSTRINGLIST`, `RPRINTER`, `RCOLORDIALOG`, `RFONTDIALOG`, `RSTATUSBAR`, `RLINE`, `RICON`, `RIMAGELIST`, etc.
+Covers 52+ component types: `RFORM`, `RBUTTON`, `RLABEL`, `REDIT`, `RCANVAS`, `RPANEL`, `RTIMER`, `RSTRINGGRID`, `RIMAGE`, `RCODEEDITOR`, `RMYSQL`, `RSQLITE`, `RSOCKET`, `RSERVERSOCKET`, `RHTTP`, `RNUM`, `RPLOT`, `RDATAFRAME`, `RJSON`, `RCOOLBTN`, `ROVALBTN`, `RDESIGNSURFACE`, `RTREEVIEW`, `RLISTVIEW`, `RSPLITTER`, `RTRACKBAR`, `RSCROLLBOX`, `RPOPUPMENU`, `RINI`, `RMEMORYSTREAM`, `RSTRINGLIST`, `RPRINTER`, `RCOLORDIALOG`, `RFONTDIALOG`, `RSTATUSBAR`, `RLINE`, `RICON`, `RIMAGELIST`, etc.
 
 ---
 
@@ -758,9 +758,12 @@ The largest runtime module (~3,600 lines). Implements 49+ FLTK-based GUI compone
 - `RCANVAS` — Drawing surface with pset/line/circle/fillrect/textout methods
 - `RSTRINGGRID` — Editable grid with column/row management
 - `RCODEEDITOR` — Syntax-highlighted text editor with line numbers
+- `RCOOLBTN` — Flat/toggle toolbar button with optional multi-state BMP images, GroupIndex for radio-group behavior
+- `ROVALBTN` — Oval/round button with customizable Color, ColorHighlight, ColorShadow
 - `RDESIGNSURFACE` — Visual form designer (used by the IDE)
 - `RFONTDIALOG` — Font picker with preview
 - `RCOLORDIALOG` — System color picker
+- `RJSON` — JSON parsing, generation, dot-path get/set, file I/O (cross-platform)
 
 ### 6.3 Database (`database.rs`)
 
@@ -779,9 +782,9 @@ The largest runtime module (~3,600 lines). Implements 49+ FLTK-based GUI compone
 - **RPLOT** — Chart generation via `plotters` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savetofile`, `saveto_buffer`.
 - **RDATAFRAME** — DataFrames via `polars` crate. Methods: `loadfromcsv`, `savetocsv`, `loadfromjson`, `savetojson`, `head`, `tail`, `describe`, `sort`, `filter`, `groupby`, `addcolumn`, `deletecolumn`, `cell`, `setcell`, `query`, `tostring`, `tolist`.
 
-- **RNUM** — Numeric arrays via `ndarray` crate. Methods: `zeros`, `ones`, `arange`, `linspace`, `reshape`, `sum`, `mean`, `std`, `min`, `max`, `dot`, `transpose`, `sort`, `savetofile`, `loadfromfile`.
-- **RPLOT** — Chart generation via `plotters` crate. Methods: `plot`, `scatter`, `bar`, `hist`, `pie`, `legend`, `clear`, `savetofile`, `saveto_buffer`.
-- **RDATAFRAME** — DataFrames via `polars` crate. Methods: `loadfromcsv`, `savetocsv`, `loadfromjson`, `savetojson`, `head`, `tail`, `describe`, `sort`, `filter`, `groupby`, `addcolumn`, `deletecolumn`, `cell`, `setcell`, `query`, `tostring`, `tolist`.
+### 6.6 JSON (`object.rs`)
+
+- **RJSON** — JSON parsing and generation via `serde_json` crate. Methods: `parse`, `stringify`, `prettify`, `get` (dot-path with array index support), `set` (dot-path with auto-create), `has`, `remove`, `count`, `keys`, `loadfile`, `savefile`, `clear`. Cross-platform: desktop uses `serde_json`, web uses `js_sys::JSON` and `Reflect` API.
 
 ---
 
@@ -943,6 +946,19 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 ### IDE Example (`ide.rr`)
 - **MDI layout**: DesignSurface is now created inside the IDE form's CREATE block with `Left=4, Top=124, Width=832, Height=580`, embedding it directly in the center area rather than as a separate floating window.
 - **Import `Key`**: Added `fltk::enums::Key` to imports for button keyboard handling.
+- **Code preservation (v1.1)**: GenerateCode uses `[AUTO-DECLARATIONS]`/`[AUTO-FORM]` markers. User code (globals, constants, FUNCTIONs, SUBs) between the markers is preserved across regenerations.
+- **Improved compilation (v1.1)**: CompileAndRun now captures build output to a log file and displays errors line-by-line in the ErrorList.
+- **RCoolBtn/ROvalBtn in toolbox (v1.1)**: Added "Cool" and "Oval" buttons to the component palette with full property/event support.
+- **Open in VS Code (v1.1)**: Tools → "Open in VS Code" shells out to `code` to open the project file externally.
+
+### Menu System Fixes
+- **SysMenuBar**: `RMAINMENU` now uses FLTK `SysMenuBar` instead of `MenuBar`. On macOS, this renders the menu in the native system menu bar. On other platforms, it acts as a regular in-window menu bar.
+- **Menu y-offset**: When a form has an `RMAINMENU` child, all non-menu child widgets are automatically offset by 30px on non-macOS platforms to prevent overlapping with the in-window menu bar.
+- **REDIT text sync**: `rp_comp_get` for REDIT components now reads the `text` property directly from the FLTK Input widget, not from the cached property registry. This fixes the demo_mysql Edit button bug where typed text wasn't returned because the Input callback only fires on Enter.
+
+### New Components
+- **RCOOLBTN**: Flat/toggle toolbar-style button. Properties: Caption, Flat, GroupIndex, Down, AllowAllUp, BMP, NumBMPs, Layout, Spacing. Uses FLTK flat button with custom toggle/group logic. On web: CSS-styled `<button>` with optional image.
+- **ROVALBTN**: Oval/round button with custom draw. Properties: Color, ColorHighlight, ColorShadow, Flat, GroupIndex, Down. Uses `draw_pie`/`draw_arc` for 3D oval appearance. On web: CSS `border-radius: 50%` button.
 
 ### CLI
 - The `rapidr` binary can be installed globally via `cargo install --path crates/rapidr-cli`.

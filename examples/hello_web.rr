@@ -6,45 +6,42 @@
 ' ============================================================
 $APPTYPE WEB
 
-DIM Form1 AS RFORM
-DIM Label1 AS RLABEL
-DIM Button1 AS RBUTTON
-DIM Edit1 AS REDIT
 DIM Counter AS INTEGER
-
 Counter = 0
 
 CREATE Form1 AS RFORM
-    .Caption = "Hello from the Web!"
-    .Width = 500
-    .Height = 350
-    .Left = 50
-    .Top = 50
+    Caption = "Hello from the Web!"
+    Width = 500
+    Height = 350
+    Left = 50
+    Top = 50
+
+    CREATE Label1 AS RLABEL
+        Caption = "Welcome to RapidR in the browser!"
+        Left = 20
+        Top = 20
+        Width = 400
+        Height = 30
+    END CREATE
+
+    CREATE Edit1 AS REDIT
+        Text = "Type your name here"
+        Left = 20
+        Top = 60
+        Width = 300
+        Height = 30
+    END CREATE
+
+    CREATE Button1 AS RBUTTON
+        Caption = "Click Me!"
+        Left = 20
+        Top = 100
+        Width = 120
+        Height = 35
+        OnClick = Button1_OnClick
+    END CREATE
 END CREATE
 
-CREATE Label1 AS RLABEL
-    .Caption = "Welcome to RapidR in the browser!"
-    .Left = 20
-    .Top = 20
-    .Width = 400
-    .Height = 30
-END CREATE
-
-CREATE Edit1 AS REDIT
-    .Text = "Type your name here"
-    .Left = 20
-    .Top = 60
-    .Width = 300
-    .Height = 30
-END CREATE
-
-CREATE Button1 AS RBUTTON
-    .Caption = "Click Me!"
-    .Left = 20
-    .Top = 100
-    .Width = 120
-    .Height = 35
-END CREATE
 
 SUB Button1_OnClick()
     Counter = Counter + 1
@@ -54,5 +51,3 @@ SUB Button1_OnClick()
     Label1.Caption = "Hello, " + name + "! (Click #" + STR(Counter) + ")"
     PRINT "Button clicked " + STR(Counter) + " times"
 END SUB
-
-Button1.OnClick = Button1_OnClick
