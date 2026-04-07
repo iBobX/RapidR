@@ -59,7 +59,7 @@ RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace p
 | `rapidr-lexer` | Lexical analysis — keywords, literals, directives, operators, suffixes |
 | `rapidr-parser` | Recursive-descent parser producing typed AST from token stream |
 | `rapidr-codegen-rust` | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` (~2,100 lines) |
-| `rapidr-runtime-core` | **Native runtime** — GUI (FLTK), builtins, database (MySQL/SQLite), networking, data science (ndarray/polars/plotters), file I/O |
+| `rapidr-runtime-core` | **Native runtime** — GUI (FLTK), builtins, database (MySQL/SQLite), networking, data science (ndarray/polars/plotters/image), file I/O |
 | `rapidr-runtime-web` | **Web runtime** — Browser GUI (DOM/Canvas), web-exclusive components, WASM-compatible builtins, wasm-bindgen interop |
 
 ### Key Capabilities
@@ -592,7 +592,7 @@ PRINT http.document
 
 ### Data Science Components: RNum, RPlot, RDataFrame
 
-These components provide data science capabilities backed by native Rust crates: **ndarray** for array math, **polars** for dataframes, and **plotters** for chart rendering. They are feature-gated under the `datascience` feature (enabled by default).
+These components provide data science capabilities backed by native Rust crates: **ndarray** for array math, **polars** for dataframes, **plotters** for chart rendering, and **image** for in-memory PNG encoding. They are feature-gated under the `datascience` feature (enabled by default).
 
 #### RNum (With some NumPy-Compatibility)
 
@@ -682,13 +682,13 @@ df.togrid "Grid1"          ' Populate RStringGrid with DataFrame
 
 #### RImage + Plot Integration
 
-`RImage` can display plots directly:
+`RImage` can display plots directly via in-memory PNG rendering — no temporary files are created:
 
 ```basic
 DIM plt AS RPlot
 DIM img AS RImage
 plt.plot x, y, "red", "Data"
-img.loadfromplot plt
+img.loadfromplot plt    ' Renders to PNG bytes in memory, loads directly into FLTK widget
 ```
 
 ---
@@ -924,7 +924,7 @@ Three demo applications showcase the data science components with full GUI integ
 
 | Demo | Components | Description |
 |------|-----------|-------------|
-| `demo_plot.rr` | `RPlot` + `RImage` | Generates sine/cosine plots and bar charts, displays them inside a `RImage` on a form |
+| `demo_plot.rr` | `RPlot` + `RImage` | Generates sine/cosine line plots, bar charts, and pie charts, displays them inside a `RImage` on a form |
 | `demo_num.rr` | `RNum` + `RStringGrid` | Array math operations (element-wise, statistics, linspace, dot product) shown in a grid |
 | `demo_dataframe.rr` | `RDataFrame` + `RStringGrid` | Loads CSV data, supports sort, filter, group-by, and summary statistics in a grid |
 
