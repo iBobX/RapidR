@@ -93,7 +93,7 @@ CREATE Form1 AS RForm
         Left = 20
         Top = 10
         Width = 700
-        Caption = "Matplotlib Integration: Click a button to generate a chart in the image below"
+        Caption = "RPlot Integration: Click a button to generate a chart in the image below"
     END CREATE
 
     CREATE ImgPlot AS RImage

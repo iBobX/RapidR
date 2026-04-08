@@ -136,7 +136,7 @@ CREATE Form1 AS RForm
         Left = 20
         Top = 10
         Width = 600
-        Caption = "NumPy Integration: Choose an operation to see array math in the grid"
+        Caption = "RNum Integration: Choose an operation to see array math in the grid"
     END CREATE
 
     CREATE BtnBasic AS RButton
