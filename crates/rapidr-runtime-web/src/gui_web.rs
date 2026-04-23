@@ -12,7 +12,7 @@ use wasm_bindgen::JsCast;
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn document() -> web_sys::Document {
+pub fn document() -> web_sys::Document {
     web_sys::window()
         .expect("no window")
         .document()
@@ -634,7 +634,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             if let Some(el) = get_el(&id) {
                 if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
                     while sel.length() > 0 {
-                        sel.remove();
+                        sel.remove_with_index(0);
                     }
                 } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
                     ta.set_value("");

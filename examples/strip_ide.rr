@@ -1,0 +1,175 @@
+' Strip IDE v2 — adds FormCount loops + DoHitTest pattern
+$APPTYPE WEB
+
+DIM CompCount AS INTEGER
+DIM CompX(20) AS INTEGER
+DIM CompY(20) AS INTEGER
+DIM CompW(20) AS INTEGER
+DIM CompH(20) AS INTEGER
+DIM CompForm(20) AS INTEGER
+DIM FormCount AS INTEGER
+DIM FormX(8) AS INTEGER
+DIM FormY(8) AS INTEGER
+DIM FormW(8) AS INTEGER
+DIM FormH(8) AS INTEGER
+DIM FormState(8) AS INTEGER
+DIM ActiveForm AS INTEGER
+DIM SelKind AS INTEGER
+DIM SelIndex AS INTEGER
+DIM HitRegion AS INTEGER
+DIM HitInfo AS INTEGER
+DIM TITLEBAR_H AS INTEGER
+TITLEBAR_H = 24
+
+CREATE F AS RFORM
+    Caption = "Strip2"
+    Width = 1100
+    Height = 720
+    CREATE Toolbox AS RLISTBOX
+        Left = 8
+        Top = 32
+        Width = 130
+        Height = 200
+    END CREATE
+    CREATE FormsList AS RLISTBOX
+        Left = 8
+        Top = 240
+        Width = 130
+        Height = 80
+    END CREATE
+    CREATE Designer AS RCANVAS
+        Left = 150
+        Top = 32
+        Width = 780
+        Height = 580
+    END CREATE
+    CREATE PropGrid AS RSTRINGGRID
+        Left = 940
+        Top = 32
+        Width = 150
+        Height = 380
+    END CREATE
+    CREATE EventsList AS RLISTBOX
+        Left = 940
+        Top = 420
+        Width = 150
+        Height = 140
+    END CREATE
+    CREATE Status AS RLABEL
+        Caption = "Ready"
+        Left = 8
+        Top = 670
+        Width = 1080
+        Height = 22
+    END CREATE
+END CREATE
+PropGrid.ColCount = 2
+PropGrid.RowCount = 8
+Toolbox.AddItem("Pointer")
+Toolbox.AddItem("Button")
+
+SUB AddFormDef(fx AS INTEGER, fy AS INTEGER, fw AS INTEGER, fh AS INTEGER)
+    FormX(FormCount) = fx
+    FormY(FormCount) = fy
+    FormW(FormCount) = fw
+    FormH(FormCount) = fh
+    FormState(FormCount) = 0
+    FormCount = FormCount + 1
+END SUB
+
+SUB DoHitTest(mx AS INTEGER, my AS INTEGER)
+    HitRegion = 0
+    HitInfo = -1
+    IF ActiveForm >= 0 AND ActiveForm < FormCount AND FormState(ActiveForm) <> 1 THEN
+        DIM afx AS INTEGER
+        DIM afy AS INTEGER
+        afx = FormX(ActiveForm)
+        afy = FormY(ActiveForm)
+        DIM ci AS INTEGER
+        FOR ci = CompCount - 1 TO 0 STEP -1
+            IF CompForm(ci) = ActiveForm THEN
+                DIM cx AS INTEGER
+                DIM cy AS INTEGER
+                cx = afx + CompX(ci)
+                cy = afy + TITLEBAR_H + CompY(ci)
+                IF mx >= cx AND mx <= cx + CompW(ci) AND my >= cy AND my <= cy + CompH(ci) THEN
+                    HitRegion = 3
+                    HitInfo = ci
+                    EXIT SUB
+                END IF
+            END IF
+        NEXT ci
+    END IF
+    DIM order AS INTEGER
+    FOR order = 0 TO FormCount
+        DIM fi AS INTEGER
+        IF order = 0 THEN
+            fi = ActiveForm
+        ELSE
+            fi = FormCount - order
+            IF fi = ActiveForm THEN fi = -1
+        END IF
+        IF fi >= 0 AND fi < FormCount THEN
+            DIM fx AS INTEGER
+            DIM fy AS INTEGER
+            DIM fx2 AS INTEGER
+            DIM fy2 AS INTEGER
+            fx = FormX(fi)
+            fy = FormY(fi)
+            fx2 = fx + FormW(fi)
+            fy2 = fy + FormH(fi)
+            IF mx >= fx AND mx <= fx2 AND my >= fy AND my <= fy + TITLEBAR_H THEN
+                HitRegion = 1
+                HitInfo = fi
+                EXIT SUB
+            END IF
+            IF mx >= fx AND mx <= fx2 AND my >= fy + TITLEBAR_H AND my <= fy2 THEN
+                HitRegion = 2
+                HitInfo = fi
+                EXIT SUB
+            END IF
+        END IF
+    NEXT order
+END SUB
+
+SUB Redraw()
+    Designer.Cls()
+    Designer.FillRect(0, 0, 780, 580, RGB(248, 248, 252))
+    DIM i AS INTEGER
+    FOR i = 0 TO FormCount - 1
+        Designer.FillRect(FormX(i), FormY(i), FormX(i) + FormW(i), FormY(i) + FormH(i), RGB(245, 245, 248))
+        Designer.FillRect(FormX(i), FormY(i), FormX(i) + FormW(i), FormY(i) + TITLEBAR_H, RGB(60, 100, 180))
+    NEXT i
+    FOR i = 0 TO CompCount - 1
+        DIM bx AS INTEGER
+        DIM by AS INTEGER
+        bx = FormX(CompForm(i)) + CompX(i)
+        by = FormY(CompForm(i)) + TITLEBAR_H + CompY(i)
+        Designer.FillRect(bx, by, bx + CompW(i), by + CompH(i), RGB(220, 220, 220))
+    NEXT i
+END SUB
+
+SUB OnDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+    Status.Caption = "MD enter " + STR(mx) + "," + STR(my)
+    DoHitTest(mx, my)
+    Status.Caption = "MD post-hit r=" + STR(HitRegion) + " i=" + STR(HitInfo)
+    IF HitRegion = 2 AND HitInfo = ActiveForm AND CompCount < 20 THEN
+        CompForm(CompCount) = ActiveForm
+        CompX(CompCount) = mx - FormX(ActiveForm)
+        CompY(CompCount) = my - FormY(ActiveForm) - TITLEBAR_H
+        CompW(CompCount) = 90
+        CompH(CompCount) = 28
+        CompCount = CompCount + 1
+    END IF
+    Status.Caption = "MD before redraw cc=" + STR(CompCount)
+    Redraw()
+    Status.Caption = "MD done r=" + STR(HitRegion) + " comps=" + STR(CompCount)
+END SUB
+
+AddFormDef(60, 30, 480, 360)
+ActiveForm = 0
+FormsList.AddItem("Form1")
+FormsList.ItemIndex = 0
+Designer.OnMouseDown = OnDown
+Redraw()
+PRINT "ready"

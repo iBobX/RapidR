@@ -836,28 +836,40 @@ impl RustCodegen {
             .unwrap_or_else(|| "v_int(1)".to_string());
 
         let is_global = self.is_global_scalar(&f.variable);
+        // Capture end and step in temporaries so direction respects step sign.
+        // Loop continues while: (step >= 0 && var <= end) || (step < 0 && var >= end).
+        let end_tmp = format!("__for_end_{var}");
+        let step_tmp = format!("__for_step_{var}");
         if is_global {
+            self.write_indent();
+            let _ = writeln!(self.output, "let {end_tmp} = {end};");
+            self.write_indent();
+            let _ = writeln!(self.output, "let {step_tmp} = {step};");
             self.write_indent();
             let _ = writeln!(self.output, "gs(\"{var}\", {start});");
             self.write_indent();
-            let _ = writeln!(self.output, "while (gv(\"{var}\").rp_le(&{end})).to_bool() {{");
+            let _ = writeln!(self.output, "while (if {step_tmp}.rp_ge(&v_int(0)).to_bool() {{ gv(\"{var}\").rp_le(&{end_tmp}) }} else {{ gv(\"{var}\").rp_ge(&{end_tmp}) }}).to_bool() {{");
             self.indent += 1;
             for s in &f.body {
                 self.emit_statement(s);
             }
             self.write_indent();
-            let _ = writeln!(self.output, "gs(\"{var}\", &gv(\"{var}\") + &{step});");
+            let _ = writeln!(self.output, "gs(\"{var}\", &gv(\"{var}\") + &{step_tmp});");
         } else {
+            self.write_indent();
+            let _ = writeln!(self.output, "let {end_tmp} = {end};");
+            self.write_indent();
+            let _ = writeln!(self.output, "let {step_tmp} = {step};");
             self.write_indent();
             let _ = writeln!(self.output, "{var} = {start};");
             self.write_indent();
-            let _ = writeln!(self.output, "while ({var}.rp_le(&{end})).to_bool() {{");
+            let _ = writeln!(self.output, "while (if {step_tmp}.rp_ge(&v_int(0)).to_bool() {{ {var}.rp_le(&{end_tmp}) }} else {{ {var}.rp_ge(&{end_tmp}) }}).to_bool() {{");
             self.indent += 1;
             for s in &f.body {
                 self.emit_statement(s);
             }
             self.write_indent();
-            let _ = writeln!(self.output, "{var} = &{var} + &{step};");
+            let _ = writeln!(self.output, "{var} = &{var} + &{step_tmp};");
         }
         self.indent -= 1;
         self.line("}");
@@ -2120,6 +2132,8 @@ fn is_component_method_name(member: &str) -> bool {
         | "play" | "pause" | "stop" | "seek" | "fullscreen"
         | "requestpermission" | "getposition" | "watchposition" | "clearwatch"
         | "addroute" | "back" | "forward"
+        // Web file-bridge methods (RFILESTREAM)
+        | "pickfile" | "download" | "loadfromurl"
     )
 }
 

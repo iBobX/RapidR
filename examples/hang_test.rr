@@ -1,0 +1,62 @@
+' Minimal reproducer for the IDE hang.
+$APPTYPE WEB
+
+DIM CompCount AS INTEGER
+DIM CompX(20) AS INTEGER
+DIM CompY(20) AS INTEGER
+
+CREATE F AS RFORM
+    Caption = "HangTest"
+    Width = 600
+    Height = 400
+    CREATE C AS RCANVAS
+        Left = 8
+        Top = 32
+        Width = 580
+        Height = 300
+    END CREATE
+    CREATE Lbl AS RLABEL
+        Caption = "click canvas"
+        Left = 8
+        Top = 340
+        Width = 580
+        Height = 22
+    END CREATE
+END CREATE
+
+SUB Redraw()
+    C.Cls()
+    C.FillRect(0, 0, 580, 300, RGB(240, 240, 250))
+    DIM i AS INTEGER
+    FOR i = 0 TO CompCount - 1
+        C.FillRect(CompX(i), CompY(i), CompX(i) + 80, CompY(i) + 28, RGB(220, 220, 220))
+        C.Rect(CompX(i), CompY(i), CompX(i) + 80, CompY(i) + 28, RGB(80, 80, 80))
+    NEXT i
+    Lbl.Caption = "comps=" + STR(CompCount)
+END SUB
+
+SUB HitTest(mx AS INTEGER, my AS INTEGER)
+    DIM ci AS INTEGER
+    Lbl.Caption = "hittest start cc=" + STR(CompCount)
+    FOR ci = CompCount - 1 TO 0 STEP -1
+        IF mx >= CompX(ci) AND mx <= CompX(ci) + 80 AND my >= CompY(ci) AND my <= CompY(ci) + 28 THEN
+            Lbl.Caption = "hit comp " + STR(ci)
+            EXIT SUB
+        END IF
+    NEXT ci
+    Lbl.Caption = "no hit"
+END SUB
+
+SUB OnDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+    HitTest(mx, my)
+    IF CompCount < 20 THEN
+        CompX(CompCount) = mx
+        CompY(CompCount) = my
+        CompCount = CompCount + 1
+    END IF
+    Redraw()
+END SUB
+
+C.OnMouseDown = OnDown
+Redraw()
+PRINT "ready"

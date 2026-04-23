@@ -224,6 +224,28 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("filename".to_string(), v_str(""));
             props.insert("count".to_string(), v_int(0));
         }
+        "RFILESTREAM" => {
+            // In-browser virtual file: text + filename, plus a download/pickfile bridge.
+            props.insert("text".to_string(), v_str(""));
+            props.insert("filename".to_string(), v_str(""));
+            props.insert("position".to_string(), v_int(0));
+            props.insert("eof".to_string(), v_bool(false));
+            props.insert("mimetype".to_string(), v_str("text/plain"));
+        }
+        "ROPENDIALOG" | "RSAVEDIALOG" => {
+            props.insert("filename".to_string(), v_str(""));
+            props.insert("filter".to_string(), v_str("*.*"));
+            props.insert("title".to_string(), v_str(""));
+        }
+        "RCOLORDIALOG" => {
+            props.insert("color".to_string(), v_int(0xFFFFFF));
+        }
+        "RFONTDIALOG" => {
+            props.insert("fontname".to_string(), v_str("Segoe UI"));
+            props.insert("fontsize".to_string(), v_int(12));
+            props.insert("fontbold".to_string(), v_bool(false));
+            props.insert("fontitalic".to_string(), v_bool(false));
+        }
         _ => {
             // Generic defaults
             props.insert("left".to_string(), v_int(0));
@@ -450,6 +472,19 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // JSON special handling
     if comp_type == "RJSON" {
         return json_web_method(&uname, &lmethod, args);
+    }
+
+    // FileStream — in-browser file pick / download bridge
+    if comp_type == "RFILESTREAM" {
+        return filestream_web_method(&uname, &lmethod, args);
+    }
+
+    // Native browser dialogs (synchronous via prompt() / async file input)
+    if matches!(
+        comp_type.as_str(),
+        "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
+    ) {
+        return dialog_web_method(&uname, &comp_type, &lmethod, args);
     }
 
     // HTTP special handling
@@ -699,6 +734,414 @@ fn json_web_set_path(root: &wasm_bindgen::JsValue, path: &str, val: &Value) {
     let last_key = wasm_bindgen::JsValue::from_str(parts.last().unwrap());
     let js_val = wasm_bindgen::JsValue::from_str(&val.to_string_val());
     let _ = js_sys::Reflect::set(&current, &last_key, &js_val);
+}
+
+// ---------------------------------------------------------------------------
+// RFILESTREAM (web) — virtual file backed by an in-memory text buffer.
+// `Open`/`Close` are no-ops. `WriteLine`/`Write` append to the buffer;
+// `ReadLine`/`Read`/`ReadAll` consume from a position cursor. `Download`
+// triggers a browser file save with the current `filename` and `text`.
+// `PickFile` opens a hidden <input type="file">; once the user selects a
+// file, the contents are read into `text`, position is reset, and the
+// component's `onload` event fires.
+// `LoadFromUrl` fetches a URL and stores the response text similarly.
+// ---------------------------------------------------------------------------
+
+fn fs_get_text(name: &str) -> String {
+    COMPONENTS.with(|c| {
+        c.borrow()
+            .get(name)
+            .and_then(|comp| comp.properties.get("text").map(|v| v.to_string_val()))
+            .unwrap_or_default()
+    })
+}
+
+fn fs_set_text(name: &str, text: &str) {
+    COMPONENTS.with(|c| {
+        if let Some(comp) = c.borrow_mut().get_mut(name) {
+            comp.properties.insert("text".to_string(), v_str(text));
+            comp.properties.insert("position".to_string(), v_int(0));
+            comp.properties.insert("eof".to_string(), v_bool(text.is_empty()));
+        }
+    });
+}
+
+fn fs_get_pos(name: &str) -> usize {
+    COMPONENTS.with(|c| {
+        c.borrow()
+            .get(name)
+            .and_then(|comp| comp.properties.get("position").map(|v| v.to_i64() as usize))
+            .unwrap_or(0)
+    })
+}
+
+fn fs_set_pos(name: &str, pos: usize, eof: bool) {
+    COMPONENTS.with(|c| {
+        if let Some(comp) = c.borrow_mut().get_mut(name) {
+            comp.properties.insert("position".to_string(), v_int(pos as i64));
+            comp.properties.insert("eof".to_string(), v_bool(eof));
+        }
+    });
+}
+
+fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {
+    match method {
+        "open" => {
+            // First arg = filename (optional). Mode arg ignored on web.
+            if let Some(fname) = args.first() {
+                rp_comp_set_prop_only(name, "filename", v_str(&fname.to_string_val()));
+            }
+            // Reset cursor without clearing existing text (so writes append
+            // and reads start from beginning).
+            fs_set_pos(name, 0, fs_get_text(name).is_empty());
+            v_int(1)
+        }
+        "close" => {
+            fs_set_pos(name, 0, false);
+            v_null()
+        }
+        "writeline" => {
+            let mut text = fs_get_text(name);
+            let line = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            if !text.is_empty() && !text.ends_with('\n') {
+                text.push('\n');
+            }
+            text.push_str(&line);
+            text.push('\n');
+            fs_set_text(name, &text);
+            v_null()
+        }
+        "write" => {
+            let mut text = fs_get_text(name);
+            text.push_str(&args.first().map(|v| v.to_string_val()).unwrap_or_default());
+            fs_set_text(name, &text);
+            v_null()
+        }
+        "readline" => {
+            let text = fs_get_text(name);
+            let pos = fs_get_pos(name);
+            if pos >= text.len() {
+                fs_set_pos(name, pos, true);
+                return v_str("");
+            }
+            let rest = &text[pos..];
+            let (line, advance) = match rest.find('\n') {
+                Some(i) => (&rest[..i], i + 1),
+                None => (rest, rest.len()),
+            };
+            let new_pos = pos + advance;
+            let eof = new_pos >= text.len();
+            fs_set_pos(name, new_pos, eof);
+            v_str(line)
+        }
+        "read" => {
+            let text = fs_get_text(name);
+            let pos = fs_get_pos(name);
+            let n = args.first().map(|v| v.to_i64() as usize).unwrap_or(usize::MAX);
+            let end = (pos + n).min(text.len());
+            let chunk = &text[pos..end];
+            fs_set_pos(name, end, end >= text.len());
+            v_str(chunk)
+        }
+        "readall" => {
+            let text = fs_get_text(name);
+            fs_set_pos(name, text.len(), true);
+            v_str(&text)
+        }
+        "eof" => {
+            let text = fs_get_text(name);
+            v_int(if fs_get_pos(name) >= text.len() { -1 } else { 0 })
+        }
+        // -- Web-exclusive bridges --
+        "download" => {
+            let filename = COMPONENTS
+                .with(|c| {
+                    c.borrow()
+                        .get(name)
+                        .and_then(|comp| comp.properties.get("filename").map(|v| v.to_string_val()))
+                })
+                .unwrap_or_else(|| "untitled.txt".to_string());
+            let mime = COMPONENTS
+                .with(|c| {
+                    c.borrow()
+                        .get(name)
+                        .and_then(|comp| comp.properties.get("mimetype").map(|v| v.to_string_val()))
+                })
+                .unwrap_or_else(|| "text/plain".to_string());
+            let text = fs_get_text(name);
+            // Use a Blob + ObjectURL for arbitrary content (handles newlines/binary safely).
+            let parts = js_sys::Array::new();
+            parts.push(&JsValue::from_str(&text));
+            let opts = web_sys::BlobPropertyBag::new();
+            opts.set_type(&mime);
+            if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&parts, &opts) {
+                if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
+                    let doc = crate::gui_web::document();
+                    if let Ok(a_el) = doc.create_element("a") {
+                        if let Ok(a) = a_el.dyn_into::<web_sys::HtmlAnchorElement>() {
+                            a.set_href(&url);
+                            a.set_download(&filename);
+                            let _ = a.style().set_property("display", "none");
+                            if let Some(body) = doc.body() {
+                                let _ = body.append_child(&a);
+                                a.click();
+                                let _ = body.remove_child(&a);
+                            }
+                        }
+                    }
+                    let _ = web_sys::Url::revoke_object_url(&url);
+                }
+            }
+            v_int(1)
+        }
+        "pickfile" => {
+            // Open a hidden <input type="file"> and read the chosen file's text.
+            // Optional first arg = accept filter (e.g. ".rr,.txt").
+            let accept = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            let doc = crate::gui_web::document();
+            let input_el = match doc.create_element("input") {
+                Ok(el) => el,
+                Err(_) => return v_int(0),
+            };
+            let input = match input_el.dyn_into::<web_sys::HtmlInputElement>() {
+                Ok(i) => i,
+                Err(_) => return v_int(0),
+            };
+            input.set_type("file");
+            if !accept.is_empty() {
+                let _ = input.set_attribute("accept", &accept);
+            }
+            let _ = input.style().set_property("display", "none");
+
+            let name_for_cb = name.to_string();
+            let input_clone = input.clone();
+            let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |_e: web_sys::Event| {
+                let files = match input_clone.files() {
+                    Some(f) => f,
+                    None => return,
+                };
+                let file = match files.item(0) {
+                    Some(f) => f,
+                    None => return,
+                };
+                let fname = file.name();
+                rp_comp_set_prop_only(&name_for_cb, "filename", v_str(&fname));
+
+                let reader = match web_sys::FileReader::new() {
+                    Ok(r) => r,
+                    Err(_) => return,
+                };
+                let reader_clone = reader.clone();
+                let name_for_load = name_for_cb.clone();
+                let onload = Closure::<dyn FnMut(web_sys::ProgressEvent)>::new(
+                    move |_ev: web_sys::ProgressEvent| {
+                        if let Ok(result) = reader_clone.result() {
+                            if let Some(text) = result.as_string() {
+                                fs_set_text(&name_for_load, &text);
+                                rp_fire_event(&name_for_load, "onload");
+                            }
+                        }
+                    },
+                );
+                reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+                onload.forget();
+                let _ = reader.read_as_text(&file);
+            });
+            input.set_onchange(Some(cb.as_ref().unchecked_ref()));
+            cb.forget();
+
+            if let Some(body) = doc.body() {
+                let _ = body.append_child(&input);
+            }
+            input.click();
+            v_int(1)
+        }
+        "loadfromurl" => {
+            // Async fetch — fires `onload` with text in `text` property when done.
+            let url = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            if url.is_empty() {
+                return v_int(0);
+            }
+            let name_for_cb = name.to_string();
+            let promise = web_sys::window().unwrap().fetch_with_str(&url);
+            let future = wasm_bindgen_futures::JsFuture::from(promise);
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Ok(resp_val) = future.await {
+                    if let Ok(resp) = resp_val.dyn_into::<web_sys::Response>() {
+                        if let Ok(text_promise) = resp.text() {
+                            if let Ok(text_val) =
+                                wasm_bindgen_futures::JsFuture::from(text_promise).await
+                            {
+                                if let Some(text) = text_val.as_string() {
+                                    fs_set_text(&name_for_cb, &text);
+                                    rp_fire_event(&name_for_cb, "onload");
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            v_int(1)
+        }
+        _ => {
+            web_sys::console::warn_1(&JsValue::from_str(&format!(
+                "[WARN] RFILESTREAM.{}() not implemented on web",
+                method
+            )));
+            v_null()
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Native browser dialogs for ROPENDIALOG / RSAVEDIALOG / RCOLORDIALOG /
+// RFONTDIALOG. Browsers cannot open synchronous native file pickers, so
+// `Execute` uses what's available: `prompt()` for filenames, a hidden
+// `<input type="color">` for color, and a small inline form for fonts.
+// File *content* loading should go through RFILESTREAM.PickFile().
+// ---------------------------------------------------------------------------
+
+fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
+    if method != "execute" {
+        return v_null();
+    }
+    let _ = args;
+    match comp_type {
+        "RSAVEDIALOG" => {
+            // Prompt for a filename; default = current `filename` prop.
+            let cur = COMPONENTS.with(|c| {
+                c.borrow()
+                    .get(name)
+                    .and_then(|comp| comp.properties.get("filename").map(|v| v.to_string_val()))
+                    .unwrap_or_default()
+            });
+            if let Some(window) = web_sys::window() {
+                if let Ok(Some(fname)) = window.prompt_with_message_and_default(
+                    "Save as filename:",
+                    &cur,
+                ) {
+                    if !fname.is_empty() {
+                        rp_comp_set_prop_only(name, "filename", v_str(&fname));
+                        return v_int(1);
+                    }
+                }
+            }
+            v_int(0)
+        }
+        "ROPENDIALOG" => {
+            // Use a hidden file input to let the user pick a file.
+            // We only capture its *name* into `filename` (sync). To actually
+            // load the contents, use RFILESTREAM.PickFile() instead.
+            let doc = crate::gui_web::document();
+            let input_el = match doc.create_element("input") {
+                Ok(el) => el,
+                Err(_) => return v_int(0),
+            };
+            let input = match input_el.dyn_into::<web_sys::HtmlInputElement>() {
+                Ok(i) => i,
+                Err(_) => return v_int(0),
+            };
+            input.set_type("file");
+            let _ = input.style().set_property("display", "none");
+            let name_for_cb = name.to_string();
+            let input_clone = input.clone();
+            let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |_e: web_sys::Event| {
+                if let Some(files) = input_clone.files() {
+                    if let Some(file) = files.item(0) {
+                        rp_comp_set_prop_only(&name_for_cb, "filename", v_str(&file.name()));
+                        rp_fire_event(&name_for_cb, "onclose");
+                    }
+                }
+            });
+            input.set_onchange(Some(cb.as_ref().unchecked_ref()));
+            cb.forget();
+            if let Some(body) = doc.body() {
+                let _ = body.append_child(&input);
+            }
+            input.click();
+            v_int(1)
+        }
+        "RCOLORDIALOG" => {
+            let cur = COMPONENTS
+                .with(|c| {
+                    c.borrow()
+                        .get(name)
+                        .and_then(|comp| comp.properties.get("color").map(|v| v.to_i64()))
+                })
+                .unwrap_or(0xFFFFFF);
+            let r = (cur & 0xFF) as i64;
+            let g = ((cur >> 8) & 0xFF) as i64;
+            let b = ((cur >> 16) & 0xFF) as i64;
+            let default_hex = format!("#{:02x}{:02x}{:02x}", r, g, b);
+            let doc = crate::gui_web::document();
+            let input = match doc
+                .create_element("input")
+                .ok()
+                .and_then(|el| el.dyn_into::<web_sys::HtmlInputElement>().ok())
+            {
+                Some(i) => i,
+                None => return v_int(0),
+            };
+            input.set_type("color");
+            input.set_value(&default_hex);
+            let _ = input.style().set_property("display", "none");
+            let name_for_cb = name.to_string();
+            let input_clone = input.clone();
+            let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |_e: web_sys::Event| {
+                let hex = input_clone.value();
+                // hex = "#rrggbb" — parse to 0xBBGGRR (RapidR uses BGR ordering).
+                if hex.len() == 7 && hex.starts_with('#') {
+                    if let (Ok(r), Ok(g), Ok(b)) = (
+                        i64::from_str_radix(&hex[1..3], 16),
+                        i64::from_str_radix(&hex[3..5], 16),
+                        i64::from_str_radix(&hex[5..7], 16),
+                    ) {
+                        let bgr = (b << 16) | (g << 8) | r;
+                        rp_comp_set_prop_only(&name_for_cb, "color", v_int(bgr));
+                        rp_fire_event(&name_for_cb, "onchange");
+                    }
+                }
+            });
+            input.set_onchange(Some(cb.as_ref().unchecked_ref()));
+            cb.forget();
+            if let Some(body) = doc.body() {
+                let _ = body.append_child(&input);
+            }
+            input.click();
+            v_int(1)
+        }
+        "RFONTDIALOG" => {
+            // Browsers have no font picker. Use prompt() for name + size.
+            let (cur_name, cur_size) = COMPONENTS.with(|c| {
+                let comps = c.borrow();
+                let comp = comps.get(name);
+                (
+                    comp.and_then(|c| c.properties.get("fontname").map(|v| v.to_string_val()))
+                        .unwrap_or_else(|| "Segoe UI".to_string()),
+                    comp.and_then(|c| c.properties.get("fontsize").map(|v| v.to_i64()))
+                        .unwrap_or(12),
+                )
+            });
+            if let Some(window) = web_sys::window() {
+                if let Ok(Some(fname)) =
+                    window.prompt_with_message_and_default("Font name:", &cur_name)
+                {
+                    if let Ok(Some(fsize)) = window.prompt_with_message_and_default(
+                        "Font size (pt):",
+                        &cur_size.to_string(),
+                    ) {
+                        rp_comp_set_prop_only(name, "fontname", v_str(&fname));
+                        if let Ok(n) = fsize.parse::<i64>() {
+                            rp_comp_set_prop_only(name, "fontsize", v_int(n));
+                        }
+                        return v_int(1);
+                    }
+                }
+            }
+            v_int(0)
+        }
+        _ => v_null(),
+    }
 }
 
 fn stringlist_method(name: &str, method: &str, args: &[Value]) -> Value {

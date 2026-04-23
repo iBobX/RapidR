@@ -80,6 +80,14 @@ features = [
     "PositionError",
     "PositionOptions",
 
+    # File I/O bridge (RFILESTREAM, dialogs, downloads)
+    "File",
+    "FileList",
+    "FileReader",
+    "ProgressEvent",
+    "BlobPropertyBag",
+    "HtmlAnchorElement",
+
     # Timers & misc
     "Performance",
     "console",

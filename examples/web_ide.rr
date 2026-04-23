@@ -1,0 +1,1885 @@
+' ============================================================
+' RapidR Web IDE v2 — visual designer with realistic previews,
+' draggable form windows, multiple forms, pointer/select mode.
+' Build:  ./rapidr --web examples/web_ide.rr
+' Serve:  python3 -m http.server -d examples/web_ide_web 8090
+' ============================================================
+$APPTYPE WEB
+
+' ============================================================
+' GLOBAL STATE
+' ============================================================
+DIM CurrentTool AS STRING            ' "" or "Pointer" = select mode; otherwise component name
+DIM SelKind AS INTEGER               ' 0=none, 1=form, 2=component
+DIM SelIndex AS INTEGER              ' if SelKind=2, index into Comp arrays
+DIM ShowingCode AS INTEGER           ' 0=design, 1=code
+
+' Drag state
+DIM DragMode AS INTEGER              ' 0=none, 1=move-component, 2=move-form
+DIM DragStartX AS INTEGER
+DIM DragStartY AS INTEGER
+DIM DragOrigX AS INTEGER
+DIM DragOrigY AS INTEGER
+
+' --- Forms (up to 20) ---
+DIM FormCount AS INTEGER
+DIM ActiveForm AS INTEGER            ' index of currently shown form
+DIM FormName(20) AS STRING
+DIM FormCaption(20) AS STRING
+DIM FormX(20) AS INTEGER             ' window position within workspace
+DIM FormY(20) AS INTEGER
+DIM FormW(20) AS INTEGER
+DIM FormH(20) AS INTEGER
+DIM FormSeq AS INTEGER               ' next form number
+DIM FormState(20) AS INTEGER         ' 0=normal, 1=minimized, 2=maximized
+DIM FormPrevX(20) AS INTEGER
+DIM FormPrevY(20) AS INTEGER
+DIM FormPrevW(20) AS INTEGER
+DIM FormPrevH(20) AS INTEGER
+
+' --- Components (up to 400 across all forms) ---
+DIM CompForm(400) AS INTEGER         ' which form this comp belongs to
+DIM CompName(400) AS STRING
+DIM CompType(400) AS STRING
+DIM CompX(400) AS INTEGER            ' relative to form's body (below titlebar)
+DIM CompY(400) AS INTEGER
+DIM CompW(400) AS INTEGER
+DIM CompH(400) AS INTEGER
+DIM CompCaption(400) AS STRING
+DIM CompCount AS INTEGER
+
+' --- Event handlers (per-component code bodies) ---
+'   Each component can have several events with code. Stored in flat tables.
+DIM EvCompIdx(800) AS INTEGER        ' which component owns this event
+DIM EvName(800) AS STRING            ' "OnClick", "OnChange", "OnMouseDown"...
+DIM EvBody(800) AS STRING            ' BASIC source for the body
+DIM EvCount AS INTEGER
+
+' Event-edit context: when ShowingCode = 2, we are editing this event.
+DIM EditEvIdx AS INTEGER             ' index into Ev arrays, or -1
+DIM EditEvCompName AS STRING
+DIM EditEvName AS STRING
+
+' Mirror of EventsList items (because RLISTBOX has no GetItem)
+DIM EvListNames(8) AS STRING
+DIM EvListCount AS INTEGER
+
+' --- Counters for unique naming ---
+DIM BtnSeq AS INTEGER
+DIM LblSeq AS INTEGER
+DIM EdtSeq AS INTEGER
+DIM MmoSeq AS INTEGER
+DIM ChkSeq AS INTEGER
+DIM RadSeq AS INTEGER
+DIM CmbSeq AS INTEGER
+DIM LstSeq AS INTEGER
+DIM PnlSeq AS INTEGER
+DIM GrpSeq AS INTEGER
+DIM PrgSeq AS INTEGER
+DIM ImgSeq AS INTEGER
+DIM CnvSeq AS INTEGER
+DIM SgdSeq AS INTEGER
+DIM TabSeq AS INTEGER
+DIM TrvSeq AS INTEGER
+
+CONST TITLEBAR_H = 24
+
+' Hit-test results
+DIM HitRegion AS INTEGER             ' 0=empty, 1=titlebar, 2=form body, 3=component, 4=min, 5=max, 6=close
+DIM HitInfo AS INTEGER
+
+' ============================================================
+' MAIN UI
+' ============================================================
+CREATE IDE AS RFORM
+    Caption = "RapidR Web IDE"
+    Width = 1280
+    Height = 800
+    Left = 0
+    Top = 0
+
+    CREATE MainMenu AS RMAINMENU
+        CREATE MNew AS RMENUITEM
+            Caption = "New Project"
+        END CREATE
+        CREATE MOpen AS RMENUITEM
+            Caption = "Open..."
+        END CREATE
+        CREATE MSave AS RMENUITEM
+            Caption = "Save"
+        END CREATE
+        CREATE MExportRR AS RMENUITEM
+            Caption = "Export .rr"
+        END CREATE
+        CREATE MNewForm AS RMENUITEM
+            Caption = "New Form"
+        END CREATE
+        CREATE MToggle AS RMENUITEM
+            Caption = "Code/Design"
+        END CREATE
+        CREATE MGenerate AS RMENUITEM
+            Caption = "Generate"
+        END CREATE
+        CREATE MAbout AS RMENUITEM
+            Caption = "About"
+        END CREATE
+    END CREATE
+
+    CREATE BtnNew AS RBUTTON
+        Caption = "New"
+        Left = 8
+        Top = 32
+        Width = 60
+        Height = 28
+    END CREATE
+    CREATE BtnOpen AS RBUTTON
+        Caption = "Open"
+        Left = 72
+        Top = 32
+        Width = 60
+        Height = 28
+    END CREATE
+    CREATE BtnSave AS RBUTTON
+        Caption = "Save"
+        Left = 136
+        Top = 32
+        Width = 60
+        Height = 28
+    END CREATE
+    CREATE BtnExport AS RBUTTON
+        Caption = "Export"
+        Left = 200
+        Top = 32
+        Width = 70
+        Height = 28
+    END CREATE
+    CREATE BtnNewForm AS RBUTTON
+        Caption = "New Form"
+        Left = 274
+        Top = 32
+        Width = 90
+        Height = 28
+    END CREATE
+    CREATE BtnToggle AS RBUTTON
+        Caption = "Code/Design"
+        Left = 368
+        Top = 32
+        Width = 110
+        Height = 28
+    END CREATE
+    CREATE BtnGenerate AS RBUTTON
+        Caption = "Generate"
+        Left = 482
+        Top = 32
+        Width = 90
+        Height = 28
+    END CREATE
+    CREATE BtnDelete AS RBUTTON
+        Caption = "Delete"
+        Left = 576
+        Top = 32
+        Width = 70
+        Height = 28
+    END CREATE
+
+    CREATE LblTool AS RLABEL
+        Caption = "Tool: Pointer"
+        Left = 656
+        Top = 38
+        Width = 320
+        Height = 22
+    END CREATE
+
+    CREATE LblToolbox AS RLABEL
+        Caption = "Toolbox"
+        Left = 8
+        Top = 70
+        Width = 180
+        Height = 18
+    END CREATE
+    CREATE Toolbox AS RLISTBOX
+        Left = 8
+        Top = 90
+        Width = 180
+        Height = 360
+    END CREATE
+
+    CREATE LblForms AS RLABEL
+        Caption = "Forms"
+        Left = 8
+        Top = 458
+        Width = 180
+        Height = 18
+    END CREATE
+    CREATE FormsList AS RLISTBOX
+        Left = 8
+        Top = 478
+        Width = 180
+        Height = 220
+    END CREATE
+    CREATE BtnDelForm AS RBUTTON
+        Caption = "Delete Form"
+        Left = 8
+        Top = 704
+        Width = 180
+        Height = 28
+    END CREATE
+
+    CREATE Designer AS RCANVAS
+        Left = 196
+        Top = 70
+        Width = 780
+        Height = 662
+    END CREATE
+
+    CREATE CodeEditor AS RCODEEDITOR
+        Left = 196
+        Top = 70
+        Width = 780
+        Height = 662
+        Visible = 0
+    END CREATE
+
+    CREATE LblProps AS RLABEL
+        Caption = "Properties"
+        Left = 984
+        Top = 70
+        Width = 288
+        Height = 18
+    END CREATE
+    CREATE PropGrid AS RSTRINGGRID
+        Left = 984
+        Top = 90
+        Width = 288
+        Height = 380
+    END CREATE
+    CREATE BtnApply AS RBUTTON
+        Caption = "Apply Properties"
+        Left = 984
+        Top = 478
+        Width = 288
+        Height = 28
+    END CREATE
+    CREATE LblEvents AS RLABEL
+        Caption = "Events"
+        Left = 984
+        Top = 514
+        Width = 288
+        Height = 18
+    END CREATE
+    CREATE EventsList AS RLISTBOX
+        Left = 984
+        Top = 534
+        Width = 288
+        Height = 140
+    END CREATE
+    CREATE BtnEditEvent AS RBUTTON
+        Caption = "Edit Event Code"
+        Left = 984
+        Top = 678
+        Width = 288
+        Height = 28
+    END CREATE
+
+    CREATE Status AS RLABEL
+        Caption = "Ready"
+        Left = 8
+        Top = 740
+        Width = 1264
+        Height = 24
+    END CREATE
+END CREATE
+
+CREATE FS AS RFILESTREAM
+    FileName = "project.rrproj"
+END CREATE
+
+' ============================================================
+' INIT
+' ============================================================
+SUB InitToolbox()
+    Toolbox.AddItem("[ Pointer ]")
+    Toolbox.AddItem("Button")
+    Toolbox.AddItem("Label")
+    Toolbox.AddItem("Edit")
+    Toolbox.AddItem("Memo")
+    Toolbox.AddItem("CheckBox")
+    Toolbox.AddItem("RadioButton")
+    Toolbox.AddItem("ComboBox")
+    Toolbox.AddItem("ListBox")
+    Toolbox.AddItem("Panel")
+    Toolbox.AddItem("GroupBox")
+    Toolbox.AddItem("ProgressBar")
+    Toolbox.AddItem("Image")
+    Toolbox.AddItem("Canvas")
+    Toolbox.AddItem("StringGrid")
+    Toolbox.AddItem("TabControl")
+    Toolbox.AddItem("TreeView")
+    Toolbox.ItemIndex = 0
+    CurrentTool = "Pointer"
+END SUB
+
+SUB InitPropGrid()
+    PropGrid.SetColCount(2)
+    PropGrid.SetRowCount(8)
+    PropGrid.SetCell(0, 0, "Property")
+    PropGrid.SetCell(1, 0, "Value")
+    PropGrid.SetCell(0, 1, "Name")
+    PropGrid.SetCell(0, 2, "Type")
+    PropGrid.SetCell(0, 3, "Caption")
+    PropGrid.SetCell(0, 4, "Left")
+    PropGrid.SetCell(0, 5, "Top")
+    PropGrid.SetCell(0, 6, "Width")
+    PropGrid.SetCell(0, 7, "Height")
+END SUB
+
+SUB AddFormDef(name AS STRING, caption AS STRING, x AS INTEGER, y AS INTEGER, w AS INTEGER, h AS INTEGER)
+    IF FormCount >= 20 THEN EXIT SUB
+    DIM i AS INTEGER
+    i = FormCount
+    FormName(i) = name
+    FormCaption(i) = caption
+    FormX(i) = x
+    FormY(i) = y
+    FormW(i) = w
+    FormH(i) = h
+    FormState(i) = 0
+    FormPrevX(i) = x
+    FormPrevY(i) = y
+    FormPrevW(i) = w
+    FormPrevH(i) = h
+    FormCount = FormCount + 1
+END SUB
+
+SUB RefreshFormsList()
+    FormsList.Clear()
+    DIM i AS INTEGER
+    FOR i = 0 TO FormCount - 1
+        FormsList.AddItem(FormName(i) + " - " + FormCaption(i))
+    NEXT i
+    IF ActiveForm >= 0 AND ActiveForm < FormCount THEN
+        FormsList.ItemIndex = ActiveForm
+    END IF
+END SUB
+
+SUB InitProject()
+    CompCount = 0
+    FormCount = 0
+    FormSeq = 1
+    EvCount = 0
+    EditEvIdx = -1
+    EvListCount = 0
+    BtnSeq = 0
+    LblSeq = 0
+    EdtSeq = 0
+    MmoSeq = 0
+    ChkSeq = 0
+    RadSeq = 0
+    CmbSeq = 0
+    LstSeq = 0
+    PnlSeq = 0
+    GrpSeq = 0
+    PrgSeq = 0
+    ImgSeq = 0
+    CnvSeq = 0
+    SgdSeq = 0
+    TabSeq = 0
+    TrvSeq = 0
+    AddFormDef("Form1", "MyForm", 60, 30, 480, 360)
+    ActiveForm = 0
+    SelKind = 0
+    SelIndex = -1
+    RefreshFormsList()
+END SUB
+
+' ============================================================
+' NAMING / TOOL MAPPING
+' ============================================================
+FUNCTION NextName(prefix AS STRING) AS STRING
+    DIM n AS INTEGER
+    DIM p AS STRING
+    p = prefix
+    n = 0
+    SELECT CASE p
+        CASE "Btn"
+            BtnSeq = BtnSeq + 1
+            n = BtnSeq
+        CASE "Lbl"
+            LblSeq = LblSeq + 1
+            n = LblSeq
+        CASE "Edt"
+            EdtSeq = EdtSeq + 1
+            n = EdtSeq
+        CASE "Mmo"
+            MmoSeq = MmoSeq + 1
+            n = MmoSeq
+        CASE "Chk"
+            ChkSeq = ChkSeq + 1
+            n = ChkSeq
+        CASE "Rad"
+            RadSeq = RadSeq + 1
+            n = RadSeq
+        CASE "Cmb"
+            CmbSeq = CmbSeq + 1
+            n = CmbSeq
+        CASE "Lst"
+            LstSeq = LstSeq + 1
+            n = LstSeq
+        CASE "Pnl"
+            PnlSeq = PnlSeq + 1
+            n = PnlSeq
+        CASE "Grp"
+            GrpSeq = GrpSeq + 1
+            n = GrpSeq
+        CASE "Prg"
+            PrgSeq = PrgSeq + 1
+            n = PrgSeq
+        CASE "Img"
+            ImgSeq = ImgSeq + 1
+            n = ImgSeq
+        CASE "Cnv"
+            CnvSeq = CnvSeq + 1
+            n = CnvSeq
+        CASE "Sgd"
+            SgdSeq = SgdSeq + 1
+            n = SgdSeq
+        CASE "Tab"
+            TabSeq = TabSeq + 1
+            n = TabSeq
+        CASE "Trv"
+            TrvSeq = TrvSeq + 1
+            n = TrvSeq
+    END SELECT
+    NextName = prefix + STR(n)
+END FUNCTION
+
+FUNCTION ToolToType(tool AS STRING) AS STRING
+    DIM t AS STRING
+    t = tool
+    SELECT CASE t
+        CASE "Button"
+            ToolToType = "RBUTTON"
+        CASE "Label"
+            ToolToType = "RLABEL"
+        CASE "Edit"
+            ToolToType = "REDIT"
+        CASE "Memo"
+            ToolToType = "RMEMO"
+        CASE "CheckBox"
+            ToolToType = "RCHECKBOX"
+        CASE "RadioButton"
+            ToolToType = "RRADIOBUTTON"
+        CASE "ComboBox"
+            ToolToType = "RCOMBOBOX"
+        CASE "ListBox"
+            ToolToType = "RLISTBOX"
+        CASE "Panel"
+            ToolToType = "RPANEL"
+        CASE "GroupBox"
+            ToolToType = "RGROUPBOX"
+        CASE "ProgressBar"
+            ToolToType = "RPROGRESSBAR"
+        CASE "Image"
+            ToolToType = "RIMAGE"
+        CASE "Canvas"
+            ToolToType = "RCANVAS"
+        CASE "StringGrid"
+            ToolToType = "RSTRINGGRID"
+        CASE "TabControl"
+            ToolToType = "RTABCONTROL"
+        CASE "TreeView"
+            ToolToType = "RTREEVIEW"
+        CASE ELSE
+            ToolToType = ""
+    END SELECT
+END FUNCTION
+
+FUNCTION ToolToPrefix(tool AS STRING) AS STRING
+    DIM t AS STRING
+    t = tool
+    SELECT CASE t
+        CASE "Button"
+            ToolToPrefix = "Btn"
+        CASE "Label"
+            ToolToPrefix = "Lbl"
+        CASE "Edit"
+            ToolToPrefix = "Edt"
+        CASE "Memo"
+            ToolToPrefix = "Mmo"
+        CASE "CheckBox"
+            ToolToPrefix = "Chk"
+        CASE "RadioButton"
+            ToolToPrefix = "Rad"
+        CASE "ComboBox"
+            ToolToPrefix = "Cmb"
+        CASE "ListBox"
+            ToolToPrefix = "Lst"
+        CASE "Panel"
+            ToolToPrefix = "Pnl"
+        CASE "GroupBox"
+            ToolToPrefix = "Grp"
+        CASE "ProgressBar"
+            ToolToPrefix = "Prg"
+        CASE "Image"
+            ToolToPrefix = "Img"
+        CASE "Canvas"
+            ToolToPrefix = "Cnv"
+        CASE "StringGrid"
+            ToolToPrefix = "Sgd"
+        CASE "TabControl"
+            ToolToPrefix = "Tab"
+        CASE "TreeView"
+            ToolToPrefix = "Trv"
+        CASE ELSE
+            ToolToPrefix = "Cmp"
+    END SELECT
+END FUNCTION
+
+FUNCTION DefaultW(t AS STRING) AS INTEGER
+    DIM s AS STRING
+    s = t
+    SELECT CASE s
+        CASE "Label"
+            DefaultW = 100
+        CASE "Edit"
+            DefaultW = 140
+        CASE "Memo"
+            DefaultW = 200
+        CASE "CheckBox", "RadioButton"
+            DefaultW = 130
+        CASE "ComboBox", "ListBox"
+            DefaultW = 160
+        CASE "Panel", "GroupBox", "Image", "Canvas"
+            DefaultW = 200
+        CASE "ProgressBar"
+            DefaultW = 200
+        CASE "StringGrid", "TreeView", "TabControl"
+            DefaultW = 240
+        CASE ELSE
+            DefaultW = 90
+    END SELECT
+END FUNCTION
+
+FUNCTION DefaultH(t AS STRING) AS INTEGER
+    DIM s AS STRING
+    s = t
+    SELECT CASE s
+        CASE "Label", "Edit", "CheckBox", "RadioButton", "ProgressBar", "ComboBox"
+            DefaultH = 24
+        CASE "Memo", "ListBox", "Panel", "Image", "Canvas", "GroupBox", "StringGrid", "TreeView", "TabControl"
+            DefaultH = 120
+        CASE ELSE
+            DefaultH = 28
+    END SELECT
+END FUNCTION
+
+FUNCTION DefaultCaption(t AS STRING) AS STRING
+    DIM s AS STRING
+    s = t
+    SELECT CASE s
+        CASE "Label"
+            DefaultCaption = "Label"
+        CASE "Button"
+            DefaultCaption = "Button"
+        CASE "CheckBox"
+            DefaultCaption = "CheckBox"
+        CASE "RadioButton"
+            DefaultCaption = "Option"
+        CASE "GroupBox"
+            DefaultCaption = "GroupBox"
+        CASE ELSE
+            DefaultCaption = ""
+    END SELECT
+END FUNCTION
+
+' ============================================================
+' COMPONENT VISUALS — render real-looking previews
+' ============================================================
+SUB RenderComp(t AS STRING, name AS STRING, caption AS STRING, x AS INTEGER, y AS INTEGER, w AS INTEGER, h AS INTEGER)
+    DIM x2 AS INTEGER
+    DIM y2 AS INTEGER
+    x2 = x + w
+    y2 = y + h
+    DIM ty AS STRING
+    ty = t
+    SELECT CASE ty
+        CASE "RBUTTON"
+            Designer.FillRect(x, y, x2, y2, RGB(225, 225, 225))
+            Designer.Rect(x, y, x2, y2, RGB(120, 120, 120))
+            Designer.DrawText(x + 8, y + h / 2 - 6, caption, RGB(30, 30, 30))
+        CASE "RLABEL"
+            Designer.DrawText(x, y + h / 2 - 6, caption, RGB(30, 30, 30))
+        CASE "REDIT"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            Designer.DrawText(x + 4, y + h / 2 - 6, caption, RGB(60, 60, 60))
+        CASE "RMEMO"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            Designer.DrawText(x + 4, y + 4, caption, RGB(60, 60, 60))
+        CASE "RCHECKBOX"
+            Designer.FillRect(x + 2, y + h / 2 - 7, x + 16, y + h / 2 + 7, RGB(255, 255, 255))
+            Designer.Rect(x + 2, y + h / 2 - 7, x + 16, y + h / 2 + 7, RGB(80, 80, 80))
+            Designer.Line(x + 5, y + h / 2, x + 8, y + h / 2 + 3, RGB(20, 100, 20))
+            Designer.Line(x + 8, y + h / 2 + 3, x + 14, y + h / 2 - 4, RGB(20, 100, 20))
+            Designer.DrawText(x + 22, y + h / 2 - 6, caption, RGB(30, 30, 30))
+        CASE "RRADIOBUTTON"
+            Designer.FillCircle(x + 9, y + h / 2, 7, RGB(255, 255, 255))
+            Designer.Circle(x + 9, y + h / 2, 7, RGB(80, 80, 80))
+            Designer.FillCircle(x + 9, y + h / 2, 3, RGB(40, 80, 200))
+            Designer.DrawText(x + 22, y + h / 2 - 6, caption, RGB(30, 30, 30))
+        CASE "RCOMBOBOX"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            Designer.DrawText(x + 4, y + h / 2 - 6, caption, RGB(60, 60, 60))
+            Designer.FillRect(x2 - 18, y + 1, x2 - 1, y2 - 1, RGB(225, 225, 225))
+            Designer.Line(x2 - 13, y + h / 2 - 2, x2 - 9, y + h / 2 + 2, RGB(40, 40, 40))
+            Designer.Line(x2 - 9, y + h / 2 + 2, x2 - 5, y + h / 2 - 2, RGB(40, 40, 40))
+        CASE "RLISTBOX"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            DIM li AS INTEGER
+            DIM ly AS INTEGER
+            FOR li = 0 TO 4
+                ly = y + 4 + li * 16
+                IF ly < y2 - 8 THEN
+                    Designer.DrawText(x + 6, ly, "Item " + STR(li + 1), RGB(60, 60, 60))
+                END IF
+            NEXT li
+        CASE "RPANEL"
+            Designer.FillRect(x, y, x2, y2, RGB(238, 238, 240))
+            Designer.Rect(x, y, x2, y2, RGB(160, 160, 160))
+        CASE "RGROUPBOX"
+            Designer.Rect(x, y + 6, x2, y2, RGB(140, 140, 140))
+            Designer.FillRect(x + 8, y, x + 8 + 8 * LEN(caption) + 4, y + 12, RGB(245, 245, 250))
+            Designer.DrawText(x + 10, y, caption, RGB(40, 40, 40))
+        CASE "RPROGRESSBAR"
+            Designer.FillRect(x, y, x2, y2, RGB(240, 240, 240))
+            Designer.Rect(x, y, x2, y2, RGB(120, 120, 120))
+            DIM fillw AS INTEGER
+            fillw = w * 60 / 100
+            Designer.FillRect(x + 1, y + 1, x + fillw, y2 - 1, RGB(70, 130, 220))
+        CASE "RIMAGE"
+            Designer.FillRect(x, y, x2, y2, RGB(245, 245, 245))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            Designer.Line(x, y, x2, y2, RGB(180, 180, 180))
+            Designer.Line(x2, y, x, y2, RGB(180, 180, 180))
+            Designer.DrawText(x + 4, y + 4, "[image]", RGB(120, 120, 120))
+        CASE "RCANVAS"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            Designer.DrawText(x + 4, y + 4, "Canvas", RGB(140, 140, 140))
+        CASE "RSTRINGGRID"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            DIM gi AS INTEGER
+            DIM gx AS INTEGER
+            DIM gy AS INTEGER
+            FOR gi = 1 TO 4
+                gx = x + (w * gi) / 4
+                Designer.Line(gx, y, gx, y2, RGB(200, 200, 200))
+            NEXT gi
+            FOR gi = 1 TO 5
+                gy = y + (h * gi) / 6
+                Designer.Line(x, gy, x2, gy, RGB(200, 200, 200))
+            NEXT gi
+            Designer.FillRect(x + 1, y + 1, x2 - 1, y + (h / 6), RGB(230, 230, 235))
+        CASE "RTABCONTROL"
+            Designer.FillRect(x, y, x2, y + 22, RGB(225, 225, 230))
+            Designer.FillRect(x + 2, y + 2, x + 60, y + 22, RGB(255, 255, 255))
+            Designer.Rect(x + 2, y + 2, x + 60, y + 22, RGB(140, 140, 140))
+            Designer.DrawText(x + 8, y + 6, "Tab1", RGB(30, 30, 30))
+            Designer.Rect(x + 62, y + 4, x + 110, y + 22, RGB(160, 160, 160))
+            Designer.DrawText(x + 68, y + 6, "Tab2", RGB(80, 80, 80))
+            Designer.FillRect(x, y + 22, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y + 22, x2, y2, RGB(140, 140, 140))
+        CASE "RTREEVIEW"
+            Designer.FillRect(x, y, x2, y2, RGB(255, 255, 255))
+            Designer.Rect(x, y, x2, y2, RGB(140, 140, 140))
+            Designer.DrawText(x + 6, y + 4, "[-] Root", RGB(30, 30, 30))
+            Designer.DrawText(x + 22, y + 22, "[+] Folder A", RGB(30, 30, 30))
+            Designer.DrawText(x + 22, y + 40, "[+] Folder B", RGB(30, 30, 30))
+            Designer.DrawText(x + 38, y + 58, "Child", RGB(30, 30, 30))
+        CASE ELSE
+            Designer.FillRect(x, y, x2, y2, RGB(220, 220, 220))
+            Designer.Rect(x, y, x2, y2, RGB(120, 120, 120))
+            Designer.DrawText(x + 4, y + 4, t, RGB(40, 40, 40))
+    END SELECT
+END SUB
+
+' ============================================================
+' DESIGNER RENDERING
+' ============================================================
+SUB DrawSelHandles(x AS INTEGER, y AS INTEGER, x2 AS INTEGER, y2 AS INTEGER)
+    DIM hc AS INTEGER
+    hc = RGB(220, 60, 60)
+    Designer.FillRect(x - 3, y - 3, x + 3, y + 3, hc)
+    Designer.FillRect(x2 - 3, y - 3, x2 + 3, y + 3, hc)
+    Designer.FillRect(x - 3, y2 - 3, x + 3, y2 + 3, hc)
+    Designer.FillRect(x2 - 3, y2 - 3, x2 + 3, y2 + 3, hc)
+END SUB
+
+SUB DrawForm(idx AS INTEGER, isActive AS INTEGER)
+    DIM fx AS INTEGER
+    DIM fy AS INTEGER
+    DIM fx2 AS INTEGER
+    DIM fy2 AS INTEGER
+    fx = FormX(idx)
+    fy = FormY(idx)
+    DIM effH AS INTEGER
+    IF FormState(idx) = 1 THEN
+        effH = TITLEBAR_H
+    ELSE
+        effH = FormH(idx)
+    END IF
+    fx2 = fx + FormW(idx)
+    fy2 = fy + effH
+
+    Designer.FillRect(fx + 4, fy + 4, fx2 + 4, fy2 + 4, RGB(180, 180, 190))
+
+    DIM tbcolor AS INTEGER
+    IF isActive = 1 THEN
+        tbcolor = RGB(60, 100, 180)
+    ELSE
+        tbcolor = RGB(140, 150, 170)
+    END IF
+    Designer.FillRect(fx, fy, fx2, fy + TITLEBAR_H, tbcolor)
+    Designer.DrawText(fx + 8, fy + 5, FormCaption(idx) + "  (" + FormName(idx) + ")", RGB(255, 255, 255))
+
+    ' Window buttons: minimize, maximize, close (each 16x16, gap 4, right-aligned)
+    DIM bMinX AS INTEGER
+    DIM bMaxX AS INTEGER
+    DIM bClsX AS INTEGER
+    DIM by AS INTEGER
+    bMinX = fx2 - 60
+    bMaxX = fx2 - 40
+    bClsX = fx2 - 20
+    by = fy + 4
+
+    Designer.FillRect(bMinX, by, bMinX + 16, by + 16, RGB(220, 220, 220))
+    Designer.Rect(bMinX, by, bMinX + 16, by + 16, RGB(120, 120, 120))
+    Designer.Line(bMinX + 4, by + 12, bMinX + 12, by + 12, RGB(20, 20, 20))
+
+    Designer.FillRect(bMaxX, by, bMaxX + 16, by + 16, RGB(220, 220, 220))
+    Designer.Rect(bMaxX, by, bMaxX + 16, by + 16, RGB(120, 120, 120))
+    IF FormState(idx) = 2 THEN
+        Designer.Rect(bMaxX + 3, by + 5, bMaxX + 11, by + 13, RGB(20, 20, 20))
+        Designer.Rect(bMaxX + 5, by + 3, bMaxX + 13, by + 11, RGB(20, 20, 20))
+    ELSE
+        Designer.Rect(bMaxX + 3, by + 3, bMaxX + 13, by + 13, RGB(20, 20, 20))
+    END IF
+
+    Designer.FillRect(bClsX, by, bClsX + 16, by + 16, RGB(220, 90, 90))
+    Designer.Rect(bClsX, by, bClsX + 16, by + 16, RGB(120, 30, 30))
+    Designer.Line(bClsX + 3, by + 3, bClsX + 13, by + 13, RGB(255, 255, 255))
+    Designer.Line(bClsX + 13, by + 3, bClsX + 3, by + 13, RGB(255, 255, 255))
+
+    IF FormState(idx) <> 1 THEN
+        Designer.FillRect(fx, fy + TITLEBAR_H, fx2, fy2, RGB(245, 245, 248))
+
+        DIM i AS INTEGER
+        FOR i = 0 TO CompCount - 1
+            IF CompForm(i) = idx THEN
+                DIM cx AS INTEGER
+                DIM cy AS INTEGER
+                cx = fx + CompX(i)
+                cy = fy + TITLEBAR_H + CompY(i)
+                RenderComp(CompType(i), CompName(i), CompCaption(i), cx, cy, CompW(i), CompH(i))
+                IF isActive = 1 AND SelKind = 2 AND SelIndex = i THEN
+                    DrawSelHandles(cx, cy, cx + CompW(i), cy + CompH(i))
+                END IF
+            END IF
+        NEXT i
+    END IF
+
+    Designer.Rect(fx, fy, fx2, fy2, RGB(60, 60, 80))
+
+    IF isActive = 1 AND SelKind = 1 THEN
+        Designer.Rect(fx - 1, fy - 1, fx2 + 1, fy2 + 1, RGB(220, 60, 60))
+    END IF
+END SUB
+
+SUB RedrawDesigner()
+    Designer.Cls()
+    Designer.FillRect(0, 0, 780, 662, RGB(248, 248, 252))
+    DIM gx AS INTEGER
+    FOR gx = 0 TO 780 STEP 40
+        Designer.Line(gx, 0, gx, 662, RGB(235, 235, 240))
+    NEXT gx
+    DIM gy AS INTEGER
+    FOR gy = 0 TO 662 STEP 40
+        Designer.Line(0, gy, 780, gy, RGB(235, 235, 240))
+    NEXT gy
+
+    DIM i AS INTEGER
+    FOR i = 0 TO FormCount - 1
+        IF i <> ActiveForm THEN
+            DrawForm(i, 0)
+        END IF
+    NEXT i
+    IF ActiveForm >= 0 AND ActiveForm < FormCount THEN
+        DrawForm(ActiveForm, 1)
+    END IF
+END SUB
+
+' ============================================================
+' HIT TESTING — sets HitRegion / HitInfo
+' ============================================================
+SUB DoHitTest(mx AS INTEGER, my AS INTEGER)
+    HitRegion = 0
+    HitInfo = -1
+
+    ' Active form's components first (drawn on top), only if not minimized
+    IF ActiveForm >= 0 AND ActiveForm < FormCount AND FormState(ActiveForm) <> 1 THEN
+        DIM afx AS INTEGER
+        DIM afy AS INTEGER
+        afx = FormX(ActiveForm)
+        afy = FormY(ActiveForm)
+        DIM ci AS INTEGER
+        FOR ci = CompCount - 1 TO 0 STEP -1
+            IF CompForm(ci) = ActiveForm THEN
+                DIM cx AS INTEGER
+                DIM cy AS INTEGER
+                DIM cx2 AS INTEGER
+                DIM cy2 AS INTEGER
+                cx = afx + CompX(ci)
+                cy = afy + TITLEBAR_H + CompY(ci)
+                cx2 = cx + CompW(ci)
+                cy2 = cy + CompH(ci)
+                IF mx >= cx AND mx <= cx2 AND my >= cy AND my <= cy2 THEN
+                    HitRegion = 3
+                    HitInfo = ci
+                    EXIT SUB
+                END IF
+            END IF
+        NEXT ci
+    END IF
+
+    ' Then walk forms front-to-back: active first, then others reverse order
+    DIM order AS INTEGER
+    FOR order = 0 TO FormCount
+        DIM fi AS INTEGER
+        IF order = 0 THEN
+            fi = ActiveForm
+        ELSE
+            fi = FormCount - order
+            IF fi = ActiveForm THEN fi = -1
+        END IF
+        IF fi >= 0 AND fi < FormCount THEN
+            DIM fx AS INTEGER
+            DIM fy AS INTEGER
+            DIM fx2 AS INTEGER
+            DIM fy2 AS INTEGER
+            DIM effH AS INTEGER
+            fx = FormX(fi)
+            fy = FormY(fi)
+            IF FormState(fi) = 1 THEN
+                effH = TITLEBAR_H
+            ELSE
+                effH = FormH(fi)
+            END IF
+            fx2 = fx + FormW(fi)
+            fy2 = fy + effH
+
+            ' Window buttons (only when in the titlebar Y band)
+            IF mx >= fx AND mx <= fx2 AND my >= fy AND my <= fy + TITLEBAR_H THEN
+                DIM bMinX AS INTEGER
+                DIM bMaxX AS INTEGER
+                DIM bClsX AS INTEGER
+                DIM by AS INTEGER
+                bMinX = fx2 - 60
+                bMaxX = fx2 - 40
+                bClsX = fx2 - 20
+                by = fy + 4
+                IF mx >= bClsX AND mx <= bClsX + 16 AND my >= by AND my <= by + 16 THEN
+                    HitRegion = 6
+                    HitInfo = fi
+                    EXIT SUB
+                ELSEIF mx >= bMaxX AND mx <= bMaxX + 16 AND my >= by AND my <= by + 16 THEN
+                    HitRegion = 5
+                    HitInfo = fi
+                    EXIT SUB
+                ELSEIF mx >= bMinX AND mx <= bMinX + 16 AND my >= by AND my <= by + 16 THEN
+                    HitRegion = 4
+                    HitInfo = fi
+                    EXIT SUB
+                ELSE
+                    HitRegion = 1
+                    HitInfo = fi
+                    EXIT SUB
+                END IF
+            END IF
+            IF FormState(fi) <> 1 AND mx >= fx AND mx <= fx2 AND my >= fy + TITLEBAR_H AND my <= fy2 THEN
+                HitRegion = 2
+                HitInfo = fi
+                EXIT SUB
+            END IF
+        END IF
+    NEXT order
+END SUB
+
+' ============================================================
+' WINDOW BUTTON ACTIONS
+' ============================================================
+SUB WindowMinimize(idx AS INTEGER)
+    IF idx < 0 OR idx >= FormCount THEN EXIT SUB
+    IF FormState(idx) = 1 THEN
+        FormState(idx) = 0
+        Status.Caption = FormName(idx) + " restored"
+    ELSE
+        IF FormState(idx) = 0 THEN
+            FormPrevX(idx) = FormX(idx)
+            FormPrevY(idx) = FormY(idx)
+            FormPrevW(idx) = FormW(idx)
+            FormPrevH(idx) = FormH(idx)
+        END IF
+        FormState(idx) = 1
+        Status.Caption = FormName(idx) + " minimized"
+    END IF
+    RedrawDesigner()
+END SUB
+
+SUB WindowMaximize(idx AS INTEGER)
+    IF idx < 0 OR idx >= FormCount THEN EXIT SUB
+    IF FormState(idx) = 2 THEN
+        FormState(idx) = 0
+        FormX(idx) = FormPrevX(idx)
+        FormY(idx) = FormPrevY(idx)
+        FormW(idx) = FormPrevW(idx)
+        FormH(idx) = FormPrevH(idx)
+        Status.Caption = FormName(idx) + " restored"
+    ELSE
+        IF FormState(idx) = 0 THEN
+            FormPrevX(idx) = FormX(idx)
+            FormPrevY(idx) = FormY(idx)
+            FormPrevW(idx) = FormW(idx)
+            FormPrevH(idx) = FormH(idx)
+        END IF
+        FormState(idx) = 2
+        FormX(idx) = 4
+        FormY(idx) = 4
+        FormW(idx) = 770
+        FormH(idx) = 650
+        Status.Caption = FormName(idx) + " maximized"
+    END IF
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+SUB WindowClose(idx AS INTEGER)
+    IF FormCount <= 1 THEN
+        Status.Caption = "Cannot close the only form"
+        EXIT SUB
+    END IF
+    DIM saved AS INTEGER
+    saved = ActiveForm
+    ActiveForm = idx
+    DeleteActiveForm()
+END SUB
+
+' ============================================================
+' EVENT EDITOR
+' ============================================================
+FUNCTION DefaultEventFor(t AS STRING) AS STRING
+    DIM s AS STRING
+    s = t
+    SELECT CASE s
+        CASE "RBUTTON", "RCHECKBOX", "RRADIOBUTTON", "RLABEL", "RIMAGE"
+            DefaultEventFor = "OnClick"
+        CASE "REDIT", "RMEMO", "RCOMBOBOX", "RLISTBOX", "RSTRINGGRID", "RTREEVIEW", "RTABCONTROL"
+            DefaultEventFor = "OnChange"
+        CASE "RCANVAS"
+            DefaultEventFor = "OnMouseDown"
+        CASE ELSE
+            DefaultEventFor = "OnClick"
+    END SELECT
+END FUNCTION
+
+FUNCTION FindOrCreateEvent(compIdx AS INTEGER, evname AS STRING) AS INTEGER
+    DIM i AS INTEGER
+    FOR i = 0 TO EvCount - 1
+        IF EvCompIdx(i) = compIdx AND EvName(i) = evname THEN
+            FindOrCreateEvent = i
+            EXIT FUNCTION
+        END IF
+    NEXT i
+    IF EvCount >= 800 THEN
+        FindOrCreateEvent = -1
+        EXIT FUNCTION
+    END IF
+    DIM ni AS INTEGER
+    ni = EvCount
+    EvCompIdx(ni) = compIdx
+    EvName(ni) = evname
+    EvBody(ni) = "    ' " + evname + " for " + CompName(compIdx) + CHR(10) + "    Status.Caption = " + CHR(34) + CompName(compIdx) + " " + evname + CHR(34) + CHR(10)
+    EvCount = EvCount + 1
+    FindOrCreateEvent = ni
+END FUNCTION
+
+SUB OpenEventEditor(compIdx AS INTEGER, evname AS STRING)
+    DIM ei AS INTEGER
+    ei = FindOrCreateEvent(compIdx, evname)
+    IF ei < 0 THEN
+        Status.Caption = "Event table full"
+        EXIT SUB
+    END IF
+    EditEvIdx = ei
+    EditEvCompName = CompName(compIdx)
+    EditEvName = evname
+    CodeEditor.Text = EvBody(ei)
+    CodeEditor.Visible = 1
+    Designer.Visible = 0
+    ShowingCode = 2
+    Status.Caption = "Editing event: " + EditEvCompName + "_" + evname + " — click Code/Design to return"
+END SUB
+
+SUB CloseEventEditor()
+    IF EditEvIdx >= 0 AND EditEvIdx < EvCount THEN
+        EvBody(EditEvIdx) = CodeEditor.Text
+    END IF
+    EditEvIdx = -1
+    CodeEditor.Visible = 0
+    Designer.Visible = 1
+    ShowingCode = 0
+    Status.Caption = "Returned to designer"
+    RedrawDesigner()
+END SUB
+
+' ============================================================
+' COMPONENT MANAGEMENT
+' ============================================================
+SUB AddPlaced(tool AS STRING, mx AS INTEGER, my AS INTEGER)
+    IF CompCount >= 400 THEN
+        Status.Caption = "Component limit reached (400)"
+        EXIT SUB
+    END IF
+    IF ActiveForm < 0 OR ActiveForm >= FormCount THEN EXIT SUB
+
+    DIM idx AS INTEGER
+    idx = CompCount
+    DIM prefix AS STRING
+    prefix = ToolToPrefix(tool)
+    CompForm(idx) = ActiveForm
+    CompName(idx) = NextName(prefix)
+    CompType(idx) = ToolToType(tool)
+    CompX(idx) = mx - FormX(ActiveForm)
+    CompY(idx) = my - FormY(ActiveForm) - TITLEBAR_H
+    CompW(idx) = DefaultW(tool)
+    CompH(idx) = DefaultH(tool)
+    CompCaption(idx) = DefaultCaption(tool)
+    IF tool = "Button" THEN CompCaption(idx) = CompName(idx)
+    CompCount = CompCount + 1
+    SelKind = 2
+    SelIndex = idx
+    Status.Caption = "Placed " + CompName(idx) + " (" + CompType(idx) + ")"
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+SUB DeleteSelected()
+    IF SelKind <> 2 OR SelIndex < 0 THEN
+        Status.Caption = "Nothing selected"
+        EXIT SUB
+    END IF
+    DIM i AS INTEGER
+    FOR i = SelIndex TO CompCount - 2
+        CompForm(i) = CompForm(i + 1)
+        CompName(i) = CompName(i + 1)
+        CompType(i) = CompType(i + 1)
+        CompX(i) = CompX(i + 1)
+        CompY(i) = CompY(i + 1)
+        CompW(i) = CompW(i + 1)
+        CompH(i) = CompH(i + 1)
+        CompCaption(i) = CompCaption(i + 1)
+    NEXT i
+    CompCount = CompCount - 1
+    SelKind = 0
+    SelIndex = -1
+    Status.Caption = "Deleted"
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+SUB DeleteActiveForm()
+    IF FormCount <= 1 THEN
+        Status.Caption = "Cannot delete the only form"
+        EXIT SUB
+    END IF
+    IF ActiveForm < 0 OR ActiveForm >= FormCount THEN EXIT SUB
+
+    DIM victim AS INTEGER
+    victim = ActiveForm
+
+    DIM i AS INTEGER
+    i = 0
+    DO WHILE i < CompCount
+        IF CompForm(i) = victim THEN
+            DIM j AS INTEGER
+            FOR j = i TO CompCount - 2
+                CompForm(j) = CompForm(j + 1)
+                CompName(j) = CompName(j + 1)
+                CompType(j) = CompType(j + 1)
+                CompX(j) = CompX(j + 1)
+                CompY(j) = CompY(j + 1)
+                CompW(j) = CompW(j + 1)
+                CompH(j) = CompH(j + 1)
+                CompCaption(j) = CompCaption(j + 1)
+            NEXT j
+            CompCount = CompCount - 1
+        ELSE
+            i = i + 1
+        END IF
+    LOOP
+
+    DIM k AS INTEGER
+    FOR k = 0 TO CompCount - 1
+        IF CompForm(k) > victim THEN CompForm(k) = CompForm(k) - 1
+    NEXT k
+
+    FOR i = victim TO FormCount - 2
+        FormName(i) = FormName(i + 1)
+        FormCaption(i) = FormCaption(i + 1)
+        FormX(i) = FormX(i + 1)
+        FormY(i) = FormY(i + 1)
+        FormW(i) = FormW(i + 1)
+        FormH(i) = FormH(i + 1)
+    NEXT i
+    FormCount = FormCount - 1
+
+    IF ActiveForm >= FormCount THEN ActiveForm = FormCount - 1
+    SelKind = 0
+    SelIndex = -1
+    Status.Caption = "Form deleted"
+    RefreshFormsList()
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+SUB AddNewForm()
+    IF FormCount >= 20 THEN
+        Status.Caption = "Form limit reached (20)"
+        EXIT SUB
+    END IF
+    DIM nm AS STRING
+    nm = "Form" + STR(FormSeq + 1)
+    FormSeq = FormSeq + 1
+    DIM ox AS INTEGER
+    DIM oy AS INTEGER
+    ox = 60 + (FormCount MOD 4) * 30
+    oy = 30 + (FormCount MOD 4) * 30
+    AddFormDef(nm, "Form " + STR(FormSeq), ox, oy, 480, 360)
+    ActiveForm = FormCount - 1
+    SelKind = 1
+    SelIndex = -1
+    Status.Caption = "Added " + nm
+    RefreshFormsList()
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+' ============================================================
+' PROPERTY GRID
+' ============================================================
+SUB RefreshPropGrid()
+    IF SelKind = 2 AND SelIndex >= 0 THEN
+        PropGrid.SetCell(1, 1, CompName(SelIndex))
+        PropGrid.SetCell(1, 2, CompType(SelIndex))
+        PropGrid.SetCell(1, 3, CompCaption(SelIndex))
+        PropGrid.SetCell(1, 4, STR(CompX(SelIndex)))
+        PropGrid.SetCell(1, 5, STR(CompY(SelIndex)))
+        PropGrid.SetCell(1, 6, STR(CompW(SelIndex)))
+        PropGrid.SetCell(1, 7, STR(CompH(SelIndex)))
+    ELSEIF SelKind = 1 AND ActiveForm >= 0 THEN
+        PropGrid.SetCell(1, 1, FormName(ActiveForm))
+        PropGrid.SetCell(1, 2, "RFORM")
+        PropGrid.SetCell(1, 3, FormCaption(ActiveForm))
+        PropGrid.SetCell(1, 4, STR(FormX(ActiveForm)))
+        PropGrid.SetCell(1, 5, STR(FormY(ActiveForm)))
+        PropGrid.SetCell(1, 6, STR(FormW(ActiveForm)))
+        PropGrid.SetCell(1, 7, STR(FormH(ActiveForm)))
+    ELSE
+        PropGrid.SetCell(1, 1, "")
+        PropGrid.SetCell(1, 2, "")
+        PropGrid.SetCell(1, 3, "")
+        PropGrid.SetCell(1, 4, "")
+        PropGrid.SetCell(1, 5, "")
+        PropGrid.SetCell(1, 6, "")
+        PropGrid.SetCell(1, 7, "")
+    END IF
+    RefreshEventsList()
+END SUB
+
+SUB ApplyPropGrid()
+    DIM s AS STRING
+    IF SelKind = 2 AND SelIndex >= 0 THEN
+        s = PropGrid.GetCell(1, 1)
+        IF LEN(s) > 0 THEN CompName(SelIndex) = s
+        s = PropGrid.GetCell(1, 3)
+        CompCaption(SelIndex) = s
+        s = PropGrid.GetCell(1, 4)
+        IF LEN(s) > 0 THEN CompX(SelIndex) = VAL(s)
+        s = PropGrid.GetCell(1, 5)
+        IF LEN(s) > 0 THEN CompY(SelIndex) = VAL(s)
+        s = PropGrid.GetCell(1, 6)
+        IF LEN(s) > 0 THEN CompW(SelIndex) = VAL(s)
+        s = PropGrid.GetCell(1, 7)
+        IF LEN(s) > 0 THEN CompH(SelIndex) = VAL(s)
+        Status.Caption = "Component properties applied"
+    ELSEIF SelKind = 1 AND ActiveForm >= 0 THEN
+        s = PropGrid.GetCell(1, 1)
+        IF LEN(s) > 0 THEN FormName(ActiveForm) = s
+        s = PropGrid.GetCell(1, 3)
+        FormCaption(ActiveForm) = s
+        s = PropGrid.GetCell(1, 4)
+        IF LEN(s) > 0 THEN FormX(ActiveForm) = VAL(s)
+        s = PropGrid.GetCell(1, 5)
+        IF LEN(s) > 0 THEN FormY(ActiveForm) = VAL(s)
+        s = PropGrid.GetCell(1, 6)
+        IF LEN(s) > 0 THEN FormW(ActiveForm) = VAL(s)
+        s = PropGrid.GetCell(1, 7)
+        IF LEN(s) > 0 THEN FormH(ActiveForm) = VAL(s)
+        RefreshFormsList()
+        Status.Caption = "Form properties applied"
+    END IF
+    RedrawDesigner()
+END SUB
+
+' ============================================================
+' CODE GENERATION
+' ============================================================
+FUNCTION GenerateCode() AS STRING
+    DIM s AS STRING
+    s = "' Generated by RapidR Web IDE" + CHR(10)
+    s = s + "$APPTYPE WEB" + CHR(10) + CHR(10)
+    DIM f AS INTEGER
+    FOR f = 0 TO FormCount - 1
+        s = s + "CREATE " + FormName(f) + " AS RFORM" + CHR(10)
+        s = s + "    Caption = " + CHR(34) + FormCaption(f) + CHR(34) + CHR(10)
+        s = s + "    Left = " + STR(FormX(f)) + CHR(10)
+        s = s + "    Top = " + STR(FormY(f)) + CHR(10)
+        s = s + "    Width = " + STR(FormW(f)) + CHR(10)
+        s = s + "    Height = " + STR(FormH(f)) + CHR(10)
+        DIM i AS INTEGER
+        FOR i = 0 TO CompCount - 1
+            IF CompForm(i) = f THEN
+                s = s + CHR(10) + "    CREATE " + CompName(i) + " AS " + CompType(i) + CHR(10)
+                s = s + "        Left = " + STR(CompX(i)) + CHR(10)
+                s = s + "        Top = " + STR(CompY(i)) + CHR(10)
+                s = s + "        Width = " + STR(CompW(i)) + CHR(10)
+                s = s + "        Height = " + STR(CompH(i)) + CHR(10)
+                IF LEN(CompCaption(i)) > 0 THEN
+                    s = s + "        Caption = " + CHR(34) + CompCaption(i) + CHR(34) + CHR(10)
+                END IF
+                s = s + "    END CREATE" + CHR(10)
+            END IF
+        NEXT i
+        s = s + "END CREATE" + CHR(10) + CHR(10)
+    NEXT f
+
+    ' Emit event handler SUBs and wire them up
+    DIM ei AS INTEGER
+    FOR ei = 0 TO EvCount - 1
+        DIM owner AS INTEGER
+        owner = EvCompIdx(ei)
+        IF owner >= 0 AND owner < CompCount THEN
+            DIM subname AS STRING
+            subname = CompName(owner) + "_" + EvName(ei)
+            s = s + "SUB " + subname + "()" + CHR(10)
+            s = s + EvBody(ei)
+            IF LEN(EvBody(ei)) > 0 THEN
+                IF MID(EvBody(ei), LEN(EvBody(ei)), 1) <> CHR(10) THEN s = s + CHR(10)
+            END IF
+            s = s + "END SUB" + CHR(10) + CHR(10)
+        END IF
+    NEXT ei
+
+    FOR ei = 0 TO EvCount - 1
+        DIM o2 AS INTEGER
+        o2 = EvCompIdx(ei)
+        IF o2 >= 0 AND o2 < CompCount THEN
+            s = s + CompName(o2) + "." + EvName(ei) + " = " + CompName(o2) + "_" + EvName(ei) + CHR(10)
+        END IF
+    NEXT ei
+
+    GenerateCode = s
+END FUNCTION
+
+' Project file V2:  FORM<TAB>... or COMP<TAB>...
+FUNCTION SerializeProject() AS STRING
+    DIM s AS STRING
+    s = "RAPIDR-WEB-IDE-PROJECT-V2" + CHR(10)
+    DIM f AS INTEGER
+    FOR f = 0 TO FormCount - 1
+        s = s + "FORM" + CHR(9) + FormName(f) + CHR(9) + FormCaption(f) + CHR(9)
+        s = s + STR(FormX(f)) + CHR(9) + STR(FormY(f)) + CHR(9)
+        s = s + STR(FormW(f)) + CHR(9) + STR(FormH(f)) + CHR(10)
+    NEXT f
+    DIM i AS INTEGER
+    FOR i = 0 TO CompCount - 1
+        s = s + "COMP" + CHR(9) + STR(CompForm(i)) + CHR(9)
+        s = s + CompType(i) + CHR(9) + CompName(i) + CHR(9)
+        s = s + STR(CompX(i)) + CHR(9) + STR(CompY(i)) + CHR(9)
+        s = s + STR(CompW(i)) + CHR(9) + STR(CompH(i)) + CHR(9)
+        s = s + CompCaption(i) + CHR(10)
+    NEXT i
+    SerializeProject = s
+END FUNCTION
+
+' Shared scratch space for parsing tab-separated lines (no array params support).
+DIM SP0 AS STRING
+DIM SP1 AS STRING
+DIM SP2 AS STRING
+DIM SP3 AS STRING
+DIM SP4 AS STRING
+DIM SP5 AS STRING
+DIM SP6 AS STRING
+DIM SP7 AS STRING
+DIM SP8 AS STRING
+
+SUB SplitLine(line AS STRING, maxParts AS INTEGER)
+    SP0 = ""
+    SP1 = ""
+    SP2 = ""
+    SP3 = ""
+    SP4 = ""
+    SP5 = ""
+    SP6 = ""
+    SP7 = ""
+    SP8 = ""
+    DIM idx AS INTEGER
+    idx = 0
+    DIM cur AS STRING
+    cur = ""
+    DIM i AS INTEGER
+    DIM ch AS STRING
+    FOR i = 1 TO LEN(line)
+        ch = MID(line, i, 1)
+        IF ch = CHR(9) AND idx < maxParts - 1 THEN
+            DIM si AS INTEGER
+            si = idx
+            SELECT CASE si
+                CASE 0
+                    SP0 = cur
+                CASE 1
+                    SP1 = cur
+                CASE 2
+                    SP2 = cur
+                CASE 3
+                    SP3 = cur
+                CASE 4
+                    SP4 = cur
+                CASE 5
+                    SP5 = cur
+                CASE 6
+                    SP6 = cur
+                CASE 7
+                    SP7 = cur
+            END SELECT
+            idx = idx + 1
+            cur = ""
+        ELSE
+            cur = cur + ch
+        END IF
+    NEXT i
+    DIM ei AS INTEGER
+    ei = idx
+    SELECT CASE ei
+        CASE 0
+            SP0 = cur
+        CASE 1
+            SP1 = cur
+        CASE 2
+            SP2 = cur
+        CASE 3
+            SP3 = cur
+        CASE 4
+            SP4 = cur
+        CASE 5
+            SP5 = cur
+        CASE 6
+            SP6 = cur
+        CASE 7
+            SP7 = cur
+        CASE 8
+            SP8 = cur
+    END SELECT
+END SUB
+
+SUB ProcessProjectLine(line AS STRING)
+    IF LEN(line) = 0 THEN EXIT SUB
+    DIM head AS STRING
+    head = ""
+    IF LEN(line) >= 4 THEN head = MID(line, 1, 4)
+    IF head = "FORM" THEN
+        IF FormCount >= 20 THEN EXIT SUB
+        SplitLine(line, 7)
+        DIM fi AS INTEGER
+        fi = FormCount
+        FormName(fi) = SP1
+        FormCaption(fi) = SP2
+        FormX(fi) = VAL(SP3)
+        FormY(fi) = VAL(SP4)
+        FormW(fi) = VAL(SP5)
+        FormH(fi) = VAL(SP6)
+        FormCount = FormCount + 1
+    ELSEIF head = "COMP" THEN
+        IF CompCount >= 400 THEN EXIT SUB
+        SplitLine(line, 9)
+        DIM ci AS INTEGER
+        ci = CompCount
+        CompForm(ci) = VAL(SP1)
+        CompType(ci) = SP2
+        CompName(ci) = SP3
+        CompX(ci) = VAL(SP4)
+        CompY(ci) = VAL(SP5)
+        CompW(ci) = VAL(SP6)
+        CompH(ci) = VAL(SP7)
+        CompCaption(ci) = SP8
+        CompCount = CompCount + 1
+    END IF
+END SUB
+
+SUB DeserializeProject(text AS STRING)
+    CompCount = 0
+    FormCount = 0
+    FormSeq = 0
+    DIM cur AS STRING
+    cur = ""
+    DIM ch AS STRING
+    DIM i AS INTEGER
+    DIM headerSeen AS INTEGER
+    headerSeen = 0
+    FOR i = 1 TO LEN(text)
+        ch = MID(text, i, 1)
+        IF ch = CHR(10) THEN
+            IF headerSeen = 0 THEN
+                headerSeen = 1
+            ELSE
+                ProcessProjectLine(cur)
+            END IF
+            cur = ""
+        ELSE
+            IF ch <> CHR(13) THEN cur = cur + ch
+        END IF
+    NEXT i
+    IF LEN(cur) > 0 AND headerSeen = 1 THEN ProcessProjectLine(cur)
+    IF FormCount = 0 THEN AddFormDef("Form1", "MyForm", 60, 30, 480, 360)
+    FormSeq = FormCount
+    ActiveForm = 0
+    SelKind = 0
+    SelIndex = -1
+    Status.Caption = "Loaded " + STR(FormCount) + " form(s), " + STR(CompCount) + " comp(s)"
+    RefreshFormsList()
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+' ============================================================
+' EVENTS
+' ============================================================
+SUB Toolbox_OnChange()
+    DIM i AS INTEGER
+    i = Toolbox.ItemIndex
+    IF i < 0 THEN EXIT SUB
+    SELECT CASE i
+        CASE 0
+            CurrentTool = "Pointer"
+        CASE 1
+            CurrentTool = "Button"
+        CASE 2
+            CurrentTool = "Label"
+        CASE 3
+            CurrentTool = "Edit"
+        CASE 4
+            CurrentTool = "Memo"
+        CASE 5
+            CurrentTool = "CheckBox"
+        CASE 6
+            CurrentTool = "RadioButton"
+        CASE 7
+            CurrentTool = "ComboBox"
+        CASE 8
+            CurrentTool = "ListBox"
+        CASE 9
+            CurrentTool = "Panel"
+        CASE 10
+            CurrentTool = "GroupBox"
+        CASE 11
+            CurrentTool = "ProgressBar"
+        CASE 12
+            CurrentTool = "Image"
+        CASE 13
+            CurrentTool = "Canvas"
+        CASE 14
+            CurrentTool = "StringGrid"
+        CASE 15
+            CurrentTool = "TabControl"
+        CASE 16
+            CurrentTool = "TreeView"
+        CASE ELSE
+            CurrentTool = "Pointer"
+    END SELECT
+    LblTool.Caption = "Tool: " + CurrentTool
+END SUB
+
+SUB FormsList_OnChange()
+    DIM i AS INTEGER
+    i = FormsList.ItemIndex
+    IF i < 0 THEN EXIT SUB
+    IF i >= FormCount THEN EXIT SUB
+    ActiveForm = i
+    SelKind = 1
+    SelIndex = -1
+    Status.Caption = "Active form: " + FormName(i)
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+SUB Designer_OnMouseDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+    Status.Caption = "MD enter " + STR(mx) + "," + STR(my)
+    DoHitTest(mx, my)
+    Status.Caption = "MD post-hit r=" + STR(HitRegion) + " i=" + STR(HitInfo)
+
+    ' Window buttons handled identically in any tool mode
+    IF HitRegion = 4 THEN
+        ActiveForm = HitInfo
+        WindowMinimize(HitInfo)
+        RefreshFormsList()
+        EXIT SUB
+    ELSEIF HitRegion = 5 THEN
+        ActiveForm = HitInfo
+        WindowMaximize(HitInfo)
+        RefreshFormsList()
+        EXIT SUB
+    ELSEIF HitRegion = 6 THEN
+        WindowClose(HitInfo)
+        RefreshFormsList()
+        EXIT SUB
+    END IF
+
+    ' Pointer (select) mode
+    IF CurrentTool = "Pointer" OR LEN(CurrentTool) = 0 THEN
+        IF HitRegion = 3 THEN
+            SelKind = 2
+            SelIndex = HitInfo
+            ActiveForm = CompForm(HitInfo)
+            DragMode = 1
+            DragStartX = mx
+            DragStartY = my
+            DragOrigX = CompX(HitInfo)
+            DragOrigY = CompY(HitInfo)
+        ELSEIF HitRegion = 1 THEN
+            ActiveForm = HitInfo
+            SelKind = 1
+            SelIndex = -1
+            IF FormState(HitInfo) = 0 THEN
+                DragMode = 2
+                DragStartX = mx
+                DragStartY = my
+                DragOrigX = FormX(HitInfo)
+                DragOrigY = FormY(HitInfo)
+            ELSE
+                DragMode = 0
+            END IF
+        ELSEIF HitRegion = 2 THEN
+            ActiveForm = HitInfo
+            SelKind = 1
+            SelIndex = -1
+            DragMode = 0
+        ELSE
+            SelKind = 0
+            SelIndex = -1
+            DragMode = 0
+        END IF
+        Status.Caption = "MD pointer dm=" + STR(DragMode)
+        RefreshFormsList()
+        Status.Caption = "MD after RFL"
+        RefreshPropGrid()
+        Status.Caption = "MD after RPG"
+        RefreshEventsList()
+        Status.Caption = "MD after REL"
+        RedrawDesigner()
+        Status.Caption = "MD pointer done"
+        EXIT SUB
+    END IF
+    IF HitRegion = 3 THEN
+        ' Clicked existing component → select it instead of creating
+        SelKind = 2
+        SelIndex = HitInfo
+        ActiveForm = CompForm(HitInfo)
+        DragMode = 1
+        DragStartX = mx
+        DragStartY = my
+        DragOrigX = CompX(HitInfo)
+        DragOrigY = CompY(HitInfo)
+        RefreshFormsList()
+        RefreshPropGrid()
+        RefreshEventsList()
+        RedrawDesigner()
+        EXIT SUB
+    END IF
+
+    IF HitRegion = 2 AND HitInfo = ActiveForm THEN
+        AddPlaced(CurrentTool, mx, my)
+        EXIT SUB
+    END IF
+
+    IF HitRegion = 2 THEN
+        ActiveForm = HitInfo
+        SelKind = 1
+        SelIndex = -1
+        Status.Caption = "Switched to " + FormName(ActiveForm) + " — click again to place"
+        RefreshFormsList()
+        RefreshPropGrid()
+        RedrawDesigner()
+        EXIT SUB
+    END IF
+
+    IF HitRegion = 1 THEN
+        ActiveForm = HitInfo
+        SelKind = 1
+        SelIndex = -1
+        DragMode = 2
+        DragStartX = mx
+        DragStartY = my
+        DragOrigX = FormX(HitInfo)
+        DragOrigY = FormY(HitInfo)
+        RefreshFormsList()
+        RefreshPropGrid()
+        RedrawDesigner()
+    END IF
+END SUB
+
+SUB Designer_OnMouseMove(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+    IF DragMode = 1 THEN
+        IF SelKind = 2 AND SelIndex >= 0 THEN
+            CompX(SelIndex) = DragOrigX + (mx - DragStartX)
+            CompY(SelIndex) = DragOrigY + (my - DragStartY)
+            RefreshPropGrid()
+            RedrawDesigner()
+        END IF
+    ELSEIF DragMode = 2 THEN
+        IF ActiveForm >= 0 AND ActiveForm < FormCount THEN
+            FormX(ActiveForm) = DragOrigX + (mx - DragStartX)
+            FormY(ActiveForm) = DragOrigY + (my - DragStartY)
+            RefreshPropGrid()
+            RedrawDesigner()
+        END IF
+    END IF
+END SUB
+
+SUB Designer_OnMouseUp(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+    IF DragMode = 1 AND SelKind = 2 AND SelIndex >= 0 THEN
+        Status.Caption = "Moved " + CompName(SelIndex)
+    ELSEIF DragMode = 2 AND ActiveForm >= 0 THEN
+        Status.Caption = "Moved " + FormName(ActiveForm)
+    END IF
+    DragMode = 0
+END SUB
+
+SUB BtnDelete_OnClick()
+    DeleteSelected()
+END SUB
+
+SUB BtnDelForm_OnClick()
+    DeleteActiveForm()
+END SUB
+
+SUB BtnNewForm_OnClick()
+    AddNewForm()
+END SUB
+
+SUB MNewForm_OnClick()
+    AddNewForm()
+END SUB
+
+SUB BtnApply_OnClick()
+    ApplyPropGrid()
+END SUB
+
+SUB BtnGenerate_OnClick()
+    DIM code AS STRING
+    code = GenerateCode()
+    CodeEditor.Text = code
+    Status.Caption = "Code generated (" + STR(LEN(code)) + " chars)"
+END SUB
+
+SUB ToggleView()
+    IF ShowingCode = 2 THEN
+        CloseEventEditor()
+        EXIT SUB
+    END IF
+    IF ShowingCode = 0 THEN
+        DIM code AS STRING
+        code = GenerateCode()
+        CodeEditor.Text = code
+        CodeEditor.Visible = 1
+        Designer.Visible = 0
+        ShowingCode = 1
+        Status.Caption = "Code view (read-only preview)"
+    ELSE
+        CodeEditor.Visible = 0
+        Designer.Visible = 1
+        ShowingCode = 0
+        Status.Caption = "Design view"
+        RedrawDesigner()
+    END IF
+END SUB
+
+SUB AddEventOption(name AS STRING)
+    IF EvListCount >= 8 THEN EXIT SUB
+    EvListNames(EvListCount) = name
+    EvListCount = EvListCount + 1
+    EventsList.AddItem(name)
+END SUB
+
+SUB RefreshEventsList()
+    EventsList.Clear()
+    EvListCount = 0
+    IF SelKind <> 2 OR SelIndex < 0 THEN EXIT SUB
+    DIM t AS STRING
+    t = CompType(SelIndex)
+    SELECT CASE t
+        CASE "RBUTTON", "RCHECKBOX", "RRADIOBUTTON", "RLABEL", "RIMAGE"
+            AddEventOption("OnClick")
+        CASE "REDIT"
+            AddEventOption("OnChange")
+            AddEventOption("OnClick")
+        CASE "RMEMO", "RCOMBOBOX", "RLISTBOX"
+            AddEventOption("OnChange")
+            AddEventOption("OnClick")
+        CASE "RSTRINGGRID", "RTREEVIEW", "RTABCONTROL"
+            AddEventOption("OnChange")
+            AddEventOption("OnClick")
+        CASE "RCANVAS"
+            AddEventOption("OnMouseDown")
+            AddEventOption("OnMouseMove")
+            AddEventOption("OnMouseUp")
+            AddEventOption("OnClick")
+        CASE "RPROGRESSBAR", "RPANEL", "RGROUPBOX"
+            AddEventOption("OnClick")
+        CASE ELSE
+            AddEventOption("OnClick")
+    END SELECT
+    IF EvListCount > 0 THEN EventsList.ItemIndex = 0
+END SUB
+
+SUB BtnEditEvent_OnClick()
+    IF SelKind <> 2 OR SelIndex < 0 THEN
+        Status.Caption = "Select a component first"
+        EXIT SUB
+    END IF
+    DIM ei AS INTEGER
+    ei = EventsList.ItemIndex
+    DIM evname AS STRING
+    IF ei < 0 OR ei >= EvListCount THEN
+        evname = DefaultEventFor(CompType(SelIndex))
+    ELSE
+        evname = EvListNames(ei)
+    END IF
+    OpenEventEditor(SelIndex, evname)
+END SUB
+
+SUB BtnToggle_OnClick()
+    ToggleView()
+END SUB
+
+SUB MToggle_OnClick()
+    ToggleView()
+END SUB
+
+SUB BtnNew_OnClick()
+    InitProject()
+    Status.Caption = "New project"
+    RefreshPropGrid()
+    RedrawDesigner()
+END SUB
+
+SUB MNew_OnClick()
+    BtnNew_OnClick()
+END SUB
+
+SUB FS_OnLoad()
+    DeserializeProject(FS.Text)
+END SUB
+
+SUB BtnOpen_OnClick()
+    FS.PickFile(".rrproj,.txt,.rr")
+    Status.Caption = "Pick a project file..."
+END SUB
+
+SUB MOpen_OnClick()
+    BtnOpen_OnClick()
+END SUB
+
+SUB BtnSave_OnClick()
+    FS.FileName = "project.rrproj"
+    FS.Text = SerializeProject()
+    FS.Download()
+    Status.Caption = "Project downloaded as project.rrproj"
+END SUB
+
+SUB MSave_OnClick()
+    BtnSave_OnClick()
+END SUB
+
+SUB BtnExport_OnClick()
+    FS.FileName = "form.rr"
+    FS.Text = GenerateCode()
+    FS.Download()
+    Status.Caption = "Generated .rr file downloaded"
+END SUB
+
+SUB MExportRR_OnClick()
+    BtnExport_OnClick()
+END SUB
+
+SUB MGenerate_OnClick()
+    BtnGenerate_OnClick()
+END SUB
+
+SUB MAbout_OnClick()
+    Status.Caption = "RapidR Web IDE v2 — visual designer in the browser"
+END SUB
+
+' ============================================================
+' WIRE-UP
+' ============================================================
+InitToolbox()
+InitPropGrid()
+InitProject()
+
+Toolbox.OnChange = Toolbox_OnChange
+FormsList.OnChange = FormsList_OnChange
+Designer.OnMouseDown = Designer_OnMouseDown
+Designer.OnMouseMove = Designer_OnMouseMove
+Designer.OnMouseUp = Designer_OnMouseUp
+
+BtnNew.OnClick = BtnNew_OnClick
+BtnOpen.OnClick = BtnOpen_OnClick
+BtnSave.OnClick = BtnSave_OnClick
+BtnExport.OnClick = BtnExport_OnClick
+BtnNewForm.OnClick = BtnNewForm_OnClick
+BtnDelForm.OnClick = BtnDelForm_OnClick
+BtnToggle.OnClick = BtnToggle_OnClick
+BtnGenerate.OnClick = BtnGenerate_OnClick
+BtnDelete.OnClick = BtnDelete_OnClick
+BtnApply.OnClick = BtnApply_OnClick
+BtnEditEvent.OnClick = BtnEditEvent_OnClick
+
+MNew.OnClick = MNew_OnClick
+MOpen.OnClick = MOpen_OnClick
+MSave.OnClick = MSave_OnClick
+MExportRR.OnClick = MExportRR_OnClick
+MNewForm.OnClick = MNewForm_OnClick
+MToggle.OnClick = MToggle_OnClick
+MGenerate.OnClick = MGenerate_OnClick
+MAbout.OnClick = MAbout_OnClick
+
+FS.OnLoad = FS_OnLoad
+
+RedrawDesigner()
+RefreshPropGrid()
+RefreshEventsList()
+
+PRINT "RapidR Web IDE v2 ready"
