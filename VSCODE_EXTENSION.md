@@ -161,6 +161,8 @@ The extension integrates directly with the RapidR compiler (`rapidr`) so you nev
 | Build bytecode (`.rrbc`) | — | *RapidR: Build Bytecode (.rrbc)* |
 | Build & run bytecode | — | *RapidR: Build and Run Bytecode* |
 | Build static web bundle (`.zip`) | — | *RapidR: Build Web Bundle (.zip)* |
+| Build interpreted native (one self-contained exe) | — | *RapidR: Build (Interpreted Native)* |
+| Build interpreted web bundle (`.zip`) | — | *RapidR: Build Web (Interpreted Bundle)* |
 
 Additionally:
 - A **play button** appears in the editor title bar when a `.rr` file is active.

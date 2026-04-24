@@ -25,17 +25,19 @@ fn main() -> ExitCode {
                 if file.ends_with(".rr") || file.ends_with(".rr") {
                     let mut release = true; // default to release
                     let mut web = false;
+                    let mut interp = false;
                     let mut source_path = String::new();
                     for arg in &args {
                         match arg.as_str() {
                             "--release" | "-r" => release = true,
                             "--debug" | "-d" => release = false,
                             "--web" | "-w" => web = true,
+                            "--interp" | "-i" => interp = true,
                             _ if !arg.starts_with('-') => source_path = arg.clone(),
                             _ => {}
                         }
                     }
-                    return build_source_file(&source_path, None, release, web);
+                    return build_source_file(&source_path, None, release, web, interp);
                 }
             }
         }
@@ -61,15 +63,17 @@ fn main() -> ExitCode {
             let mut output_dir = None;
             let mut release = false;
             let mut web = false;
+            let mut interp = false;
             for arg in &rest {
                 match arg.as_str() {
                     "--release" | "-r" => release = true,
                     "--debug" | "-d" => release = false,
                     "--web" | "-w" => web = true,
+                    "--interp" | "-i" => interp = true,
                     _ => output_dir = Some(arg.clone()),
                 }
             }
-            build_source_file(&path, output_dir, release, web)
+            build_source_file(&path, output_dir, release, web, interp)
         }
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
@@ -101,12 +105,12 @@ fn main() -> ExitCode {
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
-            eprintln!("  rapidr [--release|--debug] [--web] <file.rr>     Build source file");
+            eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
-            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w]");
+            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i]");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
             eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
@@ -256,12 +260,31 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
 }
 
 /// Generate Rust source and then run `cargo build` on it.
-fn build_source_file(path: &str, output_dir: Option<String>, release: bool, web: bool) -> ExitCode {
+///
+/// `interp = true` switches the desktop path to **bytecode + stub
+/// runner** (single self-contained exe) and the `--web` path to a
+/// `bundle-bc`-style static zip.
+fn build_source_file(
+    path: &str,
+    output_dir: Option<String>,
+    release: bool,
+    web: bool,
+    interp: bool,
+) -> ExitCode {
     // Detect web target from $APPTYPE or --web flag
     let app_type = preprocess_file(path, PreprocessOptions::default())
         .ok()
         .and_then(|r| r.app_type);
     let is_web = web || app_type.as_deref() == Some("WEB");
+
+    if interp {
+        // Bytecode pipeline: skip Rust codegen entirely.
+        return if is_web {
+            build_interp_web(path, output_dir)
+        } else {
+            build_interp_desktop(path, output_dir, release)
+        };
+    }
 
     let result = codegen_source_file_inner(path, output_dir.clone(), is_web);
     if result != ExitCode::SUCCESS {
@@ -305,7 +328,11 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
         Ok(s) if s.success() => {
             // Copy the built binary to the same directory as the .rr source
             let binary_name = stem;
-            let built_binary = out_dir.join("target").join(profile).join(binary_name);
+            let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
+                Some(p) => PathBuf::from(p),
+                None => out_dir.join("target"),
+            };
+            let built_binary = target_root.join(profile).join(binary_name);
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
             let dest_binary = dest_dir.join(binary_name);
 
@@ -365,8 +392,11 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     }
 
     // Step 2: Run wasm-bindgen to generate JS glue
-    let wasm_file = out_dir
-        .join("target")
+    let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
+        Some(p) => PathBuf::from(p),
+        None => out_dir.join("target"),
+    };
+    let wasm_file = target_root
         .join("wasm32-unknown-unknown")
         .join(profile)
         .join(format!("{}.wasm", stem.replace('-', "_")));
@@ -663,4 +693,147 @@ fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
         }
     }
     None
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8: interpreted-mode build helpers
+// ---------------------------------------------------------------------------
+
+/// `rapidr build <file.rr> --interp` — compile to bytecode, then
+/// produce a single self-contained native executable by appending the
+/// bytecode + 12-byte footer to a copy of `rapidrintr-runner`.
+fn build_interp_desktop(
+    path: &str,
+    output_dir: Option<String>,
+    release: bool,
+) -> ExitCode {
+    // 1. Compile source → bytecode.
+    let program = match parser_parse_file(path) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+    let compiled = match rapidr_bcgen::compile_program(&program) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+    };
+    for w in &compiled.warnings { eprintln!("warning: {w}"); }
+    let rrbc = compiled.module.to_bytes();
+
+    // 2. Locate (or build) the runner stub.
+    let stub = match locate_or_build_stub(release) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+
+    // 3. Choose destination — same convention as compiled mode: drop
+    //    the binary alongside the source file (or in `output_dir`).
+    let source_path = Path::new(path);
+    let stem = source_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+    let dest_dir = match &output_dir {
+        Some(d) => Path::new(d.as_str()).to_path_buf(),
+        None => source_path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+    };
+    if let Err(e) = fs::create_dir_all(&dest_dir) {
+        eprintln!("create_dir_all {}: {e}", dest_dir.display());
+        return ExitCode::from(1);
+    }
+    let dest = dest_dir.join(stem);
+
+    // 4. Attach payload.
+    if let Err(e) = attach_payload(&stub, &rrbc, &dest) {
+        eprintln!("attach_payload: {e}");
+        return ExitCode::from(1);
+    }
+
+    println!(
+        "Built interpreted binary: {} ({} bytes total, {} bytes payload)",
+        dest.display(),
+        fs::metadata(&dest).map(|m| m.len()).unwrap_or(0),
+        rrbc.len(),
+    );
+    ExitCode::SUCCESS
+}
+
+/// `rapidr build --web --interp <file.rr>` — compile to bytecode and
+/// emit a static web bundle (`<stem>-web.zip`). Delegates to the same
+/// pipeline as `bundle-bc`.
+fn build_interp_web(path: &str, output_dir: Option<String>) -> ExitCode {
+    let stem = Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("program")
+        .to_string();
+    let out_dir = match &output_dir {
+        Some(d) => Path::new(d.as_str()).to_path_buf(),
+        None => Path::new(path).parent().unwrap_or(Path::new(".")).to_path_buf(),
+    };
+    if let Err(e) = fs::create_dir_all(&out_dir) {
+        eprintln!("create_dir_all {}: {e}", out_dir.display());
+        return ExitCode::from(1);
+    }
+    let out_path = out_dir.join(format!("{stem}-web.zip"));
+    bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None)
+}
+
+/// Append `[rrbc bytes][magic 8B "RRBCEXE1"][u32 LE length]` to a copy
+/// of `stub`. The result is a fully self-contained executable that, on
+/// startup, slices off its own payload and runs it via
+/// `rapidr-vm-host-native`.
+fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
+    fs::copy(stub, dest).map_err(|e| format!("copy stub: {e}"))?;
+
+    use std::io::Write;
+    let mut f = std::fs::OpenOptions::new()
+        .append(true)
+        .open(dest)
+        .map_err(|e| format!("open {}: {e}", dest.display()))?;
+    f.write_all(rrbc).map_err(|e| format!("write payload: {e}"))?;
+    f.write_all(b"RRBCEXE1").map_err(|e| format!("write magic: {e}"))?;
+    let len = u32::try_from(rrbc.len())
+        .map_err(|_| "bytecode payload exceeds 4 GiB".to_string())?;
+    f.write_all(&len.to_le_bytes()).map_err(|e| format!("write len: {e}"))?;
+    drop(f);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(dest, fs::Permissions::from_mode(0o755));
+    }
+    Ok(())
+}
+
+/// Locate `rapidrintr-runner`, building it on demand if absent.
+///
+/// Search order: `target/release/`, `target/debug/`, then fall back to
+/// `cargo build -p rapidr-runner-stub --release`.
+fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
+    let exe_name = if cfg!(windows) { "rapidrintr-runner.exe" } else { "rapidrintr-runner" };
+    let preferred = if release { "release" } else { "debug" };
+
+    for profile in [preferred, if preferred == "release" { "debug" } else { "release" }] {
+        let candidate = Path::new("target").join(profile).join(exe_name);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+
+    println!("Building rapidrintr-runner stub ({preferred})...");
+    let mut args = vec!["build", "-p", "rapidr-runner-stub"];
+    if release { args.push("--release"); }
+    let status = process::Command::new("cargo")
+        .args(&args)
+        .status()
+        .map_err(|e| format!("spawn cargo: {e}"))?;
+    if !status.success() {
+        return Err(format!("cargo build rapidr-runner-stub failed: {status}"));
+    }
+    let built = Path::new("target").join(preferred).join(exe_name);
+    if built.exists() {
+        Ok(built)
+    } else {
+        Err(format!("could not locate {} after build", built.display()))
+    }
 }

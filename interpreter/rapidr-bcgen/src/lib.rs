@@ -24,9 +24,9 @@
 use std::collections::HashMap;
 
 use rapidr_ast::{
-    AssignmentStatement, BinaryOperator, BindStatement, CallStatement, CreateStatement,
-    DoLoopStatement, Expression, ForStatement, FunctionStatement, IfStatement, Literal,
-    LiteralValue, Parameter, PrintStatement, Program, ReturnStatement, Statement,
+    ArrayAccessExpression, AssignmentStatement, BinaryOperator, BindStatement, CallStatement,
+    CreateStatement, DoLoopStatement, Expression, ForStatement, FunctionStatement, IfStatement,
+    Literal, LiteralValue, Parameter, PrintStatement, Program, ReturnStatement, Statement,
     SubroutineStatement, UnaryOperator, WhileStatement,
 };
 use rapidr_bytecode::{Const, Function, Module, Op, Param};
@@ -440,7 +440,22 @@ impl Bcgen {
                 }
                 Ok(())
             }
-            _ => Err("invalid assignment target".into()),
+            _ => {
+                // BASIC parses `A(0) = 42` and `r.Names(1) = "x"` as a
+                // FunctionCall on the LHS. Re-route to the array-set path
+                // by synthesizing an ArrayAccess view.
+                if let Expression::FunctionCall(fc) = target {
+                    if fc.args.len() == 1 {
+                        let synth = ArrayAccessExpression {
+                            span: fc.span.clone(),
+                            array: fc.callee.clone(),
+                            indices: fc.args.clone(),
+                        };
+                        return self.store_target(&Expression::ArrayAccess(synth), code);
+                    }
+                }
+                Err("invalid assignment target".into())
+            }
         }
     }
 
@@ -770,6 +785,17 @@ impl Bcgen {
                     emit(code, Op::CallBuiltin);
                     push_u32(code, s); code.push(argc);
                     return Ok(());
+                }
+                // Member-access callee: e.g. df.cell(i, 0), http.get(url).
+                // Lower as a method call on the receiver.
+                if let Expression::MemberAccess(m) = &*fc.callee {
+                    if let Expression::Identifier(obj) = &*m.object {
+                        let id_s = self.module.add_string(&obj.name);
+                        let mn_s = self.module.add_string(&m.member);
+                        emit(code, Op::CallMethod);
+                        push_u32(code, id_s); push_u32(code, mn_s); code.push(argc);
+                        return Ok(());
+                    }
                 }
                 Err("unsupported function call target".into())
             }

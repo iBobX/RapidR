@@ -309,10 +309,27 @@ is needed to ship to the web.
 CLI entry points:
 
 ```sh
+# Unified build — Rust codegen (compiled, fastest):
+rapidr build hello.rr                          # desktop
+rapidr build hello.rr --web                    # WebAssembly via wasm-bindgen
+
+# Same source, bytecode pipeline (single self-contained artifact):
+rapidr build hello.rr --interp                 # one self-contained exe (stub + .rrbc)
+rapidr build hello.rr --web --interp           # static .zip (rapidrintr.wasm + .rrbc)
+
+# Low-level primitives (still available):
 rapidr build-bc  hello.rr -o hello.rrbc        # source -> bytecode
 rapidr run-bc    hello.rrbc                    # run via NativeHost
 rapidr bundle-bc hello.rr -o hello-web.zip     # source -> hostable web bundle
 ```
+
+When `--interp` is set on `build`, the CLI generates a `.rrbc` and
+appends it to a pre-built `rapidrintr-runner` stub binary (footer:
+`[rrbc bytes][magic "RRBCEXE1"][u32 length]`). The runner reads its own
+appended payload at startup via `current_exe()` and runs it with
+`rapidr-vm-host-native`. The compiled and interpreted modes are
+end-to-end equivalent for every console example in the test matrix
+(`tests/full_matrix.sh`).
 
 The bundle is fully static: unzip and serve from any HTTP host
 (GitHub Pages, S3, plain nginx, `python3 -m http.server`).

@@ -280,3 +280,23 @@ pub fn run_event_loop<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
     }
     ACTIVE_VM.with(|c| c.set(prev_active));
 }
+
+/// Decode an in-memory `.rrbc` byte slice and execute it on a fresh
+/// [`NativeHost`]. If the program creates GUI components the
+/// [`run_event_loop`] is entered after `main` returns.
+///
+/// Used by both the CLI's `run-bc` subcommand and the
+/// `rapidrintr-runner` stub binary (Phase 8: bytecode → single exe).
+pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
+    let module = Module::from_bytes(bytes).map_err(|e| format!("decode error: {e}"))?;
+    let mut host = NativeHost::default();
+    {
+        let mut vm = Vm::new(&mut host);
+        vm.run(&module).map_err(|e| format!("vm error: {e}"))?;
+    }
+    if host.has_components {
+        let mut vm = Vm::new(&mut host);
+        run_event_loop(&module, &mut vm);
+    }
+    Ok(())
+}

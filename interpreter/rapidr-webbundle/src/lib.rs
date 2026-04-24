@@ -55,8 +55,11 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         write_file(&mut zw, "index.html", html.as_bytes(), deflated)?;
         write_file(&mut zw, "loader.js", loader.as_bytes(), deflated)?;
         write_file(&mut zw, "rapidrintr.js", inputs.rapidrintr_js.as_bytes(), deflated)?;
-        // wasm and rrbc are already compact binary — store, don't deflate.
-        write_file(&mut zw, "rapidrintr.wasm", inputs.rapidrintr_wasm, stored)?;
+        // wasm-bindgen's generated `rapidrintr.js` expects to fetch
+        // `rapidrintr_bg.wasm` (the conventional `_bg` suffix), so we
+        // ship the binary under that name even though the build script
+        // produces it as `rapidrintr.wasm`.
+        write_file(&mut zw, "rapidrintr_bg.wasm", inputs.rapidrintr_wasm, stored)?;
         let rrbc_name = format!("{}.rrbc", inputs.project_name);
         write_file(&mut zw, &rrbc_name, inputs.rrbc, stored)?;
 
@@ -149,7 +152,7 @@ mod tests {
         assert_eq!(&bytes[0..2], b"PK");
         // Quick check that file names appear in the central dir.
         let s = String::from_utf8_lossy(&bytes);
-        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr.wasm", "demo.rrbc"] {
+        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc"] {
             assert!(s.contains(name), "missing {name} in bundle");
         }
     }

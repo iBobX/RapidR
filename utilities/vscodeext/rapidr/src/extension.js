@@ -77,6 +77,14 @@ function activate(context) {
         vscode.commands.registerCommand('rapidr.bundleBc', () => bcCommand('bundle-bc'))
     );
 
+    // Phase 8: unified compiled vs interpreted build modes
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.buildInterp', () => interpBuildCommand(false))
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.buildWebInterp', () => interpBuildCommand(true))
+    );
+
     // Setup diagnostics
     const diagnostics = vscode.languages.createDiagnosticCollection('rapidr');
     context.subscriptions.push(diagnostics);
@@ -387,6 +395,26 @@ function bcRunCommand() {
         // Compile to bytecode (placed next to source) then run it.
         const cmd = `"${compilerPath}" build-bc "${filePath}" -o "${rrbc}" && "${compilerPath}" run-bc "${rrbc}"`;
         const terminal = vscode.window.createTerminal({ name: 'RapidR run-bc' });
+        terminal.sendText(cmd);
+        terminal.show();
+    });
+}
+
+// `rapidr build <file> --interp [--web]` — single self-contained
+// native exe (desktop) or static web bundle .zip (web).
+function interpBuildCommand(web) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'rapidr') {
+        vscode.window.showWarningMessage('No RapidR file is open.');
+        return;
+    }
+    editor.document.save().then(() => {
+        const filePath = editor.document.uri.fsPath;
+        const compilerPath = findCompilerPath();
+        const flags = web ? '--web --interp' : '--interp';
+        const label = web ? 'RapidR build --web --interp' : 'RapidR build --interp';
+        const cmd = `"${compilerPath}" build "${filePath}" ${flags}`;
+        const terminal = vscode.window.createTerminal({ name: label });
         terminal.sendText(cmd);
         terminal.show();
     });

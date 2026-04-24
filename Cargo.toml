@@ -19,6 +19,7 @@ members = [
     "interpreter/rapidr-vm-host-web",
     "interpreter/rapidr-compiler-wasm",
     "interpreter/rapidr-webbundle",
+    "interpreter/rapidr-runner-stub",
 ]
 
 [workspace.package]

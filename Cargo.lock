@@ -3352,6 +3352,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-runner-stub"
+version = "1.0.0"
+dependencies = [
+ "rapidr-vm-host-native",
+]
+
+[[package]]
 name = "rapidr-runtime-core"
 version = "1.0.0"
 dependencies = [
