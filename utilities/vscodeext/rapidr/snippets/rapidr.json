@@ -826,5 +826,41 @@
       "${1:Json1}.Parse(\"${2:{}}\")"
     ],
     "description": "Create an RJSON component for JSON parsing and generation"
+  },
+  "CREATE ColorDialog": {
+    "prefix": "createcolordialog",
+    "body": [
+      "CREATE ${1:ColorDlg1} AS RColorDialog",
+      "END CREATE",
+      "",
+      "IF ${1:ColorDlg1}.Execute() THEN",
+      "\tDIM ${2:c} AS INTEGER",
+      "\t${2:c} = ${1:ColorDlg1}.Color",
+      "END IF"
+    ],
+    "description": "Create an RColorDialog and read the chosen colour"
+  },
+  "CREATE FontDialog": {
+    "prefix": "createfontdialog",
+    "body": [
+      "CREATE ${1:FontDlg1} AS RFontDialog",
+      "END CREATE",
+      "",
+      "IF ${1:FontDlg1}.Execute() THEN",
+      "\tDIM ${2:fname} AS STRING",
+      "\tDIM ${3:fsize} AS INTEGER",
+      "\t${2:fname} = ${1:FontDlg1}.FontName",
+      "\t${3:fsize} = ${1:FontDlg1}.FontSize",
+      "END IF"
+    ],
+    "description": "Create an RFontDialog and read the chosen font"
+  },
+  "Canvas SetFont + DrawText": {
+    "prefix": "canvassetfont",
+    "body": [
+      "${1:Canvas1}.SetFont \"${2:Segoe UI}\", ${3:14}",
+      "${1:Canvas1}.DrawText ${4:x}, ${5:y}, \"${6:Hello}\", RGB(${7:0}, ${8:0}, ${9:0})"
+    ],
+    "description": "Set a canvas font and draw text in it (web + desktop runtimes)"
   }
 }

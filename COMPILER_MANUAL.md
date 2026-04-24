@@ -855,6 +855,53 @@ The web runtime provides pure Rust + web-sys implementations (no ndarray, polars
 - **RPlot** — Renders to HTML5 Canvas. Supports line, bar, barh, scatter, step, area, histogram, pie charts, annotations, and legend.
 - **RSQLite** — Full in-memory SQL emulation with CREATE TABLE, INSERT, SELECT (with WHERE, ORDER BY, LIMIT), UPDATE, DELETE, DROP TABLE. Methods: `connect`, `query`/`exec`, `fetchrow`, `fetchfield`, `row`.
 
+### Multi-Form Programs
+
+Both runtimes support any number of `RFORM` instances. Sibling forms behave like ordinary OS windows; nested forms (set `Parent="Form1"`) embed inside another form's client area:
+
+```rapidr
+$APPTYPE GUI
+
+CREATE Form1 AS RFORM
+    Caption = "Main"
+    CREATE BtnOpen AS RBUTTON
+        Caption = "Open Dialog"
+        OnClick = OpenDlg
+    END CREATE
+END CREATE
+
+CREATE Form2 AS RFORM
+    Caption = "Dialog"
+    CREATE BtnOK AS RBUTTON
+        Caption = "OK"
+        OnClick = CloseDlg
+    END CREATE
+END CREATE
+
+SUB OpenDlg()
+    Form2.ShowModal()        ' centred + dimmed backdrop on web
+END SUB
+
+SUB CloseDlg()
+    Form2.Close()             ' fires OnClose, removes backdrop
+END SUB
+
+Form2.Hide()                  ' start hidden — survives gui_web_finalize
+Form1.Show()
+```
+
+**Lifecycle methods on every form:** `Show`, `ShowModal`, `Hide`, `Close`, `Center`, `SetParent(name)`.
+**Lifecycle events:** `OnLoad` (after all child widgets exist), `OnClose` (after Close/Hide).
+
+For nested forms, just set the `Parent` property at create time:
+
+```rapidr
+CREATE Form2 AS RFORM
+    Parent = "Form1"      ' embed inside Form1's client area
+    Caption = "Inner"
+END CREATE
+```
+
 ### Web Build Cache Gotcha
 
 After modifying source in `crates/rapidr-runtime-web/`, you must `cargo clean` inside each `examples/*_rust/` directory before rebuilding. Cargo's WASM cross-compilation target cache does not always detect path dependency changes:
@@ -984,6 +1031,42 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 
 ### Demo Updates (April 7, 2026)
 - **demo_plot.rr**: Added "Pie Chart" button (`BtnPieClick`) that renders a "Browser Market Share" pie chart with 5 labeled/colored slices using `plt.pie`. Buttons rearranged: Sine/Cosine, Bar Chart, Pie Chart, Clear Plot, Close.
+
+### Multi-Form Authoring + Web Build Server (April 23, 2026)
+- **Multi-form web runtime**: `gui_web_finalize` now correctly handles multiple top-level forms — each top-level form gets its own stacking z-index (10, 11, 12...), orphan widgets are reparented only into the first top-level form (forms manage their own placement), and `data-rr-name` / `data-rr-parent` attributes were added to every form element so the finalize routing is unambiguous. Honors the `visible` property: pre-startup `Form.Hide()` calls now actually keep the form hidden on first paint.
+- **Form lifecycle events**: `OnLoad` is now fired exactly once per form after all child widgets have been built (both desktop `build_form_widgets` and web `gui_web_finalize`). `OnClose` is fired by `gui_close` on desktop and by `(_, "close")` / `form_close` on web — symmetric across runtimes.
+- **`Form.ShowModal()` on web**: Implemented as a pseudo-modal — adds a dimmed full-screen backdrop overlay, brings the form to the front, and centres it on screen. Backdrop is removed automatically on `Hide`/`Close`. True blocking is impossible in single-threaded wasm; document this in user-facing code.
+- **Nested forms (`Parent="Form1"`)**: A form whose `Parent` property names another form is now appended to that form's `-client` div on web (via the rewritten `create_form` helper). Desktop honours the same `parent` property when building children. A new `SetParent(formName)` runtime method is exposed on every component for late re-parenting (web-only at runtime; desktop sets the prop but does not yet reparent live FLTK widgets).
+- **`RWEBVIEW.SetHtml` / `html=` on web**: Now correctly uses `iframe.set_srcdoc()` instead of the no-op `set_inner_html` on iframe elements.
+- **Listbox `Clear` no-loop fix**: Replaced `select.remove()` (inherited from `Element` and removes the element itself) with `select.remove_with_index(0)` — fixes an infinite loop that froze the IDE.
+- **`rapidr-buildserver` crate**: New axum-based HTTP service used by the IDE to compile, preview, and download programs. Endpoints:
+  - `POST /compile` — body is RapidR source. Runs `./rapidr --web` and (best-effort) a native `cargo build --release`. Returns `{ id, ok, stderr, preview, zip_source, zip_full }`.
+  - `GET  /preview/<id>/`  — serves the compiled web bundle (HTML/JS/WASM) so the IDE's `RWEBVIEW Preview.Navigate(...)` can show the running program.
+  - `GET  /zip/<id>/source` — `rapidr-source.zip` containing the `.rr` source.
+  - `GET  /zip/<id>/full`   — `rapidr-bundle.zip` containing source + web bundle + native binary (when build succeeded).
+  Launch with `./run_buildserver.sh` (defaults to port 8095, override with `RAPIDR_BUILDSERVER_PORT`).
+- **Web IDE Run/Preview/Export**: `examples/web_ide.rr` gained four new toolbar buttons:
+  - **▶ Run** — POSTs the generated source to the build server and points the embedded `Preview` `RWEBVIEW` at `/preview/<id>/`.
+  - **Zip Src** — downloads `/zip/<id>/source`.
+  - **Bundle** — downloads `/zip/<id>/full`.
+  - **Design** — switches the centre pane back to the canvas.
+  The IDE expects the build server at `http://127.0.0.1:8095` (override the `BUILDSERVER` constant near the top of `web_ide.rr` if needed).
+- **`RHTTP.Post` body escaping**: The XHR body is now properly escaped for embedding in the synchronous-eval JS string (backslash, quote, CR, LF, tab) so multi-line bodies (such as RapidR source code) round-trip correctly.
+- **Web IDE designer enhancements** (`examples/web_ide.rr` + `crates/rapidr-runtime-web/src/gui_web.rs`):
+  - **Form events** — selecting a form in the designer now lists `OnShow / OnClose / OnClick / OnResize`. **Edit Event Code** opens an inline editor that emits a `SUB Form_OnEvt()` and the matching `Form.OnEvt = Form_OnEvt` wiring.
+  - **Color / TextColor / FontName / FontSize properties** — added to the property grid for both forms and components. The codegen emits them inside the `CREATE … END CREATE` block only when non-empty (`Color = RGB(80,200,120)`, `FontName = "Verdana"`, `FontSize = 16`, etc.).
+  - **Editable property grid** — `grid_init_cells` and `grid_set_row_count` in the web runtime now mark non-header value cells as `contenteditable="true"`, so users can click any property cell, type a new value, and click **Apply Properties**.
+  - **Color & font pickers + live apply** — the IDE injects a small JS helper at startup that (a) renders a `…` button next to each Color / TextColor / FontName / FontSize row in the property grid, opening either a native `<input type="color">` or a custom font dialog (family list + size + live preview); and (b) debounces an auto-Apply on every `input` event in the property grid so caption / position / colour / font changes redraw the designer canvas in real time. The font dialog writes both the FontName and FontSize rows. The IDE's `DrawForm` parses the stored `RGB(r,g,b)` string via a new `ParseRgb` helper and uses it for the form body fill, title text colour, and (via the new `RCANVAS.SetFont` runtime method) the title font.
+  - **`RCANVAS.SetFont(name [, size])`** — new web-runtime canvas method that sets `ctx.font = "<size>px <family>"` so subsequent `DrawText` calls render in the chosen font. Used by the IDE designer to reflect form FontName/FontSize visually.
+  - **Canvas text baseline fix** — `canvas_text` in the web runtime now sets `ctx.set_text_baseline("top")` before `fill_text`, matching desktop FLTK semantics where `y` is the top of the text. Fixes form-titlebar text being clipped above the canvas in the IDE designer (and any RCANVAS app that draws text).
+  - **Build cache** — `rapidr-buildserver` keeps an in-memory map of `sha256(source) → build_id`, so re-running an unchanged program serves the cached WASM in milliseconds instead of recompiling.
+  - **Busy overlay** — the IDE shows a translucent "Compiling…" overlay during the synchronous build XHR so users get visual feedback that the click registered.
+
+- **VS Code extension v2.5.0** (`utilities/vscodeext/rapidr/`):
+  - `RCANVAS.SetFont(family [, size])` is now in the component registry — completion, hover docs, and signature help include it.
+  - `RColorDialog` and `RFontDialog` now ship with descriptions and `Execute()` signature help. Two new snippets — `createcolordialog` and `createfontdialog` — scaffold the full `CREATE … END CREATE` + `IF Dlg.Execute() THEN …` pattern.
+  - New `canvassetfont` snippet pairs `Canvas.SetFont` with a `Canvas.DrawText` call.
+  - Build with `./build_vsc_extension.sh package` (or `install` to also load it into VS Code). The script writes `rapidr-2.5.0.vsix` to the repo root.
 
 ---
 

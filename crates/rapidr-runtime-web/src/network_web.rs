@@ -34,10 +34,23 @@ fn http_get(name: &str, args: &[Value]) -> Value {
     // to be restructured as async, which is a much larger change.
     let js = format!(
         r#"(function() {{
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", "{}", false);
-            xhr.send(null);
-            return JSON.stringify({{ status: xhr.status, body: xhr.responseText }});
+            var __ov = document.getElementById('rr-busy-overlay');
+            if (!__ov) {{
+                __ov = document.createElement('div');
+                __ov.id = 'rr-busy-overlay';
+                __ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font:14px sans-serif;color:#fff;cursor:progress;';
+                __ov.innerHTML = '<div style=\"background:#222;padding:14px 22px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.4);\">⏳ Working… (network)</div>';
+                document.body.appendChild(__ov);
+            }}
+            void document.body.offsetHeight; // force layout flush so overlay paints before sync XHR
+            try {{
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "{}", false);
+                xhr.send(null);
+                return JSON.stringify({{ status: xhr.status, body: xhr.responseText }});
+            }} finally {{
+                if (__ov && __ov.parentNode) __ov.parentNode.removeChild(__ov);
+            }}
         }})()"#,
         url.replace('\\', "\\\\").replace('"', "\\\"")
     );
@@ -66,16 +79,47 @@ fn http_post(name: &str, args: &[Value]) -> Value {
     let body = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
     let name_owned = name.to_string();
 
+    // Properly escape body for embedding inside a JS string literal — must
+    // escape backslash, quote, CR, LF, and tab so multi-line bodies (e.g.
+    // RapidR source code) survive the round-trip.
+    fn js_escape(s: &str) -> String {
+        let mut o = String::with_capacity(s.len() + 8);
+        for c in s.chars() {
+            match c {
+                '\\' => o.push_str("\\\\"),
+                '"' => o.push_str("\\\""),
+                '\n' => o.push_str("\\n"),
+                '\r' => o.push_str("\\r"),
+                '\t' => o.push_str("\\t"),
+                _ => o.push(c),
+            }
+        }
+        o
+    }
+
     let js = format!(
         r#"(function() {{
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "{}", false);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-            xhr.send("{}");
-            return JSON.stringify({{ status: xhr.status, body: xhr.responseText }});
+            var __ov = document.getElementById('rr-busy-overlay');
+            if (!__ov) {{
+                __ov = document.createElement('div');
+                __ov.id = 'rr-busy-overlay';
+                __ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font:14px sans-serif;color:#fff;cursor:progress;';
+                __ov.innerHTML = '<div style=\"background:#222;padding:14px 22px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.4);\">⏳ Working… (network)</div>';
+                document.body.appendChild(__ov);
+            }}
+            void document.body.offsetHeight; // force layout flush so overlay paints before sync XHR
+            try {{
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "{}", false);
+                xhr.setRequestHeader("Content-Type", "text/plain; charset=utf-8");
+                xhr.send("{}");
+                return JSON.stringify({{ status: xhr.status, body: xhr.responseText }});
+            }} finally {{
+                if (__ov && __ov.parentNode) __ov.parentNode.removeChild(__ov);
+            }}
         }})()"#,
-        url.replace('\\', "\\\\").replace('"', "\\\""),
-        body.replace('\\', "\\\\").replace('"', "\\\"")
+        js_escape(&url),
+        js_escape(&body)
     );
 
     match js_sys::eval(&js) {
@@ -120,7 +164,35 @@ fn parse_xhr_response(json_str: &str) -> (i64, String) {
                 }
                 end += 1;
             }
-            json_str[start..end].to_string()
+            // JSON-unescape the captured slice so callers see the raw response.
+            let raw = &json_str[start..end];
+            let mut out = String::with_capacity(raw.len());
+            let mut chars = raw.chars();
+            while let Some(c) = chars.next() {
+                if c == '\\' {
+                    match chars.next() {
+                        Some('n') => out.push('\n'),
+                        Some('r') => out.push('\r'),
+                        Some('t') => out.push('\t'),
+                        Some('"') => out.push('"'),
+                        Some('\\') => out.push('\\'),
+                        Some('/') => out.push('/'),
+                        Some('b') => out.push('\u{08}'),
+                        Some('f') => out.push('\u{0C}'),
+                        Some('u') => {
+                            let hex: String = (&mut chars).take(4).collect();
+                            if let Ok(cp) = u32::from_str_radix(&hex, 16) {
+                                if let Some(ch) = char::from_u32(cp) { out.push(ch); }
+                            }
+                        }
+                        Some(other) => out.push(other),
+                        None => {}
+                    }
+                } else {
+                    out.push(c);
+                }
+            }
+            out
         })
         .unwrap_or_default();
 

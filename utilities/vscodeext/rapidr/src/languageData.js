@@ -39,8 +39,17 @@ const COMPONENT_REGISTRY = {
                 'brushcolor', 'font', 'fontsize', 'fontcolor', 'hint', 'showhint', 'cursor',
                 'tag', 'parent'],
         methods: ['cls', 'pset', 'line', 'circle', 'fillcircle', 'rect', 'fillrect', 'rectangle', 'textout', 'drawtext',
-                  'setpixel', 'paint', 'repaint', 'refresh'],
-        events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove', 'onpaint']
+                  'setfont', 'setpixel', 'paint', 'repaint', 'refresh'],
+        events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove', 'onpaint'],
+        methodSignatures: {
+            'drawtext': { sig: 'DrawText(x, y, text [, color])', desc: 'Draws text at (x, y). Optional color argument (RGB integer).' },
+            'fillrect': { sig: 'FillRect(x1, y1, x2, y2 [, color])', desc: 'Fills a rectangle from (x1,y1) to (x2,y2). Optional fill color.' },
+            'setfont': { sig: 'SetFont(family [, size])', desc: 'Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12.' },
+            'cls':      { sig: 'Cls()',                  desc: 'Clears the canvas using the current Color.' },
+            'line':     { sig: 'Line(x1, y1, x2, y2 [, color])', desc: 'Draws a line.' },
+            'circle':   { sig: 'Circle(x, y, radius [, color])', desc: 'Draws a circle outline.' },
+            'fillcircle': { sig: 'FillCircle(x, y, radius [, color])', desc: 'Draws a filled circle.' }
+        }
     },
     'RPANEL': {
         props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'color', 'alignment',
@@ -182,14 +191,22 @@ const COMPONENT_REGISTRY = {
         events: []
     },
     'RCOLORDIALOG': {
+        description: 'Native colour-picker dialog. On the web runtime renders an HTML5 <input type="color">; on desktop uses the system colour dialog. After Execute, read the .Color property as an RGB integer.',
         props: ['color', 'tag'],
         methods: ['execute'],
-        events: []
+        events: [],
+        methodSignatures: {
+            'execute': { sig: 'Execute()', desc: 'Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color.' }
+        }
     },
     'RFONTDIALOG': {
+        description: 'Font selection dialog. After Execute, read .FontName / .FontSize / .FontColor / .FontStyle to retrieve the user choice.',
         props: ['fontname', 'fontsize', 'fontcolor', 'fontstyle', 'tag'],
         methods: ['execute'],
-        events: []
+        events: [],
+        methodSignatures: {
+            'execute': { sig: 'Execute()', desc: 'Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result.' }
+        }
     },
     'RSTATUSBAR': {
         props: ['caption', 'simpletext', 'simplepanel', 'panels', 'panelcount', 'font', 'fontsize', 'fontcolor',

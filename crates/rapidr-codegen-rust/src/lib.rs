@@ -1863,7 +1863,16 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "ltrim" => Some(format!("rp_ltrim(&{a0})")),
         "rtrim" => Some(format!("rp_rtrim(&{a0})")),
         "trim" => Some(format!("rp_trim(&{a0})")),
-        "instr" => Some(format!("rp_instr(&{a0}, &{a1}, &{a2})")),
+        "instr" => {
+            // BASIC INSTR has two arities:
+            //   2-arg: INSTR(haystack, needle)            → start defaults to 1
+            //   3-arg: INSTR(start, haystack, needle)
+            if args.len() >= 3 {
+                Some(format!("rp_instr(&{a0}, &{a1}, &{a2})"))
+            } else {
+                Some(format!("rp_instr(&v_int(1), &{a0}, &{a1})"))
+            }
+        }
         "space" => Some(format!("rp_space(&{a0})")),
         "string" => Some(format!("rp_string_func(&{a0}, &{a1})")),
         "chr" => Some(format!("rp_chr(&{a0})")),

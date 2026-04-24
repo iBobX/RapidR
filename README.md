@@ -48,7 +48,7 @@ The Rust workspace under `crates/` provides a full transpilation pipeline that g
 
 RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rr` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
 
-### Crate Architecture (9 crates)
+### Crate Architecture (10 crates)
 
 | Crate | Description |
 |-------|-------------|
@@ -61,7 +61,7 @@ RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace p
 | `rapidr-codegen-rust` | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` (~2,100 lines) |
 | `rapidr-runtime-core` | **Native runtime** — GUI (FLTK), builtins, database (MySQL/SQLite), networking, data science (ndarray/polars/plotters/image), file I/O |
 | `rapidr-runtime-web` | **Web runtime** — Browser GUI (DOM/Canvas), web-exclusive components, WASM-compatible builtins, wasm-bindgen interop |
-
+| `rapidr-buildserver` | **Build server** — axum HTTP service: `POST /compile`, `GET /preview/<id>/`, `GET /zip/<id>/{source,full}`. Powers the web IDE's Run / Preview / Export buttons. Run with `./run_buildserver.sh` (port 8095). |
 ### Key Capabilities
 
 - **Native GUI via FLTK** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, splitters, scroll boxes, and more
@@ -74,6 +74,8 @@ RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace p
 - **JSON** — `RJson` component for parsing, generating, dot-path access, and file I/O (cross-platform: desktop + web)
 - **100+ built-in functions** — String, math, file I/O, system operations
 - **Self-hosted IDE** — The visual form designer (`examples/ide.rr`) compiles to a native FLTK application
+- **Browser-hosted IDE** — `examples/web_ide.rr` is a full visual designer that runs in the browser; with `rapidr-buildserver` it can also Run, Preview, and Export (source-only or full bundle including the native binary) the program being designed
+- **Multi-form apps** — Multiple top-level `RFORM` windows behave like ordinary OS windows; `Parent="Form1"` nests one form inside another. `OnLoad`/`OnClose` lifecycle events fire on both runtimes; `ShowModal` works on web via a dimmed backdrop overlay
 - **Data science** — RNum (ndarray), RDataFrame (polars), RPlot (plotters) components for array math, dataframes, and plotting
 - **Raw Rust injection** — `RUSTSTART`/`RUSTEND` blocks allow inline Rust code in `.rr` sources
 
@@ -96,6 +98,39 @@ cargo test
 # Serve and open in browser
 cd examples/hello_web_web && python3 -m http.server 8080
 ```
+
+### Browser IDE with Live Preview & Export
+
+The web IDE (`examples/web_ide.rr`) is itself a RapidR program. With the build server running it can compile, preview, and download the program you're designing — all from inside the browser:
+
+```bash
+# 1. One-time: build everything (compiler + buildserver)
+./build.sh --release
+cargo build --release -p rapidr-buildserver
+
+# 2. Compile the IDE itself to WASM
+./rapidr --web examples/web_ide.rr
+
+# 3. Start the build server (port 8095)
+./run_buildserver.sh &
+
+# 4. Serve and open the IDE
+cd examples/web_ide_web && python3 -m http.server 8090 &
+open http://localhost:8090/
+```
+
+Inside the IDE: **▶ Run** runs the program in the embedded preview pane, **Zip Src** downloads just the `.rr` source, **Bundle** downloads source + compiled web build + native binary as a single `.zip`.
+
+**Designer features (browser-side, fully self-hosted in `web_ide.rr`):**
+
+- **Visual form designer** — drag/place RBUTTON, RLABEL, REDIT, RMEMO, RCHECKBOX, RRADIOBUTTON, RCOMBOBOX, RLISTBOX, RPANEL, RGROUPBOX, RPROGRESSBAR, RIMAGE, RCANVAS, RSTRINGGRID, RTABCONTROL, RTREEVIEW from a toolbox.
+- **Click-to-edit property grid** — every value cell is `contenteditable`; type and click **Apply Properties**. Includes Caption / Left / Top / Width / Height / **Color / TextColor / FontName / FontSize** for both forms and components.
+- **Color & font pickers** — each colour and font row in the property grid has a `…` button. Click it to open a native HTML5 colour picker (writes back as `RGB(r,g,b)`) or a small font dialog (family list + size + live preview). Selections write to the grid and apply immediately.
+- **Live preview while typing** — every keystroke in the property grid debounces a 300 ms auto-apply, so caption / position / size / colour / font changes redraw the designer canvas in real time.
+- **Events list** — selecting a form shows `OnShow / OnClose / OnClick / OnResize`; selecting a component shows the relevant default event for its type. Click **Edit Event Code** to open an inline editor for the event body, then return via Code/Design.
+- **Multiple forms** — New Form / Delete Form / pick the active form from the Forms list.
+- **Instant repeat-Run** — the build server caches by source hash, so re-running an unchanged program serves the previously built WASM in milliseconds.
+- **Busy overlay during compile** — the IDE shows a translucent "Compiling…" overlay while the synchronous build XHR is in flight.
 
 ---
 
@@ -893,6 +928,7 @@ A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` p
   - Language constructs: `if`, `for`, `while`, `select`, `sub`, `func`, `type`
   - Component creation: `createform`, `createbutton`, `creategrid`, `createcodeeditor`, ...
   - Web components: `createwebview`, `createdom`, `createjs`, `createwebstorage`, `createwebaudio`, `createwebvideo`, `createnotification`, `createrouter`
+  - Dialogs & canvas: `createcolordialog`, `createfontdialog`, `canvassetfont`
   - Data science: `createnum`, `createdf`, `createplot`, `dfload`, `dffilter`, `dfgroupby`, `plotline`, `plotbar`, `plotscatter`
   - Application templates: `rpcons` (console), `rpgui` (GUI), `rpweb` (web/WASM), `rpdb` (database), `rpdata` (data science)
 - **Compile Integration** — Compile and run from VS Code:
@@ -909,10 +945,10 @@ A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` p
 ```bash
 cd utilities/vscodeext/rapidr
 npx @vscode/vsce package --no-dependencies
-code --install-extension rapidr-2.2.0.vsix
+code --install-extension rapidr-2.5.0.vsix
 ```
 
-Or install the pre-built `.vsix` from the `utilities/vscodeext/rapidr/` directory.
+Or just run `./build_vsc_extension.sh install` from the repo root to build and install in one step. The pre-built `.vsix` is also dropped at the repo root after packaging.
 
 ---
 

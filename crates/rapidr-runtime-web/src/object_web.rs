@@ -300,6 +300,18 @@ pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
     });
 }
 
+/// Read the stored property value directly, bypassing live-DOM lookups.
+pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
+    let uname = name.to_uppercase();
+    let lprop = prop.to_lowercase();
+    COMPONENTS.with(|c| {
+        c.borrow()
+            .get(&uname)
+            .and_then(|comp| comp.properties.get(&lprop).cloned())
+            .unwrap_or_else(v_null)
+    })
+}
+
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
@@ -1647,6 +1659,8 @@ pub fn is_component_method(member: &str) -> bool {
             | "repaint"
             | "invalidate"
             | "show"
+            | "showmodal"
+            | "setparent"
             | "hide"
             | "close"
             | "cls"

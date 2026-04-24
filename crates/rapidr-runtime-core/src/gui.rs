@@ -2293,14 +2293,17 @@ pub fn gui_showmodal(name: &str) {
 /// Close/hide a widget (form window or embedded frame).
 pub fn gui_close(name: &str) {
     let name_lower = name.to_lowercase();
-    GUI_WIDGETS.with(|gw| {
+    let was_window = GUI_WIDGETS.with(|gw| {
         let mut widgets = gw.borrow_mut();
         match widgets.get_mut(&name_lower) {
-            Some(GuiWidget::Window(ref mut win)) => { win.hide(); }
-            Some(GuiWidget::Frame(ref mut frm)) => { frm.hide(); }
-            _ => {}
+            Some(GuiWidget::Window(ref mut win)) => { win.hide(); true }
+            Some(GuiWidget::Frame(ref mut frm)) => { frm.hide(); false }
+            _ => false,
         }
     });
+    if was_window {
+        rp_fire_event(name, "onclose");
+    }
 }
 
 /// Center a window on screen.
@@ -2579,11 +2582,21 @@ pub fn run_gui_event_loop() {
 
 /// Materialize FLTK widgets for a form and all its children.
 fn build_form_widgets(form_name: &str) {
+    // Idempotent: if the form widget already exists, skip the whole build —
+    // children were created on the first call (e.g. previous Show/ShowModal).
+    let already_built = GUI_WIDGETS.with(|gw| gw.borrow().contains_key(&form_name.to_lowercase()));
+    if already_built {
+        return;
+    }
+
     // First, create the form window
     gui_create_widget(form_name, "RFORM");
 
     // Recursively build all children
     build_children_recursive(form_name);
+
+    // Fire OnLoad once, after the entire form tree is materialized.
+    rp_fire_event(form_name, "onload");
 }
 
 /// Recursively build child widgets of a parent container.

@@ -1257,6 +1257,19 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 v_null()
             }
         }
+        "setparent" => {
+            let parent = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            #[cfg(feature = "gui")]
+            {
+                crate::gui::gui_set_parent(name, &parent);
+                return v_null();
+            }
+            #[cfg(not(feature = "gui"))]
+            {
+                rp_comp_set(name, "parent", v_str(&parent));
+                v_null()
+            }
+        }
         "refresh" => {
             v_null()
         }
@@ -1412,7 +1425,7 @@ pub fn is_component_method(member: &str) -> bool {
     matches!(
         member.to_lowercase().as_str(),
         // Form/Widget methods
-        "showmodal" | "close" | "show" | "hide" | "refresh" | "center"
+        "showmodal" | "close" | "show" | "hide" | "refresh" | "center" | "setparent"
         // Collection methods
         | "clear" | "additems" | "additem" | "deleteitems" | "deleteitem" | "removeitem"
         | "addrow" | "sort" | "find"

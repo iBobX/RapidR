@@ -36,6 +36,11 @@ DIM FormPrevX(20) AS INTEGER
 DIM FormPrevY(20) AS INTEGER
 DIM FormPrevW(20) AS INTEGER
 DIM FormPrevH(20) AS INTEGER
+' Visual style for forms (string source kept verbatim, blank = use defaults)
+DIM FormColor(20) AS STRING          ' background color expression e.g. "RGB(240,240,240)"
+DIM FormTextColor(20) AS STRING      ' titlebar / form text color
+DIM FormFontName(20) AS STRING       ' e.g. "Segoe UI"
+DIM FormFontSize(20) AS STRING       ' e.g. "14"
 
 ' --- Components (up to 400 across all forms) ---
 DIM CompForm(400) AS INTEGER         ' which form this comp belongs to
@@ -46,18 +51,23 @@ DIM CompY(400) AS INTEGER
 DIM CompW(400) AS INTEGER
 DIM CompH(400) AS INTEGER
 DIM CompCaption(400) AS STRING
+DIM CompColor(400) AS STRING
+DIM CompTextColor(400) AS STRING
+DIM CompFontName(400) AS STRING
+DIM CompFontSize(400) AS STRING
 DIM CompCount AS INTEGER
 
-' --- Event handlers (per-component code bodies) ---
-'   Each component can have several events with code. Stored in flat tables.
-DIM EvCompIdx(800) AS INTEGER        ' which component owns this event
-DIM EvName(800) AS STRING            ' "OnClick", "OnChange", "OnMouseDown"...
+' --- Event handlers (per-component or per-form code bodies) ---
+'   Each owner can have several events with code. Stored in flat tables.
+DIM EvKind(800) AS INTEGER           ' 1 = form event, 2 = component event
+DIM EvCompIdx(800) AS INTEGER        ' index into Comp* (kind=2) or Form* (kind=1)
+DIM EvName(800) AS STRING            ' "OnClick", "OnChange", "OnShow"...
 DIM EvBody(800) AS STRING            ' BASIC source for the body
 DIM EvCount AS INTEGER
 
 ' Event-edit context: when ShowingCode = 2, we are editing this event.
 DIM EditEvIdx AS INTEGER             ' index into Ev arrays, or -1
-DIM EditEvCompName AS STRING
+DIM EditEvCompName AS STRING         ' owner display name (component or form)
 DIM EditEvName AS STRING
 
 ' Mirror of EventsList items (because RLISTBOX has no GetItem)
@@ -182,6 +192,35 @@ CREATE IDE AS RFORM
         Height = 28
     END CREATE
 
+    CREATE BtnRun AS RBUTTON
+        Caption = "▶ Run"
+        Left = 984
+        Top = 32
+        Width = 70
+        Height = 28
+    END CREATE
+    CREATE BtnZipSrc AS RBUTTON
+        Caption = "Zip Src"
+        Left = 1058
+        Top = 32
+        Width = 70
+        Height = 28
+    END CREATE
+    CREATE BtnZipFull AS RBUTTON
+        Caption = "Bundle"
+        Left = 1132
+        Top = 32
+        Width = 70
+        Height = 28
+    END CREATE
+    CREATE BtnDesign AS RBUTTON
+        Caption = "Design"
+        Left = 1206
+        Top = 32
+        Width = 60
+        Height = 28
+    END CREATE
+
     CREATE LblTool AS RLABEL
         Caption = "Tool: Pointer"
         Left = 656
@@ -233,6 +272,14 @@ CREATE IDE AS RFORM
     END CREATE
 
     CREATE CodeEditor AS RCODEEDITOR
+        Left = 196
+        Top = 70
+        Width = 780
+        Height = 662
+        Visible = 0
+    END CREATE
+
+    CREATE Preview AS RWEBVIEW
         Left = 196
         Top = 70
         Width = 780
@@ -294,6 +341,16 @@ CREATE FS AS RFILESTREAM
     FileName = "project.rrproj"
 END CREATE
 
+CREATE BSrv AS RHTTP
+END CREATE
+
+CREATE JS AS RJAVASCRIPT
+END CREATE
+
+' Backend build server URL. Override by editing this constant.
+DIM BUILDSERVER AS STRING
+BUILDSERVER = "http://127.0.0.1:8095"
+
 ' ============================================================
 ' INIT
 ' ============================================================
@@ -321,7 +378,7 @@ END SUB
 
 SUB InitPropGrid()
     PropGrid.SetColCount(2)
-    PropGrid.SetRowCount(8)
+    PropGrid.SetRowCount(12)
     PropGrid.SetCell(0, 0, "Property")
     PropGrid.SetCell(1, 0, "Value")
     PropGrid.SetCell(0, 1, "Name")
@@ -331,6 +388,10 @@ SUB InitPropGrid()
     PropGrid.SetCell(0, 5, "Top")
     PropGrid.SetCell(0, 6, "Width")
     PropGrid.SetCell(0, 7, "Height")
+    PropGrid.SetCell(0, 8, "Color")
+    PropGrid.SetCell(0, 9, "TextColor")
+    PropGrid.SetCell(0, 10, "FontName")
+    PropGrid.SetCell(0, 11, "FontSize")
 END SUB
 
 SUB AddFormDef(name AS STRING, caption AS STRING, x AS INTEGER, y AS INTEGER, w AS INTEGER, h AS INTEGER)
@@ -348,6 +409,10 @@ SUB AddFormDef(name AS STRING, caption AS STRING, x AS INTEGER, y AS INTEGER, w 
     FormPrevY(i) = y
     FormPrevW(i) = w
     FormPrevH(i) = h
+    FormColor(i) = ""
+    FormTextColor(i) = ""
+    FormFontName(i) = ""
+    FormFontSize(i) = ""
     FormCount = FormCount + 1
 END SUB
 
@@ -592,6 +657,51 @@ FUNCTION DefaultCaption(t AS STRING) AS STRING
     END SELECT
 END FUNCTION
 
+' Parse an "RGB(r,g,b)" string into a packed integer matching RapidR's
+' RGB() builtin (BGR ordering). Returns -1 if the string is empty or
+' does not match the expected shape, so callers can fall back to a
+' default colour.
+FUNCTION ParseRgb(s AS STRING) AS INTEGER
+    DIM t AS STRING
+    t = LTRIM$(RTRIM$(s))
+    IF LEN(t) = 0 THEN
+        ParseRgb = -1
+        EXIT FUNCTION
+    END IF
+    DIM up AS STRING
+    up = UCASE$(LEFT$(t, 4))
+    IF up <> "RGB(" THEN
+        ParseRgb = -1
+        EXIT FUNCTION
+    END IF
+    IF RIGHT$(t, 1) <> ")" THEN
+        ParseRgb = -1
+        EXIT FUNCTION
+    END IF
+    DIM body AS STRING
+    body = MID$(t, 5, LEN(t) - 5)
+    DIM c1 AS INTEGER
+    DIM c2 AS INTEGER
+    c1 = INSTR(body, ",")
+    IF c1 = 0 THEN
+        ParseRgb = -1
+        EXIT FUNCTION
+    END IF
+    c2 = INSTR(c1 + 1, body, ",")
+    IF c2 = 0 THEN
+        ParseRgb = -1
+        EXIT FUNCTION
+    END IF
+    DIM r AS INTEGER
+    DIM g AS INTEGER
+    DIM b AS INTEGER
+    r = VAL(LTRIM$(MID$(body, 1, c1 - 1)))
+    g = VAL(LTRIM$(MID$(body, c1 + 1, c2 - c1 - 1)))
+    b = VAL(LTRIM$(MID$(body, c2 + 1, LEN(body) - c2)))
+    ParseRgb = RGB(r, g, b)
+END FUNCTION
+
+
 ' ============================================================
 ' COMPONENT VISUALS — render real-looking previews
 ' ============================================================
@@ -744,7 +854,20 @@ SUB DrawForm(idx AS INTEGER, isActive AS INTEGER)
         tbcolor = RGB(140, 150, 170)
     END IF
     Designer.FillRect(fx, fy, fx2, fy + TITLEBAR_H, tbcolor)
-    Designer.DrawText(fx + 8, fy + 5, FormCaption(idx) + "  (" + FormName(idx) + ")", RGB(255, 255, 255))
+    DIM titleColor AS INTEGER
+    titleColor = ParseRgb(FormTextColor(idx))
+    IF titleColor < 0 THEN titleColor = RGB(255, 255, 255)
+    ' Apply form font for title text — Designer.SetFont changes the active
+    ' canvas font, so subsequent DrawText reflects FontName/FontSize.
+    DIM tfn AS STRING
+    DIM tfs AS INTEGER
+    tfn = FormFontName(idx)
+    IF LEN(tfn) = 0 THEN tfn = "Segoe UI"
+    tfs = VAL(FormFontSize(idx))
+    IF tfs <= 0 THEN tfs = 13
+    Designer.SetFont(tfn, tfs)
+    Designer.DrawText(fx + 8, fy + 5, FormCaption(idx) + "  (" + FormName(idx) + ")", titleColor)
+    Designer.SetFont("Segoe UI", 12)
 
     ' Window buttons: minimize, maximize, close (each 16x16, gap 4, right-aligned)
     DIM bMinX AS INTEGER
@@ -775,7 +898,10 @@ SUB DrawForm(idx AS INTEGER, isActive AS INTEGER)
     Designer.Line(bClsX + 13, by + 3, bClsX + 3, by + 13, RGB(255, 255, 255))
 
     IF FormState(idx) <> 1 THEN
-        Designer.FillRect(fx, fy + TITLEBAR_H, fx2, fy2, RGB(245, 245, 248))
+        DIM bgcolor AS INTEGER
+        bgcolor = ParseRgb(FormColor(idx))
+        IF bgcolor < 0 THEN bgcolor = RGB(245, 245, 248)
+        Designer.FillRect(fx, fy + TITLEBAR_H, fx2, fy2, bgcolor)
 
         DIM i AS INTEGER
         FOR i = 0 TO CompCount - 1
@@ -984,6 +1110,8 @@ FUNCTION DefaultEventFor(t AS STRING) AS STRING
     DIM s AS STRING
     s = t
     SELECT CASE s
+        CASE "RFORM"
+            DefaultEventFor = "OnShow"
         CASE "RBUTTON", "RCHECKBOX", "RRADIOBUTTON", "RLABEL", "RIMAGE"
             DefaultEventFor = "OnClick"
         CASE "REDIT", "RMEMO", "RCOMBOBOX", "RLISTBOX", "RSTRINGGRID", "RTREEVIEW", "RTABCONTROL"
@@ -995,10 +1123,10 @@ FUNCTION DefaultEventFor(t AS STRING) AS STRING
     END SELECT
 END FUNCTION
 
-FUNCTION FindOrCreateEvent(compIdx AS INTEGER, evname AS STRING) AS INTEGER
+FUNCTION FindOrCreateEvent(kind AS INTEGER, ownerIdx AS INTEGER, evname AS STRING) AS INTEGER
     DIM i AS INTEGER
     FOR i = 0 TO EvCount - 1
-        IF EvCompIdx(i) = compIdx AND EvName(i) = evname THEN
+        IF EvKind(i) = kind AND EvCompIdx(i) = ownerIdx AND EvName(i) = evname THEN
             FindOrCreateEvent = i
             EXIT FUNCTION
         END IF
@@ -1009,22 +1137,33 @@ FUNCTION FindOrCreateEvent(compIdx AS INTEGER, evname AS STRING) AS INTEGER
     END IF
     DIM ni AS INTEGER
     ni = EvCount
-    EvCompIdx(ni) = compIdx
+    EvKind(ni) = kind
+    EvCompIdx(ni) = ownerIdx
     EvName(ni) = evname
-    EvBody(ni) = "    ' " + evname + " for " + CompName(compIdx) + CHR(10) + "    Status.Caption = " + CHR(34) + CompName(compIdx) + " " + evname + CHR(34) + CHR(10)
+    DIM ownerName AS STRING
+    IF kind = 1 THEN
+        ownerName = FormName(ownerIdx)
+    ELSE
+        ownerName = CompName(ownerIdx)
+    END IF
+    EvBody(ni) = "    ' " + evname + " for " + ownerName + CHR(10) + "    PRINT " + CHR(34) + ownerName + " " + evname + CHR(34) + CHR(10)
     EvCount = EvCount + 1
     FindOrCreateEvent = ni
 END FUNCTION
 
-SUB OpenEventEditor(compIdx AS INTEGER, evname AS STRING)
+SUB OpenEventEditor(kind AS INTEGER, ownerIdx AS INTEGER, evname AS STRING)
     DIM ei AS INTEGER
-    ei = FindOrCreateEvent(compIdx, evname)
+    ei = FindOrCreateEvent(kind, ownerIdx, evname)
     IF ei < 0 THEN
         Status.Caption = "Event table full"
         EXIT SUB
     END IF
     EditEvIdx = ei
-    EditEvCompName = CompName(compIdx)
+    IF kind = 1 THEN
+        EditEvCompName = FormName(ownerIdx)
+    ELSE
+        EditEvCompName = CompName(ownerIdx)
+    END IF
     EditEvName = evname
     CodeEditor.Text = EvBody(ei)
     CodeEditor.Visible = 1
@@ -1067,6 +1206,10 @@ SUB AddPlaced(tool AS STRING, mx AS INTEGER, my AS INTEGER)
     CompW(idx) = DefaultW(tool)
     CompH(idx) = DefaultH(tool)
     CompCaption(idx) = DefaultCaption(tool)
+    CompColor(idx) = ""
+    CompTextColor(idx) = ""
+    CompFontName(idx) = ""
+    CompFontSize(idx) = ""
     IF tool = "Button" THEN CompCaption(idx) = CompName(idx)
     CompCount = CompCount + 1
     SelKind = 2
@@ -1091,6 +1234,10 @@ SUB DeleteSelected()
         CompW(i) = CompW(i + 1)
         CompH(i) = CompH(i + 1)
         CompCaption(i) = CompCaption(i + 1)
+        CompColor(i) = CompColor(i + 1)
+        CompTextColor(i) = CompTextColor(i + 1)
+        CompFontName(i) = CompFontName(i + 1)
+        CompFontSize(i) = CompFontSize(i + 1)
     NEXT i
     CompCount = CompCount - 1
     SelKind = 0
@@ -1124,6 +1271,10 @@ SUB DeleteActiveForm()
                 CompW(j) = CompW(j + 1)
                 CompH(j) = CompH(j + 1)
                 CompCaption(j) = CompCaption(j + 1)
+                CompColor(j) = CompColor(j + 1)
+                CompTextColor(j) = CompTextColor(j + 1)
+                CompFontName(j) = CompFontName(j + 1)
+                CompFontSize(j) = CompFontSize(j + 1)
             NEXT j
             CompCount = CompCount - 1
         ELSE
@@ -1143,6 +1294,10 @@ SUB DeleteActiveForm()
         FormY(i) = FormY(i + 1)
         FormW(i) = FormW(i + 1)
         FormH(i) = FormH(i + 1)
+        FormColor(i) = FormColor(i + 1)
+        FormTextColor(i) = FormTextColor(i + 1)
+        FormFontName(i) = FormFontName(i + 1)
+        FormFontSize(i) = FormFontSize(i + 1)
     NEXT i
     FormCount = FormCount - 1
 
@@ -1189,6 +1344,10 @@ SUB RefreshPropGrid()
         PropGrid.SetCell(1, 5, STR(CompY(SelIndex)))
         PropGrid.SetCell(1, 6, STR(CompW(SelIndex)))
         PropGrid.SetCell(1, 7, STR(CompH(SelIndex)))
+        PropGrid.SetCell(1, 8, CompColor(SelIndex))
+        PropGrid.SetCell(1, 9, CompTextColor(SelIndex))
+        PropGrid.SetCell(1, 10, CompFontName(SelIndex))
+        PropGrid.SetCell(1, 11, CompFontSize(SelIndex))
     ELSEIF SelKind = 1 AND ActiveForm >= 0 THEN
         PropGrid.SetCell(1, 1, FormName(ActiveForm))
         PropGrid.SetCell(1, 2, "RFORM")
@@ -1197,14 +1356,15 @@ SUB RefreshPropGrid()
         PropGrid.SetCell(1, 5, STR(FormY(ActiveForm)))
         PropGrid.SetCell(1, 6, STR(FormW(ActiveForm)))
         PropGrid.SetCell(1, 7, STR(FormH(ActiveForm)))
+        PropGrid.SetCell(1, 8, FormColor(ActiveForm))
+        PropGrid.SetCell(1, 9, FormTextColor(ActiveForm))
+        PropGrid.SetCell(1, 10, FormFontName(ActiveForm))
+        PropGrid.SetCell(1, 11, FormFontSize(ActiveForm))
     ELSE
-        PropGrid.SetCell(1, 1, "")
-        PropGrid.SetCell(1, 2, "")
-        PropGrid.SetCell(1, 3, "")
-        PropGrid.SetCell(1, 4, "")
-        PropGrid.SetCell(1, 5, "")
-        PropGrid.SetCell(1, 6, "")
-        PropGrid.SetCell(1, 7, "")
+        DIM rr AS INTEGER
+        FOR rr = 1 TO 11
+            PropGrid.SetCell(1, rr, "")
+        NEXT rr
     END IF
     RefreshEventsList()
 END SUB
@@ -1224,6 +1384,10 @@ SUB ApplyPropGrid()
         IF LEN(s) > 0 THEN CompW(SelIndex) = VAL(s)
         s = PropGrid.GetCell(1, 7)
         IF LEN(s) > 0 THEN CompH(SelIndex) = VAL(s)
+        CompColor(SelIndex) = PropGrid.GetCell(1, 8)
+        CompTextColor(SelIndex) = PropGrid.GetCell(1, 9)
+        CompFontName(SelIndex) = PropGrid.GetCell(1, 10)
+        CompFontSize(SelIndex) = PropGrid.GetCell(1, 11)
         Status.Caption = "Component properties applied"
     ELSEIF SelKind = 1 AND ActiveForm >= 0 THEN
         s = PropGrid.GetCell(1, 1)
@@ -1238,6 +1402,10 @@ SUB ApplyPropGrid()
         IF LEN(s) > 0 THEN FormW(ActiveForm) = VAL(s)
         s = PropGrid.GetCell(1, 7)
         IF LEN(s) > 0 THEN FormH(ActiveForm) = VAL(s)
+        FormColor(ActiveForm) = PropGrid.GetCell(1, 8)
+        FormTextColor(ActiveForm) = PropGrid.GetCell(1, 9)
+        FormFontName(ActiveForm) = PropGrid.GetCell(1, 10)
+        FormFontSize(ActiveForm) = PropGrid.GetCell(1, 11)
         RefreshFormsList()
         Status.Caption = "Form properties applied"
     END IF
@@ -1259,6 +1427,18 @@ FUNCTION GenerateCode() AS STRING
         s = s + "    Top = " + STR(FormY(f)) + CHR(10)
         s = s + "    Width = " + STR(FormW(f)) + CHR(10)
         s = s + "    Height = " + STR(FormH(f)) + CHR(10)
+        IF LEN(FormColor(f)) > 0 THEN
+            s = s + "    Color = " + FormColor(f) + CHR(10)
+        END IF
+        IF LEN(FormTextColor(f)) > 0 THEN
+            s = s + "    FontColor = " + FormTextColor(f) + CHR(10)
+        END IF
+        IF LEN(FormFontName(f)) > 0 THEN
+            s = s + "    FontName = " + CHR(34) + FormFontName(f) + CHR(34) + CHR(10)
+        END IF
+        IF LEN(FormFontSize(f)) > 0 THEN
+            s = s + "    FontSize = " + FormFontSize(f) + CHR(10)
+        END IF
         DIM i AS INTEGER
         FOR i = 0 TO CompCount - 1
             IF CompForm(i) = f THEN
@@ -1269,6 +1449,18 @@ FUNCTION GenerateCode() AS STRING
                 s = s + "        Height = " + STR(CompH(i)) + CHR(10)
                 IF LEN(CompCaption(i)) > 0 THEN
                     s = s + "        Caption = " + CHR(34) + CompCaption(i) + CHR(34) + CHR(10)
+                END IF
+                IF LEN(CompColor(i)) > 0 THEN
+                    s = s + "        Color = " + CompColor(i) + CHR(10)
+                END IF
+                IF LEN(CompTextColor(i)) > 0 THEN
+                    s = s + "        FontColor = " + CompTextColor(i) + CHR(10)
+                END IF
+                IF LEN(CompFontName(i)) > 0 THEN
+                    s = s + "        FontName = " + CHR(34) + CompFontName(i) + CHR(34) + CHR(10)
+                END IF
+                IF LEN(CompFontSize(i)) > 0 THEN
+                    s = s + "        FontSize = " + CompFontSize(i) + CHR(10)
                 END IF
                 s = s + "    END CREATE" + CHR(10)
             END IF
@@ -1281,9 +1473,17 @@ FUNCTION GenerateCode() AS STRING
     FOR ei = 0 TO EvCount - 1
         DIM owner AS INTEGER
         owner = EvCompIdx(ei)
-        IF owner >= 0 AND owner < CompCount THEN
-            DIM subname AS STRING
-            subname = CompName(owner) + "_" + EvName(ei)
+        DIM subname AS STRING
+        DIM ownerName AS STRING
+        IF EvKind(ei) = 1 AND owner >= 0 AND owner < FormCount THEN
+            ownerName = FormName(owner)
+        ELSEIF EvKind(ei) = 2 AND owner >= 0 AND owner < CompCount THEN
+            ownerName = CompName(owner)
+        ELSE
+            ownerName = ""
+        END IF
+        IF LEN(ownerName) > 0 THEN
+            subname = ownerName + "_" + EvName(ei)
             s = s + "SUB " + subname + "()" + CHR(10)
             s = s + EvBody(ei)
             IF LEN(EvBody(ei)) > 0 THEN
@@ -1296,8 +1496,16 @@ FUNCTION GenerateCode() AS STRING
     FOR ei = 0 TO EvCount - 1
         DIM o2 AS INTEGER
         o2 = EvCompIdx(ei)
-        IF o2 >= 0 AND o2 < CompCount THEN
-            s = s + CompName(o2) + "." + EvName(ei) + " = " + CompName(o2) + "_" + EvName(ei) + CHR(10)
+        DIM o2Name AS STRING
+        IF EvKind(ei) = 1 AND o2 >= 0 AND o2 < FormCount THEN
+            o2Name = FormName(o2)
+        ELSEIF EvKind(ei) = 2 AND o2 >= 0 AND o2 < CompCount THEN
+            o2Name = CompName(o2)
+        ELSE
+            o2Name = ""
+        END IF
+        IF LEN(o2Name) > 0 THEN
+            s = s + o2Name + "." + EvName(ei) + " = " + o2Name + "_" + EvName(ei) + CHR(10)
         END IF
     NEXT ei
 
@@ -1736,6 +1944,14 @@ END SUB
 SUB RefreshEventsList()
     EventsList.Clear()
     EvListCount = 0
+    IF SelKind = 1 AND ActiveForm >= 0 THEN
+        AddEventOption("OnShow")
+        AddEventOption("OnClose")
+        AddEventOption("OnClick")
+        AddEventOption("OnResize")
+        IF EvListCount > 0 THEN EventsList.ItemIndex = 0
+        EXIT SUB
+    END IF
     IF SelKind <> 2 OR SelIndex < 0 THEN EXIT SUB
     DIM t AS STRING
     t = CompType(SelIndex)
@@ -1765,19 +1981,29 @@ SUB RefreshEventsList()
 END SUB
 
 SUB BtnEditEvent_OnClick()
-    IF SelKind <> 2 OR SelIndex < 0 THEN
-        Status.Caption = "Select a component first"
-        EXIT SUB
-    END IF
     DIM ei AS INTEGER
     ei = EventsList.ItemIndex
+    IF SelKind = 1 AND ActiveForm >= 0 THEN
+        DIM evnameF AS STRING
+        IF ei < 0 OR ei >= EvListCount THEN
+            evnameF = "OnShow"
+        ELSE
+            evnameF = EvListNames(ei)
+        END IF
+        OpenEventEditor(1, ActiveForm, evnameF)
+        EXIT SUB
+    END IF
+    IF SelKind <> 2 OR SelIndex < 0 THEN
+        Status.Caption = "Select a form or component first"
+        EXIT SUB
+    END IF
     DIM evname AS STRING
     IF ei < 0 OR ei >= EvListCount THEN
         evname = DefaultEventFor(CompType(SelIndex))
     ELSE
         evname = EvListNames(ei)
     END IF
-    OpenEventEditor(SelIndex, evname)
+    OpenEventEditor(2, SelIndex, evname)
 END SUB
 
 SUB BtnToggle_OnClick()
@@ -1843,6 +2069,123 @@ SUB MAbout_OnClick()
 END SUB
 
 ' ============================================================
+' RUN / PREVIEW / EXPORT (backend build server integration)
+' ============================================================
+
+' Extract the value of a top-level JSON string field. Tiny ad-hoc parser:
+' returns "" if the field is missing.
+FUNCTION JsonField(json AS STRING, field AS STRING) AS STRING
+    DIM key AS STRING
+    key = CHR(34) + field + CHR(34) + ":"
+    DIM idx AS INTEGER
+    idx = INSTR(json, key)
+    IF idx <= 0 THEN
+        JsonField = ""
+        EXIT FUNCTION
+    END IF
+    DIM start AS INTEGER
+    start = idx + LEN(key)
+    ' Skip whitespace
+    DO WHILE start <= LEN(json) AND MID(json, start, 1) = " "
+        start = start + 1
+    LOOP
+    IF start > LEN(json) THEN
+        JsonField = ""
+        EXIT FUNCTION
+    END IF
+    DIM ch AS STRING
+    ch = MID(json, start, 1)
+    IF ch = CHR(34) THEN
+        DIM e AS INTEGER
+        e = start + 1
+        DO WHILE e <= LEN(json) AND MID(json, e, 1) <> CHR(34)
+            IF MID(json, e, 1) = "\" THEN e = e + 1
+            e = e + 1
+        LOOP
+        JsonField = MID(json, start + 1, e - start - 1)
+    ELSE
+        ' Bare token until comma or closing brace
+        DIM e2 AS INTEGER
+        e2 = start
+        DO WHILE e2 <= LEN(json) AND MID(json, e2, 1) <> "," AND MID(json, e2, 1) <> "}"
+            e2 = e2 + 1
+        LOOP
+        JsonField = MID(json, start, e2 - start)
+    END IF
+END FUNCTION
+
+SUB BtnRun_OnClick()
+    Status.Caption = "Compiling on " + BUILDSERVER + " ..."
+    DIM code AS STRING
+    code = GenerateCode()
+    BSrv.Post(BUILDSERVER + "/compile", code)
+    DIM resp AS STRING
+    resp = BSrv.ResponseText
+    DIM ok AS STRING
+    ok = JsonField(resp, "ok")
+    IF ok <> "true" THEN
+        Status.Caption = "Compile failed — see console"
+        CodeEditor.Text = resp
+        CodeEditor.Visible = 1
+        Designer.Visible = 0
+        Preview.Visible = 0
+        ShowingCode = 1
+        EXIT SUB
+    END IF
+    DIM url AS STRING
+    url = JsonField(resp, "preview")
+    Preview.Navigate(BUILDSERVER + url)
+    Preview.Visible = 1
+    Designer.Visible = 0
+    CodeEditor.Visible = 0
+    ShowingCode = 3
+    Status.Caption = "Preview running"
+END SUB
+
+SUB BtnDesign_OnClick()
+    Preview.Visible = 0
+    CodeEditor.Visible = 0
+    Designer.Visible = 1
+    ShowingCode = 0
+    Status.Caption = "Design view"
+    RedrawDesigner()
+END SUB
+
+SUB BtnZipSrc_OnClick()
+    Status.Caption = "Compiling for source zip..."
+    DIM code AS STRING
+    code = GenerateCode()
+    BSrv.Post(BUILDSERVER + "/compile", code)
+    DIM resp AS STRING
+    resp = BSrv.ResponseText
+    IF JsonField(resp, "ok") <> "true" THEN
+        Status.Caption = "Compile failed"
+        EXIT SUB
+    END IF
+    DIM zsrc AS STRING
+    zsrc = JsonField(resp, "zip_source")
+    JS.Eval("window.open('" + BUILDSERVER + zsrc + "','_blank')")
+    Status.Caption = "Source zip downloaded"
+END SUB
+
+SUB BtnZipFull_OnClick()
+    Status.Caption = "Compiling + building binary..."
+    DIM code AS STRING
+    code = GenerateCode()
+    BSrv.Post(BUILDSERVER + "/compile", code)
+    DIM resp AS STRING
+    resp = BSrv.ResponseText
+    IF JsonField(resp, "ok") <> "true" THEN
+        Status.Caption = "Compile failed"
+        EXIT SUB
+    END IF
+    DIM zfull AS STRING
+    zfull = JsonField(resp, "zip_full")
+    JS.Eval("window.open('" + BUILDSERVER + zfull + "','_blank')")
+    Status.Caption = "Bundle zip downloaded"
+END SUB
+
+' ============================================================
 ' WIRE-UP
 ' ============================================================
 InitToolbox()
@@ -1867,6 +2210,11 @@ BtnDelete.OnClick = BtnDelete_OnClick
 BtnApply.OnClick = BtnApply_OnClick
 BtnEditEvent.OnClick = BtnEditEvent_OnClick
 
+BtnRun.OnClick = BtnRun_OnClick
+BtnDesign.OnClick = BtnDesign_OnClick
+BtnZipSrc.OnClick = BtnZipSrc_OnClick
+BtnZipFull.OnClick = BtnZipFull_OnClick
+
 MNew.OnClick = MNew_OnClick
 MOpen.OnClick = MOpen_OnClick
 MSave.OnClick = MSave_OnClick
@@ -1881,5 +2229,13 @@ FS.OnLoad = FS_OnLoad
 RedrawDesigner()
 RefreshPropGrid()
 RefreshEventsList()
+
+' ---------------------------------------------------------------
+' Inject the property-grid color/font pickers and the live-apply
+' input listener. This is a single self-installing JS snippet that
+' watches the property grid via setInterval(500ms) so it survives
+' grid rebuilds when the user changes selection/forms.
+' ---------------------------------------------------------------
+JS.Eval("(function(){if(window.__rrPickersReady)return;window.__rrPickersReady=1;function ap(){var b=document.getElementById('rr-btnapply');if(b)b.click();}var dt=null;function aa(){if(dt)clearTimeout(dt);dt=setTimeout(ap,300);}document.addEventListener('input',function(e){var t=e.target;if(!t||!t.closest)return;if(t.closest('#rr-propgrid-table'))aa();});function pg(){return document.getElementById('rr-propgrid-table');}function openColor(r){var t=pg();if(!t||!t.rows[r])return;var inp=document.createElement('input');inp.type='color';var cur=(t.rows[r].cells[1].innerText||'').trim();var m=cur.match(/RGB\((\d+),\s*(\d+),\s*(\d+)\)/i);if(m){var rr=parseInt(m[1]),gg=parseInt(m[2]),bb=parseInt(m[3]);inp.value='#'+[rr,gg,bb].map(function(v){return v.toString(16).padStart(2,'0');}).join('');}inp.style.display='none';document.body.appendChild(inp);inp.addEventListener('input',function(){var hx=inp.value;var rr=parseInt(hx.slice(1,3),16);var gg=parseInt(hx.slice(3,5),16);var bb=parseInt(hx.slice(5,7),16);t.rows[r].cells[1].innerText='RGB('+rr+','+gg+','+bb+')';aa();});inp.addEventListener('change',function(){setTimeout(function(){if(inp.parentNode)inp.parentNode.removeChild(inp);},150);});inp.click();}function openFont(){var t=pg();if(!t||!t.rows[10]||!t.rows[11])return;var curN=(t.rows[10].cells[1].innerText||'').trim()||'Segoe UI';var curS=(t.rows[11].cells[1].innerText||'').trim()||'12';var ov=document.createElement('div');ov.setAttribute('style','position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:sans-serif');var dl=document.createElement('div');dl.setAttribute('style','background:#fff;padding:18px;border-radius:6px;min-width:380px;box-shadow:0 8px 32px rgba(0,0,0,0.3)');var h=document.createElement('h3');h.textContent='Choose Font';h.setAttribute('style','margin:0 0 10px 0;font-size:15px');dl.appendChild(h);var l1=document.createElement('label');l1.textContent='Family';l1.setAttribute('style','display:block;margin:6px 0 2px;font-size:12px');dl.appendChild(l1);var sel=document.createElement('select');sel.setAttribute('style','width:100%;padding:5px;font-size:13px');var fams=['Arial','Helvetica','Verdana','Tahoma','Trebuchet MS','Times New Roman','Georgia','Garamond','Courier New','Consolas','Lucida Console','Monaco','Segoe UI','Comic Sans MS','Impact','Palatino','Calibri','Cambria'];fams.forEach(function(f){var o=document.createElement('option');o.value=f;o.textContent=f;o.style.fontFamily=f;sel.appendChild(o);});sel.value=curN;dl.appendChild(sel);var l2=document.createElement('label');l2.textContent='Size';l2.setAttribute('style','display:block;margin:8px 0 2px;font-size:12px');dl.appendChild(l2);var sz=document.createElement('input');sz.type='number';sz.min='6';sz.max='96';sz.value=curS;sz.setAttribute('style','width:100%;padding:5px;font-size:13px');dl.appendChild(sz);var pv=document.createElement('div');pv.textContent='The quick brown fox 0123';pv.setAttribute('style','margin-top:12px;padding:10px;border:1px solid #ccc;border-radius:4px;background:#fafafa');dl.appendChild(pv);function ref(){pv.style.font=sz.value+'px '+sel.value;}ref();sel.addEventListener('change',ref);sz.addEventListener('input',ref);var br=document.createElement('div');br.setAttribute('style','text-align:right;margin-top:14px');var bC=document.createElement('button');bC.type='button';bC.textContent='Cancel';bC.setAttribute('style','padding:6px 14px;margin-right:8px;cursor:pointer');var bO=document.createElement('button');bO.type='button';bO.textContent='OK';bO.setAttribute('style','padding:6px 14px;background:#3b7cd6;color:#fff;border:0;border-radius:3px;cursor:pointer');br.appendChild(bC);br.appendChild(bO);dl.appendChild(br);ov.appendChild(dl);document.body.appendChild(ov);function cls(){if(ov.parentNode)ov.parentNode.removeChild(ov);}bC.addEventListener('click',cls);bO.addEventListener('click',function(){t.rows[10].cells[1].innerText=sel.value;t.rows[11].cells[1].innerText=sz.value;cls();aa();});}function ensureBtns(){var t=pg();if(!t)return;function sb(r,lbl,h){if(!t.rows[r])return;var c=t.rows[r].cells[2];if(!c)return;if(c.dataset.rrPicker===lbl)return;c.dataset.rrPicker=lbl;c.innerHTML='';var b=document.createElement('button');b.type='button';b.textContent='\u2026';b.title=lbl;b.setAttribute('style','padding:0 8px;font-size:13px;cursor:pointer;background:#eaeaea;border:1px solid #aaa;border-radius:3px;line-height:1.4');b.addEventListener('click',function(ev){ev.preventDefault();h();});c.appendChild(b);}sb(8,'Color picker',function(){openColor(8);});sb(9,'Text color picker',function(){openColor(9);});sb(10,'Font picker',openFont);sb(11,'Font picker',openFont);}setInterval(ensureBtns,500);ensureBtns();})();")
 
 PRINT "RapidR Web IDE v2 ready"

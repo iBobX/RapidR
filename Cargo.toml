@@ -10,6 +10,7 @@ members = [
     "crates/rapidr-runtime-core",
     "crates/rapidr-runtime-web",
     "crates/rapidr-codegen-rust",
+    "crates/rapidr-buildserver",
 ]
 
 [workspace.package]

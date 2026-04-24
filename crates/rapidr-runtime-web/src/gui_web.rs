@@ -71,7 +71,7 @@ fn comp_id(name: &str) -> String {
 pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String, Value>) {
     let id = comp_id(name);
     match comp_type {
-        "RFORM" => create_form(&id, props),
+        "RFORM" => create_form(&id, name, props),
         "RBUTTON" => create_button(&id, name, props),
         "RCOOLBTN" => create_coolbtn(&id, name, props),
         "ROVALBTN" => create_ovalbtn(&id, name, props),
@@ -373,7 +373,11 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
         }
         // Web-exclusive: RWebView
         "html" => {
-            el.set_inner_html(&s);
+            if let Ok(iframe) = el.clone().dyn_into::<web_sys::HtmlIFrameElement>() {
+                iframe.set_srcdoc(&s);
+            } else {
+                el.set_inner_html(&s);
+            }
         }
         "url" => {
             if let Ok(iframe) = el.clone().dyn_into::<web_sys::HtmlIFrameElement>() {
@@ -680,6 +684,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         (_, "show") => {
+            crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(true));
             if let Some(el) = get_el(&id) {
                 let _ = el.style().set_property("display", "");
                 // If it's a form, bring to front
@@ -689,16 +694,50 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             }
             v_null()
         }
+        // Pseudo-modal show on web. True blocking is impossible in single-thread
+        // wasm; we instead dim the page with a backdrop overlay and bring the
+        // form to the front. Backdrop is removed when the form is closed/hidden.
+        (_, "showmodal") if comp_type == "RFORM" => {
+            crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(true));
+            if let Some(el) = get_el(&id) {
+                let _ = el.style().set_property("display", "");
+                show_modal_backdrop(&id);
+                form_bring_to_front(&id);
+                // Center on screen
+                let w = el.offset_width();
+                let h = el.offset_height();
+                let vw = document().document_element().map(|d| d.client_width()).unwrap_or(800);
+                let vh = document().document_element().map(|d| d.client_height()).unwrap_or(600);
+                let _ = el.style().set_property("left", &format!("{}px", ((vw - w) / 2).max(0)));
+                let _ = el.style().set_property("top", &format!("{}px", ((vh - h) / 2).max(0)));
+            }
+            v_null()
+        }
         (_, "hide") => {
+            crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(false));
             if let Some(el) = get_el(&id) {
                 let _ = el.style().set_property("display", "none");
+                if el.class_list().contains("rr-form") {
+                    hide_modal_backdrop(&id);
+                }
             }
             v_null()
         }
         (_, "close") if comp_type == "RFORM" => {
+            crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(false));
             if let Some(el) = get_el(&id) {
                 let _ = el.style().set_property("display", "none");
             }
+            hide_modal_backdrop(&id);
+            // Fire onclose symmetrically with form_close()
+            crate::object_web::rp_fire_event(name, "onclose");
+            v_null()
+        }
+        // Re-parent a widget (or form) into another container.
+        (_, "setparent") if args.len() >= 1 => {
+            let parent_name = args[0].to_string_val();
+            gui_web_set_parent(name, &parent_name);
+            crate::object_web::rp_comp_set(name, "parent", v_str(&parent_name));
             v_null()
         }
         // Canvas draw methods
@@ -724,6 +763,13 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         ("RCANVAS", "drawtext" | "textout") if args.len() >= 3 => {
             canvas_text(&id, &args[0], &args[1], &args[2], args.get(3));
+            v_null()
+        }
+        ("RCANVAS", "setfont") if args.len() >= 1 => {
+            // Args: (name [, size [, style]]). Style is currently ignored.
+            let fname = args[0].to_string_val();
+            let fsize = args.get(1).map(|v| v.to_i64()).unwrap_or(12);
+            canvas_set_font(&id, &fname, fsize);
             v_null()
         }
         ("RCANVAS", "setpixel" | "pset") if args.len() >= 2 => {
@@ -763,7 +809,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         // Web-exclusive: RWebView
         ("RWEBVIEW", "sethtml") if args.len() >= 1 => {
             if let Some(el) = get_el(&id) {
-                el.set_inner_html(&args[0].to_string_val());
+                if let Ok(iframe) = el.dyn_into::<web_sys::HtmlIFrameElement>() {
+                    iframe.set_srcdoc(&args[0].to_string_val());
+                }
             }
             v_null()
         }
@@ -1034,10 +1082,15 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
 // Form creation
 // ---------------------------------------------------------------------------
 
-fn create_form(id: &str, props: &HashMap<String, Value>) {
+fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_id(id);
     el.set_class_name("rr-form");
+    let _ = el.set_attribute("data-rr-name", name);
+    let _ = el.set_attribute("data-rr-type", "RFORM");
+    if let Some(p) = props.get("parent").map(|v| v.to_string_val()).filter(|s| !s.is_empty()) {
+        let _ = el.set_attribute("data-rr-parent", &p);
+    }
 
     let style = el.style();
     let _ = style.set_property("position", "absolute");
@@ -1166,7 +1219,11 @@ fn create_form(id: &str, props: &HashMap<String, Value>) {
     // Titlebar drag-to-move
     setup_form_drag(&titlebar, id);
 
-    let _ = document().body().unwrap().append_child(&el);
+    // If a parent form is specified, nest inside its client area;
+    // otherwise the form is top-level under <body>.
+    let parent_name = props.get("parent").map(|v| v.to_string_val()).filter(|s| !s.is_empty());
+    let host = get_parent_client(&parent_name);
+    let _ = host.append_child(&el);
 }
 
 fn get_parent_client(parent_name: &Option<String>) -> web_sys::HtmlElement {
@@ -1666,29 +1723,20 @@ fn create_codeeditor(id: &str, name: &str, props: &HashMap<String, Value>) {
 // ---------------------------------------------------------------------------
 
 fn create_webview(id: &str, name: &str, props: &HashMap<String, Value>) {
-    let has_url = props.contains_key("url");
-    if has_url {
-        let el = create_el("iframe");
-        if let Ok(iframe) = el.clone().dyn_into::<web_sys::HtmlIFrameElement>() {
-            if let Some(url) = props.get("url") {
-                iframe.set_src(&url.to_string_val());
-            }
-            let _ = iframe.set_attribute("sandbox", "allow-scripts allow-same-origin");
+    // Always an <iframe> so Navigate() / SetHtml() can drive it.
+    let el = create_el("iframe");
+    if let Ok(iframe) = el.clone().dyn_into::<web_sys::HtmlIFrameElement>() {
+        if let Some(url) = props.get("url") {
+            iframe.set_src(&url.to_string_val());
+        } else if let Some(html) = props.get("html") {
+            iframe.set_srcdoc(&html.to_string_val());
         }
-        el.set_class_name("rr-widget");
-        let _ = el.style().set_property("border", "1px solid #aaa");
-        setup_widget(&el, id, name, props);
-    } else {
-        let el = create_el("div");
-        el.set_class_name("rr-widget");
-        let _ = el.style().set_property("border", "1px solid #aaa");
-        let _ = el.style().set_property("background", "white");
-        let _ = el.style().set_property("overflow", "auto");
-        if let Some(html) = props.get("html") {
-            el.set_inner_html(&html.to_string_val());
-        }
-        setup_widget(&el, id, name, props);
+        let _ = iframe.set_attribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads");
     }
+    el.set_class_name("rr-widget");
+    let _ = el.style().set_property("border", "1px solid #aaa");
+    let _ = el.style().set_property("background", "white");
+    setup_widget(&el, id, name, props);
 }
 
 fn create_dom_element(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -1847,6 +1895,9 @@ fn canvas_text(id: &str, x: &Value, y: &Value, text: &Value, color: Option<&Valu
         if let Some(c) = color {
             ctx.set_fill_style_str(&value_to_css_color(c));
         }
+        // Match desktop FLTK semantics: y is the TOP of the text, not the alphabetic baseline.
+        // Without this, text drawn at small y coordinates is clipped above the canvas.
+        ctx.set_text_baseline("top");
         let _ = ctx.fill_text(&text.to_string_val(), x.to_f64(), y.to_f64());
     }
 }
@@ -1860,6 +1911,23 @@ fn canvas_pixel(id: &str, x: &Value, y: &Value, color: Option<&Value>) {
     }
 }
 
+fn canvas_set_font(id: &str, family: &str, size: i64) {
+    if let Some(ctx) = get_canvas_ctx(id) {
+        let fam = if family.trim().is_empty() {
+            "sans-serif".to_string()
+        } else {
+            // Quote families containing spaces so they parse correctly.
+            if family.contains(' ') && !family.starts_with('"') {
+                format!("\"{}\"", family)
+            } else {
+                family.to_string()
+            }
+        };
+        let sz = if size > 0 { size } else { 12 };
+        ctx.set_font(&format!("{}px {}", sz, fam));
+    }
+}
+
 // ---------------------------------------------------------------------------
 // StringGrid helpers
 // ---------------------------------------------------------------------------
@@ -1867,11 +1935,19 @@ fn canvas_pixel(id: &str, x: &Value, y: &Value, color: Option<&Value>) {
 fn grid_init_cells(table_id: &str, rows: usize, cols: usize) {
     if let Some(table) = get_el(table_id) {
         table.set_inner_html("");
-        for _r in 0..rows {
+        for r in 0..rows {
             let tr = create_el("tr");
-            for _c in 0..cols {
+            for c in 0..cols {
                 let td = create_el("td");
                 td.set_class_name("rr-grid-cell");
+                // Make all non-header cells (row > 0) in non-first column editable
+                // so users can actually type values directly into the grid.
+                // Row 0 is treated as a fixed header; column 0 as a label column.
+                if r > 0 && c > 0 {
+                    let _ = td.set_attribute("contenteditable", "true");
+                    let _ = td.set_attribute("spellcheck", "false");
+                    let _ = td.style().set_property("cursor", "text");
+                }
                 let _ = tr.append_child(&td);
             }
             let _ = table.append_child(&tr);
@@ -1934,9 +2010,14 @@ fn grid_set_row_count(id: &str, count: usize) {
             if count > current {
                 for _ in current..count {
                     let tr = create_el("tr");
-                    for _ in 0..cols {
+                    for c in 0..cols {
                         let td = create_el("td");
                         td.set_class_name("rr-grid-cell");
+                        if c > 0 {
+                            let _ = td.set_attribute("contenteditable", "true");
+                            let _ = td.set_attribute("spellcheck", "false");
+                            let _ = td.style().set_property("cursor", "text");
+                        }
                         let _ = tr.append_child(&td);
                     }
                     let _ = table_el.append_child(&tr);
@@ -2082,54 +2163,102 @@ pub fn gui_web_set_parent(name: &str, parent_name: &str) {
             .or_else(|| get_el(&comp_id(parent_name)));
         if let Some(p) = parent_el {
             let _ = p.append_child(&el);
+            // Mark nested forms so finalize can route visibility correctly.
+            if el.class_list().contains("rr-form") {
+                let _ = el.set_attribute("data-rr-parent", parent_name);
+                // Nested forms are positioned relative to parent client and
+                // should not be modal/full-screen.
+                let _ = el.style().set_property("position", "absolute");
+            }
         }
     }
 }
 
-/// Auto-parent orphan widgets (those appended to body) to the first form,
-/// then show all forms.
+/// Auto-parent orphan widgets (those appended to body) to the first top-level
+/// form, then show all top-level forms and fire `onload` for each form.
 pub fn gui_web_finalize() {
     let doc = document();
 
-    // Find the first form (default parent for orphan widgets)
-    let form_el = match doc.query_selector(".rr-form") {
-        Ok(Some(el)) => el,
-        _ => return, // No form — nothing to do
-    };
-    let form_id = form_el.get_attribute("id").unwrap_or_default();
-    let client_id = format!("{}-client", form_id);
-
-    // Find the form's client area
-    let client = match doc.get_element_by_id(&client_id) {
-        Some(el) => el,
-        None => form_el.clone(),
+    // Find the first TOP-LEVEL form (not nested inside another form).
+    // Top-level forms are direct body children OR carry no data-rr-parent.
+    let first_top_form = match doc.query_selector(".rr-form:not([data-rr-parent])") {
+        Ok(Some(el)) => Some(el),
+        _ => doc.query_selector(".rr-form").ok().flatten(),
     };
 
-    // Move orphan widgets from body into the first form's client area
-    let selector = "body > [data-rr-name], body > .rr-widget, body > .rr-plot-container";
-    if let Ok(orphans) = doc.query_selector_all(selector) {
-        let mut elems: Vec<web_sys::Element> = Vec::new();
-        for i in 0..orphans.length() {
-            if let Some(node) = orphans.item(i) {
-                if let Some(el) = node.dyn_ref::<web_sys::Element>() {
-                    elems.push(el.clone());
+    // Move orphan widgets from body into the first top-level form's client area.
+    // Skip elements that are themselves forms (`.rr-form`).
+    if let Some(form_el) = first_top_form.as_ref() {
+        let form_id = form_el.get_attribute("id").unwrap_or_default();
+        let client_id = format!("{}-client", form_id);
+        let client = doc.get_element_by_id(&client_id).unwrap_or_else(|| form_el.clone());
+
+        let selector = "body > [data-rr-name], body > .rr-widget, body > .rr-plot-container";
+        if let Ok(orphans) = doc.query_selector_all(selector) {
+            let mut elems: Vec<web_sys::Element> = Vec::new();
+            for i in 0..orphans.length() {
+                if let Some(node) = orphans.item(i) {
+                    if let Some(el) = node.dyn_ref::<web_sys::Element>() {
+                        // Skip forms — they manage their own placement.
+                        if el.class_list().contains("rr-form") {
+                            continue;
+                        }
+                        elems.push(el.clone());
+                    }
                 }
             }
-        }
-        for el in &elems {
-            let _ = client.append_child(el);
+            for el in &elems {
+                let _ = client.append_child(el);
+            }
         }
     }
 
-    // Show all forms and set initial z-index stacking
-    if let Ok(all_forms) = doc.query_selector_all(".rr-form") {
-        for i in 0..all_forms.length() {
-            if let Some(node) = all_forms.item(i) {
-                if let Some(el) = node.dyn_ref::<web_sys::Element>() {
-                    if let Ok(html) = el.clone().dyn_into::<web_sys::HtmlElement>() {
+    // Show top-level forms whose `visible` prop is true (default), assigning a
+    // stacking z-index. Forms whose visible was set false (e.g. by `.Hide()`
+    // before the runtime started) stay hidden.
+    if let Ok(top_forms) = doc.query_selector_all(".rr-form:not([data-rr-parent])") {
+        for i in 0..top_forms.length() {
+            if let Some(node) = top_forms.item(i) {
+                let comp_name = node
+                    .dyn_ref::<web_sys::Element>()
+                    .and_then(|e| e.get_attribute("data-rr-name"))
+                    .unwrap_or_default();
+                let visible = crate::object_web::rp_comp_get_stored(&comp_name, "visible").to_bool();
+                let id_attr = node
+                    .dyn_ref::<web_sys::Element>()
+                    .and_then(|e| e.get_attribute("id"))
+                    .unwrap_or_default();
+                let is_modal = !id_attr.is_empty()
+                    && doc.get_element_by_id(&format!("{}-backdrop", id_attr)).is_some();
+                if let Ok(html) = node.dyn_into::<web_sys::HtmlElement>() {
+                    if visible {
                         let _ = html.style().set_property("display", "block");
-                        let _ = html.style().set_property("z-index", &format!("{}", 10 + i));
+                        if is_modal {
+                            let _ = html.style().set_property("z-index", "9999");
+                        } else {
+                            let _ = html.style().set_property("z-index", &format!("{}", 10 + i));
+                        }
+                    } else {
+                        let _ = html.style().set_property("display", "none");
                     }
+                }
+            }
+        }
+    }
+    // Nested forms: honor their visible prop too.
+    if let Ok(nested) = doc.query_selector_all(".rr-form[data-rr-parent]") {
+        for i in 0..nested.length() {
+            if let Some(node) = nested.item(i) {
+                let comp_name = node
+                    .dyn_ref::<web_sys::Element>()
+                    .and_then(|e| e.get_attribute("data-rr-name"))
+                    .unwrap_or_default();
+                let visible = crate::object_web::rp_comp_get_stored(&comp_name, "visible").to_bool();
+                if let Ok(html) = node.dyn_into::<web_sys::HtmlElement>() {
+                    let _ = html.style().set_property(
+                        "display",
+                        if visible { "block" } else { "none" },
+                    );
                 }
             }
         }
@@ -2137,6 +2266,19 @@ pub fn gui_web_finalize() {
 
     // Inject hover styles for titlebar buttons
     inject_form_styles();
+
+    // Fire onload for every form (top-level and nested), in DOM order.
+    if let Ok(all_forms) = doc.query_selector_all(".rr-form") {
+        for i in 0..all_forms.length() {
+            if let Some(node) = all_forms.item(i) {
+                if let Some(el) = node.dyn_ref::<web_sys::Element>() {
+                    if let Some(comp_name) = el.get_attribute("data-rr-name") {
+                        crate::object_web::rp_fire_event(&comp_name, "onload");
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2275,12 +2417,46 @@ fn form_close(form_id: &str) {
     if let Some(el) = get_el(form_id) {
         let _ = el.style().set_property("display", "none");
     }
+    hide_modal_backdrop(form_id);
     // Fire onclose event
     let comp_name = form_id
         .strip_prefix("rr-")
         .unwrap_or(form_id)
         .to_uppercase();
     crate::object_web::rp_fire_event(&comp_name, "onclose");
+}
+
+/// Show a dimmed backdrop behind a modal form. The backdrop sits one z-index
+/// below the form and is removed when the form is closed/hidden.
+fn show_modal_backdrop(form_id: &str) {
+    let backdrop_id = format!("{}-backdrop", form_id);
+    let doc = document();
+    if doc.get_element_by_id(&backdrop_id).is_none() {
+        let bd = create_el("div");
+        bd.set_id(&backdrop_id);
+        let s = bd.style();
+        let _ = s.set_property("position", "fixed");
+        let _ = s.set_property("inset", "0");
+        let _ = s.set_property("background", "rgba(0,0,0,0.35)");
+        let _ = s.set_property("z-index", "9998");
+        if let Some(body) = doc.body() {
+            let _ = body.append_child(&bd);
+        }
+    }
+    // Always lift the modal form above the backdrop, even if the backdrop
+    // already existed (e.g. ShowModal called twice or finalize reset z-index).
+    if let Some(el) = doc.get_element_by_id(form_id) {
+        if let Some(html) = el.dyn_ref::<web_sys::HtmlElement>() {
+            let _ = html.style().set_property("z-index", "9999");
+        }
+    }
+}
+
+fn hide_modal_backdrop(form_id: &str) {
+    let backdrop_id = format!("{}-backdrop", form_id);
+    if let Some(bd) = document().get_element_by_id(&backdrop_id) {
+        bd.remove();
+    }
 }
 
 /// Setup drag-to-move on a form's titlebar.

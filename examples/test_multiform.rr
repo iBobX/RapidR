@@ -1,0 +1,59 @@
+' test_multiform.rr — sibling multi-form test (web + desktop)
+' Form1 has a button "Open Form2" which calls Form2.Show().
+' Form2 has a button "Close Me" which calls Form2.Close().
+' Closing Form2 should leave Form1 visible and active.
+
+$APPTYPE GUI
+
+CREATE Form1 AS RFORM
+    Caption = "Form 1 (main)"
+    Width = 360
+    Height = 220
+    Left = 80
+    Top = 80
+    CREATE BtnOpen AS RBUTTON
+        Caption = "Open Form2"
+        Left = 80
+        Top = 60
+        Width = 200
+        Height = 40
+        OnClick = ShowForm2
+    END CREATE
+    CREATE LblStatus AS RLABEL
+        Caption = "Status: Form2 hidden"
+        Left = 20
+        Top = 130
+        Width = 320
+        Height = 24
+    END CREATE
+END CREATE
+
+CREATE Form2 AS RFORM
+    Caption = "Form 2 (sibling)"
+    Width = 320
+    Height = 180
+    Left = 460
+    Top = 120
+    CREATE BtnClose AS RBUTTON
+        Caption = "Close Me"
+        Left = 80
+        Top = 60
+        Width = 160
+        Height = 40
+        OnClick = CloseForm2
+    END CREATE
+END CREATE
+
+SUB ShowForm2()
+    Form2.Show()
+    LblStatus.Caption = "Status: Form2 shown"
+END SUB
+
+SUB CloseForm2()
+    Form2.Close()
+    LblStatus.Caption = "Status: Form2 closed"
+END SUB
+
+' Hide Form2 at startup so the test starts with Form1 only
+Form2.Hide()
+Form1.ShowModal()
