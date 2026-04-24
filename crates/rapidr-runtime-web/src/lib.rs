@@ -14,6 +14,7 @@ pub mod network_web;
 pub mod object_web;
 pub mod storage_web;
 pub use rapidr_value as value;
+pub use rapidr_rrcss::RR_BASE_CSS;
 
 pub mod prelude {
     // Value type + constructors

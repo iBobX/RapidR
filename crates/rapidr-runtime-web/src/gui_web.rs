@@ -1,7 +1,7 @@
 //! GUI web implementation — HTML5 DOM widget creation for all RapidR components.
 //!
 //! Each component type (RFORM, RBUTTON, RLABEL, etc.) maps to one or more
-//! HTML elements styled with Tailwind CSS classes and absolute positioning.
+//! HTML elements styled via the shared rapidr-rrcss base stylesheet and absolute positioning.
 
 use crate::value::{v_int, v_null, v_str, Value};
 use std::collections::HashMap;

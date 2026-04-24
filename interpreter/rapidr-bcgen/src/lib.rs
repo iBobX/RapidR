@@ -21,7 +21,7 @@
 //! TYPE/UDT, IMPORT, EXIT) currently lower to a no-op and emit a warning
 //! into [`Compiled::warnings`]; they will be filled in incrementally.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rapidr_ast::{
     ArrayAccessExpression, AssignmentStatement, BinaryOperator, BindStatement, CallStatement,
@@ -83,6 +83,17 @@ struct Bcgen {
     loop_stack: Vec<LoopCtx>,
     /// CREATE-block instance name stack (for nested CREATE).
     create_stack: Vec<String>,
+    /// Names (lowercase) declared via CREATE anywhere in the program.
+    /// Used so a redundant `DIM x AS RForm` after `CREATE x AS RForm` does
+    /// not emit a duplicate `CreateComp`.
+    create_declared_names: HashSet<String>,
+    /// All component instance names (lowercase) declared anywhere in the
+    /// program — via CREATE or via `DIM x AS <ComponentType>`. Maps the
+    /// original-case name (as written) to lowercase id. Used to detect
+    /// when an RHS identifier (e.g. `Label1.Parent = Form1`) refers to
+    /// a component instance, so we emit `LoadConst(v_str("form1"))` +
+    /// `SetProp` instead of trying to load a non-existent global.
+    component_instance_names: HashMap<String, String>,
 }
 
 struct LoopCtx {
@@ -101,12 +112,25 @@ impl Bcgen {
             _with_object: None,
             loop_stack: Vec::new(),
             create_stack: Vec::new(),
+            create_declared_names: HashSet::new(),
+            component_instance_names: HashMap::new(),
         }
     }
 
     // ------------------- top-level driver -------------------
 
     fn compile_program(&mut self, program: &Program) -> Result<(), String> {
+        // Pass 0: collect every name declared via CREATE (recursively, into
+        // nested CREATE bodies and into SUB / FUNCTION bodies). Used to
+        // avoid double-creating components in a later DIM lowering.
+        collect_create_names(&program.statements, &mut self.create_declared_names);
+        // Pass 0b: collect every component instance name (both CREATE and
+        // DIM) — used to detect RHS identifiers that refer to a component.
+        collect_component_instance_names(
+            &program.statements,
+            &mut self.component_instance_names,
+        );
+
         // Pass 1: collect SUB / FUNCTION declarations so forward references work.
         let mut subs: Vec<&SubroutineStatement> = Vec::new();
         let mut funcs: Vec<&FunctionStatement> = Vec::new();
@@ -239,6 +263,22 @@ impl Bcgen {
                 // Declare locals; initial value Null is already the default.
                 for decl in &d.declarators {
                     self.scope.declare(&decl.name);
+                    // Component DIM → eagerly CreateComp (mirrors the
+                    // compiled-mode `emit_dim` path), unless a CREATE block
+                    // already declares the same name.
+                    if is_component_type_name(&d.type_name) {
+                        let lower = decl.name.to_lowercase();
+                        if !self.create_declared_names.contains(&lower) {
+                            let kind_s = self.module.add_string(&d.type_name.to_uppercase());
+                            let id_s = self.module.add_string(&decl.name);
+                            emit(code, Op::CreateComp);
+                            push_u32(code, kind_s); push_u32(code, id_s);
+                            emit(code, Op::Pop);
+                            if d.type_name.eq_ignore_ascii_case("RTIMER") {
+                                self.emit_register_timer(&decl.name, code);
+                            }
+                        }
+                    }
                 }
             }
             Statement::Create(c) => self.lower_create(c, code, lines)?,
@@ -371,10 +411,102 @@ impl Bcgen {
                 }
             }
         }
+        // Top-level (outside CREATE) `Obj.OnEvent = Handler` — emit
+        // RegisterEvent so DOM/FLTK callbacks reach the bytecode SUB.
+        if let (Expression::MemberAccess(m), Expression::Identifier(rhs_id)) =
+            (&a.target, &a.value)
+        {
+            if let Expression::Identifier(obj) = &*m.object {
+                if m.member.to_lowercase().starts_with("on") {
+                    if let Some(&fi) = self.fn_indices.get(&rhs_id.name) {
+                        let id_s = self.module.add_string(&obj.name);
+                        let ev_s = self.module.add_string(&m.member);
+                        emit(code, Op::RegisterEvent);
+                        push_u32(code, id_s); push_u32(code, ev_s); push_u32(code, fi);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        // Top-level `Comp.Prop = OtherComp` (e.g. `Label1.Parent = Form1`):
+        // RHS is an identifier referring to a component instance. The
+        // component name was never stored as a global (the CreateComp result
+        // was popped), so a normal LoadGlobal would push v_null. Mirror the
+        // codegen-rust behaviour by lowering it to a string literal of the
+        // component id, then SetProp.
+        if let (Expression::MemberAccess(m), Expression::Identifier(rhs_id)) =
+            (&a.target, &a.value)
+        {
+            if let Expression::Identifier(obj) = &*m.object {
+                if self.component_instance_names.contains_key(&rhs_id.name.to_lowercase()) {
+                    let cs = self.module.add_const(Const::Str(rhs_id.name.clone()));
+                    emit(code, Op::LoadConst);
+                    push_u32(code, cs);
+                    let id_s = self.module.add_string(&obj.name);
+                    let nm_s = self.module.add_string(&m.member);
+                    emit(code, Op::SetProp);
+                    push_u32(code, id_s); push_u32(code, nm_s);
+                    return Ok(());
+                }
+            }
+        }
+        // Top-level nested member-access assignment:
+        // `Form1.Font.Size = 12` → SetProp(form1, "font.size", 12).
+        // Mirrors codegen-rust's `comp.Sub.Prop = value` path.
+        if let Expression::MemberAccess(m) = &a.target {
+            if let Expression::MemberAccess(inner) = &*m.object {
+                if let Expression::Identifier(obj) = &*inner.object {
+                    self.lower_expr(&a.value, code)?;
+                    let id_s = self.module.add_string(&obj.name);
+                    let combo = format!(
+                        "{}.{}",
+                        inner.member.to_lowercase(),
+                        m.member.to_lowercase()
+                    );
+                    let nm_s = self.module.add_string(&combo);
+                    emit(code, Op::SetProp);
+                    push_u32(code, id_s); push_u32(code, nm_s);
+                    return Ok(());
+                }
+            }
+        }
         // Inside a CREATE block, a bare-identifier LHS is a property of the
         // current instance — emit SetProp instead of StoreLocal/StoreGlobal.
         if let Some(inst) = self.create_stack.last().cloned() {
+            // Inside CREATE: `Font.Size = 12` (MemberAccess LHS where the
+            // object is a bare identifier, e.g. `Font`) — lower as
+            // SetProp(inst, "font.size", value). Mirrors codegen-rust.
+            if let Expression::MemberAccess(m) = &a.target {
+                if let Expression::Identifier(sub_id) = &*m.object {
+                    self.lower_expr(&a.value, code)?;
+                    let id_s = self.module.add_string(&inst);
+                    let combo = format!(
+                        "{}.{}",
+                        sub_id.name.to_lowercase(),
+                        m.member.to_lowercase()
+                    );
+                    let nm_s = self.module.add_string(&combo);
+                    emit(code, Op::SetProp);
+                    push_u32(code, id_s); push_u32(code, nm_s);
+                    return Ok(());
+                }
+            }
             if let Expression::Identifier(lhs_id) = &a.target {
+                // If RHS is a component-instance identifier, lower it as a
+                // string literal (component id) rather than a variable load
+                // — same reason as the top-level case above.
+                if let Expression::Identifier(rhs_id) = &a.value {
+                    if self.component_instance_names.contains_key(&rhs_id.name.to_lowercase()) {
+                        let cs = self.module.add_const(Const::Str(rhs_id.name.clone()));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, cs);
+                        let id_s = self.module.add_string(&inst);
+                        let nm_s = self.module.add_string(&lhs_id.name);
+                        emit(code, Op::SetProp);
+                        push_u32(code, id_s); push_u32(code, nm_s);
+                        return Ok(());
+                    }
+                }
                 self.lower_expr(&a.value, code)?;
                 let id_s = self.module.add_string(&inst);
                 let nm_s = self.module.add_string(&lhs_id.name);
@@ -465,6 +597,39 @@ impl Bcgen {
             self.lower_expr(a, code)?;
         }
         let argc = c.args.len() as u8;
+        // Module-style call: `math.sqrt(x)` or `RNum.zeros(n)` — route to
+        // builtin (mirrors `builtin_function_call` in codegen-rust).
+        if let Expression::MemberAccess(m) = &c.callee {
+            if let Expression::Identifier(obj) = &*m.object {
+                if obj.name.eq_ignore_ascii_case("math") || is_component_type_name(&obj.name) {
+                    let s = self.module.add_string(&m.member.to_lowercase());
+                    emit(code, Op::CallBuiltin);
+                    push_u32(code, s); code.push(argc);
+                    emit(code, Op::Pop);
+                    return Ok(());
+                }
+            }
+            // Nested static call: Type.namespace.method(args)
+            // e.g. RNum.random.randint() → builtin "random_randint".
+            if let Expression::MemberAccess(inner) = &*m.object {
+                if let Expression::Identifier(id) = &*inner.object {
+                    if is_component_type_name(&id.name)
+                        || id.name.eq_ignore_ascii_case("math")
+                    {
+                        let combined = format!(
+                            "{}_{}",
+                            inner.member.to_lowercase(),
+                            m.member.to_lowercase()
+                        );
+                        let s = self.module.add_string(&combined);
+                        emit(code, Op::CallBuiltin);
+                        push_u32(code, s); code.push(argc);
+                        emit(code, Op::Pop);
+                        return Ok(());
+                    }
+                }
+            }
+        }
         if let Expression::Identifier(id) = &c.callee {
             if let Some(&fi) = self.fn_indices.get(&id.name) {
                 let is_func = *self.fn_is_func.get(&id.name).unwrap_or(&false);
@@ -686,17 +851,44 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
-        let kind_s = self.module.add_string(&c.type_name);
+        let kind_s = self.module.add_string(&c.type_name.to_uppercase());
         let id_s = self.module.add_string(&c.name);
         emit(code, Op::CreateComp);
         push_u32(code, kind_s); push_u32(code, id_s);
         emit(code, Op::Pop); // discard returned reference for now
+        // Nested CREATE: link this child to its parent so the runtime
+        // can place / reparent the widget. Mirrors codegen-rust
+        // `emit_create` → `rp_comp_set(name, "parent", v_str(parent))`.
+        if let Some(parent) = self.create_stack.last().cloned() {
+            let pv = self.module.add_const(Const::Str(parent));
+            emit(code, Op::LoadConst); push_u32(code, pv);
+            let id2 = self.module.add_string(&c.name);
+            let pn = self.module.add_string("parent");
+            emit(code, Op::SetProp);
+            push_u32(code, id2); push_u32(code, pn);
+        }
         self.create_stack.push(c.name.clone());
         for s in &c.body {
             self.lower_stmt(s, code, lines)?;
         }
         self.create_stack.pop();
+        // RTIMER must be registered with the GUI tick loop, same as the
+        // compiled mode.
+        if c.type_name.eq_ignore_ascii_case("RTIMER") {
+            self.emit_register_timer(&c.name, code);
+        }
         Ok(())
+    }
+
+    /// Emit a `CallBuiltin("__gui_register_timer", [name])` op. The host
+    /// dispatches this to `gui_register_timer` in its runtime crate.
+    fn emit_register_timer(&mut self, name: &str, code: &mut Vec<u8>) {
+        let nv = self.module.add_const(Const::Str(name.to_string()));
+        emit(code, Op::LoadConst); push_u32(code, nv);
+        let bi = self.module.add_string("__gui_register_timer");
+        emit(code, Op::CallBuiltin);
+        push_u32(code, bi); code.push(1u8);
+        emit(code, Op::Pop);
     }
 
     fn lower_bind(&mut self, b: &BindStatement, code: &mut Vec<u8>) -> Result<(), String> {
@@ -767,6 +959,39 @@ impl Bcgen {
             Expression::FunctionCall(fc) => {
                 for a in &fc.args { self.lower_expr(a, code)?; }
                 let argc = fc.args.len() as u8;
+                // Module-style call: `math.sqrt(x)`, `RNum.zeros(n)` →
+                // builtin (mirrors codegen-rust's `builtin_function_call`).
+                if let Expression::MemberAccess(m) = &*fc.callee {
+                    if let Expression::Identifier(obj) = &*m.object {
+                        if obj.name.eq_ignore_ascii_case("math")
+                            || is_component_type_name(&obj.name)
+                        {
+                            let s = self.module.add_string(&m.member.to_lowercase());
+                            emit(code, Op::CallBuiltin);
+                            push_u32(code, s); code.push(argc);
+                            return Ok(());
+                        }
+                    }
+                    // Nested static call: Type.namespace.method(args)
+                    // e.g. RNum.random.randint() → builtin "random_randint".
+                    if let Expression::MemberAccess(inner) = &*m.object {
+                        if let Expression::Identifier(id) = &*inner.object {
+                            if is_component_type_name(&id.name)
+                                || id.name.eq_ignore_ascii_case("math")
+                            {
+                                let combined = format!(
+                                    "{}_{}",
+                                    inner.member.to_lowercase(),
+                                    m.member.to_lowercase()
+                                );
+                                let s = self.module.add_string(&combined);
+                                emit(code, Op::CallBuiltin);
+                                push_u32(code, s); code.push(argc);
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
                 if let Expression::Identifier(id) = &*fc.callee {
                     if let Some(&fi) = self.fn_indices.get(&id.name) {
                         let is_func = *self.fn_is_func.get(&id.name).unwrap_or(&false);
@@ -819,6 +1044,19 @@ impl Bcgen {
                     push_u32(code, id_s); push_u32(code, nm_s);
                     return Ok(());
                 }
+                // Nested member access: a.b.c → GetProp(a, "b.c").
+                // Mirrors codegen-rust's flattening for sub-properties
+                // like Form1.Font.Size, df.Names.Length, etc.
+                if let Expression::MemberAccess(inner) = &*m.object {
+                    if let Expression::Identifier(obj) = &*inner.object {
+                        let id_s = self.module.add_string(&obj.name);
+                        let combo = format!("{}.{}", inner.member.to_lowercase(), m.member.to_lowercase());
+                        let nm_s = self.module.add_string(&combo);
+                        emit(code, Op::GetProp);
+                        push_u32(code, id_s); push_u32(code, nm_s);
+                        return Ok(());
+                    }
+                }
                 Err("nested member access not yet supported".into())
             }
             Expression::ArrayAccess(a) => {
@@ -853,6 +1091,101 @@ fn push_u16(code: &mut Vec<u8>, v: u16) { code.extend_from_slice(&v.to_le_bytes(
 fn push_u32(code: &mut Vec<u8>, v: u32) { code.extend_from_slice(&v.to_le_bytes()); }
 fn patch_u32(code: &mut [u8], at: usize, v: u32) {
     code[at..at + 4].copy_from_slice(&v.to_le_bytes());
+}
+
+/// Mirror of `rapidr_codegen_rust::is_component_type_name` (kept as a
+/// local copy so bcgen has no runtime-crate dependency).
+fn is_component_type_name(type_name: &str) -> bool {
+    matches!(
+        type_name.to_uppercase().as_str(),
+        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL"
+        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX"
+        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
+        | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
+        | "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
+        | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
+        | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER"
+        | "RFILESTREAM" | "RSTRINGLIST" | "RTRACKBAR" | "RPRINTER"
+        | "RSPLITTER" | "RSCROLLBOX"
+        | "RSQLITE" | "RMYSQL"
+        | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
+        | "RLISTVIEW" | "RPROGRESSBAR"
+        | "RNUM" | "RDATAFRAME" | "RPLOT"
+        | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
+        | "RCOOLBTN" | "ROVALBTN"
+        | "RJSON"
+        // Web-exclusive components
+        | "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE"
+        | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION" | "RWEBGEOLOCATION"
+        | "RROUTER"
+    )
+}
+
+/// Recursively walk every statement, collecting names declared via
+/// `CREATE` (lowercase) into `out`. Recurses into CREATE bodies, SUB /
+/// FUNCTION bodies, IF / FOR / WHILE / DO / WITH / SELECT bodies.
+fn collect_create_names(stmts: &[Statement], out: &mut HashSet<String>) {
+    for stmt in stmts {
+        match stmt {
+            Statement::Create(c) => {
+                out.insert(c.name.to_lowercase());
+                collect_create_names(&c.body, out);
+            }
+            Statement::Subroutine(s) => collect_create_names(&s.body, out),
+            Statement::Function(f) => collect_create_names(&f.body, out),
+            Statement::If(i) => {
+                collect_create_names(&i.then_body, out);
+                for b in &i.elseif_branches { collect_create_names(&b.body, out); }
+                collect_create_names(&i.else_body, out);
+            }
+            Statement::For(f) => collect_create_names(&f.body, out),
+            Statement::While(w) => collect_create_names(&w.body, out),
+            Statement::DoLoop(d) => collect_create_names(&d.body, out),
+            Statement::With(w) => collect_create_names(&w.body, out),
+            Statement::SelectCase(s) => {
+                for c in &s.cases { collect_create_names(&c.body, out); }
+                collect_create_names(&s.case_else, out);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Collect every component instance name (declared via either CREATE or
+/// `DIM x AS <ComponentType>`) anywhere in the program. Maps lowercase
+/// id → original-case name as written.
+fn collect_component_instance_names(stmts: &[Statement], out: &mut HashMap<String, String>) {
+    for stmt in stmts {
+        match stmt {
+            Statement::Create(c) => {
+                out.insert(c.name.to_lowercase(), c.name.clone());
+                collect_component_instance_names(&c.body, out);
+            }
+            Statement::Dim(d) => {
+                if is_component_type_name(&d.type_name) {
+                    for decl in &d.declarators {
+                        out.insert(decl.name.to_lowercase(), decl.name.clone());
+                    }
+                }
+            }
+            Statement::Subroutine(s) => collect_component_instance_names(&s.body, out),
+            Statement::Function(f) => collect_component_instance_names(&f.body, out),
+            Statement::If(i) => {
+                collect_component_instance_names(&i.then_body, out);
+                for b in &i.elseif_branches { collect_component_instance_names(&b.body, out); }
+                collect_component_instance_names(&i.else_body, out);
+            }
+            Statement::For(f) => collect_component_instance_names(&f.body, out),
+            Statement::While(w) => collect_component_instance_names(&w.body, out),
+            Statement::DoLoop(d) => collect_component_instance_names(&d.body, out),
+            Statement::With(w) => collect_component_instance_names(&w.body, out),
+            Statement::SelectCase(s) => {
+                for c in &s.cases { collect_component_instance_names(&c.body, out); }
+                collect_component_instance_names(&s.case_else, out);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn stmt_line(_s: &Statement) -> u32 {

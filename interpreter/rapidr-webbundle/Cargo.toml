@@ -5,4 +5,5 @@ edition = "2021"
 description = "Build a downloadable static-hostable web bundle (.zip) from a .rrbc + rapidrintr.wasm/js."
 
 [dependencies]
+rapidr-rrcss = { workspace = true }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }

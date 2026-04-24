@@ -202,6 +202,12 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "math.pi" | "pi" => v_dbl(std::f64::consts::PI),
         "math.e" | "e" => v_dbl(std::f64::consts::E),
 
+        // GUI plumbing emitted by bcgen
+        "__gui_register_timer" => {
+            if let Value::String(s) = &a0 { rapidr_runtime_web::object_web::gui_register_timer(s); }
+            v_null()
+        }
+
         _ => v_null(),
     }
 }
@@ -278,6 +284,10 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     vm.run(module).map_err(|e| JsValue::from_str(&format!("vm error: {e}")))?;
 
     if vm.host_mut().has_components {
+        // Mirror compiled-mode codegen: after `__main` returns, finalize
+        // the DOM tree (parents form windows, applies title-bars, shows
+        // the entry form). Without this nothing is visible.
+        rapidr_runtime_web::gui_web::gui_web_finalize();
         install_dispatcher::<WebHost>(module as *const _, vm as *mut _);
     }
     Ok(())

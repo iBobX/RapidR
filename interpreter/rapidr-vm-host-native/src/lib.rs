@@ -215,6 +215,12 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "math.pi" | "pi" => v_dbl(std::f64::consts::PI),
         "math.e" | "e" => v_dbl(std::f64::consts::E),
 
+        // GUI plumbing emitted by bcgen
+        "__gui_register_timer" => {
+            if let Value::String(s) = &a0 { gui_register_timer(s); }
+            v_null()
+        }
+
         _ => v_null(),
     }
 }

@@ -9,6 +9,7 @@ members = [
     "crates/rapidr-preprocessor",
     "crates/rapidr-runtime-core",
     "crates/rapidr-runtime-web",
+    "crates/rapidr-rrcss",
     "crates/rapidr-codegen-rust",
     "crates/rapidr-buildserver",
     "crates/rapidr-value",
@@ -35,6 +36,7 @@ rapidr-parser = { path = "crates/rapidr-parser" }
 rapidr-preprocessor = { path = "crates/rapidr-preprocessor" }
 rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
 rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
+rapidr-rrcss = { path = "crates/rapidr-rrcss" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
 rapidr-bytecode = { path = "interpreter/rapidr-bytecode" }

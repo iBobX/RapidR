@@ -1971,11 +1971,11 @@ pub fn rp_run_app() {
 }
 
 // ---------------------------------------------------------------------------
-// Theme — no-op on web (Tailwind CSS handles styling)
+// Theme — no-op on web (styling comes from rapidr-rrcss::RR_BASE_CSS)
 // ---------------------------------------------------------------------------
 
 pub fn set_theme(_theme: &str) {
-    // Themes don't apply to web — Tailwind provides the styling
+    // Themes don't apply to web — the shared RR_BASE_CSS provides the styling
 }
 
 pub fn gui_register_timer(_name: &str) {

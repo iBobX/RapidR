@@ -3296,6 +3296,7 @@ dependencies = [
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-rrcss",
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
@@ -3352,6 +3353,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-rrcss"
+version = "1.0.0"
+
+[[package]]
 name = "rapidr-runner-stub"
 version = "1.0.0"
 dependencies = [
@@ -3383,6 +3388,7 @@ name = "rapidr-runtime-web"
 version = "1.0.0"
 dependencies = [
  "js-sys",
+ "rapidr-rrcss",
  "rapidr-value",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3428,6 +3434,7 @@ dependencies = [
 name = "rapidr-webbundle"
 version = "1.0.0"
 dependencies = [
+ "rapidr-rrcss",
  "zip",
 ]
 

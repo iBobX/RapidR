@@ -82,6 +82,7 @@ fn write_file<W: Write + std::io::Seek>(
 }
 
 fn render_index_html(title: &str, _project_name: &str) -> String {
+    let css = rapidr_rrcss::RR_BASE_CSS;
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -89,11 +90,9 @@ fn render_index_html(title: &str, _project_name: &str) -> String {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{title}</title>
-  <style>
-    html, body {{ margin: 0; padding: 0; font-family: system-ui, sans-serif; }}
-    #rapidr-status {{ position: fixed; top: 8px; right: 12px; font-size: 12px;
-                     color: #888; pointer-events: none; }}
-  </style>
+  <style>{css}
+#rapidr-status {{ position: fixed; top: 8px; right: 12px; font-size: 12px; color: #888; pointer-events: none; }}
+</style>
 </head>
 <body>
   <div id="rapidr-status">loading…</div>
