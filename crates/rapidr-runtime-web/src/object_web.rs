@@ -31,7 +31,14 @@ enum EventHandler {
     Arity3(fn(Value, Value, Value)),
     Arity4(fn(Value, Value, Value, Value)),
     Arity5(fn(Value, Value, Value, Value, Value)),
+    /// Opaque handler id (e.g. a bytecode function index) — invoked
+    /// through the registered indirect dispatcher.
+    Indirect(u32),
 }
+
+/// Type alias for the indirect event dispatcher used by the bytecode
+/// interpreter's WebHost. Receives `(handler_id, args)`.
+pub type IndirectDispatcher = Box<dyn Fn(u32, &[Value])>;
 
 thread_local! {
     static COMPONENTS: RefCell<HashMap<String, RpComponent>> = RefCell::new(HashMap::new());
@@ -39,6 +46,38 @@ thread_local! {
     static CREATION_COUNTER: RefCell<u32> = RefCell::new(0);
     static STRINGLISTS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
     static TIMER_HANDLES: RefCell<HashMap<String, i32>> = RefCell::new(HashMap::new());
+    static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
+}
+
+/// Install a thread-local indirect event dispatcher (used by the
+/// bytecode VM's WebHost). Returns the previously-installed one.
+pub fn rp_set_event_dispatcher(d: IndirectDispatcher) -> Option<IndirectDispatcher> {
+    INDIRECT_DISPATCHER.with(|s| s.borrow_mut().replace(d))
+}
+
+/// Remove the indirect event dispatcher (returns it if present).
+pub fn rp_clear_event_dispatcher() -> Option<IndirectDispatcher> {
+    INDIRECT_DISPATCHER.with(|s| s.borrow_mut().take())
+}
+
+/// Bind an indirect event handler (carries an opaque id, e.g. a
+/// bytecode function index).
+pub fn rp_bind_event_indirect(name: &str, event: &str, handler_id: u32) {
+    let uname = name.to_uppercase();
+    let levent = event.to_lowercase();
+    EVENT_HANDLERS.with(|eh| {
+        eh.borrow_mut()
+            .insert((uname.clone(), levent.clone()), EventHandler::Indirect(handler_id));
+    });
+    bind_dom_event(&uname, &levent);
+}
+
+fn dispatch_indirect(handler_id: u32, args: &[Value]) {
+    INDIRECT_DISPATCHER.with(|slot| {
+        if let Some(d) = slot.borrow().as_ref() {
+            d(handler_id, args);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -1319,6 +1358,7 @@ pub fn rp_fire_event(name: &str, event: &str) {
             match handler {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(v_null()),
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[]),
                 _ => {}
             }
         }
@@ -1335,6 +1375,7 @@ pub fn rp_fire_event_1(name: &str, event: &str, arg: Value) {
             match handler {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(arg.clone()),
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[arg.clone()]),
                 _ => {}
             }
         }
@@ -1352,6 +1393,7 @@ pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(arg1.clone()),
                 EventHandler::Arity2(f) => f(arg1.clone(), arg2.clone()),
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[arg1.clone(), arg2.clone()]),
                 _ => {}
             }
         }
@@ -1382,6 +1424,7 @@ pub fn rp_fire_event_5(
                 EventHandler::Arity5(f) => {
                     f(a1.clone(), a2.clone(), a3.clone(), a4.clone(), a5.clone())
                 }
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[a1.clone(), a2.clone(), a3.clone(), a4.clone(), a5.clone()]),
             }
         }
     });

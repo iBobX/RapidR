@@ -288,6 +288,35 @@ The transpilation pipeline mirrors a classic multi-pass compiler:
 | AST Nodes | `rapidr-ast` | Shared AST data structures: program, statement, declaration, expression nodes |
 | Code Generation | `rapidr-codegen-rust` | Walks the AST and emits Rust source code targeting `rapidr-runtime-core` |
 
+### Bytecode Pipeline (`rapidrintr`)
+
+In addition to the Rust-codegen path, RapidR ships a portable **bytecode
+interpreter** (`rapidrintr`). The same source can be compiled to a
+compact `.rrbc` artifact and executed by a stack VM — natively on
+desktop/console *or* in the browser via WebAssembly. No re-compile step
+is needed to ship to the web.
+
+| Stage | Crate | Description |
+|-------|-------|-------------|
+| Bytecode format | `rapidr-bytecode` | `RRBC` magic + ~50 stack opcodes, hand-rolled little-endian (de)serialisation |
+| Bytecode generator | `rapidr-bcgen` | Lowers AST → bytecode (mirrors `rapidr-codegen-rust`) |
+| Stack VM | `rapidr-vm` | `Vm<Host>` interpreter with frames, globals, and a small `Host` trait |
+| Native host | `rapidr-vm-host-native` | `Host` impl backed by `rapidr-runtime-core` (FLTK, sockets, SQLite, FFI) |
+| Web host | `rapidr-vm-host-web` | `Host` impl backed by `rapidr-runtime-web` (DOM, canvas) — `wasm-bindgen` cdylib |
+| In-browser compiler | `rapidr-compiler-wasm` | `wasm-bindgen` wrapper exposing `compile(source) -> Vec<u8>` |
+| Web bundler | `rapidr-webbundle` | Builds a static `.zip` containing `index.html`, `loader.js`, `rapidrintr.{wasm,js}`, `<project>.rrbc` |
+
+CLI entry points:
+
+```sh
+rapidr build-bc  hello.rr -o hello.rrbc        # source -> bytecode
+rapidr run-bc    hello.rrbc                    # run via NativeHost
+rapidr bundle-bc hello.rr -o hello-web.zip     # source -> hostable web bundle
+```
+
+The bundle is fully static: unzip and serve from any HTTP host
+(GitHub Pages, S3, plain nginx, `python3 -m http.server`).
+
 ---
 
 ## Preprocessor Directives

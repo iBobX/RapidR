@@ -157,6 +157,10 @@ The extension integrates directly with the RapidR compiler (`rapidr`) so you nev
 | Compile current file | `Ctrl+Shift+B` (`Cmd+Shift+B` on Mac) | *RapidR: Compile Current File* |
 | Compile and run | `F5` | *RapidR: Compile and Run* |
 | Build standalone executable | — | *RapidR: Build Standalone Executable* |
+| Compile for Web (WASM) | `Ctrl+Shift+W` (`Cmd+Shift+W` on Mac) | *RapidR: Compile for Web (WASM)* |
+| Build bytecode (`.rrbc`) | — | *RapidR: Build Bytecode (.rrbc)* |
+| Build & run bytecode | — | *RapidR: Build and Run Bytecode* |
+| Build static web bundle (`.zip`) | — | *RapidR: Build Web Bundle (.zip)* |
 
 Additionally:
 - A **play button** appears in the editor title bar when a `.rr` file is active.

@@ -913,6 +913,103 @@ for d in examples/*_rust; do (cd "$d" && cargo clean); done
 
 ---
 
+## 6c. Bytecode Interpreter (`rapidrintr`)
+
+The bytecode pipeline lives under `interpreter/` and runs alongside the
+existing Rust-codegen path. It compiles RapidR source to a compact
+`.rrbc` artifact and executes it on a stack VM. The same `.rrbc` runs
+on desktop (linked into the CLI) **or** in the browser (loaded by
+`rapidrintr.wasm`) — no source recompile required for the web target.
+
+### Crate Layout
+
+| Crate | Purpose |
+|-------|---------|
+| `interpreter/rapidr-bytecode` | RRBC binary format, opcodes, hand-rolled (de)serialise |
+| `interpreter/rapidr-vm` | Stack VM + `Host` trait (runtime-agnostic) |
+| `interpreter/rapidr-bcgen` | AST → bytecode lowering |
+| `interpreter/rapidr-vm-host-native` | `Host` impl backed by `rapidr-runtime-core` |
+| `interpreter/rapidr-vm-host-web` | `Host` impl backed by `rapidr-runtime-web` (cdylib for wasm) |
+| `interpreter/rapidr-compiler-wasm` | wasm-bindgen wrapper exposing `compile(src) -> Vec<u8>` |
+| `interpreter/rapidr-webbundle` | Builds a static `.zip` (index.html + loader.js + wasm + rrbc) |
+
+### Bytecode Format (`.rrbc`)
+
+- Magic `RRBC` + `version: u16` (currently `1`).
+- Constants pool (strings, integers, floats), function table, optional
+  debug-info side-table.
+- ~50 stack opcodes: `LOAD_CONST`, `LOAD_LOCAL`, `STORE_LOCAL`,
+  `LOAD_GLOBAL`, `STORE_GLOBAL`, `ADD/SUB/MUL/DIV/MOD/POW/NEG`,
+  `EQ/NE/LT/LE/GT/GE`, `AND/OR/NOT/XOR/BAND/BOR/BNOT/SHL/SHR`,
+  `CONCAT`, `JUMP/JUMP_IF/JUMP_IFNOT`, `CALL_SUB/CALL_FUNC/RET/RET_VAL`,
+  `CALL_BUILTIN`, `NEW_ARRAY/AGET/ASET/REDIM`,
+  `CREATE_COMP/SET_PROP/GET_PROP/CALL_METHOD/REGISTER_EVENT`,
+  `WITH_PUSH/WITH_POP`, `PRINT/INPUT`, `NULL/TRUE/FALSE`, `HALT`, `NOP`.
+
+### Host Trait
+
+Both runtimes implement the same `Host` surface:
+
+```rust
+pub trait Host {
+    fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String>;
+    fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String>;
+    fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String>;
+    fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String>;
+    fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String>;
+    fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String>;
+    fn print(&mut self, s: &str) -> Result<(), String>;
+    fn input(&mut self) -> Result<String, String>;
+}
+```
+
+Event re-entry uses an indirect-dispatch hook
+(`EventHandler::Indirect(u32)` + a thread-local closure) so DOM/FLTK
+callbacks invoke `Vm::invoke_function` on the parked VM instance.
+
+### CLI
+
+```sh
+rapidr build-bc  hello.rr [-o hello.rrbc]                  # compile to .rrbc
+rapidr run-bc    hello.rrbc                                # run via NativeHost
+rapidr bundle-bc hello.rr [-o hello-web.zip]               # static web bundle
+rapidr bundle-bc hello.rr --wasm path/to/rapidrintr.wasm \
+                          --js   path/to/rapidrintr.js     # explicit artifacts
+```
+
+`bundle-bc` auto-locates the bytecode interpreter wasm/js under
+`target/web/`, `target/web-bundle/`,
+`interpreter/rapidr-vm-host-web/pkg/`, or `pkg/`. Override with
+`--wasm`/`--js`. Bundle layout:
+
+```text
+<project>-web.zip
+  index.html
+  loader.js          (ES module: init wasm → fetch .rrbc → run_bc)
+  rapidrintr.js
+  rapidrintr.wasm
+  <project>.rrbc
+```
+
+### Building the Web Artifacts
+
+```sh
+# Bytecode VM for browser
+wasm-pack build interpreter/rapidr-vm-host-web --target web --out-dir ../../target/web
+
+# (Optional) In-browser compiler — the IDE loads this lazily for "Run (local)"
+wasm-pack build interpreter/rapidr-compiler-wasm --target web --out-dir ../../target/web-compiler
+```
+
+### Coexistence with the Rust-codegen Path
+
+The bytecode pipeline is fully **opt-in**. All existing flags
+(`rapidr file.rr`, `rapidr --web file.rr`, etc.) continue to invoke the
+Rust-codegen pipeline unchanged. The `--bc` / `build-bc` / `run-bc` /
+`bundle-bc` subcommands are the only entry points to the new path.
+
+---
+
 ## 7. Code Generation Patterns
 
 ### Rust Code Generation (RapidR)

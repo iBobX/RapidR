@@ -66,6 +66,17 @@ function activate(context) {
         vscode.commands.registerCommand('rapidr.compileWebAndServe', () => compileWeb(true))
     );
 
+    // Bytecode pipeline (Phase 7)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.buildBc', () => bcCommand('build-bc'))
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.runBc', () => bcRunCommand())
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('rapidr.bundleBc', () => bcCommand('bundle-bc'))
+    );
+
     // Setup diagnostics
     const diagnostics = vscode.languages.createDiagnosticCollection('rapidr');
     context.subscriptions.push(diagnostics);
@@ -340,6 +351,45 @@ function validateDocument(document, diagnostics) {
     }
 
     diagnostics.set(document.uri, diags);
+}
+
+// ---- Phase 7: bytecode pipeline helpers ----
+
+function bcCommand(subcommand) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'rapidr') {
+        vscode.window.showWarningMessage('No RapidR file is open.');
+        return;
+    }
+    editor.document.save().then(() => {
+        const filePath = editor.document.uri.fsPath;
+        const compilerPath = findCompilerPath();
+        const cmd = `"${compilerPath}" ${subcommand} "${filePath}"`;
+        const terminal = vscode.window.createTerminal({ name: `RapidR ${subcommand}` });
+        terminal.sendText(cmd);
+        terminal.show();
+    });
+}
+
+function bcRunCommand() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'rapidr') {
+        vscode.window.showWarningMessage('No RapidR file is open.');
+        return;
+    }
+    editor.document.save().then(() => {
+        const path = require('path');
+        const filePath = editor.document.uri.fsPath;
+        const compilerPath = findCompilerPath();
+        const stem = path.basename(filePath, path.extname(filePath));
+        const dir = path.dirname(filePath);
+        const rrbc = path.join(dir, `${stem}.rrbc`);
+        // Compile to bytecode (placed next to source) then run it.
+        const cmd = `"${compilerPath}" build-bc "${filePath}" -o "${rrbc}" && "${compilerPath}" run-bc "${rrbc}"`;
+        const terminal = vscode.window.createTerminal({ name: 'RapidR run-bc' });
+        terminal.sendText(cmd);
+        terminal.show();
+    });
 }
 
 function deactivate() {}

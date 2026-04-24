@@ -9,6 +9,11 @@ rapidr-codegen-rust.workspace = true
 rapidr-lexer.workspace = true
 rapidr-parser.workspace = true
 rapidr-preprocessor.workspace = true
+rapidr-bcgen.workspace = true
+rapidr-bytecode.workspace = true
+rapidr-vm.workspace = true
+rapidr-vm-host-native = { workspace = true, features = ["full"] }
+rapidr-webbundle.workspace = true
 
 [[bin]]
 name = "rapidr"

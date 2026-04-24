@@ -1,0 +1,16 @@
+[package]
+name = "rapidr-bcgen"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "RapidR AST -> bytecode lowering"
+
+[dependencies]
+rapidr-ast = { workspace = true }
+rapidr-bytecode = { workspace = true }
+rapidr-value = { workspace = true }
+
+[dev-dependencies]
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-vm = { workspace = true }

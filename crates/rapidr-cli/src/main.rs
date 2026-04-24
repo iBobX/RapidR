@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{self, ExitCode};
 
 use rapidr_codegen_rust::AppTarget;
@@ -71,6 +71,33 @@ fn main() -> ExitCode {
             }
             build_source_file(&path, output_dir, release, web)
         }
+        (Some("build-bc"), Some(path)) => {
+            let mut out: Option<String> = None;
+            let mut iter = rest.iter();
+            while let Some(a) = iter.next() {
+                match a.as_str() {
+                    "-o" | "--output" => { out = iter.next().cloned(); }
+                    _ => {}
+                }
+            }
+            build_bytecode_file(&path, out)
+        }
+        (Some("run-bc"), Some(path)) => run_bytecode_file(&path),
+        (Some("bundle-bc"), Some(path)) => {
+            let mut out: Option<String> = None;
+            let mut wasm: Option<String> = None;
+            let mut js: Option<String> = None;
+            let mut iter = rest.iter();
+            while let Some(a) = iter.next() {
+                match a.as_str() {
+                    "-o" | "--output" => { out = iter.next().cloned(); }
+                    "--wasm" => { wasm = iter.next().cloned(); }
+                    "--js" => { js = iter.next().cloned(); }
+                    _ => {}
+                }
+            }
+            bundle_bc_file(&path, out, wasm, js)
+        }
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
@@ -80,6 +107,10 @@ fn main() -> ExitCode {
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
             eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w]");
+            eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
+            eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
+            eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
+            eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
         }
     }
@@ -467,4 +498,169 @@ fn find_workspace_root() -> Option<std::path::PathBuf> {
         }
         dir = dir.parent()?;
     }
+}
+
+// ---------------- Bytecode (rapidrintr) ----------------
+
+fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {
+    let program = match parser_parse_file(path) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+    let compiled = match rapidr_bcgen::compile_program(&program) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+    };
+    for w in &compiled.warnings {
+        eprintln!("warning: {w}");
+    }
+    let bytes = compiled.module.to_bytes();
+    let out_path = output.unwrap_or_else(|| {
+        let p = Path::new(path);
+        let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("program");
+        format!("{stem}.rrbc")
+    });
+    if let Err(e) = fs::write(&out_path, &bytes) {
+        eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
+    }
+    println!("wrote {} ({} bytes, {} fns, {} consts)",
+        out_path, bytes.len(),
+        compiled.module.functions.len(),
+        compiled.module.consts.len());
+    ExitCode::SUCCESS
+}
+
+fn run_bytecode_file(path: &str) -> ExitCode {
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("read {path}: {e}"); return ExitCode::from(1); }
+    };
+    let module = match rapidr_bytecode::Module::from_bytes(&bytes) {
+        Ok(m) => m,
+        Err(e) => { eprintln!("decode error: {e}"); return ExitCode::from(1); }
+    };
+    let mut host = rapidr_vm_host_native::NativeHost::default();
+    {
+        let mut vm = rapidr_vm::Vm::new(&mut host);
+        if let Err(e) = vm.run(&module) {
+            eprintln!("vm error: {e}");
+            return ExitCode::from(1);
+        }
+    }
+    if host.has_components {
+        let mut vm = rapidr_vm::Vm::new(&mut host);
+        rapidr_vm_host_native::run_event_loop(&module, &mut vm);
+    }
+    ExitCode::SUCCESS
+}
+
+/// `bundle-bc <file.rr> [-o out.zip] [--wasm rapidrintr.wasm] [--js rapidrintr.js]`
+///
+/// Compiles the source to bytecode, then assembles a static-hostable
+/// web bundle (zip) containing index.html, loader.js, the bytecode
+/// interpreter wasm + js, and the program's `.rrbc`. The `.wasm` and
+/// `.js` paths default to looking next to the rapidr binary or under
+/// `target/web/` (see [`locate_rapidrintr_artifacts`]).
+fn bundle_bc_file(
+    path: &str,
+    output: Option<String>,
+    wasm_path: Option<String>,
+    js_path: Option<String>,
+) -> ExitCode {
+    // 1. Compile source to bytecode.
+    let program = match parser_parse_file(path) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+    let compiled = match rapidr_bcgen::compile_program(&program) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+    };
+    for w in &compiled.warnings { eprintln!("warning: {w}"); }
+    let rrbc = compiled.module.to_bytes();
+
+    let stem = Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("program")
+        .to_string();
+
+    // 2. Locate rapidrintr.wasm + rapidrintr.js (user-supplied or defaults).
+    let (wasm_p, js_p) = match (wasm_path, js_path) {
+        (Some(w), Some(j)) => (PathBuf::from(w), PathBuf::from(j)),
+        (w_opt, j_opt) => match locate_rapidrintr_artifacts() {
+            Some((w, j)) => (
+                w_opt.map(PathBuf::from).unwrap_or(w),
+                j_opt.map(PathBuf::from).unwrap_or(j),
+            ),
+            None => {
+                eprintln!(
+                    "error: could not locate rapidrintr.wasm + rapidrintr.js\n\
+                     hint: build with `wasm-pack build interpreter/rapidr-vm-host-web --target web --out-dir ../../target/web`\n\
+                     or pass --wasm <path> --js <path>",
+                );
+                return ExitCode::from(1);
+            }
+        },
+    };
+    let wasm_bytes = match fs::read(&wasm_p) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("read {}: {e}", wasm_p.display()); return ExitCode::from(1); }
+    };
+    let js_text = match fs::read_to_string(&js_p) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("read {}: {e}", js_p.display()); return ExitCode::from(1); }
+    };
+
+    // 3. Build the bundle.
+    let bundle = match rapidr_webbundle::build_bundle(&rapidr_webbundle::BundleInputs {
+        project_name: &stem,
+        rrbc: &rrbc,
+        rapidrintr_wasm: &wasm_bytes,
+        rapidrintr_js: &js_text,
+        title: None,
+    }) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
+    };
+
+    // 4. Write to disk.
+    let out_path = output.unwrap_or_else(|| format!("{stem}-web.zip"));
+    if let Err(e) = fs::write(&out_path, &bundle) {
+        eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
+    }
+    println!(
+        "wrote {} ({} bytes) — unzip and serve via any static host",
+        out_path,
+        bundle.len(),
+    );
+    ExitCode::SUCCESS
+}
+
+/// Default lookup for the rapidrintr wasm/js artifacts produced by
+/// `wasm-pack build interpreter/rapidr-vm-host-web --target web`.
+/// Searches a few well-known locations relative to the current dir.
+fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
+    let candidates = [
+        Path::new("target/web"),
+        Path::new("target/web-bundle"),
+        Path::new("interpreter/rapidr-vm-host-web/pkg"),
+        Path::new("pkg"),
+    ];
+    for dir in candidates {
+        let wasm = dir.join("rapidrintr_bg.wasm");
+        let wasm_alt = dir.join("rapidr_vm_host_web_bg.wasm");
+        let js = dir.join("rapidrintr.js");
+        let js_alt = dir.join("rapidr_vm_host_web.js");
+        let w = if wasm.exists() { Some(wasm) }
+                else if wasm_alt.exists() { Some(wasm_alt) }
+                else { None };
+        let j = if js.exists() { Some(js) }
+                else if js_alt.exists() { Some(js_alt) }
+                else { None };
+        if let (Some(w), Some(j)) = (w, j) {
+            return Some((w, j));
+        }
+    }
+    None
 }
