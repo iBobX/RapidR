@@ -535,21 +535,14 @@ fn run_bytecode_file(path: &str) -> ExitCode {
         Ok(b) => b,
         Err(e) => { eprintln!("read {path}: {e}"); return ExitCode::from(1); }
     };
-    let module = match rapidr_bytecode::Module::from_bytes(&bytes) {
-        Ok(m) => m,
-        Err(e) => { eprintln!("decode error: {e}"); return ExitCode::from(1); }
-    };
-    let mut host = rapidr_vm_host_native::NativeHost::default();
-    {
-        let mut vm = rapidr_vm::Vm::new(&mut host);
-        if let Err(e) = vm.run(&module) {
-            eprintln!("vm error: {e}");
-            return ExitCode::from(1);
-        }
-    }
-    if host.has_components {
-        let mut vm = rapidr_vm::Vm::new(&mut host);
-        rapidr_vm_host_native::run_event_loop(&module, &mut vm);
+    // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
+    // indirect event dispatcher *before* `MAIN` runs — required for any
+    // program that calls `Form.ShowModal` from MAIN (the modal blocks
+    // in FLTK's own `app::wait()` loop, so events fire while we are
+    // still inside `vm.run`).
+    if let Err(e) = rapidr_vm_host_native::run_bytes(&bytes) {
+        eprintln!("{e}");
+        return ExitCode::from(1);
     }
     ExitCode::SUCCESS
 }

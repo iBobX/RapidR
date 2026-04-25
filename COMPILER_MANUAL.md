@@ -3,7 +3,7 @@
 > **Purpose:** This is a comprehensive reference for AI assistants (and humans) working on the RapidR transpiler. It documents the Rust workspace, language syntax, compiler internals, runtime architecture, known limitations, and coding patterns.
 > **Instructions for AI:** Always read this manual first when working on this repository. Keep this manual updated as features are added or changed.
 >
-> **Last Updated:** April 7, 2026
+> **Last Updated:** April 24, 2026
 
 ---
 
@@ -45,6 +45,8 @@
   - [6.4 Network (network.rs)](#64-network-networkrs)
   - [6.5 Data Science (datascience.rs)](#65-data-science-datasciencers)
 - [6b. Web Runtime (rapidr-runtime-web)](#6b-web-runtime-rapidr-runtime-web)
+- [6c. Bytecode Interpreter (rapidrintr)](#6c-bytecode-interpreter-rapidrintr)
+- [6d. Self-Hosted Web IDE (web-ide/)](#6d-self-hosted-web-ide-web-ide)
 - [7. Code Generation Patterns](#7-code-generation-patterns)
 - [8. Known Limitations & Gotchas](#8-known-limitations--gotchas)
 - [9. How to Add New Features](#9-how-to-add-new-features)
@@ -993,20 +995,235 @@ rapidr bundle-bc hello.rr --wasm path/to/rapidrintr.wasm \
 
 ### Building the Web Artifacts
 
-```sh
-# Bytecode VM for browser
-wasm-pack build interpreter/rapidr-vm-host-web --target web --out-dir ../../target/web
+The recommended invocation is the helper script, which builds the
+combined wasm (compiler + interpreter from a single cdylib) into
+`target/web/`:
 
-# (Optional) In-browser compiler — the IDE loads this lazily for "Run (local)"
-wasm-pack build interpreter/rapidr-compiler-wasm --target web --out-dir ../../target/web-compiler
+```sh
+bash tools/build_web_artifacts.sh
+# → target/web/rapidrintr.{js,wasm}
 ```
+
+Under the hood that runs:
+
+```sh
+wasm-pack build interpreter/rapidr-vm-host-web --target web \
+  --out-dir target/web --out-name rapidrintr --release
+```
+
+`rapidr-vm-host-web` was extended in April 2026 to depend on
+`rapidr-lexer`, `rapidr-parser`, `rapidr-preprocessor`, and `rapidr-bcgen`
+in addition to `rapidr-vm`/`rapidr-runtime-web`. It exports **two**
+`#[wasm_bindgen]` entry points from the same module:
+
+| Export | Signature | Purpose |
+|--------|-----------|---------|
+| `compile(source, project_name)` | `(String, String) → Result<Vec<u8>, JsValue>` | Preprocess → Lex → Parse → bcgen → bytes |
+| `rapidr_run_bc(bytes)` | `(Vec<u8>) → Result<(), JsValue>` | Boot a `WebHost`, decode `Module::from_bytes`, run the VM |
+
+This is what makes the self-contained web IDE possible — one wasm module
+holds the entire compile + run loop. The standalone
+`interpreter/rapidr-compiler-wasm` cdylib (compile-only) is still built
+when needed for environments that just want a smaller compiler payload.
 
 ### Coexistence with the Rust-codegen Path
 
 The bytecode pipeline is fully **opt-in**. All existing flags
 (`rapidr file.rr`, `rapidr --web file.rr`, etc.) continue to invoke the
-Rust-codegen pipeline unchanged. The `--bc` / `build-bc` / `run-bc` /
+Rust-codegen pipeline unchanged. The `--interp` / `build-bc` / `run-bc` /
 `bundle-bc` subcommands are the only entry points to the new path.
+
+---
+
+## 6d. Self-Hosted Web IDE (`web-ide/`) — v1.0.0
+
+The repository ships a fully self-contained, zero-backend browser IDE
+under `web-ide/`. It is plain HTML/JS — **not** a `.rr` program — and
+drives the combined `rapidrintr.wasm` from §6c.
+
+### Layout
+
+```
+web-ide/
+  index.html      Tabbed shell — MDI tabs (Design / Code per form), Preview, Properties
+  host.js         ~2100 LOC — boots wasm, renders UI, runs commands
+  model.js        Pure project / form / widget model + serializer (.rr text)
+  toolbox.js      TOOLBOX_GROUPS (3 groups, ~22 components) + isVisibleType()
+  preview.html    Sandboxed runtime iframe (used for both Preview and design surface)
+  zip.js          In-browser STORED PKZIP writer for the Build button
+  ide.css         Theme + property-grid + design-tray styles
+  vendor/monaco/  Monaco 0.52.2 (vendored MIT)
+  runtime/        Symlink → ../target/web (output of tools/build_web_artifacts.sh)
+```
+
+### Architectural Choices
+
+1. **One wasm, two roles.** `host.js` `import init, { compile, rapidr_run_bc }
+   from "./runtime/rapidrintr.js"`, then `await init()` once. The Preview
+   iframe also imports the same wasm. There is no second module.
+2. **Iframe-as-runtime.** Both the Preview pane and each form's design
+   surface are `<iframe src="./preview.html">`. The iframe self-announces
+   readiness via `postMessage({__rapidr_preview_ready:true})` (or
+   `__rapidr_design_ready:true` when launched with `?role=design`); the
+   parent waits for that signal before posting `{__rapidr_run: bytes}`.
+3. **WYSIWYG by construction.** The designer's "preview" *is* the
+   runtime running the actual generated `.rr` source. There is no
+   second renderer to maintain.
+4. **Build = same bytes as `rapidr bundle-bc`.** `zip.js` writes a
+   STORED-only PKZIP whose layout (`index.html`, `loader.js`,
+   `rapidrintr.js`, `rapidrintr_bg.wasm`, `<name>.rrbc`, optional
+   `assets/<name>`, `manifest.json`) mirrors
+   `interpreter/rapidr-webbundle::build_bundle`. Bundled `index.html`
+   ships a strict CSP meta tag.
+5. **Multi-form, VB6-style.** Each `RForm` in the project gets its own
+   pair of MDI tabs (`<form> [Design]` / `<form> [Code]`). Modules get
+   a `[Module]` tab. The project tree drives the active form.
+
+### Project Model (`model.js`)
+
+```js
+project = {
+  name: string,
+  forms: [{
+    id, name,
+    props: { caption, width, height, color, font, ... },
+    children: [widget],
+    code: { handlers: { OnClick: "Sub_Name", ... }, source: "..." }
+  }],
+  modules: [{ id, name, source }],
+  assets: [{ name, mime, dataUrl }],     // base64 dataURLs, packed into bundle
+  startupForm: id,
+}
+
+widget = {
+  name, type,
+  props: { left, top, width, height, ... },
+  code: { handlers: { OnClick: "Button1_OnClick" } }   // sub-name binding
+}
+```
+
+`serializeProject(project)` emits the full `.rr` source: `$APPTYPE WEB`,
+module sources, one `CREATE … END CREATE` per form (with widgets nested
+inside), a block of `Form.Event = SubName` bindings, the
+`<startup>.ShowModal` line, then each form's `code.source`.
+
+### Toolbox (`toolbox.js`)
+
+```js
+TOOLBOX_GROUPS = [
+  { name: "Common Controls", items: [...visible widgets...] },
+  { name: "Data & Web",      items: [...mixed visible + tray...] },
+  { name: "I/O & Storage",   items: [...non-visual only...] },
+];
+TOOLBOX = TOOLBOX_GROUPS.flatMap(g => g.items);    // backwards compat
+isVisibleType(type) → bool                          // tray vs form
+defaultsFor(type)   → property defaults
+```
+
+Non-visual widgets (`RTimer`, `RHttp`, `RSqlite`, `RFileStream`,
+`RWebStorage`, `RNum`, `RJson`, `RStringList`) drop into a dashed-border
+tray *below* the form, are click-selectable, and get a property grid
+just like visible ones.
+
+### Property Grid
+
+`renderProperties()` builds rows whose editor type is decided by
+`propType(key)`:
+
+| Type | Trigger | Editor |
+|------|---------|--------|
+| `enum`  | `widget.events[]` lookup or known enum prop | `<select>` |
+| `asset` | key in `ASSET_PROPS` (`picture`, `dataset`, `csvfile`, …) | text + `<select project-assets>` + `+` button |
+| `color` | key matches `/color\|background\|fill/` | text + native `<input type=color>` (live preview, OK confirms) |
+| `font`  | key matches `/^font/` | dialog with family / size / weight / style |
+| `bool`  | value is `true`/`false` | checkbox |
+| `number`| `typeof value === "number"` | number input |
+| `string`| else | text / textarea |
+
+Every commit calls `setProp(...)`, re-runs `serializeProject`, and
+re-renders the active design surface (debounced).
+
+### Asset Pipeline
+
+- *File → Upload Asset…* → `<input type=file>` → `FileReader.readAsDataURL`
+  → push `{name, mime, dataUrl}` onto `state.project.assets`.
+- *File → Manage Assets…* — list with sizes, individual remove.
+- Asset properties auto-suggest from the project asset list.
+- `serializeProjectModel` / `loadProjectModel` round-trip assets in JSON.
+- `buildBundleZip({…, assets, version})` decodes each dataURL, writes
+  `assets/<name>` as STORED (no recompression of pre-compressed
+  formats), and emits `manifest.json`:
+  ```json
+  { "rapidr_bundle": 1, "project": "...", "title": "...",
+    "ide_version": "1.0.0", "built_at": "...", "asset_count": N }
+  ```
+
+### Security Posture
+
+- All user-controlled strings interpolated into IDE DOM (form names,
+  module names, widget names in `<option>`) are run through
+  `escapeHtml()`. Property-grid values use `value=…` on real inputs,
+  not raw HTML.
+- No `eval()` or `new Function()` outside vendored Monaco +
+  wasm-bindgen glue.
+- Bundled `index.html` ships:
+  ```
+  Content-Security-Policy: default-src 'self';
+    script-src 'self' 'wasm-unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob:;
+    font-src 'self' data:;
+    connect-src 'self';
+    frame-src 'none'; object-src 'none'; base-uri 'self';
+  ```
+- Preview iframe is sandboxed (`allow-scripts allow-same-origin
+  allow-modals`).
+- Third-party attribution: [`LICENSES.md`](LICENSES.md).
+
+### Test Coverage
+
+| Test | Asserts |
+|------|---------|
+| `tests/web_ide_phaseF.mjs` | 12 — boot, smoke, regenerate |
+| `tests/web_ide_bugfixes.mjs` | 16 — long-tail regression sweep |
+| `tests/web_ide_round3.mjs` | 18 — multi-form, paste, About, modules |
+| `tests/web_ide_round4.mjs` | 11 — color/font realtime + OK, Build zip wires runtime |
+| `tests/web_ide_assets.mjs` | 6 — upload → propgrid → JSON round-trip → zip entry |
+| `tests/web_ide_e2e_build.mjs` | full E2E — drive IDE → Build → unzip → spawn 2nd HTTP server → click button → assert label updates |
+| `tests/web_smoke.mjs` | In-browser `compile()` ≡ native CLI for `hello_world.rr` |
+| `tests/web_matrix.mjs` | `rapidr bundle-bc` for every web example, served + opened in Chromium, no console errors |
+
+All eight (plus `tests/full_matrix.sh`) are kept green as part of the
+1.0 release checklist.
+
+### Subtle Bugs Already Found and Fixed
+
+- **Status bar clobber.** Design-surface iframe was overwriting the
+  parent's "ready" status. Fix: only the real Preview drives the
+  parent status bar.
+- **Iframe `load` race.** Parent posted bytecode before iframe's
+  top-level `await init()` resolved. Fix: iframe posts
+  `__rapidr_preview_ready` only after init resolves; parent waits.
+- **Design-surface state pile-up.** Without iframe reload, components
+  stacked. Fix: `cloneNode` the iframe element on every render.
+- **Built-zip ESM loader mismatch.** Loader `import init from
+  "./rapidrintr.js"` but the wasm-bindgen glue exports `__wbg_init` as
+  default. Fix: loader uses `import { __wbg_init as default } from …`
+  pattern; verified by Round-4 zip-byte test.
+- **Color/font picker discarding edits.** Native pickers fire `input`
+  → live preview only; `change` → commit. OK button now finalizes.
+- **XSS via crafted form name.** Loading a `.rrproj` whose form name
+  contained `<script>` was previously injected raw into `innerHTML`.
+  Fix: `escapeHtml()` on every interpolation site.
+
+### Legacy Web IDE (`examples/web_ide.rr` + `rapidr-buildserver`)
+
+The earlier flow — a `.rr` IDE compiled to wasm via the Rust-codegen
+path, talking to a local `rapidr-buildserver` HTTP service for compile /
+preview / export — still works and the crate is kept in the workspace
+for backwards compatibility. New work should target `web-ide/` instead;
+it has no server requirement, ships in a single static-file directory,
+and shares its compiler/runtime with `rapidr bundle-bc` outputs.
 
 ---
 

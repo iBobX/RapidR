@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RapidR IDE</title>
+  <link rel="stylesheet" href="./ide.css">
+  <link rel="stylesheet" href="./modern.css">
+</head>
+<body>
+  <!-- ─── Menu bar ──────────────────────────────────────────────── -->
+  <nav id="menubar">
+    <div class="menu" data-menu="file">File
+      <div class="menu-popup">
+        <div class="mi" data-cmd="project.new">New Project…</div>
+        <div class="mi" data-cmd="project.open">Open Project…</div>
+        <div class="mi" data-cmd="project.save">Save Project</div>
+        <div class="mi" data-cmd="project.saveas">Save Project As…</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="form.new">Add Form</div>
+        <div class="mi" data-cmd="form.delete">Remove Selected Form</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="asset.upload">Upload Asset…</div>
+        <div class="mi" data-cmd="asset.manage">Manage Assets…</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="example.load">Open Example…</div>
+      </div>
+    </div>
+    <div class="menu" data-menu="edit">Edit
+      <div class="menu-popup">
+        <div class="mi" data-cmd="edit.undo">Undo  Ctrl+Z</div>
+        <div class="mi" data-cmd="edit.redo">Redo  Ctrl+Y</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="edit.cut">Cut</div>
+        <div class="mi" data-cmd="edit.copy">Copy</div>
+        <div class="mi" data-cmd="edit.paste">Paste</div>
+        <div class="mi" data-cmd="edit.delete">Delete</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="edit.selectall">Select All</div>
+      </div>
+    </div>
+    <div class="menu" data-menu="view">View
+      <div class="menu-popup">
+        <div class="mi" data-cmd="view.code">Code        F7</div>
+        <div class="mi" data-cmd="view.designer">Object       Shift+F7</div>
+        <div class="mi" data-cmd="view.source">Full Source…</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="view.toggle.toolbox">Toolbox</div>
+        <div class="mi" data-cmd="view.toggle.project">Project Explorer</div>
+        <div class="mi" data-cmd="view.toggle.props">Properties Window</div>
+        <div class="mi" data-cmd="view.toggle.layout">Form Layout Window</div>
+        <div class="mi" data-cmd="view.toggle.output">Immediate / Output</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="view.theme.light">Theme: Light</div>
+        <div class="mi" data-cmd="view.theme.dark">Theme: Dark</div>
+        <div class="mi" data-cmd="view.theme.auto">Theme: System</div>
+      </div>
+    </div>
+    <div class="menu" data-menu="project">Project
+      <div class="menu-popup">
+        <div class="mi" data-cmd="form.new">Add Form</div>
+        <div class="mi" data-cmd="module.new">Add Module</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="project.props">Project Properties…</div>
+      </div>
+    </div>
+    <div class="menu" data-menu="format">Format
+      <div class="menu-popup">
+        <div class="mi" data-cmd="fmt.alignleft">Align Lefts</div>
+        <div class="mi" data-cmd="fmt.alignright">Align Rights</div>
+        <div class="mi" data-cmd="fmt.aligntop">Align Tops</div>
+        <div class="mi" data-cmd="fmt.alignbottom">Align Bottoms</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="fmt.samewidth">Make Same Width</div>
+        <div class="mi" data-cmd="fmt.sameheight">Make Same Height</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="fmt.center.h">Center Horizontally</div>
+        <div class="mi" data-cmd="fmt.center.v">Center Vertically</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="fmt.tofront">Bring to Front</div>
+        <div class="mi" data-cmd="fmt.toback">Send to Back</div>
+      </div>
+    </div>
+    <div class="menu" data-menu="run">Run
+      <div class="menu-popup">
+        <div class="mi" data-cmd="run.start">Start  F5</div>
+        <div class="mi" data-cmd="run.stop">Stop   Shift+F5</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="run.build">Build .zip Bundle…</div>
+      </div>
+    </div>
+    <div class="menu" data-menu="help">Help
+      <div class="menu-popup">
+        <div class="mi" data-cmd="help.about">About RapidR IDE</div>
+        <div class="mi" data-cmd="help.license">License…</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── Toolbar ──────────────────────────────────────────────── -->
+  <div id="toolbar">
+    <button class="tb" data-cmd="project.new"  title="New project">📄</button>
+    <button class="tb" data-cmd="project.open" title="Open project">📂</button>
+    <button class="tb" data-cmd="project.save" title="Save project">💾</button>
+    <span class="tb-sep"></span>
+    <button class="tb" data-cmd="edit.cut"   title="Cut">✂︎</button>
+    <button class="tb" data-cmd="edit.copy"  title="Copy">⧉</button>
+    <button class="tb" data-cmd="edit.paste" title="Paste">📋</button>
+    <span class="tb-sep"></span>
+    <button class="tb" data-cmd="edit.undo" title="Undo">↶</button>
+    <button class="tb" data-cmd="edit.redo" title="Redo">↷</button>
+    <span class="tb-sep"></span>
+    <button class="tb run" data-cmd="run.start" title="Start (F5)">▶</button>
+    <button class="tb stop" data-cmd="run.stop" title="Stop (Shift+F5)">■</button>
+    <button class="tb" data-cmd="run.build" title="Build .zip bundle">⬇ Build</button>
+    <span class="tb-sep"></span>
+    <button class="tb" data-cmd="view.toggle.project" title="Project Explorer">🗂</button>
+    <button class="tb" data-cmd="view.toggle.props"   title="Properties Window">≡</button>
+    <button class="tb" data-cmd="view.toggle.toolbox" title="Toolbox">⚒︎</button>
+    <span class="tb-flex"></span>
+    <span id="project-title" class="tb-title">untitled</span>
+  </div>
+
+  <!-- ─── Main IDE grid ────────────────────────────────────────── -->
+  <main id="ide">
+    <!-- Far-left toolbox column -->
+    <aside id="toolbox" class="dock">
+      <div class="dock-title">Tools</div>
+      <div id="toolbox-body"></div>
+    </aside>
+
+    <!-- Center MDI workspace -->
+    <section id="workspace">
+      <div id="mdi-tabs"></div>
+      <div id="mdi-area"><!-- per-form panes injected here --></div>
+    </section>
+
+    <!-- Right column: project / properties / layout -->
+    <aside id="right-col">
+      <div id="proj-dock" class="dock">
+        <div class="dock-title">Project — <span id="proj-name">untitled</span></div>
+        <div id="proj-tree"></div>
+      </div>
+      <div id="props-dock" class="dock">
+        <div class="dock-title">Properties — <span id="props-target">(none)</span></div>
+        <div id="props-toolbar">
+          <button class="ptab active" data-mode="cat">Categorized</button>
+          <button class="ptab"        data-mode="abc">Alphabetic</button>
+          <input id="props-search" placeholder="filter…" />
+        </div>
+        <div id="props-body"></div>
+      </div>
+      <div id="layout-dock" class="dock">
+        <div class="dock-title">Form Layout</div>
+        <div id="layout-body">
+          <div id="layout-screen">
+            <div id="layout-form" title="Drag to set startup position"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Bottom output dock -->
+    <aside id="output-dock">
+      <div id="output-tabs">
+        <div class="otab active" data-tab="immediate">Immediate</div>
+        <div class="otab" data-tab="output">Output</div>
+        <div class="otab" data-tab="errors">Errors</div>
+        <span id="status-text">ready</span>
+        <span id="ide-version" title="RapidR IDE version">v?</span>
+      </div>
+      <div id="output-bodies">
+        <div class="obody active" data-tab="immediate">
+          <div id="immediate-log"></div>
+          <input id="immediate-input" placeholder="? expression  (not yet wired)" />
+        </div>
+        <pre class="obody" data-tab="output"></pre>
+        <div class="obody" data-tab="errors"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Floating runtime window for Run -->
+  <div id="preview-window" hidden>
+    <div id="preview-titlebar">
+      <span id="preview-title">RapidR Runtime</span>
+      <span id="preview-close" title="Stop (Shift+F5)">×</span>
+    </div>
+    <iframe id="preview" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+  </div>
+
+  <!-- Hidden file inputs -->
+  <input type="file" id="file-open-project" accept=".rrproj,.json" hidden>
+  <input type="file" id="file-open-example" accept=".rr" hidden>
+  <input type="file" id="file-upload-asset" multiple hidden>
+
+  <script type="module" src="./host.js"></script>
+</body>
+</html>

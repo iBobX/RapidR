@@ -288,21 +288,73 @@ pub fn run_event_loop<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
 }
 
 /// Decode an in-memory `.rrbc` byte slice and execute it on a fresh
-/// [`NativeHost`]. If the program creates GUI components the
-/// [`run_event_loop`] is entered after `main` returns.
+/// [`NativeHost`].
+///
+/// The indirect event dispatcher is installed **before** `vm.run` so
+/// that GUI methods called from `MAIN` (e.g. `Form1.ShowModal`, which
+/// blocks in FLTK's own `app::wait()` loop) can dispatch button clicks,
+/// `onload`, `onshow`, timers, etc. through the bytecode VM. After
+/// `MAIN` returns, if any GUI components were created and no blocking
+/// `ShowModal` was used, [`rp_run_app`] is entered to drive any
+/// non-modal forms.
 ///
 /// Used by both the CLI's `run-bc` subcommand and the
 /// `rapidrintr-runner` stub binary (Phase 8: bytecode → single exe).
 pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     let module = Module::from_bytes(bytes).map_err(|e| format!("decode error: {e}"))?;
     let mut host = NativeHost::default();
-    {
-        let mut vm = Vm::new(&mut host);
-        vm.run(&module).map_err(|e| format!("vm error: {e}"))?;
+    let mut vm = Vm::new(&mut host);
+
+    // Stash a `VmCtx` on the stack and expose it via a raw thread-local
+    // pointer so the indirect dispatcher closure can re-enter the VM.
+    let mut ctx = VmCtx { vm: &mut vm, module: &module };
+    let ctx_ptr = (&mut ctx as *mut VmCtx<'_, '_, NativeHost>) as *mut ();
+
+    let prev_active = ACTIVE_VM.with(|c| c.replace(ctx_ptr));
+    let prev_dispatch = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
+        ACTIVE_VM.with(|c| {
+            let p = c.get() as *mut VmCtx<'_, '_, NativeHost>;
+            if p.is_null() {
+                eprintln!(
+                    "[rapidr] event handler #{fn_index} fired but no active VM context"
+                );
+                return;
+            }
+            // SAFETY: `ctx` is alive for the full body of `run_bytes`,
+            // which is the only window the closure can be invoked.
+            let ctx = unsafe { &mut *p };
+            if let Err(e) = ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec()) {
+                eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
+            }
+        });
+    }));
+
+    let main_result = ctx.vm.run(ctx.module).map_err(|e| format!("vm error: {e}"));
+
+    // If `MAIN` succeeded and components exist but no `ShowModal` was
+    // used (i.e. control returned without blocking), drive the FLTK
+    // event loop now so non-modal `Show` windows stay responsive.
+    if main_result.is_ok() && ctx.vm.host_mut().has_components {
+        rp_run_app();
     }
-    if host.has_components {
-        let mut vm = Vm::new(&mut host);
-        run_event_loop(&module, &mut vm);
+
+    // From this point on, the VM context (`ctx`) and dispatcher closure
+    // are about to go out of scope. Mark the runtime as shutting down so
+    // any FLTK timeout callbacks that were queued before our `app::run`
+    // returned do not print a noisy "no dispatcher" warning when they
+    // fire during process teardown. Also stop all timers up front so
+    // they don't reschedule themselves.
+    obj::rp_stop_all_timers();
+    obj::rp_mark_shutting_down();
+
+    // Restore previous dispatcher / ACTIVE_VM so nesting and tests are
+    // well-behaved.
+    if let Some(p) = prev_dispatch {
+        let _ = obj::rp_set_event_dispatcher(p);
+    } else {
+        let _ = obj::rp_clear_event_dispatcher();
     }
-    Ok(())
+    ACTIVE_VM.with(|c| c.set(prev_active));
+
+    main_result
 }

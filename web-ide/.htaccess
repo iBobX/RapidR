@@ -1,0 +1,68 @@
+# RapidR Web IDE / generated apps — Apache hosting config
+#
+# Drop this .htaccess into the root of your hosted folder (alongside
+# index.html). It fixes the most common "403 Forbidden" / "wrong MIME
+# type" issues seen on shared hosting (cPanel, Plesk, OVH, etc.) when
+# serving a static SPA that loads WebAssembly + ES modules.
+
+# ── 1. Make the directory and all subfolders readable ─────────────
+# Some shared hosts ship with `Order deny,allow` / `Require all denied`
+# defaults that block JS / WASM. The two blocks below cover both
+# Apache 2.2 and 2.4 syntax and apply to the entire tree, including
+# the `runtime/` subfolder where rapidrintr.js / rapidrintr_bg.wasm live.
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+</IfModule>
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+
+# Disable directory indexing (security) but keep file access.
+Options -Indexes +FollowSymLinks
+
+# ── 2. Correct MIME types ─────────────────────────────────────────
+# Browsers reject WebAssembly that isn't served as application/wasm
+# and ES modules that aren't application/javascript or text/javascript.
+<IfModule mod_mime.c>
+    AddType application/wasm           .wasm
+    AddType application/javascript     .js
+    AddType application/javascript     .mjs
+    AddType application/json           .json
+    AddType application/json           .map
+    AddType text/css                   .css
+    AddType text/html                  .html
+    AddType image/svg+xml              .svg
+    AddType font/woff2                 .woff2
+    AddType font/woff                  .woff
+    AddType application/octet-stream   .rrbc
+</IfModule>
+
+# ── 3. Tell the browser the file is real & fresh ──────────────────
+<IfModule mod_headers.c>
+    # WASM needs to be loaded with cross-origin isolation in some apps.
+    <FilesMatch "\.(wasm)$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+    # ES modules + WASM benefit from CORS being permissive on static
+    # hosting (lets you open the bundle from another origin too).
+    <FilesMatch "\.(js|mjs|wasm|json|css)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
+# ── 4. Optional: enable gzip/deflate for the big wasm file ────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/javascript application/json text/css text/html image/svg+xml
+    # WASM is already compressed binary; do not double-compress.
+</IfModule>
+
+# ── 5. SPA fallback (optional) ────────────────────────────────────
+# Uncomment if your app uses hash-less client routing.
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteBase /
+#     RewriteCond %{REQUEST_FILENAME} !-f
+#     RewriteCond %{REQUEST_FILENAME} !-d
+#     RewriteRule ^ index.html [L]
+# </IfModule>

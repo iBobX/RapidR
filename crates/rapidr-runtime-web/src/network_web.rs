@@ -38,8 +38,8 @@ fn http_get(name: &str, args: &[Value]) -> Value {
             if (!__ov) {{
                 __ov = document.createElement('div');
                 __ov.id = 'rr-busy-overlay';
-                __ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font:14px sans-serif;color:#fff;cursor:progress;';
-                __ov.innerHTML = '<div style=\"background:#222;padding:14px 22px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.4);\">⏳ Working… (network)</div>';
+                __ov.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:2147483647;background:rgba(50,50,50,0.85);color:#fff;font:12px sans-serif;padding:6px 10px;border-radius:4px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);';
+                __ov.textContent = '⏳ network…';
                 document.body.appendChild(__ov);
             }}
             void document.body.offsetHeight; // force layout flush so overlay paints before sync XHR
@@ -103,8 +103,8 @@ fn http_post(name: &str, args: &[Value]) -> Value {
             if (!__ov) {{
                 __ov = document.createElement('div');
                 __ov.id = 'rr-busy-overlay';
-                __ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font:14px sans-serif;color:#fff;cursor:progress;';
-                __ov.innerHTML = '<div style=\"background:#222;padding:14px 22px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.4);\">⏳ Working… (network)</div>';
+                __ov.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:2147483647;background:rgba(50,50,50,0.85);color:#fff;font:12px sans-serif;padding:6px 10px;border-radius:4px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);';
+                __ov.textContent = '⏳ network…';
                 document.body.appendChild(__ov);
             }}
             void document.body.offsetHeight; // force layout flush so overlay paints before sync XHR

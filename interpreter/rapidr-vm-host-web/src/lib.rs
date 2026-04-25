@@ -292,3 +292,41 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     }
     Ok(())
 }
+
+// ---------- In-browser compile pipeline ----------
+//
+// The IDE bundles a single `rapidrintr.wasm` that handles BOTH compiling
+// `.rr` source to `.rrbc` AND running the resulting bytecode. Exposing
+// `compile()` here (instead of in a separate cdylib) means the IDE only
+// needs one `init()` call and one wasm download.
+
+/// Compile a single RapidR source string to `.rrbc` bytecode bytes.
+///
+/// Mirrors `rapidr-compiler-wasm::compile` so any tool depending on the
+/// older crate can switch over without behaviour change. On error,
+/// returns the human-readable message as a JS exception.
+#[wasm_bindgen]
+pub fn compile(source: &str, _project_name: &str) -> Result<Vec<u8>, JsValue> {
+    compile_inner(source).map_err(|e| JsValue::from_str(&e))
+}
+
+fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
+    let pre = rapidr_preprocessor::preprocess_source(
+        source,
+        ".",
+        None,
+        rapidr_preprocessor::PreprocessOptions::default(),
+    )
+    .map_err(|e| format!("preprocess error: {e}"))?;
+
+    let tokens = rapidr_lexer::Lexer::new(&pre.source, None)
+        .tokenize()
+        .map_err(|e| format!("lex error: {e}"))?;
+
+    let program = rapidr_parser::parse_tokens(&tokens);
+
+    let compiled = rapidr_bcgen::compile_program(&program)
+        .map_err(|e| format!("bcgen error: {e}"))?;
+
+    Ok(compiled.module.to_bytes())
+}

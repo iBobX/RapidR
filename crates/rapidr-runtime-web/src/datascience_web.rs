@@ -30,6 +30,36 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     match method {
         // --- Creation ---
+        "create" | "new" | "init" => {
+            // Create a vector of given length, zero-filled. With no arg, create empty.
+            let n = args.first().map(|v| v.to_i64()).unwrap_or(0).max(0) as usize;
+            NUM_STORE.with(|s| s.borrow_mut().insert(uname, vec![0.0; n]));
+            v_null()
+        }
+        "set" | "setvalue" | "setitem" => {
+            // set(index, value)
+            let idx = args.first().map(|v| v.to_i64()).unwrap_or(0).max(0) as usize;
+            let val = args.get(1).map(|v| v.to_f64()).unwrap_or(0.0);
+            NUM_STORE.with(|s| {
+                let mut store = s.borrow_mut();
+                let arr = store.entry(uname.clone()).or_insert_with(Vec::new);
+                if arr.len() <= idx { arr.resize(idx + 1, 0.0); }
+                arr[idx] = val;
+            });
+            v_null()
+        }
+        "get" | "getvalue" | "getitem" | "at" => {
+            let idx = args.first().map(|v| v.to_i64()).unwrap_or(0).max(0) as usize;
+            with_num(&uname, |a| v_dbl(a.get(idx).copied().unwrap_or(0.0)))
+        }
+        "push" => {
+            let val = args.first().map(|v| v.to_f64()).unwrap_or(0.0);
+            NUM_STORE.with(|s| {
+                let mut store = s.borrow_mut();
+                store.entry(uname.clone()).or_insert_with(Vec::new).push(val);
+            });
+            v_null()
+        }
         "arange" => {
             let start = args.first().map(|v| v.to_f64()).unwrap_or(0.0);
             let stop = args.get(1).map(|v| v.to_f64()).unwrap_or(10.0);
@@ -374,7 +404,19 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
 pub fn num_get_prop(name: &str, prop: &str) -> Value {
     let uname = name.to_uppercase();
     match prop {
-        "size" | "length" | "len" => with_num(&uname, |a| v_int(a.len() as i64)),
+        "size" | "length" | "len" | "count" => with_num(&uname, |a| v_int(a.len() as i64)),
+        "sum" => with_num(&uname, |a| v_dbl(a.iter().sum())),
+        "mean" | "avg" | "average" => with_num(&uname, |a| {
+            if a.is_empty() { v_dbl(0.0) } else { v_dbl(a.iter().sum::<f64>() / a.len() as f64) }
+        }),
+        "min" => with_num(&uname, |a| v_dbl(a.iter().cloned().fold(f64::INFINITY, f64::min))),
+        "max" => with_num(&uname, |a| v_dbl(a.iter().cloned().fold(f64::NEG_INFINITY, f64::max))),
+        "std" => with_num(&uname, |a| {
+            if a.is_empty() { return v_dbl(0.0); }
+            let m = a.iter().sum::<f64>() / a.len() as f64;
+            let var = a.iter().map(|x| (x - m).powi(2)).sum::<f64>() / a.len() as f64;
+            v_dbl(var.sqrt())
+        }),
         "data" => with_num(&uname, |a| {
             v_str(&a.iter().map(|x| format!("{}", x)).collect::<Vec<_>>().join(","))
         }),
@@ -492,6 +534,20 @@ pub fn init_dataframe(name: &str) {
 pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     match method {
+        "create" | "new" | "init" => {
+            DF_STORE.with(|s| s.borrow_mut().insert(uname, DataFrame::new()));
+            v_null()
+        }
+        "addrow" | "add_row" | "appendrow" | "push_row" => {
+            // Variadic: collect all args as cell strings
+            let row: Vec<String> = args.iter().map(|v| v.to_string_val()).collect();
+            DF_STORE.with(|s| {
+                let mut store = s.borrow_mut();
+                let df = store.entry(uname.clone()).or_insert_with(DataFrame::new);
+                df.data.push(row);
+            });
+            v_null()
+        }
         "loadfromcsv" | "readcsv" | "read_csv" => {
             // On web, interpret the argument as inline CSV text
             let csv_text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
@@ -787,6 +843,24 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
                         out += "\n";
                     }
                     crate::builtins::rp_print(&[v_str(&out)], true);
+                    // Also render into the visual widget if it exists.
+                    let id = format!("rr-{}", uname.to_lowercase());
+                    if let Some(el) = gui_web::document().get_element_by_id(&id) {
+                        let mut html = String::from("<table style=\"border-collapse:collapse;width:100%;font-size:11px;\"><thead><tr>");
+                        for c in &df.columns {
+                            html += &format!("<th style=\"border:1px solid #bbb;background:#eee;padding:2px 6px;text-align:left;\">{}</th>", html_escape(c));
+                        }
+                        html += "</tr></thead><tbody>";
+                        for row in &df.data {
+                            html += "<tr>";
+                            for cell in row {
+                                html += &format!("<td style=\"border:1px solid #ddd;padding:2px 6px;\">{}</td>", html_escape(cell));
+                            }
+                            html += "</tr>";
+                        }
+                        html += "</tbody></table>";
+                        el.set_inner_html(&html);
+                    }
                     v_str(&out)
                 } else {
                     v_str("")
@@ -972,6 +1046,56 @@ pub fn plot_method(name: &str, method: &str, args: &[Value]) -> Value {
     });
 
     match method {
+        "create" | "new" | "init" => {
+            // State already ensured at top of function — just acknowledge.
+            v_null()
+        }
+        "settitle" | "set_title" => {
+            let title = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            PLOT_STORE.with(|s| {
+                if let Some(ps) = s.borrow_mut().get_mut(&uname) { ps.title = title; }
+            });
+            v_null()
+        }
+        "setxlabel" | "set_xlabel" | "xlabel" => {
+            let v = args.first().map(|x| x.to_string_val()).unwrap_or_default();
+            PLOT_STORE.with(|s| { if let Some(ps) = s.borrow_mut().get_mut(&uname) { ps.xlabel = v; } });
+            v_null()
+        }
+        "setylabel" | "set_ylabel" | "ylabel" => {
+            let v = args.first().map(|x| x.to_string_val()).unwrap_or_default();
+            PLOT_STORE.with(|s| { if let Some(ps) = s.borrow_mut().get_mut(&uname) { ps.ylabel = v; } });
+            v_null()
+        }
+        "addseries" | "add_series" | "series" => {
+            // addseries(label, csv_y [, csv_x [, color]])
+            let label = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            let y_str = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
+            let x_str = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
+            let color = args.get(3).map(|v| v.to_string_val()).unwrap_or_default();
+            let y_data: Vec<f64> = y_str.split(',')
+                .filter_map(|s| s.trim().parse::<f64>().ok())
+                .collect();
+            let x_data: Vec<f64> = if x_str.is_empty() {
+                (0..y_data.len()).map(|i| i as f64).collect()
+            } else {
+                x_str.split(',').filter_map(|s| s.trim().parse::<f64>().ok()).collect()
+            };
+            PLOT_STORE.with(|s| {
+                if let Some(ps) = s.borrow_mut().get_mut(&uname) {
+                    let idx = ps.series.len();
+                    let c = if color.is_empty() {
+                        DEFAULT_COLORS[idx % DEFAULT_COLORS.len()].to_string()
+                    } else { color };
+                    ps.series.push(PlotSeries {
+                        kind: "line".to_string(), x: x_data, y: y_data, label, color: c,
+                    });
+                }
+            });
+            // Auto-render after each series add so RPlot shows up immediately.
+            render_plot(&uname);
+            v_null()
+        }
         "clear" => {
             PLOT_STORE.with(|s| s.borrow_mut().insert(uname, PlotState::new()));
             v_null()
@@ -1191,6 +1315,12 @@ fn render_plot(name: &str) {
             // Look for the plot container div
             let container_id = format!("rr-{}", name.to_lowercase());
             if let Some(container) = doc.get_element_by_id(&container_id) {
+                // Hide the visual placeholder so the chart shows by itself.
+                if let Some(ph) = container.query_selector(".rr-plot-placeholder").ok().flatten() {
+                    if let Ok(html_ph) = ph.dyn_into::<web_sys::HtmlElement>() {
+                        let _ = html_ph.style().set_property("display", "none");
+                    }
+                }
                 let c = doc.create_element("canvas").unwrap();
                 c.set_id(&canvas_id);
                 c.set_class_name("rr-plot-container");
@@ -1559,5 +1689,57 @@ pub fn create_plot_widget(id: &str, name: &str, props: &HashMap<String, Value>) 
     el.set_class_name("rr-widget rr-plot-container");
     let _ = el.style().set_property("background", "white");
     let _ = el.style().set_property("border", "1px solid #ccc");
+    let _ = el.style().set_property("display", "flex");
+    let _ = el.style().set_property("align-items", "center");
+    let _ = el.style().set_property("justify-content", "center");
+    let _ = el.style().set_property("color", "#888");
+    let _ = el.style().set_property("font-family", "sans-serif");
+    let _ = el.style().set_property("font-size", "12px");
+    el.set_inner_html(&format!(
+        "<span class=\"rr-plot-placeholder\">📈 {}<br/><small>(call .render() / .plot())</small></span>",
+        name
+    ));
     gui_web::setup_widget(&el, id, name, props);
+}
+
+// ======================================================================
+// Ensure RDataFrame creates a table container in DOM (visual placeholder).
+// Populated when .show() / .togrid() / etc. are called.
+// ======================================================================
+
+pub fn create_dataframe_widget(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = gui_web::create_el("div");
+    el.set_class_name("rr-widget rr-dataframe-container");
+    let _ = el.style().set_property("background", "white");
+    let _ = el.style().set_property("border", "1px solid #ccc");
+    let _ = el.style().set_property("overflow", "auto");
+    let _ = el.style().set_property("font-family", "monospace");
+    let _ = el.style().set_property("font-size", "12px");
+    el.set_inner_html(&format!(
+        "<div class=\"rr-df-placeholder\" style=\"padding:8px;color:#888;\">▦ {}<br/><small>(call .show() to render)</small></div>",
+        name
+    ));
+    gui_web::setup_widget(&el, id, name, props);
+}
+
+// ======================================================================
+// RNum visual placeholder (numeric array — usually non-visual but if a
+// designer marks it visible we render a tiny chip showing the count).
+// ======================================================================
+
+pub fn create_num_widget(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = gui_web::create_el("div");
+    el.set_class_name("rr-widget rr-num-container");
+    let _ = el.style().set_property("background", "#f8f8f8");
+    let _ = el.style().set_property("border", "1px dashed #aaa");
+    let _ = el.style().set_property("color", "#555");
+    let _ = el.style().set_property("font-family", "monospace");
+    let _ = el.style().set_property("font-size", "11px");
+    let _ = el.style().set_property("padding", "4px 8px");
+    el.set_inner_html(&format!("ƒ {} (RNum)", name));
+    gui_web::setup_widget(&el, id, name, props);
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }

@@ -49,7 +49,23 @@ thread_local! {
 pub fn sqlite_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     match method {
-        "connect" => {
+        "queryscalar" | "query_scalar" | "scalar" => {
+            // Execute a SELECT and return the first cell of the first row as a string.
+            let sql = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            execute_sql(&uname, &sql);
+            DB_STORE.with(|s| {
+                let store = s.borrow();
+                if let Some(db) = store.get(&uname) {
+                    if let Some(row) = db.result_rows.first() {
+                        if let Some(cell) = row.first() {
+                            return v_str(cell);
+                        }
+                    }
+                }
+                v_str("")
+            })
+        }
+        "open" | "connect" => {
             // On web, always creates an in-memory database
             let db_name = args.first().map(|v| v.to_string_val()).unwrap_or_else(|| ":memory:".to_string());
             let existed = DB_STORE.with(|s| s.borrow().contains_key(&uname));
@@ -310,6 +326,54 @@ fn exec_select(name: &str, sql: &str) -> Value {
                 Some(t) => t,
                 None => return v_int(0),
             };
+
+            // --- Aggregate functions: COUNT(*), COUNT(col), SUM(col), AVG(col), MIN(col), MAX(col) ---
+            // Detect simple aggregate-only SELECT (single expression).
+            let cs = cols_str.trim();
+            let cs_up = cs.to_uppercase();
+            let is_agg = (cs_up.starts_with("COUNT(") || cs_up.starts_with("SUM(")
+                || cs_up.starts_with("AVG(") || cs_up.starts_with("MIN(")
+                || cs_up.starts_with("MAX(")) && cs_up.ends_with(')');
+            if is_agg {
+                // Filter rows first
+                let filtered: Vec<&Vec<String>> = table.rows.iter()
+                    .filter(|row| {
+                        if let Some(ref wc) = where_clause {
+                            eval_where(wc, row, &table.columns)
+                        } else { true }
+                    })
+                    .collect();
+                let open = cs.find('(').unwrap();
+                let close = cs.rfind(')').unwrap();
+                let inner = cs[open + 1..close].trim();
+                let func = cs_up[..open].to_string();
+                let val = if func == "COUNT" {
+                    filtered.len() as f64
+                } else if let Some(ci) = table.columns.iter().position(|c| c.eq_ignore_ascii_case(inner)) {
+                    let nums: Vec<f64> = filtered.iter()
+                        .filter_map(|r| r.get(ci).and_then(|v| v.parse::<f64>().ok()))
+                        .collect();
+                    match func.as_str() {
+                        "SUM" => nums.iter().sum::<f64>(),
+                        "AVG" => if nums.is_empty() { 0.0 } else { nums.iter().sum::<f64>() / nums.len() as f64 },
+                        "MIN" => nums.iter().cloned().fold(f64::INFINITY, f64::min),
+                        "MAX" => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+                        _ => 0.0,
+                    }
+                } else { 0.0 };
+                let cell = if val == val.floor() && val.abs() < 1e15 {
+                    format!("{}", val as i64)
+                } else { format!("{}", val) };
+                db.result_cols = vec![cs.to_string()];
+                db.result_rows = vec![vec![cell]];
+                db.row_cursor = 0;
+                db.field_cursor = 0;
+                let uname = name.to_string();
+                drop(store);
+                object_web::rp_comp_set(&uname, "rowcount", v_int(1));
+                object_web::rp_comp_set(&uname, "colcount", v_int(1));
+                return v_int(1);
+            }
 
             // Determine selected column indices
             let select_all = cols_str.trim() == "*";

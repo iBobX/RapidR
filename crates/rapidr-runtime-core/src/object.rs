@@ -424,14 +424,63 @@ pub fn rp_bind_event_indirect(name: &str, event: &str, handler_id: u32) {
 
 fn dispatch_indirect(handler_id: u32, args: &[Value]) {
     INDIRECT_DISPATCHER.with(|slot| {
-        if let Some(d) = slot.borrow().as_ref() {
+        // `try_borrow` rather than `borrow` so a re-entrant dispatch (e.g.
+        // a handler that fires another event synchronously) doesn't panic
+        // — it simply prints a soft warning instead.
+        let borrow = match slot.try_borrow() {
+            Ok(b) => b,
+            Err(_) => {
+                eprintln!("[rapidr] event handler #{handler_id} fired re-entrantly while dispatcher was borrowed; ignoring");
+                return;
+            }
+        };
+        if let Some(d) = borrow.as_ref() {
             d(handler_id, args);
-        } else {
+        } else if !SHUTTING_DOWN.with(|s| s.get()) {
+            // After `rp_run_app` returns and timers/widgets are torn
+            // down FLTK may drain a few queued callbacks. Suppress the
+            // noisy warning during shutdown — it is harmless.
             eprintln!(
                 "[rapidr] event handler #{handler_id} fired but no indirect dispatcher is registered"
             );
         }
     });
+}
+
+thread_local! {
+    static SHUTTING_DOWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Mark the runtime as shutting down so that late-firing FLTK timer
+/// callbacks (which can be queued after the dispatcher has been
+/// uninstalled) don't print a noisy "no dispatcher" warning.
+pub fn rp_mark_shutting_down() {
+    SHUTTING_DOWN.with(|s| s.set(true));
+}
+
+/// Disable all RTimer components and clear their indirect handlers so
+/// that no further FLTK timeout ticks attempt to dispatch into a torn
+/// down VM. Called during ShowModal shutdown and from
+/// `rp_set_event_dispatcher(None)` so the runtime stays well-behaved.
+pub fn rp_stop_all_timers() {
+    let timers: Vec<String> = COMPONENTS.with(|c| {
+        c.borrow()
+            .iter()
+            .filter_map(|(n, comp)| {
+                if comp.type_name.eq_ignore_ascii_case("RTIMER") {
+                    Some(n.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    });
+    for name in timers {
+        // Setting enabled=0 makes the existing FLTK timeout closure skip
+        // both `rp_fire_event` and `repeat_timeout3` — the timer
+        // self-cancels on its next scheduled tick.
+        rp_comp_set(&name, "enabled", v_int(0));
+    }
 }
 
 /// Create a new component and register it in the global registry.
@@ -529,9 +578,16 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 
     COMPONENTS.with(|c| {
-        if let Some(comp) = c.borrow_mut().get_mut(&name.to_lowercase()) {
-            comp.properties.insert(prop_lower, val);
-        }
+        let mut comps = c.borrow_mut();
+        let key = name.to_lowercase();
+        // Auto-vivify a "bag" component if the name is unknown — this
+        // gives DIM'd UDT variables (e.g. `r.left = 10` on
+        // `DIM r AS Rect`) a place to store and retrieve fields when no
+        // real component exists. The TYPE statement is currently lowered
+        // to a no-op by bcgen, so without this fallback `r.left = 10`
+        // would silently drop the value.
+        let comp = comps.entry(key).or_insert_with(|| RpComponent::new("RUDT"));
+        comp.properties.insert(prop_lower, val);
     });
 }
 

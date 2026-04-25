@@ -105,12 +105,15 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RDATETIMEPICKER" => create_datetimepicker(&id, name, props),
         "RCODEEDITOR" => create_codeeditor(&id, name, props),
         "RDESIGNSURFACE" => create_panel(&id, name, props), // design surface is just a panel on web
+        // Data-science widgets — visual placeholders updated by their own methods
+        "RPLOT" => crate::datascience_web::create_plot_widget(&id, name, props),
+        "RDATAFRAME" => crate::datascience_web::create_dataframe_widget(&id, name, props),
+        "RNUM" => crate::datascience_web::create_num_widget(&id, name, props),
         // Dialogs — these are virtual and use browser native dialogs
         "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI"
-        | "RNUM" | "RDATAFRAME" | "RPLOT" => { /* no DOM element */ }
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
         "RDOM" => create_dom_element(&id, name, props),
@@ -201,10 +204,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             }
         }
         "color" | "backcolor" => {
-            let _ = style.set_property("background-color", &bgr_to_css(val.to_i64()));
+            let _ = style.set_property("background-color", &value_to_css_color(val));
         }
         "fontcolor" | "forecolor" => {
-            let _ = style.set_property("color", &bgr_to_css(val.to_i64()));
+            let _ = style.set_property("color", &value_to_css_color(val));
         }
         "fontname" => {
             let _ = style.set_property("font-family", &s);
@@ -343,7 +346,7 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             let _ = style.set_property("cursor", cursor);
         }
         "bordercolor" => {
-            let _ = style.set_property("border-color", &bgr_to_css(val.to_i64()));
+            let _ = style.set_property("border-color", &value_to_css_color(val));
         }
         "borderstyle" => {
             let bs = match val.to_i64() {
@@ -777,6 +780,14 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         // StringGrid methods
+        ("RSTRINGGRID", "create" | "new" | "init") => {
+            // create([rows[, cols]]) — both default to existing or 0
+            let rows = args.first().map(|v| v.to_i64() as usize);
+            let cols = args.get(1).map(|v| v.to_i64() as usize);
+            if let Some(r) = rows { grid_set_row_count(&id, r); }
+            if let Some(c) = cols { grid_set_col_count(&id, c); }
+            v_null()
+        }
         ("RSTRINGGRID", "setcell") if args.len() >= 3 => {
             grid_set_cell(&id, &args[0], &args[1], &args[2]);
             v_null()
@@ -2428,23 +2439,14 @@ fn form_close(form_id: &str) {
 
 /// Show a dimmed backdrop behind a modal form. The backdrop sits one z-index
 /// below the form and is removed when the form is closed/hidden.
+///
+/// In a single-form, full-viewport web runtime (the common case for RapidR
+/// IDE Run + bundled apps) the backdrop is just visual noise that obscures
+/// the running app — the *form* is already the entire UI. We keep the
+/// z-index lift so the form is on top of any other windows that might
+/// appear later, but skip creating the dim overlay.
 fn show_modal_backdrop(form_id: &str) {
-    let backdrop_id = format!("{}-backdrop", form_id);
     let doc = document();
-    if doc.get_element_by_id(&backdrop_id).is_none() {
-        let bd = create_el("div");
-        bd.set_id(&backdrop_id);
-        let s = bd.style();
-        let _ = s.set_property("position", "fixed");
-        let _ = s.set_property("inset", "0");
-        let _ = s.set_property("background", "rgba(0,0,0,0.35)");
-        let _ = s.set_property("z-index", "9998");
-        if let Some(body) = doc.body() {
-            let _ = body.append_child(&bd);
-        }
-    }
-    // Always lift the modal form above the backdrop, even if the backdrop
-    // already existed (e.g. ShowModal called twice or finalize reset z-index).
     if let Some(el) = doc.get_element_by_id(form_id) {
         if let Some(html) = el.dyn_ref::<web_sys::HtmlElement>() {
             let _ = html.style().set_property("z-index", "9999");

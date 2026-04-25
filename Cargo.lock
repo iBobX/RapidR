@@ -3422,7 +3422,11 @@ name = "rapidr-vm-host-web"
 version = "1.0.0"
 dependencies = [
  "js-sys",
+ "rapidr-bcgen",
  "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
  "rapidr-runtime-web",
  "rapidr-value",
  "rapidr-vm",
