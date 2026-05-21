@@ -2,11 +2,56 @@
 //!
 //! No actual SQLite or rusqlite — we store tables as `Vec<Vec<String>>`
 //! and parse simple SQL statements: CREATE TABLE, INSERT, SELECT, UPDATE, DELETE.
+//!
+//! RMySQL is **not implementable in the browser** because the MySQL wire protocol
+//! requires raw TCP, which browsers cannot open. `mysql_method` below emits a
+//! single clear error and returns a sentinel value so user programs fail loudly
+//! instead of silently warning on every call.
 
 use crate::object_web;
 use crate::value::{v_int, v_null, v_str, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use wasm_bindgen::JsValue;
+
+// ======================================================================
+// RMySQL — native-only stub for the web runtime
+// ======================================================================
+
+thread_local! {
+    static MYSQL_WARNED: RefCell<std::collections::HashSet<String>> =
+        RefCell::new(std::collections::HashSet::new());
+}
+
+pub fn mysql_method(name: &str, _method: &str, _args: &[Value]) -> Value {
+    // Emit the error once per RMySQL instance to avoid log spam.
+    let key = name.to_uppercase();
+    let already = MYSQL_WARNED.with(|s| {
+        let mut set = s.borrow_mut();
+        if set.contains(&key) {
+            true
+        } else {
+            set.insert(key.clone());
+            false
+        }
+    });
+    if !already {
+        web_sys::console::error_1(&JsValue::from_str(&format!(
+            "[RapidR] {} (RMySQL) is unavailable on the web runtime: browsers cannot open raw TCP connections to MySQL. Use the native target, or call your backend via RHTTP.",
+            name
+        )));
+    }
+    v_int(0)
+}
+
+pub fn mysql_get_prop(_name: &str, _prop: &str) -> Value {
+    v_str("")
+}
+
+pub fn mysql_set_prop(_name: &str, _prop: &str, _val: &Value) {
+    // silently accept property assignments (Host=, User=, Password=, …)
+    // — they're harmless config and shouldn't error every time.
+}
 
 // ======================================================================
 // Storage
@@ -74,16 +119,20 @@ pub fn sqlite_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
             object_web::rp_comp_set(&uname, "connected", v_int(1));
             object_web::rp_comp_set(&uname, "db", v_str(&db_name));
+            object_web::rp_fire_event(&uname, "onconnect");
             v_int(if existed { 1 } else { 0 })
         }
         "close" => {
             DB_STORE.with(|s| s.borrow_mut().remove(&uname));
             object_web::rp_comp_set(&uname, "connected", v_int(0));
+            object_web::rp_fire_event(&uname, "ondisconnect");
             v_null()
         }
         "query" | "exec" => {
             let sql = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            execute_sql(&uname, &sql)
+            let result = execute_sql(&uname, &sql);
+            object_web::rp_fire_event(&uname, "onquerydone");
+            result
         }
         "fetchrow" => {
             DB_STORE.with(|s| {

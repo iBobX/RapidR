@@ -99,7 +99,7 @@
 
   <!-- ─── Toolbar ──────────────────────────────────────────────── -->
   <div id="toolbar">
-    <button class="tb" data-cmd="project.new"  title="New project">📄</button>
+    <button class="tb" id="btn-new" data-cmd="project.new"  title="New project">📄</button>
     <button class="tb" data-cmd="project.open" title="Open project">📂</button>
     <button class="tb" data-cmd="project.save" title="Save project">💾</button>
     <span class="tb-sep"></span>
@@ -110,14 +110,23 @@
     <button class="tb" data-cmd="edit.undo" title="Undo">↶</button>
     <button class="tb" data-cmd="edit.redo" title="Redo">↷</button>
     <span class="tb-sep"></span>
-    <button class="tb run" data-cmd="run.start" title="Start (F5)">▶</button>
+    <button class="tb run" id="btn-run" data-cmd="run.start" title="Start (F5)">▶</button>
     <button class="tb stop" data-cmd="run.stop" title="Stop (Shift+F5)">■</button>
-    <button class="tb" data-cmd="run.build" title="Build .zip bundle">⬇ Build</button>
+    <button class="tb" id="btn-build" data-cmd="run.build" title="Build .zip bundle">⬇ Build</button>
     <span class="tb-sep"></span>
     <button class="tb" data-cmd="view.toggle.project" title="Project Explorer">🗂</button>
     <button class="tb" data-cmd="view.toggle.props"   title="Properties Window">≡</button>
     <button class="tb" data-cmd="view.toggle.toolbox" title="Toolbox">⚒︎</button>
     <span class="tb-flex"></span>
+    <select id="examples" title="Load Example">
+      <option value="">(examples…)</option>
+      <option value="../examples/hello_web.rr">Hello Web</option>
+      <option value="../examples/web_calculator.rr">Calculator</option>
+      <option value="../examples/web_dashboard.rr">Dashboard</option>
+      <option value="../examples/web_canvas.rr">Canvas Drawing</option>
+      <option value="../examples/demo_plot.rr">Canvas Plot</option>
+      <option value="../examples/demo_sqlite.rr">SQLite Demo</option>
+    </select>
     <span id="project-title" class="tb-title">untitled</span>
   </div>
 
@@ -166,7 +175,7 @@
         <div class="otab active" data-tab="immediate">Immediate</div>
         <div class="otab" data-tab="output">Output</div>
         <div class="otab" data-tab="errors">Errors</div>
-        <span id="status-text">ready</span>
+        <span id="status">ready</span>
         <span id="ide-version" title="RapidR IDE version">v?</span>
       </div>
       <div id="output-bodies">

@@ -281,6 +281,13 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     let host: &'static mut WebHost = Box::leak(Box::new(WebHost::default()));
     let vm: &'static mut Vm<'static, WebHost> = Box::leak(Box::new(Vm::new(host)));
 
+    // Install the indirect event dispatcher BEFORE running __main, so that
+    // any events fired during initial setup (e.g. RSqlite OnConnect on
+    // DB.Connect, RHTTP OnLoad on a sync request, etc.) can re-enter the
+    // VM to invoke their bytecode handlers. Without this, events that fire
+    // before any DOM component is created would be silently dropped.
+    install_dispatcher::<WebHost>(module as *const _, vm as *mut _);
+
     vm.run(module).map_err(|e| JsValue::from_str(&format!("vm error: {e}")))?;
 
     if vm.host_mut().has_components {
@@ -288,7 +295,6 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
         // the DOM tree (parents form windows, applies title-bars, shows
         // the entry form). Without this nothing is visible.
         rapidr_runtime_web::gui_web::gui_web_finalize();
-        install_dispatcher::<WebHost>(module as *const _, vm as *mut _);
     }
     Ok(())
 }

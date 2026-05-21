@@ -832,6 +832,14 @@ Web `RForm` components behave like desktop windows:
 - **Close** — Sets `display: none`
 - **Tab controls** — Tab buttons have click handlers calling `tab_switch()` which updates visual state and fires `onchange`
 
+### Security Guidelines & WASM Safety
+
+To maintain a secure sandbox within the web application:
+- **No Dynamic Eval for System APIs**: Avoid using `js_sys::eval` or `new Function` for standard web-exclusive features (such as audio playback, notification display, or dynamic JavaScript execution).
+- **Type-safe Audio**: Use `web_sys::HtmlAudioElement::new_with_src()` to load and play audio clips.
+- **Type-safe Notifications**: Use `web_sys::Notification` and `web_sys::NotificationOptions` with appropriate string field mutators (e.g., `set_body`).
+- **Reflect-based Interop**: Dynamic execution of global JavaScript helper functions (such as `RJAVASCRIPT.call`) must use type-safe property retrieval via `js_sys::Reflect::get` on the `window` object, followed by dynamic function application, preventing template-based JS injection.
+
 ### Web-Exclusive Components
 
 9 components available only with `--web`:

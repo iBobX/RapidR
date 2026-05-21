@@ -40,7 +40,7 @@ const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 function setStatus(msg, kind = "") {
-  const el = $("#status-text");
+  const el = $("#status");
   el.textContent = msg;
   el.className = kind;
 }
@@ -49,6 +49,89 @@ function logOutput(s) {
   const out = $('.obody[data-tab="output"]');
   out.textContent += s + "\n";
   out.scrollTop = out.scrollHeight;
+}
+
+// ─── Errors panel + iframe console capture ─────────────────────
+const ERROR_COUNTERS = { error: 0, warn: 0, info: 0 };
+
+function _renderErrorBadges() {
+  const tab = $('.otab[data-tab="errors"]');
+  if (!tab) return;
+  const e = ERROR_COUNTERS.error, w = ERROR_COUNTERS.warn;
+  tab.textContent = "Errors" + (e || w ? `  ●${e}/${w}` : "");
+  tab.classList.toggle("has-errors", e > 0);
+  tab.classList.toggle("has-warns", w > 0 && e === 0);
+}
+
+function _stringifyArg(a) {
+  if (a == null) return String(a);
+  if (typeof a === "string") return a;
+  try { return JSON.stringify(a); } catch { return String(a); }
+}
+
+function logError(level, ...args) {
+  const body = $('.obody[data-tab="errors"]');
+  if (!body) return;
+  const line = document.createElement("div");
+  line.className = "err-line err-" + level;
+  const ts = new Date().toLocaleTimeString();
+  line.textContent = `[${ts}] [${level.toUpperCase()}] ` + args.map(_stringifyArg).join(" ");
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+  if (level === "error") ERROR_COUNTERS.error++;
+  else if (level === "warn") ERROR_COUNTERS.warn++;
+  else ERROR_COUNTERS.info++;
+  _renderErrorBadges();
+  // First error/warn auto-flips to the Errors tab so the user sees it.
+  if (level === "error" && ERROR_COUNTERS.error === 1) {
+    $('.otab[data-tab="errors"]')?.click();
+  }
+}
+
+function clearErrorsPanel() {
+  const body = $('.obody[data-tab="errors"]');
+  if (body) body.innerHTML = "";
+  ERROR_COUNTERS.error = 0;
+  ERROR_COUNTERS.warn = 0;
+  ERROR_COUNTERS.info = 0;
+  _renderErrorBadges();
+}
+
+function hookPreviewConsole(iframe) {
+  try {
+    const w = iframe.contentWindow;
+    if (!w || w.__rrConsoleHooked) return;
+    w.__rrConsoleHooked = true;
+    const orig = {
+      log:   w.console.log.bind(w.console),
+      info:  w.console.info.bind(w.console),
+      warn:  w.console.warn.bind(w.console),
+      error: w.console.error.bind(w.console),
+    };
+    const route = (level, args) => {
+      const text = args.map(_stringifyArg).join(" ");
+      // Runtime PRINT goes through console.log → also mirror to Output panel.
+      if (level === "log" || level === "info") {
+        logOutput(text);
+      } else {
+        logError(level, text);
+      }
+    };
+    w.console.log   = (...a) => { try { route("log",   a); } finally { orig.log(...a); } };
+    w.console.info  = (...a) => { try { route("info",  a); } finally { orig.info(...a); } };
+    w.console.warn  = (...a) => { try { route("warn",  a); } finally { orig.warn(...a); } };
+    w.console.error = (...a) => { try { route("error", a); } finally { orig.error(...a); } };
+    // Surface uncaught errors too.
+    w.addEventListener("error", (e) => {
+      logError("error", `${e.message || "error"} (${e.filename || "?"}:${e.lineno || 0})`);
+    });
+    w.addEventListener("unhandledrejection", (e) => {
+      logError("error", "Unhandled promise rejection: " + (e.reason?.message || e.reason));
+    });
+  } catch (err) {
+    // Cross-origin? Sandbox won't allow it — log once and move on.
+    logError("warn", "could not hook preview console: " + err.message);
+  }
 }
 
 function logImmediate(s) {
@@ -1739,6 +1822,7 @@ function toggleDock(sel, restore) {
 async function doRun() {
   if (!state.wasmReady) { setStatus("wasm not ready", "error"); return; }
   setStatus("compiling…");
+  clearErrorsPanel();
   try {
     const src = serializeProject(state.project);
     logOutput("------ source ------\n" + src);
@@ -1754,6 +1838,7 @@ async function doRun() {
       if (e.source !== iframe.contentWindow) return;
       if (!e.data?.__rapidr_preview_ready) return;
       window.removeEventListener("message", onReady);
+      hookPreviewConsole(iframe);
       iframe.contentWindow.postMessage({ __rapidr_run: bc }, "*");
     };
     window.addEventListener("message", onReady);
@@ -1865,6 +1950,32 @@ function loadProjectModel(model) {
 // ─── File loaders ──────────────────────────────────────────────
 
 function setupFileLoaders() {
+  const examplesSel = $("#examples");
+  if (examplesSel) {
+    examplesSel.addEventListener("change", async () => {
+      const val = examplesSel.value;
+      if (!val) return;
+      try {
+        const resp = await fetch(val);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const text = await resp.text();
+        const name = val.split("/").pop().replace(/\.rr$/i, "");
+
+        state.project = newProject(name);
+        state.project.rawSource = text;
+        $("#mdi-tabs").innerHTML = "";
+        $("#mdi-area").innerHTML = "";
+        ensureFormPane(state.project.forms[0]);
+        switchToForm(state.project.forms[0].id);
+        renderProjectTree();
+        setStatus(`loaded ${name} (raw source mode)`, "ok");
+      } catch (err) {
+        setStatus("load example failed: " + err.message, "error");
+        logOutput(String(err));
+      }
+    });
+  }
+
   $("#file-open-example").addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -2353,6 +2464,7 @@ async function main() {
     renderProjectTree,
     switchView,
     switchToForm,
+    serializeProject,
   };
   // Show version in the status bar + window title.
   const ver = $("#ide-version");

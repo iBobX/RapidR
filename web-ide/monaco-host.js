@@ -445,5 +445,117 @@ export async function createRapidrEditor(host, { value = "", onChange } = {}) {
   if (onChange) {
     editor.onDidChangeModelContent(() => onChange(editor.getValue()));
   }
+  installAutoUppercase(editor, monaco);
   return editor;
+}
+
+// ─── Auto-uppercase BASIC keywords as the user types ─────────────
+// Trigger: any non-word character (space, tab, newline, =, (, ',', ...).
+// We look at the word immediately *before* the just-typed character; if it
+// matches a known keyword/type/directive (case-insensitive), we replace it
+// with its canonical uppercase form. We skip strings and line comments.
+let _AUTOUC_VOCAB = null;
+function _buildAutoUcVocab() {
+  if (_AUTOUC_VOCAB) return _AUTOUC_VOCAB;
+  const set = new Map(); // lower -> canonical
+  const add = (word) => {
+    if (!word) return;
+    const w = String(word).trim();
+    if (!w || !/^[A-Za-z_][A-Za-z0-9_$]*$/.test(w)) return;
+    set.set(w.toLowerCase(), w.toUpperCase());
+  };
+  // Multi-token keywords like "END SUB" are split into individual tokens.
+  for (const kw of KEYWORDS) {
+    for (const tok of kw.split(/\s+/)) add(tok);
+  }
+  for (const t of TYPE_KEYWORDS) add(t.name);
+  for (const d of DIRECTIVES) add(d.name?.replace(/^\$/, "") || "");
+  _AUTOUC_VOCAB = set;
+  return set;
+}
+
+function _isInsideStringOrComment(lineText, col /* 1-based, position BEFORE cursor */) {
+  // Examine characters [0 .. col-1] of the line.
+  let inStr = false;
+  for (let i = 0; i < col - 1 && i < lineText.length; i++) {
+    const ch = lineText[i];
+    if (inStr) {
+      if (ch === '"') inStr = false;
+    } else {
+      if (ch === '"') inStr = true;
+      else if (ch === "'") return true; // rest of line is a comment
+    }
+  }
+  if (inStr) return true;
+  // REM-style comment: line starts (after whitespace) with REM
+  if (/^\s*rem\b/i.test(lineText.slice(0, col - 1))) return true;
+  return false;
+}
+
+function installAutoUppercase(editor, monaco) {
+  const vocab = _buildAutoUcVocab();
+  // Word-terminator characters that should trigger formatting of the word
+  // that just ended on the *current* line.
+  const TERMS = new Set([" ", "\t", "(", ")", ",", ";", ":", "=", "+", "-", "*", "/", "\\", "<", ">", "&", "|", "^", "%", "$", "!", "?", "."]);
+  let _suppress = false; // re-entrancy guard: ignore changes we cause ourselves
+
+  editor.onDidChangeModelContent((e) => {
+    if (_suppress) return;
+    if (!e.changes || e.changes.length === 0) return;
+    // Find the first change that is a single-char insert or a newline insert.
+    let ch = null;
+    for (const c of e.changes) {
+      if (!c.text) continue;
+      if (c.text.length === 1 && TERMS.has(c.text)) { ch = c; break; }
+      if (/^(\r?\n)\s*$/.test(c.text)) { ch = c; break; }
+    }
+    if (!ch) return;
+    const text = ch.text;
+    const isTerm = text.length === 1 && TERMS.has(text);
+    const isNewline = /^(\r?\n)\s*$/.test(text);
+    if (!isTerm && !isNewline) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    // Determine which line ended and where to look for the just-finished word.
+    let targetLine, endColExclusive;
+    if (isTerm) {
+      // The terminator character was inserted at ch.range.startLineNumber/Column.
+      // The word ends one column before the terminator (= startColumn).
+      targetLine = ch.range.startLineNumber;
+      endColExclusive = ch.range.startColumn; // 1-based, exclusive end
+    } else {
+      // Newline inserted: the word we want to format ended at the column
+      // where the newline started, on the line BEFORE the newline.
+      targetLine = ch.range.startLineNumber;
+      endColExclusive = ch.range.startColumn;
+    }
+    if (targetLine < 1 || endColExclusive < 2) return;
+
+    const lineText = model.getLineContent(targetLine);
+    if (_isInsideStringOrComment(lineText, endColExclusive)) return;
+    // Find the word that ends at endColExclusive-1.
+    let endIdx = endColExclusive - 1; // 0-based exclusive
+    if (endIdx > lineText.length) endIdx = lineText.length;
+    let i = endIdx - 1; // last char of word
+    if (i < 0) return;
+    if (!/[A-Za-z0-9_$]/.test(lineText[i])) return;
+    let start = i;
+    while (start > 0 && /[A-Za-z0-9_$]/.test(lineText[start - 1])) start--;
+    const word = lineText.slice(start, i + 1);
+    const upper = vocab.get(word.toLowerCase());
+    if (!upper || upper === word) return;
+
+    _suppress = true;
+    try {
+      editor.executeEdits("rapidr-autouc", [{
+        range: new monaco.Range(targetLine, start + 1, targetLine, i + 2),
+        text: upper,
+        forceMoveMarkers: true,
+      }]);
+    } finally {
+      _suppress = false;
+    }
+  });
 }

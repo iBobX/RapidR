@@ -571,11 +571,9 @@ pub fn rp_sound(freq: &Value, duration: &Value) {
 
 pub fn rp_playsound(filename: &Value) -> Value {
     let src = filename.to_string_val();
-    let js_code = format!(
-        r#"try {{ new Audio("{}").play(); }} catch(e) {{}}"#,
-        src.replace('"', r#"\""#)
-    );
-    let _ = js_sys::eval(&js_code);
+    if let Ok(audio) = web_sys::HtmlAudioElement::new_with_src(&src) {
+        let _ = audio.play();
+    }
     v_null()
 }
 

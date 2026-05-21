@@ -675,15 +675,11 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // RWEBNOTIFICATION show — must come before generic (_, "show")
         ("RWEBNOTIFICATION", "show") => {
-            // Read title and body from stored properties
             let title = gui_web_get_prop(name, "title").to_string_val();
             let body = gui_web_get_prop(name, "body").to_string_val();
-            let code = format!(
-                r#"try {{ new Notification("{}", {{body: "{}"}}) }} catch(e) {{}}"#,
-                title.replace('"', r#"\""#),
-                body.replace('"', r#"\""#)
-            );
-            let _ = js_sys::eval(&code);
+            let options = web_sys::NotificationOptions::new();
+            options.set_body(&body);
+            let _ = web_sys::Notification::new_with_options(&title, &options);
             v_null()
         }
         (_, "show") => {
@@ -707,6 +703,17 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 show_modal_backdrop(&id);
                 form_bring_to_front(&id);
                 // Center on screen
+                let w = el.offset_width();
+                let h = el.offset_height();
+                let vw = document().document_element().map(|d| d.client_width()).unwrap_or(800);
+                let vh = document().document_element().map(|d| d.client_height()).unwrap_or(600);
+                let _ = el.style().set_property("left", &format!("{}px", ((vw - w) / 2).max(0)));
+                let _ = el.style().set_property("top", &format!("{}px", ((vh - h) / 2).max(0)));
+            }
+            v_null()
+        }
+        (_, "center") if comp_type == "RFORM" => {
+            if let Some(el) = get_el(&id) {
                 let w = el.offset_width();
                 let h = el.offset_height();
                 let vw = document().document_element().map(|d| d.client_width()).unwrap_or(800);
@@ -779,6 +786,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             canvas_pixel(&id, &args[0], &args[1], args.get(2));
             v_null()
         }
+        ("RCANVAS", "paint" | "update") => {
+            v_null()
+        }
         // StringGrid methods
         ("RSTRINGGRID", "create" | "new" | "init") => {
             // create([rows[, cols]]) — both default to existing or 0
@@ -802,6 +812,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         ("RSTRINGGRID", "setcolcount") if args.len() >= 1 => {
             grid_set_col_count(&id, args[0].to_i64() as usize);
             v_null()
+        }
+        ("RSTRINGGRID", "addrow") => {
+            grid_add_row(&id, args)
         }
         // TabControl methods
         ("RTABCONTROL", "addtab") if args.len() >= 1 => {
@@ -918,27 +931,36 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             for arg in args.iter().skip(1) {
                 js_args.push(&JsValue::from_str(&arg.to_string_val()));
             }
-            let code = format!("window['{}']", func_name);
-            match js_sys::eval(&code) {
-                Ok(func) => {
-                    if let Ok(func) = func.dyn_into::<js_sys::Function>() {
-                        match func.apply(&JsValue::NULL, &js_args) {
-                            Ok(result) => {
-                                if let Some(s) = result.as_string() {
-                                    v_str(&s)
-                                } else if let Some(n) = result.as_f64() {
-                                    Value::Double(n)
-                                } else {
+            if let Some(window) = web_sys::window() {
+                match js_sys::Reflect::get(&window, &JsValue::from_str(&func_name)) {
+                    Ok(func) => {
+                        if let Ok(func) = func.dyn_into::<js_sys::Function>() {
+                            match func.apply(&JsValue::NULL, &js_args) {
+                                Ok(result) => {
+                                    if let Some(s) = result.as_string() {
+                                        v_str(&s)
+                                    } else if let Some(n) = result.as_f64() {
+                                        Value::Double(n)
+                                    } else {
+                                        v_null()
+                                    }
+                                }
+                                Err(e) => {
+                                    web_sys::console::error_1(&e);
                                     v_null()
                                 }
                             }
-                            Err(_) => v_null(),
+                        } else {
+                            v_null()
                         }
-                    } else {
+                    }
+                    Err(e) => {
+                        web_sys::console::error_1(&e);
                         v_null()
                     }
                 }
-                Err(_) => v_null(),
+            } else {
+                v_null()
             }
         }
         // Web-exclusive: RWebStorage
@@ -1036,7 +1058,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // Web-exclusive: RWebNotification
         ("RWEBNOTIFICATION", "requestpermission") => {
-            let _ = js_sys::eval("Notification.requestPermission()");
+            if let Ok(promise) = web_sys::Notification::request_permission() {
+                let _ = promise;
+            }
             v_null()
         }
         // RWEBNOTIFICATION show is handled above (before generic "show")
@@ -1080,9 +1104,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // Fallback
         _ => {
-            web_sys::console::warn_1(&JsValue::from_str(&format!(
-                "[WARN] Unknown method '{}.{}()'",
-                name, method
+            web_sys::console::error_1(&JsValue::from_str(&format!(
+                "[RapidR][NotImplemented] {}.{}() — method not implemented on web runtime (component type: {}). This call will return Null. Native target may support it.",
+                name, method, comp_type
             )));
             v_null()
         }
@@ -1488,8 +1512,8 @@ fn create_table(id: &str, name: &str, props: &HashMap<String, Value>) {
     table.set_class_name("rr-grid");
     let _ = wrapper.append_child(&table);
 
-    let rows = props.get("rowcount").map(|v| v.to_i64()).unwrap_or(5) as usize;
-    let cols = props.get("colcount").map(|v| v.to_i64()).unwrap_or(3) as usize;
+    let rows = props.get("rows").or_else(|| props.get("rowcount")).map(|v| v.to_i64()).unwrap_or(0) as usize;
+    let cols = props.get("cols").or_else(|| props.get("colcount")).map(|v| v.to_i64()).unwrap_or(0) as usize;
     grid_init_cells(&format!("{}-table", id), rows, cols);
 
     setup_widget(&wrapper, id, name, props);
@@ -2038,14 +2062,81 @@ fn grid_set_row_count(id: &str, count: usize) {
                     let _ = table_el.delete_row(-1);
                 }
             }
+
+            let comp_name = if id.starts_with("rr-") {
+                &id[3..]
+            } else {
+                id
+            };
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rowcount", v_int(count as i64));
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rows", v_int(count as i64));
         }
     }
 }
 
-fn grid_set_col_count(id: &str, _count: usize) {
-    // For simplicity, rebuilding columns would require re-creating the entire grid.
-    // This is a simplified implementation.
-    let _ = id;
+fn grid_set_col_count(id: &str, count: usize) {
+    let comp_name = if id.starts_with("rr-") {
+        &id[3..]
+    } else {
+        id
+    };
+    crate::object_web::rp_comp_set_prop_only(comp_name, "colcount", v_int(count as i64));
+    crate::object_web::rp_comp_set_prop_only(comp_name, "cols", v_int(count as i64));
+}
+
+fn grid_add_row(id: &str, args: &[Value]) -> Value {
+    let table_id = format!("{}-table", id);
+    if let Some(table) = get_el(&table_id) {
+        if let Ok(table_el) = table.dyn_into::<web_sys::HtmlTableElement>() {
+            let tr = create_el("tr");
+            
+            let mut cols = args.len();
+            if cols == 0 {
+                cols = 3;
+                if let Some(first_row) = table_el.rows().item(0) {
+                    if let Ok(r) = first_row.dyn_into::<web_sys::HtmlTableRowElement>() {
+                        cols = r.cells().length() as usize;
+                    }
+                }
+            }
+            
+            let row_idx = table_el.rows().length() as usize;
+            
+            for c in 0..cols {
+                let td = create_el("td");
+                td.set_class_name("rr-grid-cell");
+                if c < args.len() {
+                    td.set_inner_text(&args[c].to_string_val());
+                }
+                if row_idx > 0 && c > 0 {
+                    let _ = td.set_attribute("contenteditable", "true");
+                    let _ = td.set_attribute("spellcheck", "false");
+                    let _ = td.style().set_property("cursor", "text");
+                }
+                let _ = tr.append_child(&td);
+            }
+            let _ = table_el.append_child(&tr);
+            
+            let comp_name = if id.starts_with("rr-") {
+                &id[3..]
+            } else {
+                id
+            };
+            
+            let new_rows = (row_idx + 1) as i64;
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rowcount", v_int(new_rows));
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rows", v_int(new_rows));
+            
+            let stored_cols = crate::object_web::rp_comp_get_stored(comp_name, "cols").to_i64();
+            if (cols as i64) > stored_cols {
+                crate::object_web::rp_comp_set_prop_only(comp_name, "cols", v_int(cols as i64));
+                crate::object_web::rp_comp_set_prop_only(comp_name, "colcount", v_int(cols as i64));
+            }
+            
+            return v_int(row_idx as i64);
+        }
+    }
+    v_int(-1)
 }
 
 // ---------------------------------------------------------------------------

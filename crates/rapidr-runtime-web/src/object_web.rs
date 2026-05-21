@@ -179,8 +179,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("top".to_string(), v_int(0));
             props.insert("width".to_string(), v_int(300));
             props.insert("height".to_string(), v_int(200));
-            props.insert("rowcount".to_string(), v_int(5));
-            props.insert("colcount".to_string(), v_int(3));
+            props.insert("rowcount".to_string(), v_int(0));
+            props.insert("colcount".to_string(), v_int(0));
         }
         "RPROGRESS" | "RPROGRESSBAR" => {
             props.insert("left".to_string(), v_int(0));
@@ -408,7 +408,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
                 return;
             }
         }
-        "RSQLITE" | "RDATAFRAME" => {
+        "RSQLITE" | "RDATAFRAME" | "RMYSQL" => {
             // These use the generic property store only (already inserted above)
             return;
         }
@@ -562,6 +562,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Database special handling
     if comp_type == "RSQLITE" {
         return crate::database_web::sqlite_method(&uname, &lmethod, args);
+    }
+    if comp_type == "RMYSQL" {
+        return crate::database_web::mysql_method(&uname, &lmethod, args);
     }
 
     // Delegate to GUI layer
