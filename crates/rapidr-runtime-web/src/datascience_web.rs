@@ -549,8 +549,16 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "loadfromcsv" | "readcsv" | "read_csv" => {
-            // On web, interpret the argument as inline CSV text
-            let csv_text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            let mut csv_text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            if csv_text.ends_with(".csv") || csv_text.starts_with("assets/") {
+                if let Some(base64_data) = crate::database_web::get_rapidr_asset(&csv_text) {
+                    if let Some(decoded) = crate::database_web::decode_base64(&base64_data) {
+                        if let Ok(utf8_str) = String::from_utf8(decoded) {
+                            csv_text = utf8_str;
+                        }
+                    }
+                }
+            }
             let mut lines = csv_text.lines();
             let header = match lines.next() {
                 Some(h) => h,
@@ -587,9 +595,9 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "cell" => {
-            // Convention: cell(col, row) — column first, then row
-            let col = args.first().map(|v| v.to_i64()).unwrap_or(0) as usize;
-            let row = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as usize;
+            // Convention: cell(row, col) — row first, then column
+            let row = args.first().map(|v| v.to_i64()).unwrap_or(0) as usize;
+            let col = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as usize;
             DF_STORE.with(|s| {
                 let store = s.borrow();
                 if let Some(df) = store.get(&uname) {
@@ -1290,8 +1298,14 @@ pub fn plot_set_prop(name: &str, prop: &str, val: &Value) {
             "xlabel" => ps.xlabel = val.to_string_val(),
             "ylabel" => ps.ylabel = val.to_string_val(),
             "grid" => ps.show_grid = val.to_i64() != 0,
-            "width" => ps.width = val.to_f64().max(100.0),
-            "height" => ps.height = val.to_f64().max(100.0),
+            "width" => {
+                let w = val.to_f64();
+                ps.width = (if w < 100.0 { w * 100.0 } else { w }).max(100.0);
+            }
+            "height" => {
+                let h = val.to_f64();
+                ps.height = (if h < 100.0 { h * 100.0 } else { h }).max(100.0);
+            }
             _ => {}
         }
     });
@@ -1301,7 +1315,7 @@ pub fn plot_set_prop(name: &str, prop: &str, val: &Value) {
 // Plot rendering to HTML5 Canvas
 // ======================================================================
 
-fn render_plot(name: &str) {
+pub fn render_plot(name: &str) {
     let state = PLOT_STORE.with(|s| s.borrow().get(name).cloned());
     let state = match state { Some(s) => s, None => return };
 
@@ -1327,7 +1341,14 @@ fn render_plot(name: &str) {
                 let _ = container.append_child(&c);
                 c
             } else {
-                return;
+                // Create a virtual/hidden canvas
+                let c = doc.create_element("canvas").unwrap();
+                c.set_id(&canvas_id);
+                if let Ok(html_el) = c.clone().dyn_into::<web_sys::HtmlElement>() {
+                    let _ = html_el.style().set_property("display", "none");
+                }
+                let _ = doc.body().unwrap().append_child(&c);
+                c
             }
         }
     };
@@ -1699,6 +1720,10 @@ pub fn create_plot_widget(id: &str, name: &str, props: &HashMap<String, Value>) 
         "<span class=\"rr-plot-placeholder\">📈 {}<br/><small>(call .render() / .plot())</small></span>",
         name
     ));
+    let has_parent = props.get("parent").map(|v| !v.to_string_val().is_empty()).unwrap_or(false);
+    if !has_parent {
+        let _ = el.style().set_property("display", "none");
+    }
     gui_web::setup_widget(&el, id, name, props);
 }
 
@@ -1719,6 +1744,10 @@ pub fn create_dataframe_widget(id: &str, name: &str, props: &HashMap<String, Val
         "<div class=\"rr-df-placeholder\" style=\"padding:8px;color:#888;\">▦ {}<br/><small>(call .show() to render)</small></div>",
         name
     ));
+    let has_parent = props.get("parent").map(|v| !v.to_string_val().is_empty()).unwrap_or(false);
+    if !has_parent {
+        let _ = el.style().set_property("display", "none");
+    }
     gui_web::setup_widget(&el, id, name, props);
 }
 
@@ -1737,6 +1766,10 @@ pub fn create_num_widget(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.style().set_property("font-size", "11px");
     let _ = el.style().set_property("padding", "4px 8px");
     el.set_inner_html(&format!("ƒ {} (RNum)", name));
+    let has_parent = props.get("parent").map(|v| !v.to_string_val().is_empty()).unwrap_or(false);
+    if !has_parent {
+        let _ = el.style().set_property("display", "none");
+    }
     gui_web::setup_widget(&el, id, name, props);
 }
 

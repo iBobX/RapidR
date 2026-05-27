@@ -311,6 +311,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
     }
 
+    let name_clone = uname.clone();
     COMPONENTS.with(|c| {
         c.borrow_mut().insert(
             uname,
@@ -321,6 +322,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             },
         );
     });
+
+    gui_web::setup_data_binding(&name_clone);
 }
 
 // ---------------------------------------------------------------------------
@@ -371,6 +374,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
     });
 
+    if lprop == "datasource" || lprop == "datafield" {
+        crate::gui_web::setup_data_binding(&uname);
+    }
+
     // Handle StringList operations
     if lprop == "text" {
         COMPONENTS.with(|c| {
@@ -417,6 +424,43 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     // Pass to GUI layer for DOM update
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
+}
+
+pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>, has_row: bool) {
+    let uname = db_name.to_uppercase();
+    let mut bounds = Vec::new();
+    COMPONENTS.with(|c| {
+        for (comp_name, comp) in c.borrow().iter() {
+            let ds = comp.properties.get("datasource").map(|v| v.to_string_val().to_uppercase());
+            let df = comp.properties.get("datafield").map(|v| v.to_string_val().to_uppercase());
+            if let (Some(ds_val), Some(df_val)) = (ds, df) {
+                if ds_val == uname {
+                    let val = if has_row {
+                        field_vals.get(&df_val).cloned().unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    bounds.push((comp_name.clone(), val));
+                }
+            }
+        }
+    });
+    
+    for (comp_name, val) in bounds {
+        let comp_type = rp_comp_type(&comp_name);
+        let prop_name = match comp_type.as_str() {
+            "RCHECKBOX" | "RRADIOBUTTON" => "checked",
+            "RCOMBOBOX" | "RLISTBOX" => "text",
+            _ => "text",
+        };
+        
+        if prop_name == "checked" {
+            let bval = val == "1" || val.to_lowercase() == "true";
+            rp_comp_set(&comp_name, prop_name, crate::value::v_bool(bval));
+        } else {
+            rp_comp_set(&comp_name, prop_name, v_str(&val));
+        }
+    }
 }
 
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
@@ -1471,7 +1515,13 @@ fn bind_dom_event(name: &str, event: &str) {
     };
 
     let dom_event_name = match event {
-        "onclick" => "click",
+        "onclick" => {
+            if el.tag_name().to_uppercase() == "SELECT" {
+                "change"
+            } else {
+                "click"
+            }
+        }
         "ondblclick" | "ondoubleclick" => "dblclick",
         "onchange" => "input",
         "onkeypress" | "onkeydown" => "keydown",
@@ -1528,8 +1578,16 @@ fn bind_dom_event(name: &str, event: &str) {
         || dom_event_name == "mouseup"
     {
         let closure = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            let x = e.offset_x() as i64;
-            let y = e.offset_y() as i64;
+            let target_el = e.current_target()
+                .and_then(|t| t.dyn_into::<web_sys::Element>().ok());
+            let (x, y) = if let Some(el) = target_el {
+                let rect = el.get_bounding_client_rect();
+                let cx = (e.client_x() as f64 - rect.left()) as i64;
+                let cy = (e.client_y() as f64 - rect.top()) as i64;
+                (cx, cy)
+            } else {
+                (e.offset_x() as i64, e.offset_y() as i64)
+            };
             let button = e.button() as i64;
             rp_fire_event_5(
                 &name_for_closure,

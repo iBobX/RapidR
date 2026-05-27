@@ -42,6 +42,7 @@ features = [
     "Text",
     "CssStyleDeclaration",
     "DomTokenList",
+    "DomRect",
 
     # Events
     "Event",

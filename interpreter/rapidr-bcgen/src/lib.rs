@@ -76,6 +76,8 @@ struct Bcgen {
     warnings: Vec<String>,
     /// Scope stack for the function currently being lowered.
     scope: Scope,
+    /// Set of declared global variables (lowercase names)
+    globals: HashSet<String>,
     /// Active "WITH object" name (or None). Bare member-access on the
     /// implicit object is not yet a separate AST node, so this is reserved.
     _with_object: Option<String>,
@@ -94,6 +96,8 @@ struct Bcgen {
     /// a component instance, so we emit `LoadConst(v_str("form1"))` +
     /// `SetProp` instead of trying to load a non-existent global.
     component_instance_names: HashMap<String, String>,
+    /// Whether we are currently lowering the top-level main program.
+    in_main: bool,
 }
 
 struct LoopCtx {
@@ -109,11 +113,13 @@ impl Bcgen {
             fn_is_func: HashMap::new(),
             warnings: Vec::new(),
             scope: Scope::default(),
+            globals: HashSet::new(),
             _with_object: None,
             loop_stack: Vec::new(),
             create_stack: Vec::new(),
             create_declared_names: HashSet::new(),
             component_instance_names: HashMap::new(),
+            in_main: false,
         }
     }
 
@@ -158,15 +164,17 @@ impl Bcgen {
             ..Default::default()
         });
         self.module.entry = main_idx;
-        let mut main_code = Vec::new();
+                let mut main_code = Vec::new();
         let mut main_lines = Vec::new();
         let saved_scope = std::mem::take(&mut self.scope);
+        self.in_main = true;
         for stmt in &program.statements {
             if matches!(stmt, Statement::Subroutine(_) | Statement::Function(_)) {
                 continue;
             }
             self.lower_stmt(stmt, &mut main_code, &mut main_lines)?;
         }
+        self.in_main = false;
         emit(&mut main_code, Op::Halt);
         let main_locals = self.scope.next_slot as u32;
         self.scope = saved_scope;
@@ -254,6 +262,7 @@ impl Bcgen {
             Statement::Return(r) => self.lower_return(r, code)?,
             Statement::Const(c) => {
                 // CONST x = expr  → eval + StoreGlobal x  (treat all as globals).
+                self.globals.insert(c.name.to_lowercase());
                 self.lower_expr(&c.value, code)?;
                 let s = self.module.add_string(&c.name);
                 emit(code, Op::StoreGlobal);
@@ -262,7 +271,11 @@ impl Bcgen {
             Statement::Dim(d) => {
                 // Declare locals; initial value Null is already the default.
                 for decl in &d.declarators {
-                    self.scope.declare(&decl.name);
+                    if !self.in_main {
+                        self.scope.declare(&decl.name);
+                    } else {
+                        self.globals.insert(decl.name.to_lowercase());
+                    }
                     // Component DIM → eagerly CreateComp (mirrors the
                     // compiled-mode `emit_dim` path), unless a CREATE block
                     // already declares the same name.
@@ -396,6 +409,11 @@ impl Bcgen {
     }
 
     fn lower_assignment(&mut self, a: &AssignmentStatement, code: &mut Vec<u8>) -> Result<(), String> {
+        if self.in_main {
+            if let Expression::Identifier(id) = &a.target {
+                self.globals.insert(id.name.to_lowercase());
+            }
+        }
         // Special case for CREATE-block property assignment with a SUB-name RHS:
         // → emit RegisterEvent instead of SetProp.
         if let (Some(inst), Expression::Identifier(rhs_id)) =
@@ -722,16 +740,26 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
+        let is_global = self.in_main && self.scope.get(&f.variable).is_none();
+        
         // var = start
-        let var_slot = self.scope.declare(&f.variable);
-        self.lower_expr(&f.start, code)?;
-        emit(code, Op::StoreLocal); push_u16(code, var_slot);
+        if is_global {
+            self.globals.insert(f.variable.to_lowercase());
+            self.lower_expr(&f.start, code)?;
+            let s = self.module.add_string(&f.variable);
+            emit(code, Op::StoreGlobal); push_u32(code, s);
+        } else {
+            let var_slot = self.scope.declare(&f.variable);
+            self.lower_expr(&f.start, code)?;
+            emit(code, Op::StoreLocal); push_u16(code, var_slot);
+        }
 
         // end and step into temp slots so they evaluate once.
-        let end_slot = self.scope.declare(&format!("__for_end_{}", var_slot));
+        let temp_slot_id = self.scope.next_slot;
+        let end_slot = self.scope.declare(&format!("__for_end_{}", temp_slot_id));
         self.lower_expr(&f.end, code)?;
         emit(code, Op::StoreLocal); push_u16(code, end_slot);
-        let step_slot = self.scope.declare(&format!("__for_step_{}", var_slot));
+        let step_slot = self.scope.declare(&format!("__for_step_{}", temp_slot_id));
         if let Some(step) = &f.step {
             self.lower_expr(step, code)?;
         } else {
@@ -743,7 +771,13 @@ impl Bcgen {
         // loop start
         let loop_top = code.len() as u32;
         // condition: var <= end  (assumes positive step)
-        emit(code, Op::LoadLocal); push_u16(code, var_slot);
+        if is_global {
+            let s = self.module.add_string(&f.variable);
+            emit(code, Op::LoadGlobal); push_u32(code, s);
+        } else {
+            let var_slot = self.scope.get(&f.variable).unwrap();
+            emit(code, Op::LoadLocal); push_u16(code, var_slot);
+        }
         emit(code, Op::LoadLocal); push_u16(code, end_slot);
         emit(code, Op::Le);
         emit(code, Op::JumpIfNot);
@@ -755,10 +789,19 @@ impl Bcgen {
             self.lower_stmt(s, code, lines)?;
         }
         // var = var + step
-        emit(code, Op::LoadLocal); push_u16(code, var_slot);
-        emit(code, Op::LoadLocal); push_u16(code, step_slot);
-        emit(code, Op::Add);
-        emit(code, Op::StoreLocal); push_u16(code, var_slot);
+        if is_global {
+            let s = self.module.add_string(&f.variable);
+            emit(code, Op::LoadGlobal); push_u32(code, s);
+            emit(code, Op::LoadLocal); push_u16(code, step_slot);
+            emit(code, Op::Add);
+            emit(code, Op::StoreGlobal); push_u32(code, s);
+        } else {
+            let var_slot = self.scope.get(&f.variable).unwrap();
+            emit(code, Op::LoadLocal); push_u16(code, var_slot);
+            emit(code, Op::LoadLocal); push_u16(code, step_slot);
+            emit(code, Op::Add);
+            emit(code, Op::StoreLocal); push_u16(code, var_slot);
+        }
         emit(code, Op::Jump);
         push_u32(code, loop_top);
 
@@ -914,7 +957,12 @@ impl Bcgen {
         match e {
             Expression::Literal(l) => self.lower_literal(l, code),
             Expression::Identifier(id) => {
-                if let Some(slot) = self.scope.get(&id.name) {
+                let name_lower = id.name.to_lowercase();
+                if self.component_instance_names.contains_key(&name_lower) {
+                    let cs = self.module.add_const(Const::Str(id.name.clone()));
+                    emit(code, Op::LoadConst);
+                    push_u32(code, cs);
+                } else if let Some(slot) = self.scope.get(&id.name) {
                     emit(code, Op::LoadLocal); push_u16(code, slot);
                 } else {
                     let s = self.module.add_string(&id.name);
@@ -957,6 +1005,22 @@ impl Bcgen {
                 Ok(())
             }
             Expression::FunctionCall(fc) => {
+                // Check if this is a variant array/list subscript indexing:
+                // callee is an identifier, not a defined function, and is a variable.
+                if let Expression::Identifier(id) = fc.callee.as_ref() {
+                    let name_lower = id.name.to_lowercase();
+                    let is_local = self.scope.get(&id.name).is_some();
+                    let is_global = self.globals.contains(&name_lower);
+                    if (is_local || is_global) && fc.args.len() == 1 && !self.fn_indices.contains_key(&id.name) {
+                        let synth = ArrayAccessExpression {
+                            span: fc.span.clone(),
+                            array: fc.callee.clone(),
+                            indices: fc.args.clone(),
+                        };
+                        return self.lower_expr(&Expression::ArrayAccess(synth), code);
+                    }
+                }
+
                 for a in &fc.args { self.lower_expr(a, code)?; }
                 let argc = fc.args.len() as u8;
                 // Module-style call: `math.sqrt(x)`, `RNum.zeros(n)` →

@@ -16,7 +16,7 @@ export const TOOLBOX_GROUPS = [
       { type: "REdit",       icon: "▤",  label: "Text Box",    visible: true },
       { type: "RMemo",       icon: "❡",  label: "Memo",        visible: true },
       { type: "RCheckBox",   icon: "☑",  label: "Check Box",   visible: true },
-      { type: "RRadioBtn",   icon: "◉",  label: "Radio Button",visible: true },
+      { type: "RRadioButton",   icon: "◉",  label: "Radio Button",visible: true },
       { type: "RComboBox",   icon: "▾",  label: "Combo Box",   visible: true },
       { type: "RListBox",    icon: "≣",  label: "List Box",    visible: true },
       { type: "RPanel",      icon: "▢",  label: "Panel",       visible: true },
@@ -114,17 +114,39 @@ export const TOOLBOX_GROUPS = [
 export const TOOLBOX = TOOLBOX_GROUPS.flatMap(g => g.items);
 
 export function isVisibleType(type) {
+  const lower = type.toLowerCase();
   for (const g of TOOLBOX_GROUPS)
     for (const it of g.items)
-      if (it.type === type) return it.visible;
+      if (it.type.toLowerCase() === lower) return it.visible;
   return true;   // unknown types default to visible
+}
+
+export function normalizeTypeCasing(type) {
+  if (!type) return "";
+  const lower = type.toLowerCase();
+  for (const g of TOOLBOX_GROUPS) {
+    for (const it of g.items) {
+      if (it.type.toLowerCase() === lower) {
+        return it.type;
+      }
+    }
+  }
+  // Try case-insensitive matching for common extra names that might be standard (like RForm or RMainMenu or RMenuItem)
+  if (lower === "rform") return "RForm";
+  if (lower === "rmainmenu") return "RMainMenu";
+  if (lower === "rmenuitem") return "RMenuItem";
+  if (lower === "rpopupmenu") return "RPopupMenu";
+  if (lower === "rtoolbar") return "RToolBar";
+  if (lower === "rstatusbar") return "RStatusBar";
+  
+  return type;
 }
 
 // Defaults for new widgets. Geometry defaults are filled in at drop-time
 // from the click point.
 const COMMON = (n) => ({
   left: 0, top: 0, width: 88, height: 24,
-  visible: 1, enabled: 1, fontname: "Tahoma", fontsize: 11,
+  visible: 1, enabled: 1,
 });
 
 // Invisible (tray) widgets get a tiny placeholder geometry.
@@ -141,7 +163,7 @@ export function defaultsFor(type, name) {
     case "REdit":       return { ...COMMON(name), text: "" };
     case "RMemo":       return { ...COMMON(name), width: 200, height: 80, text: "" };
     case "RCheckBox":   return { ...COMMON(name), caption: name, checked: 0 };
-    case "RRadioBtn":   return { ...COMMON(name), caption: name, checked: 0 };
+    case "RRadioButton":   return { ...COMMON(name), caption: name, checked: 0 };
     case "RComboBox":   return { ...COMMON(name), items: "" };
     case "RListBox":    return { ...COMMON(name), height: 120, items: "" };
     case "RImage":      return { ...COMMON(name), height: 80, picture: "" };

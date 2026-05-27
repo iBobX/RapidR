@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RapidR IDE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto:wght@400;500;700&family=Montserrat:wght@400;500;700&family=Nunito:wght@400;500;700&family=Playfair+Display:wght@400;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./ide.css">
   <link rel="stylesheet" href="./modern.css">
 </head>
@@ -126,6 +129,11 @@
       <option value="../examples/web_canvas.rr">Canvas Drawing</option>
       <option value="../examples/demo_plot.rr">Canvas Plot</option>
       <option value="../examples/demo_sqlite.rr">SQLite Demo</option>
+      <option value="../examples/demo_num.rr">NumPy Array Math</option>
+      <option value="../examples/demo_dataframe.rr">DataFrame Operations</option>
+      <option value="../examples/web_datascience.rr">DataScience Stack</option>
+      <option value="../examples/web_videoplayer.rr">Video Player</option>
+      <option value="../examples/web_webviewer.rr">Web Viewer</option>
     </select>
     <span id="project-title" class="tb-title">untitled</span>
   </div>
@@ -199,7 +207,7 @@
   </div>
 
   <!-- Hidden file inputs -->
-  <input type="file" id="file-open-project" accept=".rrproj,.json" hidden>
+  <input type="file" id="file-open-project" accept=".rrproj,.json,.rr" hidden>
   <input type="file" id="file-open-example" accept=".rr" hidden>
   <input type="file" id="file-upload-asset" multiple hidden>
 

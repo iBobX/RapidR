@@ -12,6 +12,32 @@ const COMPONENT_REGISTRY = {
                  'ondeactivate', 'onpaint', 'onmousemove', 'onmousedown', 'onmouseup',
                  'onkeydown', 'onkeyup', 'onkeypress', 'ondblclick', 'ontimer']
     },
+    'RMEMO': {
+        props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'readonly',
+                'font', 'fontsize', 'fontcolor', 'color', 'wordwrap', 'scrollbars', 'hint', 'showhint', 'cursor',
+                'tag', 'parent', 'taborder', 'borderstyle', 'alignment'],
+        methods: ['clear', 'setfocus', 'selectall', 'copytoclipboard', 'cuttoclipboard',
+                  'pastefromclipboard', 'undo', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick', 'ondblclick', 'onkeydown', 'onkeyup', 'onkeypress']
+    },
+    'RUPDOWN': {
+        props: ['min', 'max', 'position', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick', 'onchange']
+    },
+    'RDATETIMEPICKER': {
+        props: ['date', 'time', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['repaint', 'refresh', 'setfocus'],
+        events: ['onclick', 'onchange']
+    },
+    'RTOOLBAR': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'enabled', 'color',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['repaint', 'refresh'],
+        events: ['onclick']
+    },
     'RBUTTON': {
         props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
                 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder'],
@@ -743,6 +769,7 @@ export { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTI
 // Pretty display name for an upper-case component key (RBUTTON -> RButton).
 const _NAME_MAP = {
   RFORM:"RForm", RBUTTON:"RButton", RLABEL:"RLabel", REDIT:"REdit",
+  RMEMO:"RMemo", RUPDOWN:"RUpDown", RDATETIMEPICKER:"RDateTimePicker", RTOOLBAR:"RToolBar",
   RCANVAS:"RCanvas", RPANEL:"RPanel", RTIMER:"RTimer",
   RMAINMENU:"RMainMenu", RMENUITEM:"RMenuItem", RCOMBOBOX:"RComboBox",
   RLISTBOX:"RListBox", RCHECKBOX:"RCheckBox", RRADIOBUTTON:"RRadioButton",

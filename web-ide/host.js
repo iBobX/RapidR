@@ -14,14 +14,40 @@ import init, { compile, rapidr_run_bc } from "./runtime/rapidrintr.js";
 import { TOOLBOX, TOOLBOX_GROUPS, defaultsFor, isVisibleType } from "./toolbox.js";
 import { COMPONENT_REGISTRY } from "./lang-data.js";
 import { newProject, addForm, addWidget, removeWidget, serializeForm,
-         serializeProject, setProp, findWidget, allWidgets } from "./model.js";
+         serializeProject, deserializeProject, setProp, findWidget, allWidgets } from "./model.js";
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
 export const RAPIDR_IDE_VERSION = "1.0.0";
 
-// One Monaco editor instance per form, keyed by form.id.
 const _editors = new Map();
+
+function clearAllEditors() {
+  for (const editor of _editors.values()) {
+    try {
+      editor.dispose();
+    } catch (e) {
+      console.warn("Error disposing editor:", e);
+    }
+  }
+  _editors.clear();
+}
+
+function stripAmpersands(s) {
+  if (!s) return "";
+  let result = "";
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '&') {
+      if (s[i+1] === '&') {
+        result += '&';
+        i++;
+      }
+    } else {
+      result += s[i];
+    }
+  }
+  return result;
+}
 
 // ─── State ──────────────────────────────────────────────────────
 
@@ -531,7 +557,7 @@ const EVENT_META = {
     ["OnClick",  []],
     ["OnChange", ["checked"]],
   ],
-  RRadioBtn: [
+  RRadioButton: [
     ["OnClick",  []],
     ["OnChange", ["checked"]],
   ],
@@ -655,7 +681,7 @@ function renderActiveDesigner() {
   tb.className = "form-titlebar";
   const tbTitle = document.createElement("span");
   tbTitle.className = "form-title-text";
-  tbTitle.textContent = form.props.caption || form.name;
+  tbTitle.textContent = stripAmpersands(form.props.caption || form.name);
   tb.appendChild(tbTitle);
   const tbBtns = document.createElement("span");
   tbBtns.className = "form-title-btns";
@@ -690,9 +716,35 @@ function renderActiveDesigner() {
     closeForm(form.id);
   });
 
+  const hasMenu = form.children.some(w => w.type === "RMainMenu");
+  const clientEl = document.createElement("div");
+  clientEl.className = "design-form-client";
+  clientEl.style.position = "absolute";
+  clientEl.style.left = "0";
+  clientEl.style.width = "100%";
+  clientEl.style.boxSizing = "border-box";
+  if (hasMenu) {
+    clientEl.style.top = "28px";
+    clientEl.style.height = "calc(100% - 28px)";
+  } else {
+    clientEl.style.top = "0";
+    clientEl.style.height = "100%";
+  }
+  formEl.appendChild(clientEl);
+
   for (const w of form.children) {
     if (!isVisibleType(w.type)) continue;
-    formEl.appendChild(buildWidgetEl(w, state.selection.includes(w.name)));
+    if (w.type === "RMainMenu") {
+      const menuEl = buildWidgetEl(w, state.selection.includes(w.name));
+      menuEl.style.position = "absolute";
+      menuEl.style.top = "0";
+      menuEl.style.left = "0";
+      menuEl.style.width = "100%";
+      menuEl.style.height = "28px";
+      formEl.appendChild(menuEl);
+    } else {
+      clientEl.appendChild(buildWidgetEl(w, state.selection.includes(w.name)));
+    }
   }
 
   // Form-level resize handles (VB6-style 8 handles)
@@ -803,13 +855,13 @@ function renderRealComponent(w) {
     case "RButton": {
       inner = document.createElement("button");
       inner.type = "button";
-      inner.textContent = txt;
+      inner.textContent = stripAmpersands(txt);
       inner.disabled = !!w.props.enabled === false ? false : !((w.props.enabled ?? 1) | 0);
       break;
     }
     case "RLabel": {
       inner = document.createElement("span");
-      inner.textContent = txt;
+      inner.textContent = stripAmpersands(txt);
       break;
     }
     case "REdit": {
@@ -825,16 +877,16 @@ function renderRealComponent(w) {
       c.type = "checkbox";
       c.checked = !!Number(w.props.checked);
       const s = document.createElement("span");
-      s.textContent = " " + txt;
+      s.textContent = " " + stripAmpersands(txt);
       inner.appendChild(c); inner.appendChild(s);
       break;
     }
-    case "RRadioBtn": {
+    case "RRadioButton": {
       inner = document.createElement("label");
       const r = document.createElement("input");
       r.type = "radio"; r.checked = !!Number(w.props.checked);
       const s = document.createElement("span");
-      s.textContent = " " + txt;
+      s.textContent = " " + stripAmpersands(txt);
       inner.appendChild(r); inner.appendChild(s);
       break;
     }
@@ -859,7 +911,16 @@ function renderRealComponent(w) {
       inner = document.createElement("div");
       inner.className = "dw-image";
       if (w.props.picture) {
-        inner.style.backgroundImage = `url(${JSON.stringify(w.props.picture)})`;
+        let pic = w.props.picture;
+        if (pic.startsWith("assets/")) {
+          const assetName = pic.substring(7);
+          const found = (state.project.assets || []).find(a => a.name === assetName);
+          if (found) pic = found.dataUrl;
+        } else if (!pic.includes("://") && !pic.startsWith("data:")) {
+          const found = (state.project.assets || []).find(a => a.name === pic);
+          if (found) pic = found.dataUrl;
+        }
+        inner.style.backgroundImage = `url(${JSON.stringify(pic)})`;
       } else inner.textContent = "🖼 " + txt;
       break;
     }
@@ -871,7 +932,7 @@ function renderRealComponent(w) {
     case "RGroupBox": {
       inner = document.createElement("fieldset");
       const lg = document.createElement("legend");
-      lg.textContent = txt;
+      lg.textContent = stripAmpersands(txt);
       inner.appendChild(lg);
       break;
     }
@@ -1038,7 +1099,7 @@ function renderRealComponent(w) {
       inner.style.borderBottom = "1px solid #ccc";
       inner.style.fontSize = "12px";
       inner.style.padding = "4px 8px";
-      inner.textContent = String(w.props.caption || "File   Edit   View   Help");
+      inner.textContent = stripAmpersands(String(w.props.caption || "File   Edit   View   Help"));
       break;
     }
     case "RToolBar": {
@@ -1064,7 +1125,7 @@ function renderRealComponent(w) {
       inner.style.borderTop = "1px solid #ccc";
       inner.style.padding = "2px 8px";
       inner.style.fontSize = "11px";
-      inner.textContent = String(w.props.caption || "Ready");
+      inner.textContent = stripAmpersands(String(w.props.caption || "Ready"));
       break;
     }
     case "RWebView": {
@@ -1130,11 +1191,40 @@ function applyVisualProps(el, props, type) {
   // dedicated text-on-background like Buttons.
   const bgColor   = props.background || props.fillcolor || props.brushcolor || props.color;
   const fgColor   = fontColor;
-  if (fontName)         el.style.fontFamily = fontName;
-  if (fontSize !== undefined && fontSize !== "") el.style.fontSize = fontSize + "px";
+  
+  // Font inheritance: only set fontFamily and fontSize if explicitly set.
+  // Otherwise, clear/unset them so they inherit from the form!
+  if (fontName) {
+    el.style.fontFamily = fontName;
+  } else {
+    el.style.fontFamily = "";
+  }
+  if (fontSize !== undefined && fontSize !== "") {
+    el.style.fontSize = fontSize + "px";
+  } else {
+    el.style.fontSize = "";
+  }
+  
   if (fgColor)          el.style.color = fgColor;
   if (bgColor)          el.style.background = bgColor;
-  if (props.alignment)  el.style.textAlign = String(props.alignment).toLowerCase();
+  
+  if (props.alignment !== undefined && props.alignment !== "") {
+    const align = String(props.alignment).toLowerCase();
+    if (align === "center" || align === "1") {
+      el.style.justifyContent = "center";
+      el.style.textAlign = "center";
+    } else if (align === "right" || align === "2") {
+      el.style.justifyContent = "flex-end";
+      el.style.textAlign = "right";
+    } else {
+      el.style.justifyContent = "flex-start";
+      el.style.textAlign = "left";
+    }
+  } else {
+    // Let button.dw-inner default justify-content take over, otherwise reset
+    el.style.justifyContent = "";
+    el.style.textAlign = "";
+  }
   if (props.bordercolor) el.style.borderColor = props.bordercolor;
   if (props.visible !== undefined && !Number(props.visible)) el.style.opacity = "0.35";
 }
@@ -1146,7 +1236,8 @@ function onDesignerMouseDown(e) {
   const formEl = e.currentTarget;
   if (e.target.closest(".form-titlebar")) return;     // ignore titlebar drags
 
-  const rect = formEl.getBoundingClientRect();
+  const clientEl = formEl.querySelector(".design-form-client") || formEl;
+  const rect = clientEl.getBoundingClientRect();
   const startX = e.clientX - rect.left;
   const startY = e.clientY - rect.top;
 
@@ -1223,14 +1314,15 @@ function onDesignerDoubleClick(e) {
 // ─── Drag operations ──────────────────────────────────────────
 
 function beginDraw(form, formEl, startX, startY, ev) {
+  const clientEl = formEl.querySelector(".design-form-client") || formEl;
   const rubber = document.createElement("div");
   rubber.className = "rubber";
   rubber.style.left = startX + "px";
   rubber.style.top  = startY + "px";
-  formEl.appendChild(rubber);
+  clientEl.appendChild(rubber);
 
   const onMove = (e) => {
-    const rect = formEl.getBoundingClientRect();
+    const rect = clientEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const l = Math.min(startX, x), t = Math.min(startY, y);
@@ -1242,12 +1334,11 @@ function beginDraw(form, formEl, startX, startY, ev) {
   const onUp = (e) => {
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup",   onUp);
-    const rect = formEl.getBoundingClientRect();
+    const rect = clientEl.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
     let l = Math.min(startX, x), t = Math.min(startY, y);
     let wd = Math.abs(x - startX), ht = Math.abs(y - startY);
     if (wd < 4 && ht < 4) {
-      // Click without drag → use widget defaults.
       l = snap(startX); t = snap(startY); wd = undefined; ht = undefined;
     } else {
       l = snap(l); t = snap(t); wd = Math.max(SNAP, snap(wd)); ht = Math.max(SNAP, snap(ht));
@@ -1266,6 +1357,7 @@ function beginDraw(form, formEl, startX, startY, ev) {
 }
 
 function beginMove(form, formEl, ev) {
+  const clientEl = formEl.querySelector(".design-form-client") || formEl;
   // Snapshot starting positions for every selected widget.
   const starts = state.selection.map(name => {
     const w = findWidget(form, name);
@@ -1283,7 +1375,7 @@ function beginMove(form, formEl, ev) {
       const nx = snap(s.x + dx), ny = snap(s.y + dy);
       s.w.props.left = nx;
       s.w.props.top  = ny;
-      const el = formEl.querySelector(`.dwidget[data-name="${s.w.name}"]`);
+      const el = clientEl.querySelector(`.dwidget[data-name="${s.w.name}"]`);
       if (el) { el.style.left = nx + "px"; el.style.top = ny + "px"; }
     }
   };
@@ -1302,7 +1394,8 @@ function beginResize(form, formEl, dir, ev) {
   if (!w) return;
   const start = { x: w.props.left, y: w.props.top, w: w.props.width, h: w.props.height };
   const startMx = ev.clientX, startMy = ev.clientY;
-  const el = formEl.querySelector(`.dwidget[data-name="${w.name}"]`);
+  const clientEl = formEl.querySelector(".design-form-client") || formEl;
+  const el = clientEl.querySelector(`.dwidget[data-name="${w.name}"]`);
 
   const onMove = (e) => {
     const dx = e.clientX - startMx;
@@ -1331,14 +1424,15 @@ function beginResize(form, formEl, dir, ev) {
 }
 
 function beginRubberBand(form, formEl, startX, startY) {
+  const clientEl = formEl.querySelector(".design-form-client") || formEl;
   const rb = document.createElement("div");
   rb.className = "rubber";
   rb.style.left = startX + "px";
   rb.style.top  = startY + "px";
-  formEl.appendChild(rb);
+  clientEl.appendChild(rb);
 
   const onMove = (e) => {
-    const rect = formEl.getBoundingClientRect();
+    const rect = clientEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const l = Math.min(startX, x), t = Math.min(startY, y);
@@ -1348,12 +1442,13 @@ function beginRubberBand(form, formEl, startX, startY) {
     rb.style.width  = (r - l) + "px";
     rb.style.height = (b - t) + "px";
     state.selection = form.children.filter(w => {
+      if (w.type === "RMainMenu") return false;
       const wl = w.props.left, wt = w.props.top;
       const wr = wl + (w.props.width  || 0), wb = wt + (w.props.height || 0);
       return wl < r && wr > l && wt < b && wb > t;
     }).map(w => w.name);
     // Re-render selection markers.
-    formEl.querySelectorAll(".dwidget").forEach(el => {
+    clientEl.querySelectorAll(".dwidget").forEach(el => {
       el.classList.toggle("selected", state.selection.includes(el.dataset.name));
     });
   };
@@ -1467,7 +1562,7 @@ function defaultPropValue(k) {
   return "";
 }
 
-const FONT_FAMILIES = ["Tahoma","Arial","Verdana","Times New Roman","Courier New","Segoe UI","MS Sans Serif"];
+const FONT_FAMILIES = ["Inter","Roboto","Montserrat","Nunito","Playfair Display","Fira Code","Tahoma","Arial","Verdana","Times New Roman","Courier New","Segoe UI","MS Sans Serif"];
 
 function renderProperties() {
   const body = $("#props-body");
@@ -1499,7 +1594,12 @@ function renderProperties() {
   const stored = target.props || {};
   const reg = COMPONENT_REGISTRY[(target.type || "").toUpperCase()];
   const allKeys = new Set(Object.keys(stored));
-  if (reg) for (const p of reg.props) allKeys.add(p);
+  if (reg) {
+    for (const p of reg.props) {
+      if (p === "font") allKeys.add("fontname");
+      else allKeys.add(p);
+    }
+  }
   // Dedupe legacy aliases: prefer `fontname` over the `font` alias when both
   // would appear (registry exposes `font` for backwards compatibility but
   // the property grid + serializer both speak `fontname`).
@@ -1534,6 +1634,212 @@ function renderProperties() {
   }
 }
 
+function isContainerWidget(type) {
+  const t = String(type).toUpperCase();
+  return t === "RPANEL" || t === "RGROUPBOX" || t === "RTABCONTROL" || t === "RSCROLLBOX" || t === "RTOOLBAR";
+}
+
+function getDescendants(form, widgetName) {
+  const descendants = new Set();
+  const queue = [widgetName];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    for (const child of form.children) {
+      if (child.props && child.props.parent === current) {
+        if (!descendants.has(child.name)) {
+          descendants.add(child.name);
+          queue.push(child.name);
+        }
+      }
+    }
+  }
+  return descendants;
+}
+
+function getOrCreateModalContainer() {
+  let modal = document.getElementById("premium-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "premium-modal";
+    modal.className = "premium-modal-overlay";
+    modal.innerHTML = `
+      <div class="premium-modal-content">
+        <div class="premium-modal-header">
+          <h3 id="premium-modal-title">Select Value</h3>
+          <button type="button" class="premium-modal-close">&times;</button>
+        </div>
+        <div id="premium-modal-body"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Close events
+    modal.querySelector(".premium-modal-close").addEventListener("click", () => {
+      closePremiumModal();
+    });
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closePremiumModal();
+      }
+    });
+  }
+  return modal;
+}
+
+function closePremiumModal() {
+  const modal = document.getElementById("premium-modal");
+  if (modal) {
+    modal.classList.remove("open");
+  }
+}
+
+function openPremiumModal(title, bodyHtml, onSetup) {
+  const modal = getOrCreateModalContainer();
+  modal.querySelector("#premium-modal-title").textContent = title;
+  const body = modal.querySelector("#premium-modal-body");
+  body.innerHTML = bodyHtml;
+  onSetup(body, modal);
+  modal.classList.add("open");
+}
+
+function openColorModal(initialValue, onSelect) {
+  const colors = [
+    "#4a90e2", "#50e3c2", "#b8e986", "#f5a623", "#d0021b", "#8b572a",
+    "#7ed321", "#bd10e0", "#9013fe", "#f8e71c", "#417505", "#4990e2",
+    "#fd79a8", "#0984e3", "#00cec9", "#6c5ce7", "#ffeaa7", "#ff7675",
+    "#ECE9D8", "#D4D0C8", "#808080", "#C0C0C0", "#000000", "#FFFFFF"
+  ];
+  
+  const normInit = normalizeColor(initialValue) || "#ECE9D8";
+  
+  let gridHtml = `<div class="premium-color-grid">`;
+  for (const c of colors) {
+    const isSel = (normalizeColor(c) === normInit);
+    gridHtml += `<div class="premium-color-cell${isSel ? ' selected' : ''}" style="background: ${c}" data-color="${c}"></div>`;
+  }
+  gridHtml += `</div>`;
+  
+  const bodyHtml = `
+    ${gridHtml}
+    <div style="display: flex; gap: 8px; align-items: center; margin-top: 15px;">
+      <span style="font-size: 11px;">Manual Hex:</span>
+      <input type="text" id="manual-color-input" style="flex: 1; padding: 4px 8px; border: 1px solid var(--c-border); border-radius: 4px; background: var(--c-panel); color: var(--c-text);" value="${normInit}">
+      <button type="button" id="apply-color-btn" style="padding: 4px 12px; background: var(--c-accent); color: white; border: none; border-radius: 4px; cursor: pointer;">Apply</button>
+    </div>
+  `;
+  
+  openPremiumModal("Curated Color Palette", bodyHtml, (body, modal) => {
+    body.querySelectorAll(".premium-color-cell").forEach(cell => {
+      cell.addEventListener("click", () => {
+        const c = cell.dataset.color;
+        onSelect(c);
+        closePremiumModal();
+      });
+    });
+    
+    body.querySelector("#apply-color-btn").addEventListener("click", () => {
+      const c = body.querySelector("#manual-color-input").value.trim();
+      if (c) {
+        onSelect(c);
+        closePremiumModal();
+      }
+    });
+    
+    body.querySelector("#manual-color-input").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        const c = e.target.value.trim();
+        if (c) {
+          onSelect(c);
+          closePremiumModal();
+        }
+      }
+    });
+  });
+}
+
+function openFontModal(initialValue, onSelect) {
+  let fontListHtml = `<div class="premium-font-list">`;
+  for (const f of FONT_FAMILIES) {
+    const isSel = (f === initialValue);
+    fontListHtml += `
+      <div class="premium-font-item${isSel ? ' selected' : ''}" data-font="${f}" style="font-family: '${f}'">
+        ${f} - <span style="color: var(--c-text-mute); font-size: 11px;">AaBbYyZz</span>
+      </div>
+    `;
+  }
+  fontListHtml += `</div>`;
+  
+  const bodyHtml = `
+    ${fontListHtml}
+    <div style="border: 1px dashed var(--c-border); border-radius: 8px; padding: 12px; text-align: center; margin-top: 10px;">
+      <div id="font-preview-text" style="font-family: '${initialValue}'; font-size: 14px;">The quick brown fox jumps over the lazy dog.</div>
+    </div>
+  `;
+  
+  openPremiumModal("Premium Font Picker", bodyHtml, (body, modal) => {
+    const preview = body.querySelector("#font-preview-text");
+    
+    body.querySelectorAll(".premium-font-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const f = item.dataset.font;
+        onSelect(f);
+        closePremiumModal();
+      });
+      item.addEventListener("mouseenter", () => {
+        const f = item.dataset.font;
+        preview.style.fontFamily = `'${f}'`;
+      });
+    });
+  });
+}
+
+function openAssetModal(initialValue, onSelect) {
+  const assets = state.project.assets || [];
+  let assetListHtml = `<div class="premium-asset-grid">`;
+  
+  if (assets.length === 0) {
+    assetListHtml += `<div style="grid-column: 1 / span 3; text-align: center; color: var(--c-text-mute); padding: 30px 0;">No assets uploaded yet.</div>`;
+  } else {
+    for (const a of assets) {
+      const assetUrl = `assets/${a.name}`;
+      const isSel = (assetUrl === initialValue);
+      const isImg = a.mime.startsWith("image/");
+      const styleBg = isImg ? `background-image: url(${JSON.stringify(a.dataUrl)})` : "";
+      const icon = isImg ? "" : "📄";
+      
+      assetListHtml += `
+        <div class="premium-asset-card${isSel ? ' selected' : ''}" data-url="${assetUrl}">
+          <div class="premium-asset-preview" style="${styleBg}">${icon}</div>
+          <div class="premium-asset-name" title="${a.name}">${a.name}</div>
+        </div>
+      `;
+    }
+  }
+  assetListHtml += `</div>`;
+  
+  const bodyHtml = `
+    ${assetListHtml}
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
+      <button type="button" id="upload-asset-btn" style="padding: 6px 16px; background: var(--c-accent); color: white; border: none; border-radius: 4px; cursor: pointer;">Upload Asset...</button>
+    </div>
+  `;
+  
+  openPremiumModal("Premium Asset Manager", bodyHtml, (body, modal) => {
+    body.querySelectorAll(".premium-asset-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const url = card.dataset.url;
+        onSelect(url);
+        closePremiumModal();
+      });
+    });
+    
+    body.querySelector("#upload-asset-btn").addEventListener("click", () => {
+      closePremiumModal();
+      doAssetUpload();
+    });
+  });
+}
+
 function buildPropRow(form, target, k, v) {
   const row = document.createElement("div");
   row.className = "prop-row";
@@ -1560,7 +1866,48 @@ function buildPropRow(form, target, k, v) {
     updateLayoutDock();
   };
 
-  if (t === "bool") {
+  if (k === "parent") {
+    editor = document.createElement("select");
+    const oNone = document.createElement("option");
+    oNone.value = "";
+    oNone.textContent = "(none)";
+    editor.appendChild(oNone);
+    if (target.type !== "RForm") {
+      const descendants = getDescendants(form, target.name);
+      for (const w of form.children) {
+        if (isContainerWidget(w.type) && w.name !== target.name && !descendants.has(w.name)) {
+          const o = document.createElement("option");
+          o.value = w.name;
+          o.textContent = w.name;
+          editor.appendChild(o);
+        }
+      }
+    } else {
+      const descendantsForms = new Set();
+      const queue = [target.name];
+      while (queue.length > 0) {
+        const current = queue.shift();
+        for (const f of state.project.forms) {
+          if (f.props && f.props.parent === current) {
+            if (!descendantsForms.has(f.name)) {
+              descendantsForms.add(f.name);
+              queue.push(f.name);
+            }
+          }
+        }
+      }
+      for (const f of state.project.forms) {
+        if (f.name !== target.name && !descendantsForms.has(f.name)) {
+          const o = document.createElement("option");
+          o.value = f.name;
+          o.textContent = f.name;
+          editor.appendChild(o);
+        }
+      }
+    }
+    editor.value = String(v || "");
+    editor.addEventListener("change", () => commit(editor.value));
+  } else if (t === "bool") {
     editor = document.createElement("input");
     editor.type = "checkbox";
     editor.checked = !!Number(v);
@@ -1574,17 +1921,10 @@ function buildPropRow(form, target, k, v) {
     const txt = document.createElement("input");
     txt.type = "text";
     txt.value = v ?? "";
-    // Realtime preview: `input` fires while the picker is open / user drags
-    // the slider; `change` fires only on commit. Update both the text input
-    // and the live designer for every input event so the user sees the
-    // colour change immediately.
     swatch.addEventListener("input",  () => { txt.value = swatch.value; commit(swatch.value); });
     swatch.addEventListener("change", () => { txt.value = swatch.value; commit(swatch.value); });
     txt.addEventListener("input",  () => { const c = normalizeColor(txt.value); if (c) { swatch.value = c; commit(txt.value); } });
     txt.addEventListener("change", () => { const c = normalizeColor(txt.value); if (c) swatch.value = c; commit(txt.value); });
-    // Explicit "OK" / dismiss button — some platforms (notably macOS) show
-    // the system colour picker without an OK button, so we provide our own
-    // way to blur the swatch and close any open popover.
     const ok = document.createElement("button");
     ok.type = "button";
     ok.className = "prop-color-ok";
@@ -1595,7 +1935,21 @@ function buildPropRow(form, target, k, v) {
       commit(swatch.value);
       try { swatch.blur(); txt.blur(); } catch (_) {}
     });
-    wrap.appendChild(swatch); wrap.appendChild(txt); wrap.appendChild(ok);
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "prop-modal-trigger";
+    trigger.textContent = "🎨";
+    trigger.title = "Open Premium Color Palette";
+    trigger.addEventListener("click", () => {
+      openColorModal(txt.value, (newColor) => {
+        txt.value = newColor;
+        swatch.value = normalizeColor(newColor) || "#ECE9D8";
+        commit(newColor);
+        txt.dispatchEvent(new Event("input", { bubbles: true }));
+        txt.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    wrap.appendChild(swatch); wrap.appendChild(txt); wrap.appendChild(ok); wrap.appendChild(trigger);
     valDiv.appendChild(wrap);
   } else if (t === "enum") {
     editor = document.createElement("select");
@@ -1607,6 +1961,8 @@ function buildPropRow(form, target, k, v) {
     editor.value = String(v);
     editor.addEventListener("change", () => commit(editor.value));
   } else if (t === "font") {
+    const wrap = document.createElement("div");
+    wrap.className = "prop-font-wrap";
     editor = document.createElement("select");
     for (const f of FONT_FAMILIES) {
       const o = document.createElement("option");
@@ -1619,13 +1975,30 @@ function buildPropRow(form, target, k, v) {
       editor.appendChild(o);
     }
     editor.value = String(v);
-    // `change` already fires immediately for selects, but commit twice is safe
-    // and ensures realtime preview if the browser also emits `input`.
     editor.addEventListener("input",  () => commit(editor.value));
     editor.addEventListener("change", () => commit(editor.value));
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "prop-modal-trigger";
+    trigger.textContent = "🗛";
+    trigger.title = "Open Premium Font Picker";
+    trigger.addEventListener("click", () => {
+      openFontModal(editor.value, (newFont) => {
+        if (!FONT_FAMILIES.includes(newFont)) {
+          const o = document.createElement("option");
+          o.value = newFont; o.textContent = newFont;
+          editor.appendChild(o);
+        }
+        editor.value = newFont;
+        commit(newFont);
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+        editor.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    wrap.appendChild(editor);
+    wrap.appendChild(trigger);
+    valDiv.appendChild(wrap);
   } else if (t === "asset") {
-    // Asset chooser: text input (free-form URL or "assets/foo.png") with a
-    // companion <select> of project-bundled assets and an Upload button.
     const wrap = document.createElement("div");
     wrap.className = "prop-asset";
     const txt = document.createElement("input");
@@ -1647,7 +2020,20 @@ function buildPropRow(form, target, k, v) {
     up.title = "Upload new asset";
     up.className = "prop-asset-up";
     up.addEventListener("click", () => doAssetUpload());
-    wrap.appendChild(txt); wrap.appendChild(sel); wrap.appendChild(up);
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "prop-modal-trigger";
+    trigger.textContent = "💼";
+    trigger.title = "Open Premium Asset Manager";
+    trigger.addEventListener("click", () => {
+      openAssetModal(txt.value, (newAsset) => {
+        txt.value = newAsset;
+        commit(newAsset);
+        txt.dispatchEvent(new Event("input", { bubbles: true }));
+        txt.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    wrap.appendChild(txt); wrap.appendChild(sel); wrap.appendChild(up); wrap.appendChild(trigger);
     valDiv.appendChild(wrap);
   } else if (t === "number") {
     editor = document.createElement("input");
@@ -1660,7 +2046,7 @@ function buildPropRow(form, target, k, v) {
     editor.value = v ?? "";
     editor.addEventListener("change", () => commit(editor.value));
   }
-  if (editor) valDiv.appendChild(editor);
+  if (editor && t !== "font") valDiv.appendChild(editor);
   row.appendChild(valDiv);
   return row;
 }
@@ -1711,6 +2097,7 @@ function updateLayoutDock() {
 async function runCommand(cmd) {
   switch (cmd) {
     case "project.new": {
+      clearAllEditors();
       state.project = newProject("untitled");
       state.activeFormId = state.project.forms[0].id;
       state.selection = [];
@@ -1839,6 +2226,11 @@ async function doRun() {
       if (!e.data?.__rapidr_preview_ready) return;
       window.removeEventListener("message", onReady);
       hookPreviewConsole(iframe);
+      iframe.contentWindow.__rapidr_assets = (state.project.assets || []).reduce((acc, a) => {
+        acc[a.name] = a.dataUrl;
+        acc[`assets/${a.name}`] = a.dataUrl;
+        return acc;
+      }, {});
       iframe.contentWindow.postMessage({ __rapidr_run: bc }, "*");
     };
     window.addEventListener("message", onReady);
@@ -1920,6 +2312,7 @@ function serializeProjectModel(project) {
 
 function loadProjectModel(model) {
   if (!model || model.rapidr_project !== 1) throw new Error("not a .rrproj file");
+  clearAllEditors();
   state.project = {
     name: model.name || "untitled",
     modules: (model.modules || []).map(m => ({ id: m.id || "m"+Date.now()+Math.random(), name: m.name, source: m.source || "" })),
@@ -1961,14 +2354,27 @@ function setupFileLoaders() {
         const text = await resp.text();
         const name = val.split("/").pop().replace(/\.rr$/i, "");
 
-        state.project = newProject(name);
-        state.project.rawSource = text;
-        $("#mdi-tabs").innerHTML = "";
-        $("#mdi-area").innerHTML = "";
-        ensureFormPane(state.project.forms[0]);
-        switchToForm(state.project.forms[0].id);
-        renderProjectTree();
-        setStatus(`loaded ${name} (raw source mode)`, "ok");
+        const proj = deserializeProject(text, name);
+        if (name === "demo_dataframe") {
+          try {
+            const csvResp = await fetch("../examples/demo_dataframe_data.csv");
+            if (csvResp.ok) {
+              const csvText = await csvResp.text();
+              const base64Data = btoa(unescape(encodeURIComponent(csvText)));
+              const dataUrl = `data:text/csv;base64,${base64Data}`;
+              proj.assets = proj.assets || [];
+              proj.assets.push({
+                name: "demo_dataframe_data.csv",
+                mime: "text/csv",
+                dataUrl: dataUrl
+              });
+            }
+          } catch (e) {
+            console.error("Failed to preload CSV asset", e);
+          }
+        }
+        loadProjectModel(proj);
+        setStatus(`loaded ${name}`, "ok");
       } catch (err) {
         setStatus("load example failed: " + err.message, "error");
         logOutput(String(err));
@@ -1979,25 +2385,67 @@ function setupFileLoaders() {
   $("#file-open-example").addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const text = await f.text();
-    // Phase A: dump the loaded .rr into a single-form project as raw source
-    // (no parse-back into the model yet — that's Phase F).
-    state.project = newProject(f.name.replace(/\.rr$/i, ""));
-    state.project.rawSource = text;       // bypass serializer
-    $("#mdi-tabs").innerHTML = "";
-    $("#mdi-area").innerHTML = "";
-    ensureFormPane(state.project.forms[0]);
-    switchToForm(state.project.forms[0].id);
-    renderProjectTree();
-    setStatus(`loaded ${f.name} (raw source mode)`, "ok");
+    try {
+      const text = await f.text();
+      const name = f.name.replace(/\.rr$/i, "");
+      const proj = deserializeProject(text, name);
+      if (name === "demo_dataframe") {
+        try {
+          const csvResp = await fetch("../examples/demo_dataframe_data.csv");
+          if (csvResp.ok) {
+            const csvText = await csvResp.text();
+            const base64Data = btoa(unescape(encodeURIComponent(csvText)));
+            const dataUrl = `data:text/csv;base64,${base64Data}`;
+            proj.assets = proj.assets || [];
+            proj.assets.push({
+              name: "demo_dataframe_data.csv",
+              mime: "text/csv",
+              dataUrl: dataUrl
+            });
+          }
+        } catch (err) {
+          console.error("Failed to preload CSV asset", err);
+        }
+      }
+      loadProjectModel(proj);
+      setStatus(`loaded ${f.name}`, "ok");
+    } catch (err) {
+      setStatus("load example failed: " + err.message, "error");
+      logOutput(String(err));
+    }
   });
 
   $("#file-open-project").addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     try {
-      const model = JSON.parse(await f.text());
-      loadProjectModel(model);
+      const text = await f.text();
+      let proj;
+      if (f.name.toLowerCase().endsWith(".rr")) {
+        const name = f.name.replace(/\.rr$/i, "");
+        proj = deserializeProject(text, name);
+        if (name === "demo_dataframe") {
+          try {
+            const csvResp = await fetch("../examples/demo_dataframe_data.csv");
+            if (csvResp.ok) {
+              const csvText = await csvResp.text();
+              const base64Data = btoa(unescape(encodeURIComponent(csvText)));
+              const dataUrl = `data:text/csv;base64,${base64Data}`;
+              proj.assets = proj.assets || [];
+              proj.assets.push({
+                name: "demo_dataframe_data.csv",
+                mime: "text/csv",
+                dataUrl: dataUrl
+              });
+            }
+          } catch (err) {
+            console.error("Failed to preload CSV asset", err);
+          }
+        }
+      } else {
+        proj = JSON.parse(text);
+      }
+      loadProjectModel(proj);
       setStatus(`loaded ${f.name}`, "ok");
     } catch (err) {
       setStatus("load failed: " + err.message, "error");
@@ -2465,6 +2913,7 @@ async function main() {
     switchView,
     switchToForm,
     serializeProject,
+    _editors,
   };
   // Show version in the status bar + window title.
   const ver = $("#ide-version");

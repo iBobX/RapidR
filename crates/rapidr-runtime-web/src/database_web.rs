@@ -111,15 +111,23 @@ pub fn sqlite_method(name: &str, method: &str, args: &[Value]) -> Value {
             })
         }
         "open" | "connect" => {
-            // On web, always creates an in-memory database
             let db_name = args.first().map(|v| v.to_string_val()).unwrap_or_else(|| ":memory:".to_string());
             let existed = DB_STORE.with(|s| s.borrow().contains_key(&uname));
             if !existed {
-                DB_STORE.with(|s| s.borrow_mut().insert(uname.clone(), InMemoryDb::new()));
+                let mut db = InMemoryDb::new();
+                if let Some(base64_data) = get_rapidr_asset(&db_name) {
+                    if let Some(bytes) = decode_base64(&base64_data) {
+                        load_sqlite_binary(&mut db, &bytes);
+                    }
+                }
+                DB_STORE.with(|s| s.borrow_mut().insert(uname.clone(), db));
             }
             object_web::rp_comp_set(&uname, "connected", v_int(1));
             object_web::rp_comp_set(&uname, "db", v_str(&db_name));
             object_web::rp_fire_event(&uname, "onconnect");
+            
+            sync_bound_widgets(&uname);
+            
             v_int(if existed { 1 } else { 0 })
         }
         "close" => {
@@ -132,23 +140,32 @@ pub fn sqlite_method(name: &str, method: &str, args: &[Value]) -> Value {
             let sql = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             let result = execute_sql(&uname, &sql);
             object_web::rp_fire_event(&uname, "onquerydone");
+            if sql.trim().to_uppercase().starts_with("SELECT") {
+                if result.to_i64() == 1 {
+                    sync_bound_widgets(&uname);
+                }
+            }
             result
         }
         "fetchrow" => {
-            DB_STORE.with(|s| {
+            let res = DB_STORE.with(|s| {
                 let mut store = s.borrow_mut();
                 if let Some(db) = store.get_mut(&uname) {
                     if db.row_cursor < db.result_rows.len() {
                         db.field_cursor = 0;
                         db.row_cursor += 1;
-                        v_int(1)
+                        1
                     } else {
-                        v_int(0)
+                        0
                     }
                 } else {
-                    v_int(0)
+                    0
                 }
-            })
+            });
+            if res == 1 {
+                sync_bound_widgets(&uname);
+            }
+            v_int(res)
         }
         "fetchfield" => {
             DB_STORE.with(|s| {
@@ -201,6 +218,7 @@ pub fn sqlite_method(name: &str, method: &str, args: &[Value]) -> Value {
                     db.row_cursor = if row > 0 { row - 1 } else { 0 };
                 }
             });
+            sync_bound_widgets(&uname);
             v_null()
         }
         "escapestring" => {
@@ -701,4 +719,459 @@ fn parse_csv_values(s: &str) -> Vec<String> {
     let last = current.trim().to_string();
     if !last.is_empty() { vals.push(last); }
     vals
+}
+
+// ======================================================================
+// SQLite Binary B-tree Parser & Data Binding helpers
+// ======================================================================
+
+pub(crate) fn get_rapidr_asset(filename: &str) -> Option<String> {
+    let window = web_sys::window()?;
+    let assets_val = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__rapidr_assets")).ok()?;
+    if assets_val.is_undefined() || assets_val.is_null() {
+        return None;
+    }
+    
+    let val = js_sys::Reflect::get(&assets_val, &wasm_bindgen::JsValue::from_str(filename)).ok();
+    if let Some(v) = val {
+        if !v.is_undefined() && !v.is_null() {
+            return v.as_string();
+        }
+    }
+    
+    let alternative = if filename.starts_with("assets/") {
+        filename.strip_prefix("assets/").unwrap()
+    } else {
+        &format!("assets/{}", filename)
+    };
+    let val2 = js_sys::Reflect::get(&assets_val, &wasm_bindgen::JsValue::from_str(alternative)).ok();
+    if let Some(v) = val2 {
+        if !v.is_undefined() && !v.is_null() {
+            return v.as_string();
+        }
+    }
+    None
+}
+
+pub(crate) fn decode_base64(mut s: &str) -> Option<Vec<u8>> {
+    if let Some(pos) = s.find("base64,") {
+        s = &s[pos + 7..];
+    }
+    let s = s.trim();
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
+    let mut buffer = 0u32;
+    let mut bits = 0;
+    
+    for &b in bytes {
+        let val = match b {
+            b'A'..=b'Z' => (b - b'A') as u32,
+            b'a'..=b'z' => (b - b'a' + 26) as u32,
+            b'0'..=b'9' => (b - b'0' + 52) as u32,
+            b'+' => 62,
+            b'/' => 63,
+            b'=' => continue,
+            _ if b.is_ascii_whitespace() => continue,
+            _ => return None,
+        };
+        buffer = (buffer << 6) | val;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buffer >> bits) as u8);
+        }
+    }
+    Some(out)
+}
+
+#[derive(Debug, Clone)]
+enum SqliteValue {
+    Null,
+    Integer(i64),
+    Float(f64),
+    Text(String),
+    Blob(Vec<u8>),
+}
+
+impl SqliteValue {
+    fn to_string_val(&self) -> String {
+        match self {
+            SqliteValue::Null => String::new(),
+            SqliteValue::Integer(x) => x.to_string(),
+            SqliteValue::Float(f) => f.to_string(),
+            SqliteValue::Text(s) => s.clone(),
+            SqliteValue::Blob(b) => String::from_utf8_lossy(b).into_owned(),
+        }
+    }
+}
+
+fn read_varint(data: &[u8], offset: &mut usize) -> u64 {
+    let mut val: u64 = 0;
+    for i in 0..9 {
+        if *offset >= data.len() {
+            break;
+        }
+        let b = data[*offset];
+        *offset += 1;
+        if i == 8 {
+            val = (val << 8) | (b as u64);
+            break;
+        } else {
+            val = (val << 7) | ((b & 0x7F) as u64);
+            if (b & 0x80) == 0 {
+                break;
+            }
+        }
+    }
+    val
+}
+
+fn read_varint_signed(data: &[u8], offset: &mut usize) -> i64 {
+    read_varint(data, offset) as i64
+}
+
+fn parse_record(payload: &[u8], _num_columns_hint: usize) -> Vec<SqliteValue> {
+    let mut offset = 0;
+    if payload.is_empty() {
+        return Vec::new();
+    }
+    let header_size = read_varint(payload, &mut offset) as usize;
+    let mut serial_types = Vec::new();
+    while offset < header_size && offset < payload.len() {
+        serial_types.push(read_varint(payload, &mut offset));
+    }
+    
+    let mut values = Vec::new();
+    for &st in &serial_types {
+        let val = match st {
+            0 => SqliteValue::Null,
+            1 => {
+                let v = if offset < payload.len() { payload[offset] as i8 as i64 } else { 0 };
+                offset += 1;
+                SqliteValue::Integer(v)
+            }
+            2 => {
+                let mut v = 0i16;
+                if offset + 2 <= payload.len() {
+                    v = i16::from_be_bytes([payload[offset], payload[offset+1]]);
+                }
+                offset += 2;
+                SqliteValue::Integer(v as i64)
+            }
+            3 => {
+                let mut v = 0i32;
+                if offset + 3 <= payload.len() {
+                    let bytes = [payload[offset], payload[offset+1], payload[offset+2]];
+                    v = ((bytes[0] as i32) << 16) | ((bytes[1] as i32) << 8) | (bytes[2] as i32);
+                    if (v & 0x800000) != 0 {
+                        v |= !0xFFFFFF;
+                    }
+                }
+                offset += 3;
+                SqliteValue::Integer(v as i64)
+            }
+            4 => {
+                let mut v = 0i32;
+                if offset + 4 <= payload.len() {
+                    v = i32::from_be_bytes([payload[offset], payload[offset+1], payload[offset+2], payload[offset+3]]);
+                }
+                offset += 4;
+                SqliteValue::Integer(v as i64)
+            }
+            5 => {
+                let mut v = 0i64;
+                if offset + 6 <= payload.len() {
+                    let bytes = [payload[offset], payload[offset+1], payload[offset+2], payload[offset+3], payload[offset+4], payload[offset+5]];
+                    v = ((bytes[0] as i64) << 40) | ((bytes[1] as i64) << 32) | ((bytes[2] as i64) << 24) |
+                        ((bytes[3] as i64) << 16) | ((bytes[4] as i64) << 8) | (bytes[5] as i64);
+                    if (v & 0x800000000000) != 0 {
+                        v |= !0xFFFFFFFFFFFF;
+                    }
+                }
+                offset += 6;
+                SqliteValue::Integer(v)
+            }
+            6 => {
+                let mut v = 0i64;
+                if offset + 8 <= payload.len() {
+                    v = i64::from_be_bytes([
+                        payload[offset], payload[offset+1], payload[offset+2], payload[offset+3],
+                        payload[offset+4], payload[offset+5], payload[offset+6], payload[offset+7]
+                    ]);
+                }
+                offset += 8;
+                SqliteValue::Integer(v)
+            }
+            7 => {
+                let mut v = 0.0f64;
+                if offset + 8 <= payload.len() {
+                    v = f64::from_be_bytes([
+                        payload[offset], payload[offset+1], payload[offset+2], payload[offset+3],
+                        payload[offset+4], payload[offset+5], payload[offset+6], payload[offset+7]
+                    ]);
+                }
+                offset += 8;
+                SqliteValue::Float(v)
+            }
+            8 => SqliteValue::Integer(0),
+            9 => SqliteValue::Integer(1),
+            10 | 11 => SqliteValue::Null,
+            st if st >= 12 && st % 2 == 0 => {
+                let len = ((st - 12) / 2) as usize;
+                let data = if offset + len <= payload.len() {
+                    payload[offset..offset+len].to_vec()
+                } else {
+                    Vec::new()
+                };
+                offset += len;
+                SqliteValue::Blob(data)
+            }
+            st if st >= 13 && st % 2 == 1 => {
+                let len = ((st - 13) / 2) as usize;
+                let text = if offset + len <= payload.len() {
+                    String::from_utf8_lossy(&payload[offset..offset+len]).into_owned()
+                } else {
+                    String::new()
+                };
+                offset += len;
+                SqliteValue::Text(text)
+            }
+            _ => SqliteValue::Null,
+        };
+        values.push(val);
+    }
+    values
+}
+
+fn collect_leaves(data: &[u8], page_num: usize, page_size: usize, leaves: &mut Vec<usize>) {
+    if page_num == 0 || (page_num - 1) * page_size >= data.len() {
+        return;
+    }
+    let page_offset = (page_num - 1) * page_size;
+    let page_data = &data[page_offset..];
+    
+    let btree_offset = if page_num == 1 { 100 } else { 0 };
+    if btree_offset + 8 > page_data.len() {
+        return;
+    }
+    
+    let page_type = page_data[btree_offset];
+    if page_type == 0x0d {
+        leaves.push(page_num);
+    } else if page_type == 0x05 {
+        if btree_offset + 12 > page_data.len() {
+            return;
+        }
+        let num_cells = u16::from_be_bytes([page_data[btree_offset + 3], page_data[btree_offset + 4]]) as usize;
+        let cell_ptr_start = btree_offset + 12;
+        let right_most = u32::from_be_bytes([
+            page_data[btree_offset + 8], page_data[btree_offset + 9],
+            page_data[btree_offset + 10], page_data[btree_offset + 11]
+        ]) as usize;
+        
+        for i in 0..num_cells {
+            let ptr_offset = cell_ptr_start + i * 2;
+            if ptr_offset + 2 > page_data.len() {
+                break;
+            }
+            let cell_offset = u16::from_be_bytes([page_data[ptr_offset], page_data[ptr_offset + 1]]) as usize;
+            if cell_offset + 4 > page_data.len() {
+                continue;
+            }
+            let left_child = u32::from_be_bytes([
+                page_data[cell_offset], page_data[cell_offset + 1],
+                page_data[cell_offset + 2], page_data[cell_offset + 3]
+            ]) as usize;
+            collect_leaves(data, left_child, page_size, leaves);
+        }
+        collect_leaves(data, right_most, page_size, leaves);
+    }
+}
+
+fn parse_leaf_page(data: &[u8], page_num: usize, page_size: usize) -> Vec<(i64, Vec<SqliteValue>)> {
+    let mut records = Vec::new();
+    if page_num == 0 || (page_num - 1) * page_size >= data.len() {
+        return records;
+    }
+    let page_offset = (page_num - 1) * page_size;
+    let page_data = &data[page_offset..std::cmp::min(page_offset + page_size, data.len())];
+    
+    let btree_offset = if page_num == 1 { 100 } else { 0 };
+    if btree_offset + 8 > page_data.len() {
+        return records;
+    }
+    
+    let page_type = page_data[btree_offset];
+    if page_type != 0x0d {
+        return records;
+    }
+    
+    let num_cells = u16::from_be_bytes([page_data[btree_offset + 3], page_data[btree_offset + 4]]) as usize;
+    let cell_ptr_start = btree_offset + 8;
+    
+    for i in 0..num_cells {
+        let ptr_offset = cell_ptr_start + i * 2;
+        if ptr_offset + 2 > page_data.len() {
+            break;
+        }
+        let cell_offset = u16::from_be_bytes([page_data[ptr_offset], page_data[ptr_offset + 1]]) as usize;
+        if cell_offset >= page_data.len() {
+            continue;
+        }
+        
+        let mut cell_cursor = cell_offset;
+        let payload_size = read_varint(page_data, &mut cell_cursor) as usize;
+        let rowid = read_varint_signed(page_data, &mut cell_cursor);
+        
+        let actual_payload_size = std::cmp::min(payload_size, page_data.len() - cell_cursor);
+        let payload = &page_data[cell_cursor..cell_cursor + actual_payload_size];
+        
+        let record = parse_record(payload, 0);
+        records.push((rowid, record));
+    }
+    records
+}
+
+fn load_sqlite_binary(db: &mut InMemoryDb, data: &[u8]) {
+    if data.len() < 100 {
+        return;
+    }
+    if &data[0..16] != b"SQLite format 3\0" {
+        return;
+    }
+    let mut page_size = u16::from_be_bytes([data[16], data[17]]) as usize;
+    if page_size == 1 {
+        page_size = 65536;
+    }
+    if page_size < 512 || page_size > 65536 || (page_size & (page_size - 1)) != 0 {
+        return;
+    }
+    
+    let mut master_leaves = Vec::new();
+    collect_leaves(data, 1, page_size, &mut master_leaves);
+    
+    let mut tables_to_load = Vec::new();
+    for leaf in master_leaves {
+        let records = parse_leaf_page(data, leaf, page_size);
+        for (_rowid, rec) in records {
+            if rec.len() >= 5 {
+                if let (SqliteValue::Text(ref ty), SqliteValue::Text(ref tbl_name), SqliteValue::Integer(rootpage)) = 
+                       (&rec[0], &rec[1], rec[3].clone()) {
+                    if ty == "table" && tbl_name != "sqlite_sequence" {
+                        let sql_str = match &rec[4] {
+                            SqliteValue::Text(s) => s.clone(),
+                            _ => String::new(),
+                        };
+                        tables_to_load.push((tbl_name.to_uppercase(), rootpage as usize, sql_str));
+                    }
+                }
+            }
+        }
+    }
+    
+    for (tbl_name, rootpage, sql_str) in tables_to_load {
+        let cols_str = match sql_str.find('(') {
+            Some(idx) => {
+                let rest = &sql_str[idx + 1..];
+                match rest.rfind(')') {
+                    Some(ridx) => &rest[..ridx],
+                    None => rest,
+                }
+            }
+            None => continue,
+        };
+        let columns: Vec<String> = cols_str.split(',')
+            .map(|c| {
+                c.trim().split_whitespace().next().unwrap_or("").to_string()
+            })
+            .filter(|c| {
+                let u = c.to_uppercase();
+                !u.is_empty() && u != "CONSTRAINT" && u != "PRIMARY" && u != "FOREIGN" && u != "KEY" && u != "UNIQUE" && u != "CHECK"
+            })
+            .collect();
+            
+        let mut table_leaves = Vec::new();
+        collect_leaves(data, rootpage, page_size, &mut table_leaves);
+        
+        let mut rows = Vec::new();
+        for leaf in table_leaves {
+            let records = parse_leaf_page(data, leaf, page_size);
+            for (rowid, rec) in records {
+                let mut row_strings = Vec::new();
+                for (col_idx, col_name) in columns.iter().enumerate() {
+                    if col_name.eq_ignore_ascii_case("id") {
+                        row_strings.push(rowid.to_string());
+                    } else {
+                        let val = rec.get(col_idx);
+                        match val {
+                            Some(SqliteValue::Null) => row_strings.push(String::new()),
+                            Some(v) => row_strings.push(v.to_string_val()),
+                            None => row_strings.push(String::new()),
+                        }
+                    }
+                }
+                rows.push(row_strings);
+            }
+        }
+        
+        db.tables.insert(tbl_name, InMemoryTable { columns, rows });
+    }
+}
+
+pub fn update_bound_data(db_name: &str, field_name: &str, new_val: &str) {
+    let uname = db_name.to_uppercase();
+    DB_STORE.with(|s| {
+        let mut store = s.borrow_mut();
+        if let Some(db) = store.get_mut(&uname) {
+            let ri = if db.row_cursor > 0 { db.row_cursor - 1 } else { 0 };
+            if ri < db.result_rows.len() {
+                if let Some(ci) = db.result_cols.iter().position(|c| c.eq_ignore_ascii_case(field_name)) {
+                    db.result_rows[ri][ci] = new_val.to_string();
+                    
+                    if let Some(id_col_idx) = db.result_cols.iter().position(|c| c.eq_ignore_ascii_case("id")) {
+                        let id_val = &db.result_rows[ri][id_col_idx];
+                        for (_tbl_name, table) in db.tables.iter_mut() {
+                            if let (Some(tbl_id_idx), Some(tbl_field_idx)) = (
+                                table.columns.iter().position(|c| c.eq_ignore_ascii_case("id")),
+                                table.columns.iter().position(|c| c.eq_ignore_ascii_case(field_name))
+                            ) {
+                                for row in table.rows.iter_mut() {
+                                    if row.get(tbl_id_idx) == Some(id_val) {
+                                        if tbl_field_idx < row.len() {
+                                            row[tbl_field_idx] = new_val.to_string();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+pub fn sync_bound_widgets(db_name: &str) {
+    let uname = db_name.to_uppercase();
+    let mut field_vals = HashMap::new();
+    let has_row = DB_STORE.with(|s| {
+        let db = s.borrow();
+        if let Some(db) = db.get(&uname) {
+            let ri = if db.row_cursor > 0 { db.row_cursor - 1 } else { 0 };
+            if ri < db.result_rows.len() {
+                for (ci, col) in db.result_cols.iter().enumerate() {
+                    if let Some(val) = db.result_rows[ri].get(ci) {
+                        field_vals.insert(col.to_uppercase(), val.clone());
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    });
+    
+    crate::object_web::rp_sync_bound_widgets(&uname, &field_vals, has_row);
 }

@@ -7,7 +7,7 @@
 // Widget shape:
 //   { name, type, props: {...widget props}, code: { handlers: {key→source} } }
 
-import { defaultsFor } from "./toolbox.js";
+import { defaultsFor, normalizeTypeCasing } from "./toolbox.js";
 
 let _idCounter = 1;
 const newId = () => `f${_idCounter++}`;
@@ -186,3 +186,174 @@ export function serializeProject(project) {
 }
 
 function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+
+export function deserializeProject(text, projectName = "untitled") {
+  const lines = text.split(/\r?\n/);
+  const project = {
+    rapidr_project: 1,
+    name: projectName,
+    forms: [],
+    modules: [],
+    assets: [],
+    startupForm: null,
+  };
+
+  let currentForm = null;
+  let currentWidget = null;
+  let createStack = []; // Stack of { name, type, obj, isForm }
+  let freeCodeLines = [];
+  let inSub = false;
+  let currentSubLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const upper = trimmed.toUpperCase();
+
+    // Handle Sub blocks
+    if (upper.startsWith("SUB ") || upper.startsWith("FUNCTION ")) {
+      inSub = true;
+      currentSubLines.push(line);
+      continue;
+    }
+    if (inSub) {
+      currentSubLines.push(line);
+      if (upper === "END SUB" || upper === "END FUNCTION") {
+        inSub = false;
+        freeCodeLines.push(...currentSubLines);
+        currentSubLines = [];
+      }
+      continue;
+    }
+
+    // Parse CREATE statements
+    if (upper.startsWith("CREATE ")) {
+      const match = trimmed.match(/^CREATE\s+(\w+)\s+AS\s+(\w+)/i);
+      if (match) {
+        const cName = match[1];
+        const cType = normalizeTypeCasing(match[2]);
+        const isForm = cType.toUpperCase() === "RFORM";
+
+        if (isForm) {
+          const form = {
+            id: `f_${cName.toLowerCase()}`,
+            name: cName,
+            props: {},
+            children: [],
+            code: { handlers: {}, source: "" }
+          };
+          project.forms.push(form);
+          currentForm = form;
+          createStack.push({ name: cName, type: cType, obj: form, isForm: true });
+        } else {
+          // Widget
+          const parentObj = createStack[createStack.length - 1];
+          const widget = {
+            name: cName,
+            type: cType,
+            props: {},
+            code: { handlers: {} }
+          };
+          if (parentObj && !parentObj.isForm) {
+            widget.props.parent = parentObj.name;
+          }
+          if (currentForm) {
+            currentForm.children.push(widget);
+          }
+          currentWidget = widget;
+          createStack.push({ name: cName, type: cType, obj: widget, isForm: false });
+        }
+      }
+      continue;
+    }
+
+    // Parse END CREATE
+    if (upper === "END CREATE") {
+      createStack.pop();
+      const top = createStack[createStack.length - 1];
+      if (top) {
+        if (top.isForm) {
+          currentForm = top.obj;
+          currentWidget = null;
+        } else {
+          currentWidget = top.obj;
+        }
+      } else {
+        currentForm = null;
+        currentWidget = null;
+      }
+      continue;
+    }
+
+    // Parse properties inside CREATE block
+    if (createStack.length > 0) {
+      const match = trimmed.match(/^(\w+)\s*=\s*(.*)/);
+      if (match) {
+        const propName = match[1].toLowerCase();
+        let propValRaw = match[2].trim();
+        
+        let propVal = propValRaw;
+        if (propValRaw.startsWith('"') && propValRaw.endsWith('"')) {
+          propVal = propValRaw.slice(1, -1).replace(/""/g, '"');
+        } else if (propValRaw === "1") {
+          propVal = 1;
+        } else if (propValRaw === "0") {
+          propVal = 0;
+        } else if (/^-?\d+$/.test(propValRaw)) {
+          propVal = parseInt(propValRaw, 10);
+        } else if (/^-?\d+\.\d+$/.test(propValRaw)) {
+          propVal = parseFloat(propValRaw);
+        }
+
+        const top = createStack[createStack.length - 1];
+        if (propName.startsWith("on")) {
+          top.obj.code = top.obj.code || {};
+          top.obj.code.handlers = top.obj.code.handlers || {};
+          top.obj.code.handlers[capitalize(propName)] = String(propVal);
+        } else {
+          top.obj.props[propName] = propVal;
+        }
+      } else if (trimmed.toUpperCase() === "CENTER") {
+        const top = createStack[createStack.length - 1];
+        top.obj.props.center = true;
+      }
+      continue;
+    }
+
+    // Outside CREATE: event bindings like Widget.OnClick = Handler
+    const matchEvent = trimmed.match(/^(\w+)\.(\w+)\s*=\s*(\w+)/);
+    if (matchEvent) {
+      const compName = matchEvent[1];
+      const eventName = capitalize(matchEvent[2].toLowerCase());
+      const handlerName = matchEvent[3];
+      
+      let found = false;
+      for (const f of project.forms) {
+        if (f.name.toLowerCase() === compName.toLowerCase()) {
+          f.code.handlers[eventName] = handlerName;
+          found = true;
+          break;
+        }
+        const w = f.children.find(c => c.name.toLowerCase() === compName.toLowerCase());
+        if (w) {
+          w.code.handlers[eventName] = handlerName;
+          found = true;
+          break;
+        }
+      }
+      if (found) continue;
+    }
+
+    // Capture freestanding code lines
+    if (!upper.startsWith("$APPTYPE")) {
+      freeCodeLines.push(line);
+    }
+  }
+
+  if (project.forms.length > 0) {
+    project.startupForm = project.forms[0].id;
+    project.forms[0].code.source = freeCodeLines.join("\n");
+  }
+
+  return project;
+}

@@ -205,6 +205,7 @@ fn parse_xhr_response(json_str: &str) -> (i64, String) {
 
 thread_local! {
     static WEBSOCKETS: RefCell<HashMap<String, web_sys::WebSocket>> = RefCell::new(HashMap::new());
+    static SOCKET_QUEUES: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
 }
 
 pub fn websocket_method(name: &str, method: &str, args: &[Value]) -> Value {
@@ -212,6 +213,7 @@ pub fn websocket_method(name: &str, method: &str, args: &[Value]) -> Value {
         "connect" | "open" => websocket_connect(name),
         "close" | "disconnect" => websocket_close(name),
         "write" | "writeline" | "send" => websocket_send(name, args),
+        "read" | "readline" | "receive" => websocket_read(name),
         _ => {
             web_sys::console::warn_1(&JsValue::from_str(&format!(
                 "[WARN] WebSocket.{}() not implemented",
@@ -259,6 +261,13 @@ fn websocket_connect(name: &str) -> Value {
                         .data()
                         .as_string()
                         .unwrap_or_else(|| format!("{:?}", e.data()));
+                    let data_clone = data.clone();
+                    SOCKET_QUEUES.with(|q| {
+                        q.borrow_mut()
+                            .entry(n.clone())
+                            .or_insert_with(Vec::new)
+                            .push(data_clone);
+                    });
                     rp_fire_event_2(&n, "ondatareceived", v_str(""), v_str(&data));
                 },
             );
@@ -305,8 +314,30 @@ fn websocket_close(name: &str) -> Value {
             let _ = ws.close();
         }
     });
+    SOCKET_QUEUES.with(|q| {
+        q.borrow_mut().remove(name);
+    });
     rp_comp_set(name, "connected", v_int(0));
     v_null()
+}
+
+fn websocket_read(name: &str) -> Value {
+    let msg = SOCKET_QUEUES.with(|q| {
+        let mut queues = q.borrow_mut();
+        if let Some(queue) = queues.get_mut(name) {
+            if !queue.is_empty() {
+                Some(queue.remove(0))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+    match msg {
+        Some(s) => v_str(&s),
+        None => v_str(""),
+    }
 }
 
 fn websocket_send(name: &str, args: &[Value]) -> Value {
