@@ -18,6 +18,7 @@
 //! `<project>.rrbc`, and finally invokes `rapidr_run_bc(bytes)`.
 
 use std::io::{Cursor, Write};
+use std::collections::HashMap;
 
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
@@ -37,6 +38,8 @@ pub struct BundleInputs<'a> {
     pub rapidrintr_js: &'a str,
     /// Optional page title; defaults to the project name.
     pub title: Option<&'a str>,
+    /// Optional embedded assets map (filename -> base64 payload)
+    pub assets: Option<&'a HashMap<String, String>>,
 }
 
 /// Build the ZIP bytes. Never fails on well-formed inputs — the only
@@ -49,7 +52,7 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         let deflated = FileOptions::default().compression_method(CompressionMethod::Deflated);
 
         let title = inputs.title.unwrap_or(inputs.project_name);
-        let html = render_index_html(title, inputs.project_name);
+        let html = render_index_html(title, inputs.project_name, inputs.assets);
         let loader = render_loader_js(inputs.project_name);
 
         write_file(&mut zw, "index.html", html.as_bytes(), deflated)?;
@@ -81,8 +84,20 @@ fn write_file<W: Write + std::io::Seek>(
     Ok(())
 }
 
-fn render_index_html(title: &str, _project_name: &str) -> String {
+fn render_index_html(title: &str, _project_name: &str, assets: Option<&HashMap<String, String>>) -> String {
     let css = rapidr_rrcss::RR_BASE_CSS;
+    let mut assets_script = String::new();
+    if let Some(assets_map) = assets {
+        if !assets_map.is_empty() {
+            assets_script.push_str("  <script>\n    window.__rapidr_assets = {\n");
+            for (name, base64) in assets_map {
+                let escaped_name = name.replace('"', "\\\"");
+                assets_script.push_str(&format!("      \"{}\": \"{}\",\n", escaped_name, base64));
+                assets_script.push_str(&format!("      \"assets/{}\": \"{}\",\n", escaped_name, base64));
+            }
+            assets_script.push_str("    };\n  </script>\n");
+        }
+    }
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -93,7 +108,7 @@ fn render_index_html(title: &str, _project_name: &str) -> String {
   <style>{css}
 #rapidr-status {{ position: fixed; top: 8px; right: 12px; font-size: 12px; color: #888; pointer-events: none; }}
 </style>
-</head>
+{assets_script}</head>
 <body>
   <div id="rapidr-status">loading…</div>
   <script type="module" src="./loader.js"></script>
@@ -144,6 +159,7 @@ mod tests {
             rapidrintr_wasm: &[0x00, 0x61, 0x73, 0x6d],
             rapidrintr_js: "export default async function init(){};\nexport function rapidr_run_bc(){}\n",
             title: None,
+            assets: None,
         })
         .expect("bundle");
         // Smoke: zip starts with PK header and is non-trivial.

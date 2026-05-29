@@ -3290,6 +3290,7 @@ dependencies = [
 name = "rapidr-cli"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-codegen-rust",

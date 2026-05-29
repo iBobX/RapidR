@@ -15,6 +15,7 @@ rapidr-vm.workspace = true
 rapidr-vm-host-native = { workspace = true, features = ["full"] }
 rapidr-webbundle.workspace = true
 rapidr-rrcss.workspace = true
+base64 = "0.22"
 
 [[bin]]
 name = "rapidr"

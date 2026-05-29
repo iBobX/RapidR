@@ -435,7 +435,14 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
 
     // Step 3: Generate index.html
     let wasm_module = stem.replace('-', "_");
-    let html = generate_html_shell(stem, &wasm_module);
+    let assets = collect_assets(source_path);
+    if !assets.is_empty() {
+        println!("Embedding {} asset(s) in index.html...", assets.len());
+        for name in assets.keys() {
+            println!("  - {}", name);
+        }
+    }
+    let html = generate_html_shell(stem, &wasm_module, &assets);
     if let Err(e) = fs::write(web_out.join("index.html"), &html) {
         eprintln!("Cannot write index.html: {e}");
         return ExitCode::from(1);
@@ -450,8 +457,18 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     ExitCode::SUCCESS
 }
 
-fn generate_html_shell(title: &str, wasm_module: &str) -> String {
+fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections::HashMap<String, String>) -> String {
     let css = rapidr_rrcss::RR_BASE_CSS;
+    let mut assets_script = String::new();
+    if !assets.is_empty() {
+        assets_script.push_str("  <script>\n    window.__rapidr_assets = {\n");
+        for (name, base64) in assets {
+            let escaped_name = name.replace('"', "\\\"");
+            assets_script.push_str(&format!("      \"{}\": \"{}\",\n", escaped_name, base64));
+            assets_script.push_str(&format!("      \"assets/{}\": \"{}\",\n", escaped_name, base64));
+        }
+        assets_script.push_str("    };\n  </script>\n");
+    }
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -460,7 +477,7 @@ fn generate_html_shell(title: &str, wasm_module: &str) -> String {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
   <style>{css}</style>
-</head>
+{assets_script}</head>
 <body>
   <div id="rr-root"></div>
   <pre id="rr-console"></pre>
@@ -606,12 +623,20 @@ fn bundle_bc_file(
     };
 
     // 3. Build the bundle.
+    let assets = collect_assets(Path::new(path));
+    if !assets.is_empty() {
+        println!("Embedding {} asset(s) in web bundle...", assets.len());
+        for name in assets.keys() {
+            println!("  - {}", name);
+        }
+    }
     let bundle = match rapidr_webbundle::build_bundle(&rapidr_webbundle::BundleInputs {
         project_name: &stem,
         rrbc: &rrbc,
         rapidrintr_wasm: &wasm_bytes,
         rapidrintr_js: &js_text,
         title: None,
+        assets: Some(&assets),
     }) {
         Ok(b) => b,
         Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
@@ -798,5 +823,52 @@ fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
         Ok(built)
     } else {
         Err(format!("could not locate {} after build", built.display()))
+    }
+}
+
+fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, String> {
+    use base64::Engine;
+    let mut assets = std::collections::HashMap::new();
+    let source_dir = source_path.parent().unwrap_or(Path::new("."));
+    
+    let entries = match fs::read_dir(source_dir) {
+        Ok(e) => e,
+        Err(_) => return assets,
+    };
+
+    let asset_exts = ["csv", "db", "sqlite", "png", "jpg", "jpeg", "gif", "bmp", "txt", "wav", "mp3"];
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                let ext_lower = ext.to_lowercase();
+                if asset_exts.contains(&ext_lower.as_str()) {
+                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                        if let Ok(bytes) = fs::read(&path) {
+                            let mime = mime_type_from_ext(&ext_lower);
+                            let encoded_base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                            let data_url = format!("data:{};base64,{}", mime, encoded_base64);
+                            assets.insert(filename.to_string(), data_url);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assets
+}
+
+fn mime_type_from_ext(ext: &str) -> &'static str {
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "csv" => "text/csv",
+        "txt" => "text/plain",
+        "wav" => "audio/wav",
+        "mp3" => "audio/mpeg",
+        _ => "application/octet-stream",
     }
 }
