@@ -1348,7 +1348,7 @@ python3 -m http.server 8765 &
 ## Credits
 
 - **Roberto Berrospe** ([@iBobX](https://github.com/iBobX)) — Creator, architect, and lead developer
-- **VS Code Copilot with Claude** — AI pair-programming assistant for feature implementation, testing, and documentation
+- **VS Code Copilot/Claude + Antigravity/Gemini** — AI pair-programming assistant for feature implementation, testing, and documentation
 
 ---
 

@@ -2731,8 +2731,8 @@ function showAboutDialog() {
       <div>
         <div style="font-size:16px;font-weight:600">RapidR IDE <span style="color:var(--c-text-mute);font-weight:400;font-size:12px">v${escapeHtml(RAPIDR_IDE_VERSION)}</span></div>
         <div style="margin-top:2px">Self-hosted, zero-backend, in-browser BASIC IDE</div>
-        <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe</div>
-        <div><b>Assisted by:</b> Claude (Anthropic)</div>
+        <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com&subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
+        <div><b>Assisted by:</b> AI pair-programming assistants</div>
         <div style="margin-top:8px"><b>License:</b> see LICENSE (MIT)</div>
         <div style="margin-top:6px;color:var(--c-text-mute);font-size:11px">
           Compiles in WebAssembly via <code>rapidrintr.wasm</code>.
