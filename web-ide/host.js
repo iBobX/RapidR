@@ -3322,6 +3322,23 @@ function onDebugProperties(data) {
   renderWatches();
 }
 
+function onDebugRunning() {
+  state.isDebugPaused = false;
+  state.currentPausedFileId = null;
+  state.currentPausedLineInFile = null;
+  
+  const overlay = $("#preview-paused-overlay");
+  if (overlay) overlay.hidden = true;
+  
+  for (const [fileId, ed] of _editors.entries()) {
+    const oldDecs = state.currentActiveLineDec.get(fileId) || [];
+    ed.deltaDecorations(oldDecs, []);
+    state.currentActiveLineDec.set(fileId, []);
+  }
+  
+  updateDebugUI();
+}
+
 function onDebugHalted() {
   state.isDebugging = false;
   state.isDebugPaused = false;
@@ -3754,6 +3771,9 @@ async function main() {
     
     if (d.__rapidr_debug_paused) {
       onDebugPaused(d.__rapidr_debug_paused);
+    }
+    if (d.__rapidr_debug_running) {
+      onDebugRunning();
     }
     if (d.__rapidr_debug_halted) {
       onDebugHalted();

@@ -33,6 +33,8 @@
             vars: JSON.parse(varsStr)
           }
         }, "*");
+      } else if (status === "waiting") {
+        parent.postMessage({ __rapidr_debug_running: true }, "*");
       } else if (status === "halted") {
         parent.postMessage({ __rapidr_debug_halted: true }, "*");
         if (debugSession) {
@@ -41,6 +43,7 @@
         }
       }
     }
+    window.__rapidr_handle_debug_result = handleDebugResult;
 
     // Listen BEFORE init returns so the parent's postMessage isn't
     // dropped by the race with top-level await.

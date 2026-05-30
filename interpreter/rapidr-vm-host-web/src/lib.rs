@@ -249,10 +249,23 @@ pub fn install_dispatcher<H: Host + ?Sized + 'static>(module: *const Module, vm:
             let p = c.get() as *mut VmCtx<'_, '_, H>;
             if p.is_null() { return; }
             let ctx = unsafe { &mut *p };
-            if let Err(e) = ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec()) {
-                web_sys::console::error_1(
-                    &JsValue::from_str(&format!("[rapidr] event handler #{fn_index} failed: {e}")),
-                );
+            match ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec()) {
+                Ok(_) => {}
+                Err(VmError::Paused) => {
+                    if let Some(window) = web_sys::window() {
+                        if let Ok(func_val) = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_handle_debug_result")) {
+                            if func_val.is_function() {
+                                let func: js_sys::Function = func_val.into();
+                                let _ = func.call1(&JsValue::NULL, &JsValue::from_str("paused"));
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    web_sys::console::error_1(
+                        &JsValue::from_str(&format!("[rapidr] event handler #{fn_index} failed: {e}")),
+                    );
+                }
             }
         });
     }));
@@ -385,8 +398,10 @@ impl DebugSession {
             Ok(()) => {
                 if vm.host_mut().has_components {
                     rapidr_runtime_web::gui_web::gui_web_finalize();
+                    Ok("waiting".to_string())
+                } else {
+                    Ok("halted".to_string())
                 }
-                Ok("halted".to_string())
             }
             Err(VmError::Paused) => Ok("paused".to_string()),
             Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
@@ -400,8 +415,10 @@ impl DebugSession {
             Ok(()) => {
                 if vm.host_mut().has_components {
                     rapidr_runtime_web::gui_web::gui_web_finalize();
+                    Ok("waiting".to_string())
+                } else {
+                    Ok("halted".to_string())
                 }
-                Ok("halted".to_string())
             }
             Err(VmError::Paused) => Ok("paused".to_string()),
             Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
@@ -415,8 +432,10 @@ impl DebugSession {
             Ok(()) => {
                 if vm.host_mut().has_components {
                     rapidr_runtime_web::gui_web::gui_web_finalize();
+                    Ok("waiting".to_string())
+                } else {
+                    Ok("halted".to_string())
                 }
-                Ok("halted".to_string())
             }
             Err(VmError::Paused) => Ok("paused".to_string()),
             Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
@@ -430,8 +449,10 @@ impl DebugSession {
             Ok(()) => {
                 if vm.host_mut().has_components {
                     rapidr_runtime_web::gui_web::gui_web_finalize();
+                    Ok("waiting".to_string())
+                } else {
+                    Ok("halted".to_string())
                 }
-                Ok("halted".to_string())
             }
             Err(VmError::Paused) => Ok("paused".to_string()),
             Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
