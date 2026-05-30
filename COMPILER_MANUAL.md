@@ -820,6 +820,14 @@ cargo run -- --web examples/hello_web.rr
 python3 -m http.server -d examples/hello_web_web 8080
 ```
 
+### Asset Preloading & Embedding
+
+Because browser-based WASM runtimes run synchronously on the main thread, synchronous file reads (e.g. `RDataFrame.loadfromcsv` or `RSQLite.connect`) cannot await asynchronous browser `fetch` calls. To resolve this:
+
+1. During the web build or bundle process (`build_web` / `bundle_bc_file`), the compiler scans the directory of the source file for assets matching `.csv`, `.db`, `.sqlite`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.txt`, `.wav`, and `.mp3` extensions.
+2. The compiler base64-encodes these assets and generates a `<script>` tag in `index.html` setting `window.__rapidr_assets = { ... }`.
+3. In `rapidr-runtime-web`, file and database operations call `get_rapidr_asset()` to retrieve these base64-encoded strings, decoding them synchronously in-memory to match desktop capability.
+
 ### Form Window Management (Web)
 
 Web `RForm` components behave like desktop windows:

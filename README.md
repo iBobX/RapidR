@@ -855,6 +855,14 @@ The `--web` flag activates the codegen path:
 3. **wasm-bindgen** — generates JS glue
 4. **Output** — a static directory with `index.html`, `.js`, `_bg.wasm`
 
+### Asset Preloading & Embedding
+
+Since browser execution is sandboxed, traditional synchronous file system reads (e.g. loading a CSV via `RDataFrame.loadfromcsv` or connecting to a database via `RSQLite.connect`) cannot wait for asynchronous JavaScript fetches. 
+
+To solve this, both compile pipelines (`rapidr build --web` and `rapidr bundle-bc`) automatically gather files from the source file's directory matching asset extensions (`.csv`, `.db`, `.sqlite`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.txt`, `.wav`, `.mp3`), base64-encode them, and embed them inside `index.html` within the `window.__rapidr_assets` global object. 
+
+At runtime, operations like `loadfromcsv` or SQLite connection query `window.__rapidr_assets` and decode the data synchronously, guaranteeing full file I/O parity with native desktop environments.
+
 ### Web Form Window Management
 
 Web forms (`RForm`) behave like desktop windows:
