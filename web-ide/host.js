@@ -3108,15 +3108,18 @@ function updateDebugUI() {
   const debugDock = $("#debug-dock");
   const projDock = $("#proj-dock");
   const layoutDock = $("#layout-dock");
+  const propsDock = $("#props-dock");
   
   if (isDebugging) {
     if (debugDock) debugDock.hidden = false;
     if (projDock) projDock.hidden = true;
     if (layoutDock) layoutDock.hidden = true;
+    if (propsDock) propsDock.hidden = true;
   } else {
     if (debugDock) debugDock.hidden = true;
     if (projDock) projDock.hidden = false;
     if (layoutDock) layoutDock.hidden = false;
+    if (propsDock) propsDock.hidden = false;
   }
 }
 
@@ -3127,6 +3130,33 @@ function setupEditorDebugHooks(fileId, editor) {
     if (targetType === MouseTargetType.GUTTER_GLYPH_MARGIN || targetType === MouseTargetType.GUTTER_LINE_NUMBERS) {
       const line = e.target.position.lineNumber;
       toggleBreakpoint(fileId, line, editor);
+    }
+  });
+
+  // Custom context menu action for Adding Watch
+  editor.addAction({
+    id: 'rapidr-add-watch',
+    label: 'Add to Watch',
+    contextMenuOrder: 1,
+    contextMenuGroupId: 'navigation',
+    run: function(ed) {
+      const selection = ed.getSelection();
+      let text = ed.getModel().getValueInRange(selection);
+      if (!text) {
+        const position = ed.getPosition();
+        const word = ed.getModel().getWordAtPosition(position);
+        text = word ? word.word : '';
+      }
+      text = text.trim();
+      if (text) {
+        if (!state.watchExpressions.includes(text)) {
+          state.watchExpressions.push(text);
+          renderWatches();
+          if (state.isDebugging && state.isDebugPaused) {
+            requestComponentProperties();
+          }
+        }
+      }
     }
   });
   
@@ -3716,6 +3746,102 @@ function setupWatchListHandlers() {
   }
 }
 
+function setupSplitters() {
+  const ide = $("#ide");
+  const resizerLeft = $("#resizer-left");
+  const resizerRight = $("#resizer-right");
+  const resizerBottom = $("#resizer-bottom");
+  if (!ide || !resizerLeft || !resizerRight || !resizerBottom) return;
+
+  let leftWidth = 84;
+  let rightWidth = 240;
+  let bottomHeight = 180;
+
+  // Left column resizer
+  resizerLeft.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    document.body.style.cursor = "col-resize";
+    resizerLeft.classList.add("dragging");
+    const onMouseMove = (moveEvent) => {
+      const newWidth = Math.max(50, Math.min(200, moveEvent.clientX - ide.getBoundingClientRect().left));
+      leftWidth = newWidth;
+      ide.style.gridTemplateColumns = `${leftWidth}px 4px 1fr 4px ${rightWidth}px`;
+      for (const ed of _editors.values()) {
+        ed.layout();
+      }
+    };
+    const onMouseUp = () => {
+      document.body.style.cursor = "";
+      resizerLeft.classList.remove("dragging");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+
+  // Right column resizer
+  resizerRight.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    document.body.style.cursor = "col-resize";
+    resizerRight.classList.add("dragging");
+    const onMouseMove = (moveEvent) => {
+      const ideRect = ide.getBoundingClientRect();
+      const newWidth = Math.max(150, Math.min(600, ideRect.right - moveEvent.clientX));
+      rightWidth = newWidth;
+      ide.style.gridTemplateColumns = `${leftWidth}px 4px 1fr 4px ${rightWidth}px`;
+      for (const ed of _editors.values()) {
+        ed.layout();
+      }
+    };
+    const onMouseUp = () => {
+      document.body.style.cursor = "";
+      resizerRight.classList.remove("dragging");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+
+  // Bottom row resizer
+  resizerBottom.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    document.body.style.cursor = "row-resize";
+    resizerBottom.classList.add("dragging");
+    const onMouseMove = (moveEvent) => {
+      const ideRect = ide.getBoundingClientRect();
+      const newHeight = Math.max(60, Math.min(400, ideRect.bottom - moveEvent.clientY));
+      bottomHeight = newHeight;
+      ide.style.gridTemplateRows = `1fr 4px ${bottomHeight}px`;
+      for (const ed of _editors.values()) {
+        ed.layout();
+      }
+    };
+    const onMouseUp = () => {
+      document.body.style.cursor = "";
+      resizerBottom.classList.remove("dragging");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+}
+
+function setupDebuggerCollapse() {
+  const sections = ["#debug-callstack-sec", "#debug-variables-sec", "#debug-watch-sec"];
+  for (const selector of sections) {
+    const el = $(selector);
+    if (!el) continue;
+    const title = el.querySelector(".debug-section-title");
+    if (!title) continue;
+    title.addEventListener("click", () => {
+      el.classList.toggle("collapsed");
+    });
+  }
+}
+
 async function main() {
   // Test hook: expose key state + commands so headless tests can drive the IDE.
   window.RapidR = {
@@ -3743,6 +3869,8 @@ async function main() {
   setupPropsToolbar();
   setupLayoutDock();
   setupWatchListHandlers();
+  setupSplitters();
+  setupDebuggerCollapse();
   updateDebugUI();
 
   // Initialize the wasm runtime (compile + interpreter).

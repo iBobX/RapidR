@@ -174,20 +174,20 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
 
 #ide {
   display: grid;
-  grid-template-columns: 84px 1fr 240px;
-  grid-template-rows: 1fr 180px;
-  grid-template-areas:
-    "toolbox workspace right"
-    "output  output    output";
+  grid-template-columns: 84px 4px 1fr 4px 240px;
+  grid-template-rows: 1fr 4px 180px;
   min-height: 0;
   background: var(--c-bg-dark);
-  gap: 2px;
   padding: 2px;
+  box-sizing: border-box;
 }
-#toolbox  { grid-area: toolbox; }
-#workspace { grid-area: workspace; }
-#right-col { grid-area: right; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
-#output-dock { grid-area: output; }
+#toolbox  { grid-column: 1; grid-row: 1; }
+#resizer-left { grid-column: 2; grid-row: 1; }
+#workspace { grid-column: 3; grid-row: 1; }
+#resizer-right { grid-column: 4; grid-row: 1; }
+#right-col { grid-column: 5; grid-row: 1; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+#resizer-bottom { grid-column: 1 / span 5; grid-row: 2; }
+#output-dock { grid-column: 1 / span 5; grid-row: 3; }
 
 #toolbox .dock-title { padding: 2px 4px; font-size: 10px; text-align: center; }
 
@@ -1265,4 +1265,54 @@ body.debug-mode #preview-window {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   border-radius: 4px;
+}
+
+/* Resizer Splitters */
+.resizer {
+  background: var(--c-bg-dark);
+  z-index: 10;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+.resizer:hover, .resizer.dragging {
+  background: var(--c-accent, #2196f3) !important;
+}
+.resizer.vertical {
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+}
+.resizer.horizontal {
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+}
+
+/* Collapsible Debugger Sections */
+.debug-section {
+  transition: flex 0.2s ease, height 0.2s ease;
+}
+.debug-section.collapsed {
+  flex: 0 0 24px !important;
+  height: 24px !important;
+  overflow: hidden;
+}
+.debug-section.collapsed > :not(.debug-section-title) {
+  display: none !important;
+}
+.debug-section-title {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+}
+.debug-section-title::before {
+  content: "▼";
+  font-size: 8px;
+  margin-right: 6px;
+  display: inline-block;
+  transition: transform 0.1s ease;
+}
+.debug-section.collapsed .debug-section-title::before {
+  transform: rotate(-90deg);
 }

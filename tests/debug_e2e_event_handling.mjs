@@ -160,6 +160,31 @@ try {
     throw new Error("Local variable 'x' value did not update to 100!");
   }
 
+  // Test Monaco context menu action: Add "x" to Watch list
+  console.log("→ testing Monaco 'Add to Watch' context menu action");
+  await page.evaluate(() => {
+    const ed = window.RapidR._editors.get(window.RapidR.state.project.forms[0].id);
+    // Set cursor on 'x' in 'x = x + 5' (line 4)
+    ed.setPosition({ lineNumber: 4, column: 3 });
+    // Trigger the context menu action
+    ed.trigger('keyboard', 'rapidr-add-watch');
+  });
+  await page.waitForTimeout(500);
+
+  const watchExists = await page.evaluate(() => window.RapidR.state.watchExpressions.includes("x"));
+  console.log(`✓ 'x' in watchExpressions: ${watchExists}`);
+  if (!watchExists) {
+    throw new Error("Add to Watch context menu action failed to add 'x' to state!");
+  }
+
+  const watchHtml = await page.innerHTML("#debug-watch-list");
+  console.log("Watch List HTML:", watchHtml);
+  if (!watchHtml.includes("x") || !watchHtml.includes("100")) {
+    throw new Error("Watch List panel does not render the watched variable 'x' with value 100!");
+  }
+
+  await page.screenshot({ path: join(SHOT_DIR, "06_watch_added_layout.png"), fullPage: true });
+
   // Step Over line 4 (executing "x = x + 5", pausing on line 5)
   console.log("→ performing Step Over to line 5");
   await page.click("#btn-stepover");
