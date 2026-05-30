@@ -1224,9 +1224,13 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
 
 /* Toolbar active states */
 .tb.debug {
+  width: auto;
+  padding: 0 8px;
+  font-size: 11px;
   background: rgba(76, 175, 80, 0.1);
   border-color: rgba(76, 175, 80, 0.4);
   color: #4caf50;
+  gap: 4px;
 }
 .tb.debug:hover {
   background: #4caf50;
@@ -1234,7 +1238,11 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
   border-color: #4caf50;
 }
 .tb.debug-ctrl {
+  width: auto;
+  padding: 0 8px;
+  font-size: 11px;
   color: #2196f3;
+  gap: 4px;
 }
 .tb.debug-ctrl:hover:not([disabled]) {
   background: #2196f3;

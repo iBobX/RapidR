@@ -1034,7 +1034,7 @@ The project ships with its own experimental and WIP **Visual Form Designer & Cod
 ```
 **Important:** The IDE is a work in progress and has lots of quirks, but it demonstrates the full capabilities of the RapidR runtime. For Code Editor syntax highlighting and IntelliSense, I recommend using the VS Code extension described below.
 
-### Self-Hosted Web IDE — `web-ide/` (v1.0.0)
+### Self-Hosted Web IDE — `web-ide/` (v2.7.0)
 
 In addition to the native FLTK IDE above, RapidR ships a **fully self-contained
 browser IDE** under [`web-ide/`](web-ide/). It is **not** a `.rr` program — it
@@ -1044,12 +1044,21 @@ is plain HTML/JS that drives the same combined wasm module
 edit → compile → run → export loop happens in the visitor's browser, with
 no build server and no network calls.
 
-**Highlights (1.0):**
+**Highlights (2.7.0):**
 
 - **VB6-style multi-form designer.** Each form is its own design / code
   pair of MDI tabs; switch with the project tree. Designer, code, and
   preview always stay in sync — every property edit re-emits source and
   re-renders the active form.
+- **Interactive Source Debugger (v2.7.0).** Breakpoints can be set by clicking
+  the Monaco editor gutter. Supports full execution control:
+  - **🪲 Debug**: Commences execution in debugger mode.
+  - **⏯ Continue (F5)**: Resumes VM execution.
+  - **↷ Step Over (F10)**, **↓ Step Into (F11)**, **↑ Step Out (Shift+F11)**: Line-by-line step execution.
+  - **■ Stop (Shift+F5)**: Halts the debug session cleanly.
+  - **Scope Panels**: Call Stack, Local & Global variable inspection (with collapsible component property structures), and Watch lists.
+  - **Visual Tooltips**: Hovering over variables in Monaco displays their runtime values.
+  - **Safety Overlay**: Paused state shows a translucent glass overlay to protect preview state.
 - **22-component toolbox**, organised into three groups in the sidebar
   and split between *visible* (drop on the form) and *non-visual* (drop
   into the design tray below the form):
@@ -1086,7 +1095,7 @@ no build server and no network calls.
   `demo_plot`, `demo_chat_client`, …) into both panes for inspection
   or editing.
 - **About / License / View Source** dialogs, version surfaced in the
-  status bar (`v1.0.0`) and `<title>`, third-party attributions in
+  status bar (`v2.7.0`) and `<title>`, third-party attributions in
   [`LICENSES.md`](LICENSES.md).
 - **Security.** All user-controlled strings interpolated into IDE DOM
   (form names, module names, widget names) are escaped. No `eval()` /

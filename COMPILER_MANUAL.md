@@ -953,8 +953,8 @@ on desktop (linked into the CLI) **or** in the browser (loaded by
 
 ### Bytecode Format (`.rrbc`)
 
-- Magic `RRBC` + `version: u16` (currently `1`).
-- Constants pool (strings, integers, floats), function table, optional
+- Magic `RRBC` + `version: u16` (currently `2`).
+- Constants pool (strings, integers, floats), function table (including `local_names` metadata for variables since v2), optional
   debug-info side-table.
 - ~50 stack opcodes: `LOAD_CONST`, `LOAD_LOCAL`, `STORE_LOCAL`,
   `LOAD_GLOBAL`, `STORE_GLOBAL`, `ADD/SUB/MUL/DIV/MOD/POW/NEG`,
@@ -984,6 +984,59 @@ pub trait Host {
 Event re-entry uses an indirect-dispatch hook
 (`EventHandler::Indirect(u32)` + a thread-local closure) so DOM/FLTK
 callbacks invoke `Vm::invoke_function` on the parked VM instance.
+
+### Web IDE Interactive Debugger
+
+To facilitate developer debugging, the Web IDE incorporates a full-featured source-level debugger that communicates directly with the WASM interpreter state.
+
+#### 1. Compilation & Source Line Mapping
+* During Web IDE builds, the compiler generates a mapping between bytecode offsets and source line numbers using `compile_program_with_source`.
+* User-defined functions and subroutines carry `local_names` (variable names in order of declaration) to resolve local variable addresses to human-readable strings during execution pauses.
+
+#### 2. Non-Blocking Yielding VM
+Since browser JavaScript is single-threaded, a debugger cannot block (e.g., using sleep loops or synchronous blocks) without freezing the entire browser tab. The RapidR VM resolves this with a yielding architecture:
+* When the VM execution loop (`Vm::exec`) detects a breakpoint or stepping condition (e.g., step over/into/out boundaries), it saves the current instruction pointer (`ip`) back to the active activation frame.
+* It then halts execution and returns a special `Err(VmError::Paused)` variant.
+* The VM instance remains parked and alive in memory, preserving registers, global tables, local variables, and the call stack.
+
+#### 3. Wasm-Bindgen DebugSession Interface
+The `rapidr-vm-host-web` library exports a `DebugSession` class that manages this parked VM instance and provides the following control interface to JavaScript:
+
+```typescript
+class DebugSession {
+  // Decode bytecode and prepare VM/runtimes in debug mode
+  constructor(bytes: Uint8Array);
+
+  // Run execution until completion, error, or first breakpoint pause
+  start(): "paused" | "halted";
+
+  // Resume execution after a pause
+  resume(): "paused" | "halted";
+
+  // Stepping controls
+  step_into(): "paused" | "halted";
+  step_over(): "paused" | "halted";
+  step_out(): "paused" | "halted";
+
+  // Update VM breakpoints dynamically
+  set_breakpoints(lines: number[]): void;
+
+  // Retrieve the 1-based source line number of the current instruction
+  get_current_line(): number | undefined;
+
+  // Retrieve JSON string of active activation frames (name, line)
+  get_stack_trace(): string;
+
+  // Retrieve JSON string of current local and global variables
+  get_variables(): string;
+
+  // Retrieve JSON string of properties for a specific component ID
+  get_component_properties(id: string): string;
+
+  // Release VM resources and clean up memory
+  free(): void;
+}
+```
 
 ### CLI
 
