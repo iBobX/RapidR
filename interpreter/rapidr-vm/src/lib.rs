@@ -48,6 +48,7 @@ pub enum VmError {
     Truncated,
     HostError(String),
     Halted,
+    Paused,
 }
 
 impl std::fmt::Display for VmError {
@@ -63,34 +64,61 @@ impl std::fmt::Display for VmError {
             VmError::Truncated => write!(f, "truncated bytecode"),
             VmError::HostError(s) => write!(f, "host error: {s}"),
             VmError::Halted => write!(f, "halted"),
+            VmError::Paused => write!(f, "paused"),
         }
     }
 }
 
 impl std::error::Error for VmError {}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepMode {
+    None,
+    Into,
+    Over { target_depth: usize },
+    Out { target_depth: usize },
+}
+
 /// One activation frame.
-struct Frame {
-    fn_index: u32,
-    locals: Vec<Value>,
+#[derive(Debug, Clone)]
+pub struct Frame {
+    pub fn_index: u32,
+    pub locals: Vec<Value>,
     /// Saved instruction pointer in the calling function.
-    ret_ip: usize,
+    pub ret_ip: usize,
     /// True if caller wanted a value (CallFunc), false for CallSub.
-    wants_value: bool,
+    pub wants_value: bool,
+    /// Current instruction pointer in this frame.
+    pub ip: usize,
 }
 
 /// The interpreter.
 pub struct Vm<'h, H: Host + ?Sized> {
-    host: &'h mut H,
-    stack: Vec<Value>,
-    frames: Vec<Frame>,
+    pub host: &'h mut H,
+    pub stack: Vec<Value>,
+    pub frames: Vec<Frame>,
     /// Globals — name-keyed Value slots (created lazily on first STORE).
-    globals: std::collections::HashMap<String, Value>,
+    pub globals: std::collections::HashMap<String, Value>,
+
+    // Debugger state
+    pub debug_mode: bool,
+    pub breakpoints: std::collections::HashSet<u32>,
+    pub step_mode: StepMode,
+    pub last_line: u32,
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
     pub fn new(host: &'h mut H) -> Self {
-        Self { host, stack: Vec::with_capacity(64), frames: Vec::with_capacity(8), globals: Default::default() }
+        Self {
+            host,
+            stack: Vec::with_capacity(64),
+            frames: Vec::with_capacity(8),
+            globals: Default::default(),
+            debug_mode: false,
+            breakpoints: Default::default(),
+            step_mode: StepMode::None,
+            last_line: 0,
+        }
     }
 
     /// Borrow the host (e.g. to inspect output or registered events).
@@ -108,7 +136,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Push a new frame for `fn_index`. Pops `argc` values from the stack
     /// to seed the parameter slots (in reverse order — last pushed = last
     /// parameter).
-    fn call(&mut self, module: &Module, fn_index: u32, argc: u8, wants_value: bool) -> Result<(), VmError> {
+    pub fn call(&mut self, module: &Module, fn_index: u32, argc: u8, wants_value: bool) -> Result<(), VmError> {
         let f = module.functions.get(fn_index as usize)
             .ok_or(VmError::BadFunctionIndex(fn_index))?;
         let mut locals: Vec<Value> = (0..f.n_locals).map(|_| v_null()).collect();
@@ -121,14 +149,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
-        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value });
+        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0 });
         let _ = ret_ip;
         Ok(())
     }
 
     fn exec(&mut self, module: &Module) -> Result<(), VmError> {
         // Per-frame instruction pointer; we keep it on the Rust stack for hot loop.
-        let mut ip: usize = 0;
+        let mut ip = self.frames.last().map(|f| f.ip).unwrap_or(0);
         // The currently executing function's code, refreshed on call/ret.
         let mut code: &[u8] = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
 
@@ -145,10 +173,33 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     return Ok(());
                 }
                 let top = self.frames.last().unwrap();
-                ip = top.ret_ip;
+                ip = top.ip;
                 refresh!();
                 continue;
             }
+
+            if self.debug_mode {
+                let current_fn = &module.functions[self.frames.last().unwrap().fn_index as usize];
+                if let Some(line) = current_fn.get_line_for_ip(ip) {
+                    if self.last_line != line {
+                        let depth = self.frames.len();
+                        let should_pause = self.breakpoints.contains(&line) || match self.step_mode {
+                            StepMode::Into => true,
+                            StepMode::Over { target_depth } => depth <= target_depth,
+                            StepMode::Out { target_depth } => depth < target_depth,
+                            StepMode::None => false,
+                        };
+                        if should_pause {
+                            self.frames.last_mut().unwrap().ip = ip;
+                            self.step_mode = StepMode::None;
+                            self.last_line = line;
+                            return Err(VmError::Paused);
+                        }
+                        self.last_line = line;
+                    }
+                }
+            }
+
             let opbyte = code[ip];
             ip += 1;
             let op = Op::from_u8(opbyte).ok_or(VmError::BadOpcode(opbyte))?;
@@ -249,6 +300,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CallSub => {
                     let fi = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)?;
+                    self.frames.last_mut().unwrap().ip = ip;
                     self.frames.last_mut().unwrap().ret_ip = ip;
                     self.call(module, fi, argc, false)?;
                     ip = 0;
@@ -257,6 +309,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CallFunc => {
                     let fi = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)?;
+                    self.frames.last_mut().unwrap().ip = ip;
                     self.frames.last_mut().unwrap().ret_ip = ip;
                     self.call(module, fi, argc, true)?;
                     ip = 0;
@@ -264,12 +317,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::Ret => {
                     if !self.return_frame(false)? { return Ok(()); }
-                    ip = self.frames.last().unwrap().ret_ip;
+                    ip = self.frames.last().unwrap().ip;
                     refresh!();
                 }
                 Op::RetVal => {
                     if !self.return_frame(true)? { return Ok(()); }
-                    ip = self.frames.last().unwrap().ret_ip;
+                    ip = self.frames.last().unwrap().ip;
                     refresh!();
                 }
                 Op::CallBuiltin => {
@@ -409,21 +462,68 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Pushes args in order; any return value of a CallFunc target is left on
     /// the data stack. For event callbacks the caller typically discards it.
     pub fn invoke_function(&mut self, module: &Module, fn_index: u32, args: Vec<Value>) -> Result<Value, VmError> {
-        for a in args.iter().rev() {
-            // Note: original `args` order matters; push in forward order so they pop correctly
-            let _ = a;
-        }
         for a in args.iter() { self.stack.push(a.clone()); }
         let argc = args.len() as u8;
-        // Save state and run a nested execution.
-        // For simplicity, we just push a frame and re-enter exec(). Since exec()
-        // returns when the frame stack is empty, we need a scoped exec.
         let saved = std::mem::take(&mut self.frames);
         self.call(module, fn_index, argc, true)?;
-        self.exec(module)?;
-        let r = self.stack.pop().unwrap_or(v_null());
-        self.frames = saved;
-        Ok(r)
+        match self.exec(module) {
+            Ok(()) => {
+                let r = self.stack.pop().unwrap_or(v_null());
+                self.frames = saved;
+                Ok(r)
+            }
+            Err(VmError::Paused) => {
+                Err(VmError::Paused)
+            }
+            Err(e) => {
+                self.frames = saved;
+                Err(e)
+            }
+        }
+    }
+
+    pub fn is_paused(&self) -> bool {
+        !self.frames.is_empty()
+    }
+
+    pub fn set_breakpoints(&mut self, bps: std::collections::HashSet<u32>) {
+        self.breakpoints = bps;
+    }
+
+    pub fn add_breakpoint(&mut self, line: u32) {
+        self.breakpoints.insert(line);
+    }
+
+    pub fn remove_breakpoint(&mut self, line: u32) {
+        self.breakpoints.remove(&line);
+    }
+
+    pub fn resume(&mut self, module: &Module) -> Result<(), VmError> {
+        self.exec(module)
+    }
+
+    pub fn step_into(&mut self, module: &Module) -> Result<(), VmError> {
+        self.step_mode = StepMode::Into;
+        self.last_line = self.current_line(module).unwrap_or(0);
+        self.exec(module)
+    }
+
+    pub fn step_over(&mut self, module: &Module) -> Result<(), VmError> {
+        self.step_mode = StepMode::Over { target_depth: self.frames.len() };
+        self.last_line = self.current_line(module).unwrap_or(0);
+        self.exec(module)
+    }
+
+    pub fn step_out(&mut self, module: &Module) -> Result<(), VmError> {
+        self.step_mode = StepMode::Out { target_depth: self.frames.len() };
+        self.last_line = self.current_line(module).unwrap_or(0);
+        self.exec(module)
+    }
+
+    pub fn current_line(&self, module: &Module) -> Option<u32> {
+        let frame = self.frames.last()?;
+        let func = module.functions.get(frame.fn_index as usize)?;
+        func.get_line_for_ip(frame.ip)
     }
 }
 

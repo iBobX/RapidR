@@ -302,6 +302,38 @@ function registerRapidrLanguage(monaco) {
       const name = word.word;
       const upper = name.toUpperCase();
 
+      // Check if debugger is paused and we have a variable value
+      const state = window.RapidR?.state;
+      if (state?.isDebugging && state?.isDebugPaused && state?.lastVars) {
+        let debugValue = undefined;
+        let found = false;
+        const upperName = name.toUpperCase();
+        for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
+          if (lk.toUpperCase() === upperName) {
+            debugValue = lv;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
+            if (gk.toUpperCase() === upperName) {
+              debugValue = gv;
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) {
+          return {
+            contents: [
+              { value: `**Value**: \`${JSON.stringify(debugValue)}\`` },
+              { value: `\`${name}\` (variable)` }
+            ]
+          };
+        }
+      }
+
       // Component type hover
       if (COMPONENT_REGISTRY[upper]) {
         const reg = COMPONENT_REGISTRY[upper];
@@ -433,6 +465,7 @@ export async function createRapidrEditor(host, { value = "", onChange } = {}) {
     automaticLayout: true,
     fontFamily: "Consolas, 'SF Mono', Menlo, monospace",
     fontSize: 13,
+    glyphMargin: true,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
     renderWhitespace: "selection",

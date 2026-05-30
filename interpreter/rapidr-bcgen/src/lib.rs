@@ -39,7 +39,21 @@ pub struct Compiled {
 
 /// Compile a full program to a bytecode module.
 pub fn compile_program(program: &Program) -> Result<Compiled, String> {
+    compile_program_with_source(program, None)
+}
+
+/// Compile a full program to a bytecode module, mapping text spans back to source lines.
+pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> Result<Compiled, String> {
     let mut bcgen = Bcgen::new();
+    if let Some(src) = source {
+        let mut starts = vec![0];
+        for (offset, c) in src.char_indices() {
+            if c == '\n' {
+                starts.push(offset + 1);
+            }
+        }
+        bcgen.line_starts = Some(starts);
+    }
     bcgen.compile_program(program)?;
     Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings })
 }
@@ -98,6 +112,8 @@ struct Bcgen {
     component_instance_names: HashMap<String, String>,
     /// Whether we are currently lowering the top-level main program.
     in_main: bool,
+    /// Starts of each line (byte offsets) to resolve line numbers for statements.
+    line_starts: Option<Vec<usize>>,
 }
 
 struct LoopCtx {
@@ -120,6 +136,7 @@ impl Bcgen {
             create_declared_names: HashSet::new(),
             component_instance_names: HashMap::new(),
             in_main: false,
+            line_starts: None,
         }
     }
 
@@ -177,11 +194,18 @@ impl Bcgen {
         self.in_main = false;
         emit(&mut main_code, Op::Halt);
         let main_locals = self.scope.next_slot as u32;
+        let mut main_local_names = vec![String::new(); main_locals as usize];
+        for (name, &slot) in &self.scope.locals {
+            if (slot as usize) < main_local_names.len() {
+                main_local_names[slot as usize] = name.clone();
+            }
+        }
         self.scope = saved_scope;
         let f = &mut self.module.functions[main_idx as usize];
         f.code = main_code;
         f.line_info = main_lines;
         f.n_locals = main_locals;
+        f.local_names = main_local_names;
 
         // Pass 3: emit each SUB and FUNCTION body.
         for s in subs {
@@ -230,11 +254,18 @@ impl Bcgen {
             emit(&mut code, Op::Ret);
         }
         let n_locals = self.scope.next_slot as u32;
+        let mut local_names = vec![String::new(); n_locals as usize];
+        for (name, &slot) in &self.scope.locals {
+            if (slot as usize) < local_names.len() {
+                local_names[slot as usize] = name.clone();
+            }
+        }
         self.scope = saved_scope;
         let f = &mut self.module.functions[idx as usize];
         f.code = code;
         f.line_info = lines;
         f.n_locals = n_locals;
+        f.local_names = local_names;
         Ok(())
     }
 
@@ -246,7 +277,7 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
-        let line = stmt_line(stmt);
+        let line = self.stmt_line(stmt);
         let off = code.len() as u32;
         if line > 0 {
             lines.push((off, line));
@@ -1252,10 +1283,50 @@ fn collect_component_instance_names(stmts: &[Statement], out: &mut HashMap<Strin
     }
 }
 
-fn stmt_line(_s: &Statement) -> u32 {
-    // TextSpan currently only carries byte offsets; line numbers will be
-    // added once the diagnostics layer exposes them.
-    0
+impl Bcgen {
+    fn stmt_line(&self, stmt: &Statement) -> u32 {
+        let span = match stmt {
+            Statement::Assignment(a) => a.span,
+            Statement::Bind(b) => b.span,
+            Statement::Call(c) => c.span,
+            Statement::Close(c) => c.span,
+            Statement::Comment(c) => c.span,
+            Statement::Const(c) => c.span,
+            Statement::Create(c) => c.span,
+            Statement::Declare(d) => d.span,
+            Statement::Dim(d) => d.span,
+            Statement::Directive(d) => d.span,
+            Statement::DoLoop(d) => d.span,
+            Statement::Exit(e) => e.span,
+            Statement::For(f) => f.span,
+            Statement::Function(f) => f.span,
+            Statement::If(i) => i.span,
+            Statement::Import(i) => i.span,
+            Statement::Input(i) => i.span,
+            Statement::Line(l) => l.span,
+            Statement::Open(o) => o.span,
+            Statement::Print(p) => p.span,
+            Statement::PrintHash(p) => p.span,
+            Statement::Return(r) => r.span,
+            Statement::Seek(s) => s.span,
+            Statement::SelectCase(s) => s.span,
+            Statement::Subroutine(s) => s.span,
+            Statement::Type(t) => t.span,
+            Statement::While(w) => w.span,
+            Statement::With(w) => w.span,
+            Statement::WriteHash(w) => w.span,
+            Statement::RustBlock(r) => r.span,
+        };
+
+        if let Some(ref starts) = self.line_starts {
+            match starts.binary_search(&span.start) {
+                Ok(idx) => (idx + 1) as u32,
+                Err(idx) => idx as u32,
+            }
+        } else {
+            0
+        }
+    }
 }
 
 fn short_name(s: &Statement) -> &'static str {

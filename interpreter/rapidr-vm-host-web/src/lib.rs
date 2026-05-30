@@ -16,7 +16,7 @@ use rapidr_bytecode::Module;
 use rapidr_runtime_web::object_web as obj;
 use rapidr_runtime_web::prelude::*;
 use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
-use rapidr_vm::{Host, Vm};
+use rapidr_vm::{Host, Vm, VmError};
 use wasm_bindgen::prelude::*;
 
 /// Browser host: routes the [`Host`] surface to `rapidr-runtime-web`.
@@ -331,8 +331,206 @@ fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
 
     let program = rapidr_parser::parse_tokens(&tokens);
 
-    let compiled = rapidr_bcgen::compile_program(&program)
+    let compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
         .map_err(|e| format!("bcgen error: {e}"))?;
 
     Ok(compiled.module.to_bytes())
+}
+
+// ---------- Debugger Session class for Monaco IDE ----------
+
+#[wasm_bindgen]
+pub struct DebugSession {
+    module: *mut Module,
+    vm: *mut Vm<'static, WebHost>,
+    host: *mut WebHost,
+}
+
+#[wasm_bindgen]
+impl DebugSession {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<DebugSession, JsValue> {
+        let module = Module::from_bytes(bytes)
+            .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
+        let module_ptr = Box::into_raw(Box::new(module));
+        let host_ptr = Box::into_raw(Box::new(WebHost::default()));
+        let vm_ptr = Box::into_raw(Box::new(Vm::new(unsafe { &mut *host_ptr })));
+
+        unsafe {
+            (*vm_ptr).debug_mode = true;
+        }
+
+        install_dispatcher::<WebHost>(module_ptr, vm_ptr);
+
+        Ok(DebugSession {
+            module: module_ptr,
+            vm: vm_ptr,
+            host: host_ptr,
+        })
+    }
+
+    pub fn start(&mut self) -> Result<String, JsValue> {
+        let vm = unsafe { &mut *self.vm };
+        let module = unsafe { &*self.module };
+        let entry = module.entry;
+        vm.call(module, entry, 0, false)
+            .map_err(|e| JsValue::from_str(&format!("vm call error: {e}")))?;
+        self.resume()
+    }
+
+    pub fn resume(&mut self) -> Result<String, JsValue> {
+        let vm = unsafe { &mut *self.vm };
+        let module = unsafe { &*self.module };
+        match vm.resume(module) {
+            Ok(()) => {
+                if vm.host_mut().has_components {
+                    rapidr_runtime_web::gui_web::gui_web_finalize();
+                }
+                Ok("halted".to_string())
+            }
+            Err(VmError::Paused) => Ok("paused".to_string()),
+            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
+        }
+    }
+
+    pub fn step_into(&mut self) -> Result<String, JsValue> {
+        let vm = unsafe { &mut *self.vm };
+        let module = unsafe { &*self.module };
+        match vm.step_into(module) {
+            Ok(()) => {
+                if vm.host_mut().has_components {
+                    rapidr_runtime_web::gui_web::gui_web_finalize();
+                }
+                Ok("halted".to_string())
+            }
+            Err(VmError::Paused) => Ok("paused".to_string()),
+            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
+        }
+    }
+
+    pub fn step_over(&mut self) -> Result<String, JsValue> {
+        let vm = unsafe { &mut *self.vm };
+        let module = unsafe { &*self.module };
+        match vm.step_over(module) {
+            Ok(()) => {
+                if vm.host_mut().has_components {
+                    rapidr_runtime_web::gui_web::gui_web_finalize();
+                }
+                Ok("halted".to_string())
+            }
+            Err(VmError::Paused) => Ok("paused".to_string()),
+            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
+        }
+    }
+
+    pub fn step_out(&mut self) -> Result<String, JsValue> {
+        let vm = unsafe { &mut *self.vm };
+        let module = unsafe { &*self.module };
+        match vm.step_out(module) {
+            Ok(()) => {
+                if vm.host_mut().has_components {
+                    rapidr_runtime_web::gui_web::gui_web_finalize();
+                }
+                Ok("halted".to_string())
+            }
+            Err(VmError::Paused) => Ok("paused".to_string()),
+            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
+        }
+    }
+
+    pub fn set_breakpoints(&mut self, lines: Vec<u32>) {
+        let vm = unsafe { &mut *self.vm };
+        let set: std::collections::HashSet<u32> = lines.into_iter().collect();
+        vm.set_breakpoints(set);
+    }
+
+    pub fn get_current_line(&self) -> Option<u32> {
+        let vm = unsafe { &*self.vm };
+        let module = unsafe { &*self.module };
+        vm.current_line(module)
+    }
+
+    pub fn get_stack_trace(&self) -> String {
+        let vm = unsafe { &*self.vm };
+        let module = unsafe { &*self.module };
+        let mut parts = Vec::new();
+        for frame in vm.frames.iter().rev() {
+            if let Some(func) = module.functions.get(frame.fn_index as usize) {
+                let line = func.get_line_for_ip(frame.ip).unwrap_or(0);
+                parts.push(format!("{{\"name\":\"{}\",\"line\":{}}}", func.name, line));
+            }
+        }
+        format!("[{}]", parts.join(","))
+    }
+
+    pub fn get_variables(&self) -> String {
+        let vm = unsafe { &*self.vm };
+        let module = unsafe { &*self.module };
+
+        fn serialize_val(v: &Value) -> String {
+            match v {
+                Value::Null => "null".to_string(),
+                Value::Boolean(b) => b.to_string(),
+                Value::Integer(n) => n.to_string(),
+                Value::Double(d) => d.to_string(),
+                Value::String(s) => {
+                    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
+                }
+            }
+        }
+
+        let mut locals_parts = Vec::new();
+        if let Some(frame) = vm.frames.last() {
+            if let Some(func) = module.functions.get(frame.fn_index as usize) {
+                for (slot, val) in frame.locals.iter().enumerate() {
+                    let name = func.local_names.get(slot).cloned().unwrap_or_else(|| format!("local_{}", slot));
+                    if !name.starts_with("__") && !name.is_empty() {
+                        locals_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
+                    }
+                }
+            }
+        }
+
+        let mut globals_parts = Vec::new();
+        for (name, val) in &vm.globals {
+            if !name.starts_with("__") {
+                globals_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
+            }
+        }
+
+        format!("{{\"locals\":{{{}}},\"globals\":{{{}}}}}", locals_parts.join(","), globals_parts.join(","))
+    }
+
+    pub fn get_component_properties(&self, id: &str) -> String {
+        if let Some((type_name, props)) = rapidr_runtime_web::object_web::rp_comp_get_all_properties(id) {
+            fn serialize_val(v: &Value) -> String {
+                match v {
+                    Value::Null => "null".to_string(),
+                    Value::Boolean(b) => b.to_string(),
+                    Value::Integer(n) => n.to_string(),
+                    Value::Double(d) => d.to_string(),
+                    Value::String(s) => {
+                        format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
+                    }
+                }
+            }
+            let mut props_parts = Vec::new();
+            for (name, val) in &props {
+                props_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
+            }
+            format!("{{\"type\":\"{}\",\"properties\":{{{}}}}}", type_name, props_parts.join(","))
+        } else {
+            "null".to_string()
+        }
+    }
+}
+
+impl Drop for DebugSession {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = Box::from_raw(self.module);
+            let _ = Box::from_raw(self.vm);
+            let _ = Box::from_raw(self.host);
+        }
+    }
 }

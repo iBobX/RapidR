@@ -68,6 +68,25 @@ pub struct Function {
     pub code: Vec<u8>,
     /// Optional debug-info side table: instruction-offset → source-line.
     pub line_info: Vec<(u32, u32)>,
+    /// Optional debug-info: names of local variable slots (1-to-1 mapping to slots)
+    pub local_names: Vec<String>,
+}
+
+impl Function {
+    pub fn get_line_for_ip(&self, ip: usize) -> Option<u32> {
+        if self.line_info.is_empty() {
+            return None;
+        }
+        let mut best_line = None;
+        for &(off, line) in &self.line_info {
+            if off as usize <= ip {
+                best_line = Some(line);
+            } else {
+                break;
+            }
+        }
+        best_line
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -118,4 +137,4 @@ impl Module {
 }
 
 pub const MAGIC: &[u8; 4] = b"RRBC";
-pub const VERSION: u16 = 1;
+pub const VERSION: u16 = 2;

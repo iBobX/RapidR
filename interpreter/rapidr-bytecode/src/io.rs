@@ -132,6 +132,10 @@ fn write_function(out: &mut Vec<u8>, f: &Function) {
         write_u32(out, *off);
         write_u32(out, *line);
     }
+    write_u32(out, f.local_names.len() as u32);
+    for name in &f.local_names {
+        write_str(out, name);
+    }
     let _ = write_u16; let _ = write_i32; // suppress unused warnings; reserved
 }
 
@@ -200,7 +204,12 @@ fn read_function(r: &mut Reader) -> Result<Function, Error> {
         let line = r.read_u32()?;
         line_info.push((off, line));
     }
-    Ok(Function { name, params, n_locals, code, line_info })
+    let n_local_names = r.read_u32()? as usize;
+    let mut local_names = Vec::with_capacity(n_local_names);
+    for _ in 0..n_local_names {
+        local_names.push(read_str(r)?);
+    }
+    Ok(Function { name, params, n_locals, code, line_info, local_names })
 }
 
 #[cfg(test)]
@@ -227,6 +236,7 @@ mod tests {
         f.n_locals = 2;
         f.code = vec![Op::LoadConst as u8, 0, 0, 0, 0, Op::Halt as u8];
         f.line_info.push((0, 1));
+        f.local_names.push("foo".to_string());
         m.add_function(f);
         let bytes = m.to_bytes();
         let m2 = Module::from_bytes(&bytes).unwrap();
@@ -234,5 +244,6 @@ mod tests {
         assert_eq!(m2.strings, m.strings);
         assert_eq!(m2.functions[0].code, m.functions[0].code);
         assert_eq!(m2.functions[0].line_info, m.functions[0].line_info);
+        assert_eq!(m2.functions[0].local_names, m.functions[0].local_names);
     }
 }

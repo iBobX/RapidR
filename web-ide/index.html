@@ -87,6 +87,13 @@
     <div class="menu" data-menu="run">Run
       <div class="menu-popup">
         <div class="mi" data-cmd="run.start">Start  F5</div>
+        <div class="mi" data-cmd="run.debug">Start Debugging</div>
+        <div class="sep"></div>
+        <div class="mi" data-cmd="debug.resume" id="menu-debug-resume">Continue</div>
+        <div class="mi" data-cmd="debug.stepover" id="menu-debug-stepover">Step Over  F10</div>
+        <div class="mi" data-cmd="debug.stepinto" id="menu-debug-stepinto">Step Into  F11</div>
+        <div class="mi" data-cmd="debug.stepout" id="menu-debug-stepout">Step Out  Shift+F11</div>
+        <div class="sep"></div>
         <div class="mi" data-cmd="run.stop">Stop   Shift+F5</div>
         <div class="sep"></div>
         <div class="mi" data-cmd="run.build">Build .zip Bundle…</div>
@@ -114,6 +121,11 @@
     <button class="tb" data-cmd="edit.redo" title="Redo">↷</button>
     <span class="tb-sep"></span>
     <button class="tb run" id="btn-run" data-cmd="run.start" title="Start (F5)">▶</button>
+    <button class="tb debug" id="btn-debug" data-cmd="run.debug" title="Start Debugging">🪲 Debug</button>
+    <button class="tb debug-ctrl" id="btn-resume" data-cmd="debug.resume" title="Continue (F5)" disabled>⏯ Continue</button>
+    <button class="tb debug-ctrl" id="btn-stepover" data-cmd="debug.stepover" title="Step Over (F10)" disabled>↷ Step Over</button>
+    <button class="tb debug-ctrl" id="btn-stepinto" data-cmd="debug.stepinto" title="Step Into (F11)" disabled>↓ Step Into</button>
+    <button class="tb debug-ctrl" id="btn-stepout" data-cmd="debug.stepout" title="Step Out (Shift+F11)" disabled>↑ Step Out</button>
     <button class="tb stop" data-cmd="run.stop" title="Stop (Shift+F5)">■</button>
     <button class="tb" id="btn-build" data-cmd="run.build" title="Build .zip bundle">⬇ Build</button>
     <span class="tb-sep"></span>
@@ -158,6 +170,30 @@
         <div class="dock-title">Project — <span id="proj-name">untitled</span></div>
         <div id="proj-tree"></div>
       </div>
+      
+      <!-- Debug Dock -->
+      <div id="debug-dock" class="dock" hidden>
+        <div class="dock-title">Debugger</div>
+        <div id="debug-body">
+          <div class="debug-section" id="debug-callstack-sec">
+            <div class="debug-section-title">Call Stack</div>
+            <div id="debug-callstack"></div>
+          </div>
+          <div class="debug-section" id="debug-variables-sec">
+            <div class="debug-section-title">Variables</div>
+            <div id="debug-variables"></div>
+          </div>
+          <div class="debug-section" id="debug-watch-sec">
+            <div class="debug-section-title">Watch</div>
+            <div id="debug-watch-list"></div>
+            <div class="debug-watch-add">
+              <input type="text" id="debug-watch-input" placeholder="Add watch (e.g. x, RButton1.caption)" />
+              <button id="btn-debug-watch-add">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="props-dock" class="dock">
         <div class="dock-title">Properties — <span id="props-target">(none)</span></div>
         <div id="props-toolbar">
@@ -204,6 +240,9 @@
       <span id="preview-close" title="Stop (Shift+F5)">×</span>
     </div>
     <iframe id="preview" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+    <div id="preview-paused-overlay" hidden>
+      <div class="paused-overlay-text">Paused in Debugger</div>
+    </div>
   </div>
 
   <!-- Hidden file inputs -->

@@ -2042,3 +2042,12 @@ pub fn set_theme(_theme: &str) {
 pub fn gui_register_timer(_name: &str) {
     // Timers are handled via DOM setInterval in update_timer()
 }
+
+pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collections::HashMap<String, Value>)> {
+    let uname = name.to_uppercase();
+    COMPONENTS.with(|c| {
+        c.borrow().get(&uname).map(|comp| {
+            (comp.type_name.clone(), comp.properties.clone())
+        })
+    })
+}

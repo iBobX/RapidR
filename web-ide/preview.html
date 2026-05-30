@@ -9,10 +9,8 @@
   <style>
     html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; }
   </style>
-</head>
-<body>
   <script type="module">
-    import init, { rapidr_run_bc } from "./runtime/rapidrintr.js";
+    import init, { rapidr_run_bc, DebugSession } from "./runtime/rapidrintr.js";
 
     // Forward console output to the parent IDE.
     const origLog = console.log.bind(console);
@@ -21,13 +19,89 @@
       parent.postMessage({ __rapidr_log: args.map(String).join(" ") }, "*");
     };
 
+    let debugSession = null;
+
+    function handleDebugResult(status) {
+      if (status === "paused") {
+        const line = debugSession.get_current_line();
+        const stackStr = debugSession.get_stack_trace();
+        const varsStr = debugSession.get_variables();
+        parent.postMessage({
+          __rapidr_debug_paused: {
+            line,
+            stack: JSON.parse(stackStr),
+            vars: JSON.parse(varsStr)
+          }
+        }, "*");
+      } else if (status === "halted") {
+        parent.postMessage({ __rapidr_debug_halted: true }, "*");
+        if (debugSession) {
+          debugSession.free();
+          debugSession = null;
+        }
+      }
+    }
+
     // Listen BEFORE init returns so the parent's postMessage isn't
     // dropped by the race with top-level await.
     window.addEventListener("message", (e) => {
-      if (e.data && e.data.__rapidr_run) {
+      if (!e.data) return;
+
+      if (e.data.__rapidr_run) {
+        if (debugSession) {
+          debugSession.free();
+          debugSession = null;
+        }
         try { rapidr_run_bc(e.data.__rapidr_run); }
         catch (err) {
           parent.postMessage({ __rapidr_log: "[run error] " + err }, "*");
+        }
+      }
+
+      else if (e.data.__rapidr_debug) {
+        if (debugSession) {
+          debugSession.free();
+          debugSession = null;
+        }
+        try {
+          debugSession = new DebugSession(e.data.__rapidr_debug);
+          if (e.data.breakpoints) {
+            debugSession.set_breakpoints(e.data.breakpoints);
+          }
+          const res = debugSession.start();
+          handleDebugResult(res);
+        } catch (err) {
+          parent.postMessage({ __rapidr_log: "[debug init error] " + err }, "*");
+          parent.postMessage({ __rapidr_debug_halted: true }, "*");
+        }
+      }
+
+      else if (e.data.__rapidr_debug_cmd && debugSession) {
+        const cmd = e.data.__rapidr_debug_cmd;
+        try {
+          if (cmd.type === "resume") {
+            handleDebugResult(debugSession.resume());
+          } else if (cmd.type === "stepInto") {
+            handleDebugResult(debugSession.step_into());
+          } else if (cmd.type === "stepOver") {
+            handleDebugResult(debugSession.step_over());
+          } else if (cmd.type === "stepOut") {
+            handleDebugResult(debugSession.step_out());
+          } else if (cmd.type === "setBreakpoints") {
+            debugSession.set_breakpoints(cmd.lines);
+          } else if (cmd.type === "getProperties") {
+            const props = debugSession.get_component_properties(cmd.id);
+            parent.postMessage({ __rapidr_debug_properties: { id: cmd.id, properties: JSON.parse(props) } }, "*");
+          } else if (cmd.type === "stop") {
+            debugSession.free();
+            debugSession = null;
+            parent.postMessage({ __rapidr_debug_halted: true }, "*");
+          }
+        } catch (err) {
+          parent.postMessage({ __rapidr_log: "[debug cmd error] " + err }, "*");
+          parent.postMessage({ __rapidr_debug_halted: true }, "*");
+          debugSession.free();
+          debugSession = null;
         }
       }
     });
@@ -43,5 +117,7 @@
       __rapidr_status: isDesign ? undefined : "preview ready — waiting for bytecode",
     }, "*");
   </script>
+</head>
+<body>
 </body>
 </html>

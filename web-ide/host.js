@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "1.0.0";
+export const RAPIDR_IDE_VERSION = "2.7.0";
 
 const _editors = new Map();
 
@@ -58,6 +58,16 @@ const state = {
   activeView: "designer",       // "designer" | "code" — per active form
   selectedTool: "pointer",
   selection: [],                // array of widget names within active form
+  // Debugger state
+  isDebugging: false,
+  isDebugPaused: false,
+  breakpoints: new Set(),       // Set of "fileId:lineInFile"
+  watchExpressions: [],         // array of strings
+  lastVars: null,               // JSON variables: { locals: {...}, globals: {...} }
+  lastStack: null,              // Array of { name, line }
+  lastProperties: {},           // Map of id -> properties JSON
+  currentDecorations: new Map(),// Map of fileId -> decorationIds[]
+  currentActiveLineDec: new Map(),// Map of fileId -> decorationIds[]
 };
 
 // ─── DOM helpers ────────────────────────────────────────────────
@@ -72,9 +82,12 @@ function setStatus(msg, kind = "") {
 }
 
 function logOutput(s) {
+  console.log(s);
   const out = $('.obody[data-tab="output"]');
-  out.textContent += s + "\n";
-  out.scrollTop = out.scrollHeight;
+  if (out) {
+    out.textContent += s + "\n";
+    out.scrollTop = out.scrollHeight;
+  }
 }
 
 // ─── Errors panel + iframe console capture ─────────────────────
@@ -480,6 +493,7 @@ async function ensureCodeEditor(form, pane) {
     onChange: (txt) => { form.code.source = txt; },
   });
   _editors.set(form.id, ed);
+  setupEditorDebugHooks(form.id, ed);
   populateObjEvtDropdowns(form, pane, ed);
   return ed;
 }
@@ -2142,6 +2156,35 @@ async function runCommand(cmd) {
     }
 
     case "run.start":  return doRun();
+    case "run.debug":  return doDebug();
+    case "debug.resume": {
+      clearActiveHighlights();
+      sendDebugCommand("resume");
+      state.isDebugPaused = false;
+      updateDebugUI();
+      return;
+    }
+    case "debug.stepover": {
+      clearActiveHighlights();
+      sendDebugCommand("stepOver");
+      state.isDebugPaused = false;
+      updateDebugUI();
+      return;
+    }
+    case "debug.stepinto": {
+      clearActiveHighlights();
+      sendDebugCommand("stepInto");
+      state.isDebugPaused = false;
+      updateDebugUI();
+      return;
+    }
+    case "debug.stepout": {
+      clearActiveHighlights();
+      sendDebugCommand("stepOut");
+      state.isDebugPaused = false;
+      updateDebugUI();
+      return;
+    }
     case "run.stop":   return doStop();
     case "run.build":  return doBuild();
 
@@ -2247,6 +2290,10 @@ function doStop() {
   iframe.src = "about:blank";
   $("#preview-window").hidden = true;
   setStatus("stopped");
+  if (state.isDebugging) {
+    sendDebugCommand("stop");
+    onDebugHalted();
+  }
 }
 
 async function doBuild() {
@@ -2697,6 +2744,7 @@ async function switchToModule(modId) {
       onChange: (txt) => { mod.source = txt; },
     });
     _editors.set(modId, ed);
+    setupEditorDebugHooks(modId, ed);
   } else {
     _editors.get(modId).layout();
   }
@@ -2887,7 +2935,33 @@ function setupKeyboard() {
       runCommand("edit.delete");
       return;
     }
-    if (e.key === "F5") { e.preventDefault(); runCommand(e.shiftKey ? "run.stop" : "run.start"); return; }
+    if (state.isDebugging) {
+      if (e.key === "F5") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          runCommand("run.stop");
+        } else if (state.isDebugPaused) {
+          runCommand("debug.resume");
+        }
+        return;
+      }
+      if (e.key === "F10" && state.isDebugPaused) {
+        e.preventDefault();
+        runCommand("debug.stepover");
+        return;
+      }
+      if (e.key === "F11" && state.isDebugPaused) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          runCommand("debug.stepout");
+        } else {
+          runCommand("debug.stepinto");
+        }
+        return;
+      }
+    } else {
+      if (e.key === "F5") { e.preventDefault(); runCommand(e.shiftKey ? "run.stop" : "run.start"); return; }
+    }
     if (e.key === "F7") { e.preventDefault(); runCommand("view.code"); return; }
     if ((e.key === "F7") && e.shiftKey) { e.preventDefault(); runCommand("view.designer"); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -2901,6 +2975,728 @@ function setupKeyboard() {
     }
   });
 }
+// ─── Debugger Integration ──────────────────────────────────────
+
+function getProjectSourceAndMapping(project) {
+  const mapping = {};
+  const fileToUnified = {};
+  const lines = [];
+
+  const addLine = (text, fileId, lineInFile) => {
+    lines.push(text);
+    const lineNum = lines.length;
+    if (fileId !== undefined && lineInFile !== undefined) {
+      mapping[lineNum] = { fileId, lineInFile };
+      if (!fileToUnified[fileId]) {
+        fileToUnified[fileId] = new Map();
+      }
+      fileToUnified[fileId].set(lineInFile, lineNum);
+    }
+  };
+
+  addLine("$APPTYPE WEB");
+  addLine("");
+
+  // Module sources
+  for (const m of (project.modules || [])) {
+    const src = (m.source || "").trim();
+    if (src) {
+      addLine(`' --- module ${m.name} ---`);
+      const srcLines = src.split(/\r?\n/);
+      for (let i = 0; i < srcLines.length; i++) {
+        addLine(srcLines[i], m.id, i + 1);
+      }
+      addLine("");
+    }
+  }
+
+  // Per-form CREATE blocks.
+  for (const f of project.forms) {
+    const fsrc = serializeForm(f);
+    const fLines = fsrc.split(/\r?\n/);
+    for (let i = 0; i < fLines.length; i++) {
+      addLine(fLines[i]);
+    }
+    addLine("");
+  }
+
+  // Event-handler bindings
+  const bindings = [];
+  for (const f of project.forms) {
+    for (const [evt, sub] of Object.entries(f.code?.handlers || {})) {
+      bindings.push(`${f.name}.${evt} = ${sub}`);
+    }
+    for (const w of f.children) {
+      for (const [evt, sub] of Object.entries(w.code?.handlers || {})) {
+        bindings.push(`${w.name}.${evt} = ${sub}`);
+      }
+    }
+  }
+  if (bindings.length) {
+    for (const b of bindings) {
+      addLine(b);
+    }
+    addLine("");
+  }
+
+  // Show the startup form.
+  const start = project.forms.find(f => f.id === project.startupForm) || project.forms[0];
+  if (start) {
+    addLine(`${start.name}.ShowModal`);
+    addLine("");
+  }
+
+  // Append the user-authored code-behind source for each form.
+  for (const f of project.forms) {
+    const src = (f.code?.source || "").trim();
+    if (src) {
+      const srcLines = src.split(/\r?\n/);
+      for (let i = 0; i < srcLines.length; i++) {
+        addLine(srcLines[i], f.id, i + 1);
+      }
+      addLine("");
+    }
+  }
+
+  const finalSource = lines.join("\n") + "\n";
+  return { source: finalSource, mapping, fileToUnified };
+}
+
+function updateDebugUI() {
+  const isDebugging = state.isDebugging;
+  const isPaused = state.isDebugPaused;
+  
+  const btnRun = $("#btn-run");
+  const btnDebug = $("#btn-debug");
+  const btnStop = $(".tb.stop");
+  const btnResume = $("#btn-resume");
+  const btnStepOver = $("#btn-stepover");
+  const btnStepInto = $("#btn-stepinto");
+  const btnStepOut = $("#btn-stepout");
+  
+  if (btnRun) btnRun.disabled = isDebugging;
+  if (btnDebug) btnDebug.disabled = isDebugging;
+  if (btnStop) btnStop.disabled = !isDebugging;
+  if (btnResume) btnResume.disabled = !isDebugging || !isPaused;
+  if (btnStepOver) btnStepOver.disabled = !isDebugging || !isPaused;
+  if (btnStepInto) btnStepInto.disabled = !isDebugging || !isPaused;
+  if (btnStepOut) btnStepOut.disabled = !isDebugging || !isPaused;
+  
+  const mRun = $('.mi[data-cmd="run.start"]');
+  const mDebug = $('.mi[data-cmd="run.debug"]');
+  const mStop = $('.mi[data-cmd="run.stop"]');
+  const mResume = $("#menu-debug-resume");
+  const mStepOver = $("#menu-debug-stepover");
+  const mStepInto = $("#menu-debug-stepinto");
+  const mStepOut = $("#menu-debug-stepout");
+  
+  const setMiDisabled = (el, disabled) => {
+    if (!el) return;
+    el.classList.toggle("disabled", disabled);
+    el.style.pointerEvents = disabled ? "none" : "";
+    el.style.opacity = disabled ? "0.5" : "";
+  };
+  
+  setMiDisabled(mRun, isDebugging);
+  setMiDisabled(mDebug, isDebugging);
+  setMiDisabled(mStop, !isDebugging);
+  setMiDisabled(mResume, !isDebugging || !isPaused);
+  setMiDisabled(mStepOver, !isDebugging || !isPaused);
+  setMiDisabled(mStepInto, !isDebugging || !isPaused);
+  setMiDisabled(mStepOut, !isDebugging || !isPaused);
+  
+  const debugDock = $("#debug-dock");
+  const projDock = $("#proj-dock");
+  const layoutDock = $("#layout-dock");
+  
+  if (isDebugging) {
+    if (debugDock) debugDock.hidden = false;
+    if (projDock) projDock.hidden = true;
+    if (layoutDock) layoutDock.hidden = true;
+  } else {
+    if (debugDock) debugDock.hidden = true;
+    if (projDock) projDock.hidden = false;
+    if (layoutDock) layoutDock.hidden = false;
+  }
+}
+
+function setupEditorDebugHooks(fileId, editor) {
+  editor.onMouseDown(e => {
+    if (e.target.type === window.monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+      const line = e.target.position.lineNumber;
+      toggleBreakpoint(fileId, line, editor);
+    }
+  });
+  
+  updateEditorBreakpointDecorations(fileId, editor);
+  updateActiveLineDecoration(fileId, editor);
+}
+
+function toggleBreakpoint(fileId, line, editor) {
+  const key = `${fileId}:${line}`;
+  if (state.breakpoints.has(key)) {
+    state.breakpoints.delete(key);
+  } else {
+    state.breakpoints.add(key);
+  }
+  updateEditorBreakpointDecorations(fileId, editor);
+  
+  if (state.isDebugging) {
+    const unifiedBreakpoints = [];
+    for (const bp of state.breakpoints) {
+      const [fid, lStr] = bp.split(":");
+      const lineInFile = parseInt(lStr, 10);
+      const unifiedLine = state.lastFileToUnified?.[fid]?.get(lineInFile);
+      if (unifiedLine !== undefined) {
+        unifiedBreakpoints.push(unifiedLine);
+      }
+    }
+    sendDebugCommand("setBreakpoints", { lines: unifiedBreakpoints });
+  }
+}
+
+function updateEditorBreakpointDecorations(fileId, editor) {
+  const monaco = window.monaco;
+  if (!monaco) return;
+  
+  const bps = Array.from(state.breakpoints)
+    .filter(bp => bp.startsWith(fileId + ":"))
+    .map(bp => parseInt(bp.split(":")[1], 10));
+    
+  const newDecs = bps.map(line => ({
+    range: new monaco.Range(line, 1, line, 1),
+    options: {
+      isWholeLine: false,
+      glyphMarginClassName: "monaco-breakpoint-glyph",
+      glyphMarginHoverMessage: { value: "Breakpoint" }
+    }
+  }));
+  
+  const oldDecs = state.currentDecorations.get(fileId) || [];
+  const updatedDecs = editor.deltaDecorations(oldDecs, newDecs);
+  state.currentDecorations.set(fileId, updatedDecs);
+}
+
+function updateActiveLineDecoration(fileId, editor) {
+  const monaco = window.monaco;
+  if (!monaco) return;
+  
+  const oldDecs = state.currentActiveLineDec.get(fileId) || [];
+  let newDecs = [];
+  
+  if (state.isDebugging && state.isDebugPaused && state.currentPausedFileId === fileId && state.currentPausedLineInFile) {
+    newDecs.push({
+      range: new monaco.Range(state.currentPausedLineInFile, 1, state.currentPausedLineInFile, 1),
+      options: {
+        isWholeLine: true,
+        className: "monaco-debug-current-line"
+      }
+    });
+  }
+  
+  const updatedDecs = editor.deltaDecorations(oldDecs, newDecs);
+  state.currentActiveLineDec.set(fileId, updatedDecs);
+  
+  if (newDecs.length > 0) {
+    editor.revealLineInCenterIfOutsideViewport(state.currentPausedLineInFile);
+  }
+}
+
+function clearActiveHighlights() {
+  const overlay = $("#preview-paused-overlay");
+  if (overlay) overlay.hidden = true;
+  for (const [fileId, ed] of _editors.entries()) {
+    const oldDecs = state.currentActiveLineDec.get(fileId) || [];
+    ed.deltaDecorations(oldDecs, []);
+    state.currentActiveLineDec.set(fileId, []);
+  }
+}
+
+async function doDebug() {
+  if (!state.wasmReady) { setStatus("wasm not ready", "error"); return; }
+  setStatus("compiling for debug…");
+  clearErrorsPanel();
+  try {
+    const { source, mapping, fileToUnified } = getProjectSourceAndMapping(state.project);
+    logOutput("------ debug source ------\n" + source);
+    const bc = compile(source, state.project.name);
+    
+    state.lastMapping = mapping;
+    state.lastFileToUnified = fileToUnified;
+    state.isDebugging = true;
+    state.isDebugPaused = false;
+    state.currentPausedFileId = null;
+    state.currentPausedLineInFile = null;
+    document.body.classList.add("debug-mode");
+    
+    updateDebugUI();
+    
+    $("#preview-window").hidden = false;
+    $("#preview-title").textContent = `${state.project.name} [DEBUG] — RapidR Runtime`;
+    
+    const iframe = $("#preview");
+    
+    const unifiedBreakpoints = [];
+    for (const bp of state.breakpoints) {
+      const [fileId, lStr] = bp.split(":");
+      const lineInFile = parseInt(lStr, 10);
+      const unifiedLine = fileToUnified[fileId]?.get(lineInFile);
+      if (unifiedLine !== undefined) {
+        unifiedBreakpoints.push(unifiedLine);
+      }
+    }
+    
+    const onReady = (e) => {
+      if (e.source !== iframe.contentWindow) return;
+      if (!e.data?.__rapidr_preview_ready) return;
+      window.removeEventListener("message", onReady);
+      hookPreviewConsole(iframe);
+      iframe.contentWindow.__rapidr_assets = (state.project.assets || []).reduce((acc, a) => {
+        acc[a.name] = a.dataUrl;
+        acc[`assets/${a.name}`] = a.dataUrl;
+        return acc;
+      }, {});
+      
+      iframe.contentWindow.postMessage({
+        __rapidr_debug: bc,
+        breakpoints: unifiedBreakpoints
+      }, "*");
+    };
+    
+    window.addEventListener("message", onReady);
+    iframe.src = "./preview.html?role=debug";
+  } catch (err) {
+    setStatus("compile failed", "error");
+    logOutput(String(err));
+    $('.otab[data-tab="errors"]').click();
+  }
+}
+
+function sendDebugCommand(type, args = {}) {
+  const iframe = $("#preview");
+  if (iframe && iframe.contentWindow) {
+    iframe.contentWindow.postMessage({
+      __rapidr_debug_cmd: { type, ...args }
+    }, "*");
+  }
+}
+
+function onDebugPaused(pausedData) {
+  state.isDebugPaused = true;
+  state.lastVars = pausedData.vars;
+  state.lastStack = pausedData.stack;
+  state.lastProperties = {};
+  
+  const mapped = state.lastMapping?.[pausedData.line];
+  if (mapped) {
+    state.currentPausedFileId = mapped.fileId;
+    state.currentPausedLineInFile = mapped.lineInFile;
+    showFileInEditor(mapped.fileId);
+  } else {
+    state.currentPausedFileId = null;
+    state.currentPausedLineInFile = null;
+  }
+  
+  for (const [fileId, ed] of _editors.entries()) {
+    updateActiveLineDecoration(fileId, ed);
+  }
+  
+  const overlay = $("#preview-paused-overlay");
+  if (overlay) overlay.hidden = false;
+  
+  window.RapidR = window.RapidR || {};
+  window.RapidR.state = state;
+  
+  renderCallStack();
+  renderVariables();
+  renderWatches();
+  requestComponentProperties();
+  updateDebugUI();
+}
+
+function onDebugProperties(data) {
+  state.lastProperties[data.id] = data.properties;
+  renderVariables();
+  renderWatches();
+}
+
+function onDebugHalted() {
+  state.isDebugging = false;
+  state.isDebugPaused = false;
+  state.currentPausedFileId = null;
+  state.currentPausedLineInFile = null;
+  state.lastVars = null;
+  state.lastStack = null;
+  state.lastProperties = {};
+  document.body.classList.remove("debug-mode");
+  
+  const overlay = $("#preview-paused-overlay");
+  if (overlay) overlay.hidden = true;
+  
+  for (const [fileId, ed] of _editors.entries()) {
+    const oldDecs = state.currentActiveLineDec.get(fileId) || [];
+    ed.deltaDecorations(oldDecs, []);
+    state.currentActiveLineDec.set(fileId, []);
+  }
+  
+  updateDebugUI();
+}
+
+function requestComponentProperties() {
+  const widgetNames = new Set();
+  for (const f of state.project.forms) {
+    widgetNames.add(f.name.toUpperCase());
+    for (const w of f.children) {
+      widgetNames.add(w.name.toUpperCase());
+    }
+  }
+  
+  const scanVal = (v) => {
+    if (typeof v === "string") {
+      const uv = v.toUpperCase();
+      if (widgetNames.has(uv)) {
+        sendDebugCommand("getProperties", { id: v });
+      }
+    }
+  };
+  
+  if (state.lastVars) {
+    for (const v of Object.values(state.lastVars.locals)) {
+      scanVal(v);
+    }
+    for (const v of Object.values(state.lastVars.globals)) {
+      scanVal(v);
+    }
+  }
+  
+  for (const expr of state.watchExpressions) {
+    const parts = expr.split(".");
+    const firstPart = parts[0].trim().toUpperCase();
+    if (widgetNames.has(firstPart)) {
+      let casePreservedName = null;
+      for (const f of state.project.forms) {
+        if (f.name.toUpperCase() === firstPart) { casePreservedName = f.name; break; }
+        for (const w of f.children) {
+          if (w.name.toUpperCase() === firstPart) { casePreservedName = w.name; break; }
+        }
+      }
+      if (casePreservedName) {
+        sendDebugCommand("getProperties", { id: casePreservedName });
+      }
+    }
+  }
+}
+
+function showFileInEditor(fileId) {
+  const form = state.project.forms.find(f => f.id === fileId);
+  if (form) {
+    switchToForm(fileId);
+    switchView("code");
+    return;
+  }
+  const mod = state.project.modules.find(m => m.id === fileId);
+  if (mod) {
+    switchToModule(fileId);
+  }
+}
+
+function renderCallStack() {
+  const container = $("#debug-callstack");
+  if (!container) return;
+  container.innerHTML = "";
+  
+  if (!state.lastStack || state.lastStack.length === 0) {
+    container.innerHTML = `<div style="padding:8px;color:var(--c-text-mute);font-size:11px;">No stack frames</div>`;
+    return;
+  }
+  
+  state.lastStack.forEach((frame, idx) => {
+    const row = document.createElement("div");
+    row.className = "debug-frame-row" + (idx === 0 ? " active" : "");
+    
+    let locStr = "";
+    if (frame.line) {
+      const mapped = state.lastMapping?.[frame.line];
+      if (mapped) {
+        const form = state.project.forms.find(f => f.id === mapped.fileId);
+        const mod = state.project.modules.find(m => m.id === mapped.fileId);
+        const name = form ? form.name : (mod ? mod.name : "unknown");
+        locStr = `${name}.rr:${mapped.lineInFile}`;
+      } else {
+        locStr = `line ${frame.line}`;
+      }
+    }
+    
+    row.innerHTML = `
+      <span class="frame-name">${frame.name}</span>
+      <span class="frame-line">${locStr}</span>
+    `;
+    
+    row.addEventListener("click", () => {
+      if (frame.line) {
+        const mapped = state.lastMapping?.[frame.line];
+        if (mapped) {
+          showFileInEditor(mapped.fileId);
+          const ed = _editors.get(mapped.fileId);
+          if (ed) {
+            ed.revealLineInCenter(mapped.lineInFile);
+          }
+        }
+      }
+    });
+    
+    container.appendChild(row);
+  });
+}
+
+function renderVariables() {
+  const container = $("#debug-variables");
+  if (!container) return;
+  container.innerHTML = "";
+  
+  if (!state.lastVars) {
+    container.innerHTML = `<div style="padding:8px;color:var(--c-text-mute);font-size:11px;">No variables in scope</div>`;
+    return;
+  }
+  
+  const localsSec = document.createElement("div");
+  localsSec.innerHTML = `<div style="font-weight:bold;font-size:11px;padding:4px;color:var(--c-accent);">Locals</div>`;
+  const localsList = document.createElement("div");
+  localsList.style.paddingLeft = "8px";
+  renderVarMap(state.lastVars.locals, localsList);
+  localsSec.appendChild(localsList);
+  container.appendChild(localsSec);
+  
+  const globalsSec = document.createElement("div");
+  globalsSec.innerHTML = `<div style="font-weight:bold;font-size:11px;padding:4px;color:var(--c-accent);border-top:1px solid var(--c-border);margin-top:8px;">Globals</div>`;
+  const globalsList = document.createElement("div");
+  globalsList.style.paddingLeft = "8px";
+  renderVarMap(state.lastVars.globals, globalsList);
+  globalsSec.appendChild(globalsList);
+  container.appendChild(globalsSec);
+}
+
+function renderVarMap(map, parentEl) {
+  const keys = Object.keys(map).sort();
+  if (keys.length === 0) {
+    parentEl.innerHTML = `<div style="color:var(--c-text-mute);font-size:11px;padding:2px 4px;">(none)</div>`;
+    return;
+  }
+  
+  keys.forEach(k => {
+    if (k.startsWith("__")) return;
+    
+    const val = map[k];
+    const row = document.createElement("div");
+    row.className = "debug-var-row";
+    row.style.flexDirection = "column";
+    
+    const summary = document.createElement("div");
+    summary.style.display = "flex";
+    summary.style.alignItems = "center";
+    summary.style.width = "100%";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "debug-var-name";
+    nameSpan.textContent = k;
+    
+    const valSpan = document.createElement("span");
+    valSpan.className = "debug-var-val";
+    
+    const isComp = typeof val === "string" && state.lastProperties[val];
+    
+    if (isComp) {
+      valSpan.className = "debug-var-val component-link";
+      valSpan.textContent = `Component (${val}) ▸`;
+      
+      const details = document.createElement("div");
+      details.style.display = "none";
+      details.style.paddingLeft = "12px";
+      details.style.borderLeft = "1px dashed var(--c-border)";
+      details.style.marginTop = "2px";
+      details.style.fontSize = "10px";
+      
+      const props = state.lastProperties[val];
+      Object.entries(props).sort().forEach(([pk, pv]) => {
+        const propRow = document.createElement("div");
+        propRow.className = "debug-var-row";
+        propRow.innerHTML = `
+          <span class="debug-var-name" style="color:var(--c-text-mute);">${pk}:</span>
+          <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${JSON.stringify(pv)}</span>
+        `;
+        details.appendChild(propRow);
+      });
+      
+      row.appendChild(summary);
+      row.appendChild(details);
+      
+      summary.appendChild(nameSpan);
+      summary.appendChild(valSpan);
+      
+      summary.addEventListener("click", () => {
+        const collapsed = details.style.display === "none";
+        details.style.display = collapsed ? "block" : "none";
+        valSpan.textContent = `Component (${val}) ${collapsed ? "▾" : "▸"}`;
+      });
+    } else {
+      if (typeof val === "string") {
+        valSpan.classList.add("string");
+        valSpan.textContent = `"${val}"`;
+      } else if (typeof val === "number") {
+        valSpan.classList.add("number");
+        valSpan.textContent = val;
+      } else {
+        valSpan.textContent = JSON.stringify(val);
+      }
+      summary.appendChild(nameSpan);
+      summary.appendChild(valSpan);
+      row.appendChild(summary);
+    }
+    
+    parentEl.appendChild(row);
+  });
+}
+
+function evaluateWatchExpression(expr) {
+  if (!state.lastVars) return "(no execution context)";
+  
+  const trimmed = expr.trim();
+  if (!trimmed) return "";
+  
+  const upperExpr = trimmed.toUpperCase();
+  
+  if (trimmed.includes(".")) {
+    const parts = trimmed.split(".");
+    const compName = parts[0].trim().toUpperCase();
+    const propName = parts[1].trim().toUpperCase();
+    
+    let actualCompId = null;
+    for (const cid of Object.keys(state.lastProperties)) {
+      if (cid.toUpperCase() === compName) {
+        actualCompId = cid;
+        break;
+      }
+    }
+    
+    if (actualCompId) {
+      const props = state.lastProperties[actualCompId];
+      let foundVal = undefined;
+      let found = false;
+      for (const [pk, pv] of Object.entries(props)) {
+        if (pk.toUpperCase() === propName) {
+          foundVal = pv;
+          found = true;
+          break;
+        }
+      }
+      if (found) {
+        return typeof foundVal === "string" ? `"${foundVal}"` : JSON.stringify(foundVal);
+      }
+      return "(property not found)";
+    }
+    
+    let compIdVar = undefined;
+    for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
+      if (lk.toUpperCase() === compName) { compIdVar = lv; break; }
+    }
+    if (compIdVar === undefined) {
+      for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
+        if (gk.toUpperCase() === compName) { compIdVar = gv; break; }
+      }
+    }
+    
+    if (typeof compIdVar === "string") {
+      const actualId = compIdVar;
+      const props = state.lastProperties[actualId];
+      if (props) {
+        let foundVal = undefined;
+        let found = false;
+        for (const [pk, pv] of Object.entries(props)) {
+          if (pk.toUpperCase() === propName) {
+            foundVal = pv;
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          return typeof foundVal === "string" ? `"${foundVal}"` : JSON.stringify(foundVal);
+        }
+      }
+    }
+    
+    return "(component not found)";
+  }
+  
+  for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
+    if (lk.toUpperCase() === upperExpr) {
+      return typeof lv === "string" ? `"${lv}"` : JSON.stringify(lv);
+    }
+  }
+  for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
+    if (gk.toUpperCase() === upperExpr) {
+      return typeof gv === "string" ? `"${gv}"` : JSON.stringify(gv);
+    }
+  }
+  
+  return "(undefined)";
+}
+
+function renderWatches() {
+  const container = $("#debug-watch-list");
+  if (!container) return;
+  container.innerHTML = "";
+  
+  if (state.watchExpressions.length === 0) {
+    container.innerHTML = `<div style="padding:8px;color:var(--c-text-mute);font-size:11px;">No watch expressions</div>`;
+    return;
+  }
+  
+  state.watchExpressions.forEach((expr, idx) => {
+    const val = evaluateWatchExpression(expr);
+    const row = document.createElement("div");
+    row.className = "debug-watch-row";
+    row.innerHTML = `
+      <span class="debug-watch-expr">${expr}</span>
+      <span class="debug-watch-val">${val}</span>
+      <button class="debug-watch-delete" data-idx="${idx}">×</button>
+    `;
+    
+    row.querySelector(".debug-watch-delete").addEventListener("click", (e) => {
+      const index = parseInt(e.target.dataset.idx, 10);
+      state.watchExpressions.splice(index, 1);
+      renderWatches();
+    });
+    
+    container.appendChild(row);
+  });
+}
+
+function setupWatchListHandlers() {
+  const input = $("#debug-watch-input");
+  const btn = $("#btn-debug-watch-add");
+  
+  if (btn && input) {
+    const addWatch = () => {
+      const expr = input.value.trim();
+      if (expr && !state.watchExpressions.includes(expr)) {
+        state.watchExpressions.push(expr);
+        input.value = "";
+        renderWatches();
+        if (state.isDebugging && state.isDebugPaused) {
+          requestComponentProperties();
+        }
+      }
+    };
+    
+    btn.addEventListener("click", addWatch);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addWatch();
+      }
+    });
+  }
+}
+
 async function main() {
   // Test hook: expose key state + commands so headless tests can drive the IDE.
   window.RapidR = {
@@ -2927,6 +3723,8 @@ async function main() {
   setupKeyboard();
   setupPropsToolbar();
   setupLayoutDock();
+  setupWatchListHandlers();
+  updateDebugUI();
 
   // Initialize the wasm runtime (compile + interpreter).
   setStatus("loading runtime…");
@@ -2951,6 +3749,16 @@ async function main() {
     const d = e.data || {};
     if (d.__rapidr_log)    logOutput(d.__rapidr_log);
     if (d.__rapidr_status) setStatus(d.__rapidr_status);
+    
+    if (d.__rapidr_debug_paused) {
+      onDebugPaused(d.__rapidr_debug_paused);
+    }
+    if (d.__rapidr_debug_halted) {
+      onDebugHalted();
+    }
+    if (d.__rapidr_debug_properties) {
+      onDebugProperties(d.__rapidr_debug_properties);
+    }
   });
 }
 
