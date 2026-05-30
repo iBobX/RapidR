@@ -2277,7 +2277,7 @@ async function doRun() {
       iframe.contentWindow.postMessage({ __rapidr_run: bc }, "*");
     };
     window.addEventListener("message", onReady);
-    iframe.src = "./preview.html?role=run";
+    iframe.src = "./preview.html?role=run&v=2.7.0";
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
@@ -3122,7 +3122,9 @@ function updateDebugUI() {
 
 function setupEditorDebugHooks(fileId, editor) {
   editor.onMouseDown(e => {
-    if (e.target.type === window.monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+    const targetType = e.target.type;
+    const MouseTargetType = window.monaco.editor.MouseTargetType;
+    if (targetType === MouseTargetType.GUTTER_GLYPH_MARGIN || targetType === MouseTargetType.GUTTER_LINE_NUMBERS) {
       const line = e.target.position.lineNumber;
       toggleBreakpoint(fileId, line, editor);
     }
@@ -3264,7 +3266,7 @@ async function doDebug() {
     };
     
     window.addEventListener("message", onReady);
-    iframe.src = "./preview.html?role=debug";
+    iframe.src = "./preview.html?role=debug&v=2.7.0";
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
