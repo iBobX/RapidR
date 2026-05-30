@@ -1149,7 +1149,7 @@ A comprehensive VS Code extension is included at `utilities/vscodeext/rapidr/` p
 ```bash
 cd utilities/vscodeext/rapidr
 npx @vscode/vsce package --no-dependencies
-code --install-extension rapidr-2.5.0.vsix
+code --install-extension rapidr-2.7.0.vsix
 ```
 
 Or just run `./build_vsc_extension.sh install` from the repo root to build and install in one step. The pre-built `.vsix` is also dropped at the repo root after packaging.

@@ -1392,11 +1392,11 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
   - **Build cache** — `rapidr-buildserver` keeps an in-memory map of `sha256(source) → build_id`, so re-running an unchanged program serves the cached WASM in milliseconds instead of recompiling.
   - **Busy overlay** — the IDE shows a translucent "Compiling…" overlay during the synchronous build XHR so users get visual feedback that the click registered.
 
-- **VS Code extension v2.5.0** (`utilities/vscodeext/rapidr/`):
+- **VS Code extension v2.7.0** (`utilities/vscodeext/rapidr/`):
   - `RCANVAS.SetFont(family [, size])` is now in the component registry — completion, hover docs, and signature help include it.
   - `RColorDialog` and `RFontDialog` now ship with descriptions and `Execute()` signature help. Two new snippets — `createcolordialog` and `createfontdialog` — scaffold the full `CREATE … END CREATE` + `IF Dlg.Execute() THEN …` pattern.
   - New `canvassetfont` snippet pairs `Canvas.SetFont` with a `Canvas.DrawText` call.
-  - Build with `./build_vsc_extension.sh package` (or `install` to also load it into VS Code). The script writes `rapidr-2.5.0.vsix` to the repo root.
+  - Build with `./build_vsc_extension.sh package` (or `install` to also load it into VS Code). The script writes `rapidr-2.7.0.vsix` to the repo root.
 
 ---
 
