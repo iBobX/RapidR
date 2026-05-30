@@ -1,4 +1,5 @@
-# RapidR — BASIC to Native Rust Transpiler
+# RapidR — Full-Stack BASIC-to-Rust Transpiler with Native & Web Runtime
+## Includes interpreted version for desktop, and web via WebAssembly
 
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
