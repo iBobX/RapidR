@@ -31,7 +31,14 @@ enum EventHandler {
     Arity3(fn(Value, Value, Value)),
     Arity4(fn(Value, Value, Value, Value)),
     Arity5(fn(Value, Value, Value, Value, Value)),
+    /// Opaque handler id (e.g. a bytecode function index) — invoked
+    /// through the registered indirect dispatcher.
+    Indirect(u32),
 }
+
+/// Type alias for the indirect event dispatcher used by the bytecode
+/// interpreter's WebHost. Receives `(handler_id, args)`.
+pub type IndirectDispatcher = Box<dyn Fn(u32, &[Value])>;
 
 thread_local! {
     static COMPONENTS: RefCell<HashMap<String, RpComponent>> = RefCell::new(HashMap::new());
@@ -39,6 +46,38 @@ thread_local! {
     static CREATION_COUNTER: RefCell<u32> = RefCell::new(0);
     static STRINGLISTS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
     static TIMER_HANDLES: RefCell<HashMap<String, i32>> = RefCell::new(HashMap::new());
+    static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
+}
+
+/// Install a thread-local indirect event dispatcher (used by the
+/// bytecode VM's WebHost). Returns the previously-installed one.
+pub fn rp_set_event_dispatcher(d: IndirectDispatcher) -> Option<IndirectDispatcher> {
+    INDIRECT_DISPATCHER.with(|s| s.borrow_mut().replace(d))
+}
+
+/// Remove the indirect event dispatcher (returns it if present).
+pub fn rp_clear_event_dispatcher() -> Option<IndirectDispatcher> {
+    INDIRECT_DISPATCHER.with(|s| s.borrow_mut().take())
+}
+
+/// Bind an indirect event handler (carries an opaque id, e.g. a
+/// bytecode function index).
+pub fn rp_bind_event_indirect(name: &str, event: &str, handler_id: u32) {
+    let uname = name.to_uppercase();
+    let levent = event.to_lowercase();
+    EVENT_HANDLERS.with(|eh| {
+        eh.borrow_mut()
+            .insert((uname.clone(), levent.clone()), EventHandler::Indirect(handler_id));
+    });
+    bind_dom_event(&uname, &levent);
+}
+
+fn dispatch_indirect(handler_id: u32, args: &[Value]) {
+    INDIRECT_DISPATCHER.with(|slot| {
+        if let Some(d) = slot.borrow().as_ref() {
+            d(handler_id, args);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -140,8 +179,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("top".to_string(), v_int(0));
             props.insert("width".to_string(), v_int(300));
             props.insert("height".to_string(), v_int(200));
-            props.insert("rowcount".to_string(), v_int(5));
-            props.insert("colcount".to_string(), v_int(3));
+            props.insert("rowcount".to_string(), v_int(0));
+            props.insert("colcount".to_string(), v_int(0));
         }
         "RPROGRESS" | "RPROGRESSBAR" => {
             props.insert("left".to_string(), v_int(0));
@@ -272,6 +311,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
     }
 
+    let name_clone = uname.clone();
     COMPONENTS.with(|c| {
         c.borrow_mut().insert(
             uname,
@@ -282,6 +322,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             },
         );
     });
+
+    gui_web::setup_data_binding(&name_clone);
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +374,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
     });
 
+    if lprop == "datasource" || lprop == "datafield" {
+        crate::gui_web::setup_data_binding(&uname);
+    }
+
     // Handle StringList operations
     if lprop == "text" {
         COMPONENTS.with(|c| {
@@ -369,7 +415,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
                 return;
             }
         }
-        "RSQLITE" | "RDATAFRAME" => {
+        "RSQLITE" | "RDATAFRAME" | "RMYSQL" => {
             // These use the generic property store only (already inserted above)
             return;
         }
@@ -378,6 +424,43 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     // Pass to GUI layer for DOM update
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
+}
+
+pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>, has_row: bool) {
+    let uname = db_name.to_uppercase();
+    let mut bounds = Vec::new();
+    COMPONENTS.with(|c| {
+        for (comp_name, comp) in c.borrow().iter() {
+            let ds = comp.properties.get("datasource").map(|v| v.to_string_val().to_uppercase());
+            let df = comp.properties.get("datafield").map(|v| v.to_string_val().to_uppercase());
+            if let (Some(ds_val), Some(df_val)) = (ds, df) {
+                if ds_val == uname {
+                    let val = if has_row {
+                        field_vals.get(&df_val).cloned().unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    bounds.push((comp_name.clone(), val));
+                }
+            }
+        }
+    });
+    
+    for (comp_name, val) in bounds {
+        let comp_type = rp_comp_type(&comp_name);
+        let prop_name = match comp_type.as_str() {
+            "RCHECKBOX" | "RRADIOBUTTON" => "checked",
+            "RCOMBOBOX" | "RLISTBOX" => "text",
+            _ => "text",
+        };
+        
+        if prop_name == "checked" {
+            let bval = val == "1" || val.to_lowercase() == "true";
+            rp_comp_set(&comp_name, prop_name, crate::value::v_bool(bval));
+        } else {
+            rp_comp_set(&comp_name, prop_name, v_str(&val));
+        }
+    }
 }
 
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
@@ -523,6 +606,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Database special handling
     if comp_type == "RSQLITE" {
         return crate::database_web::sqlite_method(&uname, &lmethod, args);
+    }
+    if comp_type == "RMYSQL" {
+        return crate::database_web::mysql_method(&uname, &lmethod, args);
     }
 
     // Delegate to GUI layer
@@ -1319,6 +1405,7 @@ pub fn rp_fire_event(name: &str, event: &str) {
             match handler {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(v_null()),
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[]),
                 _ => {}
             }
         }
@@ -1335,6 +1422,7 @@ pub fn rp_fire_event_1(name: &str, event: &str, arg: Value) {
             match handler {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(arg.clone()),
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[arg.clone()]),
                 _ => {}
             }
         }
@@ -1352,6 +1440,7 @@ pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(arg1.clone()),
                 EventHandler::Arity2(f) => f(arg1.clone(), arg2.clone()),
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[arg1.clone(), arg2.clone()]),
                 _ => {}
             }
         }
@@ -1382,6 +1471,7 @@ pub fn rp_fire_event_5(
                 EventHandler::Arity5(f) => {
                     f(a1.clone(), a2.clone(), a3.clone(), a4.clone(), a5.clone())
                 }
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[a1.clone(), a2.clone(), a3.clone(), a4.clone(), a5.clone()]),
             }
         }
     });
@@ -1425,7 +1515,13 @@ fn bind_dom_event(name: &str, event: &str) {
     };
 
     let dom_event_name = match event {
-        "onclick" => "click",
+        "onclick" => {
+            if el.tag_name().to_uppercase() == "SELECT" {
+                "change"
+            } else {
+                "click"
+            }
+        }
         "ondblclick" | "ondoubleclick" => "dblclick",
         "onchange" => "input",
         "onkeypress" | "onkeydown" => "keydown",
@@ -1482,8 +1578,16 @@ fn bind_dom_event(name: &str, event: &str) {
         || dom_event_name == "mouseup"
     {
         let closure = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            let x = e.offset_x() as i64;
-            let y = e.offset_y() as i64;
+            let target_el = e.current_target()
+                .and_then(|t| t.dyn_into::<web_sys::Element>().ok());
+            let (x, y) = if let Some(el) = target_el {
+                let rect = el.get_bounding_client_rect();
+                let cx = (e.client_x() as f64 - rect.left()) as i64;
+                let cy = (e.client_y() as f64 - rect.top()) as i64;
+                (cx, cy)
+            } else {
+                (e.offset_x() as i64, e.offset_y() as i64)
+            };
             let button = e.button() as i64;
             rp_fire_event_5(
                 &name_for_closure,
@@ -1928,11 +2032,11 @@ pub fn rp_run_app() {
 }
 
 // ---------------------------------------------------------------------------
-// Theme — no-op on web (Tailwind CSS handles styling)
+// Theme — no-op on web (styling comes from rapidr-rrcss::RR_BASE_CSS)
 // ---------------------------------------------------------------------------
 
 pub fn set_theme(_theme: &str) {
-    // Themes don't apply to web — Tailwind provides the styling
+    // Themes don't apply to web — the shared RR_BASE_CSS provides the styling
 }
 
 pub fn gui_register_timer(_name: &str) {

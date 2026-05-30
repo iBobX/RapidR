@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>RapidR program preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto:wght@400;500;700&family=Montserrat:wght@400;500;700&family=Nunito:wght@400;500;700&family=Playfair+Display:wght@400;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <script type="module">
+    import init, { rapidr_run_bc } from "./runtime/rapidrintr.js";
+
+    // Forward console output to the parent IDE.
+    const origLog = console.log.bind(console);
+    console.log = (...args) => {
+      origLog(...args);
+      parent.postMessage({ __rapidr_log: args.map(String).join(" ") }, "*");
+    };
+
+    // Listen BEFORE init returns so the parent's postMessage isn't
+    // dropped by the race with top-level await.
+    window.addEventListener("message", (e) => {
+      if (e.data && e.data.__rapidr_run) {
+        try { rapidr_run_bc(e.data.__rapidr_run); }
+        catch (err) {
+          parent.postMessage({ __rapidr_log: "[run error] " + err }, "*");
+        }
+      }
+    });
+
+    await init();
+    // Tell the parent we're ready to receive bytecode. The parent
+    // waits for this signal before posting `__rapidr_run`.
+    const isDesign = new URLSearchParams(location.search).get("role") === "design";
+    parent.postMessage({
+      __rapidr_preview_ready: !isDesign,
+      __rapidr_design_ready:  isDesign,
+      // Only the real preview pane should drive the parent status bar.
+      __rapidr_status: isDesign ? undefined : "preview ready — waiting for bytecode",
+    }, "*");
+  </script>
+</body>
+</html>

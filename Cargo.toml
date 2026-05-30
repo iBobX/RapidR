@@ -9,8 +9,18 @@ members = [
     "crates/rapidr-preprocessor",
     "crates/rapidr-runtime-core",
     "crates/rapidr-runtime-web",
+    "crates/rapidr-rrcss",
     "crates/rapidr-codegen-rust",
     "crates/rapidr-buildserver",
+    "crates/rapidr-value",
+    "interpreter/rapidr-bytecode",
+    "interpreter/rapidr-vm",
+    "interpreter/rapidr-bcgen",
+    "interpreter/rapidr-vm-host-native",
+    "interpreter/rapidr-vm-host-web",
+    "interpreter/rapidr-compiler-wasm",
+    "interpreter/rapidr-webbundle",
+    "interpreter/rapidr-runner-stub",
 ]
 
 [workspace.package]
@@ -26,4 +36,13 @@ rapidr-parser = { path = "crates/rapidr-parser" }
 rapidr-preprocessor = { path = "crates/rapidr-preprocessor" }
 rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
 rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
+rapidr-rrcss = { path = "crates/rapidr-rrcss" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
+rapidr-value = { path = "crates/rapidr-value" }
+rapidr-bytecode = { path = "interpreter/rapidr-bytecode" }
+rapidr-vm = { path = "interpreter/rapidr-vm" }
+rapidr-bcgen = { path = "interpreter/rapidr-bcgen" }
+rapidr-vm-host-native = { path = "interpreter/rapidr-vm-host-native" }
+rapidr-vm-host-web = { path = "interpreter/rapidr-vm-host-web" }
+rapidr-compiler-wasm = { path = "interpreter/rapidr-compiler-wasm" }
+rapidr-webbundle = { path = "interpreter/rapidr-webbundle" }

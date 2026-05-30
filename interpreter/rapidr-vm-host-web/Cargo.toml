@@ -1,0 +1,26 @@
+[package]
+name = "rapidr-vm-host-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-bytecode = { workspace = true }
+rapidr-vm = { workspace = true }
+rapidr-runtime-web = { workspace = true }
+# Full compile pipeline (source → .rrbc) so the same wasm powers the
+# in-browser IDE without needing a second cdylib.
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-preprocessor = { workspace = true }
+rapidr-bcgen = { workspace = true }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["Window", "Document", "console"]

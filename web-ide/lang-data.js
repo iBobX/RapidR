@@ -1,0 +1,820 @@
+// Complete RapidR language data — extracted from compiler/codegen.py COMPONENT_REGISTRY and builtins.
+
+const COMPONENT_REGISTRY = {
+    'RFORM': {
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'color', 'borderstyle',
+                'windowstate', 'formstyle', 'center', 'autosize', 'font', 'fontsize', 'fontcolor',
+                'icon', 'alphablend', 'alphablendvalue', 'parent', 'tag', 'cursor', 'enabled',
+                'hint', 'showhint', 'popupmenu', 'helpfile', 'helpcontext'],
+        methods: ['show', 'showmodal', 'close', 'center', 'repaint', 'refresh', 'hide',
+                  'setfocus', 'bringtofront', 'sendtoback', 'update'],
+        events: ['onclick', 'onclose', 'onresize', 'onshow', 'onhide', 'onactivate',
+                 'ondeactivate', 'onpaint', 'onmousemove', 'onmousedown', 'onmouseup',
+                 'onkeydown', 'onkeyup', 'onkeypress', 'ondblclick', 'ontimer']
+    },
+    'RMEMO': {
+        props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'readonly',
+                'font', 'fontsize', 'fontcolor', 'color', 'wordwrap', 'scrollbars', 'hint', 'showhint', 'cursor',
+                'tag', 'parent', 'taborder', 'borderstyle', 'alignment'],
+        methods: ['clear', 'setfocus', 'selectall', 'copytoclipboard', 'cuttoclipboard',
+                  'pastefromclipboard', 'undo', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick', 'ondblclick', 'onkeydown', 'onkeyup', 'onkeypress']
+    },
+    'RUPDOWN': {
+        props: ['min', 'max', 'position', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick', 'onchange']
+    },
+    'RDATETIMEPICKER': {
+        props: ['date', 'time', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['repaint', 'refresh', 'setfocus'],
+        events: ['onclick', 'onchange']
+    },
+    'RTOOLBAR': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'enabled', 'color',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'RBUTTON': {
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['setfocus', 'repaint', 'refresh', 'bringtofront', 'sendtoback'],
+        events: ['onclick', 'onmousedown', 'onmouseup', 'onmousemove']
+    },
+    'RLABEL': {
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'alignment', 'autosize', 'wordwrap', 'transparent',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['repaint', 'refresh'],
+        events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove']
+    },
+    'REDIT': {
+        props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'maxlength', 'readonly', 'passwordchar',
+                'alignment', 'borderstyle', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'taborder',
+                'selstart', 'sellength', 'seltext'],
+        methods: ['setfocus', 'clear', 'selectall', 'copytoclipboard', 'cuttoclipboard',
+                  'pastefromclipboard', 'undo', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick', 'ondblclick', 'onkeydown', 'onkeyup', 'onkeypress']
+    },
+    'RCANVAS': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'color', 'pencolor', 'penwidth',
+                'brushcolor', 'font', 'fontsize', 'fontcolor', 'hint', 'showhint', 'cursor',
+                'tag', 'parent'],
+        methods: ['cls', 'pset', 'line', 'circle', 'fillcircle', 'rect', 'fillrect', 'rectangle', 'textout', 'drawtext',
+                  'setfont', 'setpixel', 'paint', 'repaint', 'refresh'],
+        events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove', 'onpaint'],
+        methodSignatures: {
+            'drawtext': { sig: 'DrawText(x, y, text [, color])', desc: 'Draws text at (x, y). Optional color argument (RGB integer).' },
+            'fillrect': { sig: 'FillRect(x1, y1, x2, y2 [, color])', desc: 'Fills a rectangle from (x1,y1) to (x2,y2). Optional fill color.' },
+            'setfont': { sig: 'SetFont(family [, size])', desc: 'Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12.' },
+            'cls':      { sig: 'Cls()',                  desc: 'Clears the canvas using the current Color.' },
+            'line':     { sig: 'Line(x1, y1, x2, y2 [, color])', desc: 'Draws a line.' },
+            'circle':   { sig: 'Circle(x, y, radius [, color])', desc: 'Draws a circle outline.' },
+            'fillcircle': { sig: 'FillCircle(x, y, radius [, color])', desc: 'Draws a filled circle.' }
+        }
+    },
+    'RPANEL': {
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'color', 'alignment',
+                'bevelinner', 'bevelouter', 'borderstyle', 'font', 'fontsize', 'fontcolor',
+                'hint', 'showhint', 'cursor', 'tag', 'parent', 'enabled'],
+        methods: ['repaint', 'refresh', 'bringtofront', 'sendtoback'],
+        events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove', 'onresize']
+    },
+    'RCHECKBOX': {
+        props: ['caption', 'checked', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'font', 'fontsize', 'fontcolor', 'color', 'state', 'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'RRADIOBUTTON': {
+        props: ['caption', 'checked', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'RCOMBOBOX': {
+        props: ['text', 'itemindex', 'itemcount', 'width', 'height', 'top', 'left', 'visible',
+                'enabled', 'font', 'fontsize', 'fontcolor', 'color', 'sorted', 'style', 'hint',
+                'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['additem', 'additems', 'clear', 'deleteitem', 'setfocus', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick', 'ondblclick']
+    },
+    'RLISTBOX': {
+        props: ['itemindex', 'itemcount', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'font', 'fontsize', 'fontcolor', 'color', 'sorted', 'multiselect', 'hint',
+                'showhint', 'cursor', 'tag', 'parent', 'taborder'],
+        methods: ['additem', 'additems', 'clear', 'deleteitem', 'setfocus', 'repaint', 'refresh', 'item'],
+        events: ['onclick', 'ondblclick', 'onchange']
+    },
+    'RGROUPBOX': {
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'color', 'font',
+                'fontsize', 'fontcolor', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'enabled'],
+        methods: ['repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'RRICHEDIT': {
+        props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'readonly',
+                'font', 'fontsize', 'fontcolor', 'color', 'wordwrap', 'scrollbars', 'line',
+                'linecount', 'selstart', 'sellength', 'seltext', 'hint', 'showhint', 'cursor',
+                'tag', 'parent', 'taborder', 'borderstyle', 'alignment'],
+        methods: ['clear', 'setfocus', 'selectall', 'copytoclipboard', 'cuttoclipboard',
+                  'pastefromclipboard', 'undo', 'loadfromfile', 'savetofile', 'addstrings', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick', 'ondblclick', 'onkeydown', 'onkeyup', 'onkeypress']
+    },
+    'RTIMER': {
+        props: ['interval', 'enabled', 'tag'],
+        methods: [],
+        events: ['ontimer']
+    },
+    'RPROGRESSBAR': {
+        props: ['min', 'max', 'position', 'width', 'height', 'top', 'left', 'visible',
+                'color', 'hint', 'showhint', 'tag', 'parent'],
+        methods: ['stepit', 'stepby', 'repaint', 'refresh'],
+        events: []
+    },
+    'RSTRINGGRID': {
+        props: ['cols', 'rows', 'fixedcols', 'fixedrows', 'colcount', 'rowcount', 'colwidth',
+                'rowheight', 'gridlinewidth', 'defaultcolwidth', 'defaultrowheight', 'width',
+                'height', 'top', 'left', 'visible', 'enabled', 'color', 'font', 'fontsize',
+                'fontcolor', 'scrollbars', 'options', 'col', 'row', 'selectedrow', 'hint', 'showhint', 'cursor',
+                'tag', 'parent', 'editorenabled', 'borderstyle', 'flat', 'cell', 'cells', 'rowsel', 'colsel'],
+        methods: ['addrow', 'deleterow', 'insertrow', 'clear', 'setcell', 'getcell',
+                  'setcolwidth', 'repaint', 'refresh', 'setfocus', 'setsuggestions'],
+        events: ['onclick', 'ondblclick', 'onselectcell', 'ondrawcell', 'onchange', 'onrowselect']
+    },
+    'RTABCONTROL': {
+        props: ['tabindex', 'tabcount', 'width', 'height', 'top', 'left', 'visible', 'enabled',
+                'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['addtab', 'addtabs', 'deletetab', 'repaint', 'refresh', 'tab'],
+        events: ['onchange', 'onclick']
+    },
+    'RMAINMENU': {
+        props: ['tag'],
+        methods: [],
+        events: []
+    },
+    'RMENUITEM': {
+        props: ['caption', 'checked', 'enabled', 'visible', 'shortcut', 'tag'],
+        methods: ['clear'],
+        events: ['onclick']
+    },
+    'RSCROLLBAR': {
+        props: ['min', 'max', 'position', 'smallchange', 'largechange', 'kind', 'width', 'height',
+                'top', 'left', 'visible', 'enabled', 'tag', 'parent'],
+        methods: ['repaint', 'refresh'],
+        events: ['onchange']
+    },
+    'RCODEEDITOR': {
+        props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'readonly', 'linenumbers', 'wordwrap',
+                'selstart', 'sellength', 'seltext', 'line', 'linecount', 'caretx', 'carety',
+                'hint', 'showhint', 'cursor', 'tag', 'parent', 'highlighttypes', 'autocompletelist',
+                'borderstyle'],
+        methods: ['clear', 'setfocus', 'selectall', 'copytoclipboard', 'cuttoclipboard',
+                  'pastefromclipboard', 'undo', 'redo', 'loadfromfile', 'savetofile',
+                  'addstrings', 'gotosub', 'gotoline', 'getsublist', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick', 'ondblclick', 'onkeydown', 'onkeyup', 'onkeypress']
+    },
+    'RIMAGE': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'autosize', 'stretch', 'image',
+                'bmpwidth', 'bmpheight', 'tag', 'parent'],
+        methods: ['loadfromfile', 'savetofile', 'loadfromplot', 'cls', 'pset', 'line', 'circle',
+                  'textout', 'fillrect', 'repaint', 'refresh'],
+        events: ['onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove']
+    },
+    'RLISTVIEW': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'enabled', 'viewstyle', 'multiselect',
+                'gridlines', 'checkboxes', 'rowselect', 'sorttype', 'sortcolumn', 'itemcount',
+                'itemindex', 'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint',
+                'cursor', 'tag', 'parent', 'smallimages', 'largeimages', 'columns'],
+        methods: ['addcolumn', 'additem', 'deleteitem', 'clear', 'setfocus', 'repaint', 'refresh',
+                  'itemcheck', 'subitem'],
+        events: ['onclick', 'ondblclick', 'oncolumnclick', 'onchange', 'onitemcheck']
+    },
+    'RFILESTREAM': {
+        props: ['position', 'size', 'tag'],
+        methods: ['open', 'close', 'read', 'write', 'readline', 'writeline', 'readnum',
+                  'writenum', 'eof', 'seek'],
+        events: []
+    },
+    'ROPENDIALOG': {
+        props: ['filename', 'filter', 'initialdir', 'title', 'filterindex', 'defaultext', 'tag'],
+        methods: ['execute'],
+        events: []
+    },
+    'RSAVEDIALOG': {
+        props: ['filename', 'filter', 'initialdir', 'title', 'filterindex', 'defaultext', 'tag'],
+        methods: ['execute'],
+        events: []
+    },
+    'RFILEDIALOG': {
+        props: ['filename', 'filter', 'initialdir', 'title', 'filterindex', 'defaultext', 'tag'],
+        methods: ['execute'],
+        events: []
+    },
+    'RCOLORDIALOG': {
+        description: 'Native colour-picker dialog. On the web runtime renders an HTML5 <input type="color">; on desktop uses the system colour dialog. After Execute, read the .Color property as an RGB integer.',
+        props: ['color', 'tag'],
+        methods: ['execute'],
+        events: [],
+        methodSignatures: {
+            'execute': { sig: 'Execute()', desc: 'Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color.' }
+        }
+    },
+    'RFONTDIALOG': {
+        description: 'Font selection dialog. After Execute, read .FontName / .FontSize / .FontColor / .FontStyle to retrieve the user choice.',
+        props: ['fontname', 'fontsize', 'fontcolor', 'fontstyle', 'tag'],
+        methods: ['execute'],
+        events: [],
+        methodSignatures: {
+            'execute': { sig: 'Execute()', desc: 'Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result.' }
+        }
+    },
+    'RSTATUSBAR': {
+        props: ['caption', 'simpletext', 'simplepanel', 'panels', 'panelcount', 'font', 'fontsize', 'fontcolor',
+                'visible', 'tag', 'parent'],
+        methods: ['addpanel', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'RLINE': {
+        props: ['x1', 'y1', 'x2', 'y2', 'color', 'width', 'visible', 'tag', 'parent'],
+        methods: [],
+        events: []
+    },
+    'RICON': {
+        props: ['filename', 'handle', 'tag'],
+        methods: ['loadfromfile'],
+        events: []
+    },
+    'RIMAGELIST': {
+        props: ['count', 'width', 'height', 'tag'],
+        methods: ['addimage', 'addimages', 'clear'],
+        events: []
+    },
+    'RMYSQL': {
+        props: ['host', 'user', 'password', 'database', 'port', 'connected', 'rowcount',
+                'colcount', 'fieldcount', 'fieldname', 'row', 'dbcount', 'db', 'tablecount',
+                'table', 'escapestring', 'tag'],
+        methods: ['connect', 'open', 'close', 'query', 'fetchrow', 'fetchfield', 'use',
+                  'selectdb', 'rowseek', 'fieldseek', 'createdb', 'dropdb'],
+        events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone']
+    },
+    'RSQLITE': {
+        props: ['database', 'db', 'connected', 'rowcount', 'colcount', 'fieldcount',
+                'fieldname', 'row', 'tablecount', 'table', 'dbcount', 'tag'],
+        methods: ['connect', 'close', 'query', 'exec', 'fetchrow', 'fetchfield', 'rowseek', 'fieldseek',
+                  'escapestring'],
+        events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone']
+    },
+    'RSOCKET': {
+        props: ['host', 'port', 'connected', 'timeout', 'tag'],
+        methods: ['connect', 'close', 'write', 'writeline', 'read', 'readline', 'bind', 'listen', 'accept'],
+        events: ['onconnect', 'ondisconnect', 'ondataready', 'onerror']
+    },
+    'RSERVERSOCKET': {
+        props: ['host', 'port', 'clientcount', 'tag'],
+        methods: ['start', 'stop', 'broadcast'],
+        events: ['onclientconnect', 'onclientdisconnect', 'ondatareceived', 'onerror']
+    },
+    'RHTTP': {
+        props: ['host', 'port', 'url', 'statuscode', 'responsetext', 'responseheaders', 'timeout', 'usessl', 'tag'],
+        methods: ['get', 'post'],
+        events: []
+    },
+    'RDESIGNSURFACE': {
+        props: ['width', 'height', 'left', 'top', 'compcount', 'visible', 'formcaption', 'tag', 'parent'],
+        methods: ['addcomponent', 'removecomponent', 'clearall', 'selectcomp', 'getname', 'setname',
+                  'gettype', 'getprop', 'setprop', 'getevent', 'setevent', 'setcompbounds', 'getcompx', 'getcompy',
+                  'getcompw', 'getcomph', 'show', 'hide', 'repaint', 'refresh'],
+        events: ['onselect', 'ondblclick', 'onmove', 'onbgclick']
+    },
+    'RTREEVIEW': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'enabled', 'font', 'fontsize',
+                'fontcolor', 'color', 'itemcount', 'tag', 'parent'],
+        methods: ['additem', 'addchild', 'clear', 'expandall', 'collapseall', 'repaint', 'refresh'],
+        events: ['onclick', 'ondblclick', 'onexpanded', 'oncollapsed', 'onchange']
+    },
+    'RSPLITTER': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'orientation', 'control1', 'control2',
+                'tag', 'parent'],
+        methods: [],
+        events: []
+    },
+    'RTRACKBAR': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'enabled', 'min', 'max', 'position',
+                'orientation', 'tickfrequency', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onchange', 'onclick']
+    },
+    'RSCROLLBOX': {
+        props: ['width', 'height', 'top', 'left', 'visible', 'color', 'tag', 'parent'],
+        methods: ['repaint', 'refresh'],
+        events: []
+    },
+    'RPOPUPMENU': {
+        props: ['tag'],
+        methods: ['additem', 'additems', 'popup', 'clear'],
+        events: []
+    },
+    'RINI': {
+        props: ['filename', 'section', 'tag'],
+        methods: ['readstring', 'writestring', 'readinteger', 'writeinteger', 'deletesection', 'deletekey'],
+        events: []
+    },
+    'RMEMORYSTREAM': {
+        props: ['position', 'size', 'tag'],
+        methods: ['write', 'read', 'readbyte', 'writebyte', 'savetofile', 'loadfromfile', 'clear', 'copyto'],
+        events: []
+    },
+    'RSTRINGLIST': {
+        props: ['count', 'text', 'tag'],
+        methods: ['add', 'delete', 'clear', 'sort', 'indexof', 'insert', 'exchange',
+                  'loadfromfile', 'savetofile', 'item', 'setitem'],
+        events: []
+    },
+    'RPRINTER': {
+        props: ['tag'],
+        methods: ['begindoc', 'enddoc', 'newpage', 'textout', 'printline'],
+        events: []
+    },
+    'RCOOLBTN': {
+        description: 'Flat/toggle toolbar button with optional multi-state BMP image. Supports GroupIndex for radio-button-like groups.',
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'flat', 'groupindex', 'down', 'allowallup',
+                'bmp', 'numbmps', 'layout', 'spacing', 'align',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
+    'ROVALBTN': {
+        description: 'Oval/round button with customizable colors and highlight/shadow effects.',
+        props: ['caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
+                'fontsize', 'fontcolor', 'color', 'colorhighlight', 'colorshadow', 'transparent',
+                'flat', 'groupindex', 'down', 'allowallup',
+                'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['setfocus', 'repaint', 'refresh'],
+        events: ['onclick']
+    },
+
+    // ── Web-exclusive components (WASM target) ──────────────────────────
+    'RWEBVIEW': {
+        description: 'Embedded HTML content viewer (iframe). Web-only component.',
+        props: ['left', 'top', 'width', 'height', 'visible', 'enabled', 'html', 'url', 'sandbox',
+                'color', 'font', 'fontsize', 'fontcolor', 'tag', 'parent'],
+        methods: ['sethtml', 'navigate', 'show', 'hide', 'setfocus'],
+        events: ['onclick', 'ondblclick', 'onload']
+    },
+    'RDOM': {
+        description: 'Direct DOM element. Create arbitrary HTML elements. Web-only component.',
+        props: ['innerhtml', 'innertext', 'cssclass', 'cssstyle', 'tagname',
+                'left', 'top', 'width', 'height', 'visible', 'enabled', 'color',
+                'font', 'fontsize', 'fontcolor', 'tag', 'parent'],
+        methods: ['create', 'appendto', 'setattribute', 'getattribute', 'addclass',
+                  'removeclass', 'toggleclass', 'remove', 'queryselector'],
+        events: ['onclick', 'ondblclick', 'onchange', 'onmousedown', 'onmouseup',
+                 'onmousemove', 'onfocus', 'onblur', 'onscroll']
+    },
+    'RJAVASCRIPT': {
+        description: 'Execute arbitrary JavaScript from RapidR. Web-only component.',
+        props: ['tag'],
+        methods: ['eval', 'call'],
+        events: []
+    },
+    'RWEBSTORAGE': {
+        description: 'Browser localStorage / sessionStorage access. Web-only component.',
+        props: ['storagetype', 'tag'],
+        methods: ['set', 'get', 'remove', 'clear', 'keys', 'haskey'],
+        events: []
+    },
+    'RWEBAUDIO': {
+        description: 'HTML5 audio player. Web-only component.',
+        props: ['src', 'volume', 'loop', 'autoplay', 'controls', 'currenttime', 'duration',
+                'playing', 'paused', 'tag', 'parent'],
+        methods: ['play', 'pause', 'stop', 'seek'],
+        events: ['onplay', 'onpause', 'onended', 'ontimeupdate']
+    },
+    'RWEBVIDEO': {
+        description: 'HTML5 video player. Web-only component.',
+        props: ['src', 'volume', 'loop', 'autoplay', 'controls', 'poster', 'currenttime',
+                'duration', 'playing', 'paused', 'left', 'top', 'width', 'height',
+                'visible', 'tag', 'parent'],
+        methods: ['play', 'pause', 'stop', 'seek', 'fullscreen'],
+        events: ['onplay', 'onpause', 'onended', 'ontimeupdate', 'onclick']
+    },
+    'RWEBNOTIFICATION': {
+        description: 'Browser push notification. Web-only component.',
+        props: ['title', 'body', 'tag'],
+        methods: ['requestpermission', 'show'],
+        events: []
+    },
+    'RWEBGEOLOCATION': {
+        description: 'Browser geolocation API. Web-only component.',
+        props: ['latitude', 'longitude', 'accuracy', 'tag'],
+        methods: ['getposition'],
+        events: []
+    },
+    'RROUTER': {
+        description: 'Single-page app hash-based router. Web-only component.',
+        props: ['tag'],
+        methods: ['navigate', 'back', 'forward'],
+        events: ['onroutechange']
+    },
+    'RNUM': {
+        description: 'NumPy-compatible numeric array component (backed by ndarray). Supports creation, aggregation, element-wise math, arithmetic, sorting, cumulative ops, linear algebra, random generation, and more.',
+        props: ['data', 'shape', 'size', 'length', 'len', 'ndim', 'dtype', 'tag'],
+        methods: [
+            // Creation
+            'arange', 'linspace', 'zeros', 'ones', 'full', 'fromlist',
+            // Aggregation
+            'sum', 'mean', 'min', 'max', 'std', 'var', 'median', 'argmin', 'argmax', 'count', 'ptp',
+            // Element-wise math
+            'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sqrt', 'abs', 'exp', 'log', 'log2', 'log10',
+            'floor', 'ceil', 'round', 'sign', 'reciprocal', 'square', 'negative',
+            // Arithmetic
+            'add', 'subtract', 'multiply', 'divide', 'power', 'mod', 'clip',
+            // Ordering
+            'sort', 'reverse', 'unique', 'shuffle', 'append', 'slice',
+            // Cumulative
+            'cumsum', 'cumprod', 'diff',
+            // Linear algebra
+            'dot', 'norm', 'normalize',
+            // Boolean / search
+            'any', 'all', 'where', 'nonzero', 'searchsorted',
+            // Random
+            'rand', 'randn', 'uniform', 'randint', 'choice',
+            // Output
+            'tolist', 'tostring', 'print', 'show', 'reshape', 'clear'
+        ],
+        events: [],
+        methodSignatures: {
+            'arange': { sig: 'arange(start, stop [, step])', desc: 'Creates evenly spaced values in [start, stop) with given step (default 1)' },
+            'linspace': { sig: 'linspace(start, stop [, num])', desc: 'Creates num evenly spaced values between start and stop (default 50)' },
+            'zeros': { sig: 'zeros(n)', desc: 'Creates array of n zeros' },
+            'ones': { sig: 'ones(n)', desc: 'Creates array of n ones' },
+            'full': { sig: 'full(n, fillValue)', desc: 'Creates array of n elements filled with fillValue' },
+            'fromlist': { sig: 'fromlist("v1,v2,v3,...")', desc: 'Creates array from comma-separated string of numbers' },
+            'sum': { sig: 'sum()', desc: 'Returns sum of all elements' },
+            'mean': { sig: 'mean()', desc: 'Returns arithmetic mean' },
+            'std': { sig: 'std()', desc: 'Returns standard deviation' },
+            'var': { sig: 'var()', desc: 'Returns variance' },
+            'median': { sig: 'median()', desc: 'Returns median value' },
+            'argmin': { sig: 'argmin()', desc: 'Returns index of minimum value' },
+            'argmax': { sig: 'argmax()', desc: 'Returns index of maximum value' },
+            'count': { sig: 'count()', desc: 'Returns number of elements' },
+            'ptp': { sig: 'ptp()', desc: 'Returns peak-to-peak (max - min) range' },
+            'clip': { sig: 'clip(low, high)', desc: 'Clips values to [low, high] range' },
+            'add': { sig: 'add(value)', desc: 'Adds scalar or another array element-wise' },
+            'subtract': { sig: 'subtract(value)', desc: 'Subtracts scalar or another array element-wise' },
+            'multiply': { sig: 'multiply(value)', desc: 'Multiplies by scalar or another array element-wise' },
+            'divide': { sig: 'divide(value)', desc: 'Divides by scalar or another array element-wise' },
+            'power': { sig: 'power(exp)', desc: 'Raises elements to the given power' },
+            'mod': { sig: 'mod(divisor)', desc: 'Computes element-wise modulo' },
+            'slice': { sig: 'slice(start, end)', desc: 'Returns elements from start to end index' },
+            'append': { sig: 'append("v1,v2,...")', desc: 'Appends comma-separated values to the array' },
+            'dot': { sig: 'dot(otherArray)', desc: 'Computes dot product with another RNum array' },
+            'searchsorted': { sig: 'searchsorted(value)', desc: 'Finds insertion index for value in sorted array' },
+            'rand': { sig: 'rand(n)', desc: 'Fills with n random values in [0,1)' },
+            'randn': { sig: 'randn(n)', desc: 'Fills with n standard-normal random values' },
+            'uniform': { sig: 'uniform(low, high, n)', desc: 'Fills with n uniform random values in [low,high)' },
+            'randint': { sig: 'randint(low, high, n)', desc: 'Fills with n random integers in [low,high)' },
+            'choice': { sig: 'choice(n)', desc: 'Randomly samples n elements from the array' },
+            'round': { sig: 'round([decimals])', desc: 'Rounds elements to given decimal places (default 0)' },
+        }
+    },
+    'RPLOT': {
+        description: 'Matplotlib-compatible plotting component (backed by plotters). Supports line, bar, scatter, step, area, histogram, pie charts, annotations, and image export.',
+        props: ['title', 'xlabel', 'ylabel', 'width', 'height', 'grid', 'dpi', 'tag'],
+        methods: [
+            'clear', 'plot', 'bar', 'barh', 'scatter', 'step', 'area', 'fill_between',
+            'hist', 'pie', 'hline', 'axhline', 'vline', 'axvline',
+            'annotate', 'legend', 'savefig', 'save', 'figsize', 'xlim', 'ylim', 'xscale', 'yscale',
+            'render'
+        ],
+        events: [],
+        methodSignatures: {
+            'plot': { sig: 'plot(xData, yData [, color [, label]])', desc: 'Draws a line plot. xData/yData are comma-separated strings.' },
+            'bar': { sig: 'bar(labels, values [, color [, label]])', desc: 'Draws a vertical bar chart.' },
+            'barh': { sig: 'barh(labels, values [, color [, label]])', desc: 'Draws a horizontal bar chart.' },
+            'scatter': { sig: 'scatter(xData, yData [, color [, label]])', desc: 'Draws a scatter plot.' },
+            'step': { sig: 'step(xData, yData [, color [, label]])', desc: 'Draws a step plot.' },
+            'area': { sig: 'area(xData, yData [, color [, label]])', desc: 'Draws a filled area chart.' },
+            'hist': { sig: 'hist(data [, bins [, color [, label]]])', desc: 'Draws a histogram. Default 10 bins.' },
+            'pie': { sig: 'pie(labels, values [, colors])', desc: 'Draws a pie chart.' },
+            'hline': { sig: 'hline(y [, color [, label]])', desc: 'Draws a horizontal reference line at y.' },
+            'vline': { sig: 'vline(x [, color [, label]])', desc: 'Draws a vertical reference line at x.' },
+            'annotate': { sig: 'annotate(text, x, y [, color])', desc: 'Places text annotation at (x,y).' },
+            'legend': { sig: 'legend([position])', desc: 'Enables legend display. Position: "top-right" (default).' },
+            'savefig': { sig: 'savefig(filename)', desc: 'Renders and saves the plot to a PNG file.' },
+            'figsize': { sig: 'figsize(width, height [, dpi])', desc: 'Sets figure dimensions in pixels and optional DPI.' },
+            'xlim': { sig: 'xlim(min, max)', desc: 'Sets the X axis range.' },
+            'ylim': { sig: 'ylim(min, max)', desc: 'Sets the Y axis range.' },
+            'xscale': { sig: 'xscale(type)', desc: 'Sets X axis scale: "linear" or "log".' },
+            'yscale': { sig: 'yscale(type)', desc: 'Sets Y axis scale: "linear" or "log".' },
+            'clear': { sig: 'clear()', desc: 'Clears all series, annotations and resets the plot.' },
+        }
+    },
+    'RDATAFRAME': {
+        description: 'Pandas-compatible data frame component (backed by Polars). Supports CSV/JSON I/O, selection, filtering, grouping, column operations, statistics, sampling, joins, transforms, and grid binding.',
+        props: ['rowcount', 'height', 'nrows', 'colcount', 'width', 'ncols', 'columns', 'shape', 'empty', 'tag'],
+        methods: [
+            // I/O
+            'loadfromcsv', 'readcsv', 'savetocsv', 'loadfromjson', 'savetojson',
+            // Selection / indexing
+            'head', 'tail', 'cell', 'cellbyname', 'at', 'setcell', 'iloc', 'select',
+            // Sorting / filtering
+            'sort', 'sort_values', 'filter', 'query',
+            // Grouping
+            'groupby',
+            // Column operations
+            'drop', 'rename', 'addcolumn',
+            // Missing data
+            'fillna', 'dropna',
+            // Statistics
+            'describe', 'value_counts', 'nunique', 'corr',
+            // Sampling
+            'sample', 'nlargest', 'nsmallest',
+            // Info
+            'info', 'dtypes', 'shape',
+            // Merge / join
+            'merge', 'join', 'concat',
+            // Transform
+            'transpose', 'apply', 'replace',
+            // Display
+            'clear', 'columns', 'rows', 'tostring', 'show', 'print', 'togrid'
+        ],
+        events: [],
+        methodSignatures: {
+            'loadfromcsv': { sig: 'loadfromcsv(filename)', desc: 'Loads a CSV file into the DataFrame. Auto-resolves paths relative to project.' },
+            'readcsv': { sig: 'readcsv(filename)', desc: 'Alias for loadfromcsv.' },
+            'savetocsv': { sig: 'savetocsv(filename)', desc: 'Saves the DataFrame to a CSV file.' },
+            'loadfromjson': { sig: 'loadfromjson(filename)', desc: 'Loads a JSON file into the DataFrame.' },
+            'savetojson': { sig: 'savetojson(filename)', desc: 'Saves the DataFrame to a JSON file.' },
+            'head': { sig: 'head([n])', desc: 'Returns the first n rows as a string (default 5).' },
+            'tail': { sig: 'tail([n])', desc: 'Returns the last n rows as a string (default 5).' },
+            'cell': { sig: 'cell(col, row)', desc: 'Returns cell value by column and row indices.' },
+            'cellbyname': { sig: 'cellbyname(row, columnName)', desc: 'Returns cell value by row index and column name.' },
+            'setcell': { sig: 'setcell(col, row, value)', desc: 'Sets a cell value by column and row indices. Auto-expands rows as needed.' },
+            'iloc': { sig: 'iloc(row)', desc: 'Returns an entire row as comma-separated string.' },
+            'select': { sig: 'select("col1,col2,...")', desc: 'Selects specified columns into a new DataFrame.' },
+            'sort': { sig: 'sort(column [, ascending])', desc: 'Sorts by column. ascending: 1 (default) or 0.' },
+            'sort_values': { sig: 'sort_values(column [, ascending])', desc: 'Alias for sort with Pandas naming.' },
+            'filter': { sig: 'filter(column, operator, value)', desc: 'Filters rows. Operators: >, <, >=, <=, =, !=, contains.' },
+            'query': { sig: 'query(expression)', desc: 'Filters using a query expression string.' },
+            'groupby': { sig: 'groupby(column, aggColumn, aggFunc)', desc: 'Groups by column, aggregates aggColumn with aggFunc (mean/sum/count/min/max/first/last).' },
+            'drop': { sig: 'drop(column)', desc: 'Removes a column from the DataFrame.' },
+            'rename': { sig: 'rename(oldName, newName)', desc: 'Renames a column.' },
+            'addcolumn': { sig: 'addcolumn(name, values)', desc: 'Adds a column with comma-separated values.' },
+            'fillna': { sig: 'fillna(value)', desc: 'Fills null/missing values with the given value.' },
+            'dropna': { sig: 'dropna()', desc: 'Removes rows containing null values.' },
+            'describe': { sig: 'describe()', desc: 'Returns statistical summary (count, mean, std, min, max, etc.).' },
+            'value_counts': { sig: 'value_counts(column)', desc: 'Returns frequency counts for a column.' },
+            'nunique': { sig: 'nunique(column)', desc: 'Returns number of unique values in a column.' },
+            'corr': { sig: 'corr(col1, col2)', desc: 'Returns Pearson correlation coefficient between two columns.' },
+            'sample': { sig: 'sample(n)', desc: 'Returns n random rows.' },
+            'nlargest': { sig: 'nlargest(n, column)', desc: 'Returns n largest rows by column value.' },
+            'nsmallest': { sig: 'nsmallest(n, column)', desc: 'Returns n smallest rows by column value.' },
+            'info': { sig: 'info()', desc: 'Prints DataFrame info: columns, types, non-null counts.' },
+            'dtypes': { sig: 'dtypes()', desc: 'Returns column data types.' },
+            'merge': { sig: 'merge(otherDf, onColumn [, how])', desc: 'Joins with another DataFrame. how: inner (default), left, right, outer, cross.' },
+            'concat': { sig: 'concat(otherDf)', desc: 'Vertically concatenates another DataFrame.' },
+            'transpose': { sig: 'transpose()', desc: 'Transposes rows and columns.' },
+            'apply': { sig: 'apply(column, function)', desc: 'Applies a transform to a column: upper, lower, abs, round, sqrt, log.' },
+            'replace': { sig: 'replace(column, oldValue, newValue)', desc: 'Replaces values in a column.' },
+            'togrid': { sig: 'togrid(gridName)', desc: 'Populates an RStringGrid with the DataFrame contents.' },
+        }
+    },
+    'RJSON': {
+        description: 'JSON parsing and generation component. Supports parse, stringify, prettify, dot-path get/set, file I/O, and key enumeration.',
+        props: ['text', 'filename', 'count'],
+        methods: [
+            'parse', 'stringify', 'prettify',
+            'get', 'set', 'has', 'remove',
+            'count', 'keys',
+            'loadfile', 'savefile', 'clear'
+        ],
+        events: [],
+        methodSignatures: {
+            'parse': { sig: 'parse(jsonString)', desc: 'Parses a JSON string into the internal store. Returns 1 on success, 0 on error.' },
+            'stringify': { sig: 'stringify()', desc: 'Returns the stored JSON as a compact string.' },
+            'prettify': { sig: 'prettify()', desc: 'Returns the stored JSON as a pretty-printed string with indentation.' },
+            'get': { sig: 'get(path)', desc: 'Returns the value at the dot-path (e.g. "user.name" or "items.0"). Returns "" if not found.' },
+            'set': { sig: 'set(path, value)', desc: 'Sets the value at the dot-path, creating intermediate objects as needed.' },
+            'has': { sig: 'has(path)', desc: 'Returns 1 if the path exists, 0 otherwise.' },
+            'remove': { sig: 'remove(path)', desc: 'Removes the key at the given path.' },
+            'count': { sig: 'count()', desc: 'Returns the number of top-level keys (object) or elements (array).' },
+            'keys': { sig: 'keys()', desc: 'Returns a comma-separated list of top-level keys.' },
+            'loadfile': { sig: 'loadfile(filename)', desc: 'Loads and parses a JSON file. Returns 1 on success, 0 on error.' },
+            'savefile': { sig: 'savefile(filename)', desc: 'Saves the stored JSON to a file (pretty-printed). Returns 1 on success, 0 on error.' },
+            'clear': { sig: 'clear()', desc: 'Clears the stored JSON data.' }
+        }
+    }
+};
+
+const BUILTIN_FUNCTIONS = [
+    // String functions
+    { name: 'CHR$', description: 'Returns character for ASCII code', signature: 'CHR$(code AS INTEGER)', snippet: 'CHR\\$(${1:code})' },
+    { name: 'ASC', description: 'Returns ASCII code of character', signature: 'ASC(char AS STRING)', snippet: 'ASC(${1:char})' },
+    { name: 'LEFT$', description: 'Returns leftmost n characters', signature: 'LEFT$(str, n)', snippet: 'LEFT\\$(${1:str}, ${2:n})' },
+    { name: 'RIGHT$', description: 'Returns rightmost n characters', signature: 'RIGHT$(str, n)', snippet: 'RIGHT\\$(${1:str}, ${2:n})' },
+    { name: 'MID$', description: 'Returns substring from position', signature: 'MID$(str, start [, length])', snippet: 'MID\\$(${1:str}, ${2:start}, ${3:length})' },
+    { name: 'LEN', description: 'Returns length of string', signature: 'LEN(str)', snippet: 'LEN(${1:str})' },
+    { name: 'INSTR', description: 'Finds substring in string, returns position', signature: 'INSTR([start,] str, search)', snippet: 'INSTR(${1:str}, ${2:search})' },
+    { name: 'RINSTR', description: 'Finds last occurrence of substring', signature: 'RINSTR(str, search)', snippet: 'RINSTR(${1:str}, ${2:search})' },
+    { name: 'UCASE$', description: 'Converts string to uppercase', signature: 'UCASE$(str)', snippet: 'UCASE\\$(${1:str})' },
+    { name: 'LCASE$', description: 'Converts string to lowercase', signature: 'LCASE$(str)', snippet: 'LCASE\\$(${1:str})' },
+    { name: 'LTRIM$', description: 'Removes leading whitespace', signature: 'LTRIM$(str)', snippet: 'LTRIM\\$(${1:str})' },
+    { name: 'RTRIM$', description: 'Removes trailing whitespace', signature: 'RTRIM$(str)', snippet: 'RTRIM\\$(${1:str})' },
+    { name: 'TRIM$', description: 'Removes leading and trailing whitespace', signature: 'TRIM$(str)', snippet: 'TRIM\\$(${1:str})' },
+    { name: 'SPACE$', description: 'Returns string of n spaces', signature: 'SPACE$(n)', snippet: 'SPACE\\$(${1:n})' },
+    { name: 'STRING$', description: 'Returns string of n repeated characters', signature: 'STRING$(n, char)', snippet: 'STRING\\$(${1:n}, ${2:char})' },
+    { name: 'STR$', description: 'Converts number to string', signature: 'STR$(number)', snippet: 'STR\\$(${1:number})' },
+    { name: 'REPLACE', description: 'Replaces occurrences in string', signature: 'REPLACE(str, old, new)', snippet: 'REPLACE(${1:str}, ${2:old}, ${3:new})' },
+    { name: 'REPLACESUBSTR', description: 'Replaces substring', signature: 'REPLACESUBSTR(str, old, new)', snippet: 'REPLACESUBSTR(${1:str}, ${2:old}, ${3:new})' },
+    { name: 'INSERT', description: 'Inserts string at position', signature: 'INSERT(str, pos, text)', snippet: 'INSERT(${1:str}, ${2:pos}, ${3:text})' },
+    { name: 'DELETE', description: 'Deletes characters from string', signature: 'DELETE(str, pos, count)', snippet: 'DELETE(${1:str}, ${2:pos}, ${3:count})' },
+    { name: 'REVERSE', description: 'Reverses a string', signature: 'REVERSE(str)', snippet: 'REVERSE(${1:str})' },
+    { name: 'FIELD', description: 'Returns nth field from delimited string', signature: 'FIELD(str, delimiter, n)', snippet: 'FIELD(${1:str}, ${2:delim}, ${3:n})' },
+    { name: 'TALLY', description: 'Counts occurrences of substring', signature: 'TALLY(str, search)', snippet: 'TALLY(${1:str}, ${2:search})' },
+    { name: 'STRF', description: 'Formatted string conversion', signature: 'STRF(number, format)', snippet: 'STRF(${1:number}, ${2:format})' },
+
+    // Math functions
+    { name: 'ABS', description: 'Returns absolute value', signature: 'ABS(number)', snippet: 'ABS(${1:number})' },
+    { name: 'ATN', description: 'Returns arctangent (radians)', signature: 'ATN(number)', snippet: 'ATN(${1:number})' },
+    { name: 'COS', description: 'Returns cosine', signature: 'COS(angle)', snippet: 'COS(${1:angle})' },
+    { name: 'SIN', description: 'Returns sine', signature: 'SIN(angle)', snippet: 'SIN(${1:angle})' },
+    { name: 'TAN', description: 'Returns tangent', signature: 'TAN(angle)', snippet: 'TAN(${1:angle})' },
+    { name: 'EXP', description: 'Returns e raised to power', signature: 'EXP(number)', snippet: 'EXP(${1:number})' },
+    { name: 'LOG', description: 'Returns natural logarithm', signature: 'LOG(number)', snippet: 'LOG(${1:number})' },
+    { name: 'SQR', description: 'Returns square root', signature: 'SQR(number)', snippet: 'SQR(${1:number})' },
+    { name: 'RND', description: 'Returns random number (0 to 1)', signature: 'RND[(n)]', snippet: 'RND(${1:1})' },
+    { name: 'CEIL', description: 'Returns ceiling (round up)', signature: 'CEIL(number)', snippet: 'CEIL(${1:number})' },
+    { name: 'FLOOR', description: 'Returns floor (round down)', signature: 'FLOOR(number)', snippet: 'FLOOR(${1:number})' },
+    { name: 'ACOS', description: 'Returns arc cosine', signature: 'ACOS(number)', snippet: 'ACOS(${1:number})' },
+    { name: 'ASIN', description: 'Returns arc sine', signature: 'ASIN(number)', snippet: 'ASIN(${1:number})' },
+    { name: 'FIX', description: 'Truncates decimal portion', signature: 'FIX(number)', snippet: 'FIX(${1:number})' },
+    { name: 'FRAC', description: 'Returns fractional portion', signature: 'FRAC(number)', snippet: 'FRAC(${1:number})' },
+    { name: 'ROUND', description: 'Rounds to n decimal places', signature: 'ROUND(number [, places])', snippet: 'ROUND(${1:number}, ${2:places})' },
+    { name: 'SGN', description: 'Returns sign (-1, 0, or 1)', signature: 'SGN(number)', snippet: 'SGN(${1:number})' },
+    { name: 'CINT', description: 'Converts to integer', signature: 'CINT(number)', snippet: 'CINT(${1:number})' },
+    { name: 'CLNG', description: 'Converts to long integer', signature: 'CLNG(number)', snippet: 'CLNG(${1:number})' },
+    { name: 'INT', description: 'Returns integer portion', signature: 'INT(number)', snippet: 'INT(${1:number})' },
+    { name: 'VAL', description: 'Converts string to number', signature: 'VAL(str)', snippet: 'VAL(${1:str})' },
+    { name: 'RANDOMIZE', description: 'Seeds random number generator', signature: 'RANDOMIZE [seed]', snippet: 'RANDOMIZE ${1:seed}' },
+    { name: 'IIF', description: 'Inline if: returns trueVal or falseVal', signature: 'IIF(condition, trueVal, falseVal)', snippet: 'IIF(${1:condition}, ${2:trueVal}, ${3:falseVal})' },
+
+    // Conversion functions
+    { name: 'HEX$', description: 'Converts number to hex string', signature: 'HEX$(number)', snippet: 'HEX\\$(${1:number})' },
+    { name: 'BIN$', description: 'Converts number to binary string', signature: 'BIN$(number)', snippet: 'BIN\\$(${1:number})' },
+    { name: 'OCT$', description: 'Converts number to octal string', signature: 'OCT$(number)', snippet: 'OCT\\$(${1:number})' },
+    { name: 'HEXTODEC', description: 'Converts hex string to decimal', signature: 'HEXTODEC(hexStr)', snippet: 'HEXTODEC(${1:hexStr})' },
+    { name: 'CONVBASE', description: 'Converts between number bases', signature: 'CONVBASE(value, fromBase, toBase)', snippet: 'CONVBASE(${1:value}, ${2:fromBase}, ${3:toBase})' },
+    { name: 'FORMAT$', description: 'Formats number/date', signature: 'FORMAT$(value, formatStr)', snippet: 'FORMAT\\$(${1:value}, ${2:format})' },
+
+    // I/O functions
+    { name: 'DIR$', description: 'Returns directory listing', signature: 'DIR$([path])', snippet: 'DIR\\$(${1:path})' },
+    { name: 'CURDIR$', description: 'Returns current directory', signature: 'CURDIR$', snippet: 'CURDIR\\$' },
+    { name: 'DIREXISTS', description: 'Checks if directory exists', signature: 'DIREXISTS(path)', snippet: 'DIREXISTS(${1:path})' },
+    { name: 'FILEEXISTS', description: 'Checks if file exists', signature: 'FILEEXISTS(path)', snippet: 'FILEEXISTS(${1:path})' },
+    { name: 'CHDIR', description: 'Changes current directory', signature: 'CHDIR(path)', snippet: 'CHDIR(${1:path})' },
+    { name: 'MKDIR', description: 'Creates a directory', signature: 'MKDIR(path)', snippet: 'MKDIR(${1:path})' },
+    { name: 'RMDIR', description: 'Removes a directory', signature: 'RMDIR(path)', snippet: 'RMDIR(${1:path})' },
+    { name: 'KILL', description: 'Deletes a file', signature: 'KILL(path)', snippet: 'KILL(${1:path})' },
+    { name: 'RENAME', description: 'Renames a file', signature: 'RENAME(oldName, newName)', snippet: 'RENAME(${1:oldName}, ${2:newName})' },
+
+    // System functions
+    { name: 'SHELL', description: 'Executes a shell command', signature: 'SHELL(command)', snippet: 'SHELL(${1:command})' },
+    { name: 'SHELLWAIT', description: 'Executes shell command and waits', signature: 'SHELLWAIT(command)', snippet: 'SHELLWAIT(${1:command})' },
+    { name: 'RUN', description: 'Runs an external program', signature: 'RUN(program)', snippet: 'RUN(${1:program})' },
+    { name: 'SLEEP', description: 'Pauses execution (milliseconds)', signature: 'SLEEP(ms)', snippet: 'SLEEP(${1:ms})' },
+    { name: 'TIMER', description: 'Returns seconds since midnight', signature: 'TIMER', snippet: 'TIMER' },
+    { name: 'DATE$', description: 'Returns current date string', signature: 'DATE$', snippet: 'DATE\\$' },
+    { name: 'TIME$', description: 'Returns current time string', signature: 'TIME$', snippet: 'TIME\\$' },
+    { name: 'COMMAND$', description: 'Returns command line arguments', signature: 'COMMAND$', snippet: 'COMMAND\\$' },
+    { name: 'ENVIRON$', description: 'Returns environment variable', signature: 'ENVIRON$(name)', snippet: 'ENVIRON\\$(${1:name})' },
+    { name: 'DOEVENTS', description: 'Processes pending GUI events', signature: 'DOEVENTS', snippet: 'DOEVENTS' },
+    { name: 'END', description: 'Terminates the program', signature: 'END', snippet: 'END' },
+
+    // GUI functions
+    { name: 'SHOWMESSAGE', description: 'Displays a message dialog', signature: 'SHOWMESSAGE(message)', snippet: 'SHOWMESSAGE(${1:message})' },
+    { name: 'MESSAGEBOX', description: 'Shows message box with buttons', signature: 'MESSAGEBOX(text, title, type)', snippet: 'MESSAGEBOX(${1:text}, ${2:title}, ${3:0})' },
+    { name: 'MESSAGEDLG', description: 'Shows message dialog', signature: 'MESSAGEDLG(text, type, buttons)', snippet: 'MESSAGEDLG(${1:text}, ${2:type}, ${3:buttons})' },
+    { name: 'RGB', description: 'Returns RGB color value', signature: 'RGB(red, green, blue)', snippet: 'RGB(${1:red}, ${2:green}, ${3:blue})' },
+    { name: 'CALLBACK', description: 'Creates a callback reference', signature: 'CALLBACK(subroutine)', snippet: 'CALLBACK(${1:sub})' },
+    { name: 'CALLFUNC', description: 'Calls a function by name', signature: 'CALLFUNC(name, args...)', snippet: 'CALLFUNC(${1:name})' },
+    { name: 'SOUND', description: 'Plays a system sound', signature: 'SOUND(frequency, duration)', snippet: 'SOUND(${1:frequency}, ${2:duration})' },
+    { name: 'PLAYWAV', description: 'Plays a WAV file', signature: 'PLAYWAV(filename)', snippet: 'PLAYWAV(${1:filename})' },
+
+    // Array functions
+    { name: 'LBOUND', description: 'Returns lower bound of array', signature: 'LBOUND(array)', snippet: 'LBOUND(${1:array})' },
+    { name: 'UBOUND', description: 'Returns upper bound of array', signature: 'UBOUND(array)', snippet: 'UBOUND(${1:array})' },
+    { name: 'QUICKSORT', description: 'Sorts an array in place', signature: 'QUICKSORT(array)', snippet: 'QUICKSORT(${1:array})' },
+    { name: 'INITARRAY', description: 'Initializes array elements', signature: 'INITARRAY(array, value)', snippet: 'INITARRAY(${1:array}, ${2:value})' },
+    { name: 'SWAP', description: 'Swaps two variables', signature: 'SWAP(a, b)', snippet: 'SWAP(${1:a}, ${2:b})' },
+    { name: 'REDIM', description: 'Resizes an array', signature: 'REDIM(array, newSize)', snippet: 'REDIM(${1:array}, ${2:newSize})' },
+
+    // VARPTR
+    { name: 'VARPTR', description: 'Returns reference to variable', signature: 'VARPTR(variable)', snippet: 'VARPTR(${1:variable})' },
+    { name: 'VARPTR$', description: 'Returns string representation of reference', signature: 'VARPTR$(variable)', snippet: 'VARPTR\\$(${1:variable})' },
+    { name: 'VARTYPE', description: 'Returns type of variable', signature: 'VARTYPE(variable)', snippet: 'VARTYPE(${1:variable})' },
+];
+
+const KEYWORDS = [
+    'DIM', 'AS', 'IF', 'THEN', 'ELSE', 'ELSEIF', 'END IF', 'FOR', 'TO', 'STEP', 'NEXT',
+    'WHILE', 'WEND', 'DO', 'LOOP', 'UNTIL', 'SELECT CASE', 'CASE', 'CASE ELSE', 'END SELECT',
+    'SUB', 'END SUB', 'FUNCTION', 'END FUNCTION', 'CALL', 'RETURN', 'EXIT FOR', 'EXIT WHILE',
+    'EXIT DO', 'EXIT SUB', 'EXIT FUNCTION', 'PRINT', 'INPUT', 'GOTO', 'GOSUB',
+    'IMPORT', 'CREATE', 'END CREATE', 'CONST', 'TYPE', 'END TYPE', 'DECLARE', 'LIB', 'ALIAS',
+    'WITH', 'END WITH', 'EXTENDS', 'PROPERTY', 'SET', 'BYVAL', 'BYREF', 'BIND', 'CONSTRUCTOR',
+    'END CONSTRUCTOR', 'PRIVATE', 'PUBLIC', 'AND', 'OR', 'NOT', 'XOR', 'MOD',
+    'TRUE', 'FALSE', 'NOTHING', 'REM'
+];
+
+const TYPE_KEYWORDS = [
+    { name: 'INTEGER', description: 'Integer number (int)' },
+    { name: 'LONG', description: 'Long integer (int)' },
+    { name: 'INT64', description: '64-bit integer (int)' },
+    { name: 'BYTE', description: '8-bit unsigned integer' },
+    { name: 'WORD', description: '16-bit unsigned integer' },
+    { name: 'DWORD', description: '32-bit unsigned integer' },
+    { name: 'SINGLE', description: 'Single-precision float' },
+    { name: 'DOUBLE', description: 'Double-precision float' },
+    { name: 'CURRENCY', description: 'Currency (float)' },
+    { name: 'STRING', description: 'Text string (str)' },
+    { name: 'VARIANT', description: 'Any type (None)' },
+    { name: 'POBJECT', description: 'Object reference (None)' }
+];
+
+const DIRECTIVES = [
+    { name: 'APPTYPE', description: 'Set application type: GUI, CONSOLE, CGI, or WEB', snippet: 'APPTYPE ${1|GUI,CONSOLE,CGI,WEB|}' },
+    { name: 'INCLUDE', description: 'Include an external source file', snippet: 'INCLUDE "${1:filename.rr}"' },
+    { name: 'DEFINE', description: 'Define a text substitution macro', snippet: 'DEFINE ${1:SYMBOL} ${2:value}' },
+    { name: 'UNDEF', description: 'Remove a defined symbol', snippet: 'UNDEF ${1:SYMBOL}' },
+    { name: 'IFDEF', description: 'Conditional: compile if symbol is defined', snippet: 'IFDEF ${1:SYMBOL}' },
+    { name: 'IFNDEF', description: 'Conditional: compile if symbol is NOT defined', snippet: 'IFNDEF ${1:SYMBOL}' },
+    { name: 'ELSE', description: 'Else branch of conditional compilation', snippet: 'ELSE' },
+    { name: 'ENDIF', description: 'End conditional compilation block', snippet: 'ENDIF' },
+    { name: 'MACRO', description: 'Define a parameterized macro', snippet: 'MACRO ${1:NAME}(${2:params}) = ${3:body}' },
+    { name: 'TYPECHECK', description: 'Enable/disable strict type checking', snippet: 'TYPECHECK ${1|ON,OFF|}' },
+    { name: 'OPTION', description: 'Set compiler option', snippet: 'OPTION ${1|EXPLICIT,DIM|} ${2}' },
+    { name: 'OPTIMIZE', description: 'Optimization hint (pass-through)', snippet: 'OPTIMIZE ${1|ON,OFF|}' },
+    { name: 'ESCAPECHARS', description: 'Escape character mode (pass-through)', snippet: 'ESCAPECHARS ${1|ON,OFF|}' }
+];
+
+export { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES };
+
+// Pretty display name for an upper-case component key (RBUTTON -> RButton).
+const _NAME_MAP = {
+  RFORM:"RForm", RBUTTON:"RButton", RLABEL:"RLabel", REDIT:"REdit",
+  RMEMO:"RMemo", RUPDOWN:"RUpDown", RDATETIMEPICKER:"RDateTimePicker", RTOOLBAR:"RToolBar",
+  RCANVAS:"RCanvas", RPANEL:"RPanel", RTIMER:"RTimer",
+  RMAINMENU:"RMainMenu", RMENUITEM:"RMenuItem", RCOMBOBOX:"RComboBox",
+  RLISTBOX:"RListBox", RCHECKBOX:"RCheckBox", RRADIOBUTTON:"RRadioButton",
+  RRICHEDIT:"RRichEdit", RSTRINGGRID:"RStringGrid", RIMAGE:"RImage",
+  RSCROLLBAR:"RScrollBar", RTABCONTROL:"RTabControl",
+  RGROUPBOX:"RGroupBox", RMYSQL:"RMySQL", RSQLITE:"RSQLite",
+  RPROGRESSBAR:"RProgressBar", RLISTVIEW:"RListView",
+  ROPENDIALOG:"ROpenDialog", RSAVEDIALOG:"RSaveDialog",
+  RFILESTREAM:"RFileStream", RFILEDIALOG:"RFileDialog",
+  RCODEEDITOR:"RCodeEditor", RLINE:"RLine", RICON:"RIcon",
+  RIMAGELIST:"RImageList", RSOCKET:"RSocket",
+  RSERVERSOCKET:"RServerSocket", RHTTP:"RHttp",
+  RSTATUSBAR:"RStatusBar", RCOLORDIALOG:"RColorDialog",
+  RFONTDIALOG:"RFontDialog", RDESIGNSURFACE:"RDesignSurface",
+  RTREEVIEW:"RTreeView", RSPLITTER:"RSplitter", RTRACKBAR:"RTrackBar",
+  RSCROLLBOX:"RScrollBox", RPOPUPMENU:"RPopupMenu",
+  RINI:"RIni", RMEMORYSTREAM:"RMemoryStream", RSTRINGLIST:"RStringList",
+  RPRINTER:"RPrinter", RNUM:"RNum", RPLOT:"RPlot",
+  RDATAFRAME:"RDataFrame", RJSON:"RJson",
+  RWEBVIEW:"RWebView", RDOM:"RDOM", RJAVASCRIPT:"RJavaScript",
+  RWEBSTORAGE:"RWebStorage", RWEBAUDIO:"RWebAudio", RWEBVIDEO:"RWebVideo",
+  RWEBNOTIFICATION:"RWebNotification", RWEBGEOLOCATION:"RWebGeolocation",
+  RROUTER:"RRouter", RCOOLBTN:"RCoolBtn", ROVALBTN:"ROvalBtn",
+};
+export function prettyComponentName(upper) {
+  if (!upper) return upper;
+  const u = String(upper).toUpperCase();
+  return _NAME_MAP[u] || (u[0] + u.slice(1).toLowerCase());
+}
+
+// Heuristic variable→type resolver. Scans DIM/CREATE/AS lines.
+export function resolveVariableType(text, varName) {
+  if (!text || !varName) return null;
+  const v = varName.replace(/[.\[\]()$#%&!]+$/, "");
+  // CREATE Foo AS RButton
+  let re = new RegExp("\\bCREATE\\s+" + v + "\\s+AS\\s+(\\w+)", "i");
+  let m = re.exec(text);
+  if (m) return m[1].toUpperCase();
+  // DIM Foo AS RButton
+  re = new RegExp("\\bDIM\\s+" + v + "\\s+AS\\s+(\\w+)", "i");
+  m = re.exec(text);
+  if (m) return m[1].toUpperCase();
+  // GLOBAL Foo AS RButton
+  re = new RegExp("\\bGLOBAL\\s+" + v + "\\s+AS\\s+(\\w+)", "i");
+  m = re.exec(text);
+  if (m) return m[1].toUpperCase();
+  return null;
+}

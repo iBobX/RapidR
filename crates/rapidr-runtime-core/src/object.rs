@@ -368,7 +368,10 @@ impl RpComponent {
 // Global component registry
 // ---------------------------------------------------------------------------
 
-/// Handler enum supporting event callbacks with 0, 1, or 2 parameters.
+/// Handler enum supporting event callbacks with 0..=5 parameters,
+/// plus an `Indirect` variant carrying an opaque handler id (used by
+/// the bytecode interpreter — the id is dispatched via the
+/// thread-local [`INDIRECT_DISPATCHER`]).
 #[derive(Clone)]
 pub enum EventHandler {
     Arity0(fn()),
@@ -377,12 +380,107 @@ pub enum EventHandler {
     Arity3(fn(Value, Value, Value)),
     Arity4(fn(Value, Value, Value, Value)),
     Arity5(fn(Value, Value, Value, Value, Value)),
+    /// Opaque handler id (e.g. a bytecode function index) — invoked
+    /// through the registered indirect dispatcher.
+    Indirect(u32),
 }
+
+/// Type alias for the indirect event dispatcher used by the bytecode
+/// interpreter's NativeHost. Receives `(handler_id, args)`.
+pub type IndirectDispatcher = Box<dyn Fn(u32, &[Value])>;
 
 thread_local! {
     static COMPONENTS: RefCell<HashMap<String, RpComponent>> = RefCell::new(HashMap::new());
     static EVENT_HANDLERS: RefCell<HashMap<(String, String), EventHandler>> = RefCell::new(HashMap::new());
     static CREATION_COUNTER: RefCell<u32> = RefCell::new(0);
+    static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
+}
+
+/// Install a thread-local indirect event dispatcher. Used by the
+/// bytecode VM's NativeHost so that FLTK callbacks can re-enter the VM
+/// and invoke a bytecode function by index.
+///
+/// Returns the previously-installed dispatcher, if any.
+pub fn rp_set_event_dispatcher(d: IndirectDispatcher) -> Option<IndirectDispatcher> {
+    INDIRECT_DISPATCHER.with(|s| s.borrow_mut().replace(d))
+}
+
+/// Remove the indirect event dispatcher (returns it if present).
+pub fn rp_clear_event_dispatcher() -> Option<IndirectDispatcher> {
+    INDIRECT_DISPATCHER.with(|s| s.borrow_mut().take())
+}
+
+/// Bind an indirect event handler (carries an opaque id, e.g. a
+/// bytecode function index). Dispatch goes through
+/// [`rp_set_event_dispatcher`].
+pub fn rp_bind_event_indirect(name: &str, event: &str, handler_id: u32) {
+    EVENT_HANDLERS.with(|h| {
+        h.borrow_mut().insert(
+            (name.to_lowercase(), event.to_lowercase()),
+            EventHandler::Indirect(handler_id),
+        );
+    });
+}
+
+fn dispatch_indirect(handler_id: u32, args: &[Value]) {
+    INDIRECT_DISPATCHER.with(|slot| {
+        // `try_borrow` rather than `borrow` so a re-entrant dispatch (e.g.
+        // a handler that fires another event synchronously) doesn't panic
+        // — it simply prints a soft warning instead.
+        let borrow = match slot.try_borrow() {
+            Ok(b) => b,
+            Err(_) => {
+                eprintln!("[rapidr] event handler #{handler_id} fired re-entrantly while dispatcher was borrowed; ignoring");
+                return;
+            }
+        };
+        if let Some(d) = borrow.as_ref() {
+            d(handler_id, args);
+        } else if !SHUTTING_DOWN.with(|s| s.get()) {
+            // After `rp_run_app` returns and timers/widgets are torn
+            // down FLTK may drain a few queued callbacks. Suppress the
+            // noisy warning during shutdown — it is harmless.
+            eprintln!(
+                "[rapidr] event handler #{handler_id} fired but no indirect dispatcher is registered"
+            );
+        }
+    });
+}
+
+thread_local! {
+    static SHUTTING_DOWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Mark the runtime as shutting down so that late-firing FLTK timer
+/// callbacks (which can be queued after the dispatcher has been
+/// uninstalled) don't print a noisy "no dispatcher" warning.
+pub fn rp_mark_shutting_down() {
+    SHUTTING_DOWN.with(|s| s.set(true));
+}
+
+/// Disable all RTimer components and clear their indirect handlers so
+/// that no further FLTK timeout ticks attempt to dispatch into a torn
+/// down VM. Called during ShowModal shutdown and from
+/// `rp_set_event_dispatcher(None)` so the runtime stays well-behaved.
+pub fn rp_stop_all_timers() {
+    let timers: Vec<String> = COMPONENTS.with(|c| {
+        c.borrow()
+            .iter()
+            .filter_map(|(n, comp)| {
+                if comp.type_name.eq_ignore_ascii_case("RTIMER") {
+                    Some(n.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    });
+    for name in timers {
+        // Setting enabled=0 makes the existing FLTK timeout closure skip
+        // both `rp_fire_event` and `repeat_timeout3` — the timer
+        // self-cancels on its next scheduled tick.
+        rp_comp_set(&name, "enabled", v_int(0));
+    }
 }
 
 /// Create a new component and register it in the global registry.
@@ -480,9 +578,16 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 
     COMPONENTS.with(|c| {
-        if let Some(comp) = c.borrow_mut().get_mut(&name.to_lowercase()) {
-            comp.properties.insert(prop_lower, val);
-        }
+        let mut comps = c.borrow_mut();
+        let key = name.to_lowercase();
+        // Auto-vivify a "bag" component if the name is unknown — this
+        // gives DIM'd UDT variables (e.g. `r.left = 10` on
+        // `DIM r AS Rect`) a place to store and retrieve fields when no
+        // real component exists. The TYPE statement is currently lowered
+        // to a no-op by bcgen, so without this fallback `r.left = 10`
+        // would silently drop the value.
+        let comp = comps.entry(key).or_insert_with(|| RpComponent::new("RUDT"));
+        comp.properties.insert(prop_lower, val);
     });
 }
 
@@ -719,6 +824,7 @@ pub fn rp_fire_event(name: &str, event: &str) {
             EventHandler::Arity3(f) => f(v_null(), v_null(), v_null()),
             EventHandler::Arity4(f) => f(v_null(), v_null(), v_null(), v_null()),
             EventHandler::Arity5(f) => f(v_null(), v_null(), v_null(), v_null(), v_null()),
+            EventHandler::Indirect(id) => dispatch_indirect(id, &[]),
         }
     }
 }
@@ -733,11 +839,12 @@ pub fn rp_fire_event_1(name: &str, event: &str, arg: Value) {
     if let Some(handler) = handler {
         match handler {
             EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(arg),
-            EventHandler::Arity2(f) => f(arg, v_null()),
-            EventHandler::Arity3(f) => f(arg, v_null(), v_null()),
-            EventHandler::Arity4(f) => f(arg, v_null(), v_null(), v_null()),
-            EventHandler::Arity5(f) => f(arg, v_null(), v_null(), v_null(), v_null()),
+            EventHandler::Arity1(f) => f(arg.clone()),
+            EventHandler::Arity2(f) => f(arg.clone(), v_null()),
+            EventHandler::Arity3(f) => f(arg.clone(), v_null(), v_null()),
+            EventHandler::Arity4(f) => f(arg.clone(), v_null(), v_null(), v_null()),
+            EventHandler::Arity5(f) => f(arg.clone(), v_null(), v_null(), v_null(), v_null()),
+            EventHandler::Indirect(id) => dispatch_indirect(id, &[arg]),
         }
     }
 }
@@ -752,11 +859,12 @@ pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
     if let Some(handler) = handler {
         match handler {
             EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(arg1),
-            EventHandler::Arity2(f) => f(arg1, arg2),
-            EventHandler::Arity3(f) => f(arg1, arg2, v_null()),
-            EventHandler::Arity4(f) => f(arg1, arg2, v_null(), v_null()),
-            EventHandler::Arity5(f) => f(arg1, arg2, v_null(), v_null(), v_null()),
+            EventHandler::Arity1(f) => f(arg1.clone()),
+            EventHandler::Arity2(f) => f(arg1.clone(), arg2.clone()),
+            EventHandler::Arity3(f) => f(arg1.clone(), arg2.clone(), v_null()),
+            EventHandler::Arity4(f) => f(arg1.clone(), arg2.clone(), v_null(), v_null()),
+            EventHandler::Arity5(f) => f(arg1.clone(), arg2.clone(), v_null(), v_null(), v_null()),
+            EventHandler::Indirect(id) => dispatch_indirect(id, &[arg1, arg2]),
         }
     }
 }
@@ -771,11 +879,12 @@ pub fn rp_fire_event_5(name: &str, event: &str, a1: Value, a2: Value, a3: Value,
     if let Some(handler) = handler {
         match handler {
             EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(a1),
-            EventHandler::Arity2(f) => f(a1, a2),
-            EventHandler::Arity3(f) => f(a1, a2, a3),
-            EventHandler::Arity4(f) => f(a1, a2, a3, a4),
-            EventHandler::Arity5(f) => f(a1, a2, a3, a4, a5),
+            EventHandler::Arity1(f) => f(a1.clone()),
+            EventHandler::Arity2(f) => f(a1.clone(), a2.clone()),
+            EventHandler::Arity3(f) => f(a1.clone(), a2.clone(), a3.clone()),
+            EventHandler::Arity4(f) => f(a1.clone(), a2.clone(), a3.clone(), a4.clone()),
+            EventHandler::Arity5(f) => f(a1.clone(), a2.clone(), a3.clone(), a4.clone(), a5.clone()),
+            EventHandler::Indirect(id) => dispatch_indirect(id, &[a1, a2, a3, a4, a5]),
         }
     }
 }

@@ -5,6 +5,7 @@ version.workspace = true
 license.workspace = true
 
 [dependencies]
+rapidr-value = { workspace = true }
 rand = "0.9"
 serde_json = "1"
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }

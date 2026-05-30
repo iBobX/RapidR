@@ -1,0 +1,6 @@
+[package]
+name = "rapidr-value"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "Shared dynamic Value type for RapidR runtimes and bytecode VM"

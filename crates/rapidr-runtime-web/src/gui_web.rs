@@ -1,7 +1,7 @@
 //! GUI web implementation — HTML5 DOM widget creation for all RapidR components.
 //!
 //! Each component type (RFORM, RBUTTON, RLABEL, etc.) maps to one or more
-//! HTML elements styled with Tailwind CSS classes and absolute positioning.
+//! HTML elements styled via the shared rapidr-rrcss base stylesheet and absolute positioning.
 
 use crate::value::{v_int, v_null, v_str, Value};
 use std::collections::HashMap;
@@ -24,6 +24,22 @@ fn get_el(id: &str) -> Option<web_sys::HtmlElement> {
         .get_element_by_id(id)?
         .dyn_into::<web_sys::HtmlElement>()
         .ok()
+}
+
+fn strip_ampersands(s: &str) -> String {
+    let mut result = String::new();
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '&' {
+            if chars.peek() == Some(&'&') {
+                result.push('&');
+                chars.next();
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 pub fn create_el(tag: &str) -> web_sys::HtmlElement {
@@ -69,6 +85,7 @@ fn comp_id(name: &str) -> String {
 // ---------------------------------------------------------------------------
 
 pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String, Value>) {
+    inject_form_styles();
     let id = comp_id(name);
     match comp_type {
         "RFORM" => create_form(&id, name, props),
@@ -105,12 +122,15 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RDATETIMEPICKER" => create_datetimepicker(&id, name, props),
         "RCODEEDITOR" => create_codeeditor(&id, name, props),
         "RDESIGNSURFACE" => create_panel(&id, name, props), // design surface is just a panel on web
+        // Data-science widgets — visual placeholders updated by their own methods
+        "RPLOT" => crate::datascience_web::create_plot_widget(&id, name, props),
+        "RDATAFRAME" => crate::datascience_web::create_dataframe_widget(&id, name, props),
+        "RNUM" => crate::datascience_web::create_num_widget(&id, name, props),
         // Dialogs — these are virtual and use browser native dialogs
         "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI"
-        | "RNUM" | "RDATAFRAME" | "RPLOT" => { /* no DOM element */ }
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
         "RDOM" => create_dom_element(&id, name, props),
@@ -155,10 +175,16 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 // For forms, update the title text span — NOT the form's innerHTML,
                 // which would destroy the titlebar and client area divs.
                 if let Ok(Some(title_text)) = el.query_selector(".rr-form-title-text") {
-                    title_text.set_text_content(Some(&s));
+                    title_text.set_text_content(Some(&strip_ampersands(&s)));
+                }
+            } else if el.tag_name().to_uppercase() == "LABEL" {
+                if let Ok(Some(span)) = el.query_selector("span") {
+                    span.set_text_content(Some(&strip_ampersands(&s)));
+                } else {
+                    el.set_text_content(Some(&strip_ampersands(&s)));
                 }
             } else {
-                el.set_inner_html(&s);
+                el.set_inner_html(&strip_ampersands(&s));
             }
         }
         "left" => {
@@ -182,6 +208,12 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 canvas.set_height(v as u32);
             }
         }
+        "cols" | "colcount" => {
+            grid_set_col_count(&id, val.to_i64() as usize);
+        }
+        "rows" | "rowcount" => {
+            grid_set_row_count(&id, val.to_i64() as usize);
+        }
         "visible" => {
             if val.to_bool() {
                 let _ = style.set_property("display", "");
@@ -201,10 +233,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             }
         }
         "color" | "backcolor" => {
-            let _ = style.set_property("background-color", &bgr_to_css(val.to_i64()));
+            let _ = style.set_property("background-color", &value_to_css_color(val));
         }
         "fontcolor" | "forecolor" => {
-            let _ = style.set_property("color", &bgr_to_css(val.to_i64()));
+            let _ = style.set_property("color", &value_to_css_color(val));
         }
         "fontname" => {
             let _ = style.set_property("font-family", &s);
@@ -304,12 +336,17 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             }
         }
         "picture" | "src" => {
+            let resolved = if s.starts_with("assets/") || (!s.contains("://") && !s.starts_with("data:")) {
+                crate::database_web::get_rapidr_asset(&s).unwrap_or(s.clone())
+            } else {
+                s.clone()
+            };
             if let Ok(img) = el.clone().dyn_into::<web_sys::HtmlImageElement>() {
-                img.set_src(&s);
+                img.set_src(&resolved);
             } else if let Ok(audio) = el.clone().dyn_into::<web_sys::HtmlAudioElement>() {
-                audio.set_src(&s);
+                audio.set_src(&resolved);
             } else if let Ok(video) = el.clone().dyn_into::<web_sys::HtmlVideoElement>() {
-                video.set_src(&s);
+                video.set_src(&resolved);
             }
         }
         "stretch" => {
@@ -343,7 +380,7 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             let _ = style.set_property("cursor", cursor);
         }
         "bordercolor" => {
-            let _ = style.set_property("border-color", &bgr_to_css(val.to_i64()));
+            let _ = style.set_property("border-color", &value_to_css_color(val));
         }
         "borderstyle" => {
             let bs = match val.to_i64() {
@@ -608,18 +645,47 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
 
     match (comp_type, method) {
         // LIST methods (RCOMBOBOX, RLISTBOX)
-        (_, "additem") if args.len() >= 1 => {
+        (_, "additem") | (_, "additems") if args.len() >= 1 => {
             if let Some(el) = get_el(&id) {
                 if let Ok(sel) = el.dyn_into::<web_sys::HtmlSelectElement>() {
-                    let opt = document()
-                        .create_element("option")
-                        .unwrap()
-                        .dyn_into::<web_sys::HtmlOptionElement>()
-                        .unwrap();
-                    let text = args[0].to_string_val();
-                    opt.set_text(&text);
-                    opt.set_value(&text);
-                    let _ = sel.add_with_html_option_element(&opt);
+                    for arg in args {
+                        let opt = document()
+                            .create_element("option")
+                            .unwrap()
+                            .dyn_into::<web_sys::HtmlOptionElement>()
+                            .unwrap();
+                        let text = arg.to_string_val();
+                        opt.set_text(&text);
+                        opt.set_value(&text);
+                        let _ = sel.add_with_html_option_element(&opt);
+                    }
+                }
+            }
+            v_null()
+        }
+        // RIMAGE load methods
+        ("RIMAGE", "loadfromfile" | "load") if args.len() >= 1 => {
+            let path = args[0].to_string_val();
+            if let Some(el) = get_el(&id) {
+                if let Ok(img) = el.dyn_into::<web_sys::HtmlImageElement>() {
+                    img.set_src(&path);
+                }
+            }
+            v_null()
+        }
+        ("RIMAGE", "loadfromplot") if args.len() >= 1 => {
+            let plot_name = args[0].to_string_val();
+            crate::datascience_web::render_plot(&plot_name.to_uppercase());
+            let canvas_id = format!("rr-{}-canvas", plot_name.to_lowercase());
+            if let Some(canvas_el) = document().get_element_by_id(&canvas_id) {
+                if let Ok(canvas) = canvas_el.dyn_into::<web_sys::HtmlCanvasElement>() {
+                    if let Ok(data_url) = canvas.to_data_url() {
+                        if let Some(el) = get_el(&id) {
+                            if let Ok(img) = el.dyn_into::<web_sys::HtmlImageElement>() {
+                                img.set_src(&data_url);
+                            }
+                        }
+                    }
                 }
             }
             v_null()
@@ -632,6 +698,11 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         // RWEBSTORAGE clear — must come before generic (_, "clear")
         ("RWEBSTORAGE", "clear") => {
             crate::storage_web::storage_clear();
+            v_null()
+        }
+        // RSTRINGGRID clear — must come before generic (_, "clear")
+        ("RSTRINGGRID", "clear") => {
+            grid_set_row_count(&id, 0);
             v_null()
         }
         (_, "clear") => {
@@ -672,15 +743,11 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // RWEBNOTIFICATION show — must come before generic (_, "show")
         ("RWEBNOTIFICATION", "show") => {
-            // Read title and body from stored properties
             let title = gui_web_get_prop(name, "title").to_string_val();
             let body = gui_web_get_prop(name, "body").to_string_val();
-            let code = format!(
-                r#"try {{ new Notification("{}", {{body: "{}"}}) }} catch(e) {{}}"#,
-                title.replace('"', r#"\""#),
-                body.replace('"', r#"\""#)
-            );
-            let _ = js_sys::eval(&code);
+            let options = web_sys::NotificationOptions::new();
+            options.set_body(&body);
+            let _ = web_sys::Notification::new_with_options(&title, &options);
             v_null()
         }
         (_, "show") => {
@@ -704,6 +771,17 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 show_modal_backdrop(&id);
                 form_bring_to_front(&id);
                 // Center on screen
+                let w = el.offset_width();
+                let h = el.offset_height();
+                let vw = document().document_element().map(|d| d.client_width()).unwrap_or(800);
+                let vh = document().document_element().map(|d| d.client_height()).unwrap_or(600);
+                let _ = el.style().set_property("left", &format!("{}px", ((vw - w) / 2).max(0)));
+                let _ = el.style().set_property("top", &format!("{}px", ((vh - h) / 2).max(0)));
+            }
+            v_null()
+        }
+        (_, "center") if comp_type == "RFORM" => {
+            if let Some(el) = get_el(&id) {
                 let w = el.offset_width();
                 let h = el.offset_height();
                 let vw = document().document_element().map(|d| d.client_width()).unwrap_or(800);
@@ -776,7 +854,18 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             canvas_pixel(&id, &args[0], &args[1], args.get(2));
             v_null()
         }
+        ("RCANVAS", "paint" | "update") => {
+            v_null()
+        }
         // StringGrid methods
+        ("RSTRINGGRID", "create" | "new" | "init") => {
+            // create([rows[, cols]]) — both default to existing or 0
+            let rows = args.first().map(|v| v.to_i64() as usize);
+            let cols = args.get(1).map(|v| v.to_i64() as usize);
+            if let Some(r) = rows { grid_set_row_count(&id, r); }
+            if let Some(c) = cols { grid_set_col_count(&id, c); }
+            v_null()
+        }
         ("RSTRINGGRID", "setcell") if args.len() >= 3 => {
             grid_set_cell(&id, &args[0], &args[1], &args[2]);
             v_null()
@@ -791,6 +880,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         ("RSTRINGGRID", "setcolcount") if args.len() >= 1 => {
             grid_set_col_count(&id, args[0].to_i64() as usize);
             v_null()
+        }
+        ("RSTRINGGRID", "addrow") => {
+            grid_add_row(&id, args)
         }
         // TabControl methods
         ("RTABCONTROL", "addtab") if args.len() >= 1 => {
@@ -907,27 +999,36 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             for arg in args.iter().skip(1) {
                 js_args.push(&JsValue::from_str(&arg.to_string_val()));
             }
-            let code = format!("window['{}']", func_name);
-            match js_sys::eval(&code) {
-                Ok(func) => {
-                    if let Ok(func) = func.dyn_into::<js_sys::Function>() {
-                        match func.apply(&JsValue::NULL, &js_args) {
-                            Ok(result) => {
-                                if let Some(s) = result.as_string() {
-                                    v_str(&s)
-                                } else if let Some(n) = result.as_f64() {
-                                    Value::Double(n)
-                                } else {
+            if let Some(window) = web_sys::window() {
+                match js_sys::Reflect::get(&window, &JsValue::from_str(&func_name)) {
+                    Ok(func) => {
+                        if let Ok(func) = func.dyn_into::<js_sys::Function>() {
+                            match func.apply(&JsValue::NULL, &js_args) {
+                                Ok(result) => {
+                                    if let Some(s) = result.as_string() {
+                                        v_str(&s)
+                                    } else if let Some(n) = result.as_f64() {
+                                        Value::Double(n)
+                                    } else {
+                                        v_null()
+                                    }
+                                }
+                                Err(e) => {
+                                    web_sys::console::error_1(&e);
                                     v_null()
                                 }
                             }
-                            Err(_) => v_null(),
+                        } else {
+                            v_null()
                         }
-                    } else {
+                    }
+                    Err(e) => {
+                        web_sys::console::error_1(&e);
                         v_null()
                     }
                 }
-                Err(_) => v_null(),
+            } else {
+                v_null()
             }
         }
         // Web-exclusive: RWebStorage
@@ -1025,7 +1126,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // Web-exclusive: RWebNotification
         ("RWEBNOTIFICATION", "requestpermission") => {
-            let _ = js_sys::eval("Notification.requestPermission()");
+            if let Ok(promise) = web_sys::Notification::request_permission() {
+                let _ = promise;
+            }
             v_null()
         }
         // RWEBNOTIFICATION show is handled above (before generic "show")
@@ -1069,9 +1172,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // Fallback
         _ => {
-            web_sys::console::warn_1(&JsValue::from_str(&format!(
-                "[WARN] Unknown method '{}.{}()'",
-                name, method
+            web_sys::console::error_1(&JsValue::from_str(&format!(
+                "[RapidR][NotImplemented] {}.{}() — method not implemented on web runtime (component type: {}). This call will return Null. Native target may support it.",
+                name, method, comp_type
             )));
             v_null()
         }
@@ -1197,7 +1300,9 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let client = create_el("div");
     client.set_id(&format!("{}-client", id));
     let c_style = client.style();
-    let _ = c_style.set_property("position", "relative");
+    let _ = c_style.set_property("position", "absolute");
+    let _ = c_style.set_property("left", "0");
+    let _ = c_style.set_property("top", "29px");
     let _ = c_style.set_property("width", "100%");
     let _ = c_style.set_property("height", "calc(100% - 29px)");
     let _ = c_style.set_property("overflow", "auto");
@@ -1278,7 +1383,7 @@ pub fn setup_widget(el: &web_sys::HtmlElement, id: &str, name: &str, props: &Has
 fn create_button(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("button");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&caption);
+    el.set_inner_text(&strip_ampersands(&caption));
     el.set_class_name("rr-widget");
     setup_widget(&el, id, name, props);
 }
@@ -1286,7 +1391,7 @@ fn create_button(id: &str, name: &str, props: &HashMap<String, Value>) {
 fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("button");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&caption);
+    el.set_inner_text(&strip_ampersands(&caption));
     el.set_class_name("rr-widget rr-coolbtn");
 
     let flat = props.get("flat").map(|v| v.to_i64() != 0).unwrap_or(false);
@@ -1315,7 +1420,7 @@ fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
 fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("button");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&caption);
+    el.set_inner_text(&strip_ampersands(&caption));
     el.set_class_name("rr-widget rr-ovalbtn");
 
     let color = props.get("color").map(|v| {
@@ -1342,7 +1447,7 @@ fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
 fn create_label(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("span");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&caption);
+    el.set_inner_text(&strip_ampersands(&caption));
     el.set_class_name("rr-widget");
     let _ = el.style().set_property("overflow", "hidden");
     let _ = el.style().set_property("white-space", "nowrap");
@@ -1392,7 +1497,7 @@ fn create_checkbox(id: &str, name: &str, props: &HashMap<String, Value>) {
 
     let span = create_el("span");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    span.set_inner_text(&caption);
+    span.set_inner_text(&strip_ampersands(&caption));
     let _ = wrapper.append_child(&span);
 
     wrapper.set_id(id);
@@ -1419,7 +1524,7 @@ fn create_radio(id: &str, name: &str, props: &HashMap<String, Value>) {
 
     let span = create_el("span");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    span.set_inner_text(&caption);
+    span.set_inner_text(&strip_ampersands(&caption));
     let _ = wrapper.append_child(&span);
 
     wrapper.set_id(id);
@@ -1445,7 +1550,13 @@ fn create_image(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("img");
     if let Ok(img) = el.clone().dyn_into::<web_sys::HtmlImageElement>() {
         if let Some(src) = props.get("picture").or_else(|| props.get("src")) {
-            img.set_src(&src.to_string_val());
+            let path = src.to_string_val();
+            let resolved = if path.starts_with("assets/") || (!path.contains("://") && !path.starts_with("data:")) {
+                crate::database_web::get_rapidr_asset(&path).unwrap_or(path)
+            } else {
+                path
+            };
+            img.set_src(&resolved);
         }
     }
     el.set_class_name("rr-widget");
@@ -1477,8 +1588,8 @@ fn create_table(id: &str, name: &str, props: &HashMap<String, Value>) {
     table.set_class_name("rr-grid");
     let _ = wrapper.append_child(&table);
 
-    let rows = props.get("rowcount").map(|v| v.to_i64()).unwrap_or(5) as usize;
-    let cols = props.get("colcount").map(|v| v.to_i64()).unwrap_or(3) as usize;
+    let rows = props.get("rows").or_else(|| props.get("rowcount")).map(|v| v.to_i64()).unwrap_or(0) as usize;
+    let cols = props.get("cols").or_else(|| props.get("colcount")).map(|v| v.to_i64()).unwrap_or(0) as usize;
     grid_init_cells(&format!("{}-table", id), rows, cols);
 
     setup_widget(&wrapper, id, name, props);
@@ -1532,27 +1643,46 @@ fn create_mainmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.style().set_property("font-size", "13px");
     el.set_id(id);
     let _ = el.set_attribute("data-rr-name", name);
+    let _ = el.set_attribute("data-rr-type", "RMAINMENU");
     let style = el.style();
     let _ = style.set_property("position", "absolute");
+    let _ = style.set_property("top", "29px");
     let _ = style.set_property("left", "0");
-    let _ = style.set_property("top", "0");
     let _ = style.set_property("width", "100%");
     let _ = style.set_property("height", "28px");
+    let _ = style.set_property("box-sizing", "border-box");
     let _ = style.set_property("z-index", "100");
+
     let parent = props.get("parent").map(|v| v.to_string_val());
-    let _ = get_parent_client(&parent).append_child(&el);
+    if let Some(ref p) = parent {
+        let parent_id = comp_id(p);
+        if let (Some(form_el), Some(client_el)) = (get_el(&parent_id), get_el(&format!("{}-client", parent_id))) {
+            let _ = form_el.insert_before(&el, Some(&client_el));
+            let _ = client_el.style().set_property("top", "57px");
+            let _ = client_el.style().set_property("height", "calc(100% - 57px)");
+        } else {
+            let _ = get_parent_client(&parent).append_child(&el);
+        }
+    } else {
+        let _ = get_parent_client(&parent).append_child(&el);
+    }
 }
 
 fn create_menuitem(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&caption);
-    let _ = el.style().set_property("padding", "4px 12px");
-    let _ = el.style().set_property("cursor", "pointer");
-    el.set_id(id);
+    el.set_inner_text(&strip_ampersands(&caption));
     let _ = el.set_attribute("data-rr-name", name);
-    let parent = props.get("parent").map(|v| v.to_string_val());
-    let _ = get_parent_client(&parent).append_child(&el);
+    let _ = el.set_attribute("data-rr-type", "RMENUITEM");
+    el.set_id(id);
+
+    // Append to body first so it exists in DOM for get_el lookup
+    let _ = document().body().unwrap().append_child(&el);
+
+    let parent = props.get("parent").map(|v| v.to_string_val()).unwrap_or_default();
+    if !parent.is_empty() {
+        gui_web_set_parent(name, &parent);
+    }
 }
 
 fn create_popupmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -1576,7 +1706,7 @@ fn create_groupbox(id: &str, name: &str, props: &HashMap<String, Value>) {
     el.set_class_name("rr-widget");
     let legend = create_el("legend");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    legend.set_inner_text(&caption);
+    legend.set_inner_text(&strip_ampersands(&caption));
     let _ = el.append_child(&legend);
     setup_widget(&el, id, name, props);
 }
@@ -2027,14 +2157,81 @@ fn grid_set_row_count(id: &str, count: usize) {
                     let _ = table_el.delete_row(-1);
                 }
             }
+
+            let comp_name = if id.starts_with("rr-") {
+                &id[3..]
+            } else {
+                id
+            };
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rowcount", v_int(count as i64));
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rows", v_int(count as i64));
         }
     }
 }
 
-fn grid_set_col_count(id: &str, _count: usize) {
-    // For simplicity, rebuilding columns would require re-creating the entire grid.
-    // This is a simplified implementation.
-    let _ = id;
+fn grid_set_col_count(id: &str, count: usize) {
+    let comp_name = if id.starts_with("rr-") {
+        &id[3..]
+    } else {
+        id
+    };
+    crate::object_web::rp_comp_set_prop_only(comp_name, "colcount", v_int(count as i64));
+    crate::object_web::rp_comp_set_prop_only(comp_name, "cols", v_int(count as i64));
+}
+
+fn grid_add_row(id: &str, args: &[Value]) -> Value {
+    let table_id = format!("{}-table", id);
+    if let Some(table) = get_el(&table_id) {
+        if let Ok(table_el) = table.dyn_into::<web_sys::HtmlTableElement>() {
+            let tr = create_el("tr");
+            
+            let mut cols = args.len();
+            if cols == 0 {
+                cols = 3;
+                if let Some(first_row) = table_el.rows().item(0) {
+                    if let Ok(r) = first_row.dyn_into::<web_sys::HtmlTableRowElement>() {
+                        cols = r.cells().length() as usize;
+                    }
+                }
+            }
+            
+            let row_idx = table_el.rows().length() as usize;
+            
+            for c in 0..cols {
+                let td = create_el("td");
+                td.set_class_name("rr-grid-cell");
+                if c < args.len() {
+                    td.set_inner_text(&args[c].to_string_val());
+                }
+                if row_idx > 0 && c > 0 {
+                    let _ = td.set_attribute("contenteditable", "true");
+                    let _ = td.set_attribute("spellcheck", "false");
+                    let _ = td.style().set_property("cursor", "text");
+                }
+                let _ = tr.append_child(&td);
+            }
+            let _ = table_el.append_child(&tr);
+            
+            let comp_name = if id.starts_with("rr-") {
+                &id[3..]
+            } else {
+                id
+            };
+            
+            let new_rows = (row_idx + 1) as i64;
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rowcount", v_int(new_rows));
+            crate::object_web::rp_comp_set_prop_only(comp_name, "rows", v_int(new_rows));
+            
+            let stored_cols = crate::object_web::rp_comp_get_stored(comp_name, "cols").to_i64();
+            if (cols as i64) > stored_cols {
+                crate::object_web::rp_comp_set_prop_only(comp_name, "cols", v_int(cols as i64));
+                crate::object_web::rp_comp_set_prop_only(comp_name, "colcount", v_int(cols as i64));
+            }
+            
+            return v_int(row_idx as i64);
+        }
+    }
+    v_int(-1)
 }
 
 // ---------------------------------------------------------------------------
@@ -2156,20 +2353,70 @@ pub fn gui_web_show_form(name: &str) {
 /// Re-parent a DOM element to a different parent's client area.
 pub fn gui_web_set_parent(name: &str, parent_name: &str) {
     let id = comp_id(name);
-    let parent_client_id = format!("{}-client", comp_id(parent_name));
-    if let Some(el) = get_el(&id) {
-        // Try parent's client area first, then the parent element itself
-        let parent_el = get_el(&parent_client_id)
-            .or_else(|| get_el(&comp_id(parent_name)));
-        if let Some(p) = parent_el {
-            let _ = p.append_child(&el);
-            // Mark nested forms so finalize can route visibility correctly.
-            if el.class_list().contains("rr-form") {
-                let _ = el.set_attribute("data-rr-parent", parent_name);
-                // Nested forms are positioned relative to parent client and
-                // should not be modal/full-screen.
-                let _ = el.style().set_property("position", "absolute");
+    let el = match get_el(&id) {
+        Some(e) => e,
+        None => return,
+    };
+
+    let comp_type = crate::object_web::rp_comp_type(name);
+    if comp_type == "RMAINMENU" {
+        let parent_id = comp_id(parent_name);
+        if let (Some(form_el), Some(client_el)) = (get_el(&parent_id), get_el(&format!("{}-client", parent_id))) {
+            let _ = form_el.insert_before(&el, Some(&client_el));
+            let _ = client_el.style().set_property("top", "57px");
+            let _ = client_el.style().set_property("height", "calc(100% - 57px)");
+        }
+        return;
+    }
+
+    if comp_type == "RMENUITEM" {
+        let parent_type = crate::object_web::rp_comp_type(parent_name);
+        if parent_type == "RMENUITEM" {
+            // Submenu item
+            let parent_id = comp_id(parent_name);
+            if let Some(parent_el) = get_el(&parent_id) {
+                let dropdown_el = if let Ok(Some(d)) = parent_el.query_selector(".rr-dropdown-menu") {
+                    d.dyn_into::<web_sys::HtmlElement>().unwrap()
+                } else {
+                    let d = create_el("div");
+                    d.set_class_name("rr-dropdown-menu");
+                    let _ = parent_el.append_child(&d);
+                    d
+                };
+                el.set_class_name("rr-menu-item-sub");
+                let _ = dropdown_el.append_child(&el);
             }
+        } else if parent_type == "RMAINMENU" {
+            // Top-level menu item
+            let parent_id = comp_id(parent_name);
+            if let Some(parent_el) = get_el(&parent_id) {
+                el.set_class_name("rr-menu-item-top");
+                let _ = parent_el.append_child(&el);
+            }
+        } else {
+            // Fallback (e.g. parent is a form or panel)
+            el.set_class_name("");
+            let parent_client_id = format!("{}-client", comp_id(parent_name));
+            let parent_el = get_el(&parent_client_id).or_else(|| get_el(&comp_id(parent_name)));
+            if let Some(p) = parent_el {
+                let _ = p.append_child(&el);
+            }
+        }
+        return;
+    }
+
+    let parent_client_id = format!("{}-client", comp_id(parent_name));
+    // Try parent's client area first, then the parent element itself
+    let parent_el = get_el(&parent_client_id)
+        .or_else(|| get_el(&comp_id(parent_name)));
+    if let Some(p) = parent_el {
+        let _ = p.append_child(&el);
+        // Mark nested forms so finalize can route visibility correctly.
+        if el.class_list().contains("rr-form") {
+            let _ = el.set_attribute("data-rr-parent", parent_name);
+            // Nested forms are positioned relative to parent client and
+            // should not be modal/full-screen.
+            let _ = el.style().set_property("position", "absolute");
         }
     }
 }
@@ -2428,23 +2675,14 @@ fn form_close(form_id: &str) {
 
 /// Show a dimmed backdrop behind a modal form. The backdrop sits one z-index
 /// below the form and is removed when the form is closed/hidden.
+///
+/// In a single-form, full-viewport web runtime (the common case for RapidR
+/// IDE Run + bundled apps) the backdrop is just visual noise that obscures
+/// the running app — the *form* is already the entire UI. We keep the
+/// z-index lift so the form is on top of any other windows that might
+/// appear later, but skip creating the dim overlay.
 fn show_modal_backdrop(form_id: &str) {
-    let backdrop_id = format!("{}-backdrop", form_id);
     let doc = document();
-    if doc.get_element_by_id(&backdrop_id).is_none() {
-        let bd = create_el("div");
-        bd.set_id(&backdrop_id);
-        let s = bd.style();
-        let _ = s.set_property("position", "fixed");
-        let _ = s.set_property("inset", "0");
-        let _ = s.set_property("background", "rgba(0,0,0,0.35)");
-        let _ = s.set_property("z-index", "9998");
-        if let Some(body) = doc.body() {
-            let _ = body.append_child(&bd);
-        }
-    }
-    // Always lift the modal form above the backdrop, even if the backdrop
-    // already existed (e.g. ShowModal called twice or finalize reset z-index).
     if let Some(el) = doc.get_element_by_id(form_id) {
         if let Some(html) = el.dyn_ref::<web_sys::HtmlElement>() {
             let _ = html.style().set_property("z-index", "9999");
@@ -2505,7 +2743,7 @@ fn setup_form_drag(titlebar: &web_sys::HtmlElement, form_id: &str) {
     cb.forget();
 }
 
-/// Inject CSS for form button hover effects.
+/// Inject CSS for base styles and form button hover effects.
 fn inject_form_styles() {
     let doc = document();
     if doc.get_element_by_id("rr-form-styles").is_some() {
@@ -2513,14 +2751,79 @@ fn inject_form_styles() {
     }
     let style = doc.create_element("style").unwrap();
     style.set_id("rr-form-styles");
-    style.set_text_content(Some(
+    let full_css = format!(
+        "{}\n{}",
+        crate::RR_BASE_CSS,
         ".rr-form-btn-min:hover,.rr-form-btn-max:hover{background:rgba(255,255,255,0.2)!important}\
          .rr-form-btn-close:hover{background:#e74c3c!important}\
          .rr-tab-btn{padding:6px 16px;border:none;background:#f0f0f0;cursor:pointer;font-size:13px;\
          border-bottom:2px solid transparent;transition:background 0.15s}\
-         .rr-tab-btn:hover{background:#e0e0e0}"
-    ));
+         .rr-tab-btn:hover{background:#e0e0e0}\
+         .rr-menu-item-top{position:relative;display:inline-block;padding:6px 12px;cursor:pointer;font-weight:500}\
+         .rr-menu-item-top:hover{background:#e0e0e0}\
+         .rr-menu-item-top:hover > .rr-dropdown-menu{display:block!important}\
+         .rr-dropdown-menu{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #ccc;\
+         box-shadow:0 2px 8px rgba(0,0,0,0.15);min-width:150px;z-index:1000;padding:4px 0;border-radius:4px}\
+         .rr-menu-item-sub{padding:6px 16px;cursor:pointer;white-space:nowrap;font-size:13px;color:#333;display:block}\
+         .rr-menu-item-sub:hover{background:#007acc;color:#fff!important}"
+    );
+    style.set_text_content(Some(&full_css));
     if let Ok(Some(head)) = doc.query_selector("head") {
         let _ = head.append_child(&style);
     }
+}
+
+pub fn setup_data_binding(name: &str) {
+    let uname = name.to_uppercase();
+    let ds = crate::object_web::rp_comp_get_stored(&uname, "datasource").to_string_val();
+    let df = crate::object_web::rp_comp_get_stored(&uname, "datafield").to_string_val();
+    if ds.is_empty() || df.is_empty() {
+        return;
+    }
+
+    thread_local! {
+        static BOUND: std::cell::RefCell<std::collections::HashSet<String>> = std::cell::RefCell::new(std::collections::HashSet::new());
+    }
+    let already = BOUND.with(|b| !b.borrow_mut().insert(uname.clone()));
+    if already {
+        return;
+    }
+
+    let id = comp_id(name);
+    let doc = match web_sys::window().and_then(|w| w.document()) {
+        Some(d) => d,
+        None => return,
+    };
+    let el = match doc.get_element_by_id(&id) {
+        Some(e) => e,
+        None => return,
+    };
+
+    let ds_closure = ds.clone();
+    let df_closure = df.clone();
+    let closure = Closure::<dyn FnMut(web_sys::Event)>::new(move |ev: web_sys::Event| {
+        let target = ev.target().unwrap();
+        let val = if let Ok(input) = target.clone().dyn_into::<web_sys::HtmlInputElement>() {
+            if input.type_() == "checkbox" || input.type_() == "radio" {
+                if input.checked() {
+                    "1".to_string()
+                } else {
+                    "0".to_string()
+                }
+            } else {
+                input.value()
+            }
+        } else if let Ok(ta) = target.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+            ta.value()
+        } else if let Ok(sel) = target.clone().dyn_into::<web_sys::HtmlSelectElement>() {
+            sel.value()
+        } else {
+            String::new()
+        };
+        crate::database_web::update_bound_data(&ds_closure, &df_closure, &val);
+    });
+
+    let _ = el.add_event_listener_with_callback("input", closure.as_ref().unchecked_ref());
+    let _ = el.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());
+    closure.forget();
 }

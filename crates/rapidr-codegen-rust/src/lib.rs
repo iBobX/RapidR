@@ -2015,7 +2015,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rapidr-runtime-web = {{ path = "{runtime_web_path}" }}
-wasm-bindgen = "0.2"
+wasm-bindgen = "=0.2.118"
 "#
     )
 }
@@ -2335,8 +2335,8 @@ mod tests {
         let code = "DIM i AS INTEGER\nFOR i = 1 TO 5\n  PRINT i\nNEXT i\n";
         let rust = gen(code);
         // i is a top-level DIM, so it uses global storage
-        assert!(rust.contains("while (gv(\"i\").rp_le("));
-        assert!(rust.contains("gs(\"i\", &gv(\"i\") + &v_int(1))"));
+        assert!(rust.contains("gv(\"i\").rp_le(&__for_end_i)"));
+        assert!(rust.contains("gs(\"i\", &gv(\"i\") + &__for_step_i)"));
     }
 
     #[test]

@@ -1,0 +1,79 @@
+$APPTYPE WEB
+
+CREATE MainForm AS RFORM
+    Caption = "RapidR Premium Video Player"
+    Width = 600
+    Height = 440
+    Center
+
+    CREATE Player AS RWebVideo
+        Left = 20
+        Top = 20
+        Width = 560
+        Height = 310
+        Src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+        Controls = 1
+        Autoplay = 0
+    END CREATE
+
+    CREATE PlayBtn AS RBUTTON
+        Caption = "▶ Play"
+        Left = 20
+        Top = 345
+        Width = 80
+        Height = 32
+        OnClick = PlayBtn_Click
+    END CREATE
+
+    CREATE PauseBtn AS RBUTTON
+        Caption = "⏸ Pause"
+        Left = 110
+        Top = 345
+        Width = 80
+        Height = 32
+        OnClick = PauseBtn_Click
+    END CREATE
+
+    CREATE StopBtn AS RBUTTON
+        Caption = "⏹ Stop"
+        Left = 200
+        Top = 345
+        Width = 80
+        Height = 32
+        OnClick = StopBtn_Click
+    END CREATE
+
+    CREATE SourceCombo AS RComboBox
+        Left = 300
+        Top = 345
+        Width = 280
+        Height = 32
+        Items = "Big Buck Bunny, Sintel CGI Trailer, Elephant's Dream"
+        OnClick = SourceCombo_Change
+    END CREATE
+END CREATE
+
+SUB PlayBtn_Click()
+    Player.Play()
+END SUB
+
+SUB PauseBtn_Click()
+    Player.Pause()
+END SUB
+
+SUB StopBtn_Click()
+    Player.Stop()
+END SUB
+
+SUB SourceCombo_Change()
+    DIM idx AS INTEGER
+    idx = SourceCombo.ItemIndex
+    IF idx = 0 THEN
+        Player.Src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+    ELSEIF idx = 1 THEN
+        Player.Src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"
+    ELSEIF idx = 2 THEN
+        Player.Src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
+    END IF
+    Player.Play()
+END SUB

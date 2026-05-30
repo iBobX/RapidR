@@ -8,8 +8,17 @@ examples/*_rust
 examples/_ide_output
 examples/_ide_output.rp
 examples/_ide_errors.json
+examples/*.compiled
+examples/*.interp
+examples/*.zip
+examples/**/
+examples/ide.config.json
 utilities/vscodeext/rapidr/*.vsix
+tests
 *.vsix
 target
 rapidr
 ide
+*.compiled
+*.interp
+*.zip

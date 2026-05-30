@@ -1,0 +1,366 @@
+/* RapidR IDE — modern overlay (Tailwind-inspired utility coat).
+   Adds rounded corners, soft shadows, smooth transitions, modern type stack,
+   hi-DPI aware sizing, and dark-mode polish. Sits on top of ide.css.
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Modern semantic palette (light) */
+  --m-radius:      6px;
+  --m-radius-sm:   4px;
+  --m-shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.06);
+  --m-shadow:      0 2px 6px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --m-shadow-md:   0 6px 16px rgba(15, 23, 42, 0.12);
+  --m-ring:        0 0 0 3px rgba(99, 102, 241, 0.25);
+  --m-accent-grad: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --m-bg-soft:     #f8fafc;
+  --m-bg-soft-2:   #f1f5f9;
+  --m-text-soft:   #475569;
+  --m-divider:     #e2e8f0;
+  --m-hover:       rgba(99, 102, 241, 0.08);
+  --m-transition:  150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"], html:not([data-theme="light"]) {
+  /* Will be selectively applied via media query below for auto */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --m-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --m-shadow:    0 2px 6px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --m-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
+    --m-bg-soft:   #1e293b;
+    --m-bg-soft-2: #0f172a;
+    --m-text-soft: #cbd5e1;
+    --m-divider:   #334155;
+    --m-hover:     rgba(99, 102, 241, 0.18);
+  }
+}
+[data-theme="dark"] {
+  --m-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --m-shadow:    0 2px 6px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --m-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
+  --m-bg-soft:   #1e293b;
+  --m-bg-soft-2: #0f172a;
+  --m-text-soft: #cbd5e1;
+  --m-divider:   #334155;
+  --m-hover:     rgba(99, 102, 241, 0.18);
+}
+
+/* ── Type stack: modern system + fluid sizing for hi-DPI ───── */
+html, body {
+  font-family: "Inter", "SF Pro Text", "Segoe UI Variable", "Segoe UI",
+               system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hi-DPI: nudge base font up a touch on dense displays */
+@media (min-resolution: 1.5dppx), (-webkit-min-device-pixel-ratio: 1.5) {
+  html, body { font-size: 12.5px; }
+}
+
+/* ── Menubar ── */
+#menubar {
+  background: var(--m-bg-soft);
+  border-bottom: 1px solid var(--m-divider);
+  box-shadow: var(--m-shadow-sm);
+  padding: 4px 6px;
+}
+.menu {
+  border-radius: var(--m-radius-sm);
+  transition: background var(--m-transition), color var(--m-transition);
+  padding: 4px 10px;
+}
+.menu:hover, .menu.open {
+  background: var(--m-accent-grad);
+  color: white;
+}
+.menu-popup {
+  border: 1px solid var(--m-divider);
+  border-radius: var(--m-radius);
+  box-shadow: var(--m-shadow-md);
+  padding: 4px 0;
+  background: var(--c-panel);
+  backdrop-filter: saturate(1.4);
+}
+.menu-popup .mi {
+  border-radius: var(--m-radius-sm);
+  margin: 0 4px;
+  padding: 5px 14px;
+  transition: background var(--m-transition);
+}
+.menu-popup .mi:hover {
+  background: var(--m-hover);
+  color: var(--c-text);
+}
+
+/* ── Toolbar ── */
+#toolbar {
+  background: var(--c-bg);
+  padding: 4px 8px;
+  gap: 4px !important;
+  border-bottom: 1px solid var(--m-divider);
+}
+.tb {
+  border-radius: var(--m-radius-sm) !important;
+  border: 1px solid transparent !important;
+  transition: background var(--m-transition), border-color var(--m-transition);
+  padding: 5px 8px !important;
+}
+.tb:hover {
+  background: var(--m-hover) !important;
+  border-color: var(--m-divider) !important;
+}
+
+/* ── Side panels (toolbox, project, props) ── */
+#toolbox, #right-col aside, .right-col aside, .layout-dock {
+  background: var(--c-panel);
+  border-radius: var(--m-radius);
+  box-shadow: var(--m-shadow-sm);
+  margin: 6px;
+  border: 1px solid var(--m-divider) !important;
+  overflow: hidden;
+}
+.dock-title, #toolbox-title, .props-head, .right-col .dock h3 {
+  background: var(--m-bg-soft);
+  color: var(--c-text) !important;
+  border-bottom: 1px solid var(--m-divider);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 6px 10px;
+}
+
+/* ── Toolbox tools ── */
+.tool {
+  border-radius: var(--m-radius-sm);
+  transition: background var(--m-transition), transform var(--m-transition);
+  padding: 6px;
+}
+.tool:hover { background: var(--m-hover); }
+.tool.armed {
+  background: var(--m-accent-grad);
+  color: white;
+  box-shadow: var(--m-shadow-sm);
+}
+
+/* ── Project tree ── */
+.tree-group {
+  background: var(--m-bg-soft);
+  border-radius: var(--m-radius-sm);
+  margin: 4px 6px;
+  padding: 4px 8px;
+  font-weight: 600;
+  color: var(--m-text-soft);
+}
+.tree-item {
+  border-radius: var(--m-radius-sm);
+  margin: 1px 6px;
+  padding: 4px 8px;
+  transition: background var(--m-transition);
+}
+.tree-item:hover { background: var(--m-hover); }
+.tree-item.active {
+  background: var(--m-accent-grad);
+  color: white;
+}
+.tree-btn {
+  border-radius: 50% !important;
+  transition: background var(--m-transition);
+}
+.tree-btn:hover { background: rgba(255,255,255,0.25) !important; }
+
+/* ── Properties pane ── */
+.prop-cat {
+  background: var(--m-bg-soft);
+  font-weight: 600;
+  color: var(--m-text-soft);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 4px 10px !important;
+  border-top: 1px solid var(--m-divider);
+}
+.prop-row {
+  transition: background var(--m-transition);
+}
+.prop-row:hover { background: var(--m-hover); }
+.prop-name {
+  color: var(--m-text-soft) !important;
+  font-weight: 500;
+}
+.prop-val input, .prop-val select {
+  border-radius: var(--m-radius-sm) !important;
+  border: 1px solid var(--m-divider) !important;
+  transition: border-color var(--m-transition), box-shadow var(--m-transition);
+  padding: 3px 6px !important;
+  background: var(--c-panel) !important;
+  color: var(--c-text) !important;
+}
+.prop-val input:focus, .prop-val select:focus {
+  border-color: var(--c-accent) !important;
+  box-shadow: var(--m-ring);
+  outline: none !important;
+}
+.prop-color { gap: 4px; }
+.prop-color input[type=color] {
+  width: 24px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  border-radius: var(--m-radius-sm) !important;
+  cursor: pointer;
+}
+
+/* ── MDI tabs ── */
+#mdi-tabs {
+  background: var(--m-bg-soft-2);
+  padding: 4px 4px 0 4px;
+  border-bottom: 1px solid var(--m-divider);
+}
+.mtab {
+  border-radius: var(--m-radius) var(--m-radius) 0 0 !important;
+  border: 1px solid var(--m-divider) !important;
+  border-bottom: none !important;
+  margin-right: 2px !important;
+  padding: 5px 12px !important;
+  background: var(--m-bg-soft) !important;
+  transition: background var(--m-transition), color var(--m-transition);
+}
+.mtab:hover { background: var(--c-panel) !important; }
+.mtab.active {
+  background: var(--c-panel) !important;
+  border-bottom: 1px solid var(--c-panel) !important;
+  margin-bottom: -1px;
+  font-weight: 600;
+  color: var(--c-accent);
+}
+.mtab .x {
+  border-radius: 50% !important;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 6px;
+  transition: background var(--m-transition);
+}
+.mtab .x:hover { background: rgba(239, 68, 68, 0.18); color: #ef4444; }
+
+/* ── Code-pane object/event dropdowns ── */
+.code-toolbar {
+  background: var(--m-bg-soft);
+  padding: 6px !important;
+  gap: 6px !important;
+  border-bottom: 1px solid var(--m-divider);
+}
+.obj-dropdown, .evt-dropdown {
+  border-radius: var(--m-radius-sm) !important;
+  border: 1px solid var(--m-divider) !important;
+  padding: 4px 8px !important;
+  background: var(--c-panel) !important;
+  color: var(--c-text) !important;
+  transition: border-color var(--m-transition), box-shadow var(--m-transition);
+}
+.obj-dropdown:focus, .evt-dropdown:focus {
+  border-color: var(--c-accent) !important;
+  box-shadow: var(--m-ring);
+  outline: none !important;
+}
+
+/* ── Designer form ── */
+.design-form {
+  border-radius: var(--m-radius);
+  box-shadow: var(--m-shadow-md) !important;
+  border: 1px solid var(--m-divider) !important;
+}
+.design-form .form-titlebar {
+  border-radius: var(--m-radius) var(--m-radius) 0 0;
+  background: var(--m-accent-grad) !important;
+  box-shadow: var(--m-shadow-sm);
+}
+.design-form .form-handle {
+  border-radius: 2px !important;
+  box-shadow: var(--m-shadow-sm);
+}
+
+/* ── Status bar ── */
+#status, #statusbar {
+  background: var(--m-bg-soft);
+  border-top: 1px solid var(--m-divider);
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--m-text-soft);
+}
+
+/* ── Dialogs ── */
+.ide-modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(2px);
+}
+.ide-modal {
+  border-radius: var(--m-radius) !important;
+  box-shadow: var(--m-shadow-md) !important;
+  border: 1px solid var(--m-divider) !important;
+  overflow: hidden;
+  background: var(--c-panel);
+}
+.ide-modal-tb {
+  background: var(--m-accent-grad) !important;
+  color: white !important;
+  padding: 8px 14px !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ide-modal-body { padding: 14px !important; color: var(--c-text); }
+.ide-modal-btns {
+  padding: 8px 14px !important;
+  background: var(--m-bg-soft);
+  border-top: 1px solid var(--m-divider);
+  gap: 6px !important;
+}
+.ide-modal-btns button {
+  border-radius: var(--m-radius-sm) !important;
+  padding: 5px 14px !important;
+  border: 1px solid var(--m-divider) !important;
+  background: var(--c-panel) !important;
+  color: var(--c-text) !important;
+  cursor: pointer;
+  transition: background var(--m-transition), transform var(--m-transition);
+}
+.ide-modal-btns button:hover { background: var(--m-hover) !important; }
+.ide-modal-btns button.primary {
+  background: var(--m-accent-grad) !important;
+  color: white !important;
+  border-color: transparent !important;
+  box-shadow: var(--m-shadow-sm);
+}
+.ide-modal-btns button.primary:hover { transform: translateY(-1px); }
+
+/* ── Output / immediate / errors ── */
+#output {
+  background: var(--c-panel);
+  border-top: 1px solid var(--m-divider);
+}
+.otab {
+  border-radius: var(--m-radius-sm) var(--m-radius-sm) 0 0 !important;
+  padding: 4px 12px !important;
+  transition: background var(--m-transition);
+}
+.otab:hover { background: var(--m-hover) !important; }
+.otab.active {
+  background: var(--c-panel) !important;
+  font-weight: 600;
+  color: var(--c-accent);
+}
+
+/* ── Smooth scrollbars ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--m-divider) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--m-divider);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--m-text-soft); background-clip: padding-box; }

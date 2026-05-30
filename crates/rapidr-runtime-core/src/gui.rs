@@ -2288,6 +2288,10 @@ pub fn gui_showmodal(name: &str) {
             break;
         }
     }
+
+    // The form has closed: disable any timers so their already-queued
+    // FLTK timeouts don't fire after we tear down the dispatcher.
+    crate::object::rp_stop_all_timers();
 }
 
 /// Close/hide a widget (form window or embedded frame).

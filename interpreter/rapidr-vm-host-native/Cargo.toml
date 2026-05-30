@@ -1,0 +1,20 @@
+[package]
+name = "rapidr-vm-host-native"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+gui = ["rapidr-runtime-core/gui"]
+network = ["rapidr-runtime-core/network"]
+database = ["rapidr-runtime-core/database"]
+ffi = ["rapidr-runtime-core/ffi"]
+datascience = ["rapidr-runtime-core/datascience"]
+full = ["gui", "network", "database", "ffi", "datascience"]
+
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-bytecode = { workspace = true }
+rapidr-vm = { workspace = true }
+rapidr-runtime-core = { workspace = true }

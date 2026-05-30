@@ -3253,6 +3253,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-bcgen"
+version = "1.0.0"
+dependencies = [
+ "rapidr-ast",
+ "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-value",
+ "rapidr-vm",
+]
+
+[[package]]
 name = "rapidr-buildserver"
 version = "1.0.0"
 dependencies = [
@@ -3268,13 +3280,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-bytecode"
+version = "1.0.0"
+dependencies = [
+ "rapidr-value",
+]
+
+[[package]]
 name = "rapidr-cli"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
+ "rapidr-bcgen",
+ "rapidr-bytecode",
  "rapidr-codegen-rust",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-rrcss",
+ "rapidr-vm",
+ "rapidr-vm-host-native",
+ "rapidr-webbundle",
 ]
 
 [[package]]
@@ -3285,6 +3311,18 @@ dependencies = [
  "rapidr-diagnostics",
  "rapidr-lexer",
  "rapidr-parser",
+]
+
+[[package]]
+name = "rapidr-compiler-wasm"
+version = "1.0.0"
+dependencies = [
+ "rapidr-bcgen",
+ "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3316,6 +3354,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-rrcss"
+version = "1.0.0"
+
+[[package]]
+name = "rapidr-runner-stub"
+version = "1.0.0"
+dependencies = [
+ "rapidr-vm-host-native",
+]
+
+[[package]]
 name = "rapidr-runtime-core"
 version = "1.0.0"
 dependencies = [
@@ -3328,6 +3377,7 @@ dependencies = [
  "plotters",
  "polars",
  "rand 0.9.2",
+ "rapidr-value",
  "rodio",
  "rusqlite",
  "serde_json",
@@ -3339,9 +3389,58 @@ name = "rapidr-runtime-web"
 version = "1.0.0"
 dependencies = [
  "js-sys",
+ "rapidr-rrcss",
+ "rapidr-value",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "rapidr-value"
+version = "1.0.0"
+
+[[package]]
+name = "rapidr-vm"
+version = "1.0.0"
+dependencies = [
+ "rapidr-bytecode",
+ "rapidr-value",
+]
+
+[[package]]
+name = "rapidr-vm-host-native"
+version = "1.0.0"
+dependencies = [
+ "rapidr-bytecode",
+ "rapidr-runtime-core",
+ "rapidr-value",
+ "rapidr-vm",
+]
+
+[[package]]
+name = "rapidr-vm-host-web"
+version = "1.0.0"
+dependencies = [
+ "js-sys",
+ "rapidr-bcgen",
+ "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-runtime-web",
+ "rapidr-value",
+ "rapidr-vm",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "rapidr-webbundle"
+version = "1.0.0"
+dependencies = [
+ "rapidr-rrcss",
+ "zip",
 ]
 
 [[package]]

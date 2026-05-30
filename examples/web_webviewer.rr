@@ -1,0 +1,63 @@
+$APPTYPE WEB
+
+CREATE MainForm AS RFORM
+    Caption = "RapidR Premium Web Viewer"
+    Width = 640
+    Height = 480
+    Center
+
+    CREATE UrlEdit AS REDIT
+        Text = "https://wikipedia.org"
+        Left = 20
+        Top = 15
+        Width = 400
+        Height = 28
+    END CREATE
+
+    CREATE GoBtn AS RBUTTON
+        Caption = "Go ➜"
+        Left = 430
+        Top = 13
+        Width = 70
+        Height = 28
+        OnClick = GoBtn_Click
+    END CREATE
+
+    CREATE PresetsCombo AS RComboBox
+        Left = 510
+        Top = 13
+        Width = 110
+        Height = 28
+        Items = "Wikipedia, DuckDuckGo, Yahoo!"
+        OnClick = PresetsCombo_Change
+    END CREATE
+
+    CREATE WebView AS RWebView
+        Left = 20
+        Top = 55
+        Width = 600
+        Height = 400
+        Url = "https://wikipedia.org"
+    END CREATE
+END CREATE
+
+SUB GoBtn_Click()
+    DIM target AS STRING
+    target = UrlEdit.Text
+    IF target <> "" THEN
+        WebView.Navigate(target)
+    END IF
+END SUB
+
+SUB PresetsCombo_Change()
+    DIM idx AS INTEGER
+    idx = PresetsCombo.ItemIndex
+    IF idx = 0 THEN
+        UrlEdit.Text = "https://wikipedia.org"
+    ELSEIF idx = 1 THEN
+        UrlEdit.Text = "https://duckduckgo.com"
+    ELSEIF idx = 2 THEN
+        UrlEdit.Text = "https://yahoo.com"
+    END IF
+    GoBtn_Click()
+END SUB

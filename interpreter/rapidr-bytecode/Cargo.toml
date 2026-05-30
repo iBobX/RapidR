@@ -1,0 +1,9 @@
+[package]
+name = "rapidr-bytecode"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "RapidR bytecode format — opcodes, constant pool, (de)serialize"
+
+[dependencies]
+rapidr-value = { workspace = true }

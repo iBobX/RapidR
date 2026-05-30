@@ -24,6 +24,7 @@
   - [Networking](#networking)
   - [Data Science Components](#data-science-components-rnum-rplot-rdataframe)
 - [The Self-Hosted IDE](#the-self-hosted-ide)
+  - [Self-Hosted Web IDE — `web-ide/`](#self-hosted-web-ide--web-ide)
 - [Web Compilation (WASM)](#web-compilation-wasm)
 - [VS Code Extension](#vs-code-extension)
 - [Syntax Reference](#syntax-reference)
@@ -48,20 +49,41 @@ The Rust workspace under `crates/` provides a full transpilation pipeline that g
 
 RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace provides a complete pipeline from `.rr` source through parsing, Rust code generation, and compilation to native executables. All 29 example programs compile and run, including the self-hosted IDE.
 
-### Crate Architecture (10 crates)
+### Crate Architecture
 
-| Crate | Description |
-|-------|-------------|
-| `rapidr-cli` | Command-line entry point — `version`, `preprocess`, `lex`, `parse`, `codegen` commands |
-| `rapidr-diagnostics` | `TextSpan`, `SourceLocation`, and `Diagnostic` types |
-| `rapidr-ast` | Shared AST data structures (program, statement, declaration, expression nodes) |
-| `rapidr-preprocessor` | Directive handling (`$DEFINE`, `$IFDEF`, `$INCLUDE`, `$MACRO`, `$THEME`, etc.) |
-| `rapidr-lexer` | Lexical analysis — keywords, literals, directives, operators, suffixes |
-| `rapidr-parser` | Recursive-descent parser producing typed AST from token stream |
-| `rapidr-codegen-rust` | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` (~2,100 lines) |
-| `rapidr-runtime-core` | **Native runtime** — GUI (FLTK), builtins, database (MySQL/SQLite), networking, data science (ndarray/polars/plotters/image), file I/O |
-| `rapidr-runtime-web` | **Web runtime** — Browser GUI (DOM/Canvas), web-exclusive components, WASM-compatible builtins, wasm-bindgen interop |
-| `rapidr-buildserver` | **Build server** — axum HTTP service: `POST /compile`, `GET /preview/<id>/`, `GET /zip/<id>/{source,full}`. Powers the web IDE's Run / Preview / Export buttons. Run with `./run_buildserver.sh` (port 8095). |
+The Cargo workspace contains **two cooperating pipelines** in addition to
+the supporting crates:
+
+- **Native Rust codegen** (`rapidr-codegen-rust` → `rapidr-runtime-core` /
+  `rapidr-runtime-web`) — fastest path; compiles `.rr` to a Rust project
+  then to a native binary or wasm-bindgen web app.
+- **Bytecode interpreter `rapidrintr`** (`rapidr-bcgen` → `.rrbc` →
+  `rapidr-vm` + a `Host`) — single self-contained artifact that runs the
+  same `.rr` natively *or* in the browser without re-compiling. Used by
+  the self-hosted Web IDE in [`web-ide/`](web-ide/).
+
+| Crate | Path | Description |
+|-------|------|-------------|
+| `rapidr-cli` | `crates/` | CLI entry point — `version`, `preprocess`, `lex`, `parse`, `codegen`, `build`, `build-bc`, `run-bc`, `bundle-bc` |
+| `rapidr-diagnostics` | `crates/` | `TextSpan`, `SourceLocation`, and `Diagnostic` types |
+| `rapidr-ast` | `crates/` | Shared AST data structures |
+| `rapidr-value` | `crates/` | Shared `Value` enum used by codegen and the VM |
+| `rapidr-preprocessor` | `crates/` | `$DEFINE`, `$IFDEF`, `$INCLUDE`, `$MACRO`, `$THEME`, … |
+| `rapidr-lexer` | `crates/` | Tokenization |
+| `rapidr-parser` | `crates/` | Recursive-descent parser → AST |
+| `rapidr-rrcss` | `crates/` | Tiny CSS subset used by the web runtime for style props |
+| `rapidr-codegen-rust` | `crates/` | AST → Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
+| `rapidr-runtime-core` | `crates/` | Native runtime — FLTK GUI, builtins, MySQL/SQLite, networking, data science, file I/O |
+| `rapidr-runtime-web` | `crates/` | Web runtime — DOM/Canvas GUI, web-exclusive components, in-memory SQLite, RSocket-over-WebSocket |
+| `rapidr-buildserver` | `crates/` | (Legacy) axum HTTP build service used by `examples/web_ide.rr`. Superseded by the self-contained [`web-ide/`](web-ide/). |
+| `rapidr-bytecode`     | `interpreter/` | `.rrbc` format: `RRBC` magic + ~50 stack opcodes |
+| `rapidr-bcgen`        | `interpreter/` | AST → bytecode lowering (mirrors `rapidr-codegen-rust`) |
+| `rapidr-vm`           | `interpreter/` | `Vm<Host>` stack interpreter with frames/globals/`Host` trait |
+| `rapidr-vm-host-native` | `interpreter/` | `Host` impl backed by `rapidr-runtime-core` |
+| `rapidr-vm-host-web`  | `interpreter/` | wasm cdylib — exposes **both** `compile(src) → Vec<u8>` *and* `rapidr_run_bc(bytes)` from one ~830 KB module |
+| `rapidr-compiler-wasm`| `interpreter/` | Stand-alone wasm-bindgen wrapper exposing only `compile()` |
+| `rapidr-webbundle`    | `interpreter/` | Builds the static `.zip` produced by `rapidr bundle-bc` |
+| `rapidr-runner-stub`  | `interpreter/` | Host-stub binary used as the prefix for `--interp` self-contained executables |
 ### Key Capabilities
 
 - **Native GUI via FLTK** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, splitters, scroll boxes, and more
@@ -73,8 +95,8 @@ RapidR v1.0.0 has reached **functional transpiler status**. The Rust workspace p
 - **Networking** — TCP sockets, server sockets, HTTP client
 - **JSON** — `RJson` component for parsing, generating, dot-path access, and file I/O (cross-platform: desktop + web)
 - **100+ built-in functions** — String, math, file I/O, system operations
-- **Self-hosted IDE** — The visual form designer (`examples/ide.rr`) compiles to a native FLTK application
-- **Browser-hosted IDE** — `examples/web_ide.rr` is a full visual designer that runs in the browser; with `rapidr-buildserver` it can also Run, Preview, and Export (source-only or full bundle including the native binary) the program being designed
+- **Self-hosted IDE (native)** — The visual form designer (`examples/ide.rr`) compiles to a native FLTK application
+- **Self-hosted IDE (web)** — [`web-ide/`](web-ide/) is a fully self-contained browser IDE: visual designer + Run + Build (downloadable static `.zip`), all backed by a single combined wasm that holds **both** the compiler and the bytecode interpreter — no build server, no network calls
 - **Multi-form apps** — Multiple top-level `RFORM` windows behave like ordinary OS windows; `Parent="Form1"` nests one form inside another. `OnLoad`/`OnClose` lifecycle events fire on both runtimes; `ShowModal` works on web via a dimmed backdrop overlay
 - **Data science** — RNum (ndarray), RDataFrame (polars), RPlot (plotters) components for array math, dataframes, and plotting
 - **Raw Rust injection** — `RUSTSTART`/`RUSTEND` blocks allow inline Rust code in `.rr` sources
@@ -99,38 +121,55 @@ cargo test
 cd examples/hello_web_web && python3 -m http.server 8080
 ```
 
-### Browser IDE with Live Preview & Export
+### Browser IDE (self-contained, zero-backend)
 
-The web IDE (`examples/web_ide.rr`) is itself a RapidR program. With the build server running it can compile, preview, and download the program you're designing — all from inside the browser:
+The new **`web-ide/`** is a fully self-hosted browser IDE. It loads a single
+combined WebAssembly module (`rapidrintr.wasm`) that exposes **both** the
+compiler (`compile(source) → bytecode`) and the runtime
+(`rapidr_run_bc(bytes)`). No build server, no CDN, no network calls — everything
+runs in the visitor's browser:
 
 ```bash
-# 1. One-time: build everything (compiler + buildserver)
+# 1. Build the compiler + the combined web wasm (once)
 ./build.sh --release
-cargo build --release -p rapidr-buildserver
+bash tools/build_web_artifacts.sh           # → target/web/rapidrintr.{js,wasm}
 
-# 2. Compile the IDE itself to WASM
-./rapidr --web examples/web_ide.rr
-
-# 3. Start the build server (port 8095)
-./run_buildserver.sh &
-
-# 4. Serve and open the IDE
-cd examples/web_ide_web && python3 -m http.server 8090 &
-open http://localhost:8090/
+# 2. Serve the IDE (any static server works)
+python3 -m http.server 8765                 # from the repo root
+open http://localhost:8765/web-ide/index.html
 ```
 
-Inside the IDE: **▶ Run** runs the program in the embedded preview pane, **Zip Src** downloads just the `.rr` source, **Bundle** downloads source + compiled web build + native binary as a single `.zip`.
+Inside the IDE:
 
-**Designer features (browser-side, fully self-hosted in `web_ide.rr`):**
+- **Design tab** — visual form designer. Click a tool in the toolbox
+  (Button, Label, Edit, CheckBox, …) to drop it onto a live, real-runtime
+  design surface. The right panel is a tree + editable property grid.
+  Every change regenerates `.rr` source and re-renders the surface, so what
+  you build is byte-identical to what ships.
+- **Code tab** — the regenerated source. Editing here updates the design
+  preview live (debounced). Pick any example from the dropdown to load it
+  into both panes.
+- **▶ Run** — compiles the current source in-browser and runs it in the
+  Preview pane. No server round-trip.
+- **⬇ Build** — compiles + packages a static `.zip` (containing
+  `index.html`, `loader.js`, `rapidrintr.{js,wasm}`, `<project>.rrbc`).
+  Drop it on any HTTP host (GitHub Pages, S3, plain nginx).
+- **＋ New** — start a blank designer project.
 
-- **Visual form designer** — drag/place RBUTTON, RLABEL, REDIT, RMEMO, RCHECKBOX, RRADIOBUTTON, RCOMBOBOX, RLISTBOX, RPANEL, RGROUPBOX, RPROGRESSBAR, RIMAGE, RCANVAS, RSTRINGGRID, RTABCONTROL, RTREEVIEW from a toolbox.
-- **Click-to-edit property grid** — every value cell is `contenteditable`; type and click **Apply Properties**. Includes Caption / Left / Top / Width / Height / **Color / TextColor / FontName / FontSize** for both forms and components.
-- **Color & font pickers** — each colour and font row in the property grid has a `…` button. Click it to open a native HTML5 colour picker (writes back as `RGB(r,g,b)`) or a small font dialog (family list + size + live preview). Selections write to the grid and apply immediately.
-- **Live preview while typing** — every keystroke in the property grid debounces a 300 ms auto-apply, so caption / position / size / colour / font changes redraw the designer canvas in real time.
-- **Events list** — selecting a form shows `OnShow / OnClose / OnClick / OnResize`; selecting a component shows the relevant default event for its type. Click **Edit Event Code** to open an inline editor for the event body, then return via Code/Design.
-- **Multiple forms** — New Form / Delete Form / pick the active form from the Forms list.
-- **Instant repeat-Run** — the build server caches by source hash, so re-running an unchanged program serves the previously built WASM in milliseconds.
-- **Busy overlay during compile** — the IDE shows a translucent "Compiling…" overlay while the synchronous build XHR is in flight.
+Files in [`web-ide/`](web-ide/):
+
+| File | Role |
+|------|------|
+| [index.html](web-ide/index.html) | IDE shell — Design / Code tabs and Preview pane |
+| [host.js](web-ide/host.js) | Controller — wasm boot, designer wiring, Run, Build |
+| [designer.js](web-ide/designer.js) | Pure model + `serialize(model) → .rr` source |
+| [preview.html](web-ide/preview.html) | Sandboxed runtime iframe (used for both Preview and the design surface) |
+| [zip.js](web-ide/zip.js) | In-browser STORED PKZIP writer for the Build button |
+| `runtime/` | Symlink to `target/web/` produced by `tools/build_web_artifacts.sh` |
+
+The legacy `examples/web_ide.rr` + `crates/rapidr-buildserver` stack is
+kept in the tree for compatibility but is no longer the recommended path —
+prefer `web-ide/` for any new work.
 
 ---
 
@@ -258,21 +297,24 @@ cd /tmp/hello && cargo build
 
 | Command | Description |
 |---------|-------------|
-| `codegen <file.rr> <outdir>` | Generate a Rust project from a `.rr` file |
-| `build <file.rr> <outdir> [--release]` | Generate, build, and copy binary alongside source |
-| `--release <file.rr>` | Shortcut: compile `.rr`, output binary alongside source |
-| `--web <file.rr>` | Compile to WebAssembly for browser deployment |
+| `codegen <file.rr> [outdir]` | Generate a Rust project from a `.rr` file |
+| `build <file.rr> [outdir] [flags]` | Generate, build, and copy binary alongside source |
+| `build-bc <file.rr> [-o out.rrbc]` | Compile to portable bytecode (no Rust toolchain needed at runtime) |
+| `run-bc <file.rrbc>` | Run a `.rrbc` via the native `Host` |
+| `bundle-bc <file.rr> [-o out.zip]` | Compile + package a static web bundle (HTML + `rapidrintr.{js,wasm}` + `.rrbc`) |
 | `lex <file.rr>` | Dump token stream |
 | `parse <file.rr>` | Dump AST |
 | `preprocess <file.rr>` | Dump preprocessed source |
 | `version` | Print version |
 
-Optional flags for `codegen`:
+Flags for `build` (and the bare `rapidr <file.rr>` shortcut):
 
 | Flag | Description |
 |------|-------------|
-| `--release` | Build in release mode (optimized) |
-| `--debug` | Build in debug mode (default) |
+| `--release` / `-r` | Build in release mode (optimized) |
+| `--debug`   / `-d` | Build in debug mode (default) |
+| `--web`     / `-w` | Target WebAssembly via the Rust codegen + wasm-bindgen pipeline |
+| `--interp`  / `-i` | Target the bytecode interpreter — emits a self-contained native binary (or, with `--web`, a static `.zip`) that has no Rust toolchain dependency at runtime |
 
 ---
 
@@ -287,6 +329,52 @@ The transpilation pipeline mirrors a classic multi-pass compiler:
 | Parsing | `rapidr-parser` | Recursive-descent parser producing an AST; correctly scopes `FOR…NEXT`, `DO…LOOP`, `IF…END IF`, `SELECT CASE`, and `CREATE…END CREATE` blocks |
 | AST Nodes | `rapidr-ast` | Shared AST data structures: program, statement, declaration, expression nodes |
 | Code Generation | `rapidr-codegen-rust` | Walks the AST and emits Rust source code targeting `rapidr-runtime-core` |
+
+### Bytecode Pipeline (`rapidrintr`)
+
+In addition to the Rust-codegen path, RapidR ships a portable **bytecode
+interpreter** (`rapidrintr`). The same source can be compiled to a
+compact `.rrbc` artifact and executed by a stack VM — natively on
+desktop/console *or* in the browser via WebAssembly. No re-compile step
+is needed to ship to the web.
+
+| Stage | Crate | Description |
+|-------|-------|-------------|
+| Bytecode format | `rapidr-bytecode` | `RRBC` magic + ~50 stack opcodes, hand-rolled little-endian (de)serialisation |
+| Bytecode generator | `rapidr-bcgen` | Lowers AST → bytecode (mirrors `rapidr-codegen-rust`) |
+| Stack VM | `rapidr-vm` | `Vm<Host>` interpreter with frames, globals, and a small `Host` trait |
+| Native host | `rapidr-vm-host-native` | `Host` impl backed by `rapidr-runtime-core` (FLTK, sockets, SQLite, FFI) |
+| Web host | `rapidr-vm-host-web` | `Host` impl backed by `rapidr-runtime-web` (DOM, canvas) — `wasm-bindgen` cdylib |
+| In-browser compiler | `rapidr-compiler-wasm` | `wasm-bindgen` wrapper exposing `compile(source) -> Vec<u8>` |
+| Web bundler | `rapidr-webbundle` | Builds a static `.zip` containing `index.html`, `loader.js`, `rapidrintr.{wasm,js}`, `<project>.rrbc` |
+
+CLI entry points:
+
+```sh
+# Unified build — Rust codegen (compiled, fastest):
+rapidr build hello.rr                          # desktop
+rapidr build hello.rr --web                    # WebAssembly via wasm-bindgen
+
+# Same source, bytecode pipeline (single self-contained artifact):
+rapidr build hello.rr --interp                 # one self-contained exe (stub + .rrbc)
+rapidr build hello.rr --web --interp           # static .zip (rapidrintr.wasm + .rrbc)
+
+# Low-level primitives (still available):
+rapidr build-bc  hello.rr -o hello.rrbc        # source -> bytecode
+rapidr run-bc    hello.rrbc                    # run via NativeHost
+rapidr bundle-bc hello.rr -o hello-web.zip     # source -> hostable web bundle
+```
+
+When `--interp` is set on `build`, the CLI generates a `.rrbc` and
+appends it to a pre-built `rapidrintr-runner` stub binary (footer:
+`[rrbc bytes][magic "RRBCEXE1"][u32 length]`). The runner reads its own
+appended payload at startup via `current_exe()` and runs it with
+`rapidr-vm-host-native`. The compiled and interpreted modes are
+end-to-end equivalent for every console example in the test matrix
+(`tests/full_matrix.sh`).
+
+The bundle is fully static: unzip and serve from any HTTP host
+(GitHub Pages, S3, plain nginx, `python3 -m http.server`).
 
 ---
 
@@ -730,16 +818,50 @@ img.loadfromplot plt    ' Renders to PNG bytes in memory, loads directly into FL
 
 ## Web Compilation (WASM)
 
-RapidR can compile `.rr` programs to **WebAssembly** for deployment in any modern browser. The same BASIC source code that runs natively via FLTK can be compiled to WASM with a single flag — GUI components are rendered as HTML elements via the DOM.
+RapidR can compile `.rr` programs to **WebAssembly** for deployment in any
+modern browser. Two pipelines are supported and both produce ordinary
+static sites that work on any HTTP host:
 
-### How It Works
+1. **Bytecode + interpreter (recommended)** — `rapidr bundle-bc file.rr`
+   produces a `.zip` containing `index.html`, the combined
+   `rapidrintr.{js,wasm}` (~830 KB, holds **both** compiler and
+   runtime), and a tiny `<project>.rrbc`. No Rust toolchain or
+   `wasm-bindgen` install is needed at build time beyond the prebuilt
+   wasm. This is what the self-hosted [Web IDE](#self-hosted-web-ide--web-ide)
+   uses.
+2. **Rust codegen → wasm-bindgen** — `rapidr build file.rr --web` runs
+   the same Rust codegen used for native binaries, but against
+   `rapidr-runtime-web` and the `wasm32-unknown-unknown` target. Produces
+   `index.html`, project-named `.js` bindings, and a per-program
+   `_bg.wasm`. Slightly smaller per-app payloads, but every program
+   ships its own wasm.
 
-The `--web` flag activates the web compilation pipeline:
+### How the bytecode pipeline works
 
-1. **Code generation** — The codegen emits Rust code targeting `rapidr-runtime-web` instead of `rapidr-runtime-core`
-2. **Rust → WASM** — The generated project is compiled with `cargo build --target wasm32-unknown-unknown`
-3. **wasm-bindgen** — Post-processes the `.wasm` file to generate JavaScript glue code
-4. **Output** — A ready-to-serve directory with `index.html`, `.js` bindings, and `_bg.wasm`
+| Step | Crate | Output |
+|------|-------|--------|
+| Source → AST | `rapidr-parser` | typed AST |
+| AST → bytecode | `rapidr-bcgen` | `.rrbc` (`RRBC` magic + ~50 stack opcodes) |
+| Bytecode → exec | `rapidr-vm` | runs against a `Host` impl |
+| Web `Host` | `rapidr-vm-host-web` | wasm cdylib exposing `compile()` and `rapidr_run_bc()` |
+| Static bundle | `rapidr-webbundle` | `index.html`, `loader.js`, `rapidrintr.{js,wasm}`, `<name>.rrbc` |
+
+### How the Rust-codegen pipeline works
+
+The `--web` flag activates the codegen path:
+
+1. **Code generation** — emits Rust targeting `rapidr-runtime-web` instead of `rapidr-runtime-core`
+2. **Rust → WASM** — `cargo build --target wasm32-unknown-unknown`
+3. **wasm-bindgen** — generates JS glue
+4. **Output** — a static directory with `index.html`, `.js`, `_bg.wasm`
+
+### Asset Preloading & Embedding
+
+Since browser execution is sandboxed, traditional synchronous file system reads (e.g. loading a CSV via `RDataFrame.loadfromcsv` or connecting to a database via `RSQLite.connect`) cannot wait for asynchronous JavaScript fetches. 
+
+To solve this, both compile pipelines (`rapidr build --web` and `rapidr bundle-bc`) automatically gather files from the source file's directory matching asset extensions (`.csv`, `.db`, `.sqlite`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.txt`, `.wav`, `.mp3`), base64-encode them, and embed them inside `index.html` within the `window.__rapidr_assets` global object. 
+
+At runtime, operations like `loadfromcsv` or SQLite connection query `window.__rapidr_assets` and decode the data synchronously, guaranteeing full file I/O parity with native desktop environments.
 
 ### Web Form Window Management
 
@@ -765,19 +887,31 @@ cargo install wasm-bindgen-cli
 
 ### Usage
 
-```bash
-# Compile for web
-cargo run -- codegen --web examples/hello_web.rr
+Bytecode + interpreter (recommended — single static `.zip`):
 
-# Output is in examples/hello_web_web/
+```bash
+# 1. Build the combined wasm once
+bash tools/build_web_artifacts.sh
+
+# 2. Compile + bundle
+./rapidr bundle-bc examples/hello_web.rr -o /tmp/hello-web.zip
+
+# 3. Unzip and serve
+unzip /tmp/hello-web.zip -d /tmp/hello_web && cd /tmp/hello_web
+python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+Rust codegen (per-program wasm):
+
+```bash
+./rapidr build --web examples/hello_web.rr
 ls examples/hello_web_web/
 # index.html  hello_web.js  hello_web_bg.wasm
-
-# Serve locally
-cd examples/hello_web_web
-python3 -m http.server 8080
-# Open http://localhost:8080 in your browser
+cd examples/hello_web_web && python3 -m http.server 8080
 ```
+
+Or just open the [Web IDE](#self-hosted-web-ide--web-ide) and click **⬇ Build**.
 
 You can also use `$APPTYPE WEB` in your source to indicate a web application:
 
@@ -864,14 +998,16 @@ Six example programs demonstrate web compilation:
 | `web_dashboard.rr` | RForm, RTimer, RTabControl, RStringGrid, RComboBox, RProgressBar, RLabel | Dashboard with live clock, tabs, and data grid |
 | `web_datascience.rr` | RForm, RTabControl, RStringGrid, RNum, RDataFrame, RPlot, RSQLite | Data science demo with RNum math, DataFrame CRUD, line/bar/pie charts, and in-memory SQL |
 
-Compile and test any of them:
-```bash
-# Compile
-cargo run -- codegen --web examples/web_calculator.rr
+Compile and test any of them — either via the bytecode bundler or the Rust-codegen path:
 
-# Serve
-cd examples/web_calculator_web
-python3 -m http.server 8080
+```bash
+# Bytecode (single combined wasm + .rrbc, recommended)
+./rapidr bundle-bc examples/web_calculator.rr -o /tmp/calc.zip
+unzip -o /tmp/calc.zip -d /tmp/calc && (cd /tmp/calc && python3 -m http.server 8080)
+
+# OR: Rust codegen (per-program wasm)
+./rapidr build --web examples/web_calculator.rr
+cd examples/web_calculator_web && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
@@ -893,10 +1029,78 @@ The project ships with its own experimental and WIP **Visual Form Designer & Cod
 - **Global state management**: Module-level variables (SelIndex, ShowingCode, event arrays) are properly shared across all callbacks via thread-local storage.
 
 ```bash
-cargo run -- codegen examples/ide.rr /tmp/ide_rust
-cd /tmp/ide_rust && cargo build && ./target/debug/ide
+./rapidr build --release examples/ide.rr examples/ide_rust
+./examples/ide
 ```
 **Important:** The IDE is a work in progress and has lots of quirks, but it demonstrates the full capabilities of the RapidR runtime. For Code Editor syntax highlighting and IntelliSense, I recommend using the VS Code extension described below.
+
+### Self-Hosted Web IDE — `web-ide/` (v1.0.0)
+
+In addition to the native FLTK IDE above, RapidR ships a **fully self-contained
+browser IDE** under [`web-ide/`](web-ide/). It is **not** a `.rr` program — it
+is plain HTML/JS that drives the same combined wasm module
+(`rapidrintr.wasm`) used to ship `bundle-bc` apps. That module exposes
+**both** the compiler and the bytecode interpreter, so the entire
+edit → compile → run → export loop happens in the visitor's browser, with
+no build server and no network calls.
+
+**Highlights (1.0):**
+
+- **VB6-style multi-form designer.** Each form is its own design / code
+  pair of MDI tabs; switch with the project tree. Designer, code, and
+  preview always stay in sync — every property edit re-emits source and
+  re-renders the active form.
+- **22-component toolbox**, organised into three groups in the sidebar
+  and split between *visible* (drop on the form) and *non-visual* (drop
+  into the design tray below the form):
+
+  | Group | Components |
+  |-------|------------|
+  | Common Controls | `RButton` `RLabel` `REdit` `RCheckBox` `RRadioBtn` `RComboBox` `RListBox` `RImage` `RPanel` `RGroupBox` `RProgressBar` `RTrackBar` |
+  | Data & Web | `RDataFrame` `RPlot` (visible) · `RNum` `RJson` `RStringList` (tray) |
+  | I/O & Storage | `RTimer` `RSqlite` `RFileStream` `RHttp` `RWebStorage` |
+
+- **Property grid** with type-aware editors: enum dropdowns, asset
+  pickers, **live color picker** with realtime preview + `OK` confirm,
+  **font picker** dialog (family / size / weight / style), booleans,
+  numbers, multi-line strings.
+- **Asset pipeline.** *File → Upload Asset…* attaches images / CSVs /
+  JSON to the project. Asset properties (`picture`, `dataset`, `csvfile`,
+  `imageurl`, …) get a dropdown of project assets plus a `+` shortcut.
+  Assets are serialized into the `.rrproj` JSON and packed into the
+  built bundle under `assets/<name>` (STORED — no recompression of
+  PNG / JPEG).
+- **Run & Build.**
+  - **▶ Run** compiles current source via `compile()` in wasm and runs
+    the resulting `.rrbc` in the Preview iframe via `rapidr_run_bc()`.
+  - **⬇ Build** writes a STORED PKZIP in-browser containing
+    `index.html`, `loader.js`, `rapidrintr.{js,wasm}`,
+    `<project>.rrbc`, optional `assets/…`, and a `manifest.json`
+    carrying the IDE version + build timestamp.
+  - Bundled `index.html` ships a strict
+    `Content-Security-Policy` meta tag (`default-src 'self'`,
+    `frame-src 'none'`, `object-src 'none'`,
+    `script-src 'self' 'wasm-unsafe-eval'`) — drop on any HTTP host.
+- **Examples dropdown** — load any of the 14+ shipped web examples
+  (`hello_web`, `web_calculator`, `web_dashboard`, `demo_sqlite`,
+  `demo_plot`, `demo_chat_client`, …) into both panes for inspection
+  or editing.
+- **About / License / View Source** dialogs, version surfaced in the
+  status bar (`v1.0.0`) and `<title>`, third-party attributions in
+  [`LICENSES.md`](LICENSES.md).
+- **Security.** All user-controlled strings interpolated into IDE DOM
+  (form names, module names, widget names) are escaped. No `eval()` /
+  `new Function()` outside vendored Monaco + wasm-bindgen glue. The
+  preview iframe is sandboxed.
+
+**Run it:**
+
+```bash
+./build.sh --release                       # native CLI
+bash tools/build_web_artifacts.sh          # → target/web/rapidrintr.{js,wasm}
+python3 -m http.server 8765                # any static server works
+open http://localhost:8765/web-ide/index.html
+```
 
 ---
 
@@ -966,8 +1170,8 @@ Three demo applications showcase the data science components with full GUI integ
 
 Run any of them:
 ```bash
-cargo run -- codegen examples/demo_num.rr /tmp/demo_num
-cd /tmp/demo_num && cargo build && ./target/debug/demo_num
+./rapidr build --release examples/demo_num.rr
+./examples/demo_num
 ```
 
 > **Note:** The RDataFrame demo expects `examples/demo_dataframe_data.csv` (included) for sample employee data.
@@ -987,8 +1191,8 @@ Five web applications demonstrate browser deployment via WASM:
 
 Run any of them:
 ```bash
-cargo run -- codegen --web examples/web_calculator.rr
-cd examples/web_calculator_web && python3 -m http.server 8080
+./rapidr bundle-bc examples/web_calculator.rr -o /tmp/calc.zip
+unzip -o /tmp/calc.zip -d /tmp/calc && (cd /tmp/calc && python3 -m http.server 8080)
 # Open http://localhost:8080
 ```
 
@@ -1110,6 +1314,26 @@ cargo test
 | `rapidr-ast` | 9 | AST node validation |
 | `rapidr-cli` | 31 | CLI commands, example compilation smoke tests |
 
+### End-to-End Matrices
+
+| Test | What it verifies |
+|------|------------------|
+| [tests/full_matrix.sh](tests/full_matrix.sh) | Compiles every example through every back-end (`compile`, `--interp` native, `bundle-bc` web) |
+| [tests/bc_smoke.sh](tests/bc_smoke.sh) | Round-trip: `build-bc` → `run-bc` parity with `compile`+run |
+| [tests/web_smoke.mjs](tests/web_smoke.mjs) | In-browser `compile()` produces byte-identical output to the native CLI |
+| [tests/web_matrix.mjs](tests/web_matrix.mjs) | CLI bundles every browser-runnable example, navigates Chromium to it, asserts no console errors |
+| [tests/web_ide_smoke.mjs](tests/web_ide_smoke.mjs) | The Web IDE boots and Run renders the preview |
+| [tests/web_ide_designer.mjs](tests/web_ide_designer.mjs) | Toolbox + property grid generate valid `.rr` source and the design surface renders |
+| [tests/web_ide_e2e.mjs](tests/web_ide_e2e.mjs) | Full IDE round-trip: load example → Run → Build → unzip → serve → assert bundle renders match the IDE preview |
+
+The browser tests need a static server at the repo root and Chromium via
+Playwright (installed under `tests/node_modules/`):
+
+```bash
+python3 -m http.server 8765 &
+( cd tests && node web_matrix.mjs && node web_ide_e2e.mjs )
+```
+
 ---
 
 ## Development Conventions
@@ -1124,7 +1348,7 @@ cargo test
 ## Credits
 
 - **Roberto Berrospe** ([@iBobX](https://github.com/iBobX)) — Creator, architect, and lead developer
-- **VS Code Copilot with Claude Opus 4.6** — AI pair-programming assistant for feature implementation, testing, and documentation
+- **VS Code Copilot with Claude** — AI pair-programming assistant for feature implementation, testing, and documentation
 
 ---
 

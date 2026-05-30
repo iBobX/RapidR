@@ -1,0 +1,10 @@
+[package]
+name = "rapidr-vm"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "RapidR bytecode interpreter (host-agnostic core)"
+
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-bytecode = { workspace = true }

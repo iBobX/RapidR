@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{self, ExitCode};
 
 use rapidr_codegen_rust::AppTarget;
@@ -25,17 +25,19 @@ fn main() -> ExitCode {
                 if file.ends_with(".rr") || file.ends_with(".rr") {
                     let mut release = true; // default to release
                     let mut web = false;
+                    let mut interp = false;
                     let mut source_path = String::new();
                     for arg in &args {
                         match arg.as_str() {
                             "--release" | "-r" => release = true,
                             "--debug" | "-d" => release = false,
                             "--web" | "-w" => web = true,
+                            "--interp" | "-i" => interp = true,
                             _ if !arg.starts_with('-') => source_path = arg.clone(),
                             _ => {}
                         }
                     }
-                    return build_source_file(&source_path, None, release, web);
+                    return build_source_file(&source_path, None, release, web, interp);
                 }
             }
         }
@@ -61,25 +63,58 @@ fn main() -> ExitCode {
             let mut output_dir = None;
             let mut release = false;
             let mut web = false;
+            let mut interp = false;
             for arg in &rest {
                 match arg.as_str() {
                     "--release" | "-r" => release = true,
                     "--debug" | "-d" => release = false,
                     "--web" | "-w" => web = true,
+                    "--interp" | "-i" => interp = true,
                     _ => output_dir = Some(arg.clone()),
                 }
             }
-            build_source_file(&path, output_dir, release, web)
+            build_source_file(&path, output_dir, release, web, interp)
+        }
+        (Some("build-bc"), Some(path)) => {
+            let mut out: Option<String> = None;
+            let mut iter = rest.iter();
+            while let Some(a) = iter.next() {
+                match a.as_str() {
+                    "-o" | "--output" => { out = iter.next().cloned(); }
+                    _ => {}
+                }
+            }
+            build_bytecode_file(&path, out)
+        }
+        (Some("run-bc"), Some(path)) => run_bytecode_file(&path),
+        (Some("bundle-bc"), Some(path)) => {
+            let mut out: Option<String> = None;
+            let mut wasm: Option<String> = None;
+            let mut js: Option<String> = None;
+            let mut iter = rest.iter();
+            while let Some(a) = iter.next() {
+                match a.as_str() {
+                    "-o" | "--output" => { out = iter.next().cloned(); }
+                    "--wasm" => { wasm = iter.next().cloned(); }
+                    "--js" => { js = iter.next().cloned(); }
+                    _ => {}
+                }
+            }
+            bundle_bc_file(&path, out, wasm, js)
         }
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
-            eprintln!("  rapidr [--release|--debug] [--web] <file.rr>     Build source file");
+            eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
-            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w]");
+            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i]");
+            eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
+            eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
+            eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
+            eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
         }
     }
@@ -225,12 +260,31 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
 }
 
 /// Generate Rust source and then run `cargo build` on it.
-fn build_source_file(path: &str, output_dir: Option<String>, release: bool, web: bool) -> ExitCode {
+///
+/// `interp = true` switches the desktop path to **bytecode + stub
+/// runner** (single self-contained exe) and the `--web` path to a
+/// `bundle-bc`-style static zip.
+fn build_source_file(
+    path: &str,
+    output_dir: Option<String>,
+    release: bool,
+    web: bool,
+    interp: bool,
+) -> ExitCode {
     // Detect web target from $APPTYPE or --web flag
     let app_type = preprocess_file(path, PreprocessOptions::default())
         .ok()
         .and_then(|r| r.app_type);
     let is_web = web || app_type.as_deref() == Some("WEB");
+
+    if interp {
+        // Bytecode pipeline: skip Rust codegen entirely.
+        return if is_web {
+            build_interp_web(path, output_dir)
+        } else {
+            build_interp_desktop(path, output_dir, release)
+        };
+    }
 
     let result = codegen_source_file_inner(path, output_dir.clone(), is_web);
     if result != ExitCode::SUCCESS {
@@ -274,7 +328,11 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
         Ok(s) if s.success() => {
             // Copy the built binary to the same directory as the .rr source
             let binary_name = stem;
-            let built_binary = out_dir.join("target").join(profile).join(binary_name);
+            let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
+                Some(p) => PathBuf::from(p),
+                None => out_dir.join("target"),
+            };
+            let built_binary = target_root.join(profile).join(binary_name);
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
             let dest_binary = dest_dir.join(binary_name);
 
@@ -334,8 +392,11 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     }
 
     // Step 2: Run wasm-bindgen to generate JS glue
-    let wasm_file = out_dir
-        .join("target")
+    let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
+        Some(p) => PathBuf::from(p),
+        None => out_dir.join("target"),
+    };
+    let wasm_file = target_root
         .join("wasm32-unknown-unknown")
         .join(profile)
         .join(format!("{}.wasm", stem.replace('-', "_")));
@@ -374,7 +435,14 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
 
     // Step 3: Generate index.html
     let wasm_module = stem.replace('-', "_");
-    let html = generate_html_shell(stem, &wasm_module);
+    let assets = collect_assets(source_path);
+    if !assets.is_empty() {
+        println!("Embedding {} asset(s) in index.html...", assets.len());
+        for name in assets.keys() {
+            println!("  - {}", name);
+        }
+    }
+    let html = generate_html_shell(stem, &wasm_module, &assets);
     if let Err(e) = fs::write(web_out.join("index.html"), &html) {
         eprintln!("Cannot write index.html: {e}");
         return ExitCode::from(1);
@@ -389,7 +457,18 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     ExitCode::SUCCESS
 }
 
-fn generate_html_shell(title: &str, wasm_module: &str) -> String {
+fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections::HashMap<String, String>) -> String {
+    let css = rapidr_rrcss::RR_BASE_CSS;
+    let mut assets_script = String::new();
+    if !assets.is_empty() {
+        assets_script.push_str("  <script>\n    window.__rapidr_assets = {\n");
+        for (name, base64) in assets {
+            let escaped_name = name.replace('"', "\\\"");
+            assets_script.push_str(&format!("      \"{}\": \"{}\",\n", escaped_name, base64));
+            assets_script.push_str(&format!("      \"assets/{}\": \"{}\",\n", escaped_name, base64));
+        }
+        assets_script.push_str("    };\n  </script>\n");
+    }
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -397,39 +476,8 @@ fn generate_html_shell(title: &str, wasm_module: &str) -> String {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
-  <style>
-    * {{ box-sizing: border-box; }}
-    body {{ margin: 0; padding: 0; background: #e8e8e8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; overflow: auto; }}
-    .rr-form {{ position: absolute; background: #f0f0f0; border: 1px solid #888; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); overflow: hidden; }}
-    .rr-form-titlebar {{ background: linear-gradient(135deg, #4a90d9, #357abd); color: white; padding: 7px 12px; font-weight: 600; font-size: 13px; user-select: none; cursor: default; letter-spacing: 0.3px; }}
-    .rr-widget {{ position: absolute; box-sizing: border-box; }}
-    button.rr-widget {{ background: linear-gradient(to bottom, #4a90d9, #3a7bc8); color: white; border: 1px solid #2d6db5; border-radius: 4px; padding: 4px 14px; font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.15s; }}
-    button.rr-widget:hover {{ background: linear-gradient(to bottom, #5a9ee9, #4a8bd8); }}
-    button.rr-widget:active {{ background: linear-gradient(to bottom, #2d6db5, #3a7bc8); }}
-    input[type="text"].rr-widget, input[type="password"].rr-widget {{ border: 1px solid #aaa; border-radius: 3px; padding: 4px 8px; font-size: 13px; font-family: inherit; outline: none; background: white; }}
-    input[type="text"].rr-widget:focus, input[type="password"].rr-widget:focus {{ border-color: #4a90d9; box-shadow: 0 0 3px rgba(74,144,217,0.4); }}
-    textarea.rr-widget {{ border: 1px solid #aaa; border-radius: 3px; padding: 6px 8px; font-size: 13px; font-family: inherit; outline: none; resize: none; background: white; }}
-    textarea.rr-widget:focus {{ border-color: #4a90d9; box-shadow: 0 0 3px rgba(74,144,217,0.4); }}
-    select.rr-widget {{ border: 1px solid #aaa; border-radius: 3px; padding: 4px 8px; font-size: 13px; font-family: inherit; background: white; cursor: pointer; }}
-    progress.rr-widget {{ border: none; border-radius: 3px; height: 22px; appearance: none; -webkit-appearance: none; }}
-    progress.rr-widget::-webkit-progress-bar {{ background: #ddd; border-radius: 3px; }}
-    progress.rr-widget::-webkit-progress-value {{ background: linear-gradient(to right, #4caf50, #45a049); border-radius: 3px; }}
-    table.rr-grid {{ border-collapse: collapse; width: 100%; font-size: 13px; }}
-    table.rr-grid th, table.rr-grid td {{ border: 1px solid #ccc; padding: 5px 10px; text-align: left; }}
-    table.rr-grid th {{ background: #e0e0e0; font-weight: 600; position: sticky; top: 0; }}
-    table.rr-grid tr:nth-child(even) {{ background: #f8f8f8; }}
-    table.rr-grid tr:hover {{ background: #e8f0fe; }}
-    .rr-tab-btn {{ padding: 6px 16px; cursor: pointer; border: none; background: transparent; font-size: 13px; font-family: inherit; border-bottom: 2px solid transparent; color: #555; transition: all 0.15s; }}
-    .rr-tab-btn:hover {{ color: #333; background: #e8e8e8; }}
-    .rr-tab-btn.active {{ color: #4a90d9; border-bottom-color: #4a90d9; font-weight: 600; }}
-    canvas.rr-widget {{ border: 1px solid #aaa; background: white; cursor: crosshair; }}
-    label.rr-widget {{ font-size: 13px; display: flex; align-items: center; gap: 4px; cursor: pointer; }}
-    fieldset.rr-widget {{ border: 1px solid #aaa; border-radius: 4px; padding: 8px; }}
-    fieldset.rr-widget legend {{ font-size: 13px; padding: 0 4px; }}
-    .rr-plot-container {{ border: 1px solid #aaa; border-radius: 3px; background: white; overflow: hidden; }}
-    #rr-console {{ position: fixed; bottom: 0; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; padding: 8px; display: none; z-index: 10000; border-top: 2px solid #333; }}
-  </style>
-</head>
+  <style>{css}</style>
+{assets_script}</head>
 <body>
   <div id="rr-root"></div>
   <pre id="rr-console"></pre>
@@ -466,5 +514,361 @@ fn find_workspace_root() -> Option<std::path::PathBuf> {
             }
         }
         dir = dir.parent()?;
+    }
+}
+
+// ---------------- Bytecode (rapidrintr) ----------------
+
+fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {
+    let program = match parser_parse_file(path) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+    let compiled = match rapidr_bcgen::compile_program(&program) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+    };
+    for w in &compiled.warnings {
+        eprintln!("warning: {w}");
+    }
+    let bytes = compiled.module.to_bytes();
+    let out_path = output.unwrap_or_else(|| {
+        let p = Path::new(path);
+        let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("program");
+        format!("{stem}.rrbc")
+    });
+    if let Err(e) = fs::write(&out_path, &bytes) {
+        eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
+    }
+    println!("wrote {} ({} bytes, {} fns, {} consts)",
+        out_path, bytes.len(),
+        compiled.module.functions.len(),
+        compiled.module.consts.len());
+    ExitCode::SUCCESS
+}
+
+fn run_bytecode_file(path: &str) -> ExitCode {
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("read {path}: {e}"); return ExitCode::from(1); }
+    };
+    // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
+    // indirect event dispatcher *before* `MAIN` runs — required for any
+    // program that calls `Form.ShowModal` from MAIN (the modal blocks
+    // in FLTK's own `app::wait()` loop, so events fire while we are
+    // still inside `vm.run`).
+    if let Err(e) = rapidr_vm_host_native::run_bytes(&bytes) {
+        eprintln!("{e}");
+        return ExitCode::from(1);
+    }
+    ExitCode::SUCCESS
+}
+
+/// `bundle-bc <file.rr> [-o out.zip] [--wasm rapidrintr.wasm] [--js rapidrintr.js]`
+///
+/// Compiles the source to bytecode, then assembles a static-hostable
+/// web bundle (zip) containing index.html, loader.js, the bytecode
+/// interpreter wasm + js, and the program's `.rrbc`. The `.wasm` and
+/// `.js` paths default to looking next to the rapidr binary or under
+/// `target/web/` (see [`locate_rapidrintr_artifacts`]).
+fn bundle_bc_file(
+    path: &str,
+    output: Option<String>,
+    wasm_path: Option<String>,
+    js_path: Option<String>,
+) -> ExitCode {
+    // 1. Compile source to bytecode.
+    let program = match parser_parse_file(path) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+    let compiled = match rapidr_bcgen::compile_program(&program) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+    };
+    for w in &compiled.warnings { eprintln!("warning: {w}"); }
+    let rrbc = compiled.module.to_bytes();
+
+    let stem = Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("program")
+        .to_string();
+
+    // 2. Locate rapidrintr.wasm + rapidrintr.js (user-supplied or defaults).
+    let (wasm_p, js_p) = match (wasm_path, js_path) {
+        (Some(w), Some(j)) => (PathBuf::from(w), PathBuf::from(j)),
+        (w_opt, j_opt) => match locate_rapidrintr_artifacts() {
+            Some((w, j)) => (
+                w_opt.map(PathBuf::from).unwrap_or(w),
+                j_opt.map(PathBuf::from).unwrap_or(j),
+            ),
+            None => {
+                eprintln!(
+                    "error: could not locate rapidrintr.wasm + rapidrintr.js\n\
+                     hint: build with `wasm-pack build interpreter/rapidr-vm-host-web --target web --out-dir ../../target/web`\n\
+                     or pass --wasm <path> --js <path>",
+                );
+                return ExitCode::from(1);
+            }
+        },
+    };
+    let wasm_bytes = match fs::read(&wasm_p) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("read {}: {e}", wasm_p.display()); return ExitCode::from(1); }
+    };
+    let js_text = match fs::read_to_string(&js_p) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("read {}: {e}", js_p.display()); return ExitCode::from(1); }
+    };
+
+    // 3. Build the bundle.
+    let assets = collect_assets(Path::new(path));
+    if !assets.is_empty() {
+        println!("Embedding {} asset(s) in web bundle...", assets.len());
+        for name in assets.keys() {
+            println!("  - {}", name);
+        }
+    }
+    let bundle = match rapidr_webbundle::build_bundle(&rapidr_webbundle::BundleInputs {
+        project_name: &stem,
+        rrbc: &rrbc,
+        rapidrintr_wasm: &wasm_bytes,
+        rapidrintr_js: &js_text,
+        title: None,
+        assets: Some(&assets),
+    }) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
+    };
+
+    // 4. Write to disk.
+    let out_path = output.unwrap_or_else(|| format!("{stem}-web.zip"));
+    if let Err(e) = fs::write(&out_path, &bundle) {
+        eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
+    }
+    println!(
+        "wrote {} ({} bytes) — unzip and serve via any static host",
+        out_path,
+        bundle.len(),
+    );
+    ExitCode::SUCCESS
+}
+
+/// Default lookup for the rapidrintr wasm/js artifacts produced by
+/// `wasm-pack build interpreter/rapidr-vm-host-web --target web`.
+/// Searches a few well-known locations relative to the current dir.
+fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
+    let candidates = [
+        Path::new("target/web"),
+        Path::new("target/web-bundle"),
+        Path::new("interpreter/rapidr-vm-host-web/pkg"),
+        Path::new("pkg"),
+    ];
+    for dir in candidates {
+        let wasm = dir.join("rapidrintr_bg.wasm");
+        let wasm_alt = dir.join("rapidr_vm_host_web_bg.wasm");
+        let js = dir.join("rapidrintr.js");
+        let js_alt = dir.join("rapidr_vm_host_web.js");
+        let w = if wasm.exists() { Some(wasm) }
+                else if wasm_alt.exists() { Some(wasm_alt) }
+                else { None };
+        let j = if js.exists() { Some(js) }
+                else if js_alt.exists() { Some(js_alt) }
+                else { None };
+        if let (Some(w), Some(j)) = (w, j) {
+            return Some((w, j));
+        }
+    }
+    None
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8: interpreted-mode build helpers
+// ---------------------------------------------------------------------------
+
+/// `rapidr build <file.rr> --interp` — compile to bytecode, then
+/// produce a single self-contained native executable by appending the
+/// bytecode + 12-byte footer to a copy of `rapidrintr-runner`.
+fn build_interp_desktop(
+    path: &str,
+    output_dir: Option<String>,
+    release: bool,
+) -> ExitCode {
+    // 1. Compile source → bytecode.
+    let program = match parser_parse_file(path) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+    let compiled = match rapidr_bcgen::compile_program(&program) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+    };
+    for w in &compiled.warnings { eprintln!("warning: {w}"); }
+    let rrbc = compiled.module.to_bytes();
+
+    // 2. Locate (or build) the runner stub.
+    let stub = match locate_or_build_stub(release) {
+        Ok(p) => p,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    };
+
+    // 3. Choose destination — same convention as compiled mode: drop
+    //    the binary alongside the source file (or in `output_dir`).
+    let source_path = Path::new(path);
+    let stem = source_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+    let dest_dir = match &output_dir {
+        Some(d) => Path::new(d.as_str()).to_path_buf(),
+        None => source_path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+    };
+    if let Err(e) = fs::create_dir_all(&dest_dir) {
+        eprintln!("create_dir_all {}: {e}", dest_dir.display());
+        return ExitCode::from(1);
+    }
+    let dest = dest_dir.join(stem);
+
+    // 4. Attach payload.
+    if let Err(e) = attach_payload(&stub, &rrbc, &dest) {
+        eprintln!("attach_payload: {e}");
+        return ExitCode::from(1);
+    }
+
+    println!(
+        "Built interpreted binary: {} ({} bytes total, {} bytes payload)",
+        dest.display(),
+        fs::metadata(&dest).map(|m| m.len()).unwrap_or(0),
+        rrbc.len(),
+    );
+    ExitCode::SUCCESS
+}
+
+/// `rapidr build --web --interp <file.rr>` — compile to bytecode and
+/// emit a static web bundle (`<stem>-web.zip`). Delegates to the same
+/// pipeline as `bundle-bc`.
+fn build_interp_web(path: &str, output_dir: Option<String>) -> ExitCode {
+    let stem = Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("program")
+        .to_string();
+    let out_dir = match &output_dir {
+        Some(d) => Path::new(d.as_str()).to_path_buf(),
+        None => Path::new(path).parent().unwrap_or(Path::new(".")).to_path_buf(),
+    };
+    if let Err(e) = fs::create_dir_all(&out_dir) {
+        eprintln!("create_dir_all {}: {e}", out_dir.display());
+        return ExitCode::from(1);
+    }
+    let out_path = out_dir.join(format!("{stem}-web.zip"));
+    bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None)
+}
+
+/// Append `[rrbc bytes][magic 8B "RRBCEXE1"][u32 LE length]` to a copy
+/// of `stub`. The result is a fully self-contained executable that, on
+/// startup, slices off its own payload and runs it via
+/// `rapidr-vm-host-native`.
+fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
+    fs::copy(stub, dest).map_err(|e| format!("copy stub: {e}"))?;
+
+    use std::io::Write;
+    let mut f = std::fs::OpenOptions::new()
+        .append(true)
+        .open(dest)
+        .map_err(|e| format!("open {}: {e}", dest.display()))?;
+    f.write_all(rrbc).map_err(|e| format!("write payload: {e}"))?;
+    f.write_all(b"RRBCEXE1").map_err(|e| format!("write magic: {e}"))?;
+    let len = u32::try_from(rrbc.len())
+        .map_err(|_| "bytecode payload exceeds 4 GiB".to_string())?;
+    f.write_all(&len.to_le_bytes()).map_err(|e| format!("write len: {e}"))?;
+    drop(f);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(dest, fs::Permissions::from_mode(0o755));
+    }
+    Ok(())
+}
+
+/// Locate `rapidrintr-runner`, building it on demand if absent.
+///
+/// Search order: `target/release/`, `target/debug/`, then fall back to
+/// `cargo build -p rapidr-runner-stub --release`.
+fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
+    let exe_name = if cfg!(windows) { "rapidrintr-runner.exe" } else { "rapidrintr-runner" };
+    let preferred = if release { "release" } else { "debug" };
+
+    for profile in [preferred, if preferred == "release" { "debug" } else { "release" }] {
+        let candidate = Path::new("target").join(profile).join(exe_name);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+
+    println!("Building rapidrintr-runner stub ({preferred})...");
+    let mut args = vec!["build", "-p", "rapidr-runner-stub"];
+    if release { args.push("--release"); }
+    let status = process::Command::new("cargo")
+        .args(&args)
+        .status()
+        .map_err(|e| format!("spawn cargo: {e}"))?;
+    if !status.success() {
+        return Err(format!("cargo build rapidr-runner-stub failed: {status}"));
+    }
+    let built = Path::new("target").join(preferred).join(exe_name);
+    if built.exists() {
+        Ok(built)
+    } else {
+        Err(format!("could not locate {} after build", built.display()))
+    }
+}
+
+fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, String> {
+    use base64::Engine;
+    let mut assets = std::collections::HashMap::new();
+    let source_dir = source_path.parent().unwrap_or(Path::new("."));
+    
+    let entries = match fs::read_dir(source_dir) {
+        Ok(e) => e,
+        Err(_) => return assets,
+    };
+
+    let asset_exts = ["csv", "db", "sqlite", "png", "jpg", "jpeg", "gif", "bmp", "txt", "wav", "mp3"];
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                let ext_lower = ext.to_lowercase();
+                if asset_exts.contains(&ext_lower.as_str()) {
+                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                        if let Ok(bytes) = fs::read(&path) {
+                            let mime = mime_type_from_ext(&ext_lower);
+                            let encoded_base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                            let data_url = format!("data:{};base64,{}", mime, encoded_base64);
+                            assets.insert(filename.to_string(), data_url);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assets
+}
+
+fn mime_type_from_ext(ext: &str) -> &'static str {
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "csv" => "text/csv",
+        "txt" => "text/plain",
+        "wav" => "audio/wav",
+        "mp3" => "audio/mpeg",
+        _ => "application/octet-stream",
     }
 }

@@ -1,0 +1,16 @@
+[package]
+name = "rapidr-compiler-wasm"
+version = "1.0.0"
+edition = "2021"
+description = "RapidR source -> .rrbc bytecode compiler exposed as wasm-bindgen"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-preprocessor = { workspace = true }
+rapidr-bcgen = { workspace = true }
+rapidr-bytecode = { workspace = true }
+wasm-bindgen = "0.2"
