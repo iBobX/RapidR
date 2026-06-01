@@ -1,6 +1,6 @@
 [package]
 name = "rapidr-compiler-wasm"
-version = "2.7.0"
+version = "2.8.0"
 edition = "2021"
 description = "RapidR source -> .rrbc bytecode compiler exposed as wasm-bindgen"
 

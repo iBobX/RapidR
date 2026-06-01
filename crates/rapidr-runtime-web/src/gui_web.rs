@@ -2981,7 +2981,13 @@ fn setup_form_drag(titlebar: &web_sys::HtmlElement, form_id: &str) {
             let _ = doc.remove_event_listener_with_callback("mousemove", move_ref.unchecked_ref());
             drop(move_cb); // prevent leak
         });
-        let _ = doc.add_event_listener_with_callback("mouseup", up_cb.as_ref().unchecked_ref());
+        let options = web_sys::AddEventListenerOptions::new();
+        options.set_once(true);
+        let _ = doc.add_event_listener_with_callback_and_add_event_listener_options(
+            "mouseup",
+            up_cb.as_ref().unchecked_ref(),
+            &options,
+        );
         up_cb.forget();
     });
     let _ = titlebar.add_event_listener_with_callback("mousedown", cb.as_ref().unchecked_ref());

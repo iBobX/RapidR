@@ -1445,11 +1445,22 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
   - **Build cache** — `rapidr-buildserver` keeps an in-memory map of `sha256(source) → build_id`, so re-running an unchanged program serves the cached WASM in milliseconds instead of recompiling.
   - **Busy overlay** — the IDE shows a translucent "Compiling…" overlay during the synchronous build XHR so users get visual feedback that the click registered.
 
-- **VS Code extension v2.7.0** (`utilities/vscodeext/rapidr/`):
+- **VS Code extension v2.8.0** (`utilities/vscodeext/rapidr/`):
   - `RCANVAS.SetFont(family [, size])` is now in the component registry — completion, hover docs, and signature help include it.
   - `RColorDialog` and `RFontDialog` now ship with descriptions and `Execute()` signature help. Two new snippets — `createcolordialog` and `createfontdialog` — scaffold the full `CREATE … END CREATE` + `IF Dlg.Execute() THEN …` pattern.
   - New `canvassetfont` snippet pairs `Canvas.SetFont` with a `Canvas.DrawText` call.
-  - Build with `./build_vsc_extension.sh package` (or `install` to also load it into VS Code). The script writes `rapidr-2.7.0.vsix` to the repo root.
+  - Build with `./build_vsc_extension.sh package` (or `install` to also load it into VS Code). The script writes `rapidr-2.8.0.vsix` to the repo root.
+
+- **Web IDE Visual Widget Outline & Name Sanitization (v2.8.0)**:
+  - **Visual Hierarchical Widget Outline**: In the Project Explorer tree sidebar, child widgets are listed nested hierarchically under their respective Forms with type-specific icons (e.g. `🔘` for `RButton`, `📝` for `REdit`, etc.). Supports:
+    - Single-click selection syncing with both the designer canvas and the properties panel.
+    - Double-click handlers: switching the view to Monaco and automatically inserting or focusing the default event handler stub (e.g., `SUB Button1_Click`).
+  - **Premium Assets Explorer**: Replaced the basic tiny asset modal with a two-column Finder-style panel:
+    - Search filter and category tags (Images, Audio, Video, CSV Data, Text).
+    - Rich type-specific previews: Image dark-grid transparency checkers, HTML5 video/audio players, parsed CSV grid parser displaying the first 20 rows, and JSON/script formatting.
+    - Selector mode canvas updates: selecting an asset instantly reflects on the active component in the designer canvas, reverting to original value on cancel.
+    - Project-wide search-and-replace reference synchronization when an asset is renamed.
+  - **Identifier Validator & Sanitizer**: Standardized identifier verification on module creation and form renaming. Suggests sanitized snake_case name via interactive confirm dialogue if space or invalid characters are used (e.g. `"Test Module 2"` -> `"Test_Module_2"`), keeping user flow unblocked.
 
 ---
 

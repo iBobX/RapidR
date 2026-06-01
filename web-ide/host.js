@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.7.0";
+export const RAPIDR_IDE_VERSION = "2.8.0";
 
 const _editors = new Map();
 
@@ -311,6 +311,36 @@ function armTool(toolType) {
 
 // ─── Project tree ───────────────────────────────────────────────
 
+function getWidgetIcon(type) {
+  const mapping = {
+    RButton: "▭", RLabel: "A", REdit: "▤", RMemo: "❡", RCheckBox: "☑", RRadioButton: "◉",
+    RComboBox: "▾", RListBox: "≣", RPanel: "▢", RGroupBox: "▣", RImage: "🖼", RCanvas: "🎨",
+    RProgressBar: "⎯", RTrackBar: "⊟", RScrollBar: "║", RUpDown: "↕", RDateTimePicker: "📅",
+    RStringGrid: "▦", RListView: "☷", RTreeView: "⊟", RTabControl: "▤", RScrollBox: "▥",
+    RSplitter: "║", RCodeEditor: "≡", RRichEdit: "📝", RCoolBtn: "▭", ROvalBtn: "○", RLine: "—",
+    RDataFrame: "▦", RPlot: "📈", RNum: "ƒ", RJson: "{}", RStringList: "≡", RSqlite: "⛁",
+    RMySql: "⛃", RHttp: "🌐", RSocket: "⇄", RServerSocket: "⇆", RTimer: "⏱", RFileStream: "▤",
+    RIni: "⚙", RMemoryStream: "▦", RPrinter: "🖨", ROpenDialog: "📂", RSaveDialog: "💾",
+    RColorDialog: "🎨", RFontDialog: "F", RPopupMenu: "⋮", RMainMenu: "≡", RStatusBar: "▬",
+    RWebView: "🌍", RDOM: "&lt;&gt;", RWebVideo: "🎬", RWebAudio: "♫", RWebStorage: "💾",
+    RWebNotification: "🔔", RWebGeolocation: "📍", RRouter: "↗", RJavaScript: "JS", RToolBar: "▥"
+  };
+  return mapping[type] || "🧩";
+}
+
+function sanitizeIdentifier(name) {
+  let s = name.trim();
+  s = s.replace(/[\s\-]+/g, "_");
+  s = s.replace(/[^A-Za-z0-9_]/g, "");
+  if (/^[0-9]/.test(s)) {
+    s = "_" + s;
+  }
+  if (!/^[A-Za-z_]/.test(s)) {
+    return "";
+  }
+  return s;
+}
+
 function renderProjectTree() {
   const tree = $("#proj-tree");
   tree.innerHTML = "";
@@ -324,7 +354,9 @@ function renderProjectTree() {
 
   for (const f of state.project.forms) {
     const it = document.createElement("div");
-    it.className = "tree-item" + (f.id === state.activeFormId ? " active" : "");
+    // Form node is active only if f is active AND no widget is selected
+    const hasWidgetSelected = f.id === state.activeFormId && state.selection.length > 0;
+    it.className = "tree-item" + (f.id === state.activeFormId && !hasWidgetSelected ? " active" : "");
     it.innerHTML = `<span class="ico">▭</span><span class="tree-label">${escapeHtml(f.name)}</span><span class="tree-row-actions"><button class="tree-btn" title="Rename" data-act="rename">✎</button><button class="tree-btn" title="Remove" data-act="remove">×</button></span>`;
     it.addEventListener("click", (e) => {
       const act = e.target.closest("[data-act]")?.dataset?.act;
@@ -334,6 +366,37 @@ function renderProjectTree() {
     });
     it.addEventListener("dblclick", () => { switchToForm(f.id); switchView("code"); });
     tree.appendChild(it);
+
+    // Render nested child widgets
+    const children = f.children || [];
+    for (const w of children) {
+      const wIt = document.createElement("div");
+      const isWidgetSelected = f.id === state.activeFormId && state.selection.includes(w.name);
+      wIt.className = "tree-item tree-sub-item" + (isWidgetSelected ? " active" : "");
+      wIt.innerHTML = `<span class="ico">${getWidgetIcon(w.type)}</span><span class="tree-label">${escapeHtml(w.name)}</span>`;
+      
+      wIt.addEventListener("click", (e) => {
+        if (state.activeFormId !== f.id) {
+          switchToForm(f.id);
+        }
+        state.selection = [w.name];
+        renderActiveDesigner();
+        renderProperties();
+      });
+
+      wIt.addEventListener("dblclick", () => {
+        if (state.activeFormId !== f.id) {
+          switchToForm(f.id);
+        }
+        onDesignerDoubleClick({
+          target: {
+            closest: (sel) => sel === ".dwidget" ? { dataset: { name: w.name } } : null
+          }
+        });
+      });
+
+      tree.appendChild(wIt);
+    }
   }
 
   // Modules group
@@ -368,9 +431,37 @@ function renameForm(formId) {
   if (!f) return;
   promptDialog("Rename form", "Form name:", f.name, (nm) => {
     if (!nm) return;
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(nm)) { showDialog("Rename form", "<p>Invalid identifier.</p>", [{label:"OK",primary:true}]); return; }
-    if (state.project.forms.some(x => x !== f && x.name === nm)) { showDialog("Rename form", "<p>Name already in use.</p>", [{label:"OK",primary:true}]); return; }
-    _doRenameForm(f, nm);
+
+    const proceedWithRename = (targetNm) => {
+      if (state.project.forms.some(x => x !== f && x.name === targetNm)) {
+        showDialog("Rename form", "<p>Name already in use.</p>", [{label:"OK",primary:true}]);
+        return;
+      }
+      _doRenameForm(f, targetNm);
+    };
+
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(nm)) {
+      proceedWithRename(nm);
+    } else {
+      const sanitized = sanitizeIdentifier(nm);
+      if (sanitized && sanitized !== nm) {
+        showDialog(
+          "Rename form",
+          `<p>The name <b>"${escapeHtml(nm)}"</b> is not a valid identifier. Would you like to use <b>"${escapeHtml(sanitized)}"</b> instead?</p>`,
+          [
+            { label: "Cancel" },
+            { label: "Use Sanitized", primary: true, onClick: () => proceedWithRename(sanitized) }
+          ]
+        );
+      } else {
+        showDialog(
+          "Rename form",
+          `<p>Invalid identifier: <b>"${escapeHtml(nm)}"</b>.</p>` +
+          `<p>Identifiers must start with a letter (A-Z, a-z) or underscore (_), followed only by letters, digits (0-9), or underscores. No spaces or special characters are allowed.</p>`,
+          [{ label: "OK", primary: true }]
+        );
+      }
+    }
   });
 }
 
@@ -1624,6 +1715,7 @@ function renderProperties() {
   if (mode === "abc") {
     entries.sort(([a],[b]) => a.localeCompare(b));
     for (const [k, v] of entries) body.appendChild(buildPropRow(form, target, k, v));
+    renderProjectTree();
     return;
   }
 
@@ -1646,6 +1738,7 @@ function renderProperties() {
     groups[cat].sort(([a],[b]) => a.localeCompare(b));
     for (const [k, v] of groups[cat]) body.appendChild(buildPropRow(form, target, k, v));
   }
+  renderProjectTree();
 }
 
 function isContainerWidget(type) {
@@ -1700,15 +1793,36 @@ function getOrCreateModalContainer() {
   return modal;
 }
 
-function closePremiumModal() {
+let currentModalCancelCallback = null;
+
+function closePremiumModal(isConfirmed = false) {
   const modal = document.getElementById("premium-modal");
   if (modal) {
     modal.classList.remove("open");
   }
+  if (!isConfirmed && currentModalCancelCallback) {
+    try {
+      currentModalCancelCallback();
+    } catch (e) {
+      console.error("Error in modal cancel callback", e);
+    }
+  }
+  currentModalCancelCallback = null;
 }
 
-function openPremiumModal(title, bodyHtml, onSetup) {
+function openPremiumModal(title, bodyHtml, onSetup, onCancel) {
   const modal = getOrCreateModalContainer();
+  currentModalCancelCallback = onCancel || null;
+  
+  const content = modal.querySelector(".premium-modal-content");
+  if (content) {
+    if (title.includes("Asset") || title.includes("Explorer") || title.includes("Manager")) {
+      content.classList.add("premium-modal-content-wide");
+    } else {
+      content.classList.remove("premium-modal-content-wide");
+    }
+  }
+
   modal.querySelector("#premium-modal-title").textContent = title;
   const body = modal.querySelector("#premium-modal-body");
   body.innerHTML = bodyHtml;
@@ -1808,49 +1922,15 @@ function openFontModal(initialValue, onSelect) {
 }
 
 function openAssetModal(initialValue, onSelect) {
-  const assets = state.project.assets || [];
-  let assetListHtml = `<div class="premium-asset-grid">`;
-  
-  if (assets.length === 0) {
-    assetListHtml += `<div style="grid-column: 1 / span 3; text-align: center; color: var(--c-text-mute); padding: 30px 0;">No assets uploaded yet.</div>`;
-  } else {
-    for (const a of assets) {
-      const assetUrl = `assets/${a.name}`;
-      const isSel = (assetUrl === initialValue);
-      const isImg = a.mime.startsWith("image/");
-      const styleBg = isImg ? `background-image: url(${JSON.stringify(a.dataUrl)})` : "";
-      const icon = isImg ? "" : "📄";
-      
-      assetListHtml += `
-        <div class="premium-asset-card${isSel ? ' selected' : ''}" data-url="${assetUrl}">
-          <div class="premium-asset-preview" style="${styleBg}">${icon}</div>
-          <div class="premium-asset-name" title="${a.name}">${a.name}</div>
-        </div>
-      `;
+  showAssetManager({
+    isSelector: true,
+    initialValue: initialValue,
+    onSelect: (val) => {
+      onSelect(val);
+    },
+    onCancel: () => {
+      onSelect(initialValue);
     }
-  }
-  assetListHtml += `</div>`;
-  
-  const bodyHtml = `
-    ${assetListHtml}
-    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
-      <button type="button" id="upload-asset-btn" style="padding: 6px 16px; background: var(--c-accent); color: white; border: none; border-radius: 4px; cursor: pointer;">Upload Asset...</button>
-    </div>
-  `;
-  
-  openPremiumModal("Premium Asset Manager", bodyHtml, (body, modal) => {
-    body.querySelectorAll(".premium-asset-card").forEach(card => {
-      card.addEventListener("click", () => {
-        const url = card.dataset.url;
-        onSelect(url);
-        closePremiumModal();
-      });
-    });
-    
-    body.querySelector("#upload-asset-btn").addEventListener("click", () => {
-      closePremiumModal();
-      doAssetUpload();
-    });
   });
 }
 
@@ -2296,7 +2376,7 @@ async function doRun() {
       iframe.contentWindow.postMessage({ __rapidr_run: bc }, "*");
     };
     window.addEventListener("message", onReady);
-    iframe.src = "./preview.html?role=run&v=2.7.0";
+    iframe.src = "./preview.html?role=run&v=2.8.0";
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
@@ -2549,6 +2629,9 @@ function setupFileLoaders() {
     e.target.value = "";   // reset for next upload
     setStatus(`uploaded ${added} asset(s)`, "ok");
     renderProperties();   // refresh asset dropdowns
+    if (typeof window.__refreshAssetsExplorer === "function") {
+      window.__refreshAssetsExplorer();
+    }
   });
 }
 
@@ -2559,52 +2642,424 @@ function doAssetUpload() {
   if (inp) inp.click();
 }
 
-function showAssetManager() {
+function renameAssetReferences(oldName, newName) {
+  const oldUrl = `assets/${oldName}`;
+  const newUrl = `assets/${newName}`;
+  let count = 0;
+  for (const f of state.project.forms) {
+    for (const [k, v] of Object.entries(f.props || {})) {
+      if (v === oldUrl) {
+        f.props[k] = newUrl;
+        count++;
+      }
+    }
+    for (const w of f.children || []) {
+      for (const [k, v] of Object.entries(w.props || {})) {
+        if (v === oldUrl) {
+          w.props[k] = newUrl;
+          count++;
+        }
+      }
+    }
+  }
+  if (count > 0) {
+    setStatus(`Renamed ${count} reference(s) to ${newName}`, "ok");
+  }
+}
+
+function decodeDataUrl(dataUrl) {
+  if (!dataUrl) return "";
+  const comma = dataUrl.indexOf(",");
+  if (comma === -1) return "";
+  const payload = dataUrl.substring(comma + 1);
+  if (dataUrl.includes(";base64,")) {
+    try {
+      return decodeURIComponent(escape(atob(payload)));
+    } catch (e) {
+      try {
+        return atob(payload);
+      } catch (err) {
+        return "";
+      }
+    }
+  } else {
+    return decodeURIComponent(payload);
+  }
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+  if (lines.length === 0) return [];
+  return lines.map(line => {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i+1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  });
+}
+
+function showAssetManager(options) {
+  const isSelector = !!(options && options.isSelector);
+  const initialValue = (options && options.initialValue) || "";
+  const onSelect = (options && options.onSelect) || null;
+  const onCancel = (options && options.onCancel) || null;
+
   const assets = state.project.assets || [];
-  const rows = assets.length
-    ? assets.map((a, i) => {
+  
+  let selectedAssetIndex = -1;
+  if (isSelector && initialValue) {
+    const assetName = initialValue.startsWith("assets/") ? initialValue.substring(7) : initialValue;
+    selectedAssetIndex = assets.findIndex(a => a.name === assetName);
+  }
+  if (selectedAssetIndex === -1 && assets.length > 0) {
+    selectedAssetIndex = 0;
+  }
+
+  const title = isSelector ? "Select Asset" : "Assets Manager";
+  
+  const bodyHtml = `
+    <div class="assets-explorer-layout">
+      <!-- Left Sidebar -->
+      <div class="assets-explorer-sidebar">
+        <div class="assets-sidebar-header">
+          <div class="assets-search-container">
+            <input type="text" id="assets-search-input" placeholder="Search assets..." />
+          </div>
+          <button type="button" id="assets-upload-trigger-btn" class="premium-btn">Upload</button>
+        </div>
+        
+        <div class="assets-type-tabs">
+          <button type="button" class="assets-tab-btn active" data-type="all">All</button>
+          <button type="button" class="assets-tab-btn" data-type="image">Images</button>
+          <button type="button" class="assets-tab-btn" data-type="audio">Audio</button>
+          <button type="button" class="assets-tab-btn" data-type="video">Video</button>
+          <button type="button" class="assets-tab-btn" data-type="data">Data</button>
+          <button type="button" class="assets-tab-btn" data-type="text">Text</button>
+        </div>
+        
+        <div class="assets-explorer-list" id="assets-list-container"></div>
+      </div>
+      
+      <!-- Right Preview Panel -->
+      <div class="assets-explorer-preview-panel" id="assets-preview-container">
+        <div class="assets-preview-placeholder">
+          <div class="placeholder-icon">📂</div>
+          <div>Select an asset to view preview and details</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openPremiumModal(title, bodyHtml, (body, modal) => {
+    let activeSearch = "";
+    let activeTab = "all";
+
+    const renderSidebar = () => {
+      const container = body.querySelector("#assets-list-container");
+      if (!container) return;
+      
+      const filtered = assets.map((a, originalIndex) => ({ a, originalIndex })).filter(({ a }) => {
+        if (activeSearch && !a.name.toLowerCase().includes(activeSearch.toLowerCase())) {
+          return false;
+        }
         const mime = a.mime || "";
-        const isImg = /^image\//i.test(mime);
-        const thumb = isImg
-          ? `<img class="asset-thumb" src="${a.dataUrl}" alt="" />`
-          : `<span class="asset-thumb asset-thumb-icon">${
-              /^text\//i.test(mime) || /\.csv$|\.json$|\.txt$/i.test(a.name) ? "📄"
-              : /^audio\//i.test(mime) ? "🎵"
-              : /^video\//i.test(mime) ? "🎞"
-              : "📦"}</span>`;
-        return `<div class="asset-row" data-i="${i}">
-           ${thumb}
-           <span class="asset-name" title="${escapeHtml(mime)}">${escapeHtml(a.name)}</span>
-           <span class="asset-mime">${escapeHtml(mime || "?")}</span>
-           <span class="asset-size">${humanSize(a.dataUrl)}</span>
-           <button data-act="del" data-i="${i}">Remove</button>
-         </div>`;
-      }).join("")
-    : `<div class="asset-empty">No assets uploaded yet.</div>`;
-  const html =
-    `<div class="asset-list" style="max-height:50vh;overflow:auto">${rows}</div>
-     <div style="margin-top:8px"><button id="asset-add-btn">Upload Asset…</button></div>`;
-  showDialog("Project Assets", html, [
-    { label: "Close", primary: true },
-  ]);
-  // Wire dialog buttons after insert.
-  setTimeout(() => {
-    const ov = document.querySelector(".ide-modal-overlay:last-of-type");
-    if (!ov) return;
-    ov.querySelector("#asset-add-btn")?.addEventListener("click", () => {
-      ov.remove();
-      doAssetUpload();
-    });
-    ov.querySelectorAll('button[data-act="del"]').forEach(b => {
-      b.addEventListener("click", () => {
-        const i = Number(b.dataset.i);
-        state.project.assets.splice(i, 1);
-        ov.remove();
+        const name = a.name || "";
+        if (activeTab === "all") return true;
+        if (activeTab === "image") return mime.startsWith("image/") || /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(name);
+        if (activeTab === "audio") return mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac|m4a)$/i.test(name);
+        if (activeTab === "video") return mime.startsWith("video/") || /\.(mp4|webm|ogv|mov|mkv)$/i.test(name);
+        if (activeTab === "data") return mime === "text/csv" || mime === "application/json" || /\.(csv|json|tsv|db|sqlite)$/i.test(name);
+        if (activeTab === "text") return mime.startsWith("text/") || /\.(txt|md|rr|py|js|html|css)$/i.test(name);
+        return false;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--c-text-mute); padding: 40px 10px;">No assets match current filters.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(({ a, originalIndex }) => {
+        const mime = a.mime || "";
+        const isSel = (originalIndex === selectedAssetIndex);
+        
+        let iconHtml = "";
+        if (mime.startsWith("image/") || /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(a.name)) {
+          iconHtml = `<div class="assets-row-icon" style="background-image: url(${JSON.stringify(a.dataUrl)})"></div>`;
+        } else {
+          let emoji = "📦";
+          if (mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac)$/i.test(a.name)) emoji = "🎵";
+          else if (mime.startsWith("video/") || /\.(mp4|webm|ogv|mov)$/i.test(a.name)) emoji = "🎞";
+          else if (mime === "text/csv" || /\.csv$/i.test(a.name)) emoji = "📊";
+          else if (mime === "application/json" || /\.json$/i.test(a.name)) emoji = "🪆";
+          else if (mime.startsWith("text/") || /\.(txt|md|rr)$/i.test(a.name)) emoji = "📄";
+          iconHtml = `<div class="assets-row-icon">${emoji}</div>`;
+        }
+
+        return `
+          <div class="assets-explorer-row${isSel ? ' selected' : ''}" data-idx="${originalIndex}">
+            ${iconHtml}
+            <div class="assets-row-details">
+              <span class="assets-row-name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</span>
+              <div class="assets-row-meta">
+                <span>${escapeHtml(mime || "unknown")}</span>
+                <span class="assets-row-size">${humanSize(a.dataUrl)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      container.querySelectorAll(".assets-explorer-row").forEach(row => {
+        const idx = Number(row.dataset.idx);
+        row.addEventListener("click", () => {
+          selectedAssetIndex = idx;
+          renderSidebar();
+          renderPreview();
+          
+          if (isSelector && onSelect) {
+            const selectedAsset = assets[selectedAssetIndex];
+            if (selectedAsset) {
+              onSelect(`assets/${selectedAsset.name}`);
+            }
+          }
+        });
+        
+        row.addEventListener("dblclick", () => {
+          selectedAssetIndex = idx;
+          if (isSelector && onSelect) {
+            const selectedAsset = assets[selectedAssetIndex];
+            if (selectedAsset) {
+              onSelect(`assets/${selectedAsset.name}`);
+            }
+            window.__refreshAssetsExplorer = null;
+            closePremiumModal(true);
+          }
+        });
+      });
+    };
+
+    const renderPreview = () => {
+      const previewContainer = body.querySelector("#assets-preview-container");
+      if (!previewContainer) return;
+      
+      const asset = assets[selectedAssetIndex];
+      if (!asset) {
+        previewContainer.innerHTML = `
+          <div class="assets-preview-placeholder">
+            <div class="placeholder-icon">📂</div>
+            <div>Select an asset to view preview and details</div>
+          </div>
+        `;
+        return;
+      }
+
+      const mime = asset.mime || "";
+      const name = asset.name || "";
+      
+      let mediaHtml = "";
+      if (mime.startsWith("image/") || /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(name)) {
+        mediaHtml = `<img class="preview-img" src="${asset.dataUrl}" alt="" />`;
+      } else if (mime.startsWith("video/") || /\.(mp4|webm|ogv|mov)$/i.test(name)) {
+        mediaHtml = `<video class="preview-video" src="${asset.dataUrl}" controls autoplay loop muted></video>`;
+      } else if (mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac)$/i.test(name)) {
+        mediaHtml = `
+          <div class="audio-preview-container">
+            <div class="audio-icon-large">🎵</div>
+            <audio class="preview-audio" src="${asset.dataUrl}" controls autoplay></audio>
+          </div>
+        `;
+      } else if (mime === "text/csv" || /\.csv$/i.test(name)) {
+        const csvText = decodeDataUrl(asset.dataUrl);
+        const rows = parseCSV(csvText);
+        if (rows.length === 0) {
+          mediaHtml = `<div style="text-align:center"><div style="font-size:40px">📊</div><div>Empty CSV Dataset</div></div>`;
+        } else {
+          const headers = rows[0];
+          const dataRows = rows.slice(1, 21);
+          mediaHtml = `
+            <div class="csv-table-wrapper">
+              <table class="csv-table">
+                <thead>
+                  <tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join("")}</tr>
+                </thead>
+                <tbody>
+                  ${dataRows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}
+                </tbody>
+              </table>
+              ${rows.length > 21 ? `<div class="csv-more-rows">Showing 20 of ${rows.length - 1} rows</div>` : ""}
+            </div>
+          `;
+        }
+      } else if (mime.startsWith("text/") || /\.(txt|md|rr|py|js|html|css|json)$/i.test(name)) {
+        const txtContent = decodeDataUrl(asset.dataUrl);
+        const displayedText = txtContent.length > 5000 ? txtContent.substring(0, 5000) + "\n... (truncated)" : txtContent;
+        mediaHtml = `<pre class="text-preview-code"><code>${escapeHtml(displayedText)}</code></pre>`;
+      } else {
+        mediaHtml = `
+          <div style="text-align: center; color: var(--c-text-mute);">
+            <div style="font-size: 48px;">📦</div>
+            <div style="margin-top: 10px;">Preview not available for this file type.</div>
+          </div>
+        `;
+      }
+
+      previewContainer.innerHTML = `
+        <div class="assets-preview-detail">
+          <div class="assets-preview-media">
+            ${mediaHtml}
+          </div>
+          <div class="assets-preview-info">
+            <div class="assets-info-row">
+              <label>Name:</label>
+              <div class="assets-rename-input-container">
+                <input type="text" id="asset-rename-input" value="${escapeHtml(name)}" />
+                <button type="button" id="asset-rename-btn" class="premium-btn">Rename</button>
+              </div>
+            </div>
+            <div class="assets-info-row">
+              <label>Type:</label>
+              <span>${escapeHtml(mime || "unknown")}</span>
+            </div>
+            <div class="assets-info-row">
+              <label>Size:</label>
+              <span>${humanSize(asset.dataUrl)}</span>
+            </div>
+            <div class="assets-actions-row">
+              <button type="button" id="asset-delete-btn" class="premium-btn danger">Delete Asset</button>
+              ${isSelector ? '<button type="button" id="asset-select-btn" class="premium-btn primary">Select Asset</button>' : '<button type="button" id="asset-close-btn" class="premium-btn secondary">Close</button>'}
+            </div>
+          </div>
+        </div>
+      `;
+
+      const renameBtn = previewContainer.querySelector("#asset-rename-btn");
+      const renameInput = previewContainer.querySelector("#asset-rename-input");
+      
+      const handleRename = () => {
+        const rawNewName = renameInput.value.trim();
+        if (!rawNewName) {
+          alert("Filename cannot be empty");
+          return;
+        }
+        const safeNewName = rawNewName.replace(/[^A-Za-z0-9._-]/g, "_");
+        if (safeNewName === asset.name) return;
+        
+        const taken = assets.some(a => a !== asset && a.name.toLowerCase() === safeNewName.toLowerCase());
+        if (taken) {
+          alert("An asset with this name already exists.");
+          return;
+        }
+        
+        const oldName = asset.name;
+        asset.name = safeNewName;
+        
+        renameAssetReferences(oldName, safeNewName);
+        
+        renderSidebar();
+        renderPreview();
         renderProperties();
-        showAssetManager();
+        
+        if (isSelector && onSelect) {
+          onSelect(`assets/${safeNewName}`);
+        }
+      };
+
+      renameBtn?.addEventListener("click", handleRename);
+      renameInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleRename();
+        }
+      });
+
+      previewContainer.querySelector("#asset-delete-btn")?.addEventListener("click", () => {
+        if (confirm(`Are you sure you want to delete ${asset.name}?`)) {
+          if (isSelector && onSelect) {
+            onSelect("");
+          }
+          const idx = assets.indexOf(asset);
+          if (idx !== -1) {
+            assets.splice(idx, 1);
+          }
+          selectedAssetIndex = assets.length > 0 ? 0 : -1;
+          renderSidebar();
+          renderPreview();
+          renderProperties();
+        }
+      });
+
+      if (isSelector) {
+        previewContainer.querySelector("#asset-select-btn")?.addEventListener("click", () => {
+          if (onSelect) {
+            onSelect(`assets/${asset.name}`);
+          }
+          window.__refreshAssetsExplorer = null;
+          closePremiumModal(true);
+        });
+      } else {
+        previewContainer.querySelector("#asset-close-btn")?.addEventListener("click", () => {
+          window.__refreshAssetsExplorer = null;
+          closePremiumModal(true);
+        });
+      }
+    };
+
+    // Wire search and tabs
+    body.querySelector("#assets-search-input").addEventListener("input", (e) => {
+      activeSearch = e.target.value;
+      renderSidebar();
+    });
+
+    body.querySelectorAll(".assets-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        body.querySelectorAll(".assets-tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeTab = btn.dataset.type;
+        renderSidebar();
       });
     });
-  }, 0);
+
+    body.querySelector("#assets-upload-trigger-btn").addEventListener("click", () => {
+      doAssetUpload();
+    });
+
+    // Register global refresh callback
+    window.__refreshAssetsExplorer = () => {
+      if (selectedAssetIndex >= assets.length) {
+        selectedAssetIndex = assets.length - 1;
+      }
+      if (selectedAssetIndex === -1 && assets.length > 0) {
+        selectedAssetIndex = 0;
+      }
+      renderSidebar();
+      renderPreview();
+    };
+
+    // Initial render
+    renderSidebar();
+    renderPreview();
+  }, () => {
+    // OnCancel callback
+    window.__refreshAssetsExplorer = null;
+    if (onCancel) onCancel();
+  });
 }
 
 function humanSize(dataUrl) {
@@ -2707,22 +3162,50 @@ function zorderSelection(dir) {
   renderActiveDesigner();
 }
 
+function _doCreateModule(nm) {
+  state.project.modules ||= [];
+  if (state.project.modules.some(m => m.name === nm)) {
+    showDialog("New module", "<p>Name already in use.</p>", [{label:"OK",primary:true}]);
+    return;
+  }
+  const mod = {
+    id: "m" + Date.now(),
+    name: nm,
+    source: `' Module ${nm}\n' Declare GLOBAL variables and shared SUBs / FUNCTIONs here.\n\nGLOBAL g_${nm} AS Integer\n\n`,
+  };
+  state.project.modules.push(mod);
+  ensureModulePane(mod);
+  switchToModule(mod.id);
+  renderProjectTree();
+}
+
 function doAddModule() {
   const def = `Module${(state.project.modules?.length || 0) + 1}`;
   promptDialog("New module", "Module name:", def, (nm) => {
     if (!nm) return;
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(nm)) { showDialog("New module", "<p>Invalid identifier.</p>", [{label:"OK",primary:true}]); return; }
-    state.project.modules ||= [];
-    if (state.project.modules.some(m => m.name === nm)) { showDialog("New module", "<p>Name already in use.</p>", [{label:"OK",primary:true}]); return; }
-    const mod = {
-      id: "m" + Date.now(),
-      name: nm,
-      source: `' Module ${nm}\n' Declare GLOBAL variables and shared SUBs / FUNCTIONs here.\n\nGLOBAL g_${nm} AS Integer\n\n`,
-    };
-    state.project.modules.push(mod);
-    ensureModulePane(mod);
-    switchToModule(mod.id);
-    renderProjectTree();
+
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(nm)) {
+      _doCreateModule(nm);
+    } else {
+      const sanitized = sanitizeIdentifier(nm);
+      if (sanitized && sanitized !== nm) {
+        showDialog(
+          "New module",
+          `<p>The name <b>"${escapeHtml(nm)}"</b> is not a valid identifier. Would you like to use <b>"${escapeHtml(sanitized)}"</b> instead?</p>`,
+          [
+            { label: "Cancel" },
+            { label: "Use Sanitized", primary: true, onClick: () => _doCreateModule(sanitized) }
+          ]
+        );
+      } else {
+        showDialog(
+          "New module",
+          `<p>Invalid identifier: <b>"${escapeHtml(nm)}"</b>.</p>` +
+          `<p>Identifiers must start with a letter (A-Z, a-z) or underscore (_), followed only by letters, digits (0-9), or underscores. No spaces or special characters are allowed.</p>`,
+          [{ label: "OK", primary: true }]
+        );
+      }
+    }
   });
 }
 
@@ -3373,7 +3856,7 @@ async function doDebug() {
     };
     
     window.addEventListener("message", onReady);
-    iframe.src = "./preview.html?role=debug&v=2.7.0";
+    iframe.src = "./preview.html?role=debug&v=2.8.0";
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
@@ -4023,6 +4506,8 @@ async function main() {
     switchView,
     switchToForm,
     serializeProject,
+    openAssetModal,
+    showAssetManager,
     _editors,
   };
   // Show version in the status bar + window title.

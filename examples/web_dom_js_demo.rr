@@ -12,15 +12,21 @@ CREATE Form1 AS RFORM
     Height = 520
     Center
 
+    ' --- Custom Premium CSS Stylesheet Injector ---
+    CREATE CustomStyle AS RDOM
+        TagName = "style"
+        InnerText = "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap'); body, .rr-form { font-family: 'Outfit', sans-serif !important; background: #0b0b14 !important; } .rr-form-titlebar { background: linear-gradient(135deg, #181829 0%, #0b0b14 100%) !important; border-bottom: 1px solid rgba(92, 98, 214, 0.25) !important; font-family: 'Outfit', sans-serif !important; font-weight: 600 !important; } .premium-panel { background: rgba(18, 18, 29, 0.7) !important; backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; border: 1px solid rgba(92, 98, 214, 0.25) !important; border-radius: 12px !important; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4) !important; color: #e5e5e9 !important; transition: all 0.3s ease !important; } .premium-panel:hover { border-color: rgba(110, 110, 230, 0.45) !important; box-shadow: 0 12px 40px 0 rgba(92, 98, 214, 0.15) !important; } .premium-btn { background: linear-gradient(135deg, #5c62d6 0%, #3e429f 100%) !important; border: none !important; border-radius: 6px !important; color: #ffffff !important; font-weight: 600 !important; font-family: 'Outfit', sans-serif !important; cursor: pointer !important; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important; box-shadow: 0 4px 12px rgba(92, 98, 214, 0.3) !important; display: flex !important; align-items: center !important; justify-content: center !important; letter-spacing: 0.03em !important; font-size: 11px !important; text-transform: uppercase !important; } .premium-btn:hover { background: linear-gradient(135deg, #6c72e6 0%, #4e52af 100%) !important; transform: translateY(-1.5px) !important; box-shadow: 0 6px 16px rgba(92, 98, 214, 0.45) !important; } .premium-btn:active { transform: translateY(0.5px) !important; } .premium-btn-secondary { background: rgba(30, 30, 47, 0.8) !important; border: 1px solid rgba(92, 98, 214, 0.4) !important; color: #e2e2e9 !important; box-shadow: none !important; } .premium-btn-secondary:hover { background: rgba(45, 45, 70, 0.9) !important; border-color: rgba(110, 110, 230, 0.6) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important; } .premium-input { background: rgba(8, 8, 15, 0.9) !important; border: 1px solid rgba(92, 98, 214, 0.3) !important; border-radius: 6px !important; color: #ffffff !important; font-family: 'Outfit', sans-serif !important; padding: 4px 10px !important; transition: all 0.2s ease !important; font-size: 13px !important; } .premium-input:focus { border-color: #5c62d6 !important; box-shadow: 0 0 0 2px rgba(92, 98, 214, 0.3) !important; outline: none !important; } .premium-label { font-family: 'Outfit', sans-serif !important; color: #b0b0cb !important; font-size: 13px !important; } .premium-label-header { color: #ffffff !important; font-weight: 700 !important; font-family: 'Outfit', sans-serif !important; letter-spacing: 0.5px !important; text-shadow: 0 2px 4px rgba(0,0,0,0.5) !important; }"
+    END CREATE
+
     CREATE HeaderLabel AS RLABEL
         Caption = "Web Component Interoperability (RDOM & RJavaScript)"
         Left = 20
         Top = 20
         Width = 560
         Height = 25
-        Fontsize = 14
-        Fontbold = 1
-        Fontcolor = 43230 ' Sleek accent color
+        FontSize = 14
+        FontBold = 1
+        CssClass = "premium-label-header"
     END CREATE
 
     ' Container for dynamic DOM playground
@@ -30,8 +36,7 @@ CREATE Form1 AS RFORM
         Width = 560
         Height = 220
         Caption = "Dynamic DOM Playground"
-        Color = 1447446 ' Slate dark panel
-        Borderstyle = 1
+        CssClass = "premium-panel"
     END CREATE
 
     ' Input field for custom element tags
@@ -42,6 +47,7 @@ CREATE Form1 AS RFORM
         Width = 100
         Height = 30
         Hint = "HTML tag name (e.g. button, h3, input, div)"
+        CssClass = "premium-input"
     END CREATE
 
     CREATE TextInput AS REDIT
@@ -51,6 +57,7 @@ CREATE Form1 AS RFORM
         Width = 200
         Height = 30
         Hint = "Inner text or value of the element"
+        CssClass = "premium-input"
     END CREATE
 
     CREATE StyleInput AS REDIT
@@ -60,6 +67,7 @@ CREATE Form1 AS RFORM
         Width = 230
         Height = 30
         Hint = "CSS style string"
+        CssClass = "premium-input"
     END CREATE
 
     CREATE AddBtn AS RBUTTON
@@ -69,6 +77,7 @@ CREATE Form1 AS RFORM
         Width = 160
         Height = 35
         OnClick = AddBtn_Click
+        CssClass = "premium-btn"
     END CREATE
 
     CREATE ClearBtn AS RBUTTON
@@ -78,6 +87,7 @@ CREATE Form1 AS RFORM
         Width = 140
         Height = 35
         OnClick = ClearBtn_Click
+        CssClass = "premium-btn premium-btn-secondary"
     END CREATE
 
     ' JS execution panel
@@ -87,35 +97,37 @@ CREATE Form1 AS RFORM
         Width = 560
         Height = 110
         Caption = "RJavaScript Execution Engine"
-        Color = 1447446
-        Borderstyle = 1
+        CssClass = "premium-panel"
 
         CREATE JSCode AS REDIT
             Text = "window.innerWidth + ' x ' + window.innerHeight"
             Left = 15
-            Top = 20
+            Top = 25
             Width = 380
             Height = 30
+            CssClass = "premium-input"
         END CREATE
 
         CREATE EvalBtn AS RBUTTON
             Caption = "Eval JS"
             Left = 405
-            Top = 18
+            Top = 23
             Width = 120
             Height = 32
             OnClick = EvalBtn_Click
+            CssClass = "premium-btn"
         END CREATE
 
         CREATE ResultLabel AS RLABEL
             Caption = "Result: (click Eval)"
             Left = 15
-            Top = 60
+            Top = 65
             Width = 510
             Height = 25
-            Fontsize = 11
-            Fontbold = 1
-            Fontcolor = 65280 ' Green
+            FontSize = 11
+            FontBold = 1
+            FontColor = 65280 ' Green
+            CssClass = "premium-label"
         END CREATE
     END CREATE
 
@@ -157,7 +169,7 @@ SUB AddBtn_Click()
     ' Let's demonstrate setting standard attributes, styling, and getting live values.
     
     ' Let's configure DOMContainer's style and classes
-    DOMContainer.CssClass = "custom-playground-card"
+    DOMContainer.CssClass = "premium-panel"
     DOMContainer.CssStyle = "background-color: #1e1e2f; border: 2px solid #3d3d5c; border-radius: 8px;"
     
     ' Let's use RJavaScript to run a custom helper that injects elements into our DOMContainer
@@ -192,7 +204,7 @@ SUB AddBtn_Click()
     DIM tagInfo AS STRING
     tagInfo = JS.Eval("document.getElementById('rr-" + LCASE$(elName) + "').tagName")
     PRINT "Verified created tag: " + tagInfo
-END SUB
+ END SUB
 
 SUB ClearBtn_Click()
     DIM code AS STRING
