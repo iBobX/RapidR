@@ -751,13 +751,13 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
 
 #preview-window {
   position: fixed;
-  inset: 0;
   background: var(--c-panel);
-  border: 0;
-  box-shadow: none;
+  border: 1px solid var(--c-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   display: flex; flex-direction: column;
   z-index: 1000;
-  resize: none; overflow: hidden;
+  border-radius: 4px;
+  overflow: hidden;
 }
 #preview-titlebar {
   background: linear-gradient(180deg, #0A246A 0%, #316AC5 100%);
@@ -780,6 +780,27 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
 }
 #preview-close:hover { background: var(--c-warn); }
 #preview { flex: 1; min-height: 0; border: 0; background: white; width: 100%; }
+
+/* Backdrop for Run Mode */
+#preview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(1px);
+  z-index: 999;
+}
+
+/* Custom corner resizer handle for Preview Window */
+.preview-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  z-index: 1002;
+  background: linear-gradient(135deg, transparent 70%, var(--c-text-mute, #888) 70%);
+}
 
 /* ── Modal IDE dialog (About / License / Source) ─────────── */
 
@@ -1196,7 +1217,7 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
 /* Paused Glass Overlay on Preview Window */
 #preview-paused-overlay {
   position: absolute;
-  inset: 0;
+  inset: 24px 0 0 0; /* starts below the 24px titlebar! */
   background: rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(2px);
   display: flex;
@@ -1255,17 +1276,7 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
   border-color: transparent;
 }
 
-/* Floating preview window during debugging */
-body.debug-mode #preview-window {
-  position: fixed;
-  inset: auto 20px 20px auto;
-  width: 480px;
-  height: 360px;
-  border: 1px solid var(--c-border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  border-radius: 4px;
-}
+
 
 /* Resizer Splitters */
 .resizer {

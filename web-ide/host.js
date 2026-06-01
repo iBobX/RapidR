@@ -2258,7 +2258,26 @@ async function doRun() {
     logOutput("------ source ------\n" + src);
     const bc = compile(src, state.project.name);
     setStatus("running");
-    $("#preview-window").hidden = false;
+
+    // Dynamically size based on startup form
+    const startForm = state.project.forms.find(f => f.id === state.project.startupForm) || state.project.forms[0];
+    let formWidth = 480;
+    let formHeight = 320;
+    if (startForm) {
+      formWidth = parseInt(startForm.props.width, 10) || 480;
+      formHeight = parseInt(startForm.props.height, 10) || 320;
+    }
+    
+    const win = $("#preview-window");
+    win.style.width = (formWidth + 2) + "px";
+    win.style.height = (formHeight + 26) + "px";
+    win.style.left = `calc(50% - ${(formWidth + 2) / 2}px)`;
+    win.style.top = `calc(50% - ${(formHeight + 26) / 2}px)`;
+    win.hidden = false;
+
+    const backdrop = $("#preview-backdrop");
+    if (backdrop) backdrop.hidden = false;
+
     $("#preview-title").textContent = `${state.project.name} — RapidR Runtime`;
     const iframe = $("#preview");
     // Wait for the preview iframe to announce __rapidr_preview_ready
@@ -2289,6 +2308,8 @@ function doStop() {
   const iframe = $("#preview");
   iframe.src = "about:blank";
   $("#preview-window").hidden = true;
+  const backdrop = $("#preview-backdrop");
+  if (backdrop) backdrop.hidden = true;
   setStatus("stopped");
   if (state.isDebugging) {
     sendDebugCommand("stop");
@@ -2918,9 +2939,40 @@ function setupPreviewWindow() {
   window.addEventListener("mousemove", (e) => {
     if (!drag) return;
     win.style.left = (e.clientX - drag.ox) + "px";
-    win.style.top  = (e.clientY - drag.oy) + "px";
+    win.style.top  = Math.max(0, e.clientY - drag.oy) + "px";
   });
   window.addEventListener("mouseup", () => { drag = null; });
+}
+
+function setupPreviewResizer() {
+  const resizer = $("#preview-resizer");
+  const win = $("#preview-window");
+  if (!resizer || !win) return;
+  
+  let startX, startY, startWidth, startHeight;
+  
+  resizer.addEventListener("mousedown", (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    startWidth = parseInt(document.defaultView.getComputedStyle(win).width, 10);
+    startHeight = parseInt(document.defaultView.getComputedStyle(win).height, 10);
+    
+    const onMouseMove = (e) => {
+      const newWidth = Math.max(200, startWidth + (e.clientX - startX));
+      const newHeight = Math.max(150, startHeight + (e.clientY - startY));
+      win.style.width = newWidth + "px";
+      win.style.height = newHeight + "px";
+    };
+    
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    e.preventDefault();
+  });
 }
 
 function setupKeyboard() {
@@ -3263,7 +3315,32 @@ async function doDebug() {
     
     updateDebugUI();
     
-    $("#preview-window").hidden = false;
+    // Dynamically size based on startup form and center in workspace bounds
+    const startForm = state.project.forms.find(f => f.id === state.project.startupForm) || state.project.forms[0];
+    let formWidth = 480;
+    let formHeight = 320;
+    if (startForm) {
+      formWidth = parseInt(startForm.props.width, 10) || 480;
+      formHeight = parseInt(startForm.props.height, 10) || 320;
+    }
+    
+    const win = $("#preview-window");
+    win.style.width = (formWidth + 2) + "px";
+    win.style.height = (formHeight + 26) + "px";
+
+    const ws = $("#workspace");
+    if (ws) {
+      const wsRect = ws.getBoundingClientRect();
+      const left = wsRect.left + (wsRect.width - (formWidth + 2)) / 2;
+      const top = wsRect.top + (wsRect.height - (formHeight + 26)) / 2;
+      win.style.left = Math.max(0, left) + "px";
+      win.style.top = Math.max(0, top) + "px";
+    } else {
+      win.style.left = `calc(50% - ${(formWidth + 2) / 2}px)`;
+      win.style.top = `calc(50% - ${(formHeight + 26) / 2}px)`;
+    }
+
+    win.hidden = false;
     $("#preview-title").textContent = `${state.project.name} [DEBUG] — RapidR Runtime`;
     
     const iframe = $("#preview");
@@ -3400,6 +3477,20 @@ function requestComponentProperties() {
     }
   }
   
+  // Request properties for ALL components in the project
+  for (const name of widgetNames) {
+    let casePreservedName = null;
+    for (const f of state.project.forms) {
+      if (f.name.toUpperCase() === name) { casePreservedName = f.name; break; }
+      for (const w of f.children) {
+        if (w.name.toUpperCase() === name) { casePreservedName = w.name; break; }
+      }
+    }
+    if (casePreservedName) {
+      sendDebugCommand("getProperties", { id: casePreservedName });
+    }
+  }
+  
   const scanVal = (v) => {
     if (typeof v === "string") {
       const uv = v.toUpperCase();
@@ -3523,6 +3614,62 @@ function renderVariables() {
   renderVarMap(state.lastVars.globals, globalsList);
   globalsSec.appendChild(globalsList);
   container.appendChild(globalsSec);
+
+  // Components
+  const componentsSec = document.createElement("div");
+  componentsSec.innerHTML = `<div style="font-weight:bold;font-size:11px;padding:4px;color:var(--c-accent);border-top:1px solid var(--c-border);margin-top:8px;">Components</div>`;
+  const componentsList = document.createElement("div");
+  componentsList.style.paddingLeft = "8px";
+  
+  const componentsMap = {};
+  for (const f of state.project.forms) {
+    componentsMap[f.name] = f.name;
+    for (const w of f.children) {
+      componentsMap[w.name] = w.name;
+    }
+  }
+  renderVarMap(componentsMap, componentsList);
+  componentsSec.appendChild(componentsList);
+  container.appendChild(componentsSec);
+
+  // System
+  const systemSec = document.createElement("div");
+  systemSec.innerHTML = `<div style="font-weight:bold;font-size:11px;padding:4px;color:var(--c-accent);border-top:1px solid var(--c-border);margin-top:8px;">System</div>`;
+  const systemList = document.createElement("div");
+  systemList.style.paddingLeft = "8px";
+  
+  let screenWidth = window.innerWidth;
+  let screenHeight = window.innerHeight;
+  const iframe = $("#preview");
+  if (iframe && iframe.contentWindow) {
+    try {
+      screenWidth = iframe.contentWindow.innerWidth;
+      screenHeight = iframe.contentWindow.innerHeight;
+    } catch (e) {}
+  }
+  
+  const systemMap = {
+    "Date": new Date().toLocaleDateString(),
+    "Time": new Date().toLocaleTimeString(),
+    "Timer": Math.round(performance.now()) + " ms",
+    "Screen Width": screenWidth,
+    "Screen Height": screenHeight
+  };
+  renderVarMap(systemMap, systemList);
+  systemSec.appendChild(systemList);
+  container.appendChild(systemSec);
+}
+
+function isProjectWidget(name) {
+  if (!name || typeof name !== "string") return false;
+  const uname = name.toUpperCase();
+  for (const f of state.project.forms) {
+    if (f.name.toUpperCase() === uname) return true;
+    for (const w of f.children) {
+      if (w.name.toUpperCase() === uname) return true;
+    }
+  }
+  return false;
 }
 
 function renderVarMap(map, parentEl) {
@@ -3552,7 +3699,7 @@ function renderVarMap(map, parentEl) {
     const valSpan = document.createElement("span");
     valSpan.className = "debug-var-val";
     
-    const isComp = typeof val === "string" && state.lastProperties[val];
+    const isComp = typeof val === "string" && (state.lastProperties[val] || isProjectWidget(val));
     
     if (isComp) {
       valSpan.className = "debug-var-val component-link";
@@ -3566,15 +3713,35 @@ function renderVarMap(map, parentEl) {
       details.style.fontSize = "10px";
       
       const props = state.lastProperties[val];
-      Object.entries(props).sort().forEach(([pk, pv]) => {
-        const propRow = document.createElement("div");
-        propRow.className = "debug-var-row";
-        propRow.innerHTML = `
-          <span class="debug-var-name" style="color:var(--c-text-mute);">${pk}:</span>
-          <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${JSON.stringify(pv)}</span>
-        `;
-        details.appendChild(propRow);
-      });
+      if (props) {
+        // Render component type
+        if (props.type) {
+          const typeRow = document.createElement("div");
+          typeRow.className = "debug-var-row";
+          typeRow.innerHTML = `
+            <span class="debug-var-name" style="color:var(--c-text-mute); font-style: italic;">type:</span>
+            <span class="debug-var-val string">"${props.type}"</span>
+          `;
+          details.appendChild(typeRow);
+        }
+        
+        // Render properties
+        const propList = props.properties || props;
+        Object.entries(propList).sort().forEach(([pk, pv]) => {
+          const propRow = document.createElement("div");
+          propRow.className = "debug-var-row";
+          propRow.innerHTML = `
+            <span class="debug-var-name" style="color:var(--c-text-mute);">${pk}:</span>
+            <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${JSON.stringify(pv)}</span>
+          `;
+          details.appendChild(propRow);
+        });
+      } else {
+        const notInstRow = document.createElement("div");
+        notInstRow.className = "debug-var-row";
+        notInstRow.innerHTML = `<span style="color:var(--c-text-mute);font-style:italic;">(not instantiated)</span>`;
+        details.appendChild(notInstRow);
+      }
       
       row.appendChild(summary);
       row.appendChild(details);
@@ -3631,7 +3798,8 @@ function evaluateWatchExpression(expr) {
       const props = state.lastProperties[actualCompId];
       let foundVal = undefined;
       let found = false;
-      for (const [pk, pv] of Object.entries(props)) {
+      const propList = props.properties || props;
+      for (const [pk, pv] of Object.entries(propList)) {
         if (pk.toUpperCase() === propName) {
           foundVal = pv;
           found = true;
@@ -3660,7 +3828,8 @@ function evaluateWatchExpression(expr) {
       if (props) {
         let foundVal = undefined;
         let found = false;
-        for (const [pk, pv] of Object.entries(props)) {
+        const propList = props.properties || props;
+        for (const [pk, pv] of Object.entries(propList)) {
           if (pk.toUpperCase() === propName) {
             foundVal = pv;
             found = true;
@@ -3865,6 +4034,7 @@ async function main() {
   setupToolbox();
   setupFileLoaders();
   setupPreviewWindow();
+  setupPreviewResizer();
   setupKeyboard();
   setupPropsToolbar();
   setupLayoutDock();
