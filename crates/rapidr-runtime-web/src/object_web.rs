@@ -493,7 +493,15 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
 
     // Check data-science / database component properties
+    // If RDOM, query live DOM first
     let comp_type = rp_comp_type(&uname);
+    if comp_type == "RDOM" {
+        let live = gui_web::gui_web_get_prop(&uname, &lprop);
+        if !matches!(live, Value::Null) {
+            return live;
+        }
+    }
+
     match comp_type.as_str() {
         "RNUM" => {
             let v = crate::datascience_web::num_get_prop(&uname, &lprop);
@@ -525,7 +533,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         "caption" | "text" | "left" | "top" | "width" | "height" | "visible" | "enabled"
         | "checked" | "value" | "listindex" | "itemindex" | "listcount" | "position"
         | "min" | "max" | "selstart" | "seltext" | "innerhtml" | "innertext" | "tagname"
-        | "volume" | "currenttime" | "duration" | "playing" | "paused" => {
+        | "volume" | "currenttime" | "duration" | "playing" | "paused"
+        | "url" | "html" | "sandbox" | "src" | "picture" | "controls" | "loop" | "autoplay"
+        | "poster" | "storagetype" | "latitude" | "longitude" | "accuracy" | "title" | "body"
+        | "route" | "hash" | "cssstyle" | "cssclass" => {
             gui_web::gui_web_get_prop(&uname, &lprop)
         }
         _ => stored.unwrap_or_else(v_null),

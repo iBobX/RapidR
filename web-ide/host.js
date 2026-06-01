@@ -4080,6 +4080,23 @@ async function main() {
       onDebugProperties(d.__rapidr_debug_properties);
     }
   });
+
+  // Automatic E2E test runner for verification screenshots
+  setTimeout(async () => {
+    const params = new URLSearchParams(location.search);
+    const testExample = params.get("test");
+    if (testExample) {
+      const examplesSel = document.getElementById("examples");
+      if (examplesSel) {
+        examplesSel.value = `../examples/${testExample}.rr`;
+        examplesSel.dispatchEvent(new Event("change"));
+        setTimeout(() => {
+          const runBtn = document.getElementById("btn-run");
+          if (runBtn) runBtn.click();
+        }, 1000);
+      }
+    }
+  }, 1000);
 }
 
 main();

@@ -321,7 +321,7 @@ export function deserializeProject(text, projectName = "untitled") {
     }
 
     // Outside CREATE: event bindings like Widget.OnClick = Handler
-    const matchEvent = trimmed.match(/^(\w+)\.(\w+)\s*=\s*(\w+)/);
+    const matchEvent = trimmed.match(/^(\w+)\.(on\w+)\s*=\s*(\w+)$/i);
     if (matchEvent) {
       const compName = matchEvent[1];
       const eventName = capitalize(matchEvent[2].toLowerCase());

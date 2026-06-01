@@ -80,6 +80,51 @@ fn comp_id(name: &str) -> String {
     format!("rr-{}", name.to_lowercase())
 }
 
+fn value_to_jsvalue(v: &Value) -> JsValue {
+    match v {
+        Value::Null => JsValue::NULL,
+        Value::Boolean(b) => JsValue::from_bool(*b),
+        Value::Integer(n) => JsValue::from_f64(*n as f64),
+        Value::Double(d) => JsValue::from_f64(*d),
+        Value::String(s) => JsValue::from_str(s),
+    }
+}
+
+fn jsvalue_to_value(v: &JsValue) -> Value {
+    if v.is_null() || v.is_undefined() {
+        Value::Null
+    } else if let Some(b) = v.as_bool() {
+        Value::Boolean(b)
+    } else if let Some(n) = v.as_f64() {
+        if n.fract() == 0.0 && n >= (i64::MIN as f64) && n <= (i64::MAX as f64) {
+            Value::Integer(n as i64)
+        } else {
+            Value::Double(n)
+        }
+    } else if let Some(s) = v.as_string() {
+        v_str(&s)
+    } else {
+        let s = js_sys::JSON::stringify(v)
+            .ok()
+            .and_then(|js_str| js_str.as_string())
+            .unwrap_or_else(|| "null".to_string());
+        if s == "null" {
+            if let Some(to_str_func) = js_sys::Reflect::get(v, &JsValue::from_str("toString")).ok() {
+                if let Ok(to_str) = to_str_func.dyn_into::<js_sys::Function>() {
+                    if let Ok(res) = to_str.call0(v) {
+                        if let Some(res_s) = res.as_string() {
+                            return v_str(&res_s);
+                        }
+                    }
+                }
+            }
+            Value::Null
+        } else {
+            v_str(&s)
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Widget creation — one function per component type
 // ---------------------------------------------------------------------------
@@ -147,6 +192,9 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
                 comp_type, name
             )));
         }
+    }
+    if let Some(el) = get_el(&id) {
+        let _ = el.set_attribute("data-rr-type", comp_type);
     }
 }
 
@@ -232,6 +280,24 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 ta.set_disabled(!val.to_bool());
             }
         }
+        "disabled" => {
+            let is_disabled = val.to_bool();
+            if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+                input.set_disabled(is_disabled);
+            } else if let Ok(btn) = el.clone().dyn_into::<web_sys::HtmlButtonElement>() {
+                btn.set_disabled(is_disabled);
+            } else if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
+                sel.set_disabled(is_disabled);
+            } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+                ta.set_disabled(is_disabled);
+            } else {
+                if is_disabled {
+                    let _ = el.set_attribute("disabled", "");
+                } else {
+                    let _ = el.remove_attribute("disabled");
+                }
+            }
+        }
         "color" | "backcolor" => {
             let _ = style.set_property("background-color", &value_to_css_color(val));
         }
@@ -273,14 +339,31 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
         }
         "checked" | "value" => {
             if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
-                input.set_checked(val.to_bool());
+                if prop == "checked" {
+                    input.set_checked(val.to_bool());
+                } else {
+                    input.set_value(&s);
+                }
+            } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+                ta.set_value(&s);
+            } else if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
+                sel.set_value(&s);
+            } else {
+                let _ = el.set_attribute("value", &s);
             }
         }
-        "readonly" => {
+        "readonly" | "read_only" => {
+            let is_readonly = val.to_bool();
             if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
-                input.set_read_only(val.to_bool());
+                input.set_read_only(is_readonly);
             } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
-                ta.set_read_only(val.to_bool());
+                ta.set_read_only(is_readonly);
+            } else {
+                if is_readonly {
+                    let _ = el.set_attribute("readonly", "");
+                } else {
+                    let _ = el.remove_attribute("readonly");
+                }
             }
         }
         "passwordchar" => {
@@ -438,7 +521,25 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             el.set_class_name(&s);
         }
         "cssstyle" => {
+            let left = style.get_property_value("left").unwrap_or_default();
+            let top = style.get_property_value("top").unwrap_or_default();
+            let width = style.get_property_value("width").unwrap_or_default();
+            let height = style.get_property_value("height").unwrap_or_default();
+            let position = style.get_property_value("position").unwrap_or_default();
+            let display = style.get_property_value("display").unwrap_or_default();
+            let box_sizing = style.get_property_value("box-sizing").unwrap_or_default();
+            let z_index = style.get_property_value("z-index").unwrap_or_default();
+
             let _ = el.set_attribute("style", &s);
+
+            if !left.is_empty() { let _ = style.set_property("left", &left); }
+            if !top.is_empty() { let _ = style.set_property("top", &top); }
+            if !width.is_empty() { let _ = style.set_property("width", &width); }
+            if !height.is_empty() { let _ = style.set_property("height", &height); }
+            if !position.is_empty() { let _ = style.set_property("position", &position); }
+            if !display.is_empty() { let _ = style.set_property("display", &display); }
+            if !box_sizing.is_empty() { let _ = style.set_property("box-sizing", &box_sizing); }
+            if !z_index.is_empty() { let _ = style.set_property("z-index", &z_index); }
         }
         // Web-exclusive: RWebAudio/RWebVideo
         "volume" => {
@@ -446,6 +547,14 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 audio.set_volume(val.to_f64());
             } else if let Ok(video) = el.clone().dyn_into::<web_sys::HtmlVideoElement>() {
                 video.set_volume(val.to_f64());
+            }
+        }
+        "currenttime" => {
+            let t = val.to_f64();
+            if let Ok(audio) = el.clone().dyn_into::<web_sys::HtmlAudioElement>() {
+                audio.set_current_time(t);
+            } else if let Ok(video) = el.clone().dyn_into::<web_sys::HtmlVideoElement>() {
+                video.set_current_time(t);
             }
         }
         "loop" => {
@@ -475,13 +584,35 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             }
         }
         _ => {
-            // Store unrecognized props as data attributes
-            let _ = el.set_attribute(&format!("data-rr-{}", prop), &s);
+            let comp_type = el.get_attribute("data-rr-type").unwrap_or_default();
+            if comp_type == "RDOM" {
+                let _ = el.set_attribute(prop, &s);
+            } else {
+                // Store unrecognized props as data attributes
+                let _ = el.set_attribute(&format!("data-rr-{}", prop), &s);
+            }
         }
     }
 }
 
 pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
+    let comp_type = crate::object_web::rp_comp_type(name);
+    if comp_type == "RROUTER" {
+        if prop == "route" || prop == "hash" {
+            if let Some(window) = web_sys::window() {
+                if let Ok(hash) = window.location().hash() {
+                    let clean = if hash.starts_with('#') {
+                        hash.trim_start_matches('#').to_string()
+                    } else {
+                        hash
+                    };
+                    return v_str(&clean);
+                }
+            }
+            return v_str("");
+        }
+    }
+
     let id = comp_id(name);
     let el = match get_el(&id) {
         Some(e) => e,
@@ -514,15 +645,55 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
                 Value::Boolean(!input.disabled())
             } else if let Ok(btn) = el.clone().dyn_into::<web_sys::HtmlButtonElement>() {
                 Value::Boolean(!btn.disabled())
+            } else if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
+                Value::Boolean(!sel.disabled())
+            } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+                Value::Boolean(!ta.disabled())
             } else {
                 Value::Boolean(true)
             }
         }
-        "checked" | "value" => {
+        "disabled" => {
+            if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+                Value::Boolean(input.disabled())
+            } else if let Ok(btn) = el.clone().dyn_into::<web_sys::HtmlButtonElement>() {
+                Value::Boolean(btn.disabled())
+            } else if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
+                Value::Boolean(sel.disabled())
+            } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+                Value::Boolean(ta.disabled())
+            } else {
+                Value::Boolean(el.has_attribute("disabled"))
+            }
+        }
+        "readonly" | "read_only" => {
+            if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+                Value::Boolean(input.read_only())
+            } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+                Value::Boolean(ta.read_only())
+            } else {
+                Value::Boolean(el.has_attribute("readonly"))
+            }
+        }
+        "checked" => {
             if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
                 Value::Boolean(input.checked())
             } else {
                 Value::Boolean(false)
+            }
+        }
+        "value" => {
+            if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+                v_str(&input.value())
+            } else if let Ok(ta) = el.clone().dyn_into::<web_sys::HtmlTextAreaElement>() {
+                v_str(&ta.value())
+            } else if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
+                v_str(&sel.value())
+            } else {
+                match el.get_attribute("value") {
+                    Some(v) => v_str(&v),
+                    None => v_str(""),
+                }
             }
         }
         "listindex" | "itemindex" => {
@@ -586,8 +757,32 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
         "innerhtml" => v_str(&el.inner_html()),
         "innertext" => v_str(&el.inner_text()),
         "cssclass" => v_str(&el.class_name()),
+        "cssstyle" => match el.get_attribute("style") {
+            Some(v) => v_str(&v),
+            None => v_str(""),
+        },
         "tagname" => {
             v_str(&el.tag_name().to_lowercase())
+        }
+        "url" => {
+            if let Ok(iframe) = el.clone().dyn_into::<web_sys::HtmlIFrameElement>() {
+                v_str(&iframe.src())
+            } else {
+                match el.get_attribute("src") {
+                    Some(v) => v_str(&v),
+                    None => v_str(""),
+                }
+            }
+        }
+        "html" => {
+            if let Ok(iframe) = el.clone().dyn_into::<web_sys::HtmlIFrameElement>() {
+                v_str(&iframe.srcdoc())
+            } else {
+                match el.get_attribute("srcdoc") {
+                    Some(v) => v_str(&v),
+                    None => v_str(""),
+                }
+            }
         }
         // Web-exclusive: RWebAudio/RWebVideo
         "volume" => {
@@ -627,10 +822,16 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
             }
         }
         _ => {
-            // Check data attributes
-            match el.get_attribute(&format!("data-rr-{}", prop)) {
+            // Check live attribute first (useful for RDOM / standard attributes)
+            match el.get_attribute(prop) {
                 Some(v) => v_str(&v),
-                None => v_null(),
+                None => {
+                    // Check data attributes
+                    match el.get_attribute(&format!("data-rr-{}", prop)) {
+                        Some(v) => v_str(&v),
+                        None => v_null(),
+                    }
+                }
             }
         }
     }
@@ -697,7 +898,8 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // RWEBSTORAGE clear — must come before generic (_, "clear")
         ("RWEBSTORAGE", "clear") => {
-            crate::storage_web::storage_clear();
+            let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
+            crate::storage_web::storage_clear(&st);
             v_null()
         }
         // RSTRINGGRID clear — must come before generic (_, "clear")
@@ -743,8 +945,8 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // RWEBNOTIFICATION show — must come before generic (_, "show")
         ("RWEBNOTIFICATION", "show") => {
-            let title = gui_web_get_prop(name, "title").to_string_val();
-            let body = gui_web_get_prop(name, "body").to_string_val();
+            let title = crate::object_web::rp_comp_get_stored(name, "title").to_string_val();
+            let body = crate::object_web::rp_comp_get_stored(name, "body").to_string_val();
             let options = web_sys::NotificationOptions::new();
             options.set_body(&body);
             let _ = web_sys::Notification::new_with_options(&title, &options);
@@ -976,17 +1178,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         // Web-exclusive: RJavaScript
         ("RJAVASCRIPT", "eval") if args.len() >= 1 => {
             match js_sys::eval(&args[0].to_string_val()) {
-                Ok(result) => {
-                    if let Some(s) = result.as_string() {
-                        v_str(&s)
-                    } else if let Some(n) = result.as_f64() {
-                        Value::Double(n)
-                    } else if let Some(b) = result.as_bool() {
-                        Value::Boolean(b)
-                    } else {
-                        v_null()
-                    }
-                }
+                Ok(result) => jsvalue_to_value(&result),
                 Err(e) => {
                     web_sys::console::error_1(&e);
                     v_null()
@@ -997,22 +1189,14 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             let func_name = args[0].to_string_val();
             let js_args = js_sys::Array::new();
             for arg in args.iter().skip(1) {
-                js_args.push(&JsValue::from_str(&arg.to_string_val()));
+                js_args.push(&value_to_jsvalue(arg));
             }
             if let Some(window) = web_sys::window() {
                 match js_sys::Reflect::get(&window, &JsValue::from_str(&func_name)) {
                     Ok(func) => {
                         if let Ok(func) = func.dyn_into::<js_sys::Function>() {
                             match func.apply(&JsValue::NULL, &js_args) {
-                                Ok(result) => {
-                                    if let Some(s) = result.as_string() {
-                                        v_str(&s)
-                                    } else if let Some(n) = result.as_f64() {
-                                        Value::Double(n)
-                                    } else {
-                                        v_null()
-                                    }
-                                }
+                                Ok(result) => jsvalue_to_value(&result),
                                 Err(e) => {
                                     web_sys::console::error_1(&e);
                                     v_null()
@@ -1033,22 +1217,27 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // Web-exclusive: RWebStorage
         ("RWEBSTORAGE", "set") if args.len() >= 2 => {
-            crate::storage_web::storage_set(&args[0].to_string_val(), &args[1].to_string_val());
+            let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
+            crate::storage_web::storage_set(&st, &args[0].to_string_val(), &args[1].to_string_val());
             v_null()
         }
         ("RWEBSTORAGE", "get") if args.len() >= 1 => {
-            crate::storage_web::storage_get(&args[0].to_string_val())
+            let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
+            crate::storage_web::storage_get(&st, &args[0].to_string_val())
         }
         ("RWEBSTORAGE", "remove") if args.len() >= 1 => {
-            crate::storage_web::storage_remove(&args[0].to_string_val());
+            let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
+            crate::storage_web::storage_remove(&st, &args[0].to_string_val());
             v_null()
         }
         // RWEBSTORAGE clear is handled above (before generic "clear")
         ("RWEBSTORAGE", "keys") => {
-            crate::storage_web::storage_keys()
+            let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
+            crate::storage_web::storage_keys(&st)
         }
         ("RWEBSTORAGE", "haskey") if args.len() >= 1 => {
-            crate::storage_web::storage_has_key(&args[0].to_string_val())
+            let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
+            crate::storage_web::storage_has_key(&st, &args[0].to_string_val())
         }
         // Web-exclusive: RWebAudio
         ("RWEBAUDIO", "play") => {
@@ -1135,17 +1324,73 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         // Web-exclusive: RWebGeolocation
         ("RWEBGEOLOCATION", "getposition") => {
             let name_owned = name.to_string();
-            let _ = js_sys::eval(&format!(
-                r#"navigator.geolocation.getCurrentPosition(function(pos) {{
-                    var el = document.getElementById('rr-{}');
-                    if (el) {{
-                        el.dataset.rrLatitude = pos.coords.latitude;
-                        el.dataset.rrLongitude = pos.coords.longitude;
-                        el.dataset.rrAccuracy = pos.coords.accuracy;
-                    }}
-                }})"#,
-                name_owned.to_lowercase()
-            ));
+            if let Some(window) = web_sys::window() {
+                if let Ok(geolocation) = window.navigator().geolocation() {
+                    let success_cb = Closure::<dyn FnMut(JsValue)>::new(move |pos_val: JsValue| {
+                        if let Ok(pos) = pos_val.dyn_into::<web_sys::Position>() {
+                            let coords = pos.coords();
+                            crate::object_web::rp_comp_set(&name_owned, "latitude", Value::Double(coords.latitude()));
+                            crate::object_web::rp_comp_set(&name_owned, "longitude", Value::Double(coords.longitude()));
+                            crate::object_web::rp_comp_set(&name_owned, "accuracy", Value::Double(coords.accuracy()));
+                            crate::object_web::rp_fire_event(&name_owned, "onchange");
+                        }
+                    });
+                    let error_cb = Closure::<dyn FnMut(JsValue)>::new(move |err_val: JsValue| {
+                        if let Ok(err) = err_val.dyn_into::<web_sys::PositionError>() {
+                            web_sys::console::error_1(&err.message().into());
+                        }
+                    });
+                    let _ = geolocation.get_current_position_with_error_callback(
+                        success_cb.as_ref().unchecked_ref(),
+                        Some(error_cb.as_ref().unchecked_ref()),
+                    );
+                    success_cb.forget();
+                    error_cb.forget();
+                }
+            }
+            v_null()
+        }
+        ("RWEBGEOLOCATION", "watchposition") => {
+            let name_owned = name.to_string();
+            if let Some(window) = web_sys::window() {
+                if let Ok(geolocation) = window.navigator().geolocation() {
+                    let success_cb = Closure::<dyn FnMut(JsValue)>::new(move |pos_val: JsValue| {
+                        if let Ok(pos) = pos_val.dyn_into::<web_sys::Position>() {
+                            let coords = pos.coords();
+                            crate::object_web::rp_comp_set(&name_owned, "latitude", Value::Double(coords.latitude()));
+                            crate::object_web::rp_comp_set(&name_owned, "longitude", Value::Double(coords.longitude()));
+                            crate::object_web::rp_comp_set(&name_owned, "accuracy", Value::Double(coords.accuracy()));
+                            crate::object_web::rp_fire_event(&name_owned, "onchange");
+                        }
+                    });
+                    let error_cb = Closure::<dyn FnMut(JsValue)>::new(move |err_val: JsValue| {
+                        if let Ok(err) = err_val.dyn_into::<web_sys::PositionError>() {
+                            web_sys::console::error_1(&err.message().into());
+                        }
+                    });
+                    if let Ok(watch_id) = geolocation.watch_position_with_error_callback(
+                        success_cb.as_ref().unchecked_ref(),
+                        Some(error_cb.as_ref().unchecked_ref()),
+                    ) {
+                        crate::object_web::rp_comp_set(name, "watchid", Value::Integer(watch_id as i64));
+                        success_cb.forget();
+                        error_cb.forget();
+                        return Value::Integer(watch_id as i64);
+                    }
+                }
+            }
+            v_null()
+        }
+        ("RWEBGEOLOCATION", "clearwatch") => {
+            let watch_id = crate::object_web::rp_comp_get_stored(name, "watchid").to_i64();
+            if watch_id != 0 {
+                if let Some(window) = web_sys::window() {
+                    if let Ok(geolocation) = window.navigator().geolocation() {
+                        let _ = geolocation.clear_watch(watch_id as i32);
+                        crate::object_web::rp_comp_set(name, "watchid", Value::Integer(0));
+                    }
+                }
+            }
             v_null()
         }
         // Web-exclusive: RRouter

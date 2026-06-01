@@ -82,6 +82,7 @@ features = [
     "Coordinates",
     "PositionError",
     "PositionOptions",
+    "Navigator",
 
     # File I/O bridge (RFILESTREAM, dialogs, downloads)
     "File",

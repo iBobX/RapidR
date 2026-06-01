@@ -19,6 +19,14 @@
       parent.postMessage({ __rapidr_log: args.map(String).join(" ") }, "*");
     };
 
+    // Forward uncaught errors and rejections immediately
+    window.addEventListener("error", (e) => {
+      parent.postMessage({ __rapidr_log: "[preview uncaught error] " + (e.message || e) + " at " + (e.filename || "?") + ":" + (e.lineno || 0) }, "*");
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      parent.postMessage({ __rapidr_log: "[preview unhandled rejection] " + (e.reason?.message || e.reason || e) }, "*");
+    });
+
     let debugSession = null;
 
     function handleDebugResult(status) {
@@ -119,6 +127,8 @@
       // Only the real preview pane should drive the parent status bar.
       __rapidr_status: isDesign ? undefined : "preview ready — waiting for bytecode",
     }, "*");
+
+
   </script>
 </head>
 <body>

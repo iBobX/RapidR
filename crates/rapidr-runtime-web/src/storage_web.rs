@@ -10,15 +10,15 @@ fn get_storage(storage_type: &str) -> Option<web_sys::Storage> {
     }
 }
 
-pub fn storage_set(key: &str, value: &str) -> Value {
-    if let Some(storage) = get_storage("local") {
+pub fn storage_set(storage_type: &str, key: &str, value: &str) -> Value {
+    if let Some(storage) = get_storage(storage_type) {
         let _ = storage.set_item(key, value);
     }
     v_null()
 }
 
-pub fn storage_get(key: &str) -> Value {
-    if let Some(storage) = get_storage("local") {
+pub fn storage_get(storage_type: &str, key: &str) -> Value {
+    if let Some(storage) = get_storage(storage_type) {
         match storage.get_item(key) {
             Ok(Some(val)) => return v_str(&val),
             _ => {}
@@ -27,22 +27,22 @@ pub fn storage_get(key: &str) -> Value {
     v_str("")
 }
 
-pub fn storage_remove(key: &str) -> Value {
-    if let Some(storage) = get_storage("local") {
+pub fn storage_remove(storage_type: &str, key: &str) -> Value {
+    if let Some(storage) = get_storage(storage_type) {
         let _ = storage.remove_item(key);
     }
     v_null()
 }
 
-pub fn storage_clear() -> Value {
-    if let Some(storage) = get_storage("local") {
+pub fn storage_clear(storage_type: &str) -> Value {
+    if let Some(storage) = get_storage(storage_type) {
         let _ = storage.clear();
     }
     v_null()
 }
 
-pub fn storage_keys() -> Value {
-    if let Some(storage) = get_storage("local") {
+pub fn storage_keys(storage_type: &str) -> Value {
+    if let Some(storage) = get_storage(storage_type) {
         let len = storage.length().unwrap_or(0);
         let mut keys = Vec::new();
         for i in 0..len {
@@ -55,8 +55,8 @@ pub fn storage_keys() -> Value {
     v_str("")
 }
 
-pub fn storage_has_key(key: &str) -> Value {
-    if let Some(storage) = get_storage("local") {
+pub fn storage_has_key(storage_type: &str, key: &str) -> Value {
+    if let Some(storage) = get_storage(storage_type) {
         match storage.get_item(key) {
             Ok(Some(_)) => return v_int(1),
             _ => {}
@@ -65,20 +65,11 @@ pub fn storage_has_key(key: &str) -> Value {
     v_int(0)
 }
 
-// Session storage variants
+// Session storage variants (legacy wrappers)
 pub fn session_storage_set(key: &str, value: &str) -> Value {
-    if let Some(storage) = get_storage("session") {
-        let _ = storage.set_item(key, value);
-    }
-    v_null()
+    storage_set("session", key, value)
 }
 
 pub fn session_storage_get(key: &str) -> Value {
-    if let Some(storage) = get_storage("session") {
-        match storage.get_item(key) {
-            Ok(Some(val)) => return v_str(&val),
-            _ => {}
-        }
-    }
-    v_str("")
+    storage_get("session", key)
 }

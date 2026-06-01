@@ -1,0 +1,410 @@
+' ============================================================
+' web_system_apis.rr — Browser Native APIs Showcase
+' ============================================================
+' Demonstrates RWebStorage (localStorage vs sessionStorage),
+' RWebGeolocation (one-shot, tracking, and OnChange event),
+' and RWebNotification (permissions and push notifications).
+' ============================================================
+$APPTYPE WEB
+
+CREATE Form1 AS RFORM
+    Caption = "RapidR System APIs Showcase"
+    Width = 640
+    Height = 560
+    Center
+
+    ' --- Title Header ---
+    CREATE LblTitle AS RLABEL
+        Caption = "Browser System APIs Dashboard"
+        Left = 20
+        Top = 15
+        Width = 600
+        Height = 30
+        FontSize = 16
+        FontBold = 1
+        FontColor = 43230 ' Crimson Slate Accent
+    END CREATE
+
+    ' ============================================================
+    ' 1. WEB STORAGE PANEL
+    ' ============================================================
+    CREATE StoragePanel AS RPANEL
+        Left = 20
+        Top = 60
+        Width = 290
+        Height = 330
+        Caption = "Web Storage API"
+        Color = 1447446 ' Sleek Dark Gray
+        BorderStyle = 1
+        CssStyle = "border-radius: 8px; border: 1px solid #3d3d5c; padding: 10px; background: #1e1e2f; color: white;"
+
+        CREATE LblType AS RLABEL
+            Caption = "Storage Engine:"
+            Left = 15
+            Top = 25
+            Width = 100
+            Height = 20
+        END CREATE
+
+        CREATE StorageType AS RCOMBOBOX
+            Left = 120
+            Top = 20
+            Width = 150
+            Height = 25
+            Text = "local"
+        END CREATE
+
+        CREATE LblKey AS RLABEL
+            Caption = "Storage Key:"
+            Left = 15
+            Top = 55
+            Width = 100
+            Height = 20
+        END CREATE
+
+        CREATE KeyInput AS REDIT
+            Text = "user_name"
+            Left = 120
+            Top = 50
+            Width = 150
+            Height = 25
+        END CREATE
+
+        CREATE LblVal AS RLABEL
+            Caption = "Storage Value:"
+            Left = 15
+            Top = 85
+            Width = 100
+            Height = 20
+        END CREATE
+
+        CREATE ValInput AS REDIT
+            Text = "Antigravity"
+            Left = 120
+            Top = 80
+            Width = 150
+            Height = 25
+        END CREATE
+
+        CREATE BtnSet AS RBUTTON
+            Caption = "Set Item"
+            Left = 15
+            Top = 115
+            Width = 80
+            Height = 30
+            OnClick = BtnSet_Click
+        END CREATE
+
+        CREATE BtnGet AS RBUTTON
+            Caption = "Get Item"
+            Left = 105
+            Top = 115
+            Width = 80
+            Height = 30
+            OnClick = BtnGet_Click
+        END CREATE
+
+        CREATE BtnRemove AS RBUTTON
+            Caption = "Remove"
+            Left = 195
+            Top = 115
+            Width = 75
+            Height = 30
+            OnClick = BtnRemove_Click
+        END CREATE
+
+        CREATE BtnClear AS RBUTTON
+            Caption = "Clear Storage"
+            Left = 15
+            Top = 150
+            Width = 120
+            Height = 30
+            OnClick = BtnClear_Click
+        END CREATE
+
+        CREATE BtnKeys AS RBUTTON
+            Caption = "List Keys"
+            Left = 145
+            Top = 150
+            Width = 125
+            Height = 30
+            OnClick = BtnKeys_Click
+        END CREATE
+
+        CREATE LblKeys AS RLABEL
+            Caption = "Stored Keys Listing:"
+            Left = 15
+            Top = 185
+            Width = 200
+            Height = 20
+            FontBold = 1
+        END CREATE
+
+        CREATE KeysList AS RMEMO
+            Text = ""
+            Left = 15
+            Top = 205
+            Width = 255
+            Height = 90
+            ReadOnly = 1
+            CssStyle = "background: #2a2a40; color: #a0a0ff; font-family: monospace;"
+        END CREATE
+
+        CREATE StorageStatus AS RLABEL
+            Caption = "Status: Idle"
+            Left = 15
+            Top = 300
+            Width = 255
+            Height = 20
+            FontColor = 65280 ' Green
+        END CREATE
+    END CREATE
+
+    ' ============================================================
+    ' 2. GEOLOCATION PANEL
+    ' ============================================================
+    CREATE GeoPanel AS RPANEL
+        Left = 330
+        Top = 60
+        Width = 290
+        Height = 330
+        Caption = "Geolocation Tracker"
+        Color = 1447446
+        BorderStyle = 1
+        CssStyle = "border-radius: 8px; border: 1px solid #3d3d5c; padding: 10px; background: #1e1e2f; color: white;"
+
+        CREATE LblLat AS RLABEL
+            Caption = "Latitude: (unknown)"
+            Left = 15
+            Top = 30
+            Width = 250
+            Height = 25
+            FontSize = 11
+        END CREATE
+
+        CREATE LblLng AS RLABEL
+            Caption = "Longitude: (unknown)"
+            Left = 15
+            Top = 60
+            Width = 250
+            Height = 25
+            FontSize = 11
+        END CREATE
+
+        CREATE LblAcc AS RLABEL
+            Caption = "Accuracy: (unknown)"
+            Left = 15
+            Top = 90
+            Width = 250
+            Height = 25
+            FontSize = 11
+        END CREATE
+
+        CREATE GeoStatus AS RLABEL
+            Caption = "Status: Idle"
+            Left = 15
+            Top = 120
+            Width = 250
+            Height = 25
+            FontColor = 65535 ' Yellow
+        END CREATE
+
+        CREATE BtnGetPos AS RBUTTON
+            Caption = "Get Location"
+            Left = 15
+            Top = 160
+            Width = 255
+            Height = 35
+            OnClick = BtnGetPos_Click
+        END CREATE
+
+        CREATE BtnWatchPos AS RBUTTON
+            Caption = "Start Tracking Coordinates"
+            Left = 15
+            Top = 205
+            Width = 255
+            Height = 35
+            OnClick = BtnWatchPos_Click
+        END CREATE
+
+        CREATE BtnClearWatch AS RBUTTON
+            Caption = "Stop Tracking Coordinates"
+            Left = 15
+            Top = 250
+            Width = 255
+            Height = 35
+            OnClick = BtnClearWatch_Click
+        END CREATE
+    END CREATE
+
+    ' ============================================================
+    ' 3. PUSH NOTIFICATION PANEL
+    ' ============================================================
+    CREATE NotifPanel AS RPANEL
+        Left = 20
+        Top = 410
+        Width = 600
+        Height = 125
+        Caption = "Push Notification Engine"
+        Color = 1447446
+        BorderStyle = 1
+        CssStyle = "border-radius: 8px; border: 1px solid #3d3d5c; padding: 10px; background: #1e1e2f; color: white;"
+
+        CREATE LblNotifTitle AS RLABEL
+            Caption = "Title:"
+            Left = 15
+            Top = 25
+            Width = 50
+            Height = 20
+        END CREATE
+
+        CREATE NotifTitle AS REDIT
+            Text = "Hello from RapidR!"
+            Left = 70
+            Top = 20
+            Width = 350
+            Height = 25
+        END CREATE
+
+        CREATE LblNotifBody AS RLABEL
+            Caption = "Body:"
+            Left = 15
+            Top = 55
+            Width = 50
+            Height = 20
+        END CREATE
+
+        CREATE NotifBody AS REDIT
+            Text = "Your web-exclusive components are now running beautifully."
+            Left = 70
+            Top = 50
+            Width = 350
+            Height = 25
+        END CREATE
+
+        CREATE BtnNotifPerm AS RBUTTON
+            Caption = "Request Permission"
+            Left = 440
+            Top = 20
+            Width = 145
+            Height = 25
+            OnClick = BtnNotifPerm_Click
+        END CREATE
+
+        CREATE BtnNotifShow AS RBUTTON
+            Caption = "Trigger Push Notif"
+            Left = 440
+            Top = 50
+            Width = 145
+            Height = 25
+            OnClick = BtnNotifShow_Click
+        END CREATE
+
+        CREATE LblNotifStatus AS RLABEL
+            Caption = "Tip: Push Notifications require browser permission approval."
+            Left = 70
+            Top = 85
+            Width = 515
+            Height = 20
+            FontSize = 10
+            FontColor = 12632256 ' Light gray
+        END CREATE
+    END CREATE
+
+    ' --- Virtual Web Components ---
+    CREATE Storage1 AS RWEBSTORAGE
+    END CREATE
+
+    CREATE Geo1 AS RWEBGEOLOCATION
+        OnChange = Geo1_OnChange
+    END CREATE
+
+    CREATE Notif1 AS RWEBNOTIFICATION
+    END CREATE
+END CREATE
+
+' ============================================================
+' EVENT HANDLERS
+' ============================================================
+
+' --- Storage ---
+SUB BtnSet_Click()
+    Storage1.storagetype = StorageType.Text
+    Storage1.Set(KeyInput.Text, ValInput.Text)
+    StorageStatus.Caption = "Status: Set item successfully"
+    KeysList.Text = Storage1.Keys()
+END SUB
+
+SUB BtnGet_Click()
+    Storage1.storagetype = StorageType.Text
+    DIM val AS STRING
+    val = Storage1.Get(KeyInput.Text)
+    ValInput.Text = val
+    StorageStatus.Caption = "Status: Item fetched"
+END SUB
+
+SUB BtnRemove_Click()
+    Storage1.storagetype = StorageType.Text
+    Storage1.Remove(KeyInput.Text)
+    StorageStatus.Caption = "Status: Item removed"
+    KeysList.Text = Storage1.Keys()
+END SUB
+
+SUB BtnClear_Click()
+    Storage1.storagetype = StorageType.Text
+    Storage1.Clear()
+    StorageStatus.Caption = "Status: Engine cleared"
+    KeysList.Text = ""
+END SUB
+
+SUB BtnKeys_Click()
+    Storage1.storagetype = StorageType.Text
+    KeysList.Text = Storage1.Keys()
+    StorageStatus.Caption = "Status: Storage keys loaded"
+END SUB
+
+' --- Geolocation ---
+SUB BtnGetPos_Click()
+    GeoStatus.Caption = "Status: Fetching..."
+    Geo1.GetPosition()
+END SUB
+
+SUB Geo1_OnChange()
+    LblLat.Caption = "Latitude: " + STR(Geo1.latitude)
+    LblLng.Caption = "Longitude: " + STR(Geo1.longitude)
+    LblAcc.Caption = "Accuracy: " + STR(Geo1.accuracy) + " m"
+    GeoStatus.Caption = "Status: Updated live"
+END SUB
+
+SUB BtnWatchPos_Click()
+    GeoStatus.Caption = "Status: Tracking active"
+    DIM watchId AS INTEGER
+    watchId = Geo1.WatchPosition()
+    PRINT "Tracking started with ID: " + STR(watchId)
+END SUB
+
+SUB BtnClearWatch_Click()
+    Geo1.ClearWatch()
+    GeoStatus.Caption = "Status: Tracking stopped"
+END SUB
+
+' --- Notifications ---
+SUB BtnNotifPerm_Click()
+    Notif1.RequestPermission()
+    PRINT "Notification request trigger executed."
+END SUB
+
+SUB BtnNotifShow_Click()
+    Notif1.title = NotifTitle.Text
+    Notif1.body = NotifBody.Text
+    Notif1.Show()
+    PRINT "Push notification trigger executed."
+END SUB
+
+' Populate combobox defaults on launch
+StorageType.AddItem("local")
+StorageType.AddItem("session")
+StorageType.Text = "local"
+KeysList.Text = Storage1.Keys()
+
+PRINT "System APIs Showcase Loaded."

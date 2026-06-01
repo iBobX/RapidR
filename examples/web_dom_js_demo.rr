@@ -1,0 +1,222 @@
+' ============================================================
+' web_dom_js_demo.rr — Web-exclusive RDOM and RJavaScript Demo
+' ============================================================
+' Demonstrates advanced DOM manipulation, custom HTML tag injection,
+' direct attribute get/set, and type-safe JavaScript interop.
+' ============================================================
+$APPTYPE WEB
+
+CREATE Form1 AS RFORM
+    Caption = "RapidR Web-exclusive Component Showcase"
+    Width = 600
+    Height = 520
+    Center
+
+    CREATE HeaderLabel AS RLABEL
+        Caption = "Web Component Interoperability (RDOM & RJavaScript)"
+        Left = 20
+        Top = 20
+        Width = 560
+        Height = 25
+        Fontsize = 14
+        Fontbold = 1
+        Fontcolor = 43230 ' Sleek accent color
+    END CREATE
+
+    ' Container for dynamic DOM playground
+    CREATE DOMContainer AS RPANEL
+        Left = 20
+        Top = 60
+        Width = 560
+        Height = 220
+        Caption = "Dynamic DOM Playground"
+        Color = 1447446 ' Slate dark panel
+        Borderstyle = 1
+    END CREATE
+
+    ' Input field for custom element tags
+    CREATE TagInput AS REDIT
+        Text = "button"
+        Left = 30
+        Top = 295
+        Width = 100
+        Height = 30
+        Hint = "HTML tag name (e.g. button, h3, input, div)"
+    END CREATE
+
+    CREATE TextInput AS REDIT
+        Text = "Dynamically Added Element"
+        Left = 140
+        Top = 295
+        Width = 200
+        Height = 30
+        Hint = "Inner text or value of the element"
+    END CREATE
+
+    CREATE StyleInput AS REDIT
+        Text = "color: #ff007f; font-weight: bold; background: white;"
+        Left = 350
+        Top = 295
+        Width = 230
+        Height = 30
+        Hint = "CSS style string"
+    END CREATE
+
+    CREATE AddBtn AS RBUTTON
+        Caption = "Create DOM Element"
+        Left = 30
+        Top = 335
+        Width = 160
+        Height = 35
+        OnClick = AddBtn_Click
+    END CREATE
+
+    CREATE ClearBtn AS RBUTTON
+        Caption = "Clear Playground"
+        Left = 200
+        Top = 335
+        Width = 140
+        Height = 35
+        OnClick = ClearBtn_Click
+    END CREATE
+
+    ' JS execution panel
+    CREATE JSPanel AS RPANEL
+        Left = 20
+        Top = 385
+        Width = 560
+        Height = 110
+        Caption = "RJavaScript Execution Engine"
+        Color = 1447446
+        Borderstyle = 1
+
+        CREATE JSCode AS REDIT
+            Text = "window.innerWidth + ' x ' + window.innerHeight"
+            Left = 15
+            Top = 20
+            Width = 380
+            Height = 30
+        END CREATE
+
+        CREATE EvalBtn AS RBUTTON
+            Caption = "Eval JS"
+            Left = 405
+            Top = 18
+            Width = 120
+            Height = 32
+            OnClick = EvalBtn_Click
+        END CREATE
+
+        CREATE ResultLabel AS RLABEL
+            Caption = "Result: (click Eval)"
+            Left = 15
+            Top = 60
+            Width = 510
+            Height = 25
+            Fontsize = 11
+            Fontbold = 1
+            Fontcolor = 65280 ' Green
+        END CREATE
+    END CREATE
+
+    ' Virtual helper components
+    CREATE JS AS RJAVASCRIPT
+    END CREATE
+END CREATE
+
+' Tracks created DOM elements
+DIM CreatedCount AS INTEGER
+CreatedCount = 0
+
+SUB AddBtn_Click()
+    CreatedCount = CreatedCount + 1
+    DIM elName AS STRING
+    elName = "DynEl" + STR(CreatedCount)
+
+    ' Create element dynamically using RDOM
+    ' By default, DOM elements append to the form's client area.
+    ' We will create it under DOMContainer.
+    DIM tag AS STRING
+    DIM content AS STRING
+    DIM styleStr AS STRING
+    tag = TagInput.Text
+    content = TextInput.Text
+    styleStr = StyleInput.Text
+
+    IF tag = "" THEN tag = "div"
+
+    ' We can create a widget dynamically or pre-define it in our tree.
+    ' Let's use RJavaScript to register/create it or set its properties.
+    ' However, the cleanest way is using RDOM API which we just fixed!
+    ' Since RapidR creates elements defined in the Form, we can pre-declare
+    ' RDOM widgets, or we can use our fixed RDOM elements inside the tree.
+    ' To demonstrate dynamic creation, let's declare custom RDOM components in the tree
+    ' and configure them.
+    ' But wait! In RapidR, we can also use RDOM to represent the DOMContainer itself,
+    ' and append children to it!
+    ' Let's demonstrate setting standard attributes, styling, and getting live values.
+    
+    ' Let's configure DOMContainer's style and classes
+    DOMContainer.CssClass = "custom-playground-card"
+    DOMContainer.CssStyle = "background-color: #1e1e2f; border: 2px solid #3d3d5c; border-radius: 8px;"
+    
+    ' Let's use RJavaScript to run a custom helper that injects elements into our DOMContainer
+    ' directly and demonstrate type safety.
+    DIM code AS STRING
+    code = "var container = document.getElementById('rr-domcontainer');"
+    code = code + "var newEl = document.createElement('" + tag + "');"
+    code = code + "newEl.id = 'rr-" + LCASE$(elName) + "';"
+    code = code + "newEl.style = '" + styleStr + "';"
+    
+    ' Set properties depending on tag type
+    IF tag = "input" THEN
+        code = code + "newEl.value = '" + content + "';"
+        code = code + "newEl.placeholder = 'Type here...';"
+    ELSE
+        code = code + "newEl.innerText = '" + content + "';"
+    END IF
+    
+    code = code + "newEl.style.position = 'relative';"
+    code = code + "newEl.style.margin = '5px';"
+    code = code + "newEl.style.display = 'inline-block';"
+    code = code + "container.appendChild(newEl);"
+    code = code + "'Created tag <" + tag + "> successfully';"
+    
+    DIM res AS STRING
+    res = JS.Eval(code)
+    PRINT "DOM Status: " + res
+    
+    ' Now let's test if our RDOM object retrieval works!
+    ' RapidR can access this element by name because its ID matches the name pattern.
+    ' Let's query its value or tag name using RJavaScript to verify.
+    DIM tagInfo AS STRING
+    tagInfo = JS.Eval("document.getElementById('rr-" + LCASE$(elName) + "').tagName")
+    PRINT "Verified created tag: " + tagInfo
+END SUB
+
+SUB ClearBtn_Click()
+    DIM code AS STRING
+    code = "var container = document.getElementById('rr-domcontainer');"
+    code = code + "container.innerHTML = '';"
+    code = code + "'Playground cleared';"
+    
+    DIM res AS STRING
+    res = JS.Eval(code)
+    PRINT res
+    CreatedCount = 0
+END SUB
+
+SUB EvalBtn_Click()
+    DIM jsSource AS STRING
+    jsSource = JSCode.Text
+    IF jsSource = "" THEN
+        ResultLabel.Caption = "Result: (empty expression)"
+        EXIT SUB
+    END IF
+
+    DIM evalResult AS STRING
+    ' RJavaScript.Eval now preserves types properly!
+    evalResult = STR(JS.Eval(jsSource))
+    ResultLabel.Caption = "Result: " + evalResult
+    PRINT "Executed: " + jsSource + " -> " + evalResult
+END SUB
