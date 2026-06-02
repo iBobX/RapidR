@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.8.0";
+export const RAPIDR_IDE_VERSION = "2.8.1";
 
 const _editors = new Map();
 
@@ -2376,7 +2376,7 @@ async function doRun() {
       iframe.contentWindow.postMessage({ __rapidr_run: bc }, "*");
     };
     window.addEventListener("message", onReady);
-    iframe.src = "./preview.html?role=run&v=2.8.0";
+    iframe.src = `./preview.html?role=run&v=${RAPIDR_IDE_VERSION}`;
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
@@ -3856,7 +3856,7 @@ async function doDebug() {
     };
     
     window.addEventListener("message", onReady);
-    iframe.src = "./preview.html?role=debug&v=2.8.0";
+    iframe.src = `./preview.html?role=debug&v=${RAPIDR_IDE_VERSION}`;
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));

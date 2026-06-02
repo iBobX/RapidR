@@ -1488,6 +1488,20 @@ pub fn rp_fire_event_5(
     });
 }
 
+pub fn rp_rebind_component_events(name: &str) {
+    let uname = name.to_uppercase();
+    let events: Vec<String> = EVENT_HANDLERS.with(|eh| {
+        eh.borrow()
+            .keys()
+            .filter(|(comp, _)| comp == &uname)
+            .map(|(_, ev)| ev.clone())
+            .collect()
+    });
+    for ev in events {
+        bind_dom_event(name, &ev);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // DOM event binding — wire up browser events to fire RapidR events
 // ---------------------------------------------------------------------------

@@ -510,6 +510,95 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                     .set_attribute("sandbox", &s);
             }
         }
+        "tagname" => {
+            let target_tag = s.to_lowercase();
+            let current_tag = el.tag_name().to_lowercase();
+            if current_tag != target_tag {
+                let new_el = create_el(&target_tag);
+                new_el.set_id(&id);
+
+                let attrs = el.attributes();
+                for i in 0..attrs.length() {
+                    if let Some(attr) = attrs.item(i) {
+                        let attr_name = attr.name();
+                        let attr_val = attr.value();
+                        let _ = new_el.set_attribute(&attr_name, &attr_val);
+                    }
+                }
+
+                while let Some(child) = el.first_child() {
+                    let _ = new_el.append_child(&child);
+                }
+
+                let is_head_tag = matches!(
+                    target_tag.as_str(),
+                    "style" | "script" | "link" | "meta" | "title"
+                );
+
+                if is_head_tag {
+                    let new_style = new_el.style();
+                    let _ = new_style.remove_property("position");
+                    let _ = new_style.remove_property("box-sizing");
+                    let _ = new_style.remove_property("left");
+                    let _ = new_style.remove_property("top");
+                    let _ = new_style.remove_property("width");
+                    let _ = new_style.remove_property("height");
+                    let _ = new_style.remove_property("border");
+                    let _ = new_style.remove_property("background");
+
+                    if let Some(parent) = el.parent_node() {
+                        let _ = parent.remove_child(&el);
+                    }
+
+                    if let Ok(Some(head)) = document().query_selector("head") {
+                        let _ = head.append_child(&new_el);
+                    } else {
+                        let _ = document().body().unwrap().append_child(&new_el);
+                    }
+                } else {
+                    let was_head_tag = matches!(
+                        current_tag.as_str(),
+                        "style" | "script" | "link" | "meta" | "title"
+                    );
+                    if was_head_tag {
+                        let new_style = new_el.style();
+                        let _ = new_style.set_property("position", "absolute");
+                        let _ = new_style.set_property("box-sizing", "border-box");
+                        let _ = new_style.set_property("border", "1px solid #aaa");
+                        let _ = new_style.set_property("background", "white");
+
+                        let props = crate::object_web::rp_comp_get_all_properties(name)
+                            .map(|(_, p)| p)
+                            .unwrap_or_default();
+                        apply_geometry(&new_el, &props, 0, 0, 100, 25);
+
+                        let parent_val = crate::object_web::rp_comp_get_stored(name, "parentid");
+                        let parent = if matches!(parent_val, Value::Null) {
+                            crate::object_web::rp_comp_get_stored(name, "parent")
+                        } else {
+                            parent_val
+                        };
+                        let parent_str = if matches!(parent, Value::Null) { None } else { Some(parent.to_string_val()) };
+                        let parent_el = get_parent_client(&parent_str);
+                        let _ = parent_el.append_child(&new_el);
+
+                        if let Some(parent) = el.parent_node() {
+                            let _ = parent.remove_child(&el);
+                        }
+                    } else {
+                        if let Some(parent) = el.parent_node() {
+                            let _ = parent.replace_child(&new_el, &el);
+                        } else {
+                            let parent_el = document().body().unwrap();
+                            let _ = parent_el.append_child(&new_el);
+                        }
+                    }
+                }
+
+                // Rebind event handlers to the new DOM node
+                crate::object_web::rp_rebind_component_events(name);
+            }
+        }
         // Web-exclusive: RDom
         "innerhtml" => {
             el.set_inner_html(&s);
@@ -2134,14 +2223,28 @@ fn create_dom_element(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     el.set_id(id);
     let _ = el.set_attribute("data-rr-name", name);
-    let _ = el.style().set_property("position", "absolute");
-    let _ = el.style().set_property("box-sizing", "border-box");
-    apply_geometry(&el, props, 0, 0, 100, 25);
 
-    // Append to parent if specified, otherwise to body
-    let parent = props.get("parentid").or_else(|| props.get("parent")).map(|v| v.to_string_val());
-    let parent_el = get_parent_client(&parent);
-    let _ = parent_el.append_child(&el);
+    let is_head_tag = matches!(
+        tag.to_uppercase().as_str(),
+        "STYLE" | "SCRIPT" | "LINK" | "META" | "TITLE"
+    );
+
+    if !is_head_tag {
+        let _ = el.style().set_property("position", "absolute");
+        let _ = el.style().set_property("box-sizing", "border-box");
+        apply_geometry(&el, props, 0, 0, 100, 25);
+
+        // Append to parent if specified, otherwise to body
+        let parent = props.get("parentid").or_else(|| props.get("parent")).map(|v| v.to_string_val());
+        let parent_el = get_parent_client(&parent);
+        let _ = parent_el.append_child(&el);
+    } else {
+        if let Ok(Some(head)) = document().query_selector("head") {
+            let _ = head.append_child(&el);
+        } else {
+            let _ = document().body().unwrap().append_child(&el);
+        }
+    }
 }
 
 fn create_audio(id: &str, name: &str, props: &HashMap<String, Value>) {

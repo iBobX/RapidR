@@ -19,6 +19,8 @@ features = [
     "Document",
     "Element",
     "HtmlElement",
+    "Attr",
+    "NamedNodeMap",
     "HtmlInputElement",
     "HtmlTextAreaElement",
     "HtmlSelectElement",
