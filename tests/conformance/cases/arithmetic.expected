@@ -1,0 +1,10 @@
+add:14
+paren:20
+intdiv:3
+mod:2
+pow:1024
+div:3.5
+neg:-2
+concat:ab
+logic:ok
+strcmp:ok

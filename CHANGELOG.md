@@ -14,6 +14,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `http://localhost:8765` (open `/web-ide/index.html`). The IDE must be served over
   HTTP; opening it as a `file://` page breaks module and wasm loading.
 
+- **Conformance suite** (`tests/conformance/`): small BASIC programs with the output
+  correct BASIC must produce, run on both the bytecode VM and the Rust codegen backend,
+  and part of CI. Known bugs are marked per backend and reported as known failures;
+  a case that starts passing fails the run so its marker gets removed. There are 15
+  seed cases. It already found about a dozen silent-correctness bugs, listed in
+  ROADMAP.md; for example, identifiers are case-sensitive in the VM, and
+  `CASE 2, 3` loops forever in the VM.
+
 ### Changed
 - The whole `tests/` folder is now tracked. Only generated output is ignored:
   `node_modules`, `.matrix`, `.ide-matrix`, `screenshots`, `web-screenshots`, `results`.

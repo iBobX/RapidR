@@ -1,0 +1,13 @@
+for:12345
+step:10,7,4,1,
+while:3
+do-until:8
+exit-for:4
+if:one
+if:two
+if:other
+if:other
+single:no
+case:1
+case:2or3
+case:2or3

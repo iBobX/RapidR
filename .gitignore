@@ -27,3 +27,4 @@ ide
 *.compiled
 *.interp
 *.zip
+tests/conformance/.work

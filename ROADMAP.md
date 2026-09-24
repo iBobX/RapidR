@@ -44,6 +44,24 @@ Working: `IIF`, `FIELD$`, `TALLY`, `RINSTR`, `CONVBASE$`, `HEX$`, `CHR$`, `ASC`,
 
 | `MID$` / `LEFT$` / `RIGHT$` (web runtime) | Slice by bytes → panic (app crash) on multi-byte UTF-8 text, e.g. `"héllo"` (`crates/rapidr-runtime-web/src/builtins.rs` `rp_mid`/`rp_right`; check native + VM too) |
 
+**Conformance suite findings (2026-09-24, `tests/conformance`, both backends):**
+
+| Bug | VM | Codegen |
+|---|---|---|
+| Identifiers (variables, SUBs, arrays) are case-sensitive → silent wrong results | ✗ | ok |
+| `FOR … STEP -n` runs zero times | ✗ | ok |
+| `CASE 2, 3` (several values) jumps to program start → infinite loop | ✗ | ok |
+| `CASE a TO b` / `CASE IS > n` choose the wrong branch | ✗ | ✗ |
+| `DIM a(1 TO n)` / 2-D element assignment: "invalid assignment target" | ✗ | ok |
+| FUNCTION return-by-name (`Fact = …`) returns empty | ✗ | ok |
+| `BYREF` parameters: VM ignores them; codegen doesn't compile | ✗ | ✗ |
+| Whole-number float results print as `1024.0` | ✗ | ✗ |
+| `;` between PRINT items suppresses the newline (codegen also inserts a space) | ✗ | ✗ |
+| GOTO/GOSUB/labels (codegen runs "skipped" code) | ✗ | ✗ |
+| Calls to unknown SUBs / builtins: VM silent no-op; codegen confusing rustc error | ✗ | ✗ |
+
+Open question (needs real RapidQ to decide): numeric formatting after `;` in PRINT and in `STR$` — VM prints `x:5`, codegen `x: 5` (QBasic-style leading space). Kept out of expected outputs until confirmed.
+
 Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 
 ### Security (found by code reading — not yet exploited/verified dynamically)
@@ -81,7 +99,8 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] SEC-06: `RHttp`, `BEEP`, `SOUND` via `web_sys` (XHR / Web Audio); only `RJavaScript.Eval` remains; `clippy.toml` bans `js_sys::eval` (v2.8.2)
 - [ ] Unsupported constructs → hard diagnostics (parser + bcgen + codegen); no silent drops
 - [ ] Wasm `compile()` returns structured diagnostics → Monaco `setModelMarkers`
-- [ ] `tests/conformance/` harness: `*.bas` + `*.expected`, runs on VM **and** Rust codegen; seed with Appendix A programs
+- [x] `tests/conformance/` harness (`run.mjs`): `*.bas` + `*.expected` / `*.expected-error`, VM **and** Rust codegen, xfail markers for known bugs, runs in CI — 15 seed cases, 7 pass / 23 known failures
+- [ ] Fix conformance failures (table above) until every case passes on both backends
 - [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
 - [x] Undo/redo in the IDE: snapshot-based project history, menu/toolbar/Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, 100 steps, `tests/web_ide_undo.mjs` (v2.9.0)
 - [ ] Fix pre-existing failures in `tests/web_ide_bugfixes.mjs` (About-dialog credits) and `tests/web_ide_phaseF.mjs` (project restore); add all `tests/web_ide_*.mjs` to CI

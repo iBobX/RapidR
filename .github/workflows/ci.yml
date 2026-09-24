@@ -36,6 +36,15 @@ jobs:
             libfontconfig1-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev \
             libasound2-dev
       - run: cargo test --workspace
+      # Conformance: the same BASIC programs on the bytecode VM and the Rust
+      # codegen backend, compared against expected output (tests/conformance).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the rapidr CLI
+        run: cargo build -p rapidr-cli && cp target/debug/rapidr ./rapidr
+      - name: Conformance suite (VM + codegen)
+        run: node tests/conformance/run.mjs
 
   # The web runtime must never build JavaScript from strings (SEC-06);
   # clippy.toml bans js_sys::eval outside the RJavaScript component.
