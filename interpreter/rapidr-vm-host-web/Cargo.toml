@@ -1,6 +1,7 @@
 [package]
 name = "rapidr-vm-host-web"
 version.workspace = true
+publish = false
 edition.workspace = true
 license.workspace = true
 

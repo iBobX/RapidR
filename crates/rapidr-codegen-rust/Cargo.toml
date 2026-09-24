@@ -2,6 +2,7 @@
 name = "rapidr-codegen-rust"
 edition.workspace = true
 version.workspace = true
+publish = false
 license.workspace = true
 
 [dependencies]

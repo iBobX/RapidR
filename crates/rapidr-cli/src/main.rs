@@ -49,7 +49,7 @@ fn main() -> ExitCode {
 
     match (first, second) {
         (Some("version"), _) => {
-            println!("RapidR 0.1.0");
+            println!("RapidR {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         (Some("parse"), Some(path)) => parse_source_file(&path),

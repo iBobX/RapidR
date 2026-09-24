@@ -2,6 +2,7 @@
 name = "rapidr-bcgen"
 edition.workspace = true
 version.workspace = true
+publish = false
 license.workspace = true
 description = "RapidR AST -> bytecode lowering"
 

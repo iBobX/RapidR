@@ -1,0 +1,59 @@
+# cargo-deny configuration — supply-chain checks for RapidR (ROADMAP SEC-09).
+#
+#   cargo install --locked cargo-deny
+#   cargo deny check              # advisories, bans, licenses, sources
+#
+# Every exception below must say why it is acceptable and when to revisit it.
+
+[graph]
+all-features = false
+
+[advisories]
+# Vulnerabilities and unsound crates always fail. Unmaintained crates fail
+# unless listed here with a justification.
+unmaintained = "all"
+ignore = [
+    # proc-macro-error2: compile-time only, pulled in by mysql-common-derive
+    # (mysql 25). Never runs in shipped apps. Revisit on the next mysql upgrade.
+    { id = "RUSTSEC-2026-0173", reason = "build-time proc-macro via mysql-common-derive; not in shipped code" },
+    # ttf-parser 0.25: optional dependency of fltk 1.5 (feature not enabled,
+    # so it is not compiled). Revisit when upgrading fltk.
+    { id = "RUSTSEC-2026-0192", reason = "optional fltk dependency, feature not enabled" },
+]
+
+[licenses]
+# RapidR is MIT; these licenses are compatible for use and redistribution.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "BSL-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",  # webpki-roots certificate data
+    "MPL-2.0",              # file-level copyleft (font crates); fine unmodified
+]
+confidence-threshold = 0.9
+
+[[licenses.clarify]]
+# polars-arrow-format ships only a LICENSE file (Apache-2.0).
+crate = "polars-arrow-format"
+expression = "Apache-2.0"
+license-files = []
+
+[bans]
+# Duplicate versions are common in a tree this size (polars, fltk, wasm-bindgen);
+# report them without failing. Wildcard version requirements are denied.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

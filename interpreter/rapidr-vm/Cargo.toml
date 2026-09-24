@@ -2,6 +2,7 @@
 name = "rapidr-vm"
 edition.workspace = true
 version.workspace = true
+publish = false
 license.workspace = true
 description = "RapidR bytecode interpreter (host-agnostic core)"
 

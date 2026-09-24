@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Supply chain: vulnerable/unsound/unmaintained crates, licenses, sources.
+  # Config and documented exceptions live in deny.toml (ROADMAP SEC-09).
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories bans licenses sources
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install native GUI/audio build dependencies (FLTK, ALSA)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libx11-dev libxext-dev libxft-dev \
+            libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev \
+            libfontconfig1-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libasound2-dev
+      - run: cargo test --workspace
+
+  # The web runtime must never build JavaScript from strings (SEC-06);
+  # clippy.toml bans js_sys::eval outside the RJavaScript component.
+  web-runtime-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy -p rapidr-runtime-web -p rapidr-vm-host-web --target wasm32-unknown-unknown -- -A clippy::all -D clippy::disallowed_methods

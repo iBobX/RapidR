@@ -58,7 +58,7 @@ Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 | SEC-06 | Medium | 6 `js_sys::eval` sites with string-built JS. **Also a functional bug:** bundle CSP (`script-src 'self' 'wasm-unsafe-eval'`) blocks eval, so `RHttp`, `Sound`/`Beep`, `SaveToFile` likely fail in deployed bundles; `connect-src 'self'` blocks external APIs; `frame-src 'none'` blocks `RWebView` | `network_web.rs:58`, `:125`; `builtins.rs:550`, `:569`; `object_web.rs:1314`; `gui_web.rs:1269`; CSP in `web-ide/zip.js:91` | Replace with `web_sys` calls; clippy `disallowed_methods` for eval outside `RJavaScript`; derive CSP from components used |
 | SEC-07 | Medium | SQL APIs take raw strings, no parameter binding (`query_map([], …)`) → SQLi by default | `crates/rapidr-runtime-core/src/database.rs:103` (+ MySQL path, web DB) | Add parameter binding API (`?` placeholders + `.AddParam`/array arg); document; teach AI |
 | SEC-08 | Review | 23 `unsafe` in web host; event dispatcher stores leaked raw `*mut Vm` → possible aliasing/UB on re-entrant events (during `ShowModal`, sync XHR). 68 `unsafe` in FFI | `interpreter/rapidr-vm-host-web/src/lib.rs:237`; `crates/rapidr-runtime-core/src/ffi.rs` | Re-entrancy guard / `Rc<RefCell<>>`; document invariants; Miri |
-| SEC-09 | Gap | No cargo-audit / cargo-deny, no fuzzing, no SECURITY.md; IDE loads Google Fonts (third-party) | — | Phase 0 + Phase 6 |
+| SEC-09 | Gap | ~~No cargo-deny~~ (done v2.8.4); no fuzzing, no SECURITY.md; IDE loads Google Fonts (third-party) | — | Phase 0 + Phase 6 |
 | SEC-11 | High | Build server preview path traversal: `dir.join(rel).starts_with(dir)` does not catch `..` → arbitrary file read | `crates/rapidr-buildserver/src/main.rs` (`serve_preview_path`) | Reject any non-`Normal` path component |
 | SEC-12 | Medium | `RWebView.HTML` uses `srcdoc` with default sandbox `allow-scripts allow-same-origin` → HTML runs with the app's origin | `crates/rapidr-runtime-web/src/gui_web.rs` (`"html"` prop, iframe creation ~:2201) | Drop `allow-same-origin` for `srcdoc` content by default; opt-in property |
 | SEC-13 | Low | IDE preview: `RHttp` to relative URLs needs CORS headers from the IDE's server now that the preview is opaque-origin; origin-bound browser APIs (notifications) may be unavailable in preview | `web-ide/preview.html` | Document; optionally proxy same-server requests through the IDE bridge (needs async RHttp) |
@@ -82,11 +82,14 @@ Missing: compiler diagnostics as editor markers, **undo/redo (stub at `web-ide/h
 - [ ] Unsupported constructs → hard diagnostics (parser + bcgen + codegen); no silent drops
 - [ ] Wasm `compile()` returns structured diagnostics → Monaco `setModelMarkers`
 - [ ] `tests/conformance/` harness: `*.bas` + `*.expected`, runs on VM **and** Rust codegen; seed with Appendix A programs
-- [ ] `cargo-deny` (advisories + licenses) in CI
+- [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
 - [ ] Undo/redo in the IDE (needed before AI edits)
 - [ ] Fix pre-existing failures in `tests/web_ide_bugfixes.mjs` (About-dialog credits) and `tests/web_ide_phaseF.mjs` (project restore); add all `tests/web_ide_*.mjs` to CI
 
 **Rest of Phase 0**
+- [ ] Upgrade `mysql` crate to drop `proc-macro-error2` (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
+- [ ] Confirm first CI run on GitHub (Linux FLTK/ALSA system packages untested)
+- [ ] `SECURITY.md` with a private vulnerability-reporting channel (needs owner decision: GitHub private reporting vs. email)
 - [ ] SEC-07: SQL parameter binding (SQLite, MySQL, web SQLite)
 - [ ] CSP generated per bundle from components used (e.g. `'unsafe-eval'` only if `RJavaScript` is used; `connect-src` for `RHttp`/`RAI` hosts; `frame-src` for `RWebView`)
 - [ ] Single language registry → generate `lang-data.js`, VS Code data, manual sections

@@ -2,6 +2,7 @@
 name = "rapidr-bytecode"
 edition.workspace = true
 version.workspace = true
+publish = false
 license.workspace = true
 description = "RapidR bytecode format — opcodes, constant pool, (de)serialize"
 

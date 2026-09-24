@@ -5,6 +5,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 [ROADMAP.md](ROADMAP.md); security finding IDs (`SEC-xx`) refer to it.
 
+## [2.8.4] — 2026-09-24
+
+Supply-chain security release (ROADMAP SEC-09) and toolchain fix.
+
+### Security
+- Updated dependencies with published vulnerabilities (all compatible patch releases):
+  - `rustls` 0.23.37 → 0.23.45: RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted
+    across encryption levels.
+  - `rustls-webpki` 0.103.10 → 0.103.15: RUSTSEC-2026-0098 and -0099 (certificate name
+    constraints) and RUSTSEC-2026-0104 (panic in CRL parsing).
+  - `crossbeam-epoch` 0.9.18 → 0.9.21: RUSTSEC-2026-0204.
+  - `rand` 0.9.2 → 0.9.5: RUSTSEC-2026-0097 (unsound).
+  - `spin` 0.9.8 → 0.9.9 (yanked version).
+
+  `rustls`/`rustls-webpki` are the TLS stack behind native `RHttp` (via `ureq`).
+- Added `deny.toml` and **`cargo deny check`** (advisories, licenses, bans, sources). It
+  now passes cleanly. The two remaining unmaintained-crate notices are documented
+  exceptions: `proc-macro-error2` is compile-time only, via `mysql`, and `ttf-parser` is an
+  optional `fltk` dependency that isn't enabled.
+- Added CI (`.github/workflows/ci.yml`): `cargo-deny`, `cargo test --workspace`, and
+  a clippy check that fails the build if `js_sys::eval` is used in the web runtime.
+
+### Fixed
+- **The native runtime and CLI failed to build on current Rust (1.98).** `ethnum` 1.5.2,
+  used by polars, transmuted `()` into `TryFromIntError`, which gained a field. Updated
+  to 1.5.3.
+- `rapidr version` printed a hard-coded `0.1.0`; it now prints the real version.
+- `rapidr-compiler-wasm` and `rapidr-webbundle` were missing the workspace MIT license.
+
+### Changed
+- All workspace crates are marked `publish = false` (their internal path dependencies
+  already made them unpublishable; this makes it explicit and prevents accidental
+  publishing).
+
+### Verification
+- `cargo deny check`: advisories ok, bans ok, licenses ok, sources ok.
+- `cargo test --workspace`: all 97 tests pass. The CLI rebuilds and compiles and runs
+  bytecode programs.
+- Lint confirmed both ways: passes on current code, fails when `js_sys::eval` is added.
+- Web artifacts rebuilt. Passing: `web_ide_smoke`, `web_ide_e2e` (6/6),
+  `web_ide_designer`, `web_ide_debugger_test`, `web_ide_preview_isolation`,
+  `web_ide_round3`, `web_ide_round4`.
+- The CI workflow hasn't run on GitHub yet; the Linux `test` job's system packages
+  are untested until the first push.
+
 ## [2.8.3] — 2026-09-24
 
 Security release: programs in the IDE preview are now isolated from the IDE.

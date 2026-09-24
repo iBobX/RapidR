@@ -1,7 +1,9 @@
 [package]
 name = "rapidr-compiler-wasm"
 version.workspace = true
+publish = false
 edition.workspace = true
+license.workspace = true
 description = "RapidR source -> .rrbc bytecode compiler exposed as wasm-bindgen"
 
 [lib]
