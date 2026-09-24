@@ -10,7 +10,7 @@
 //   G — Run / Stop / Build wired to project
 //   H — polish + Playwright tests
 
-import init, { compile, rapidr_run_bc } from "./runtime/rapidrintr.js";
+import init, { compile } from "./runtime/rapidrintr.js";
 import { TOOLBOX, TOOLBOX_GROUPS, defaultsFor, isVisibleType } from "./toolbox.js";
 import { COMPONENT_REGISTRY } from "./lang-data.js";
 import { newProject, addForm, addWidget, removeWidget, serializeForm,
@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.8.2";
+export const RAPIDR_IDE_VERSION = "2.8.3";
 
 const _editors = new Map();
 
@@ -136,41 +136,124 @@ function clearErrorsPanel() {
   _renderErrorBadges();
 }
 
-function hookPreviewConsole(iframe) {
-  try {
-    const w = iframe.contentWindow;
-    if (!w || w.__rrConsoleHooked) return;
-    w.__rrConsoleHooked = true;
-    const orig = {
-      log:   w.console.log.bind(w.console),
-      info:  w.console.info.bind(w.console),
-      warn:  w.console.warn.bind(w.console),
-      error: w.console.error.bind(w.console),
-    };
-    const route = (level, args) => {
-      const text = args.map(_stringifyArg).join(" ");
-      // Runtime PRINT goes through console.log → also mirror to Output panel.
-      if (level === "log" || level === "info") {
-        logOutput(text);
-      } else {
-        logError(level, text);
-      }
-    };
-    w.console.log   = (...a) => { try { route("log",   a); } finally { orig.log(...a); } };
-    w.console.info  = (...a) => { try { route("info",  a); } finally { orig.info(...a); } };
-    w.console.warn  = (...a) => { try { route("warn",  a); } finally { orig.warn(...a); } };
-    w.console.error = (...a) => { try { route("error", a); } finally { orig.error(...a); } };
-    // Surface uncaught errors too.
-    w.addEventListener("error", (e) => {
-      logError("error", `${e.message || "error"} (${e.filename || "?"}:${e.lineno || 0})`);
-    });
-    w.addEventListener("unhandledrejection", (e) => {
-      logError("error", "Unhandled promise rejection: " + (e.reason?.message || e.reason));
-    });
-  } catch (err) {
-    // Cross-origin? Sandbox won't allow it — log once and move on.
-    logError("warn", "could not hook preview console: " + err.message);
+// ─── Preview bridge (SEC-02/03) ─────────────────────────────────
+// User programs run in #preview, sandboxed WITHOUT allow-same-origin, so they
+// live in an opaque origin: they cannot read the IDE's storage (API keys,
+// projects) or DOM, and we cannot reach into them either. When preview.html
+// says hello we hand it the runtime plus a private MessagePort; all further
+// traffic uses that port, so no other window can drive the preview or spoof
+// its messages. A generation counter drops handshakes from stale runs.
+
+let _runtimeFiles = null;
+function loadRuntimeFiles() {
+  _runtimeFiles ??= Promise.all([
+    fetch(`./runtime/rapidrintr.js?v=${RAPIDR_IDE_VERSION}`).then((r) => {
+      if (!r.ok) throw new Error(`rapidrintr.js: HTTP ${r.status}`);
+      return r.text();
+    }),
+    fetch(`./runtime/rapidrintr_bg.wasm?v=${RAPIDR_IDE_VERSION}`).then((r) => {
+      if (!r.ok) throw new Error(`rapidrintr_bg.wasm: HTTP ${r.status}`);
+      return r.arrayBuffer();
+    }),
+  ]).then(([runtimeJs, runtimeWasm]) => ({ runtimeJs, runtimeWasm }));
+  _runtimeFiles.catch(() => { _runtimeFiles = null; });  // allow retry
+  return _runtimeFiles;
+}
+
+let previewPort = null;
+let previewGeneration = 0;
+
+function closePreviewChannel() {
+  previewGeneration++;
+  if (previewPort) {
+    previewPort.onmessage = null;
+    previewPort.close();
+    previewPort = null;
   }
+}
+
+function sendToPreview(msg) {
+  previewPort?.postMessage(msg);
+}
+
+function projectAssetMap() {
+  return (state.project.assets || []).reduce((acc, a) => {
+    acc[a.name] = a.dataUrl;
+    acc[`assets/${a.name}`] = a.dataUrl;
+    return acc;
+  }, {});
+}
+
+// localStorage written by the running program is kept per project under a
+// namespaced IDE key (never the IDE's own keys), capped to protect the
+// IDE's storage quota.
+const APP_STORAGE_LIMIT = 1024 * 1024;
+const appStorageKey = () => `rapidr-app-storage:${state.project.name}`;
+
+function loadAppStorage() {
+  try { return JSON.parse(localStorage.getItem(appStorageKey()) || "{}"); }
+  catch { return {}; }
+}
+
+function applyAppStorageOp({ op, key, value }) {
+  const data = loadAppStorage();
+  if (op === "set") data[key] = String(value);
+  else if (op === "remove") delete data[key];
+  else if (op === "clear") for (const k of Object.keys(data)) delete data[k];
+  else return;
+  const json = JSON.stringify(data);
+  if (json.length > APP_STORAGE_LIMIT) {
+    logError("warn", `program localStorage exceeds ${APP_STORAGE_LIMIT} bytes in the IDE preview; change not persisted`);
+    return;
+  }
+  try { localStorage.setItem(appStorageKey(), json); }
+  catch (err) { logError("warn", "could not persist program localStorage: " + err.message); }
+}
+
+function handlePreviewMessage(d) {
+  if (d.__rapidr_console) {
+    const { level, text } = d.__rapidr_console;
+    // Runtime PRINT goes through console.log → Output panel.
+    if (level === "log" || level === "info") logOutput(text);
+    else logError(level === "warn" ? "warn" : "error", text);
+  }
+  if (d.__rapidr_status) setStatus(d.__rapidr_status);
+  if (d.__rapidr_storage) applyAppStorageOp(d.__rapidr_storage);
+  if (d.__rapidr_debug_paused) onDebugPaused(d.__rapidr_debug_paused);
+  if (d.__rapidr_debug_running) onDebugRunning();
+  if (d.__rapidr_debug_halted) onDebugHalted();
+  if (d.__rapidr_debug_properties) onDebugProperties(d.__rapidr_debug_properties);
+}
+
+/// Loads preview.html into #preview and boots it with `payload`
+/// (`{ run: bytecode }` or `{ debug: bytecode, breakpoints }`).
+function startPreview(role, payload) {
+  closePreviewChannel();
+  const gen = previewGeneration;
+  const iframe = $("#preview");
+  const runtimeP = loadRuntimeFiles();
+  const onHello = async (e) => {
+    if (gen !== previewGeneration) { window.removeEventListener("message", onHello); return; }
+    if (e.source !== iframe.contentWindow || !e.data?.__rapidr_hello) return;
+    window.removeEventListener("message", onHello);
+    let runtime;
+    try { runtime = await runtimeP; }
+    catch (err) {
+      logError("error", "could not load the RapidR runtime: " + err.message);
+      if (role === "debug") onDebugHalted();
+      return;
+    }
+    if (gen !== previewGeneration) return;  // stopped/restarted meanwhile
+    const { port1, port2 } = new MessageChannel();
+    previewPort = port1;
+    port1.onmessage = (m) => handlePreviewMessage(m.data || {});
+    const boot = { ...runtime, assets: projectAssetMap(), storage: loadAppStorage(), ...payload };
+    // The frame's origin is opaque, so "*" is the only valid target; the
+    // payload is the user's own program and the public runtime.
+    iframe.contentWindow.postMessage({ __rapidr_boot: boot }, "*", [port2]);
+  };
+  window.addEventListener("message", onHello);
+  iframe.src = `./preview.html?role=${role}&v=${RAPIDR_IDE_VERSION}`;
 }
 
 function logImmediate(s) {
@@ -2359,24 +2442,7 @@ async function doRun() {
     if (backdrop) backdrop.hidden = false;
 
     $("#preview-title").textContent = `${state.project.name} — RapidR Runtime`;
-    const iframe = $("#preview");
-    // Wait for the preview iframe to announce __rapidr_preview_ready
-    // (i.e. its top-level `await init()` has resolved); then ship the
-    // bytecode. Avoids the load-vs-init race.
-    const onReady = (e) => {
-      if (e.source !== iframe.contentWindow) return;
-      if (!e.data?.__rapidr_preview_ready) return;
-      window.removeEventListener("message", onReady);
-      hookPreviewConsole(iframe);
-      iframe.contentWindow.__rapidr_assets = (state.project.assets || []).reduce((acc, a) => {
-        acc[a.name] = a.dataUrl;
-        acc[`assets/${a.name}`] = a.dataUrl;
-        return acc;
-      }, {});
-      iframe.contentWindow.postMessage({ __rapidr_run: bc }, "*");
-    };
-    window.addEventListener("message", onReady);
-    iframe.src = `./preview.html?role=run&v=${RAPIDR_IDE_VERSION}`;
+    startPreview("run", { run: bc });
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
@@ -2385,6 +2451,7 @@ async function doRun() {
 }
 
 function doStop() {
+  closePreviewChannel();
   const iframe = $("#preview");
   iframe.src = "about:blank";
   $("#preview-window").hidden = true;
@@ -3825,9 +3892,7 @@ async function doDebug() {
 
     win.hidden = false;
     $("#preview-title").textContent = `${state.project.name} [DEBUG] — RapidR Runtime`;
-    
-    const iframe = $("#preview");
-    
+
     const unifiedBreakpoints = [];
     for (const bp of state.breakpoints) {
       const [fileId, lStr] = bp.split(":");
@@ -3838,25 +3903,7 @@ async function doDebug() {
       }
     }
     
-    const onReady = (e) => {
-      if (e.source !== iframe.contentWindow) return;
-      if (!e.data?.__rapidr_preview_ready) return;
-      window.removeEventListener("message", onReady);
-      hookPreviewConsole(iframe);
-      iframe.contentWindow.__rapidr_assets = (state.project.assets || []).reduce((acc, a) => {
-        acc[a.name] = a.dataUrl;
-        acc[`assets/${a.name}`] = a.dataUrl;
-        return acc;
-      }, {});
-      
-      iframe.contentWindow.postMessage({
-        __rapidr_debug: bc,
-        breakpoints: unifiedBreakpoints
-      }, "*");
-    };
-    
-    window.addEventListener("message", onReady);
-    iframe.src = `./preview.html?role=debug&v=${RAPIDR_IDE_VERSION}`;
+    startPreview("debug", { debug: bc, breakpoints: unifiedBreakpoints });
   } catch (err) {
     setStatus("compile failed", "error");
     logOutput(String(err));
@@ -3865,12 +3912,7 @@ async function doDebug() {
 }
 
 function sendDebugCommand(type, args = {}) {
-  const iframe = $("#preview");
-  if (iframe && iframe.contentWindow) {
-    iframe.contentWindow.postMessage({
-      __rapidr_debug_cmd: { type, ...args }
-    }, "*");
-  }
+  sendToPreview({ __rapidr_debug_cmd: { type, ...args } });
 }
 
 function onDebugPaused(pausedData) {
@@ -4123,12 +4165,11 @@ function renderVariables() {
   
   let screenWidth = window.innerWidth;
   let screenHeight = window.innerHeight;
+  // The preview is cross-origin (SEC-02), so measure the frame element.
   const iframe = $("#preview");
-  if (iframe && iframe.contentWindow) {
-    try {
-      screenWidth = iframe.contentWindow.innerWidth;
-      screenHeight = iframe.contentWindow.innerHeight;
-    } catch (e) {}
+  if (iframe && iframe.clientWidth) {
+    screenWidth = iframe.clientWidth;
+    screenHeight = iframe.clientHeight;
   }
   
   const systemMap = {
@@ -4546,25 +4587,7 @@ async function main() {
   renderProjectTree();
   renderProperties();
 
-  // Receive log/status messages from preview iframe.
-  window.addEventListener("message", (e) => {
-    const d = e.data || {};
-    if (d.__rapidr_log)    logOutput(d.__rapidr_log);
-    if (d.__rapidr_status) setStatus(d.__rapidr_status);
-    
-    if (d.__rapidr_debug_paused) {
-      onDebugPaused(d.__rapidr_debug_paused);
-    }
-    if (d.__rapidr_debug_running) {
-      onDebugRunning();
-    }
-    if (d.__rapidr_debug_halted) {
-      onDebugHalted();
-    }
-    if (d.__rapidr_debug_properties) {
-      onDebugProperties(d.__rapidr_debug_properties);
-    }
-  });
+  // Preview messages arrive on the private port set up by startPreview().
 
   // Automatic E2E test runner for verification screenshots
   setTimeout(async () => {

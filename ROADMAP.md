@@ -61,6 +61,7 @@ Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 | SEC-09 | Gap | No cargo-audit / cargo-deny, no fuzzing, no SECURITY.md; IDE loads Google Fonts (third-party) | — | Phase 0 + Phase 6 |
 | SEC-11 | High | Build server preview path traversal: `dir.join(rel).starts_with(dir)` does not catch `..` → arbitrary file read | `crates/rapidr-buildserver/src/main.rs` (`serve_preview_path`) | Reject any non-`Normal` path component |
 | SEC-12 | Medium | `RWebView.HTML` uses `srcdoc` with default sandbox `allow-scripts allow-same-origin` → HTML runs with the app's origin | `crates/rapidr-runtime-web/src/gui_web.rs` (`"html"` prop, iframe creation ~:2201) | Drop `allow-same-origin` for `srcdoc` content by default; opt-in property |
+| SEC-13 | Low | IDE preview: `RHttp` to relative URLs needs CORS headers from the IDE's server now that the preview is opaque-origin; origin-bound browser APIs (notifications) may be unavailable in preview | `web-ide/preview.html` | Document; optionally proxy same-server requests through the IDE bridge (needs async RHttp) |
 | SEC-10 | Gap | `$INCLUDE` resolves arbitrary paths; projects with `RUSTSTART` / `DECLARE … LIB` get no warning on open/build | `crates/rapidr-preprocessor/src/lib.rs` | Confine includes to project root in IDE/MCP contexts; "native-privileged" project flag + confirmation |
 
 ### IDE / debugger baseline
@@ -74,7 +75,7 @@ Missing: compiler diagnostics as editor markers, **undo/redo (stub at `web-ide/h
 
 **Sprint 1 (~2 weeks)**
 - [x] SEC-01 + SEC-11: `rapidr-buildserver` locked down — binds 127.0.0.1 (override `RAPIDR_BUILDSERVER_HOST` warns), Host/Origin loopback guard (blocks cross-site + DNS rebinding), CORS loopback-only, path traversal fixed; unit tests + live curl probes (v2.8.2)
-- [ ] SEC-02 / SEC-03: separate preview origin, verify message source + nonce
+- [x] SEC-02 / SEC-03: preview iframe runs without `allow-same-origin` (opaque origin), runtime shipped in at boot, private `MessageChannel` handshake instead of window messages; `tests/web_ide_preview_isolation.mjs` (fails 11/15 on 2.8.2, passes on 2.8.3) (v2.8.3)
 - [x] SEC-04: `SaveToFile` now uses shared `trigger_download` Blob helper (no eval); wasm check passes — verified in Chromium with and without bundle CSP (v2.8.2)
 - [x] SEC-05: Caption/Text fallback and `PRINT` → `#rr-console` now plain text; markup only via `RDOM.InnerHTML` / `RWebView.HTML` (v2.8.2)
 - [x] SEC-06: `RHttp`, `BEEP`, `SOUND` via `web_sys` (XHR / Web Audio); only `RJavaScript.Eval` remains; `clippy.toml` bans `js_sys::eval` (v2.8.2)
@@ -83,6 +84,7 @@ Missing: compiler diagnostics as editor markers, **undo/redo (stub at `web-ide/h
 - [ ] `tests/conformance/` harness: `*.bas` + `*.expected`, runs on VM **and** Rust codegen; seed with Appendix A programs
 - [ ] `cargo-deny` (advisories + licenses) in CI
 - [ ] Undo/redo in the IDE (needed before AI edits)
+- [ ] Fix pre-existing failures in `tests/web_ide_bugfixes.mjs` (About-dialog credits) and `tests/web_ide_phaseF.mjs` (project restore); add all `tests/web_ide_*.mjs` to CI
 
 **Rest of Phase 0**
 - [ ] SEC-07: SQL parameter binding (SQLite, MySQL, web SQLite)

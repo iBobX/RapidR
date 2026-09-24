@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto:wght@400;500;700&family=Montserrat:wght@400;500;700&family=Nunito:wght@400;500;700&family=Playfair+Display:wght@400;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./ide.css?v=2.8.2">
-  <link rel="stylesheet" href="./modern.css?v=2.8.2">
+  <link rel="stylesheet" href="./ide.css?v=2.8.3">
+  <link rel="stylesheet" href="./modern.css?v=2.8.3">
 </head>
 <body>
   <!-- ─── Menu bar ──────────────────────────────────────────────── -->
@@ -250,7 +250,10 @@
       <span id="preview-title">RapidR Runtime</span>
       <span id="preview-close" title="Stop (Shift+F5)">×</span>
     </div>
-    <iframe id="preview" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+    <!-- No allow-same-origin: programs run in an opaque origin and can't touch
+         IDE storage or DOM (SEC-02). host.js startPreview() boots it. -->
+    <iframe id="preview" sandbox="allow-scripts allow-modals allow-downloads"
+            allow="clipboard-write; autoplay; fullscreen"></iframe>
     <div id="preview-paused-overlay" hidden>
       <div class="paused-overlay-text">Paused in Debugger</div>
     </div>
@@ -262,6 +265,6 @@
   <input type="file" id="file-open-example" accept=".rr" hidden>
   <input type="file" id="file-upload-asset" multiple hidden>
 
-  <script type="module" src="./host.js?v=2.8.2"></script>
+  <script type="module" src="./host.js?v=2.8.3"></script>
 </body>
 </html>
