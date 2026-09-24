@@ -26,6 +26,7 @@
 
 #![allow(clippy::needless_range_loop)]
 
+pub mod builtins;
 pub mod io;
 pub mod op;
 

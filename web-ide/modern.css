@@ -374,3 +374,7 @@ html, body {
   opacity: 0.4;
   cursor: default;
 }
+
+/* Compiler errors in the Errors panel that jump to the source line */
+.err-line.err-link { cursor: pointer; }
+.err-line.err-link:hover { text-decoration: underline; }

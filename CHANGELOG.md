@@ -7,6 +7,65 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.10.0] — 2026-09-24
+
+**Nothing is silently skipped anymore.** Lines the compiler couldn't parse, and calls
+to routines that don't exist, used to compile anyway and quietly do nothing in the
+IDE and the bytecode interpreter. They're now compile errors with a line and column,
+underlined in the editor. Programs that "ran" while ignoring broken lines will now
+show those errors; that's intended.
+
+### Added
+- **Errors underlined in the IDE editor.** Every compile error is shown as a red
+  squiggle in the right form or module, listed in the Errors panel with
+  `Form1 (line 6, col 1): …` (click to jump to the line), and re-checked live while
+  you type. Run, Debug and Build show all errors instead of one raw message.
+- **Parser error reporting.** Every unparseable line is reported, not just the first.
+  Messages explain the problem: `'STEP' is a reserved word and can't be used as a
+  name`, `GOSUB is not supported yet`, `Unexpected 'y' after the end of the statement`.
+  This includes statements inside single-line `IF … THEN`.
+- **Unknown SUB/FUNCTION check** in the bytecode compiler, against a shared builtin
+  registry (`rapidr-bytecode::builtins`). A test keeps the registry identical to both
+  VM hosts' dispatch tables. Specific hints for `INC`/`DEC`, DLL functions
+  (`DECLARE … LIB`), `VARPTR`, and line labels.
+- The bytecode interpreter now runs `OPEN`, `CLOSE`, `PRINT #`, `WRITE #` and `SEEK`
+  (native). These statements were silently skipped before. In the browser, `PRINT #`/
+  `WRITE #` report a clear error.
+- `SOUND` and `PLAYSOUND` in the bytecode interpreter (both hosts).
+- `tests/web_ide_diagnostics.mjs` (14 checks) and new parser unit tests.
+
+### Fixed
+- **Identifiers are case-insensitive in the bytecode interpreter**, as in BASIC.
+  `total`/`Total`/`TOTAL` were three different variables, and calling `mysub` for
+  `SUB MySub` silently did nothing. The debugger still shows names as written.
+- **Calls inside `CREATE` blocks** (`Center`, `AddItems(…)`) now call the object being
+  created, as in RapidQ and the Rust backend. The interpreter used to drop them, so
+  forms were never centered in the IDE.
+- A call to an unknown builtin at run time is now an error instead of `null`.
+- `examples/web_datascience.rr` used `step` (a reserved word) as a variable. The
+  lines were silently skipped, so its trig table computed garbage. Renamed to
+  `stepSize`.
+- The parser's examples test only looked at `.rp` files, so it tested nothing. It now
+  checks all 44 `.rr` examples.
+
+### Changed
+- `rapidr_parser::parse_tokens` / `parse_file` return `Result<Program, ParseError>`,
+  with every diagnostic. `parse_tokens_recovering` gives a best-effort tree plus
+  diagnostics for tools.
+- `rapidr build-bc`, `bundle-bc` and `--interp` report errors as `file:line:col`.
+- Conformance suite: 11 pass / 19 known failures (was 7 / 23). `case_insensitive`,
+  `syntax_error` and `unknown_sub_error` now pass.
+
+### Verification
+- `cargo test --workspace` passes, including new parser tests and the builtin-registry
+  sync tests.
+- 42 of the 44 examples compile with the stricter compiler. The other 2 use native-only
+  features (DLL calls, `VARPTR`) and now get a clear error.
+- Passing: `web_ide_diagnostics`, `web_ide_smoke`, `web_ide_e2e` (6/6), `web_ide_designer`,
+  `web_ide_debugger_test`, `web_ide_preview_isolation`, `web_ide_undo`, `web_ide_round3`,
+  `web_ide_round4`, `web_ide_assets`, `web_ide_tree_validation`. (`web_ide_bugfixes` and
+  `web_ide_phaseF`: known pre-existing failures only.)
+
 ### Added
 - `SECURITY.md`: how to report vulnerabilities privately through GitHub's
   "Report a vulnerability", plus supported versions and scope.

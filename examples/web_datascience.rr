@@ -366,11 +366,11 @@ SUB BtnNumMath_OnClick()
     GridNum.SetCell(3, 0, "sqrt(|X|)")
 
     DIM i AS INTEGER
-    DIM step AS DOUBLE
+    DIM stepSize AS DOUBLE
     DIM x AS DOUBLE
-    step = 6.28318 / 9
+    stepSize = 6.28318 / 9
     FOR i = 0 TO 9
-        x = i * step
+        x = i * stepSize
         GridNum.SetCell(0, i + 1, STR(INT(x * 100) / 100))
         GridNum.SetCell(1, i + 1, STR(INT(SIN(x) * 1000) / 1000))
         GridNum.SetCell(2, i + 1, STR(INT(COS(x) * 1000) / 1000))

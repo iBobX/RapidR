@@ -8,6 +8,7 @@ description = "RapidR AST -> bytecode lowering"
 
 [dependencies]
 rapidr-ast = { workspace = true }
+rapidr-diagnostics = { workspace = true }
 rapidr-bytecode = { workspace = true }
 rapidr-value = { workspace = true }
 

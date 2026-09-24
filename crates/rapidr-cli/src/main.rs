@@ -519,14 +519,28 @@ fn find_workspace_root() -> Option<std::path::PathBuf> {
 
 // ---------------- Bytecode (rapidrintr) ----------------
 
+/// Preprocess → lex → parse → bytecode, keeping the preprocessed source so
+/// every error carries `file:line:col`. All errors are reported, one per line.
+fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
+    let pre = preprocess_file(path, PreprocessOptions::default()).map_err(|e| e.to_string())?;
+    let tokens = rapidr_lexer::Lexer::new(&pre.source, Some(path.to_string()))
+        .tokenize()
+        .map_err(|e| e.to_string())?;
+    let program = rapidr_parser::parse_tokens(&tokens).map_err(|mut e| {
+        for d in &mut e.diagnostics {
+            d.file_path.get_or_insert_with(|| path.to_string());
+        }
+        e.to_string()
+    })?;
+    rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source)).map_err(|e| {
+        e.lines().map(|l| format!("{path}:{l}")).collect::<Vec<_>>().join("\n")
+    })
+}
+
 fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {
-    let program = match parser_parse_file(path) {
-        Ok(p) => p,
-        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
-    };
-    let compiled = match rapidr_bcgen::compile_program(&program) {
+    let compiled = match compile_to_bytecode(path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
     };
     for w in &compiled.warnings {
         eprintln!("warning: {w}");
@@ -578,13 +592,9 @@ fn bundle_bc_file(
     js_path: Option<String>,
 ) -> ExitCode {
     // 1. Compile source to bytecode.
-    let program = match parser_parse_file(path) {
-        Ok(p) => p,
-        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
-    };
-    let compiled = match rapidr_bcgen::compile_program(&program) {
+    let compiled = match compile_to_bytecode(path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
     };
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
     let rrbc = compiled.module.to_bytes();
@@ -696,13 +706,9 @@ fn build_interp_desktop(
     release: bool,
 ) -> ExitCode {
     // 1. Compile source → bytecode.
-    let program = match parser_parse_file(path) {
-        Ok(p) => p,
-        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
-    };
-    let compiled = match rapidr_bcgen::compile_program(&program) {
+    let compiled = match compile_to_bytecode(path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("bcgen error: {e}"); return ExitCode::from(1); }
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
     };
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
     let rrbc = compiled.module.to_bytes();

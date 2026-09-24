@@ -30,6 +30,11 @@ pub struct NativeHost {
 
 impl Host for NativeHost {
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+        // Unknown names are an error, never a silent no-op. The compiler
+        // rejects them up front; this guards bytecode from other sources.
+        if !rapidr_bytecode::builtins::is_builtin(name) {
+            return Err(format!("Unknown builtin function '{name}'"));
+        }
         Ok(call_builtin_native(name, args))
     }
 
@@ -186,6 +191,8 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "shell" => rp_shell(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
+        "sound" => { rp_sound(&a0, &a1); v_null() }
+        "playsound" => rp_playsound(&a0),
         "isnumeric" => rp_isnumeric(&a0),
 
         // --- Array ---

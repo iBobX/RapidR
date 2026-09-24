@@ -2309,7 +2309,7 @@ mod tests {
 
     fn gen(code: &str) -> String {
         let tokens = Lexer::new(code, None).tokenize().unwrap();
-        let program = parse_tokens(&tokens);
+        let program = parse_tokens(&tokens).expect("test source should parse");
         generate(&program)
     }
 

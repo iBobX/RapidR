@@ -28,6 +28,15 @@ pub struct WebHost {
 
 impl Host for WebHost {
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+        // Unknown names are an error, never a silent no-op. The compiler
+        // rejects them up front; this guards bytecode from other sources.
+        if !rapidr_bytecode::builtins::is_builtin(name) {
+            return Err(format!("Unknown builtin function '{name}'"));
+        }
+        let key = rapidr_bytecode::builtins::builtin_key(name);
+        if key == "print_hash" || key == "write_hash" {
+            return Err("PRINT # / WRITE # to file numbers is not supported in the browser yet; use RFileStream".into());
+        }
         Ok(call_builtin_web(name, args))
     }
 
@@ -175,6 +184,8 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "shell" => rp_shell(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
+        "sound" => { rp_sound(&a0, &a1); v_null() }
+        "playsound" => rp_playsound(&a0),
         "isnumeric" => rp_isnumeric(&a0),
 
         // Array
@@ -342,7 +353,8 @@ fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
         .tokenize()
         .map_err(|e| format!("lex error: {e}"))?;
 
-    let program = rapidr_parser::parse_tokens(&tokens);
+    let program = rapidr_parser::parse_tokens(&tokens)
+        .map_err(|e| e.to_string())?;
 
     let compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
         .map_err(|e| format!("bcgen error: {e}"))?;

@@ -1,17 +1,60 @@
+use std::error::Error;
+use std::fmt;
 use std::path::Path;
 
 use rapidr_ast::*;
-use rapidr_diagnostics::TextSpan;
-use rapidr_lexer::{lex_file, LexError, Token, TokenType};
+use rapidr_diagnostics::{Diagnostic, Severity, SourceLocation, TextSpan};
+use rapidr_lexer::{lex_file, Token, TokenType};
 
-pub fn parse_file(path: impl AsRef<Path>) -> Result<Program, LexError> {
-    let tokens = lex_file(path)?;
-    Ok(parse_tokens(&tokens))
+/// Every error found while lexing/parsing. The parser recovers line by line,
+/// so one run reports all syntax errors in the file, not just the first.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError {
+    pub diagnostics: Vec<Diagnostic>,
 }
 
-pub fn parse_tokens(tokens: &[Token]) -> Program {
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, d) in self.diagnostics.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "{d}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for ParseError {}
+
+pub fn parse_file(path: impl AsRef<Path>) -> Result<Program, ParseError> {
+    let path = path.as_ref();
+    let tokens = lex_file(path).map_err(|e| ParseError { diagnostics: vec![e.diagnostic] })?;
+    parse_tokens(&tokens).map_err(|mut e| {
+        for d in &mut e.diagnostics {
+            d.file_path.get_or_insert_with(|| path.display().to_string());
+        }
+        e
+    })
+}
+
+/// Parses a token stream, failing if any statement could not be parsed.
+/// Nothing is ever silently skipped: an unparseable line is an error.
+pub fn parse_tokens(tokens: &[Token]) -> Result<Program, ParseError> {
+    let (program, diagnostics) = parse_tokens_recovering(tokens);
+    if diagnostics.iter().any(|d| d.severity == Severity::Error) {
+        Err(ParseError { diagnostics })
+    } else {
+        Ok(program)
+    }
+}
+
+/// Parses as much as possible and returns the program together with every
+/// diagnostic, for tools (editors) that want a best-effort tree.
+pub fn parse_tokens_recovering(tokens: &[Token]) -> (Program, Vec<Diagnostic>) {
     let mut parser = Parser::new(tokens);
-    parser.parse_program()
+    let program = parser.parse_program();
+    (program, parser.diagnostics)
 }
 
 // ---------------------------------------------------------------------------
@@ -21,11 +64,68 @@ pub fn parse_tokens(tokens: &[Token]) -> Program {
 struct Parser<'a> {
     tokens: &'a [Token],
     pos: usize,
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0 }
+        Self { tokens, pos: 0, diagnostics: Vec::new() }
+    }
+
+    // --- diagnostics ---
+
+    /// Records an error at token `index`. Only the first error per line is
+    /// kept: after a failure the rest of the line is skipped, and follow-on
+    /// errors from enclosing constructs would just repeat it.
+    fn error_at(&mut self, index: usize, message: String) {
+        let tok = match self.tokens.get(index).or_else(|| self.tokens.last()) {
+            Some(t) => t,
+            None => return,
+        };
+        if self.diagnostics.iter().any(|d| d.location.line == tok.line) {
+            return;
+        }
+        self.diagnostics.push(Diagnostic::error(
+            message,
+            tok.span,
+            SourceLocation::new(tok.line, tok.column),
+            None,
+        ));
+    }
+
+    /// Explains why the statement starting at token `start` failed to parse.
+    fn describe_failure(&self, start: usize) -> String {
+        let Some(tok) = self.tokens.get(start) else {
+            return "Syntax error: unexpected end of file".into();
+        };
+        let word = tok.lexeme.to_uppercase();
+        // `DIM step AS ...`: a keyword where a name is expected.
+        if matches!(tok.kind, TokenType::Dim | TokenType::Const) {
+            if let Some(next) = self.tokens.get(start + 1) {
+                let is_word = next.lexeme.chars().all(|c| c.is_ascii_alphabetic());
+                if next.kind != TokenType::Identifier && is_word {
+                    return format!(
+                        "'{}' is a reserved word and can't be used as a name",
+                        next.lexeme.to_uppercase()
+                    );
+                }
+            }
+        }
+        match tok.kind {
+            TokenType::Goto | TokenType::Gosub => {
+                format!("{word} is not supported yet (line labels, GOTO and GOSUB are planned)")
+            }
+            TokenType::DefStr | TokenType::DefInt | TokenType::DefByte | TokenType::DefWord
+            | TokenType::DefDword | TokenType::DefLong | TokenType::DefSng | TokenType::DefDbl
+            | TokenType::DefCur => format!("{word} is not supported yet; declare variables with DIM"),
+            TokenType::Identifier | TokenType::Number | TokenType::StringLit => {
+                format!("Syntax error near '{}'", tok.lexeme)
+            }
+            _ if tok.lexeme.chars().all(|c| c.is_ascii_alphabetic()) => {
+                format!("Syntax error in {word} statement")
+            }
+            _ => format!("Syntax error: unexpected '{}'", tok.lexeme),
+        }
     }
 
     // --- token helpers ---
@@ -171,8 +271,14 @@ impl<'a> Parser<'a> {
                         break;
                     }
                 }
-            } else {
-                // Skip the rest of this line to recover
+            }
+            // Anything left on the line was not consumed by the statement
+            // (e.g. `x = 1 y = 2`): report it instead of re-parsing it as a
+            // new statement, then recover at the next line.
+            if !self.at_eol() {
+                let tok = &self.tokens[self.pos];
+                let message = format!("Unexpected '{}' after the end of the statement", tok.lexeme);
+                self.error_at(self.pos, message);
                 self.skip_to_eol();
             }
             self.consume_eol();
@@ -202,7 +308,19 @@ impl<'a> Parser<'a> {
     // Statement dispatch
     // -----------------------------------------------------------------------
 
+    /// Parses one statement. On failure an error is recorded — callers may
+    /// then skip ahead, but the program will not compile.
     fn parse_statement(&mut self) -> Option<Statement> {
+        let start = self.pos;
+        let stmt = self.parse_statement_inner();
+        if stmt.is_none() {
+            let message = self.describe_failure(start);
+            self.error_at(start, message);
+        }
+        stmt
+    }
+
+    fn parse_statement_inner(&mut self) -> Option<Statement> {
         match self.peek_kind()? {
             TokenType::Directive => self.parse_directive(),
             TokenType::Dim => self.parse_dim().map(Statement::Dim),
@@ -1493,7 +1611,70 @@ mod tests {
 
     fn parse(code: &str) -> Vec<Statement> {
         let tokens = Lexer::new(code, None).tokenize().unwrap();
-        parse_tokens(&tokens).statements
+        match parse_tokens(&tokens) {
+            Ok(program) => program.statements,
+            Err(e) => panic!("unexpected parse errors:\n{e}"),
+        }
+    }
+
+    /// (line, column, message) of every error, in order.
+    fn errors(code: &str) -> Vec<(usize, usize, String)> {
+        let tokens = Lexer::new(code, None).tokenize().unwrap();
+        match parse_tokens(&tokens) {
+            Ok(_) => Vec::new(),
+            Err(e) => e
+                .diagnostics
+                .iter()
+                .map(|d| (d.location.line, d.location.column, d.message.clone()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn unparseable_line_is_an_error_with_location() {
+        let errs = errors("PRINT \"one\"\nDIM AS AS AS\nPRINT \"two\"\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!((errs[0].0, errs[0].1), (2, 1));
+        assert!(errs[0].2.contains("'AS' is a reserved word"), "{errs:?}");
+    }
+
+    #[test]
+    fn reports_every_bad_line_not_just_the_first() {
+        let errs = errors("DIM AS\nx = 1\nGOSUB Foo\ny = 2\nGOTO Bar\n");
+        let lines: Vec<usize> = errs.iter().map(|e| e.0).collect();
+        assert_eq!(lines, vec![1, 3, 5], "{errs:?}");
+        assert!(errs[1].2.contains("GOSUB is not supported yet"), "{errs:?}");
+        assert!(errs[2].2.contains("GOTO is not supported yet"), "{errs:?}");
+    }
+
+    #[test]
+    fn leftover_tokens_after_a_statement_are_an_error() {
+        let errs = errors("x = 1 y = 2\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!((errs[0].0, errs[0].1), (1, 7));
+        assert!(errs[0].2.contains("Unexpected 'y'"), "{errs:?}");
+    }
+
+    #[test]
+    fn bad_statement_inside_single_line_if_is_an_error() {
+        let errs = errors("IF 1 THEN GOSUB Foo\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert!(errs[0].2.contains("GOSUB"), "{errs:?}");
+    }
+
+    #[test]
+    fn keyword_used_as_a_name_says_so() {
+        let errs = errors("DIM step AS DOUBLE\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert!(errs[0].2.contains("'STEP' is a reserved word"), "{errs:?}");
+    }
+
+    #[test]
+    fn errors_inside_blocks_keep_their_own_line() {
+        let errs = errors("SUB Foo()\n  PRINT 1\n  DEFINT i\nEND SUB\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!(errs[0].0, 3);
+        assert!(errs[0].2.contains("DEFINT is not supported yet"), "{errs:?}");
     }
 
     #[test]

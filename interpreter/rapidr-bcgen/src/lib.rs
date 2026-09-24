@@ -8,18 +8,20 @@
 //! * Top-level statements (everything outside SUB/FUNCTION) are lowered
 //!   into the implicit `__main` function.
 //! * Each `SUB`/`FUNCTION` becomes its own [`Function`] entry.
-//! * Identifier resolution: locals first (per-function scope), then globals
-//!   by name. SUB / FUNCTION names are resolved to function indices for
-//!   `CallSub` / `CallFunc`. Anything else becomes a `CallBuiltin`
-//!   (the host's builtin dispatch decides how to handle it).
+//! * Identifier resolution is case-insensitive (see [`name_key`]): locals
+//!   first (per-function scope), then globals by name. SUB / FUNCTION names
+//!   are resolved to function indices for `CallSub` / `CallFunc`. Any other
+//!   callee must be a builtin from [`rapidr_bytecode::builtins`] and becomes
+//!   a `CallBuiltin`; unknown names are compile errors.
 //! * `CREATE Foo AS Kind ... END CREATE` lowers to `CreateComp(Kind, Foo)`
-//!   followed by per-property `SetProp` and per-method `CallMethod`.
+//!   followed by per-property `SetProp` and per-method `CallMethod` (a bare
+//!   call inside the block is a method of the object being created).
 //!   When a property assignment's RHS is a bare identifier matching a known
 //!   SUB, it is lowered to `RegisterEvent` (e.g. `OnClick = MyHandler`).
 //!
-//! Unsupported constructs (DECLARE foreign DLL, file I/O, RUST blocks,
-//! TYPE/UDT, IMPORT, EXIT) currently lower to a no-op and emit a warning
-//! into [`Compiled::warnings`]; they will be filled in incrementally.
+//! Nothing is silently skipped: constructs the interpreter can't run yet
+//! (DLL calls, RUSTSTART blocks, TYPE methods, …) are compile errors with a
+//! line and column, and every error in the program is reported at once.
 
 use std::collections::{HashMap, HashSet};
 
@@ -29,7 +31,8 @@ use rapidr_ast::{
     Literal, LiteralValue, Parameter, PrintStatement, Program, ReturnStatement, Statement,
     SubroutineStatement, UnaryOperator, WhileStatement,
 };
-use rapidr_bytecode::{Const, Function, Module, Op, Param};
+use rapidr_bytecode::{builtins, Const, Function, Module, Op, Param};
+use rapidr_diagnostics::TextSpan;
 
 /// Result of compilation: the produced module plus any non-fatal warnings.
 pub struct Compiled {
@@ -58,10 +61,38 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
     Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings })
 }
 
+/// BASIC identifiers are case-insensitive and may carry a type suffix
+/// (`Name$`, `Count%`): all name lookups go through this key.
+fn name_key(name: &str) -> String {
+    let mut key = name.to_ascii_lowercase();
+    if matches!(key.chars().last(), Some('$' | '%' | '#' | '&' | '!')) && key.len() > 1 {
+        key.pop();
+    }
+    key
+}
+
+/// Map keyed case-insensitively by BASIC identifier (see [`name_key`]).
+#[derive(Default, Clone)]
+struct NameMap<V>(HashMap<String, V>);
+
+impl<V> NameMap<V> {
+    fn get(&self, name: &str) -> Option<&V> {
+        self.0.get(&name_key(name))
+    }
+    fn contains_key(&self, name: &str) -> bool {
+        self.0.contains_key(&name_key(name))
+    }
+    fn insert(&mut self, name: String, value: V) {
+        self.0.insert(name_key(&name), value);
+    }
+}
+
 /// Per-function scope: maps local variable names to slot indices.
 #[derive(Default, Clone)]
 struct Scope {
-    locals: HashMap<String, u16>,
+    locals: NameMap<u16>,
+    /// Spelling of each slot as first written, for the debugger.
+    display: Vec<String>,
     next_slot: u16,
 }
 
@@ -73,6 +104,7 @@ impl Scope {
         let s = self.next_slot;
         self.next_slot += 1;
         self.locals.insert(name.to_string(), s);
+        self.display.push(name.to_string());
         s
     }
     fn get(&self, name: &str) -> Option<u16> {
@@ -83,15 +115,23 @@ impl Scope {
 struct Bcgen {
     module: Module,
     /// Map SUB/FUNCTION names → function index.
-    fn_indices: HashMap<String, u32>,
+    fn_indices: NameMap<u32>,
     /// Whether each name is a FUNCTION (true) or SUB (false). Used to choose
     /// CallFunc vs CallSub when invoked from an expression.
-    fn_is_func: HashMap<String, bool>,
+    fn_is_func: NameMap<bool>,
     warnings: Vec<String>,
+    /// Compile errors ("line:col: error: message"). Collected rather than
+    /// returned immediately so one compile reports every problem.
+    errors: Vec<String>,
+    /// DECLARE ... LIB (external DLL) function names, by [`name_key`].
+    lib_functions: HashSet<String>,
     /// Scope stack for the function currently being lowered.
     scope: Scope,
-    /// Set of declared global variables (lowercase names)
+    /// Set of declared global variables (keys from [`name_key`])
     globals: HashSet<String>,
+    /// Global variable spelling as first seen, by [`name_key`]. The VM keys
+    /// globals by string, so every access must use the same spelling.
+    global_spelling: HashMap<String, String>,
     /// Active "WITH object" name (or None). Bare member-access on the
     /// implicit object is not yet a separate AST node, so this is reserved.
     _with_object: Option<String>,
@@ -125,11 +165,14 @@ impl Bcgen {
     fn new() -> Self {
         Self {
             module: Module::new(),
-            fn_indices: HashMap::new(),
-            fn_is_func: HashMap::new(),
+            fn_indices: NameMap::default(),
+            fn_is_func: NameMap::default(),
             warnings: Vec::new(),
+            errors: Vec::new(),
+            lib_functions: HashSet::new(),
             scope: Scope::default(),
             globals: HashSet::new(),
+            global_spelling: HashMap::new(),
             _with_object: None,
             loop_stack: Vec::new(),
             create_stack: Vec::new(),
@@ -171,6 +214,9 @@ impl Bcgen {
                     self.fn_is_func.insert(f.name.clone(), true);
                     funcs.push(f);
                 }
+                Statement::Declare(d) if d.lib.is_some() => {
+                    self.lib_functions.insert(name_key(&d.name));
+                }
                 _ => {}
             }
         }
@@ -194,12 +240,7 @@ impl Bcgen {
         self.in_main = false;
         emit(&mut main_code, Op::Halt);
         let main_locals = self.scope.next_slot as u32;
-        let mut main_local_names = vec![String::new(); main_locals as usize];
-        for (name, &slot) in &self.scope.locals {
-            if (slot as usize) < main_local_names.len() {
-                main_local_names[slot as usize] = name.clone();
-            }
-        }
+        let main_local_names = self.scope.display.clone();
         self.scope = saved_scope;
         let f = &mut self.module.functions[main_idx as usize];
         f.code = main_code;
@@ -215,7 +256,67 @@ impl Bcgen {
             self.compile_function_body(&f.name, &f.params, &f.body, true)?;
         }
 
+        if !self.errors.is_empty() {
+            return Err(self.errors.join("\n"));
+        }
         Ok(())
+    }
+
+    /// 1-based (line, column) of a span, when source text was provided.
+    fn span_location(&self, span: TextSpan) -> Option<(usize, usize)> {
+        let starts = self.line_starts.as_ref()?;
+        let line = match starts.binary_search(&span.start) {
+            Ok(idx) => idx + 1,
+            Err(idx) => idx,
+        };
+        let col = span.start - starts.get(line.checked_sub(1)?)? + 1;
+        Some((line, col))
+    }
+
+    fn error_at(&mut self, span: TextSpan, message: String) {
+        let formatted = match self.span_location(span) {
+            Some((line, col)) => format!("{line}:{col}: error: {message}"),
+            None => format!("error: {message}"),
+        };
+        self.errors.push(formatted);
+    }
+
+    /// A call to `name` that is not a user SUB/FUNCTION compiles to
+    /// `CallBuiltin`; make sure the builtin exists instead of letting the
+    /// call silently do nothing at run time.
+    fn check_builtin_call(&mut self, name: &str, argc: usize, span: TextSpan) {
+        if builtins::is_builtin(name) {
+            return;
+        }
+        let key = name_key(name);
+        let message = if self.lib_functions.contains(&key) {
+            format!(
+                "'{name}' is an external DLL function (DECLARE ... LIB); the bytecode interpreter can't call DLLs yet, build natively with `rapidr build`"
+            )
+        } else if key == "varptr" {
+            format!("{} (memory addresses) only works in native builds (`rapidr build`), not in the bytecode interpreter", name.to_uppercase())
+        } else if key == "inc" || key == "dec" {
+            let op = if key == "inc" { "+" } else { "-" };
+            format!("{} is not supported yet; write `x = x {op} 1` instead", name.to_uppercase())
+        } else if argc == 0 {
+            format!(
+                "Unknown SUB or FUNCTION '{name}' (if this is a line label: labels, GOTO and GOSUB are not supported yet)"
+            )
+        } else {
+            format!("Unknown SUB or FUNCTION '{name}'")
+        };
+        self.error_at(span, message);
+    }
+
+    /// String-pool index for a global variable's name, always using the
+    /// first spelling seen so `Total`, `total` and `TOTAL` are one variable.
+    fn global_str(&mut self, name: &str) -> u32 {
+        let spelling = self
+            .global_spelling
+            .entry(name_key(name))
+            .or_insert_with(|| name.to_string())
+            .clone();
+        self.module.add_string(&spelling)
     }
 
     /// Reserve a function entry up-front so its index is known before its
@@ -254,12 +355,7 @@ impl Bcgen {
             emit(&mut code, Op::Ret);
         }
         let n_locals = self.scope.next_slot as u32;
-        let mut local_names = vec![String::new(); n_locals as usize];
-        for (name, &slot) in &self.scope.locals {
-            if (slot as usize) < local_names.len() {
-                local_names[slot as usize] = name.clone();
-            }
-        }
+        let local_names = self.scope.display.clone();
         self.scope = saved_scope;
         let f = &mut self.module.functions[idx as usize];
         f.code = code;
@@ -293,9 +389,9 @@ impl Bcgen {
             Statement::Return(r) => self.lower_return(r, code)?,
             Statement::Const(c) => {
                 // CONST x = expr  → eval + StoreGlobal x  (treat all as globals).
-                self.globals.insert(c.name.to_lowercase());
+                self.globals.insert(name_key(&c.name));
                 self.lower_expr(&c.value, code)?;
-                let s = self.module.add_string(&c.name);
+                let s = self.global_str(&c.name);
                 emit(code, Op::StoreGlobal);
                 push_u32(code, s);
             }
@@ -305,7 +401,7 @@ impl Bcgen {
                     if !self.in_main {
                         self.scope.declare(&decl.name);
                     } else {
-                        self.globals.insert(decl.name.to_lowercase());
+                        self.globals.insert(name_key(&decl.name));
                     }
                     // Component DIM → eagerly CreateComp (mirrors the
                     // compiled-mode `emit_dim` path), unless a CREATE block
@@ -408,12 +504,65 @@ impl Bcgen {
                     patch_u32(code, j, end);
                 }
             }
-            // Unhandled — record a warning and emit nothing.
-            other => {
-                self.warnings.push(format!("statement not yet lowered: {}", short_name(other)));
+            // File I/O by file number → the hosts' file builtins (same
+            // argument order as the Rust codegen's rp_open/rp_print_hash/...).
+            Statement::Open(o) => {
+                self.lower_expr(&o.filename, code)?;
+                let mode = self.module.add_const(Const::Str(o.mode.clone()));
+                emit(code, Op::LoadConst); push_u32(code, mode);
+                self.lower_expr(&o.file_number, code)?;
+                self.emit_builtin_stmt("open", 3, code);
             }
+            Statement::Close(c) => {
+                self.lower_expr(&c.file_number, code)?;
+                self.emit_builtin_stmt("close", 1, code);
+            }
+            Statement::PrintHash(p) => {
+                self.lower_expr(&p.file_number, code)?;
+                for item in &p.items { self.lower_expr(item, code)?; }
+                self.emit_builtin_stmt("print_hash", 1 + p.items.len() as u8, code);
+            }
+            Statement::WriteHash(w) => {
+                self.lower_expr(&w.file_number, code)?;
+                for item in &w.items { self.lower_expr(item, code)?; }
+                self.emit_builtin_stmt("write_hash", 1 + w.items.len() as u8, code);
+            }
+            Statement::Seek(sk) => {
+                self.lower_expr(&sk.file_number, code)?;
+                self.lower_expr(&sk.position, code)?;
+                self.emit_builtin_stmt("seek", 2, code);
+            }
+            // `DECLARE SUB Foo(...)` is only a forward declaration: nothing
+            // to emit. DLL imports are reported where they are called.
+            Statement::Declare(_) => {}
+            // TYPE fields need no code (members are dynamic); methods do.
+            Statement::Type(t) => {
+                if !t.methods.is_empty() || !t.constructor.is_empty() {
+                    self.error_at(
+                        t.span,
+                        format!("TYPE {} has methods or a CONSTRUCTOR, which the bytecode interpreter does not support yet", t.name),
+                    );
+                }
+            }
+            Statement::RustBlock(r) => {
+                self.error_at(
+                    r.span,
+                    "RUSTSTART ... RUSTEND blocks only work in native builds (`rapidr build`), not in the bytecode interpreter or the web IDE".into(),
+                );
+            }
+            // No catch-all arm: every statement kind is handled explicitly
+            // above, so adding a new one to the AST is a compile error here
+            // rather than a statement the interpreter silently skips.
         }
         Ok(())
+    }
+
+    /// `CallBuiltin(name, argc)` as a statement (result discarded).
+    fn emit_builtin_stmt(&mut self, name: &str, argc: u8, code: &mut Vec<u8>) {
+        let s = self.module.add_string(name);
+        emit(code, Op::CallBuiltin);
+        push_u32(code, s); code.push(argc);
+        emit(code, Op::Pop);
     }
 
     fn lower_print(&mut self, p: &PrintStatement, code: &mut Vec<u8>) -> Result<(), String> {
@@ -442,7 +591,7 @@ impl Bcgen {
     fn lower_assignment(&mut self, a: &AssignmentStatement, code: &mut Vec<u8>) -> Result<(), String> {
         if self.in_main {
             if let Expression::Identifier(id) = &a.target {
-                self.globals.insert(id.name.to_lowercase());
+                self.globals.insert(name_key(&id.name));
             }
         }
         // Special case for CREATE-block property assignment with a SUB-name RHS:
@@ -576,7 +725,7 @@ impl Bcgen {
                     emit(code, Op::StoreLocal);
                     push_u16(code, slot);
                 } else {
-                    let s = self.module.add_string(&id.name);
+                    let s = self.global_str(&id.name);
                     emit(code, Op::StoreGlobal);
                     push_u32(code, s);
                 }
@@ -613,7 +762,7 @@ impl Bcgen {
                     if let Some(slot) = self.scope.get(&id.name) {
                         emit(code, Op::StoreLocal); push_u16(code, slot);
                     } else {
-                        let s = self.module.add_string(&id.name);
+                        let s = self.global_str(&id.name);
                         emit(code, Op::StoreGlobal); push_u32(code, s);
                     }
                 } else {
@@ -646,6 +795,19 @@ impl Bcgen {
             self.lower_expr(a, code)?;
         }
         let argc = c.args.len() as u8;
+        // Inside CREATE, a bare name that isn't a user SUB is a method of the
+        // object being created (RapidQ: `CREATE F AS QFORM ... Center ...`).
+        // Mirrors codegen-rust's `rp_comp_method(<create target>, ...)`.
+        if let (Some(obj), Expression::Identifier(id)) = (self.create_stack.last().cloned(), &c.callee) {
+            if !self.fn_indices.contains_key(&id.name) {
+                let id_s = self.module.add_string(&obj);
+                let mn_s = self.module.add_string(&id.name.to_lowercase());
+                emit(code, Op::CallMethod);
+                push_u32(code, id_s); push_u32(code, mn_s); code.push(argc);
+                emit(code, Op::Pop);
+                return Ok(());
+            }
+        }
         // Module-style call: `math.sqrt(x)` or `RNum.zeros(n)` — route to
         // builtin (mirrors `builtin_function_call` in codegen-rust).
         if let Expression::MemberAccess(m) = &c.callee {
@@ -693,6 +855,7 @@ impl Bcgen {
                 return Ok(());
             }
             // Builtin.
+            self.check_builtin_call(&id.name, c.args.len(), c.span);
             let s = self.module.add_string(&id.name);
             emit(code, Op::CallBuiltin);
             push_u32(code, s); code.push(argc);
@@ -775,9 +938,9 @@ impl Bcgen {
         
         // var = start
         if is_global {
-            self.globals.insert(f.variable.to_lowercase());
+            self.globals.insert(name_key(&f.variable));
             self.lower_expr(&f.start, code)?;
-            let s = self.module.add_string(&f.variable);
+            let s = self.global_str(&f.variable);
             emit(code, Op::StoreGlobal); push_u32(code, s);
         } else {
             let var_slot = self.scope.declare(&f.variable);
@@ -803,7 +966,7 @@ impl Bcgen {
         let loop_top = code.len() as u32;
         // condition: var <= end  (assumes positive step)
         if is_global {
-            let s = self.module.add_string(&f.variable);
+            let s = self.global_str(&f.variable);
             emit(code, Op::LoadGlobal); push_u32(code, s);
         } else {
             let var_slot = self.scope.get(&f.variable).unwrap();
@@ -821,7 +984,7 @@ impl Bcgen {
         }
         // var = var + step
         if is_global {
-            let s = self.module.add_string(&f.variable);
+            let s = self.global_str(&f.variable);
             emit(code, Op::LoadGlobal); push_u32(code, s);
             emit(code, Op::LoadLocal); push_u16(code, step_slot);
             emit(code, Op::Add);
@@ -996,7 +1159,7 @@ impl Bcgen {
                 } else if let Some(slot) = self.scope.get(&id.name) {
                     emit(code, Op::LoadLocal); push_u16(code, slot);
                 } else {
-                    let s = self.module.add_string(&id.name);
+                    let s = self.global_str(&id.name);
                     emit(code, Op::LoadGlobal); push_u32(code, s);
                 }
                 Ok(())
@@ -1039,7 +1202,7 @@ impl Bcgen {
                 // Check if this is a variant array/list subscript indexing:
                 // callee is an identifier, not a defined function, and is a variable.
                 if let Expression::Identifier(id) = fc.callee.as_ref() {
-                    let name_lower = id.name.to_lowercase();
+                    let name_lower = name_key(&id.name);
                     let is_local = self.scope.get(&id.name).is_some();
                     let is_global = self.globals.contains(&name_lower);
                     if (is_local || is_global) && fc.args.len() == 1 && !self.fn_indices.contains_key(&id.name) {
@@ -1101,6 +1264,7 @@ impl Bcgen {
                         }
                         return Ok(());
                     }
+                    self.check_builtin_call(&id.name, fc.args.len(), fc.span);
                     let s = self.module.add_string(&id.name);
                     emit(code, Op::CallBuiltin);
                     push_u32(code, s); code.push(argc);
@@ -1285,38 +1449,7 @@ fn collect_component_instance_names(stmts: &[Statement], out: &mut HashMap<Strin
 
 impl Bcgen {
     fn stmt_line(&self, stmt: &Statement) -> u32 {
-        let span = match stmt {
-            Statement::Assignment(a) => a.span,
-            Statement::Bind(b) => b.span,
-            Statement::Call(c) => c.span,
-            Statement::Close(c) => c.span,
-            Statement::Comment(c) => c.span,
-            Statement::Const(c) => c.span,
-            Statement::Create(c) => c.span,
-            Statement::Declare(d) => d.span,
-            Statement::Dim(d) => d.span,
-            Statement::Directive(d) => d.span,
-            Statement::DoLoop(d) => d.span,
-            Statement::Exit(e) => e.span,
-            Statement::For(f) => f.span,
-            Statement::Function(f) => f.span,
-            Statement::If(i) => i.span,
-            Statement::Import(i) => i.span,
-            Statement::Input(i) => i.span,
-            Statement::Line(l) => l.span,
-            Statement::Open(o) => o.span,
-            Statement::Print(p) => p.span,
-            Statement::PrintHash(p) => p.span,
-            Statement::Return(r) => r.span,
-            Statement::Seek(s) => s.span,
-            Statement::SelectCase(s) => s.span,
-            Statement::Subroutine(s) => s.span,
-            Statement::Type(t) => t.span,
-            Statement::While(w) => w.span,
-            Statement::With(w) => w.span,
-            Statement::WriteHash(w) => w.span,
-            Statement::RustBlock(r) => r.span,
-        };
+        let span = stmt_span(stmt);
 
         if let Some(ref starts) = self.line_starts {
             match starts.binary_search(&span.start) {
@@ -1329,38 +1462,38 @@ impl Bcgen {
     }
 }
 
-fn short_name(s: &Statement) -> &'static str {
-    match s {
-        Statement::Assignment(_) => "Assignment",
-        Statement::Bind(_) => "Bind",
-        Statement::Call(_) => "Call",
-        Statement::Close(_) => "Close",
-        Statement::Comment(_) => "Comment",
-        Statement::Const(_) => "Const",
-        Statement::Create(_) => "Create",
-        Statement::Declare(_) => "Declare",
-        Statement::Dim(_) => "Dim",
-        Statement::Directive(_) => "Directive",
-        Statement::DoLoop(_) => "DoLoop",
-        Statement::Exit(_) => "Exit",
-        Statement::For(_) => "For",
-        Statement::Function(_) => "Function",
-        Statement::If(_) => "If",
-        Statement::Import(_) => "Import",
-        Statement::Input(_) => "Input",
-        Statement::Line(_) => "Line",
-        Statement::Open(_) => "Open",
-        Statement::Print(_) => "Print",
-        Statement::PrintHash(_) => "PrintHash",
-        Statement::Return(_) => "Return",
-        Statement::Seek(_) => "Seek",
-        Statement::SelectCase(_) => "SelectCase",
-        Statement::Subroutine(_) => "Subroutine",
-        Statement::Type(_) => "Type",
-        Statement::While(_) => "While",
-        Statement::With(_) => "With",
-        Statement::WriteHash(_) => "WriteHash",
-        Statement::RustBlock(_) => "RustBlock",
+fn stmt_span(stmt: &Statement) -> TextSpan {
+    match stmt {
+        Statement::Assignment(a) => a.span,
+        Statement::Bind(b) => b.span,
+        Statement::Call(c) => c.span,
+        Statement::Close(c) => c.span,
+        Statement::Comment(c) => c.span,
+        Statement::Const(c) => c.span,
+        Statement::Create(c) => c.span,
+        Statement::Declare(d) => d.span,
+        Statement::Dim(d) => d.span,
+        Statement::Directive(d) => d.span,
+        Statement::DoLoop(d) => d.span,
+        Statement::Exit(e) => e.span,
+        Statement::For(f) => f.span,
+        Statement::Function(f) => f.span,
+        Statement::If(i) => i.span,
+        Statement::Import(i) => i.span,
+        Statement::Input(i) => i.span,
+        Statement::Line(l) => l.span,
+        Statement::Open(o) => o.span,
+        Statement::Print(p) => p.span,
+        Statement::PrintHash(p) => p.span,
+        Statement::Return(r) => r.span,
+        Statement::Seek(s) => s.span,
+        Statement::SelectCase(s) => s.span,
+        Statement::Subroutine(s) => s.span,
+        Statement::Type(t) => t.span,
+        Statement::While(w) => w.span,
+        Statement::With(w) => w.span,
+        Statement::WriteHash(w) => w.span,
+        Statement::RustBlock(r) => r.span,
     }
 }
 
@@ -1373,7 +1506,7 @@ mod tests {
         let toks = rapidr_lexer::Lexer::new(src, Some("test".into()))
             .tokenize()
             .expect("lex");
-        rapidr_parser::parse_tokens(&toks)
+        rapidr_parser::parse_tokens(&toks).expect("test source should parse")
     }
 
     fn run(src: &str) -> StubHost {

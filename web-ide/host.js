@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.9.0";
+export const RAPIDR_IDE_VERSION = "2.10.0";
 
 const _editors = new Map();
 
@@ -125,6 +125,7 @@ function logError(level, ...args) {
   if (level === "error" && ERROR_COUNTERS.error === 1) {
     $('.otab[data-tab="errors"]')?.click();
   }
+  return line;
 }
 
 function clearErrorsPanel() {
@@ -134,6 +135,131 @@ function clearErrorsPanel() {
   ERROR_COUNTERS.warn = 0;
   ERROR_COUNTERS.info = 0;
   _renderErrorBadges();
+}
+
+// ─── Compiler diagnostics (squiggles + Errors panel) ────────────
+// The compiler reports every problem as "line:col: error: message" against
+// the combined project source; getProjectSourceAndMapping() maps those lines
+// back to the form/module the user wrote. Diagnostics refresh while typing
+// (debounced) and whenever Run / Debug / Build fails.
+
+const DIAGNOSTICS_DELAY_MS = 600;
+let _diagnostics = [];    // [{ fileId | null, line, column, severity, message }]
+let _diagnosticsTimer = null;
+
+function parseCompileErrors(text, mapping) {
+  const diags = [];
+  for (const raw of String(text).split("\n")) {
+    if (!raw.trim()) continue;
+    const m = raw.match(/(\d+):(\d+):\s*(error|warning):\s*(.*)$/);
+    if (!m) {
+      diags.push({ fileId: null, line: 0, column: 0, severity: "error", message: raw.trim() });
+      continue;
+    }
+    const loc = mapping[+m[1]];
+    diags.push({
+      fileId: loc ? loc.fileId : null,
+      line: loc ? loc.lineInFile : +m[1],
+      column: +m[2],
+      severity: m[3],
+      message: m[4],
+    });
+  }
+  return diags;
+}
+
+/// Compile the project only to collect diagnostics ([] when it compiles).
+function computeDiagnostics() {
+  if (!state.wasmReady) return [];
+  const { source, mapping } = getProjectSourceAndMapping(state.project);
+  try {
+    compile(source, state.project.name);
+    return [];
+  } catch (err) {
+    return parseCompileErrors(err, mapping);
+  }
+}
+
+function setDiagnostics(diags) {
+  _diagnostics = diags;
+  for (const id of _editors.keys()) applyMarkers(id);
+}
+
+function refreshDiagnostics() {
+  clearTimeout(_diagnosticsTimer);
+  _diagnosticsTimer = null;
+  setDiagnostics(computeDiagnostics());
+  return _diagnostics;
+}
+
+function scheduleDiagnostics() {
+  clearTimeout(_diagnosticsTimer);
+  _diagnosticsTimer = setTimeout(refreshDiagnostics, DIAGNOSTICS_DELAY_MS);
+}
+
+function applyMarkers(fileId) {
+  const ed = _editors.get(fileId);
+  const monaco = window.monaco;
+  if (!ed || !monaco) return;
+  const model = ed.getModel();
+  const markers = _diagnostics.filter(d => d.fileId === fileId).map(d => {
+    const line = Math.min(Math.max(d.line, 1), model.getLineCount());
+    const column = Math.max(d.column, 1);
+    const word = model.getWordAtPosition({ lineNumber: line, column });
+    return {
+      severity: d.severity === "warning" ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
+      message: d.message,
+      startLineNumber: line,
+      startColumn: word ? word.startColumn : column,
+      endLineNumber: line,
+      endColumn: word ? word.endColumn : model.getLineMaxColumn(line),
+    };
+  });
+  monaco.editor.setModelMarkers(model, "rapidr", markers);
+}
+
+function diagnosticFileName(fileId) {
+  return state.project.forms.find(f => f.id === fileId)?.name
+    || (state.project.modules || []).find(m => m.id === fileId)?.name
+    || "generated code";
+}
+
+async function revealDiagnostic(d) {
+  if (!d.fileId) return;
+  if (state.project.forms.some(f => f.id === d.fileId)) {
+    switchToForm(d.fileId);
+    switchView("code");
+  } else {
+    await switchToModule(d.fileId);
+  }
+  for (let i = 0; i < 50 && !_editors.get(d.fileId); i++) {
+    await new Promise(r => setTimeout(r, 60));  // code editor is created lazily
+  }
+  const ed = _editors.get(d.fileId);
+  if (!ed) return;
+  ed.revealLineInCenter(d.line);
+  ed.setPosition({ lineNumber: d.line, column: Math.max(d.column, 1) });
+  ed.focus();
+}
+
+/// Called when Run/Debug/Build fails to compile: underline every error and
+/// list them in the Errors panel (click to jump to the line).
+function reportCompileFailure(err) {
+  const diags = refreshDiagnostics();
+  if (!diags.length) {
+    logError("error", String(err));  // failed, but not via a located error
+    return;
+  }
+  setStatus(`${diags.length} compile error${diags.length === 1 ? "" : "s"}`, "error");
+  for (const d of diags) {
+    const where = d.line ? `${diagnosticFileName(d.fileId)} (line ${d.line}, col ${d.column})` : diagnosticFileName(d.fileId);
+    const el = logError(d.severity === "warning" ? "warn" : "error", `${where}: ${d.message}`);
+    if (el && d.fileId) {
+      el.classList.add("err-link");
+      el.title = "Go to this line";
+      el.addEventListener("click", () => revealDiagnostic(d));
+    }
+  }
 }
 
 // ─── Preview bridge (SEC-02/03) ─────────────────────────────────
@@ -664,9 +790,10 @@ async function ensureCodeEditor(form, pane) {
   if (!form.code.source)   form.code.source = defaultCodeSource(form);
   const ed = await createRapidrEditor(host, {
     value: form.code.source,
-    onChange: (txt) => { form.code.source = txt; },
+    onChange: (txt) => { form.code.source = txt; scheduleDiagnostics(); },
   });
   _editors.set(form.id, ed);
+  applyMarkers(form.id);
   setupEditorDebugHooks(form.id, ed);
   populateObjEvtDropdowns(form, pane, ed);
   return ed;
@@ -2293,6 +2420,7 @@ async function dispatchCommand(cmd) {
       renderProperties();
       setStatus("new project", "ok");
       resetHistory();
+      setDiagnostics([]);
       return;
     }
     case "form.new": {
@@ -2427,6 +2555,7 @@ async function doRun() {
     const src = serializeProject(state.project);
     logOutput("------ source ------\n" + src);
     const bc = compile(src, state.project.name);
+    setDiagnostics([]);
     setStatus("running");
 
     // Dynamically size based on startup form
@@ -2452,8 +2581,7 @@ async function doRun() {
     startPreview("run", { run: bc });
   } catch (err) {
     setStatus("compile failed", "error");
-    logOutput(String(err));
-    $('.otab[data-tab="errors"]').click();
+    reportCompileFailure(err);
   }
 }
 
@@ -2498,7 +2626,7 @@ async function doBuild() {
     setStatus("built " + a.download, "ok");
   } catch (err) {
     setStatus("build failed", "error");
-    logOutput(String(err));
+    reportCompileFailure(err);
   }
 }
 
@@ -2561,6 +2689,7 @@ function loadProjectModel(model) {
   renderProjectTree();
   renderProperties();
   resetHistory();
+  setDiagnostics([]);
 }
 
 // ─── Undo / redo (project history) ─────────────────────────────
@@ -2668,6 +2797,7 @@ function restoreSnapshot(snap) {
   } finally {
     history.restoring = false;
   }
+  scheduleDiagnostics();
   updateUndoUI();
 }
 
@@ -3438,9 +3568,10 @@ async function switchToModule(modId) {
   if (!_editors.has(modId)) {
     const ed = await createRapidrEditor(host, {
       value: mod.source,
-      onChange: (txt) => { mod.source = txt; },
+      onChange: (txt) => { mod.source = txt; scheduleDiagnostics(); },
     });
     _editors.set(modId, ed);
+    applyMarkers(modId);
     setupEditorDebugHooks(modId, ed);
   } else {
     _editors.get(modId).layout();
@@ -4040,8 +4171,7 @@ async function doDebug() {
     startPreview("debug", { debug: bc, breakpoints: unifiedBreakpoints });
   } catch (err) {
     setStatus("compile failed", "error");
-    logOutput(String(err));
-    $('.otab[data-tab="errors"]').click();
+    reportCompileFailure(err);
   }
 }
 

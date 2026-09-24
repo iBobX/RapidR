@@ -11,7 +11,7 @@ fn parses_every_example_program_into_partial_typed_ast() {
         .unwrap()
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
-        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("rp"))
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("rr"))
         .collect::<Vec<_>>();
 
     files.sort();
