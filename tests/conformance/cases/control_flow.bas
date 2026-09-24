@@ -1,4 +1,3 @@
-' xfail: vm — FOR with negative STEP runs zero times; 'CASE 2, 3' jumps to program start (infinite loop)
 ' FOR/STEP, WHILE, DO/LOOP, SELECT CASE, EXIT FOR, IF/ELSEIF — core control flow.
 DIM i AS INTEGER
 DIM s AS STRING

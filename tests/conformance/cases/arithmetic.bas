@@ -1,4 +1,3 @@
-' xfail: vm, codegen — whole-number float results print as '1024.0' (2 ^ 10)
 ' Operators and precedence.
 PRINT "add:" + STR$(2 + 3 * 4)
 PRINT "paren:" + STR$((2 + 3) * 4)

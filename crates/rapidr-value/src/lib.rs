@@ -67,8 +67,10 @@ impl Value {
         match self {
             Value::Integer(n) => n.to_string(),
             Value::Double(n) => {
+                // BASIC shows whole numbers without a decimal part:
+                // PRINT 2 ^ 10 → 1024, not 1024.0.
                 if *n == n.trunc() && n.abs() < 1e15 {
-                    format!("{:.1}", n)
+                    format!("{}", *n as i64)
                 } else {
                     n.to_string()
                 }

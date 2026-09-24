@@ -7,6 +7,38 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.10.1] — 2026-09-24
+
+Correctness fixes found by the conformance suite (now 20 of 32 backend runs pass,
+up from 11).
+
+### Fixed
+- **`CASE 2, 3` (several values in one CASE) restarted the program in an infinite loop**
+  in the bytecode interpreter, because of an unpatched jump to address 0. `SELECT CASE`
+  is rewritten: any item matches, then the next CASE, then CASE ELSE.
+- **`CASE 1 TO 5` and `CASE IS > 10`** were misparsed (`TO 5` became a stray statement;
+  `IS` was treated as a variable), so both backends picked the wrong branch. They're now
+  proper case items in the parser, VM and codegen. Codegen uses BASIC comparisons, so
+  `2` matches `2.0`.
+- **`FOR … STEP -n` never ran** in the bytecode interpreter. The loop now tests the
+  step's sign.
+- **FUNCTIONs returning by name** (`Fact = n * Fact(n - 1)`) returned nothing in the
+  bytecode interpreter. The function's name is now its result variable, returned at
+  `END FUNCTION`, `EXIT FUNCTION` and a bare `RETURN`.
+- **`BYREF` parameters** were ignored by the interpreter, and the codegen output didn't
+  compile. Both now write back to the caller's variable (copy-in/copy-out, as VB does);
+  the VM uses a new `LoadArgOut` opcode.
+- **`EXIT SUB` / `EXIT FUNCTION`** inside a loop only left the loop, and outside one
+  they were ignored. **`EXIT FOR`** inside a nested `WHILE` left the `WHILE` instead of
+  the `FOR` (interpreter and codegen). Each EXIT now leaves the right construct, and a
+  misplaced EXIT is a compile error.
+- Whole-number results print without a decimal point: `2 ^ 10` shows `1024`, not
+  `1024.0`.
+- Codegen: BYVAL parameters can be assigned to (they're `mut`), as BASIC allows.
+
+### Added
+- Conformance case `exit_statements`.
+
 ## [2.10.0] — 2026-09-24
 
 **Nothing is silently skipped anymore.** Lines the compiler couldn't parse, and calls

@@ -26,7 +26,7 @@
 use std::collections::{HashMap, HashSet};
 
 use rapidr_ast::{
-    ArrayAccessExpression, AssignmentStatement, BinaryOperator, BindStatement, CallStatement,
+    ArrayAccessExpression, AssignmentStatement, BinaryOperator, BindStatement, CallStatement, CaseValue,
     CreateStatement, DoLoopStatement, Expression, ForStatement, FunctionStatement, IfStatement,
     Literal, LiteralValue, Parameter, PrintStatement, Program, ReturnStatement, Statement,
     SubroutineStatement, UnaryOperator, WhileStatement,
@@ -125,6 +125,10 @@ struct Bcgen {
     errors: Vec<String>,
     /// DECLARE ... LIB (external DLL) function names, by [`name_key`].
     lib_functions: HashSet<String>,
+    /// BYREF flag of each parameter, per SUB/FUNCTION.
+    fn_byref: NameMap<Vec<bool>>,
+    /// The SUB/FUNCTION being lowered, if any.
+    fn_ctx: Option<FnCtx>,
     /// Scope stack for the function currently being lowered.
     scope: Scope,
     /// Set of declared global variables (keys from [`name_key`])
@@ -157,8 +161,19 @@ struct Bcgen {
 }
 
 struct LoopCtx {
+    /// "FOR", "WHILE" or "DO" — `EXIT FOR` leaves the innermost FOR even
+    /// from inside a nested WHILE.
+    kind: &'static str,
     /// Patch sites (offsets that hold a u32 target) waiting for the loop end.
     breaks: Vec<usize>,
+}
+
+/// The SUB/FUNCTION whose body is being lowered (None in the main program).
+#[derive(Clone, Copy)]
+struct FnCtx {
+    /// FUNCTIONs return the value assigned to their own name, kept in this
+    /// local (`Fact = n * Fact(n - 1)`); SUBs have none.
+    result_slot: Option<u16>,
 }
 
 impl Bcgen {
@@ -170,6 +185,8 @@ impl Bcgen {
             warnings: Vec::new(),
             errors: Vec::new(),
             lib_functions: HashSet::new(),
+            fn_byref: NameMap::default(),
+            fn_ctx: None,
             scope: Scope::default(),
             globals: HashSet::new(),
             global_spelling: HashMap::new(),
@@ -206,12 +223,14 @@ impl Bcgen {
                     let idx = self.reserve_function(&s.name, &s.params, false);
                     self.fn_indices.insert(s.name.clone(), idx);
                     self.fn_is_func.insert(s.name.clone(), false);
+                    self.fn_byref.insert(s.name.clone(), s.params.iter().map(|p| p.by_ref).collect());
                     subs.push(s);
                 }
                 Statement::Function(f) => {
                     let idx = self.reserve_function(&f.name, &f.params, true);
                     self.fn_indices.insert(f.name.clone(), idx);
                     self.fn_is_func.insert(f.name.clone(), true);
+                    self.fn_byref.insert(f.name.clone(), f.params.iter().map(|p| p.by_ref).collect());
                     funcs.push(f);
                 }
                 Statement::Declare(d) if d.lib.is_some() => {
@@ -341,19 +360,19 @@ impl Bcgen {
         for p in params {
             self.scope.declare(&p.name);
         }
+        // A FUNCTION's own name is a local holding its result.
+        let result_slot = is_func.then(|| self.scope.declare(name));
+        let saved_ctx = self.fn_ctx.replace(FnCtx { result_slot });
+        let saved_loops = std::mem::take(&mut self.loop_stack);
         let mut code = Vec::new();
         let mut lines = Vec::new();
         for stmt in body {
             self.lower_stmt(stmt, &mut code, &mut lines)?;
         }
-        // Implicit return.
-        if is_func {
-            // FUNCTION without explicit RETURN: push Null then RetVal.
-            emit(&mut code, Op::LoadNull);
-            emit(&mut code, Op::RetVal);
-        } else {
-            emit(&mut code, Op::Ret);
-        }
+        // Implicit return at END SUB / END FUNCTION (needs this fn's ctx).
+        self.emit_return_from_routine(&mut code);
+        self.loop_stack = saved_loops;
+        self.fn_ctx = saved_ctx;
         let n_locals = self.scope.next_slot as u32;
         let local_names = self.scope.display.clone();
         self.scope = saved_scope;
@@ -441,61 +460,62 @@ impl Bcgen {
                 emit(code, Op::Input);
                 self.store_target(&i.target, code)?;
             }
-            Statement::Exit(_) => {
-                if let Some(ctx) = self.loop_stack.last_mut() {
-                    emit(code, Op::Jump);
-                    ctx.breaks.push(code.len());
-                    push_u32(code, 0); // patched at loop end
-                } else {
-                    self.warnings.push("EXIT outside loop ignored".into());
+            Statement::Exit(e) => {
+                let kind = e.exit_type.to_uppercase();
+                match kind.as_str() {
+                    "FOR" | "WHILE" | "DO" => {
+                        let target = self.loop_stack.iter().rposition(|l| l.kind == kind);
+                        match target {
+                            Some(i) => {
+                                emit(code, Op::Jump);
+                                self.loop_stack[i].breaks.push(code.len());
+                                push_u32(code, 0); // patched at that loop's end
+                            }
+                            None => self.error_at(e.span, format!("EXIT {kind} is not inside a {kind} loop")),
+                        }
+                    }
+                    "SUB" | "FUNCTION" => {
+                        let in_function = self.fn_ctx.map(|c| c.result_slot.is_some());
+                        match (in_function, kind.as_str()) {
+                            (Some(false), "SUB") | (Some(true), "FUNCTION") => self.emit_return_from_routine(code),
+                            _ => self.error_at(e.span, format!("EXIT {kind} is not inside a {kind}")),
+                        }
+                    }
+                    _ => self.error_at(e.span, format!("EXIT {kind} is not supported (use EXIT FOR, WHILE, DO, SUB or FUNCTION)")),
                 }
             }
             Statement::SelectCase(s) => {
-                // Lower as cascading IFs. Only equality checks supported here.
-                // Stash the discriminant into a temp local.
+                // The SELECT expression is evaluated once into a temp. Each
+                // CASE is a chain of tests: any match jumps to its body,
+                // otherwise control falls to the next CASE, then CASE ELSE.
                 let tmp = self.scope.declare(&format!("__sel_{}", code.len()));
                 self.lower_expr(&s.expression, code)?;
                 emit(code, Op::StoreLocal); push_u16(code, tmp);
                 let mut end_jumps: Vec<usize> = Vec::new();
                 for case in &s.cases {
-                    // Build a disjunction of (tmp == val) for each value.
-                    if case.values.is_empty() { continue; }
-                    let mut next_jumps: Vec<usize> = Vec::new();
-                    for (i, val) in case.values.iter().enumerate() {
-                        emit(code, Op::LoadLocal); push_u16(code, tmp);
-                        self.lower_expr(val, code)?;
-                        emit(code, Op::Eq);
-                        if i + 1 == case.values.len() {
-                            // Last value: if false, jump to next case.
-                            emit(code, Op::JumpIfNot);
-                            next_jumps.push(code.len());
-                            push_u32(code, 0);
-                        } else {
-                            // If true, jump to body (collect later); else fallthrough.
-                            emit(code, Op::JumpIf);
-                            // Patch directly to body start, recorded after we know it.
-                            // Easier: use a "match" flag local.
-                            // Simplification: just chain JumpIfNot for each, with a single
-                            // Or-bridge. For Phase 2 the simple form below is sufficient
-                            // when each case has 1 value.
-                            // Mark unreachable for the multi-value case:
-                            self.warnings.push("SELECT CASE with multiple values per branch only partially supported".into());
-                            push_u32(code, 0);
-                        }
+                    let mut to_body: Vec<usize> = Vec::new();
+                    for value in &case.values {
+                        self.lower_case_test(tmp, value, code)?;
+                        emit(code, Op::JumpIf);
+                        to_body.push(code.len());
+                        push_u32(code, 0);
                     }
-                    // Body
+                    emit(code, Op::Jump);
+                    let to_next_case = code.len();
+                    push_u32(code, 0);
+                    let body_start = code.len() as u32;
+                    for j in to_body {
+                        patch_u32(code, j, body_start);
+                    }
                     for stmt in &case.body {
                         self.lower_stmt(stmt, code, lines)?;
                     }
                     emit(code, Op::Jump);
                     end_jumps.push(code.len());
                     push_u32(code, 0);
-                    let after = code.len() as u32;
-                    for j in next_jumps {
-                        patch_u32(code, j, after);
-                    }
+                    let next_case = code.len() as u32;
+                    patch_u32(code, to_next_case, next_case);
                 }
-                // CASE ELSE
                 for stmt in &s.case_else {
                     self.lower_stmt(stmt, code, lines)?;
                 }
@@ -553,6 +573,39 @@ impl Bcgen {
             // No catch-all arm: every statement kind is handled explicitly
             // above, so adding a new one to the AST is a compile error here
             // rather than a statement the interpreter silently skips.
+        }
+        Ok(())
+    }
+
+    /// Pushes whether the SELECT value in local `tmp` matches one CASE item.
+    fn lower_case_test(&mut self, tmp: u16, value: &CaseValue, code: &mut Vec<u8>) -> Result<(), String> {
+        match value {
+            CaseValue::Value(e) => {
+                emit(code, Op::LoadLocal); push_u16(code, tmp);
+                self.lower_expr(e, code)?;
+                emit(code, Op::Eq);
+            }
+            CaseValue::Range(low, high) => {
+                emit(code, Op::LoadLocal); push_u16(code, tmp);
+                self.lower_expr(low, code)?;
+                emit(code, Op::Ge);
+                emit(code, Op::LoadLocal); push_u16(code, tmp);
+                self.lower_expr(high, code)?;
+                emit(code, Op::Le);
+                emit(code, Op::And);
+            }
+            CaseValue::Is(op, e) => {
+                emit(code, Op::LoadLocal); push_u16(code, tmp);
+                self.lower_expr(e, code)?;
+                emit(code, match op {
+                    BinaryOperator::Equal => Op::Eq,
+                    BinaryOperator::NotEqual => Op::Ne,
+                    BinaryOperator::LessThan => Op::Lt,
+                    BinaryOperator::LessThanOrEqual => Op::Le,
+                    BinaryOperator::GreaterThan => Op::Gt,
+                    _ => Op::Ge,
+                });
+            }
         }
         Ok(())
     }
@@ -852,6 +905,7 @@ impl Bcgen {
                     emit(code, Op::CallSub);
                     push_u32(code, fi); code.push(argc);
                 }
+                self.emit_byref_writeback(&id.name, &c.args, code)?;
                 return Ok(());
             }
             // Builtin.
@@ -928,6 +982,16 @@ impl Bcgen {
         Ok(())
     }
 
+    fn emit_load_for_var(&mut self, f: &ForStatement, is_global: bool, code: &mut Vec<u8>) {
+        if is_global {
+            let s = self.global_str(&f.variable);
+            emit(code, Op::LoadGlobal); push_u32(code, s);
+        } else {
+            let slot = self.scope.get(&f.variable).unwrap();
+            emit(code, Op::LoadLocal); push_u16(code, slot);
+        }
+    }
+
     fn lower_for(
         &mut self,
         f: &ForStatement,
@@ -962,23 +1026,34 @@ impl Bcgen {
         }
         emit(code, Op::StoreLocal); push_u16(code, step_slot);
 
-        // loop start
+        // loop start. Continue while var <= end for a step >= 0, or
+        // var >= end for a negative step (`FOR i = 10 TO 1 STEP -1`).
         let loop_top = code.len() as u32;
-        // condition: var <= end  (assumes positive step)
-        if is_global {
-            let s = self.global_str(&f.variable);
-            emit(code, Op::LoadGlobal); push_u32(code, s);
-        } else {
-            let var_slot = self.scope.get(&f.variable).unwrap();
-            emit(code, Op::LoadLocal); push_u16(code, var_slot);
-        }
+        let zero = self.module.add_const(Const::Int(0));
+        emit(code, Op::LoadLocal); push_u16(code, step_slot);
+        emit(code, Op::LoadConst); push_u32(code, zero);
+        emit(code, Op::Lt);
+        emit(code, Op::JumpIfNot);
+        let to_ascending = code.len();
+        push_u32(code, 0);
+        self.emit_load_for_var(f, is_global, code);
+        emit(code, Op::LoadLocal); push_u16(code, end_slot);
+        emit(code, Op::Ge);
+        emit(code, Op::Jump);
+        let to_test = code.len();
+        push_u32(code, 0);
+        let ascending = code.len() as u32;
+        patch_u32(code, to_ascending, ascending);
+        self.emit_load_for_var(f, is_global, code);
         emit(code, Op::LoadLocal); push_u16(code, end_slot);
         emit(code, Op::Le);
+        let test = code.len() as u32;
+        patch_u32(code, to_test, test);
         emit(code, Op::JumpIfNot);
         let exit_patch = code.len();
         push_u32(code, 0);
 
-        self.loop_stack.push(LoopCtx { breaks: Vec::new() });
+        self.loop_stack.push(LoopCtx { kind: "FOR", breaks: Vec::new() });
         for s in &f.body {
             self.lower_stmt(s, code, lines)?;
         }
@@ -1017,7 +1092,7 @@ impl Bcgen {
         emit(code, Op::JumpIfNot);
         let exit_patch = code.len();
         push_u32(code, 0);
-        self.loop_stack.push(LoopCtx { breaks: Vec::new() });
+        self.loop_stack.push(LoopCtx { kind: "WHILE", breaks: Vec::new() });
         for s in &w.body {
             self.lower_stmt(s, code, lines)?;
         }
@@ -1037,7 +1112,7 @@ impl Bcgen {
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
         let top = code.len() as u32;
-        self.loop_stack.push(LoopCtx { breaks: Vec::new() });
+        self.loop_stack.push(LoopCtx { kind: "DO", breaks: Vec::new() });
         // pre-condition test (DO WHILE / DO UNTIL ... LOOP)
         let mut exit_patch: Option<usize> = None;
         if d.pre_condition {
@@ -1077,9 +1152,55 @@ impl Bcgen {
             self.lower_expr(v, code)?;
             emit(code, Op::RetVal);
         } else {
-            emit(code, Op::Ret);
+            self.emit_return_from_routine(code);
         }
         Ok(())
+    }
+
+    /// Leave the current SUB (Ret) or FUNCTION (return its result local).
+    fn emit_return_from_routine(&mut self, code: &mut Vec<u8>) {
+        match self.fn_ctx.and_then(|c| c.result_slot) {
+            Some(slot) => {
+                emit(code, Op::LoadLocal); push_u16(code, slot);
+                emit(code, Op::RetVal);
+            }
+            None => emit(code, Op::Ret),
+        }
+    }
+
+    /// After a call to `callee`, copy each BYREF parameter's final value back
+    /// into the caller's variable (copy-in/copy-out, as VB does for plain
+    /// variables). Only variables and array elements can be written back.
+    fn emit_byref_writeback(&mut self, callee: &str, args: &[Expression], code: &mut Vec<u8>) -> Result<(), String> {
+        let Some(flags) = self.fn_byref.get(callee).cloned() else { return Ok(()) };
+        for (i, arg) in args.iter().enumerate() {
+            if !flags.get(i).copied().unwrap_or(false) || !self.is_assignable(arg) {
+                continue;
+            }
+            emit(code, Op::LoadArgOut); code.push(i as u8);
+            self.store_target(arg, code)?;
+        }
+        Ok(())
+    }
+
+    fn is_assignable(&self, e: &Expression) -> bool {
+        match e {
+            Expression::Identifier(id) => {
+                !self.fn_indices.contains_key(&id.name)
+                    && !self.component_instance_names.contains_key(&id.name.to_lowercase())
+            }
+            Expression::ArrayAccess(_) => true,
+            Expression::FunctionCall(fc) => match fc.callee.as_ref() {
+                // `a(i)` parses as a call; it's an element if `a` is a variable.
+                Expression::Identifier(id) => {
+                    fc.args.len() == 1
+                        && !self.fn_indices.contains_key(&id.name)
+                        && (self.scope.get(&id.name).is_some() || self.globals.contains(&name_key(&id.name)))
+                }
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     fn lower_create(
@@ -1262,6 +1383,8 @@ impl Bcgen {
                             push_u32(code, fi); code.push(argc);
                             emit(code, Op::LoadNull);
                         }
+                        // The call's value stays on the stack underneath.
+                        self.emit_byref_writeback(&id.name, &fc.args, code)?;
                         return Ok(());
                     }
                     self.check_builtin_call(&id.name, fc.args.len(), fc.span);

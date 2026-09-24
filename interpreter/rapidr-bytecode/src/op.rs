@@ -95,6 +95,10 @@ pub enum Op {
     /// (PRINT-style sinks should still push `Null`).
     /// Operand: `u32` string-id (name), `u8` argc.
     CallBuiltin = 0x64,
+    /// Push the final value of parameter `k` of the SUB/FUNCTION that just
+    /// returned (for BYREF write-back into the caller's variable).
+    /// Operand: `u8` parameter index.
+    LoadArgOut = 0x65,
 
     // === components / objects ===
     /// Create a component. Operand: `u32` kind (string-id),
@@ -188,6 +192,7 @@ impl Op {
             0x62 => Op::Ret,
             0x63 => Op::RetVal,
             0x64 => Op::CallBuiltin,
+            0x65 => Op::LoadArgOut,
             0x70 => Op::CreateComp,
             0x71 => Op::SetProp,
             0x72 => Op::GetProp,

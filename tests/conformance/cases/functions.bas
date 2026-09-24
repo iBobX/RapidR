@@ -1,4 +1,3 @@
-' xfail: vm, codegen — VM: return-by-name (Fact = ...) returns empty, BYREF ignored; codegen: BYREF param fails to compile
 ' SUB/FUNCTION calls, recursion, RETURN, return-by-name, BYREF.
 FUNCTION Fact(n AS INTEGER) AS INTEGER
   IF n <= 1 THEN

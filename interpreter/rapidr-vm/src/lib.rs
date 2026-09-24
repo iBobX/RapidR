@@ -99,6 +99,9 @@ pub struct Vm<'h, H: Host + ?Sized> {
     pub frames: Vec<Frame>,
     /// Globals — name-keyed Value slots (created lazily on first STORE).
     pub globals: std::collections::HashMap<String, Value>,
+    /// Parameter values of the most recently returned frame, read by
+    /// `LoadArgOut` right after a call to write BYREF arguments back.
+    pub arg_out: Vec<Value>,
 
     // Debugger state
     pub debug_mode: bool,
@@ -114,6 +117,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             stack: Vec::with_capacity(64),
             frames: Vec::with_capacity(8),
             globals: Default::default(),
+            arg_out: Vec::new(),
             debug_mode: false,
             breakpoints: Default::default(),
             step_mode: StepMode::None,
@@ -169,7 +173,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         loop {
             if ip >= code.len() {
                 // Implicit return for missing trailing Halt.
-                if !self.return_frame(false)? {
+                if !self.return_frame(module, false)? {
                     return Ok(());
                 }
                 let top = self.frames.last().unwrap();
@@ -316,14 +320,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     refresh!();
                 }
                 Op::Ret => {
-                    if !self.return_frame(false)? { return Ok(()); }
+                    if !self.return_frame(module, false)? { return Ok(()); }
                     ip = self.frames.last().unwrap().ip;
                     refresh!();
                 }
                 Op::RetVal => {
-                    if !self.return_frame(true)? { return Ok(()); }
+                    if !self.return_frame(module, true)? { return Ok(()); }
                     ip = self.frames.last().unwrap().ip;
                     refresh!();
+                }
+                Op::LoadArgOut => {
+                    let k = read_u8(code, &mut ip)? as usize;
+                    self.stack.push(self.arg_out.get(k).cloned().unwrap_or_else(v_null));
                 }
                 Op::CallBuiltin => {
                     let name_i = read_u32(code, &mut ip)?;
@@ -438,9 +446,15 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
     /// Pop the current frame and return a value (or Null) to the caller.
     /// Returns false if the popped frame was the entry — the VM must stop.
-    fn return_frame(&mut self, with_value: bool) -> Result<bool, VmError> {
+    fn return_frame(&mut self, module: &Module, with_value: bool) -> Result<bool, VmError> {
         let ret = if with_value { self.pop()? } else { v_null() };
         let frame = self.frames.pop().ok_or(VmError::StackUnderflow)?;
+        let n_params = module
+            .functions
+            .get(frame.fn_index as usize)
+            .map_or(0, |f| f.params.len())
+            .min(frame.locals.len());
+        self.arg_out = frame.locals[..n_params].to_vec();
         if self.frames.is_empty() {
             return Ok(false);
         }

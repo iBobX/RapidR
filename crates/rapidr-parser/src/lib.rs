@@ -968,6 +968,32 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// One `CASE` item: `expr`, `low TO high`, or `IS <op> expr`.
+    fn parse_case_value(&mut self) -> Option<CaseValue> {
+        let is_is = self.peek_identifier_eq("IS")
+            && matches!(
+                self.peek_kind_at(1),
+                Some(TokenType::Eq | TokenType::Neq | TokenType::Lt | TokenType::Lte | TokenType::Gt | TokenType::Gte)
+            );
+        if is_is {
+            self.advance(); // IS
+            let op = match self.advance()?.kind {
+                TokenType::Eq => BinaryOperator::Equal,
+                TokenType::Neq => BinaryOperator::NotEqual,
+                TokenType::Lt => BinaryOperator::LessThan,
+                TokenType::Lte => BinaryOperator::LessThanOrEqual,
+                TokenType::Gt => BinaryOperator::GreaterThan,
+                _ => BinaryOperator::GreaterThanOrEqual,
+            };
+            return Some(CaseValue::Is(op, self.parse_expression()?));
+        }
+        let value = self.parse_expression()?;
+        if self.match_kind(TokenType::To) {
+            return Some(CaseValue::Range(value, self.parse_expression()?));
+        }
+        Some(CaseValue::Value(value))
+    }
+
     fn parse_select_case(&mut self) -> Option<SelectCaseStatement> {
         let start = self.pos;
         self.expect(TokenType::Select)?;
@@ -1004,10 +1030,15 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            // CASE value1, value2
-            let mut values = vec![self.parse_expression()?];
+            // CASE value1, low TO high, IS > n
+            let mut values = vec![self.parse_case_value()?];
             while self.match_kind(TokenType::Comma) {
-                values.push(self.parse_expression()?);
+                values.push(self.parse_case_value()?);
+            }
+            if !self.at_eol() {
+                let message = format!("Unexpected '{}' in CASE list", self.tokens[self.pos].lexeme);
+                self.error_at(self.pos, message);
+                self.skip_to_eol();
             }
             self.consume_eol();
             let body = self.parse_body(terminators);
@@ -1887,5 +1918,21 @@ mod tests {
             }
             other => panic!("expected select case, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_case_ranges_and_is_comparisons() {
+        let stmts = parse("SELECT CASE n\n  CASE 1 TO 5, 9\n    x = 1\n  CASE IS >= 10\n    x = 2\nEND SELECT\n");
+        let Statement::SelectCase(s) = &stmts[0] else { panic!("expected select case") };
+        assert!(matches!(s.cases[0].values[0], CaseValue::Range(_, _)));
+        assert!(matches!(s.cases[0].values[1], CaseValue::Value(_)));
+        assert!(matches!(s.cases[1].values[0], CaseValue::Is(BinaryOperator::GreaterThanOrEqual, _)));
+    }
+
+    #[test]
+    fn bad_case_list_is_reported_on_its_own_line() {
+        let errs = errors("SELECT CASE n\n  CASE 1 2\n    x = 1\nEND SELECT\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!(errs[0].0, 2, "{errs:?}");
     }
 }

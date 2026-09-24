@@ -165,8 +165,20 @@ pub struct SelectCaseStatement {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CaseBranch {
     pub span: TextSpan,
-    pub values: Vec<Expression>,
+    /// The branch matches when any of these matches (`CASE 1, 5 TO 9, IS > 20`).
+    pub values: Vec<CaseValue>,
     pub body: Vec<Statement>,
+}
+
+/// One item of a `CASE` list, tested against the SELECT expression.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CaseValue {
+    /// `CASE 3` — equal to the value.
+    Value(Expression),
+    /// `CASE 1 TO 5` — between the bounds, inclusive.
+    Range(Expression, Expression),
+    /// `CASE IS > 10` — the comparison holds (`=`, `<>`, `<`, `<=`, `>`, `>=`).
+    Is(BinaryOperator, Expression),
 }
 
 #[derive(Debug, Clone, PartialEq)]

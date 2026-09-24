@@ -42,6 +42,12 @@ struct RustCodegen {
     target: AppTarget,
     /// Names of subs/functions defined at the top level.
     defined_functions: HashSet<String>,
+    /// BYREF flag of each parameter, by lowercase SUB/FUNCTION name.
+    fn_byref: HashMap<String, Vec<bool>>,
+    /// Enclosing BASIC loops (kind, Rust label), innermost last, so
+    /// `EXIT FOR` inside a WHILE breaks out of the FOR (`break 'l3;`).
+    loop_labels: Vec<(&'static str, String)>,
+    loop_label_counter: usize,
     /// Names of variables declared with DIM at top level.
     top_level_vars: HashSet<String>,
     /// Names of variables declared as arrays (DIM with dimensions).
@@ -81,6 +87,9 @@ impl RustCodegen {
             indent: 0,
             target,
             defined_functions: HashSet::new(),
+            fn_byref: HashMap::new(),
+            loop_labels: Vec::new(),
+            loop_label_counter: 0,
             top_level_vars: HashSet::new(),
             array_vars: HashSet::new(),
             user_types: HashSet::new(),
@@ -177,6 +186,7 @@ impl RustCodegen {
                 Statement::Subroutine(s) => {
                     self.defined_functions.insert(s.name.to_lowercase());
                     self.function_param_counts.insert(s.name.to_lowercase(), s.params.len());
+                    self.fn_byref.insert(s.name.to_lowercase(), s.params.iter().map(|p| p.by_ref).collect());
                     // Scan body for local component DIMs and CREATEs
                     for body_stmt in &s.body {
                         if let Statement::Dim(d) = body_stmt {
@@ -195,6 +205,7 @@ impl RustCodegen {
                 Statement::Function(f) => {
                     self.defined_functions.insert(f.name.to_lowercase());
                     self.function_param_counts.insert(f.name.to_lowercase(), f.params.len());
+                    self.fn_byref.insert(f.name.to_lowercase(), f.params.iter().map(|p| p.by_ref).collect());
                     // Scan body for local component DIMs and CREATEs
                     for body_stmt in &f.body {
                         if let Statement::Dim(d) = body_stmt {
@@ -280,6 +291,9 @@ impl RustCodegen {
         // Second pass: collect all referenced variable names for implicit variable detection
         collect_all_refs(&program.statements, &mut self.all_referenced_vars);
 
+        // Generated code declares every BYVAL parameter `mut` (BASIC may
+        // assign to it); don't warn when a routine doesn't.
+        self.line("#![allow(unused_mut, unused_labels)]");
         self.line(match self.target {
             AppTarget::Desktop => "use rapidr_runtime_core::prelude::*;",
             AppTarget::Web => "use rapidr_runtime_web::prelude::*;",
@@ -765,6 +779,18 @@ impl RustCodegen {
             }
         }
 
+        // --- User SUB/FUNCTION with BYREF parameters ---
+        if let Expression::Identifier(id) = &c.callee {
+            let lower = strip_type_suffix(&id.name).to_lowercase();
+            if self.fn_byref.get(&lower).is_some_and(|f| f.contains(&true)) {
+                let (args, pre, post) = self.user_call_args(&lower, &c.args);
+                let fname = to_snake(&strip_type_suffix(&id.name));
+                self.write_indent();
+                let _ = writeln!(self.output, "{{ {} {fname}({}); {} }}", pre.join(" "), args.join(", "), post.join(" "));
+                return;
+            }
+        }
+
         // --- Standard call handling ---
         let callee = self.expr_to_string(&c.callee);
         let args: Vec<String> = c.args.iter().map(|e| self.owned_expr(e)).collect();
@@ -836,6 +862,7 @@ impl RustCodegen {
             .unwrap_or_else(|| "v_int(1)".to_string());
 
         let is_global = self.is_global_scalar(&f.variable);
+        let lbl = self.open_loop("FOR");
         // Capture end and step in temporaries so direction respects step sign.
         // Loop continues while: (step >= 0 && var <= end) || (step < 0 && var >= end).
         let end_tmp = format!("__for_end_{var}");
@@ -848,7 +875,7 @@ impl RustCodegen {
             self.write_indent();
             let _ = writeln!(self.output, "gs(\"{var}\", {start});");
             self.write_indent();
-            let _ = writeln!(self.output, "while (if {step_tmp}.rp_ge(&v_int(0)).to_bool() {{ gv(\"{var}\").rp_le(&{end_tmp}) }} else {{ gv(\"{var}\").rp_ge(&{end_tmp}) }}).to_bool() {{");
+            let _ = writeln!(self.output, "{lbl}: while (if {step_tmp}.rp_ge(&v_int(0)).to_bool() {{ gv(\"{var}\").rp_le(&{end_tmp}) }} else {{ gv(\"{var}\").rp_ge(&{end_tmp}) }}).to_bool() {{");
             self.indent += 1;
             for s in &f.body {
                 self.emit_statement(s);
@@ -863,7 +890,7 @@ impl RustCodegen {
             self.write_indent();
             let _ = writeln!(self.output, "{var} = {start};");
             self.write_indent();
-            let _ = writeln!(self.output, "while (if {step_tmp}.rp_ge(&v_int(0)).to_bool() {{ {var}.rp_le(&{end_tmp}) }} else {{ {var}.rp_ge(&{end_tmp}) }}).to_bool() {{");
+            let _ = writeln!(self.output, "{lbl}: while (if {step_tmp}.rp_ge(&v_int(0)).to_bool() {{ {var}.rp_le(&{end_tmp}) }} else {{ {var}.rp_ge(&{end_tmp}) }}).to_bool() {{");
             self.indent += 1;
             for s in &f.body {
                 self.emit_statement(s);
@@ -873,21 +900,33 @@ impl RustCodegen {
         }
         self.indent -= 1;
         self.line("}");
+        self.loop_labels.pop();
+    }
+
+    /// Names the Rust loop for a BASIC loop of `kind`; pair with a pop.
+    fn open_loop(&mut self, kind: &'static str) -> String {
+        self.loop_label_counter += 1;
+        let label = format!("'l{}", self.loop_label_counter);
+        self.loop_labels.push((kind, label.clone()));
+        label
     }
 
     fn emit_while(&mut self, w: &WhileStatement) {
         let cond = self.expr_to_string(&w.condition);
+        let lbl = self.open_loop("WHILE");
         self.write_indent();
-        let _ = writeln!(self.output, "while ({cond}).to_bool() {{");
+        let _ = writeln!(self.output, "{lbl}: while ({cond}).to_bool() {{");
         self.indent += 1;
         for s in &w.body {
             self.emit_statement(s);
         }
         self.indent -= 1;
         self.line("}");
+        self.loop_labels.pop();
     }
 
     fn emit_do_loop(&mut self, d: &DoLoopStatement) {
+        let lbl = self.open_loop("DO");
         if d.pre_condition {
             let cond = d
                 .condition
@@ -896,10 +935,10 @@ impl RustCodegen {
                 .unwrap_or_else(|| "v_bool(true)".to_string());
             if d.is_until {
                 self.write_indent();
-                let _ = writeln!(self.output, "while !({cond}).to_bool() {{");
+                let _ = writeln!(self.output, "{lbl}: while !({cond}).to_bool() {{");
             } else {
                 self.write_indent();
-                let _ = writeln!(self.output, "while ({cond}).to_bool() {{");
+                let _ = writeln!(self.output, "{lbl}: while ({cond}).to_bool() {{");
             }
             self.indent += 1;
             for s in &d.body {
@@ -909,7 +948,8 @@ impl RustCodegen {
             self.line("}");
         } else {
             // Post-condition or infinite loop
-            self.line("loop {");
+            self.write_indent();
+            let _ = writeln!(self.output, "{lbl}: loop {{");
             self.indent += 1;
             for s in &d.body {
                 self.emit_statement(s);
@@ -927,6 +967,7 @@ impl RustCodegen {
             self.indent -= 1;
             self.line("}");
         }
+        self.loop_labels.pop();
     }
 
     fn emit_select_case(&mut self, s: &SelectCaseStatement) {
@@ -935,12 +976,31 @@ impl RustCodegen {
         let _ = writeln!(self.output, "let _select_val = {expr};");
         let mut first = true;
         for case in &s.cases {
+            // Same BASIC comparison helpers as ordinary expressions (so
+            // 2 matches 2.0), not Rust's strict `==`.
             let conditions: Vec<String> = case
                 .values
                 .iter()
-                .map(|v| {
-                    let v = self.expr_to_string(v);
-                    format!("_select_val == {v}")
+                .map(|v| match v {
+                    CaseValue::Value(e) => {
+                        format!("_select_val.rp_eq(&{}).to_bool()", self.expr_to_string(e))
+                    }
+                    CaseValue::Range(low, high) => format!(
+                        "(_select_val.rp_ge(&{}).to_bool() && _select_val.rp_le(&{}).to_bool())",
+                        self.expr_to_string(low),
+                        self.expr_to_string(high)
+                    ),
+                    CaseValue::Is(op, e) => {
+                        let method = match op {
+                            BinaryOperator::Equal => "rp_eq",
+                            BinaryOperator::NotEqual => "rp_ne",
+                            BinaryOperator::LessThan => "rp_lt",
+                            BinaryOperator::LessThanOrEqual => "rp_le",
+                            BinaryOperator::GreaterThan => "rp_gt",
+                            _ => "rp_ge",
+                        };
+                        format!("_select_val.{method}(&{}).to_bool()", self.expr_to_string(e))
+                    }
                 })
                 .collect();
             let keyword = if first { "if" } else { "} else if" };
@@ -974,12 +1034,14 @@ impl RustCodegen {
         self.indent += 1;
 
         self.in_sub_or_function = true;
+        let byref = self.byref_prologue(&s.params, false);
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&s.body, &s.params);
 
         for stmt in &s.body {
             self.emit_statement(stmt);
         }
+        self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
         self.indent -= 1;
         self.line("}");
@@ -1002,6 +1064,7 @@ impl RustCodegen {
         let _ = writeln!(self.output, "let mut _{name} = {ret_default};");
 
         self.in_sub_or_function = true;
+        let byref = self.byref_prologue(&f.params, true);
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&f.body, &f.params);
 
@@ -1014,6 +1077,7 @@ impl RustCodegen {
 
         self.write_indent();
         let _ = writeln!(self.output, "_{name}");
+        self.byref_epilogue(&byref, true);
         self.indent -= 1;
         self.line("}");
     }
@@ -1059,15 +1123,81 @@ impl RustCodegen {
         }
     }
 
+    /// BYVAL parameters are `mut` (BASIC may assign to them); BYREF ones
+    /// arrive as `name__ref: &mut Value` and are copied in/out around the
+    /// body (see [`Self::byref_prologue`]), matching the bytecode VM.
     fn emit_params(&self, params: &[Parameter]) -> String {
         params
             .iter()
             .map(|p| {
                 let name = to_snake(&p.name);
-                format!("{name}: Value")
+                if p.by_ref {
+                    format!("{name}__ref: &mut Value")
+                } else {
+                    format!("mut {name}: Value")
+                }
             })
             .collect::<Vec<_>>()
             .join(", ")
+    }
+
+    /// Copies BYREF arguments into locals of the parameter's name and opens
+    /// a closure around the body, so `RETURN` / `EXIT SUB` still reach the
+    /// copy-out in [`Self::byref_epilogue`]. Returns the BYREF names.
+    fn byref_prologue(&mut self, params: &[Parameter], returns_value: bool) -> Vec<String> {
+        let names: Vec<String> = params.iter().filter(|p| p.by_ref).map(|p| to_snake(&p.name)).collect();
+        if names.is_empty() {
+            return names;
+        }
+        for n in &names {
+            self.write_indent();
+            let _ = writeln!(self.output, "let mut {n} = {n}__ref.clone();");
+        }
+        self.line(if returns_value { "let __result: Value = (|| -> Value {" } else { "(|| {" });
+        self.indent += 1;
+        names
+    }
+
+    fn byref_epilogue(&mut self, names: &[String], returns_value: bool) {
+        if names.is_empty() {
+            return;
+        }
+        self.indent -= 1;
+        self.line(if returns_value { "})();" } else { "})();" });
+        for n in names {
+            self.write_indent();
+            let _ = writeln!(self.output, "*{n}__ref = {n};");
+        }
+        if returns_value {
+            self.line("__result");
+        }
+    }
+
+    /// Arguments for a call to a user SUB/FUNCTION. BYREF positions become
+    /// `&mut place`; a global variable goes through a temp that is stored
+    /// back afterwards. Returns (args, statements before, statements after).
+    fn user_call_args(&self, callee_lower: &str, args: &[Expression]) -> (Vec<String>, Vec<String>, Vec<String>) {
+        let flags = self.fn_byref.get(callee_lower).cloned().unwrap_or_default();
+        let (mut out, mut pre, mut post) = (Vec::new(), Vec::new(), Vec::new());
+        for (i, arg) in args.iter().enumerate() {
+            if !flags.get(i).copied().unwrap_or(false) {
+                out.push(self.owned_expr(arg));
+                continue;
+            }
+            match arg {
+                Expression::Identifier(id) if self.is_global_scalar(&strip_type_suffix(&id.name)) => {
+                    let snake = to_snake(&strip_type_suffix(&id.name));
+                    let tmp = format!("__byref{i}");
+                    pre.push(format!("let mut {tmp} = gv(\"{snake}\");"));
+                    post.push(format!("gs(\"{snake}\", {tmp});"));
+                    out.push(format!("&mut {tmp}"));
+                }
+                Expression::Identifier(id) => out.push(format!("&mut {}", to_snake(&strip_type_suffix(&id.name)))),
+                // Not a variable: pass a temporary (nothing to write back).
+                other => out.push(format!("&mut {}", self.owned_expr(other))),
+            }
+        }
+        (out, pre, post)
     }
 
     fn emit_type_def(&mut self, t: &TypeStatement) {
@@ -1173,7 +1303,16 @@ impl RustCodegen {
 
     fn emit_exit(&mut self, e: &ExitStatement) {
         match e.exit_type.as_str() {
-            "FOR" | "WHILE" | "DO" => self.line("break;"),
+            kind @ ("FOR" | "WHILE" | "DO") => {
+                match self.loop_labels.iter().rev().find(|(k, _)| *k == kind) {
+                    Some((_, label)) => {
+                        let label = label.clone();
+                        self.write_indent();
+                        let _ = writeln!(self.output, "break {label};");
+                    }
+                    None => self.line("break;"),
+                }
+            }
             "SUB" => self.line("return;"),
             "FUNCTION" => {
                 if let Some(fname) = self.current_function.clone() {
@@ -1602,6 +1741,13 @@ impl RustCodegen {
                     // Check if it's a known function/sub or declared FFI function
                     if self.defined_functions.contains(&name_stripped) {
                         let fname = to_snake(&strip_type_suffix(&id.name));
+                        if self.fn_byref.get(&name_stripped).is_some_and(|f| f.contains(&true)) {
+                            let (args, pre, post) = self.user_call_args(&name_stripped, &fc.args);
+                            return format!(
+                                "{{ {} let __r = {fname}({}); {} __r }}",
+                                pre.join(" "), args.join(", "), post.join(" ")
+                            );
+                        }
                         let args_str = args.join(", ");
                         return format!("{fname}({args_str})");
                     }
@@ -2222,7 +2368,13 @@ fn collect_all_refs(stmts: &[Statement], refs: &mut HashSet<String>) {
                 collect_expr_refs(&s.expression, refs);
                 for case in &s.cases {
                     for v in &case.values {
-                        collect_expr_refs(v, refs);
+                        match v {
+                            CaseValue::Value(e) | CaseValue::Is(_, e) => collect_expr_refs(e, refs),
+                            CaseValue::Range(low, high) => {
+                                collect_expr_refs(low, refs);
+                                collect_expr_refs(high, refs);
+                            }
+                        }
                     }
                     collect_all_refs(&case.body, refs);
                 }
@@ -2343,7 +2495,7 @@ mod tests {
     fn sub_generates_fn() {
         let code = "SUB MySub(msg AS STRING)\n  PRINT msg\nEND SUB\n";
         let rust = gen(code);
-        assert!(rust.contains("fn mysub(msg: Value)"));
+        assert!(rust.contains("fn mysub(mut msg: Value)"));
     }
 
     #[test]
