@@ -27,176 +27,69 @@ pub fn http_method(name: &str, method: &str, args: &[Value]) -> Value {
 
 fn http_get(name: &str, args: &[Value]) -> Value {
     let url = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-    let name_owned = name.to_string();
-
-    // Use synchronous XMLHttpRequest for compatibility with the generated code's
-    // sequential execution model. Async fetch would require the generated code
-    // to be restructured as async, which is a much larger change.
-    let js = format!(
-        r#"(function() {{
-            var __ov = document.getElementById('rr-busy-overlay');
-            if (!__ov) {{
-                __ov = document.createElement('div');
-                __ov.id = 'rr-busy-overlay';
-                __ov.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:2147483647;background:rgba(50,50,50,0.85);color:#fff;font:12px sans-serif;padding:6px 10px;border-radius:4px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);';
-                __ov.textContent = '⏳ network…';
-                document.body.appendChild(__ov);
-            }}
-            void document.body.offsetHeight; // force layout flush so overlay paints before sync XHR
-            try {{
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", "{}", false);
-                xhr.send(null);
-                return JSON.stringify({{ status: xhr.status, body: xhr.responseText }});
-            }} finally {{
-                if (__ov && __ov.parentNode) __ov.parentNode.removeChild(__ov);
-            }}
-        }})()"#,
-        url.replace('\\', "\\\\").replace('"', "\\\"")
-    );
-
-    match js_sys::eval(&js) {
-        Ok(result) => {
-            let json_str = result.as_string().unwrap_or_default();
-            // Parse the JSON response
-            let (status, body) = parse_xhr_response(&json_str);
-            rp_comp_set(&name_owned, "statuscode", v_int(status));
-            rp_comp_set(&name_owned, "responsetext", v_str(&body));
-            rp_comp_set(&name_owned, "url", v_str(&url));
-            v_str(&body)
-        }
-        Err(e) => {
-            web_sys::console::error_1(&e);
-            rp_comp_set(&name_owned, "statuscode", v_int(0));
-            rp_comp_set(&name_owned, "responsetext", v_str(""));
-            v_str("")
-        }
-    }
+    http_request(name, "GET", &url, None)
 }
 
 fn http_post(name: &str, args: &[Value]) -> Value {
     let url = args.first().map(|v| v.to_string_val()).unwrap_or_default();
     let body = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-    let name_owned = name.to_string();
-
-    // Properly escape body for embedding inside a JS string literal — must
-    // escape backslash, quote, CR, LF, and tab so multi-line bodies (e.g.
-    // RapidR source code) survive the round-trip.
-    fn js_escape(s: &str) -> String {
-        let mut o = String::with_capacity(s.len() + 8);
-        for c in s.chars() {
-            match c {
-                '\\' => o.push_str("\\\\"),
-                '"' => o.push_str("\\\""),
-                '\n' => o.push_str("\\n"),
-                '\r' => o.push_str("\\r"),
-                '\t' => o.push_str("\\t"),
-                _ => o.push(c),
-            }
-        }
-        o
-    }
-
-    let js = format!(
-        r#"(function() {{
-            var __ov = document.getElementById('rr-busy-overlay');
-            if (!__ov) {{
-                __ov = document.createElement('div');
-                __ov.id = 'rr-busy-overlay';
-                __ov.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:2147483647;background:rgba(50,50,50,0.85);color:#fff;font:12px sans-serif;padding:6px 10px;border-radius:4px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);';
-                __ov.textContent = '⏳ network…';
-                document.body.appendChild(__ov);
-            }}
-            void document.body.offsetHeight; // force layout flush so overlay paints before sync XHR
-            try {{
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "{}", false);
-                xhr.setRequestHeader("Content-Type", "text/plain; charset=utf-8");
-                xhr.send("{}");
-                return JSON.stringify({{ status: xhr.status, body: xhr.responseText }});
-            }} finally {{
-                if (__ov && __ov.parentNode) __ov.parentNode.removeChild(__ov);
-            }}
-        }})()"#,
-        js_escape(&url),
-        js_escape(&body)
-    );
-
-    match js_sys::eval(&js) {
-        Ok(result) => {
-            let json_str = result.as_string().unwrap_or_default();
-            let (status, resp_body) = parse_xhr_response(&json_str);
-            rp_comp_set(&name_owned, "statuscode", v_int(status));
-            rp_comp_set(&name_owned, "responsetext", v_str(&resp_body));
-            rp_comp_set(&name_owned, "url", v_str(&url));
-            v_str(&resp_body)
-        }
-        Err(e) => {
-            web_sys::console::error_1(&e);
-            rp_comp_set(&name_owned, "statuscode", v_int(0));
-            rp_comp_set(&name_owned, "responsetext", v_str(""));
-            v_str("")
-        }
-    }
+    http_request(name, "POST", &url, Some(&body))
 }
 
-fn parse_xhr_response(json_str: &str) -> (i64, String) {
-    // Minimal JSON parse — we know the exact shape: {"status":NNN,"body":"..."}
-    let status = json_str
-        .find("\"status\":")
-        .and_then(|i| {
-            let start = i + 9;
-            let end = json_str[start..].find(',').map(|e| start + e).unwrap_or(json_str.len());
-            json_str[start..end].trim().parse::<i64>().ok()
-        })
-        .unwrap_or(0);
+/// Performs the request and stores `StatusCode` / `ResponseText` / `URL` on
+/// the component. Returns the response body ("" on network failure).
+fn http_request(name: &str, method: &str, url: &str, body: Option<&str>) -> Value {
+    let (status, text) = match sync_xhr(method, url, body) {
+        Ok(r) => r,
+        Err(e) => {
+            web_sys::console::error_1(&e);
+            (0, String::new())
+        }
+    };
+    rp_comp_set(name, "statuscode", v_int(status));
+    rp_comp_set(name, "responsetext", v_str(&text));
+    rp_comp_set(name, "url", v_str(url));
+    v_str(&text)
+}
 
-    let body = json_str
-        .find("\"body\":\"")
-        .map(|i| {
-            let start = i + 8;
-            // Find the closing quote — handle escaped quotes
-            let mut end = start;
-            let bytes = json_str.as_bytes();
-            while end < bytes.len() {
-                if bytes[end] == b'"' && (end == start || bytes[end - 1] != b'\\') {
-                    break;
-                }
-                end += 1;
-            }
-            // JSON-unescape the captured slice so callers see the raw response.
-            let raw = &json_str[start..end];
-            let mut out = String::with_capacity(raw.len());
-            let mut chars = raw.chars();
-            while let Some(c) = chars.next() {
-                if c == '\\' {
-                    match chars.next() {
-                        Some('n') => out.push('\n'),
-                        Some('r') => out.push('\r'),
-                        Some('t') => out.push('\t'),
-                        Some('"') => out.push('"'),
-                        Some('\\') => out.push('\\'),
-                        Some('/') => out.push('/'),
-                        Some('b') => out.push('\u{08}'),
-                        Some('f') => out.push('\u{0C}'),
-                        Some('u') => {
-                            let hex: String = (&mut chars).take(4).collect();
-                            if let Ok(cp) = u32::from_str_radix(&hex, 16) {
-                                if let Some(ch) = char::from_u32(cp) { out.push(ch); }
-                            }
-                        }
-                        Some(other) => out.push(other),
-                        None => {}
-                    }
-                } else {
-                    out.push(c);
-                }
-            }
-            out
-        })
-        .unwrap_or_default();
+/// Synchronous XMLHttpRequest, kept synchronous to match the sequential
+/// execution model of generated code (async fetch would require restructuring
+/// it). URL and body are passed as data through web_sys — never spliced into
+/// JavaScript source — so this works under a CSP without 'unsafe-eval'.
+fn sync_xhr(method: &str, url: &str, body: Option<&str>) -> Result<(i64, String), JsValue> {
+    let overlay = show_busy_overlay();
+    let result = (|| {
+        let xhr = web_sys::XmlHttpRequest::new()?;
+        xhr.open_with_async(method, url, false)?;
+        if body.is_some() {
+            xhr.set_request_header("Content-Type", "text/plain; charset=utf-8")?;
+        }
+        xhr.send_with_opt_str(body)?;
+        Ok((xhr.status()? as i64, xhr.response_text()?.unwrap_or_default()))
+    })();
+    if let Some(el) = overlay {
+        el.remove();
+    }
+    result
+}
 
-    (status, body)
+/// Small "network…" badge so the user sees why the UI is blocked during the
+/// synchronous request. Forces a layout flush so it paints before the XHR.
+fn show_busy_overlay() -> Option<web_sys::Element> {
+    let doc = crate::gui_web::document();
+    let body = doc.body()?;
+    let el = doc.create_element("div").ok()?;
+    el.set_id("rr-busy-overlay");
+    let _ = el.set_attribute(
+        "style",
+        "position:fixed;bottom:8px;right:8px;z-index:2147483647;background:rgba(50,50,50,0.85);\
+         color:#fff;font:12px sans-serif;padding:6px 10px;border-radius:4px;pointer-events:none;\
+         box-shadow:0 2px 8px rgba(0,0,0,0.25);",
+    );
+    el.set_text_content(Some("⏳ network…"));
+    body.append_child(&el).ok()?;
+    let _ = body.offset_height();
+    Some(el)
 }
 
 // ---------------------------------------------------------------------------

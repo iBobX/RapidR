@@ -1,0 +1,6 @@
+# Security: building JavaScript source from strings is an injection risk and
+# breaks under the bundle CSP (no 'unsafe-eval'). Use web_sys APIs instead.
+# The only sanctioned use is RJavaScript.Eval (explicitly #[allow]ed).
+disallowed-methods = [
+    { path = "js_sys::eval", reason = "string-built JS is an injection risk and blocked by CSP; use web_sys" },
+]

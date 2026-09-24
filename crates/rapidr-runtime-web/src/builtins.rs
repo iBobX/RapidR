@@ -30,12 +30,19 @@ pub fn rp_print(items: &[Value], newline: bool) {
     if let Some(window) = web_sys::window() {
         if let Some(document) = window.document() {
             if let Some(el) = document.get_element_by_id("rr-console") {
-                let current = el.inner_html();
-                el.set_inner_html(&format!(
-                    "{}{}",
-                    current,
-                    msg.replace('\n', "<br>").replace(' ', "&nbsp;")
-                ));
+                // Append as text nodes (never markup) so printed data can't
+                // inject HTML; spaces/newlines render as before.
+                for (i, line) in msg.split('\n').enumerate() {
+                    if i > 0 {
+                        if let Ok(br) = document.create_element("br") {
+                            let _ = el.append_child(&br);
+                        }
+                    }
+                    if !line.is_empty() {
+                        let text = document.create_text_node(&line.replace(' ', "\u{00A0}"));
+                        let _ = el.append_child(&text);
+                    }
+                }
             }
         }
     }
@@ -536,37 +543,38 @@ pub fn rp_shellwait(_command: &Value) -> Value {
 }
 
 pub fn rp_beep() {
-    // Play a short beep using Web Audio API
-    let js_code = r#"
-        try {
-            var ctx = new (window.AudioContext || window.webkitAudioContext)();
-            var osc = ctx.createOscillator();
-            osc.frequency.value = 800;
-            osc.connect(ctx.destination);
-            osc.start();
-            setTimeout(function(){ osc.stop(); ctx.close(); }, 200);
-        } catch(e) {}
-    "#;
-    let _ = js_sys::eval(js_code);
+    play_tone(800.0, 200.0);
 }
 
 pub fn rp_sound(freq: &Value, duration: &Value) {
-    let freq_hz = freq.to_f64();
-    let dur_ms = duration.to_i64();
-    let js_code = format!(
-        r#"
-        try {{
-            var ctx = new (window.AudioContext || window.webkitAudioContext)();
-            var osc = ctx.createOscillator();
-            osc.frequency.value = {};
-            osc.connect(ctx.destination);
-            osc.start();
-            setTimeout(function(){{ osc.stop(); ctx.close(); }}, {});
-        }} catch(e) {{}}
-        "#,
-        freq_hz, dur_ms
-    );
-    let _ = js_sys::eval(&js_code);
+    play_tone(freq.to_f64(), duration.to_f64());
+}
+
+thread_local! {
+    // Browsers cap the number of live AudioContexts, so share one.
+    static AUDIO_CTX: std::cell::RefCell<Option<web_sys::AudioContext>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Plays a sine tone via Web Audio. Failures (no audio support, autoplay
+/// policy) are silently ignored, matching desktop BEEP semantics.
+fn play_tone(freq_hz: f64, dur_ms: f64) {
+    let ctx = AUDIO_CTX.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        if slot.is_none() {
+            *slot = web_sys::AudioContext::new().ok();
+        }
+        slot.clone()
+    });
+    let Some(ctx) = ctx else { return };
+    let Ok(osc) = ctx.create_oscillator() else { return };
+    osc.frequency().set_value(freq_hz as f32);
+    if osc.connect_with_audio_node(&ctx.destination()).is_err() {
+        return;
+    }
+    let now = ctx.current_time();
+    let _ = osc.start_with_when(now);
+    let _ = osc.stop_with_when(now + dur_ms.max(0.0) / 1000.0);
 }
 
 pub fn rp_playsound(filename: &Value) -> Value {

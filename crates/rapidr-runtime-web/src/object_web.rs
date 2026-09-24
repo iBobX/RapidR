@@ -978,29 +978,7 @@ fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {
                 })
                 .unwrap_or_else(|| "text/plain".to_string());
             let text = fs_get_text(name);
-            // Use a Blob + ObjectURL for arbitrary content (handles newlines/binary safely).
-            let parts = js_sys::Array::new();
-            parts.push(&JsValue::from_str(&text));
-            let opts = web_sys::BlobPropertyBag::new();
-            opts.set_type(&mime);
-            if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&parts, &opts) {
-                if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
-                    let doc = crate::gui_web::document();
-                    if let Ok(a_el) = doc.create_element("a") {
-                        if let Ok(a) = a_el.dyn_into::<web_sys::HtmlAnchorElement>() {
-                            a.set_href(&url);
-                            a.set_download(&filename);
-                            let _ = a.style().set_property("display", "none");
-                            if let Some(body) = doc.body() {
-                                let _ = body.append_child(&a);
-                                a.click();
-                                let _ = body.remove_child(&a);
-                            }
-                        }
-                    }
-                    let _ = web_sys::Url::revoke_object_url(&url);
-                }
-            }
+            trigger_download(&filename, &mime, &text);
             v_int(1)
         }
         "pickfile" => {
@@ -1305,13 +1283,7 @@ fn stringlist_method(name: &str, method: &str, args: &[Value]) -> Value {
             "savetofile" if args.len() >= 1 => {
                 // On web, we can't save files directly — offer download instead
                 let content = list.join("\n");
-                let filename = args[0].to_string_val();
-                let js = format!(
-                    r#"var a=document.createElement('a');a.href='data:text/plain,'+encodeURIComponent("{}");a.download="{}";a.click();"#,
-                    content.replace('"', r#"\""#).replace('\n', "\\n"),
-                    filename.replace('"', r#"\""#)
-                );
-                let _ = js_sys::eval(&js);
+                trigger_download(&args[0].to_string_val(), "text/plain", &content);
                 v_null()
             }
             "loadfromfile" => {
@@ -2075,4 +2047,31 @@ pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collection
             (comp.type_name.clone(), comp.properties.clone())
         })
     })
+}
+
+/// Offers `text` to the user as a file download via Blob + object URL.
+/// Content and filename are passed as data, never spliced into JS source.
+fn trigger_download(filename: &str, mime: &str, text: &str) {
+    let parts = js_sys::Array::new();
+    parts.push(&JsValue::from_str(text));
+    let opts = web_sys::BlobPropertyBag::new();
+    opts.set_type(mime);
+    let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&parts, &opts) else { return };
+    let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) else { return };
+    let doc = crate::gui_web::document();
+    if let Some(a) = doc
+        .create_element("a")
+        .ok()
+        .and_then(|el| el.dyn_into::<web_sys::HtmlAnchorElement>().ok())
+    {
+        a.set_href(&url);
+        a.set_download(filename);
+        let _ = a.style().set_property("display", "none");
+        if let Some(body) = doc.body() {
+            let _ = body.append_child(&a);
+            a.click();
+            let _ = body.remove_child(&a);
+        }
+    }
+    let _ = web_sys::Url::revoke_object_url(&url);
 }

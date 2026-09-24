@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.8.1";
+export const RAPIDR_IDE_VERSION = "2.8.2";
 
 const _editors = new Map();
 

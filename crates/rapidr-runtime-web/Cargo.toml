@@ -100,4 +100,14 @@ features = [
     "Location",
     "History",
     "Url",
+
+    # Networking (RHttp) and audio (BEEP/SOUND) without js_sys::eval
+    "XmlHttpRequest",
+    "AudioContext",
+    "BaseAudioContext",
+    "AudioNode",
+    "AudioDestinationNode",
+    "AudioScheduledSourceNode",
+    "OscillatorNode",
+    "AudioParam",
 ]

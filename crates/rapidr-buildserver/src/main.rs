@@ -15,11 +15,18 @@
 //!   GET  /zip/<id>/source     -> zip of just the .rr source
 //!   GET  /zip/<id>/full       -> zip of source + binary (web bundle + native release binary)
 //!   GET  /health              -> "ok"
+//!
+//! Security: this server compiles arbitrary source (including `RUSTSTART`
+//! blocks built with cargo), so it must only ever be reachable from the local
+//! machine. It binds to 127.0.0.1 by default, rejects requests whose `Host`
+//! or `Origin` is not loopback (blocks cross-site requests and DNS rebinding),
+//! and only answers CORS preflights from loopback origins.
 
 use axum::{
     body::Body,
-    extract::{Path, State},
-    http::{header, StatusCode},
+    extract::{Path, Request, State},
+    http::{header, HeaderValue, Method, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -28,12 +35,15 @@ use serde::Serialize;
 use std::{
     collections::HashMap,
     io::{Cursor, Write},
-    net::SocketAddr,
-    path::PathBuf,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::{Component, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
 };
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::{
+    cors::{AllowOrigin, CorsLayer},
+    services::ServeDir,
+};
 
 #[derive(Clone)]
 struct Build {
@@ -102,17 +112,86 @@ async fn main() {
         .route("/preview/:id", get(preview_index))
         .route("/zip/:id/source", get(zip_source))
         .route("/zip/:id/full", get(zip_full))
-        .layer(CorsLayer::permissive())
+        .layer(middleware::from_fn(loopback_guard))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(AllowOrigin::predicate(|origin: &HeaderValue, _| {
+                    origin.to_str().map(is_loopback_origin).unwrap_or(false)
+                }))
+                .allow_methods([Method::GET, Method::POST])
+                .allow_headers([header::CONTENT_TYPE]),
+        )
         .with_state(state);
 
     let port: u16 = std::env::var("RAPIDR_BUILDSERVER_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8095);
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let ip: IpAddr = std::env::var("RAPIDR_BUILDSERVER_HOST")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST));
+    if !ip.is_loopback() {
+        eprintln!(
+            "WARNING: binding to non-loopback address {ip}. This server compiles and \
+             runs arbitrary code; requests are still restricted to loopback Host/Origin, \
+             but do not expose it to untrusted networks."
+        );
+    }
+    let addr = SocketAddr::from((ip, port));
     println!("rapidr-buildserver listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+/// Rejects any request whose `Host` is not loopback, or whose `Origin` (when
+/// present) is not a loopback http(s) origin. Browsers always send `Origin` on
+/// cross-site POSTs, so this blocks drive-by compiles from arbitrary websites
+/// even though a `text/plain` POST needs no CORS preflight.
+async fn loopback_guard(req: Request, next: Next) -> Response {
+    let host_ok = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(is_loopback_host)
+        .unwrap_or(false);
+    let origin_ok = match req.headers().get(header::ORIGIN) {
+        None => true,
+        Some(o) => o.to_str().map(is_loopback_origin).unwrap_or(false),
+    };
+    if host_ok && origin_ok {
+        next.run(req).await
+    } else {
+        (StatusCode::FORBIDDEN, "rapidr-buildserver only accepts local requests").into_response()
+    }
+}
+
+/// `host` may carry a port (`localhost:8095`, `[::1]:8095`).
+fn is_loopback_host(host: &str) -> bool {
+    let bare = match host.strip_prefix('[') {
+        Some(rest) => rest.split(']').next().unwrap_or(""),
+        None => host.split(':').next().unwrap_or(""),
+    };
+    bare.eq_ignore_ascii_case("localhost")
+        || bare.parse::<IpAddr>().map(|ip| ip.is_loopback()).unwrap_or(false)
+}
+
+/// Accepts `http(s)://<loopback host>[:port]` only; `null` and anything with a
+/// path or other scheme is rejected.
+fn is_loopback_origin(origin: &str) -> bool {
+    origin
+        .strip_prefix("http://")
+        .or_else(|| origin.strip_prefix("https://"))
+        .map(|rest| !rest.is_empty() && !rest.contains('/') && is_loopback_host(rest))
+        .unwrap_or(false)
+}
+
+/// A preview path is safe only if every component is a plain file/dir name
+/// (no `..`, no root, no drive prefix).
+fn is_safe_relative_path(rel: &str) -> bool {
+    std::path::Path::new(rel)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
 }
 
 async fn compile(State(state): State<AppState>, body: String) -> Response {
@@ -248,10 +327,10 @@ async fn serve_preview_path(state: AppState, id: String, rel: String) -> Respons
         Some(b) if b.ok => b.web_dir.clone(),
         _ => return (StatusCode::NOT_FOUND, "build not found").into_response(),
     };
-    let path = dir.join(&rel);
-    if !path.starts_with(&dir) {
+    if !is_safe_relative_path(&rel) {
         return (StatusCode::FORBIDDEN, "bad path").into_response();
     }
+    let path = dir.join(&rel);
     match tokio::fs::read(&path).await {
         Ok(bytes) => {
             let mime = match path.extension().and_then(|s| s.to_str()) {
@@ -368,4 +447,38 @@ fn _keep(b: &Build) -> &PathBuf {
 #[allow(dead_code)]
 fn _keep2() -> ServeDir {
     ServeDir::new(".")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loopback_hosts() {
+        for h in ["localhost", "LOCALHOST:8095", "127.0.0.1", "127.0.0.1:8095", "[::1]:8095"] {
+            assert!(is_loopback_host(h), "{h}");
+        }
+        for h in ["", "example.com", "evil.localhost.example.com", "192.168.1.5:8095", "0.0.0.0:8095"] {
+            assert!(!is_loopback_host(h), "{h}");
+        }
+    }
+
+    #[test]
+    fn loopback_origins() {
+        for o in ["http://localhost:8080", "http://127.0.0.1:8095", "https://[::1]:3000", "http://localhost"] {
+            assert!(is_loopback_origin(o), "{o}");
+        }
+        for o in ["null", "http://evil.com", "http://localhost.evil.com", "file://", "http://localhost:8080/x", "ftp://localhost"] {
+            assert!(!is_loopback_origin(o), "{o}");
+        }
+    }
+
+    #[test]
+    fn preview_paths() {
+        assert!(is_safe_relative_path("index.html"));
+        assert!(is_safe_relative_path("pkg/app_bg.wasm"));
+        assert!(!is_safe_relative_path("../../etc/passwd"));
+        assert!(!is_safe_relative_path("pkg/../../secret"));
+        assert!(!is_safe_relative_path("/etc/passwd"));
+    }
 }

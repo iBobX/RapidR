@@ -232,7 +232,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                     el.set_text_content(Some(&strip_ampersands(&s)));
                 }
             } else {
-                el.set_inner_html(&strip_ampersands(&s));
+                // Plain text only: captions often show DB/HTTP/AI data, so
+                // markup must never be interpreted here. Use RDOM.InnerHTML
+                // or RWebView.HTML when markup is intended.
+                el.set_text_content(Some(&strip_ampersands(&s)));
             }
         }
         "left" => {
@@ -1266,7 +1269,10 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // Web-exclusive: RJavaScript
         ("RJAVASCRIPT", "eval") if args.len() >= 1 => {
-            match js_sys::eval(&args[0].to_string_val()) {
+            // Running developer-supplied JS is this component's purpose.
+            #[allow(clippy::disallowed_methods)]
+            let evaluated = js_sys::eval(&args[0].to_string_val());
+            match evaluated {
                 Ok(result) => jsvalue_to_value(&result),
                 Err(e) => {
                     web_sys::console::error_1(&e);
