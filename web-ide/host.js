@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.8.4";
+export const RAPIDR_IDE_VERSION = "2.9.0";
 
 const _editors = new Map();
 
@@ -2272,6 +2272,12 @@ function updateLayoutDock() {
 // ─── Commands ─────────────────────────────────────────────────
 
 async function runCommand(cmd) {
+  await dispatchCommand(cmd);
+  // Most commands edit the project; record a history step if one did.
+  if (cmd !== "edit.undo" && cmd !== "edit.redo") scheduleCheckpoint(0);
+}
+
+async function dispatchCommand(cmd) {
   switch (cmd) {
     case "project.new": {
       clearAllEditors();
@@ -2286,6 +2292,7 @@ async function runCommand(cmd) {
       renderProjectTree();
       renderProperties();
       setStatus("new project", "ok");
+      resetHistory();
       return;
     }
     case "form.new": {
@@ -2367,8 +2374,8 @@ async function runCommand(cmd) {
       }
       return;
     }
-    case "edit.undo": case "edit.redo":
-      logImmediate(`(undo/redo not yet implemented)`); return;
+    case "edit.undo": return undo();
+    case "edit.redo": return redo();
 
     case "module.new":   return doAddModule();
     case "project.props":
@@ -2553,6 +2560,125 @@ function loadProjectModel(model) {
   if (state.activeFormId) switchToForm(state.activeFormId);
   renderProjectTree();
   renderProperties();
+  resetHistory();
+}
+
+// ─── Undo / redo (project history) ─────────────────────────────
+// Snapshot-based so every kind of edit is covered without instrumenting each
+// mutation site: after a user interaction settles (see setupHistory) we
+// serialize the project and record a step if it differs from the last one.
+// Bursts (drags, typing) coalesce via the debounce. Asset objects hold large
+// data URLs, so they're kept by reference and treated as immutable. Text
+// typed in the code editor also has Monaco's own finer-grained Ctrl+Z.
+
+const HISTORY_LIMIT = 100;
+const history = { past: [], future: [], current: null, timer: null, restoring: false };
+
+function snapshotProject() {
+  const { assets, ...rest } = state.project;
+  return { json: JSON.stringify(rest), assets: (assets || []).slice() };
+}
+
+function sameSnapshot(a, b) {
+  return !!a && !!b && a.json === b.json &&
+    a.assets.length === b.assets.length && a.assets.every((x, i) => x === b.assets[i]);
+}
+
+function updateUndoUI() {
+  for (const [cmd, stack] of [["edit.undo", history.past], ["edit.redo", history.future]]) {
+    for (const el of $$(`[data-cmd="${cmd}"]`)) {
+      el.classList.toggle("disabled", !stack.length);
+      if (el.tagName === "BUTTON") el.disabled = !stack.length;
+    }
+  }
+}
+
+/// Start a fresh history (new/opened project): nothing to undo into.
+function resetHistory() {
+  clearTimeout(history.timer);
+  history.timer = null;
+  history.past = [];
+  history.future = [];
+  history.current = snapshotProject();
+  updateUndoUI();
+}
+
+/// Record a step if the project changed since the last recorded state.
+function checkpoint() {
+  clearTimeout(history.timer);
+  history.timer = null;
+  if (history.restoring || !history.current) return;
+  const snap = snapshotProject();
+  if (sameSnapshot(snap, history.current)) return;
+  history.past.push(history.current);
+  if (history.past.length > HISTORY_LIMIT) history.past.shift();
+  history.future = [];
+  history.current = snap;
+  updateUndoUI();
+}
+
+function scheduleCheckpoint(delay = 400) {
+  clearTimeout(history.timer);
+  history.timer = setTimeout(checkpoint, delay);
+}
+
+function undo() {
+  checkpoint();  // capture any pending edit so it is what gets undone
+  if (!history.past.length) return;
+  history.future.push(history.current);
+  restoreSnapshot(history.past.pop());
+}
+
+function redo() {
+  checkpoint();
+  if (!history.future.length) return;
+  history.past.push(history.current);
+  restoreSnapshot(history.future.pop());
+}
+
+function restoreSnapshot(snap) {
+  history.restoring = true;
+  try {
+    const activeModId = $(".mdi-pane.active")?.dataset.mod;
+    const activeFormId = state.activeFormId;
+    const activeView = state.activeView;
+    clearAllEditors();
+    state.project = { ...JSON.parse(snap.json), assets: snap.assets.slice() };
+    state.selection = [];
+    $("#mdi-tabs").innerHTML = "";
+    $("#mdi-area").innerHTML = "";
+    for (const f of state.project.forms) ensureFormPane(f);
+    for (const m of state.project.modules || []) ensureModulePane(m);
+    if (activeModId && (state.project.modules || []).some(m => m.id === activeModId)) {
+      switchToModule(activeModId);
+    } else {
+      const formId = state.project.forms.some(f => f.id === activeFormId)
+        ? activeFormId : state.project.forms[0]?.id;
+      state.activeFormId = formId;
+      if (formId) {
+        switchToForm(formId);
+        switchView(activeView);
+      }
+    }
+    renderProjectTree();
+    renderProperties();
+    // Rendering may normalize the model (e.g. default code); record what is
+    // actually on screen so that normalization isn't mistaken for an edit.
+    history.current = snapshotProject();
+  } finally {
+    history.restoring = false;
+  }
+  updateUndoUI();
+}
+
+function setupHistory() {
+  // Any of these may follow an edit anywhere in the IDE; checkpoint() only
+  // records a step when the project really changed. The preview iframe is a
+  // separate document, so running programs never trigger this.
+  for (const ev of ["pointerup", "change", "input", "keyup", "drop"]) {
+    document.addEventListener(ev, () => scheduleCheckpoint(), true);
+  }
+  resetHistory();
 }
 
 // ─── File loaders ──────────────────────────────────────────────
@@ -3535,6 +3661,14 @@ function setupKeyboard() {
     if ((e.key === "Delete" || e.key === "Backspace") && state.activeView === "designer" && state.selection.length) {
       e.preventDefault();
       runCommand("edit.delete");
+      return;
+    }
+    // Project undo/redo: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y. (Inputs and
+    // the code editor returned above, so they keep their own text undo.)
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && ["z", "y"].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      const isRedo = e.key.toLowerCase() === "y" || e.shiftKey;
+      runCommand(isRedo ? "edit.redo" : "edit.undo");
       return;
     }
     if (state.isDebugging) {
@@ -4586,6 +4720,7 @@ async function main() {
   switchToForm(state.project.forms[0].id);
   renderProjectTree();
   renderProperties();
+  setupHistory();
 
   // Preview messages arrive on the private port set up by startPreview().
 

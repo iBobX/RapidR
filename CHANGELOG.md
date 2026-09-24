@@ -5,6 +5,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 [ROADMAP.md](ROADMAP.md); security finding IDs (`SEC-xx`) refer to it.
 
+## [2.9.0] — 2026-09-24
+
+### Added
+- **Undo / Redo in the web IDE.** It was a stub before ("not yet implemented").
+  - Works from the Edit menu, the toolbar, and **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z**
+    and **Ctrl/Cmd+Y**.
+  - Covers every kind of project edit: adding, moving, resizing and deleting widgets,
+    property-grid changes, adding/removing forms and modules, and code.
+  - Each user action is one step. A whole drag or a burst of typing counts as a single
+    step, grouped after a short pause.
+  - History holds up to 100 steps. A new edit clears Redo. New/Open Project and loading
+    an example start a fresh history.
+  - Inside the code editor, Ctrl/Cmd+Z stays the editor's own fine-grained text undo.
+    The toolbar and menu Undo also revert code edits.
+  - Undo/Redo grey out when there's nothing to undo or redo.
+  - Undo is the safety net the planned AI agent needs before it edits projects.
+- `tests/web_ide_undo.mjs` (26 checks). It drives real interactions: toolbox clicks,
+  a mouse drag, the property grid, the keyboard, typing in the code editor, and New
+  Project. It fails on 2.8.4.
+
+### How it works
+- Snapshot-based: after an interaction settles, the project is serialized and compared
+  with the last recorded state, so no individual edit site needs changing. Asset data
+  (large data URLs) is shared by reference between snapshots rather than copied.
+
+### Verification
+- `web_ide_undo` passes (26/26); on the 2.8.4 IDE it fails as expected.
+- Checked by hand in the browser: adding a button enables Undo, and Undo removes it
+  from the designer and the project tree.
+- Passing: `web_ide_smoke`, `web_ide_e2e` (6/6), `web_ide_designer`,
+  `web_ide_debugger_test`, `web_ide_preview_isolation`, `web_ide_round3`, `web_ide_round4`,
+  `web_ide_assets`, `web_ide_tree_validation`. `web_ide_bugfixes` and `web_ide_phaseF` still
+  fail only on their known pre-existing assertions.
+
 ## [2.8.4] — 2026-09-24
 
 Supply-chain security release (ROADMAP SEC-09) and toolchain fix.

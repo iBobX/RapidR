@@ -364,3 +364,13 @@ html, body {
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--m-text-soft); background-clip: padding-box; }
+
+/* Undo/Redo (and any other command) when unavailable */
+.menu-popup .mi.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.tb:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

@@ -67,7 +67,7 @@ Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 ### IDE / debugger baseline
 
 Has: Monaco editor, regex-based completion/hover/signature help, visual designer, debugger (breakpoints, step in/over/out, stack, variables, watch list, component properties), assets manager, zip build, themes.
-Missing: compiler diagnostics as editor markers, **undo/redo (stub at `web-ide/host.js:2288`)**, immediate-window evaluation (stubs), conditional breakpoints/logpoints, native/DAP debugging. `web-ide/host.js` is a 4,587-line monolith.
+Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), immediate-window evaluation (stubs), conditional breakpoints/logpoints, native/DAP debugging. `web-ide/host.js` is a 4,587-line monolith.
 
 ---
 
@@ -83,7 +83,7 @@ Missing: compiler diagnostics as editor markers, **undo/redo (stub at `web-ide/h
 - [ ] Wasm `compile()` returns structured diagnostics → Monaco `setModelMarkers`
 - [ ] `tests/conformance/` harness: `*.bas` + `*.expected`, runs on VM **and** Rust codegen; seed with Appendix A programs
 - [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
-- [ ] Undo/redo in the IDE (needed before AI edits)
+- [x] Undo/redo in the IDE: snapshot-based project history, menu/toolbar/Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, 100 steps, `tests/web_ide_undo.mjs` (v2.9.0)
 - [ ] Fix pre-existing failures in `tests/web_ide_bugfixes.mjs` (About-dialog credits) and `tests/web_ide_phaseF.mjs` (project restore); add all `tests/web_ide_*.mjs` to CI
 
 **Rest of Phase 0**
