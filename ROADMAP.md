@@ -89,7 +89,9 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 **Rest of Phase 0**
 - [ ] Upgrade `mysql` crate to drop `proc-macro-error2` (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
 - [ ] Confirm first CI run on GitHub (Linux FLTK/ALSA system packages untested)
-- [ ] `SECURITY.md` with a private vulnerability-reporting channel (needs owner decision: GitHub private reporting vs. email)
+- [x] `SECURITY.md` → GitHub private vulnerability reporting (repo setting must be enabled by owner)
+- [x] Track all of `tests/` in git (generated outputs ignored)
+- [ ] Run the web IDE Playwright suites in CI (wasm-pack build + static server + Playwright)
 - [ ] SEC-07: SQL parameter binding (SQLite, MySQL, web SQLite)
 - [ ] CSP generated per bundle from components used (e.g. `'unsafe-eval'` only if `RJavaScript` is used; `connect-src` for `RHttp`/`RAI` hosts; `frame-src` for `RWebView`)
 - [ ] Single language registry → generate `lang-data.js`, VS Code data, manual sections

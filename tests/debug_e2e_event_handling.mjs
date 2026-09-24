@@ -7,7 +7,7 @@ import { mkdirSync } from "node:fs";
 
 const PORT = 8765;
 const URL_BASE = `http://localhost:${PORT}`;
-const SHOT_DIR = "/Users/roanbema/.gemini/antigravity/brain/3bde725b-d3cb-4df5-b6f5-8aa2d5c6b3d2/screenshots/";
+const SHOT_DIR = process.env.RAPIDR_SHOT_DIR || new URL("./screenshots/", import.meta.url).pathname;
 mkdirSync(SHOT_DIR, { recursive: true });
 
 const browser = await chromium.launch();

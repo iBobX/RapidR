@@ -5,6 +5,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 [ROADMAP.md](ROADMAP.md); security finding IDs (`SEC-xx`) refer to it.
 
+## [Unreleased]
+
+### Added
+- `SECURITY.md`: how to report vulnerabilities privately through GitHub's
+  "Report a vulnerability", plus supported versions and scope.
+- `.claude/launch.json`: a `web-ide` config that serves the repo on
+  `http://localhost:8765` (open `/web-ide/index.html`). The IDE must be served over
+  HTTP; opening it as a `file://` page breaks module and wasm loading.
+
+### Changed
+- The whole `tests/` folder is now tracked. Only generated output is ignored:
+  `node_modules`, `.matrix`, `.ide-matrix`, `screenshots`, `web-screenshots`, `results`.
+- Ten test scripts wrote screenshots to a hard-coded personal path. They now write to
+  `tests/screenshots/`, which can be overridden with `RAPIDR_SHOT_DIR`.
+
 ## [2.9.0] — 2026-09-24
 
 ### Added

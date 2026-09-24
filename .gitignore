@@ -14,7 +14,12 @@ examples/*.zip
 examples/**/
 examples/ide.config.json
 utilities/vscodeext/rapidr/*.vsix
-tests
+tests/node_modules
+tests/.matrix
+tests/.ide-matrix
+tests/screenshots
+tests/web-screenshots
+tests/results
 *.vsix
 target
 rapidr
