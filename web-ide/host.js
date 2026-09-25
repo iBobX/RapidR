@@ -16,9 +16,10 @@ import { COMPONENT_REGISTRY } from "./lang-data.js";
 import { newProject, addForm, addWidget, removeWidget, serializeForm,
          serializeProject, deserializeProject, setProp, findWidget, allWidgets } from "./model.js";
 import { createRapidrEditor } from "./monaco-host.js";
+import { AnsiScreen } from "./ansi_screen.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.16.1";
+export const RAPIDR_IDE_VERSION = "2.17.0";
 
 const _editors = new Map();
 
@@ -81,12 +82,14 @@ function setStatus(msg, kind = "") {
   el.className = kind;
 }
 
+// Program output understands the ANSI sequences CLS / COLOR / LOCATE emit.
+let outputScreen = null;
 function logOutput(s) {
   console.log(s);
   const out = $('.obody[data-tab="output"]');
   if (out) {
-    out.textContent += s + "\n";
-    out.scrollTop = out.scrollHeight;
+    if (!outputScreen || outputScreen.el !== out) outputScreen = new AnsiScreen(out);
+    outputScreen.write(s + "\n");
   }
 }
 

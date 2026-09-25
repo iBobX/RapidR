@@ -8,6 +8,7 @@ use std::rc::Rc;
 pub mod strings;
 pub mod variadic;
 pub mod data;
+pub mod console;
 
 #[derive(Debug, Clone)]
 pub enum Value {

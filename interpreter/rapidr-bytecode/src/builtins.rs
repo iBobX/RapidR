@@ -14,18 +14,18 @@ pub const BUILTINS: &[&str] = &[
     "__data_add", "__data_label", "__data_reset", "__read", "__restore",
     "abs", "acos", "asc", "asin", "atn",
     "beep", "bin",
-    "cdbl", "ceil", "chdir", "chr", "cint", "clng", "close", "command", "convbase",
-    "cos", "csng", "curdir",
+    "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "convbase",
+    "cos", "csng", "csrlin", "curdir",
     "date", "date_func", "delete", "dir", "direxists", "doevents",
     "e", "end", "environ", "eof", "exp",
     "field", "fileexists", "filelen", "fix", "floor", "format", "frac", "freefile",
     "hex", "hextodec",
     "iif", "input", "input_func", "insert", "instr", "int", "isnumeric",
     "kill",
-    "lbound", "lcase", "left", "len", "line_input", "lof", "log", "ltrim",
+    "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
     "math.e", "math.pi", "mid", "mkdir", "msgbox",
     "oct", "open",
-    "pi", "playsound", "print", "print_hash", "println",
+    "pi", "playsound", "pos", "print", "print_hash", "println",
     "randomize", "rename", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
     "rnd", "round", "rtrim",
     "seek", "sgn", "shell", "shellwait", "shl", "shr", "showmessage", "sin", "sizeof", "sleep",
@@ -39,6 +39,10 @@ pub const BUILTINS: &[&str] = &[
 /// Builtins every host hands to `rapidr_value::data::builtin` before its own
 /// dispatch table (DATA / READ / RESTORE share one implementation).
 pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore"];
+
+/// Builtins that may be written without parentheses (`x = TIMER`): a bare
+/// name that isn't a variable calls them with no arguments.
+pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "date", "pi", "time", "timer"];
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.

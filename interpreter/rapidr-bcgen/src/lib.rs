@@ -158,6 +158,8 @@ struct Bcgen {
     errors: Vec<String>,
     /// DECLARE ... LIB (external DLL) function names, by [`name_key`].
     lib_functions: HashSet<String>,
+    /// Library of each `DECLARE … LIB` routine (`name_key` → lowercase DLL name).
+    lib_of: HashMap<String, String>,
     /// BYREF flag of each parameter, per SUB/FUNCTION.
     fn_byref: NameMap<Vec<bool>>,
     /// The SUB/FUNCTION being lowered, if any.
@@ -257,6 +259,7 @@ impl Bcgen {
             warnings: Vec::new(),
             errors: Vec::new(),
             lib_functions: HashSet::new(),
+            lib_of: HashMap::new(),
             fn_byref: NameMap::default(),
             fn_ctx: None,
             routine: RoutineLabels::default(),
@@ -312,6 +315,8 @@ impl Bcgen {
                 }
                 Statement::Declare(d) if d.lib.is_some() => {
                     self.lib_functions.insert(name_key(&d.name));
+                    let lib = d.lib.clone().unwrap_or_default().trim_matches('"').to_ascii_lowercase();
+                    self.lib_of.insert(name_key(&d.name), lib);
                 }
                 Statement::Type(t) => type_defs.push(t),
                 _ => {}
@@ -450,6 +455,7 @@ impl Bcgen {
             .span_location(span)
             .is_some_and(|(line, _)| self.library_lines.get(line - 1).copied().unwrap_or(false));
         if message.contains(NATIVE_ONLY_MARKER)
+            || message.contains(WINDOWS_ONLY_MARKER)
             || (in_library && (message.contains(UNSUPPORTED_MARKER) || message.starts_with("Unknown SUB or FUNCTION")))
         {
             if let Some(routine) = self.current_routine.clone() {
@@ -468,7 +474,15 @@ impl Bcgen {
             return;
         }
         let key = name_key(name);
-        let message = if self.lib_functions.contains(&key) {
+        let windows_lib = self.lib_of.get(&key).filter(|lib| is_windows_system_library(lib)).cloned();
+        let message = if let Some(lib) = windows_lib {
+            let api = key.trim_end_matches(['a', 'w']).to_string();
+            let hint = windows_api_hint(&key).or_else(|| windows_api_hint(&api));
+            format!(
+                "'{name}' is a Windows API function (LIB \"{lib}\"){WINDOWS_ONLY_MARKER}{}",
+                hint.map(|h| format!(". Instead, {h}")).unwrap_or_else(|| ", and this call has no portable equivalent yet".to_string())
+            )
+        } else if self.lib_functions.contains(&key) {
             format!(
                 "'{name}' is an external DLL function (DECLARE ... LIB); the bytecode interpreter can't call DLLs yet, build natively with `rapidr build`"
             )
@@ -2316,6 +2330,11 @@ impl Bcgen {
             Expression::Literal(l) => self.lower_literal(l, code),
             Expression::Identifier(id) => {
                 let name_lower = id.name.to_lowercase();
+                // A left-out argument (`COLOR , 1`): the callee's default.
+                if id.name == rapidr_ast::OMITTED_ARGUMENT {
+                    emit(code, Op::LoadNull);
+                    return Ok(());
+                }
                 if self.is_this_alias(&id.name) {
                     return self.emit_load_this(code);
                 }
@@ -2331,6 +2350,13 @@ impl Bcgen {
                     push_u32(code, cs);
                 } else if let Some(slot) = self.scope.get(&id.name) {
                     emit(code, Op::LoadLocal); push_u16(code, slot);
+                } else if !self.is_known_global(&id.name)
+                    && builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str())
+                {
+                    // `x = TIMER`: a builtin written without parentheses.
+                    let s = self.module.add_string(&id.name);
+                    emit(code, Op::CallBuiltin);
+                    push_u32(code, s); code.push(0);
                 } else if let (Some(&fi), Some(true), false) = (
                     self.fn_indices.get(&id.name),
                     self.fn_is_func.get(&id.name).copied(),
@@ -2676,6 +2702,88 @@ const RAPIDQ_BUILTINS: &[&str] = &[
 
 /// Present in every error about a feature only native builds support.
 const NATIVE_ONLY_MARKER: &str = "`rapidr build`";
+/// In every error about calling Windows itself (RapidR doesn't emulate it).
+const WINDOWS_ONLY_MARKER: &str = "; RapidR runs on every platform and doesn't emulate Windows";
+
+/// Windows system DLLs (`DECLARE … LIB "user32"` …). Calls into other DLLs
+/// are the program's own libraries, which native builds can load.
+fn is_windows_system_library(lib: &str) -> bool {
+    let base = lib.rsplit(['\\', '/']).next().unwrap_or(lib).trim_end_matches(".dll");
+    matches!(
+        base,
+        "user32" | "kernel32" | "gdi32" | "gdiplus" | "shell32" | "winmm" | "advapi32" | "comctl32"
+            | "comdlg32" | "wsock32" | "ws2_32" | "ole32" | "oleaut32" | "odbc32" | "odbccp32"
+            | "wininet" | "winspool.drv" | "winspool" | "version" | "shlwapi" | "psapi" | "ntdll"
+            | "msvcrt" | "mpr" | "netapi32" | "iphlpapi" | "urlmon" | "imm32" | "msimg32" | "avifil32"
+            | "msvfw32" | "vfw32" | "opengl32" | "glu32" | "ddraw" | "dsound" | "dinput" | "rasapi32"
+            | "setupapi" | "powrprof" | "secur32" | "crypt32" | "dwmapi" | "uxtheme" | "comctl32.dll"
+    )
+}
+
+/// What to use instead of a Windows API call, by API name (`name_key`,
+/// with the A/W suffix removed by the caller when needed).
+fn windows_api_hint(api: &str) -> Option<&'static str> {
+    let a = api;
+    Some(if a.starts_with("sql") {
+        "use the RSQLITE or RMYSQL component for databases"
+    } else if a.starts_with("gdip") {
+        "load, draw and save images with RIMAGE / RCANVAS"
+    } else if a.starts_with("mcisend") || matches!(a, "playsound" | "sndplaysound" | "waveoutopen") {
+        "play sounds with PLAYSOUND (or RWEBAUDIO on the web)"
+    } else if matches!(a, "shellexecute" | "shellexecuteex" | "winexec" | "createprocess") {
+        "run programs and open files with SHELL / SHELLWAIT"
+    } else if matches!(a, "sleep") {
+        "use SLEEP"
+    } else if matches!(a, "messagebox" | "messageboxex") {
+        "use SHOWMESSAGE"
+    } else if matches!(a, "messagebeep" | "beep") {
+        "use BEEP"
+    } else if matches!(a, "gettickcount" | "timegettime" | "queryperformancecounter") {
+        "use TIMER"
+    } else if matches!(a, "getsystemmetrics") {
+        "use Screen.Width / Screen.Height"
+    } else if matches!(a, "getenvironmentvariable") {
+        "use ENVIRON$"
+    } else if matches!(a, "getcurrentdirectory" | "setcurrentdirectory") {
+        "use CURDIR$ / CHDIR"
+    } else if matches!(a, "createdirectory" | "removedirectory" | "deletefile" | "movefile") {
+        "use MKDIR / RMDIR / KILL / RENAME"
+    } else if matches!(
+        a,
+        "selectobject" | "createpen" | "createsolidbrush" | "deleteobject" | "getstockobject" | "getobject"
+            | "getcurrentobject" | "ellipse" | "rectangle" | "lineto" | "moveto" | "movetoex" | "bitblt"
+            | "stretchblt" | "getdc" | "releasedc" | "setpixel" | "getpixel" | "textout" | "setgraphicsmode"
+            | "setworldtransform" | "createfont" | "createfontindirect" | "polygon"
+    ) {
+        "draw with an RCANVAS (Line, Circle, Rectangle, TextOut, …)"
+    } else if matches!(
+        a,
+        "setwindowlong" | "getwindowlong" | "callwindowproc" | "setwindowpos" | "showwindow" | "movewindow"
+            | "setfocus" | "getfocus" | "findwindow" | "getwindowrect" | "getclientrect" | "createwindowex"
+            | "windowfrompoint" | "sendmessage" | "sendmessageapi" | "postmessage" | "setwindowtext"
+            | "getwindowtext" | "getactivewindow" | "setforegroundwindow" | "enablewindow" | "destroywindow"
+            | "setparent" | "getsyscolor" | "registerhotkey" | "setcapture" | "releasecapture"
+    ) {
+        "use the component's own properties, methods and events (Left, Top, Visible, Caption, SetFocus, OnKeyDown, …)"
+    } else if matches!(
+        a,
+        "socket" | "recv" | "send" | "connect" | "bind" | "listen" | "accept" | "closesocket" | "htons" | "htonl"
+            | "ntohs" | "inet_addr" | "gethostbyname" | "wsastartup" | "wsacleanup" | "wsaasyncselect" | "ioctlsocket"
+    ) {
+        "use the RSOCKET / RSERVERSOCKET components"
+    } else if a.starts_with("internet") || a.starts_with("qftp_internet") || a.starts_with("http") || a == "urldownloadtofile" {
+        "use the RHTTP component"
+    } else if matches!(a, "multibytetowidechar" | "widechartomultibyte" | "lstrlen" | "lstrcpy") {
+        "RapidR strings are Unicode already; use the string functions (LEN, MID$, …)"
+    } else if matches!(a, "copymemory" | "rtlmovememory" | "movememory" | "zeromemory" | "fillmemory") {
+        "raw memory access has no portable equivalent; copy values or arrays instead"
+    } else if a.starts_with("reg") {
+        "store settings in a file (e.g. with RSQLITE or a text file) instead of the registry"
+    } else {
+        return None;
+    })
+}
+
 /// Ends every error about a feature no backend supports yet.
 const UNSUPPORTED_MARKER: &str = " isn't supported yet";
 
@@ -2921,6 +3029,17 @@ mod tests {
         let used = format!("{src}Helper\n");
         let Err(err) = compile_program_with_libraries(&parse(&used), Some(&used), &library) else { panic!("should not compile") };
         assert!(err.contains("Frobble"), "{err}");
+    }
+
+    #[test]
+    fn windows_api_calls_say_what_to_use_instead() {
+        let src = "DECLARE FUNCTION ShellExecute LIB \"shell32.dll\" ALIAS \"ShellExecuteA\" (h AS LONG, f AS STRING) AS LONG\n\
+                   DECLARE FUNCTION MySum LIB \"mylib\" (a AS LONG) AS LONG\n\
+                   x = ShellExecute(0, \"a.txt\")\ny = MySum(1)\n";
+        let Err(err) = compile_program_with_source(&parse(src), Some(src)) else { panic!("should not compile") };
+        let lines: Vec<&str> = err.lines().collect();
+        assert!(lines[0].contains("Windows API function") && lines[0].contains("SHELL"), "{err}");
+        assert!(lines[1].contains("external DLL function") && lines[1].contains("rapidr build"), "{err}");
     }
 
     #[test]

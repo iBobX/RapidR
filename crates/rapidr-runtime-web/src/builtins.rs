@@ -78,12 +78,9 @@ thread_local! {
 }
 
 fn track_print_column(text: &str) {
-    PRINT_COL.with(|c| {
-        c.set(match text.rfind('\n') {
-            Some(i) => text[i + 1..].chars().count(),
-            None => c.get() + text.chars().count(),
-        })
-    });
+    // The shared console cursor (CSRLIN/POS) ignores escape sequences.
+    crate::value::console::track(text);
+    PRINT_COL.with(|c| c.set(crate::value::console::column()));
 }
 
 /// `,` in PRINT: pad with spaces to the next print zone.
