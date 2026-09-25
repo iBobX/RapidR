@@ -21,11 +21,97 @@ impl MacroDefinition {
 #[derive(Debug, Clone, Default)]
 pub struct PreprocessOptions {
     pub defines: HashMap<String, String>,
+    /// Extra directories searched for `$INCLUDE` files after the including
+    /// file's own directory (like RapidQ's `include\` folder). Native builds
+    /// also search the `RAPIDR_INCLUDE_PATH` environment variable.
+    pub include_dirs: Vec<PathBuf>,
+}
+
+/// State shared by a file and everything it includes: a `$DEFINE` or `$MACRO`
+/// in an include file is visible to the code after the `$INCLUDE`.
+struct PpState {
+    defines: HashMap<String, String>,
+    macros: HashMap<String, MacroDefinition>,
+    include_stack: Vec<PathBuf>,
+    include_dirs: Vec<PathBuf>,
+    app_type: Option<String>,
+}
+
+impl PpState {
+    fn new(options: PreprocessOptions) -> Self {
+        let mut defines = options.defines;
+        // Built-in definition of the Windows version of RapidQ, which RapidR
+        // emulates; programs use `$IFDEF WIN32` around their includes.
+        defines.entry("WIN32".to_string()).or_insert_with(|| "WIN32".to_string());
+        Self {
+            defines,
+            macros: HashMap::new(),
+            include_stack: Vec::new(),
+            include_dirs: options.include_dirs,
+            app_type: None,
+        }
+    }
+
+    /// Value of a VB `#If` condition: True/False, a number, a `#Const` or
+    /// `$DEFINE` name, optionally negated with `Not`.
+    fn vb_condition(&self, condition: &str) -> bool {
+        let condition = condition.trim();
+        if let Some(rest) = condition.strip_prefix("NOT ") {
+            return !self.vb_condition(rest);
+        }
+        match condition {
+            "TRUE" => true,
+            "FALSE" | "" => false,
+            _ => {
+                if let Ok(n) = condition.parse::<f64>() {
+                    return n != 0.0;
+                }
+                self.defines
+                    .iter()
+                    .find(|(key, _)| key.eq_ignore_ascii_case(condition))
+                    .is_some_and(|(_, value)| {
+                        let v = value.trim();
+                        !(v.eq_ignore_ascii_case("FALSE") || v == "0")
+                    })
+            }
+        }
+    }
+
+    fn is_defined(&self, symbol: &str) -> bool {
+        self.defines.keys().any(|key| key.eq_ignore_ascii_case(symbol))
+    }
+}
+
+/// Reads a source file. RapidQ programs are usually Windows-1252 (ANSI), not
+/// UTF-8; bytes that aren't valid UTF-8 are decoded as Windows-1252.
+pub fn read_source(path: &Path) -> std::io::Result<String> {
+    let bytes = fs::read(path)?;
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes);
+    Ok(match std::str::from_utf8(bytes) {
+        Ok(text) => text.to_string(),
+        Err(_) => bytes.iter().map(|&b| windows_1252_char(b)).collect(),
+    })
+}
+
+fn windows_1252_char(byte: u8) -> char {
+    const HIGH: [char; 32] = [
+        '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}',
+        '\u{2C6}', '\u{2030}', '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}',
+        '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}',
+        '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}', '\u{153}', '\u{9D}', '\u{17E}', '\u{178}',
+    ];
+    match byte {
+        0x80..=0x9F => HIGH[(byte - 0x80) as usize],
+        _ => byte as char,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreprocessResult {
     pub source: String,
+    /// For each line of `source` (index = line - 1): the file and line it
+    /// came from, so errors in `$INCLUDE`d code point at the right place.
+    pub line_map: Vec<LineOrigin>,
     /// The value of `$APPTYPE` if present (e.g. "GUI", "CONSOLE", "WEB").
     pub app_type: Option<String>,
 }
@@ -66,7 +152,11 @@ pub fn preprocess_file(
     options: PreprocessOptions,
 ) -> Result<PreprocessResult, PreprocessError> {
     let path = path.as_ref();
-    let source = fs::read_to_string(path).map_err(|error| {
+    let mut options = options;
+    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
+        options.include_dirs.extend(std::env::split_paths(&paths));
+    }
+    let source = read_source(path).map_err(|error| {
         PreprocessError::new(
             format!("Failed to read source file '{}': {error}", path.display()),
             1,
@@ -76,13 +166,9 @@ pub fn preprocess_file(
     })?;
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
-    preprocess_with_state(
-        &source,
-        base_dir,
-        Some(path.to_path_buf()),
-        options.defines,
-        Vec::new(),
-    )
+    let mut state = PpState::new(options);
+    let (source, line_map) = preprocess_with_state(&source, base_dir, Some(path.to_path_buf()), &mut state)?;
+    Ok(PreprocessResult { source, line_map, app_type: state.app_type })
 }
 
 pub fn preprocess_source(
@@ -91,26 +177,22 @@ pub fn preprocess_source(
     file_path: Option<PathBuf>,
     options: PreprocessOptions,
 ) -> Result<PreprocessResult, PreprocessError> {
-    preprocess_with_state(
-        source,
-        base_dir.as_ref(),
-        file_path,
-        options.defines,
-        Vec::new(),
-    )
+    let mut state = PpState::new(options);
+    let (source, line_map) = preprocess_with_state(source, base_dir.as_ref(), file_path, &mut state)?;
+    Ok(PreprocessResult { source, line_map, app_type: state.app_type })
 }
 
 fn preprocess_with_state(
     source: &str,
     base_dir: &Path,
     file_path: Option<PathBuf>,
-    mut defines: HashMap<String, String>,
-    mut include_stack: Vec<PathBuf>,
-) -> Result<PreprocessResult, PreprocessError> {
-    let mut macros = HashMap::<String, MacroDefinition>::new();
+    state: &mut PpState,
+) -> Result<(String, Vec<LineOrigin>), PreprocessError> {
     let mut output_lines = Vec::new();
+    let mut origins = Vec::new();
     let mut skip_stack: Vec<bool> = Vec::new();
-    let mut app_type: Option<String> = None;
+    // One entry per open `#If`: whether one of its branches was taken.
+    let mut vb_taken: Vec<bool> = Vec::new();
     let file_label = file_path.as_ref().map(|path| path.display().to_string());
 
     for (line_index, original_line) in source.split('\n').enumerate() {
@@ -123,13 +205,62 @@ fn preprocess_with_state(
                 .split_once(char::is_whitespace)
                 .map(|(_, value)| strip_inline_comment(value).trim().to_string())
                 .unwrap_or_default();
-            let should_skip = !defines.contains_key(&symbol);
+            let should_skip = !state.is_defined(&symbol);
             if skip_stack.last().copied().unwrap_or(false) {
                 skip_stack.push(true);
             } else {
                 skip_stack.push(should_skip);
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            continue;
+        }
+
+        // VB conditional compilation: `#If False Then`, `#If DEBUG Then`,
+        // `#ElseIf`, `#Else`, `#End If`, `#Const NAME = value`.
+        if let Some(rest) = upper_line.strip_prefix("#IF ") {
+            let condition = rest.trim().strip_suffix("THEN").unwrap_or(rest).trim();
+            let parent_skip = skip_stack.last().copied().unwrap_or(false);
+            skip_stack.push(parent_skip || !state.vb_condition(condition));
+            vb_taken.push(!skip_stack.last().copied().unwrap_or(true));
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            continue;
+        }
+        if let Some(rest) = upper_line.strip_prefix("#ELSEIF ") {
+            if let (Some(taken), Some(_)) = (vb_taken.last().copied(), skip_stack.last()) {
+                let parent_skip = skip_stack.len() > 1 && skip_stack[skip_stack.len() - 2];
+                let condition = rest.trim().strip_suffix("THEN").unwrap_or(rest).trim();
+                let now = !parent_skip && !taken && state.vb_condition(condition);
+                let last = skip_stack.len() - 1;
+                skip_stack[last] = !now;
+                *vb_taken.last_mut().unwrap() = taken || now;
+            }
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            continue;
+        }
+        if upper_line == "#ELSE" || upper_line.starts_with("#ELSE ") || upper_line.starts_with("#ELSE'") {
+            if let Some(taken) = vb_taken.last().copied() {
+                let parent_skip = skip_stack.len() > 1 && skip_stack[skip_stack.len() - 2];
+                let last = skip_stack.len() - 1;
+                skip_stack[last] = parent_skip || taken;
+            }
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            continue;
+        }
+        if upper_line.starts_with("#END IF") || upper_line.starts_with("#ENDIF") {
+            if vb_taken.pop().is_some() {
+                skip_stack.pop();
+            }
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            continue;
+        }
+        if let Some(rest) = upper_line.strip_prefix("#CONST ") {
+            if !skip_stack.last().copied().unwrap_or(false) {
+                if let Some((name, value)) = line["#CONST ".len()..].split_once('=') {
+                    let _ = rest;
+                    state.defines.insert(name.trim().to_string(), strip_inline_comment(value).trim().to_string());
+                }
+            }
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
@@ -138,13 +269,13 @@ fn preprocess_with_state(
                 .split_once(char::is_whitespace)
                 .map(|(_, value)| strip_inline_comment(value).trim().to_string())
                 .unwrap_or_default();
-            let should_skip = defines.contains_key(&symbol);
+            let should_skip = state.is_defined(&symbol);
             if skip_stack.last().copied().unwrap_or(false) {
                 skip_stack.push(true);
             } else {
                 skip_stack.push(should_skip);
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
@@ -160,7 +291,7 @@ fn preprocess_with_state(
                     skip_stack[last] = !skip_stack[last];
                 }
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
@@ -168,12 +299,12 @@ fn preprocess_with_state(
             if !skip_stack.is_empty() {
                 skip_stack.pop();
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
         if skip_stack.last().copied().unwrap_or(false) {
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
@@ -186,26 +317,26 @@ fn preprocess_with_state(
                 } else {
                     "1".to_string()
                 };
-                defines.insert(symbol, value);
+                state.defines.insert(symbol, value);
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
         if upper_line.starts_with("$UNDEF") {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2 {
-                defines.remove(parts[1]);
+                state.defines.retain(|key, _| !key.eq_ignore_ascii_case(parts[1]));
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
         if upper_line.starts_with("$MACRO") {
             if let Some((name, definition)) = parse_macro_definition(line) {
-                macros.insert(name, definition);
+                state.macros.insert(name, definition);
             }
-            output_lines.push(String::new());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
             continue;
         }
 
@@ -219,11 +350,11 @@ fn preprocess_with_state(
                 if let Some((_, value)) = line.split_once(char::is_whitespace) {
                     let val = strip_inline_comment(value).trim().to_uppercase();
                     if !val.is_empty() {
-                        app_type = Some(val);
+                        state.app_type = Some(val);
                     }
                 }
             }
-            output_lines.push(original_line.to_string());
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, original_line.to_string());
             continue;
         }
 
@@ -237,13 +368,13 @@ fn preprocess_with_state(
                 )
             })?;
 
-            let include_path = match resolve_include_path(base_dir, &include_file) {
+            let include_path = match resolve_include_path(base_dir, &include_file, &state.include_dirs) {
                 Some(path) => path,
                 None => {
                     // RapidQ programs start with `$INCLUDE "RAPIDQ.INC"`; supply
                     // its constants when the file isn't next to the program.
                     if let Some(builtin) = builtin_include(&include_file) {
-                        output_lines.push(builtin);
+                        emit_line(&mut output_lines, &mut origins, &file_path, line_number, builtin);
                         continue;
                     }
                     return Err(PreprocessError::new(
@@ -255,7 +386,7 @@ fn preprocess_with_state(
                 }
             };
 
-            if include_stack.iter().any(|entry| entry == &include_path) {
+            if state.include_stack.iter().any(|entry| entry == &include_path) {
                 return Err(PreprocessError::new(
                     format!("Recursive include detected: '{include_file}'"),
                     line_number,
@@ -264,7 +395,7 @@ fn preprocess_with_state(
                 ));
             }
 
-            let include_source = fs::read_to_string(&include_path).map_err(|error| {
+            let include_source = read_source(&include_path).map_err(|error| {
                 PreprocessError::new(
                     format!("Failed to include '{include_file}': {error}"),
                     line_number,
@@ -273,44 +404,80 @@ fn preprocess_with_state(
                 )
             })?;
 
-            include_stack.push(include_path.clone());
+            state.include_stack.push(include_path.clone());
             let nested = preprocess_with_state(
                 &include_source,
                 include_path.parent().unwrap_or_else(|| Path::new(".")),
                 Some(include_path.clone()),
-                defines.clone(),
-                include_stack.clone(),
-            )?;
-            include_stack.pop();
-            output_lines.push(nested.source);
+                state,
+            );
+            state.include_stack.pop();
+            let (nested_source, nested_origins) = nested?;
+            output_lines.push(nested_source);
+            origins.extend(nested_origins);
             continue;
         }
 
         let mut processed_line = original_line.to_string();
 
-        if !macros.is_empty() {
-            for (name, definition) in &macros {
+        if !state.macros.is_empty() {
+            for (name, definition) in &state.macros {
                 processed_line = expand_macro(&processed_line, name, definition);
             }
         }
 
-        if !defines.is_empty() && !upper_line.contains('$') {
-            processed_line = substitute_defines_outside_strings(&processed_line, &defines);
+        if !state.defines.is_empty() && !upper_line.contains('$') {
+            processed_line = substitute_defines_outside_strings(&processed_line, &state.defines);
         }
 
-        output_lines.push(processed_line);
+        emit_line(&mut output_lines, &mut origins, &file_path, line_number, processed_line);
     }
 
-    Ok(PreprocessResult {
-        source: output_lines.join("\n"),
-        app_type,
-    })
+    Ok((output_lines.join("\n"), origins))
+}
+
+impl PreprocessResult {
+    /// Rewrites `main:LINE:COL: …` positions in compiler messages (whose
+    /// LINE counts preprocessed lines) to the file and line the code really
+    /// came from, e.g. `windows.inc:120:5: …` for code in an include.
+    pub fn remap_messages(&self, main: &str, text: &str) -> String {
+        let prefix = format!("{main}:");
+        text.lines()
+            .map(|message| {
+                let Some(rest) = message.strip_prefix(&prefix) else { return message.to_string() };
+                let Some((line, tail)) = rest.split_once(':') else { return message.to_string() };
+                let Ok(line) = line.parse::<usize>() else { return message.to_string() };
+                match self.line_map.get(line.wrapping_sub(1)) {
+                    Some((Some(file), original)) => format!("{}:{original}:{tail}", file.display()),
+                    Some((None, original)) => format!("{main}:{original}:{tail}"),
+                    None => message.to_string(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+/// Where one line of preprocessed source came from.
+pub type LineOrigin = (Option<PathBuf>, usize);
+
+fn emit_line(
+    lines: &mut Vec<String>,
+    origins: &mut Vec<LineOrigin>,
+    file: &Option<PathBuf>,
+    line: usize,
+    text: String,
+) {
+    lines.push(text);
+    origins.push((file.clone(), line));
 }
 
 /// Constants from RapidQ's RAPIDQ.INC (Delphi/Win32 values; colors are BGR
 /// like RapidQ's, which RapidR's runtimes also use). System colors have no
 /// OS lookup in RapidR, so they get their standard default RGB values.
 pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
+    // As in the real RAPIDQ.INC (comparisons themselves give -1 / 0).
+    ("False", 0), ("True", 1),
     // Colors (&HBBGGRR)
     ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x008000),
     ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0x800080),
@@ -406,14 +573,63 @@ fn parse_include_target(line: &str) -> Option<String> {
     Some(tail[..end].to_string())
 }
 
-fn resolve_include_path(base_dir: &Path, include_file: &str) -> Option<PathBuf> {
-    let direct = base_dir.join(include_file);
-    if direct.exists() {
+/// Finds an `$INCLUDE` file the way RapidQ on Windows does: `\\` separators
+/// and case-insensitive names, looking next to the including file, then in
+/// the include directories (and the RapidQ folder above them), then in the
+/// current directory. Programs often name their author's absolute path
+/// (`c:\\rapidq\\include\\windows.inc`); after the full path fails, ever
+/// shorter endings of it are tried (`include/windows.inc`, `windows.inc`).
+fn resolve_include_path(base_dir: &Path, include_file: &str, include_dirs: &[PathBuf]) -> Option<PathBuf> {
+    let mut relative = include_file.trim().replace('\\', "/");
+    if relative.len() >= 2 && relative.as_bytes()[1] == b':' && relative.as_bytes()[0].is_ascii_alphabetic() {
+        relative = relative[2..].to_string();
+    }
+    let mut roots = vec![base_dir.to_path_buf()];
+    for dir in include_dirs {
+        roots.push(dir.clone());
+    }
+    for dir in include_dirs {
+        if let Some(parent) = dir.parent() {
+            roots.push(parent.to_path_buf());
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        roots.push(cwd);
+    }
+    if !relative.starts_with('/') {
+        if let Some(found) = roots.iter().find_map(|root| find_case_insensitive(root, &relative)) {
+            return Some(found);
+        }
+    }
+    let parts: Vec<&str> = relative.split('/').filter(|p| !p.is_empty() && *p != "." && *p != "..").collect();
+    (0..parts.len()).find_map(|skip| {
+        let tail = parts[skip..].join("/");
+        roots.iter().find_map(|root| find_case_insensitive(root, &tail))
+    })
+}
+
+fn find_case_insensitive(root: &Path, relative: &str) -> Option<PathBuf> {
+    let direct = root.join(relative);
+    if direct.is_file() {
         return Some(direct);
     }
-
-    let cwd = std::env::current_dir().ok()?.join(include_file);
-    cwd.exists().then_some(cwd)
+    let mut current = if relative.starts_with('/') { PathBuf::from("/") } else { root.to_path_buf() };
+    for part in relative.split('/').filter(|part| !part.is_empty() && *part != ".") {
+        if part == ".." {
+            current.push("..");
+            continue;
+        }
+        let exact = current.join(part);
+        if exact.exists() {
+            current = exact;
+            continue;
+        }
+        let entry = fs::read_dir(&current).ok()?.flatten().find(|entry| {
+            entry.file_name().to_str().is_some_and(|name| name.eq_ignore_ascii_case(part))
+        })?;
+        current = entry.path();
+    }
+    current.is_file().then_some(current)
 }
 
 fn expand_macro(line: &str, name: &str, definition: &MacroDefinition) -> String {
@@ -653,6 +869,44 @@ mod tests {
     }
 
     #[test]
+    fn vb_conditional_compilation() {
+        let src = "#Const DEBUG = 1\n#If False Then\nskipped1\n#If True Then\nskipped2\n#End If\n#ElseIf DEBUG Then\nkept1\n#Else\nskipped3\n#End If\n#If Not DEBUG Then\nskipped4\n#Else\nkept2\n#End If\nafter";
+        let result = preprocess_source(src, ".", None, PreprocessOptions::default()).unwrap();
+        assert!(!result.source.contains("skipped"), "{}", result.source);
+        assert!(result.source.contains("kept1") && result.source.contains("kept2") && result.source.contains("after"));
+        assert_eq!(result.source.lines().count(), src.lines().count(), "line numbers are preserved");
+    }
+
+    #[test]
+    fn rapidq_style_includes_share_defines_and_decode_ansi() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("rapidr-preprocess-rq-{unique}"));
+        let lib = root.join("Lib");
+        let extra = root.join("extra");
+        fs::create_dir_all(&lib).unwrap();
+        fs::create_dir_all(&extra).unwrap();
+        // Windows path, different case, guarded with $IFNDEF like RapidQ includes.
+        fs::write(lib.join("Guarded.INC"), "$IFNDEF __GUARD\n$DEFINE __GUARD\n$DEFINE LIMIT 10\n$ENDIF").unwrap();
+        fs::write(extra.join("fromdir.inc"), "PRINT \"found in include dir\"").unwrap();
+        let main = root.join("main.bas");
+        // "caf\xE9" is Windows-1252, not UTF-8.
+        let mut source = b"$INCLUDE \"lib\\guarded.inc\"\n$INCLUDE \"LIB\\GUARDED.inc\"\n$INCLUDE \"fromdir.inc\"\n$IFDEF __guard\nPRINT LIMIT\n$ENDIF\n$IFDEF win32\nPRINT \"caf".to_vec();
+        source.extend_from_slice(b"\xE9\"\n$ENDIF\n");
+        fs::write(&main, source).unwrap();
+
+        let options = PreprocessOptions { include_dirs: vec![extra.clone()], ..Default::default() };
+        let result = preprocess_file(&main, options).unwrap();
+        assert!(result.source.contains("PRINT 10"), "{}", result.source);
+        assert!(result.source.contains("found in include dir"));
+        assert!(result.source.contains("PRINT \"café\""), "{}", result.source);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn rapidq_inc_is_built_in_and_keeps_line_numbers() {
         let result = preprocess("$INCLUDE \"RAPIDQ.INC\"\nPRINT clBlue\n");
         let lines: Vec<&str> = result.lines().collect();
@@ -668,7 +922,7 @@ mod tests {
             "$IFDEF DEBUG\nPRINT 1\n$ENDIF",
             ".",
             None,
-            PreprocessOptions { defines },
+            PreprocessOptions { defines, ..Default::default() },
         )
         .unwrap();
         assert!(result.source.contains("PRINT 1"));

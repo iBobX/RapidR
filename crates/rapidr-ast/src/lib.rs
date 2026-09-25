@@ -75,6 +75,9 @@ pub struct DimStatement {
     pub span: TextSpan,
     pub declarators: Vec<VariableDeclarator>,
     pub type_name: String,
+    /// `STATIC x AS T` inside a SUB/FUNCTION: one variable shared by every
+    /// call (and recursion) of that procedure, initialised once.
+    pub is_static: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -216,6 +219,8 @@ pub struct Parameter {
     pub name: String,
     pub type_name: String,
     pub by_ref: bool,
+    /// `list() AS STRING`: an array parameter (arrays are shared with the caller).
+    pub is_array: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -246,6 +251,10 @@ pub struct TypeField {
     pub name: String,
     pub type_name: String,
     pub array_size: Option<Expression>,
+    /// `Focus AS LONG PROPERTY SET Set_Focus`: assigning the field from
+    /// outside the setter calls the `PROPERTY SET Set_Focus (v AS LONG)`
+    /// method instead (which stores the value itself).
+    pub setter: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -501,6 +510,9 @@ pub enum UnaryOperator {
     Negate,
     Not,
     Positive,
+    /// `@x` as an argument: pass `x` by reference (RapidQ manual 3.5), as if
+    /// the parameter were declared BYREF.
+    Ref,
 }
 
 /// RapidQ's `INC x [, n]` / `DEC x [, n]` as the assignment `x = x ± n`
@@ -581,4 +593,348 @@ pub fn canonical_type_name(type_name: &str) -> String {
         }
     }
     type_name.to_string()
+}
+
+// ---------------------------------------------------------------------------
+// Walking the tree
+// ---------------------------------------------------------------------------
+
+/// Calls `on_stmt` for every statement and `on_expr` for every expression in
+/// `stmts`, depth first, including nested blocks, SUB/FUNCTION bodies and
+/// TYPE methods/events/constructors.
+pub fn walk(stmts: &[Statement], on_stmt: &mut dyn FnMut(&Statement), on_expr: &mut dyn FnMut(&Expression)) {
+    for stmt in stmts {
+        walk_statement(stmt, on_stmt, on_expr);
+    }
+}
+
+fn walk_statement(stmt: &Statement, on_stmt: &mut dyn FnMut(&Statement), on_expr: &mut dyn FnMut(&Expression)) {
+    on_stmt(stmt);
+    let mut exprs: Vec<&Expression> = Vec::new();
+    let mut bodies: Vec<&[Statement]> = Vec::new();
+    match stmt {
+        Statement::Assignment(a) => exprs.extend([&a.target, &a.value]),
+        Statement::Bind(b) => exprs.extend([&b.target, &b.handler]),
+        Statement::Call(c) => {
+            exprs.push(&c.callee);
+            exprs.extend(&c.args);
+        }
+        Statement::Close(c) => exprs.push(&c.file_number),
+        Statement::Const(c) => exprs.push(&c.value),
+        Statement::Create(c) => bodies.push(&c.body),
+        Statement::Dim(d) => {
+            for decl in &d.declarators {
+                for dim in &decl.dimensions {
+                    match dim {
+                        ArrayDimension::Single(e) => exprs.push(e),
+                        ArrayDimension::Range { start, end } => exprs.extend([start, end]),
+                    }
+                }
+            }
+        }
+        Statement::DoLoop(d) => {
+            exprs.extend(&d.condition);
+            bodies.push(&d.body);
+        }
+        Statement::For(f) => {
+            exprs.extend([&f.start, &f.end]);
+            exprs.extend(&f.step);
+            bodies.push(&f.body);
+        }
+        Statement::Function(f) => bodies.push(&f.body),
+        Statement::Subroutine(s) => bodies.push(&s.body),
+        Statement::If(i) => {
+            exprs.push(&i.condition);
+            bodies.push(&i.then_body);
+            for b in &i.elseif_branches {
+                exprs.push(&b.condition);
+                bodies.push(&b.body);
+            }
+            bodies.push(&i.else_body);
+        }
+        Statement::Input(i) => {
+            exprs.extend(&i.prompt);
+            exprs.push(&i.target);
+        }
+        Statement::Open(o) => exprs.extend([&o.filename, &o.file_number]),
+        Statement::Print(p) => exprs.extend(&p.items),
+        Statement::PrintHash(p) => {
+            exprs.push(&p.file_number);
+            exprs.extend(&p.items);
+        }
+        Statement::WriteHash(w) => {
+            exprs.push(&w.file_number);
+            exprs.extend(&w.items);
+        }
+        Statement::Return(r) => exprs.extend(&r.value),
+        Statement::Seek(s) => exprs.extend([&s.file_number, &s.position]),
+        Statement::SelectCase(s) => {
+            exprs.push(&s.expression);
+            for c in &s.cases {
+                for v in &c.values {
+                    match v {
+                        CaseValue::Value(e) | CaseValue::Is(_, e) => exprs.push(e),
+                        CaseValue::Range(a, b) => exprs.extend([a, b]),
+                    }
+                }
+                bodies.push(&c.body);
+            }
+            bodies.push(&s.case_else);
+        }
+        Statement::Type(t) => {
+            bodies.push(&t.methods);
+            bodies.push(&t.constructor);
+            for e in &t.events {
+                bodies.push(&e.body);
+            }
+            for f in &t.fields {
+                exprs.extend(&f.array_size);
+            }
+        }
+        Statement::While(w) => {
+            exprs.push(&w.condition);
+            bodies.push(&w.body);
+        }
+        Statement::With(w) => {
+            exprs.push(&w.object);
+            bodies.push(&w.body);
+        }
+        Statement::Comment(_)
+        | Statement::Declare(_)
+        | Statement::Directive(_)
+        | Statement::Exit(_)
+        | Statement::Gosub(_)
+        | Statement::Goto(_)
+        | Statement::Import(_)
+        | Statement::Label(_)
+        | Statement::Line(_)
+        | Statement::RustBlock(_) => {}
+    }
+    for e in exprs {
+        walk_expression(e, on_expr);
+    }
+    for body in bodies {
+        walk(body, on_stmt, on_expr);
+    }
+}
+
+/// Calls `on_expr` for `expr` and every sub-expression, parents first.
+pub fn walk_expression(expr: &Expression, on_expr: &mut dyn FnMut(&Expression)) {
+    on_expr(expr);
+    match expr {
+        Expression::ArrayAccess(a) => {
+            walk_expression(&a.array, on_expr);
+            for i in &a.indices {
+                walk_expression(i, on_expr);
+            }
+        }
+        Expression::Binary(b) => {
+            walk_expression(&b.left, on_expr);
+            walk_expression(&b.right, on_expr);
+        }
+        Expression::FunctionCall(f) => {
+            walk_expression(&f.callee, on_expr);
+            for a in &f.args {
+                walk_expression(a, on_expr);
+            }
+        }
+        Expression::MemberAccess(m) => walk_expression(&m.object, on_expr),
+        Expression::MethodCall(m) => {
+            walk_expression(&m.object, on_expr);
+            for a in &m.args {
+                walk_expression(a, on_expr);
+            }
+        }
+        Expression::Unary(u) => walk_expression(&u.operand, on_expr),
+        Expression::Identifier(_) | Expression::Literal(_) => {}
+    }
+}
+
+/// For each routine that some call site passes `@x` to, the argument
+/// positions passed that way (lowercase routine name → positions).
+pub fn ref_argument_positions(stmts: &[Statement]) -> std::collections::HashMap<String, Vec<usize>> {
+    let mut out: std::collections::HashMap<String, Vec<usize>> = std::collections::HashMap::new();
+    let mut note = |callee: &Expression, args: &[Expression]| {
+        let Expression::Identifier(id) = callee else { return };
+        for (i, arg) in args.iter().enumerate() {
+            if matches!(arg, Expression::Unary(u) if u.operator == UnaryOperator::Ref) {
+                let entry = out.entry(id.name.to_ascii_lowercase()).or_default();
+                if !entry.contains(&i) {
+                    entry.push(i);
+                }
+            }
+        }
+    };
+    let mut stmt_calls: Vec<(Expression, Vec<Expression>)> = Vec::new();
+    let mut expr_calls: Vec<(Expression, Vec<Expression>)> = Vec::new();
+    walk(
+        stmts,
+        &mut |s| {
+            if let Statement::Call(c) = s {
+                stmt_calls.push((c.callee.clone(), c.args.clone()));
+            }
+        },
+        &mut |e| {
+            if let Expression::FunctionCall(f) = e {
+                expr_calls.push(((*f.callee).clone(), f.args.clone()));
+            }
+        },
+    );
+    for (callee, args) in stmt_calls.iter().chain(&expr_calls) {
+        note(callee, args);
+    }
+    out
+}
+
+/// Calls `on_expr` on every expression in `stmts` (children before parents),
+/// allowing it to replace them. Nested WITH blocks are visited only when
+/// `into_with_bodies` is true (their target expression always is).
+pub fn walk_expressions_mut(stmts: &mut [Statement], into_with_bodies: bool, on_expr: &mut dyn FnMut(&mut Expression)) {
+    for stmt in stmts {
+        walk_statement_mut(stmt, into_with_bodies, on_expr);
+    }
+}
+
+fn walk_statement_mut(stmt: &mut Statement, into_with: bool, f: &mut dyn FnMut(&mut Expression)) {
+    let mut exprs: Vec<&mut Expression> = Vec::new();
+    let mut bodies: Vec<&mut Vec<Statement>> = Vec::new();
+    match stmt {
+        Statement::Assignment(a) => exprs.extend([&mut a.target, &mut a.value]),
+        Statement::Bind(b) => exprs.extend([&mut b.target, &mut b.handler]),
+        Statement::Call(c) => {
+            exprs.push(&mut c.callee);
+            exprs.extend(c.args.iter_mut());
+        }
+        Statement::Close(c) => exprs.push(&mut c.file_number),
+        Statement::Const(c) => exprs.push(&mut c.value),
+        Statement::Create(c) => bodies.push(&mut c.body),
+        Statement::Dim(d) => {
+            for decl in &mut d.declarators {
+                for dim in &mut decl.dimensions {
+                    match dim {
+                        ArrayDimension::Single(e) => exprs.push(e),
+                        ArrayDimension::Range { start, end } => exprs.extend([start, end]),
+                    }
+                }
+            }
+        }
+        Statement::DoLoop(d) => {
+            exprs.extend(d.condition.as_mut());
+            bodies.push(&mut d.body);
+        }
+        Statement::For(fs) => {
+            exprs.extend([&mut fs.start, &mut fs.end]);
+            exprs.extend(fs.step.as_mut());
+            bodies.push(&mut fs.body);
+        }
+        Statement::Function(fs) => bodies.push(&mut fs.body),
+        Statement::Subroutine(s) => bodies.push(&mut s.body),
+        Statement::If(i) => {
+            exprs.push(&mut i.condition);
+            bodies.push(&mut i.then_body);
+            for b in &mut i.elseif_branches {
+                exprs.push(&mut b.condition);
+                bodies.push(&mut b.body);
+            }
+            bodies.push(&mut i.else_body);
+        }
+        Statement::Input(i) => {
+            exprs.extend(i.prompt.as_mut());
+            exprs.push(&mut i.target);
+        }
+        Statement::Open(o) => exprs.extend([&mut o.filename, &mut o.file_number]),
+        Statement::Print(p) => exprs.extend(p.items.iter_mut()),
+        Statement::PrintHash(p) => {
+            exprs.push(&mut p.file_number);
+            exprs.extend(p.items.iter_mut());
+        }
+        Statement::WriteHash(w) => {
+            exprs.push(&mut w.file_number);
+            exprs.extend(w.items.iter_mut());
+        }
+        Statement::Return(r) => exprs.extend(r.value.as_mut()),
+        Statement::Seek(s) => exprs.extend([&mut s.file_number, &mut s.position]),
+        Statement::SelectCase(s) => {
+            exprs.push(&mut s.expression);
+            for c in &mut s.cases {
+                for v in &mut c.values {
+                    match v {
+                        CaseValue::Value(e) | CaseValue::Is(_, e) => exprs.push(e),
+                        CaseValue::Range(a, b) => exprs.extend([a, b]),
+                    }
+                }
+                bodies.push(&mut c.body);
+            }
+            bodies.push(&mut s.case_else);
+        }
+        Statement::Type(t) => {
+            bodies.push(&mut t.methods);
+            bodies.push(&mut t.constructor);
+            for e in &mut t.events {
+                bodies.push(&mut e.body);
+            }
+        }
+        Statement::While(w) => {
+            exprs.push(&mut w.condition);
+            bodies.push(&mut w.body);
+        }
+        Statement::With(w) => {
+            exprs.push(&mut w.object);
+            if into_with {
+                bodies.push(&mut w.body);
+            }
+        }
+        _ => {}
+    }
+    for e in exprs {
+        walk_expression_mut(e, f);
+    }
+    for body in bodies {
+        walk_expressions_mut(body, into_with, f);
+    }
+}
+
+fn walk_expression_mut(expr: &mut Expression, f: &mut dyn FnMut(&mut Expression)) {
+    match expr {
+        Expression::ArrayAccess(a) => {
+            walk_expression_mut(&mut a.array, f);
+            for i in &mut a.indices {
+                walk_expression_mut(i, f);
+            }
+        }
+        Expression::Binary(b) => {
+            walk_expression_mut(&mut b.left, f);
+            walk_expression_mut(&mut b.right, f);
+        }
+        Expression::FunctionCall(c) => {
+            walk_expression_mut(&mut c.callee, f);
+            for a in &mut c.args {
+                walk_expression_mut(a, f);
+            }
+        }
+        Expression::MemberAccess(m) => walk_expression_mut(&mut m.object, f),
+        Expression::MethodCall(m) => {
+            walk_expression_mut(&mut m.object, f);
+            for a in &mut m.args {
+                walk_expression_mut(a, f);
+            }
+        }
+        Expression::Unary(u) => walk_expression_mut(&mut u.operand, f),
+        Expression::Identifier(_) | Expression::Literal(_) => {}
+    }
+    f(expr);
+}
+
+/// The body of `WITH obj … END WITH` with every `.Member` (parsed as a
+/// member of the `_with_` placeholder) pointing at `obj` instead. Nested
+/// WITH blocks keep their own placeholder (but their target, e.g.
+/// `WITH .Font`, is resolved against `obj`).
+pub fn resolve_with_body(body: &[Statement], obj: &Expression) -> Vec<Statement> {
+    let mut body = body.to_vec();
+    walk_expressions_mut(&mut body, false, &mut |e| {
+        if matches!(e, Expression::Identifier(id) if id.name == "_with_") {
+            *e = obj.clone();
+        }
+    });
+    body
 }
