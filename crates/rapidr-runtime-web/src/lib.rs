@@ -19,6 +19,11 @@ pub use rapidr_rrcss::RR_BASE_CSS;
 pub mod prelude {
     // Value type + constructors
     pub use crate::value::{rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
+    // SUBI / FUNCTIONI arguments
+    pub use crate::value::variadic;
+    // DATA / READ / RESTORE
+    pub use crate::value::data;
+    pub use crate::value::{rp_shl, rp_shr};
 
     // BASIC builtins (string / math / date / conversion / etc.)
     pub use crate::builtins::*;

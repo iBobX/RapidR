@@ -420,6 +420,20 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                 }
+                Op::CallIndirect => {
+                    let argc = read_u8(code, &mut ip)?;
+                    let at = self.stack.len().checked_sub(argc as usize + 1).ok_or(VmError::StackUnderflow)?;
+                    let ptr = self.stack.remove(at).to_i64();
+                    let fi = u32::try_from(ptr - 1)
+                        .ok()
+                        .filter(|&fi| (fi as usize) < module.functions.len())
+                        .ok_or_else(|| VmError::Runtime(format!("CALLFUNC: {ptr} is not a function pointer (use BIND or CODEPTR)")))?;
+                    self.frames.last_mut().unwrap().ip = ip;
+                    self.frames.last_mut().unwrap().ret_ip = ip;
+                    self.call(module, fi, argc, true)?;
+                    ip = 0;
+                    refresh!();
+                }
                 Op::CallMethodDyn => {
                     let m_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;

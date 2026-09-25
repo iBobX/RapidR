@@ -112,11 +112,21 @@ struct Parser<'a> {
     /// several types or initializers becomes several statements); the
     /// statement lists drain them right after it.
     pending: Vec<Statement>,
+    /// Numbers the hidden variables of rewritten `FOR obj.x` loops.
+    for_counter: usize,
+    /// SUBI/FUNCTIONI names (lowercase): their calls pack the arguments.
+    variadic: Vec<String>,
+    /// Every DATA item of the program, in source order.
+    data_items: Vec<Expression>,
+    /// `RESTORE label` targets: label → index of the next DATA item after it.
+    data_labels: Vec<(String, usize)>,
+    /// Labels seen since the last DATA statement.
+    labels_awaiting_data: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new() }
     }
 
     // --- diagnostics ---
@@ -230,8 +240,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Skips line ends and `:` separators, so a block may start on its
+    /// header's line: `FOR i = 1 TO 3: PRINT i: NEXT`.
     fn consume_eol(&mut self) {
-        while self.match_kind(TokenType::Newline) {}
+        while self.match_kind(TokenType::Newline) || self.match_kind(TokenType::Colon) {}
     }
 
     fn previous(&self) -> Option<&'a Token> {
@@ -272,7 +284,13 @@ impl<'a> Parser<'a> {
 
     fn parse_program(&mut self) -> Program {
         let start = self.pos;
-        let body = self.parse_body(&[]);
+        let mut body = self.parse_body(&[]);
+        pack_variadic_calls(&mut body, &self.variadic);
+        if !self.data_items.is_empty() {
+            let mut init = data_table_init(&self.data_items, &self.data_labels);
+            init.append(&mut body);
+            body = init;
+        }
         let span = if body.is_empty() {
             TextSpan::default()
         } else {
@@ -301,6 +319,9 @@ impl<'a> Parser<'a> {
                 break;
             }
             if let Some(label) = self.parse_line_label() {
+                if let Statement::Label(l) = &label {
+                    self.labels_awaiting_data.push(l.name.clone());
+                }
                 stmts.push(label);
                 if self.at_eol() {
                     self.consume_eol();
@@ -315,6 +336,10 @@ impl<'a> Parser<'a> {
                     if self.at_end() || self.peek_kind() == Some(TokenType::Newline) {
                         break;
                     }
+                    // `…: NEXT` / `…: WEND` ends the block on this line.
+                    if self.is_at_terminator(terminators) {
+                        break;
+                    }
                     if let Some(s) = self.parse_statement() {
                         stmts.push(s);
                         stmts.append(&mut self.pending);
@@ -326,6 +351,9 @@ impl<'a> Parser<'a> {
             // Anything left on the line was not consumed by the statement
             // (e.g. `x = 1 y = 2`): report it instead of re-parsing it as a
             // new statement, then recover at the next line.
+            if self.is_at_terminator(terminators) {
+                continue;
+            }
             if !self.at_eol() {
                 let tok = &self.tokens[self.pos];
                 let message = format!("Unexpected '{}' after the end of the statement", tok.lexeme);
@@ -409,6 +437,8 @@ impl<'a> Parser<'a> {
             TokenType::Kill => self.parse_kill(),
             TokenType::Call => self.parse_explicit_call().map(Statement::Call),
             TokenType::If => self.parse_if().map(Statement::If),
+            // `FOR THIS.lx = 0 TO n` (a member as the loop variable)
+            TokenType::For if self.peek_kind_at(2) == Some(TokenType::Dot) => self.parse_for_member(),
             TokenType::For => self.parse_for().map(Statement::For),
             TokenType::While => self.parse_while().map(Statement::While),
             TokenType::Do => self.parse_do_loop().map(Statement::DoLoop),
@@ -435,6 +465,76 @@ impl<'a> Parser<'a> {
                     callee: Expression::Identifier(Identifier { span: tok.span, name: "END".into() }),
                     args: Vec::new(),
                 }))
+            }
+            // RapidQ `SUBI Name (...)` / `FUNCTIONI Name (...) AS T`: any number of arguments.
+            TokenType::Identifier
+                if (self.peek_identifier_eq("SUBI") || self.peek_identifier_eq("FUNCTIONI"))
+                    && self.peek_kind_at(1) == Some(TokenType::Identifier) =>
+            {
+                self.parse_variadic_routine()
+            }
+            TokenType::Data => {
+                let tok = self.advance()?;
+                for label in std::mem::take(&mut self.labels_awaiting_data) {
+                    self.data_labels.push((label, self.data_items.len()));
+                }
+                let span = tok.span;
+                self.data_items.extend(
+                    data_items(&tok.lexeme).into_iter().map(|value| Expression::Literal(Literal { span, value })),
+                );
+                Some(Statement::Comment(CommentStatement { span, text: format!("DATA{}", tok.lexeme) }))
+            }
+            // `READ a, s$, p(1, 2)`: each variable takes the next DATA item.
+            TokenType::Identifier
+                if self.peek_identifier_eq("READ")
+                    && matches!(self.peek_kind_at(1), Some(TokenType::Identifier)) =>
+            {
+                let start = self.pos;
+                self.advance();
+                let mut reads = Vec::new();
+                loop {
+                    let target = self.parse_postfix_expression()?;
+                    let span = self.span_from(start);
+                    reads.push(Statement::Assignment(AssignmentStatement { span, target, value: call_expr(span, "__READ", Vec::new()) }));
+                    if !self.match_kind(TokenType::Comma) {
+                        break;
+                    }
+                }
+                let first = reads.remove(0);
+                self.pending = reads;
+                Some(first)
+            }
+            // `RESTORE` / `RESTORE label`: where the next READ starts.
+            TokenType::Identifier
+                if self.peek_identifier_eq("RESTORE")
+                    && matches!(self.peek_kind_at(1), None | Some(TokenType::Newline | TokenType::Colon | TokenType::Identifier | TokenType::Number | TokenType::Eof)) =>
+            {
+                let tok = self.advance()?;
+                let span = tok.span;
+                let args = match self.peek() {
+                    Some(t) if matches!(t.kind, TokenType::Identifier | TokenType::Number) => {
+                        let label = self.advance()?.lexeme.clone();
+                        vec![Expression::Literal(Literal { span, value: LiteralValue::String(label) })]
+                    }
+                    _ => Vec::new(),
+                };
+                Some(Statement::Call(CallStatement { span, callee: ident(span, "__RESTORE"), args }))
+            }
+            // `SWAP a, b` exchanges two variables (through a hidden temporary).
+            TokenType::Identifier
+                if self.peek_identifier_eq("SWAP")
+                    && matches!(self.peek_kind_at(1), Some(TokenType::Identifier)) =>
+            {
+                let start = self.pos;
+                self.advance();
+                let a = self.parse_postfix_expression()?;
+                self.expect(TokenType::Comma)?;
+                let b = self.parse_postfix_expression()?;
+                let span = self.span_from(start);
+                let tmp = ident(span, "__swap_tmp");
+                let assign = |target: Expression, value: Expression| Statement::Assignment(AssignmentStatement { span, target, value });
+                self.pending = vec![assign(a.clone(), b.clone()), assign(b, tmp.clone())];
+                Some(assign(tmp, a))
             }
             // `STATIC x AS T` — a DIM whose value survives between calls.
             TokenType::Identifier
@@ -710,7 +810,12 @@ impl<'a> Parser<'a> {
     fn parse_exit(&mut self) -> Option<ExitStatement> {
         let start = self.pos;
         self.advance()?; // EXIT
-        let exit_type = self.advance()?.lexeme.to_uppercase();
+        let exit_type = match self.advance()?.lexeme.to_uppercase().as_str() {
+            // SUBI/FUNCTIONI, EVENT and PROPERTY SET handlers are SUBs/FUNCTIONs.
+            "SUBI" | "EVENT" | "PROPERTY" => "SUB".to_string(),
+            "FUNCTIONI" => "FUNCTION".to_string(),
+            other => other.to_string(),
+        };
         Some(ExitStatement {
             span: self.span_from(start),
             exit_type,
@@ -890,9 +995,64 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// `SUBI Name (...)` … `END SUBI` / `FUNCTIONI Name (...) AS T` …
+    /// `END FUNCTIONI` (manual ch. 9): a routine taking any number of
+    /// arguments, read with ParamStr$(i) / ParamVal(i) / ParamStrCount /
+    /// ParamValCount. It gets one hidden parameter holding the packed
+    /// arguments; `pack_variadic_calls` packs them at every call.
+    fn parse_variadic_routine(&mut self) -> Option<Statement> {
+        let start = self.pos;
+        let is_function = self.advance()?.lexeme.eq_ignore_ascii_case("FUNCTIONI");
+        let name = self.advance()?.lexeme.clone();
+        self.variadic.push(name.to_ascii_lowercase());
+        self.skip_variadic_params();
+        let return_type = if is_function && self.match_kind(TokenType::As) {
+            Some(canonical_type_name(&self.advance()?.lexeme))
+        } else {
+            None
+        };
+        self.consume_eol();
+        let keyword = if is_function { "FUNCTIONI" } else { "SUBI" };
+        let mut body = self.parse_body(&[Terminator::EndPair(keyword)]);
+        if self.peek_is_end_followed_by(keyword) {
+            self.advance();
+            self.advance();
+        } else {
+            self.error_at(start, format!("{keyword} {name} is missing END {keyword}"));
+        }
+        rewrite_param_access(&mut body);
+        let span = self.span_from(start);
+        let params = vec![Parameter { span, name: VARIADIC_PARAM.into(), type_name: "VARIANT".into(), by_ref: false, is_array: false }];
+        Some(if is_function {
+            Statement::Function(FunctionStatement { span, name, params, return_type, body })
+        } else {
+            Statement::Subroutine(SubroutineStatement { span, name, params, body })
+        })
+    }
+
+    /// `(...)` or `(anything)` after a SUBI/FUNCTIONI name.
+    fn skip_variadic_params(&mut self) {
+        if self.match_kind(TokenType::LParen) {
+            while !self.at_eol() && !self.match_kind(TokenType::RParen) {
+                self.pos += 1;
+            }
+        }
+    }
+
     fn parse_declare(&mut self) -> Option<DeclareStatement> {
         let start = self.pos;
         self.advance()?; // DECLARE
+        // `DECLARE SUBI/FUNCTIONI Name (...)` only announces a variadic routine.
+        if (self.peek_identifier_eq("SUBI") || self.peek_identifier_eq("FUNCTIONI"))
+            && self.peek_kind_at(1) == Some(TokenType::Identifier)
+        {
+            let is_function = self.advance()?.lexeme.eq_ignore_ascii_case("FUNCTIONI");
+            let name = self.advance()?.lexeme.clone();
+            self.variadic.push(name.to_ascii_lowercase());
+            self.skip_variadic_params();
+            let return_type = if self.match_kind(TokenType::As) { Some(self.advance()?.lexeme.clone()) } else { None };
+            return Some(DeclareStatement { span: self.span_from(start), is_function, name, lib: None, alias: None, params: Vec::new(), return_type });
+        }
         let is_function = match self.peek_kind()? {
             TokenType::Function => {
                 self.advance();
@@ -903,7 +1063,12 @@ impl<'a> Parser<'a> {
                 false
             }
         };
-        let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        let mut name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // RAPIDQ2.INC declares dotted names: `DECLARE SUB SLEEP.ms LIB …`.
+        while self.peek_kind() == Some(TokenType::Dot) && self.peek_kind_at(1) == Some(TokenType::Identifier) {
+            self.advance();
+            name = format!("{name}.{}", self.advance()?.lexeme);
+        }
         let lib = if self.peek_identifier_eq("LIB") {
             self.advance();
             Some(self.advance()?.lexeme.clone())
@@ -1137,6 +1302,55 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// `FOR obj.x = a TO b [STEP s] … NEXT` (RAPIDQ2.INC loops over
+    /// `THIS.lx`): becomes `obj.x = a` and a WHILE that checks the bound in
+    /// the step's direction and adds the step after the body. `EXIT FOR` in
+    /// the body becomes `EXIT WHILE`.
+    fn parse_for_member(&mut self) -> Option<Statement> {
+        let start = self.pos;
+        self.expect(TokenType::For)?;
+        let target = self.parse_postfix_expression()?;
+        self.expect(TokenType::Eq)?;
+        let from = self.parse_expression()?;
+        self.expect(TokenType::To)?;
+        let to = self.parse_expression()?;
+        let step = if self.match_kind(TokenType::Step) { Some(self.parse_expression()?) } else { None };
+        self.consume_eol();
+        let mut body = self.parse_body(&[Terminator::Keyword("NEXT")]);
+        self.expect(TokenType::Next);
+        if !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
+            self.parse_postfix_expression();
+        }
+        let span = self.span_from(start);
+        self.for_counter += 1;
+        let end_var = ident(span, &format!("__forend{}", self.for_counter));
+        let step_var = ident(span, &format!("__forstep{}", self.for_counter));
+        let int = |n: i64| Expression::Literal(Literal { span, value: LiteralValue::Integer(n) });
+        let assign = |target: Expression, value: Expression| Statement::Assignment(AssignmentStatement { span, target, value });
+        let bin = |l: Expression, op: BinaryOperator, r: Expression| Expression::Binary(BinaryExpression { span, left: Box::new(l), operator: op, right: Box::new(r) });
+        let condition = bin(
+            bin(
+                bin(step_var.clone(), BinaryOperator::GreaterThanOrEqual, int(0)),
+                BinaryOperator::And,
+                bin(target.clone(), BinaryOperator::LessThanOrEqual, end_var.clone()),
+            ),
+            BinaryOperator::Or,
+            bin(
+                bin(step_var.clone(), BinaryOperator::LessThan, int(0)),
+                BinaryOperator::And,
+                bin(target.clone(), BinaryOperator::GreaterThanOrEqual, end_var.clone()),
+            ),
+        );
+        retarget_exit_for(&mut body);
+        body.push(assign(target.clone(), bin(target.clone(), BinaryOperator::Add, step_var.clone())));
+        self.pending = vec![
+            assign(end_var, to),
+            assign(step_var, step.unwrap_or_else(|| int(1))),
+            Statement::While(WhileStatement { span, condition, body }),
+        ];
+        Some(assign(target, from))
+    }
+
     fn parse_while(&mut self) -> Option<WhileStatement> {
         let start = self.pos;
         self.expect(TokenType::While)?;
@@ -1193,13 +1407,15 @@ impl<'a> Parser<'a> {
 
     /// One `CASE` item: `expr`, `low TO high`, or `IS <op> expr`.
     fn parse_case_value(&mut self) -> Option<CaseValue> {
-        let is_is = self.peek_identifier_eq("IS")
-            && matches!(
-                self.peek_kind_at(1),
-                Some(TokenType::Eq | TokenType::Neq | TokenType::Lt | TokenType::Lte | TokenType::Gt | TokenType::Gte)
-            );
-        if is_is {
-            self.advance(); // IS
+        let comparison = |k: Option<TokenType>| {
+            matches!(k, Some(TokenType::Eq | TokenType::Neq | TokenType::Lt | TokenType::Lte | TokenType::Gt | TokenType::Gte))
+        };
+        // `CASE IS > 5`, or without IS: `CASE = fdOpen`, `CASE > 5`.
+        let is_is = self.peek_identifier_eq("IS") && comparison(self.peek_kind_at(1));
+        if is_is || comparison(self.peek_kind()) {
+            if is_is {
+                self.advance(); // IS
+            }
             let op = match self.advance()?.kind {
                 TokenType::Eq => BinaryOperator::Equal,
                 TokenType::Neq => BinaryOperator::NotEqual,
@@ -1287,10 +1503,22 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// A SUB/FUNCTION name; RAPIDQ2.INC adds methods to built-in objects
+    /// with dotted names (`FUNCTION Screen.MousePresent() AS LONG`), called
+    /// as `Screen.MousePresent`.
+    fn parse_routine_name(&mut self) -> Option<String> {
+        let mut name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        while self.peek_kind() == Some(TokenType::Dot) && self.tokens.get(self.pos + 1).is_some_and(|t| t.kind != TokenType::Newline) {
+            self.advance();
+            name = format!("{name}.{}", self.advance()?.lexeme);
+        }
+        Some(name)
+    }
+
     fn parse_sub(&mut self) -> Option<SubroutineStatement> {
         let start = self.pos;
         self.expect(TokenType::Sub)?;
-        let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        let name = self.parse_routine_name()?;
         let params = if self.match_kind(TokenType::LParen) {
             let p = self.parse_parameter_list()?;
             self.expect(TokenType::RParen);
@@ -1299,9 +1527,12 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         self.consume_eol();
-        let body = self.parse_body(&[Terminator::EndPair("SUB")]);
+        // RapidQ accepted a SUB closed by END FUNCTION and vice versa (RAPIDQ2.INC does it).
+        let body = self.parse_body(&[Terminator::EndPair("SUB"), Terminator::EndPair("FUNCTION")]);
         self.expect(TokenType::End);
-        self.expect(TokenType::Sub);
+        if !self.match_kind(TokenType::Sub) {
+            self.expect(TokenType::Function);
+        }
         Some(SubroutineStatement {
             span: self.span_from(start),
             name,
@@ -1313,7 +1544,7 @@ impl<'a> Parser<'a> {
     fn parse_function(&mut self) -> Option<FunctionStatement> {
         let start = self.pos;
         self.expect(TokenType::Function)?;
-        let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        let name = self.parse_routine_name()?;
         let params = if self.match_kind(TokenType::LParen) {
             let p = self.parse_parameter_list()?;
             self.expect(TokenType::RParen);
@@ -1327,9 +1558,11 @@ impl<'a> Parser<'a> {
             None
         };
         self.consume_eol();
-        let body = self.parse_body(&[Terminator::EndPair("FUNCTION")]);
+        let body = self.parse_body(&[Terminator::EndPair("FUNCTION"), Terminator::EndPair("SUB")]);
         self.expect(TokenType::End);
-        self.expect(TokenType::Function);
+        if !self.match_kind(TokenType::Function) {
+            self.expect(TokenType::Sub);
+        }
         Some(FunctionStatement {
             span: self.span_from(start),
             name,
@@ -1363,6 +1596,17 @@ impl<'a> Parser<'a> {
             if self.peek_is_end_followed_by("TYPE") || self.at_end() {
                 break;
             }
+            // `WITH TypeName` … `END WITH` around the members (RAPIDQ2.INC):
+            // `.Member` in the methods means the instance anyway.
+            if self.peek_kind() == Some(TokenType::With) {
+                self.skip_to_eol();
+                continue;
+            }
+            if self.peek_is_end_followed_by("WITH") {
+                self.advance();
+                self.advance();
+                continue;
+            }
             // PRIVATE: / PUBLIC: / PROTECTED: sections (access isn't enforced)
             if self.peek_identifier_eq("PRIVATE") || self.peek_identifier_eq("PUBLIC") || self.peek_identifier_eq("PROTECTED") {
                 self.advance();
@@ -1391,7 +1635,13 @@ impl<'a> Parser<'a> {
                     self.skip_to_eol();
                     continue;
                 };
-                let name = name_tok.lexeme.clone();
+                let mut name = name_tok.lexeme.clone();
+                // `EVENT Panel.OnClick`: an event of a component field.
+                while self.peek_kind() == Some(TokenType::Dot) {
+                    self.advance();
+                    let Some(part) = self.advance() else { break };
+                    name = format!("{name}.{}", part.lexeme);
+                }
                 if wrapped {
                     self.expect(TokenType::RParen);
                 }
@@ -1411,6 +1661,16 @@ impl<'a> Parser<'a> {
                     self.error_at(event_start, format!("EVENT {name} is missing END EVENT"));
                 }
                 events.push(TypeEvent { span: self.span_from(event_start), name, params, body });
+                continue;
+            }
+            // SUBI / FUNCTIONI methods (any number of arguments; RAPIDQ2.INC
+            // names one `PRINT`)
+            if (self.peek_identifier_eq("SUBI") || self.peek_identifier_eq("FUNCTIONI"))
+                && self.tokens.get(self.pos + 1).is_some_and(|t| t.lexeme.chars().all(|c| c.is_alphanumeric() || c == '_'))
+            {
+                if let Some(m) = self.parse_variadic_routine() {
+                    methods.push(m);
+                }
                 continue;
             }
             // Methods
@@ -1473,23 +1733,23 @@ impl<'a> Parser<'a> {
             if self.peek_kind() == Some(TokenType::Identifier) {
                 let field_start = self.pos;
                 let fname = self.advance()?.lexeme.clone();
-                let arr = if self.match_kind(TokenType::LParen) {
-                    // Only the upper bound of the first dimension sizes a field
-                    // array; `(1 TO n)` and extra dimensions keep their text
-                    // for the error below.
+                let (arr, arr_lower) = if self.match_kind(TokenType::LParen) {
+                    // A one-dimensional array field: `Names(2)` or `Colors(1 TO 16)`.
                     let dims = self.parse_array_dimensions();
                     self.expect(TokenType::RParen);
                     match dims.as_deref() {
-                        Some([ArrayDimension::Single(upper)]) => Some(upper.clone()),
-                        Some([ArrayDimension::Range { start, end }]) if is_zero_literal(start) => Some(end.clone()),
+                        Some([ArrayDimension::Single(upper)]) => (Some(upper.clone()), None),
+                        Some([ArrayDimension::Range { start, end }]) => {
+                            (Some(end.clone()), (!is_zero_literal(start)).then(|| start.clone()))
+                        }
                         _ => {
-                            self.error_at(field_start, format!("Array field {fname} in TYPE {name}: only one dimension counted from 0 is supported yet"));
+                            self.error_at(field_start, format!("Array field {fname} in TYPE {name}: only one dimension is supported yet"));
                             self.skip_to_eol();
                             continue;
                         }
                     }
                 } else {
-                    None
+                    (None, None)
                 };
                 if !self.match_kind(TokenType::As) {
                     let message = format!("Field {fname} in TYPE {name} needs a type: `{fname} AS INTEGER`");
@@ -1522,6 +1782,7 @@ impl<'a> Parser<'a> {
                     name: fname,
                     type_name: ftype,
                     array_size: arr,
+                    array_lower: arr_lower,
                     setter,
                 });
                 if !self.at_eol() {
@@ -1543,6 +1804,22 @@ impl<'a> Parser<'a> {
 
         self.expect(TokenType::End);
         self.expect(TokenType::Type);
+
+        // `.Member` outside any WITH inside the TYPE's code is the instance
+        // (the RapidQ manual writes `WITH TForm … END WITH`; RAPIDQ2.INC wraps
+        // whole TYPEs in `WITH QFormEx`).
+        let this = Expression::Identifier(Identifier { span: TextSpan::default(), name: name.clone() });
+        for body in methods.iter_mut().filter_map(|m| match m {
+            Statement::Subroutine(s) => Some(&mut s.body),
+            Statement::Function(f) => Some(&mut f.body),
+            _ => None,
+        }) {
+            *body = resolve_with_body(body, &this);
+        }
+        constructor = resolve_with_body(&constructor, &this);
+        for e in &mut events {
+            e.body = resolve_with_body(&e.body, &this);
+        }
 
         Some(TypeStatement {
             span: self.span_from(start),
@@ -1606,7 +1883,17 @@ impl<'a> Parser<'a> {
             } else {
                 false
             };
-            let pname = self.expect(TokenType::Identifier)?.lexeme.clone();
+            // A keyword may name a parameter (`(hwnd AS LONG, type AS LONG)`
+            // in RAPIDQ2.INC's API declarations).
+            let pname = match self.peek() {
+                Some(t) if t.kind == TokenType::Identifier => self.advance()?.lexeme.clone(),
+                Some(t) if t.lexeme.chars().all(|c| c.is_ascii_alphabetic())
+                    && self.peek_kind_at(1) == Some(TokenType::As) =>
+                {
+                    self.advance()?.lexeme.clone()
+                }
+                _ => self.expect(TokenType::Identifier)?.lexeme.clone(),
+            };
             // `list() AS STRING`: an array parameter (arrays are shared, so
             // the SUB works on the caller's array).
             let is_array = self.peek_kind() == Some(TokenType::LParen) && self.peek_kind_at(1) == Some(TokenType::RParen);
@@ -1702,11 +1989,24 @@ impl<'a> Parser<'a> {
     fn parse_comparison(&mut self) -> Option<Expression> {
         let mut expr = self.parse_term()?;
         loop {
-            let op = match self.peek_kind() {
-                Some(TokenType::Lt) => BinaryOperator::LessThan,
-                Some(TokenType::Lte) => BinaryOperator::LessThanOrEqual,
-                Some(TokenType::Gt) => BinaryOperator::GreaterThan,
-                Some(TokenType::Gte) => BinaryOperator::GreaterThanOrEqual,
+            let op = match (self.peek_kind(), self.peek_kind_at(1)) {
+                // `a < = b` / `a > = b` / `a < > b`, written with a space
+                (Some(TokenType::Lt), Some(TokenType::Eq)) => {
+                    self.advance();
+                    BinaryOperator::LessThanOrEqual
+                }
+                (Some(TokenType::Gt), Some(TokenType::Eq)) => {
+                    self.advance();
+                    BinaryOperator::GreaterThanOrEqual
+                }
+                (Some(TokenType::Lt), Some(TokenType::Gt)) => {
+                    self.advance();
+                    BinaryOperator::NotEqual
+                }
+                (Some(TokenType::Lt), _) => BinaryOperator::LessThan,
+                (Some(TokenType::Lte), _) => BinaryOperator::LessThanOrEqual,
+                (Some(TokenType::Gt), _) => BinaryOperator::GreaterThan,
+                (Some(TokenType::Gte), _) => BinaryOperator::GreaterThanOrEqual,
                 _ => break,
             };
             self.advance();
@@ -1746,6 +2046,15 @@ impl<'a> Parser<'a> {
     fn parse_factor(&mut self) -> Option<Expression> {
         let mut expr = self.parse_power()?;
         loop {
+            // `a SHL n` / `a SHR n` (same precedence as * and /).
+            if self.peek_identifier_eq("SHL") || self.peek_identifier_eq("SHR") {
+                let tok = self.advance()?;
+                let name = tok.lexeme.to_ascii_uppercase();
+                let right = self.parse_power()?;
+                let span = TextSpan::new(expression_span(&expr).start, expression_span(&right).end);
+                expr = call_expr(span, &name, vec![expr, right]);
+                continue;
+            }
             let op = match self.peek_kind() {
                 Some(TokenType::Star) => BinaryOperator::Multiply,
                 Some(TokenType::Slash) => BinaryOperator::Divide,
@@ -1857,6 +2166,13 @@ impl<'a> Parser<'a> {
 
     fn parse_primary(&mut self) -> Option<Expression> {
         match self.peek_kind()? {
+            // A type name as a value (`SIZEOF(SINGLE)`): its name as text.
+            TokenType::Integer | TokenType::String | TokenType::Double | TokenType::Single | TokenType::Byte
+            | TokenType::Word | TokenType::Dword | TokenType::Long | TokenType::Int64 | TokenType::Currency
+            | TokenType::Variant => {
+                let tok = self.advance()?;
+                Some(Expression::Literal(Literal { span: tok.span, value: LiteralValue::String(tok.lexeme.to_ascii_uppercase()) }))
+            }
             // WITH-dot access: `.Property`
             TokenType::Dot => {
                 let dot_tok = self.advance()?;
@@ -2028,6 +2344,122 @@ fn strip_inline_call_args(expression: Expression) -> Expression {
         Expression::FunctionCall(node) => *node.callee,
         other => other,
     }
+}
+
+/// `EXIT FOR` → `EXIT WHILE` in a rewritten FOR body, outside inner loops
+/// (whose EXITs are their own).
+fn retarget_exit_for(body: &mut [Statement]) {
+    for stmt in body {
+        match stmt {
+            Statement::Exit(e) if e.exit_type.eq_ignore_ascii_case("FOR") => e.exit_type = "WHILE".to_string(),
+            Statement::If(i) => {
+                retarget_exit_for(&mut i.then_body);
+                for b in &mut i.elseif_branches {
+                    retarget_exit_for(&mut b.body);
+                }
+                retarget_exit_for(&mut i.else_body);
+            }
+            Statement::SelectCase(s) => {
+                for c in &mut s.cases {
+                    retarget_exit_for(&mut c.body);
+                }
+                retarget_exit_for(&mut s.case_else);
+            }
+            Statement::With(w) => retarget_exit_for(&mut w.body),
+            _ => {}
+        }
+    }
+}
+
+/// Statements registering the program's DATA table when it starts: a
+/// reset, the items (in calls of at most 200 arguments) and RESTORE labels.
+fn data_table_init(items: &[Expression], labels: &[(String, usize)]) -> Vec<Statement> {
+    let span = TextSpan::default();
+    let call = |name: &str, args: Vec<Expression>| Statement::Call(CallStatement { span, callee: ident(span, name), args });
+    let mut out = vec![call("__DATA_RESET", Vec::new())];
+    for chunk in items.chunks(200) {
+        out.push(call("__DATA_ADD", chunk.to_vec()));
+    }
+    for (label, index) in labels {
+        out.push(call(
+            "__DATA_LABEL",
+            vec![
+                Expression::Literal(Literal { span, value: LiteralValue::String(label.clone()) }),
+                Expression::Literal(Literal { span, value: LiteralValue::Integer(*index as i64) }),
+            ],
+        ));
+    }
+    out
+}
+
+/// The hidden parameter of a SUBI/FUNCTIONI holding its packed arguments.
+const VARIADIC_PARAM: &str = "__params";
+
+fn ident(span: TextSpan, name: &str) -> Expression {
+    Expression::Identifier(Identifier { span, name: name.to_string() })
+}
+
+fn call_expr(span: TextSpan, name: &str, args: Vec<Expression>) -> Expression {
+    Expression::FunctionCall(FunctionCallExpression { span, callee: Box::new(ident(span, name)), args })
+}
+
+/// Inside a SUBI/FUNCTIONI: ParamStr$(i) → __PARAMSTR(__params, i), ParamVal(i),
+/// and the ParamStrCount / ParamValCount counts.
+fn rewrite_param_access(body: &mut [Statement]) {
+    walk_expressions_mut(body, true, &mut |e| {
+        let replacement = match e {
+            Expression::FunctionCall(c) => match c.callee.as_ref() {
+                Expression::Identifier(id) if c.args.len() == 1 => {
+                    let key = id.name.trim_end_matches('$').to_ascii_uppercase();
+                    matches!(key.as_str(), "PARAMSTR" | "PARAMVAL").then(|| {
+                        call_expr(c.span, &format!("__{key}"), vec![ident(c.span, VARIADIC_PARAM), c.args[0].clone()])
+                    })
+                }
+                _ => None,
+            },
+            Expression::Identifier(id) => {
+                let key = id.name.to_ascii_uppercase();
+                matches!(key.as_str(), "PARAMSTRCOUNT" | "PARAMVALCOUNT")
+                    .then(|| call_expr(id.span, &format!("__{key}"), vec![ident(id.span, VARIADIC_PARAM)]))
+            }
+            _ => None,
+        };
+        if let Some(r) = replacement {
+            *e = r;
+        }
+    });
+}
+
+/// Every call to a SUBI/FUNCTIONI passes its arguments packed into one
+/// value: `Max 1, 2, 3` → `Max __PACK(1, 2, 3)`.
+fn pack_variadic_calls(stmts: &mut [Statement], names: &[String]) {
+    if names.is_empty() {
+        return;
+    }
+    // `Max 1, 2` or, for a SUBI/FUNCTIONI method, `obj.Max 1, 2`.
+    let is_variadic = |callee: &Expression| match callee {
+        Expression::Identifier(id) => names.contains(&id.name.to_ascii_lowercase()),
+        Expression::MemberAccess(m) => names.contains(&m.member.to_ascii_lowercase()),
+        _ => false,
+    };
+    let pack = |span: TextSpan, args: &mut Vec<Expression>| {
+        let packed = call_expr(span, "__PACK", std::mem::take(args));
+        args.push(packed);
+    };
+    walk_expressions_mut(stmts, true, &mut |e| {
+        if let Expression::FunctionCall(c) = e {
+            if is_variadic(&c.callee) {
+                pack(c.span, &mut c.args);
+            }
+        }
+    });
+    walk_statements_mut(stmts, &mut |s| {
+        if let Statement::Call(c) = s {
+            if is_variadic(&c.callee) {
+                pack(c.span, &mut c.args);
+            }
+        }
+    });
 }
 
 fn is_zero_literal(e: &Expression) -> bool {

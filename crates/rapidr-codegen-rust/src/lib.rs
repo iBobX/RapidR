@@ -107,6 +107,8 @@ struct RustCodegen {
     function_param_counts: HashMap<String, usize>,
     /// FUNCTIONs (not SUBs), lowercase: a bare `Name` in an expression calls one.
     returning_functions: HashSet<String>,
+    /// Labels some GOTO/GOSUB jumps to (lowercase).
+    jump_targets: HashSet<String>,
     /// DECLARE'd FFI function names (lowercase) → (alias, lib, params, return_type).
     declared_functions: HashSet<String>,
     /// Array variable name (lowercase) → (default_value_str, size_expr_str) for re-declaring in subs.
@@ -141,6 +143,7 @@ impl RustCodegen {
             all_referenced_vars: HashSet::new(),
             function_param_counts: HashMap::new(),
             returning_functions: HashSet::new(),
+            jump_targets: HashSet::new(),
             declared_functions: HashSet::new(),
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
@@ -239,6 +242,17 @@ impl RustCodegen {
     // --- program ---
 
     fn emit_program(&mut self, program: &Program) {
+        let mut targets = HashSet::new();
+        rapidr_ast::walk(
+            &program.statements,
+            &mut |s| {
+                if let Statement::Goto(j) | Statement::Gosub(j) = s {
+                    targets.insert(j.label.to_lowercase());
+                }
+            },
+            &mut |_| {},
+        );
+        self.jump_targets = targets;
         // First pass: collect top-level function/sub names, variable names, TYPE and component defs
         for stmt in &program.statements {
             match stmt {
@@ -498,6 +512,8 @@ impl RustCodegen {
                 };
                 self.emit_call(&call);
             }
+            // A label nothing jumps to (e.g. only a RESTORE target) is just a marker.
+            Statement::Label(l) if !self.jump_targets.contains(&l.name.to_lowercase()) => {}
             // Rust has no goto; until codegen gets a state-machine lowering,
             // refuse clearly instead of generating code that runs wrongly.
             Statement::Label(_) | Statement::Goto(_) | Statement::Gosub(_) => {
@@ -1556,12 +1572,10 @@ impl RustCodegen {
                 return;
             }
         }
-        let target = self.expr_to_string(&b.target);
-        let handler = self.expr_to_string(&b.handler);
-        self.write_indent();
-        let _ = writeln!(
-            self.output,
-            "// BIND {target} TO {handler} (not a component event)"
+        // `BIND ptr TO Proc` (a function pointer): refuse clearly rather
+        // than skip it.
+        self.line(
+            "compile_error!(\"Function pointers (BIND … TO / CODEPTR / CALLFUNC) aren't supported in native builds yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
         );
     }
 
@@ -2128,8 +2142,9 @@ impl RustCodegen {
 fn to_snake(name: &str) -> String {
     // Strip type suffixes first
     let name = strip_type_suffix(name);
-    // Just lowercase for now since BASIC names are case-insensitive
-    let lower = name.to_lowercase();
+    // Just lowercase for now since BASIC names are case-insensitive; a dotted
+    // DECLARE name (`SLEEP.ms`) becomes `sleep_ms`.
+    let lower = name.to_lowercase().replace('.', "_");
     // Escape Rust reserved keywords by prefixing with r#
     // (raw identifier syntax) or appending underscore
     match lower.as_str() {
@@ -2140,6 +2155,8 @@ fn to_snake(name: &str) -> String {
         | "await" | "dyn" | "abstract" | "become" | "box" | "do" | "final" | "macro"
         | "override" | "priv" | "try" | "typeof" | "unsized" | "virtual" | "yield"
         | "move" | "main" => format!("{lower}_"),
+        // RapidQ names may start with a digit (`SUB 01click`); Rust's can't.
+        _ if lower.starts_with(|c: char| c.is_ascii_digit()) => format!("n_{lower}"),
         _ => lower,
     }
 }
@@ -2254,6 +2271,24 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "reverse" => Some(format!("rp_reverse(&{a0})")),
         "field" => Some(format!("rp_field(&{a0}, &{a1}, &{a2})")),
         "tally" => Some(format!("rp_tally(&{a0}, &{a1})")),
+        "shl" => Some(format!("rp_shl(&{a0}, &{a1})")),
+        "shr" => Some(format!("rp_shr(&{a0}, &{a1})")),
+        // SUBI / FUNCTIONI arguments (inserted by the parser)
+        "__pack" => Some(format!("variadic::pack(&[{}])", args.join(", "))),
+        "__paramstr" => Some(format!("variadic::param_str(&{a0}, &{a1})")),
+        "__paramval" => Some(format!("variadic::param_val(&{a0}, &{a1})")),
+        "__paramstrcount" => Some(format!("variadic::param_str_count(&{a0})")),
+        "__paramvalcount" => Some(format!("variadic::param_val_count(&{a0})")),
+        // DATA / READ / RESTORE (inserted by the parser)
+        "__data_reset" => Some("{ data::reset(); v_null() }".to_string()),
+        "__data_add" => Some(format!("{{ data::add(&[{}]); v_null() }}", args.join(", "))),
+        "__data_label" => Some(format!("{{ data::label(&{a0}, &{a1}); v_null() }}")),
+        "__read" => Some("data::read_compiled()".to_string()),
+        "__restore" => Some(if args.is_empty() {
+            "data::restore_compiled(None)".to_string()
+        } else {
+            format!("data::restore_compiled(Some(&{a0}))")
+        }),
         "rinstr" => Some(format!("rp_rinstr(&{a0}, &{a1})")),
         "format" => Some(format!("rp_format(&{a0}, &{a1})")),
         "strf" => Some(format!("rp_strf(&{a0})")),
@@ -2293,6 +2328,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "sndplayasync" | "playsound" => Some(format!("rp_sound(&{a0}, &{a1})")),
 
         // Pointer helpers
+        "codeptr" | "callback" | "callfunc" => Some(
+            "compile_error!(\"Function pointers (CODEPTR / CALLFUNC / BIND … TO) aren't supported in native builds yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\")".to_string(),
+        ),
         "varptr" => Some(format!("rp_varptr(&{a0})")),
         "varptr$" => Some(format!("rp_varptr_str(&{a0})")),
 

@@ -36,6 +36,9 @@ impl Host for WebHost {
         // LBOUND(arr [, dim]) / UBOUND(arr [, dim]) read the array's own
         // bounds (dimension 1 by default).
         let key = rapidr_bytecode::builtins::builtin_key(name);
+        if let Some(result) = rapidr_value::data::builtin(&key, args) {
+            return result;
+        }
         if key == "lbound" || key == "ubound" {
             let arr = args.first().cloned().unwrap_or_else(v_null);
             let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
@@ -140,6 +143,14 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "reverse" => rp_reverse(&a0),
         "field" => rp_field(&a0, &a1, &a2),
         "tally" => rp_tally(&a0, &a1),
+        "shl" => rapidr_value::rp_shl(&a0, &a1),
+        "shr" => rapidr_value::rp_shr(&a0, &a1),
+        // SUBI / FUNCTIONI arguments
+        "__pack" => rapidr_value::variadic::pack(args),
+        "__paramstr" => rapidr_value::variadic::param_str(&a0, &a1),
+        "__paramval" => rapidr_value::variadic::param_val(&a0, &a1),
+        "__paramstrcount" => rapidr_value::variadic::param_str_count(&a0),
+        "__paramvalcount" => rapidr_value::variadic::param_val_count(&a0),
         "rinstr" => rp_rinstr(&a0, &a1),
         "format" => rp_format(&a0, &a1),
         "strf" => rp_strf(&a0),

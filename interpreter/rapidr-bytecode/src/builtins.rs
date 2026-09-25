@@ -8,6 +8,10 @@
 /// Normalized names (see [`builtin_key`]).
 pub const BUILTINS: &[&str] = &[
     "__gui_register_timer",
+    // SUBI / FUNCTIONI arguments (the parser inserts these calls)
+    "__pack", "__paramstr", "__paramstrcount", "__paramval", "__paramvalcount",
+    // DATA / READ / RESTORE (the parser inserts these calls)
+    "__data_add", "__data_label", "__data_reset", "__read", "__restore",
     "abs", "acos", "asc", "asin", "atn",
     "beep", "bin",
     "cdbl", "ceil", "chdir", "chr", "cint", "clng", "close", "command", "convbase",
@@ -24,13 +28,17 @@ pub const BUILTINS: &[&str] = &[
     "pi", "playsound", "print", "print_hash", "println",
     "randomize", "rename", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
     "rnd", "round", "rtrim",
-    "seek", "sgn", "shell", "shellwait", "showmessage", "sin", "sizeof", "sleep",
+    "seek", "sgn", "shell", "shellwait", "shl", "shr", "showmessage", "sin", "sizeof", "sleep",
     "sound", "space", "sqr", "str", "strf", "string",
     "tally", "tan", "time", "time_func", "timer", "trim",
     "ubound", "ucase",
     "val", "vartype",
     "write_hash",
 ];
+
+/// Builtins every host hands to `rapidr_value::data::builtin` before its own
+/// dispatch table (DATA / READ / RESTORE share one implementation).
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore"];
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.
@@ -87,7 +95,10 @@ mod tests {
             .filter(|n| *n != "print#" && *n != "write#") // aliases of print_hash/write_hash
             .map(|n| builtin_key(n))
             .collect();
-        let reg = registry();
+        let reg: BTreeSet<String> = registry()
+            .into_iter()
+            .filter(|n| !SHARED_DATA_BUILTINS.contains(&n.as_str()))
+            .collect();
         let missing_in_registry: Vec<_> = arms.difference(&reg).collect();
         let missing_in_host: Vec<_> = reg.difference(&arms).collect();
         assert!(
@@ -103,12 +114,29 @@ mod tests {
     }
 
     #[test]
+    fn shared_data_builtins_are_handled_and_both_hosts_use_them() {
+        for name in SHARED_DATA_BUILTINS {
+            assert!(BUILTINS.contains(name), "{name} missing from BUILTINS");
+            let args = [rapidr_value::Value::String("x".into()), rapidr_value::Value::Integer(0)];
+            assert!(rapidr_value::data::builtin(name, &args).is_some(), "{name} not handled by rapidr_value::data");
+        }
+        rapidr_value::data::reset();
+        for host in [include_str!("../../rapidr-vm-host-native/src/lib.rs"), include_str!("../../rapidr-vm-host-web/src/lib.rs")] {
+            assert!(host.contains("rapidr_value::data::builtin(&key, args)"), "a host doesn't dispatch the DATA builtins");
+        }
+    }
+
+    #[test]
     fn registry_matches_web_host() {
         let src = include_str!("../../rapidr-vm-host-web/src/lib.rs");
         let arms: BTreeSet<String> = host_arms(src, "fn call_builtin_web").iter().map(|n| builtin_key(n)).collect();
         // File-handle I/O (OPEN/PRINT #...) is native-only for now; the web
         // host reports those as unknown at run time.
-        let native_only: BTreeSet<String> = ["print_hash", "write_hash"].iter().map(|s| s.to_string()).collect();
+        let native_only: BTreeSet<String> = ["print_hash", "write_hash"]
+            .iter()
+            .chain(SHARED_DATA_BUILTINS)
+            .map(|s| s.to_string())
+            .collect();
         let expected: BTreeSet<String> = registry().difference(&native_only).cloned().collect();
         assert_eq!(arms, expected, "web host and BUILTINS (minus native-only) differ");
     }
