@@ -1843,6 +1843,9 @@ impl RustCodegen {
                     "date" | "date$" => "rp_date()".to_string(),
                     "command$" => "rp_command()".to_string(),
                     "timer" => "rp_timer()".to_string(),
+                    "csrlin" => "console::csrlin()".to_string(),
+                    // An omitted argument (`COLOR , 1`, `INSTR(, a, b)`)
+                    "__omitted" => "v_null()".to_string(),
                     _ => {
                         let name = strip_type_suffix(&id.name);
                         let snake = to_snake(&name);
@@ -2271,6 +2274,12 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "reverse" => Some(format!("rp_reverse(&{a0})")),
         "field" => Some(format!("rp_field(&{a0}, &{a1}, &{a2})")),
         "tally" => Some(format!("rp_tally(&{a0}, &{a1})")),
+        // Console (RapidQ appendix C), as ANSI sequences
+        "cls" => Some("{ rp_print(&[v_str(&console::cls())], false); v_null() }".to_string()),
+        "color" => Some(format!("{{ rp_print(&[v_str(&console::color(&{a0}, &{a1}))], false); v_null() }}")),
+        "locate" => Some(format!("{{ rp_print(&[v_str(&console::locate(&{a0}, &{a1}))], false); v_null() }}")),
+        "csrlin" => Some("console::csrlin()".to_string()),
+        "pos" => Some("console::pos()".to_string()),
         "shl" => Some(format!("rp_shl(&{a0}, &{a1})")),
         "shr" => Some(format!("rp_shr(&{a0}, &{a1})")),
         // SUBI / FUNCTIONI arguments (inserted by the parser)

@@ -542,10 +542,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     }
 
     fn emit_output(&mut self, s: &str) -> Result<(), VmError> {
-        self.print_col = match s.rfind('\n') {
-            Some(i) => s[i + 1..].chars().count(),
-            None => self.print_col + s.chars().count(),
-        };
+        // Escape sequences (COLOR, LOCATE) don't take up columns.
+        self.print_col = rapidr_value::console::advance(1, self.print_col + 1, s).1 - 1;
         self.host.print(s).map_err(VmError::HostError)
     }
 

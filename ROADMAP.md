@@ -130,9 +130,11 @@ the IDE's About dialog.
 
 Next up, in order:
 - [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)
-- [ ] Windows DLL calls: error names the portable RapidR equivalent where one exists (ShellExecute → open a file/URL, Sleep → SLEEP, …)
-- [ ] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` (ANSI on desktop, the IDE output panel on the web)
-- [ ] `REDIM` keeping data, `INV`, empty arguments `INSTR(, a, b)`
+- [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0)
+- [x] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` as ANSI sequences on both backends; the IDE Output panel renders them (web-ide/ansi_screen.js) (v2.17.0)
+- [ ] Web bundles: an on-page console screen for programs that PRINT (today bundles only log to the browser console)
+- [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
+- [ ] `REDIM` keeping data, `INV`
 - [ ] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop, in-page modal in the web preview)
 - [ ] Missing RapidQ objects as real components: QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM (then the rest of the list in `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`)
 - [ ] Native builds catch up (reasoning: high): GOTO/GOSUB, OOP TYPEs, STATIC, function pointers

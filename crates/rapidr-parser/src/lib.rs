@@ -2146,7 +2146,7 @@ impl<'a> Parser<'a> {
             return Some(args);
         }
         loop {
-            args.push(self.parse_expression()?);
+            args.push(self.parse_argument()?);
             if self.match_kind(TokenType::Comma) {
                 continue;
             }
@@ -2156,10 +2156,20 @@ impl<'a> Parser<'a> {
         Some(args)
     }
 
+    /// One argument, which RapidQ lets you leave out: `INSTR(, a, b)`,
+    /// `COLOR , 1`, `LOCATE , 5` (the callee then uses its default).
+    fn parse_argument(&mut self) -> Option<Expression> {
+        if matches!(self.peek_kind(), Some(TokenType::Comma | TokenType::RParen)) {
+            let span = self.peek().map(|t| t.span).unwrap_or_default();
+            return Some(Expression::Identifier(Identifier { span, name: OMITTED_ARGUMENT.to_string() }));
+        }
+        self.parse_expression()
+    }
+
     fn parse_argument_list_without_parens(&mut self) -> Option<Vec<Expression>> {
-        let mut args = vec![self.parse_expression()?];
+        let mut args = vec![self.parse_argument()?];
         while self.match_kind(TokenType::Comma) {
-            args.push(self.parse_expression()?);
+            args.push(self.parse_argument()?);
         }
         Some(args)
     }

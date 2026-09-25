@@ -42,6 +42,7 @@ pub mod prelude {
     pub use crate::value::variadic;
     // DATA / READ / RESTORE
     pub use crate::value::data;
+    pub use crate::value::console;
     pub use crate::value::{rp_shl, rp_shr};
 
     #[cfg(feature = "gui")]

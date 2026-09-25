@@ -7,6 +7,39 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.17.0] — 2026-09-25
+
+**Portable console, and honest Windows errors.** RapidQ's console statements
+work on every platform and in the IDE. Calls into Windows itself say plainly
+that RapidR doesn't emulate Windows, and what to use instead.
+
+### Added
+- **Console statements** (RapidQ appendix C) on both backends:
+  - `CLS`, `COLOR [fg][, bg]` (QBasic colors 0-15), `LOCATE [row][, col]`,
+    `CSRLIN` and `POS(0)`;
+  - they emit standard ANSI/VT sequences (macOS, Linux and Windows 10+
+    terminals), from one implementation in `rapidr_value::console`;
+  - PRINT zones and the cursor ignore escape sequences.
+- **The IDE Output panel renders them** (`web-ide/ansi_screen.js`): colors,
+  cursor positioning and clearing, with printed text only ever inserted as
+  text. Plain PRINT output looks and copies exactly as before.
+- **Windows API errors name the portable alternative.** A `DECLARE … LIB`
+  into a Windows system DLL (user32, gdi32, kernel32, winmm, odbc32, ws2_32,
+  …) now reads: "'ShellExecute' is a Windows API function; RapidR runs on
+  every platform and doesn't emulate Windows. Instead, run programs and open
+  files with SHELL / SHELLWAIT". Hints cover ODBC → RSQLITE/RMYSQL, GDI →
+  RCANVAS, window management → component properties, MCI → PLAYSOUND,
+  Winsock → RSOCKET, WinINet → RHTTP and more. A program's own DLLs keep the
+  native-build message.
+- **Omitted arguments:** `INSTR(, a, b)`, `COLOR , 1`, `LOCATE , 5`.
+- **Tests:** conformance case `console_ansi`, IDE suite
+  `tests/web_ide_console.mjs`, and a unit test for the Windows API messages.
+
+### Fixed
+- **Bare `TIMER` in the interpreter.** It (and `TIME$`, `DATE$`, `COMMAND$`,
+  `PI`) evaluated to Null when written without parentheses; native builds
+  already called them. Both backends now share one list of such built-ins.
+
 ## [2.16.1] — 2026-09-25
 
 **Open-source credits.** RapidR ships 478 open-source Rust libraries plus

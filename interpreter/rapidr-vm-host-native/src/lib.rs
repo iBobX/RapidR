@@ -83,6 +83,8 @@ impl Host for NativeHost {
     }
 
     fn print(&mut self, s: &str) -> Result<(), String> {
+        // Keep the shared console cursor current (CSRLIN, POS, LOCATE).
+        rapidr_value::console::track(s);
         let stdout = io::stdout();
         let mut h = stdout.lock();
         h.write_all(s.as_bytes()).map_err(|e| e.to_string())?;
@@ -150,6 +152,12 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "reverse" => rp_reverse(&a0),
         "field" => rp_field(&a0, &a1, &a2),
         "tally" => rp_tally(&a0, &a1),
+        // Console (RapidQ appendix C), as ANSI sequences
+        "cls" => { rp_print(&[v_str(&rapidr_value::console::cls())], false); v_null() }
+        "color" => { rp_print(&[v_str(&rapidr_value::console::color(&a0, &a1))], false); v_null() }
+        "locate" => { rp_print(&[v_str(&rapidr_value::console::locate(&a0, &a1))], false); v_null() }
+        "csrlin" => rapidr_value::console::csrlin(),
+        "pos" => rapidr_value::console::pos(),
         "shl" => rapidr_value::rp_shl(&a0, &a1),
         "shr" => rapidr_value::rp_shr(&a0, &a1),
         // SUBI / FUNCTIONI arguments

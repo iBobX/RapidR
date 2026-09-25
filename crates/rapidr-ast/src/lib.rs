@@ -1041,3 +1041,7 @@ pub fn data_items(raw: &str) -> Vec<LiteralValue> {
         })
         .collect()
 }
+
+/// Name of the identifier standing for a left-out argument (`COLOR , 1`,
+/// `INSTR(, a, b)`); code generators pass Null for it.
+pub const OMITTED_ARGUMENT: &str = "__omitted";
