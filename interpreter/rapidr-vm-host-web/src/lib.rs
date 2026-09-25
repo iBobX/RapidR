@@ -36,7 +36,7 @@ impl Host for WebHost {
         // LBOUND(arr [, dim]) / UBOUND(arr [, dim]) read the array's own
         // bounds (dimension 1 by default).
         let key = rapidr_bytecode::builtins::builtin_key(name);
-        if let Some(result) = rapidr_value::data::builtin(&key, args) {
+        if let Some(result) = rapidr_value::shared_builtin(&key, args) {
             return result;
         }
         if key == "lbound" || key == "ubound" {
@@ -143,6 +143,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "reverse" => rp_reverse(&a0),
         "field" => rp_field(&a0, &a1, &a2),
         "tally" => rp_tally(&a0, &a1),
+        "inv" => rapidr_value::rp_inv(&a0, &a1),
         // Console (RapidQ appendix C), as ANSI sequences
         "cls" => { rp_print(&[v_str(&rapidr_value::console::cls())], false); v_null() }
         "color" => { rp_print(&[v_str(&rapidr_value::console::color(&a0, &a1))], false); v_null() }

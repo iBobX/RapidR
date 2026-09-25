@@ -464,3 +464,88 @@ pub fn rp_shr(a: &Value, n: &Value) -> Value {
     let bits = a.to_i64() as u32;
     Value::Integer(if shift >= 32 { 0 } else { (bits >> shift) as i32 as i64 })
 }
+
+/// `REDIM a(bounds) AS T` (RapidQ manual, REDIM): resizes an existing array
+/// in place (everyone holding it sees the new size), keeping each element
+/// whose index is still inside the new bounds; creates the array when `old`
+/// isn't one yet (REDIM without DIM is DIM).
+pub fn redim(old: &Value, bounds: &[(i64, i64)], fill: Value) -> Result<Value, String> {
+    let fresh = BasicArray::new(bounds.to_vec(), fill)?;
+    let Value::Array(existing) = old else {
+        return Ok(Value::Array(Rc::new(RefCell::new(fresh))));
+    };
+    let mut resized = fresh;
+    {
+        let previous = existing.borrow();
+        if previous.bounds.len() == resized.bounds.len() {
+            // Walk the old elements in storage order with their indices.
+            let mut index: Vec<i64> = previous.bounds.iter().map(|b| b.0).collect();
+            for value in &previous.data {
+                let _ = resized.set(&index, value.clone());
+                for d in (0..index.len()).rev() {
+                    index[d] += 1;
+                    if index[d] <= previous.bounds[d].1 || d == 0 {
+                        break;
+                    }
+                    index[d] = previous.bounds[d].0;
+                }
+            }
+        }
+    }
+    *existing.borrow_mut() = resized;
+    Ok(old.clone())
+}
+
+/// `REDIM` in compiled programs.
+pub fn rp_redim(old: &Value, bounds: &[(i64, i64)], fill: Value) -> Value {
+    redim(old, bounds, fill).unwrap_or_else(|e| runtime_error(&e))
+}
+
+/// `a INV m` (RapidQ): the inverse of `a` modulo `m`, e.g. 3 INV 26 = 9;
+/// 0 when there is none.
+pub fn rp_inv(a: &Value, m: &Value) -> Value {
+    let (a, m) = (a.to_i64(), m.to_i64());
+    if m == 0 {
+        return Value::Integer(0);
+    }
+    let (mut r0, mut r1) = (a.rem_euclid(m), m.abs());
+    let (mut t0, mut t1) = (1i64, 0i64);
+    while r1 != 0 {
+        let q = r0 / r1;
+        (r0, r1) = (r1, r0 - q * r1);
+        (t0, t1) = (t1, t0 - q * t1);
+    }
+    Value::Integer(if r0 == 1 { t0.rem_euclid(m.abs()) } else { 0 })
+}
+
+#[cfg(test)]
+mod redim_tests {
+    use super::*;
+
+    #[test]
+    fn redim_keeps_data_in_place_and_inv() {
+        let a = rp_new_array(&[(0, 2)], Value::Integer(0));
+        a.rp_set(&[1], Value::Integer(7));
+        let alias = a.clone();
+        rp_redim(&a, &[(0, 5)], Value::Integer(0));
+        assert_eq!(alias.rp_get(&[1]), Value::Integer(7));
+        assert_eq!(alias.rp_get(&[5]), Value::Integer(0));
+        rp_redim(&a, &[(0, 0)], Value::Integer(0));
+        assert_eq!(array_bound(&a, 1, true), Some(0));
+        assert!(matches!(rp_redim(&Value::Null, &[(1, 3)], Value::Null), Value::Array(_)));
+        assert_eq!(rp_inv(&Value::Integer(3), &Value::Integer(26)), Value::Integer(9));
+        assert_eq!(rp_inv(&Value::Integer(2), &Value::Integer(4)), Value::Integer(0));
+    }
+}
+
+/// Builtins implemented here that interpreter hosts dispatch before their own
+/// tables: DATA/READ/RESTORE and `__redim(old, fill, lo1, hi1, …)`.
+pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    if key == "__redim" {
+        let (old, rest) = args.split_first()?;
+        let (fill, bounds) = rest.split_first()?;
+        let bounds: Vec<(i64, i64)> = bounds.chunks(2).map(|b| (b[0].to_i64(), b.get(1).map_or(0, |v| v.to_i64()))).collect();
+        return Some(redim(old, &bounds, fill.clone()));
+    }
+    data::builtin(key, args)
+}

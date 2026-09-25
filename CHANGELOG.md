@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.18.0] — 2026-09-25
+
+### Added
+- **`REDIM a(n) AS T`** (RapidQ manual) on both backends:
+  - the array is resized in place, so every variable holding it sees the new
+    size;
+  - each element whose index still fits is kept;
+  - without an earlier DIM, it creates the array;
+  - VB's `REDIM PRESERVE` is accepted;
+  - one implementation, `rapidr_value::redim`, shared by both backends.
+- **`a INV m`:** the modular inverse (`3 INV 26` = 9, 0 when there is none),
+  at MOD's precedence.
+- **Tests:** conformance case `redim_inv`.
+
 ## [2.17.0] — 2026-09-25
 
 **Portable console, and honest Windows errors.** RapidQ's console statements

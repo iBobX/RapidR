@@ -540,6 +540,7 @@ impl RustCodegen {
         for decl in &d.declarators {
             let name = to_snake(&decl.name);
             let name_lower = decl.name.to_lowercase();
+            let was_array = self.array_vars.contains(&name_lower);
             self.array_vars.remove(&name_lower); // re-insert if has dims
 
             // Component variable → create via registry (skip if a CREATE block handles it)
@@ -592,8 +593,21 @@ impl RustCodegen {
                     })
                     .collect();
                 let default = default_value_for_type(&d.type_name);
-                let array = format!("rp_new_array(&[{}], {default})", bounds.join(", "));
-                if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
+                let global = !self.in_sub_or_function && self.top_level_vars.contains(&name_lower);
+                let array = if d.is_redim {
+                    // REDIM: resize keeping the data (a new array if there's none yet).
+                    let current = if global {
+                        format!("gv(\"{name}\")")
+                    } else if was_array {
+                        name.clone()
+                    } else {
+                        "v_null()".to_string()
+                    };
+                    format!("rp_redim(&{current}, &[{}], {default})", bounds.join(", "))
+                } else {
+                    format!("rp_new_array(&[{}], {default})", bounds.join(", "))
+                };
+                if global {
                     // Module-level array → global variable
                     self.write_indent();
                     let _ = writeln!(self.output, "gs(\"{name}\", {array});");
@@ -2281,6 +2295,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "csrlin" => Some("console::csrlin()".to_string()),
         "pos" => Some("console::pos()".to_string()),
         "shl" => Some(format!("rp_shl(&{a0}, &{a1})")),
+        "inv" => Some(format!("rp_inv(&{a0}, &{a1})")),
         "shr" => Some(format!("rp_shr(&{a0}, &{a1})")),
         // SUBI / FUNCTIONI arguments (inserted by the parser)
         "__pack" => Some(format!("variadic::pack(&[{}])", args.join(", "))),

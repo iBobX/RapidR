@@ -78,6 +78,8 @@ pub struct DimStatement {
     /// `STATIC x AS T` inside a SUB/FUNCTION: one variable shared by every
     /// call (and recursion) of that procedure, initialised once.
     pub is_static: bool,
+    /// `REDIM a(n) AS T`: resize keeping the data (`rapidr_value::redim`).
+    pub is_redim: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

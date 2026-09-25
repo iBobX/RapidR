@@ -12,6 +12,8 @@ pub const BUILTINS: &[&str] = &[
     "__pack", "__paramstr", "__paramstrcount", "__paramval", "__paramvalcount",
     // DATA / READ / RESTORE (the parser inserts these calls)
     "__data_add", "__data_label", "__data_reset", "__read", "__restore",
+    // REDIM (resize keeping data)
+    "__redim",
     "abs", "acos", "asc", "asin", "atn",
     "beep", "bin",
     "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "convbase",
@@ -20,7 +22,7 @@ pub const BUILTINS: &[&str] = &[
     "e", "end", "environ", "eof", "exp",
     "field", "fileexists", "filelen", "fix", "floor", "format", "frac", "freefile",
     "hex", "hextodec",
-    "iif", "input", "input_func", "insert", "instr", "int", "isnumeric",
+    "iif", "input", "input_func", "insert", "instr", "int", "inv", "isnumeric",
     "kill",
     "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
     "math.e", "math.pi", "mid", "mkdir", "msgbox",
@@ -36,9 +38,9 @@ pub const BUILTINS: &[&str] = &[
     "write_hash",
 ];
 
-/// Builtins every host hands to `rapidr_value::data::builtin` before its own
-/// dispatch table (DATA / READ / RESTORE share one implementation).
-pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore"];
+/// Builtins every host hands to `rapidr_value::shared_builtin` before its own
+/// dispatch table (DATA / READ / RESTORE and REDIM share one implementation).
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
@@ -122,11 +124,11 @@ mod tests {
         for name in SHARED_DATA_BUILTINS {
             assert!(BUILTINS.contains(name), "{name} missing from BUILTINS");
             let args = [rapidr_value::Value::String("x".into()), rapidr_value::Value::Integer(0)];
-            assert!(rapidr_value::data::builtin(name, &args).is_some(), "{name} not handled by rapidr_value::data");
+            assert!(rapidr_value::shared_builtin(name, &args).is_some(), "{name} not handled by rapidr_value::shared_builtin");
         }
         rapidr_value::data::reset();
         for host in [include_str!("../../rapidr-vm-host-native/src/lib.rs"), include_str!("../../rapidr-vm-host-web/src/lib.rs")] {
-            assert!(host.contains("rapidr_value::data::builtin(&key, args)"), "a host doesn't dispatch the DATA builtins");
+            assert!(host.contains("rapidr_value::shared_builtin(&key, args)"), "a host doesn't dispatch the shared builtins");
         }
     }
 

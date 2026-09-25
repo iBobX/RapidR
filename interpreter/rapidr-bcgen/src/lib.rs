@@ -633,7 +633,9 @@ impl Bcgen {
                     } else {
                         self.globals.insert(name_key(&decl.name));
                     }
-                    if !decl.dimensions.is_empty() && !is_component_type_name(&d.type_name) {
+                    if d.is_redim && !decl.dimensions.is_empty() {
+                        self.lower_redim(decl, &d.type_name, code)?;
+                    } else if !decl.dimensions.is_empty() && !is_component_type_name(&d.type_name) {
                         self.lower_array_dim(decl, &d.type_name, code)?;
                     } else if self.types.contains_key(&d.type_name) {
                         self.setup_instance(&decl.name, &d.type_name, code)?;
@@ -850,6 +852,31 @@ impl Bcgen {
     /// Whether `name` is a module-level variable (or a STATIC of this routine).
     fn is_known_global(&self, name: &str) -> bool {
         self.globals.contains(&name_key(name)) || self.scope.statics.contains_key(name)
+    }
+
+    /// `REDIM a(20) AS T`: `a = __redim(a, fill, lo1, hi1, …)`, which resizes
+    /// an existing array in place keeping its data (rapidr_value::redim).
+    fn lower_redim(&mut self, decl: &VariableDeclarator, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
+        let var = Expression::Identifier(rapidr_ast::Identifier { span: decl.span, name: decl.name.clone() });
+        self.lower_expr(&var, code)?;
+        let fill = self.module.add_const(type_default(type_name));
+        emit(code, Op::LoadConst); push_u32(code, fill);
+        let zero = self.module.add_const(Const::Int(0));
+        for dim in &decl.dimensions {
+            match dim {
+                ArrayDimension::Single(upper) => {
+                    emit(code, Op::LoadConst); push_u32(code, zero);
+                    self.lower_expr(upper, code)?;
+                }
+                ArrayDimension::Range { start, end } => {
+                    self.lower_expr(start, code)?;
+                    self.lower_expr(end, code)?;
+                }
+            }
+        }
+        let s = self.module.add_string("__redim");
+        emit(code, Op::CallBuiltin); push_u32(code, s); code.push((2 + 2 * decl.dimensions.len()) as u8);
+        self.store_target(&var, code)
     }
 
     /// `DIM a(10)`, `DIM b(1 TO 5, 3) AS STRING`: allocate the array (each
