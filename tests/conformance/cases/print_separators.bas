@@ -1,6 +1,8 @@
-' xfail: vm, codegen — any ';' in PRINT suppresses the newline; only a trailing ';' should
-' A trailing ';' keeps the cursor on the line; a ';' between items does not.
+' A trailing ';' or ',' keeps the cursor on the line; ';' joins items, ',' moves to the next 14-column zone.
 PRINT "a"; "b"
 PRINT "c";
 PRINT "d"
 PRINT "e"
+PRINT "ab", "c"
+PRINT "x",
+PRINT "y"

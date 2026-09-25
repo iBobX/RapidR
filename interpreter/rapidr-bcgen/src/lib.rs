@@ -26,7 +26,8 @@
 use std::collections::{HashMap, HashSet};
 
 use rapidr_ast::{
-    ArrayAccessExpression, AssignmentStatement, BinaryOperator, BindStatement, CallStatement, CaseValue,
+    ArrayAccessExpression, ArrayDimension, AssignmentStatement, BinaryOperator, BindStatement,
+    CallStatement, CaseValue, VariableDeclarator,
     CreateStatement, DoLoopStatement, Expression, ForStatement, FunctionStatement, IfStatement,
     Literal, LiteralValue, Parameter, PrintStatement, Program, ReturnStatement, Statement,
     SubroutineStatement, UnaryOperator, WhileStatement,
@@ -315,8 +316,7 @@ impl Bcgen {
         } else if key == "varptr" {
             format!("{} (memory addresses) only works in native builds (`rapidr build`), not in the bytecode interpreter", name.to_uppercase())
         } else if key == "inc" || key == "dec" {
-            let op = if key == "inc" { "+" } else { "-" };
-            format!("{} is not supported yet; write `x = x {op} 1` instead", name.to_uppercase())
+            format!("{} needs a variable: `{} x` or `{} x, amount`", name.to_uppercase(), name.to_uppercase(), name.to_uppercase())
         } else if argc == 0 {
             format!(
                 "Unknown SUB or FUNCTION '{name}' (if this is a line label: labels, GOTO and GOSUB are not supported yet)"
@@ -421,6 +421,9 @@ impl Bcgen {
                         self.scope.declare(&decl.name);
                     } else {
                         self.globals.insert(name_key(&decl.name));
+                    }
+                    if !decl.dimensions.is_empty() && !is_component_type_name(&d.type_name) {
+                        self.lower_array_dim(decl, &d.type_name, code)?;
                     }
                     // Component DIM → eagerly CreateComp (mirrors the
                     // compiled-mode `emit_dim` path), unless a CREATE block
@@ -577,6 +580,39 @@ impl Bcgen {
         Ok(())
     }
 
+    /// `DIM a(10)`, `DIM b(1 TO 5, 3) AS STRING`: allocate the array (each
+    /// element set to the type's default) and store it in the variable.
+    fn lower_array_dim(&mut self, decl: &VariableDeclarator, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
+        let fill = match type_name.to_ascii_uppercase().as_str() {
+            "STRING" => Const::Str(String::new()),
+            "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" => Const::Int(0),
+            _ => Const::Null,
+        };
+        let fill = self.module.add_const(fill);
+        emit(code, Op::LoadConst); push_u32(code, fill);
+        let zero = self.module.add_const(Const::Int(0));
+        for dim in &decl.dimensions {
+            match dim {
+                ArrayDimension::Single(upper) => {
+                    emit(code, Op::LoadConst); push_u32(code, zero);
+                    self.lower_expr(upper, code)?;
+                }
+                ArrayDimension::Range { start, end } => {
+                    self.lower_expr(start, code)?;
+                    self.lower_expr(end, code)?;
+                }
+            }
+        }
+        emit(code, Op::NewArray); code.push(decl.dimensions.len() as u8);
+        if let Some(slot) = self.scope.get(&decl.name) {
+            emit(code, Op::StoreLocal); push_u16(code, slot);
+        } else {
+            let s = self.global_str(&decl.name);
+            emit(code, Op::StoreGlobal); push_u32(code, s);
+        }
+        Ok(())
+    }
+
     /// Pushes whether the SELECT value in local `tmp` matches one CASE item.
     fn lower_case_test(&mut self, tmp: u16, value: &CaseValue, code: &mut Vec<u8>) -> Result<(), String> {
         match value {
@@ -636,6 +672,9 @@ impl Bcgen {
                 emit(code, Op::PrintLn);
             } else {
                 emit(code, Op::Print);
+            }
+            if p.zones.get(i).copied().unwrap_or(false) {
+                emit(code, Op::PrintZone);
             }
         }
         Ok(())
@@ -796,31 +835,16 @@ impl Bcgen {
                 }
             }
             Expression::ArrayAccess(a) => {
-                // Stack so far: [..., value]. We need [arr, idx, value].
-                // Re-emit array base + first index, then move value on top.
-                // For simplicity assume single index.
-                if a.indices.len() != 1 {
-                    return Err("multi-dim ASet not yet supported".into());
-                }
-                // Save value into a temp local.
+                // Stack so far: [..., value]. ASet wants [array, i1..iN, value]
+                // and updates the array in place, so park the value first.
                 let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));
                 emit(code, Op::StoreLocal); push_u16(code, tmp);
                 self.lower_expr(&a.array, code)?;
-                self.lower_expr(&a.indices[0], code)?;
-                emit(code, Op::LoadLocal); push_u16(code, tmp);
-                emit(code, Op::ASet);
-                // ASet pushes the new array; if the base was a simple identifier,
-                // store it back.
-                if let Expression::Identifier(id) = &*a.array {
-                    if let Some(slot) = self.scope.get(&id.name) {
-                        emit(code, Op::StoreLocal); push_u16(code, slot);
-                    } else {
-                        let s = self.global_str(&id.name);
-                        emit(code, Op::StoreGlobal); push_u32(code, s);
-                    }
-                } else {
-                    emit(code, Op::Pop);
+                for i in &a.indices {
+                    self.lower_expr(i, code)?;
                 }
+                emit(code, Op::LoadLocal); push_u16(code, tmp);
+                emit(code, Op::ASet); code.push(a.indices.len() as u8);
                 Ok(())
             }
             _ => {
@@ -828,7 +852,7 @@ impl Bcgen {
                 // FunctionCall on the LHS. Re-route to the array-set path
                 // by synthesizing an ArrayAccess view.
                 if let Expression::FunctionCall(fc) = target {
-                    if fc.args.len() == 1 {
+                    if !fc.args.is_empty() {
                         let synth = ArrayAccessExpression {
                             span: fc.span.clone(),
                             array: fc.callee.clone(),
@@ -843,6 +867,9 @@ impl Bcgen {
     }
 
     fn lower_call_stmt(&mut self, c: &CallStatement, code: &mut Vec<u8>) -> Result<(), String> {
+        if let Some(assignment) = rapidr_ast::inc_dec_assignment(c, |name| self.fn_indices.contains_key(name)) {
+            return self.lower_assignment(&assignment, code);
+        }
         // Push args.
         for a in &c.args {
             self.lower_expr(a, code)?;
@@ -1326,7 +1353,7 @@ impl Bcgen {
                     let name_lower = name_key(&id.name);
                     let is_local = self.scope.get(&id.name).is_some();
                     let is_global = self.globals.contains(&name_lower);
-                    if (is_local || is_global) && fc.args.len() == 1 && !self.fn_indices.contains_key(&id.name) {
+                    if (is_local || is_global) && !fc.args.is_empty() && !self.fn_indices.contains_key(&id.name) {
                         let synth = ArrayAccessExpression {
                             span: fc.span.clone(),
                             array: fc.callee.clone(),
@@ -1442,12 +1469,11 @@ impl Bcgen {
                 Err("nested member access not yet supported".into())
             }
             Expression::ArrayAccess(a) => {
-                if a.indices.len() != 1 {
-                    return Err("multi-dim AGet not yet supported".into());
-                }
                 self.lower_expr(&a.array, code)?;
-                self.lower_expr(&a.indices[0], code)?;
-                emit(code, Op::AGet);
+                for i in &a.indices {
+                    self.lower_expr(i, code)?;
+                }
+                emit(code, Op::AGet); code.push(a.indices.len() as u8);
                 Ok(())
             }
         }
@@ -1667,7 +1693,7 @@ mod tests {
 
     #[test]
     fn sub_and_call() {
-        let src = "SUB greet(name AS STRING)\nPRINT \"Hi \", name\nEND SUB\nCALL greet(\"world\")";
+        let src = "SUB greet(name AS STRING)\nPRINT \"Hi \"; name\nEND SUB\nCALL greet(\"world\")";
         let h = run(src);
         assert_eq!(h.output, "Hi world\n");
     }

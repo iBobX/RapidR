@@ -33,6 +33,16 @@ impl Host for WebHost {
         if !rapidr_bytecode::builtins::is_builtin(name) {
             return Err(format!("Unknown builtin function '{name}'"));
         }
+        // LBOUND(arr [, dim]) / UBOUND(arr [, dim]) read the array's own
+        // bounds (dimension 1 by default).
+        let key = rapidr_bytecode::builtins::builtin_key(name);
+        if key == "lbound" || key == "ubound" {
+            let arr = args.first().cloned().unwrap_or_else(v_null);
+            let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
+            return rapidr_value::array_bound(&arr, dim, key == "ubound")
+                .map(v_int)
+                .ok_or_else(|| format!("{}: argument is not an array, or it has no dimension {dim}", key.to_uppercase()));
+        }
         let key = rapidr_bytecode::builtins::builtin_key(name);
         if key == "print_hash" || key == "write_hash" {
             return Err("PRINT # / WRITE # to file numbers is not supported in the browser yet; use RFileStream".into());
@@ -184,6 +194,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "shell" => rp_shell(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
+        "replacesubstr" => rp_replacesubstr(&a0, &a1, &a2),
         "sound" => { rp_sound(&a0, &a1); v_null() }
         "playsound" => rp_playsound(&a0),
         "isnumeric" => rp_isnumeric(&a0),
@@ -509,6 +520,8 @@ impl DebugSession {
                 Value::String(s) => {
                     format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
                 }
+                // Shown as a JSON array of its elements (row-major).
+                Value::Array(a) => format!("[{}]", a.borrow().data.iter().map(serialize_val).collect::<Vec<_>>().join(",")),
             }
         }
 
@@ -545,6 +558,7 @@ impl DebugSession {
                     Value::String(s) => {
                         format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
                     }
+                    Value::Array(a) => format!("[{}]", a.borrow().data.iter().map(serialize_val).collect::<Vec<_>>().join(",")),
                 }
             }
             let mut props_parts = Vec::new();

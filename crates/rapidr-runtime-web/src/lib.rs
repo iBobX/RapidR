@@ -18,7 +18,7 @@ pub use rapidr_rrcss::RR_BASE_CSS;
 
 pub mod prelude {
     // Value type + constructors
-    pub use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
+    pub use crate::value::{rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
 
     // BASIC builtins (string / math / date / conversion / etc.)
     pub use crate::builtins::*;

@@ -27,7 +27,7 @@ await page.waitForFunction(() => document.getElementById("status")?.textContent?
 await page.evaluate(() => {
   const p = window.RapidR.state.project;
   p.forms[0].code = { handlers: {}, source: 'PRINT "fine"\nNoSuchRoutine 1\nDIM AS AS\nPRINT "also fine"' };
-  p.modules.push({ id: "m_diag", name: "Helpers", source: 'SUB Helper()\n  INC counter\nEND SUB' });
+  p.modules.push({ id: "m_diag", name: "Helpers", source: 'SUB Helper()\n  Frobble counter\nEND SUB' });
 });
 
 const markers = () => page.evaluate(() =>
@@ -75,7 +75,7 @@ status = await page.evaluate(() => document.getElementById("status").textContent
 ok(/2 compile errors/.test(status), `status reports both remaining errors ("${status}")`);
 rows = await errorRows();
 ok(rows.some((r) => /Form1 \(line 2, col 1\): Unknown SUB or FUNCTION 'NoSuchRoutine'/.test(r)), "unknown SUB located in Form1 line 2");
-ok(rows.some((r) => /Helpers \(line 2, col 3\): INC is not supported yet/.test(r)), "module error attributed to module Helpers, line 2 col 3");
+ok(rows.some((r) => /Helpers \(line 2, col 3\): Unknown SUB or FUNCTION 'Frobble'/.test(r)), "module error attributed to module Helpers, line 2 col 3");
 ok((await markers()).some((m) => m.line === 2 && /NoSuchRoutine/.test(m.msg)), "form editor underlines line 2");
 
 // ── 4. Live checking while typing, without running ──

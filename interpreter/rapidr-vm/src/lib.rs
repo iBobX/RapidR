@@ -34,7 +34,7 @@ pub use rapidr_bytecode as bytecode;
 pub use rapidr_value::Value;
 
 use rapidr_bytecode::{Module, Op};
-use rapidr_value::{v_bool, v_int, v_null, v_str};
+use rapidr_value::{v_array, v_bool, v_int, v_null, v_str};
 
 #[derive(Debug)]
 pub enum VmError {
@@ -47,6 +47,8 @@ pub enum VmError {
     BadLocalSlot(u16),
     Truncated,
     HostError(String),
+    /// A BASIC run-time error (e.g. "Subscript out of range").
+    Runtime(String),
     Halted,
     Paused,
 }
@@ -63,6 +65,7 @@ impl std::fmt::Display for VmError {
             VmError::BadLocalSlot(s) => write!(f, "bad local slot {s}"),
             VmError::Truncated => write!(f, "truncated bytecode"),
             VmError::HostError(s) => write!(f, "host error: {s}"),
+            VmError::Runtime(s) => write!(f, "run-time error: {s}"),
             VmError::Halted => write!(f, "halted"),
             VmError::Paused => write!(f, "paused"),
         }
@@ -70,6 +73,9 @@ impl std::fmt::Display for VmError {
 }
 
 impl std::error::Error for VmError {}
+
+/// Width of a PRINT zone (`PRINT a, b`), as in QBasic and VB.
+pub const PRINT_ZONE_WIDTH: usize = 14;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepMode {
@@ -102,6 +108,9 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// Parameter values of the most recently returned frame, read by
     /// `LoadArgOut` right after a call to write BYREF arguments back.
     pub arg_out: Vec<Value>,
+    /// Column of the output cursor (chars since the last newline), for
+    /// `PrintZone`.
+    pub print_col: usize,
 
     // Debugger state
     pub debug_mode: bool,
@@ -118,6 +127,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             frames: Vec::with_capacity(8),
             globals: Default::default(),
             arg_out: Vec::new(),
+            print_col: 0,
             debug_mode: false,
             breakpoints: Default::default(),
             step_mode: StepMode::None,
@@ -392,29 +402,39 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
                 // ----- arrays -----
                 Op::NewArray => {
-                    let n = self.pop()?.to_i64().max(0) as usize;
-                    // Represent arrays as a Value::String JSON-encoded for now.
-                    // (Phase 2+ may replace with Value::Array if we introduce it.)
-                    let s: String = (0..n).map(|_| "").collect::<Vec<_>>().join(",");
-                    self.stack.push(v_str(&s));
+                    let n = read_u8(code, &mut ip)? as usize;
+                    let mut bounds = vec![(0i64, 0i64); n];
+                    for b in bounds.iter_mut().rev() {
+                        let upper = self.pop()?.to_i64();
+                        let lower = self.pop()?.to_i64();
+                        *b = (lower, upper);
+                    }
+                    let fill = self.pop()?;
+                    let arr = v_array(bounds, fill).map_err(VmError::Runtime)?;
+                    self.stack.push(arr);
                 }
                 Op::AGet => {
-                    let idx = self.pop()?;
-                    let arr = self.pop()?;
-                    self.stack.push(arr.rp_index(&idx));
+                    let n = read_u8(code, &mut ip)? as usize;
+                    let indices = self.pop_indices(n)?;
+                    let target = self.pop()?;
+                    let v = match &target {
+                        Value::Array(a) => a.borrow().get(&indices).map_err(VmError::Runtime)?,
+                        // Legacy: indexing a comma-separated string.
+                        other if n == 1 => other.rp_index(&v_int(indices[0])),
+                        _ => return Err(VmError::Runtime("indexing a value that is not an array".into())),
+                    };
+                    self.stack.push(v);
                 }
                 Op::ASet => {
-                    // For now: read array as comma-separated, replace, write back.
-                    // Phase 2+ will introduce a proper Value::Array variant.
+                    let n = read_u8(code, &mut ip)? as usize;
                     let val = self.pop()?;
-                    let idx = self.pop()?.to_i64();
-                    let arr = self.pop()?;
-                    let s = arr.to_string_val();
-                    let mut parts: Vec<String> = s.split(',').map(|x| x.to_string()).collect();
-                    if (idx as usize) < parts.len() {
-                        parts[idx as usize] = val.to_string_val();
+                    let indices = self.pop_indices(n)?;
+                    match self.pop()? {
+                        Value::Array(a) => a.borrow_mut().set(&indices, val).map_err(VmError::Runtime)?,
+                        _ => return Err(VmError::Runtime(
+                            "assigning to an element of a variable that is not an array (DIM it with a size first)".into(),
+                        )),
                     }
-                    self.stack.push(v_str(&parts.join(",")));
                 }
                 Op::Redim => {
                     let s = read_u16(code, &mut ip)?;
@@ -427,14 +447,17 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
                 // ----- I/O -----
                 Op::Print => {
-                    let v = self.pop()?;
-                    self.host.print(&v.to_string_val()).map_err(VmError::HostError)?;
+                    let s = self.pop()?.to_string_val();
+                    self.emit_output(&s)?;
                 }
                 Op::PrintLn => {
-                    let v = self.pop()?;
-                    let mut s = v.to_string_val();
+                    let mut s = self.pop()?.to_string_val();
                     s.push('\n');
-                    self.host.print(&s).map_err(VmError::HostError)?;
+                    self.emit_output(&s)?;
+                }
+                Op::PrintZone => {
+                    let pad = PRINT_ZONE_WIDTH - self.print_col % PRINT_ZONE_WIDTH;
+                    self.emit_output(&" ".repeat(pad))?;
                 }
                 Op::Input => {
                     let s = self.host.input().map_err(VmError::HostError)?;
@@ -462,6 +485,23 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             self.stack.push(ret);
         }
         Ok(true)
+    }
+
+    fn emit_output(&mut self, s: &str) -> Result<(), VmError> {
+        self.print_col = match s.rfind('\n') {
+            Some(i) => s[i + 1..].chars().count(),
+            None => self.print_col + s.chars().count(),
+        };
+        self.host.print(s).map_err(VmError::HostError)
+    }
+
+    /// Pops `n` array indices pushed in order (first index deepest).
+    fn pop_indices(&mut self, n: usize) -> Result<Vec<i64>, VmError> {
+        let mut indices = vec![0i64; n];
+        for i in indices.iter_mut().rev() {
+            *i = self.pop()?.to_i64();
+        }
+        Ok(indices)
     }
 
     fn pop(&mut self) -> Result<Value, VmError> {

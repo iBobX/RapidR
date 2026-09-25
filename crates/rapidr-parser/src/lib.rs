@@ -470,30 +470,23 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::Print)?;
         let mut items = Vec::new();
+        let mut zones = Vec::new();
+        // Only a trailing `;` or `,` keeps the cursor on the line.
         let mut append_newline = true;
-        if !self.at_eol() {
-            loop {
-                items.push(self.parse_expression()?);
-                if self.match_kind(TokenType::Comma) {
-                    append_newline = true;
-                    if self.at_eol() {
-                        break;
-                    }
-                    continue;
-                }
-                if self.match_kind(TokenType::Semi) {
-                    append_newline = false;
-                    if self.at_eol() {
-                        break;
-                    }
-                    continue;
-                }
+        while !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
+            items.push(self.parse_expression()?);
+            let comma = self.match_kind(TokenType::Comma);
+            let separated = comma || self.match_kind(TokenType::Semi);
+            zones.push(comma);
+            append_newline = !separated;
+            if !separated {
                 break;
             }
         }
         Some(PrintStatement {
             span: self.span_from(start),
             items,
+            zones,
             append_newline,
         })
     }

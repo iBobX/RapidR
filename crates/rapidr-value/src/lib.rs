@@ -1,7 +1,11 @@
 //! The `Value` type — a dynamically-typed BASIC value.
 
+use std::cell::RefCell;
 use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
+use std::rc::Rc;
+
+pub mod strings;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -10,6 +14,74 @@ pub enum Value {
     String(String),
     Boolean(bool),
     Null,
+    /// A DIMmed array. Shared (cloning the Value aliases the same array), so
+    /// an array passed to a SUB is modified in place, as BASIC arrays are.
+    Array(Rc<RefCell<BasicArray>>),
+}
+
+/// Largest array allowed (elements), so `DIM a(1E12)` fails cleanly instead
+/// of exhausting memory.
+pub const MAX_ARRAY_ELEMENTS: usize = 50_000_000;
+
+/// A BASIC array: any number of dimensions, each with inclusive bounds
+/// (`DIM a(10)` → 0..=10, `DIM b(1 TO 5, 3)` → 1..=5 × 0..=3), row-major.
+#[derive(Debug, Clone)]
+pub struct BasicArray {
+    pub bounds: Vec<(i64, i64)>,
+    pub data: Vec<Value>,
+}
+
+impl BasicArray {
+    pub fn new(bounds: Vec<(i64, i64)>, fill: Value) -> Result<Self, String> {
+        if bounds.is_empty() {
+            return Err("an array needs at least one dimension".into());
+        }
+        let mut len: usize = 1;
+        for &(lo, hi) in &bounds {
+            if hi < lo {
+                return Err(format!("array bounds {lo} TO {hi}: the upper bound is below the lower bound"));
+            }
+            let extent = usize::try_from(hi - lo + 1).map_err(|_| "array too large".to_string())?;
+            len = len
+                .checked_mul(extent)
+                .filter(|&n| n <= MAX_ARRAY_ELEMENTS)
+                .ok_or_else(|| format!("array too large (limit {MAX_ARRAY_ELEMENTS} elements)"))?;
+        }
+        Ok(Self { bounds, data: vec![fill; len] })
+    }
+
+    fn offset(&self, indices: &[i64]) -> Result<usize, String> {
+        if indices.len() != self.bounds.len() {
+            return Err(format!(
+                "array has {} dimension(s) but {} index(es) were given",
+                self.bounds.len(),
+                indices.len()
+            ));
+        }
+        let mut offset: usize = 0;
+        for (&i, &(lo, hi)) in indices.iter().zip(&self.bounds) {
+            if i < lo || i > hi {
+                return Err(format!("Subscript out of range: index {i} is outside {lo} TO {hi}"));
+            }
+            offset = offset * (hi - lo + 1) as usize + (i - lo) as usize;
+        }
+        Ok(offset)
+    }
+
+    pub fn get(&self, indices: &[i64]) -> Result<Value, String> {
+        Ok(self.data[self.offset(indices)?].clone())
+    }
+
+    pub fn set(&mut self, indices: &[i64], value: Value) -> Result<(), String> {
+        let i = self.offset(indices)?;
+        self.data[i] = value;
+        Ok(())
+    }
+
+    /// Bounds of 1-based dimension `dim` (LBOUND/UBOUND's second argument).
+    pub fn dim_bounds(&self, dim: usize) -> Option<(i64, i64)> {
+        dim.checked_sub(1).and_then(|d| self.bounds.get(d)).copied()
+    }
 }
 
 // --- Convenience constructors ---
@@ -23,11 +95,64 @@ pub fn v_dbl(n: f64) -> Value {
 pub fn v_str(s: &str) -> Value {
     Value::String(s.to_string())
 }
+/// Run-time error in compiled (codegen) programs: report it BASIC-style and
+/// stop, rather than continuing with a wrong value.
+fn runtime_error(message: &str) -> ! {
+    eprintln!("run-time error: {message}");
+    std::process::exit(1);
+}
+
+/// `DIM a(…)` in compiled programs.
+pub fn rp_new_array(bounds: &[(i64, i64)], fill: Value) -> Value {
+    v_array(bounds.to_vec(), fill).unwrap_or_else(|e| runtime_error(&e))
+}
+
+impl Value {
+    /// `a(i, j)` in compiled programs.
+    pub fn rp_get(&self, indices: &[i64]) -> Value {
+        match self {
+            Value::Array(a) => a.borrow().get(indices).unwrap_or_else(|e| runtime_error(&e)),
+            other if indices.len() == 1 => other.rp_index(&Value::Integer(indices[0])),
+            _ => runtime_error("indexing a value that is not an array"),
+        }
+    }
+
+    /// `a(i, j) = v` in compiled programs (in place: arrays are shared).
+    pub fn rp_set(&self, indices: &[i64], value: Value) {
+        match self {
+            Value::Array(a) => a.borrow_mut().set(indices, value).unwrap_or_else(|e| runtime_error(&e)),
+            _ => runtime_error("assigning to an element of a variable that is not an array (DIM it with a size first)"),
+        }
+    }
+
+    /// LBOUND(a [, dim]) / UBOUND(a [, dim]) in compiled programs.
+    pub fn rp_bound(&self, dim: &Value, upper: bool) -> Value {
+        let d = if matches!(dim, Value::Null) { 1 } else { dim.to_i64() };
+        match array_bound(self, d, upper) {
+            Some(b) => Value::Integer(b),
+            None => runtime_error(&format!(
+                "{}: argument is not an array, or it has no dimension {d}",
+                if upper { "UBOUND" } else { "LBOUND" }
+            )),
+        }
+    }
+}
+
+/// LBOUND/UBOUND of dimension `dim` (1-based) when `v` is an array.
+pub fn array_bound(v: &Value, dim: i64, upper: bool) -> Option<i64> {
+    let Value::Array(a) = v else { return None };
+    let (lo, hi) = a.borrow().dim_bounds(usize::try_from(dim).ok()?)?;
+    Some(if upper { hi } else { lo })
+}
+
 pub fn v_bool(b: bool) -> Value {
     Value::Boolean(b)
 }
 pub fn v_null() -> Value {
     Value::Null
+}
+pub fn v_array(bounds: Vec<(i64, i64)>, fill: Value) -> Result<Value, String> {
+    Ok(Value::Array(Rc::new(RefCell::new(BasicArray::new(bounds, fill)?))))
 }
 
 // --- Conversions ---
@@ -39,7 +164,7 @@ impl Value {
             Value::Double(n) => *n != 0.0,
             Value::String(s) => !s.is_empty(),
             Value::Boolean(b) => *b,
-            Value::Null => false,
+            Value::Null | Value::Array(_) => false,
         }
     }
 
@@ -49,7 +174,7 @@ impl Value {
             Value::Double(n) => *n as i64,
             Value::String(s) => s.parse::<i64>().unwrap_or(0),
             Value::Boolean(b) => if *b { -1 } else { 0 },
-            Value::Null => 0,
+            Value::Null | Value::Array(_) => 0,
         }
     }
 
@@ -59,7 +184,7 @@ impl Value {
             Value::Double(n) => *n,
             Value::String(s) => s.parse::<f64>().unwrap_or(0.0),
             Value::Boolean(b) => if *b { -1.0 } else { 0.0 },
-            Value::Null => 0.0,
+            Value::Null | Value::Array(_) => 0.0,
         }
     }
 
@@ -78,6 +203,9 @@ impl Value {
             Value::String(s) => s.clone(),
             Value::Boolean(b) => if *b { "True".to_string() } else { "False".to_string() },
             Value::Null => String::new(),
+            // Elements joined by commas: what runtime components received
+            // back when interpreter arrays were comma-separated strings.
+            Value::Array(a) => a.borrow().data.iter().map(|v| v.to_string_val()).collect::<Vec<_>>().join(","),
         }
     }
 
@@ -98,6 +226,7 @@ impl Value {
     pub fn rp_index(&self, idx: &Value) -> Value {
         let i = idx.to_i64();
         match self {
+            Value::Array(a) => a.borrow().get(&[i]).unwrap_or(Value::Null),
             Value::String(s) => {
                 // Try comma-separated splitting
                 let parts: Vec<&str> = s.split(',').collect();

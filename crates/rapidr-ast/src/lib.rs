@@ -107,6 +107,10 @@ pub struct LineStatement {
 pub struct PrintStatement {
     pub span: TextSpan,
     pub items: Vec<Expression>,
+    /// `zones[i]`: item i is followed by `,` (move to the next 14-column
+    /// print zone). Items followed by `;` or nothing are printed directly.
+    pub zones: Vec<bool>,
+    /// False when the statement ends with `;` or `,` (stay on the line).
     pub append_newline: bool,
 }
 
@@ -465,4 +469,37 @@ pub enum UnaryOperator {
     Negate,
     Not,
     Positive,
+}
+
+/// RapidQ's `INC x [, n]` / `DEC x [, n]` as the assignment `x = x ± n`
+/// (None if this call isn't one, e.g. a user SUB named Inc). Used by both
+/// backends so they accept exactly the same forms.
+pub fn inc_dec_assignment(c: &CallStatement, is_user_routine: impl Fn(&str) -> bool) -> Option<AssignmentStatement> {
+    let Expression::Identifier(id) = &c.callee else { return None };
+    let op = match id.name.to_ascii_lowercase().as_str() {
+        "inc" => BinaryOperator::Add,
+        "dec" => BinaryOperator::Subtract,
+        _ => return None,
+    };
+    if is_user_routine(&id.name) || c.args.is_empty() || c.args.len() > 2 {
+        return None;
+    }
+    let target = c.args[0].clone();
+    if !matches!(target, Expression::Identifier(_) | Expression::ArrayAccess(_) | Expression::FunctionCall(_) | Expression::MemberAccess(_)) {
+        return None;
+    }
+    let amount = c.args.get(1).cloned().unwrap_or(Expression::Literal(Literal {
+        span: c.span,
+        value: LiteralValue::Integer(1),
+    }));
+    Some(AssignmentStatement {
+        span: c.span,
+        target: target.clone(),
+        value: Expression::Binary(BinaryExpression {
+            span: c.span,
+            left: Box::new(target),
+            operator: op,
+            right: Box::new(amount),
+        }),
+    })
 }

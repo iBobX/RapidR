@@ -122,11 +122,14 @@ pub enum Op {
 
     // === arrays ===
     /// Create a new dynamic array of N elements (default Null).
-    /// Stack: [size]. Pops size, pushes the new array (as Value::String JSON for now).
+    /// Create an array. Operand: `u8` number of dimensions `n`.
+    /// Stack: [fill, lower1, upper1, …, lowerN, upperN] → [array].
     NewArray = 0x80,
-    /// Get element at index. Stack: [array, index].
+    /// Read an element. Operand: `u8` index count `n`.
+    /// Stack: [array, i1, …, iN] → [element]. Out of range is an error.
     AGet = 0x81,
-    /// Set element at index. Stack: [array, index, value]. Pops 3.
+    /// Write an element in place. Operand: `u8` index count `n`.
+    /// Stack: [array, i1, …, iN, value] → []. Out of range is an error.
     ASet = 0x82,
     /// Resize an array stored in a local. Operand: `u16` local, `i32` new-size.
     Redim = 0x83,
@@ -138,6 +141,9 @@ pub enum Op {
     PrintLn = 0x91,
     /// Push a line read from `Host::input()`.
     Input = 0x92,
+    /// Pad the output with spaces to the next 14-column print zone
+    /// (`PRINT a, b`).
+    PrintZone = 0x93,
 
     // === misc ===
     Halt = 0xFE,
@@ -205,6 +211,7 @@ impl Op {
             0x90 => Op::Print,
             0x91 => Op::PrintLn,
             0x92 => Op::Input,
+            0x93 => Op::PrintZone,
             0xFE => Op::Halt,
             0xFF => Op::Nop,
             _ => return None,

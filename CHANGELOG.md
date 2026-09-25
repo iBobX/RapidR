@@ -7,6 +7,63 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.11.0] — 2026-09-24
+
+Real arrays, correct PRINT output, and more RapidQ compatibility, now identical on both
+backends. The conformance suite passes 31 of 34 backend runs; only GOTO/GOSUB and
+codegen's unknown-SUB message remain.
+
+### Added
+- **Real BASIC arrays** (`Value::Array`), shared by the bytecode VM and the Rust codegen:
+  - any number of dimensions and real bounds (`DIM a(10)` is 0 to 10;
+    `DIM b(1 TO 5, 3)`), with each element set to the type's default;
+  - `LBOUND(a [, dim])` / `UBOUND(a [, dim])`;
+  - arrays passed to a SUB are shared, as in BASIC;
+  - an out-of-range index is a run-time error ("Subscript out of range"), not a silent
+    `null`.
+
+  Before this, interpreter arrays were comma-separated strings: a string element
+  containing a comma corrupted the array, numbers came back as strings, `DIM` didn't
+  allocate, and 2-D arrays didn't work. Codegen arrays were 1-D only, and `LBOUND`/
+  `UBOUND` always returned 0.
+- **PRINT separators and print zones.** `;` joins items, `,` moves to the next 14-column
+  zone (as in QBasic and VB), and only a trailing `;` or `,` keeps the cursor on the line.
+  Before, any `;` suppressed the newline, codegen put spaces between items, and the VM
+  put none.
+- **`INC x [, n]` / `DEC x [, n]`** (RapidQ), on both backends; works for variables and
+  array elements.
+- **`REPLACESUBSTR$(s, find, replacement)`** (RapidQ), on both backends.
+- Arrays appear in the debugger's variable view as lists.
+
+### Fixed
+- **String functions count characters, not bytes** (`LEN`, `MID$`, `LEFT$`, `RIGHT$`,
+  `INSTR`, `RINSTR`, `INSERT$`, `DELETE$`), so text such as `"héllo"` or `"ñandú"` works.
+  Before, it gave wrong results or crashed the program. `ASC` returns the character code
+  (`ASC("é")` = 233, matching `CHR$`). These functions now live in one shared module
+  (`rapidr_value::strings`) instead of a copy per runtime.
+- **IDE Output panel:** every PRINT used to add a blank line, and `PRINT "a";` broke the
+  line. Browser output is now line-buffered, and a partial line is flushed when the
+  program or event handler finishes.
+
+### Changed
+- Bytecode: `NewArray`, `AGet` and `ASet` take a dimension/index count, and `ASet`
+  updates in place; new `PrintZone` opcode. Bytecode from older compilers must be
+  recompiled; the IDE and bundles always compile fresh.
+- Codegen: arrays are ordinary variables holding `Value::Array` (`rp_get`/`rp_set`);
+  the separate `GARRS` store is gone.
+
+### Verification
+- `cargo test --workspace`, including new tests for the shared string module, and
+  conformance: 31 pass / 3 known failures / 0 failed.
+- The array-using examples `test_array`, `hang_test` and `ide` (2,300 lines) build with
+  codegen, and `test_array` prints the same values on both backends. 42/44 examples
+  compile to bytecode (the other 2 are native-only).
+- All IDE suites pass. IDE Output checked for `;`, `,` and trailing partial lines.
+
+### Open questions (need real RapidQ to confirm)
+- The 14-column print zone width, `INSERT$` argument order, and how non-whole numbers
+  are formatted (`0.1 + 0.2`).
+
 ## [2.10.1] — 2026-09-24
 
 Correctness fixes found by the conformance suite (now 20 of 32 backend runs pass,

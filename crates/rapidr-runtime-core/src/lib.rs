@@ -37,7 +37,7 @@ pub mod prelude {
         rp_create_component, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5,
         rp_run_app,
     };
-    pub use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
+    pub use crate::value::{rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
 
     #[cfg(feature = "gui")]
     pub use crate::gui::{set_theme, gui_register_timer};

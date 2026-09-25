@@ -1,4 +1,3 @@
-' xfail: vm — DIM does not allocate arrays, so element assignment is lost; 2-D: 'invalid assignment target'
 ' Arrays with explicit bounds and two dimensions.
 DIM a(1 TO 3) AS INTEGER
 DIM g(2, 2) AS INTEGER

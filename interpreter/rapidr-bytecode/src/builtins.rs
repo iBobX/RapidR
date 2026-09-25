@@ -22,7 +22,7 @@ pub const BUILTINS: &[&str] = &[
     "math.e", "math.pi", "mid", "mkdir", "msgbox",
     "oct", "open",
     "pi", "playsound", "print", "print_hash", "println",
-    "randomize", "rename", "replace", "reverse", "rgb", "right", "rinstr", "rmdir",
+    "randomize", "rename", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
     "rnd", "round", "rtrim",
     "seek", "sgn", "shell", "shellwait", "showmessage", "sin", "sizeof", "sleep",
     "sound", "space", "sqr", "str", "strf", "string",

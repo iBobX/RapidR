@@ -12,18 +12,36 @@ use rodio::Source;
 
 /// BASIC `PRINT` — items are space-separated; optional trailing newline.
 pub fn rp_print(items: &[Value], newline: bool) {
-    let mut first = true;
-    for item in items {
-        if !first {
-            print!(" ");
-        }
-        print!("{}", item.to_string_val());
-        first = false;
-    }
+    let mut text = items.iter().map(|i| i.to_string_val()).collect::<Vec<_>>().join(" ");
     if newline {
-        println!();
+        text.push('\n');
     }
+    print!("{text}");
     let _ = io::stdout().flush();
+    track_print_column(&text);
+}
+
+/// Width of a PRINT zone (`PRINT a, b`), as in QBasic and VB.
+pub const PRINT_ZONE_WIDTH: usize = 14;
+
+thread_local! {
+    /// Output cursor column (chars since the last newline), for print zones.
+    static PRINT_COL: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn track_print_column(text: &str) {
+    PRINT_COL.with(|c| {
+        c.set(match text.rfind('\n') {
+            Some(i) => text[i + 1..].chars().count(),
+            None => c.get() + text.chars().count(),
+        })
+    });
+}
+
+/// `,` in PRINT: pad with spaces to the next print zone.
+pub fn rp_print_zone() {
+    let pad = PRINT_ZONE_WIDTH - PRINT_COL.with(|c| c.get()) % PRINT_ZONE_WIDTH;
+    rp_print(&[Value::String(" ".repeat(pad))], false);
 }
 
 // ---------------------------------------------------------------------------
@@ -48,35 +66,19 @@ pub fn rp_input(prompt: &Value) -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn rp_len(val: &Value) -> Value {
-    match val {
-        Value::String(s) => v_int(s.len() as i64),
-        _ => v_int(val.to_string_val().len() as i64),
-    }
+    rapidr_value::strings::len(val)
 }
 
 pub fn rp_mid(s: &Value, start: &Value, length: &Value) -> Value {
-    let s = s.to_string_val();
-    let start = (start.to_i64() - 1).max(0) as usize; // BASIC is 1-indexed
-    let length = length.to_i64().max(0) as usize;
-    if start >= s.len() {
-        return v_str("");
-    }
-    let end = (start + length).min(s.len());
-    Value::String(s[start..end].to_string())
+    rapidr_value::strings::mid(s, start, length)
 }
 
 pub fn rp_left(s: &Value, n: &Value) -> Value {
-    rp_mid(s, &v_int(1), n)
+    rapidr_value::strings::left(s, n)
 }
 
 pub fn rp_right(s: &Value, n: &Value) -> Value {
-    let s = s.to_string_val();
-    let n = n.to_i64().max(0) as usize;
-    if n >= s.len() {
-        Value::String(s)
-    } else {
-        Value::String(s[s.len() - n..].to_string())
-    }
+    rapidr_value::strings::right(s, n)
 }
 
 pub fn rp_ucase(s: &Value) -> Value {
@@ -100,16 +102,7 @@ pub fn rp_trim(s: &Value) -> Value {
 }
 
 pub fn rp_instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
-    let h = haystack.to_string_val();
-    let n = needle.to_string_val();
-    let from = (start.to_i64() - 1).max(0) as usize;
-    if from >= h.len() {
-        return v_int(0);
-    }
-    match h[from..].find(&n) {
-        Some(pos) => v_int((pos + from + 1) as i64), // 1-indexed result
-        None => v_int(0),
-    }
+    rapidr_value::strings::instr(start, haystack, needle)
 }
 
 pub fn rp_space(n: &Value) -> Value {
@@ -127,8 +120,7 @@ pub fn rp_chr(n: &Value) -> Value {
 }
 
 pub fn rp_asc(s: &Value) -> Value {
-    let s = s.to_string_val();
-    v_int(s.bytes().next().unwrap_or(0) as i64)
+    rapidr_value::strings::asc(s)
 }
 
 pub fn rp_replace(s: &Value, old: &Value, new: &Value) -> Value {
@@ -442,6 +434,7 @@ pub fn rp_vartype(val: &Value) -> Value {
         Value::String(_) => 8,
         Value::Boolean(_) => 11,
         Value::Null => 0,
+        Value::Array(_) => 8204, // vbArray + vbVariant, as in VB
     })
 }
 
@@ -453,6 +446,7 @@ pub fn rp_sizeof(val: &Value) -> Value {
         Value::String(s) => s.len() as i64,
         Value::Boolean(_) => 1,
         Value::Null => 0,
+        Value::Array(a) => 8 * a.borrow().data.len() as i64,
     })
 }
 
@@ -554,25 +548,12 @@ pub fn rp_default_for_type(type_name: &str) -> Value {
 
 /// INSERT$ — insert substring at 1-based position
 pub fn rp_insert(s: &Value, pos: &Value, substr: &Value) -> Value {
-    let mut s = s.to_string_val();
-    let pos = (pos.to_i64() - 1).max(0) as usize;
-    let pos = pos.min(s.len());
-    s.insert_str(pos, &substr.to_string_val());
-    Value::String(s)
+    rapidr_value::strings::insert(s, pos, substr)
 }
 
 /// DELETE$ — delete count characters starting at 1-based position
 pub fn rp_delete(s: &Value, start: &Value, count: &Value) -> Value {
-    let s = s.to_string_val();
-    let start = (start.to_i64() - 1).max(0) as usize;
-    let count = count.to_i64().max(0) as usize;
-    if start >= s.len() {
-        return Value::String(s);
-    }
-    let end = (start + count).min(s.len());
-    let mut result = s[..start].to_string();
-    result.push_str(&s[end..]);
-    Value::String(result)
+    rapidr_value::strings::delete(s, start, count)
 }
 
 /// REVERSE$ — reverse a string
@@ -604,13 +585,13 @@ pub fn rp_tally(s: &Value, substr: &Value) -> Value {
 }
 
 /// RINSTR — find last occurrence of substring (1-based, 0 if not found)
+/// REPLACESUBSTR$ — replace every occurrence of a substring
+pub fn rp_replacesubstr(s: &Value, find: &Value, replacement: &Value) -> Value {
+    rapidr_value::strings::replace_all(s, find, replacement)
+}
+
 pub fn rp_rinstr(s: &Value, substr: &Value) -> Value {
-    let s = s.to_string_val();
-    let sub = substr.to_string_val();
-    match s.rfind(&sub) {
-        Some(pos) => v_int((pos + 1) as i64),
-        None => v_int(0),
-    }
+    rapidr_value::strings::rinstr(s, substr)
 }
 
 /// FORMAT$ — basic number formatting

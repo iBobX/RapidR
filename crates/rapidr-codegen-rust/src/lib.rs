@@ -134,6 +134,25 @@ impl RustCodegen {
             && !self.var_udt_type.contains_key(&lower)
     }
 
+    /// The Value holding array `name`: its global, or the local variable.
+    fn array_base(&self, name: &str) -> String {
+        let snake = to_snake(name);
+        if self.is_global_array(name) {
+            format!("gv(\"{snake}\")")
+        } else {
+            snake
+        }
+    }
+
+    /// `i, j` → `(i).to_i64(), (j).to_i64()` for rp_get / rp_set.
+    fn index_list(&self, indices: &[Expression]) -> String {
+        indices
+            .iter()
+            .map(|e| format!("({}).to_i64()", self.expr_to_string(e)))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
     /// Check if a variable is a module-level array (DIM at top level with dimensions).
     fn is_global_array(&self, name: &str) -> bool {
         let lower = name.to_lowercase();
@@ -305,16 +324,9 @@ impl RustCodegen {
         // Emit global variable helpers for module-level DIM variables
         self.line("thread_local! {");
         self.line("    static GVARS: RefCell<HashMap<String, Value>> = RefCell::new(HashMap::new());");
-        self.line("    static GARRS: RefCell<HashMap<String, Vec<Value>>> = RefCell::new(HashMap::new());");
         self.line("}");
         self.line("fn gv(n: &str) -> Value { GVARS.with(|g| g.borrow().get(n).cloned().unwrap_or(v_null())) }");
         self.line("fn gs(n: &str, v: Value) { GVARS.with(|g| g.borrow_mut().insert(n.to_string(), v)); }");
-        self.line("fn ga_get(n: &str, i: usize) -> Value { GARRS.with(|g| g.borrow().get(n).and_then(|a| a.get(i).cloned()).unwrap_or(v_null())) }");
-        self.line("fn ga_set(n: &str, i: usize, v: Value) { GARRS.with(|g| { let mut m = g.borrow_mut(); if let Some(a) = m.get_mut(n) { if i < a.len() { a[i] = v; } } }); }");
-        self.line("#[allow(dead_code)]");
-        self.line("fn ga_init(n: &str, sz: usize, d: Value) { GARRS.with(|g| g.borrow_mut().insert(n.to_string(), vec![d; sz])); }");
-        self.line("#[allow(dead_code)]");
-        self.line("fn ga_len(n: &str) -> usize { GARRS.with(|g| g.borrow().get(n).map(|a| a.len()).unwrap_or(0)) }");
         self.blank();
 
         // Emit subs/functions/declares before main
@@ -474,32 +486,32 @@ impl RustCodegen {
                 }
             } else {
                 self.array_vars.insert(decl.name.to_lowercase());
-                // Array declaration — compute size expression
-                let size = match decl.dimensions.first() {
-                    Some(ArrayDimension::Single(expr)) => {
-                        format!("(({}).to_i64() + 1) as usize", self.expr_to_string(expr))
-                    }
-                    Some(ArrayDimension::Range { start: _start, end }) => {
-                        // Over-allocate to end+1 so direct indexing works
-                        // (BASIC indices are used as-is, e.g., DIM B(1 TO 5) → B(5) is index 5)
-                        format!(
-                            "(({}).to_i64() + 1) as usize",
-                            self.expr_to_string(end),
-                        )
-                    }
-                    None => "0usize".to_string(),
-                };
+                // Array declaration: a shared Value::Array with real bounds
+                // (`DIM a(10)` → 0..=10, `DIM b(1 TO 5, 3)`), the same model
+                // as the bytecode VM.
+                let bounds: Vec<String> = decl
+                    .dimensions
+                    .iter()
+                    .map(|dim| match dim {
+                        ArrayDimension::Single(upper) => {
+                            format!("(0, ({}).to_i64())", self.expr_to_string(upper))
+                        }
+                        ArrayDimension::Range { start, end } => format!(
+                            "(({}).to_i64(), ({}).to_i64())",
+                            self.expr_to_string(start),
+                            self.expr_to_string(end)
+                        ),
+                    })
+                    .collect();
                 let default = default_value_for_type(&d.type_name);
+                let array = format!("rp_new_array(&[{}], {default})", bounds.join(", "));
                 if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
-                    // Module-level array → store in global arrays
+                    // Module-level array → global variable
                     self.write_indent();
-                    let _ = writeln!(self.output, "ga_init(\"{name}\", {size}, {default});");
+                    let _ = writeln!(self.output, "gs(\"{name}\", {array});");
                 } else {
                     self.write_indent();
-                    let _ = writeln!(
-                        self.output,
-                        "let mut {name} = vec![{default}; {size}];",
-                    );
+                    let _ = writeln!(self.output, "let mut {name} = {array};");
                 }
             }
         }
@@ -650,20 +662,27 @@ impl RustCodegen {
                 return;
             }
         }
-        // Global array element assignment: ga_set("name", idx, value)
-        if let Expression::FunctionCall(fc) = &a.target {
-            if let Expression::Identifier(id) = fc.callee.as_ref() {
-                let stripped = strip_type_suffix(&id.name);
-                if self.is_global_array(&stripped) {
-                    let snake = to_snake(&stripped);
-                    let idx = fc.args.first()
-                        .map(|a| self.owned_expr(a))
-                        .unwrap_or_else(|| "v_int(0)".to_string());
-                    let value = self.owned_expr(&a.value);
-                    self.write_indent();
-                    let _ = writeln!(self.output, "ga_set(\"{snake}\", ({idx}).to_i64() as usize, {value});");
-                    return;
-                }
+        // Array element assignment: `a(i, j) = v` → a.rp_set(&[i, j], v)
+        let element = match &a.target {
+            Expression::FunctionCall(fc) => match fc.callee.as_ref() {
+                Expression::Identifier(id) => Some((id, &fc.args)),
+                _ => None,
+            },
+            Expression::ArrayAccess(aa) => match aa.array.as_ref() {
+                Expression::Identifier(id) => Some((id, &aa.indices)),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((id, indices)) = element {
+            let stripped = strip_type_suffix(&id.name).to_lowercase();
+            if self.array_vars.contains(&stripped) {
+                let base = self.array_base(&stripped);
+                let idx = self.index_list(indices);
+                let value = self.owned_expr(&a.value);
+                self.write_indent();
+                let _ = writeln!(self.output, "{base}.rp_set(&[{idx}], {value});");
+                return;
             }
         }
 
@@ -673,22 +692,38 @@ impl RustCodegen {
         let _ = writeln!(self.output, "{target} = {value};");
     }
 
+    /// One rp_print per item (so `;` joins items directly), rp_print_zone
+    /// after each `,`, and the newline only when the statement doesn't end
+    /// with a separator — the same output as the bytecode VM.
     fn emit_print(&mut self, p: &PrintStatement) {
-        let items: Vec<String> = p.items.iter().map(|e| self.owned_expr(e)).collect();
-        if items.is_empty() {
-            self.line("rp_print(&[], true);");
+        if p.items.is_empty() {
+            if p.append_newline {
+                self.line("rp_print(&[], true);");
+            }
             return;
         }
-        let items_str = items.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
-        self.write_indent();
-        let _ = writeln!(
-            self.output,
-            "rp_print(&[{items_str}], {});",
-            p.append_newline
-        );
+        let n = p.items.len();
+        for (i, item) in p.items.iter().enumerate() {
+            let value = self.owned_expr(item);
+            let newline = i + 1 == n && p.append_newline;
+            self.write_indent();
+            let _ = writeln!(self.output, "rp_print(&[{value}], {newline});");
+            if p.zones.get(i).copied().unwrap_or(false) {
+                self.line("rp_print_zone();");
+            }
+        }
     }
 
     fn emit_call(&mut self, c: &CallStatement) {
+        // RapidQ `INC x [, n]` / `DEC x [, n]` → `x = x ± n` (shared with the VM).
+        let inc_dec = inc_dec_assignment(c, |name| {
+            self.defined_functions.contains(&strip_type_suffix(name).to_lowercase())
+        });
+        if let Some(assignment) = inc_dec {
+            self.emit_assignment(&assignment);
+            return;
+        }
+
         // --- Component method dispatch ---
 
         // 1. MethodCall on component: SQLite.Query(Q)
@@ -1112,8 +1147,10 @@ impl RustCodegen {
             self.write_indent();
             if let Some((default, size)) = self.array_init_info.get(local.as_str()) {
                 // Only emit local array if not a global array
+                // The DIM statement allocates it; declare it for earlier uses.
+                let _ = (default, size);
                 if !self.is_global_array(local) {
-                    let _ = writeln!(self.output, "let mut {snake} = vec![{default}; {size}];");
+                    let _ = writeln!(self.output, "let mut {snake} = v_null();");
                 }
             } else if let Some(_type_name) = self.var_udt_type.get(local.as_str()) {
                 let _ = writeln!(self.output, "let mut {snake} = {}::default();", _type_name);
@@ -1677,8 +1714,8 @@ impl RustCodegen {
                         if self.component_vars.contains_key(&name.to_lowercase()) {
                             return format!("v_str(\"{snake}\")");
                         }
-                        // Module-level scalar → read from global storage
-                        if self.is_global_scalar(&name) {
+                        // Module-level scalar or array → read from global storage
+                        if self.is_global_scalar(&name) || self.is_global_array(&name) {
                             return format!("gv(\"{snake}\")");
                         }
                         snake
@@ -1726,13 +1763,8 @@ impl RustCodegen {
 
                     // Check if this is an array access (DIM'd with dimensions)
                     if self.array_vars.contains(&name_stripped) {
-                        let arr = to_snake(&name_stripped);
-                        let idx = args.first().map(|s| s.as_str()).unwrap_or("0");
-                        // Module-level array → read from global storage
-                        if self.is_global_array(&name_stripped) {
-                            return format!("ga_get(\"{arr}\", ({idx}).to_i64() as usize)");
-                        }
-                        return format!("{arr}[({idx}).to_i64() as usize].clone()");
+                        let base = self.array_base(&name_stripped);
+                        return format!("{base}.rp_get(&[{}])", self.index_list(&fc.args));
                     }
 
                     if let Some(rust_call) = builtin_function_call(&name_stripped, &args) {
@@ -1929,23 +1961,19 @@ impl RustCodegen {
             }
             Expression::ArrayAccess(aa) => {
                 let arr = self.expr_to_string(&aa.array);
-                let idx = aa
-                    .indices
-                    .iter()
-                    .map(|e| self.expr_to_string(e))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                // Check if the array is a known Vec<Value> array variable
                 let is_array = if let Expression::Identifier(id) = aa.array.as_ref() {
-                    self.array_vars.contains(&id.name.to_lowercase())
+                    self.array_vars.contains(&strip_type_suffix(&id.name).to_lowercase())
                 } else {
                     false
                 };
-                if is_array {
-                    format!("{arr}[({idx}).to_i64() as usize]")
+                let _ = arr;
+                if let (true, Expression::Identifier(id)) = (is_array, aa.array.as_ref()) {
+                    let base = self.array_base(&strip_type_suffix(&id.name).to_lowercase());
+                    format!("{base}.rp_get(&[{}])", self.index_list(&aa.indices))
                 } else {
                     // Value-based indexing
-                    format!("{arr}.rp_index(&{idx})")
+                    let target = self.expr_to_string(&aa.array);
+                    format!("{target}.rp_get(&[{}])", self.index_list(&aa.indices))
                 }
             }
         }
@@ -2024,6 +2052,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "chr" => Some(format!("rp_chr(&{a0})")),
         "asc" => Some(format!("rp_asc(&{a0})")),
         "replace" => Some(format!("rp_replace(&{a0}, &{a1}, &{a2})")),
+        "replacesubstr" => Some(format!("rp_replacesubstr(&{a0}, &{a1}, &{a2})")),
         "str" => Some(format!("rp_str(&{a0})")),
         "val" => Some(format!("rp_val(&{a0})")),
         "int" => Some(format!("rp_int(&{a0})")),
@@ -2115,8 +2144,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "random_randint" => Some(format!("rp_randint(&{a0}, &{a1}, &{a2})")),
 
         // Array functions
-        "lbound" => Some(format!("rp_lbound(&{a0})")),
-        "ubound" => Some(format!("rp_ubound(&{a0})")),
+        "lbound" => Some(format!("({a0}).rp_bound(&{a1}, false)")),
+        "ubound" => Some(format!("({a0}).rp_bound(&{a1}, true)")),
 
         // Misc
         "sound" => Some(format!("rp_sound(&{a0}, &{a1})")),

@@ -22,9 +22,27 @@ pub fn rp_print(items: &[Value], newline: bool) {
     } else {
         text
     };
+    track_print_column(&msg);
 
-    // Always log to browser console
-    web_sys::console::log_1(&JsValue::from_str(&msg));
+    // console.log is line-oriented: log complete lines, keep a partial one
+    // (`PRINT "a";`) buffered until its newline, or until the current
+    // synchronous code finishes (see schedule_output_flush).
+    let complete: Vec<String> = LINE_BUF.with(|b| {
+        let mut b = b.borrow_mut();
+        b.push_str(&msg);
+        let mut lines = Vec::new();
+        while let Some(i) = b.find('\n') {
+            let line: String = b.drain(..=i).collect();
+            lines.push(line[..line.len() - 1].to_string());
+        }
+        lines
+    });
+    for line in complete {
+        web_sys::console::log_1(&JsValue::from_str(&line));
+    }
+    if LINE_BUF.with(|b| !b.borrow().is_empty()) {
+        schedule_output_flush();
+    }
 
     // Also append to #rr-console element if it exists
     if let Some(window) = web_sys::window() {
@@ -45,6 +63,55 @@ pub fn rp_print(items: &[Value], newline: bool) {
                 }
             }
         }
+    }
+}
+
+/// Width of a PRINT zone (`PRINT a, b`), as in QBasic and VB.
+pub const PRINT_ZONE_WIDTH: usize = 14;
+
+thread_local! {
+    /// Output cursor column (chars since the last newline), for print zones.
+    static PRINT_COL: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    /// Text printed since the last newline, not yet sent to console.log.
+    static LINE_BUF: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+    static FLUSH_SCHEDULED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn track_print_column(text: &str) {
+    PRINT_COL.with(|c| {
+        c.set(match text.rfind('\n') {
+            Some(i) => text[i + 1..].chars().count(),
+            None => c.get() + text.chars().count(),
+        })
+    });
+}
+
+/// `,` in PRINT: pad with spaces to the next print zone.
+pub fn rp_print_zone() {
+    let pad = PRINT_ZONE_WIDTH - PRINT_COL.with(|c| c.get()) % PRINT_ZONE_WIDTH;
+    rp_print(&[Value::String(" ".repeat(pad))], false);
+}
+
+/// Send any buffered partial line to console.log.
+pub fn rp_flush_output() {
+    let pending = LINE_BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
+    if !pending.is_empty() {
+        web_sys::console::log_1(&JsValue::from_str(&pending));
+    }
+}
+
+/// Flush a partial line once the current synchronous work (the program's
+/// main, or an event handler) has finished.
+fn schedule_output_flush() {
+    if FLUSH_SCHEDULED.with(|f| f.replace(true)) {
+        return;
+    }
+    let flush = Closure::once_into_js(|| {
+        FLUSH_SCHEDULED.with(|f| f.set(false));
+        rp_flush_output();
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);
     }
 }
 
@@ -69,35 +136,19 @@ pub fn rp_input(prompt: &Value) -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn rp_len(val: &Value) -> Value {
-    match val {
-        Value::String(s) => v_int(s.len() as i64),
-        _ => v_int(val.to_string_val().len() as i64),
-    }
+    rapidr_value::strings::len(val)
 }
 
 pub fn rp_mid(s: &Value, start: &Value, length: &Value) -> Value {
-    let s = s.to_string_val();
-    let start = (start.to_i64() - 1).max(0) as usize;
-    let length = length.to_i64().max(0) as usize;
-    if start >= s.len() {
-        return v_str("");
-    }
-    let end = (start + length).min(s.len());
-    Value::String(s[start..end].to_string())
+    rapidr_value::strings::mid(s, start, length)
 }
 
 pub fn rp_left(s: &Value, n: &Value) -> Value {
-    rp_mid(s, &v_int(1), n)
+    rapidr_value::strings::left(s, n)
 }
 
 pub fn rp_right(s: &Value, n: &Value) -> Value {
-    let s = s.to_string_val();
-    let n = n.to_i64().max(0) as usize;
-    if n >= s.len() {
-        Value::String(s)
-    } else {
-        Value::String(s[s.len() - n..].to_string())
-    }
+    rapidr_value::strings::right(s, n)
 }
 
 pub fn rp_ucase(s: &Value) -> Value {
@@ -121,16 +172,7 @@ pub fn rp_trim(s: &Value) -> Value {
 }
 
 pub fn rp_instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
-    let h = haystack.to_string_val();
-    let n = needle.to_string_val();
-    let from = (start.to_i64() - 1).max(0) as usize;
-    if from >= h.len() {
-        return v_int(0);
-    }
-    match h[from..].find(&n) {
-        Some(pos) => v_int((pos + from + 1) as i64),
-        None => v_int(0),
-    }
+    rapidr_value::strings::instr(start, haystack, needle)
 }
 
 pub fn rp_space(n: &Value) -> Value {
@@ -148,8 +190,7 @@ pub fn rp_chr(n: &Value) -> Value {
 }
 
 pub fn rp_asc(s: &Value) -> Value {
-    let s = s.to_string_val();
-    v_int(s.bytes().next().unwrap_or(0) as i64)
+    rapidr_value::strings::asc(s)
 }
 
 pub fn rp_replace(s: &Value, old: &Value, new: &Value) -> Value {
@@ -437,6 +478,7 @@ pub fn rp_vartype(val: &Value) -> Value {
         Value::String(_) => 8,
         Value::Boolean(_) => 11,
         Value::Null => 0,
+        Value::Array(_) => 8204, // vbArray + vbVariant, as in VB
     })
 }
 
@@ -447,6 +489,7 @@ pub fn rp_sizeof(val: &Value) -> Value {
         Value::String(s) => s.len() as i64,
         Value::Boolean(_) => 1,
         Value::Null => 0,
+        Value::Array(a) => 8 * a.borrow().data.len() as i64,
     })
 }
 
@@ -611,24 +654,11 @@ pub fn rp_default_for_type(type_name: &str) -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn rp_insert(s: &Value, pos: &Value, substr: &Value) -> Value {
-    let mut s = s.to_string_val();
-    let pos = (pos.to_i64() - 1).max(0) as usize;
-    let pos = pos.min(s.len());
-    s.insert_str(pos, &substr.to_string_val());
-    Value::String(s)
+    rapidr_value::strings::insert(s, pos, substr)
 }
 
 pub fn rp_delete(s: &Value, start: &Value, count: &Value) -> Value {
-    let s = s.to_string_val();
-    let start = (start.to_i64() - 1).max(0) as usize;
-    let count = count.to_i64().max(0) as usize;
-    if start >= s.len() {
-        return Value::String(s);
-    }
-    let end = (start + count).min(s.len());
-    let mut result = s[..start].to_string();
-    result.push_str(&s[end..]);
-    Value::String(result)
+    rapidr_value::strings::delete(s, start, count)
 }
 
 pub fn rp_reverse(s: &Value) -> Value {
@@ -656,13 +686,13 @@ pub fn rp_tally(s: &Value, substr: &Value) -> Value {
     v_int(s.matches(&sub).count() as i64)
 }
 
+/// REPLACESUBSTR$ — replace every occurrence of a substring
+pub fn rp_replacesubstr(s: &Value, find: &Value, replacement: &Value) -> Value {
+    rapidr_value::strings::replace_all(s, find, replacement)
+}
+
 pub fn rp_rinstr(s: &Value, substr: &Value) -> Value {
-    let s = s.to_string_val();
-    let sub = substr.to_string_val();
-    match s.rfind(&sub) {
-        Some(pos) => v_int((pos + 1) as i64),
-        None => v_int(0),
-    }
+    rapidr_value::strings::rinstr(s, substr)
 }
 
 pub fn rp_format(fmt_str: &Value, val: &Value) -> Value {

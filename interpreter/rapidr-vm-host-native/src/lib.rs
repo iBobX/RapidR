@@ -35,6 +35,16 @@ impl Host for NativeHost {
         if !rapidr_bytecode::builtins::is_builtin(name) {
             return Err(format!("Unknown builtin function '{name}'"));
         }
+        // LBOUND(arr [, dim]) / UBOUND(arr [, dim]) read the array's own
+        // bounds (dimension 1 by default).
+        let key = rapidr_bytecode::builtins::builtin_key(name);
+        if key == "lbound" || key == "ubound" {
+            let arr = args.first().cloned().unwrap_or_else(v_null);
+            let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
+            return rapidr_value::array_bound(&arr, dim, key == "ubound")
+                .map(v_int)
+                .ok_or_else(|| format!("{}: argument is not an array, or it has no dimension {dim}", key.to_uppercase()));
+        }
         Ok(call_builtin_native(name, args))
     }
 
@@ -191,6 +201,7 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "shell" => rp_shell(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
+        "replacesubstr" => rp_replacesubstr(&a0, &a1, &a2),
         "sound" => { rp_sound(&a0, &a1); v_null() }
         "playsound" => rp_playsound(&a0),
         "isnumeric" => rp_isnumeric(&a0),
