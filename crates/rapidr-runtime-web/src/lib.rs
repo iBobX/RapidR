@@ -24,7 +24,7 @@ pub mod prelude {
     // DATA / READ / RESTORE
     pub use crate::value::data;
     pub use crate::value::console;
-    pub use crate::value::{rp_shl, rp_shr};
+    pub use crate::value::{rp_inv, rp_redim, rp_shl, rp_shr};
 
     // BASIC builtins (string / math / date / conversion / etc.)
     pub use crate::builtins::*;

@@ -43,7 +43,7 @@ pub mod prelude {
     // DATA / READ / RESTORE
     pub use crate::value::data;
     pub use crate::value::console;
-    pub use crate::value::{rp_shl, rp_shr};
+    pub use crate::value::{rp_inv, rp_redim, rp_shl, rp_shr};
 
     #[cfg(feature = "gui")]
     pub use crate::gui::{set_theme, gui_register_timer};

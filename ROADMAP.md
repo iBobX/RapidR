@@ -134,7 +134,7 @@ Next up, in order:
 - [x] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` as ANSI sequences on both backends; the IDE Output panel renders them (web-ide/ansi_screen.js) (v2.17.0)
 - [ ] Web bundles: an on-page console screen for programs that PRINT (today bundles only log to the browser console)
 - [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
-- [ ] `REDIM` keeping data, `INV`
+- [x] `REDIM` keeping data (resized in place; creates the array without a DIM; `REDIM PRESERVE`), `INV` (v2.18.0)
 - [ ] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop, in-page modal in the web preview)
 - [ ] Missing RapidQ objects as real components: QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM (then the rest of the list in `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`)
 - [ ] Native builds catch up (reasoning: high): GOTO/GOSUB, OOP TYPEs, STATIC, function pointers

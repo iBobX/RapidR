@@ -536,6 +536,13 @@ impl<'a> Parser<'a> {
                 self.pending = vec![assign(a.clone(), b.clone()), assign(b, tmp.clone())];
                 Some(assign(tmp, a))
             }
+            // `REDIM a(n) AS T`: resize an array, keeping its data.
+            TokenType::Identifier
+                if self.peek_identifier_eq("REDIM")
+                    && matches!(self.peek_kind_at(1), Some(TokenType::Identifier | TokenType::LParen)) =>
+            {
+                self.parse_declaration(None)
+            }
             // `STATIC x AS T` — a DIM whose value survives between calls.
             TokenType::Identifier
                 if self.peek_identifier_eq("STATIC")
@@ -625,7 +632,13 @@ impl<'a> Parser<'a> {
     /// Each name becomes its own DIM statement followed by assignments for its
     /// initializer (queued in `pending`), so code generators see plain DIMs.
     fn parse_declaration(&mut self, fixed_type: Option<&str>) -> Option<Statement> {
-        let is_static = self.advance()?.lexeme.eq_ignore_ascii_case("STATIC");
+        let keyword = self.advance()?.lexeme.to_ascii_uppercase();
+        let is_static = keyword == "STATIC";
+        let is_redim = keyword == "REDIM";
+        // VB's `REDIM PRESERVE`: RapidQ's REDIM always keeps the data.
+        if is_redim && self.peek_identifier_eq("PRESERVE") {
+            self.advance();
+        }
         let mut out = Vec::new();
         loop {
             let group_start = self.pos;
@@ -690,6 +703,7 @@ impl<'a> Parser<'a> {
                     }],
                     type_name: type_name.clone(),
                     is_static,
+                    is_redim,
                 }));
                 match &init {
                     None => {}
@@ -2036,9 +2050,19 @@ impl<'a> Parser<'a> {
     /// `a MOD (b * c)`.
     fn parse_modulo(&mut self) -> Option<Expression> {
         let mut expr = self.parse_factor()?;
-        while self.match_kind(TokenType::Mod) {
-            let right = self.parse_factor()?;
-            expr = binary(expr, BinaryOperator::Modulo, right);
+        loop {
+            if self.match_kind(TokenType::Mod) {
+                let right = self.parse_factor()?;
+                expr = binary(expr, BinaryOperator::Modulo, right);
+            } else if self.peek_identifier_eq("INV") {
+                // `3 INV 26`: modular inverse (same precedence as MOD).
+                self.advance();
+                let right = self.parse_factor()?;
+                let span = TextSpan::new(expression_span(&expr).start, expression_span(&right).end);
+                expr = call_expr(span, "INV", vec![expr, right]);
+            } else {
+                break;
+            }
         }
         Some(expr)
     }
