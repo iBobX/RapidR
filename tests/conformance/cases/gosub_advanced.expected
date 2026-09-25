@@ -1,0 +1,9 @@
+loop:3
+outer
+inner
+outer again
+back in main
+sub gosub
+sub done
+doevents ok
+line numbers ok

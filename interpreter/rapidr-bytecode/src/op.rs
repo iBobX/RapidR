@@ -99,6 +99,12 @@ pub enum Op {
     /// returned (for BYREF write-back into the caller's variable).
     /// Operand: `u8` parameter index.
     LoadArgOut = 0x65,
+    /// GOSUB: remember the next instruction on this frame's GOSUB stack and
+    /// jump. Operand: `u32` target.
+    Gosub = 0x66,
+    /// RETURN inside a routine that uses GOSUB: jump back to the most recent
+    /// GOSUB if there is one, otherwise fall through (to the normal return).
+    GosubRet = 0x67,
 
     // === components / objects ===
     /// Create a component. Operand: `u32` kind (string-id),
@@ -199,6 +205,8 @@ impl Op {
             0x63 => Op::RetVal,
             0x64 => Op::CallBuiltin,
             0x65 => Op::LoadArgOut,
+            0x66 => Op::Gosub,
+            0x67 => Op::GosubRet,
             0x70 => Op::CreateComp,
             0x71 => Op::SetProp,
             0x72 => Op::GetProp,

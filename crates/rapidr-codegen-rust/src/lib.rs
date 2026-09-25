@@ -48,6 +48,8 @@ struct RustCodegen {
     /// `EXIT FOR` inside a WHILE breaks out of the FOR (`break 'l3;`).
     loop_labels: Vec<(&'static str, String)>,
     loop_label_counter: usize,
+    /// Only emit the GOTO/GOSUB compile_error! once per program.
+    reported_goto: bool,
     /// Names of variables declared with DIM at top level.
     top_level_vars: HashSet<String>,
     /// Names of variables declared as arrays (DIM with dimensions).
@@ -90,6 +92,7 @@ impl RustCodegen {
             fn_byref: HashMap::new(),
             loop_labels: Vec::new(),
             loop_label_counter: 0,
+            reported_goto: false,
             top_level_vars: HashSet::new(),
             array_vars: HashSet::new(),
             user_types: HashSet::new(),
@@ -443,6 +446,28 @@ impl RustCodegen {
                 for line in rb.code.lines() {
                     self.write_indent();
                     let _ = writeln!(self.output, "{}", line);
+                }
+            }
+            // `Name:` that names a SUB or builtin is a call followed by `:`.
+            Statement::Label(l)
+                if self.defined_functions.contains(&strip_type_suffix(&l.name).to_lowercase())
+                    || builtin_function_call(&l.name.to_lowercase(), &[]).is_some() =>
+            {
+                let call = CallStatement {
+                    span: l.span,
+                    callee: Expression::Identifier(Identifier { span: l.span, name: l.name.clone() }),
+                    args: Vec::new(),
+                };
+                self.emit_call(&call);
+            }
+            // Rust has no goto; until codegen gets a state-machine lowering,
+            // refuse clearly instead of generating code that runs wrongly.
+            Statement::Label(_) | Statement::Goto(_) | Statement::Gosub(_) => {
+                if !self.reported_goto {
+                    self.reported_goto = true;
+                    self.line(
+                        "compile_error!(\"Line labels, GOTO and GOSUB are not supported in native builds yet. Run the program with the bytecode interpreter instead (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
+                    );
                 }
             }
         }

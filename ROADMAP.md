@@ -58,7 +58,8 @@ Working: `IIF`, `FIELD$`, `TALLY`, `RINSTR`, `CONVBASE$`, `HEX$`, `CHR$`, `ASC`,
 | ~~`BYREF` ignored (VM) / doesn't compile (codegen)~~ fixed v2.10.1 | ok | ok |
 | ~~Whole-number float results print as `1024.0`~~ fixed v2.10.1 | ok | ok |
 | ~~`;`/`,` in PRINT wrong on both~~ separators + 14-col zones, fixed v2.11.0 | ok | ok |
-| GOTO/GOSUB/labels (codegen runs "skipped" code) | ✗ | ✗ |
+| GOTO/GOSUB/labels: VM done v2.12.0; codegen refuses with a clear error (needs state-machine lowering) | ok | ✗ |
+| ~~Bare `END` silently ignored (program ran into its subroutines)~~ fixed v2.12.0 | ok | ok |
 | ~~EXIT SUB/FUNCTION only left loops; EXIT FOR in nested WHILE left the WHILE~~ fixed v2.10.1 | ok | ok |
 | Calls to unknown SUBs / builtins: ~~VM silent no-op~~ compile error (v2.10.0); codegen confusing rustc error | ok | ✗ |
 
@@ -101,7 +102,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] SEC-06: `RHttp`, `BEEP`, `SOUND` via `web_sys` (XHR / Web Audio); only `RJavaScript.Eval` remains; `clippy.toml` bans `js_sys::eval` (v2.8.2)
 - [x] Unsupported constructs → hard diagnostics: parser errors with line/col for every bad line; bytecode compiler rejects unknown SUB/FUNCTION names (shared builtin registry) and statements it can't run; no catch-all arm left (v2.10.0). Codegen still reports unknown calls only via rustc.
 - [x] IDE diagnostics: squiggles via `setModelMarkers` in the right form/module, clickable Errors panel, live checking while typing (v2.10.0; errors travel as `line:col: error:` text — move to a structured wasm API when the language service lands)
-- [x] `tests/conformance/` harness (`run.mjs`) — now 31 pass / 3 known failures: `*.bas` + `*.expected` / `*.expected-error`, VM **and** Rust codegen, xfail markers for known bugs, runs in CI — 15 seed cases, 7 pass / 23 known failures
+- [x] `tests/conformance/` harness (`run.mjs`) — now 34 pass / 4 known failures (all codegen): `*.bas` + `*.expected` / `*.expected-error`, VM **and** Rust codegen, xfail markers for known bugs, runs in CI — 15 seed cases, 7 pass / 23 known failures
 - [ ] Fix conformance failures (table above) until every case passes on both backends
 - [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
 - [x] Undo/redo in the IDE: snapshot-based project history, menu/toolbar/Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, 100 steps, `tests/web_ide_undo.mjs` (v2.9.0)
@@ -124,7 +125,8 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [ ] Central Q→R type alias table (`QFORM`→`RFORM`, … all components)
 - [ ] `?` as PRINT
 - [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
-- [ ] `GOSUB`/`GOTO`/labels (VM: jumps; codegen: state-machine transform for fns with labels)
+- [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
+- [ ] Codegen: state-machine lowering for labels/GOTO/GOSUB (currently a clear compile_error!); web codegen `END` doesn't stop the program
 - [ ] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`
 - [ ] Accept `$TYPECHECK`, `$RESOURCE`, `$OPTION ICON`, etc.; forward `DECLARE SUB` as no-op
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)

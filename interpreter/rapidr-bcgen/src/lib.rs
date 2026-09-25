@@ -130,6 +130,8 @@ struct Bcgen {
     fn_byref: NameMap<Vec<bool>>,
     /// The SUB/FUNCTION being lowered, if any.
     fn_ctx: Option<FnCtx>,
+    /// Labels, GOTO/GOSUB jumps and GOSUB use of the routine being lowered.
+    routine: RoutineLabels,
     /// Scope stack for the function currently being lowered.
     scope: Scope,
     /// Set of declared global variables (keys from [`name_key`])
@@ -169,6 +171,18 @@ struct LoopCtx {
     breaks: Vec<usize>,
 }
 
+/// Line labels of one routine (main program, SUB or FUNCTION): GOTO/GOSUB
+/// can only jump within the routine they appear in.
+#[derive(Default)]
+struct RoutineLabels {
+    /// Label (by [`name_key`]) → code offset.
+    offsets: HashMap<String, u32>,
+    /// Jumps waiting for their label: (label as written, patch offset, span).
+    pending: Vec<(String, usize, TextSpan)>,
+    /// Whether the routine contains GOSUB, so RETURN must check for one.
+    uses_gosub: bool,
+}
+
 /// The SUB/FUNCTION whose body is being lowered (None in the main program).
 #[derive(Clone, Copy)]
 struct FnCtx {
@@ -188,6 +202,7 @@ impl Bcgen {
             lib_functions: HashSet::new(),
             fn_byref: NameMap::default(),
             fn_ctx: None,
+            routine: RoutineLabels::default(),
             scope: Scope::default(),
             globals: HashSet::new(),
             global_spelling: HashMap::new(),
@@ -251,6 +266,7 @@ impl Bcgen {
         let mut main_lines = Vec::new();
         let saved_scope = std::mem::take(&mut self.scope);
         self.in_main = true;
+        self.routine = RoutineLabels { uses_gosub: contains_gosub(&program.statements), ..Default::default() };
         for stmt in &program.statements {
             if matches!(stmt, Statement::Subroutine(_) | Statement::Function(_)) {
                 continue;
@@ -259,6 +275,7 @@ impl Bcgen {
         }
         self.in_main = false;
         emit(&mut main_code, Op::Halt);
+        self.resolve_labels(&mut main_code, "the main program");
         let main_locals = self.scope.next_slot as u32;
         let main_local_names = self.scope.display.clone();
         self.scope = saved_scope;
@@ -364,6 +381,7 @@ impl Bcgen {
         let result_slot = is_func.then(|| self.scope.declare(name));
         let saved_ctx = self.fn_ctx.replace(FnCtx { result_slot });
         let saved_loops = std::mem::take(&mut self.loop_stack);
+        self.routine = RoutineLabels { uses_gosub: contains_gosub(body), ..Default::default() };
         let mut code = Vec::new();
         let mut lines = Vec::new();
         for stmt in body {
@@ -371,6 +389,7 @@ impl Bcgen {
         }
         // Implicit return at END SUB / END FUNCTION (needs this fn's ctx).
         self.emit_return_from_routine(&mut code);
+        self.resolve_labels(&mut code, &format!("{} {name}", if is_func { "FUNCTION" } else { "SUB" }));
         self.loop_stack = saved_loops;
         self.fn_ctx = saved_ctx;
         let n_locals = self.scope.next_slot as u32;
@@ -554,6 +573,25 @@ impl Bcgen {
                 self.lower_expr(&sk.file_number, code)?;
                 self.lower_expr(&sk.position, code)?;
                 self.emit_builtin_stmt("seek", 2, code);
+            }
+            // `Name:` is a label unless Name is a SUB or builtin, in which
+            // case it's a call followed by `:` (e.g. `DoEvents: x = 1`).
+            Statement::Label(l) => {
+                if self.fn_indices.contains_key(&l.name) || builtins::is_builtin(&l.name) {
+                    let call = CallStatement {
+                        span: l.span,
+                        callee: Expression::Identifier(rapidr_ast::Identifier { span: l.span, name: l.name.clone() }),
+                        args: Vec::new(),
+                    };
+                    self.lower_call_stmt(&call, code)?;
+                } else if self.routine.offsets.insert(name_key(&l.name), code.len() as u32).is_some() {
+                    self.error_at(l.span, format!("Label '{}' is defined more than once", l.name));
+                }
+            }
+            Statement::Goto(j) | Statement::Gosub(j) => {
+                emit(code, if matches!(stmt, Statement::Gosub(_)) { Op::Gosub } else { Op::Jump });
+                self.routine.pending.push((j.label.clone(), code.len(), j.span));
+                push_u32(code, 0);
             }
             // `DECLARE SUB Foo(...)` is only a forward declaration: nothing
             // to emit. DLL imports are reported where they are called.
@@ -941,6 +979,12 @@ impl Bcgen {
             emit(code, Op::CallBuiltin);
             push_u32(code, s); code.push(argc);
             emit(code, Op::Pop);
+            // END: after the host's cleanup, stop executing here on every
+            // host (the browser's END only logs), rather than falling
+            // through into the code after it (typically GOSUB subroutines).
+            if name_key(&id.name) == "end" {
+                emit(code, Op::Halt);
+            }
             return Ok(());
         }
         // CALL obj.method(args) — treat as method call.
@@ -1179,9 +1223,25 @@ impl Bcgen {
             self.lower_expr(v, code)?;
             emit(code, Op::RetVal);
         } else {
+            // In a routine that uses GOSUB, RETURN first goes back to the
+            // most recent GOSUB, if any.
+            if self.routine.uses_gosub {
+                emit(code, Op::GosubRet);
+            }
             self.emit_return_from_routine(code);
         }
         Ok(())
+    }
+
+    /// Patch this routine's GOTO/GOSUB jumps; unknown labels are errors.
+    fn resolve_labels(&mut self, code: &mut [u8], routine: &str) {
+        let labels = std::mem::take(&mut self.routine);
+        for (label, at, span) in labels.pending {
+            match labels.offsets.get(&name_key(&label)) {
+                Some(&target) => patch_u32(code, at, target),
+                None => self.error_at(span, format!("Label '{label}' not found in {routine}")),
+            }
+        }
     }
 
     /// Leave the current SUB (Ret) or FUNCTION (return its result local).
@@ -1611,6 +1671,28 @@ impl Bcgen {
     }
 }
 
+/// Whether `stmts` (including nested blocks, but not nested SUB/FUNCTION
+/// definitions) contain a GOSUB.
+fn contains_gosub(stmts: &[Statement]) -> bool {
+    stmts.iter().any(|s| match s {
+        Statement::Gosub(_) => true,
+        Statement::If(i) => {
+            contains_gosub(&i.then_body)
+                || i.elseif_branches.iter().any(|b| contains_gosub(&b.body))
+                || contains_gosub(&i.else_body)
+        }
+        Statement::For(f) => contains_gosub(&f.body),
+        Statement::While(w) => contains_gosub(&w.body),
+        Statement::DoLoop(d) => contains_gosub(&d.body),
+        Statement::SelectCase(c) => {
+            c.cases.iter().any(|b| contains_gosub(&b.body)) || contains_gosub(&c.case_else)
+        }
+        Statement::With(w) => contains_gosub(&w.body),
+        Statement::Create(c) => contains_gosub(&c.body),
+        _ => false,
+    })
+}
+
 fn stmt_span(stmt: &Statement) -> TextSpan {
     match stmt {
         Statement::Assignment(a) => a.span,
@@ -1630,6 +1712,8 @@ fn stmt_span(stmt: &Statement) -> TextSpan {
         Statement::If(i) => i.span,
         Statement::Import(i) => i.span,
         Statement::Input(i) => i.span,
+        Statement::Label(l) => l.span,
+        Statement::Goto(j) | Statement::Gosub(j) => j.span,
         Statement::Line(l) => l.span,
         Statement::Open(o) => o.span,
         Statement::Print(p) => p.span,

@@ -7,6 +7,39 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.12.0] — 2026-09-24
+
+Classic BASIC control flow: line labels, `GOTO`, `GOSUB`/`RETURN`, and `END`. The bytecode
+interpreter (IDE, `build-bc`/`run-bc`, bundles, `--interp`) now passes every conformance
+case.
+
+### Added
+- **Line labels, `GOTO` and `GOSUB` / `RETURN`** in the bytecode interpreter.
+  - Labels can be `Name:` or line numbers (`100 PRINT …`), anywhere in the main program
+    or inside a SUB/FUNCTION. Jumps stay within their routine.
+  - GOSUB can nest; `RETURN` goes back to the latest GOSUB, and otherwise returns
+    normally.
+  - `Name:` stays a call when `Name` is a SUB or builtin (`DoEvents: x = 1`).
+  - A missing or duplicate label is a compile error with its location.
+  - New opcodes `Gosub` and `GosubRet`.
+- Native builds (Rust codegen) refuse labels/GOTO/GOSUB with a clear compile error
+  pointing to the interpreter, instead of generating code that runs wrongly.
+  State-machine lowering for codegen is planned.
+
+### Fixed
+- **A bare `END` statement was silently ignored**, so programs ran on into the code
+  after it (typically their GOSUB subroutines). It now ends the program. In the
+  interpreter it also stops execution in the browser, where the END builtin only
+  logged a message.
+
+### Verification
+- Conformance: 34 of 38 backend runs pass. The VM passes all 19 cases; the 4 known
+  failures are codegen's GOTO/GOSUB refusal (3 cases) and its unknown-SUB message.
+  New cases: `gosub_advanced` (nested GOSUB, GOSUB in a SUB, backwards GOTO, line
+  numbers, `DoEvents:`, END) and `label_not_found`.
+- GOSUB and END checked in the browser IDE. Parser tests for labels, GOTO/GOSUB and
+  bare END. 42/44 examples compile; all IDE suites pass.
+
 ## [2.11.0] — 2026-09-24
 
 Real arrays, correct PRINT output, and more RapidQ compatibility, now identical on both

@@ -22,9 +22,17 @@ pub enum Statement {
     Exit(ExitStatement),
     For(ForStatement),
     Function(FunctionStatement),
+    /// `GOSUB label`
+    Gosub(JumpStatement),
+    /// `GOTO label`
+    Goto(JumpStatement),
     If(IfStatement),
     Import(ImportStatement),
     Input(InputStatement),
+    /// `name:` or a line number at the start of a line. A bare `name:` may
+    /// also be a call to a zero-argument SUB followed by `:`; code
+    /// generators decide by looking the name up.
+    Label(LabelStatement),
     Line(LineStatement),
     Open(OpenStatement),
     Print(PrintStatement),
@@ -247,6 +255,18 @@ pub struct WithStatement {
 pub struct ExitStatement {
     pub span: TextSpan,
     pub exit_type: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabelStatement {
+    pub span: TextSpan,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JumpStatement {
+    pub span: TextSpan,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]

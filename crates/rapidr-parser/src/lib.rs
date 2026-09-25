@@ -112,9 +112,7 @@ impl<'a> Parser<'a> {
             }
         }
         match tok.kind {
-            TokenType::Goto | TokenType::Gosub => {
-                format!("{word} is not supported yet (line labels, GOTO and GOSUB are planned)")
-            }
+            TokenType::Goto | TokenType::Gosub => format!("{word} needs a label: `{word} Name` or `{word} 100`"),
             TokenType::DefStr | TokenType::DefInt | TokenType::DefByte | TokenType::DefWord
             | TokenType::DefDword | TokenType::DefLong | TokenType::DefSng | TokenType::DefDbl
             | TokenType::DefCur => format!("{word} is not supported yet; declare variables with DIM"),
@@ -258,6 +256,13 @@ impl<'a> Parser<'a> {
             if self.is_at_terminator(terminators) {
                 break;
             }
+            if let Some(label) = self.parse_line_label() {
+                stmts.push(label);
+                if self.at_eol() {
+                    self.consume_eol();
+                    continue;
+                }
+            }
             if let Some(stmt) = self.parse_statement() {
                 stmts.push(stmt);
                 // Handle colon-separated statements on the same line
@@ -363,6 +368,20 @@ impl<'a> Parser<'a> {
             TokenType::Bind => self.parse_bind().map(Statement::Bind),
             TokenType::Declare => self.parse_declare().map(Statement::Declare),
             TokenType::RustStart => self.parse_rust_block().map(Statement::RustBlock),
+            // A bare `END` ends the program (the END builtin). `END IF`,
+            // `END SUB`, … are block terminators and never reach here.
+            TokenType::End
+                if matches!(self.peek_kind_at(1), None | Some(TokenType::Newline | TokenType::Colon | TokenType::Eof)) =>
+            {
+                let tok = self.advance()?;
+                Some(Statement::Call(CallStatement {
+                    span: tok.span,
+                    callee: Expression::Identifier(Identifier { span: tok.span, name: "END".into() }),
+                    args: Vec::new(),
+                }))
+            }
+            TokenType::Goto => self.parse_jump().map(Statement::Goto),
+            TokenType::Gosub => self.parse_jump().map(Statement::Gosub),
             _ => self.parse_assignment_or_call(),
         }
     }
@@ -370,6 +389,43 @@ impl<'a> Parser<'a> {
     // -----------------------------------------------------------------------
     // Simple statements
     // -----------------------------------------------------------------------
+
+    /// `GOTO label` / `GOSUB label` (a name or a line number).
+    fn parse_jump(&mut self) -> Option<JumpStatement> {
+        let start = self.pos;
+        self.advance()?; // GOTO / GOSUB
+        let tok = self.peek()?;
+        if !matches!(tok.kind, TokenType::Identifier | TokenType::Number) {
+            return None; // don't consume the next line
+        }
+        self.advance();
+        Some(JumpStatement { span: self.span_from(start), label: tok.lexeme.clone() })
+    }
+
+    /// A label at the very start of a line: `Name:` or a line number
+    /// (`100 PRINT "x"`). Returns None, consuming nothing, otherwise.
+    fn parse_line_label(&mut self) -> Option<Statement> {
+        let at_line_start = self.pos == 0 || self.previous().map_or(true, |t| t.kind == TokenType::Newline);
+        if !at_line_start {
+            return None;
+        }
+        let tok = self.peek()?;
+        let is_label = match tok.kind {
+            TokenType::Identifier => self.peek_kind_at(1) == Some(TokenType::Colon),
+            TokenType::Number => tok.lexeme.chars().all(|c| c.is_ascii_digit()),
+            _ => false,
+        };
+        if !is_label {
+            return None;
+        }
+        let start = self.pos;
+        let name = tok.lexeme.clone();
+        self.advance();
+        if tok.kind == TokenType::Identifier {
+            self.advance(); // the ':'
+        }
+        Some(Statement::Label(LabelStatement { span: self.span_from(start), name }))
+    }
 
     fn parse_directive(&mut self) -> Option<Statement> {
         let tok = self.advance()?;
@@ -1595,6 +1651,8 @@ pub fn statement_span(statement: &Statement) -> TextSpan {
         Statement::If(n) => n.span,
         Statement::Import(n) => n.span,
         Statement::Input(n) => n.span,
+        Statement::Label(n) => n.span,
+        Statement::Goto(n) | Statement::Gosub(n) => n.span,
         Statement::Line(n) => n.span,
         Statement::Open(n) => n.span,
         Statement::Close(n) => n.span,
@@ -1664,11 +1722,11 @@ mod tests {
 
     #[test]
     fn reports_every_bad_line_not_just_the_first() {
-        let errs = errors("DIM AS\nx = 1\nGOSUB Foo\ny = 2\nGOTO Bar\n");
+        let errs = errors("DIM AS\nx = 1\nGOSUB\ny = 2\nDEFINT i\n");
         let lines: Vec<usize> = errs.iter().map(|e| e.0).collect();
         assert_eq!(lines, vec![1, 3, 5], "{errs:?}");
-        assert!(errs[1].2.contains("GOSUB is not supported yet"), "{errs:?}");
-        assert!(errs[2].2.contains("GOTO is not supported yet"), "{errs:?}");
+        assert!(errs[1].2.contains("GOSUB needs a label"), "{errs:?}");
+        assert!(errs[2].2.contains("DEFINT is not supported yet"), "{errs:?}");
     }
 
     #[test]
@@ -1681,9 +1739,28 @@ mod tests {
 
     #[test]
     fn bad_statement_inside_single_line_if_is_an_error() {
-        let errs = errors("IF 1 THEN GOSUB Foo\n");
+        let errs = errors("IF 1 THEN DEFINT i\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
-        assert!(errs[0].2.contains("GOSUB"), "{errs:?}");
+        assert!(errs[0].2.contains("DEFINT"), "{errs:?}");
+    }
+
+    #[test]
+    fn parses_labels_goto_and_gosub() {
+        let stmts = parse("Start:\nGOSUB Helper\nGOTO 100\nHelper: PRINT 1\nRETURN\n100 PRINT 2\n");
+        assert!(matches!(&stmts[0], Statement::Label(l) if l.name == "Start"));
+        assert!(matches!(&stmts[1], Statement::Gosub(j) if j.label == "Helper"));
+        assert!(matches!(&stmts[2], Statement::Goto(j) if j.label == "100"));
+        assert!(matches!(&stmts[3], Statement::Label(l) if l.name == "Helper"));
+        assert!(matches!(&stmts[4], Statement::Print(_)));
+        assert!(matches!(&stmts[6], Statement::Label(l) if l.name == "100"));
+        assert!(matches!(&stmts[7], Statement::Print(_)));
+    }
+
+    #[test]
+    fn bare_end_is_a_statement() {
+        let stmts = parse("PRINT 1\nEND\nSUB Foo()\nEND SUB\n");
+        assert!(matches!(&stmts[1], Statement::Call(c) if matches!(&c.callee, Expression::Identifier(i) if i.name == "END")));
+        assert!(matches!(&stmts[2], Statement::Subroutine(_)));
     }
 
     #[test]

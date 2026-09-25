@@ -96,6 +96,8 @@ pub struct Frame {
     pub wants_value: bool,
     /// Current instruction pointer in this frame.
     pub ip: usize,
+    /// Return addresses of active GOSUBs in this frame.
+    pub gosub: Vec<usize>,
 }
 
 /// The interpreter.
@@ -163,7 +165,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
-        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0 });
+        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new() });
         let _ = ret_ip;
         Ok(())
     }
@@ -338,6 +340,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     if !self.return_frame(module, true)? { return Ok(()); }
                     ip = self.frames.last().unwrap().ip;
                     refresh!();
+                }
+                Op::Gosub => {
+                    let target = read_u32(code, &mut ip)? as usize;
+                    self.frames.last_mut().unwrap().gosub.push(ip);
+                    ip = target;
+                }
+                Op::GosubRet => {
+                    if let Some(back) = self.frames.last_mut().unwrap().gosub.pop() {
+                        ip = back;
+                    }
                 }
                 Op::LoadArgOut => {
                     let k = read_u8(code, &mut ip)? as usize;
