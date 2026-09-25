@@ -97,6 +97,11 @@ struct Scope {
     /// Spelling of each slot as first written, for the debugger.
     display: Vec<String>,
     next_slot: u16,
+    /// `STATIC` variables of this routine → the hidden global holding each
+    /// (`Routine::name`), shared by every call.
+    statics: NameMap<String>,
+    /// Label of the routine this scope belongs to.
+    owner: String,
 }
 
 impl Scope {
@@ -122,6 +127,9 @@ struct Bcgen {
     /// Whether each name is a FUNCTION (true) or SUB (false). Used to choose
     /// CallFunc vs CallSub when invoked from an expression.
     fn_is_func: NameMap<bool>,
+    /// Name of the TYPE method being compiled (a PROPERTY SET setter stores
+    /// its own field directly instead of calling itself).
+    current_method: Option<String>,
     warnings: Vec<String>,
     /// Compile errors ("line:col: error: message"). Collected rather than
     /// returned immediately so one compile reports every problem.
@@ -219,6 +227,7 @@ impl Bcgen {
             module: Module::new(),
             fn_indices: NameMap::default(),
             fn_is_func: NameMap::default(),
+            current_method: None,
             warnings: Vec::new(),
             errors: Vec::new(),
             lib_functions: HashSet::new(),
@@ -287,7 +296,7 @@ impl Bcgen {
         let mut type_bodies: Vec<(u32, String, String, Vec<Parameter>, &[Statement], bool, String)> = Vec::new();
         for t in &type_defs {
             let mut info = TypeInfo { extends: t.extends.clone(), fields: t.fields.clone(), ..Default::default() };
-            let this_param = Parameter { span: t.span, name: "This".into(), type_name: t.name.clone(), by_ref: false };
+            let this_param = Parameter { span: t.span, name: "This".into(), type_name: t.name.clone(), by_ref: false, is_array: false };
             let with_this = |params: &[Parameter]| {
                 let mut all = vec![this_param.clone()];
                 all.extend_from_slice(params);
@@ -362,8 +371,10 @@ impl Bcgen {
         }
         for (idx, name, full, params, body, is_func, type_name) in type_bodies {
             self.current_type = Some(type_name);
+            self.current_method = Some(name.clone());
             self.compile_function_body(idx, &name, &full, &params, body, is_func)?;
             self.current_type = None;
+            self.current_method = None;
         }
 
         if !self.errors.is_empty() {
@@ -418,6 +429,10 @@ impl Bcgen {
     /// String-pool index for a global variable's name, always using the
     /// first spelling seen so `Total`, `total` and `TOTAL` are one variable.
     fn global_str(&mut self, name: &str) -> u32 {
+        if let Some(mangled) = self.scope.statics.get(name) {
+            let mangled = mangled.clone();
+            return self.module.add_string(&mangled);
+        }
         let spelling = self
             .global_spelling
             .entry(name_key(name))
@@ -447,6 +462,7 @@ impl Bcgen {
         is_func: bool,
     ) -> Result<(), String> {
         let saved_scope = std::mem::take(&mut self.scope);
+        self.scope.owner = label.to_string();
         // Pre-declare parameter slots (slots 0..N).
         for p in params {
             self.scope.declare(&p.name);
@@ -454,8 +470,14 @@ impl Bcgen {
                 self.scope.types.insert(p.name.clone(), p.type_name.clone());
             }
         }
-        // A FUNCTION's own name is a local holding its result.
+        // A FUNCTION's own name is a local holding its result; RapidQ's
+        // `RESULT = value` sets the same slot.
         let result_slot = is_func.then(|| self.scope.declare(name));
+        if let Some(slot) = result_slot {
+            if !self.scope.locals.contains_key("Result") {
+                self.scope.locals.insert("Result".to_string(), slot);
+            }
+        }
         let saved_ctx = self.fn_ctx.replace(FnCtx { result_slot });
         let saved_loops = std::mem::take(&mut self.loop_stack);
         self.routine = RoutineLabels { uses_gosub: contains_gosub(body), ..Default::default() };
@@ -482,7 +504,23 @@ impl Bcgen {
 
     // ------------------- statements -------------------
 
+    /// Lowers one statement. A failure is recorded as an error at that
+    /// statement's position (the innermost one, since nested bodies go
+    /// through here too) and compilation continues, so every problem in the
+    /// program is reported with its line.
     fn lower_stmt(
+        &mut self,
+        stmt: &Statement,
+        code: &mut Vec<u8>,
+        lines: &mut Vec<(u32, u32)>,
+    ) -> Result<(), String> {
+        if let Err(message) = self.lower_stmt_inner(stmt, code, lines) {
+            self.error_at(stmt_span(stmt), message);
+        }
+        Ok(())
+    }
+
+    fn lower_stmt_inner(
         &mut self,
         stmt: &Statement,
         code: &mut Vec<u8>,
@@ -510,6 +548,7 @@ impl Bcgen {
                 emit(code, Op::StoreGlobal);
                 push_u32(code, s);
             }
+            Statement::Dim(d) if d.is_static && !self.in_main => self.lower_static(d, code)?,
             Statement::Dim(d) => {
                 // Declare locals; initial value Null is already the default.
                 for decl in &d.declarators {
@@ -522,6 +561,16 @@ impl Bcgen {
                         self.lower_array_dim(decl, &d.type_name, code)?;
                     } else if self.types.contains_key(&d.type_name) {
                         self.setup_instance(&decl.name, &d.type_name, code)?;
+                    } else if !is_component_type_name(&d.type_name) {
+                        // `DIM n AS INTEGER` starts at 0, a STRING at "".
+                        let default = self.module.add_const(type_default(&d.type_name));
+                        emit(code, Op::LoadConst); push_u32(code, default);
+                        if let Some(slot) = self.scope.get(&decl.name) {
+                            emit(code, Op::StoreLocal); push_u16(code, slot);
+                        } else {
+                            let s = self.global_str(&decl.name);
+                            emit(code, Op::StoreGlobal); push_u32(code, s);
+                        }
                     }
                     // Component DIM → eagerly CreateComp (mirrors the
                     // compiled-mode `emit_dim` path), unless a CREATE block
@@ -544,9 +593,8 @@ impl Bcgen {
             Statement::Create(c) => self.lower_create(c, code, lines)?,
             Statement::Bind(b) => self.lower_bind(b, code)?,
             Statement::With(w) => {
-                // For now, just lower the body normally; member-access uses
-                // explicit object references in the AST.
-                for s in &w.body {
+                // `.Member` inside the block is a member of the WITH object.
+                for s in &rapidr_ast::resolve_with_body(&w.body, &w.object) {
                     self.lower_stmt(s, code, lines)?;
                 }
             }
@@ -692,15 +740,46 @@ impl Bcgen {
         Ok(())
     }
 
+    /// `STATIC n AS LONG` in a SUB/FUNCTION: the name refers to a hidden
+    /// global (`Routine::n`) from here on, initialised the first time the
+    /// statement runs, so the value survives between calls and is shared by
+    /// recursive calls (RapidQ manual, STATIC).
+    fn lower_static(&mut self, d: &rapidr_ast::DimStatement, code: &mut Vec<u8>) -> Result<(), String> {
+        for decl in &d.declarators {
+            let mangled = format!("{}::{}", self.scope.owner, decl.name);
+            self.scope.statics.insert(decl.name.clone(), mangled.clone());
+            self.globals.insert(name_key(&mangled));
+            let flag = self.module.add_string(&format!("{mangled}#init"));
+            emit(code, Op::LoadGlobal); push_u32(code, flag);
+            emit(code, Op::JumpIf);
+            let skip = code.len();
+            push_u32(code, 0);
+            if decl.dimensions.is_empty() {
+                let default = self.module.add_const(type_default(&d.type_name));
+                emit(code, Op::LoadConst); push_u32(code, default);
+                let s = self.global_str(&decl.name);
+                emit(code, Op::StoreGlobal); push_u32(code, s);
+            } else {
+                self.lower_array_dim(decl, &d.type_name, code)?;
+            }
+            let yes = self.module.add_const(Const::Bool(true));
+            emit(code, Op::LoadConst); push_u32(code, yes);
+            emit(code, Op::StoreGlobal); push_u32(code, flag);
+            let here = code.len() as u32;
+            patch_u32(code, skip, here);
+        }
+        Ok(())
+    }
+
+    /// Whether `name` is a module-level variable (or a STATIC of this routine).
+    fn is_known_global(&self, name: &str) -> bool {
+        self.globals.contains(&name_key(name)) || self.scope.statics.contains_key(name)
+    }
+
     /// `DIM a(10)`, `DIM b(1 TO 5, 3) AS STRING`: allocate the array (each
     /// element set to the type's default) and store it in the variable.
     fn lower_array_dim(&mut self, decl: &VariableDeclarator, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
-        let fill = match type_name.to_ascii_uppercase().as_str() {
-            "STRING" => Const::Str(String::new()),
-            "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" => Const::Int(0),
-            _ => Const::Null,
-        };
-        let fill = self.module.add_const(fill);
+        let fill = self.module.add_const(type_default(type_name));
         emit(code, Op::LoadConst); push_u32(code, fill);
         let zero = self.module.add_const(Const::Int(0));
         for dim in &decl.dimensions {
@@ -794,10 +873,88 @@ impl Bcgen {
         self.type_chain(type_name).iter().any(|t| t.fields.iter().any(|f| f.name.eq_ignore_ascii_case(field)))
     }
 
+    /// Inside a TYPE's code the type's own name (or an ancestor's) stands for
+    /// the instance, as in the RapidQ manual's `QDiamondBox.Caption` and
+    /// `WITH TForm … END WITH` — unless a variable has that name.
+    fn is_this_alias(&self, name: &str) -> bool {
+        let Some(current) = &self.current_type else { return false };
+        if self.scope.get(name).is_some() || self.is_known_global(name) {
+            return false;
+        }
+        let mut t = Some(current.clone());
+        let mut depth = 0;
+        while let Some(type_name) = t {
+            if type_name.eq_ignore_ascii_case(name) {
+                return true;
+            }
+            depth += 1;
+            if depth > 32 {
+                break;
+            }
+            t = self.types.get(&type_name).and_then(|info| info.extends.clone());
+        }
+        false
+    }
+
+    /// The PROPERTY SET method for `field` of `type_name`, unless it's the
+    /// method being compiled (a setter assigns its own field directly).
+    fn property_setter(&self, type_name: &str, field: &str) -> Option<u32> {
+        let setter = self
+            .type_chain(type_name)
+            .iter()
+            .rev()
+            .find_map(|t| t.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).map(|f| f.setter.clone()))??;
+        if self.current_method.as_deref().is_some_and(|m| m.eq_ignore_ascii_case(&setter)) {
+            return None;
+        }
+        self.find_method(type_name, &setter).map(|(fi, _)| fi)
+    }
+
+    /// `obj.Field = v` (or `Field = v` inside the TYPE, or in a CREATE block
+    /// of a TYPE instance) where Field is a PROPERTY SET: call the setter
+    /// with the object and the value.
+    fn try_property_setter(&mut self, a: &AssignmentStatement, code: &mut Vec<u8>) -> Result<bool, String> {
+        enum Obj { Expr(Expression), This, Named(String) }
+        let (type_name, field, obj) = match &a.target {
+            Expression::MemberAccess(m) => {
+                let Expression::Identifier(o) = &*m.object else { return Ok(false) };
+                let Some(t) = self.var_type(&o.name) else { return Ok(false) };
+                (t, m.member.clone(), Obj::Expr((*m.object).clone()))
+            }
+            Expression::Identifier(id) => {
+                if let Some(inst) = self.create_stack.last().cloned() {
+                    let Some(t) = self.global_types.get(&inst).cloned() else { return Ok(false) };
+                    (t, id.name.clone(), Obj::Named(inst))
+                } else if self.implicit_member(&id.name) {
+                    let Some(t) = self.current_type.clone() else { return Ok(false) };
+                    (t, id.name.clone(), Obj::This)
+                } else {
+                    return Ok(false);
+                }
+            }
+            _ => return Ok(false),
+        };
+        let Some(fi) = self.property_setter(&type_name, &field) else { return Ok(false) };
+        match obj {
+            Obj::Expr(e) => self.lower_expr(&e, code)?,
+            Obj::This => self.emit_load_this(code)?,
+            Obj::Named(inst) => {
+                let c = self.module.add_const(Const::Str(inst));
+                emit(code, Op::LoadConst); push_u32(code, c);
+            }
+        }
+        self.lower_expr(&a.value, code)?;
+        emit(code, Op::CallSub); push_u32(code, fi); code.push(2);
+        Ok(true)
+    }
+
     /// Declared TYPE of a variable holding an object (`This` included).
     fn var_type(&self, name: &str) -> Option<String> {
         if let Some(t) = self.scope.types.get(name) {
             return Some(t.clone());
+        }
+        if self.is_this_alias(name) {
+            return self.current_type.clone();
         }
         if !self.in_main && self.scope.get(name).is_some() {
             return None;
@@ -809,9 +966,10 @@ impl Bcgen {
     /// a parameter or local of the current SUB/FUNCTION (`Sender`, `This`);
     /// globals and component names are addressed by name.
     fn is_dynamic_object(&self, name: &str) -> bool {
-        !self.in_main
+        (!self.in_main
             && self.scope.get(name).is_some()
-            && !self.component_instance_names.contains_key(&name.to_lowercase())
+            && !self.component_instance_names.contains_key(&name.to_lowercase()))
+            || self.is_this_alias(name)
     }
 
     /// Inside a TYPE's method/EVENT/CONSTRUCTOR, a bare name that isn't a
@@ -821,13 +979,14 @@ impl Bcgen {
     fn implicit_member(&self, name: &str) -> bool {
         let Some(type_name) = &self.current_type else { return false };
         if self.scope.get(name).is_some()
+            || self.scope.statics.contains_key(name)
             || matches!(name.to_ascii_lowercase().as_str(), "this" | "me" | "true" | "false")
         {
             return false;
         }
         self.type_has_field(type_name, name)
             || (self.base_component(type_name).is_some()
-                && !self.globals.contains(&name_key(name))
+                && !self.is_known_global(name)
                 && !self.fn_indices.contains_key(name)
                 && !builtins::is_builtin(name)
                 && !self.component_instance_names.contains_key(&name.to_lowercase()))
@@ -1025,6 +1184,9 @@ impl Bcgen {
             if let Expression::Identifier(id) = &a.target {
                 self.globals.insert(name_key(&id.name));
             }
+        }
+        if self.try_property_setter(a, code)? {
+            return Ok(());
         }
         // Special case for CREATE-block property assignment with a SUB-name RHS:
         // → emit RegisterEvent instead of SetProp.
@@ -1227,8 +1389,9 @@ impl Bcgen {
             return Ok(());
         }
         // Push args.
+        let user_routine = matches!(&c.callee, Expression::Identifier(id) if self.fn_indices.contains_key(&id.name));
         for a in &c.args {
-            self.lower_expr(a, code)?;
+            self.lower_arg(a, user_routine, code)?;
         }
         let argc = c.args.len() as u8;
         // Inside CREATE, a bare name that isn't a user SUB is a method of the
@@ -1577,15 +1740,29 @@ impl Bcgen {
     /// into the caller's variable (copy-in/copy-out, as VB does for plain
     /// variables). Only variables and array elements can be written back.
     fn emit_byref_writeback(&mut self, callee: &str, args: &[Expression], code: &mut Vec<u8>) -> Result<(), String> {
-        let Some(flags) = self.fn_byref.get(callee).cloned() else { return Ok(()) };
+        let flags = self.fn_byref.get(callee).cloned().unwrap_or_default();
         for (i, arg) in args.iter().enumerate() {
-            if !flags.get(i).copied().unwrap_or(false) || !self.is_assignable(arg) {
+            // `@x` at the call site makes that argument BYREF (RapidQ manual 3.5).
+            let (by_ref, target) = match arg {
+                Expression::Unary(u) if u.operator == UnaryOperator::Ref => (true, u.operand.as_ref()),
+                _ => (flags.get(i).copied().unwrap_or(false), arg),
+            };
+            if !by_ref || !self.is_assignable(target) {
                 continue;
             }
             emit(code, Op::LoadArgOut); code.push(i as u8);
-            self.store_target(arg, code)?;
+            self.store_target(target, code)?;
         }
         Ok(())
+    }
+
+    /// One argument of a call. `@x` is only meaningful when calling a user
+    /// SUB/FUNCTION (the value is passed now and written back after the call).
+    fn lower_arg(&mut self, arg: &Expression, user_routine: bool, code: &mut Vec<u8>) -> Result<(), String> {
+        match arg {
+            Expression::Unary(u) if u.operator == UnaryOperator::Ref && user_routine => self.lower_expr(&u.operand, code),
+            _ => self.lower_expr(arg, code),
+        }
     }
 
     fn is_assignable(&self, e: &Expression) -> bool {
@@ -1600,7 +1777,7 @@ impl Bcgen {
                 Expression::Identifier(id) => {
                     fc.args.len() == 1
                         && !self.fn_indices.contains_key(&id.name)
-                        && (self.scope.get(&id.name).is_some() || self.globals.contains(&name_key(&id.name)))
+                        && (self.scope.get(&id.name).is_some() || self.is_known_global(&id.name))
                 }
                 _ => false,
             },
@@ -1684,6 +1861,9 @@ impl Bcgen {
             Expression::Literal(l) => self.lower_literal(l, code),
             Expression::Identifier(id) => {
                 let name_lower = id.name.to_lowercase();
+                if self.is_this_alias(&id.name) {
+                    return self.emit_load_this(code);
+                }
                 if self.implicit_member(&id.name) {
                     self.emit_load_this(code)?;
                     let m_s = self.module.add_string(&id.name);
@@ -1696,6 +1876,14 @@ impl Bcgen {
                     push_u32(code, cs);
                 } else if let Some(slot) = self.scope.get(&id.name) {
                     emit(code, Op::LoadLocal); push_u16(code, slot);
+                } else if let (Some(&fi), Some(true), false) = (
+                    self.fn_indices.get(&id.name),
+                    self.fn_is_func.get(&id.name).copied(),
+                    self.is_known_global(&id.name),
+                ) {
+                    // A FUNCTION named without parentheses is called: `y = Five + 1`.
+                    emit(code, Op::CallFunc);
+                    push_u32(code, fi); code.push(0);
                 } else {
                     let s = self.global_str(&id.name);
                     emit(code, Op::LoadGlobal); push_u32(code, s);
@@ -1727,12 +1915,15 @@ impl Bcgen {
                 emit(code, op);
                 Ok(())
             }
+            Expression::Unary(u) if u.operator == UnaryOperator::Ref => Err(
+                "`@` passes a variable by reference to a SUB or FUNCTION (`MySub @x`); memory addresses for DLL calls only work in native builds (`rapidr build`)".into(),
+            ),
             Expression::Unary(u) => {
                 self.lower_expr(&u.operand, code)?;
                 match u.operator {
                     UnaryOperator::Negate => emit(code, Op::Neg),
                     UnaryOperator::Not => emit(code, Op::Not),
-                    UnaryOperator::Positive => {} // no-op
+                    UnaryOperator::Positive | UnaryOperator::Ref => {} // no-op
                 }
                 Ok(())
             }
@@ -1756,9 +1947,8 @@ impl Bcgen {
                 // Check if this is a variant array/list subscript indexing:
                 // callee is an identifier, not a defined function, and is a variable.
                 if let Expression::Identifier(id) = fc.callee.as_ref() {
-                    let name_lower = name_key(&id.name);
                     let is_local = self.scope.get(&id.name).is_some();
-                    let is_global = self.globals.contains(&name_lower);
+                    let is_global = self.is_known_global(&id.name);
                     if (is_local || is_global) && !fc.args.is_empty() && !self.fn_indices.contains_key(&id.name) {
                         let synth = ArrayAccessExpression {
                             span: fc.span.clone(),
@@ -1769,7 +1959,8 @@ impl Bcgen {
                     }
                 }
 
-                for a in &fc.args { self.lower_expr(a, code)?; }
+                let user_routine = matches!(&*fc.callee, Expression::Identifier(id) if self.fn_indices.contains_key(&id.name));
+                for a in &fc.args { self.lower_arg(a, user_routine, code)?; }
                 let argc = fc.args.len() as u8;
                 // Module-style call: `math.sqrt(x)`, `RNum.zeros(n)` →
                 // builtin (mirrors codegen-rust's `builtin_function_call`).
@@ -1861,6 +2052,14 @@ impl Bcgen {
             }
             Expression::MemberAccess(m) => {
                 if let Expression::Identifier(obj) = &*m.object {
+                    // `obj.Func` without parentheses calls a FUNCTION method.
+                    let is_fn_method = self
+                        .var_type(&obj.name)
+                        .and_then(|t| self.find_method(&t, &m.member))
+                        .is_some_and(|(_, is_func)| is_func);
+                    if is_fn_method && self.try_lower_object_call(e, &[], true, code)? {
+                        return Ok(());
+                    }
                     if self.is_dynamic_object(&obj.name) {
                         self.lower_expr(&m.object, code)?;
                         let nm_s = self.module.add_string(&m.member);
@@ -1954,6 +2153,17 @@ fn collect_create_names(stmts: &[Statement], out: &mut HashSet<String>) {
             }
             _ => {}
         }
+    }
+}
+
+/// The value a variable of a BASIC type starts with (as in native builds'
+/// `default_value_for_type`); VARIANTs and objects start as Null.
+fn type_default(type_name: &str) -> Const {
+    match type_name.to_ascii_uppercase().as_str() {
+        "STRING" => Const::Str(String::new()),
+        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "INT64" => Const::Int(0),
+        "SINGLE" | "DOUBLE" | "CURRENCY" => Const::Double(0.0),
+        _ => Const::Null,
     }
 }
 

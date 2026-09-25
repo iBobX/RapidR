@@ -523,17 +523,20 @@ fn find_workspace_root() -> Option<std::path::PathBuf> {
 /// every error carries `file:line:col`. All errors are reported, one per line.
 fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     let pre = preprocess_file(path, PreprocessOptions::default()).map_err(|e| e.to_string())?;
+    // Positions count preprocessed lines; map them back to the real file
+    // and line (code from an $INCLUDE reports the include file).
+    let remap = |text: String| pre.remap_messages(path, &text);
     let tokens = rapidr_lexer::Lexer::new(&pre.source, Some(path.to_string()))
         .tokenize()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| remap(e.to_string()))?;
     let program = rapidr_parser::parse_tokens(&tokens).map_err(|mut e| {
         for d in &mut e.diagnostics {
             d.file_path.get_or_insert_with(|| path.to_string());
         }
-        e.to_string()
+        remap(e.to_string())
     })?;
     rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source)).map_err(|e| {
-        e.lines().map(|l| format!("{path}:{l}")).collect::<Vec<_>>().join("\n")
+        remap(e.lines().map(|l| format!("{path}:{l}")).collect::<Vec<_>>().join("\n"))
     })
 }
 

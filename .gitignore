@@ -28,3 +28,4 @@ ide
 *.interp
 *.zip
 tests/conformance/.work
+.reference/

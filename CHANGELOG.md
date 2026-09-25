@@ -7,6 +7,96 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.15.0] — 2026-09-25
+
+**Real RapidQ programs.** The original RapidQ distribution (386 example
+programs, 126 include files and the manual) is now the compatibility corpus.
+`tools/rapidq_corpus.py` compiles every program and ranks what blocks them.
+46/386 compiled at the start of this release and 82/386 at the end. Semantics
+come from the RapidQ manual, not guesses.
+
+### Added
+- **Includes like RapidQ on Windows:**
+  - `RAPIDR_INCLUDE_PATH` names RapidQ's `include\` directory.
+  - `\` separators and case-insensitive names work.
+  - Absolute paths (`c:\rapidq\include\windows.inc`) resolve by trying shorter
+    endings of the path.
+  - Windows-1252 source files are decoded.
+  - `$DEFINE`s and `$MACRO`s from an include reach the program that includes it.
+  - `WIN32` is predefined, as in RapidQ.
+- **Errors in included code point at the include file and line.** Before, they
+  showed a shifted line in the main file.
+- **VB conditional compilation:** `#If … Then`, `#ElseIf`, `#Else`, `#End If`
+  and `#Const`.
+- **The full RapidQ `DIM` grammar:**
+  - `DIM a AS INTEGER, s AS STRING`;
+  - `DIM (a, b, c)(5) AS LONG`;
+  - `DIM x AS INTEGER = 5`;
+  - `AS STRING * 20`.
+- **`DEFINT`, `DEFSTR`, `DEFLNG`, `DEFDBL` and the rest of the DEFxxx family,**
+  with initializers: `DEFINT a(1 TO 3) = {1, 2, 3}` is filled in memory order,
+  as the manual describes.
+- **`STATIC` variables** in SUBs and FUNCTIONs, in the interpreter. The value
+  survives between calls and is shared by recursive calls, exactly as in the
+  manual's example.
+- **Operators and syntax:**
+  - `i++`, `i--`, `x += y`, `-=`, `*=`, `/=`, `&=`;
+  - string index `s$[i]`;
+  - string subtraction `"jello" - "l"` gives `"jeo"`;
+  - `a NOT= b`;
+  - literal type suffixes `0&`, `1.5!`, `2#`;
+  - `CASE 1: stmt` and `CASE ELSE : stmt`;
+  - `Foo : Bar` calls;
+  - VB `Public`/`Private`/`Global` modifiers.
+- **`@var` passes a variable by reference** (manual 3.5, `StrCat(@A$, "!")`),
+  on both backends. For a DLL call, native builds pass its address.
+- **Array parameters:** `SUB Fill (list() AS STRING)`.
+- **SUBs named like file keywords** (`SUB Close`, `DECLARE SUB Open`), which
+  RapidQ doesn't reserve.
+- **`RESULT = value`** in FUNCTIONs.
+- **Accented identifiers** such as `Précédent`.
+- **String continuation:** a string can continue onto the next line with `_`.
+- **RapidQ OOP from manual chapter 10 (interpreter):**
+  - `Field AS LONG PROPERTY SET Setter` with `PROPERTY SET Setter (v) … END PROPERTY`;
+  - the type's name standing for the instance (`TForm.Focus`, `WITH TForm`);
+  - `EXTENDS QObject`;
+  - `TYPE X AS QFORM`;
+  - `PUBLIC:`/`PRIVATE:`/`PROTECTED:` sections;
+  - `DECLARE` lines and `AS EVENT(…)` fields inside a TYPE;
+  - `obj.Func` calls a FUNCTION method without parentheses.
+- **`True`/`False` in the built-in RAPIDQ.INC**, 1 and 0 as in the real one.
+- **AST walkers** `rapidr_ast::walk`, `walk_expressions_mut` and
+  `ref_argument_positions`.
+- **Tests:**
+  - conformance cases `dim_forms`, `rapidq_syntax`, `static_vars`,
+    `operators_rapidq`, `with_result` and `oop_property_set`;
+  - preprocessor tests for includes and `#If`.
+
+### Changed
+- **Comparisons print as `-1`/`0`** (RapidQ has no boolean type), not
+  `True`/`False`.
+- **Precedence follows the manual.** `NOT` binds looser than comparisons, so
+  `IF NOT x = 5` means `NOT (x = 5)`. `MOD` binds looser than `*` and `/`.
+- **`DIM a, b AS LONG` makes `a` a VARIANT.** The manual says only `b` is
+  LONG. Before, both were LONG.
+- **Unterminated strings end at the end of the line,** as RapidQ does,
+  instead of being an error.
+- **Native builds reject `STATIC` inside a SUB/FUNCTION** with a clear
+  message, like OOP TYPEs.
+
+### Fixed
+- **Typed variables start at their type's default in the interpreter.** An
+  uninitialised `DIM n AS INTEGER` printed as empty; it now prints `0`.
+- **`WITH obj … END WITH` works in the interpreter.** Every `.Member = v`
+  inside it silently did nothing.
+- **Bare FUNCTION names are called** (`y = Five + 1`) on both backends.
+  Before, they read an empty variable.
+- **Every compile error has a line number.** Errors raised while lowering a
+  statement (e.g. unsupported nested member assignment) used to stop
+  compilation without a position; they're now reported with their line and
+  compilation continues.
+- **The lexer no longer crashes** on non-ASCII text right after a line break.
+
 ## [2.14.0] — 2026-09-25
 
 **RapidQ object-oriented TYPEs** in the bytecode interpreter (IDE preview and web

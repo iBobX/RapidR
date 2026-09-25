@@ -52,9 +52,52 @@ pub fn parse_tokens(tokens: &[Token]) -> Result<Program, ParseError> {
 /// Parses as much as possible and returns the program together with every
 /// diagnostic, for tools (editors) that want a best-effort tree.
 pub fn parse_tokens_recovering(tokens: &[Token]) -> (Program, Vec<Diagnostic>) {
-    let mut parser = Parser::new(tokens);
+    let retagged = retag_routine_names(tokens);
+    let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
     let program = parser.parse_program();
     (program, parser.diagnostics)
+}
+
+/// Statement keywords of QBasic-style file I/O that RapidQ doesn't reserve
+/// (it uses QFileStream), so programs name their own SUBs `Open`, `Close`, …
+const SOFT_KEYWORDS: &[TokenType] = &[
+    TokenType::Open,
+    TokenType::Close,
+    TokenType::Write,
+    TokenType::Seek,
+    TokenType::Kill,
+    TokenType::Input,
+    TokenType::Bind,
+];
+
+/// When a program declares a SUB/FUNCTION named like a soft keyword
+/// (`SUB Close`, `DECLARE SUB Open`), every use of that word is the routine:
+/// retag those tokens as identifiers. `None` when nothing needs retagging.
+fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
+    let mut names: Vec<String> = Vec::new();
+    for pair in tokens.windows(2) {
+        if matches!(pair[0].kind, TokenType::Sub | TokenType::Function) && SOFT_KEYWORDS.contains(&pair[1].kind) {
+            let upper = pair[1].lexeme.to_ascii_uppercase();
+            if !names.contains(&upper) {
+                names.push(upper);
+            }
+        }
+    }
+    if names.is_empty() {
+        return None;
+    }
+    Some(
+        tokens
+            .iter()
+            .map(|t| {
+                let mut t = t.clone();
+                if SOFT_KEYWORDS.contains(&t.kind) && names.contains(&t.lexeme.to_ascii_uppercase()) {
+                    t.kind = TokenType::Identifier;
+                }
+                t
+            })
+            .collect(),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -65,11 +108,15 @@ struct Parser<'a> {
     tokens: &'a [Token],
     pos: usize,
     diagnostics: Vec<Diagnostic>,
+    /// Extra statements produced by the last parsed statement (a DIM with
+    /// several types or initializers becomes several statements); the
+    /// statement lists drain them right after it.
+    pending: Vec<Statement>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new() }
     }
 
     // --- diagnostics ---
@@ -113,9 +160,6 @@ impl<'a> Parser<'a> {
         }
         match tok.kind {
             TokenType::Goto | TokenType::Gosub => format!("{word} needs a label: `{word} Name` or `{word} 100`"),
-            TokenType::DefStr | TokenType::DefInt | TokenType::DefByte | TokenType::DefWord
-            | TokenType::DefDword | TokenType::DefLong | TokenType::DefSng | TokenType::DefDbl
-            | TokenType::DefCur => format!("{word} is not supported yet; declare variables with DIM"),
             TokenType::Identifier | TokenType::Number | TokenType::StringLit => {
                 format!("Syntax error near '{}'", tok.lexeme)
             }
@@ -265,6 +309,7 @@ impl<'a> Parser<'a> {
             }
             if let Some(stmt) = self.parse_statement() {
                 stmts.push(stmt);
+                stmts.append(&mut self.pending);
                 // Handle colon-separated statements on the same line
                 while self.match_kind(TokenType::Colon) {
                     if self.at_end() || self.peek_kind() == Some(TokenType::Newline) {
@@ -272,6 +317,7 @@ impl<'a> Parser<'a> {
                     }
                     if let Some(s) = self.parse_statement() {
                         stmts.push(s);
+                        stmts.append(&mut self.pending);
                     } else {
                         break;
                     }
@@ -328,7 +374,17 @@ impl<'a> Parser<'a> {
     fn parse_statement_inner(&mut self) -> Option<Statement> {
         match self.peek_kind()? {
             TokenType::Directive => self.parse_directive(),
-            TokenType::Dim => self.parse_dim().map(Statement::Dim),
+            TokenType::Dim => self.parse_declaration(None),
+            TokenType::DefStr => self.parse_declaration(Some("STRING")),
+            TokenType::DefInt => self.parse_declaration(Some("INTEGER")),
+            TokenType::DefByte => self.parse_declaration(Some("BYTE")),
+            TokenType::DefWord => self.parse_declaration(Some("WORD")),
+            TokenType::DefDword => self.parse_declaration(Some("DWORD")),
+            TokenType::DefLong => self.parse_declaration(Some("LONG")),
+            TokenType::DefShort => self.parse_declaration(Some("SHORT")),
+            TokenType::DefSng => self.parse_declaration(Some("SINGLE")),
+            TokenType::DefDbl => self.parse_declaration(Some("DOUBLE")),
+            TokenType::DefCur => self.parse_declaration(Some("CURRENCY")),
             TokenType::Const => self.parse_const().map(Statement::Const),
             TokenType::Import => self.parse_import().map(Statement::Import),
             TokenType::Print => {
@@ -379,6 +435,27 @@ impl<'a> Parser<'a> {
                     callee: Expression::Identifier(Identifier { span: tok.span, name: "END".into() }),
                     args: Vec::new(),
                 }))
+            }
+            // `STATIC x AS T` — a DIM whose value survives between calls.
+            TokenType::Identifier
+                if self.peek_identifier_eq("STATIC")
+                    && matches!(self.peek_kind_at(1), Some(TokenType::Identifier | TokenType::LParen)) =>
+            {
+                self.parse_declaration(None)
+            }
+            // VB-style scope modifiers: `Public Const X = 1`, `Private Sub F`,
+            // `Global Const Y = 2`, `Public n As Long` (a DIM).
+            TokenType::Identifier
+                if (self.peek_identifier_eq("PUBLIC") || self.peek_identifier_eq("PRIVATE") || self.peek_identifier_eq("GLOBAL"))
+                    && self.peek_kind_at(1) != Some(TokenType::Colon)
+                    && !matches!(self.peek_kind_at(1), Some(TokenType::Eq | TokenType::LParen | TokenType::Dot | TokenType::Newline) | None) =>
+            {
+                if self.peek_kind_at(1) == Some(TokenType::Identifier) && !self.tokens[self.pos + 1].lexeme.eq_ignore_ascii_case("STATIC") {
+                    self.parse_declaration(None)
+                } else {
+                    self.advance();
+                    self.parse_statement_inner()
+                }
             }
             TokenType::Goto => self.parse_jump().map(Statement::Goto),
             TokenType::Gosub => self.parse_jump().map(Statement::Gosub),
@@ -438,12 +515,32 @@ impl<'a> Parser<'a> {
         Some(Statement::Directive(DirectiveStatement { span, name, value }))
     }
 
-    fn parse_dim(&mut self) -> Option<DimStatement> {
-        let start = self.pos;
-        self.expect(TokenType::Dim)?;
-        let mut declarators = Vec::new();
+    /// `DIM` and RapidQ's `DEFINT`/`DEFSTR`/… (`fixed_type`), following the
+    /// RapidQ manual:
+    /// - `DIM a AS INTEGER, b(5) AS STRING` — each name takes the `AS` after it;
+    ///   a name without one is a VARIANT (`DIM a, b AS LONG`: only b is LONG).
+    /// - `DIM (a, b, c)(5) AS INTEGER` — one type (and dimensions) for a group.
+    /// - `DIM x AS INTEGER = 5`, `DEFSTR s = "hi"`, `DEFINT a(1 TO 3) = {1, 2, 3}`.
+    ///
+    /// Each name becomes its own DIM statement followed by assignments for its
+    /// initializer (queued in `pending`), so code generators see plain DIMs.
+    fn parse_declaration(&mut self, fixed_type: Option<&str>) -> Option<Statement> {
+        let is_static = self.advance()?.lexeme.eq_ignore_ascii_case("STATIC");
+        let mut out = Vec::new();
         loop {
-            let name_tok = self.expect(TokenType::Identifier)?;
+            let group_start = self.pos;
+            let mut names = Vec::new();
+            if self.match_kind(TokenType::LParen) {
+                loop {
+                    names.push(self.expect(TokenType::Identifier)?.clone());
+                    if !self.match_kind(TokenType::Comma) {
+                        break;
+                    }
+                }
+                self.expect(TokenType::RParen)?;
+            } else {
+                names.push(self.expect(TokenType::Identifier)?.clone());
+            }
             let dimensions = if self.match_kind(TokenType::LParen) {
                 let dims = self.parse_array_dimensions()?;
                 self.expect(TokenType::RParen)?;
@@ -451,23 +548,70 @@ impl<'a> Parser<'a> {
             } else {
                 Vec::new()
             };
-            let decl_end = self.previous()?.span.end;
-            declarators.push(VariableDeclarator {
-                span: TextSpan::new(name_tok.span.start, decl_end),
-                name: name_tok.lexeme.clone(),
-                dimensions,
-            });
+            let type_name = match fixed_type {
+                Some(t) => t.to_string(),
+                None if self.match_kind(TokenType::As) => canonical_type_name(&self.advance()?.lexeme),
+                None => "VARIANT".to_string(),
+            };
+            // `AS STRING * 20`: a fixed-length string, kept as a STRING.
+            if self.match_kind(TokenType::Star) {
+                self.parse_unary()?;
+            }
+            let init = if self.match_kind(TokenType::Eq) {
+                if self.match_kind(TokenType::LBrace) {
+                    let mut values = Vec::new();
+                    self.skip_newlines();
+                    while !self.match_kind(TokenType::RBrace) {
+                        values.push(self.parse_expression()?);
+                        self.skip_newlines();
+                        if !self.match_kind(TokenType::Comma) {
+                            self.skip_newlines();
+                            self.expect(TokenType::RBrace)?;
+                            break;
+                        }
+                        self.skip_newlines();
+                    }
+                    Some(Err(values))
+                } else {
+                    Some(Ok(self.parse_expression()?))
+                }
+            } else {
+                None
+            };
+            let span = self.span_from(group_start);
+            for name_tok in names {
+                let decl_span = TextSpan::new(name_tok.span.start, span.end);
+                out.push(Statement::Dim(DimStatement {
+                    span: decl_span,
+                    declarators: vec![VariableDeclarator {
+                        span: decl_span,
+                        name: name_tok.lexeme.clone(),
+                        dimensions: dimensions.clone(),
+                    }],
+                    type_name: type_name.clone(),
+                    is_static,
+                }));
+                match &init {
+                    None => {}
+                    Some(Ok(value)) => out.push(assign(decl_span, &name_tok.lexeme, Vec::new(), value.clone())),
+                    Some(Err(values)) => {
+                        let indices = initializer_indices(&dimensions, values.len()).or_else(|| {
+                            self.error_at(group_start, "Array initializers need constant bounds on every dimension but the first".to_string());
+                            None
+                        })?;
+                        for (index, value) in indices.into_iter().zip(values) {
+                            out.push(assign(decl_span, &name_tok.lexeme, index, value.clone()));
+                        }
+                    }
+                }
+            }
             if !self.match_kind(TokenType::Comma) {
                 break;
             }
         }
-        self.expect(TokenType::As)?;
-        let type_name = canonical_type_name(&self.advance()?.lexeme);
-        Some(DimStatement {
-            span: self.span_from(start),
-            declarators,
-            type_name,
-        })
+        let first = out.remove(0);
+        self.pending = out;
+        Some(first)
     }
 
     fn parse_array_dimensions(&mut self) -> Option<Vec<ArrayDimension>> {
@@ -810,6 +954,32 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         let left = self.parse_postfix_expression()?;
 
+        // RapidQ `i++` / `i--` and `x += y`, `-=`, `*=`, `/=`, `&=`.
+        let compound = match (self.peek_kind(), self.peek_kind_at(1)) {
+            (Some(TokenType::Plus), Some(TokenType::Plus)) => Some((BinaryOperator::Add, 2, false)),
+            (Some(TokenType::Minus), Some(TokenType::Minus)) => Some((BinaryOperator::Subtract, 2, false)),
+            (Some(TokenType::Plus), Some(TokenType::Eq)) => Some((BinaryOperator::Add, 2, true)),
+            (Some(TokenType::Minus), Some(TokenType::Eq)) => Some((BinaryOperator::Subtract, 2, true)),
+            (Some(TokenType::Star), Some(TokenType::Eq)) => Some((BinaryOperator::Multiply, 2, true)),
+            (Some(TokenType::Slash), Some(TokenType::Eq)) => Some((BinaryOperator::Divide, 2, true)),
+            (Some(TokenType::Ampersand), Some(TokenType::Eq)) => Some((BinaryOperator::Concat, 2, true)),
+            _ => None,
+        };
+        if let Some((operator, width, has_value)) = compound {
+            self.pos += width;
+            let right = if has_value {
+                self.parse_expression()?
+            } else {
+                Expression::Literal(Literal { span: self.span_from(start), value: LiteralValue::Integer(1) })
+            };
+            let span = self.span_from(start);
+            return Some(Statement::Assignment(AssignmentStatement {
+                span,
+                target: left.clone(),
+                value: Expression::Binary(BinaryExpression { span, left: Box::new(left), operator, right: Box::new(right) }),
+            }));
+        }
+
         if self.match_kind(TokenType::Eq) {
             let value = self.parse_expression()?;
             return Some(Statement::Assignment(AssignmentStatement {
@@ -819,7 +989,9 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        if self.at_eol() {
+        // A statement also ends at `:` (`Foo : Bar`) and at the ELSE of a
+        // single-line IF (`IF x THEN Foo ELSE Bar`).
+        if self.at_eol() || matches!(self.peek_kind(), Some(TokenType::Colon | TokenType::Else)) {
             if let Some(args) = extract_existing_call_args(&left) {
                 return Some(Statement::Call(CallStatement {
                     span: self.span_from(start),
@@ -863,6 +1035,7 @@ impl<'a> Parser<'a> {
             loop {
                 if let Some(s) = self.parse_statement() {
                     then_body.push(s);
+                    then_body.append(&mut self.pending);
                 }
                 if !self.match_kind(TokenType::Colon) {
                     break;
@@ -874,6 +1047,7 @@ impl<'a> Parser<'a> {
                 loop {
                     if let Some(s) = self.parse_statement() {
                         else_body.push(s);
+                        else_body.append(&mut self.pending);
                     }
                     if !self.match_kind(TokenType::Colon) {
                         break;
@@ -1071,6 +1245,8 @@ impl<'a> Parser<'a> {
 
             // CASE ELSE
             if self.match_kind(TokenType::Else) {
+                // `CASE ELSE : stmt` — the body may start on the same line.
+                self.match_kind(TokenType::Colon);
                 self.consume_eol();
                 case_else = self.parse_body(&[
                     Terminator::Keyword("CASE"),
@@ -1084,7 +1260,9 @@ impl<'a> Parser<'a> {
             while self.match_kind(TokenType::Comma) {
                 values.push(self.parse_case_value()?);
             }
-            if !self.at_eol() {
+            // `CASE 1: PRINT "one"` — the body may start on the same line.
+            let same_line = self.match_kind(TokenType::Colon);
+            if !same_line && !self.at_eol() {
                 let message = format!("Unexpected '{}' in CASE list", self.tokens[self.pos].lexeme);
                 self.error_at(self.pos, message);
                 self.skip_to_eol();
@@ -1165,8 +1343,11 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::Type)?;
         let name = self.expect(TokenType::Identifier)?.lexeme.clone();
-        let extends = if self.match_kind(TokenType::Extends) {
+        // `TYPE X EXTENDS QFORM` or the manual's `TYPE X AS QFORM`. QOBJECT is
+        // RapidQ's empty base object: a plain TYPE with methods.
+        let extends = if self.match_kind(TokenType::Extends) || self.match_kind(TokenType::As) {
             Some(canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme))
+                .filter(|base| !base.eq_ignore_ascii_case("QOBJECT") && !base.eq_ignore_ascii_case("ROBJECT"))
         } else {
             None
         };
@@ -1182,8 +1363,8 @@ impl<'a> Parser<'a> {
             if self.peek_is_end_followed_by("TYPE") || self.at_end() {
                 break;
             }
-            // Skip PRIVATE: / PUBLIC: labels
-            if self.peek_identifier_eq("PRIVATE") || self.peek_identifier_eq("PUBLIC") {
+            // PRIVATE: / PUBLIC: / PROTECTED: sections (access isn't enforced)
+            if self.peek_identifier_eq("PRIVATE") || self.peek_identifier_eq("PUBLIC") || self.peek_identifier_eq("PROTECTED") {
                 self.advance();
                 self.match_kind(TokenType::Colon);
                 continue;
@@ -1245,36 +1426,110 @@ impl<'a> Parser<'a> {
                     continue;
                 }
             }
-            // Property
+            // `PROPERTY SET Name (v AS T) … END PROPERTY`: the setter method.
+            if self.peek_kind() == Some(TokenType::Property) && self.peek_kind_at(1) == Some(TokenType::Set) {
+                let prop_start = self.pos;
+                self.advance();
+                self.advance();
+                let Some(name_tok) = self.expect(TokenType::Identifier) else {
+                    self.skip_to_eol();
+                    continue;
+                };
+                let setter_name = name_tok.lexeme.clone();
+                let params = if self.match_kind(TokenType::LParen) {
+                    let p = self.parse_parameter_list().unwrap_or_default();
+                    self.expect(TokenType::RParen);
+                    p
+                } else {
+                    Vec::new()
+                };
+                self.consume_eol();
+                let body = self.parse_body(&[Terminator::EndPair("PROPERTY")]);
+                if self.peek_is_end_followed_by("PROPERTY") {
+                    self.advance();
+                    self.advance();
+                } else {
+                    self.error_at(prop_start, format!("PROPERTY SET {setter_name} is missing END PROPERTY"));
+                }
+                methods.push(Statement::Subroutine(SubroutineStatement {
+                    span: self.span_from(prop_start),
+                    name: setter_name,
+                    params,
+                    body,
+                }));
+                continue;
+            }
             if self.peek_kind() == Some(TokenType::Property) {
-                self.error_at(self.pos, "PROPERTY blocks in TYPE are not supported yet".into());
+                self.error_at(self.pos, "Only PROPERTY SET blocks are supported inside a TYPE".into());
                 self.skip_to_eol();
                 continue;
             }
-            // Field: name[(dims)] AS Type
+            // `DECLARE SUB Name …` inside a TYPE only announces a method.
+            if self.peek_kind() == Some(TokenType::Declare) {
+                self.skip_to_eol();
+                continue;
+            }
+            // Field: name[(dims)] AS Type [* len] [PROPERTY SET Setter]
             if self.peek_kind() == Some(TokenType::Identifier) {
                 let field_start = self.pos;
                 let fname = self.advance()?.lexeme.clone();
                 let arr = if self.match_kind(TokenType::LParen) {
-                    let expr = self.parse_expression()?;
+                    // Only the upper bound of the first dimension sizes a field
+                    // array; `(1 TO n)` and extra dimensions keep their text
+                    // for the error below.
+                    let dims = self.parse_array_dimensions();
                     self.expect(TokenType::RParen);
-                    Some(expr)
+                    match dims.as_deref() {
+                        Some([ArrayDimension::Single(upper)]) => Some(upper.clone()),
+                        Some([ArrayDimension::Range { start, end }]) if is_zero_literal(start) => Some(end.clone()),
+                        _ => {
+                            self.error_at(field_start, format!("Array field {fname} in TYPE {name}: only one dimension counted from 0 is supported yet"));
+                            self.skip_to_eol();
+                            continue;
+                        }
+                    }
                 } else {
                     None
                 };
-                self.expect(TokenType::As)?;
-                let ftype = self.advance()?.lexeme.clone();
-                // optional PROPERTY SET
-                if self.peek_kind() == Some(TokenType::Property) {
-                    self.error_at(self.pos, "PROPERTY SET on TYPE fields is not supported yet".into());
+                if !self.match_kind(TokenType::As) {
+                    let message = format!("Field {fname} in TYPE {name} needs a type: `{fname} AS INTEGER`");
+                    self.error_at(self.pos, message);
                     self.skip_to_eol();
+                    continue;
                 }
+                let Some(type_tok) = self.advance() else { break };
+                let mut ftype = canonical_type_name(&type_tok.lexeme);
+                // `OnReady AS EVENT(Template)`: a custom event (holds a SUB).
+                if ftype.eq_ignore_ascii_case("EVENT") && self.match_kind(TokenType::LParen) {
+                    while !self.at_eol() && !self.match_kind(TokenType::RParen) {
+                        self.pos += 1;
+                    }
+                    ftype = "EVENT".to_string();
+                }
+                // `Name AS STRING * 20`: fixed-length string, stored as STRING.
+                if self.match_kind(TokenType::Star) {
+                    self.parse_unary();
+                }
+                let setter = if self.peek_kind() == Some(TokenType::Property) && self.peek_kind_at(1) == Some(TokenType::Set) {
+                    self.advance();
+                    self.advance();
+                    self.expect(TokenType::Identifier).map(|t| t.lexeme.clone())
+                } else {
+                    None
+                };
                 fields.push(TypeField {
                     span: self.span_from(field_start),
                     name: fname,
                     type_name: ftype,
                     array_size: arr,
+                    setter,
                 });
+                if !self.at_eol() {
+                    let tok = &self.tokens[self.pos];
+                    let message = format!("Unexpected '{}' after field declaration", tok.lexeme);
+                    self.error_at(self.pos, message);
+                    self.skip_to_eol();
+                }
                 self.consume_eol();
                 continue;
             }
@@ -1352,6 +1607,12 @@ impl<'a> Parser<'a> {
                 false
             };
             let pname = self.expect(TokenType::Identifier)?.lexeme.clone();
+            // `list() AS STRING`: an array parameter (arrays are shared, so
+            // the SUB works on the caller's array).
+            let is_array = self.peek_kind() == Some(TokenType::LParen) && self.peek_kind_at(1) == Some(TokenType::RParen);
+            if is_array {
+                self.pos += 2;
+            }
             let ptype = if self.match_kind(TokenType::As) {
                 canonical_type_name(&self.advance()?.lexeme)
             } else {
@@ -1362,6 +1623,7 @@ impl<'a> Parser<'a> {
                 name: pname,
                 type_name: ptype,
                 by_ref,
+                is_array,
             });
             if !self.match_kind(TokenType::Comma) {
                 break;
@@ -1394,20 +1656,40 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_logical_and(&mut self) -> Option<Expression> {
-        let mut expr = self.parse_equality()?;
+        let mut expr = self.parse_not()?;
         while self.match_kind(TokenType::And) {
-            let right = self.parse_equality()?;
+            let right = self.parse_not()?;
             expr = binary(expr, BinaryOperator::And, right);
         }
         Some(expr)
     }
 
+    /// NOT binds looser than comparisons (RapidQ manual, operator
+    /// precedence): `NOT x = 5` is `NOT (x = 5)`.
+    fn parse_not(&mut self) -> Option<Expression> {
+        if self.peek_kind() == Some(TokenType::Not) {
+            let tok = self.advance()?;
+            let operand = self.parse_not()?;
+            return Some(Expression::Unary(UnaryExpression {
+                span: TextSpan::new(tok.span.start, expression_span(&operand).end),
+                operator: UnaryOperator::Not,
+                operand: Box::new(operand),
+            }));
+        }
+        self.parse_equality()
+    }
+
     fn parse_equality(&mut self) -> Option<Expression> {
         let mut expr = self.parse_comparison()?;
         loop {
-            let op = match self.peek_kind() {
-                Some(TokenType::Eq) => BinaryOperator::Equal,
-                Some(TokenType::Neq) => BinaryOperator::NotEqual,
+            let op = match (self.peek_kind(), self.peek_kind_at(1)) {
+                (Some(TokenType::Eq), _) => BinaryOperator::Equal,
+                (Some(TokenType::Neq), _) => BinaryOperator::NotEqual,
+                // `a NOT= b`, accepted by RapidQ as `a <> b`
+                (Some(TokenType::Not), Some(TokenType::Eq)) => {
+                    self.advance();
+                    BinaryOperator::NotEqual
+                }
                 _ => break,
             };
             self.advance();
@@ -1435,7 +1717,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_term(&mut self) -> Option<Expression> {
-        let mut expr = self.parse_factor()?;
+        let mut expr = self.parse_modulo()?;
         loop {
             let op = match self.peek_kind() {
                 Some(TokenType::Plus) => BinaryOperator::Add,
@@ -1444,8 +1726,19 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.advance();
-            let right = self.parse_factor()?;
+            let right = self.parse_modulo()?;
             expr = binary(expr, op, right);
+        }
+        Some(expr)
+    }
+
+    /// MOD binds looser than `*` and `/` (RapidQ manual): `a MOD b * c` is
+    /// `a MOD (b * c)`.
+    fn parse_modulo(&mut self) -> Option<Expression> {
+        let mut expr = self.parse_factor()?;
+        while self.match_kind(TokenType::Mod) {
+            let right = self.parse_factor()?;
+            expr = binary(expr, BinaryOperator::Modulo, right);
         }
         Some(expr)
     }
@@ -1457,7 +1750,6 @@ impl<'a> Parser<'a> {
                 Some(TokenType::Star) => BinaryOperator::Multiply,
                 Some(TokenType::Slash) => BinaryOperator::Divide,
                 Some(TokenType::Backslash) => BinaryOperator::IntegerDivide,
-                Some(TokenType::Mod) => BinaryOperator::Modulo,
                 _ => break,
             };
             self.advance();
@@ -1481,6 +1773,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::Minus) => Some(UnaryOperator::Negate),
             Some(TokenType::Plus) => Some(UnaryOperator::Positive),
             Some(TokenType::Not) => Some(UnaryOperator::Not),
+            Some(TokenType::At) => Some(UnaryOperator::Ref),
             _ => None,
         };
         if let Some(op) = op {
@@ -1507,6 +1800,19 @@ impl<'a> Parser<'a> {
                     ),
                     callee: Box::new(expr),
                     args,
+                });
+                continue;
+            }
+            if self.match_kind(TokenType::LBracket) {
+                // RapidQ string index: `s$[i]` is the i-th character, MID$(s$, i, 1).
+                let index = self.parse_expression()?;
+                self.expect(TokenType::RBracket)?;
+                let span = TextSpan::new(expression_span(&expr).start, self.previous()?.span.end);
+                let one = Expression::Literal(Literal { span, value: LiteralValue::Integer(1) });
+                expr = Expression::FunctionCall(FunctionCallExpression {
+                    span,
+                    callee: Box::new(Expression::Identifier(Identifier { span, name: "MID$".to_string() })),
+                    args: vec![expr, index, one],
                 });
                 continue;
             }
@@ -1724,6 +2030,80 @@ fn strip_inline_call_args(expression: Expression) -> Expression {
     }
 }
 
+fn is_zero_literal(e: &Expression) -> bool {
+    matches!(e, Expression::Literal(Literal { value: LiteralValue::Integer(0), .. }))
+}
+
+/// `name = value`, or `name(i, j) = value` when `index` is non-empty.
+fn assign(span: TextSpan, name: &str, index: Vec<Expression>, value: Expression) -> Statement {
+    let ident = Expression::Identifier(Identifier { span, name: name.to_string() });
+    let target = if index.is_empty() {
+        ident
+    } else {
+        Expression::FunctionCall(FunctionCallExpression { span, callee: Box::new(ident), args: index })
+    };
+    Statement::Assignment(AssignmentStatement { span, target, value })
+}
+
+/// Element indices for `= {v1, v2, ...}`, filled in memory order (the last
+/// subscript varies fastest, as the RapidQ manual describes). Returns `None`
+/// when a bound other than the first dimension's lower bound isn't a literal.
+fn initializer_indices(dimensions: &[ArrayDimension], count: usize) -> Option<Vec<Vec<Expression>>> {
+    let literal = |e: &Expression| match e {
+        Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) => Some(*n),
+        Expression::Unary(u) if matches!(u.operator, UnaryOperator::Negate) => match &*u.operand {
+            Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) => Some(-n),
+            _ => None,
+        },
+        _ => None,
+    };
+    let span = TextSpan::new(0, 0);
+    let int = |n: i64| Expression::Literal(Literal { span, value: LiteralValue::Integer(n) });
+    if dimensions.len() <= 1 {
+        // One dimension: index = lower bound + i (the lower bound may be any expression).
+        let low = match dimensions.first() {
+            Some(ArrayDimension::Range { start, .. }) => Some(start.clone()),
+            _ => None,
+        };
+        return Some(
+            (0..count as i64)
+                .map(|i| {
+                    vec![match (&low, low.as_ref().and_then(literal)) {
+                        (_, Some(l)) => int(l + i),
+                        (Some(l), None) => Expression::Binary(BinaryExpression {
+                            span,
+                            left: Box::new(l.clone()),
+                            operator: BinaryOperator::Add,
+                            right: Box::new(int(i)),
+                        }),
+                        (None, None) => int(i),
+                    }]
+                })
+                .collect(),
+        );
+    }
+    let mut bounds = Vec::new();
+    for dim in dimensions {
+        bounds.push(match dim {
+            ArrayDimension::Single(upper) => (0, literal(upper)?),
+            ArrayDimension::Range { start, end } => (literal(start)?, literal(end)?),
+        });
+    }
+    let mut current: Vec<i64> = bounds.iter().map(|b| b.0).collect();
+    let mut out = Vec::new();
+    for _ in 0..count {
+        out.push(current.iter().map(|&n| int(n)).collect());
+        for d in (0..current.len()).rev() {
+            current[d] += 1;
+            if current[d] <= bounds[d].1 || d == 0 {
+                break;
+            }
+            current[d] = bounds[d].0;
+        }
+    }
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use rapidr_ast::*;
@@ -1762,11 +2142,11 @@ mod tests {
 
     #[test]
     fn reports_every_bad_line_not_just_the_first() {
-        let errs = errors("DIM AS\nx = 1\nGOSUB\ny = 2\nDEFINT i\n");
+        let errs = errors("DIM AS\nx = 1\nGOSUB\ny = 2\nDEFINT 5\n");
         let lines: Vec<usize> = errs.iter().map(|e| e.0).collect();
         assert_eq!(lines, vec![1, 3, 5], "{errs:?}");
         assert!(errs[1].2.contains("GOSUB needs a label"), "{errs:?}");
-        assert!(errs[2].2.contains("DEFINT is not supported yet"), "{errs:?}");
+        assert!(errs[2].2.contains("Syntax error in DEFINT statement"), "{errs:?}");
     }
 
     #[test]
@@ -1779,7 +2159,7 @@ mod tests {
 
     #[test]
     fn bad_statement_inside_single_line_if_is_an_error() {
-        let errs = errors("IF 1 THEN DEFINT i\n");
+        let errs = errors("IF 1 THEN DEFINT 5\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert!(errs[0].2.contains("DEFINT"), "{errs:?}");
     }
@@ -1839,23 +2219,28 @@ mod tests {
 
     #[test]
     fn errors_inside_blocks_keep_their_own_line() {
-        let errs = errors("SUB Foo()\n  PRINT 1\n  DEFINT i\nEND SUB\n");
+        let errs = errors("SUB Foo()\n  PRINT 1\n  DEFINT 5\nEND SUB\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert_eq!(errs[0].0, 3);
-        assert!(errs[0].2.contains("DEFINT is not supported yet"), "{errs:?}");
+        assert!(errs[0].2.contains("Syntax error in DEFINT statement"), "{errs:?}");
     }
 
     #[test]
     fn parses_directives_and_dim_statements() {
-        let stmts = parse("$APPTYPE GUI\nDIM x, y AS INTEGER\n");
+        // RapidQ manual: in `DIM x, y AS INTEGER` only y is INTEGER; x is a VARIANT.
+        let stmts = parse("$APPTYPE GUI\nDIM x, y AS INTEGER\nDIM (a, b)(3) AS STRING, n AS LONG = 4\nDEFINT i = 1, j(2) = {7, 8, 9}\n");
         assert!(matches!(stmts[0], Statement::Directive(_)));
-        match &stmts[1] {
-            Statement::Dim(dim) => {
-                assert_eq!(dim.declarators.len(), 2);
-                assert_eq!(dim.type_name, "INTEGER");
-            }
-            other => panic!("expected dim, got {other:?}"),
-        }
+        let dims: Vec<(String, String, usize)> = stmts
+            .iter()
+            .filter_map(|s| match s {
+                Statement::Dim(d) => Some((d.declarators[0].name.clone(), d.type_name.clone(), d.declarators[0].dimensions.len())),
+                _ => None,
+            })
+            .collect();
+        let expect = [("x", "VARIANT", 0), ("y", "INTEGER", 0), ("a", "STRING", 1), ("b", "STRING", 1), ("n", "LONG", 0), ("i", "INTEGER", 0), ("j", "INTEGER", 1)];
+        assert_eq!(dims, expect.map(|(n, t, d)| (n.to_string(), t.to_string(), d)).to_vec());
+        let assigns = stmts.iter().filter(|s| matches!(s, Statement::Assignment(_))).count();
+        assert_eq!(assigns, 5, "n = 4, i = 1 and three elements of j");
     }
 
     #[test]

@@ -67,6 +67,15 @@ pub enum TokenType {
     DefWord,
     DefDword,
     DefLong,
+    DefShort,
+    /// `@var`: pass by reference (RapidQ manual 3.5)
+    At,
+    /// `[` / `]` for RapidQ string indexing (`s$[2]`)
+    LBracket,
+    RBracket,
+    /// `{` / `}` around array initializers (`DEFINT a(2) = {1, 2, 3}`)
+    LBrace,
+    RBrace,
     DefSng,
     DefDbl,
     DefCur,
@@ -252,6 +261,27 @@ impl<'src> Lexer<'src> {
                 }
                 '0'..='9' => {
                     tokens.push(self.lex_decimal_number(start, line, column));
+                }
+                '@' => {
+                    self.advance_char();
+                    tokens.push(Token::new(TokenType::At, "@".to_string(), TextSpan::new(start, self.index), line, column));
+                }
+                '{' | '}' | '[' | ']' => {
+                    let brace = self.current_char().unwrap_or('{');
+                    let kind = match brace {
+                        '{' => TokenType::LBrace,
+                        '}' => TokenType::RBrace,
+                        '[' => TokenType::LBracket,
+                        _ => TokenType::RBracket,
+                    };
+                    self.advance_char();
+                    tokens.push(Token::new(
+                        kind,
+                        brace.to_string(),
+                        TextSpan::new(start, self.index),
+                        line,
+                        column,
+                    ));
                 }
                 '(' => {
                     self.advance_char();
@@ -558,9 +588,54 @@ impl<'src> Lexer<'src> {
         false
     }
 
+    /// After a `_` inside a string: only spaces/tabs, then a line break.
+    fn string_continuation_follows(&self) -> bool {
+        let rest = &self.source[self.index + 1..];
+        let trimmed = rest.trim_start_matches([' ', '\t']);
+        trimmed.starts_with('\n') || trimmed.starts_with("\r\n")
+    }
+
+    /// Skips the line break after a string's `_` and the next line's indentation.
+    fn try_consume_line_continuation_tail(&mut self) {
+        while matches!(self.current_char(), Some(' ' | '\t')) {
+            self.advance_char();
+        }
+        if matches!(self.current_char(), Some('\r' | '\n')) {
+            self.consume_newline();
+        }
+        while matches!(self.current_char(), Some(' ' | '\t')) {
+            self.advance_char();
+        }
+    }
+
+    /// The rest of a continued string, up to its closing quote or the end
+    /// of the line (lenient, like an unterminated string).
+    fn lex_string_tail(&mut self) -> Result<String, LexError> {
+        let content_start = self.index;
+        while let Some(ch) = self.current_char() {
+            if ch == '"' {
+                let text = self.source[content_start..self.index].to_string();
+                self.advance_char();
+                return Ok(text);
+            }
+            if ch == '_' && self.string_continuation_follows() {
+                let mut text = self.source[content_start..self.index].to_string();
+                self.advance_char();
+                self.try_consume_line_continuation_tail();
+                text.push_str(&self.lex_string_tail()?);
+                return Ok(text);
+            }
+            if ch == '\r' || ch == '\n' {
+                break;
+            }
+            self.advance_char();
+        }
+        Ok(self.source[content_start..self.index].to_string())
+    }
+
     fn starts_with_rem_comment(&self) -> bool {
         let slice = &self.source[self.index..];
-        if slice.len() < 3 || !slice[..3].eq_ignore_ascii_case("REM") {
+        if !slice.as_bytes().get(..3).is_some_and(|b| b.eq_ignore_ascii_case(b"REM")) {
             return false;
         }
 
@@ -622,13 +697,26 @@ impl<'src> Lexer<'src> {
                 ));
             }
 
+            // `"first part _` + newline continues the string on the next
+            // line (RapidQ joins `_` continuations before reading strings).
+            if ch == '_' && self.string_continuation_follows() {
+                let mut text = self.source[content_start..self.index].to_string();
+                self.advance_char();
+                self.try_consume_line_continuation_tail();
+                let rest = self.lex_string_tail()?;
+                text.push_str(&rest);
+                return Ok(Token::new(TokenType::StringLit, text, TextSpan::new(start, self.index), line, column));
+            }
             if ch == '\r' || ch == '\n' {
-                return Err(LexError::new(
-                    "Unterminated string literal",
+                // RapidQ ends an unterminated string at the end of the line
+                // (and real programs rely on it: `x = "error'`).
+                let lexeme = self.source[content_start..self.index].to_string();
+                return Ok(Token::new(
+                    TokenType::StringLit,
+                    lexeme,
                     TextSpan::new(start, self.index),
                     line,
                     column,
-                    self.file_path.clone(),
                 ));
             }
 
@@ -728,9 +816,17 @@ impl<'src> Lexer<'src> {
             }
         }
 
+        let end = self.index;
+        // Type suffix on a literal: `0&` (LONG), `1.5!` (SINGLE), `2#`, `7%`.
+        if matches!(self.current_char(), Some('&' | '!' | '#' | '%'))
+            && !self.peek_char(1).is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            self.advance_char();
+        }
+
         Token::new(
             TokenType::Number,
-            self.source[start..self.index].to_string(),
+            self.source[start..end].to_string(),
             TextSpan::new(start, self.index),
             line,
             column,
@@ -810,12 +906,14 @@ impl<'src> Lexer<'src> {
         }
     }
 
+    // Accented letters are allowed (RapidQ read ANSI source, and programs
+    // use names like `Précédent`).
     fn is_identifier_start(ch: char) -> bool {
-        ch.is_ascii_alphabetic() || ch == '_'
+        ch.is_alphabetic() || ch == '_'
     }
 
     fn is_identifier_part(ch: char) -> bool {
-        ch.is_ascii_alphanumeric() || ch == '_'
+        ch.is_alphanumeric() || ch == '_'
     }
 }
 
@@ -874,7 +972,8 @@ fn keyword_token(identifier: &str) -> Option<TokenType> {
         "DEFBYTE" => Some(TokenType::DefByte),
         "DEFWORD" => Some(TokenType::DefWord),
         "DEFDWORD" => Some(TokenType::DefDword),
-        "DEFLONG" => Some(TokenType::DefLong),
+        "DEFLONG" | "DEFLNG" => Some(TokenType::DefLong),
+        "DEFSHORT" => Some(TokenType::DefShort),
         "DEFSNG" => Some(TokenType::DefSng),
         "DEFDBL" => Some(TokenType::DefDbl),
         "DEFCUR" => Some(TokenType::DefCur),

@@ -31,8 +31,38 @@ pub fn generate(program: &Program) -> String {
 /// Generate code for a specific target platform.
 pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let mut gen = RustCodegen::new(target);
-    gen.emit_program(program);
+    let (program, promoted) = promote_ref_params(program);
+    gen.promoted_byref = promoted;
+    gen.emit_program(&program);
     gen.output
+}
+
+/// `MySub @x` passes x by reference (RapidQ manual 3.5). A Rust function
+/// can't choose per call, so every parameter some call site passes with `@`
+/// becomes BYREF (`&mut Value`); calls without `@` then pass a temporary.
+/// Returns the program with those parameters marked, and the promoted
+/// positions per routine (lowercase name).
+fn promote_ref_params(program: &Program) -> (Program, HashMap<String, Vec<usize>>) {
+    let refs = rapidr_ast::ref_argument_positions(&program.statements);
+    if refs.is_empty() {
+        return (program.clone(), HashMap::new());
+    }
+    let mut program = program.clone();
+    let mut promoted: HashMap<String, Vec<usize>> = HashMap::new();
+    for stmt in &mut program.statements {
+        let (name, params) = match stmt {
+            Statement::Subroutine(s) => (s.name.to_lowercase(), &mut s.params),
+            Statement::Function(f) => (strip_type_suffix(&f.name).to_lowercase(), &mut f.params),
+            _ => continue,
+        };
+        for &i in refs.get(&name).map(Vec::as_slice).unwrap_or(&[]) {
+            if let Some(p) = params.get_mut(i).filter(|p| !p.by_ref) {
+                p.by_ref = true;
+                promoted.entry(name.clone()).or_default().push(i);
+            }
+        }
+    }
+    (program, promoted)
 }
 
 struct RustCodegen {
@@ -44,6 +74,9 @@ struct RustCodegen {
     defined_functions: HashSet<String>,
     /// BYREF flag of each parameter, by lowercase SUB/FUNCTION name.
     fn_byref: HashMap<String, Vec<bool>>,
+    /// Parameters made BYREF only because some call passes `@x` to them:
+    /// calls without `@` must not write back (see `promote_ref_params`).
+    promoted_byref: HashMap<String, Vec<usize>>,
     /// Enclosing BASIC loops (kind, Rust label), innermost last, so
     /// `EXIT FOR` inside a WHILE breaks out of the FOR (`break 'l3;`).
     loop_labels: Vec<(&'static str, String)>,
@@ -72,6 +105,8 @@ struct RustCodegen {
     all_referenced_vars: HashSet<String>,
     /// Sub/function name (lowercase) → parameter count.
     function_param_counts: HashMap<String, usize>,
+    /// FUNCTIONs (not SUBs), lowercase: a bare `Name` in an expression calls one.
+    returning_functions: HashSet<String>,
     /// DECLARE'd FFI function names (lowercase) → (alias, lib, params, return_type).
     declared_functions: HashSet<String>,
     /// Array variable name (lowercase) → (default_value_str, size_expr_str) for re-declaring in subs.
@@ -90,6 +125,7 @@ impl RustCodegen {
             target,
             defined_functions: HashSet::new(),
             fn_byref: HashMap::new(),
+            promoted_byref: HashMap::new(),
             loop_labels: Vec::new(),
             loop_label_counter: 0,
             reported_goto: false,
@@ -104,6 +140,7 @@ impl RustCodegen {
             with_component_stack: Vec::new(),
             all_referenced_vars: HashSet::new(),
             function_param_counts: HashMap::new(),
+            returning_functions: HashSet::new(),
             declared_functions: HashSet::new(),
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
@@ -226,6 +263,7 @@ impl RustCodegen {
                 }
                 Statement::Function(f) => {
                     self.defined_functions.insert(f.name.to_lowercase());
+                    self.returning_functions.insert(strip_type_suffix(&f.name).to_lowercase());
                     self.function_param_counts.insert(f.name.to_lowercase(), f.params.len());
                     self.fn_byref.insert(f.name.to_lowercase(), f.params.iter().map(|p| p.by_ref).collect());
                     // Scan body for local component DIMs and CREATEs
@@ -474,6 +512,15 @@ impl RustCodegen {
     }
 
     fn emit_dim(&mut self, d: &DimStatement) {
+        if d.is_static && self.in_sub_or_function {
+            self.write_indent();
+            let _ = writeln!(
+                self.output,
+                "compile_error!(\"STATIC {} (a variable kept between calls) isn't supported in native builds yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
+                d.declarators.first().map(|v| v.name.as_str()).unwrap_or("")
+            );
+            return;
+        }
         for decl in &d.declarators {
             let name = to_snake(&decl.name);
             let name_lower = decl.name.to_lowercase();
@@ -558,7 +605,8 @@ impl RustCodegen {
         // Check if this is a FUNCTION return pattern: FuncName = expr
         if let Some(fname) = self.current_function.clone() {
             if let Expression::Identifier(id) = &a.target {
-                if id.name.eq_ignore_ascii_case(&fname) {
+                // `FuncName = v` or RapidQ's `RESULT = v`
+                if id.name.eq_ignore_ascii_case(&fname) || id.name.eq_ignore_ascii_case("result") {
                     let val = self.owned_expr(&a.value);
                     let fname_lc = fname.to_lowercase();
                     self.write_indent();
@@ -1098,13 +1146,33 @@ impl RustCodegen {
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&s.body, &s.params);
 
+        let array_params = self.enter_array_params(&s.params);
         for stmt in &s.body {
             self.emit_statement(stmt);
         }
+        self.leave_array_params(array_params);
         self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
         self.indent -= 1;
         self.line("}");
+    }
+
+    /// Array parameters (`list() AS STRING`) are arrays inside the body, so
+    /// `list(i) = v` stores into the caller's (shared) array. Returns the
+    /// names added, for [`Self::leave_array_params`].
+    fn enter_array_params(&mut self, params: &[Parameter]) -> Vec<String> {
+        params
+            .iter()
+            .filter(|p| p.is_array)
+            .map(|p| strip_type_suffix(&p.name).to_lowercase())
+            .filter(|name| self.array_vars.insert(name.clone()))
+            .collect()
+    }
+
+    fn leave_array_params(&mut self, added: Vec<String>) {
+        for name in added {
+            self.array_vars.remove(&name);
+        }
     }
 
     fn emit_function(&mut self, f: &FunctionStatement) {
@@ -1129,9 +1197,11 @@ impl RustCodegen {
         self.emit_local_vars(&f.body, &f.params);
 
         self.current_function = Some(f.name.clone());
+        let array_params = self.enter_array_params(&f.params);
         for stmt in &f.body {
             self.emit_statement(stmt);
         }
+        self.leave_array_params(array_params);
         self.current_function = None;
         self.in_sub_or_function = false;
 
@@ -1241,11 +1311,21 @@ impl RustCodegen {
     fn user_call_args(&self, callee_lower: &str, args: &[Expression]) -> (Vec<String>, Vec<String>, Vec<String>) {
         let flags = self.fn_byref.get(callee_lower).cloned().unwrap_or_default();
         let (mut out, mut pre, mut post) = (Vec::new(), Vec::new(), Vec::new());
+        let promoted = self.promoted_byref.get(callee_lower).cloned().unwrap_or_default();
         for (i, arg) in args.iter().enumerate() {
             if !flags.get(i).copied().unwrap_or(false) {
                 out.push(self.owned_expr(arg));
                 continue;
             }
+            let arg = match arg {
+                Expression::Unary(u) if u.operator == UnaryOperator::Ref => u.operand.as_ref(),
+                // BYREF only because another call uses `@`: this one passes a copy.
+                other if promoted.contains(&i) => {
+                    out.push(format!("&mut {}", self.owned_expr(other)));
+                    continue;
+                }
+                other => other,
+            };
             match arg {
                 Expression::Identifier(id) if self.is_global_scalar(&strip_type_suffix(&id.name)) => {
                     let snake = to_snake(&strip_type_suffix(&id.name));
@@ -1760,6 +1840,22 @@ impl RustCodegen {
                         if self.is_global_scalar(&name) || self.is_global_array(&name) {
                             return format!("gv(\"{snake}\")");
                         }
+                        // RapidQ's RESULT inside a FUNCTION is its return value.
+                        if name.eq_ignore_ascii_case("result") {
+                            if let Some(fname) = &self.current_function {
+                                return format!("_{}.clone()", fname.to_lowercase());
+                            }
+                        }
+                        // A FUNCTION named without parentheses is called
+                        // (`y = Five + 1`), except inside itself, where the
+                        // name is its result variable.
+                        let lower = name.to_lowercase();
+                        if self.returning_functions.contains(&lower)
+                            && self.function_param_counts.get(&lower).copied().unwrap_or(0) == 0
+                            && !self.current_function.as_deref().is_some_and(|f| strip_type_suffix(f).eq_ignore_ascii_case(&name))
+                        {
+                            return format!("{snake}()");
+                        }
                         snake
                     }
                 }
@@ -1793,6 +1889,9 @@ impl RustCodegen {
                     UnaryOperator::Negate => format!("(-&{operand})"),
                     UnaryOperator::Positive => operand,
                     UnaryOperator::Not => format!("{operand}.not()"),
+                    // `@x` outside a user SUB/FUNCTION call (a DLL argument):
+                    // the variable's address, like VARPTR(x).
+                    UnaryOperator::Ref => format!("rp_varptr(&{operand})"),
                 }
             }
             Expression::FunctionCall(fc) => {
@@ -2055,7 +2154,7 @@ fn strip_type_suffix(name: &str) -> String {
 
 fn default_value_for_type(type_name: &str) -> String {
     match type_name.to_uppercase().as_str() {
-        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "INT64" => "v_int(0)".to_string(),
+        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "SHORT" | "INT64" => "v_int(0)".to_string(),
         "DOUBLE" | "SINGLE" | "CURRENCY" => "v_dbl(0.0)".to_string(),
         "STRING" => "v_str(\"\")".to_string(),
         _ => "v_null()".to_string(),

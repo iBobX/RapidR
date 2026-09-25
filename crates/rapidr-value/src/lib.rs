@@ -201,7 +201,8 @@ impl Value {
                 }
             }
             Value::String(s) => s.clone(),
-            Value::Boolean(b) => if *b { "True".to_string() } else { "False".to_string() },
+            // RapidQ has no boolean type: a comparison is -1 (true) or 0.
+            Value::Boolean(b) => if *b { "-1".to_string() } else { "0".to_string() },
             Value::Null => String::new(),
             // Elements joined by commas: what runtime components received
             // back when interpreter arrays were comma-separated strings.
@@ -354,6 +355,9 @@ impl Sub for &Value {
     type Output = Value;
     fn sub(self, rhs: Self) -> Value {
         match (self, rhs) {
+            // RapidQ: "jello" - "l" removes every "l" → "jeo".
+            (Value::String(a), Value::String(b)) if !b.is_empty() => Value::String(a.replace(b.as_str(), "")),
+            (Value::String(a), Value::String(_)) => Value::String(a.clone()),
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_sub(*b)),
             _ => Value::Double(self.to_f64() - rhs.to_f64()),
         }
