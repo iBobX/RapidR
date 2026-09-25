@@ -120,6 +120,23 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 
 ## Phase 1 — RapidQ & VB compatibility (~6–8 weeks)
 
+**Direction (2026-09-25):** no Windows-only compatibility. RapidQ's own
+features (built-ins, components, console, dialogs) are mapped to portable
+Rust implementations on desktop and web. Calls into Windows DLLs stay a
+clear error (naming a RapidR equivalent when one exists). Any library we
+add must be open source with a permissive license (`deny.toml`) and be
+credited: `THIRD_PARTY_NOTICES.md` (generated, checked in CI), README and
+the IDE's About dialog.
+
+Next up, in order:
+- [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)
+- [ ] Windows DLL calls: error names the portable RapidR equivalent where one exists (ShellExecute → open a file/URL, Sleep → SLEEP, …)
+- [ ] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` (ANSI on desktop, the IDE output panel on the web)
+- [ ] `REDIM` keeping data, `INV`, empty arguments `INSTR(, a, b)`
+- [ ] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop, in-page modal in the web preview)
+- [ ] Missing RapidQ objects as real components: QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM (then the rest of the list in `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`)
+- [ ] Native builds catch up (reasoning: high): GOTO/GOSUB, OOP TYPEs, STATIC, function pointers
+
 - [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
 - [x] Built-in `RAPIDQ.INC` (colors, `mr*`, `MB_*`/`ID*`, `bs*`, `ws*`, `al*`, `mb*`, `fm*`, `VK_*`) as a single line (v2.13.0)
 - [x] Q→R type names via `rapidr_ast::canonical_type_name` + single `COMPONENT_TYPES` list (v2.13.0)

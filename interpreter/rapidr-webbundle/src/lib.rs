@@ -42,6 +42,12 @@ pub struct BundleInputs<'a> {
     pub assets: Option<&'a HashMap<String, String>>,
 }
 
+/// RapidR's own license and the credits for the open-source software in the
+/// runtime, shipped in every bundle (see tools/third_party_notices.py).
+pub const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
+pub const THIRD_PARTY_NOTICES: &str = include_str!("../../../THIRD_PARTY_NOTICES.md");
+pub const LICENSES: &str = include_str!("../../../LICENSES.md");
+
 /// Build the ZIP bytes. Never fails on well-formed inputs — the only
 /// possible source of error is the in-memory `ZipWriter`.
 pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
@@ -65,6 +71,11 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         write_file(&mut zw, "rapidrintr_bg.wasm", inputs.rapidrintr_wasm, stored)?;
         let rrbc_name = format!("{}.rrbc", inputs.project_name);
         write_file(&mut zw, &rrbc_name, inputs.rrbc, stored)?;
+        // The bundle redistributes RapidR's runtime, so its license and the
+        // open-source notices travel with it.
+        write_file(&mut zw, "LICENSE-RapidR.txt", RAPIDR_LICENSE.as_bytes(), deflated)?;
+        write_file(&mut zw, "THIRD_PARTY_NOTICES.md", THIRD_PARTY_NOTICES.as_bytes(), deflated)?;
+        write_file(&mut zw, "LICENSES.md", LICENSES.as_bytes(), deflated)?;
 
         zw.finish().map_err(|e| format!("zip finish: {e}"))?;
     }
@@ -167,7 +178,7 @@ mod tests {
         assert_eq!(&bytes[0..2], b"PK");
         // Quick check that file names appear in the central dir.
         let s = String::from_utf8_lossy(&bytes);
-        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc"] {
+        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "LICENSE-RapidR.txt", "THIRD_PARTY_NOTICES.md", "LICENSES.md"] {
             assert!(s.contains(name), "missing {name} in bundle");
         }
     }

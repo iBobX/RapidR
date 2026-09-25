@@ -157,7 +157,7 @@ function htaccessText() {
 `</IfModule>\n`;
 }
 
-export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm, title, assets, version }) {
+export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm, title, assets, version, notices }) {
   const t = title || projectName;
   // Accept rapidrintrJs as string OR as raw bytes (Uint8Array/ArrayBuffer)
   // — string is preferred (UTF-8 ESM source), bytes are pass-through.
@@ -183,6 +183,12 @@ export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm
     "rapidrintr_bg.wasm": rapidrintrWasm,
     [`${projectName}.rrbc`]: rrbc instanceof Uint8Array ? rrbc : new Uint8Array(rrbc),
   };
+
+  // RapidR's license and the open-source notices for the runtime the
+  // bundle redistributes ({ "LICENSE-RapidR.txt": text, ... }).
+  for (const [name, text] of Object.entries(notices || {})) {
+    if (typeof text === "string" && text) files[name] = enc.encode(text);
+  }
 
   // Optional project-bundled assets — { name, bytes } or { name, dataUrl }.
   // Each is written under "assets/<name>" so the runtime can fetch it via
