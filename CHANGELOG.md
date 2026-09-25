@@ -7,6 +7,59 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.14.0] — 2026-09-25
+
+**RapidQ object-oriented TYPEs** in the bytecode interpreter (IDE preview and web
+bundles). The ROADMAP's `rq3.bas` (`TYPE TMyForm EXTENDS QFORM` with an `EVENT OnClick`
+block and a `CONSTRUCTOR`) now runs as written. Checked in the browser: the form opens
+at 200 px with caption "Custom", and each click updates the caption with the
+instance's own counter.
+
+### Added
+- **`TYPE … EXTENDS <component>`** creates a real component. The fields, methods,
+  events and constructor all belong to the type, and every instance gets its own
+  `This`.
+- **`EVENT Name … END EVENT`** blocks inside a TYPE, also written `EVENT Name(params)`
+  and `EVENT(Name)`. They are wired to the instance when it's created. A missing
+  `END EVENT` is an error.
+- **Methods** (`SUB`/`FUNCTION` inside a TYPE), called as `obj.Method args` or
+  `x = obj.Func(...)`.
+- **`CONSTRUCTOR … END CONSTRUCTOR`**. Constructors run when the instance is created,
+  base type first, so derived types can override defaults.
+- **Inheritance between user types** (`TYPE TLoud EXTENDS TCounter`). Methods,
+  fields and constructors are inherited, and circular `EXTENDS` is guarded.
+- **Implicit members:** inside TYPE code, a bare field or component property name
+  (`Caption = "x"`, `Count = Count + 1`) means `This.<name>`. Locals, globals and
+  functions still win.
+- **`Sender` in event handlers:** handlers assigned with `OnClick = MySub` receive
+  the firing component. `SUB MySub (Sender AS QBUTTON)` can then set
+  `Sender.Caption`.
+- **Objects as values:** a TYPE or component instance can be passed to a SUB
+  (`SUB UseIt (obj AS TCounter)`) and used through the parameter: fields, methods,
+  and component properties and methods.
+- **Array fields** in TYPEs (`Names(2) AS STRING`), read and written as `obj.Names(i)`.
+- New opcodes for this: `GetPropDyn` (0x75), `SetPropDyn` (0x76) and
+  `CallMethodDyn` (0x77). They access members of an object whose identity is only
+  known at run time (`This`, `Sender`, parameters).
+- Tests:
+  - conformance case `oop_types`;
+  - parser tests for EVENT, methods and constructors;
+  - `tests/web_bundle_oop.mjs`, a browser test covering per-instance event state
+    and `Sender`.
+
+### Changed
+- Unknown lines inside a TYPE are now errors ("Unexpected 'X' inside TYPE T").
+  Before, they were silently skipped. The same applies to `PROPERTY` declarations,
+  which aren't supported yet.
+- Native builds (`rapidr build`) reject TYPEs that use `EXTENDS`, methods, EVENTs or a
+  CONSTRUCTOR with one clear `compile_error!`. It says to use the bytecode
+  interpreter instead of producing confusing rustc errors.
+
+### Fixed
+- Assignments inside a `CREATE … END CREATE` body (`Caption = "x"`) no longer register
+  a global variable with the property's name.
+- The VM ignores surplus arguments to a SUB instead of writing past its locals.
+
 ## [2.13.0] — 2026-09-24
 
 **RapidQ source compatibility:** classic RapidQ programs compile and run unchanged.

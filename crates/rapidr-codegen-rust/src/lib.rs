@@ -1263,6 +1263,17 @@ impl RustCodegen {
     }
 
     fn emit_type_def(&mut self, t: &TypeStatement) {
+        // Object TYPEs are interpreter-only for now: refuse clearly rather
+        // than emit a struct whose methods and events silently don't exist.
+        if t.extends.is_some() || !t.methods.is_empty() || !t.events.is_empty() || !t.constructor.is_empty() {
+            self.write_indent();
+            let _ = writeln!(
+                self.output,
+                "compile_error!(\"TYPE {} uses EXTENDS, methods, EVENTs or a CONSTRUCTOR, which native builds don't support yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
+                t.name
+            );
+            return;
+        }
         let name = &t.name;
         self.line("#[derive(Debug, Clone)]");
         self.write_indent();

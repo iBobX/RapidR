@@ -125,6 +125,15 @@ pub enum Op {
     /// Operand: `u32` instance-id (string-id), `u32` event-name (string-id),
     /// `u32` fn-index.
     RegisterEvent = 0x74,
+    /// Get a property of the object whose id is on the stack (a `Sender`
+    /// parameter, `This`, …). Stack: [id] → [value]. Operand: `u32` prop.
+    GetPropDyn = 0x75,
+    /// Set a property of the object whose id is on the stack.
+    /// Stack: [value, id] → []. Operand: `u32` prop.
+    SetPropDyn = 0x76,
+    /// Call a method of the object whose id is on the stack.
+    /// Stack: [id, arg1, …, argN] → [result]. Operand: `u32` method, `u8` argc.
+    CallMethodDyn = 0x77,
 
     // === arrays ===
     /// Create a new dynamic array of N elements (default Null).
@@ -212,6 +221,9 @@ impl Op {
             0x72 => Op::GetProp,
             0x73 => Op::CallMethod,
             0x74 => Op::RegisterEvent,
+            0x75 => Op::GetPropDyn,
+            0x76 => Op::SetPropDyn,
+            0x77 => Op::CallMethodDyn,
             0x80 => Op::NewArray,
             0x81 => Op::AGet,
             0x82 => Op::ASet,

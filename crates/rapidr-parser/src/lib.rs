@@ -1175,6 +1175,7 @@ impl<'a> Parser<'a> {
         let mut fields = Vec::new();
         let mut methods = Vec::new();
         let mut constructor = Vec::new();
+        let mut events = Vec::new();
 
         loop {
             self.skip_newlines();
@@ -1197,6 +1198,40 @@ impl<'a> Parser<'a> {
                 self.advance();
                 continue;
             }
+            // EVENT OnClick [(params)] / EVENT(OnClick) … END EVENT
+            if self.peek_identifier_eq("EVENT")
+                && matches!(self.peek_kind_at(1), Some(TokenType::Identifier | TokenType::LParen))
+            {
+                let event_start = self.pos;
+                self.advance(); // EVENT
+                let wrapped = self.match_kind(TokenType::LParen);
+                let Some(name_tok) = self.expect(TokenType::Identifier) else {
+                    self.error_at(self.pos, "EVENT needs an event name, e.g. EVENT OnClick".into());
+                    self.skip_to_eol();
+                    continue;
+                };
+                let name = name_tok.lexeme.clone();
+                if wrapped {
+                    self.expect(TokenType::RParen);
+                }
+                let params = if !wrapped && self.match_kind(TokenType::LParen) {
+                    let p = self.parse_parameter_list().unwrap_or_default();
+                    self.expect(TokenType::RParen);
+                    p
+                } else {
+                    Vec::new()
+                };
+                self.consume_eol();
+                let body = self.parse_body(&[Terminator::EndPair("EVENT")]);
+                if self.peek_is_end_followed_by("EVENT") {
+                    self.advance();
+                    self.advance();
+                } else {
+                    self.error_at(event_start, format!("EVENT {name} is missing END EVENT"));
+                }
+                events.push(TypeEvent { span: self.span_from(event_start), name, params, body });
+                continue;
+            }
             // Methods
             if self.peek_kind() == Some(TokenType::Sub) {
                 if let Some(s) = self.parse_sub() {
@@ -1212,7 +1247,7 @@ impl<'a> Parser<'a> {
             }
             // Property
             if self.peek_kind() == Some(TokenType::Property) {
-                // skip PROPERTY SET / GET lines
+                self.error_at(self.pos, "PROPERTY blocks in TYPE are not supported yet".into());
                 self.skip_to_eol();
                 continue;
             }
@@ -1231,6 +1266,7 @@ impl<'a> Parser<'a> {
                 let ftype = self.advance()?.lexeme.clone();
                 // optional PROPERTY SET
                 if self.peek_kind() == Some(TokenType::Property) {
+                    self.error_at(self.pos, "PROPERTY SET on TYPE fields is not supported yet".into());
                     self.skip_to_eol();
                 }
                 fields.push(TypeField {
@@ -1242,7 +1278,10 @@ impl<'a> Parser<'a> {
                 self.consume_eol();
                 continue;
             }
-            // Unknown line inside TYPE — skip
+            // Anything else inside TYPE is an error, not silently dropped.
+            let tok = self.peek()?;
+            let message = format!("Unexpected '{}' inside TYPE {name} (expected a field, SUB, FUNCTION, EVENT or CONSTRUCTOR)", tok.lexeme);
+            self.error_at(self.pos, message);
             self.skip_to_eol();
             self.consume_eol();
         }
@@ -1257,6 +1296,7 @@ impl<'a> Parser<'a> {
             fields,
             methods,
             constructor,
+            events,
         })
     }
 
@@ -1770,6 +1810,24 @@ mod tests {
         assert!(matches!(&stmts[1], Statement::Create(c) if c.type_name == "RBUTTON"));
         assert!(matches!(&stmts[2], Statement::Dim(d) if d.type_name == "RPROGRESSBAR"));
         assert!(matches!(&stmts[3], Statement::Dim(d) if d.type_name == "MyType"));
+    }
+
+    #[test]
+    fn parses_type_with_events_methods_and_constructor() {
+        let src = "TYPE TCounter EXTENDS QFORM\n  Count AS INTEGER\n  EVENT OnClick\n    This.Count = This.Count + 1\n  END EVENT\n  EVENT(OnResize)\n  END EVENT\n  SUB Reset\n    This.Count = 0\n  END SUB\n  CONSTRUCTOR\n    Caption = \"x\"\n  END CONSTRUCTOR\nEND TYPE\n";
+        let Statement::Type(t) = &parse(src)[0] else { panic!("expected TYPE") };
+        assert_eq!(t.extends.as_deref(), Some("RFORM"));
+        assert_eq!(t.fields.len(), 1);
+        assert_eq!(t.events.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), vec!["OnClick", "OnResize"]);
+        assert_eq!(t.methods.len(), 1);
+        assert_eq!(t.constructor.len(), 1);
+    }
+
+    #[test]
+    fn unknown_lines_inside_type_are_errors() {
+        let errs = errors("TYPE T\n  x AS INTEGER\n  PRINT 1\nEND TYPE\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!(errs[0].0, 3);
     }
 
     #[test]

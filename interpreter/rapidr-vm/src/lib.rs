@@ -156,10 +156,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         let f = module.functions.get(fn_index as usize)
             .ok_or(VmError::BadFunctionIndex(fn_index))?;
         let mut locals: Vec<Value> = (0..f.n_locals).map(|_| v_null()).collect();
-        // Pop args off the stack into the first `argc` locals.
+        // Pop args off the stack into the parameter slots. Extra arguments
+        // (e.g. the Sender a host passes to a handler that declares no
+        // parameters) are dropped rather than overwriting the first locals.
+        let n_params = f.params.len().min(locals.len());
         for i in (0..argc as usize).rev() {
             let v = self.pop()?;
-            if i < locals.len() {
+            if i < n_params {
                 locals[i] = v;
             }
         }
@@ -403,6 +406,31 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
                     self.stack.push(r);
                 }
+                Op::GetPropDyn => {
+                    let prop_i = read_u32(code, &mut ip)?;
+                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
+                    let id = self.pop_object_id()?;
+                    let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
+                    self.stack.push(v);
+                }
+                Op::SetPropDyn => {
+                    let prop_i = read_u32(code, &mut ip)?;
+                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
+                    let id = self.pop_object_id()?;
+                    let v = self.pop()?;
+                    self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
+                }
+                Op::CallMethodDyn => {
+                    let m_i = read_u32(code, &mut ip)?;
+                    let argc = read_u8(code, &mut ip)? as usize;
+                    let m = module.strings.get(m_i as usize).ok_or(VmError::BadStringIndex(m_i))?.clone();
+                    let mut args = Vec::with_capacity(argc);
+                    for _ in 0..argc { args.push(self.pop()?); }
+                    args.reverse();
+                    let id = self.pop_object_id()?;
+                    let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    self.stack.push(r);
+                }
                 Op::RegisterEvent => {
                     let id_i = read_u32(code, &mut ip)?;
                     let ev_i = read_u32(code, &mut ip)?;
@@ -505,6 +533,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             None => self.print_col + s.chars().count(),
         };
         self.host.print(s).map_err(VmError::HostError)
+    }
+
+    /// Pops an object reference (a component or TYPE instance id).
+    fn pop_object_id(&mut self) -> Result<String, VmError> {
+        match self.pop()? {
+            Value::String(id) if !id.is_empty() => Ok(id),
+            _ => Err(VmError::Runtime(
+                "this variable does not refer to an object (component or TYPE instance)".into(),
+            )),
+        }
     }
 
     /// Pops `n` array indices pushed in order (first index deepest).

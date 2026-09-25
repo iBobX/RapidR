@@ -1388,7 +1388,9 @@ pub fn rp_fire_event(name: &str, event: &str) {
             match handler {
                 EventHandler::Arity0(f) => f(),
                 EventHandler::Arity1(f) => f(v_null()),
-                EventHandler::Indirect(id) => dispatch_indirect(*id, &[]),
+                // Bytecode handlers get the firing component as `Sender`
+                // (RapidQ: SUB Button1Click (Sender AS QBUTTON)).
+                EventHandler::Indirect(id) => dispatch_indirect(*id, &[v_str(name)]),
                 _ => {}
             }
         }

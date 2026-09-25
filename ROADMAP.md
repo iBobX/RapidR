@@ -129,7 +129,9 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
 - [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
 - [ ] Codegen: state-machine lowering for labels/GOTO/GOSUB (currently a clear compile_error!); web codegen `END` doesn't stop the program
-- [ ] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`
+- [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
+- [ ] Codegen: OOP TYPEs (EXTENDS/methods/EVENT/CONSTRUCTOR) in native builds (currently a clear compile_error!)
+- [ ] `PROPERTY` declarations in TYPEs (currently an error)
 - [ ] Accept `$RESOURCE`, `$OPTION ICON`, etc. (`$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [ ] Fix builtins: `INSERT$` (confirm RapidQ argument order), `FORMAT$`, `STRF$` (+ audit all builtins vs RapidQ docs)

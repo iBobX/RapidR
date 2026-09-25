@@ -226,6 +226,18 @@ pub struct TypeStatement {
     pub fields: Vec<TypeField>,
     pub methods: Vec<Statement>,
     pub constructor: Vec<Statement>,
+    /// `EVENT OnClick … END EVENT`: handlers every instance gets bound to.
+    pub events: Vec<TypeEvent>,
+}
+
+/// An EVENT block inside TYPE … EXTENDS: the handler for one event of every
+/// instance, with the instance available as `This`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeEvent {
+    pub span: TextSpan,
+    pub name: String,
+    pub params: Vec<Parameter>,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
