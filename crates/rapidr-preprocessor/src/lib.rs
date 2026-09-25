@@ -505,6 +505,10 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("alNone", 0), ("alTop", 1), ("alBottom", 2), ("alLeft", 3), ("alRight", 4), ("alClient", 5),
     // Mouse buttons
     ("mbLeft", 0), ("mbRight", 1), ("mbMiddle", 2),
+    // MessageDlg types and buttons
+    ("mtWarning", 0), ("mtError", 1), ("mtInformation", 2), ("mtConfirmation", 3), ("mtCustom", 4),
+    ("mbYes", 1), ("mbNo", 2), ("mbOK", 4), ("mbCancel", 8), ("mbHelp", 16), ("mbAbort", 32),
+    ("mbRetry", 64), ("mbIgnore", 128), ("mbAll", 256),
     // File stream modes
     ("fmCreate", 0xFFFF), ("fmOpenRead", 0), ("fmOpenWrite", 1), ("fmOpenReadWrite", 2),
     // Virtual key codes

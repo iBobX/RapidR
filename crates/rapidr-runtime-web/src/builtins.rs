@@ -766,3 +766,41 @@ pub const IDOK: i64 = 1;
 pub const IDCANCEL: i64 = 2;
 pub const IDYES: i64 = 6;
 pub const IDNO: i64 = 7;
+
+/// `MESSAGEBOX(text, title, flags)` (RapidQ): a dialog with the buttons the
+/// MB_* flags ask for; returns IDOK/IDYES/… for the one chosen.
+pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
+    let buttons = crate::value::dialogs::message_box_buttons(flags.to_i64());
+    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons)
+}
+
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): returns mr*.
+pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
+    let title = crate::value::dialogs::message_dlg_title(msg_type.to_i64());
+    let buttons = crate::value::dialogs::message_dlg_buttons(buttons.to_i64());
+    show_choice(&text.to_string_val(), title, &buttons)
+}
+
+/// Browser dialogs block, which the interpreter needs; they offer OK (alert)
+/// or OK/Cancel (confirm), so a third button (Yes/No/Cancel's Cancel,
+/// Abort/Retry/Ignore's Ignore) can't be offered on the web.
+fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button]) -> Value {
+    let Some(window) = web_sys::window() else { return v_int(0) };
+    let message = if title.is_empty() { text.to_string() } else { format!("{title}\n\n{text}") };
+    match buttons {
+        [only] => {
+            let _ = window.alert_with_message(&message);
+            v_int(only.result)
+        }
+        [yes, no, ..] => {
+            let note = if yes.label == "OK" && no.label == "Cancel" {
+                String::new()
+            } else {
+                format!("\n\n(OK = {}, Cancel = {})", yes.label, no.label)
+            };
+            let ok = window.confirm_with_message(&format!("{message}{note}")).unwrap_or(false);
+            v_int(if ok { yes.result } else { no.result })
+        }
+        [] => v_int(0),
+    }
+}

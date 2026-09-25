@@ -48,3 +48,8 @@ nums(0) = 1 : nums(2) = 3
 SWAP nums(0), nums(2)
 PRINT nums(0); nums(2)
 PRINT 10 SHL 2; " "; 10 SHR 1; " "; 1 SHL 31; " "; &H80000001 SHL 1; " "; 3 + 1 SHL 2
+' AND / OR / XOR / NOT are bitwise (manual Appendix C); conditions still work.
+PRINT 5 AND 3; " "; 5 OR 3; " "; 5 XOR 3; " "; NOT -1; " "; NOT 0; " "; NOT 5; " "; 4 OR 32
+flags = 1 OR 2 OR 8
+IF flags AND 8 THEN PRINT "has 8" ELSE PRINT "no 8"
+IF (flags AND 4) = 0 AND x < 100 THEN PRINT "no 4, small x"

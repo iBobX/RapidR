@@ -7,6 +7,28 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.19.0] — 2026-09-25
+
+### Added
+- **`MESSAGEBOX(text, title, flags)` and `MESSAGEDLG(text, mtType, mbButtons,
+  0)`** (RapidQ manual), with real buttons and the documented return values
+  (IDOK/IDYES/…, mrOk/mrNo/…). The button logic lives in
+  `rapidr_value::dialogs`:
+  - desktop builds show an FLTK dialog with up to three buttons and a title;
+  - the web uses the browser's blocking dialogs, labelled when OK/Cancel stand
+    for other answers ("OK = Yes, Cancel = No"). Browsers offer at most two
+    buttons, so a third (Yes/No/*Cancel*) isn't available there.
+- **Built-in RAPIDQ.INC:** the `mt*` and `mb*` MessageDlg constants.
+- **Tests:** IDE suite `tests/web_ide_dialogs.mjs`; bitwise operator checks
+  in `operators_rapidq`.
+
+### Fixed
+- **`AND`, `OR`, `XOR` and `NOT` are bitwise, as in RapidQ.** The manual
+  gives `5 OR 3 = 7` and `NOT -1 = 0`. They were logical, so
+  `MB_YESNO OR MB_ICONQUESTION`, or any combined flags, gave -1. Comparisons
+  are -1/0, so conditions behave as before. One change, in the shared value
+  layer, fixes both backends.
+
 ## [2.18.0] — 2026-09-25
 
 ### Added

@@ -207,6 +207,8 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "end" => { rp_end(); v_null() }
         "showmessage" => { rp_showmessage(&a0); v_null() }
         "msgbox" => rp_msgbox(&a0),
+        "messagebox" => rp_messagebox(&a0, &a1, &a2),
+        "messagedlg" => rp_messagedlg(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null)),
         "direxists" => rp_direxists(&a0),
         "fileexists" => rp_fileexists(&a0),
         "shell" => rp_shell(&a0),

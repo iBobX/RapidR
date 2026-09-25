@@ -25,7 +25,7 @@ pub const BUILTINS: &[&str] = &[
     "iif", "input", "input_func", "insert", "instr", "int", "inv", "isnumeric",
     "kill",
     "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
-    "math.e", "math.pi", "mid", "mkdir", "msgbox",
+    "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "msgbox",
     "oct", "open",
     "pi", "playsound", "pos", "print", "print_hash", "println",
     "randomize", "rename", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
