@@ -6,6 +6,8 @@ use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
 pub mod strings;
+pub mod variadic;
+pub mod data;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -445,4 +447,19 @@ mod tests {
         assert_eq!(format!("{}", v_int(42)), "42");
         assert_eq!(format!("{}", v_str("hello")), "hello");
     }
+}
+
+/// `a SHL n` (RapidQ): shift the 32-bit value left; bits past bit 31 are
+/// lost and the result is a signed LONG, like RapidQ's integers.
+pub fn rp_shl(a: &Value, n: &Value) -> Value {
+    let shift = n.to_i64().clamp(0, 32) as u32;
+    let bits = a.to_i64() as u32;
+    Value::Integer(if shift >= 32 { 0 } else { (bits << shift) as i32 as i64 })
+}
+
+/// `a SHR n` (RapidQ): logical shift right of the 32-bit value, as a LONG.
+pub fn rp_shr(a: &Value, n: &Value) -> Value {
+    let shift = n.to_i64().clamp(0, 32) as u32;
+    let bits = a.to_i64() as u32;
+    Value::Integer(if shift >= 32 { 0 } else { (bits >> shift) as i32 as i64 })
 }

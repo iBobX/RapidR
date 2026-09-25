@@ -7,6 +7,75 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.16.0] — 2026-09-25
+
+**RAPIDQ2.INC compiles.** RapidQ's official extension library (about 9,000
+lines, 287 routines) now compiles and runs in the interpreter. It uses
+composition, function pointers, SUBI/FUNCTIONI methods and more. Corpus: 96/386
+programs compile, stricter than before: typos in a program's own code are
+reported even in routines nothing calls.
+
+### Added
+- **Code the program never runs doesn't block it.** An error only counts in
+  code the program can reach. Reachability follows every name mentioned,
+  including handlers and BIND. This applies to:
+  - native-only features (DLL calls, VARPTR, `@` to a DLL), anywhere;
+  - unknown names and unsupported features, but only inside `$INCLUDE`d
+    libraries. The program's own code is always fully checked.
+- **Clearer messages for RapidQ built-ins RapidR lacks:** `LOCATE (a RapidQ
+  built-in) isn't supported yet` instead of "Unknown SUB". The list comes from
+  RapidQ's KEYWORD.LST and manual.
+- **Composition** (manual 10.5), in the interpreter:
+  - `Panel AS QPanel` fields become each instance's own component;
+  - TYPE fields of TYPE type become objects;
+  - `EVENT Panel.OnClick` handlers;
+  - nested access at any depth (`A.Engine.Power = 5`, `b64.src.Close`,
+    `A.Engine.Describe`);
+  - arrays of objects (`image(1000) AS QBITMAP`);
+  - a component's property objects (`.Canvas.Font.AddStyles`);
+  - indexed sub-objects (`.column(i).caption`).
+- **Function pointers:** `BIND ptr TO Proc` (or a TYPE method), `CODEPTR`/
+  `CALLBACK`, and `CALLFUNC(ptr, …)`, with the new opcode `CallIndirect`
+  (0x78). `BIND ptr TO Prototype` only gives the pointer a signature, as in
+  RAPIDQ2.INC.
+- **`SUBI`/`FUNCTIONI`** (manual ch. 9): variable arguments read through
+  `ParamStr$(i)`, `ParamVal(i)`, `ParamStrCount` and `ParamValCount`. They
+  work as TYPE methods and with `DECLARE`, on both backends.
+- **`DATA`/`READ`/`RESTORE [label]`** on both backends: unquoted items are
+  text unless numeric, and the table is shared by all DATA lines of the
+  program.
+- **`$ESCAPECHARS ON`:** `\n \t \" \\ \a \b \f \r \v`, `\65` and `\x41`.
+- **`SWAP a, b`, and `SHL`/`SHR`** (32-bit, at `*` precedence).
+- **Syntax:**
+  - dotted names: `DECLARE SUB SLEEP.ms LIB …` and `FUNCTION Screen.MousePresent`
+    (called as `Screen.MousePresent`);
+  - names starting with digits (`SUB 01click`);
+  - keywords as parameter names (`type AS LONG`);
+  - `FOR i = 1 TO 3: PRINT i: NEXT` on one line;
+  - `FOR THIS.x = …`;
+  - `CASE = x`;
+  - `< =` / `> =` / `< >` written with spaces;
+  - `_ ' comment` continuations;
+  - `WITH TypeName` around a TYPE's members;
+  - `EXIT SUBI` / `EXIT FUNCTIONI` / `EXIT EVENT` / `EXIT PROPERTY`;
+  - a SUB closed by `END FUNCTION` (and vice versa);
+  - `SIZEOF(SINGLE)`;
+  - array fields with bounds (`Colors(1 TO 16)`).
+- **RapidQ objects RapidR has no component for yet** (QFONT, QBITMAP,
+  QIMAGELIST, QMEMORYSTREAM, …) are accepted as types: generic objects whose
+  missing methods warn at run time.
+- **Tests:**
+  - conformance cases `subi_functioni`, `data_read`, `oop_composition` and
+    `function_pointers`;
+  - `rapidq_syntax` and `operators_rapidq` extended;
+  - reachability unit tests.
+
+### Fixed
+- **`BIND ptr TO Proc` did nothing.** The interpreter only printed a warning
+  and native builds wrote a comment, so the statement was silently skipped.
+  The interpreter now implements it; native builds report it clearly.
+- **Labels only used by `RESTORE`** no longer stop native builds.
+
 ## [2.15.0] — 2026-09-25
 
 **Real RapidQ programs.** The original RapidQ distribution (386 example

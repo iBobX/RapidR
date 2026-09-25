@@ -250,7 +250,10 @@ pub struct TypeField {
     pub span: TextSpan,
     pub name: String,
     pub type_name: String,
+    /// Upper bound of an array field (`Names(2)` or `Colors(1 TO 16)`).
     pub array_size: Option<Expression>,
+    /// Lower bound of an array field, when written (`Colors(1 TO 16)`); 0 otherwise.
+    pub array_lower: Option<Expression>,
     /// `Focus AS LONG PROPERTY SET Set_Focus`: assigning the field from
     /// outside the setter calls the `PROPERTY SET Set_Focus (v AS LONG)`
     /// method instead (which stores the value itself).
@@ -573,6 +576,26 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RROUTER",
 ];
 
+/// RapidQ's built-in objects (its manual's component list) that RapidR has
+/// no component for yet. Fields and variables of these types are objects
+/// (generic property bags at run time; unimplemented methods warn), so
+/// programs using them compile instead of failing on the type name.
+pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
+    "QAPPLICATION", "QBEVEL", "QBITMAP", "QCDAUDIO", "QCGI", "QCLIPBOARD", "QCOMPORT",
+    "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE",
+    "QD3DVECTOR", "QD3DVISUAL", "QD3DWRAP", "QDIGDISPLAY", "QDIRLISTVIEW", "QDIRTREE",
+    "QDOCKFORM", "QDOWNLOAD", "QDXIMAGELIST", "QDXSCREEN", "QDXSOUND", "QDXTIMER",
+    "QFILEDIALOG", "QFILELISTBOX", "QFONT", "QGLASSFRAME", "QHEADER", "QIMAGELIST",
+    "QMEMORYSTREAM", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
+    "QOUTLINE", "QRECT", "QVIDEO", "QWAVE",
+];
+
+/// A component RapidR implements, or one of RapidQ's objects it doesn't yet.
+pub fn is_rapidq_object_type(type_name: &str) -> bool {
+    is_component_type_name(&canonical_type_name(type_name))
+        || RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED.contains(&type_name.to_ascii_uppercase().as_str())
+}
+
 pub fn is_component_type_name(type_name: &str) -> bool {
     COMPONENT_TYPES.contains(&type_name.to_ascii_uppercase().as_str())
 }
@@ -689,6 +712,7 @@ fn walk_statement(stmt: &Statement, on_stmt: &mut dyn FnMut(&Statement), on_expr
             }
             for f in &t.fields {
                 exprs.extend(&f.array_size);
+                exprs.extend(&f.array_lower);
             }
         }
         Statement::While(w) => {
@@ -937,4 +961,83 @@ pub fn resolve_with_body(body: &[Statement], obj: &Expression) -> Vec<Statement>
         }
     });
     body
+}
+
+/// Calls `f` on every statement in `stmts` and in every nested block
+/// (parents first), allowing it to change them.
+pub fn walk_statements_mut(stmts: &mut [Statement], f: &mut dyn FnMut(&mut Statement)) {
+    for stmt in stmts {
+        f(stmt);
+        for body in child_bodies_mut(stmt) {
+            walk_statements_mut(body, f);
+        }
+    }
+}
+
+fn child_bodies_mut(stmt: &mut Statement) -> Vec<&mut Vec<Statement>> {
+    match stmt {
+        Statement::Create(c) => vec![&mut c.body],
+        Statement::DoLoop(d) => vec![&mut d.body],
+        Statement::For(f) => vec![&mut f.body],
+        Statement::Function(f) => vec![&mut f.body],
+        Statement::Subroutine(s) => vec![&mut s.body],
+        Statement::If(i) => {
+            let mut v = vec![&mut i.then_body];
+            v.extend(i.elseif_branches.iter_mut().map(|b| &mut b.body));
+            v.push(&mut i.else_body);
+            v
+        }
+        Statement::SelectCase(s) => {
+            let mut v: Vec<&mut Vec<Statement>> = s.cases.iter_mut().map(|c| &mut c.body).collect();
+            v.push(&mut s.case_else);
+            v
+        }
+        Statement::Type(t) => {
+            let mut v = vec![&mut t.methods, &mut t.constructor];
+            v.extend(t.events.iter_mut().map(|e| &mut e.body));
+            v
+        }
+        Statement::While(w) => vec![&mut w.body],
+        Statement::With(w) => vec![&mut w.body],
+        _ => Vec::new(),
+    }
+}
+
+/// The items of a `DATA` line as written (RapidQ manual, DATA): split at
+/// commas outside quotes; quoted text is a string (quotes removed), a number
+/// is numeric, anything else is its trimmed text
+/// (`DATA my dog ate my homework, "oh, boy!", 34.4`).
+pub fn data_items(raw: &str) -> Vec<LiteralValue> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    for c in raw.chars() {
+        match c {
+            '"' => {
+                in_quotes = !in_quotes;
+                current.push(c);
+            }
+            ',' if !in_quotes => parts.push(std::mem::take(&mut current)),
+            _ => current.push(c),
+        }
+    }
+    parts.push(current);
+    if parts.len() == 1 && parts[0].trim().is_empty() {
+        return Vec::new();
+    }
+    parts
+        .iter()
+        .map(|part| {
+            let t = part.trim();
+            if let Some(inner) = t.strip_prefix('"') {
+                LiteralValue::String(inner.strip_suffix('"').unwrap_or(inner).to_string())
+            } else if let Ok(n) = t.parse::<i64>() {
+                LiteralValue::Integer(n)
+            } else if let (Ok(f), true) = (t.parse::<f64>(), t.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '-' | '+' | '.'))) {
+                LiteralValue::Float(f)
+            } else {
+                LiteralValue::String(t.to_string())
+            }
+        })
+        .collect()
 }

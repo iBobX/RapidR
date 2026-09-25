@@ -48,7 +48,17 @@ pub fn compile_program(program: &Program) -> Result<Compiled, String> {
 
 /// Compile a full program to a bytecode module, mapping text spans back to source lines.
 pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> Result<Compiled, String> {
+    compile_program_with_libraries(program, source, &[])
+}
+
+/// Like [`compile_program_with_source`]; `library_lines[n]` is true when
+/// line n+1 of the source came from an `$INCLUDE`d library. In library code
+/// that the program never reaches, names and features the interpreter
+/// doesn't know aren't errors (RapidQ's own libraries use Win32 routines
+/// and built-ins RapidR lacks); the program's own code is always checked.
+pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     let mut bcgen = Bcgen::new();
+    bcgen.library_lines = library_lines.to_vec();
     if let Some(src) = source {
         let mut starts = vec![0];
         for (offset, c) in src.char_indices() {
@@ -127,6 +137,18 @@ struct Bcgen {
     /// Whether each name is a FUNCTION (true) or SUB (false). Used to choose
     /// CallFunc vs CallSub when invoked from an expression.
     fn_is_func: NameMap<bool>,
+    /// Reachability key of the routine being compiled (`name_key` of a
+    /// SUB/FUNCTION, `type:<name>` for TYPE code); `None` in the main program.
+    current_routine: Option<String>,
+    /// Which source lines came from `$INCLUDE`d libraries (see
+    /// [`compile_program_with_libraries`]).
+    library_lines: Vec<bool>,
+    /// Nesting of `setup_instance` for TYPE fields of TYPE type.
+    instance_depth: usize,
+    /// Errors about things only native builds can do (DLL calls, VARPTR, …)
+    /// raised inside a routine: reported only if the program can reach it,
+    /// so unused parts of big include libraries don't block a program.
+    deferred_errors: HashMap<String, Vec<String>>,
     /// Name of the TYPE method being compiled (a PROPERTY SET setter stores
     /// its own field directly instead of calling itself).
     current_method: Option<String>,
@@ -228,6 +250,10 @@ impl Bcgen {
             fn_indices: NameMap::default(),
             fn_is_func: NameMap::default(),
             current_method: None,
+            current_routine: None,
+            instance_depth: 0,
+            library_lines: Vec::new(),
+            deferred_errors: HashMap::new(),
             warnings: Vec::new(),
             errors: Vec::new(),
             lib_functions: HashSet::new(),
@@ -363,18 +389,35 @@ impl Bcgen {
         // Pass 3: emit each SUB and FUNCTION body.
         for s in subs {
             let idx = *self.fn_indices.get(&s.name).unwrap();
+            self.current_routine = Some(name_key(&s.name));
             self.compile_function_body(idx, &s.name, &format!("SUB {}", s.name), &s.params, &s.body, false)?;
         }
         for f in funcs {
             let idx = *self.fn_indices.get(&f.name).unwrap();
+            self.current_routine = Some(name_key(&f.name));
             self.compile_function_body(idx, &f.name, &format!("FUNCTION {}", f.name), &f.params, &f.body, true)?;
         }
         for (idx, name, full, params, body, is_func, type_name) in type_bodies {
+            self.current_routine = Some(format!("type:{}", name_key(&type_name)));
             self.current_type = Some(type_name);
             self.current_method = Some(name.clone());
             self.compile_function_body(idx, &name, &full, &params, body, is_func)?;
             self.current_type = None;
             self.current_method = None;
+        }
+        self.current_routine = None;
+
+        // Native-only features in routines the program can't reach (unused
+        // parts of RAPIDQ2.INC, windows.inc, …) don't stop it compiling.
+        if !self.deferred_errors.is_empty() {
+            let reachable = reachable_routines(program);
+            let mut deferred: Vec<(String, Vec<String>)> = std::mem::take(&mut self.deferred_errors).into_iter().collect();
+            deferred.sort();
+            for (routine, errors) in deferred {
+                if reachable.contains(&routine) {
+                    self.errors.extend(errors);
+                }
+            }
         }
 
         if !self.errors.is_empty() {
@@ -399,6 +442,21 @@ impl Bcgen {
             Some((line, col)) => format!("{line}:{col}: error: {message}"),
             None => format!("error: {message}"),
         };
+        // Features the interpreter lacks (native-only or not supported yet),
+        // and names it doesn't know, only count in code the program can
+        // reach: include libraries are full of routines a program never
+        // calls (RAPIDQ2.INC, windows.inc).
+        let in_library = self
+            .span_location(span)
+            .is_some_and(|(line, _)| self.library_lines.get(line - 1).copied().unwrap_or(false));
+        if message.contains(NATIVE_ONLY_MARKER)
+            || (in_library && (message.contains(UNSUPPORTED_MARKER) || message.starts_with("Unknown SUB or FUNCTION")))
+        {
+            if let Some(routine) = self.current_routine.clone() {
+                self.deferred_errors.entry(routine).or_default().push(formatted);
+                return;
+            }
+        }
         self.errors.push(formatted);
     }
 
@@ -416,8 +474,12 @@ impl Bcgen {
             )
         } else if key == "varptr" {
             format!("{} (memory addresses) only works in native builds (`rapidr build`), not in the bytecode interpreter", name.to_uppercase())
+        } else if matches!(key.as_str(), "memcpy" | "memset" | "memcmp" | "peek" | "poke") {
+            format!("{} (raw memory access){UNSUPPORTED_MARKER}", name.to_uppercase())
         } else if key == "inc" || key == "dec" {
             format!("{} needs a variable: `{} x` or `{} x, amount`", name.to_uppercase(), name.to_uppercase(), name.to_uppercase())
+        } else if RAPIDQ_BUILTINS.contains(&key.as_str()) {
+            format!("{} (a RapidQ built-in){UNSUPPORTED_MARKER}", name.to_uppercase())
         } else if argc == 0 {
             format!("Unknown SUB or FUNCTION '{name}'")
         } else {
@@ -860,7 +922,7 @@ impl Bcgen {
         self.type_chain(type_name)
             .iter()
             .filter_map(|t| t.extends.clone())
-            .find(|e| is_component_type_name(e))
+            .find(|e| rapidr_ast::is_rapidq_object_type(e))
             .map(|e| e.to_ascii_uppercase())
     }
 
@@ -871,6 +933,113 @@ impl Bcgen {
 
     fn type_has_field(&self, type_name: &str, field: &str) -> bool {
         self.type_chain(type_name).iter().any(|t| t.fields.iter().any(|f| f.name.eq_ignore_ascii_case(field)))
+    }
+
+    /// `Obj.Name` naming a SUB/FUNCTION defined as `SUB Obj.Name` (when
+    /// `Obj` isn't a variable), as its full name.
+    fn dotted_routine(&self, callee: &Expression) -> Option<String> {
+        let Expression::MemberAccess(m) = callee else { return None };
+        let Expression::Identifier(o) = m.object.as_ref() else { return None };
+        if self.scope.get(&o.name).is_some() || self.var_type(&o.name).is_some() {
+            return None;
+        }
+        let full = format!("{}.{}", o.name, m.member);
+        self.fn_indices.contains_key(&full).then_some(full)
+    }
+
+    /// The type of the object an expression holds, when it holds one: a
+    /// TYPE instance or component variable/parameter (`This`, `Sender`), a
+    /// field of the current TYPE, or a field of such an object whose type is
+    /// a component or TYPE (composition: `GF.Panel`). `None` otherwise.
+    fn object_type_of(&self, e: &Expression) -> Option<String> {
+        match e {
+            Expression::Identifier(id) => self.var_type(&id.name).or_else(|| {
+                let current = self.current_type.as_ref()?;
+                if self.scope.get(&id.name).is_some() || self.is_known_global(&id.name) {
+                    return None;
+                }
+                self.field_object_type(current, &id.name)
+            }),
+            Expression::MemberAccess(m) => {
+                let t = self.object_type_of(&m.object)?;
+                self.field_object_type(&t, &m.member)
+            }
+            // `.image(i)`: an element of an array field of objects.
+            Expression::FunctionCall(fc) if fc.args.len() == 1 => match fc.callee.as_ref() {
+                Expression::MemberAccess(m) => {
+                    let t = self.object_type_of(&m.object)?;
+                    self.array_field_object_type(&t, &m.member)
+                }
+                Expression::Identifier(id) => {
+                    let current = self.current_type.as_ref()?;
+                    if self.scope.get(&id.name).is_some() || self.is_known_global(&id.name) {
+                        return None;
+                    }
+                    self.array_field_object_type(current, &id.name)
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Element type of an array field of objects (`image(1000) AS QBITMAP`).
+    fn array_field_object_type(&self, type_name: &str, field: &str) -> Option<String> {
+        let f = self
+            .type_chain(type_name)
+            .iter()
+            .rev()
+            .find_map(|t| t.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).cloned())?;
+        f.array_size.as_ref()?;
+        let t = rapidr_ast::canonical_type_name(&f.type_name);
+        (rapidr_ast::is_rapidq_object_type(&t) || self.types.contains_key(&t)).then_some(t)
+    }
+
+    /// `obj.Canvas.Font.Size`: when `e` is `<object>.<sub>` and the object is
+    /// a component (not a TYPE with such a field), `<sub>` is one of its
+    /// property objects (Font, …), addressed like native builds' combined
+    /// names (`font.size`). Returns the object expression and `sub`.
+    fn sub_property<'e>(&self, e: &'e Expression) -> Option<(&'e Expression, &'e str)> {
+        let Expression::MemberAccess(m) = e else { return None };
+        self.object_type_of(&m.object)?;
+        if self.object_type_of(e).is_some() {
+            return None;
+        }
+        Some((&m.object, m.member.as_str()))
+    }
+
+    /// `obj.item(i)` where `obj` is a component and `item` isn't an array
+    /// field of objects: one of the component's indexed sub-objects (a
+    /// ListView's items/columns, …). Returns the object, `item` and the index
+    /// arguments. Its members become methods with combined names:
+    /// `obj.item(i).caption` → `item.caption(i)`; assigning calls
+    /// `item.caption=(i, value)`.
+    fn indexed_sub_object<'e>(&self, e: &'e Expression) -> Option<(&'e Expression, &'e str, &'e [Expression])> {
+        let Expression::FunctionCall(fc) = e else { return None };
+        let Expression::MemberAccess(m) = fc.callee.as_ref() else { return None };
+        let t = self.object_type_of(&m.object)?;
+        if self.array_field_object_type(&t, &m.member).is_some() || self.find_method(&t, &m.member).is_some() {
+            return None;
+        }
+        if self.types.contains_key(&t) && self.type_has_field(&t, &m.member) {
+            return None;
+        }
+        Some((&m.object, m.member.as_str(), fc.args.as_slice()))
+    }
+
+    /// Type of `field` of `type_name` when it holds an object (a component
+    /// or a user TYPE).
+    fn field_object_type(&self, type_name: &str, field: &str) -> Option<String> {
+        let f = self
+            .type_chain(type_name)
+            .iter()
+            .rev()
+            .find_map(|t| t.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).cloned())?;
+        if f.array_size.is_some() {
+            return None;
+        }
+        let t = rapidr_ast::canonical_type_name(&f.type_name);
+        (rapidr_ast::is_rapidq_object_type(&t) || self.types.contains_key(&t)).then_some(t)
     }
 
     /// Inside a TYPE's code the type's own name (or an ancestor's) stands for
@@ -970,6 +1139,9 @@ impl Bcgen {
             && self.scope.get(name).is_some()
             && !self.component_instance_names.contains_key(&name.to_lowercase()))
             || self.is_this_alias(name)
+            || (self.scope.get(name).is_none()
+                && !self.is_known_global(name)
+                && self.current_type.as_ref().is_some_and(|t| self.field_object_type(t, name).is_some()))
     }
 
     /// Inside a TYPE's method/EVENT/CONSTRUCTOR, a bare name that isn't a
@@ -1035,6 +1207,104 @@ impl Bcgen {
         self.store_object_id(name, code);
         for info in &chain {
             for field in &info.fields {
+                // Composition (manual 10.5): `Panel AS QPanel` gives every
+                // instance its own component, `<instance>.Panel`; the field
+                // holds that component's id, so `obj.Panel.Left = 5` works.
+                let field_type = rapidr_ast::canonical_type_name(&field.type_name);
+                if rapidr_ast::is_rapidq_object_type(&field_type) && field.array_size.is_none() {
+                    let sub_id = format!("{name}.{}", field.name);
+                    let kind_s = self.module.add_string(&field_type.to_ascii_uppercase());
+                    let sub_s = self.module.add_string(&sub_id);
+                    emit(code, Op::CreateComp);
+                    push_u32(code, kind_s); push_u32(code, sub_s);
+                    emit(code, Op::Pop);
+                    if field_type.eq_ignore_ascii_case("RTIMER") {
+                        self.emit_register_timer(&sub_id, code);
+                    }
+                    let c = self.module.add_const(Const::Str(sub_id));
+                    emit(code, Op::LoadConst); push_u32(code, c);
+                    let id_s = self.module.add_string(name);
+                    let f_s = self.module.add_string(&field.name);
+                    emit(code, Op::SetProp);
+                    push_u32(code, id_s); push_u32(code, f_s);
+                    continue;
+                }
+                // `image(1000) AS QBITMAP`: an array whose elements are object
+                // ids `<instance>.image(i)` (objects appear when first used).
+                if let (Some(upper), true) = (&field.array_size, rapidr_ast::is_rapidq_object_type(&field_type) || self.types.contains_key(&field_type)) {
+                    let tag = code.len();
+                    let arr = self.scope.declare(&format!("__objarr_{tag}"));
+                    let i = self.scope.declare(&format!("__objidx_{tag}"));
+                    let hi = self.scope.declare(&format!("__objhi_{tag}"));
+                    let null = self.module.add_const(Const::Null);
+                    emit(code, Op::LoadConst); push_u32(code, null);
+                    match &field.array_lower {
+                        Some(lower) => self.lower_expr(lower, code)?,
+                        None => {
+                            let zero = self.module.add_const(Const::Int(0));
+                            emit(code, Op::LoadConst); push_u32(code, zero);
+                        }
+                    }
+                    emit(code, Op::StoreLocal); push_u16(code, i);
+                    emit(code, Op::LoadLocal); push_u16(code, i);
+                    self.lower_expr(upper, code)?;
+                    emit(code, Op::StoreLocal); push_u16(code, hi);
+                    emit(code, Op::LoadLocal); push_u16(code, hi);
+                    emit(code, Op::NewArray); code.push(1);
+                    emit(code, Op::StoreLocal); push_u16(code, arr);
+                    let top = code.len() as u32;
+                    emit(code, Op::LoadLocal); push_u16(code, i);
+                    emit(code, Op::LoadLocal); push_u16(code, hi);
+                    emit(code, Op::Gt);
+                    emit(code, Op::JumpIf);
+                    let exit = code.len();
+                    push_u32(code, 0);
+                    let prefix = self.module.add_const(Const::Str(format!("{name}.{}(", field.name)));
+                    let close = self.module.add_const(Const::Str(")".into()));
+                    let one = self.module.add_const(Const::Int(1));
+                    emit(code, Op::LoadLocal); push_u16(code, arr);
+                    emit(code, Op::LoadLocal); push_u16(code, i);
+                    emit(code, Op::LoadConst); push_u32(code, prefix);
+                    emit(code, Op::LoadLocal); push_u16(code, i);
+                    emit(code, Op::Add);
+                    emit(code, Op::LoadConst); push_u32(code, close);
+                    emit(code, Op::Add);
+                    emit(code, Op::ASet); code.push(1);
+                    emit(code, Op::LoadLocal); push_u16(code, i);
+                    emit(code, Op::LoadConst); push_u32(code, one);
+                    emit(code, Op::Add);
+                    emit(code, Op::StoreLocal); push_u16(code, i);
+                    emit(code, Op::Jump); push_u32(code, top);
+                    let end = code.len() as u32;
+                    patch_u32(code, exit, end);
+                    emit(code, Op::LoadLocal); push_u16(code, arr);
+                    let id_s = self.module.add_string(name);
+                    let f_s = self.module.add_string(&field.name);
+                    emit(code, Op::SetProp);
+                    push_u32(code, id_s); push_u32(code, f_s);
+                    continue;
+                }
+                // A field of a user TYPE is an object of its own.
+                if self.types.contains_key(&field_type) && field.array_size.is_none() {
+                    if self.instance_depth >= 8 {
+                        return Err(format!("TYPE {type_name} contains itself (field {}); objects can't nest endlessly", field.name));
+                    }
+                    let sub_id = format!("{name}.{}", field.name);
+                    self.instance_depth += 1;
+                    let saved_main = self.in_main;
+                    self.in_main = true; // record the sub-object's type globally
+                    let result = self.setup_instance(&sub_id, &field_type, code);
+                    self.in_main = saved_main;
+                    self.instance_depth -= 1;
+                    result?;
+                    let c = self.module.add_const(Const::Str(sub_id));
+                    emit(code, Op::LoadConst); push_u32(code, c);
+                    let id_s = self.module.add_string(name);
+                    let f_s = self.module.add_string(&field.name);
+                    emit(code, Op::SetProp);
+                    push_u32(code, id_s); push_u32(code, f_s);
+                    continue;
+                }
                 let fill = self.module.add_const(match field.type_name.to_ascii_uppercase().as_str() {
                     "STRING" => Const::Str(String::new()),
                     "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" => Const::Int(0),
@@ -1042,9 +1312,15 @@ impl Bcgen {
                 });
                 emit(code, Op::LoadConst); push_u32(code, fill);
                 if let Some(size) = &field.array_size {
-                    // `Names(2) AS STRING` → an array field 0..2.
-                    let zero = self.module.add_const(Const::Int(0));
-                    emit(code, Op::LoadConst); push_u32(code, zero);
+                    // `Names(2) AS STRING` → an array field 0..2;
+                    // `Colors(1 TO 16)` → 1..16.
+                    match &field.array_lower {
+                        Some(lower) => self.lower_expr(lower, code)?,
+                        None => {
+                            let zero = self.module.add_const(Const::Int(0));
+                            emit(code, Op::LoadConst); push_u32(code, zero);
+                        }
+                    }
                     self.lower_expr(size, code)?;
                     emit(code, Op::NewArray); code.push(1);
                 }
@@ -1056,9 +1332,15 @@ impl Bcgen {
         }
         for info in &chain {
             for (event, handler, n_params) in &info.events {
-                let trampoline = self.event_trampoline(name, event, *handler, *n_params);
-                let id_s = self.module.add_string(name);
-                let ev_s = self.module.add_string(event);
+                // `EVENT Panel.OnClick` fires on the field's component, with
+                // `This` still the instance.
+                let (target, event) = match event.rsplit_once('.') {
+                    Some((field, ev)) => (format!("{name}.{field}"), ev.to_string()),
+                    None => (name.to_string(), event.clone()),
+                };
+                let trampoline = self.event_trampoline(name, &event, *handler, *n_params);
+                let id_s = self.module.add_string(&target);
+                let ev_s = self.module.add_string(&event);
                 emit(code, Op::RegisterEvent);
                 push_u32(code, id_s); push_u32(code, ev_s); push_u32(code, trampoline);
             }
@@ -1095,6 +1377,84 @@ impl Bcgen {
     /// `Method args` inside the TYPE's own code. Returns false if `callee`
     /// is none of these. `want_value`: leave exactly one value on the stack.
     fn try_lower_object_call(&mut self, callee: &Expression, args: &[Expression], want_value: bool, code: &mut Vec<u8>) -> Result<bool, String> {
+        // `Screen.MousePresent`: a routine defined with a dotted name
+        // (`FUNCTION Screen.MousePresent`), not a method of an object.
+        if let Some(full) = self.dotted_routine(callee) {
+            let fi = *self.fn_indices.get(&full).unwrap();
+            let is_func = self.fn_is_func.get(&full).copied().unwrap_or(false);
+            for a in args {
+                self.lower_expr(a, code)?;
+            }
+            emit(code, if is_func { Op::CallFunc } else { Op::CallSub });
+            push_u32(code, fi); code.push(args.len() as u8);
+            match (want_value, is_func) {
+                (true, false) => emit(code, Op::LoadNull),
+                (false, true) => emit(code, Op::Pop),
+                _ => {}
+            }
+            return Ok(true);
+        }
+        // `obj.item(i).Delete(…)` → CallMethodDyn(obj, "item.delete", i, …)
+        if let Expression::MemberAccess(m) = callee {
+            if let Some((object, sub, index)) = self.indexed_sub_object(&m.object) {
+                let (object, index) = (object.clone(), index.to_vec());
+                let combo = format!("{}.{}", sub.to_lowercase(), m.member.to_lowercase());
+                self.lower_expr(&object, code)?;
+                for a in index.iter().chain(args) {
+                    self.lower_expr(a, code)?;
+                }
+                let m_s = self.module.add_string(&combo);
+                emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push((index.len() + args.len()) as u8);
+                if !want_value {
+                    emit(code, Op::Pop);
+                }
+                return Ok(true);
+            }
+        }
+        // `obj.Canvas.Font.AddStyles(…)`: a method of a component's Font.
+        if let Expression::MemberAccess(m) = callee {
+            if let Some((object, sub)) = self.sub_property(&m.object) {
+                let object = object.clone();
+                let combo = format!("{}.{}", sub.to_lowercase(), m.member.to_lowercase());
+                self.lower_expr(&object, code)?;
+                for a in args {
+                    self.lower_expr(a, code)?;
+                }
+                let m_s = self.module.add_string(&combo);
+                emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(args.len() as u8);
+                if !want_value {
+                    emit(code, Op::Pop);
+                }
+                return Ok(true);
+            }
+        }
+        // `GF.Panel.Show`, `b64.src.Close`: a method of the object a field holds.
+        if let Expression::MemberAccess(m) = callee {
+            if !matches!(m.object.as_ref(), Expression::Identifier(_)) {
+                if let Some(t) = self.object_type_of(&m.object) {
+                    self.lower_expr(&m.object, code)?;
+                    for a in args {
+                        self.lower_expr(a, code)?;
+                    }
+                    if let Some((fi, is_func)) = self.find_method(&t, &m.member) {
+                        emit(code, if is_func { Op::CallFunc } else { Op::CallSub });
+                        push_u32(code, fi); code.push(args.len() as u8 + 1);
+                        match (want_value, is_func) {
+                            (true, false) => emit(code, Op::LoadNull),
+                            (false, true) => emit(code, Op::Pop),
+                            _ => {}
+                        }
+                    } else {
+                        let m_s = self.module.add_string(&m.member);
+                        emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(args.len() as u8);
+                        if !want_value {
+                            emit(code, Op::Pop);
+                        }
+                    }
+                    return Ok(true);
+                }
+            }
+        }
         let (object, method) = match callee {
             Expression::MemberAccess(m) => match m.object.as_ref() {
                 Expression::Identifier(o) => (Some(o.name.clone()), m.member.clone()),
@@ -1109,7 +1469,7 @@ impl Bcgen {
             _ => return Ok(false),
         };
         let type_name = match &object {
-            Some(o) => self.var_type(o),
+            Some(o) => self.object_type_of(&Expression::Identifier(rapidr_ast::Identifier { span: TextSpan::default(), name: o.clone() })),
             None => self.current_type.clone(),
         };
         if let Some((fi, is_func)) = type_name.as_deref().and_then(|t| self.find_method(t, &method)) {
@@ -1246,7 +1606,7 @@ impl Bcgen {
         // `Form1.Font.Size = 12` → SetProp(form1, "font.size", 12).
         // Mirrors codegen-rust's `comp.Sub.Prop = value` path.
         if let Expression::MemberAccess(m) = &a.target {
-            if let Expression::MemberAccess(inner) = &*m.object {
+            if let (Expression::MemberAccess(inner), None) = (&*m.object, self.object_type_of(&m.object)) {
                 if let Expression::Identifier(obj) = &*inner.object {
                     self.lower_expr(&a.value, code)?;
                     let id_s = self.module.add_string(&obj.name);
@@ -1345,6 +1705,35 @@ impl Bcgen {
                     emit(code, Op::SetProp);
                     push_u32(code, id_s); push_u32(code, nm_s);
                     Ok(())
+                } else if let Some((object, sub, index)) = self.indexed_sub_object(&m.object) {
+                    // `obj.item(i).caption = v` → CallMethodDyn(obj, "item.caption=", i, v)
+                    let (object, index) = (object.clone(), index.to_vec());
+                    let combo = format!("{}.{}=", sub.to_lowercase(), m.member.to_lowercase());
+                    let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));
+                    emit(code, Op::StoreLocal); push_u16(code, tmp);
+                    self.lower_expr(&object, code)?;
+                    for a in &index {
+                        self.lower_expr(a, code)?;
+                    }
+                    emit(code, Op::LoadLocal); push_u16(code, tmp);
+                    let m_s = self.module.add_string(&combo);
+                    emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(index.len() as u8 + 1);
+                    emit(code, Op::Pop);
+                    Ok(())
+                } else if let Some((object, sub)) = self.sub_property(&m.object) {
+                    // `obj.Canvas.Font.Size = v` → SetPropDyn(canvas, "font.size")
+                    let object = object.clone();
+                    let combo = format!("{}.{}", sub.to_lowercase(), m.member.to_lowercase());
+                    self.lower_expr(&object, code)?;
+                    let nm_s = self.module.add_string(&combo);
+                    emit(code, Op::SetPropDyn); push_u32(code, nm_s);
+                    Ok(())
+                } else if self.object_type_of(&m.object).is_some() {
+                    // `GF.Panel.Left = v`: stack [value] → [value, id].
+                    self.lower_expr(&m.object, code)?;
+                    let nm_s = self.module.add_string(&m.member);
+                    emit(code, Op::SetPropDyn); push_u32(code, nm_s);
+                    Ok(())
                 } else {
                     Err("nested member-access store not yet supported".into())
                 }
@@ -1386,6 +1775,9 @@ impl Bcgen {
             return self.lower_assignment(&assignment, code);
         }
         if self.try_lower_object_call(&c.callee, &c.args, false, code)? {
+            return Ok(());
+        }
+        if self.try_lower_pointer_call(&c.callee, &c.args, false, code)? {
             return Ok(());
         }
         // Push args.
@@ -1850,8 +2242,71 @@ impl Bcgen {
                 }
             }
         }
-        self.warnings.push("BIND form not yet supported".into());
-        Ok(())
+        // `BIND ptr TO Proc` (or a TYPE method): a function pointer for CALLFUNC.
+        if let Some(fi) = self.routine_pointer(&b.handler) {
+            let c = self.module.add_const(Const::Int(fi as i64 + 1));
+            emit(code, Op::LoadConst); push_u32(code, c);
+            return self.store_target(&b.target, code);
+        }
+        // `BIND ptr TO Prototype` with no such routine only gives the pointer
+        // a signature (RAPIDQ2.INC then assigns it: `hBind = hFunction`).
+        if matches!(b.handler, Expression::Identifier(_)) {
+            return Ok(());
+        }
+        Err("BIND needs `BIND variable TO SubName` or `BIND obj.Event TO SubName`".into())
+    }
+
+    /// The routine an expression names for a function pointer: `Proc`, or a
+    /// TYPE method `TypeName.Method` / `obj.Method`.
+    fn routine_pointer(&self, e: &Expression) -> Option<u32> {
+        match e {
+            Expression::Identifier(id) => self.fn_indices.get(&id.name).copied(),
+            Expression::MemberAccess(m) => {
+                let Expression::Identifier(o) = m.object.as_ref() else { return None };
+                let t = self
+                    .var_type(&o.name)
+                    .or_else(|| self.types.contains_key(&o.name).then(|| o.name.clone()))?;
+                self.find_method(&t, &m.member).map(|(fi, _)| fi)
+            }
+            _ => None,
+        }
+    }
+
+    /// `CODEPTR(Proc)` / `CALLBACK(Proc)` / `CALLFUNC(ptr, args…)`: function
+    /// pointers are the routine's index + 1 (0 stays "no function").
+    /// Returns false for any other call.
+    fn try_lower_pointer_call(&mut self, callee: &Expression, args: &[Expression], want_value: bool, code: &mut Vec<u8>) -> Result<bool, String> {
+        let Expression::Identifier(id) = callee else { return Ok(false) };
+        if self.fn_indices.contains_key(&id.name) {
+            return Ok(false);
+        }
+        match name_key(&id.name).as_str() {
+            "codeptr" | "callback" => {
+                let [target] = args else {
+                    return Err(format!("{}(SubName) takes the name of a SUB or FUNCTION", id.name.to_uppercase()));
+                };
+                let fi = self
+                    .routine_pointer(target)
+                    .ok_or_else(|| format!("{}(…) takes the name of a SUB, FUNCTION or TYPE method", id.name.to_uppercase()))?;
+                let c = self.module.add_const(Const::Int(fi as i64 + 1));
+                emit(code, Op::LoadConst); push_u32(code, c);
+            }
+            "callfunc" => {
+                let Some((ptr, rest)) = args.split_first() else {
+                    return Err("CALLFUNC needs a function pointer: CALLFUNC(ptr, args…)".into());
+                };
+                self.lower_expr(ptr, code)?;
+                for a in rest {
+                    self.lower_expr(a, code)?;
+                }
+                emit(code, Op::CallIndirect); code.push(rest.len() as u8);
+            }
+            _ => return Ok(false),
+        }
+        if !want_value {
+            emit(code, Op::Pop);
+        }
+        Ok(true)
     }
 
     // ------------------- expressions -------------------
@@ -1942,6 +2397,9 @@ impl Bcgen {
                     }
                 }
                 if self.try_lower_object_call(&fc.callee, &fc.args, true, code)? {
+                    return Ok(());
+                }
+                if self.try_lower_pointer_call(&fc.callee, &fc.args, true, code)? {
                     return Ok(());
                 }
                 // Check if this is a variant array/list subscript indexing:
@@ -2051,6 +2509,9 @@ impl Bcgen {
                 Err("unsupported method call object".into())
             }
             Expression::MemberAccess(m) => {
+                if self.dotted_routine(e).is_some() && self.try_lower_object_call(e, &[], true, code)? {
+                    return Ok(());
+                }
                 if let Expression::Identifier(obj) = &*m.object {
                     // `obj.Func` without parentheses calls a FUNCTION method.
                     let is_fn_method = self
@@ -2070,6 +2531,40 @@ impl Bcgen {
                     let nm_s = self.module.add_string(&m.member);
                     emit(code, Op::GetProp);
                     push_u32(code, id_s); push_u32(code, nm_s);
+                    return Ok(());
+                }
+                // `obj.item(i).caption` → CallMethodDyn(obj, "item.caption", i)
+                if let Some((object, sub, index)) = self.indexed_sub_object(&m.object) {
+                    let (object, index) = (object.clone(), index.to_vec());
+                    let combo = format!("{}.{}", sub.to_lowercase(), m.member.to_lowercase());
+                    self.lower_expr(&object, code)?;
+                    for a in &index {
+                        self.lower_expr(a, code)?;
+                    }
+                    let m_s = self.module.add_string(&combo);
+                    emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(index.len() as u8);
+                    return Ok(());
+                }
+                // `obj.Canvas.Font.Size`: a property of a component's Font.
+                if let Some((object, sub)) = self.sub_property(&m.object) {
+                    let object = object.clone();
+                    let combo = format!("{}.{}", sub.to_lowercase(), m.member.to_lowercase());
+                    self.lower_expr(&object, code)?;
+                    let nm_s = self.module.add_string(&combo);
+                    emit(code, Op::GetPropDyn); push_u32(code, nm_s);
+                    return Ok(());
+                }
+                // `GF.Panel.Left`: a property of the object a field holds
+                // (or `A.Engine.Describe`, a FUNCTION method, called).
+                if let Some(t) = self.object_type_of(&m.object) {
+                    if self.find_method(&t, &m.member).is_some_and(|(_, is_func)| is_func)
+                        && self.try_lower_object_call(e, &[], true, code)?
+                    {
+                        return Ok(());
+                    }
+                    self.lower_expr(&m.object, code)?;
+                    let nm_s = self.module.add_string(&m.member);
+                    emit(code, Op::GetPropDyn); push_u32(code, nm_s);
                     return Ok(());
                 }
                 // Nested member access: a.b.c → GetProp(a, "b.c").
@@ -2154,6 +2649,100 @@ fn collect_create_names(stmts: &[Statement], out: &mut HashSet<String>) {
             _ => {}
         }
     }
+}
+
+/// Every procedure and function of RapidQ (its KEYWORD.LST and manual),
+/// as `name_key`s: an unknown call to one of these is "a RapidQ built-in
+/// RapidR doesn't support yet", not a typo.
+const RAPIDQ_BUILTINS: &[&str] = &[
+    "abs", "acos", "asc", "asin", "atan", "atn", "bin", "callback", "callfunc", "ceil",
+    "chdir", "chr", "cint", "clng", "cls", "codeptr", "color", "command", "commandcount",
+    "convbase", "convbasex", "cos", "csrlin", "curdir", "date", "delete", "dir",
+    "direxists", "doevents", "environ", "execute", "exp", "extractresource", "field",
+    "fileexists", "fix", "floor", "format", "frac", "get", "getcapture", "getfocus", "hex",
+    "hextodec", "iif", "initarray", "inkey", "inp", "input", "inpw", "insert", "instr",
+    "int", "isconsole", "kill", "killmessage", "lbound", "lcase", "left", "len", "lflush",
+    "libraryinst", "locate", "log", "lprint", "ltrim", "memcmp", "memcpy", "memset",
+    "messagebox", "messagedlg", "microtimer", "mid", "mkdir", "mousex", "mousey",
+    "nviewlibpresent", "out", "outw", "paramstr", "paramstrcount", "paramval",
+    "paramvalcount", "pcopy", "peek", "playwav", "poke", "pos", "postmessage",
+    "releasecapture", "rename", "replace", "replacesubstr", "resource", "resourcecount",
+    "reverse", "rgb", "right", "rinstr", "rmdir", "rnd", "round", "rtlmovememory", "rtrim",
+    "run", "sendmessage", "setcapture", "setconsoletitle", "setfocus", "sgn", "shell",
+    "showmessage", "sin", "sizeof", "sleep", "sound", "space", "sqr", "str", "strf",
+    "string", "tab", "tally", "tan", "time", "timer", "ubound", "ucase", "udtptr",
+    "unloadlibrary", "val", "varptr", "vartype", "wstring", "wstringtoascii",
+];
+
+/// Present in every error about a feature only native builds support.
+const NATIVE_ONLY_MARKER: &str = "`rapidr build`";
+/// Ends every error about a feature no backend supports yet.
+const UNSUPPORTED_MARKER: &str = " isn't supported yet";
+
+/// Routines the program can reach (`name_key` of SUBs/FUNCTIONs,
+/// `type:<name>` for a TYPE's methods, events and constructor), found by
+/// following every name mentioned from the main program onwards. Any
+/// mention counts (a call, `OnClick = Handler`, BIND, CODEPTR, `DIM x AS T`),
+/// so this over-approximates what can run.
+fn reachable_routines(program: &Program) -> HashSet<String> {
+    let mut routines: HashMap<String, &[Statement]> = HashMap::new();
+    let mut types: HashMap<String, &TypeStatement> = HashMap::new();
+    let mut main: Vec<&[Statement]> = Vec::new();
+    for (i, stmt) in program.statements.iter().enumerate() {
+        match stmt {
+            Statement::Subroutine(s) => { routines.insert(name_key(&s.name), &s.body); }
+            Statement::Function(f) => { routines.insert(name_key(&f.name), &f.body); }
+            Statement::Type(t) => { types.insert(name_key(&t.name), t); }
+            _ => main.push(std::slice::from_ref(&program.statements[i])),
+        }
+    }
+    let mut reached: HashSet<String> = HashSet::new();
+    let mut pending = main;
+    while let Some(body) = pending.pop() {
+        let mut names: Vec<String> = Vec::new();
+        {
+            let mut stmt_names: Vec<String> = Vec::new();
+            rapidr_ast::walk(
+                body,
+                &mut |s| match s {
+                    Statement::Dim(d) => stmt_names.push(d.type_name.clone()),
+                    Statement::Create(c) => stmt_names.push(c.type_name.clone()),
+                    _ => {}
+                },
+                &mut |e| {
+                    if let Expression::Identifier(id) = e {
+                        names.push(id.name.clone());
+                    }
+                },
+            );
+            names.extend(stmt_names);
+        }
+        for name in names {
+            let key = name_key(&name);
+            if let Some(body) = routines.get(&key) {
+                if reached.insert(key.clone()) {
+                    pending.push(body);
+                }
+            }
+            // A TYPE in use brings its code, its base type and the TYPEs of
+            // its fields (composition) along.
+            let mut type_keys = vec![key];
+            while let Some(k) = type_keys.pop() {
+                let Some(t) = types.get(&k) else { continue };
+                if !reached.insert(format!("type:{k}")) {
+                    continue;
+                }
+                pending.push(&t.methods);
+                pending.push(&t.constructor);
+                for e in &t.events {
+                    pending.push(&e.body);
+                }
+                type_keys.extend(t.fields.iter().map(|f| name_key(&f.type_name)));
+                type_keys.extend(t.extends.as_deref().map(name_key));
+            }
+        }
+    }
+    reached
 }
 
 /// The value a variable of a BASIC type starts with (as in native builds'
@@ -2297,6 +2886,41 @@ mod tests {
         let mut vm = Vm::new(&mut h);
         vm.run(&compiled.module).unwrap();
         h
+    }
+
+    #[test]
+    fn native_only_code_blocks_only_when_reachable() {
+        let lib = "DECLARE FUNCTION MessageBeep LIB \"user32\" (t AS LONG) AS LONG\n\
+                   SUB Unused\n  x = MessageBeep(0)\n  y = VARPTR(x)\nEND SUB\n\
+                   SUB Used\n  z = MessageBeep(1)\nEND SUB\n\
+                   TYPE TIdle\n  SUB Go\n    q = MessageBeep(2)\n  END SUB\nEND TYPE\n";
+        // Nothing reaches the DLL calls: the program compiles and runs.
+        let h = run(&format!("{lib}PRINT \"ok\""));
+        assert_eq!(h.output, "ok\n");
+        // Calling `Used` reaches one; only that call is reported.
+        let src = format!("{lib}Used");
+        let Err(err) = compile_program_with_source(&parse(&src), Some(&src)) else { panic!("should not compile") };
+        assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(err.contains("MessageBeep") && err.starts_with("7:"), "{err}");
+        // A TYPE in use (DIM) brings its methods along.
+        let src = format!("{lib}DIM t AS TIdle");
+        let Err(err) = compile_program_with_source(&parse(&src), Some(&src)) else { panic!("should not compile") };
+        assert!(err.starts_with("11:"), "{err}");
+    }
+
+    #[test]
+    fn unknown_names_in_unused_code_only_pass_in_libraries() {
+        let src = "SUB Helper\n  Frobble 1\nEND SUB\nPRINT \"ok\"\n";
+        // The program's own code: a typo is an error even if nothing calls it.
+        let Err(err) = compile_program_with_source(&parse(src), Some(src)) else { panic!("should not compile") };
+        assert!(err.starts_with("2:3:") && err.contains("Frobble"), "{err}");
+        // The same routine from an $INCLUDE'd library (lines 1-3): unused, so fine.
+        let library = [true, true, true, false];
+        assert!(compile_program_with_libraries(&parse(src), Some(src), &library).is_ok());
+        // …unless the program calls it.
+        let used = format!("{src}Helper\n");
+        let Err(err) = compile_program_with_libraries(&parse(&used), Some(&used), &library) else { panic!("should not compile") };
+        assert!(err.contains("Frobble"), "{err}");
     }
 
     #[test]

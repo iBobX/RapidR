@@ -68,6 +68,8 @@ pub enum TokenType {
     DefDword,
     DefLong,
     DefShort,
+    /// `DATA …`: the raw text after DATA (items are split by the parser)
+    Data,
     /// `@var`: pass by reference (RapidQ manual 3.5)
     At,
     /// `[` / `]` for RapidQ string indexing (`s$[2]`)
@@ -196,6 +198,8 @@ pub struct Lexer<'src> {
     index: usize,
     line: usize,
     column: usize,
+    /// `$ESCAPECHARS ON`: `\n`, `\t`, `\"`, `\65`, `\x41`, … in strings.
+    escape_chars: bool,
 }
 
 impl<'src> Lexer<'src> {
@@ -206,6 +210,7 @@ impl<'src> Lexer<'src> {
             index: 0,
             line: 1,
             column: 1,
+            escape_chars: false,
         }
     }
 
@@ -258,6 +263,9 @@ impl<'src> Lexer<'src> {
                             column,
                         ));
                     }
+                }
+                '0'..='9' if self.digits_start_a_name() => {
+                    tokens.push(self.lex_identifier(start, line, column));
                 }
                 '0'..='9' => {
                     tokens.push(self.lex_decimal_number(start, line, column));
@@ -487,6 +495,8 @@ impl<'src> Lexer<'src> {
                 c if Self::is_identifier_start(c) => {
                     if self.starts_with_rem_comment() {
                         self.consume_comment();
+                    } else if self.starts_data_statement(&tokens) {
+                        tokens.push(self.lex_data_line(start, line, column));
                     } else {
                         tokens.push(self.lex_identifier(start, line, column));
                     }
@@ -581,11 +591,135 @@ impl<'src> Lexer<'src> {
                     self.consume_newline();
                     return true;
                 }
+                // `_   ' comment` continues the line too.
+                '\'' => {
+                    while !matches!(self.current_char(), None | Some('\r' | '\n')) {
+                        self.advance_char();
+                    }
+                    if self.current_char().is_some() {
+                        self.consume_newline();
+                    }
+                    return true;
+                }
                 _ => return false,
             }
         }
 
         false
+    }
+
+    /// A string under `$ESCAPECHARS ON` (RapidQ manual, chapter 3): `\a \b
+    /// \f \n \r \t \v \\ \"`, `\###` (decimal 0..255) and `\xHH`. Ends at
+    /// its closing quote or, like any string, at the end of the line.
+    fn lex_escaped_string(&mut self, start: usize, line: usize, column: usize) -> Token {
+        self.advance_char();
+        let mut text = String::new();
+        while let Some(ch) = self.current_char() {
+            match ch {
+                '"' => {
+                    self.advance_char();
+                    break;
+                }
+                '\r' | '\n' => break,
+                '\\' => {
+                    self.advance_char();
+                    let Some(e) = self.current_char() else { text.push('\\'); break };
+                    let simple = match e {
+                        'a' => Some('\u{7}'),
+                        'b' => Some('\u{8}'),
+                        'f' => Some('\u{c}'),
+                        'n' => Some('\n'),
+                        'r' => Some('\r'),
+                        't' => Some('\t'),
+                        'v' => Some('\u{b}'),
+                        '\\' => Some('\\'),
+                        '"' => Some('"'),
+                        _ => None,
+                    };
+                    if let Some(c) = simple {
+                        self.advance_char();
+                        text.push(c);
+                    } else if e == 'x' && self.peek_char(1).is_some_and(|c| c.is_ascii_hexdigit()) {
+                        self.advance_char();
+                        let mut n = 0u32;
+                        for _ in 0..2 {
+                            match self.current_char().and_then(|c| c.to_digit(16)) {
+                                Some(d) => {
+                                    n = n * 16 + d;
+                                    self.advance_char();
+                                }
+                                None => break,
+                            }
+                        }
+                        text.push(char::from_u32(n).unwrap_or('?'));
+                    } else if e.is_ascii_digit() {
+                        let mut n = 0u32;
+                        for _ in 0..3 {
+                            match self.current_char().and_then(|c| c.to_digit(10)) {
+                                Some(d) if n * 10 + d <= 255 => {
+                                    n = n * 10 + d;
+                                    self.advance_char();
+                                }
+                                _ => break,
+                            }
+                        }
+                        text.push(char::from_u32(n).unwrap_or('?'));
+                    } else {
+                        // Unknown escape: keep it as written.
+                        text.push('\\');
+                    }
+                }
+                _ => {
+                    text.push(ch);
+                    self.advance_char();
+                }
+            }
+        }
+        Token::new(TokenType::StringLit, text, TextSpan::new(start, self.index), line, column)
+    }
+
+    /// `DATA` beginning a statement (not a variable named Data: `Data = 1`,
+    /// `Data(2)`, `Data.x`).
+    fn starts_data_statement(&self, tokens: &[Token]) -> bool {
+        let rest = &self.source[self.index..];
+        if !rest.as_bytes().get(..4).is_some_and(|b| b.eq_ignore_ascii_case(b"DATA")) {
+            return false;
+        }
+        let after = &rest[4..];
+        if after.chars().next().is_some_and(Self::is_identifier_part) {
+            return false;
+        }
+        let at_statement_start = matches!(
+            tokens.last().map(|t| t.kind),
+            None | Some(TokenType::Newline | TokenType::Colon)
+        );
+        let next = after.trim_start_matches([' ', '\t']).chars().next();
+        at_statement_start && !matches!(next, Some('=' | '(' | '.'))
+    }
+
+    /// The rest of a DATA line, without a trailing `' comment` (a `'` inside
+    /// quotes is data).
+    fn lex_data_line(&mut self, start: usize, line: usize, column: usize) -> Token {
+        for _ in 0..4 {
+            self.advance_char();
+        }
+        let body_start = self.index;
+        let mut in_quotes = false;
+        let mut body_end = None;
+        while let Some(ch) = self.current_char() {
+            if ch == '\r' || ch == '\n' {
+                break;
+            }
+            if ch == '"' {
+                in_quotes = !in_quotes;
+            }
+            if ch == '\'' && !in_quotes && body_end.is_none() {
+                body_end = Some(self.index);
+            }
+            self.advance_char();
+        }
+        let raw = self.source[body_start..body_end.unwrap_or(self.index)].to_string();
+        Token::new(TokenType::Data, raw, TextSpan::new(start, self.index), line, column)
     }
 
     /// After a `_` inside a string: only spaces/tabs, then a line break.
@@ -633,6 +767,21 @@ impl<'src> Lexer<'src> {
         Ok(self.source[content_start..self.index].to_string())
     }
 
+    /// RapidQ accepts names that start with digits (`SUB 01click`): digits
+    /// running straight into letters form one name, unless the letters are
+    /// a keyword (`1TO 5`), an exponent (`1E5`) or a type suffix (`5&`).
+    fn digits_start_a_name(&self) -> bool {
+        let rest = &self.source[self.index..];
+        let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+        let tail = &rest[digits..];
+        let word: String = tail.chars().take_while(|c| Self::is_identifier_part(*c)).collect();
+        let Some(first) = word.chars().next() else { return false };
+        if !first.is_alphabetic() || matches!(first, 'e' | 'E') && word[1..].chars().all(|c| c.is_ascii_digit()) {
+            return false;
+        }
+        keyword_token(&word.to_ascii_uppercase()).is_none()
+    }
+
     fn starts_with_rem_comment(&self) -> bool {
         let slice = &self.source[self.index..];
         if !slice.as_bytes().get(..3).is_some_and(|b| b.eq_ignore_ascii_case(b"REM")) {
@@ -665,6 +814,10 @@ impl<'src> Lexer<'src> {
         }
 
         let trailing = self.source[trailing_start..self.index].trim().to_string();
+        if lexeme.eq_ignore_ascii_case("$ESCAPECHARS") {
+            let setting = trailing.split('\'').next().unwrap_or("").trim();
+            self.escape_chars = setting.eq_ignore_ascii_case("ON");
+        }
         Token::new(
             TokenType::Directive,
             lexeme,
@@ -681,6 +834,9 @@ impl<'src> Lexer<'src> {
         line: usize,
         column: usize,
     ) -> Result<Token, LexError> {
+        if self.escape_chars {
+            return Ok(self.lex_escaped_string(start, line, column));
+        }
         self.advance_char();
         let content_start = self.index;
 

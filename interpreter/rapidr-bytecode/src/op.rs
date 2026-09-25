@@ -134,6 +134,10 @@ pub enum Op {
     /// Call a method of the object whose id is on the stack.
     /// Stack: [id, arg1, …, argN] → [result]. Operand: `u32` method, `u8` argc.
     CallMethodDyn = 0x77,
+    /// Call through a function pointer (`CALLFUNC`): the routine's index + 1,
+    /// as made by `BIND`/`CODEPTR`. Stack: [ptr, arg1, …, argN] → [result]
+    /// (Null for a SUB). Operand: `u8` argc.
+    CallIndirect = 0x78,
 
     // === arrays ===
     /// Create a new dynamic array of N elements (default Null).
@@ -224,6 +228,7 @@ impl Op {
             0x75 => Op::GetPropDyn,
             0x76 => Op::SetPropDyn,
             0x77 => Op::CallMethodDyn,
+            0x78 => Op::CallIndirect,
             0x80 => Op::NewArray,
             0x81 => Op::AGet,
             0x82 => Op::ASet,

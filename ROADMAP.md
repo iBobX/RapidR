@@ -126,7 +126,8 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [ ] Backends' component list lacks some IDE toolbox components (RImageList, RIni, RLine, RIcon, RMemoryStream) — reconcile with lang-data
 - [x] `$INCLUDE` source map: errors in included code report the include file and line (CLI, v2.15.0); the IDE's multi-file mapping is separate
 - [x] Real RapidQ includes: `RAPIDR_INCLUDE_PATH`, `\` paths, case-insensitive names, absolute `c:\rapidq\…` paths, Windows-1252 source, `$DEFINE`s shared across includes, `WIN32` predefined, VB `#If/#Else/#End If/#Const` (v2.15.0)
-- [ ] Report backend-capability errors (DLL calls, VARPTR, `@` to a DLL) only for code reachable from the program, so unused parts of big libraries (RAPIDQ2.INC, windows.inc) don't block it
+- [x] Errors in code the program can't reach don't block it: native-only features anywhere, unknown names/unsupported features only in `$INCLUDE`d libraries (v2.16.0)
+- [x] RAPIDQ2.INC compiles and runs (v2.16.0)
 - [x] `?` as PRINT (v2.13.0)
 - [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
 - [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
@@ -134,13 +135,18 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
 - [ ] Codegen: OOP TYPEs (EXTENDS/methods/EVENT/CONSTRUCTOR) in native builds (currently a clear compile_error!)
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
-- [ ] OOP still missing: composition (`Panel AS QPanel` fields + `EVENT Panel.OnClick`, `b64.src.close`), `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` + CALLFUNC), templates (`TYPE T<DataType>`)
+- [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
+- [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)
+- [ ] Runtimes: implement RapidQ objects RapidR lacks (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, …) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
 - [ ] Accept `$RESOURCE`, `$OPTION ICON`, etc. (`$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [ ] Fix builtins per the manual: `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM
 - [ ] Codegen: `STATIC` in SUB/FUNCTION (currently a clear compile_error!) — needs the AST renaming pass (`rapidr_ast::walk_expressions_mut`)
-- [ ] `FUNCTIONI`/`SUBI` (variable arguments: ParamStr$/ParamVal/ParamStrCount/ParamValCount), `SHL`/`SHR`/`INV`, empty arguments `INSTR(,a,b)`, `DATA`/`READ`/`RESTORE`, `SWAP`, console `LOCATE`/`CLS`/`COLOR`, `MessageDlg`
+- [x] `FUNCTIONI`/`SUBI`, `SHL`/`SHR`, `DATA`/`READ`/`RESTORE`, `SWAP`, `$ESCAPECHARS`, function pointers (VM) (v2.16.0)
+- [ ] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data), `MEMCPY`
+- [ ] Dialogs with buttons: `MESSAGEBOX(msg, title, flags)` returning IDOK/IDYES…, `MESSAGEDLG(msg, mtType, mbButtons, 0)` returning mr* — needs button dialogs in FLTK and the sandboxed web preview (today `msgbox` only shows a message)
+- [ ] Codegen: function pointers, SUB/FUNCTION pointers for Win32 callbacks
 - [ ] Win32 shim table for top ~50 `DECLARE … LIB "user32"/"kernel32"/"shell32"` calls; clear warnings for the rest
 - [ ] VB6: `On Error GoTo/Resume Next`, `Optional`, `ParamArray`, `Property Get/Let/Set`, `Enum`, `Static`, `ReDim Preserve`, `For Each`, `_` continuation, `Select Case Is/To`, `Like`
 - [ ] Modern `TRY/CATCH`

@@ -38,6 +38,11 @@ pub mod prelude {
         rp_run_app,
     };
     pub use crate::value::{rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
+    // SUBI / FUNCTIONI arguments
+    pub use crate::value::variadic;
+    // DATA / READ / RESTORE
+    pub use crate::value::data;
+    pub use crate::value::{rp_shl, rp_shr};
 
     #[cfg(feature = "gui")]
     pub use crate::gui::{set_theme, gui_register_timer};

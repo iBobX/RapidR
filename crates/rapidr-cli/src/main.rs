@@ -535,7 +535,14 @@ fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
         }
         remap(e.to_string())
     })?;
-    rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source)).map_err(|e| {
+    // Lines that came from $INCLUDE files (not the program itself).
+    let main_file = Path::new(path);
+    let library_lines: Vec<bool> = pre
+        .line_map
+        .iter()
+        .map(|(file, _)| file.as_deref().is_some_and(|f| f != main_file))
+        .collect();
+    rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines).map_err(|e| {
         remap(e.lines().map(|l| format!("{path}:{l}")).collect::<Vec<_>>().join("\n"))
     })
 }

@@ -40,3 +40,11 @@ FUNCTION Bump (n AS INTEGER) AS INTEGER
 END FUNCTION
 k = 1
 PRINT Bump(@k); " "; k; " "; Bump(k); " "; k
+a$ = "left" : b$ = "right"
+SWAP a$, b$
+PRINT a$; " "; b$
+DIM nums(2) AS INTEGER
+nums(0) = 1 : nums(2) = 3
+SWAP nums(0), nums(2)
+PRINT nums(0); nums(2)
+PRINT 10 SHL 2; " "; 10 SHR 1; " "; 1 SHL 31; " "; &H80000001 SHL 1; " "; 3 + 1 SHL 2
