@@ -21,6 +21,11 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check advisories bans licenses sources
+      # Open-source credits: THIRD_PARTY_NOTICES.md must match the real
+      # dependency graph (regenerate with tools/third_party_notices.py).
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Third-party notices are up to date
+        run: python3 tools/third_party_notices.py --check
 
   test:
     runs-on: ubuntu-latest

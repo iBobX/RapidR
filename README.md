@@ -1374,6 +1374,15 @@ python3 -m http.server 8765 &
 - **Roberto Berrospe** ([@iBobX](https://github.com/iBobX)) — Creator, architect, and lead developer
 - **VS Code Copilot/Claude + Antigravity/Gemini** — AI pair-programming assistant for feature implementation, testing, and documentation
 
+RapidR stands on the shoulders of open-source software: FLTK (via fltk-rs),
+wasm-bindgen, the Monaco editor, Polars, SQLite and hundreds of Rust crates.
+The full list, with licenses and links, is in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (generated from the
+dependency graph) and [LICENSES.md](LICENSES.md) (vendored JavaScript and
+license texts). New dependencies must be open source under a permissive
+license accepted by `deny.toml`. Every web bundle RapidR builds ships these
+notices.
+
 ---
 
 ## License

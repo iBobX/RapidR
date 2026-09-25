@@ -18,7 +18,7 @@ import { newProject, addForm, addWidget, removeWidget, serializeForm,
 import { createRapidrEditor } from "./monaco-host.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.16.0";
+export const RAPIDR_IDE_VERSION = "2.16.1";
 
 const _editors = new Map();
 
@@ -2599,15 +2599,31 @@ function doStop() {
   }
 }
 
+/// RapidR's license and the open-source notices, shipped in every bundle
+/// (the same files `rapidr bundle-bc` embeds). Missing files are skipped.
+async function fetchNotices() {
+  const files = { "LICENSE-RapidR.txt": "../LICENSE", "THIRD_PARTY_NOTICES.md": "../THIRD_PARTY_NOTICES.md", "LICENSES.md": "../LICENSES.md" };
+  const out = {};
+  await Promise.all(Object.entries(files).map(async ([name, url]) => {
+    try {
+      const r = await fetch(url);
+      if (r.ok) out[name] = await r.text();
+      else console.warn(`bundle: ${url} not found; not included`);
+    } catch (_) { console.warn(`bundle: ${url} not found; not included`); }
+  }));
+  return out;
+}
+
 async function doBuild() {
   if (!state.wasmReady) { setStatus("wasm not ready", "error"); return; }
   try {
     const { buildBundleZip } = await import("./zip.js");
     const src = serializeProject(state.project);
     const rrbc = compile(src, state.project.name);
-    const [jsText, wasmRes] = await Promise.all([
+    const [jsText, wasmRes, notices] = await Promise.all([
       fetch("./runtime/rapidrintr.js").then(r => r.text()),
       fetch("./runtime/rapidrintr_bg.wasm").then(r => r.arrayBuffer()),
+      fetchNotices(),
     ]);
     const { bytes } = buildBundleZip({
       projectName: state.project.name,
@@ -2617,6 +2633,7 @@ async function doBuild() {
       title: state.project.name,
       version: RAPIDR_IDE_VERSION,
       assets: (state.project.assets || []).map(a => ({ name: a.name, dataUrl: a.dataUrl })),
+      notices,
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
     const a = document.createElement("a");
@@ -3609,7 +3626,8 @@ function showAboutDialog() {
         <div style="margin-top:2px">Self-hosted, zero-backend, in-browser BASIC IDE</div>
         <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com&subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
         <div><b>Assisted by:</b> AI pair-programming assistants</div>
-        <div style="margin-top:8px"><b>License:</b> see LICENSE (MIT)</div>
+        <div style="margin-top:8px"><b>License:</b> MIT (see LICENSE)</div>
+        <div style="margin-top:4px">Built on hundreds of open-source libraries: see <b>Open-source credits</b>.</div>
         <div style="margin-top:6px;color:var(--c-text-mute);font-size:11px">
           Compiles in WebAssembly via <code>rapidrintr.wasm</code>.
         </div>
@@ -3617,6 +3635,7 @@ function showAboutDialog() {
     </div>`;
   showDialog("About RapidR IDE", html, [
     { label: "View License", onClick: showLicenseDialog },
+    { label: "Open-source credits", onClick: showCreditsDialog },
     { label: "OK", primary: true },
   ]);
 }
@@ -3629,6 +3648,20 @@ async function showLicenseDialog() {
   } catch (_) {}
   showDialog("License",
     `<pre style="margin:0;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:60vh;overflow:auto">${escapeHtml(txt)}</pre>`,
+    [{ label: "Close", primary: true }]);
+}
+
+/// The generated THIRD_PARTY_NOTICES.md plus LICENSES.md (vendored JS).
+async function showCreditsDialog() {
+  let txt = "";
+  for (const url of ["../THIRD_PARTY_NOTICES.md", "../LICENSES.md"]) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) txt += (txt ? "\n\n" : "") + await r.text();
+    } catch (_) {}
+  }
+  showDialog("Open-source credits",
+    `<pre style="margin:0;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:60vh;overflow:auto">${escapeHtml(txt || "(THIRD_PARTY_NOTICES.md not found)")}</pre>`,
     [{ label: "Close", primary: true }]);
 }
 

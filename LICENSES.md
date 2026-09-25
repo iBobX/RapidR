@@ -47,18 +47,16 @@ Upstream: <https://github.com/rustwasm/wasm-bindgen>
 
 ---
 
-## 3. Rust standard library and direct Cargo dependencies — MIT OR Apache-2.0
+## 3. Rust standard library and Cargo dependencies
 
-The compiled `rapidrintr_bg.wasm` and the desktop `rapidr` binary statically
-link the Rust standard library and several third-party Rust crates declared
-in `Cargo.toml` files under `crates/`. Each crate's individual license is
-recorded in its source repository; the dominant licenses are MIT and
-Apache-2.0. A complete dependency licence inventory can be generated with:
-
-```
-cargo install cargo-license
-cargo license --json > LICENSES-cargo.json
-```
+The compiled `rapidrintr_bg.wasm`, the desktop `rapidr` binary and the
+runtimes linked into apps built with RapidR include the Rust standard
+library (MIT OR Apache-2.0) and the open-source crates listed, with their
+versions, licenses and upstream links, in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). That file is generated
+from the real dependency graph by `tools/third_party_notices.py` and CI
+fails if it is out of date; every license is checked against the permissive
+allowlist in `deny.toml` (`cargo deny check licenses`).
 
 ---
 
@@ -92,6 +90,32 @@ RapidR. It is **not** derived from any GPL/LGPL ZIP library.
 
 ---
 
-## 7. RapidR (this project) — MIT License
+## 7. Native (C/C++) libraries compiled into or linked by RapidR
+
+Some Rust crates wrap C/C++ libraries (`*-sys` crates). The wrapper crates
+are listed in THIRD_PARTY_NOTICES.md under their own (permissive) licenses;
+the native code they build or link has its own license, which `cargo deny`
+cannot see, so it is credited here.
+
+| Library | Via | License | Upstream |
+|---|---|---|---|
+| FLTK (GUI toolkit of the desktop runtime) | `fltk-sys` (built from source, statically linked) | FLTK License: LGPL-2.0 with exceptions that allow static linking without releasing the application's source | <https://www.fltk.org/COPYING.php> |
+| FreeType (font rendering for charts) | `freetype-sys` via `plotters` → `font-kit` | FreeType License (FTL) — see the notice below | <https://freetype.org> |
+| Zstandard (zstd) | `zstd-sys` (Polars / Parquet) | BSD-3-Clause (dual GPL-2.0; used under BSD) | <https://github.com/facebook/zstd> |
+| LZ4 | `lz4-sys` (Polars) | BSD-2-Clause | <https://github.com/lz4/lz4> |
+| zlib | `libz-sys` | zlib License | <https://zlib.net> |
+| SQLite | `libsqlite3-sys` | Public Domain (section 5) | <https://sqlite.org> |
+| OpenSSL | `openssl-sys` (TLS for RHttp/sockets, linked from the system) | Apache-2.0 (OpenSSL 3) | <https://www.openssl.org> |
+| Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
+| ALSA (Linux), Core Audio (macOS) | `alsa-sys`, `coreaudio-sys` (system audio, linked) | LGPL-2.1 (alsa-lib, dynamically linked) / Apple system framework | — |
+
+FreeType notice, as its license requires:
+
+> Portions of this software are copyright © The FreeType Project
+> (www.freetype.org). All rights reserved.
+
+---
+
+## 8. RapidR (this project) — MIT License
 
 See [LICENSE](LICENSE).
