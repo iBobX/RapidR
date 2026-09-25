@@ -1564,29 +1564,7 @@ fn patch_u32(code: &mut [u8], at: usize, v: u32) {
 /// Mirror of `rapidr_codegen_rust::is_component_type_name` (kept as a
 /// local copy so bcgen has no runtime-crate dependency).
 fn is_component_type_name(type_name: &str) -> bool {
-    matches!(
-        type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL"
-        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
-        | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
-        | "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
-        | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
-        | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER"
-        | "RFILESTREAM" | "RSTRINGLIST" | "RTRACKBAR" | "RPRINTER"
-        | "RSPLITTER" | "RSCROLLBOX"
-        | "RSQLITE" | "RMYSQL"
-        | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RLISTVIEW" | "RPROGRESSBAR"
-        | "RNUM" | "RDATAFRAME" | "RPLOT"
-        | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
-        | "RCOOLBTN" | "ROVALBTN"
-        | "RJSON"
-        // Web-exclusive components
-        | "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE"
-        | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION" | "RWEBGEOLOCATION"
-        | "RROUTER"
-    )
+    rapidr_ast::is_component_type_name(type_name)
 }
 
 /// Recursively walk every statement, collecting names declared via

@@ -121,14 +121,16 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 ## Phase 1 — RapidQ & VB compatibility (~6–8 weeks)
 
 - [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
-- [ ] Built-in virtual `RAPIDQ.INC` (constants, colors, key codes, `mr*`, `MB_*`)
-- [ ] Central Q→R type alias table (`QFORM`→`RFORM`, … all components)
-- [ ] `?` as PRINT
+- [x] Built-in `RAPIDQ.INC` (colors, `mr*`, `MB_*`/`ID*`, `bs*`, `ws*`, `al*`, `mb*`, `fm*`, `VK_*`) as a single line (v2.13.0)
+- [x] Q→R type names via `rapidr_ast::canonical_type_name` + single `COMPONENT_TYPES` list (v2.13.0)
+- [ ] Backends' component list lacks some IDE toolbox components (RImageList, RIni, RLine, RIcon, RMemoryStream) — reconcile with lang-data
+- [ ] `$INCLUDE` splices lines in, shifting line numbers of later errors — needs a source map
+- [x] `?` as PRINT (v2.13.0)
 - [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
 - [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
 - [ ] Codegen: state-machine lowering for labels/GOTO/GOSUB (currently a clear compile_error!); web codegen `END` doesn't stop the program
 - [ ] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`
-- [ ] Accept `$TYPECHECK`, `$RESOURCE`, `$OPTION ICON`, etc.; forward `DECLARE SUB` as no-op
+- [ ] Accept `$RESOURCE`, `$OPTION ICON`, etc. (`$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [ ] Fix builtins: `INSERT$` (confirm RapidQ argument order), `FORMAT$`, `STRF$` (+ audit all builtins vs RapidQ docs)
 - [ ] Win32 shim table for top ~50 `DECLARE … LIB "user32"/"kernel32"/"shell32"` calls; clear warnings for the rest

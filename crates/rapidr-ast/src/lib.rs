@@ -523,3 +523,50 @@ pub fn inc_dec_assignment(c: &CallStatement, is_user_routine: impl Fn(&str) -> b
         }),
     })
 }
+
+/// Component types both backends can create (uppercase). The single source
+/// for "is this DIM/CREATE type a GUI/system component?".
+pub const COMPONENT_TYPES: &[&str] = &[
+    "RFORM", "RFORMMDI", "RBUTTON", "RLABEL", "REDIT", "RPANEL",
+    "RCHECKBOX", "RRADIOBUTTON", "RCOMBOBOX", "RLISTBOX",
+    "RTIMER", "RIMAGE", "RCANVAS", "RSTRINGGRID", "RTABCONTROL",
+    "RTREEVIEW", "RMAINMENU", "RMENUITEM", "RPOPUPMENU",
+    "ROPENDIALOG", "RSAVEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
+    "RTOOLBAR", "RSTATUSBAR", "RPROGRESS", "RRICHEDIT", "RMEMO",
+    "RSCROLLBAR", "RUPDOWN", "RDATETIMEPICKER",
+    "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER",
+    "RSPLITTER", "RSCROLLBOX",
+    "RSQLITE", "RMYSQL",
+    "RSOCKET", "RSERVERSOCKET", "RHTTP",
+    "RLISTVIEW", "RPROGRESSBAR",
+    "RNUM", "RDATAFRAME", "RPLOT",
+    "RDESIGNSURFACE", "RCODEEDITOR", "RGROUPBOX",
+    "RCOOLBTN", "ROVALBTN",
+    "RJSON",
+    // Web-exclusive components
+    "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
+    "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
+    "RROUTER",
+];
+
+pub fn is_component_type_name(type_name: &str) -> bool {
+    COMPONENT_TYPES.contains(&type_name.to_ascii_uppercase().as_str())
+}
+
+/// RapidQ names its components QForm, QButton, …; RapidR's are RForm,
+/// RButton, …. Maps a RapidQ component name to RapidR's (uppercase), and
+/// leaves every other type name unchanged.
+pub fn canonical_type_name(type_name: &str) -> String {
+    let upper = type_name.to_ascii_uppercase();
+    if let Some(rest) = upper.strip_prefix('Q') {
+        // RapidQ components whose RapidR counterpart has another name.
+        if rest == "GAUGE" {
+            return "RPROGRESSBAR".into();
+        }
+        let r_name = format!("R{rest}");
+        if is_component_type_name(&r_name) {
+            return r_name;
+        }
+    }
+    type_name.to_string()
+}

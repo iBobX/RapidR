@@ -462,7 +462,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.expect(TokenType::As)?;
-        let type_name = self.advance()?.lexeme.clone();
+        let type_name = canonical_type_name(&self.advance()?.lexeme);
         Some(DimStatement {
             span: self.span_from(start),
             declarators,
@@ -1166,7 +1166,7 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::Type)?;
         let name = self.expect(TokenType::Identifier)?.lexeme.clone();
         let extends = if self.match_kind(TokenType::Extends) {
-            Some(self.expect(TokenType::Identifier)?.lexeme.clone())
+            Some(canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme))
         } else {
             None
         };
@@ -1265,7 +1265,7 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::Create)?;
         let name = self.expect(TokenType::Identifier)?.lexeme.clone();
         self.expect(TokenType::As)?;
-        let type_name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        let type_name = canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme);
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
         self.expect(TokenType::End);
@@ -1313,7 +1313,7 @@ impl<'a> Parser<'a> {
             };
             let pname = self.expect(TokenType::Identifier)?.lexeme.clone();
             let ptype = if self.match_kind(TokenType::As) {
-                self.advance()?.lexeme.clone()
+                canonical_type_name(&self.advance()?.lexeme)
             } else {
                 "VARIANT".to_string()
             };
@@ -1761,6 +1761,15 @@ mod tests {
         let stmts = parse("PRINT 1\nEND\nSUB Foo()\nEND SUB\n");
         assert!(matches!(&stmts[1], Statement::Call(c) if matches!(&c.callee, Expression::Identifier(i) if i.name == "END")));
         assert!(matches!(&stmts[2], Statement::Subroutine(_)));
+    }
+
+    #[test]
+    fn rapidq_component_names_map_to_rapidr() {
+        let stmts = parse("DIM f AS QForm\nCREATE b AS QBUTTON\nEND CREATE\nDIM g AS QGauge\nDIM t AS MyType\n");
+        assert!(matches!(&stmts[0], Statement::Dim(d) if d.type_name == "RFORM"));
+        assert!(matches!(&stmts[1], Statement::Create(c) if c.type_name == "RBUTTON"));
+        assert!(matches!(&stmts[2], Statement::Dim(d) if d.type_name == "RPROGRESSBAR"));
+        assert!(matches!(&stmts[3], Statement::Dim(d) if d.type_name == "MyType"));
     }
 
     #[test]

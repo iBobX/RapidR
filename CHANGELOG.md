@@ -7,6 +7,41 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.13.0] — 2026-09-24
+
+**RapidQ source compatibility:** classic RapidQ programs compile and run unchanged.
+Checked with a RapidQ GUI program (`$INCLUDE "RAPIDQ.INC"`, `CREATE Form AS QFORM`, a
+nested `QBUTTON`, `Center`, `OnClick`, `ShowMessage`) running in the browser: the form
+is centered, the button's handler runs, and the caption updates.
+
+### Added
+- **RapidQ component names:** `QFORM`, `QBUTTON`, `QSTRINGLIST`, … (any `Qxxx` whose
+  `Rxxx` exists, plus `QGAUGE` → `RPROGRESSBAR`) are accepted in `DIM`, `CREATE`,
+  `TYPE … EXTENDS` and parameter types. Before, `QFORM` silently created nothing.
+  The component list now lives in one place (`rapidr_ast::COMPONENT_TYPES`) instead of
+  a copy per backend.
+- **Built-in `RAPIDQ.INC`:** `$INCLUDE "RAPIDQ.INC"` works without the file. It
+  provides the RapidQ/Delphi constants: colors (BGR, as RapidR's runtimes expect),
+  `mr*`, `MB_*`/`ID*`, `bs*`, `ws*`, `al*`, `mb*`, `fm*`, `VK_*`. It expands to one line,
+  so error line numbers after it stay correct. A real `RAPIDQ.INC` next to the program
+  still takes precedence.
+- **`?` as shorthand for `PRINT`**.
+
+### Fixed
+- Native builds: a forward declaration (`DECLARE SUB Foo (…)` for a SUB defined later)
+  generated a duplicate function and failed to compile.
+
+### Verification
+- New conformance cases `question_mark_print` and `rapidq_program`; 38 of 42 backend
+  runs pass (the 4 known failures are codegen GOTO/GOSUB and its unknown-SUB message).
+- Parser tests for Q-name mapping; a preprocessor test for the built-in RAPIDQ.INC.
+- RapidQ GUI program run in Chromium as a web bundle. 42/44 examples compile; all IDE
+  suites pass.
+
+### Known issues
+- `$INCLUDE` of a real file splices its lines in, so errors reported after it point at
+  the wrong line (source maps needed).
+
 ## [2.12.0] — 2026-09-24
 
 Classic BASIC control flow: line labels, `GOTO`, `GOSUB`/`RETURN`, and `END`. The bytecode

@@ -237,14 +237,23 @@ fn preprocess_with_state(
                 )
             })?;
 
-            let include_path = resolve_include_path(base_dir, &include_file).ok_or_else(|| {
-                PreprocessError::new(
-                    format!("Include file not found: '{include_file}'"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            let include_path = match resolve_include_path(base_dir, &include_file) {
+                Some(path) => path,
+                None => {
+                    // RapidQ programs start with `$INCLUDE "RAPIDQ.INC"`; supply
+                    // its constants when the file isn't next to the program.
+                    if let Some(builtin) = builtin_include(&include_file) {
+                        output_lines.push(builtin);
+                        continue;
+                    }
+                    return Err(PreprocessError::new(
+                        format!("Include file not found: '{include_file}'"),
+                        line_number,
+                        1,
+                        file_label.clone(),
+                    ));
+                }
+            };
 
             if include_stack.iter().any(|entry| entry == &include_path) {
                 return Err(PreprocessError::new(
@@ -296,6 +305,66 @@ fn preprocess_with_state(
         source: output_lines.join("\n"),
         app_type,
     })
+}
+
+/// Constants from RapidQ's RAPIDQ.INC (Delphi/Win32 values; colors are BGR
+/// like RapidQ's, which RapidR's runtimes also use). System colors have no
+/// OS lookup in RapidR, so they get their standard default RGB values.
+pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
+    // Colors (&HBBGGRR)
+    ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x008000),
+    ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0x800080),
+    ("clTeal", 0x808000), ("clGray", 0x808080), ("clSilver", 0xC0C0C0),
+    ("clRed", 0x0000FF), ("clLime", 0x00FF00), ("clYellow", 0x00FFFF),
+    ("clBlue", 0xFF0000), ("clFuchsia", 0xFF00FF), ("clAqua", 0xFFFF00),
+    ("clWhite", 0xFFFFFF), ("clLtGray", 0xC0C0C0), ("clDkGray", 0x808080),
+    ("clBtnFace", 0xF0F0F0), ("clWindow", 0xFFFFFF), ("clWindowText", 0x000000),
+    ("clBtnText", 0x000000), ("clBtnShadow", 0xA0A0A0), ("clHighlight", 0xD77800),
+    ("clHighlightText", 0xFFFFFF), ("clGrayText", 0x6D6D6D),
+    // Modal results
+    ("mrNone", 0), ("mrOk", 1), ("mrCancel", 2), ("mrAbort", 3), ("mrRetry", 4),
+    ("mrIgnore", 5), ("mrYes", 6), ("mrNo", 7), ("mrAll", 8),
+    // Message boxes
+    ("MB_OK", 0), ("MB_OKCANCEL", 1), ("MB_ABORTRETRYIGNORE", 2), ("MB_YESNOCANCEL", 3),
+    ("MB_YESNO", 4), ("MB_RETRYCANCEL", 5), ("MB_ICONHAND", 16), ("MB_ICONSTOP", 16),
+    ("MB_ICONERROR", 16), ("MB_ICONQUESTION", 32), ("MB_ICONEXCLAMATION", 48),
+    ("MB_ICONWARNING", 48), ("MB_ICONASTERISK", 64), ("MB_ICONINFORMATION", 64),
+    ("IDOK", 1), ("IDCANCEL", 2), ("IDABORT", 3), ("IDRETRY", 4), ("IDIGNORE", 5),
+    ("IDYES", 6), ("IDNO", 7),
+    // Form border styles, window states, alignment
+    ("bsNone", 0), ("bsSingle", 1), ("bsSizeable", 2), ("bsDialog", 3),
+    ("bsToolWindow", 4), ("bsSizeToolWin", 5),
+    ("wsNormal", 0), ("wsMinimized", 1), ("wsMaximized", 2),
+    ("alNone", 0), ("alTop", 1), ("alBottom", 2), ("alLeft", 3), ("alRight", 4), ("alClient", 5),
+    // Mouse buttons
+    ("mbLeft", 0), ("mbRight", 1), ("mbMiddle", 2),
+    // File stream modes
+    ("fmCreate", 0xFFFF), ("fmOpenRead", 0), ("fmOpenWrite", 1), ("fmOpenReadWrite", 2),
+    // Virtual key codes
+    ("VK_BACK", 8), ("VK_TAB", 9), ("VK_RETURN", 13), ("VK_SHIFT", 16), ("VK_CONTROL", 17),
+    ("VK_MENU", 18), ("VK_PAUSE", 19), ("VK_ESCAPE", 27), ("VK_SPACE", 32),
+    ("VK_PRIOR", 33), ("VK_NEXT", 34), ("VK_END", 35), ("VK_HOME", 36),
+    ("VK_LEFT", 37), ("VK_UP", 38), ("VK_RIGHT", 39), ("VK_DOWN", 40),
+    ("VK_INSERT", 45), ("VK_DELETE", 46),
+    ("VK_F1", 112), ("VK_F2", 113), ("VK_F3", 114), ("VK_F4", 115), ("VK_F5", 116),
+    ("VK_F6", 117), ("VK_F7", 118), ("VK_F8", 119), ("VK_F9", 120), ("VK_F10", 121),
+    ("VK_F11", 122), ("VK_F12", 123),
+];
+
+/// Built-in replacement for an include file that isn't on disk, as a single
+/// line (so line numbers after the $INCLUDE stay correct).
+fn builtin_include(include_file: &str) -> Option<String> {
+    let name = Path::new(include_file).file_name()?.to_str()?;
+    if !name.eq_ignore_ascii_case("RAPIDQ.INC") {
+        return None;
+    }
+    Some(
+        RAPIDQ_INC_CONSTANTS
+            .iter()
+            .map(|(name, value)| format!("CONST {name} = {value}"))
+            .collect::<Vec<_>>()
+            .join(" : "),
+    )
 }
 
 fn strip_inline_comment(input: &str) -> &str {
@@ -581,6 +650,14 @@ mod tests {
         let _ = fs::remove_file(include);
         let _ = fs::remove_file(main);
         let _ = fs::remove_dir(root);
+    }
+
+    #[test]
+    fn rapidq_inc_is_built_in_and_keeps_line_numbers() {
+        let result = preprocess("$INCLUDE \"RAPIDQ.INC\"\nPRINT clBlue\n");
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines[0].contains("CONST clBlue = 16711680"), "{}", lines[0]);
+        assert_eq!(lines[1], "PRINT clBlue");
     }
 
     #[test]

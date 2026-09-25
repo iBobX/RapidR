@@ -293,6 +293,17 @@ impl<'src> Lexer<'src> {
                         column,
                     ));
                 }
+                // `?` is BASIC shorthand for PRINT.
+                '?' => {
+                    self.advance_char();
+                    tokens.push(Token::new(
+                        TokenType::Print,
+                        "?".to_string(),
+                        TextSpan::new(start, self.index),
+                        line,
+                        column,
+                    ));
+                }
                 ';' => {
                     self.advance_char();
                     tokens.push(Token::new(

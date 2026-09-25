@@ -1513,6 +1513,12 @@ impl RustCodegen {
             return;
         }
 
+        // No LIB and the SUB/FUNCTION is defined in the program: a plain
+        // forward declaration (RapidQ `DECLARE SUB Foo (...)`), nothing to emit.
+        if self.defined_functions.contains(&strip_type_suffix(&d.name).to_lowercase()) {
+            return;
+        }
+
         // No LIB specified — try mapping the alias to a known builtin
         let alias_lower = alias.to_lowercase();
         let body = match alias_lower.as_str() {
@@ -2226,29 +2232,7 @@ wasm-bindgen = "=0.2.118"
 
 /// Check if a type name is a known RapidP component type.
 fn is_component_type_name(type_name: &str) -> bool {
-    matches!(
-        type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL"
-        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
-        | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
-        | "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
-        | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
-        | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER"
-        | "RFILESTREAM" | "RSTRINGLIST" | "RTRACKBAR" | "RPRINTER"
-        | "RSPLITTER" | "RSCROLLBOX"
-        | "RSQLITE" | "RMYSQL"
-        | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RLISTVIEW" | "RPROGRESSBAR"
-        | "RNUM" | "RDATAFRAME" | "RPLOT"
-        | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
-        | "RCOOLBTN" | "ROVALBTN"
-        | "RJSON"
-        // Web-exclusive components
-        | "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE"
-        | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION" | "RWEBGEOLOCATION"
-        | "RROUTER"
-    )
+    rapidr_ast::is_component_type_name(type_name)
 }
 
 /// Check if a member name is a known component method (not a property).
