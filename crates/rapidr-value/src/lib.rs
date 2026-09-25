@@ -9,6 +9,7 @@ pub mod strings;
 pub mod variadic;
 pub mod data;
 pub mod console;
+pub mod dialogs;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -250,23 +251,47 @@ impl Value {
     }
 
     /// BASIC logical AND
+    /// AND/OR/XOR/NOT are bitwise on integers, as in RapidQ (manual,
+    /// Appendix C: `5 AND 3 = 1`, `5 OR 3 = 7`, `NOT -1 = 0`). Comparisons
+    /// are -1/0, so the same operators combine conditions. Two booleans
+    /// give a boolean (which prints as -1/0 anyway).
+    fn bitwise(&self, rhs: &Value, op: fn(i64, i64) -> i64) -> Value {
+        match (self, rhs) {
+            (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(op(-(*a as i64), -(*b as i64)) != 0),
+            _ => Value::Integer(op(self.bits(), rhs.bits())),
+        }
+    }
+
+    /// The integer bitwise operators work on (true = -1, reals rounded).
+    fn bits(&self) -> i64 {
+        match self {
+            Value::Boolean(b) => -(*b as i64),
+            Value::Double(d) => d.round() as i64,
+            other => other.to_i64(),
+        }
+    }
+
+    /// BASIC AND (bitwise)
     pub fn and(&self, rhs: &Value) -> Value {
-        Value::Boolean(self.to_bool() && rhs.to_bool())
+        self.bitwise(rhs, |a, b| a & b)
     }
 
-    /// BASIC logical OR
+    /// BASIC OR (bitwise)
     pub fn or(&self, rhs: &Value) -> Value {
-        Value::Boolean(self.to_bool() || rhs.to_bool())
+        self.bitwise(rhs, |a, b| a | b)
     }
 
-    /// BASIC logical XOR
+    /// BASIC XOR (bitwise)
     pub fn xor(&self, rhs: &Value) -> Value {
-        Value::Boolean(self.to_bool() ^ rhs.to_bool())
+        self.bitwise(rhs, |a, b| a ^ b)
     }
 
-    /// BASIC logical NOT
+    /// BASIC NOT (bitwise complement: NOT 0 = -1, NOT -1 = 0, NOT 5 = -6)
     pub fn not(&self) -> Value {
-        Value::Boolean(!self.to_bool())
+        match self {
+            Value::Boolean(b) => Value::Boolean(!b),
+            other => Value::Integer(!other.bits()),
+        }
     }
 
     // Comparisons — return Value::Boolean for use in expressions,

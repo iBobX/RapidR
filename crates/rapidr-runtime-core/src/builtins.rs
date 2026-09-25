@@ -909,3 +909,45 @@ mod tests {
         assert_eq!(t.len(), 8); // HH:MM:SS
     }
 }
+
+/// `MESSAGEBOX(text, title, flags)` (RapidQ): a dialog with the buttons the
+/// MB_* flags ask for; returns IDOK/IDYES/… for the one chosen.
+pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
+    let buttons = crate::value::dialogs::message_box_buttons(flags.to_i64());
+    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons)
+}
+
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): returns mr*.
+pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
+    let title = crate::value::dialogs::message_dlg_title(msg_type.to_i64());
+    let buttons = crate::value::dialogs::message_dlg_buttons(buttons.to_i64());
+    show_choice(&text.to_string_val(), title, &buttons)
+}
+
+fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button]) -> Value {
+    #[cfg(feature = "gui")]
+    {
+        // FLTK lays the buttons out right to left (b0 rightmost), so pass
+        // them reversed to read "Yes  No  Cancel"; at most three.
+        let shown: Vec<_> = buttons.iter().take(3).collect();
+        let labels: Vec<&str> = shown.iter().rev().map(|b| b.label).collect();
+        fltk::dialog::message_title(title);
+        let pick = fltk::dialog::choice2_default(
+            text,
+            labels.first().copied().unwrap_or(""),
+            labels.get(1).copied().unwrap_or(""),
+            labels.get(2).copied().unwrap_or(""),
+        );
+        let result = match pick {
+            Some(i) if (i as usize) < shown.len() => shown[shown.len() - 1 - i as usize].result,
+            _ => crate::value::dialogs::dismissed(buttons),
+        };
+        v_int(result)
+    }
+    #[cfg(not(feature = "gui"))]
+    {
+        // No GUI: show the message and take the first (affirmative) button.
+        println!("[{title}] {text}");
+        v_int(buttons.first().map_or(1, |b| b.result))
+    }
+}

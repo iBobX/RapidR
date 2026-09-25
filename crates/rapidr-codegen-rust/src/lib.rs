@@ -2258,6 +2258,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "end" => Some("rp_end()".to_string()),
         "showmessage" => Some(format!("rp_showmessage(&{a0})")),
         "msgbox" => Some(format!("rp_msgbox(&{a0})")),
+        "messagebox" => Some(format!("rp_messagebox(&{a0}, &{a1}, &{a2})")),
+        "messagedlg" => Some(format!("rp_messagedlg(&{a0}, &{a1}, &{a2}, &v_null())")),
         "direxists" => Some(format!("rp_direxists(&{a0})")),
         "fileexists" => Some(format!("rp_fileexists(&{a0})")),
         "dir" => Some(format!("rp_dir(&{a0}, &{a1})")),
