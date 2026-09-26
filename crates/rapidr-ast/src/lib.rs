@@ -1,5 +1,6 @@
 use rapidr_diagnostics::TextSpan;
 
+pub mod numeric;
 pub mod objects;
 
 #[derive(Debug, Clone, PartialEq)]

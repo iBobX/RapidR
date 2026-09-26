@@ -144,6 +144,10 @@ pub enum Op {
     /// Set field `slot` of an object. Operand: `u16` slot.
     /// Stack: [object, value] → [].
     SetField = 0x7A,
+    /// Convert for a store into a declared numeric type (rapidr_ast::numeric,
+    /// `rapidr_value::numeric`). Operand: `u8` kind (`NumKind::code`).
+    /// Stack: [value] → [converted].
+    ToNum = 0x7B,
 
     // === arrays ===
     /// Create a new dynamic array of N elements (default Null).
@@ -238,6 +242,7 @@ impl Op {
             0x78 => Op::CallIndirect,
             0x79 => Op::GetField,
             0x7A => Op::SetField,
+            0x7B => Op::ToNum,
             0x80 => Op::NewArray,
             0x81 => Op::AGet,
             0x82 => Op::ASet,

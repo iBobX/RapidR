@@ -18,6 +18,8 @@ pub const BUILTINS: &[&str] = &[
     "__redim", "__input_value",
     // Objects (rapidr_ast::objects; shared in rapidr_value)
     "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null",
+    // Stores into declared numeric types (rapidr_ast::numeric; shared in rapidr_value)
+    "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double",
     // Components reached through objects (rapidr_ast::objects; hosts)
     "__objget", "__objset", "__objcall", "__objcreate", "__bind_event_this",
     "abs", "acos", "asc", "asin", "atn",
@@ -46,7 +48,7 @@ pub const BUILTINS: &[&str] = &[
 
 /// Builtins every host hands to `rapidr_value::shared_builtin` before its own
 /// dispatch table (DATA / READ / RESTORE and REDIM share one implementation).
-pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null"];
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null", "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
