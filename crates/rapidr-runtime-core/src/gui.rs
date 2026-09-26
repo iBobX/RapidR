@@ -12,10 +12,10 @@ use fltk::{
     button::{Button, CheckButton, RadioRoundButton},
     dialog,
     draw,
-    enums::{Align, CallbackTrigger, Color, Event, Font, FrameType, Key},
+    enums::{Align, CallbackTrigger, Color, ColorDepth, Event, Font, FrameType, Key},
     frame::Frame,
     group::{Group, Scroll, Tabs},
-    image::SharedImage,
+    image::{RgbImage, SharedImage},
     input::Input,
     menu::{Choice, MenuBar, SysMenuBar},
     misc::Progress as FltkProgress,
@@ -188,6 +188,90 @@ fn ensure_app() {
             *app_ref = Some(app);
         }
     });
+    install_capture_hook();
+}
+
+/// For tests: with `RAPIDR_CAPTURE=<prefix>` set, the program saves every
+/// open window (forms and dialogs) as `<prefix>-<n>.bmp` after
+/// `RAPIDR_CAPTURE_DELAY` seconds (default 1.5), then exits — a way to
+/// check desktop rendering without screen-recording permission.
+fn install_capture_hook() {
+    let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") else { return };
+    let delay = std::env::var("RAPIDR_CAPTURE_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(1.5);
+    app::add_timeout3(delay, move |_| {
+        let mut n = 0;
+        for mut win in app::windows().unwrap_or_default() {
+            if !win.shown() {
+                continue;
+            }
+            let Ok(img) = draw::capture_window(&mut win) else { continue };
+            let (w, h) = (img.data_w() as usize, img.data_h() as usize);
+            let data = img.to_rgb_data();
+            let channels = if w * h > 0 { data.len() / (w * h) } else { 0 };
+            if channels < 3 {
+                continue;
+            }
+            let pixels = data.chunks(channels).map(|p| (p[2] as u32) << 16 | (p[1] as u32) << 8 | p[0] as u32).collect();
+            let bmp = rapidr_value::objects::codec::encode_bmp(&rapidr_value::objects::codec::Pixels { width: w, height: h, pixels });
+            n += 1;
+            let path = format!("{prefix}-{n}.bmp");
+            match std::fs::write(&path, bmp) {
+                Ok(()) => eprintln!("[rapidr] captured window '{}' to {path}", win.label()),
+                Err(e) => eprintln!("[rapidr] can't write {path}: {e}"),
+            }
+        }
+        std::process::exit(0);
+    });
+}
+
+/// A modal message with buttons in the given order, the first being the
+/// default (Return) and Escape/closing meaning "none"; returns the index of
+/// the button chosen. RapidQ's MESSAGEBOX/MESSAGEDLG default to the first
+/// button, which FLTK's stock dialogs can't do with three buttons.
+pub fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize> {
+    use fltk::button::ReturnButton;
+    use std::rc::Rc;
+    ensure_app();
+    let (bw, bh, gap, pad) = (90, 28, 10, 16);
+    draw::set_font(Font::Helvetica, app::font_size());
+    let (tw, th) = draw::measure(text, true);
+    let buttons_w = labels.len() as i32 * (bw + gap) - gap;
+    let w = (tw + 2 * pad).max(buttons_w + 2 * pad).clamp(260, 900);
+    let h = th.max(20) + 3 * pad + bh;
+    let mut win = Window::default().with_size(w, h).with_label(title);
+    win.make_modal(true);
+    let mut msg = Frame::new(pad, pad, w - 2 * pad, th.max(20), None);
+    msg.set_label(text);
+    msg.set_align(Align::Left | Align::Top | Align::Inside | Align::Wrap);
+    let chosen = Rc::new(std::cell::Cell::new(None));
+    let mut x = w - pad - buttons_w;
+    for (i, label) in labels.iter().enumerate() {
+        let (y, chosen) = (h - pad - bh, chosen.clone());
+        let mut win_ref = win.clone();
+        let mut pick = move || {
+            chosen.set(Some(i));
+            win_ref.hide();
+        };
+        if i == 0 {
+            ReturnButton::new(x, y, bw, bh, None).with_label(label).set_callback(move |_| pick());
+        } else {
+            Button::new(x, y, bw, bh, None).with_label(label).set_callback(move |_| pick());
+        }
+        x += bw + gap;
+    }
+    win.end();
+    win.show();
+    while win.shown() {
+        if !app::wait() {
+            break;
+        }
+    }
+    chosen.get()
+}
+
+/// Makes sure FLTK is ready before a dialog is shown on its own.
+pub fn gui_prepare_dialog() {
+    ensure_app();
 }
 
 fn bgr_to_fltk_color(bgr: i64) -> Color {
@@ -361,7 +445,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             // Load BMP image if specified
             let bmp_path = rp_comp_get(name, "bmp").to_string_val();
             if !bmp_path.is_empty() {
-                if let Ok(mut img) = SharedImage::load(&bmp_path) {
+                if let Some(mut img) = load_shared_image(&bmp_path) {
                     let num_bmps = rp_comp_get(name, "numbmps").to_i64().max(1) as i32;
                     if num_bmps > 1 {
                         // Multi-state BMP: crop to first frame (up state)
@@ -517,6 +601,14 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let mut lbl = Frame::new(x, y, w, h, None);
             lbl.set_label(&caption);
             lbl.set_frame(FrameType::NoBox);
+            // RapidQ's Alignment: taLeftJustify = 0 (default), taRightJustify
+            // = 1, taCenter = 2; the text sits at the top, as with AutoSize.
+            let horizontal = match rp_comp_get(name, "alignment").to_i64() {
+                1 => Align::Right,
+                2 => Align::Center,
+                _ => Align::Left,
+            };
+            lbl.set_align(horizontal | Align::Top | Align::Inside | Align::Clip);
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::Frame(lbl));
             });
@@ -1185,6 +1277,9 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             frm.draw(move |f| {
                 // Fill background
                 draw::draw_rect_fill(f.x(), f.y(), f.w(), f.h(), f.color());
+                // Canvas coordinates are relative to the canvas, as in RapidQ.
+                let (ox, oy) = (f.x(), f.y());
+                draw::push_clip(ox, oy, f.w(), f.h());
                 CANVAS_CMDS.with(|cmds| {
                     let map = cmds.borrow();
                     if let Some(cmd_list) = map.get(&name_for_draw) {
@@ -1192,36 +1287,42 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                             match cmd {
                                 DrawCmd::Line(x1, y1, x2, y2, color) => {
                                     draw::set_draw_color(*color);
-                                    draw::draw_line(*x1, *y1, *x2, *y2);
+                                    draw::draw_line(ox + *x1, oy + *y1, ox + *x2, oy + *y2);
                                 }
                                 DrawCmd::Rect(rx, ry, rw, rh, color) => {
                                     draw::set_draw_color(*color);
-                                    draw::draw_rect(*rx, *ry, *rw, *rh);
+                                    draw::draw_rect(ox + *rx, oy + *ry, *rw, *rh);
                                 }
                                 DrawCmd::FillRect(rx, ry, rw, rh, color) => {
                                     draw::set_draw_color(*color);
-                                    draw::draw_rect_fill(*rx, *ry, *rw, *rh, *color);
+                                    draw::draw_rect_fill(ox + *rx, oy + *ry, *rw, *rh, *color);
                                 }
                                 DrawCmd::Circle(cx, cy, r, color) => {
                                     draw::set_draw_color(*color);
-                                    draw::draw_circle(*cx as f64, *cy as f64, *r as f64);
+                                    draw::draw_circle((ox + *cx) as f64, (oy + *cy) as f64, *r as f64);
                                 }
                                 DrawCmd::DrawText(text, tx, ty, color, font_size) => {
                                     draw::set_draw_color(*color);
                                     draw::set_font(Font::Helvetica, *font_size);
-                                    draw::draw_text2(text, *tx, *ty, 0, 0, Align::Left);
+                                    draw::draw_text2(text, ox + *tx, oy + *ty, 0, 0, Align::Left);
                                 }
                                 DrawCmd::Ellipse(ex, ey, ew, eh, color) => {
                                     draw::set_draw_color(*color);
-                                    draw::draw_arc(*ex, *ey, *ew, *eh, 0.0, 360.0);
+                                    draw::draw_arc(ox + *ex, oy + *ey, *ew, *eh, 0.0, 360.0);
                                 }
                                 DrawCmd::Pixel(px, py, color) => {
-                                    draw::draw_rect_fill(*px, *py, 1, 1, *color);
+                                    draw::draw_rect_fill(ox + *px, oy + *py, 1, 1, *color);
+                                }
+                                DrawCmd::Image(ix, iy, iw, ih, rgba) => {
+                                    if let Ok(mut img) = RgbImage::new(rgba, *iw, *ih, ColorDepth::Rgba8) {
+                                        img.draw(ox + *ix, oy + *iy, *iw, *ih);
+                                    }
                                 }
                             }
                         }
                     }
                 });
+                draw::pop_clip();
             });
 
             let name_for_cb = name.to_lowercase();
@@ -1263,7 +1364,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             // Load image if BMP/filename is set
             let bmp = rp_comp_get(name, "bmp").to_string_val();
             if !bmp.is_empty() {
-                if let Ok(mut img) = SharedImage::load(&bmp) {
+                if let Some(mut img) = load_shared_image(&bmp) {
                     let stretch = rp_comp_get(name, "stretch").to_i64() != 0;
                     if stretch {
                         img.scale(w, h, true, true);
@@ -1393,6 +1494,82 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
     if explicitly_hidden {
         gui_set_visible(name, false);
     }
+    gui_apply_font(name);
+}
+
+/// Applies the font a program gave a component (`.Font = F`, `.FontName`,
+/// `.Font.Size`, …) to its widget. Font names map to FLTK's portable faces
+/// (Courier, Times, Symbol, otherwise Helvetica); sizes are pixels, as on
+/// the web.
+pub fn gui_apply_font(name: &str) {
+    if !rp_comp_get(name, "__fontset").to_bool() {
+        return;
+    }
+    let face = rp_comp_get(name, "fontname").to_string_val().to_lowercase();
+    let (bold, italic) = (rp_comp_get(name, "fontbold").to_bool(), rp_comp_get(name, "fontitalic").to_bool());
+    let has = |words: &[&str]| words.iter().any(|w| face.contains(w));
+    let font = if has(&["courier", "mono", "consol", "fixed"]) {
+        [Font::Courier, Font::CourierBold, Font::CourierItalic, Font::CourierBoldItalic]
+    } else if has(&["times", "roman", "georgia", "garamond"]) || (face.contains("serif") && !face.contains("sans")) {
+        [Font::Times, Font::TimesBold, Font::TimesItalic, Font::TimesBoldItalic]
+    } else if has(&["symbol"]) {
+        [Font::Symbol; 4]
+    } else {
+        [Font::Helvetica, Font::HelveticaBold, Font::HelveticaItalic, Font::HelveticaBoldItalic]
+    }[usize::from(bold) + 2 * usize::from(italic)];
+    let size = rp_comp_get(name, "fontsize").to_i64();
+    let size = if size > 0 { size.min(512) as i32 } else { app::font_size() };
+    let color = match rp_comp_get(name, "fontcolor") {
+        Value::Null => None,
+        c => Some(bgr_to_fltk_color(c.to_i64())),
+    };
+    macro_rules! label {
+        ($w:expr) => {{
+            $w.set_label_font(font);
+            $w.set_label_size(size);
+            if let Some(c) = color {
+                $w.set_label_color(c);
+            }
+        }};
+    }
+    macro_rules! text {
+        ($w:expr) => {{
+            label!($w);
+            $w.set_text_font(font);
+            $w.set_text_size(size);
+            if let Some(c) = color {
+                $w.set_text_color(c);
+            }
+        }};
+    }
+    GUI_WIDGETS.with(|gw| {
+        let mut widgets = gw.borrow_mut();
+        let Some(widget) = widgets.get_mut(&name.to_lowercase()) else { return };
+        match widget {
+            GuiWidget::Window(w) => label!(w),
+            GuiWidget::Button(w) => label!(w),
+            GuiWidget::Frame(w) | GuiWidget::ImageFrame(w) => label!(w),
+            GuiWidget::Input(w) => text!(w),
+            GuiWidget::Output(w) => text!(w),
+            GuiWidget::CheckButton(w) => label!(w),
+            GuiWidget::RadioButton(w) => label!(w),
+            GuiWidget::Choice(w) => text!(w),
+            GuiWidget::HoldBrowser(w) => {
+                label!(w);
+                w.set_text_size(size);
+            }
+            GuiWidget::TextEditor(w) => text!(w),
+            GuiWidget::Group(w) => label!(w),
+            GuiWidget::Tabs(w) => label!(w),
+            GuiWidget::MenuBar(w) => text!(w),
+            GuiWidget::SysMenuBar(w) => text!(w),
+            GuiWidget::Progress(w) => label!(w),
+            GuiWidget::Scroll(w) => label!(w),
+            GuiWidget::Tree(w) => label!(w),
+            GuiWidget::Slider(w) => label!(w),
+        }
+    });
+    redraw_widget(&name.to_lowercase());
 }
 
 // ---------------------------------------------------------------------------
@@ -3532,6 +3709,8 @@ enum DrawCmd {
     DrawText(String, i32, i32, Color, i32),
     Ellipse(i32, i32, i32, i32, Color),
     Pixel(i32, i32, Color),
+    /// A QBITMAP drawn with `Canvas.Draw(x, y, BMP)`: x, y, width, height, RGBA.
+    Image(i32, i32, i32, i32, Vec<u8>),
 }
 
 /// RImage method dispatch — loadfromfile, loadfromplot, etc.
@@ -3593,9 +3772,22 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
 }
 
+/// An image for a widget: a QBITMAP (by id, or the `data:` URL its `.BMP`
+/// returns), a BMP file, or any other image file FLTK reads.
+fn load_shared_image(src: &str) -> Option<SharedImage> {
+    let bitmap = src.starts_with("data:") || rapidr_value::objects::exists(src) || src.to_ascii_lowercase().ends_with(".bmp");
+    if bitmap {
+        if let Ok(b) = rapidr_value::objects::load_image(&v_str(src)) {
+            let rgb = RgbImage::new(&b.to_rgba(), b.img.width as i32, b.img.height as i32, ColorDepth::Rgba8).ok()?;
+            return SharedImage::from_image(&rgb).ok();
+        }
+    }
+    SharedImage::load(src).ok()
+}
+
 /// Load an image file into an RImage widget.
 fn load_image_file(name: &str, path: &str) {
-    if let Ok(mut img) = SharedImage::load(path) {
+    if let Some(mut img) = load_shared_image(path) {
         GUI_WIDGETS.with(|gw| {
             let mut widgets = gw.borrow_mut();
             if let Some(GuiWidget::ImageFrame(ref mut frm)) = widgets.get_mut(name) {
@@ -3730,6 +3922,22 @@ pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
                     .push(DrawCmd::Ellipse(ex, ey, ew, eh, bgr_to_fltk_color(color_val)));
             });
             redraw_widget(&name_lower);
+            v_null()
+        }
+        // `Canvas.Draw(x, y, Bitmap.BMP)` / `Canvas.Draw(x, y, Bitmap)`.
+        "draw" => {
+            let x = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
+            let y = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
+            match rapidr_value::objects::load_image(args.get(2).unwrap_or(&Value::Null)) {
+                Ok(b) => {
+                    let (w, h) = (b.img.width as i32, b.img.height as i32);
+                    CANVAS_CMDS.with(|cmds| {
+                        cmds.borrow_mut().entry(name_lower.clone()).or_default().push(DrawCmd::Image(x, y, w, h, b.to_rgba()));
+                    });
+                    redraw_widget(&name_lower);
+                }
+                Err(e) => eprintln!("[rapidr] {name}.Draw: {e}"),
+            }
             v_null()
         }
         "paint" | "refresh" | "update" => {

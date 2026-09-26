@@ -10,6 +10,7 @@ pub mod variadic;
 pub mod data;
 pub mod console;
 pub mod dialogs;
+pub mod objects;
 
 #[derive(Debug, Clone)]
 pub enum Value {

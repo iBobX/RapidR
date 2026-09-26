@@ -511,6 +511,15 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("mbRetry", 64), ("mbIgnore", 128), ("mbAll", 256),
     // File stream modes
     ("fmCreate", 0xFFFF), ("fmOpenRead", 0), ("fmOpenWrite", 1), ("fmOpenReadWrite", 2),
+    // Stream seeking and number types (ReadNum/WriteNum)
+    ("soFromBeginning", 0), ("soFromCurrent", 1), ("soFromEnd", 2),
+    ("Num_BYTE", 1), ("Num_SHORT", 2), ("Num_WORD", 3), ("Num_LONG", 4), ("Num_DWORD", 5),
+    ("Num_SINGLE", 6), ("Num_DOUBLE", 8),
+    // Font styles (AddStyles/DelStyles), special colors, bitmap formats
+    ("fsBold", 0), ("fsItalic", 1), ("fsUnderline", 2), ("fsStrikeOut", 3),
+    ("clNone", 536870911), ("clDefault", 536870912),
+    ("pfDevice", 0), ("pf1bit", 1), ("pf4bit", 2), ("pf8bit", 3), ("pf15bit", 4),
+    ("pf16bit", 5), ("pf24bit", 6), ("pf32bit", 7),
     // Virtual key codes
     ("VK_BACK", 8), ("VK_TAB", 9), ("VK_RETURN", 13), ("VK_SHIFT", 16), ("VK_CONTROL", 17),
     ("VK_MENU", 18), ("VK_PAUSE", 19), ("VK_ESCAPE", 27), ("VK_SPACE", 32),

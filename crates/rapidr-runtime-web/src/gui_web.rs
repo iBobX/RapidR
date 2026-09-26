@@ -326,11 +326,16 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 if val.to_bool() { "italic" } else { "normal" },
             );
         }
-        "fontunderline" => {
-            let _ = style.set_property(
-                "text-decoration",
-                if val.to_bool() { "underline" } else { "none" },
-            );
+        "fontunderline" | "fontstrikeout" => {
+            // Both can be on: build the decoration from the two settings.
+            let on = |p: &str| if p == prop { val.to_bool() } else { crate::object_web::rp_comp_get(name, p).to_bool() };
+            let decoration = match (on("fontunderline"), on("fontstrikeout")) {
+                (true, true) => "underline line-through",
+                (true, false) => "underline",
+                (false, true) => "line-through",
+                (false, false) => "none",
+            };
+            let _ = style.set_property("text-decoration", decoration);
         }
         "alignment" | "textalign" => {
             let align = match s.to_uppercase().as_str() {
@@ -1147,6 +1152,14 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         ("RCANVAS", "setpixel" | "pset") if args.len() >= 2 => {
             canvas_pixel(&id, &args[0], &args[1], args.get(2));
+            v_null()
+        }
+        // `Canvas.Draw(x, y, Bitmap.BMP)` / `Canvas.Draw(x, y, Bitmap)`.
+        ("RCANVAS", "draw") if args.len() >= 3 => {
+            match rapidr_value::objects::load_image(&args[2]) {
+                Ok(b) => canvas_draw_bitmap(&id, args[0].to_f64(), args[1].to_f64(), &b),
+                Err(e) => web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] {id}.Draw: {e}"))),
+            }
             v_null()
         }
         ("RCANVAS", "paint" | "update") => {
@@ -2394,6 +2407,24 @@ fn canvas_pixel(id: &str, x: &Value, y: &Value, color: Option<&Value>) {
         }
         ctx.fill_rect(x.to_f64(), y.to_f64(), 1.0, 1.0);
     }
+}
+
+/// Draws a QBITMAP (its transparent color left out) through an off-screen
+/// canvas, so transparency blends like the other drawing does.
+fn canvas_draw_bitmap(id: &str, x: f64, y: f64, b: &rapidr_value::objects::bitmap::Bitmap) {
+    let (w, h) = (b.img.width as u32, b.img.height as u32);
+    let Some(ctx) = get_canvas_ctx(id) else { return };
+    if w == 0 || h == 0 {
+        return;
+    }
+    let rgba = b.to_rgba();
+    let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w, h) else { return };
+    let Some(off) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    off.set_width(w);
+    off.set_height(h);
+    let Some(off_ctx) = off.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    let _ = off_ctx.put_image_data(&data, 0.0, 0.0);
+    let _ = ctx.draw_image_with_html_canvas_element(&off, x, y);
 }
 
 fn canvas_set_font(id: &str, family: &str, size: i64) {
