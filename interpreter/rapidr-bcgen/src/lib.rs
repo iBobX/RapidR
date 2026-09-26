@@ -60,6 +60,8 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     let lowered = rapidr_ast::objects::lower(program, &|n| builtins::is_builtin(n));
+    // Stores into declared numeric types convert (rapidr_ast::numeric).
+    let lowered = rapidr_ast::numeric::lower(lowered);
     let program = &lowered;
     let mut bcgen = Bcgen::new();
     bcgen.library_lines = library_lines.to_vec();
@@ -2039,6 +2041,13 @@ impl Bcgen {
                 }
                 Ok(())
             }
+            // `__to_long(v)` & co. (rapidr_ast::numeric) → one opcode.
+            Expression::FunctionCall(fc) if fc.args.len() == 1 && numeric_kind(fc).is_some() => {
+                let kind = numeric_kind(fc).unwrap_or(rapidr_value::numeric::NumKind::Double);
+                self.lower_expr(&fc.args[0], code)?;
+                emit(code, Op::ToNum); code.push(kind.code());
+                Ok(())
+            }
             // `__getfield(obj, slot)` (rapidr_ast::objects) → one opcode.
             Expression::FunctionCall(fc) if field_slot(fc, "__getfield", 2).is_some() => {
                 let slot = field_slot(fc, "__getfield", 2).unwrap_or(0);
@@ -2468,6 +2477,12 @@ fn field_slot(fc: &rapidr_ast::FunctionCallExpression, name: &str, argc: usize) 
         },
         _ => None,
     }
+}
+
+/// The conversion `fc` is, when it's `__to_long(v)` & co.
+fn numeric_kind(fc: &rapidr_ast::FunctionCallExpression) -> Option<rapidr_value::numeric::NumKind> {
+    let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+    rapidr_value::numeric::NumKind::from_builtin(&id.name)
 }
 
 /// The value a variable of a BASIC type starts with (as in native builds'

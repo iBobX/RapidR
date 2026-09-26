@@ -126,6 +126,12 @@ impl Types {
         object_kind(self, &field.type_name)
     }
 
+    /// The conversion a store into field `f` needs (a numeric field;
+    /// `crate::numeric`).
+    fn field_conversion(&self, t: &str, f: &str) -> Option<&'static str> {
+        crate::numeric::conversion_for(&self.field(t, f)?.type_name)
+    }
+
     fn setter(&self, t: &str, f: &str) -> Option<(String, String)> {
         let setter = self.field(t, f)?.setter.clone()?;
         self.find_method(t, &setter).map(|(def, name, _)| (def, name))
@@ -583,6 +589,10 @@ impl Lowering<'_> {
                 }
             }
             if let Some(slot) = self.types.slot(t, member) {
+                let value = match self.types.field_conversion(t, member) {
+                    Some(conv) if !self.is_array_field(t, member) => crate::numeric::convert_at(span, conv, value),
+                    _ => value,
+                };
                 return call_stmt_at(span, "__setfield", vec![o, int_at(span, slot as i64), value]);
             }
         }
@@ -638,6 +648,10 @@ impl Lowering<'_> {
                 };
                 if let Some((o, t, field)) = array_field {
                     let slot = self.types.slot(&t, &field).unwrap_or(0);
+                    let value = match self.types.field_conversion(&t, &field) {
+                        Some(conv) => crate::numeric::convert_at(span, conv, value),
+                        None => value,
+                    };
                     let array = call_at(span, "__getfield", vec![o, int_at(span, slot as i64)]);
                     let args = std::iter::once(array).chain(idx).chain([value]).collect();
                     return vec![call_stmt_at(span, "__aset", args)];

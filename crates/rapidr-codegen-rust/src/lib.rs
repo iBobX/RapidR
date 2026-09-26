@@ -42,6 +42,8 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
     let program = rapidr_ast::objects::lower(program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
+    // Stores into declared numeric types convert (rapidr_ast::numeric).
+    let program = rapidr_ast::numeric::lower(program);
     let (program, promoted) = promote_ref_params(&program);
     gen.promoted_byref = promoted;
     gen.emit_program(&program);
@@ -150,6 +152,9 @@ struct RustCodegen {
     array_init_info: HashMap<String, (String, String)>,
     /// Whether we are inside a SUB or FUNCTION body (as opposed to top-level / main).
     in_sub_or_function: bool,
+    /// Names the current SUB/FUNCTION declares itself (parameters, DIM):
+    /// they shadow module-level variables of the same name.
+    shadowed: HashSet<String>,
     /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
     create_declared_names: HashSet<String>,
     /// Set while a routine with GOTO/GOSUB is emitted as a state machine.
@@ -186,6 +191,7 @@ impl RustCodegen {
             declared_functions: HashSet::new(),
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
+            shadowed: HashSet::new(),
             create_declared_names: HashSet::new(),
             state_machine: None,
             current_routine_name: None,
@@ -212,7 +218,8 @@ impl RustCodegen {
     /// Check if a variable is a module-level scalar (DIM at top level, not component, not array, not UDT).
     fn is_global_scalar(&self, name: &str) -> bool {
         let lower = name.to_lowercase();
-        self.top_level_vars.contains(&lower)
+        !self.shadowed.contains(strip_type_suffix(&lower).as_str())
+            && self.top_level_vars.contains(&lower)
             && !self.component_vars.contains_key(&lower)
             && !self.array_vars.contains(&lower)
     }
@@ -239,7 +246,8 @@ impl RustCodegen {
     /// Check if a variable is a module-level array (DIM at top level with dimensions).
     fn is_global_array(&self, name: &str) -> bool {
         let lower = name.to_lowercase();
-        self.top_level_vars.contains(&lower)
+        !self.shadowed.contains(strip_type_suffix(&lower).as_str())
+            && self.top_level_vars.contains(&lower)
             && self.array_vars.contains(&lower)
             && !self.component_vars.contains_key(&lower)
     }
@@ -1275,6 +1283,7 @@ impl RustCodegen {
         self.indent += 1;
 
         self.in_sub_or_function = true;
+        self.shadowed = shadowing_names(&s.params, &s.body);
         let byref = self.byref_prologue(&s.params, false);
         let body = self.prepare_statics(&s.name, &s.body);
         // Auto-declare local variables for refs in body that aren't params
@@ -1287,6 +1296,7 @@ impl RustCodegen {
         self.leave_array_params(array_params);
         self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
+        self.shadowed.clear();
         self.indent -= 1;
         self.line("}");
     }
@@ -1442,6 +1452,7 @@ impl RustCodegen {
         let _ = writeln!(self.output, "let mut _{name} = {ret_default};");
 
         self.in_sub_or_function = true;
+        self.shadowed = shadowing_names(&f.params, &f.body);
         let byref = self.byref_prologue(&f.params, true);
         let body = self.prepare_statics(&f.name, &f.body);
         // Auto-declare local variables for refs in body that aren't params
@@ -1455,6 +1466,7 @@ impl RustCodegen {
         self.leave_array_params(array_params);
         self.current_function = None;
         self.in_sub_or_function = false;
+        self.shadowed.clear();
 
         self.write_indent();
         let _ = writeln!(self.output, "_{name}");
@@ -2316,6 +2328,24 @@ fn index_list(args: &[String]) -> String {
 }
 
 /// The object pass's own builtins (rapidr_ast::objects::OBJECT_BUILTINS).
+/// Names a SUB/FUNCTION declares itself — parameters and (non-STATIC)
+/// DIMs — which shadow module-level variables inside it, as in the VM.
+fn shadowing_names(params: &[Parameter], body: &[Statement]) -> HashSet<String> {
+    let mut names: HashSet<String> = params.iter().map(|p| strip_type_suffix(&p.name).to_lowercase()).collect();
+    rapidr_ast::walk(
+        body,
+        &mut |s| {
+            if let Statement::Dim(d) = s {
+                if !d.is_static && !d.is_redim {
+                    names.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_lowercase()));
+                }
+            }
+        },
+        &mut |_| {},
+    );
+    names
+}
+
 fn is_object_builtin(name: &str) -> bool {
     rapidr_ast::objects::OBJECT_BUILTINS.contains(&name)
 }
@@ -2437,6 +2467,13 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         // Objects (rapidr_ast::objects): instances with field slots —
         // direct vector access, no lookup by name.
         "__null" => Some("v_null()".to_string()),
+        // Stores into declared numeric types (rapidr_ast::numeric).
+        "__to_byte" => Some(format!("numeric::to_byte(&{a0})")),
+        "__to_word" => Some(format!("numeric::to_word(&{a0})")),
+        "__to_short" => Some(format!("numeric::to_short(&{a0})")),
+        "__to_long" => Some(format!("numeric::to_long(&{a0})")),
+        "__to_dword" => Some(format!("numeric::to_dword(&{a0})")),
+        "__to_double" => Some(format!("numeric::to_double(&{a0})")),
         "__newobject" => Some(format!("rp_new_object(&{a0}, &{a1}, &{a2})")),
         "__getfield" => Some(format!("obj_field(&{a0}, ({a1}).to_i64() as usize)")),
         "__setfield" => Some(format!("{{ set_obj_field(&{a0}, ({a1}).to_i64() as usize, ({a2}).clone()); v_null() }}")),

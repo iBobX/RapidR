@@ -6,6 +6,7 @@ use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
 pub mod strings;
+pub mod numeric;
 pub mod variadic;
 pub mod data;
 pub mod console;
@@ -773,6 +774,12 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
             }));
         }
         "__null" => return Some(Ok(Value::Null)),
+        // Stores into declared numeric types (`numeric`, rapidr_ast::numeric).
+        _ if key.starts_with("__to_") => {
+            if let Some(kind) = numeric::NumKind::from_builtin(key) {
+                return Some(Ok(numeric::convert(&arg(0), kind)));
+            }
+        }
         // `__newarray(fill, lo, hi)`: an array field's initial value.
         "__newarray" => return Some(v_array(vec![(arg(1).to_i64(), arg(2).to_i64())], arg(0))),
         "__aget" | "__aset" => {

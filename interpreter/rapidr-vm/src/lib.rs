@@ -517,6 +517,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                         other => return Err(VmError::Runtime(format!("this variable does not refer to an object (setting a field of {:?})", other.to_string_val()))),
                     }
                 }
+                Op::ToNum => {
+                    let kind = rapidr_value::numeric::NumKind::from_code(read_u8(code, &mut ip)?).ok_or(VmError::BadOperand)?;
+                    let v = self.pop()?;
+                    self.stack.push(rapidr_value::numeric::convert(&v, kind));
+                }
                 Op::CallIndirect => {
                     let argc = read_u8(code, &mut ip)?;
                     let at = self.stack.len().checked_sub(argc as usize + 1).ok_or(VmError::StackUnderflow)?;

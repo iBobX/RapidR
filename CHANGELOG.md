@@ -7,6 +7,39 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.31.0] — 2026-09-26
+
+### Changed
+- **Declared numeric types are enforced, in both backends** (RapidQ manual,
+  Appendix C: a type "cannot be changed once bound"). Storing into
+  something declared BYTE, WORD, SHORT, INTEGER/LONG, DWORD, SINGLE or
+  DOUBLE now converts the value; before, `DIM n AS INTEGER : n = 2.5` kept
+  2.5 and a BYTE held 300.
+  - Integers round half to even, the rounding RapidQ documents for ROUND:
+    2.5 → 2, 3.5 → 4, -2.5 → -2.
+  - Integers wrap to their width: BYTE 0..255, WORD 0..65535, SHORT 16-bit,
+    INTEGER/LONG 32-bit, DWORD 32-bit unsigned.
+  - SINGLE and DOUBLE hold floating-point numbers; a string converts like
+    VAL.
+  - This applies to assignments, `INPUT`, array elements, TYPE fields
+    (including array fields), BYVAL parameters on entry, and a typed
+    FUNCTION's result (`f = …`, `RESULT = …`, `RETURN …`).
+  - One shared pass (`rapidr_ast::numeric`) inserts the conversions; the
+    rules live in `rapidr_value::numeric`. The VM runs each conversion as a
+    single opcode (`ToNum`); native builds call it directly.
+  - Not yet: FOR counters' own increments, and type suffixes (`n%`, `n&`).
+
+### Fixed
+- **Native builds:** a SUB/FUNCTION's own `DIM x` or parameter `x` now
+  shadows a module-level `x`, as in the interpreter. Native code used to
+  read and write the global instead (`DIM n AS STRING` in a SUB overwrote
+  the program's `n`).
+
+### Tests
+- Conformance case `numeric_types` (both backends): rounding, wrapping of
+  every type, strings, arrays, TYPE fields, parameters, FUNCTION results,
+  globals changed in a SUB, local and parameter shadowing, and `INPUT`.
+
 ## [2.30.0] — 2026-09-26
 
 ### Security
