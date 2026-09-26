@@ -13,7 +13,7 @@ pub const BUILTINS: &[&str] = &[
     // DATA / READ / RESTORE (the parser inserts these calls)
     "__data_add", "__data_label", "__data_reset", "__read", "__restore",
     // REDIM (resize keeping data)
-    "__redim",
+    "__redim", "__input_value",
     "abs", "acos", "asc", "asin", "atn",
     "beep", "bin",
     "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "convbase",
@@ -40,7 +40,7 @@ pub const BUILTINS: &[&str] = &[
 
 /// Builtins every host hands to `rapidr_value::shared_builtin` before its own
 /// dispatch table (DATA / READ / RESTORE and REDIM share one implementation).
-pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim"];
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.

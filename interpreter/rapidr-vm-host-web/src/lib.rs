@@ -56,6 +56,7 @@ impl Host for WebHost {
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
         rp_create_component(id, kind);
         self.has_components = true;
+        HAS_COMPONENTS.with(|h| h.set(true));
         Ok(v_str(id))
     }
 
@@ -89,8 +90,13 @@ impl Host for WebHost {
     }
 
     fn input(&mut self) -> Result<String, String> {
-        // Browser has no synchronous stdin; return empty string.
-        Ok(String::new())
+        // An in-page field; the VM waits for it (dialog_web). Where it can't
+        // wait, the browser's prompt().
+        Ok(rapidr_runtime_web::builtins_input_line().to_string_val())
+    }
+
+    fn suspend_requested(&mut self) -> bool {
+        rapidr_runtime_web::dialog_web::take_suspend()
     }
 }
 
@@ -258,11 +264,58 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
 
 thread_local! {
     static ACTIVE_VM: Cell<*mut ()> = const { Cell::new(std::ptr::null_mut()) };
+    /// `__main` stopped for a dialog: when it finishes, show the forms.
+    static MAIN_WAITING: Cell<bool> = const { Cell::new(false) };
+    static HAS_COMPONENTS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Tells the IDE's debugger that the VM paused (if it's listening).
+fn report_paused() {
+    if let Some(window) = web_sys::window() {
+        if let Ok(func_val) = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_handle_debug_result")) {
+            if func_val.is_function() {
+                let func: js_sys::Function = func_val.into();
+                let _ = func.call1(&JsValue::NULL, &JsValue::from_str("paused"));
+            }
+        }
+    }
 }
 
 struct VmCtx<'a, 'h, H: Host + ?Sized> {
     vm: &'a mut Vm<'h, H>,
     module: &'a Module,
+}
+
+use rapidr_runtime_web::dialog_web as dialog;
+
+/// Continues the program after an in-page dialog (dialog_web): the answer
+/// becomes the result of the MESSAGEBOX/INPUT that opened it.
+fn install_resume_handler<H: Host + ?Sized + 'static>() {
+    dialog::set_resume_handler(std::rc::Rc::new(|value, echo| {
+        ACTIVE_VM.with(|c| {
+            let p = c.get() as *mut VmCtx<'_, '_, H>;
+            if p.is_null() { return; }
+            let ctx = unsafe { &mut *p };
+            if let Some(line) = echo {
+                // What was typed, as a terminal shows it.
+                let _ = ctx.vm.host_mut().print(&format!("{line}\n"));
+                ctx.vm.print_col = 0;
+            }
+            dialog::enter_vm();
+            let result = ctx.vm.resume_with(ctx.module, value);
+            dialog::leave_vm();
+            match result {
+                Ok(()) => {
+                    if MAIN_WAITING.with(|m| m.replace(false)) && HAS_COMPONENTS.with(Cell::get) {
+                        rapidr_runtime_web::gui_web::gui_web_finalize();
+                    }
+                }
+                Err(VmError::Suspended) => {}
+                Err(VmError::Paused) => report_paused(),
+                Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[rapidr] vm error: {e}"))),
+            }
+        });
+    }));
 }
 
 /// Set up the indirect dispatcher so DOM events re-enter the supplied
@@ -285,24 +338,20 @@ pub fn install_dispatcher<H: Host + ?Sized + 'static>(module: *const Module, vm:
     }));
     let ctx_ptr = (ctx as *mut VmCtx<'_, '_, H>) as *mut ();
     ACTIVE_VM.with(|c| c.set(ctx_ptr));
+    install_resume_handler::<H>();
 
     let _ = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
         ACTIVE_VM.with(|c| {
             let p = c.get() as *mut VmCtx<'_, '_, H>;
             if p.is_null() { return; }
             let ctx = unsafe { &mut *p };
-            match ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec()) {
-                Ok(_) => {}
-                Err(VmError::Paused) => {
-                    if let Some(window) = web_sys::window() {
-                        if let Ok(func_val) = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_handle_debug_result")) {
-                            if func_val.is_function() {
-                                let func: js_sys::Function = func_val.into();
-                                let _ = func.call1(&JsValue::NULL, &JsValue::from_str("paused"));
-                            }
-                        }
-                    }
-                }
+            dialog::enter_vm();
+            let result = ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec());
+            dialog::leave_vm();
+            match result {
+                // Suspended: the handler waits for a dialog (resumed below).
+                Ok(_) | Err(VmError::Suspended) => {}
+                Err(VmError::Paused) => report_paused(),
                 Err(e) => {
                     web_sys::console::error_1(
                         &JsValue::from_str(&format!("[rapidr] event handler #{fn_index} failed: {e}")),
@@ -343,7 +392,18 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     // before any DOM component is created would be silently dropped.
     install_dispatcher::<WebHost>(module as *const _, vm as *mut _);
 
-    vm.run(module).map_err(|e| JsValue::from_str(&format!("vm error: {e}")))?;
+    dialog::enter_vm();
+    let result = vm.run(module);
+    dialog::leave_vm();
+    match result {
+        Ok(()) => {}
+        // Waiting for a dialog: the forms appear when `__main` finishes.
+        Err(VmError::Suspended) => {
+            MAIN_WAITING.with(|m| m.set(true));
+            return Ok(());
+        }
+        Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
+    }
 
     if vm.host_mut().has_components {
         // Mirror compiled-mode codegen: after `__main` returns, finalize

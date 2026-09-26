@@ -8,6 +8,12 @@
 mod builtins;
 pub mod database_web;
 pub mod datascience_web;
+pub mod dialog_web;
+
+/// The INPUT statement's line (for `rapidr-vm-host-web`).
+pub fn builtins_input_line() -> value::Value {
+    builtins::rp_input_line()
+}
 mod file_io_web;
 pub mod gui_web;
 pub mod network_web;
@@ -24,7 +30,7 @@ pub mod prelude {
     // DATA / READ / RESTORE
     pub use crate::value::data;
     pub use crate::value::console;
-    pub use crate::value::{rp_inv, rp_redim, rp_shl, rp_shr};
+    pub use crate::value::{input_value, rp_inv, rp_redim, rp_shl, rp_shr};
 
     // BASIC builtins (string / math / date / conversion / etc.)
     pub use crate::builtins::*;

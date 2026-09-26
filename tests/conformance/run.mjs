@@ -5,6 +5,7 @@
 // Layout (tests/conformance/cases/):
 //   name.bas              the program (console only; no GUI)
 //   name.expected         exact expected stdout (trailing whitespace ignored)
+//   name.input            optional: what the program reads (INPUT) on stdin
 //   name.expected-error   OR: the program must FAIL to compile, and the
 //                         compiler output must contain every non-empty line
 //                         of this file (e.g. "3:1" and "Unknown SUB")
@@ -59,15 +60,15 @@ function run(cmd, cmdArgs, opts = {}) {
 }
 
 // Returns { compiled: bool, output: string, diagnostics: string }.
-function runVm(name, src) {
+function runVm(name, src, input) {
   const rrbc = join(WORK, `${name}.rrbc`);
   const c = run(RAPIDR, ["build-bc", src, "-o", rrbc]);
   if (!c.ok) return { compiled: false, output: "", diagnostics: c.out + c.err };
-  const r = run(RAPIDR, ["run-bc", rrbc]);
+  const r = run(RAPIDR, ["run-bc", rrbc], { input });
   return { compiled: true, output: r.out, diagnostics: c.err + r.err, crashed: !r.ok };
 }
 
-function runCodegen(name, src) {
+function runCodegen(name, src, input) {
   const dir = join(WORK, "codegen");
   mkdirSync(dir, { recursive: true });
   const rr = join(dir, `${name}.rr`);
@@ -76,7 +77,7 @@ function runCodegen(name, src) {
   const c = run(RAPIDR, ["build", rr, join(dir, `${name}_rust`)], { env, timeout: 600_000 });
   const bin = join(dir, name);
   if (!c.ok || !existsSync(bin)) return { compiled: false, output: "", diagnostics: cargoErrors(c.out + c.err) };
-  const r = run(bin, []);
+  const r = run(bin, [], { input });
   return { compiled: true, output: r.out, diagnostics: r.err, crashed: !r.ok };
 }
 
@@ -123,9 +124,11 @@ for (const name of cases) {
   const errPath = join(CASES, `${name}.expected-error`);
   const expected = existsSync(expPath) ? readFileSync(expPath, "utf8") : "";
   const expectedError = existsSync(errPath) ? readFileSync(errPath, "utf8") : null;
+  const inputPath = join(CASES, `${name}.input`);
+  const input = existsSync(inputPath) ? readFileSync(inputPath, "utf8") : "";
 
   for (const backend of backends) {
-    const problem = check(RUNNERS[backend](name, src), expected, expectedError);
+    const problem = check(RUNNERS[backend](name, src, input), expected, expectedError);
     let status;
     if (problem && xfail.has(backend)) status = "XFAIL";
     else if (problem) status = "FAIL";

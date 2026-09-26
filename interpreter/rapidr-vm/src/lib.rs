@@ -51,6 +51,9 @@ pub enum VmError {
     Runtime(String),
     Halted,
     Paused,
+    /// The host asked to wait (an in-page dialog on the web): the VM kept
+    /// its state; continue with [`Vm::resume_with`] and the host's answer.
+    Suspended,
 }
 
 impl std::fmt::Display for VmError {
@@ -68,6 +71,7 @@ impl std::fmt::Display for VmError {
             VmError::Runtime(s) => write!(f, "run-time error: {s}"),
             VmError::Halted => write!(f, "halted"),
             VmError::Paused => write!(f, "paused"),
+            VmError::Suspended => write!(f, "suspended"),
         }
     }
 }
@@ -119,6 +123,9 @@ pub struct Vm<'h, H: Host + ?Sized> {
     pub breakpoints: std::collections::HashSet<u32>,
     pub step_mode: StepMode,
     pub last_line: u32,
+    /// Frames an event handler interrupted, kept while that handler is
+    /// suspended (see [`Vm::resume_with`]).
+    suspended_outer: Vec<Vec<Frame>>,
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -134,6 +141,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             breakpoints: Default::default(),
             step_mode: StepMode::None,
             last_line: 0,
+            suspended_outer: Vec::new(),
         }
     }
 
@@ -366,6 +374,10 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     for _ in 0..argc { args.push(self.pop()?); }
                     args.reverse();
                     let r = self.host.call_builtin(&name, &args).map_err(VmError::HostError)?;
+                    if self.host.suspend_requested() {
+                        self.frames.last_mut().unwrap().ip = ip;
+                        return Err(VmError::Suspended);
+                    }
                     self.stack.push(r);
                 }
 
@@ -515,6 +527,10 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::Input => {
                     let s = self.host.input().map_err(VmError::HostError)?;
+                    if self.host.suspend_requested() {
+                        self.frames.last_mut().unwrap().ip = ip;
+                        return Err(VmError::Suspended);
+                    }
                     self.stack.push(v_str(&s));
                 }
             }
@@ -591,6 +607,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             Err(VmError::Paused) => {
                 Err(VmError::Paused)
             }
+            Err(VmError::Suspended) => {
+                // The handler waits (an in-page dialog); `resume_with`
+                // finishes it and then puts these frames back.
+                self.suspended_outer.push(saved);
+                Err(VmError::Suspended)
+            }
             Err(e) => {
                 self.frames = saved;
                 Err(e)
@@ -616,6 +638,25 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
     pub fn resume(&mut self, module: &Module) -> Result<(), VmError> {
         self.exec(module)
+    }
+
+    /// Continues after [`VmError::Suspended`], with `value` as the result of
+    /// the builtin (or INPUT) that suspended.
+    pub fn resume_with(&mut self, module: &Module, value: Value) -> Result<(), VmError> {
+        self.stack.push(value);
+        self.exec(module)?;
+        // A suspended event handler has finished: back to what it interrupted.
+        if self.frames.is_empty() {
+            if let Some(outer) = self.suspended_outer.pop() {
+                self.frames = outer;
+            }
+        }
+        Ok(())
+    }
+
+    /// True while an event handler is suspended (see [`Vm::resume_with`]).
+    pub fn handler_suspended(&self) -> bool {
+        !self.suspended_outer.is_empty()
     }
 
     pub fn step_into(&mut self, module: &Module) -> Result<(), VmError> {
@@ -779,6 +820,59 @@ mod tests {
         let mut vm = Vm::new(&mut h);
         vm.run(&m).unwrap();
         assert_eq!(h.output, "42\n");
+    }
+
+    /// A host whose ASK builtin suspends the VM until the answer arrives.
+    #[derive(Default)]
+    struct AskHost {
+        inner: StubHost,
+        waiting: bool,
+    }
+
+    impl Host for AskHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            self.waiting = name == "ASK";
+            self.inner.call_builtin(name, args)
+        }
+        fn suspend_requested(&mut self) -> bool {
+            std::mem::take(&mut self.waiting)
+        }
+        fn create_comp(&mut self, k: &str, id: &str) -> Result<Value, String> { self.inner.create_comp(k, id) }
+        fn set_prop(&mut self, id: &str, n: &str, v: Value) -> Result<(), String> { self.inner.set_prop(id, n, v) }
+        fn get_prop(&mut self, id: &str, n: &str) -> Result<Value, String> { self.inner.get_prop(id, n) }
+        fn call_method(&mut self, id: &str, m: &str, a: &[Value]) -> Result<Value, String> { self.inner.call_method(id, m, a) }
+        fn register_event(&mut self, id: &str, e: &str, f: u32) -> Result<(), String> { self.inner.register_event(id, e, f) }
+        fn print(&mut self, s: &str) -> Result<(), String> { self.inner.print(s) }
+        fn input(&mut self) -> Result<String, String> { self.inner.input() }
+    }
+
+    #[test]
+    fn suspend_and_resume_inside_a_function() {
+        // FUNCTION f: RETURN ASK() + 1 ; main: PRINT f() * 2
+        let mut m = Module::new();
+        let ask = m.add_string("ASK");
+        let one = m.add_const(Const::Int(1));
+        let two = m.add_const(Const::Int(2));
+        let mut f = Function::default();
+        f.name = "f".into();
+        f.code.push(Op::CallBuiltin as u8); f.code.extend_from_slice(&ask.to_le_bytes()); f.code.push(0);
+        f.code.push(Op::LoadConst as u8); f.code.extend_from_slice(&one.to_le_bytes());
+        f.code.push(Op::Add as u8);
+        f.code.push(Op::RetVal as u8);
+        let fi = m.add_function(f);
+        let mut main = Function::default();
+        main.name = "__main".into();
+        main.code.push(Op::CallFunc as u8); main.code.extend_from_slice(&fi.to_le_bytes()); main.code.push(0);
+        main.code.push(Op::LoadConst as u8); main.code.extend_from_slice(&two.to_le_bytes());
+        main.code.push(Op::Mul as u8);
+        main.code.push(Op::PrintLn as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = AskHost::default();
+        let mut vm = Vm::new(&mut h);
+        assert!(matches!(vm.run(&m), Err(VmError::Suspended)));
+        vm.resume_with(&m, v_int(20)).unwrap();
+        assert_eq!(h.inner.output, "42\n");
     }
 
     #[test]

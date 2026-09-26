@@ -136,7 +136,9 @@ Next up, in order:
 - [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
 - [x] `REDIM` keeping data (resized in place; creates the array without a DIM; `REDIM PRESERVE`), `INV` (v2.18.0)
 - [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
-- [ ] Web: an in-page dialog with any buttons (needs the VM to pause and resume on the web, like the debugger does)
+- [x] Web: in-page dialogs with any buttons for MESSAGEBOX/MESSAGEDLG/SHOWMESSAGE/INPUT — the VM suspends and resumes (`VmError::Suspended`, `Vm::resume_with`) (v2.22.0)
+- [x] `INPUT` per the manual: prompt printed, whole line, stored as text/number by DIM type or suffix (both backends) (v2.22.0)
+- [ ] Web: other waits through the same suspension — `SLEEP` (setTimeout), `INKEY$`/`INPUT$(n)` from the page, `DOEVENTS`; the Rust-compiled web build still uses browser dialogs
 - [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
 - [ ] Arrays of components (`DIM lbl(1 TO 5) AS QLABEL` … `lbl(i).Height = 20`) and indexed sub-objects inside CREATE (`Panel(0).Caption = …`): "nested member-access store" blocks 24 of the 386 RapidQ examples
 - [ ] QFILESTREAM on the shared stream code (today only line-oriented: no ReadStr/WriteStr/ReadNum/Position/Size on the desktop)

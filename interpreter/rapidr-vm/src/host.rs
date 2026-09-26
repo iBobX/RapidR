@@ -22,6 +22,12 @@ pub trait Host {
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String>;
     fn print(&mut self, s: &str) -> Result<(), String>;
     fn input(&mut self) -> Result<String, String>;
+    /// Asked right after a builtin or INPUT returns: `true` makes the VM
+    /// stop with [`crate::VmError::Suspended`] and wait for
+    /// [`crate::Vm::resume_with`] (the web host shows an in-page dialog).
+    fn suspend_requested(&mut self) -> bool {
+        false
+    }
 }
 
 /// A test/no-op [`Host`].

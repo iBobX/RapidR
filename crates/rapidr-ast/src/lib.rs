@@ -553,6 +553,29 @@ pub fn inc_dec_assignment(c: &CallStatement, is_user_routine: impl Fn(&str) -> b
     })
 }
 
+/// `INPUT [prompt,] var` as the assignment
+/// `var = __input_value(INPUT(prompt), var, suffix)`: `INPUT(prompt)` prints
+/// the prompt and reads a line, and `__input_value` stores it as text or a
+/// number for the variable (`rapidr_value::input_value`). The Rust backend
+/// lowers INPUT this way; the VM does the same with its INPUT opcode.
+pub fn input_assignment(i: &InputStatement) -> AssignmentStatement {
+    let span = i.span;
+    let call = |name: &str, args: Vec<Expression>| {
+        Expression::FunctionCall(FunctionCallExpression {
+            span,
+            callee: Box::new(Expression::Identifier(Identifier { span, name: name.into() })),
+            args,
+        })
+    };
+    let text = |s: &str| Expression::Literal(Literal { span, value: LiteralValue::String(s.into()) });
+    let prompt = i.prompt.clone().unwrap_or_else(|| text(""));
+    AssignmentStatement {
+        span,
+        target: i.target.clone(),
+        value: call("__input_value", vec![call("input", vec![prompt]), i.target.clone(), text(input_suffix(&i.target))]),
+    }
+}
+
 /// Component types both backends can create (uppercase). The single source
 /// for "is this DIM/CREATE type a GUI/system component?".
 pub const COMPONENT_TYPES: &[&str] = &[
@@ -592,6 +615,32 @@ pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QFILEDIALOG", "QFILELISTBOX", "QGLASSFRAME", "QHEADER", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
     "QOUTLINE", "QRECT", "QVIDEO", "QWAVE",
 ];
+
+/// The type suffix of an INPUT variable (`name$` → "$"), or "": with the
+/// variable's current value it decides whether INPUT stores text or a number
+/// (`rapidr_value::input_value`).
+pub fn input_suffix(target: &Expression) -> &'static str {
+    let name = match target {
+        Expression::Identifier(id) => &id.name,
+        Expression::ArrayAccess(a) => match a.array.as_ref() {
+            Expression::Identifier(id) => &id.name,
+            _ => return "",
+        },
+        Expression::FunctionCall(f) => match f.callee.as_ref() {
+            Expression::Identifier(id) => &id.name,
+            _ => return "",
+        },
+        _ => return "",
+    };
+    match name.chars().last() {
+        Some('$') => "$",
+        Some('%') => "%",
+        Some('&') => "&",
+        Some('!') => "!",
+        Some('#') => "#",
+        _ => "",
+    }
+}
 
 /// A component RapidR implements, or one of RapidQ's objects it doesn't yet.
 pub fn is_rapidq_object_type(type_name: &str) -> bool {

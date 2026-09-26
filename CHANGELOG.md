@@ -7,6 +7,46 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.22.0] — 2026-09-25
+
+### Added
+- **In-page dialogs on the web, with every button.** When the bytecode
+  interpreter runs a program (the IDE preview and exported bundles),
+  `MESSAGEBOX`, `MESSAGEDLG`, `SHOWMESSAGE` and `INPUT` open a modal
+  dialog in the page (`crates/rapidr-runtime-web/src/dialog_web.rs`):
+  - it has a title and all the buttons, e.g. Yes · No · Cancel and
+    Abort · Retry · Ignore;
+  - the first button is the default, and Escape means "closed", as on the
+    desktop.
+
+  The program waits for the answer, in the main program or in an event
+  handler. The VM suspends (`VmError::Suspended`, `Host::suspend_requested`)
+  and `Vm::resume_with(answer)` continues it with its state intact, the way
+  the debugger's pause already worked. Where waiting isn't possible (the
+  Rust-compiled web build, or a handler fired from inside another VM call),
+  the browser's dialogs are still used.
+- **INPUT on the web:** an in-page text field showing the prompt; the
+  typed line is echoed in the output. Console programs in exported bundles
+  can now ask questions.
+
+### Fixed
+- **`INPUT` follows the RapidQ manual (ch. 6.4) on both backends:**
+  - the prompt is printed (it was dropped);
+  - a whole line is read;
+  - the line is stored as text or a number according to the variable: its
+    DIM type, else its suffix (`$`, `%`, `#`, …), else a number when the
+    line is one. Before, `INPUT age` stored the string "41", so `age + 1`
+    gave "411".
+
+  The rule is shared in `rapidr_value::input_value`; the Rust backend
+  lowers INPUT through `rapidr_ast::input_assignment`, which also fixes
+  INPUT into global array elements there.
+- **Tests:** the conformance runner feeds an optional `name.input` file to
+  the program; new case `input_line`. `tests/web_ide_dialogs.mjs` now
+  checks the in-page dialogs, including one opened from a button handler.
+  `tests/web_bundle_console.mjs` checks INPUT in a bundle. A VM unit test
+  covers suspending inside a function.
+
 ## [2.21.0] — 2026-09-25
 
 ### Added

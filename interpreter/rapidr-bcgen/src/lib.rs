@@ -684,7 +684,20 @@ impl Bcgen {
                 // No runtime effect.
             }
             Statement::Input(i) => {
+                // RapidQ: print the prompt as written, read a whole line, and
+                // store it as text or a number for the variable
+                // (rapidr_value::input_value).
+                if let Some(prompt) = &i.prompt {
+                    self.lower_expr(prompt, code)?;
+                    emit(code, Op::Print);
+                }
                 emit(code, Op::Input);
+                self.lower_expr(&i.target, code)?;
+                let suffix = rapidr_ast::input_suffix(&i.target);
+                let c = self.module.add_const(Const::Str(suffix.into()));
+                emit(code, Op::LoadConst); push_u32(code, c);
+                let name = self.module.add_string("__input_value");
+                emit(code, Op::CallBuiltin); push_u32(code, name); code.push(3);
                 self.store_target(&i.target, code)?;
             }
             Statement::Exit(e) => {
