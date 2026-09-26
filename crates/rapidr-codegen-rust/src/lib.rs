@@ -1564,31 +1564,8 @@ impl RustCodegen {
     }
 
     fn emit_input(&mut self, i: &InputStatement) {
-        // Check if target is a global scalar
-        if let Expression::Identifier(id) = &i.target {
-            let stripped = strip_type_suffix(&id.name);
-            if self.is_global_scalar(&stripped) {
-                let snake = to_snake(&stripped);
-                if let Some(prompt) = &i.prompt {
-                    let prompt = self.expr_to_string(prompt);
-                    self.write_indent();
-                    let _ = writeln!(self.output, "gs(\"{snake}\", rp_input(&{prompt}));");
-                } else {
-                    self.write_indent();
-                    let _ = writeln!(self.output, "gs(\"{snake}\", rp_input(&v_str(\"\")));");
-                }
-                return;
-            }
-        }
-        let target = self.lvalue_to_string(&i.target);
-        if let Some(prompt) = &i.prompt {
-            let prompt = self.expr_to_string(prompt);
-            self.write_indent();
-            let _ = writeln!(self.output, "{target} = rp_input(&{prompt});");
-        } else {
-            self.write_indent();
-            let _ = writeln!(self.output, "{target} = rp_input(&v_str(\"\"));");
-        }
+        // `var = __input_value(INPUT(prompt), var, suffix)`, shared with the VM.
+        self.emit_assignment(&rapidr_ast::input_assignment(i));
     }
 
     fn emit_bind(&mut self, b: &BindStatement) {
@@ -2328,6 +2305,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__data_add" => Some(format!("{{ data::add(&[{}]); v_null() }}", args.join(", "))),
         "__data_label" => Some(format!("{{ data::label(&{a0}, &{a1}); v_null() }}")),
         "__read" => Some("data::read_compiled()".to_string()),
+        "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
         "__restore" => Some(if args.is_empty() {
             "data::restore_compiled(None)".to_string()
         } else {

@@ -131,6 +131,10 @@ fn schedule_output_flush() {
 
 pub fn rp_input(prompt: &Value) -> Value {
     let p = prompt.to_string_val();
+    if crate::dialog_web::can_wait() {
+        open_input(&p, false);
+        return Value::String(String::new());
+    }
     if let Some(window) = web_sys::window() {
         match window.prompt_with_message(&p) {
             Ok(Some(s)) => Value::String(s),
@@ -139,6 +143,30 @@ pub fn rp_input(prompt: &Value) -> Value {
     } else {
         Value::String(String::new())
     }
+}
+
+/// The INPUT statement: an in-page field (the VM waits for it) showing the
+/// prompt already printed on the current line; the browser's prompt()
+/// elsewhere.
+pub fn rp_input_line() -> Value {
+    let prompt = LINE_BUF.with(|b| b.borrow().clone());
+    if crate::dialog_web::can_wait() {
+        open_input(&prompt, true);
+        return Value::String(String::new());
+    }
+    rp_input(&v_str(&prompt))
+}
+
+fn open_input(prompt: &str, echo: bool) {
+    let text = if prompt.trim().is_empty() { "Enter a value:" } else { prompt };
+    crate::dialog_web::open(crate::dialog_web::Dialog {
+        title: "",
+        text,
+        buttons: vec![("OK".into(), 1)],
+        dismissed: 0,
+        input: Some(""),
+        echo,
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -571,6 +599,17 @@ pub fn rp_end() {
 }
 
 pub fn rp_showmessage(msg: &Value) {
+    if crate::dialog_web::can_wait() {
+        crate::dialog_web::open(crate::dialog_web::Dialog {
+            title: "",
+            text: &msg.to_string_val(),
+            buttons: vec![("OK".into(), 0)],
+            dismissed: 0,
+            input: None,
+            echo: false,
+        });
+        return;
+    }
     if let Some(window) = web_sys::window() {
         let _ = window.alert_with_message(&msg.to_string_val());
     }
@@ -798,6 +837,19 @@ pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Va
 /// or OK/Cancel (confirm), so a third button (Yes/No/Cancel's Cancel,
 /// Abort/Retry/Ignore's Ignore) can't be offered on the web.
 fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button]) -> Value {
+    // Run by the bytecode VM: an in-page dialog with every button; the
+    // program waits for the answer (crate::dialog_web).
+    if crate::dialog_web::can_wait() {
+        crate::dialog_web::open(crate::dialog_web::Dialog {
+            title,
+            text,
+            buttons: buttons.iter().map(|b| (b.label.to_string(), b.result)).collect(),
+            dismissed: crate::value::dialogs::dismissed(buttons),
+            input: None,
+            echo: false,
+        });
+        return v_null();
+    }
     let Some(window) = web_sys::window() else { return v_int(0) };
     let message = if title.is_empty() { text.to_string() } else { format!("{title}\n\n{text}") };
     match buttons {

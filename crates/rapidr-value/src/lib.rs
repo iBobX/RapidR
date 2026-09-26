@@ -545,6 +545,24 @@ pub fn rp_inv(a: &Value, m: &Value) -> Value {
 }
 
 #[cfg(test)]
+mod input_tests {
+    use super::*;
+
+    #[test]
+    fn input_converts_by_type_then_suffix() {
+        let line = v_str("42 apples");
+        assert_eq!(input_value(&line, &v_str(""), "").to_string_val(), "42 apples");
+        assert_eq!(input_value(&line, &v_int(0), "").to_i64(), 42);
+        assert_eq!(input_value(&v_str("3.5"), &v_dbl(0.0), "").to_f64(), 3.5);
+        assert_eq!(input_value(&v_str("007"), &Value::Null, "$").to_string_val(), "007");
+        assert_eq!(input_value(&v_str("-7.9"), &Value::Null, "%").to_i64(), -7);
+        assert!(matches!(input_value(&v_str(" 12 "), &Value::Null, ""), Value::Integer(12)));
+        assert!(matches!(input_value(&v_str("Bob"), &Value::Null, ""), Value::String(_)));
+        assert_eq!(input_value(&v_str("abc"), &v_int(5), "").to_i64(), 0);
+    }
+}
+
+#[cfg(test)]
 mod redim_tests {
     use super::*;
 
@@ -566,7 +584,41 @@ mod redim_tests {
 
 /// Builtins implemented here that interpreter hosts dispatch before their own
 /// tables: DATA/READ/RESTORE and `__redim(old, fill, lo1, hi1, …)`.
+/// The value `INPUT var` stores from the line the user typed (RapidQ reads
+/// a whole line, "string or numeric"). A variable DIMmed as a number or
+/// string starts at 0 or "", so `current` tells its type; otherwise the name's
+/// suffix does (`$` text; `%` `&` whole number; `!` `#` number); a plain
+/// untyped name gets a number when the line is one, and text otherwise.
+pub fn input_value(line: &Value, current: &Value, suffix: &str) -> Value {
+    let text = line.to_string_val();
+    let number = || leading_number(&text);
+    match (current, suffix) {
+        (_, "$") | (Value::String(_), "") => v_str(&text),
+        (_, "%" | "&") | (Value::Integer(_), "") => v_int(number().map_or(0, |n| n.trunc() as i64)),
+        (_, "!" | "#") | (Value::Double(_), "") => v_dbl(number().unwrap_or(0.0)),
+        _ => match text.trim().parse::<i64>() {
+            Ok(n) => v_int(n),
+            Err(_) => text.trim().parse::<f64>().map_or_else(|_| v_str(&text), v_dbl),
+        },
+    }
+}
+
+/// The number at the start of `s`, as VAL reads it ("12abc" → 12).
+fn leading_number(s: &str) -> Option<f64> {
+    let t = s.trim_start();
+    let end = t
+        .char_indices()
+        .take_while(|&(i, c)| c.is_ascii_digit() || c == '.' || (i == 0 && (c == '-' || c == '+')))
+        .map(|(i, c)| i + c.len_utf8())
+        .last()?;
+    (1..=end).rev().find_map(|e| t[..e].parse::<f64>().ok())
+}
+
 pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    if key == "__input_value" {
+        let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+        return Some(Ok(input_value(&arg(0), &arg(1), &arg(2).to_string_val())));
+    }
     if key == "__redim" {
         let (old, rest) = args.split_first()?;
         let (fill, bounds) = rest.split_first()?;

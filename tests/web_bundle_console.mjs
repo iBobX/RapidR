@@ -67,6 +67,22 @@ const form = await formPage.evaluate(() => {
 });
 ok(form.forms === 1 && form.docked, `with a form the console docks at the bottom (forms=${form.forms}, docked=${form.docked})`);
 ok(form.text.startsWith("log line"), `form program's PRINT shown (${JSON.stringify(form.text)})`);
+// 3. INPUT in a bundle: an in-page field, the answer echoed in the console.
+const inPage = await browser.newPage();
+inPage.on("pageerror", (e) => errors.push(e.message));
+inPage.on("dialog", async (d) => { errors.push(`browser ${d.type()} dialog used`); await d.dismiss(); });
+await inPage.goto(bundle("console_input"));
+await inPage.waitForSelector(".rr-dialog-input", { timeout: 15000 });
+await inPage.fill(".rr-dialog-input", "Ada");
+await inPage.press(".rr-dialog-input", "Enter");
+await inPage.waitForSelector(".rr-dialog-input", { timeout: 5000 });
+await inPage.fill(".rr-dialog-input", "36");
+await inPage.press(".rr-dialog-input", "Enter");
+await inPage.waitForTimeout(300);
+const typed = await inPage.evaluate(() => document.getElementById("rapidr-console").textContent);
+ok(typed.startsWith("What is your name? Ada\nHow old are you? 36\n"), `prompts and typed lines in the console (${JSON.stringify(typed)})`);
+ok(/Hello Ada, next year you'll be ?37/.test(typed), "the program continued with the answers (a number for age)");
+
 ok(errors.length === 0, `no errors (${errors.length}${errors.length ? ": " + errors[0] : ""})`);
 
 await browser.close();
