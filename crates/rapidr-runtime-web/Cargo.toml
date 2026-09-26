@@ -59,6 +59,7 @@ features = [
 
     # Canvas 2D
     "CanvasRenderingContext2d",
+    "ImageData",
 
     # Network
     "Headers",

@@ -251,8 +251,21 @@ const COMPONENT_REGISTRY = {
         events: []
     },
     'RIMAGELIST': {
-        props: ['count', 'width', 'height', 'tag'],
-        methods: ['addimage', 'addimages', 'clear'],
+        props: ['count', 'width', 'height', 'masked', 'bkcolor', 'tag'],
+        methods: ['addbmpfile', 'addbmphandle', 'insertbmpfile', 'insertbmphandle', 'getbmp',
+                  'draw', 'delete', 'clear'],
+        events: []
+    },
+    'RBITMAP': {
+        props: ['bmp', 'width', 'height', 'pixel', 'empty', 'transparent', 'transparentcolor', 'tag'],
+        methods: ['pset', 'line', 'rectangle', 'fillrect', 'circle', 'roundrect', 'paint', 'draw',
+                  'copyrect', 'stretchdraw', 'loadfromfile', 'savetofile', 'loadfromstream',
+                  'savetostream'],
+        events: []
+    },
+    'RFONT': {
+        props: ['name', 'size', 'color', 'bold', 'italic', 'underline', 'strikeout', 'fontcount', 'tag'],
+        methods: ['addstyles', 'delstyles', 'fontname'],
         events: []
     },
     'RMYSQL': {
@@ -326,8 +339,9 @@ const COMPONENT_REGISTRY = {
         events: []
     },
     'RMEMORYSTREAM': {
-        props: ['position', 'size', 'tag'],
-        methods: ['write', 'read', 'readbyte', 'writebyte', 'savetofile', 'loadfromfile', 'clear', 'copyto'],
+        props: ['position', 'size', 'linecount', 'tag'],
+        methods: ['write', 'writestr', 'writebinstr', 'writeline', 'writenum', 'readstr', 'readbinstr',
+                  'readline', 'readnum', 'seek', 'copyfrom', 'close'],
         events: []
     },
     'RSTRINGLIST': {
@@ -780,7 +794,7 @@ const _NAME_MAP = {
   ROPENDIALOG:"ROpenDialog", RSAVEDIALOG:"RSaveDialog",
   RFILESTREAM:"RFileStream", RFILEDIALOG:"RFileDialog",
   RCODEEDITOR:"RCodeEditor", RLINE:"RLine", RICON:"RIcon",
-  RIMAGELIST:"RImageList", RSOCKET:"RSocket",
+  RIMAGELIST:"RImageList", RBITMAP:"RBitmap", RFONT:"RFont", RSOCKET:"RSocket",
   RSERVERSOCKET:"RServerSocket", RHTTP:"RHttp",
   RSTATUSBAR:"RStatusBar", RCOLORDIALOG:"RColorDialog",
   RFONTDIALOG:"RFontDialog", RDESIGNSURFACE:"RDesignSurface",

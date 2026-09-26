@@ -490,6 +490,12 @@ Powered by **FLTK** (via the `fltk` crate), the runtime provides **51+ component
 | `RMidi` | MIDI playback |
 | `RDesignSurface` | Visual form designer surface (used by IDE) |
 | `RJson`          | JSON parsing, generation, dot-path access, and file I/O |
+| `RFont` (`QFONT`) | Font description applied with `Label.Font = Font` (name, size, color, bold/italic/underline/strike-out) |
+| `RBitmap` (`QBITMAP`) | Off-screen image: pixels, lines, rectangles, circles, flood fill, BMP load/save, drawn with `Canvas.Draw` |
+| `RImageList` (`QIMAGELIST`) | Same-sized images from BMP files or strips, with a transparent mask color |
+| `RMemoryStream` (`QMEMORYSTREAM`) | In-memory byte stream: strings, lines, numbers, seek, copy |
+
+RapidQ's `QFONT`, `QBITMAP`, `QIMAGELIST` and `QMEMORYSTREAM` share one implementation (`rapidr_value::objects`) on the desktop and the web.
 
 #### Event Handling
 

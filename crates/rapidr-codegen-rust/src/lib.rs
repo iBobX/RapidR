@@ -656,6 +656,24 @@ impl RustCodegen {
             }
         }
 
+        // `Bitmap.Pixel(x, y) = c` on a component: its `pixel` method with the
+        // value as an extra last argument.
+        let indexed = match &a.target {
+            Expression::FunctionCall(fc) if !fc.args.is_empty() => Some((&fc.callee, &fc.args)),
+            Expression::ArrayAccess(aa) => Some((&aa.array, &aa.indices)),
+            _ => None,
+        };
+        if let Some((Expression::MemberAccess(ma), indices)) = indexed.map(|(c, i)| (c.as_ref(), i)) {
+            if let Some(comp_name) = self.get_component_name(&ma.object) {
+                let mut args: Vec<String> = indices.iter().map(|e| self.owned_expr(e)).collect();
+                args.push(self.owned_expr(&a.value));
+                let method = ma.member.to_lowercase();
+                self.write_indent();
+                let _ = writeln!(self.output, "rp_comp_method(\"{comp_name}\", \"{method}\", &[{}]);", args.join(", "));
+                return;
+            }
+        }
+
         // Component property assignment: comp.Property = value
         if let Expression::MemberAccess(ma) = &a.target {
             if let Some(comp_name) = self.get_component_name(&ma.object) {

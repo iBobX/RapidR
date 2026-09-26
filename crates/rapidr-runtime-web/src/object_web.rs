@@ -324,6 +324,45 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     });
 
     gui_web::setup_data_binding(&name_clone);
+    if rapidr_value::objects::create(name, type_name) {
+        rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+    }
+}
+
+thread_local! {
+    /// Files a program saved (`Bitmap.SaveToFile`): the page has no file
+    /// system, so they live for the session and can be loaded back.
+    static SAVED_FILES: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new());
+}
+
+/// Reads a file for an object (`Bitmap.LoadFromFile`, `ImageList.AddBMPFile`):
+/// one saved earlier this session, or one shipped with the page (fetched
+/// synchronously, as the program expects the data on the next line).
+fn web_read_file(path: &str) -> Result<Vec<u8>, String> {
+    if let Some(bytes) = SAVED_FILES.with(|f| f.borrow().get(path).cloned()) {
+        return Ok(bytes);
+    }
+    let fail = |_| format!("can't read {path}");
+    let xhr = web_sys::XmlHttpRequest::new().map_err(fail)?;
+    xhr.open_with_async("GET", path, false).map_err(fail)?;
+    // Bytes as-is: each byte arrives as one character U+0000..U+00FF (+ &HF700).
+    xhr.override_mime_type("text/plain; charset=x-user-defined").map_err(fail)?;
+    xhr.send().map_err(fail)?;
+    match xhr.status() {
+        Ok(200) | Ok(0) => {}
+        _ => return Err(format!("can't read {path} (not found)")),
+    }
+    let text = xhr.response_text().ok().flatten().unwrap_or_default();
+    Ok(text.chars().map(|c| (c as u32 & 0xFF) as u8).collect())
+}
+
+fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+    SAVED_FILES.with(|f| f.borrow_mut().insert(path.to_string(), bytes.to_vec()));
+    Ok(())
+}
+
+fn object_error(name: &str, what: &str, e: &str) {
+    web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] {name}.{what}: {e}")));
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +396,23 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+
+    // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
+    if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
+        if let Err(e) = result {
+            object_error(name, prop, &e);
+        }
+        return;
+    }
+    // `Label.Font = Font` (a QFONT): copy the font's settings.
+    if lprop == "font" {
+        if let Some(props) = rapidr_value::objects::font_properties(&val.to_string_val()) {
+            for (flat, v) in props {
+                rp_comp_set(name, flat, v);
+            }
+            return;
+        }
+    }
 
     // Handle timer interval/enabled specially
     COMPONENTS.with(|c| {
@@ -466,6 +522,9 @@ pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    if let Some(v) = rapidr_value::objects::get(name, &lprop) {
+        return v;
+    }
 
     // Check StringList first
     let is_stringlist = COMPONENTS.with(|c| {
@@ -561,6 +620,27 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     let lmethod = method.to_lowercase();
 
+    // `Mem.CopyFrom(File, n)` from a QFILESTREAM (text held by the page).
+    if lmethod == "copyfrom" && rp_comp_type(&uname) == "RMEMORYSTREAM" {
+        let src = args.first().map(|v| v.to_string_val().to_uppercase()).unwrap_or_default();
+        if rp_comp_type(&src) == "RFILESTREAM" {
+            let n = args.get(1).map_or(0, |v| v.to_i64());
+            let text = fs_get_text(&src);
+            let chars: Vec<char> = text.chars().collect();
+            let start = if n <= 0 { 0 } else { fs_get_pos(&src).min(chars.len()) };
+            let end = if n <= 0 { chars.len() } else { (start + n as usize).min(chars.len()) };
+            let chunk: String = chars[start..end].iter().collect();
+            fs_set_pos(&src, end, end >= chars.len());
+            rapidr_value::objects::stream_write(name, &rapidr_value::objects::codec::string_to_bytes(&chunk));
+            return v_null();
+        }
+    }
+    if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
+        return result.unwrap_or_else(|e| {
+            object_error(name, method, &e);
+            v_null()
+        });
+    }
     let comp_type = rp_comp_type(&uname);
     if comp_type.is_empty() {
         web_sys::console::warn_1(&JsValue::from_str(&format!(

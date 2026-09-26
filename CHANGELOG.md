@@ -7,6 +7,58 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.20.0] — 2026-09-25
+
+### Added
+- **RapidQ's non-visual objects `QFONT`, `QMEMORYSTREAM`, `QBITMAP` and
+  `QIMAGELIST`** (manual, Appendix A), no longer empty placeholders. They are
+  written once, in `rapidr_value::objects`, and the desktop and web runtimes
+  both use that code, so the two behave the same:
+  - `QFONT`: Name, Size, Color, Bold/Italic/Underline/StrikeOut, `AddStyles`,
+    `DelStyles`. `Label.Font = Font` applies the font to the component, on
+    the desktop as well as on the web (desktop widgets didn't apply fonts
+    before).
+  - `QMEMORYSTREAM`: Position, Size, LineCount; `WriteStr`/`ReadStr`,
+    `WriteLine`/`ReadLine`, `WriteNum`/`ReadNum` (the `Num_*` types),
+    generic `Write`, `Seek`, `CopyFrom` (from another memory stream or a
+    QFILESTREAM), `Close`.
+  - `QBITMAP`: Width/Height, `Pixel(x, y)` (read and assign), `PSet`,
+    `Line`, `Rectangle`, `FillRect`, `Circle` (outline or filled),
+    `RoundRect`, `Paint` (flood fill), `Draw`, `CopyRect`, `StretchDraw`,
+    Transparent/TransparentColor, `LoadFromFile`/`SaveToFile` and
+    `LoadFromStream`/`SaveToStream` (uncompressed BMP, read and written by
+    RapidR itself, with no new dependencies). `.BMP` gives the image as a
+    `data:` URL, so `Image.BMP = Bitmap.BMP` works anywhere.
+  - `QIMAGELIST`: Width/Height/Count/Masked, `AddBMPFile`/`AddBMPHandle`/
+    `Insert…` (strips wider than the list are split into images, and the
+    mask color becomes transparent), `GetBMP`, `Draw` onto a bitmap,
+    `Delete`, `Clear`.
+- **`Canvas.Draw(x, y, Bitmap)`** on the desktop and the web, keeping the
+  bitmap's transparent color. On the web, `Bitmap.LoadFromFile` reads files
+  shipped with the page, and `SaveToFile` keeps the file for the session.
+- **Assigning to an indexed property**, e.g. `Bitmap.Pixel(x, y) = c`, calls
+  the component's method with the value as its last argument (both
+  backends).
+- **Built-in RAPIDQ.INC:** `soFrom*`, `Num_*`, `fs*` font styles, `clNone`,
+  `clDefault`, `pf*`.
+- **Checking desktop rendering (for tests):** with `RAPIDR_CAPTURE=<prefix>`
+  set, a desktop program saves each open window (forms and dialogs) as
+  `<prefix>-N.bmp` and exits. This needs no screen-recording permission.
+- **Tests:** conformance case `rapidq_objects`; IDE suite
+  `tests/web_ide_objects.mjs`; unit tests for the BMP codec, drawing, streams
+  and image lists.
+
+### Fixed
+- **Desktop canvas drawing is relative to the canvas**, as in RapidQ, and
+  clipped to it. It used window coordinates, so on a canvas at Left = 100,
+  `Line 0, 0, …` started at the window's corner.
+- **Desktop `MESSAGEBOX`/`MESSAGEDLG`:** Enter now chooses the first button
+  (Yes/OK), as in RapidQ. FLTK's stock dialog defaulted to the middle one,
+  which was "No" on Yes/No/Cancel.
+- **Desktop labels are left-aligned** by default (RapidQ's taLeftJustify),
+  and honour `Alignment` 1 (right) and 2 (center). They were centered.
+- **Web labels:** Underline and StrikeOut can be on together.
+
 ## [2.19.0] — 2026-09-25
 
 ### Added

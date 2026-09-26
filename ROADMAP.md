@@ -137,7 +137,12 @@ Next up, in order:
 - [x] `REDIM` keeping data (resized in place; creates the array without a DIM; `REDIM PRESERVE`), `INV` (v2.18.0)
 - [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
 - [ ] Web: an in-page dialog with any buttons (needs the VM to pause and resume on the web, like the debugger does)
-- [ ] Missing RapidQ objects as real components: QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM (then the rest of the list in `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`)
+- [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
+- [ ] Arrays of components (`DIM lbl(1 TO 5) AS QLABEL` … `lbl(i).Height = 20`) and indexed sub-objects inside CREATE (`Panel(0).Caption = …`): "nested member-access store" blocks 24 of the 386 RapidQ examples
+- [ ] QFILESTREAM on the shared stream code (today only line-oriented: no ReadStr/WriteStr/ReadNum/Position/Size on the desktop)
+- [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
+- [ ] `rapidr build --interp` reuses whatever `rapidrintr-runner` is in `target/`, even when it's older than the CLI: rebuild or version-check it
+- [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [ ] Native builds catch up (reasoning: high): GOTO/GOSUB, OOP TYPEs, STATIC, function pointers
 
 - [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
@@ -157,7 +162,7 @@ Next up, in order:
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
 - [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
 - [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)
-- [ ] Runtimes: implement RapidQ objects RapidR lacks (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, …) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
+- [ ] Runtimes: implement the remaining RapidQ objects (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM done in v2.20.0) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
 - [ ] Accept `$RESOURCE`, `$OPTION ICON`, etc. (`$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [ ] Fix builtins per the manual: `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)

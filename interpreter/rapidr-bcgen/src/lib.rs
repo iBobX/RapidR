@@ -1780,6 +1780,34 @@ impl Bcgen {
                 }
             }
             Expression::ArrayAccess(a) => {
+                // `Bitmap.Pixel(x, y) = c` on a component: its `pixel` method
+                // with the value as an extra last argument.
+                if let Expression::MemberAccess(m) = &*a.array {
+                    if let Expression::Identifier(obj) = &*m.object {
+                        let component = self.component_instance_names.contains_key(&obj.name.to_lowercase());
+                        if component || self.is_dynamic_object(&obj.name) {
+                            let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));
+                            emit(code, Op::StoreLocal); push_u16(code, tmp);
+                            if !component {
+                                self.lower_expr(&m.object, code)?;
+                            }
+                            for i in &a.indices {
+                                self.lower_expr(i, code)?;
+                            }
+                            emit(code, Op::LoadLocal); push_u16(code, tmp);
+                            let mn_s = self.module.add_string(&m.member.to_lowercase());
+                            if component {
+                                let id_s = self.module.add_string(&obj.name);
+                                emit(code, Op::CallMethod); push_u32(code, id_s); push_u32(code, mn_s);
+                            } else {
+                                emit(code, Op::CallMethodDyn); push_u32(code, mn_s);
+                            }
+                            code.push(a.indices.len() as u8 + 1);
+                            emit(code, Op::Pop);
+                            return Ok(());
+                        }
+                    }
+                }
                 // Stack so far: [..., value]. ASet wants [array, i1..iN, value]
                 // and updates the array in place, so park the value first.
                 let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));

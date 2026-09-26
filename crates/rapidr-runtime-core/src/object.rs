@@ -504,11 +504,29 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     COMPONENTS.with(|c| {
         c.borrow_mut().insert(name_lower, comp);
     });
+    rapidr_value::objects::create(name, type_name);
 }
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
+
+    // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the web runtime).
+    if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
+        if let Err(e) = result {
+            eprintln!("[rapidr] {name}.{prop}: {e}");
+        }
+        return;
+    }
+    // `Label.Font = Font` (a QFONT): copy the font's settings.
+    if prop_lower == "font" {
+        if let Some(props) = rapidr_value::objects::font_properties(&val.to_string_val()) {
+            for (flat, v) in props {
+                rp_comp_set(name, flat, v);
+            }
+            return;
+        }
+    }
 
     // Normalize dot-notation font properties → flat names for compatibility
     let aliases: &[(&str, &str)] = &[
@@ -560,6 +578,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if prop_lower == "text" && (comp_type == "RCODEEDITOR" || comp_type == "RRICHEDIT" || comp_type == "RMEMO") {
             crate::gui::gui_set_text(name, &val.to_string_val());
         }
+        // `Image.BMP = Bitmap.BMP` (or a file) on a shown image.
+        if prop_lower == "bmp" && comp_type == "RIMAGE" {
+            crate::gui::image_method(name, "loadfromfile", std::slice::from_ref(&val));
+        }
         // Update text on Input (REDIT)
         if prop_lower == "text" && comp_type == "REDIT" {
             crate::gui::gui_set_input_value(name, &val.to_string_val());
@@ -587,13 +609,26 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         // to a no-op by bcgen, so without this fallback `r.left = 10`
         // would silently drop the value.
         let comp = comps.entry(key).or_insert_with(|| RpComponent::new("RUDT"));
+        // The program chose a font: the GUI applies it (defaults it doesn't).
+        let font_prop = prop_lower.starts_with("font") && prop_lower != "font";
+        if font_prop {
+            comp.properties.insert("__fontset".into(), v_bool(true));
+        }
         comp.properties.insert(prop_lower, val);
+        #[cfg(feature = "gui")]
+        if font_prop {
+            drop(comps);
+            crate::gui::gui_apply_font(name);
+        }
     });
 }
 
 /// Get a property from a registered component.
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
+    if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
+        return v;
+    }
 
     // Check GUI state overrides first
     #[cfg(feature = "gui")]
@@ -671,6 +706,22 @@ pub fn rp_comp_type(name: &str) -> String {
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
+
+    // `Mem.CopyFrom(File, n)` from a QFILESTREAM: read its bytes here.
+    if method_lower == "copyfrom" && comp_type == "RMEMORYSTREAM" {
+        let src = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+        if rp_comp_type(&src) == "RFILESTREAM" {
+            let n = args.get(1).map_or(0, |v| v.to_i64());
+            rapidr_value::objects::stream_write(name, &filestream_read_bytes(&src, n));
+            return v_null();
+        }
+    }
+    if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
+        return result.unwrap_or_else(|e| {
+            eprintln!("[rapidr] {name}.{method}: {e}");
+            v_null()
+        });
+    }
 
     match comp_type.as_str() {
         "RSQLITE" => {
@@ -910,6 +961,19 @@ pub fn rp_run_app() {
 thread_local! {
     static FILESTREAMS: RefCell<HashMap<String, std::io::BufReader<std::fs::File>>> = RefCell::new(HashMap::new());
     static FILESTREAM_WRITERS: RefCell<HashMap<String, std::fs::File>> = RefCell::new(HashMap::new());
+}
+
+/// Up to `n` bytes (all that's left if `n` <= 0) from a QFILESTREAM open for
+/// reading.
+fn filestream_read_bytes(name: &str, n: i64) -> Vec<u8> {
+    use std::io::Read;
+    FILESTREAMS.with(|s| {
+        let mut buf = Vec::new();
+        if let Some(reader) = s.borrow_mut().get_mut(&name.to_lowercase()) {
+            let _ = if n <= 0 { reader.read_to_end(&mut buf).map(|_| ()) } else { reader.by_ref().take(n as u64).read_to_end(&mut buf).map(|_| ()) };
+        }
+        buf
+    })
 }
 
 fn filestream_method(name: &str, method: &str, args: &[Value]) -> Value {
@@ -1499,6 +1563,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
         | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
         | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"
+        | "RFONT" | "RMEMORYSTREAM" | "RBITMAP"
         | "RTRACKBAR" | "RSCROLLBOX" | "RSPLITTER" | "RPRINTER"
         | "RSQLITE" | "RMYSQL"
         | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
