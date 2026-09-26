@@ -150,7 +150,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
         "RIMAGE" => create_image(&id, name, props),
         "RCANVAS" => create_canvas(&id, name, props),
-        "RSTRINGGRID" => create_table(&id, name, props),
+        "RSTRINGGRID" => create_grid(&id, name, props),
         "RTABCONTROL" => create_tabcontrol(&id, name, props),
         "RTREEVIEW" => create_treeview(&id, name, props),
         "RMAINMENU" => create_mainmenu(&id, name, props),
@@ -260,12 +260,6 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             if let Ok(canvas) = el.clone().dyn_into::<web_sys::HtmlCanvasElement>() {
                 canvas.set_height(v as u32);
             }
-        }
-        "cols" | "colcount" => {
-            grid_set_col_count(&id, val.to_i64() as usize);
-        }
-        "rows" | "rowcount" => {
-            grid_set_row_count(&id, val.to_i64() as usize);
         }
         "visible" => {
             if val.to_bool() {
@@ -1001,11 +995,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             crate::storage_web::storage_clear(&st);
             v_null()
         }
-        // RSTRINGGRID clear — must come before generic (_, "clear")
-        ("RSTRINGGRID", "clear") => {
-            grid_set_row_count(&id, 0);
-            v_null()
-        }
         (_, "clear") => {
             if let Some(el) = get_el(&id) {
                 if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
@@ -1165,33 +1154,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         ("RCANVAS", "paint" | "update") => {
             v_null()
-        }
-        // StringGrid methods
-        ("RSTRINGGRID", "create" | "new" | "init") => {
-            // create([rows[, cols]]) — both default to existing or 0
-            let rows = args.first().map(|v| v.to_i64() as usize);
-            let cols = args.get(1).map(|v| v.to_i64() as usize);
-            if let Some(r) = rows { grid_set_row_count(&id, r); }
-            if let Some(c) = cols { grid_set_col_count(&id, c); }
-            v_null()
-        }
-        ("RSTRINGGRID", "setcell") if args.len() >= 3 => {
-            grid_set_cell(&id, &args[0], &args[1], &args[2]);
-            v_null()
-        }
-        ("RSTRINGGRID", "getcell") if args.len() >= 2 => {
-            grid_get_cell(&id, &args[0], &args[1])
-        }
-        ("RSTRINGGRID", "setrowcount") if args.len() >= 1 => {
-            grid_set_row_count(&id, args[0].to_i64() as usize);
-            v_null()
-        }
-        ("RSTRINGGRID", "setcolcount") if args.len() >= 1 => {
-            grid_set_col_count(&id, args[0].to_i64() as usize);
-            v_null()
-        }
-        ("RSTRINGGRID", "addrow") => {
-            grid_add_row(&id, args)
         }
         // TabControl methods
         ("RTABCONTROL", "addtab") if args.len() >= 1 => {
@@ -1931,25 +1893,6 @@ fn create_canvas(id: &str, name: &str, props: &HashMap<String, Value>) {
     setup_widget(&el, id, name, props);
 }
 
-fn create_table(id: &str, name: &str, props: &HashMap<String, Value>) {
-    let wrapper = create_el("div");
-    wrapper.set_class_name("rr-widget");
-    let _ = wrapper.style().set_property("overflow", "auto");
-    let _ = wrapper.style().set_property("border", "1px solid #aaa");
-    let _ = wrapper.style().set_property("background", "white");
-
-    let table = create_el("table");
-    table.set_id(&format!("{}-table", id));
-    table.set_class_name("rr-grid");
-    let _ = wrapper.append_child(&table);
-
-    let rows = props.get("rows").or_else(|| props.get("rowcount")).map(|v| v.to_i64()).unwrap_or(0) as usize;
-    let cols = props.get("cols").or_else(|| props.get("colcount")).map(|v| v.to_i64()).unwrap_or(0) as usize;
-    grid_init_cells(&format!("{}-table", id), rows, cols);
-
-    setup_widget(&wrapper, id, name, props);
-}
-
 fn create_tabcontrol(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_class_name("rr-widget");
@@ -2243,6 +2186,330 @@ fn create_listview(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     setup_widget(&wrapper, id, name, props);
     render_listview(name);
+}
+
+/// A QSTRINGGRID: a table drawn from the shared grid data
+/// (rapidr_value::objects::grid), like the desktop runtime's. Clicking a
+/// cell selects it (OnSelectCell, OnClick); double-clicking fires
+/// OnDblClick and, with goEditing, edits the cell in place (every click with
+/// goAlwaysShowEditor; also Enter, F2 or typing). Enter or leaving the cell
+/// stores it (OnSetEditText, then OnChange); Escape drops the edit. An
+/// ellipsis column (or a "..." cell) has a button: OnEllipsisClick(Col, Row)
+/// and OnDblClick.
+fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let wrapper = create_el("div");
+    wrapper.set_class_name("rr-widget");
+    let _ = wrapper.set_attribute("tabindex", "0");
+    let st = wrapper.style();
+    let _ = st.set_property("overflow", "auto");
+    let _ = st.set_property("border", "1px solid #aaa");
+    let _ = st.set_property("background", "white");
+    let _ = st.set_property("outline", "none");
+    let table = create_el("table");
+    table.set_id(&format!("{}-table", id));
+    table.set_class_name("rr-grid");
+    let ts = table.style();
+    let _ = ts.set_property("border-collapse", "collapse");
+    let _ = ts.set_property("table-layout", "fixed");
+    let _ = ts.set_property("font-size", "13px");
+    let _ = wrapper.append_child(&table);
+
+    let owner = name.to_uppercase();
+    let click_owner = owner.clone();
+    let click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+        let Some((c, r)) = grid_target_cell(&target) else { return };
+        if target.closest("[contenteditable=true]").ok().flatten().is_some() {
+            return; // clicks inside the cell being edited
+        }
+        grid_select(&click_owner, c, r);
+        if target.closest(".rr-grid-ellipsis").ok().flatten().is_some() {
+            crate::object_web::rp_fire_event_2(&click_owner, "onellipsisclick", v_int(c), v_int(r));
+            crate::object_web::rp_fire_event(&click_owner, "ondblclick");
+            return;
+        }
+        crate::object_web::rp_fire_event(&click_owner, "onclick");
+        if grid_option(&click_owner, rapidr_value::objects::grid::GO_ALWAYS_SHOW_EDITOR) {
+            grid_start_edit(&click_owner, None);
+        }
+    });
+    let _ = wrapper.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+    click.forget();
+
+    let dbl_owner = owner.clone();
+    // The first click redrew the table, so this acts on the cell it
+    // selected rather than on the event's target.
+    let dbl = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+        if target.closest(".rr-grid-ellipsis").ok().flatten().is_some() || target.closest("[contenteditable=true]").ok().flatten().is_some() {
+            return;
+        }
+        crate::object_web::rp_fire_event(&dbl_owner, "ondblclick");
+        grid_start_edit(&dbl_owner, None);
+    });
+    let _ = wrapper.add_event_listener_with_callback("dblclick", dbl.as_ref().unchecked_ref());
+    dbl.forget();
+
+    let key_owner = owner.clone();
+    let keys = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+        let editing = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).is_some_and(|t| t.get_attribute("contenteditable").as_deref() == Some("true"));
+        if editing {
+            match e.key().as_str() {
+                "Enter" => {
+                    e.prevent_default();
+                    grid_finish_edit(&key_owner, true);
+                }
+                "Escape" => {
+                    e.prevent_default();
+                    grid_finish_edit(&key_owner, false);
+                }
+                _ => {}
+            }
+            return;
+        }
+        let Some((c, r)) = rapidr_value::objects::with_grid(&key_owner, |g| (g.col, g.row)) else { return };
+        let moved = match e.key().as_str() {
+            "ArrowUp" => Some((c, r - 1)),
+            "ArrowDown" => Some((c, r + 1)),
+            "ArrowLeft" => Some((c - 1, r)),
+            "ArrowRight" => Some((c + 1, r)),
+            _ => None,
+        };
+        if let Some((nc, nr)) = moved {
+            e.prevent_default();
+            grid_select(&key_owner, nc, nr);
+            return;
+        }
+        let key = e.key();
+        if key == "Enter" || key == "F2" {
+            e.prevent_default();
+            grid_start_edit(&key_owner, None);
+        } else if key.chars().count() == 1 && !e.ctrl_key() && !e.meta_key() && !e.alt_key() {
+            e.prevent_default();
+            grid_start_edit(&key_owner, Some(key));
+        }
+    });
+    let _ = wrapper.add_event_listener_with_callback("keydown", keys.as_ref().unchecked_ref());
+    keys.forget();
+
+    // Leaving an edited cell stores it.
+    let blur_owner = owner;
+    let blur = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+        let editing = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).is_some_and(|t| t.get_attribute("contenteditable").as_deref() == Some("true"));
+        if editing {
+            grid_finish_edit(&blur_owner, true);
+        }
+    });
+    let _ = wrapper.add_event_listener_with_callback("focusout", blur.as_ref().unchecked_ref());
+    blur.forget();
+
+    setup_widget(&wrapper, id, name, props);
+    render_grid(name);
+}
+
+/// The grid cell (col, row) a clicked element is in.
+fn grid_target_cell(target: &web_sys::Element) -> Option<(i64, i64)> {
+    let td = target.closest("td").ok()??;
+    let c = td.get_attribute("data-col")?.parse().ok()?;
+    let r = td.get_attribute("data-row")?.parse().ok()?;
+    Some((c, r))
+}
+
+fn grid_option(name: &str, option: u32) -> bool {
+    rapidr_value::objects::with_grid(name, |g| g.has_option(option)).unwrap_or(false)
+}
+
+/// Selects a cell as a click or an arrow key does: fixed cells can't be
+/// selected; OnSelectCell(Col, Row, CanSelect) is fired when the selection
+/// moves.
+fn grid_select(name: &str, c: i64, r: i64) {
+    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
+        if c < 0 || r < 0 || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() {
+            return false;
+        }
+        let before = (g.col, g.row);
+        g.select(c, r);
+        (g.col, g.row) == (c, r) && before != (c, r)
+    })
+    .unwrap_or(false);
+    if ok {
+        render_grid_now(name);
+        crate::object_web::rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
+    }
+}
+
+fn grid_cell_el(name: &str, c: i64, r: i64) -> Option<web_sys::HtmlElement> {
+    let table = get_el(&format!("{}-table", comp_id(name)))?;
+    table.query_selector(&format!("td[data-col=\"{c}\"][data-row=\"{r}\"] .rr-grid-text")).ok()??.dyn_into::<web_sys::HtmlElement>().ok()
+}
+
+/// Makes the selected cell editable (with `initial` text, or its own).
+fn grid_start_edit(name: &str, initial: Option<String>) {
+    let Some((c, r, editable)) = rapidr_value::objects::with_grid(name, |g| (g.col, g.row, g.editable())) else { return };
+    if !editable || c < 0 || r < 0 {
+        return;
+    }
+    let Some(el) = grid_cell_el(name, c, r) else { return };
+    if let Some(text) = initial {
+        el.set_text_content(Some(&text));
+    }
+    let _ = el.set_attribute("contenteditable", "true");
+    let _ = el.set_attribute("spellcheck", "false");
+    let st = el.style();
+    let _ = st.set_property("background", "white");
+    let _ = st.set_property("color", "black");
+    let _ = st.set_property("outline", "1px solid #0078d7");
+    let _ = st.set_property("display", "block");
+    let _ = el.focus();
+    // Caret at the end.
+    if let (Some(win), Some(doc)) = (web_sys::window(), web_sys::window().and_then(|w| w.document())) {
+        if let (Ok(Some(sel)), Ok(range)) = (win.get_selection(), doc.create_range()) {
+            let _ = range.select_node_contents(&el);
+            range.collapse_with_to_start(false);
+            let _ = sel.remove_all_ranges();
+            let _ = sel.add_range(&range);
+        }
+    }
+}
+
+/// Ends an edit: stores the text (`keep`) and fires OnSetEditText(Col,
+/// Row, Value$) and OnChange.
+fn grid_finish_edit(name: &str, keep: bool) {
+    let Some((c, r)) = rapidr_value::objects::with_grid(name, |g| (g.col, g.row)) else { return };
+    let Some(el) = grid_cell_el(name, c, r) else { return };
+    if el.get_attribute("contenteditable").as_deref() != Some("true") {
+        return;
+    }
+    let _ = el.remove_attribute("contenteditable");
+    let value = el.text_content().unwrap_or_default();
+    let changed = keep
+        && rapidr_value::objects::with_grid_mut(name, |g| {
+            let (cu, ru) = (c as usize, r as usize);
+            if g.cell(cu, ru) == value {
+                return false;
+            }
+            g.set_cell(cu, ru, value.clone());
+            true
+        })
+        .unwrap_or(false);
+    render_grid_now(name);
+    if let Some(wrapper) = get_el(&comp_id(name)).and_then(|w| w.dyn_into::<web_sys::HtmlElement>().ok()) {
+        let _ = wrapper.focus();
+    }
+    if changed {
+        crate::object_web::rp_fire_event_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
+        crate::object_web::rp_fire_event(name, "onchange");
+    }
+}
+
+thread_local! {
+    /// Grids to redraw once the program yields (a loop of SetCell calls
+    /// redraws once).
+    static GRIDS_TO_RENDER: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Redraws a QSTRINGGRID's table from its data, soon (batched).
+pub fn render_grid(name: &str) {
+    let name = name.to_uppercase();
+    let first = GRIDS_TO_RENDER.with(|g| {
+        let mut g = g.borrow_mut();
+        let first = g.is_empty();
+        if !g.contains(&name) {
+            g.push(name);
+        }
+        first
+    });
+    if !first {
+        return;
+    }
+    let flush = Closure::once_into_js(move || {
+        for name in GRIDS_TO_RENDER.with(|g| std::mem::take(&mut *g.borrow_mut())) {
+            render_grid_now(&name);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);
+    }
+}
+
+/// Redraws a QSTRINGGRID's table now: fixed cells shaded, the selected
+/// cell highlighted, cell text as plain text (never markup).
+fn render_grid_now(name: &str) {
+    use rapidr_value::objects::grid::{GO_HORZ_LINE, GO_ROW_SELECT, GO_VERT_LINE};
+    let Some(table) = get_el(&format!("{}-table", comp_id(name))) else { return };
+    let _ = rapidr_value::objects::with_grid(name, |g| {
+        table.set_inner_text("");
+        let colgroup = create_el("colgroup");
+        for w in &g.col_widths {
+            let col = create_el("col");
+            let _ = col.style().set_property("width", &format!("{}px", (*w).clamp(0, 10_000)));
+            let _ = colgroup.append_child(&col);
+        }
+        let _ = table.append_child(&colgroup);
+        let total: i64 = g.col_widths.iter().map(|w| (*w).clamp(0, 10_000)).sum();
+        let _ = table.style().set_property("width", &format!("{total}px"));
+        let border = match (g.has_option(GO_HORZ_LINE), g.has_option(GO_VERT_LINE)) {
+            (true, true) => "1px solid #c0c0c0",
+            (false, false) => "none",
+            _ => "1px solid #e0e0e0",
+        };
+        let tbody = create_el("tbody");
+        for r in 0..g.row_count() {
+            let tr = create_el("tr");
+            let _ = tr.style().set_property("height", &format!("{}px", g.row_heights[r].clamp(0, 10_000)));
+            for c in 0..g.col_count() {
+                let td = create_el("td");
+                let _ = td.set_attribute("data-col", &c.to_string());
+                let _ = td.set_attribute("data-row", &r.to_string());
+                let fixed = r < g.fixed_rows() || c < g.fixed_cols();
+                let selected = !fixed && g.row == r as i64 && (g.col == c as i64 || g.has_option(GO_ROW_SELECT));
+                let st = td.style();
+                let _ = st.set_property("padding", "0 3px");
+                let _ = st.set_property("overflow", "hidden");
+                let _ = st.set_property("white-space", "nowrap");
+                let _ = st.set_property("cursor", "default");
+                if fixed {
+                    let _ = st.set_property("background", "#d4d0c8");
+                    let _ = st.set_property("border", "1px outset #e8e6e0");
+                } else {
+                    let _ = st.set_property("border", border);
+                    if selected {
+                        let _ = st.set_property("background", "#0078d7");
+                        let _ = st.set_property("color", "white");
+                        let _ = td.set_attribute("aria-selected", "true");
+                    }
+                }
+                let text = create_el("span");
+                text.set_class_name("rr-grid-text");
+                let text_cell = g.cell(c, r);
+                let ellipsis = !fixed && (g.column_style(c) == rapidr_value::objects::grid::GCS_ELLIPSIS || text_cell == "...");
+                if !(ellipsis && text_cell == "...") {
+                    text.set_text_content(Some(text_cell));
+                }
+                let _ = td.append_child(&text);
+                if ellipsis {
+                    let _ = st.set_property("position", "relative");
+                    let button = create_el("span");
+                    button.set_class_name("rr-grid-ellipsis");
+                    button.set_text_content(Some("..."));
+                    let bs = button.style();
+                    let _ = bs.set_property("position", "absolute");
+                    let _ = bs.set_property("right", "0");
+                    let _ = bs.set_property("top", "0");
+                    let _ = bs.set_property("bottom", "0");
+                    let _ = bs.set_property("padding", "0 4px");
+                    let _ = bs.set_property("background", "#e6e6e6");
+                    let _ = bs.set_property("color", "black");
+                    let _ = bs.set_property("border", "1px outset #f4f4f4");
+                    let _ = bs.set_property("cursor", "pointer");
+                    let _ = td.append_child(&button);
+                }
+                let _ = tr.append_child(&td);
+            }
+            let _ = tbody.append_child(&tr);
+        }
+        let _ = table.append_child(&tbody);
+    });
 }
 
 /// Fills a QLISTVIEW's table from its data: a header row (unless
@@ -2589,177 +2856,6 @@ fn canvas_set_font(id: &str, family: &str, size: i64) {
 // StringGrid helpers
 // ---------------------------------------------------------------------------
 
-fn grid_init_cells(table_id: &str, rows: usize, cols: usize) {
-    if let Some(table) = get_el(table_id) {
-        table.set_inner_html("");
-        for r in 0..rows {
-            let tr = create_el("tr");
-            for c in 0..cols {
-                let td = create_el("td");
-                td.set_class_name("rr-grid-cell");
-                // Make all non-header cells (row > 0) in non-first column editable
-                // so users can actually type values directly into the grid.
-                // Row 0 is treated as a fixed header; column 0 as a label column.
-                if r > 0 && c > 0 {
-                    let _ = td.set_attribute("contenteditable", "true");
-                    let _ = td.set_attribute("spellcheck", "false");
-                    let _ = td.style().set_property("cursor", "text");
-                }
-                let _ = tr.append_child(&td);
-            }
-            let _ = table.append_child(&tr);
-        }
-    }
-}
-
-fn grid_set_cell(id: &str, col: &Value, row: &Value, text: &Value) {
-    let table_id = format!("{}-table", id);
-    if let Some(table) = get_el(&table_id) {
-        if let Ok(table_el) = table.dyn_into::<web_sys::HtmlTableElement>() {
-            let r = row.to_i64() as u32;
-            let c = col.to_i64() as u32;
-            if let Some(rows) = table_el.rows().item(r) {
-                if let Ok(row_el) = rows.dyn_into::<web_sys::HtmlTableRowElement>() {
-                    if let Some(cell) = row_el.cells().item(c) {
-                        if let Ok(cell_el) = cell.dyn_into::<web_sys::HtmlElement>() {
-                            cell_el.set_inner_text(&text.to_string_val());
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn grid_get_cell(id: &str, col: &Value, row: &Value) -> Value {
-    let table_id = format!("{}-table", id);
-    if let Some(table) = get_el(&table_id) {
-        if let Ok(table_el) = table.dyn_into::<web_sys::HtmlTableElement>() {
-            let r = row.to_i64() as u32;
-            let c = col.to_i64() as u32;
-            if let Some(rows) = table_el.rows().item(r) {
-                if let Ok(row_el) = rows.dyn_into::<web_sys::HtmlTableRowElement>() {
-                    if let Some(cell) = row_el.cells().item(c) {
-                        if let Ok(cell_el) = cell.dyn_into::<web_sys::HtmlElement>() {
-                            return v_str(&cell_el.inner_text());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    v_str("")
-}
-
-fn grid_set_row_count(id: &str, count: usize) {
-    let table_id = format!("{}-table", id);
-    if let Some(table) = get_el(&table_id) {
-        if let Ok(table_el) = table.dyn_into::<web_sys::HtmlTableElement>() {
-            let current = table_el.rows().length() as usize;
-            let cols = if current > 0 {
-                if let Some(first_row) = table_el.rows().item(0) {
-                    if let Ok(r) = first_row.dyn_into::<web_sys::HtmlTableRowElement>() {
-                        r.cells().length() as usize
-                    } else { 3 }
-                } else { 3 }
-            } else { 3 };
-
-            if count > current {
-                for _ in current..count {
-                    let tr = create_el("tr");
-                    for c in 0..cols {
-                        let td = create_el("td");
-                        td.set_class_name("rr-grid-cell");
-                        if c > 0 {
-                            let _ = td.set_attribute("contenteditable", "true");
-                            let _ = td.set_attribute("spellcheck", "false");
-                            let _ = td.style().set_property("cursor", "text");
-                        }
-                        let _ = tr.append_child(&td);
-                    }
-                    let _ = table_el.append_child(&tr);
-                }
-            } else {
-                for _ in count..current {
-                    let _ = table_el.delete_row(-1);
-                }
-            }
-
-            let comp_name = if id.starts_with("rr-") {
-                &id[3..]
-            } else {
-                id
-            };
-            crate::object_web::rp_comp_set_prop_only(comp_name, "rowcount", v_int(count as i64));
-            crate::object_web::rp_comp_set_prop_only(comp_name, "rows", v_int(count as i64));
-        }
-    }
-}
-
-fn grid_set_col_count(id: &str, count: usize) {
-    let comp_name = if id.starts_with("rr-") {
-        &id[3..]
-    } else {
-        id
-    };
-    crate::object_web::rp_comp_set_prop_only(comp_name, "colcount", v_int(count as i64));
-    crate::object_web::rp_comp_set_prop_only(comp_name, "cols", v_int(count as i64));
-}
-
-fn grid_add_row(id: &str, args: &[Value]) -> Value {
-    let table_id = format!("{}-table", id);
-    if let Some(table) = get_el(&table_id) {
-        if let Ok(table_el) = table.dyn_into::<web_sys::HtmlTableElement>() {
-            let tr = create_el("tr");
-            
-            let mut cols = args.len();
-            if cols == 0 {
-                cols = 3;
-                if let Some(first_row) = table_el.rows().item(0) {
-                    if let Ok(r) = first_row.dyn_into::<web_sys::HtmlTableRowElement>() {
-                        cols = r.cells().length() as usize;
-                    }
-                }
-            }
-            
-            let row_idx = table_el.rows().length() as usize;
-            
-            for c in 0..cols {
-                let td = create_el("td");
-                td.set_class_name("rr-grid-cell");
-                if c < args.len() {
-                    td.set_inner_text(&args[c].to_string_val());
-                }
-                if row_idx > 0 && c > 0 {
-                    let _ = td.set_attribute("contenteditable", "true");
-                    let _ = td.set_attribute("spellcheck", "false");
-                    let _ = td.style().set_property("cursor", "text");
-                }
-                let _ = tr.append_child(&td);
-            }
-            let _ = table_el.append_child(&tr);
-            
-            let comp_name = if id.starts_with("rr-") {
-                &id[3..]
-            } else {
-                id
-            };
-            
-            let new_rows = (row_idx + 1) as i64;
-            crate::object_web::rp_comp_set_prop_only(comp_name, "rowcount", v_int(new_rows));
-            crate::object_web::rp_comp_set_prop_only(comp_name, "rows", v_int(new_rows));
-            
-            let stored_cols = crate::object_web::rp_comp_get_stored(comp_name, "cols").to_i64();
-            if (cols as i64) > stored_cols {
-                crate::object_web::rp_comp_set_prop_only(comp_name, "cols", v_int(cols as i64));
-                crate::object_web::rp_comp_set_prop_only(comp_name, "colcount", v_int(cols as i64));
-            }
-            
-            return v_int(row_idx as i64);
-        }
-    }
-    v_int(-1)
-}
 
 // ---------------------------------------------------------------------------
 // TabControl helpers

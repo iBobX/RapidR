@@ -233,6 +233,7 @@ CREATE Form1 AS RForm
     END CREATE
 
     CREATE Grid1 AS RStringGrid
+        RowCount = 0            ' filled with AddRow
         Left = 20
         Top = 96
         Width = 650

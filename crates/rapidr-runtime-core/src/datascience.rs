@@ -1096,27 +1096,14 @@ fn populate_grid_from_df(grid_name: &str, df: &DataFrame) {
     let nrows = df.height();
     rp_comp_set(grid_name, "cols", v_int(ncols as i64));
 
-    // Clear existing data
-    rp_comp_method(grid_name, "clear", &[]);
-
-    // Set column headers (row 0)
+    // A header row with the column names, then one row per record.
+    rp_comp_set(grid_name, "rowcount", v_int(nrows as i64 + 1));
     for (ci, col) in df.get_columns().iter().enumerate() {
-        crate::gui::string_grid_method(grid_name, "setcell", &[v_int(0), v_int(ci as i64), v_str(col.name().as_str())]);
-    }
-
-    // Set data rows
-    for ri in 0..nrows {
-        // Add a row
-        rp_comp_method(grid_name, "addrow", &[]);
-        for (ci, col) in df.get_columns().iter().enumerate() {
-            let s = col.as_materialized_series();
-            let val_str = match s.get(ri) {
-                Ok(av) => format!("{}", av),
-                Err(_) => String::new(),
-            };
-            crate::gui::string_grid_method(grid_name, "setcell", &[
-                v_int((ri + 1) as i64), v_int(ci as i64), v_str(&val_str),
-            ]);
+        rp_comp_method(grid_name, "setcell", &[v_int(ci as i64), v_int(0), v_str(col.name().as_str())]);
+        let s = col.as_materialized_series();
+        for ri in 0..nrows {
+            let val_str = s.get(ri).map(|av| format!("{av}")).unwrap_or_default();
+            rp_comp_method(grid_name, "setcell", &[v_int(ci as i64), v_int((ri + 1) as i64), v_str(&val_str)]);
         }
     }
 }

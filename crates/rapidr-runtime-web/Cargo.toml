@@ -18,6 +18,9 @@ features = [
     # Core DOM
     "Window",
     "Document",
+    # Caret placement when a grid cell is edited
+    "Selection",
+    "Range",
     "Element",
     "HtmlElement",
     "Attr",

@@ -636,8 +636,8 @@ SUB SaveEvents
     IF SelIndex = 0 THEN
         NR = EvtGrid.RowCount
         FOR I = 1 TO NR - 1
-            EvtName = UCASE$(EvtGrid.Cell(I, 0))
-            HandlerName = EvtGrid.Cell(I, 1)
+            EvtName = UCASE$(EvtGrid.Cell(0, I))
+            HandlerName = EvtGrid.Cell(1, I)
             IF EvtName = "ONSHOW" THEN FormOnShow = HandlerName
             IF EvtName = "ONCLOSE" THEN FormOnClose = HandlerName
             IF EvtName = "ONRESIZE" THEN FormOnResize = HandlerName
@@ -655,8 +655,8 @@ SUB SaveEvents
         IF CI < 1 OR CI > 100 THEN EXIT SUB
         NR = EvtGrid.RowCount
         FOR I = 1 TO NR - 1
-            EvtName = UCASE$(EvtGrid.Cell(I, 0))
-            HandlerName = EvtGrid.Cell(I, 1)
+            EvtName = UCASE$(EvtGrid.Cell(0, I))
+            HandlerName = EvtGrid.Cell(1, I)
             IF EvtName = "ONCLICK" THEN EvtOnClick(CI) = HandlerName
             IF EvtName = "ONDBLCLICK" THEN EvtOnDblClick(CI) = HandlerName
             IF EvtName = "ONCHANGE" THEN EvtOnChange(CI) = HandlerName
@@ -1203,8 +1203,8 @@ SUB PropGridChange
     DIM PropVal AS STRING
     R = PropGrid.SelectedRow
     IF R < 1 THEN SyncGuard = 0 : EXIT SUB
-    PropName = UCASE$(PropGrid.Cell(R, 0))
-    PropVal = PropGrid.Cell(R, 1)
+    PropName = UCASE$(PropGrid.Cell(0, R))
+    PropVal = PropGrid.Cell(1, R)
 
     IF SelIndex = 0 THEN
         IF PropName = "CAPTION" THEN DesignSurface.FormCaption = PropVal
@@ -1245,8 +1245,8 @@ SUB PropGridDblClick
     DIM PropVal AS STRING
     R = PropGrid.SelectedRow
     IF R < 1 THEN SyncGuard = 0 : EXIT SUB
-    PropName = UCASE$(PropGrid.Cell(R, 0))
-    PropVal = PropGrid.Cell(R, 1)
+    PropName = UCASE$(PropGrid.Cell(0, R))
+    PropVal = PropGrid.Cell(1, R)
 
     IF SelIndex = 0 THEN
         ' Boolean toggle for form-level boolean properties
@@ -1256,7 +1256,7 @@ SUB PropGridDblClick
             ELSE
                 PropVal = "True"
             END IF
-            PropGrid.SetCell(R, 1, PropVal)
+            PropGrid.SetCell(1, R, PropVal)
         END IF
         SyncGuard = 0
         EXIT SUB
@@ -1272,7 +1272,7 @@ SUB PropGridDblClick
         ELSE
             PropVal = "True"
         END IF
-        PropGrid.SetCell(R, 1, PropVal)
+        PropGrid.SetCell(1, R, PropVal)
         DesignSurface.SetProp(CI, LCASE$(PropName), PropVal)
         SyncGuard = 0
         EXIT SUB
@@ -1282,7 +1282,7 @@ SUB PropGridDblClick
     IF PropName = "FONTCOLOR" OR PropName = "COLOR" OR PropName = "BACKGROUNDCOLOR" THEN
         IF ColorDlg.Execute THEN
             PropVal = ColorDlg.Color
-            PropGrid.SetCell(R, 1, PropVal)
+            PropGrid.SetCell(1, R, PropVal)
             DesignSurface.SetProp(CI, LCASE$(PropName), PropVal)
         END IF
         SyncGuard = 0
@@ -1301,9 +1301,9 @@ SUB PropGridDblClick
             DIM GR AS INTEGER
             FOR GR = 1 TO PropGrid.RowCount
                 DIM GN AS STRING
-                GN = UCASE$(PropGrid.Cell(GR, 0))
-                IF GN = "FONT.NAME" OR GN = "FONTNAME" THEN PropGrid.SetCell(GR, 1, FName)
-                IF GN = "FONT.SIZE" THEN PropGrid.SetCell(GR, 1, FSize)
+                GN = UCASE$(PropGrid.Cell(0, GR))
+                IF GN = "FONT.NAME" OR GN = "FONTNAME" THEN PropGrid.SetCell(1, GR, FName)
+                IF GN = "FONT.SIZE" THEN PropGrid.SetCell(1, GR, FSize)
             NEXT GR
         END IF
         SyncGuard = 0
@@ -1317,7 +1317,7 @@ SUB PropGridDblClick
         AlNum = AlNum + 1
         IF AlNum > 2 THEN AlNum = 0
         PropVal = STR$(AlNum)
-        PropGrid.SetCell(R, 1, PropVal)
+        PropGrid.SetCell(1, R, PropVal)
         DesignSurface.SetProp(CI, "alignment", PropVal)
         SyncGuard = 0
         EXIT SUB
@@ -1330,7 +1330,7 @@ SUB PropGridDblClick
         BsNum = BsNum + 1
         IF BsNum > 1 THEN BsNum = 0
         PropVal = STR$(BsNum)
-        PropGrid.SetCell(R, 1, PropVal)
+        PropGrid.SetCell(1, R, PropVal)
         DesignSurface.SetProp(CI, "borderstyle", PropVal)
         SyncGuard = 0
         EXIT SUB
@@ -1356,9 +1356,9 @@ SUB EvtGridDblClick
     R = EvtGrid.SelectedRow
     IF R < 1 THEN EXIT SUB
     DIM EvtName AS STRING
-    EvtName = EvtGrid.Cell(R, 0)
+    EvtName = EvtGrid.Cell(0, R)
     DIM HandlerName AS STRING
-    HandlerName = EvtGrid.Cell(R, 1)
+    HandlerName = EvtGrid.Cell(1, R)
     DIM CompName AS STRING
 
     IF SelIndex = 0 THEN
@@ -1369,7 +1369,7 @@ SUB EvtGridDblClick
 
     IF HandlerName = "" THEN
         HandlerName = CompName + "_" + EvtName
-        EvtGrid.SetCell(R, 1, HandlerName)
+        EvtGrid.SetCell(1, R, HandlerName)
         SaveEvents
     END IF
 
@@ -2686,6 +2686,8 @@ CREATE IDE AS RFORM
     END CREATE
 
     CREATE PropGrid AS RSTRINGGRID
+        RowCount = 0            ' filled with AddRow
+        AddOptions 10, 13       ' goEditing, goAlwaysShowEditor
         Left = 906 : Top = 174
         Width = 288 : Height = 484
         Cols = 2
@@ -2695,6 +2697,8 @@ CREATE IDE AS RFORM
     END CREATE
 
     CREATE EvtGrid AS RSTRINGGRID
+        RowCount = 0            ' filled with AddRow
+        AddOptions 10, 13       ' goEditing, goAlwaysShowEditor
         Left = 906 : Top = 174
         Width = 288 : Height = 484
         Cols = 3

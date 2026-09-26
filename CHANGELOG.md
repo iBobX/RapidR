@@ -7,6 +7,66 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.34.0] — 2026-09-26
+
+### Added
+- **QSTRINGGRID works like RapidQ's, on the desktop and the web.** Both
+  runtimes draw one shared model (`rapidr_value::objects::grid`), so a
+  grid behaves the same natively, interpreted, and in the browser.
+  - `Cell(col, row)` / `Cells` read and write, `ColCount` / `RowCount`
+    (5 each by default), `FixedCols` / `FixedRows` (1 each),
+    `DefaultColWidth` (64) / `DefaultRowHeight` (24), `ColWidths(i)`,
+    `RowHeights(i)`, `Col`, `Row`, `TopRow`, `LeftCol`, `GridWidth`,
+    `GridHeight`, `EditorMode`.
+  - `InsertRow`, `DeleteRow`, `InsertCol`, `DeleteCol`, `SwapRows`,
+    `SwapCols`, `AddOptions`, `DelOptions`, `ColumnStyle(i)`,
+    `ColumnList(i)`.
+  - `SaveToFile` / `LoadFromFile` / `SaveToStream` / `LoadFromStream`
+    `(file or stream, RowOffset, ColOffset, MaxRows)`: rows of cells joined
+    by `Separator`.
+  - **Desktop:** a real table widget (FLTK `Table`), not rows of text
+    boxes. It has a shaded fixed header row and column, per-column widths
+    and per-row heights, scrolling, and a highlighted selected cell.
+  - **Web:** a table redrawn once per batch of changes.
+  - **Interaction, both runtimes:**
+    - clicking or the arrow keys select a cell (fixed cells can't be
+      selected) and fire `OnSelectCell(Col, Row, CanSelect)` and `OnClick`;
+    - with `goEditing` (`AddOptions 10`), a double-click, Enter, F2 or
+      typing edits the cell in place (a single click with
+      `goAlwaysShowEditor`). Enter or leaving the cell stores it and fires
+      `OnSetEditText(Col, Row, Value$)` and `OnChange`; Escape cancels;
+    - an ellipsis column (`ColumnStyle(i) = gcsEllipsis`) shows a button
+      that fires `OnEllipsisClick(Col, Row)`.
+  - Sizes are capped (at most 4 million cells), and cell text is always
+    drawn as plain text.
+- RapidR's own grid API is kept on the same model: `AddRow a, b, …`
+  (widens the grid if needed), `SetCell` / `GetCell`, `Clear` (no rows),
+  `SetRowCount` / `SetColCount`, `Cols` / `Rows` / `ColWidth`,
+  `SelectedRow` / `SelectedCol`, and a "..." cell showing an ellipsis
+  button.
+
+### Changed
+- **`SetCell` / `GetCell` take `(col, row)` in both runtimes**, the same
+  order as RapidQ's `Cell`. The desktop runtime used `(row, col)` and the
+  web runtime `(col, row)`.
+- A grid starts at RapidQ's 5 × 5 with one fixed row and column, and cells
+  can be edited only with `goEditing`. RapidR's IDE programs
+  (`examples/ide.rr` and others) now set `RowCount = 0` before filling
+  grids with `AddRow`, and `AddOptions 10, 13` where cells are edited.
+- `RDataFrame.ToGrid` fills the grid through the same model on the
+  desktop.
+
+### Tests
+- `tests/web_ide_grid.mjs`: cells, InsertRow/SwapRows, widths, fixed
+  shading, plain-text cells, selection by click and arrow keys, in-place
+  editing with `OnSetEditText`, the ellipsis button, `AddRow` / `SetCell` /
+  `GetCell`.
+- `tests/fixtures/string_grid.bas` in `tests/native_gui_events.mjs`: rows
+  and columns, `Separator`-based streams and selection; native and
+  interpreted builds agree.
+- Unit tests for the grid model: defaults, row/column edits, the text
+  round trip, out-of-range indexes and huge sizes.
+
 ## [2.33.0] — 2026-09-26
 
 ### Changed
