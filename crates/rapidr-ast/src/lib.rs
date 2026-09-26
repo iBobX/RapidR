@@ -1,5 +1,7 @@
 use rapidr_diagnostics::TextSpan;
 
+pub mod objects;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub span: TextSpan,

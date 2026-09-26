@@ -9,7 +9,6 @@ use std::fmt::Write;
 use rapidr_ast::*;
 
 mod jumps;
-mod objects;
 
 /// Target platform for code generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,8 +27,8 @@ impl Default for AppTarget {
 
 /// What the Rust backend can't compile yet in `program`, if anything (see
 /// `objects::unsupported`). `rapidr build` reports it as an error.
-pub fn native_gap(program: &Program) -> Option<String> {
-    objects::unsupported(program)
+pub fn native_gap(_program: &Program) -> Option<String> {
+    None
 }
 
 /// Generate a complete Rust `main.rs` from a parsed RapidP program.
@@ -40,8 +39,9 @@ pub fn generate(program: &Program) -> String {
 /// Generate code for a specific target platform.
 pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let mut gen = RustCodegen::new(target);
-    // Object-oriented TYPEs → plain routines over the object registry.
-    let program = objects::lower(program);
+    // Objects → plain routines and builtins, the same pass the bytecode
+    // compiler runs (rapidr_ast::objects); fields become direct slot access.
+    let program = rapidr_ast::objects::lower(program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     let (program, promoted) = promote_ref_params(&program);
     gen.promoted_byref = promoted;
     gen.emit_program(&program);
@@ -862,7 +862,8 @@ impl RustCodegen {
         // Global scalar assignment: gs("name", value)
         if let Expression::Identifier(id) = &a.target {
             let stripped = strip_type_suffix(&id.name);
-            if self.is_global_scalar(&stripped) {
+            // A module-level scalar, or a whole array (`a = __objectarray(…)`).
+            if self.is_global_scalar(&stripped) || self.is_global_array(&stripped) {
                 let snake = to_snake(&stripped);
                 let value = self.owned_expr(&a.value);
                 self.write_indent();
@@ -2447,6 +2448,24 @@ fn default_value_for_type(type_name: &str) -> String {
 }
 
 /// Map a known BASIC builtin function name to a Rust runtime call.
+/// `(lo1, hi1), (lo2, hi2)…` from bound pairs (compiled Rust expressions).
+fn bounds_list(args: &[String]) -> String {
+    args.chunks(2)
+        .map(|b| format!("(({}).to_i64(), ({}).to_i64())", b[0], b.get(1).map(|s| s.as_str()).unwrap_or("v_int(0)")))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// `i1, i2…` as i64 array indices.
+fn index_list(args: &[String]) -> String {
+    args.iter().map(|i| format!("({i}).to_i64()")).collect::<Vec<_>>().join(", ")
+}
+
+/// The object pass's own builtins (rapidr_ast::objects::OBJECT_BUILTINS).
+fn is_object_builtin(name: &str) -> bool {
+    rapidr_ast::objects::OBJECT_BUILTINS.contains(&name)
+}
+
 fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
     // Most builtins take a single argument as &Value
     let a0 = args.first().map(|s| s.as_str()).unwrap_or("&v_null()");
@@ -2561,30 +2580,44 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__data_add" => Some(format!("{{ data::add(&[{}]); v_null() }}", args.join(", "))),
         "__data_label" => Some(format!("{{ data::label(&{a0}, &{a1}); v_null() }}")),
         "__read" => Some("data::read_compiled()".to_string()),
-        // Objects (objects.rs): instances are ids in the object registry.
+        // Objects (rapidr_ast::objects): instances with field slots —
+        // direct vector access, no lookup by name.
         "__null" => Some("v_null()".to_string()),
+        "__newobject" => Some(format!("rp_new_object(&{a0}, &{a1}, &{a2})")),
+        "__getfield" => Some(format!("obj_field(&{a0}, ({a1}).to_i64() as usize)")),
+        "__setfield" => Some(format!("{{ set_obj_field(&{a0}, ({a1}).to_i64() as usize, ({a2}).clone()); v_null() }}")),
+        "__objectarray" => Some(format!(
+            "rp_new_object_array(&{a0}, &{a1}, &{a2}, &[{}])",
+            bounds_list(args.get(3..).unwrap_or(&[]))
+        )),
+        "__newarray" => Some(format!("rp_new_array(&[(({a1}).to_i64(), ({a2}).to_i64())], ({a0}).clone())")),
+        "__aget" => Some(format!("({a0}).rp_get(&[{}])", index_list(args.get(1..).unwrap_or(&[])))),
+        "__aset" => {
+            let (value, idx) = args.get(1..)?.split_last()?;
+            Some(format!("{{ ({a0}).rp_set(&[{}], ({value}).clone()); v_null() }}", index_list(idx)))
+        }
         "__objget" => Some(format!("rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val())")),
         "__objset" => Some(format!("{{ rp_comp_set(&({a0}).to_string_val(), &({a1}).to_string_val(), ({a2}).clone()); v_null() }}")),
         "__objcreate" => Some(format!("{{ rp_create_component(&({a0}).to_string_val(), &({a1}).to_string_val()); v_null() }}")),
-        "__objids" => Some(format!(
-            "{{ let (lo, hi) = (({a1}).to_i64(), ({a2}).to_i64()); let a = rp_new_array(&[(lo, hi)], v_null()); for i in lo..=hi {{ a.rp_set(&[i], v_str(&format!(\"{{}}{{i}})\", ({a0}).to_string_val()))); }} a }}"
-        )),
-        "__objarray" => Some(format!("rp_new_array(&[(({a0}).to_i64(), ({a1}).to_i64())], ({a2}).clone())")),
-        "__objaget" => Some(format!(
-            "rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val()).rp_get(&[{}])",
-            args.iter().skip(2).map(|i| format!("({i}).to_i64()")).collect::<Vec<_>>().join(", ")
-        )),
-        "__objaset" => {
-            let (value, idx) = args.get(2..)?.split_last()?;
-            Some(format!(
-                "{{ rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val()).rp_set(&[{}], ({value}).clone()); v_null() }}",
-                idx.iter().map(|i| format!("({i}).to_i64()")).collect::<Vec<_>>().join(", ")
-            ))
-        }
         "__objcall" => Some(format!(
             "rp_comp_method(&({a0}).to_string_val(), &({a1}).to_string_val(), &[{}])",
             args.iter().skip(2).map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")
         )),
+        "__component_array" => Some(format!(
+            "rp_component_array(&({a0}).to_string_val(), &({a1}).to_string_val(), &[{}])",
+            bounds_list(args.get(2..).unwrap_or(&[]))
+        )),
+        // Handlers bound to an object known at run time: through the
+        // function-pointer table (`__callfunc`), `This` first for EVENTs.
+        "__bind_event" => Some(format!(
+            "{{ let ptr = ({a2}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &[Value]| {{ __callfunc(&ptr, args); }})); v_null() }}"
+        )),
+        "__bind_event_this" => {
+            let a3 = args.get(3).map(|s| s.as_str()).unwrap_or("v_null()");
+            Some(format!(
+                "{{ let ptr = ({a2}).clone(); let this = ({a3}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &[Value]| {{ let mut all = vec![this.clone()]; all.extend_from_slice(args); __callfunc(&ptr, &all); }})); v_null() }}"
+            ))
+        }
         "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
         "__restore" => Some(if args.is_empty() {
             "data::restore_compiled(None)".to_string()

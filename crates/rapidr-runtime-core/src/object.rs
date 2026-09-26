@@ -383,6 +383,12 @@ pub enum EventHandler {
     /// Opaque handler id (e.g. a bytecode function index) — invoked
     /// through the registered indirect dispatcher.
     Indirect(u32),
+    /// A bytecode EVENT handler of a TYPE bound to one instance: invoked
+    /// with that instance (`This`) before the event's arguments.
+    IndirectThis(u32, Value),
+    /// A compiled handler bound to one instance (native EVENT blocks and
+    /// `obj(i).OnClick = Handler`), given the event's arguments.
+    Closure(std::rc::Rc<dyn Fn(&[Value])>),
 }
 
 /// Type alias for the indirect event dispatcher used by the bytecode
@@ -873,89 +879,69 @@ pub fn rp_bind_event_5(name: &str, event: &str, handler: fn(Value, Value, Value,
     });
 }
 
-/// Fire an event on a component (called by GUI backend).
-pub fn rp_fire_event(name: &str, event: &str) {
-    // An event without arguments gives a handler that takes one the firing
-    // component as `Sender` (RapidQ: SUB Button1Click (Sender AS QBUTTON)),
-    // as the bytecode interpreter does.
-    let handler = EVENT_HANDLERS.with(|h| {
-        h.borrow()
-            .get(&(name.to_lowercase(), event.to_lowercase()))
-            .cloned()
-    });
-    if let Some(handler) = handler {
-        match handler {
-            EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(v_str(name)),
-            EventHandler::Arity2(f) => f(v_str(name), v_null()),
-            EventHandler::Arity3(f) => f(v_str(name), v_null(), v_null()),
-            EventHandler::Arity4(f) => f(v_str(name), v_null(), v_null(), v_null()),
-            EventHandler::Arity5(f) => f(v_str(name), v_null(), v_null(), v_null(), v_null()),
-            // Bytecode handlers get the firing component as `Sender`
-            // (RapidQ: SUB Button1Click (Sender AS QBUTTON)).
-            EventHandler::Indirect(id) => dispatch_indirect(id, &[v_str(name)]),
+/// Runs the handler bound to `name`'s `event` with the event's arguments.
+/// An event without arguments passes the firing component (`Sender`, as in
+/// RapidQ's `SUB Button1Click (Sender AS QBUTTON)`). The handler is copied
+/// out first, so it may bind or fire other events.
+fn fire(name: &str, event: &str, args: &[Value]) {
+    let Some(handler) = lookup_handler(name, event) else { return };
+    let sender = [v_str(name)];
+    let args: &[Value] = if args.is_empty() { &sender } else { args };
+    let a = |i: usize| args.get(i).cloned().unwrap_or_else(v_null);
+    match handler {
+        EventHandler::Arity0(f) => f(),
+        EventHandler::Arity1(f) => f(a(0)),
+        EventHandler::Arity2(f) => f(a(0), a(1)),
+        EventHandler::Arity3(f) => f(a(0), a(1), a(2)),
+        EventHandler::Arity4(f) => f(a(0), a(1), a(2), a(3)),
+        EventHandler::Arity5(f) => f(a(0), a(1), a(2), a(3), a(4)),
+        EventHandler::Indirect(id) => dispatch_indirect(id, args),
+        EventHandler::IndirectThis(id, this) => {
+            let all: Vec<Value> = std::iter::once(this).chain(args.iter().cloned()).collect();
+            dispatch_indirect(id, &all)
         }
+        EventHandler::Closure(f) => f(args),
     }
+}
+
+/// Fire an event with no arguments (handlers get the Sender).
+pub fn rp_fire_event(name: &str, event: &str) {
+    fire(name, event, &[]);
 }
 
 /// Fire an event with 1 argument.
 pub fn rp_fire_event_1(name: &str, event: &str, arg: Value) {
-    let handler = EVENT_HANDLERS.with(|h| {
-        h.borrow()
-            .get(&(name.to_lowercase(), event.to_lowercase()))
-            .cloned()
-    });
-    if let Some(handler) = handler {
-        match handler {
-            EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(arg.clone()),
-            EventHandler::Arity2(f) => f(arg.clone(), v_null()),
-            EventHandler::Arity3(f) => f(arg.clone(), v_null(), v_null()),
-            EventHandler::Arity4(f) => f(arg.clone(), v_null(), v_null(), v_null()),
-            EventHandler::Arity5(f) => f(arg.clone(), v_null(), v_null(), v_null(), v_null()),
-            EventHandler::Indirect(id) => dispatch_indirect(id, &[arg]),
-        }
-    }
+    fire(name, event, &[arg]);
 }
 
 /// Fire an event with 2 arguments.
 pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
-    let handler = EVENT_HANDLERS.with(|h| {
-        h.borrow()
-            .get(&(name.to_lowercase(), event.to_lowercase()))
-            .cloned()
-    });
-    if let Some(handler) = handler {
-        match handler {
-            EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(arg1.clone()),
-            EventHandler::Arity2(f) => f(arg1.clone(), arg2.clone()),
-            EventHandler::Arity3(f) => f(arg1.clone(), arg2.clone(), v_null()),
-            EventHandler::Arity4(f) => f(arg1.clone(), arg2.clone(), v_null(), v_null()),
-            EventHandler::Arity5(f) => f(arg1.clone(), arg2.clone(), v_null(), v_null(), v_null()),
-            EventHandler::Indirect(id) => dispatch_indirect(id, &[arg1, arg2]),
-        }
-    }
+    fire(name, event, &[arg1, arg2]);
 }
 
 /// Fire an event with 5 arguments.
 pub fn rp_fire_event_5(name: &str, event: &str, a1: Value, a2: Value, a3: Value, a4: Value, a5: Value) {
-    let handler = EVENT_HANDLERS.with(|h| {
-        h.borrow()
-            .get(&(name.to_lowercase(), event.to_lowercase()))
-            .cloned()
+    fire(name, event, &[a1, a2, a3, a4, a5]);
+}
+
+/// Bind a bytecode EVENT handler to one instance (see [`EventHandler::IndirectThis`]).
+pub fn rp_bind_event_indirect_this(name: &str, event: &str, handler_id: u32, this: Value) {
+    bind_handler(name, event, EventHandler::IndirectThis(handler_id, this));
+}
+
+/// Bind a compiled closure (see [`EventHandler::Closure`]).
+pub fn rp_bind_event_closure(name: &str, event: &str, f: std::rc::Rc<dyn Fn(&[Value])>) {
+    bind_handler(name, event, EventHandler::Closure(f));
+}
+
+fn lookup_handler(name: &str, event: &str) -> Option<EventHandler> {
+    EVENT_HANDLERS.with(|h| h.borrow().get(&(name.to_lowercase(), event.to_lowercase())).cloned())
+}
+
+fn bind_handler(name: &str, event: &str, handler: EventHandler) {
+    EVENT_HANDLERS.with(|h| {
+        h.borrow_mut().insert((name.to_lowercase(), event.to_lowercase()), handler);
     });
-    if let Some(handler) = handler {
-        match handler {
-            EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(a1.clone()),
-            EventHandler::Arity2(f) => f(a1.clone(), a2.clone()),
-            EventHandler::Arity3(f) => f(a1.clone(), a2.clone(), a3.clone()),
-            EventHandler::Arity4(f) => f(a1.clone(), a2.clone(), a3.clone(), a4.clone()),
-            EventHandler::Arity5(f) => f(a1.clone(), a2.clone(), a3.clone(), a4.clone(), a5.clone()),
-            EventHandler::Indirect(id) => dispatch_indirect(id, &[a1, a2, a3, a4, a5]),
-        }
-    }
 }
 
 /// Start the GUI event loop (or no-op without GUI feature).

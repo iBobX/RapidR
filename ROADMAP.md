@@ -142,7 +142,9 @@ Next up, in order:
 - [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
 - [x] Arrays of components and indexed sub-objects (also inside CREATE), both backends (v2.26.0)
 - [ ] Components render their indexed sub-objects (status bar panels, list view columns)
-- [ ] Arrays of TYPE objects (`DIM a(n) AS TType`: one instance per element) — with the object redesign
+- [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
+- [ ] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused
+- [ ] Speed: typed locals/fields (skip `Value` boxing where the type is known), fewer clones in generated code, a faster VM dispatch loop
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
 - [ ] Streams: ReadUDT/WriteUDT, LoadArray/SaveArray, ExtractRes; exact sizes for `Read(var)` of BYTE/SHORT variables
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas

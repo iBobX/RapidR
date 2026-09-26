@@ -7,6 +7,67 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.27.0] — 2026-09-26
+
+### Changed
+- **Objects are real values with direct field access, in both backends.**
+  An instance of a TYPE is now `Value::Object`: shared by reference, with
+  its fields in slots fixed at compile time, the ancestors' fields first.
+  Before, fields were looked up by name in the runtime's component
+  registry.
+  - Native builds compile a field access to a direct vector index
+    (`obj_field(&c, 1)`); the interpreter has matching `GetField`/`SetField`
+    opcodes.
+  - On an object benchmark (a method call plus field reads and writes, 10
+    million times): the interpreter went from 14.5 s to 2.6 s (5.6×), and
+    native builds from 13.0 s to 1.4 s (9.2×).
+- **One object front end for both backends: `rapidr_ast::objects`.** The
+  bytecode compiler and the Rust generator run the same lowering pass;
+  objects become plain routines plus a few builtins that each backend
+  implements. The native compiler's own object pass is gone; the
+  interpreter's old object code in its compiler no longer runs and will be
+  removed in a later cleanup. The two can't drift apart any more.
+- **Every TYPE is an object type now.** Plain UDTs (fields only) used to be
+  by-value Rust structs in native builds but shared references in the
+  interpreter; both use the interpreter's reference semantics now.
+- **A method's code is reachable only when it's called** (or its address
+  is taken). Before, declaring an instance made every method of its TYPE
+  reachable, so an unused method's DLL call could stop an interpreted
+  build.
+
+### Added
+- **Arrays of TYPE objects:** `DIM a(1 TO 3) AS TType` creates and sets up
+  one instance per element (ids `a(1)`, …), constructors included. The
+  same holds for array fields of objects, e.g. `Parts(2) AS TPart`.
+- **Self-referencing fields start empty.** A field whose TYPE leads back to
+  its owner (`Link AS TItem`) starts as Nothing and is assigned by the
+  program, which allows linked structures; it no longer recurses forever.
+- **EVENT handlers bind to each instance at run time.** This covers array
+  elements and locals too. Both runtimes gained instance-bound handlers:
+  `rp_bind_event_indirect_this` for the interpreter, closures for native
+  code.
+- **Method pointers:** `CODEPTR(obj.Method)` and `BIND p TO TType.Method`,
+  called as `CALLFUNC(p, obj, args…)`, on both backends.
+- **RapidQ patterns inside TYPEs:**
+  - a TYPE extending a component reaches that component's property objects
+    (`Font.Size`, `Qlistviewex.font.size`, `obj.Canvas.Font.AddStyles`) and
+    indexed sub-objects (`QlistviewEx.column(i).caption`);
+  - `Application`, `Screen` and the other RapidQ global objects are never
+    taken for component members;
+  - fields of RapidQ object types RapidR doesn't implement yet (e.g.
+    `QD3DVECTOR`) are property-bag objects, as before.
+- **Debugger:** the IDE shows objects with their type, id and field names.
+- 116 of the 386 RapidQ examples compile (was 113).
+
+### Fixed
+- **Web runtime events:** a handler with 2–5 parameters bound to an event
+  without arguments was never called; handlers may now also bind or fire
+  events themselves. Both runtimes use one `fire` path.
+- **Native:** assigning a whole array to a module-level array variable
+  compiled wrongly.
+- **Interpreter:** the compiler's own helper calls inside a CREATE block
+  were taken for methods of the created component.
+
 ## [2.26.0] — 2026-09-26
 
 ### Added

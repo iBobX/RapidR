@@ -16,6 +16,10 @@ pub const BUILTINS: &[&str] = &[
     "__data_add", "__data_label", "__data_reset", "__read", "__restore",
     // REDIM (resize keeping data)
     "__redim", "__input_value",
+    // Objects (rapidr_ast::objects; shared in rapidr_value)
+    "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null",
+    // Components reached through objects (rapidr_ast::objects; hosts)
+    "__objget", "__objset", "__objcall", "__objcreate", "__bind_event_this",
     "abs", "acos", "asc", "asin", "atn",
     "beep", "bin",
     "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "convbase",
@@ -42,7 +46,7 @@ pub const BUILTINS: &[&str] = &[
 
 /// Builtins every host hands to `rapidr_value::shared_builtin` before its own
 /// dispatch table (DATA / READ / RESTORE and REDIM share one implementation).
-pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value"];
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.

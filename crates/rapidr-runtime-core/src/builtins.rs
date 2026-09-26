@@ -432,6 +432,7 @@ pub fn rp_vartype(val: &Value) -> Value {
         Value::Boolean(_) => 11,
         Value::Null => 0,
         Value::Array(_) => 8204, // vbArray + vbVariant, as in VB
+        Value::Object(_) => 9,   // vbObject
     })
 }
 
@@ -444,6 +445,7 @@ pub fn rp_sizeof(val: &Value) -> Value {
         Value::Boolean(_) => 1,
         Value::Null => 0,
         Value::Array(a) => 8 * a.borrow().data.len() as i64,
+        Value::Object(o) => 8 * o.fields.borrow().len() as i64,
     })
 }
 

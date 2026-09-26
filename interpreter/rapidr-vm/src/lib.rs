@@ -432,6 +432,21 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                 }
+                Op::GetField => {
+                    let slot = read_u16(code, &mut ip)? as usize;
+                    match self.pop()? {
+                        Value::Object(o) => self.stack.push(o.get(slot)),
+                        other => return Err(VmError::Runtime(format!("this variable does not refer to an object (reading a field of {:?})", other.to_string_val()))),
+                    }
+                }
+                Op::SetField => {
+                    let slot = read_u16(code, &mut ip)? as usize;
+                    let value = self.pop()?;
+                    match self.pop()? {
+                        Value::Object(o) => o.set(slot, value),
+                        other => return Err(VmError::Runtime(format!("this variable does not refer to an object (setting a field of {:?})", other.to_string_val()))),
+                    }
+                }
                 Op::CallIndirect => {
                     let argc = read_u8(code, &mut ip)?;
                     let at = self.stack.len().checked_sub(argc as usize + 1).ok_or(VmError::StackUnderflow)?;

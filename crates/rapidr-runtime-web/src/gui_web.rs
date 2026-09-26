@@ -88,6 +88,7 @@ fn value_to_jsvalue(v: &Value) -> JsValue {
         Value::Double(d) => JsValue::from_f64(*d),
         Value::String(s) => JsValue::from_str(s),
         Value::Array(a) => a.borrow().data.iter().map(value_to_jsvalue).collect::<js_sys::Array>().into(),
+        Value::Object(o) => JsValue::from_str(&o.id),
     }
 }
 
