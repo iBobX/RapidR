@@ -7,7 +7,9 @@
 //   * tests/fixtures/oop_events.bas — EVENT blocks in TYPE … EXTENDS QBUTTON
 //     (This per instance) and a component-typed Sender parameter;
 //   * tests/fixtures/component_array_events.bas — an array of buttons with
-//     one handler bound through `Btn(i).OnClick = Clicked`.
+//     one handler bound through `Btn(i).OnClick = Clicked`;
+//   * tests/fixtures/statusbar_panels.bas — QSTATUSBAR AddPanels / Panel(i);
+//   * tests/fixtures/listview_columns.bas — QLISTVIEW columns, items, sub-items.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs
 
@@ -27,6 +29,8 @@ function build(name, interp) {
   mkdirSync(out, { recursive: true });
   const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, ...(interp ? ["--interp"] : [])];
   execFileSync(join(ROOT, "rapidr"), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
+  // Native builds also copy the executable next to the source; don't leave it there.
+  rmSync(join(ROOT, `tests/fixtures/${name}`), { force: true });
   return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
 }
 
@@ -43,6 +47,10 @@ const cases = [
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",
     expect: ["btn(1).caption=Button1", "btn(2).caption=Hit Button2", "btn(3).caption=Hit Hit Button3"] },
+  { name: "statusbar_panels", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=Ready|Line 42|INS|3|150"] },
+  { name: "listview_columns", events: "lv.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
 ];
 for (const c of cases) {
   const results = {};

@@ -196,6 +196,8 @@ impl RpComponent {
             }
             "RSTATUSBAR" => {
                 props.insert("simpletext".into(), v_str(""));
+                props.insert("simplepanel".into(), v_bool(false));
+                props.insert("panelcount".into(), v_int(0));
             }
             "RPROGRESS" => {
                 props.insert("min".into(), v_int(0));
@@ -532,11 +534,23 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
+    // RapidR's forms and containers have no frame inside their size: the
+    // client area is the whole component.
+    let prop_lower = match prop_lower.as_str() {
+        "clientwidth" => "width".to_string(),
+        "clientheight" => "height".to_string(),
+        _ => prop_lower,
+    };
 
-    // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the web runtime).
+    // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
+    // with the web runtime).
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
         if let Err(e) = result {
             eprintln!("[rapidr] {name}.{prop}: {e}");
+        }
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_listview(name) {
+            crate::gui::listview_refresh(name);
         }
         return;
     }
@@ -592,8 +606,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             };
             crate::gui::gui_set_visible(name, v);
         }
+        // A status bar redraws its panels / simple text.
+        if comp_type == "RSTATUSBAR" && (prop_lower.starts_with("panel") || prop_lower.starts_with("simple")) {
+            crate::gui::gui_redraw(name);
+        }
         // Update caption/simpletext on the widget
-        if prop_lower == "caption" || prop_lower == "simpletext" {
+        else if prop_lower == "caption" || prop_lower == "simpletext" {
             crate::gui::gui_set_caption(name, &val.to_string_val());
         }
         // Update text on TextEditor/CodeEditor
@@ -648,6 +666,13 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 /// Get a property from a registered component.
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
+    // RapidR's forms and containers have no frame inside their size: the
+    // client area is the whole component.
+    let prop_lower = match prop_lower.as_str() {
+        "clientwidth" => "width".to_string(),
+        "clientheight" => "height".to_string(),
+        _ => prop_lower,
+    };
     if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
         return v;
     }
@@ -729,18 +754,27 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
 
-    // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
-    // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
-    // as the component's properties `panel(0).width` unless the component
-    // implements them.
-    if let Some(v) = indexed_sub_object(name, &method_lower, args) {
-        return v;
-    }
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_listview(name) {
+            crate::gui::listview_refresh(name);
+        }
         return result.unwrap_or_else(|e| {
             eprintln!("[rapidr] {name}.{method}: {e}");
             v_null()
         });
+    }
+    // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
+    // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
+    // as the component's properties `panel(0).width` unless the component
+    // implements them (above: a QLISTVIEW's `Item(i)` / `Column(i)`).
+    if let Some(v) = indexed_sub_object(name, &method_lower, args) {
+        return v;
+    }
+    if comp_type == "RSTATUSBAR" {
+        if let Some(v) = statusbar_method(name, &method_lower, args) {
+            return v;
+        }
     }
 
     match comp_type.as_str() {
@@ -1525,6 +1559,25 @@ pub fn is_component_method(member: &str) -> bool {
         // TabControl methods
         | "addtabs" | "tab"
     )
+}
+
+/// QSTATUSBAR panels: `AddPanels "Ready", "Line 1"` appends panels, kept as
+/// the component's properties `panel(i).caption` / `panel(i).width` (the
+/// same keys `SB.Panel(i).Caption = …` writes) and `panelcount`; the GUI
+/// draws them.
+fn statusbar_method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
+    match method {
+        "addpanels" => {
+            let mut n = rp_comp_get(name, "panelcount").to_i64().max(0);
+            for a in args {
+                rp_comp_set(name, &format!("panel({n}).caption"), v_str(&a.to_string_val()));
+                n += 1;
+            }
+            rp_comp_set(name, "panelcount", v_int(n));
+            Some(v_null())
+        }
+        _ => None,
+    }
 }
 
 /// Generic storage for indexed sub-object members (see `rp_comp_method`).

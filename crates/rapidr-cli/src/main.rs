@@ -61,19 +61,21 @@ fn main() -> ExitCode {
         }
         (Some("build"), Some(path)) => {
             let mut output_dir = None;
-            let mut release = false;
+            let mut release = None;
             let mut web = false;
             let mut interp = false;
             for arg in &rest {
                 match arg.as_str() {
-                    "--release" | "-r" => release = true,
-                    "--debug" | "-d" => release = false,
+                    "--release" | "-r" => release = Some(true),
+                    "--debug" | "-d" => release = Some(false),
                     "--web" | "-w" => web = true,
                     "--interp" | "-i" => interp = true,
                     _ => output_dir = Some(arg.clone()),
                 }
             }
-            build_source_file(&path, output_dir, release, web, interp)
+            // Native builds default to a quick debug compile; interpreted
+            // ones to the optimized runner (built once, then reused).
+            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp)
         }
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
@@ -510,30 +512,27 @@ fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections
     )
 }
 
-/// Walk up from CWD to find the RapidR workspace root (contains Cargo.toml with [workspace]).
-/// Also checks the RAPIDR_HOME environment variable.
+/// The RapidR workspace root (the Cargo.toml with `[workspace]` that has
+/// crates/rapidr-runtime-core), so builds work from any directory: the
+/// RAPIDR_HOME environment variable, else the nearest one above the current
+/// directory, the `rapidr` executable, or where this CLI was compiled.
 fn find_workspace_root() -> Option<std::path::PathBuf> {
-    // Check RAPIDR_HOME environment variable first
     if let Ok(home) = env::var("RAPIDR_HOME") {
         let p = Path::new(&home);
         if p.join("Cargo.toml").exists() {
             return Some(p.to_path_buf());
         }
     }
-
-    let cwd = env::current_dir().ok()?;
-    let mut dir = cwd.as_path();
-    loop {
-        let cargo_path = dir.join("Cargo.toml");
-        if cargo_path.exists() {
-            if let Ok(content) = fs::read_to_string(&cargo_path) {
-                if content.contains("[workspace]") {
-                    return Some(dir.to_path_buf());
-                }
-            }
-        }
-        dir = dir.parent()?;
-    }
+    let is_root = |dir: &Path| {
+        dir.join("crates/rapidr-runtime-core").is_dir()
+            && fs::read_to_string(dir.join("Cargo.toml")).is_ok_and(|c| c.contains("[workspace]"))
+    };
+    let above = |start: PathBuf| start.ancestors().find(|d| is_root(d)).map(Path::to_path_buf);
+    env::current_dir()
+        .ok()
+        .and_then(above)
+        .or_else(|| env::current_exe().ok().and_then(|e| e.canonicalize().ok()).and_then(above))
+        .or_else(|| above(PathBuf::from(env!("CARGO_MANIFEST_DIR"))))
 }
 
 // ---------------- Bytecode (rapidrintr) ----------------
@@ -832,24 +831,29 @@ fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
 ///
 /// `cargo build -p rapidr-runner-stub` runs every time (a quick no-op when
 /// it's up to date), so the runner never lags behind the CLI; an existing
-/// runner in `target/release` or `target/debug` is used only if cargo can't
-/// run.
+/// runner in `target/runner`, `target/release` or `target/debug` is used
+/// only if cargo can't run.
 fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
     let exe_name = if cfg!(windows) { "rapidrintr-runner.exe" } else { "rapidrintr-runner" };
-    let preferred = if release { "release" } else { "debug" };
+    // Release: the stripped `runner` profile (Cargo.toml).
+    let preferred = if release { "runner" } else { "debug" };
 
     let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub"];
-    if release { args.push("--release"); }
-    let built = process::Command::new("cargo").args(&args).status();
-    // Where cargo put it: CARGO_TARGET_DIR when set, else ./target.
-    let target = std::env::var_os("CARGO_TARGET_DIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("target"));
+    if release { args.extend(["--profile", "runner"]); }
+    // Built in the RapidR workspace, wherever the program being built is.
+    let root = find_workspace_root().unwrap_or_else(|| PathBuf::from("."));
+    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    // Where cargo puts it: CARGO_TARGET_DIR when set (relative to where
+    // rapidr was run), else the workspace's target/.
+    let target = std::env::var_os("CARGO_TARGET_DIR").map(|t| cwd.join(t)).unwrap_or_else(|| root.join("target"));
+    let built = process::Command::new("cargo").args(&args).current_dir(&root).env("CARGO_TARGET_DIR", &target).status();
     let path = target.join(preferred).join(exe_name);
     match built {
         Ok(status) if status.success() && path.exists() => return Ok(path),
         Ok(status) => eprintln!("warning: cargo build rapidr-runner-stub failed ({status}); using an existing runner if there is one"),
         Err(e) => eprintln!("warning: can't run cargo ({e}); using an existing runner if there is one"),
     }
-    for profile in [preferred, if preferred == "release" { "debug" } else { "release" }] {
+    for profile in [preferred, if release { "release" } else { "runner" }] {
         let candidate = target.join(profile).join(exe_name);
         if candidate.exists() {
             return Ok(candidate);
