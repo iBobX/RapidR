@@ -1,4 +1,4 @@
-' xfail: codegen — TYPE methods/composition not implemented in native builds yet
+' xfail: codegen — the Rust backend doesn't compile OOP TYPEs yet; `rapidr build` uses the embedded interpreter for them (RAPIDR_STRICT_CODEGEN tests the backend itself)
 ' Composition (manual 10.5): a TYPE field of TYPE type is its own object per
 ' instance; nested stores, method calls and FUNCTION methods through it.
 TYPE TEngine EXTENDS QObject

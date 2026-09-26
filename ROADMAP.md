@@ -143,9 +143,10 @@ Next up, in order:
 - [ ] Arrays of components (`DIM lbl(1 TO 5) AS QLABEL` … `lbl(i).Height = 20`) and indexed sub-objects inside CREATE (`Panel(0).Caption = …`): "nested member-access store" blocks 24 of the 386 RapidQ examples
 - [ ] QFILESTREAM on the shared stream code (today only line-oriented: no ReadStr/WriteStr/ReadNum/Position/Size on the desktop)
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
-- [ ] `rapidr build --interp` reuses whatever `rapidrintr-runner` is in `target/`, even when it's older than the CLI: rebuild or version-check it
+- [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
-- [ ] Native builds catch up: ~~GOTO/GOSUB~~, ~~STATIC~~, ~~same compile errors as the VM~~ (v2.23.0); OOP TYPEs, function pointers
+- [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0); OOP programs build as native executables with the embedded interpreter automatically (v2.24.0)
+- [ ] Rust backend compiles OOP TYPEs itself. Better long-term: generate Rust from the bytecode (one front end — bcgen — for both backends) instead of from the AST
 
 - [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
 - [x] Built-in `RAPIDQ.INC` (colors, `mr*`, `MB_*`/`ID*`, `bs*`, `ws*`, `al*`, `mb*`, `fm*`, `VK_*`) as a single line (v2.13.0)
@@ -161,7 +162,7 @@ Next up, in order:
 - [x] Codegen: state-machine lowering for labels/GOTO/GOSUB (jumps.rs) (v2.23.0)
 - [ ] Web codegen: `END` doesn't stop the program; labels inside SELECT CASE/WITH/CREATE bodies in native builds
 - [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
-- [ ] Codegen: OOP TYPEs (EXTENDS/methods/EVENT/CONSTRUCTOR) in native builds (currently a clear compile_error!)
+- [ ] Codegen: OOP TYPEs (EXTENDS/methods/EVENT/CONSTRUCTOR) in the Rust backend (`rapidr build` uses the embedded interpreter for them since v2.24.0)
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
 - [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
 - [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)
@@ -174,7 +175,8 @@ Next up, in order:
 - [x] `FUNCTIONI`/`SUBI`, `SHL`/`SHR`, `DATA`/`READ`/`RESTORE`, `SWAP`, `$ESCAPECHARS`, function pointers (VM) (v2.16.0)
 - [ ] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data), `MEMCPY`
 - [ ] Dialogs with buttons: `MESSAGEBOX(msg, title, flags)` returning IDOK/IDYES…, `MESSAGEDLG(msg, mtType, mbButtons, 0)` returning mr* — needs button dialogs in FLTK and the sandboxed web preview (today `msgbox` only shows a message)
-- [ ] Codegen: function pointers, SUB/FUNCTION pointers for Win32 callbacks
+- [x] Codegen: function pointers (v2.24.0)
+- [ ] SUB/FUNCTION pointers as Win32 callbacks (native FFI)
 - [ ] Win32 shim table for top ~50 `DECLARE … LIB "user32"/"kernel32"/"shell32"` calls; clear warnings for the rest
 - [ ] VB6: `On Error GoTo/Resume Next`, `Optional`, `ParamArray`, `Property Get/Let/Set`, `Enum`, `Static`, `ReDim Preserve`, `For Each`, `_` continuation, `Select Case Is/To`, `Like`
 - [ ] Modern `TRY/CATCH`

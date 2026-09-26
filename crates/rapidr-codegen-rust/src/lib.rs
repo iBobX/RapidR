@@ -25,6 +25,25 @@ impl Default for AppTarget {
     }
 }
 
+/// What the Rust backend can't compile yet in `program`, if anything:
+/// object-oriented TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY
+/// SET). `rapidr build` then builds the native executable with the embedded
+/// bytecode interpreter instead (the same as `--interp`), which runs them.
+pub fn native_gap(program: &Program) -> Option<String> {
+    program.statements.iter().find_map(|s| match s {
+        Statement::Type(t)
+            if t.extends.is_some()
+                || !t.methods.is_empty()
+                || !t.constructor.is_empty()
+                || !t.events.is_empty()
+                || t.fields.iter().any(|f| f.setter.is_some()) =>
+        {
+            Some(format!("TYPE {} uses methods, CONSTRUCTOR, EVENT, EXTENDS or PROPERTY SET", t.name))
+        }
+        _ => None,
+    })
+}
+
 /// Generate a complete Rust `main.rs` from a parsed RapidP program.
 pub fn generate(program: &Program) -> String {
     generate_for_target(program, AppTarget::Desktop)
@@ -123,6 +142,9 @@ struct RustCodegen {
     state_machine: Option<jumps::StateMachine>,
     /// The SUB/FUNCTION being emitted (None in the main program).
     current_routine_name: Option<String>,
+    /// Function pointers: each SUB/FUNCTION's id (1, 2, …) with its
+    /// BYREF flags and whether it returns a value, in definition order.
+    routine_pointers: Vec<(String, Vec<bool>, bool)>,
 }
 
 impl RustCodegen {
@@ -156,6 +178,7 @@ impl RustCodegen {
             create_declared_names: HashSet::new(),
             state_machine: None,
             current_routine_name: None,
+            routine_pointers: Vec::new(),
         }
     }
 
@@ -265,6 +288,7 @@ impl RustCodegen {
         for stmt in &program.statements {
             match stmt {
                 Statement::Subroutine(s) => {
+                    self.routine_pointers.push((s.name.clone(), s.params.iter().map(|p| p.by_ref).collect(), false));
                     self.defined_functions.insert(s.name.to_lowercase());
                     self.function_param_counts.insert(s.name.to_lowercase(), s.params.len());
                     self.fn_byref.insert(s.name.to_lowercase(), s.params.iter().map(|p| p.by_ref).collect());
@@ -284,6 +308,7 @@ impl RustCodegen {
                     }
                 }
                 Statement::Function(f) => {
+                    self.routine_pointers.push((f.name.clone(), f.params.iter().map(|p| p.by_ref).collect(), true));
                     self.defined_functions.insert(f.name.to_lowercase());
                     self.returning_functions.insert(strip_type_suffix(&f.name).to_lowercase());
                     self.function_param_counts.insert(f.name.to_lowercase(), f.params.len());
@@ -402,6 +427,8 @@ impl RustCodegen {
                 _ => {}
             }
         }
+
+        self.emit_callfunc_table();
 
         // Emit main
         if self.target == AppTarget::Web {
@@ -1252,6 +1279,50 @@ impl RustCodegen {
         self.line("}");
     }
 
+    /// The id `CODEPTR(Name)` / `BIND p TO Name` give routine `name`, if it's
+    /// a SUB or FUNCTION of the program.
+    fn routine_pointer(&self, name: &str) -> Option<usize> {
+        let key = strip_type_suffix(name).to_lowercase();
+        self.routine_pointers
+            .iter()
+            .position(|(n, _, _)| strip_type_suffix(n).to_lowercase() == key)
+            .map(|i| i + 1)
+    }
+
+    /// `__callfunc(ptr, args)`: CALLFUNC's dispatch over the program's
+    /// SUBs and FUNCTIONs by pointer (see [`Self::routine_pointer`]).
+    fn emit_callfunc_table(&mut self) {
+        if self.routine_pointers.is_empty() {
+            return;
+        }
+        self.line("#[allow(dead_code)]");
+        self.line("fn __callfunc(ptr: &Value, args: &[Value]) -> Value {");
+        self.indent += 1;
+        self.line("let arg = |i: usize| args.get(i).cloned().unwrap_or(v_null());");
+        self.line("match ptr.to_i64() {");
+        self.indent += 1;
+        for (i, (name, byref, returns)) in self.routine_pointers.clone().iter().enumerate() {
+            let args: Vec<String> = byref
+                .iter()
+                .enumerate()
+                .map(|(k, r)| if *r { format!("&mut arg({k})") } else { format!("arg({k})") })
+                .collect();
+            let call = format!("{}({})", to_snake(name), args.join(", "));
+            self.write_indent();
+            if *returns {
+                let _ = writeln!(self.output, "{} => {call},", i + 1);
+            } else {
+                let _ = writeln!(self.output, "{} => {{ {call}; v_null() }}", i + 1);
+            }
+        }
+        self.line("p => { eprintln!(\"run-time error: CALLFUNC: {p} is not a function pointer (use BIND or CODEPTR)\"); std::process::exit(1) }");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+        self.blank();
+    }
+
     /// `STATIC x` in routine `routine`: `x` becomes the program-wide variable
     /// `__static_<routine>_<x>` inside the body (a global, like a
     /// module-level DIM), so its value survives between calls. Returns the
@@ -1713,11 +1784,19 @@ impl RustCodegen {
                 return;
             }
         }
-        // `BIND ptr TO Proc` (a function pointer): refuse clearly rather
-        // than skip it.
-        self.line(
-            "compile_error!(\"Function pointers (BIND … TO / CODEPTR / CALLFUNC) aren't supported in native builds yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
-        );
+        // `BIND ptr TO Proc`: the pointer is the routine's id (`__callfunc`).
+        let id = match &b.handler {
+            Expression::Identifier(h) => self.routine_pointer(&h.name),
+            _ => None,
+        };
+        match id {
+            Some(id) => self.emit_assignment(&AssignmentStatement {
+                span: b.span,
+                target: b.target.clone(),
+                value: Expression::Literal(Literal { span: b.span, value: LiteralValue::Integer(id as i64) }),
+            }),
+            None => self.line("compile_error!(\"BIND … TO needs the name of a SUB or FUNCTION of the program\");"),
+        }
     }
 
     fn emit_declare(&mut self, d: &DeclareStatement) {
@@ -1964,6 +2043,16 @@ impl RustCodegen {
     }
 
     fn expr_to_string(&self, expr: &Expression) -> String {
+        // `CODEPTR(Name)` / `CALLBACK(Name)`: the routine's pointer id.
+        if let Expression::FunctionCall(fc) = expr {
+            if let (Expression::Identifier(f), [Expression::Identifier(target)]) = (fc.callee.as_ref(), fc.args.as_slice()) {
+                if matches!(f.name.to_lowercase().as_str(), "codeptr" | "callback") && !self.defined_functions.contains(&f.name.to_lowercase()) {
+                    if let Some(id) = self.routine_pointer(&target.name) {
+                        return format!("v_int({id})");
+                    }
+                }
+            }
+        }
         match expr {
             Expression::Literal(lit) => match &lit.value {
                 LiteralValue::Integer(n) => format!("v_int({n})"),
@@ -2482,8 +2571,12 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "sndplayasync" | "playsound" => Some(format!("rp_sound(&{a0}, &{a1})")),
 
         // Pointer helpers
-        "codeptr" | "callback" | "callfunc" => Some(
-            "compile_error!(\"Function pointers (CODEPTR / CALLFUNC / BIND … TO) aren't supported in native builds yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\")".to_string(),
+        "callfunc" => Some(format!(
+            "__callfunc(&{a0}, &[{}])",
+            args.iter().skip(1).map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")
+        )),
+        "codeptr" | "callback" => Some(
+            "compile_error!(\"CODEPTR(Name) takes the name of a SUB or FUNCTION of the program\")".to_string(),
         ),
         "varptr" => Some(format!("rp_varptr(&{a0})")),
         "varptr$" => Some(format!("rp_varptr_str(&{a0})")),

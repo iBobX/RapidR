@@ -287,6 +287,18 @@ fn build_source_file(
         .and_then(|r| r.app_type);
     let is_web = web || app_type.as_deref() == Some("WEB");
 
+    // Programs using what the Rust backend can't compile yet (object-oriented
+    // TYPEs) still become a native executable (or web bundle): with the
+    // embedded bytecode interpreter, which runs them. RAPIDR_STRICT_CODEGEN=1
+    // turns this off (the conformance suite uses it to test the Rust backend).
+    let mut interp = interp;
+    if !interp && std::env::var_os("RAPIDR_STRICT_CODEGEN").is_none() {
+        if let Some(gap) = parser_parse_file(path).ok().as_ref().and_then(rapidr_codegen_rust::native_gap) {
+            println!("note: {gap}, which the Rust backend doesn't compile yet; building with the embedded interpreter instead (as --interp).");
+            interp = true;
+        }
+    }
+
     if interp {
         // Bytecode pipeline: skip Rust codegen entirely.
         return if is_web {
@@ -819,37 +831,32 @@ fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Locate `rapidrintr-runner`, building it on demand if absent.
+/// Locate `rapidrintr-runner`, rebuilding it when the sources changed.
 ///
-/// Search order: `target/release/`, `target/debug/`, then fall back to
-/// `cargo build -p rapidr-runner-stub --release`.
+/// `cargo build -p rapidr-runner-stub` runs every time (a quick no-op when
+/// it's up to date), so the runner never lags behind the CLI; an existing
+/// runner in `target/release` or `target/debug` is used only if cargo can't
+/// run.
 fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
     let exe_name = if cfg!(windows) { "rapidrintr-runner.exe" } else { "rapidrintr-runner" };
     let preferred = if release { "release" } else { "debug" };
 
+    let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub"];
+    if release { args.push("--release"); }
+    let built = process::Command::new("cargo").args(&args).status();
+    let path = Path::new("target").join(preferred).join(exe_name);
+    match built {
+        Ok(status) if status.success() && path.exists() => return Ok(path),
+        Ok(status) => eprintln!("warning: cargo build rapidr-runner-stub failed ({status}); using an existing runner if there is one"),
+        Err(e) => eprintln!("warning: can't run cargo ({e}); using an existing runner if there is one"),
+    }
     for profile in [preferred, if preferred == "release" { "debug" } else { "release" }] {
         let candidate = Path::new("target").join(profile).join(exe_name);
         if candidate.exists() {
             return Ok(candidate);
         }
     }
-
-    println!("Building rapidrintr-runner stub ({preferred})...");
-    let mut args = vec!["build", "-p", "rapidr-runner-stub"];
-    if release { args.push("--release"); }
-    let status = process::Command::new("cargo")
-        .args(&args)
-        .status()
-        .map_err(|e| format!("spawn cargo: {e}"))?;
-    if !status.success() {
-        return Err(format!("cargo build rapidr-runner-stub failed: {status}"));
-    }
-    let built = Path::new("target").join(preferred).join(exe_name);
-    if built.exists() {
-        Ok(built)
-    } else {
-        Err(format!("could not locate {} after build", built.display()))
-    }
+    Err(format!("could not build or find {exe_name} (cargo build -p rapidr-runner-stub)"))
 }
 
 fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, String> {
