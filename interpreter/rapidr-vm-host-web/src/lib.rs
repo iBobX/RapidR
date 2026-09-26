@@ -39,7 +39,7 @@ impl Host for WebHost {
         if let Some(result) = rapidr_value::shared_builtin(&key, args) {
             return result;
         }
-        if key == "__component_array" {
+        if key == "__component_array" || key == "__objcreate" {
             self.has_components = true;
             HAS_COMPONENTS.with(|h| h.set(true));
         }
@@ -258,6 +258,25 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "__component_array" => {
             let (kind, name, bounds) = rapidr_value::objects::component_array_args(args);
             rapidr_runtime_web::object_web::rp_component_array(&kind, &name, &bounds)
+        }
+        // Components reached through objects (rapidr_ast::objects): by id.
+        "__objget" => rp_comp_get(&a0.to_string_val(), &a1.to_string_val()),
+        "__objset" => {
+            rp_comp_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
+            v_null()
+        }
+        "__objcall" => rp_comp_method(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),
+        "__objcreate" => {
+            rp_create_component(&a0.to_string_val(), &a1.to_string_val());
+            v_null()
+        }
+        "__bind_event_this" => {
+            // (component id, event, handler pointer = index + 1, instance)
+            let ptr = args.get(2).map_or(0, |v| v.to_i64());
+            if ptr > 0 {
+                obj::rp_bind_event_indirect_this(&a0.to_string_val(), &a1.to_string_val(), (ptr - 1) as u32, args.get(3).cloned().unwrap_or_else(v_null));
+            }
+            v_null()
         }
         "__bind_event" => {
             // (object id, event, function pointer = index + 1)
@@ -610,17 +629,7 @@ impl DebugSession {
         let module = unsafe { &*self.module };
 
         fn serialize_val(v: &Value) -> String {
-            match v {
-                Value::Null => "null".to_string(),
-                Value::Boolean(b) => b.to_string(),
-                Value::Integer(n) => n.to_string(),
-                Value::Double(d) => d.to_string(),
-                Value::String(s) => {
-                    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
-                }
-                // Shown as a JSON array of its elements (row-major).
-                Value::Array(a) => format!("[{}]", a.borrow().data.iter().map(serialize_val).collect::<Vec<_>>().join(",")),
-            }
+            rapidr_value::debug_json(v)
         }
 
         let mut locals_parts = Vec::new();
@@ -648,16 +657,7 @@ impl DebugSession {
     pub fn get_component_properties(&self, id: &str) -> String {
         if let Some((type_name, props)) = rapidr_runtime_web::object_web::rp_comp_get_all_properties(id) {
             fn serialize_val(v: &Value) -> String {
-                match v {
-                    Value::Null => "null".to_string(),
-                    Value::Boolean(b) => b.to_string(),
-                    Value::Integer(n) => n.to_string(),
-                    Value::Double(d) => d.to_string(),
-                    Value::String(s) => {
-                        format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
-                    }
-                    Value::Array(a) => format!("[{}]", a.borrow().data.iter().map(serialize_val).collect::<Vec<_>>().join(",")),
-                }
+                rapidr_value::debug_json(v)
             }
             let mut props_parts = Vec::new();
             for (name, val) in &props {

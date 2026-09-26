@@ -22,6 +22,114 @@ pub enum Value {
     /// A DIMmed array. Shared (cloning the Value aliases the same array), so
     /// an array passed to a SUB is modified in place, as BASIC arrays are.
     Array(Rc<RefCell<BasicArray>>),
+    /// An instance of a user TYPE: shared by reference, its fields in fixed
+    /// slots resolved at compile time (see [`Instance`]).
+    Object(Rc<Instance>),
+}
+
+/// An instance of a user TYPE (RapidQ manual ch. 10). Both backends lower
+/// objects the same way (`rapidr_ast::objects`): every field has a slot
+/// number fixed at compile time, ancestors' fields first, so reading or
+/// setting a field is an index into `fields` — no lookup by name.
+///
+/// `id` names the instance (`c`, `a(2)`, `c.Engine`): what PRINT shows, and
+/// the id of the component when the TYPE EXTENDS one (a TYPE EXTENDS QFORM
+/// *is* that form, whose properties live in the runtime's component
+/// registry under this id).
+#[derive(Debug)]
+pub struct Instance {
+    pub id: String,
+    pub type_name: String,
+    /// Field names by slot (shared by every instance of the type): for the
+    /// debugger and messages, never for access.
+    pub names: Rc<[String]>,
+    pub fields: RefCell<Vec<Value>>,
+}
+
+thread_local! {
+    static FIELD_NAMES: RefCell<std::collections::HashMap<String, Rc<[String]>>> = RefCell::new(Default::default());
+}
+
+impl Instance {
+    /// A new instance of `type_name` whose slots are `names` (comma
+    /// separated, as the compilers pass them), all Null.
+    pub fn new(id: &str, type_name: &str, names: &str) -> Rc<Self> {
+        let names = FIELD_NAMES.with(|c| {
+            c.borrow_mut()
+                .entry(format!("{type_name}:{names}"))
+                .or_insert_with(|| names.split(',').filter(|n| !n.is_empty()).map(str::to_string).collect::<Vec<_>>().into())
+                .clone()
+        });
+        let fields = RefCell::new(vec![Value::Null; names.len()]);
+        Rc::new(Self { id: id.to_string(), type_name: type_name.to_string(), names, fields })
+    }
+
+    pub fn get(&self, slot: usize) -> Value {
+        self.fields.borrow().get(slot).cloned().unwrap_or(Value::Null)
+    }
+
+    pub fn set(&self, slot: usize, value: Value) {
+        if let Some(f) = self.fields.borrow_mut().get_mut(slot) {
+            *f = value;
+        }
+    }
+}
+
+/// `__newobject(id, type, names)` in compiled code: a new instance.
+pub fn rp_new_object(id: &Value, type_name: &Value, names: &Value) -> Value {
+    Value::Object(Instance::new(&id.to_string_val(), &type_name.to_string_val(), &names.to_string_val()))
+}
+
+/// `__objectarray(name, type, names, lo, hi, …)` in compiled code.
+pub fn rp_new_object_array(name: &Value, type_name: &Value, names: &Value, bounds: &[(i64, i64)]) -> Value {
+    new_object_array(&name.to_string_val(), &type_name.to_string_val(), &names.to_string_val(), bounds).unwrap_or_else(|e| runtime_error(&e))
+}
+
+/// A value as JSON for debuggers: arrays as lists, objects as
+/// `{"$type":…, "$id":…, field: value, …}` (nested objects up to a depth).
+pub fn debug_json(v: &Value) -> String {
+    fn go(v: &Value, depth: usize) -> String {
+        match v {
+            Value::Null => "null".to_string(),
+            Value::Boolean(b) => b.to_string(),
+            Value::Integer(n) => n.to_string(),
+            Value::Double(d) => d.to_string(),
+            Value::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r")),
+            Value::Array(a) => format!("[{}]", a.borrow().data.iter().map(|x| go(x, depth)).collect::<Vec<_>>().join(",")),
+            Value::Object(o) if depth >= 4 => format!("\"<{}>\"", o.id),
+            Value::Object(o) => {
+                let mut parts = vec![format!("\"$type\":\"{}\"", o.type_name), format!("\"$id\":\"{}\"", o.id)];
+                for (name, f) in o.names.iter().zip(o.fields.borrow().iter()) {
+                    parts.push(format!("\"{name}\":{}", go(f, depth + 1)));
+                }
+                format!("{{{}}}", parts.join(","))
+            }
+        }
+    }
+    go(v, 0)
+}
+
+/// Field `slot` of an object (Null for anything else) — compiled field reads.
+pub fn obj_field(obj: &Value, slot: usize) -> Value {
+    match obj {
+        Value::Object(o) => o.get(slot),
+        _ => runtime_error(&format!("this variable does not refer to an object (reading field {slot} of {})", describe(obj))),
+    }
+}
+
+/// Sets field `slot` of an object — compiled field stores.
+pub fn set_obj_field(obj: &Value, slot: usize, value: Value) {
+    match obj {
+        Value::Object(o) => o.set(slot, value),
+        _ => runtime_error(&format!("this variable does not refer to an object (setting field {slot} of {})", describe(obj))),
+    }
+}
+
+fn describe(v: &Value) -> String {
+    match v {
+        Value::Null => "an empty variable".into(),
+        other => format!("\"{}\"", other.to_string_val()),
+    }
 }
 
 /// Largest array allowed (elements), so `DIM a(1E12)` fails cleanly instead
@@ -170,6 +278,7 @@ impl Value {
             Value::String(s) => !s.is_empty(),
             Value::Boolean(b) => *b,
             Value::Null | Value::Array(_) => false,
+            Value::Object(_) => true,
         }
     }
 
@@ -179,7 +288,7 @@ impl Value {
             Value::Double(n) => *n as i64,
             Value::String(s) => s.parse::<i64>().unwrap_or(0),
             Value::Boolean(b) => if *b { -1 } else { 0 },
-            Value::Null | Value::Array(_) => 0,
+            Value::Null | Value::Array(_) | Value::Object(_) => 0,
         }
     }
 
@@ -189,7 +298,7 @@ impl Value {
             Value::Double(n) => *n,
             Value::String(s) => s.parse::<f64>().unwrap_or(0.0),
             Value::Boolean(b) => if *b { -1.0 } else { 0.0 },
-            Value::Null | Value::Array(_) => 0.0,
+            Value::Null | Value::Array(_) | Value::Object(_) => 0.0,
         }
     }
 
@@ -212,6 +321,7 @@ impl Value {
             // Elements joined by commas: what runtime components received
             // back when interpreter arrays were comma-separated strings.
             Value::Array(a) => a.borrow().data.iter().map(|v| v.to_string_val()).collect::<Vec<_>>().join(","),
+            Value::Object(o) => o.id.clone(),
         }
     }
 
@@ -326,6 +436,10 @@ impl Value {
 
     fn cmp_eq(&self, rhs: &Value) -> bool {
         match (self, rhs) {
+            // The same instance; an object and a name compare by its id
+            // (`IF Sender = Btn1`).
+            (Value::Object(a), Value::Object(b)) => Rc::ptr_eq(a, b),
+            (Value::Object(o), other) | (other, Value::Object(o)) => o.id == other.to_string_val(),
             (Value::String(a), Value::String(b)) => a == b,
             (Value::String(a), _) => *a == rhs.to_string_val(),
             (_, Value::String(b)) => self.to_string_val() == *b,
@@ -614,7 +728,57 @@ fn leading_number(s: &str) -> Option<f64> {
     (1..=end).rev().find_map(|e| t[..e].parse::<f64>().ok())
 }
 
+/// `DIM a(1 TO 3) AS TType`: an array of new (not yet set-up) instances with
+/// ids `a(1)`, … and the fields `fields` (comma separated).
+pub fn new_object_array(name: &str, type_name: &str, fields: &str, bounds: &[(i64, i64)]) -> Result<Value, String> {
+    let (ids, _) = objects::object_ids(name, bounds)?;
+    let Value::Array(a) = &ids else { return Ok(ids) };
+    for v in a.borrow_mut().data.iter_mut() {
+        *v = Value::Object(Instance::new(&v.to_string_val(), type_name, fields));
+    }
+    Ok(ids)
+}
+
 pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    // Objects (rapidr_ast::objects): instances and their field slots.
+    let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+    match key {
+        "__newobject" => {
+            return Some(Ok(Value::Object(Instance::new(&arg(0).to_string_val(), &arg(1).to_string_val(), &arg(2).to_string_val()))));
+        }
+        "__getfield" | "__setfield" => {
+            let Value::Object(o) = arg(0) else {
+                return Some(Err(format!("this variable does not refer to an object ({})", describe(&arg(0)))));
+            };
+            let slot = arg(1).to_i64().max(0) as usize;
+            return Some(Ok(if key == "__getfield" {
+                o.get(slot)
+            } else {
+                o.set(slot, arg(2));
+                Value::Null
+            }));
+        }
+        "__null" => return Some(Ok(Value::Null)),
+        // `__newarray(fill, lo, hi)`: an array field's initial value.
+        "__newarray" => return Some(v_array(vec![(arg(1).to_i64(), arg(2).to_i64())], arg(0))),
+        "__aget" | "__aset" => {
+            let Value::Array(a) = arg(0) else {
+                return Some(Err(format!("this is not an array ({})", describe(&arg(0)))));
+            };
+            let n = if key == "__aset" { args.len().saturating_sub(2) } else { args.len().saturating_sub(1) };
+            let idx: Vec<i64> = args[1..1 + n].iter().map(Value::to_i64).collect();
+            return Some(if key == "__aget" {
+                a.borrow().get(&idx)
+            } else {
+                a.borrow_mut().set(&idx, arg(1 + n)).map(|_| Value::Null)
+            });
+        }
+        "__objectarray" => {
+            let bounds: Vec<(i64, i64)> = args.get(3..).unwrap_or(&[]).chunks(2).map(|b| (b[0].to_i64(), b.get(1).map_or(0, Value::to_i64))).collect();
+            return Some(new_object_array(&arg(0).to_string_val(), &arg(1).to_string_val(), &arg(2).to_string_val(), &bounds));
+        }
+        _ => {}
+    }
     if key == "__input_value" {
         let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
         return Some(Ok(input_value(&arg(0), &arg(1), &arg(2).to_string_val())));

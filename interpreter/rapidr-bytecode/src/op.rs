@@ -138,6 +138,12 @@ pub enum Op {
     /// as made by `BIND`/`CODEPTR`. Stack: [ptr, arg1, …, argN] → [result]
     /// (Null for a SUB). Operand: `u8` argc.
     CallIndirect = 0x78,
+    /// Read field `slot` of an object (`Value::Object`, rapidr_ast::objects).
+    /// Operand: `u16` slot. Stack: [object] → [value].
+    GetField = 0x79,
+    /// Set field `slot` of an object. Operand: `u16` slot.
+    /// Stack: [object, value] → [].
+    SetField = 0x7A,
 
     // === arrays ===
     /// Create a new dynamic array of N elements (default Null).
@@ -229,6 +235,8 @@ impl Op {
             0x76 => Op::SetPropDyn,
             0x77 => Op::CallMethodDyn,
             0x78 => Op::CallIndirect,
+            0x79 => Op::GetField,
+            0x7A => Op::SetField,
             0x80 => Op::NewArray,
             0x81 => Op::AGet,
             0x82 => Op::ASet,

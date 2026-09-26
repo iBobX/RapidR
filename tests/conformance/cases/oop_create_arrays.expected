@@ -1,5 +1,10 @@
 box x0
 box x3
-Box.Parts(0)|Box.Parts(2)
-plain array:-1
+lid2 [] Box.Parts(2)
+next empty:-1
+second x9
+item x0
+Many(1)
+second x9
+shared:1
 item x7

@@ -33,7 +33,7 @@ pub mod prelude {
         rp_bind_event_2, rp_bind_event_3, rp_bind_event_4, rp_bind_event_5,
         rp_bind_event_indirect, rp_clear_event_dispatcher, rp_mark_shutting_down,
         rp_set_event_dispatcher, rp_stop_all_timers,
-        rp_comp_get, rp_comp_method, rp_comp_set, rp_component_array,
+        rp_bind_event_closure, rp_bind_event_indirect_this, rp_comp_get, rp_comp_method, rp_comp_set, rp_component_array,
         rp_create_component, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5,
         rp_run_app,
     };
@@ -43,7 +43,7 @@ pub mod prelude {
     // DATA / READ / RESTORE
     pub use crate::value::data;
     pub use crate::value::console;
-    pub use crate::value::{input_value, rp_inv, rp_redim, rp_shl, rp_shr};
+    pub use crate::value::{input_value, obj_field, rp_inv, rp_new_object, rp_new_object_array, rp_redim, rp_shl, rp_shr, set_obj_field};
 
     #[cfg(feature = "gui")]
     pub use crate::gui::{set_theme, gui_register_timer};

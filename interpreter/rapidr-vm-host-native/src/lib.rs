@@ -41,7 +41,7 @@ impl Host for NativeHost {
         if let Some(result) = rapidr_value::shared_builtin(&key, args) {
             return result;
         }
-        if key == "__component_array" {
+        if key == "__component_array" || key == "__objcreate" {
             self.has_components = true;
         }
         if key == "lbound" || key == "ubound" {
@@ -262,6 +262,25 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "__component_array" => {
             let (kind, name, bounds) = rapidr_value::objects::component_array_args(args);
             obj::rp_component_array(&kind, &name, &bounds)
+        }
+        // Components reached through objects (rapidr_ast::objects): by id.
+        "__objget" => rp_comp_get(&a0.to_string_val(), &a1.to_string_val()),
+        "__objset" => {
+            rp_comp_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
+            v_null()
+        }
+        "__objcall" => rp_comp_method(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),
+        "__objcreate" => {
+            rp_create_component(&a0.to_string_val(), &a1.to_string_val());
+            v_null()
+        }
+        "__bind_event_this" => {
+            // (component id, event, handler pointer = index + 1, instance)
+            let ptr = args.get(2).map_or(0, |v| v.to_i64());
+            if ptr > 0 {
+                obj::rp_bind_event_indirect_this(&a0.to_string_val(), &a1.to_string_val(), (ptr - 1) as u32, args.get(3).cloned().unwrap_or_else(v_null));
+            }
+            v_null()
         }
         "__bind_event" => {
             // (object id, event, function pointer = index + 1)

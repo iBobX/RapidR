@@ -57,6 +57,10 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 /// doesn't know aren't errors (RapidQ's own libraries use Win32 routines
 /// and built-ins RapidR lacks); the program's own code is always checked.
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
+    // Objects → plain routines and builtins, the same pass native builds
+    // run (rapidr_ast::objects), so both backends treat objects alike.
+    let lowered = rapidr_ast::objects::lower(program, &|n| builtins::is_builtin(n));
+    let program = &lowered;
     let mut bcgen = Bcgen::new();
     bcgen.library_lines = library_lines.to_vec();
     if let Some(src) = source {
@@ -1959,6 +1963,14 @@ impl Bcgen {
         if let Some(assignment) = rapidr_ast::inc_dec_assignment(c, |name| self.fn_indices.contains_key(name)) {
             return self.lower_assignment(&assignment, code);
         }
+        // `__setfield obj, slot, value` (rapidr_ast::objects) → one opcode.
+        let call = rapidr_ast::FunctionCallExpression { span: c.span, callee: Box::new(c.callee.clone()), args: c.args.clone() };
+        if let Some(slot) = field_slot(&call, "__setfield", 3) {
+            self.lower_expr(&c.args[0], code)?;
+            self.lower_expr(&c.args[2], code)?;
+            emit(code, Op::SetField); push_u16(code, slot);
+            return Ok(());
+        }
         let is_stream = |e: &Expression| self.object_type_of(e).is_some_and(|t| matches!(t.to_ascii_uppercase().as_str(), "RFILESTREAM" | "RMEMORYSTREAM"));
         if let Some(assignment) = rapidr_ast::stream_read_assignment(c, &is_stream) {
             return self.lower_assignment(&assignment, code);
@@ -1999,7 +2011,8 @@ impl Bcgen {
         // object being created (RapidQ: `CREATE F AS QFORM ... Center ...`).
         // Mirrors codegen-rust's `rp_comp_method(<create target>, ...)`.
         if let (Some(obj), Expression::Identifier(id)) = (self.create_stack.last().cloned(), &c.callee) {
-            if !self.fn_indices.contains_key(&id.name) {
+            // (Not the compilers' own `__…` helpers.)
+            if !self.fn_indices.contains_key(&id.name) && !id.name.starts_with("__") {
                 let id_s = self.module.add_string(&obj);
                 let mn_s = self.module.add_string(&id.name.to_lowercase());
                 emit(code, Op::CallMethod);
@@ -2614,6 +2627,13 @@ impl Bcgen {
                 }
                 Ok(())
             }
+            // `__getfield(obj, slot)` (rapidr_ast::objects) → one opcode.
+            Expression::FunctionCall(fc) if field_slot(fc, "__getfield", 2).is_some() => {
+                let slot = field_slot(fc, "__getfield", 2).unwrap_or(0);
+                self.lower_expr(&fc.args[0], code)?;
+                emit(code, Op::GetField); push_u16(code, slot);
+                Ok(())
+            }
             Expression::FunctionCall(fc) => {
                 // `obj.Names(1)` where Names is an array field of obj's TYPE.
                 if let Expression::MemberAccess(m) = fc.callee.as_ref() {
@@ -3068,6 +3088,22 @@ fn reachable_routines(program: &Program) -> HashSet<String> {
 
 /// The value a variable of a BASIC type starts with (as in native builds'
 /// `default_value_for_type`); VARIANTs and objects start as Null.
+/// The slot of `name(obj, slot, …)` with `argc` arguments and a literal
+/// slot (the object pass's field access), for the GetField/SetField opcodes.
+fn field_slot(fc: &rapidr_ast::FunctionCallExpression, name: &str, argc: usize) -> Option<u16> {
+    let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+    if !id.name.eq_ignore_ascii_case(name) || fc.args.len() != argc {
+        return None;
+    }
+    match &fc.args[1] {
+        Expression::Literal(lit) => match &lit.value {
+            LiteralValue::Integer(n) => u16::try_from(*n).ok(),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn type_default(type_name: &str) -> Const {
     match type_name.to_ascii_uppercase().as_str() {
         "STRING" => Const::Str(String::new()),
@@ -3224,8 +3260,8 @@ mod tests {
         let Err(err) = compile_program_with_source(&parse(&src), Some(&src)) else { panic!("should not compile") };
         assert_eq!(err.lines().count(), 1, "{err}");
         assert!(err.contains("MessageBeep") && err.starts_with("7:"), "{err}");
-        // A TYPE in use (DIM) brings its methods along.
-        let src = format!("{lib}DIM t AS TIdle");
+        // A method called on an instance brings its code along.
+        let src = format!("{lib}DIM t AS TIdle\nt.Go");
         let Err(err) = compile_program_with_source(&parse(&src), Some(&src)) else { panic!("should not compile") };
         assert!(err.starts_with("11:"), "{err}");
     }
