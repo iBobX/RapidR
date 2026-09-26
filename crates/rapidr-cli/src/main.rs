@@ -841,14 +841,16 @@ fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
     let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub"];
     if release { args.push("--release"); }
     let built = process::Command::new("cargo").args(&args).status();
-    let path = Path::new("target").join(preferred).join(exe_name);
+    // Where cargo put it: CARGO_TARGET_DIR when set, else ./target.
+    let target = std::env::var_os("CARGO_TARGET_DIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("target"));
+    let path = target.join(preferred).join(exe_name);
     match built {
         Ok(status) if status.success() && path.exists() => return Ok(path),
         Ok(status) => eprintln!("warning: cargo build rapidr-runner-stub failed ({status}); using an existing runner if there is one"),
         Err(e) => eprintln!("warning: can't run cargo ({e}); using an existing runner if there is one"),
     }
     for profile in [preferred, if preferred == "release" { "debug" } else { "release" }] {
-        let candidate = Path::new("target").join(profile).join(exe_name);
+        let candidate = target.join(profile).join(exe_name);
         if candidate.exists() {
             return Ok(candidate);
         }

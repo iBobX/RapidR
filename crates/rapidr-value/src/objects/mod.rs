@@ -17,7 +17,7 @@ pub mod memstream;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use crate::{v_str, Value};
+use crate::{v_int, v_str, Value};
 use bitmap::Bitmap;
 use codec::{base64_decode, encode_bmp, BMP_DATA_URL};
 use font::Font;
@@ -25,7 +25,7 @@ use imagelist::ImageList;
 use memstream::MemStream;
 
 /// RapidR's names for the object types (RapidQ's QFONT is RFONT, …).
-pub const TYPES: &[&str] = &["RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST"];
+pub const TYPES: &[&str] = &["RFONT", "RMEMORYSTREAM", "RFILESTREAM", "RBITMAP", "RIMAGELIST"];
 
 pub fn is_object_type(type_name: &str) -> bool {
     TYPES.contains(&type_name.to_ascii_uppercase().as_str())
@@ -54,12 +54,16 @@ fn std_write(path: &str, bytes: &[u8]) -> Result<(), String> {
 thread_local! {
     static OBJECTS: RefCell<HashMap<String, Object>> = RefCell::new(HashMap::new());
     static FILE_IO: RefCell<(FileReader, FileWriter)> = RefCell::new((std_read, std_write));
+    /// False once a runtime replaces the file functions (the web): files
+    /// are then read and written whole through them.
+    static NATIVE_FILES: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
 }
 
 /// Replaces how objects read and write files (the web runtime has no file
 /// system).
 pub fn set_file_io(reader: FileReader, writer: FileWriter) {
     FILE_IO.with(|io| *io.borrow_mut() = (reader, writer));
+    NATIVE_FILES.with(|n| n.set(false));
 }
 
 fn read_file(path: &str) -> Result<Vec<u8>, String> {
@@ -67,7 +71,7 @@ fn read_file(path: &str) -> Result<Vec<u8>, String> {
     reader(path)
 }
 
-fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
 }
@@ -76,7 +80,7 @@ fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
 pub fn create(id: &str, type_name: &str) -> bool {
     let object = match type_name.to_ascii_uppercase().as_str() {
         "RFONT" => Object::Font(Font::default()),
-        "RMEMORYSTREAM" => Object::Stream(MemStream::default()),
+        "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
         _ => return false,
@@ -103,7 +107,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
-        Object::Stream(m) if matches!(prop.as_str(), "readline" | "eof") => m.call(&prop, &[]),
+        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall") => m.call(&prop, &[]),
         Object::Stream(m) => m.get(&prop),
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
@@ -152,7 +156,15 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Bitmap(_) => "bitmap",
         Object::ImageList(_) => "imagelist",
     })?;
+    // A file opened for reading can't be written.
+    if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
+        let read_only = with(id, |o| matches!(o, Object::Stream(m) if m.file.as_ref().is_some_and(|f| !f.writable)))?;
+        if read_only {
+            return Some(Err(format!("{method}: the file was opened for reading (fmOpenRead)")));
+        }
+    }
     match (kind, method.as_str()) {
+        ("stream", "open") => Some(open_file(id, &arg(0).to_string_val(), if args.len() > 1 { arg(1).to_i64() } else { 0 })),
         ("stream", "copyfrom") => {
             let src = arg(0).to_string_val();
             let n = arg(1).to_i64();
@@ -280,6 +292,60 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
 }
 
+/// `File.Open(name, mode)` (RAPIDQ.INC: fmCreate = 65535, fmOpenRead = 0,
+/// fmOpenWrite = 1, fmOpenReadWrite = 2): the stream holds the file's bytes
+/// (none for fmCreate) and writes go through to the file.
+fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
+    let create = mode == 65535;
+    let writable = create || mode == 1 || mode == 2;
+    let native = NATIVE_FILES.with(std::cell::Cell::get);
+    let data = if create { Vec::new() } else { read_file(path)? };
+    #[cfg(not(target_arch = "wasm32"))]
+    let handle = if native && writable {
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true).write(true);
+        if create {
+            options.create(true).truncate(true);
+        }
+        Some(options.open(path).map_err(|e| format!("can't open {path}: {e}"))?)
+    } else {
+        None
+    };
+    if create && !native {
+        write_file(path, &[])?;
+    }
+    let sink = memstream::FileSink {
+        path: path.to_string(),
+        writable,
+        #[cfg(not(target_arch = "wasm32"))]
+        handle,
+    };
+    with(id, |o| {
+        if let Object::Stream(m) = o {
+            *m = MemStream { data, pos: 0, file: Some(sink) };
+        }
+    });
+    Ok(v_int(-1))
+}
+
+/// A stream's bytes (web runtime: `File.Download`).
+pub fn stream_bytes(id: &str) -> Option<Vec<u8>> {
+    with(id, |o| match o {
+        Object::Stream(m) => Some(m.data.clone()),
+        _ => None,
+    })?
+}
+
+/// Replaces a stream's content (web runtime: a picked or fetched file).
+pub fn stream_load(id: &str, bytes: Vec<u8>) {
+    with(id, |o| {
+        if let Object::Stream(m) = o {
+            m.data = bytes;
+            m.pos = 0;
+        }
+    });
+}
+
 /// The image a value names: a QBITMAP's id, the `data:` URL of a bitmap's
 /// `.BMP`, or a BMP file.
 pub fn load_image(v: &Value) -> Result<Bitmap, String> {
@@ -321,6 +387,38 @@ pub fn font_properties(id: &str) -> Option<Vec<(&'static str, Value)>> {
     })?
 }
 
+/// `DIM lbl(1 TO 3) AS QLABEL`: an array holding one object id per element,
+/// `lbl(1)`, `lbl(2)`, … (`grid(0,1)` for more dimensions), and those ids in
+/// order. Runtimes create a component for each id.
+pub fn object_ids(name: &str, bounds: &[(i64, i64)]) -> Result<(Value, Vec<String>), String> {
+    let array = crate::BasicArray::new(bounds.to_vec(), Value::Null)?;
+    let mut ids = Vec::with_capacity(array.data.len());
+    let mut index: Vec<i64> = bounds.iter().map(|b| b.0).collect();
+    for _ in 0..array.data.len() {
+        let parts: Vec<String> = index.iter().map(i64::to_string).collect();
+        ids.push(format!("{name}({})", parts.join(",")));
+        // Row-major: the last index moves fastest.
+        for d in (0..index.len()).rev() {
+            if index[d] < bounds[d].1 {
+                index[d] += 1;
+                break;
+            }
+            index[d] = bounds[d].0;
+        }
+    }
+    let data = ids.iter().map(|id| v_str(id)).collect();
+    let value = Value::Array(std::rc::Rc::new(std::cell::RefCell::new(crate::BasicArray { bounds: bounds.to_vec(), data })));
+    Ok((value, ids))
+}
+
+/// `__component_array(kind, name, lo1, hi1, …)` arguments: (kind, name, bounds).
+pub fn component_array_args(args: &[Value]) -> (String, String, Vec<(i64, i64)>) {
+    let kind = args.first().map(Value::to_string_val).unwrap_or_default();
+    let name = args.get(1).map(Value::to_string_val).unwrap_or_default();
+    let bounds = args.get(2..).unwrap_or(&[]).chunks(2).map(|b| (b[0].to_i64(), b.get(1).map_or(0, Value::to_i64))).collect();
+    (kind, name, bounds)
+}
+
 /// Appends bytes to memory stream `id` (e.g. data a QFILESTREAM read, for
 /// `Mem.CopyFrom(File, n)`).
 pub fn stream_write(id: &str, bytes: &[u8]) -> bool {
@@ -345,6 +443,18 @@ mod tests {
 
     fn call_ok(id: &str, method: &str, args: &[Value]) -> Value {
         call(id, method, args, &no_props).expect("handled").expect("ok")
+    }
+
+    #[test]
+    fn object_id_arrays() {
+        let (a, ids) = object_ids("lbl", &[(1, 3)]).unwrap();
+        assert_eq!(ids, ["lbl(1)", "lbl(2)", "lbl(3)"]);
+        let Value::Array(a) = a else { panic!() };
+        assert_eq!(a.borrow().get(&[2]).unwrap().to_string_val(), "lbl(2)");
+        let (g, ids) = object_ids("g", &[(0, 1), (1, 2)]).unwrap();
+        assert_eq!(ids, ["g(0,1)", "g(0,2)", "g(1,1)", "g(1,2)"]);
+        let Value::Array(g) = g else { panic!() };
+        assert_eq!(g.borrow().get(&[1, 1]).unwrap().to_string_val(), "g(1,1)");
     }
 
     #[test]

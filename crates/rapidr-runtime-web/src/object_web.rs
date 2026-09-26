@@ -371,6 +371,22 @@ fn object_error(name: &str, what: &str, e: &str) {
 
 /// Update the property in the component store only (no DOM side-effects).
 /// Used by internal tab switching, etc.
+/// `DIM lbl(1 TO 3) AS QLABEL`: one component per element, ids `lbl(1)`,
+/// `lbl(2)`, … (rapidr_value::objects::object_ids); returns the array of ids.
+pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Value {
+    match rapidr_value::objects::object_ids(name, bounds) {
+        Ok((array, ids)) => {
+            for id in ids {
+                rp_create_component(&id, kind);
+            }
+            array
+        }
+        Err(e) => {
+            crate::value::runtime_error(&format!("DIM {name}: {e}"));
+        }
+    }
+}
+
 pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
@@ -620,20 +636,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     let lmethod = method.to_lowercase();
 
-    // `Mem.CopyFrom(File, n)` from a QFILESTREAM (text held by the page).
-    if lmethod == "copyfrom" && rp_comp_type(&uname) == "RMEMORYSTREAM" {
-        let src = args.first().map(|v| v.to_string_val().to_uppercase()).unwrap_or_default();
-        if rp_comp_type(&src) == "RFILESTREAM" {
-            let n = args.get(1).map_or(0, |v| v.to_i64());
-            let text = fs_get_text(&src);
-            let chars: Vec<char> = text.chars().collect();
-            let start = if n <= 0 { 0 } else { fs_get_pos(&src).min(chars.len()) };
-            let end = if n <= 0 { chars.len() } else { (start + n as usize).min(chars.len()) };
-            let chunk: String = chars[start..end].iter().collect();
-            fs_set_pos(&src, end, end >= chars.len());
-            rapidr_value::objects::stream_write(name, &rapidr_value::objects::codec::string_to_bytes(&chunk));
-            return v_null();
-        }
+    // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
+    // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
+    // as the component's properties `panel(0).width` unless the component
+    // implements them.
+    if let Some(v) = indexed_sub_object(name, &lmethod, args) {
+        return v;
     }
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
         return result.unwrap_or_else(|e| {
@@ -926,122 +934,24 @@ fn json_web_set_path(root: &wasm_bindgen::JsValue, path: &str, val: &Value) {
 }
 
 // ---------------------------------------------------------------------------
-// RFILESTREAM (web) — virtual file backed by an in-memory text buffer.
-// `Open`/`Close` are no-ops. `WriteLine`/`Write` append to the buffer;
-// `ReadLine`/`Read`/`ReadAll` consume from a position cursor. `Download`
-// triggers a browser file save with the current `filename` and `text`.
-// `PickFile` opens a hidden <input type="file">; once the user selects a
-// file, the contents are read into `text`, position is reset, and the
-// component's `onload` event fires.
-// `LoadFromUrl` fetches a URL and stores the response text similarly.
+// RFILESTREAM (web): the shared stream (rapidr_value::objects, the same as
+// the desktop) handles Open/Read*/Write*/Seek/…, with files read from the
+// page and saved for the session (web_read_file / web_write_file). These
+// page-only extras remain: `Download` saves the stream's content as a file,
+// `PickFile` loads a file the user picks, `LoadFromUrl` fetches one; both
+// then fire the component's `onload` event.
 // ---------------------------------------------------------------------------
 
 fn fs_get_text(name: &str) -> String {
-    COMPONENTS.with(|c| {
-        c.borrow()
-            .get(name)
-            .and_then(|comp| comp.properties.get("text").map(|v| v.to_string_val()))
-            .unwrap_or_default()
-    })
+    rapidr_value::objects::stream_bytes(name).map(|b| rapidr_value::objects::codec::bytes_to_string(&b)).unwrap_or_default()
 }
 
 fn fs_set_text(name: &str, text: &str) {
-    COMPONENTS.with(|c| {
-        if let Some(comp) = c.borrow_mut().get_mut(name) {
-            comp.properties.insert("text".to_string(), v_str(text));
-            comp.properties.insert("position".to_string(), v_int(0));
-            comp.properties.insert("eof".to_string(), v_bool(text.is_empty()));
-        }
-    });
-}
-
-fn fs_get_pos(name: &str) -> usize {
-    COMPONENTS.with(|c| {
-        c.borrow()
-            .get(name)
-            .and_then(|comp| comp.properties.get("position").map(|v| v.to_i64() as usize))
-            .unwrap_or(0)
-    })
-}
-
-fn fs_set_pos(name: &str, pos: usize, eof: bool) {
-    COMPONENTS.with(|c| {
-        if let Some(comp) = c.borrow_mut().get_mut(name) {
-            comp.properties.insert("position".to_string(), v_int(pos as i64));
-            comp.properties.insert("eof".to_string(), v_bool(eof));
-        }
-    });
+    rapidr_value::objects::stream_load(name, rapidr_value::objects::codec::string_to_bytes(text));
 }
 
 fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
-        "open" => {
-            // First arg = filename (optional). Mode arg ignored on web.
-            if let Some(fname) = args.first() {
-                rp_comp_set_prop_only(name, "filename", v_str(&fname.to_string_val()));
-            }
-            // Reset cursor without clearing existing text (so writes append
-            // and reads start from beginning).
-            fs_set_pos(name, 0, fs_get_text(name).is_empty());
-            v_int(1)
-        }
-        "close" => {
-            fs_set_pos(name, 0, false);
-            v_null()
-        }
-        "writeline" => {
-            let mut text = fs_get_text(name);
-            let line = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            if !text.is_empty() && !text.ends_with('\n') {
-                text.push('\n');
-            }
-            text.push_str(&line);
-            text.push('\n');
-            fs_set_text(name, &text);
-            v_null()
-        }
-        "write" => {
-            let mut text = fs_get_text(name);
-            text.push_str(&args.first().map(|v| v.to_string_val()).unwrap_or_default());
-            fs_set_text(name, &text);
-            v_null()
-        }
-        "readline" => {
-            let text = fs_get_text(name);
-            let pos = fs_get_pos(name);
-            if pos >= text.len() {
-                fs_set_pos(name, pos, true);
-                return v_str("");
-            }
-            let rest = &text[pos..];
-            let (line, advance) = match rest.find('\n') {
-                Some(i) => (&rest[..i], i + 1),
-                None => (rest, rest.len()),
-            };
-            let new_pos = pos + advance;
-            let eof = new_pos >= text.len();
-            fs_set_pos(name, new_pos, eof);
-            v_str(line)
-        }
-        "read" => {
-            let text = fs_get_text(name);
-            let pos = fs_get_pos(name);
-            let n = args.first().map(|v| v.to_i64() as usize).unwrap_or(usize::MAX);
-            let end = (pos + n).min(text.len());
-            let chunk = &text[pos..end];
-            fs_set_pos(name, end, end >= text.len());
-            v_str(chunk)
-        }
-        "readall" => {
-            let text = fs_get_text(name);
-            fs_set_pos(name, text.len(), true);
-            v_str(&text)
-        }
-        "eof" => {
-            let text = fs_get_text(name);
-            v_int(if fs_get_pos(name) >= text.len() { -1 } else { 0 })
-        }
-        // -- Web-exclusive bridges --
         "download" => {
             let filename = COMPONENTS
                 .with(|c| {
@@ -2159,4 +2069,23 @@ fn trigger_download(filename: &str, mime: &str, text: &str) {
         }
     }
     let _ = web_sys::Url::revoke_object_url(&url);
+}
+
+/// Generic storage for indexed sub-object members (see `rp_comp_method`).
+fn indexed_sub_object(name: &str, method: &str, args: &[Value]) -> Option<Value> {
+    let (sub, member) = method.split_once('.')?;
+    if sub.is_empty() || member.is_empty() || member.contains('.') {
+        return None;
+    }
+    let setter = member.ends_with('=');
+    let member = member.trim_end_matches('=');
+    let n_index = if setter { args.len().checked_sub(1)? } else { args.len() };
+    let index: Vec<String> = args[..n_index].iter().map(|v| v.to_string_val()).collect();
+    let key = format!("{sub}({}).{member}", index.join(","));
+    if setter {
+        rp_comp_set(name, &key, args[n_index].clone());
+        Some(Value::Null)
+    } else {
+        Some(rp_comp_get(name, &key))
+    }
 }

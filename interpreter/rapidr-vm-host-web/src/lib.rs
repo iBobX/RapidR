@@ -39,6 +39,10 @@ impl Host for WebHost {
         if let Some(result) = rapidr_value::shared_builtin(&key, args) {
             return result;
         }
+        if key == "__component_array" {
+            self.has_components = true;
+            HAS_COMPONENTS.with(|h| h.set(true));
+        }
         if key == "lbound" || key == "ubound" {
             let arr = args.first().cloned().unwrap_or_else(v_null);
             let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
@@ -249,6 +253,20 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         // Module-style constants
         "math.pi" | "pi" => v_dbl(std::f64::consts::PI),
         "math.e" | "e" => v_dbl(std::f64::consts::E),
+
+        // `DIM lbl(1 TO 3) AS QLABEL` and `lbl(i).OnClick = Handler`
+        "__component_array" => {
+            let (kind, name, bounds) = rapidr_value::objects::component_array_args(args);
+            rapidr_runtime_web::object_web::rp_component_array(&kind, &name, &bounds)
+        }
+        "__bind_event" => {
+            // (object id, event, function pointer = index + 1)
+            let ptr = args.get(2).map_or(0, |v| v.to_i64());
+            if ptr > 0 {
+                obj::rp_bind_event_indirect(&a0.to_string_val(), &a1.to_string_val(), (ptr - 1) as u32);
+            }
+            v_null()
+        }
 
         // GUI plumbing emitted by bcgen
         "__gui_register_timer" => {

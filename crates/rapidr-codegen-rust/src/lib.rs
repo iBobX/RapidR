@@ -286,7 +286,7 @@ impl RustCodegen {
                     for body_stmt in &s.body {
                         if let Statement::Dim(d) = body_stmt {
                             for decl in &d.declarators {
-                                if is_component_type_name(&d.type_name) {
+                                if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
                                     self.component_vars.insert(decl.name.to_lowercase(), d.type_name.to_uppercase());
                                 }
                             }
@@ -307,7 +307,7 @@ impl RustCodegen {
                     for body_stmt in &f.body {
                         if let Statement::Dim(d) = body_stmt {
                             for decl in &d.declarators {
-                                if is_component_type_name(&d.type_name) {
+                                if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
                                     self.component_vars.insert(decl.name.to_lowercase(), d.type_name.to_uppercase());
                                 }
                             }
@@ -344,8 +344,8 @@ impl RustCodegen {
                                 d.type_name.clone(),
                             );
                         }
-                        // Track if this is a component variable
-                        if is_component_type_name(&d.type_name) {
+                        // Track if this is a component variable (not an array of them)
+                        if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
                             self.component_vars.insert(name_lower, d.type_name.to_uppercase());
                         }
                     }
@@ -601,6 +601,31 @@ impl RustCodegen {
                         self.write_indent();
                         let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
                     }
+                }
+                continue;
+            }
+
+            // `DIM lbl(1 TO 3) AS QLABEL`: one component per element (ids
+            // `lbl(1)`, …), the variable holding the array of ids.
+            if !decl.dimensions.is_empty() && is_component_type_name(&d.type_name) {
+                self.array_vars.insert(name_lower.clone());
+                let bounds: Vec<String> = decl
+                    .dimensions
+                    .iter()
+                    .map(|dim| match dim {
+                        ArrayDimension::Single(upper) => format!("(0, ({}).to_i64())", self.expr_to_string(upper)),
+                        ArrayDimension::Range { start, end } => {
+                            format!("(({}).to_i64(), ({}).to_i64())", self.expr_to_string(start), self.expr_to_string(end))
+                        }
+                    })
+                    .collect();
+                let kind = rapidr_ast::canonical_type_name(&d.type_name).to_ascii_uppercase();
+                let array = format!("rp_component_array(\"{kind}\", \"{}\", &[{}])", decl.name, bounds.join(", "));
+                if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
+                    self.write_indent();
+                    let _ = writeln!(self.output, "gs(\"{name}\", {array});");
+                } else {
+                    self.declare_local(&name, &array);
                 }
                 continue;
             }
@@ -978,10 +1003,11 @@ impl RustCodegen {
             }
         }
 
-        // Inside CREATE: bare identifier calls → component method on CREATE target
+        // Inside CREATE: bare identifier calls → component method on CREATE
+        // target (not the compiler's own `__…` helpers).
         if !self.create_stack.is_empty() {
             if let Expression::Identifier(id) = &c.callee {
-                if !self.defined_functions.contains(&id.name.to_lowercase()) {
+                if !self.defined_functions.contains(&id.name.to_lowercase()) && !id.name.starts_with("__") {
                     let obj = self.create_stack.last().unwrap().clone();
                     let method = id.name.to_lowercase();
                     let args: Vec<String> = c.args.iter().map(|a| self.owned_expr(a)).collect();
@@ -1772,6 +1798,25 @@ impl RustCodegen {
                 };
                 self.emit_bind_event_call(&comp_name, &event, &handler);
                 return;
+            }
+        }
+        // `lbl(i).OnClick = Handler` (objects.rs): an object known at run time.
+        if let Expression::MemberAccess(ma) = &b.target {
+            if ma.member.to_ascii_lowercase().starts_with("on") {
+                if let Expression::Identifier(h) = &b.handler {
+                    if self.defined_functions.contains(&strip_type_suffix(&h.name).to_lowercase()) {
+                        let obj = self.expr_to_string(&ma.object);
+                        let handler = to_snake(&strip_type_suffix(&h.name));
+                        let arity = self.function_param_counts.get(&h.name.to_lowercase()).copied().unwrap_or(0);
+                        let bind = match arity {
+                            0 => "rp_bind_event".to_string(),
+                            n => format!("rp_bind_event_{}", n.min(5)),
+                        };
+                        self.write_indent();
+                        let _ = writeln!(self.output, "{bind}(&({obj}).to_string_val(), \"{}\", {handler});", ma.member.to_lowercase());
+                        return;
+                    }
+                }
             }
         }
         // `BIND ptr TO Proc`: the pointer is the routine's id (`__callfunc`).

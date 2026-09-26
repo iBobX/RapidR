@@ -140,8 +140,11 @@ Next up, in order:
 - [x] `INPUT` per the manual: prompt printed, whole line, stored as text/number by DIM type or suffix (both backends) (v2.22.0)
 - [ ] Web: other waits through the same suspension — `SLEEP` (setTimeout), `INKEY$`/`INPUT$(n)` from the page, `DOEVENTS`; the Rust-compiled web build still uses browser dialogs
 - [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
-- [ ] Arrays of components (`DIM lbl(1 TO 5) AS QLABEL` … `lbl(i).Height = 20`) and indexed sub-objects inside CREATE (`Panel(0).Caption = …`): "nested member-access store" blocks 24 of the 386 RapidQ examples
-- [ ] QFILESTREAM on the shared stream code (today only line-oriented: no ReadStr/WriteStr/ReadNum/Position/Size on the desktop)
+- [x] Arrays of components and indexed sub-objects (also inside CREATE), both backends (v2.26.0)
+- [ ] Components render their indexed sub-objects (status bar panels, list view columns)
+- [ ] Arrays of TYPE objects (`DIM a(n) AS TType`: one instance per element) — with the object redesign
+- [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
+- [ ] Streams: ReadUDT/WriteUDT, LoadArray/SaveArray, ExtractRes; exact sizes for `Read(var)` of BYTE/SHORT variables
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`

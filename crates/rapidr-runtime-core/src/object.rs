@@ -507,6 +507,22 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     rapidr_value::objects::create(name, type_name);
 }
 
+/// `DIM lbl(1 TO 3) AS QLABEL`: one component per element, ids `lbl(1)`,
+/// `lbl(2)`, … (rapidr_value::objects::object_ids); returns the array of ids.
+pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Value {
+    match rapidr_value::objects::object_ids(name, bounds) {
+        Ok((array, ids)) => {
+            for id in ids {
+                rp_create_component(&id, kind);
+            }
+            array
+        }
+        Err(e) => {
+            crate::value::runtime_error(&format!("DIM {name}: {e}"));
+        }
+    }
+}
+
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
@@ -707,14 +723,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
 
-    // `Mem.CopyFrom(File, n)` from a QFILESTREAM: read its bytes here.
-    if method_lower == "copyfrom" && comp_type == "RMEMORYSTREAM" {
-        let src = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-        if rp_comp_type(&src) == "RFILESTREAM" {
-            let n = args.get(1).map_or(0, |v| v.to_i64());
-            rapidr_value::objects::stream_write(name, &filestream_read_bytes(&src, n));
-            return v_null();
-        }
+    // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
+    // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
+    // as the component's properties `panel(0).width` unless the component
+    // implements them.
+    if let Some(v) = indexed_sub_object(name, &method_lower, args) {
+        return v;
     }
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
         return result.unwrap_or_else(|e| {
@@ -779,7 +793,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_null()
             }
         }
-        "RFILESTREAM" => filestream_method(name, &method_lower, args),
         "RJSON" => json_method(name, &method_lower, args),
         "RSTRINGLIST" => stringlist_method(name, &method_lower, args),
         // Specialized GUI component method dispatch
@@ -954,122 +967,6 @@ pub fn rp_run_app() {
     #[cfg(not(feature = "gui"))]
     {
         println!("[GUI] ShowModal called — GUI not compiled, returning immediately.");
-    }
-}
-
-// ---------------------------------------------------------------------------
-// RFileStream methods
-// ---------------------------------------------------------------------------
-
-thread_local! {
-    static FILESTREAMS: RefCell<HashMap<String, std::io::BufReader<std::fs::File>>> = RefCell::new(HashMap::new());
-    static FILESTREAM_WRITERS: RefCell<HashMap<String, std::fs::File>> = RefCell::new(HashMap::new());
-}
-
-/// Up to `n` bytes (all that's left if `n` <= 0) from a QFILESTREAM open for
-/// reading.
-fn filestream_read_bytes(name: &str, n: i64) -> Vec<u8> {
-    use std::io::Read;
-    FILESTREAMS.with(|s| {
-        let mut buf = Vec::new();
-        if let Some(reader) = s.borrow_mut().get_mut(&name.to_lowercase()) {
-            let _ = if n <= 0 { reader.read_to_end(&mut buf).map(|_| ()) } else { reader.by_ref().take(n as u64).read_to_end(&mut buf).map(|_| ()) };
-        }
-        buf
-    })
-}
-
-fn filestream_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
-    match method {
-        "open" => {
-            let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let mode = args.get(1).map(|v| v.to_i64()).unwrap_or(0);
-            let result = if mode == 65535 {
-                // fmCreate — write mode
-                std::fs::File::create(&filename).map(|f| {
-                    FILESTREAM_WRITERS.with(|w| {
-                        w.borrow_mut().insert(name_lower.clone(), f);
-                    });
-                })
-            } else {
-                // Read mode
-                std::fs::File::open(&filename).map(|f| {
-                    use std::io::BufReader;
-                    FILESTREAMS.with(|s| {
-                        s.borrow_mut().insert(name_lower.clone(), BufReader::new(f));
-                    });
-                })
-            };
-            match result {
-                Ok(()) => {
-                    rp_comp_set(name, "filename", v_str(&filename));
-                    v_int(1)
-                }
-                Err(_) => v_int(0),
-            }
-        }
-        "close" => {
-            FILESTREAMS.with(|s| { s.borrow_mut().remove(&name_lower); });
-            FILESTREAM_WRITERS.with(|w| { w.borrow_mut().remove(&name_lower); });
-            v_null()
-        }
-        "readline" | "readln" => {
-            use std::io::BufRead;
-            FILESTREAMS.with(|s| {
-                if let Some(reader) = s.borrow_mut().get_mut(&name_lower) {
-                    let mut line = String::new();
-                    match reader.read_line(&mut line) {
-                        Ok(0) => v_str(""),
-                        Ok(_) => {
-                            let trimmed = line.trim_end_matches('\n').trim_end_matches('\r');
-                            v_str(trimmed)
-                        }
-                        Err(_) => v_str(""),
-                    }
-                } else {
-                    v_str("")
-                }
-            })
-        }
-        "writeline" | "writeln" => {
-            use std::io::Write;
-            let text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            FILESTREAM_WRITERS.with(|w| {
-                if let Some(writer) = w.borrow_mut().get_mut(&name_lower) {
-                    let _ = writeln!(writer, "{}", text);
-                }
-            });
-            v_null()
-        }
-        "eof" => {
-            // Check if we're at EOF
-            use std::io::BufRead;
-            FILESTREAMS.with(|s| {
-                if let Some(reader) = s.borrow_mut().get_mut(&name_lower) {
-                    let buf = reader.fill_buf().unwrap_or(&[]);
-                    v_int(if buf.is_empty() { 1 } else { 0 })
-                } else {
-                    v_int(1)
-                }
-            })
-        }
-        "readall" => {
-            use std::io::Read;
-            FILESTREAMS.with(|s| {
-                if let Some(reader) = s.borrow_mut().get_mut(&name_lower) {
-                    let mut buf = String::new();
-                    let _ = reader.read_to_string(&mut buf);
-                    v_str(&buf)
-                } else {
-                    v_str("")
-                }
-            })
-        }
-        _ => {
-            eprintln!("[WARN] RFileStream.{}() not implemented", method);
-            v_null()
-        }
     }
 }
 
@@ -1642,4 +1539,23 @@ pub fn is_component_method(member: &str) -> bool {
         // TabControl methods
         | "addtabs" | "tab"
     )
+}
+
+/// Generic storage for indexed sub-object members (see `rp_comp_method`).
+fn indexed_sub_object(name: &str, method: &str, args: &[Value]) -> Option<Value> {
+    let (sub, member) = method.split_once('.')?;
+    if sub.is_empty() || member.is_empty() || member.contains('.') {
+        return None;
+    }
+    let setter = member.ends_with('=');
+    let member = member.trim_end_matches('=');
+    let n_index = if setter { args.len().checked_sub(1)? } else { args.len() };
+    let index: Vec<String> = args[..n_index].iter().map(|v| v.to_string_val()).collect();
+    let key = format!("{sub}({}).{member}", index.join(","));
+    if setter {
+        rp_comp_set(name, &key, args[n_index].clone());
+        Some(Value::Null)
+    } else {
+        Some(rp_comp_get(name, &key))
+    }
 }

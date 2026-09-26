@@ -642,6 +642,61 @@ pub fn input_suffix(target: &Expression) -> &'static str {
     }
 }
 
+/// `Stream.Read(var)` (QFILESTREAM / QMEMORYSTREAM, manual: "Generic Read,
+/// determines the storage space and saves data in variable") as the
+/// assignment `var = Stream.__read(var)`: the stream reads as many bytes as
+/// the variable's current value takes. `is_stream` says whether the object
+/// is a stream.
+pub fn stream_read_assignment(c: &CallStatement, is_stream: &dyn Fn(&Expression) -> bool) -> Option<AssignmentStatement> {
+    let Expression::MemberAccess(m) = &c.callee else { return None };
+    let [target] = c.args.as_slice() else { return None };
+    if !m.member.eq_ignore_ascii_case("read")
+        || !matches!(target, Expression::Identifier(_) | Expression::ArrayAccess(_) | Expression::FunctionCall(_) | Expression::MemberAccess(_))
+        || !is_stream(&m.object)
+    {
+        return None;
+    }
+    let callee = Expression::MemberAccess(MemberAccessExpression { span: m.span, object: m.object.clone(), member: "__read".into() });
+    Some(AssignmentStatement {
+        span: c.span,
+        target: target.clone(),
+        value: Expression::FunctionCall(FunctionCallExpression { span: c.span, callee: Box::new(callee), args: vec![target.clone()] }),
+    })
+}
+
+/// Inside `CREATE SB AS QSTATUSBAR … END CREATE`, `Panel(0).Width = 100`
+/// means `SB.Panel(0).Width = 100`: one of the component's indexed
+/// sub-objects. Returns the body with such statements (assignments and calls
+/// whose object is `Name(args)` for a `Name` that `is_known` doesn't claim
+/// as a variable, array or routine) written with `obj` explicitly.
+pub fn qualify_create_body(body: &[Statement], obj: &str, is_known: &dyn Fn(&str) -> bool) -> Vec<Statement> {
+    let qualify = |e: &Expression| -> Option<Expression> {
+        let Expression::MemberAccess(m) = e else { return None };
+        let Expression::FunctionCall(fc) = m.object.as_ref() else { return None };
+        let Expression::Identifier(sub) = fc.callee.as_ref() else { return None };
+        if is_known(&sub.name) {
+            return None;
+        }
+        let owner = Expression::Identifier(Identifier { span: sub.span, name: obj.to_string() });
+        let callee = Expression::MemberAccess(MemberAccessExpression { span: sub.span, object: Box::new(owner), member: sub.name.clone() });
+        let object = Expression::FunctionCall(FunctionCallExpression { span: fc.span, callee: Box::new(callee), args: fc.args.clone() });
+        Some(Expression::MemberAccess(MemberAccessExpression { span: m.span, object: Box::new(object), member: m.member.clone() }))
+    };
+    body.iter()
+        .map(|s| match s {
+            Statement::Assignment(a) => match qualify(&a.target) {
+                Some(target) => Statement::Assignment(AssignmentStatement { target, ..a.clone() }),
+                None => s.clone(),
+            },
+            Statement::Call(c) => match qualify(&c.callee) {
+                Some(callee) => Statement::Call(CallStatement { callee, ..c.clone() }),
+                None => s.clone(),
+            },
+            _ => s.clone(),
+        })
+        .collect()
+}
+
 /// A component RapidR implements, or one of RapidQ's objects it doesn't yet.
 pub fn is_rapidq_object_type(type_name: &str) -> bool {
     is_component_type_name(&canonical_type_name(type_name))

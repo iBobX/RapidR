@@ -7,6 +7,55 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.26.0] — 2026-09-26
+
+### Added
+- **Arrays of components**, in both backends. `DIM lbl(1 TO 3) AS QLABEL`
+  creates one real component per element, with ids `lbl(1)`, `lbl(2)`, …;
+  more dimensions work too (`grid(0,1)`), and so do local arrays.
+  - Elements take properties, reads, method calls and event handlers:
+    `lbl(i).Caption = …`, `lbl(i).OnClick = Handler`, where Sender says
+    which element fired.
+  - The id array is built in `rapidr_value::objects::object_ids`, and both
+    runtimes create the components (`rp_component_array`).
+- **Indexed sub-objects of components**, in both backends.
+  `SB.Panel(0).Width = 100` works, and inside `CREATE SB … END CREATE` so
+  does the bare `Panel(0).Width = 100`. It becomes the method
+  `panel.width=`, and the runtimes keep these as the component's
+  properties.
+
+  Status-bar panels and list-view columns don't render them yet. The
+  CREATE-block rule is shared: `rapidr_ast::qualify_create_body`.
+- **QFILESTREAM on the shared stream code**, the same as QMEMORYSTREAM on
+  every platform:
+  - `Open` with fmCreate/fmOpenRead/fmOpenWrite/fmOpenReadWrite; all the
+    Read*/Write*/ReadNum/WriteNum methods, Seek, LineCount, Size and
+    Position; `CopyFrom` between file and memory streams in both
+    directions;
+  - on the desktop, writes go straight to the file, so nothing is lost
+    without `Close`; on the web, `Open` reads the page's own files;
+  - writing to a file opened with fmOpenRead is refused with a warning.
+
+  Before, desktop file streams only read and wrote whole lines.
+- **`Stream.Read(var)`** (both backends): reads as many bytes as the
+  variable holds (a string: its length), per the manual's "Generic Read".
+  It's compiled as `var = Stream.__read(var)` (`rapidr_ast::stream_read_assignment`).
+- **Tests:**
+  - conformance cases `component_arrays`, `indexed_subobjects` and
+    `file_streams`;
+  - `tests/native_gui_events.mjs` now builds each GUI fixture both
+    natively and with `--interp` and requires identical results; its new
+    fixture is an array of buttons sharing one OnClick handler.
+
+### Fixed
+- **`File.EOF` is True (-1) at the end, not 1.** With RapidQ's bitwise
+  `NOT`, `WHILE NOT File.EOF` never ended.
+- **`rapidr build --interp` honours `CARGO_TARGET_DIR`** when it builds and
+  embeds the runner.
+- **Native CREATE blocks** no longer treat the compiler's own helpers as
+  methods of the created component.
+- 113 of the 386 RapidQ examples compile now (was 101).
+
 ## [2.25.0] — 2026-09-26
 
 ### Added
