@@ -132,7 +132,7 @@ Next up, in order:
 - [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)
 - [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0)
 - [x] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` as ANSI sequences on both backends; the IDE Output panel renders them (web-ide/ansi_screen.js) (v2.17.0)
-- [ ] Web bundles: an on-page console screen for programs that PRINT (today bundles only log to the browser console)
+- [x] Web bundles: an on-page console for programs that PRINT (`web-ide/bundle_console.js` + `ansi_screen.js`, CLI and IDE bundles) (v2.21.0)
 - [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
 - [x] `REDIM` keeping data (resized in place; creates the array without a DIM; `REDIM PRESERVE`), `INV` (v2.18.0)
 - [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
