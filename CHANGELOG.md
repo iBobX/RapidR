@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.24.1] — 2026-09-26
+
+### Changed
+- **Native is native, interpreted is interpreted.** `rapidr build` no
+  longer switches to the embedded interpreter for object-oriented
+  programs. Until the Rust backend compiles OOP TYPEs, a native build of
+  such a program stops with a clear error that points to the interpreter
+  (`rapidr build-bc` / `run-bc`, or `--interp`). `RAPIDR_STRICT_CODEGEN` is
+  gone.
+
 ## [2.24.0] — 2026-09-25
 
 ### Added

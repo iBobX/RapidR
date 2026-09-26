@@ -1,4 +1,4 @@
-' xfail: codegen — the Rust backend doesn't compile OOP TYPEs yet; `rapidr build` uses the embedded interpreter for them (RAPIDR_STRICT_CODEGEN tests the backend itself)
+' xfail: codegen — native builds don't compile OOP TYPEs yet (a clear compile error; in progress)
 ' TYPE with fields (incl. an array field), SUB/FUNCTION methods using This and bare field
 ' names, a CONSTRUCTOR, inheritance (base constructor first) and instances passed to SUBs.
 TYPE TCounter

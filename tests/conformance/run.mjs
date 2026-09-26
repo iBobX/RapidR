@@ -73,9 +73,7 @@ function runCodegen(name, src, input) {
   mkdirSync(dir, { recursive: true });
   const rr = join(dir, `${name}.rr`);
   copyFileSync(src, rr);
-  // Strict: test the Rust backend itself, without `rapidr build` falling
-  // back to the embedded interpreter for what it can't compile yet.
-  const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target"), RAPIDR_STRICT_CODEGEN: "1" };
+  const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target") };
   const c = run(RAPIDR, ["build", rr, join(dir, `${name}_rust`)], { env, timeout: 600_000 });
   const bin = join(dir, name);
   if (!c.ok || !existsSync(bin)) return { compiled: false, output: "", diagnostics: cargoErrors(c.out + c.err) };

@@ -27,8 +27,7 @@ impl Default for AppTarget {
 
 /// What the Rust backend can't compile yet in `program`, if anything:
 /// object-oriented TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY
-/// SET). `rapidr build` then builds the native executable with the embedded
-/// bytecode interpreter instead (the same as `--interp`), which runs them.
+/// SET). `rapidr build` reports it as an error.
 pub fn native_gap(program: &Program) -> Option<String> {
     program.statements.iter().find_map(|s| match s {
         Statement::Type(t)

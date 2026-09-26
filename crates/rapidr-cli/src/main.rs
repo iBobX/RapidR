@@ -287,15 +287,12 @@ fn build_source_file(
         .and_then(|r| r.app_type);
     let is_web = web || app_type.as_deref() == Some("WEB");
 
-    // Programs using what the Rust backend can't compile yet (object-oriented
-    // TYPEs) still become a native executable (or web bundle): with the
-    // embedded bytecode interpreter, which runs them. RAPIDR_STRICT_CODEGEN=1
-    // turns this off (the conformance suite uses it to test the Rust backend).
-    let mut interp = interp;
-    if !interp && std::env::var_os("RAPIDR_STRICT_CODEGEN").is_none() {
+    // Native means compiled: what the Rust backend can't compile yet is an
+    // error, never a silent switch to the interpreter.
+    if !interp {
         if let Some(gap) = parser_parse_file(path).ok().as_ref().and_then(rapidr_codegen_rust::native_gap) {
-            println!("note: {gap}, which the Rust backend doesn't compile yet; building with the embedded interpreter instead (as --interp).");
-            interp = true;
+            eprintln!("{path}: error: {gap}, which native builds don't compile yet. Run it with the interpreter (rapidr build-bc / run-bc, or --interp).");
+            return ExitCode::from(1);
         }
     }
 
