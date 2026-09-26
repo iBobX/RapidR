@@ -78,7 +78,7 @@ Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 | SEC-05 | Medium | `Caption`/`Text` set via `innerHTML` for non-label elements → XSS when showing DB/HTTP/AI data | `crates/rapidr-runtime-web/src/gui_web.rs:235`, `:604` (15 innerHTML sites total) | `textContent` by default; explicit `.HTML` property for markup |
 | SEC-06 | Medium | 6 `js_sys::eval` sites with string-built JS. **Also a functional bug:** bundle CSP (`script-src 'self' 'wasm-unsafe-eval'`) blocks eval, so `RHttp`, `Sound`/`Beep`, `SaveToFile` likely fail in deployed bundles; `connect-src 'self'` blocks external APIs; `frame-src 'none'` blocks `RWebView` | `network_web.rs:58`, `:125`; `builtins.rs:550`, `:569`; `object_web.rs:1314`; `gui_web.rs:1269`; CSP in `web-ide/zip.js:91` | Replace with `web_sys` calls; clippy `disallowed_methods` for eval outside `RJavaScript`; derive CSP from components used |
 | SEC-07 | Medium | SQL APIs take raw strings, no parameter binding (`query_map([], …)`) → SQLi by default | `crates/rapidr-runtime-core/src/database.rs:103` (+ MySQL path, web DB) | Add parameter binding API (`?` placeholders + `.AddParam`/array arg); document; teach AI |
-| SEC-08 | Review | 23 `unsafe` in web host; event dispatcher stores leaked raw `*mut Vm` → possible aliasing/UB on re-entrant events (during `ShowModal`, sync XHR). 68 `unsafe` in FFI | `interpreter/rapidr-vm-host-web/src/lib.rs:237`; `crates/rapidr-runtime-core/src/ffi.rs` | Re-entrancy guard / `Rc<RefCell<>>`; document invariants; Miri |
+| SEC-08 | Review | ~~23 `unsafe` in web host; event dispatcher stores leaked raw `*mut Vm` → possible aliasing/UB on re-entrant events~~ fixed in v2.30.0: events are queued and run by the VM itself; the VM and both hosts `#![forbid(unsafe_code)]`. Remaining: 68 `unsafe` in FFI | `crates/rapidr-runtime-core/src/ffi.rs` | Document invariants; Miri |
 | SEC-09 | Gap | ~~No cargo-deny~~ (done v2.8.4); no fuzzing, no SECURITY.md; IDE loads Google Fonts (third-party) | — | Phase 0 + Phase 6 |
 | SEC-11 | High | Build server preview path traversal: `dir.join(rel).starts_with(dir)` does not catch `..` → arbitrary file read | `crates/rapidr-buildserver/src/main.rs` (`serve_preview_path`) | Reject any non-`Normal` path component |
 | SEC-12 | Medium | `RWebView.HTML` uses `srcdoc` with default sandbox `allow-scripts allow-same-origin` → HTML runs with the app's origin | `crates/rapidr-runtime-web/src/gui_web.rs` (`"html"` prop, iframe creation ~:2201) | Drop `allow-same-origin` for `srcdoc` content by default; opt-in property |
@@ -148,7 +148,8 @@ Next up, in order:
 - [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
 - [ ] Speed next: typed locals/fields (skip `Value` boxing where the type is known), fewer clones in generated code, `Module::add_string` is a linear search at compile time
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
-- [ ] Security: make the web VM host sound on re-entrant events (queue events fired during a statement, or restructure ownership); fuzzing in CI
+- [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
+- [ ] Fuzzing in CI
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
 - [ ] Streams: ReadUDT/WriteUDT, LoadArray/SaveArray, ExtractRes; exact sizes for `Read(var)` of BYTE/SHORT variables
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas

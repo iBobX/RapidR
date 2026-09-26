@@ -28,6 +28,34 @@ pub trait Host {
     fn suspend_requested(&mut self) -> bool {
         false
     }
+    /// The event handlers the runtime queued since the last call (bytecode
+    /// function index and arguments, oldest first). Runtimes never call
+    /// into the VM themselves: a button click, a timer or an event a
+    /// builtin fires is queued, and the VM runs it at a safe point — right
+    /// after the host operation that fired it, or from a wait / the host's
+    /// idle loop. Each handler runs to completion before the next one, as
+    /// in a native build, and no event re-enters the VM mid-operation.
+    fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> {
+        Vec::new()
+    }
+    /// Events taken with [`Host::take_events`] that couldn't run because a
+    /// handler before them stopped (waits for a dialog): the host runs them
+    /// later, from its idle loop.
+    fn defer_events(&mut self, events: Vec<(u32, Vec<Value>)>) {
+        let _ = events;
+    }
+    /// Asked after each host operation: `true` if it started a wait the VM
+    /// must serve (a desktop `ShowModal`): the VM then calls [`Host::pump`]
+    /// and runs queued events until the wait ends.
+    fn wait_started(&mut self) -> bool {
+        false
+    }
+    /// Processes pending UI events once for the innermost wait: `None`
+    /// while it goes on, `Some(result)` when it's over (the result of the
+    /// operation that started it).
+    fn pump(&mut self) -> Option<Value> {
+        Some(Value::Null)
+    }
 }
 
 /// A test/no-op [`Host`].

@@ -210,36 +210,42 @@ fn install_capture_hook() {
             }
         }
         app::redraw();
-        let _ = app::wait_for(0.2);
-        // `RAPIDR_TEST_DUMP=b1.caption,b2.caption`: print these properties.
-        for p in std::env::var("RAPIDR_TEST_DUMP").unwrap_or_default().split(',').filter(|p| !p.trim().is_empty()) {
-            if let Some((comp, prop)) = p.trim().rsplit_once('.') {
-                println!("{}={}", p.trim(), rp_comp_get(comp, prop).to_string_val());
-            }
-        }
-        let mut n = 0;
-        for mut win in app::windows().unwrap_or_default() {
-            if !win.shown() {
-                continue;
-            }
-            let Ok(img) = draw::capture_window(&mut win) else { continue };
-            let (w, h) = (img.data_w() as usize, img.data_h() as usize);
-            let data = img.to_rgb_data();
-            let channels = if w * h > 0 { data.len() / (w * h) } else { 0 };
-            if channels < 3 {
-                continue;
-            }
-            let pixels = data.chunks(channels).map(|p| (p[2] as u32) << 16 | (p[1] as u32) << 8 | p[0] as u32).collect();
-            let bmp = rapidr_value::objects::codec::encode_bmp(&rapidr_value::objects::codec::Pixels { width: w, height: h, pixels });
-            n += 1;
-            let path = format!("{prefix}-{n}.bmp");
-            match std::fs::write(&path, bmp) {
-                Ok(()) => eprintln!("[rapidr] captured window '{}' to {path}", win.label()),
-                Err(e) => eprintln!("[rapidr] can't write {path}: {e}"),
-            }
-        }
-        std::process::exit(0);
+        // Later, so the handlers have run (the bytecode VM runs them once
+        // this callback returns) and the windows are redrawn.
+        let prefix = prefix.clone();
+        app::add_timeout3(0.3, move |_| capture_windows(&prefix));
     });
+}
+
+fn capture_windows(prefix: &str) {
+    // `RAPIDR_TEST_DUMP=b1.caption,b2.caption`: print these properties.
+    for p in std::env::var("RAPIDR_TEST_DUMP").unwrap_or_default().split(',').filter(|p| !p.trim().is_empty()) {
+        if let Some((comp, prop)) = p.trim().rsplit_once('.') {
+            println!("{}={}", p.trim(), rp_comp_get(comp, prop).to_string_val());
+        }
+    }
+    let mut n = 0;
+    for mut win in app::windows().unwrap_or_default() {
+        if !win.shown() {
+            continue;
+        }
+        let Ok(img) = draw::capture_window(&mut win) else { continue };
+        let (w, h) = (img.data_w() as usize, img.data_h() as usize);
+        let data = img.to_rgb_data();
+        let channels = if w * h > 0 { data.len() / (w * h) } else { 0 };
+        if channels < 3 {
+            continue;
+        }
+        let pixels = data.chunks(channels).map(|p| (p[2] as u32) << 16 | (p[1] as u32) << 8 | p[0] as u32).collect();
+        let bmp = rapidr_value::objects::codec::encode_bmp(&rapidr_value::objects::codec::Pixels { width: w, height: h, pixels });
+        n += 1;
+        let path = format!("{prefix}-{n}.bmp");
+        match std::fs::write(&path, bmp) {
+            Ok(()) => eprintln!("[rapidr] captured window '{}' to {path}", win.label()),
+            Err(e) => eprintln!("[rapidr] can't write {path}: {e}"),
+        }
+    }
+    std::process::exit(0);
 }
 
 /// A modal message with buttons in the given order, the first being the
@@ -2464,7 +2470,66 @@ fn schedule_timer(name: &str) {
     });
 }
 
-/// Show a form as modal (blocking event loop).
+/// A wait the bytecode VM serves itself (see [`rp_set_cooperative_waits`]).
+enum Wait {
+    /// `Form.ShowModal`: until the form is closed.
+    Form(String),
+    /// The program's main event loop: until no window is left.
+    App,
+}
+
+thread_local! {
+    static COOPERATIVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static WAITS: RefCell<Vec<Wait>> = const { RefCell::new(Vec::new()) };
+    static WAIT_STARTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// For the bytecode VM (rapidr-vm-host-native): `ShowModal` returns at once
+/// and leaves its wait to the VM, which pumps events ([`gui_pump_wait`])
+/// and runs the handlers they queue itself — event handlers never run
+/// inside a runtime call. Native builds keep blocking loops (their
+/// handlers are plain Rust functions).
+pub fn gui_set_cooperative_waits(on: bool) {
+    COOPERATIVE.with(|c| c.set(on));
+}
+
+/// Whether the last operation started a wait (once).
+pub fn gui_take_wait_started() -> bool {
+    WAIT_STARTED.with(|w| w.replace(false))
+}
+
+/// Starts waiting for the program's windows (after the main program).
+pub fn gui_begin_app_wait() {
+    ensure_app();
+    WAITS.with(|w| w.borrow_mut().push(Wait::App));
+}
+
+fn form_shown(name_lower: &str) -> bool {
+    GUI_WIDGETS.with(|gw| matches!(gw.borrow().get(name_lower), Some(GuiWidget::Window(win)) if win.shown()))
+}
+
+/// One step of the innermost wait: `None` while it goes on (after handling
+/// pending UI events once), `Some(Null)` when it's over.
+pub fn gui_pump_wait() -> Option<Value> {
+    let done = WAITS.with(|w| match w.borrow().last() {
+        None => true,
+        Some(Wait::Form(name)) => !form_shown(name),
+        Some(Wait::App) => false,
+    });
+    // Don't hold a borrow while FLTK runs callbacks.
+    if done || !app::wait() {
+        let finished = WAITS.with(|w| w.borrow_mut().pop());
+        if matches!(finished, Some(Wait::Form(_))) {
+            // As the blocking ShowModal does when its form closes.
+            crate::object::rp_stop_all_timers();
+        }
+        return Some(v_null());
+    }
+    None
+}
+
+/// Show a form as modal (blocking event loop; for the bytecode VM, a wait
+/// it serves — see [`gui_set_cooperative_waits`]).
 pub fn gui_showmodal(name: &str) {
     ensure_app();
     let name_lower = name.to_lowercase();
@@ -2492,19 +2557,16 @@ pub fn gui_showmodal(name: &str) {
     // Start all registered timers
     start_timers();
 
+    if COOPERATIVE.with(|c| c.get()) {
+        WAITS.with(|w| w.borrow_mut().push(Wait::Form(name_lower)));
+        WAIT_STARTED.with(|w| w.set(true));
+        return;
+    }
+
     // Run the FLTK event loop — do NOT hold a borrow on GUI_APP during wait()
     // because callbacks may call ensure_app() which needs borrow_mut.
     while app::wait() {
-        // Check if the main window is still shown
-        let shown = GUI_WIDGETS.with(|gw| {
-            let widgets = gw.borrow();
-            if let Some(GuiWidget::Window(ref win)) = widgets.get(&name_lower) {
-                win.shown()
-            } else {
-                false
-            }
-        });
-        if !shown {
+        if !form_shown(&name_lower) {
             break;
         }
     }

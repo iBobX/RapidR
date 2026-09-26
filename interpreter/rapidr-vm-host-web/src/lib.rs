@@ -1,16 +1,20 @@
 //! Browser [`Host`] implementation for the RapidR bytecode VM.
 //!
-//! Routes builtins / component / DOM ops to `rapidr-runtime-web`, and
-//! installs a thread-local indirect dispatcher so DOM events can
-//! re-enter the [`Vm`] to invoke bytecode handler functions.
+//! Routes builtins / component / DOM ops to `rapidr-runtime-web`. The
+//! program lives in a `RefCell` session; DOM events queue their bytecode
+//! handlers, which run when the VM is idle or at its next safe point —
+//! never by re-entering a running VM.
 //!
 //! Designed to be wrapped in a `wasm-bindgen` shim by a thin
 //! application crate (`rapidrintr.wasm`) that loads a `.rrbc` module
 //! at runtime.
 
+#![forbid(unsafe_code)]
+
 #![allow(clippy::too_many_lines)]
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
 
 use rapidr_bytecode::Module;
 use rapidr_runtime_web::object_web as obj;
@@ -101,6 +105,14 @@ impl Host for WebHost {
 
     fn suspend_requested(&mut self) -> bool {
         rapidr_runtime_web::dialog_web::take_suspend()
+    }
+
+    fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> {
+        take_queued_events()
+    }
+
+    fn defer_events(&mut self, events: Vec<(u32, Vec<Value>)>) {
+        DEFERRED.with(|q| q.borrow_mut().extend(events));
     }
 }
 
@@ -297,13 +309,77 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
     }
 }
 
-// ---------- Indirect-dispatch event loop ----------
+// ---------- Sessions and events ----------
+//
+// The running program (module + VM) lives in `SESSION`, a `RefCell`: every
+// entry from JavaScript (starting the program, a DOM event, a dialog's
+// answer, the debugger) borrows it for the duration, so the VM can never be
+// entered twice. The runtime never calls into the VM: it queues each event
+// handler in `EVENTS`. The VM runs those itself right after the host
+// operation that fired them (see `Host::take_events`); events that arrive
+// while it's idle run from `run_idle_events`, which every entry point calls
+// once it has released the session. No raw pointers, no aliasing.
+
+/// One program run (or debugging session) in the page.
+struct Session {
+    module: Module,
+    vm: Vm<'static, WebHost>,
+    /// `__main` stopped for a dialog: when it finishes, show the forms.
+    main_waiting: bool,
+    /// Tells a `DebugSession` whether the session is still its own.
+    generation: u64,
+}
+
+impl Session {
+    fn new(module: Module, debug: bool) -> Self {
+        // The host lives as long as the page's wasm instance; one small
+        // struct per run.
+        let host: &'static mut WebHost = Box::leak(Box::default());
+        let mut vm = Vm::new(host);
+        vm.debug_mode = debug;
+        let generation = NEXT_GENERATION.with(|g| {
+            let n = g.get() + 1;
+            g.set(n);
+            n
+        });
+        Session { module, vm, main_waiting: false, generation }
+    }
+}
+
+type Event = (u32, Vec<Value>);
+
+use rapidr_runtime_web::dialog_web as dialog;
 
 thread_local! {
-    static ACTIVE_VM: Cell<*mut ()> = const { Cell::new(std::ptr::null_mut()) };
-    /// `__main` stopped for a dialog: when it finishes, show the forms.
-    static MAIN_WAITING: Cell<bool> = const { Cell::new(false) };
+    static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
+    /// Event handlers the runtime fired, not yet taken by the VM.
+    static EVENTS: RefCell<VecDeque<Event>> = const { RefCell::new(VecDeque::new()) };
+    /// Events the VM took but couldn't run because a handler before them
+    /// waits for a dialog: they run from `run_idle_events`, first.
+    static DEFERRED: RefCell<VecDeque<Event>> = const { RefCell::new(VecDeque::new()) };
     static HAS_COMPONENTS: Cell<bool> = const { Cell::new(false) };
+    static NEXT_GENERATION: Cell<u64> = const { Cell::new(0) };
+}
+
+fn take_queued_events() -> Vec<Event> {
+    EVENTS.with(|q| q.borrow_mut().drain(..).collect())
+}
+
+/// Replaces the page's program: the old session and its queued events go.
+fn start_session(session: Session) {
+    EVENTS.with(|q| q.borrow_mut().clear());
+    DEFERRED.with(|q| q.borrow_mut().clear());
+    HAS_COMPONENTS.with(|h| h.set(false));
+    SESSION.with(|s| {
+        if let Ok(mut slot) = s.try_borrow_mut() {
+            *slot = Some(session);
+        }
+    });
+    let _ = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
+        EVENTS.with(|q| q.borrow_mut().push_back((fn_index, args.to_vec())));
+        run_idle_events();
+    }));
+    install_resume_handler();
 }
 
 /// Tells the IDE's debugger that the VM paused (if it's listening).
@@ -318,84 +394,81 @@ fn report_paused() {
     }
 }
 
-struct VmCtx<'a, 'h, H: Host + ?Sized> {
-    vm: &'a mut Vm<'h, H>,
-    module: &'a Module,
+/// What happened in the VM, reported once the session is released (the
+/// IDE may call back into the debugger synchronously).
+fn report(result: Result<(), VmError>, what: &str) {
+    match result {
+        Ok(()) | Err(VmError::Suspended) => {}
+        Err(VmError::Paused) => report_paused(),
+        Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[rapidr] {what}: {e}"))),
+    }
 }
 
-use rapidr_runtime_web::dialog_web as dialog;
+/// Runs the queued event handlers while the VM is idle, each to
+/// completion before the next. While the VM runs (the session is
+/// borrowed) this does nothing: the VM runs them at its next safe point.
+fn run_idle_events() {
+    loop {
+        let outcome = SESSION.with(|s| {
+            let Ok(mut guard) = s.try_borrow_mut() else { return None };
+            let session = guard.as_mut()?;
+            let mut batch: Vec<Event> = DEFERRED.with(|q| q.borrow_mut().drain(..).collect());
+            batch.extend(take_queued_events());
+            if batch.is_empty() {
+                return None;
+            }
+            let mut batch = batch.into_iter();
+            let mut result = Ok(());
+            dialog::enter_vm();
+            for (fn_index, args) in batch.by_ref() {
+                if let Err(e) = session.vm.invoke_function(&session.module, fn_index, args) {
+                    result = Err(e);
+                    break;
+                }
+            }
+            dialog::leave_vm();
+            // A handler waits for a dialog (or failed): the rest run later.
+            DEFERRED.with(|q| q.borrow_mut().extend(batch));
+            Some(result)
+        });
+        match outcome {
+            None => return,
+            Some(Err(e @ (VmError::Suspended | VmError::Paused))) => {
+                report(Err(e), "event handler");
+                return;
+            }
+            Some(result) => report(result, "event handler failed"),
+        }
+    }
+}
 
 /// Continues the program after an in-page dialog (dialog_web): the answer
 /// becomes the result of the MESSAGEBOX/INPUT that opened it.
-fn install_resume_handler<H: Host + ?Sized + 'static>() {
+fn install_resume_handler() {
     dialog::set_resume_handler(std::rc::Rc::new(|value, echo| {
-        ACTIVE_VM.with(|c| {
-            let p = c.get() as *mut VmCtx<'_, '_, H>;
-            if p.is_null() { return; }
-            let ctx = unsafe { &mut *p };
+        let outcome = SESSION.with(|s| {
+            let Ok(mut guard) = s.try_borrow_mut() else { return None };
+            let session = guard.as_mut()?;
             if let Some(line) = echo {
                 // What was typed, as a terminal shows it.
-                let _ = ctx.vm.host_mut().print(&format!("{line}\n"));
-                ctx.vm.print_col = 0;
+                let _ = session.vm.host_mut().print(&format!("{line}\n"));
+                session.vm.print_col = 0;
             }
             dialog::enter_vm();
-            let result = ctx.vm.resume_with(ctx.module, value);
+            let result = session.vm.resume_with(&session.module, value);
             dialog::leave_vm();
-            match result {
-                Ok(()) => {
-                    if MAIN_WAITING.with(|m| m.replace(false)) && HAS_COMPONENTS.with(Cell::get) {
-                        rapidr_runtime_web::gui_web::gui_web_finalize();
-                    }
-                }
-                Err(VmError::Suspended) => {}
-                Err(VmError::Paused) => report_paused(),
-                Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[rapidr] vm error: {e}"))),
+            let main_done = result.is_ok() && session.main_waiting && session.vm.frames.is_empty();
+            if main_done {
+                session.main_waiting = false;
             }
+            Some((result, main_done))
         });
-    }));
-}
-
-/// Set up the indirect dispatcher so DOM events re-enter the supplied
-/// [`Vm`]. Unlike the native version, this does NOT block — the
-/// browser's event loop drives subsequent callbacks. The caller is
-/// expected to keep `vm`, `module`, and `host` alive (e.g. by storing
-/// them in a `'static` cell) for as long as the page lives.
-///
-/// # Safety
-/// The pointers stored in the thread-local must remain valid for the
-/// lifetime of the page. The wrapper `BcRuntime::start` below takes
-/// care of this by leaking everything intentionally into a
-/// `Box::leak`'d `'static` slot.
-pub fn install_dispatcher<H: Host + ?Sized + 'static>(module: *const Module, vm: *mut Vm<'_, H>) {
-    // Stash a leaked `VmCtx` so the dispatcher closure can find it.
-    let ctx = Box::leak(Box::new(VmCtx::<'static, 'static, H> {
-        // SAFETY: caller guarantees `vm` and `module` live for 'static.
-        vm: unsafe { &mut *(vm as *mut Vm<'static, H>) },
-        module: unsafe { &*(module as *const Module) },
-    }));
-    let ctx_ptr = (ctx as *mut VmCtx<'_, '_, H>) as *mut ();
-    ACTIVE_VM.with(|c| c.set(ctx_ptr));
-    install_resume_handler::<H>();
-
-    let _ = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
-        ACTIVE_VM.with(|c| {
-            let p = c.get() as *mut VmCtx<'_, '_, H>;
-            if p.is_null() { return; }
-            let ctx = unsafe { &mut *p };
-            dialog::enter_vm();
-            let result = ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec());
-            dialog::leave_vm();
-            match result {
-                // Suspended: the handler waits for a dialog (resumed below).
-                Ok(_) | Err(VmError::Suspended) => {}
-                Err(VmError::Paused) => report_paused(),
-                Err(e) => {
-                    web_sys::console::error_1(
-                        &JsValue::from_str(&format!("[rapidr] event handler #{fn_index} failed: {e}")),
-                    );
-                }
-            }
-        });
+        let Some((result, main_done)) = outcome else { return };
+        if main_done && HAS_COMPONENTS.with(Cell::get) {
+            rapidr_runtime_web::gui_web::gui_web_finalize();
+        }
+        report(result, "vm error");
+        run_idle_events();
     }));
 }
 
@@ -403,51 +476,42 @@ pub fn install_dispatcher<H: Host + ?Sized + 'static>(module: *const Module, vm:
 
 /// Decode and execute a `.rrbc` module from a byte slice.
 ///
-/// Steps performed:
-/// 1. Decode the `.rrbc` bytes into a [`Module`] (errors → JS error).
-/// 2. Run `__main` to set up globals and create components.
-/// 3. If components were created, install the indirect dispatcher so
-///    DOM events fire bytecode handlers; the browser event loop then
-///    drives the program. Otherwise it's a "compute-only" run.
-///
-/// All of `host`, `vm`, and `module` are leaked into `'static` storage
-/// so DOM callbacks can reach them; this is safe because a browser page
-/// keeps its WASM instance alive for its full lifetime.
+/// Runs `__main` (it may stop for a dialog; the forms appear when it
+/// finishes), shows the forms it created, and leaves the program in the
+/// page's session: DOM events then run its handlers.
 #[wasm_bindgen]
 pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     let module = Module::from_bytes(bytes)
         .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
-    let module: &'static Module = Box::leak(Box::new(module));
+    // Installed before `__main` runs, so events fired during setup (an
+    // RSqlite OnConnect, a synchronous RHTTP OnLoad, …) reach their handlers.
+    start_session(Session::new(module, false));
 
-    let host: &'static mut WebHost = Box::leak(Box::new(WebHost::default()));
-    let vm: &'static mut Vm<'static, WebHost> = Box::leak(Box::new(Vm::new(host)));
-
-    // Install the indirect event dispatcher BEFORE running __main, so that
-    // any events fired during initial setup (e.g. RSqlite OnConnect on
-    // DB.Connect, RHTTP OnLoad on a sync request, etc.) can re-enter the
-    // VM to invoke their bytecode handlers. Without this, events that fire
-    // before any DOM component is created would be silently dropped.
-    install_dispatcher::<WebHost>(module as *const _, vm as *mut _);
-
-    dialog::enter_vm();
-    let result = vm.run(module);
-    dialog::leave_vm();
-    match result {
-        Ok(()) => {}
-        // Waiting for a dialog: the forms appear when `__main` finishes.
-        Err(VmError::Suspended) => {
-            MAIN_WAITING.with(|m| m.set(true));
-            return Ok(());
+    let result = SESSION.with(|s| {
+        let mut guard = s.try_borrow_mut().map_err(|_| JsValue::from_str("the VM is busy"))?;
+        let session = guard.as_mut().ok_or_else(|| JsValue::from_str("no program"))?;
+        dialog::enter_vm();
+        let result = session.vm.run(&session.module);
+        dialog::leave_vm();
+        if matches!(result, Err(VmError::Suspended)) {
+            session.main_waiting = true;
         }
+        Ok::<_, JsValue>(result)
+    })?;
+    match result {
+        Ok(()) => {
+            // Mirror compiled-mode codegen: after `__main` returns, finalize
+            // the DOM tree (parents form windows, applies title-bars, shows
+            // the entry form). Without this nothing is visible.
+            if HAS_COMPONENTS.with(Cell::get) {
+                rapidr_runtime_web::gui_web::gui_web_finalize();
+            }
+        }
+        // Waiting for a dialog: the forms appear when `__main` finishes.
+        Err(VmError::Suspended) => {}
         Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
     }
-
-    if vm.host_mut().has_components {
-        // Mirror compiled-mode codegen: after `__main` returns, finalize
-        // the DOM tree (parents form windows, applies title-bars, shows
-        // the entry form). Without this nothing is visible.
-        rapidr_runtime_web::gui_web::gui_web_finalize();
-    }
+    run_idle_events();
     Ok(())
 }
 
@@ -492,11 +556,48 @@ fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
 
 // ---------- Debugger Session class for Monaco IDE ----------
 
+/// The IDE's debugger: a session run step by step. It drives the page's
+/// session (see [`SESSION`]) as long as that is still the one it started.
 #[wasm_bindgen]
 pub struct DebugSession {
-    module: *mut Module,
-    vm: *mut Vm<'static, WebHost>,
-    host: *mut WebHost,
+    generation: u64,
+}
+
+impl DebugSession {
+    /// Runs `f` on this debugger's session, if it's still the page's and
+    /// isn't running already.
+    fn with<R>(&self, f: impl FnOnce(&mut Session) -> R) -> Option<R> {
+        SESSION.with(|s| {
+            let mut guard = s.try_borrow_mut().ok()?;
+            let session = guard.as_mut().filter(|s| s.generation == self.generation)?;
+            Some(f(session))
+        })
+    }
+
+    /// Runs the VM with `step` and says where it stopped: "paused",
+    /// "waiting" (the program's forms are up) or "halted".
+    fn drive(&mut self, step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>) -> Result<String, JsValue> {
+        let result = self
+            .with(|session| {
+                dialog::enter_vm();
+                let result = step(&mut session.vm, &session.module);
+                dialog::leave_vm();
+                result
+            })
+            .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?;
+        let status = match result {
+            Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
+                rapidr_runtime_web::gui_web::gui_web_finalize();
+                "waiting"
+            }
+            Ok(()) => "halted",
+            Err(VmError::Paused) => "paused",
+            Err(VmError::Suspended) => "waiting",
+            Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
+        };
+        run_idle_events();
+        Ok(status.to_string())
+    }
 }
 
 #[wasm_bindgen]
@@ -505,165 +606,91 @@ impl DebugSession {
     pub fn new(bytes: &[u8]) -> Result<DebugSession, JsValue> {
         let module = Module::from_bytes(bytes)
             .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
-        let module_ptr = Box::into_raw(Box::new(module));
-        let host_ptr = Box::into_raw(Box::new(WebHost::default()));
-        let vm_ptr = Box::into_raw(Box::new(Vm::new(unsafe { &mut *host_ptr })));
-
-        unsafe {
-            (*vm_ptr).debug_mode = true;
-        }
-
-        install_dispatcher::<WebHost>(module_ptr, vm_ptr);
-
-        Ok(DebugSession {
-            module: module_ptr,
-            vm: vm_ptr,
-            host: host_ptr,
-        })
+        let session = Session::new(module, true);
+        let generation = session.generation;
+        start_session(session);
+        Ok(DebugSession { generation })
     }
 
     pub fn start(&mut self) -> Result<String, JsValue> {
-        let vm = unsafe { &mut *self.vm };
-        let module = unsafe { &*self.module };
-        let entry = module.entry;
-        vm.call(module, entry, 0, false)
-            .map_err(|e| JsValue::from_str(&format!("vm call error: {e}")))?;
+        self.with(|session| {
+            let entry = session.module.entry;
+            session.vm.call(&session.module, entry, 0, false)
+        })
+        .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?
+        .map_err(|e| JsValue::from_str(&format!("vm call error: {e}")))?;
         self.resume()
     }
 
     pub fn resume(&mut self) -> Result<String, JsValue> {
-        let vm = unsafe { &mut *self.vm };
-        let module = unsafe { &*self.module };
-        match vm.resume(module) {
-            Ok(()) => {
-                if vm.host_mut().has_components {
-                    rapidr_runtime_web::gui_web::gui_web_finalize();
-                    Ok("waiting".to_string())
-                } else {
-                    Ok("halted".to_string())
-                }
-            }
-            Err(VmError::Paused) => Ok("paused".to_string()),
-            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
-        }
+        self.drive(|vm, module| vm.resume(module))
     }
 
     pub fn step_into(&mut self) -> Result<String, JsValue> {
-        let vm = unsafe { &mut *self.vm };
-        let module = unsafe { &*self.module };
-        match vm.step_into(module) {
-            Ok(()) => {
-                if vm.host_mut().has_components {
-                    rapidr_runtime_web::gui_web::gui_web_finalize();
-                    Ok("waiting".to_string())
-                } else {
-                    Ok("halted".to_string())
-                }
-            }
-            Err(VmError::Paused) => Ok("paused".to_string()),
-            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
-        }
+        self.drive(|vm, module| vm.step_into(module))
     }
 
     pub fn step_over(&mut self) -> Result<String, JsValue> {
-        let vm = unsafe { &mut *self.vm };
-        let module = unsafe { &*self.module };
-        match vm.step_over(module) {
-            Ok(()) => {
-                if vm.host_mut().has_components {
-                    rapidr_runtime_web::gui_web::gui_web_finalize();
-                    Ok("waiting".to_string())
-                } else {
-                    Ok("halted".to_string())
-                }
-            }
-            Err(VmError::Paused) => Ok("paused".to_string()),
-            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
-        }
+        self.drive(|vm, module| vm.step_over(module))
     }
 
     pub fn step_out(&mut self) -> Result<String, JsValue> {
-        let vm = unsafe { &mut *self.vm };
-        let module = unsafe { &*self.module };
-        match vm.step_out(module) {
-            Ok(()) => {
-                if vm.host_mut().has_components {
-                    rapidr_runtime_web::gui_web::gui_web_finalize();
-                    Ok("waiting".to_string())
-                } else {
-                    Ok("halted".to_string())
-                }
-            }
-            Err(VmError::Paused) => Ok("paused".to_string()),
-            Err(e) => Err(JsValue::from_str(&format!("vm error: {e}"))),
-        }
+        self.drive(|vm, module| vm.step_out(module))
     }
 
     pub fn set_breakpoints(&mut self, lines: Vec<u32>) {
-        let vm = unsafe { &mut *self.vm };
         let set: std::collections::HashSet<u32> = lines.into_iter().collect();
-        vm.set_breakpoints(set);
+        self.with(|session| session.vm.set_breakpoints(set));
     }
 
     pub fn get_current_line(&self) -> Option<u32> {
-        let vm = unsafe { &*self.vm };
-        let module = unsafe { &*self.module };
-        vm.current_line(module)
+        self.with(|session| session.vm.current_line(&session.module)).flatten()
     }
 
     pub fn get_stack_trace(&self) -> String {
-        let vm = unsafe { &*self.vm };
-        let module = unsafe { &*self.module };
-        let mut parts = Vec::new();
-        for frame in vm.frames.iter().rev() {
-            if let Some(func) = module.functions.get(frame.fn_index as usize) {
-                let line = func.get_line_for_ip(frame.ip).unwrap_or(0);
-                parts.push(format!("{{\"name\":\"{}\",\"line\":{}}}", func.name, line));
+        self.with(|session| {
+            let mut parts = Vec::new();
+            for frame in session.vm.frames.iter().rev() {
+                if let Some(func) = session.module.functions.get(frame.fn_index as usize) {
+                    let line = func.get_line_for_ip(frame.ip).unwrap_or(0);
+                    parts.push(format!("{{\"name\":{},\"line\":{}}}", json_string(&func.name), line));
+                }
             }
-        }
-        format!("[{}]", parts.join(","))
+            format!("[{}]", parts.join(","))
+        })
+        .unwrap_or_else(|| "[]".to_string())
     }
 
     pub fn get_variables(&self) -> String {
-        let vm = unsafe { &*self.vm };
-        let module = unsafe { &*self.module };
-
-        fn serialize_val(v: &Value) -> String {
-            rapidr_value::debug_json(v)
-        }
-
-        let mut locals_parts = Vec::new();
-        if let Some(frame) = vm.frames.last() {
-            if let Some(func) = module.functions.get(frame.fn_index as usize) {
-                for (slot, val) in frame.locals.iter().enumerate() {
-                    let name = func.local_names.get(slot).cloned().unwrap_or_else(|| format!("local_{}", slot));
-                    if !name.starts_with("__") && !name.is_empty() {
-                        locals_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
+        self.with(|session| {
+            let (vm, module) = (&session.vm, &session.module);
+            let mut locals_parts = Vec::new();
+            if let Some(frame) = vm.frames.last() {
+                if let Some(func) = module.functions.get(frame.fn_index as usize) {
+                    for (slot, val) in frame.locals.iter().enumerate() {
+                        let name = func.local_names.get(slot).cloned().unwrap_or_else(|| format!("local_{slot}"));
+                        if !name.starts_with("__") && !name.is_empty() {
+                            locals_parts.push(format!("{}:{}", json_string(&name), rapidr_value::debug_json(val)));
+                        }
                     }
                 }
             }
-        }
-
-        let mut globals_parts = Vec::new();
-        for (name, val) in vm.global_values(module) {
-            if !name.starts_with("__") {
-                globals_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
+            let mut globals_parts = Vec::new();
+            for (name, val) in vm.global_values(module) {
+                if !name.starts_with("__") {
+                    globals_parts.push(format!("{}:{}", json_string(name), rapidr_value::debug_json(val)));
+                }
             }
-        }
-
-        format!("{{\"locals\":{{{}}},\"globals\":{{{}}}}}", locals_parts.join(","), globals_parts.join(","))
+            format!("{{\"locals\":{{{}}},\"globals\":{{{}}}}}", locals_parts.join(","), globals_parts.join(","))
+        })
+        .unwrap_or_else(|| "{\"locals\":{},\"globals\":{}}".to_string())
     }
 
     pub fn get_component_properties(&self, id: &str) -> String {
         if let Some((type_name, props)) = rapidr_runtime_web::object_web::rp_comp_get_all_properties(id) {
-            fn serialize_val(v: &Value) -> String {
-                rapidr_value::debug_json(v)
-            }
-            let mut props_parts = Vec::new();
-            for (name, val) in &props {
-                props_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
-            }
-            format!("{{\"type\":\"{}\",\"properties\":{{{}}}}}", type_name, props_parts.join(","))
+            let props_parts: Vec<String> =
+                props.iter().map(|(name, val)| format!("{}:{}", json_string(name), rapidr_value::debug_json(val))).collect();
+            format!("{{\"type\":{},\"properties\":{{{}}}}}", json_string(&type_name), props_parts.join(","))
         } else {
             "null".to_string()
         }
@@ -672,10 +699,30 @@ impl DebugSession {
 
 impl Drop for DebugSession {
     fn drop(&mut self) {
-        unsafe {
-            let _ = Box::from_raw(self.module);
-            let _ = Box::from_raw(self.vm);
-            let _ = Box::from_raw(self.host);
+        // The debugger is done with its session (unless another replaced it).
+        SESSION.with(|s| {
+            if let Ok(mut slot) = s.try_borrow_mut() {
+                if slot.as_ref().is_some_and(|session| session.generation == self.generation) {
+                    *slot = None;
+                }
+            }
+        });
+    }
+}
+
+/// A JSON string literal (names in the debugger's JSON are quoted and
+/// escaped, never pasted in raw).
+fn json_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
         }
     }
+    out.push('"');
+    out
 }

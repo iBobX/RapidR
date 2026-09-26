@@ -3,11 +3,16 @@
 //! Routes all side effects to `rapidr-runtime-core` so bytecode programs
 //! get the same builtin / GUI / file-IO behaviour as Rust-codegen
 //! programs. Event registration goes through
-//! [`rapidr_runtime_core::object::EventHandler::Indirect`]; the GUI
-//! event loop is driven by [`run_event_loop`], which installs a
-//! thread-local dispatcher that re-enters the [`Vm`].
+//! [`rapidr_runtime_core::object::EventHandler::Indirect`]; the runtime
+//! only *queues* the handlers it fires, and the VM runs them itself at safe
+//! points (after the host operation that fired them, or while it serves
+//! `ShowModal` and the program's windows via `Host::pump`). Nothing calls
+//! back into a running VM, so there are no raw pointers and no aliasing.
 
-use std::cell::Cell;
+#![forbid(unsafe_code)]
+
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
 
 use rapidr_bytecode::Module;
@@ -77,6 +82,28 @@ impl Host for NativeHost {
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
         Ok(rp_comp_method(id, method, args))
+    }
+
+    fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> {
+        EVENTS.with(|q| q.borrow_mut().drain(..).collect())
+    }
+
+    fn defer_events(&mut self, events: Vec<(u32, Vec<Value>)>) {
+        // Before anything queued since.
+        EVENTS.with(|q| {
+            let mut q = q.borrow_mut();
+            for e in events.into_iter().rev() {
+                q.push_front(e);
+            }
+        });
+    }
+
+    fn wait_started(&mut self) -> bool {
+        obj::rp_take_wait_started()
+    }
+
+    fn pump(&mut self) -> Option<Value> {
+        obj::rp_pump_wait()
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
@@ -315,64 +342,64 @@ fn module_constant(module_id: &str, member: &str) -> Option<Value> {
 }
 
 thread_local! {
-    /// Thread-local pointer to the active VM/module pair (raw to avoid
-    /// lifetime gymnastics). Set only for the duration of
-    /// [`run_event_loop`]; cleared afterwards.
-    static ACTIVE_VM: Cell<*mut ()> = const { Cell::new(std::ptr::null_mut()) };
+    /// Event handlers the runtime fired, waiting for the VM to run them
+    /// ([`Host::take_event`]). The runtime never calls into the VM: it
+    /// only queues here, so an event can't re-enter the VM mid-operation.
+    static EVENTS: RefCell<VecDeque<(u32, Vec<Value>)>> = const { RefCell::new(VecDeque::new()) };
 }
 
-struct VmCtx<'a, 'h, H: Host + ?Sized> {
-    vm: &'a mut Vm<'h, H>,
-    module: &'a Module,
+/// Routes the runtime's events for bytecode handlers into [`EVENTS`].
+fn install_event_queue() -> Option<obj::IndirectDispatcher> {
+    obj::rp_set_cooperative_waits(true);
+    obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
+        EVENTS.with(|q| q.borrow_mut().push_back((fn_index, args.to_vec())));
+    }))
 }
 
-/// Run the GUI/event loop for a bytecode program. Installs a
-/// thread-local indirect dispatcher that re-enters the supplied
-/// [`Vm`] to invoke bytecode handler functions, then calls
-/// `rp_run_app()` to drive FLTK. Restores the previous dispatcher on
-/// return.
-///
-/// Call this *after* `vm.run(&module)` if `host.has_components` is
-/// true.
+fn remove_event_queue(prev: Option<obj::IndirectDispatcher>) {
+    match prev {
+        Some(p) => {
+            let _ = obj::rp_set_event_dispatcher(p);
+        }
+        None => {
+            let _ = obj::rp_clear_event_dispatcher();
+        }
+    }
+    obj::rp_set_cooperative_waits(false);
+    EVENTS.with(|q| q.borrow_mut().clear());
+}
+
+/// Runs the program's windows until none is left: pumps UI events and
+/// runs the handlers they queue. Call it after `vm.run(&module)` when
+/// `host.has_components` is true.
 pub fn run_event_loop<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
-    let mut ctx = VmCtx { vm, module };
-    let ctx_ptr = (&mut ctx as *mut VmCtx<'_, '_, H>) as *mut ();
+    let prev = install_event_queue();
+    serve_app(module, vm);
+    remove_event_queue(prev);
+}
 
-    let prev_active = ACTIVE_VM.with(|c| c.replace(ctx_ptr));
-    let prev_dispatch = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
-        ACTIVE_VM.with(|c| {
-            let p = c.get() as *mut VmCtx<'_, '_, H>;
-            if p.is_null() { return; }
-            // SAFETY: pointer is valid for the duration of `run_event_loop`,
-            // which is the only window the dispatcher closure can be called.
-            let ctx = unsafe { &mut *p };
-            if let Err(e) = ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec()) {
+fn serve_app<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
+    obj::rp_begin_app_wait();
+    loop {
+        // Each handler runs to completion before the next UI event.
+        for (fn_index, args) in vm.host_mut().take_events() {
+            if let Err(e) = vm.invoke_function(module, fn_index, args) {
                 eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
             }
-        });
-    }));
-
-    rp_run_app();
-
-    // Restore previous state so nesting (or tests) is well-behaved.
-    if let Some(p) = prev_dispatch {
-        let _ = obj::rp_set_event_dispatcher(p);
-    } else {
-        let _ = obj::rp_clear_event_dispatcher();
+        }
+        if obj::rp_pump_wait().is_some() {
+            return;
+        }
     }
-    ACTIVE_VM.with(|c| c.set(prev_active));
 }
 
 /// Decode an in-memory `.rrbc` byte slice and execute it on a fresh
 /// [`NativeHost`].
 ///
-/// The indirect event dispatcher is installed **before** `vm.run` so
-/// that GUI methods called from `MAIN` (e.g. `Form1.ShowModal`, which
-/// blocks in FLTK's own `app::wait()` loop) can dispatch button clicks,
-/// `onload`, `onshow`, timers, etc. through the bytecode VM. After
-/// `MAIN` returns, if any GUI components were created and no blocking
-/// `ShowModal` was used, [`rp_run_app`] is entered to drive any
-/// non-modal forms.
+/// Events go through a queue the VM drains itself (see [`EVENTS`]):
+/// `Form.ShowModal` in `MAIN` becomes a wait the VM serves, running the
+/// form's handlers between UI events. After `MAIN`, if components exist,
+/// the program's windows run until they're all closed.
 ///
 /// Used by both the CLI's `run-bc` subcommand and the
 /// `rapidrintr-runner` stub binary (Phase 8: bytecode → single exe).
@@ -380,57 +407,17 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     let module = Module::from_bytes(bytes).map_err(|e| format!("decode error: {e}"))?;
     let mut host = NativeHost::default();
     let mut vm = Vm::new(&mut host);
+    let prev = install_event_queue();
 
-    // Stash a `VmCtx` on the stack and expose it via a raw thread-local
-    // pointer so the indirect dispatcher closure can re-enter the VM.
-    let mut ctx = VmCtx { vm: &mut vm, module: &module };
-    let ctx_ptr = (&mut ctx as *mut VmCtx<'_, '_, NativeHost>) as *mut ();
-
-    let prev_active = ACTIVE_VM.with(|c| c.replace(ctx_ptr));
-    let prev_dispatch = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
-        ACTIVE_VM.with(|c| {
-            let p = c.get() as *mut VmCtx<'_, '_, NativeHost>;
-            if p.is_null() {
-                eprintln!(
-                    "[rapidr] event handler #{fn_index} fired but no active VM context"
-                );
-                return;
-            }
-            // SAFETY: `ctx` is alive for the full body of `run_bytes`,
-            // which is the only window the closure can be invoked.
-            let ctx = unsafe { &mut *p };
-            if let Err(e) = ctx.vm.invoke_function(ctx.module, fn_index, args.to_vec()) {
-                eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
-            }
-        });
-    }));
-
-    let main_result = ctx.vm.run(ctx.module).map_err(|e| format!("vm error: {e}"));
-
-    // If `MAIN` succeeded and components exist but no `ShowModal` was
-    // used (i.e. control returned without blocking), drive the FLTK
-    // event loop now so non-modal `Show` windows stay responsive.
-    if main_result.is_ok() && ctx.vm.host_mut().has_components {
-        rp_run_app();
+    let main_result = vm.run(&module).map_err(|e| format!("vm error: {e}"));
+    if main_result.is_ok() && vm.host_mut().has_components {
+        serve_app(&module, &mut vm);
     }
 
-    // From this point on, the VM context (`ctx`) and dispatcher closure
-    // are about to go out of scope. Mark the runtime as shutting down so
-    // any FLTK timeout callbacks that were queued before our `app::run`
-    // returned do not print a noisy "no dispatcher" warning when they
-    // fire during process teardown. Also stop all timers up front so
-    // they don't reschedule themselves.
+    // Stop timers first so FLTK timeouts queued before the loop ended
+    // don't fire into a finished program.
     obj::rp_stop_all_timers();
     obj::rp_mark_shutting_down();
-
-    // Restore previous dispatcher / ACTIVE_VM so nesting and tests are
-    // well-behaved.
-    if let Some(p) = prev_dispatch {
-        let _ = obj::rp_set_event_dispatcher(p);
-    } else {
-        let _ = obj::rp_clear_event_dispatcher();
-    }
-    ACTIVE_VM.with(|c| c.set(prev_active));
-
+    remove_event_queue(prev);
     main_result
 }

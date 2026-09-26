@@ -7,6 +7,58 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.30.0] — 2026-09-26
+
+### Security
+- **The interpreter is sound when events fire while it runs** (SEC-08).
+  Both VM hosts used to reach the VM through a raw pointer from event
+  callbacks. An event fired while the VM was inside a host call (an
+  `OnClose` fired by `Form.Close`, a button click during `ShowModal`, a
+  timer) created a second `&mut Vm` alongside the running one. That is
+  undefined behaviour in Rust, and an `OnClose` handler that opened a
+  dialog could leave the rest of the click handler running on the wrong
+  frames. Now:
+  - the runtimes only **queue** the handlers they fire; the VM runs them
+    itself at safe points, right after the operation that fired them, each
+    to completion before the next (`Host::take_events`);
+  - the desktop's `ShowModal` and the program's windows are a wait the VM
+    serves (`Host::wait_started` / `Host::pump`): it pumps UI events and
+    runs their handlers between them, so nested modal forms work;
+  - the browser keeps the program in a `RefCell` session, and JavaScript
+    callbacks run queued handlers only while the VM is idle;
+  - an event handler runs on top of the code it interrupted, with one
+    frame stack. A handler that waits for a dialog, or pauses in the
+    debugger, finishes on resume, and then that code continues;
+  - `rapidr-vm`, `rapidr-vm-host-native` and `rapidr-vm-host-web` now
+    `#![forbid(unsafe_code)]`.
+
+  Speed is unchanged: 3M builtin calls take 1.44 s, against 1.42 s before.
+
+### Changed
+- `END` inside an event handler ends the program, including the code the
+  handler interrupted (as in a native build).
+- A run-time error in a handler fired during a statement stops the
+  program, as it does natively. Handlers of UI events that fail are still
+  reported and the program goes on.
+- Event handlers fired inside another handler (e.g. `OnClose` from
+  `Form.Close`) can now use the in-page dialogs; they used to fall back to
+  the browser's `alert`/`confirm`.
+
+### Fixed
+- The web debugger's variables and stack trace JSON escapes names.
+- Each IDE run replaces the previous program's session instead of leaking
+  it.
+
+### Tests
+- VM unit tests for queued events, their order, a handler that waits for a
+  dialog, a host-driven wait, and `END` inside a handler.
+- `tests/fixtures/nested_modal.bas`: timers during `ShowModal`, plus a
+  modal form opened and closed by a timer inside a handler, checked
+  natively and interpreted.
+- `tests/web_ide_reentrant_events.mjs`: `OnClose` fired inside a click
+  handler shows a dialog, then both handlers finish in order. This test
+  fails on v2.29.0.
+
 ## [2.29.0] — 2026-09-26
 
 ### Added
@@ -78,7 +130,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **Known issue (roadmap):** the web interpreter host reaches the VM
   through raw pointers, and an event fired from inside a running
   statement re-enters it. This works on single-threaded wasm but isn't
-  sound Rust; it needs an event queue or a restructured host.
+  sound Rust; it needs an event queue or a restructured host. (Fixed in
+  2.30.0.)
 
 ### Changed
 - **Faster module-level variables, in both backends.** They live in slots
