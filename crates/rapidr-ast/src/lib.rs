@@ -732,6 +732,40 @@ pub fn canonical_type_name(type_name: &str) -> String {
 // Walking the tree
 // ---------------------------------------------------------------------------
 
+/// SUBs and FUNCTIONs written inside another SUB/FUNCTION (RapidQ accepts
+/// them, e.g. event handlers next to the code that binds them) moved to the
+/// top level, after their enclosing routine: every routine is global, so
+/// both backends see them the same way.
+pub fn hoist_routines(program: &Program) -> Program {
+    fn take_nested(body: &mut Vec<Statement>, out: &mut Vec<Statement>) {
+        let mut kept = Vec::with_capacity(body.len());
+        for s in body.drain(..) {
+            match s {
+                Statement::Subroutine(_) | Statement::Function(_) => hoist(s, out),
+                other => kept.push(other),
+            }
+        }
+        *body = kept;
+    }
+    fn hoist(mut s: Statement, out: &mut Vec<Statement>) {
+        let mut nested = Vec::new();
+        match &mut s {
+            Statement::Subroutine(sub) => take_nested(&mut sub.body, &mut nested),
+            Statement::Function(f) => take_nested(&mut f.body, &mut nested),
+            _ => {}
+        }
+        out.push(s);
+        out.extend(nested);
+    }
+    let mut program = program.clone();
+    let mut out = Vec::with_capacity(program.statements.len());
+    for s in program.statements.drain(..) {
+        hoist(s, &mut out);
+    }
+    program.statements = out;
+    program
+}
+
 /// Calls `on_stmt` for every statement and `on_expr` for every expression in
 /// `stmts`, depth first, including nested blocks, SUB/FUNCTION bodies and
 /// TYPE methods/events/constructors.

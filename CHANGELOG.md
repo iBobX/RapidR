@@ -7,6 +7,66 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.33.0] — 2026-09-26
+
+### Changed
+- **Every RapidQ example the interpreter accepts now compiles natively.**
+  Of the 116 corpus programs that compile to bytecode, 116 pass `cargo
+  check` as native builds, up from 49. The native compiler now resolves
+  what the interpreter already did, the same way:
+  - methods, properties and indexed properties of objects that aren't
+    component variables: `Application.Terminate`, `Screen.Cursors(i) = h`,
+    `Printer.Printers(i)`, `RichEdit.SelAttributes.Color = c`,
+    `This.Grid.Cell(x, y) = s`, `DXTimer.OnTimer = Handler`;
+  - these objects are resolved by name in the main program, and by the
+    component id a SUB's own parameter or local holds (the VM's rule);
+  - `Cell(1, 0) = s` / `ColWidths(0) = w` inside a CREATE block set an
+    indexed property of the object being created;
+  - WITH blocks use the shared `rapidr_ast::resolve_with_body`, so
+    `.Member` works on every kind of object, in statements and expressions;
+  - variables named like builtins (`RGB$ = …`), arrays declared with a type
+    suffix (`DEFSTR Rider$(1 TO 29)`), FUNCTIONs named with a suffix
+    (`QSystem.OSName$`), and dotted names with a suffix in the middle;
+  - a SUB's name used as a value is empty, and an event handler the program
+    never defines binds nothing;
+  - `BIND ptr TO Prototype` with no such routine only gives the pointer a
+    signature;
+  - a call with more arguments than the routine has parameters drops the
+    extra ones (all are still evaluated, in order); missing ones are empty;
+  - a routine nobody defines, which only unreached library code can call,
+    is a run-time error, as in the VM;
+  - program files whose names aren't valid Cargo package names
+    (`Cancel Form Close.bas`, `3dview.bas`) build; the executable keeps the
+    file's name.
+
+### Fixed
+- **Both backends.**
+  - A number written with a leading dot (`SetRGBA(.1, 1, .1, .7)`) was
+    read as a WITH member.
+  - A TYPE method named `Init` (or `Ctor`, `Ev0`) replaced the routine that
+    sets up the TYPE's instances. The generated routines are now
+    `Type___init`, `Type___ctor` and `Type___ev<i>`.
+  - SUBs and FUNCTIONs written inside another SUB are hoisted to the top
+    level (`rapidr_ast::hoist_routines`); native builds couldn't bind them
+    as event handlers.
+  - `CURDIR$`, `RND` and `DIR$` work without parentheses, unless a variable
+    has that name.
+- **Interpreter.**
+  - `REDIM a(…)` inside a SUB made a new local array instead of resizing
+    the module-level one. It now resizes it, unless the SUB declares its
+    own `a`.
+  - `Screen.Cursors(i) = h` and `Grid.Cell(x, y) = s` on objects that
+    aren't components failed or did nothing; they call the object's
+    method, as native builds do.
+
+### Tests
+- Conformance case `native_parity`: leading-dot numbers, a builtin-named
+  variable, suffixed arrays, REDIM of a module array in a SUB, nested SUBs,
+  a TYPE method named `Init`, argument fitting, and a suffixed FUNCTION
+  called without its suffix.
+- `tools/corpus_native.sh <corpus.json>`: the native corpus check (was a
+  scratch script).
+
 ## [2.32.0] — 2026-09-26
 
 ### Changed

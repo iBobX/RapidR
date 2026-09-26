@@ -59,7 +59,8 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
-    let lowered = rapidr_ast::objects::lower(program, &|n| builtins::is_builtin(n));
+    let hoisted = rapidr_ast::hoist_routines(program);
+    let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let lowered = rapidr_ast::numeric::lower(lowered);
     let program = &lowered;
@@ -578,8 +579,13 @@ impl Bcgen {
             Statement::Dim(d) => {
                 // Declare locals; initial value Null is already the default.
                 for decl in &d.declarators {
+                    // REDIM in a SUB resizes the module-level array unless
+                    // the SUB has its own (QBasic / RapidQ).
+                    let resizes_global = d.is_redim && self.scope.get(&decl.name).is_none() && self.is_known_global(&decl.name);
                     if !self.in_main {
-                        self.scope.declare(&decl.name);
+                        if !resizes_global {
+                            self.scope.declare(&decl.name);
+                        }
                     } else {
                         self.globals.insert(name_key(&decl.name));
                     }
@@ -1149,6 +1155,30 @@ impl Bcgen {
                 self.globals.insert(name_key(&id.name));
             }
         }
+        // Inside CREATE, `Cell(1, 0) = s` / `ColWidths(0) = w` set an indexed
+        // property of the object being created: its method with the value
+        // as an extra last argument (as `Grid.Cell(1, 0) = s` does).
+        if let Some(inst) = self.create_stack.last().cloned() {
+            let indexed = match &a.target {
+                Expression::FunctionCall(fc) if !fc.args.is_empty() => Some((fc.callee.as_ref(), &fc.args)),
+                Expression::ArrayAccess(aa) => Some((aa.array.as_ref(), &aa.indices)),
+                _ => None,
+            };
+            if let Some((Expression::Identifier(id), indices)) = indexed {
+                if self.scope.get(&id.name).is_none() && !self.is_known_global(&id.name) {
+                    for i in indices {
+                        self.lower_expr(i, code)?;
+                    }
+                    self.lower_expr(&a.value, code)?;
+                    let id_s = self.module.add_string(&inst);
+                    let mn_s = self.module.add_string(&id.name.to_lowercase());
+                    emit(code, Op::CallMethod);
+                    push_u32(code, id_s); push_u32(code, mn_s); code.push(indices.len() as u8 + 1);
+                    emit(code, Op::Pop);
+                    return Ok(());
+                }
+            }
+        }
         // Special case for CREATE-block property assignment with a SUB-name RHS:
         // → emit RegisterEvent instead of SetProp.
         if let (Some(inst), Expression::Identifier(rhs_id)) =
@@ -1354,32 +1384,46 @@ impl Bcgen {
                 }
             }
             Expression::ArrayAccess(a) => {
-                // `Bitmap.Pixel(x, y) = c` on a component: its `pixel` method
-                // with the value as an extra last argument.
+                // `Bitmap.Pixel(x, y) = c`, `Screen.Cursors(i) = h`: the
+                // object's `pixel` method with the value as an extra last
+                // argument (by name, or through the id a local holds).
                 if let Expression::MemberAccess(m) = &*a.array {
                     if let Expression::Identifier(obj) = &*m.object {
-                        let component = self.component_instance_names.contains_key(&obj.name.to_lowercase());
-                        if component || self.is_dynamic_object(&obj.name) {
-                            let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));
-                            emit(code, Op::StoreLocal); push_u16(code, tmp);
-                            if !component {
-                                self.lower_expr(&m.object, code)?;
-                            }
-                            for i in &a.indices {
-                                self.lower_expr(i, code)?;
-                            }
-                            emit(code, Op::LoadLocal); push_u16(code, tmp);
-                            let mn_s = self.module.add_string(&m.member.to_lowercase());
-                            if component {
-                                let id_s = self.module.add_string(&obj.name);
-                                emit(code, Op::CallMethod); push_u32(code, id_s); push_u32(code, mn_s);
-                            } else {
-                                emit(code, Op::CallMethodDyn); push_u32(code, mn_s);
-                            }
-                            code.push(a.indices.len() as u8 + 1);
-                            emit(code, Op::Pop);
-                            return Ok(());
+                        let by_name = !self.is_dynamic_object(&obj.name);
+                        let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));
+                        emit(code, Op::StoreLocal); push_u16(code, tmp);
+                        if !by_name {
+                            self.lower_expr(&m.object, code)?;
                         }
+                        for i in &a.indices {
+                            self.lower_expr(i, code)?;
+                        }
+                        emit(code, Op::LoadLocal); push_u16(code, tmp);
+                        let mn_s = self.module.add_string(&m.member.to_lowercase());
+                        if by_name {
+                            let id_s = self.module.add_string(&obj.name);
+                            emit(code, Op::CallMethod); push_u32(code, id_s); push_u32(code, mn_s);
+                        } else {
+                            emit(code, Op::CallMethodDyn); push_u32(code, mn_s);
+                        }
+                        code.push(a.indices.len() as u8 + 1);
+                        emit(code, Op::Pop);
+                        return Ok(());
+                    } else {
+                        // `This.Grid.Cell(x, y) = v`: the method of the object
+                        // the expression holds.
+                        let tmp = self.scope.declare(&format!("__tmpv_{}", code.len()));
+                        emit(code, Op::StoreLocal); push_u16(code, tmp);
+                        self.lower_expr(&m.object, code)?;
+                        for i in &a.indices {
+                            self.lower_expr(i, code)?;
+                        }
+                        emit(code, Op::LoadLocal); push_u16(code, tmp);
+                        let mn_s = self.module.add_string(&m.member.to_lowercase());
+                        emit(code, Op::CallMethodDyn); push_u32(code, mn_s);
+                        code.push(a.indices.len() as u8 + 1);
+                        emit(code, Op::Pop);
+                        return Ok(());
                     }
                 }
                 // Stack so far: [..., value]. ASet wants [array, i1..iN, value]

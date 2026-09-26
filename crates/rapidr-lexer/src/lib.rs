@@ -352,6 +352,15 @@ impl<'src> Lexer<'src> {
                         column,
                     ));
                 }
+                // `.5` is a number (`SetRGBA(.1, 1, .1, .7)`), not a WITH
+                // member, unless it follows a value (`a.5` stays a member).
+                '.' if matches!(self.peek_char(1), Some('0'..='9'))
+                    && !tokens.last().is_some_and(|t| {
+                        matches!(t.kind, TokenType::Identifier | TokenType::RParen | TokenType::RBracket | TokenType::Number | TokenType::String)
+                    }) =>
+                {
+                    tokens.push(self.lex_decimal_number(start, line, column));
+                }
                 '.' => {
                     self.advance_char();
                     tokens.push(Token::new(

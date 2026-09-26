@@ -42,7 +42,8 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let mut gen = RustCodegen::new(target);
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::objects::lower(program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
+    let program = rapidr_ast::hoist_routines(program);
+    let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
     let (program, promoted) = promote_ref_params(&program);
@@ -156,6 +157,10 @@ struct RustCodegen {
     /// Names the current SUB/FUNCTION declares itself (parameters, DIM):
     /// they shadow module-level variables of the same name.
     shadowed: HashSet<String>,
+    /// Names the main program assigns (`x = …`, `FOR x`, `INPUT x`), and
+    /// the current SUB/FUNCTION: variables, never bare builtins.
+    assigned_main: HashSet<String>,
+    assigned_routine: HashSet<String>,
     /// The current routine's locals kept as Rust numbers (`typed`).
     typed_locals: HashMap<String, typed::Kind>,
     /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
@@ -195,6 +200,8 @@ impl RustCodegen {
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
             shadowed: HashSet::new(),
+            assigned_main: HashSet::new(),
+            assigned_routine: HashSet::new(),
             typed_locals: HashMap::new(),
             create_declared_names: HashSet::new(),
             state_machine: None,
@@ -211,7 +218,7 @@ impl RustCodegen {
     /// Extract the component variable name from an expression, if it's a component identifier.
     fn get_component_name(&self, expr: &Expression) -> Option<String> {
         if let Expression::Identifier(id) = expr {
-            let lower = id.name.to_lowercase();
+            let lower = strip_type_suffix(&id.name).to_lowercase();
             if self.component_vars.contains_key(&lower) {
                 return Some(to_snake(&strip_type_suffix(&id.name)));
             }
@@ -219,9 +226,40 @@ impl RustCodegen {
         None
     }
 
+    /// `object.method(args)` on an object that isn't a component variable of
+    /// the program: RapidQ's global objects by name (`Application`,
+    /// `Screen`, …), anything else through the component id it holds.
+    fn object_method_call(&self, object: &Expression, method: &str, args: &[&Expression]) -> String {
+        let receiver = self.receiver(object);
+        let args: Vec<String> = args.iter().map(|a| self.owned_expr(a)).collect();
+        format!("rp_comp_method({receiver}, \"{}\", &[{}])", method.to_lowercase(), args.join(", "))
+    }
+
+    /// The component id argument for `object.member` when `object` isn't a
+    /// component variable of the program, resolved as the VM does: a
+    /// SUB/FUNCTION's own parameter or local holds the id; any other name
+    /// (`Application`, `Screen`, an object RapidR has no component for) is
+    /// the id itself.
+    fn receiver(&self, object: &Expression) -> String {
+        match object {
+            Expression::Identifier(id) if id.name != "_with_" => {
+                if let Some(comp) = self.get_component_name(object) {
+                    return format!("\"{comp}\"");
+                }
+                let lower = strip_type_suffix(&id.name).to_lowercase();
+                if self.in_sub_or_function && self.shadowed.contains(&lower) {
+                    format!("&{}.to_string_val()", self.expr_to_string(object))
+                } else {
+                    format!("\"{}\"", id.name.to_lowercase())
+                }
+            }
+            _ => format!("&{}.to_string_val()", self.expr_to_string(object)),
+        }
+    }
+
     /// Check if a variable is a module-level scalar (DIM at top level, not component, not array, not UDT).
     fn is_global_scalar(&self, name: &str) -> bool {
-        let lower = name.to_lowercase();
+        let lower = strip_type_suffix(name).to_lowercase();
         !self.shadowed.contains(strip_type_suffix(&lower).as_str())
             && self.top_level_vars.contains(&lower)
             && !self.component_vars.contains_key(&lower)
@@ -249,7 +287,7 @@ impl RustCodegen {
 
     /// Check if a variable is a module-level array (DIM at top level with dimensions).
     fn is_global_array(&self, name: &str) -> bool {
-        let lower = name.to_lowercase();
+        let lower = strip_type_suffix(name).to_lowercase();
         !self.shadowed.contains(strip_type_suffix(&lower).as_str())
             && self.top_level_vars.contains(&lower)
             && self.array_vars.contains(&lower)
@@ -278,8 +316,15 @@ impl RustCodegen {
 
     /// Emit rp_bind_event / rp_bind_event_N depending on handler arity.
     fn emit_bind_event_call(&mut self, comp_name: &str, event: &str, handler: &str) {
-        let handler_lower = handler.to_lowercase();
-        let arity = self.function_param_counts.get(&handler_lower).copied().unwrap_or(0);
+        // `handler` is the Rust name of a SUB/FUNCTION (`n_01click` for
+        // `01Click`); a name that isn't one (a handler the program never
+        // defines) sets the event to nothing, as in the VM.
+        let routine = self.function_param_counts.iter().find(|(name, _)| to_snake(name) == handler);
+        let Some((_, &arity)) = routine else {
+            self.write_indent();
+            let _ = writeln!(self.output, "rp_comp_set(\"{comp_name}\", \"{event}\", v_null());");
+            return;
+        };
         self.write_indent();
         match arity {
             0 => { let _ = writeln!(self.output, "rp_bind_event(\"{comp_name}\", \"{event}\", {handler});"); }
@@ -294,6 +339,9 @@ impl RustCodegen {
     // --- program ---
 
     fn emit_program(&mut self, program: &Program) {
+        let main: Vec<Statement> =
+            program.statements.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
+        self.assigned_main = assigned_names(&main);
         let mut targets = HashSet::new();
         rapidr_ast::walk(
             &program.statements,
@@ -311,6 +359,7 @@ impl RustCodegen {
                 Statement::Subroutine(s) => {
                     self.routine_pointers.push((s.name.clone(), s.params.iter().map(|p| p.by_ref).collect(), false));
                     self.defined_functions.insert(s.name.to_lowercase());
+                    self.defined_functions.insert(strip_type_suffix(&s.name).to_lowercase());
                     self.function_param_counts.insert(s.name.to_lowercase(), s.params.len());
                     self.fn_byref.insert(s.name.to_lowercase(), s.params.iter().map(|p| p.by_ref).collect());
                     // Scan body for local component DIMs and CREATEs
@@ -318,7 +367,7 @@ impl RustCodegen {
                         if let Statement::Dim(d) = body_stmt {
                             for decl in &d.declarators {
                                 if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
-                                    self.component_vars.insert(decl.name.to_lowercase(), d.type_name.to_uppercase());
+                                    self.component_vars.insert(strip_type_suffix(&decl.name).to_lowercase(), d.type_name.to_uppercase());
                                 }
                             }
                         }
@@ -331,6 +380,7 @@ impl RustCodegen {
                 Statement::Function(f) => {
                     self.routine_pointers.push((f.name.clone(), f.params.iter().map(|p| p.by_ref).collect(), true));
                     self.defined_functions.insert(f.name.to_lowercase());
+                    self.defined_functions.insert(strip_type_suffix(&f.name).to_lowercase());
                     self.returning_functions.insert(strip_type_suffix(&f.name).to_lowercase());
                     self.function_param_counts.insert(f.name.to_lowercase(), f.params.len());
                     self.fn_byref.insert(f.name.to_lowercase(), f.params.iter().map(|p| p.by_ref).collect());
@@ -339,7 +389,7 @@ impl RustCodegen {
                         if let Statement::Dim(d) = body_stmt {
                             for decl in &d.declarators {
                                 if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
-                                    self.component_vars.insert(decl.name.to_lowercase(), d.type_name.to_uppercase());
+                                    self.component_vars.insert(strip_type_suffix(&decl.name).to_lowercase(), d.type_name.to_uppercase());
                                 }
                             }
                         }
@@ -351,7 +401,7 @@ impl RustCodegen {
                 }
                 Statement::Dim(d) => {
                     for decl in &d.declarators {
-                        let name_lower = decl.name.to_lowercase();
+                        let name_lower = strip_type_suffix(&decl.name).to_lowercase();
                         self.top_level_vars.insert(name_lower.clone());
                         if !decl.dimensions.is_empty() {
                             self.array_vars.insert(name_lower.clone());
@@ -389,6 +439,7 @@ impl RustCodegen {
                     let name_lower = d.name.to_lowercase();
                     self.declared_functions.insert(name_lower.clone());
                     self.defined_functions.insert(name_lower.clone());
+                    self.defined_functions.insert(strip_type_suffix(&name_lower));
                     self.function_param_counts.insert(name_lower, d.params.len());
                 }
                 _ => {}
@@ -447,13 +498,14 @@ impl RustCodegen {
         self.indent += 1;
 
         // Auto-declare implicit variables (referenced but never DIM'd)
+        let assigned = self.assigned_main.clone();
         let mut implicit: Vec<String> = self.all_referenced_vars.iter()
             .filter(|name| {
                 !self.top_level_vars.contains(name.as_str())
                     && !self.defined_functions.contains(name.as_str())
                     && !self.component_vars.contains_key(name.as_str())
                     && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "pi" | "_with_")
-                    && builtin_function_call(name, &[]).is_none()
+                    && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
             })
             .cloned()
             .collect();
@@ -604,7 +656,7 @@ impl RustCodegen {
         }
         for decl in &d.declarators {
             let name = to_snake(&decl.name);
-            let name_lower = decl.name.to_lowercase();
+            let name_lower = strip_type_suffix(&decl.name).to_lowercase();
             let was_array = self.array_vars.contains(&name_lower);
             self.array_vars.remove(&name_lower); // re-insert if has dims
 
@@ -662,7 +714,7 @@ impl RustCodegen {
                     self.declare_local(&name, &default);
                 }
             } else {
-                self.array_vars.insert(decl.name.to_lowercase());
+                self.array_vars.insert(strip_type_suffix(&decl.name).to_lowercase());
                 // Array declaration: a shared Value::Array with real bounds
                 // (`DIM a(10)` → 0..=10, `DIM b(1 TO 5, 3)`), the same model
                 // as the bytecode VM.
@@ -681,7 +733,13 @@ impl RustCodegen {
                     })
                     .collect();
                 let default = default_value_for_type(&d.type_name);
-                let global = !self.in_sub_or_function && self.top_level_vars.contains(&name_lower);
+                // REDIM in a SUB resizes the module-level array unless the
+                // SUB declares its own (as in the VM).
+                let global = if self.in_sub_or_function {
+                    d.is_redim && self.top_level_vars.contains(&name_lower) && !self.shadowed.contains(&name_lower)
+                } else {
+                    self.top_level_vars.contains(&name_lower)
+                };
                 let array = if d.is_redim {
                     // REDIM: resize keeping the data (a new array if there's none yet).
                     let current = if global {
@@ -734,9 +792,9 @@ impl RustCodegen {
         if let Some(fname) = self.current_function.clone() {
             if let Expression::Identifier(id) = &a.target {
                 // `FuncName = v` or RapidQ's `RESULT = v`
-                if id.name.eq_ignore_ascii_case(&fname) || id.name.eq_ignore_ascii_case("result") {
+                if strip_type_suffix(&id.name).eq_ignore_ascii_case(&strip_type_suffix(&fname)) || id.name.eq_ignore_ascii_case("result") {
                     let val = self.owned_expr(&a.value);
-                    let fname_lc = fname.to_lowercase();
+                    let fname_lc = to_snake(&fname);
                     self.write_indent();
                     let _ = writeln!(self.output, "_{fname_lc} = {val};");
                     return;
@@ -837,6 +895,74 @@ impl RustCodegen {
                         let _ = writeln!(self.output, "rp_comp_set(\"{with_comp}\", \"{prop}\", {value});");
                         return;
                     }
+                }
+            }
+        }
+
+        // `Screen.Cursors(i) = v`, `Sender.Pixel(x, y) = c` on any other
+        // object: its method with the value as an extra last argument.
+        if self.create_stack.is_empty() {
+            if let Some((Expression::MemberAccess(ma), indices)) = indexed.map(|(c, i)| (c.as_ref(), i)) {
+                if !matches!(ma.object.as_ref(), Expression::Identifier(id) if id.name == "_with_") {
+                    let mut args: Vec<&Expression> = indices.iter().collect();
+                    args.push(&a.value);
+                    let call = self.object_method_call(&ma.object, &ma.member, &args);
+                    self.write_indent();
+                    let _ = writeln!(self.output, "{call};");
+                    return;
+                }
+            }
+            // `DXTimer.Interval = 10`, `Sender.Caption = s` on any other
+            // object; `Obj.OnEvent = Handler` binds a SUB.
+            if let Expression::MemberAccess(ma) = &a.target {
+                if let Expression::Identifier(id) = ma.object.as_ref() {
+                    if id.name != "_with_" {
+                        let prop = ma.member.to_lowercase();
+                        if prop.starts_with("on") {
+                            if let Expression::Identifier(h) = &a.value {
+                                let handler = strip_type_suffix(&h.name).to_lowercase();
+                                if self.defined_functions.contains(&handler) {
+                                    self.emit_bind_event_call(&id.name.to_lowercase(), &prop, &to_snake(&handler));
+                                    return;
+                                }
+                            }
+                        }
+                        let receiver = self.receiver(&ma.object);
+                        let value = self.owned_expr(&a.value);
+                        self.write_indent();
+                        let _ = writeln!(self.output, "rp_comp_set({receiver}, \"{prop}\", {value});");
+                        return;
+                    }
+                }
+                // `RichEdit.SelAttributes.Color = c`: the object's `sub.prop`.
+                if let Expression::MemberAccess(inner) = ma.object.as_ref() {
+                    if matches!(inner.object.as_ref(), Expression::Identifier(id) if id.name != "_with_") {
+                        let receiver = self.receiver(&inner.object);
+                        let value = self.owned_expr(&a.value);
+                        self.write_indent();
+                        let _ = writeln!(
+                            self.output,
+                            "rp_comp_set({receiver}, \"{}.{}\", {value});",
+                            inner.member.to_lowercase(),
+                            ma.member.to_lowercase()
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Inside CREATE block: `Cell(1, 0) = s` → the object's indexed
+        // property (its method with the value as an extra last argument).
+        if let Some(obj) = self.create_stack.last().cloned() {
+            if let Some((Expression::Identifier(id), indices)) = indexed.map(|(c, i)| (c.as_ref(), i)) {
+                let lower = strip_type_suffix(&id.name).to_lowercase();
+                if !self.array_vars.contains(&lower) && !self.top_level_vars.contains(&lower) {
+                    let mut args: Vec<String> = indices.iter().map(|e| self.owned_expr(e)).collect();
+                    args.push(self.owned_expr(&a.value));
+                    self.write_indent();
+                    let _ = writeln!(self.output, "rp_comp_method(\"{obj}\", \"{lower}\", &[{}]);", args.join(", "));
+                    return;
                 }
             }
         }
@@ -1057,8 +1183,31 @@ impl RustCodegen {
             }
         }
 
+        // A method of any other object (`Application.Terminate`,
+        // `Printer.Printers(i)`, a component held in a variable), as the VM
+        // calls it.
+        let member_call = match &c.callee {
+            Expression::MemberAccess(ma) => Some((ma.object.as_ref(), &ma.member, &[][..])),
+            Expression::MethodCall(mc) => Some((mc.object.as_ref(), &mc.method, &mc.args[..])),
+            Expression::FunctionCall(fc) => match fc.callee.as_ref() {
+                Expression::MemberAccess(ma) => Some((ma.object.as_ref(), &ma.member, &fc.args[..])),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((object, method, first)) = member_call {
+            let args: Vec<&Expression> = first.iter().chain(&c.args).collect();
+            let call = self.object_method_call(object, method, &args);
+            self.write_indent();
+            let _ = writeln!(self.output, "{call};");
+            return;
+        }
+
         // --- Standard call handling ---
-        let callee = self.expr_to_string(&c.callee);
+        let callee = match &c.callee {
+            Expression::Identifier(id) if self.defined_functions.contains(&id.name.to_lowercase()) => to_snake(&strip_type_suffix(&id.name)),
+            other => self.expr_to_string(other),
+        };
         let args: Vec<String> = c.args.iter().map(|e| self.owned_expr(e)).collect();
 
         let callee_lower = match &c.callee {
@@ -1080,9 +1229,42 @@ impl RustCodegen {
             return;
         }
 
-        let args_str = args.join(", ");
+        // A routine nobody defines: only unreached library code gets here
+        // (the shared checks reject it in the program's own code), and it
+        // fails when run, as in the VM.
+        if let Expression::Identifier(id) = &c.callee {
+            if !self.defined_functions.contains(&id.name.to_lowercase()) {
+                let call = unknown_routine(&id.name);
+                self.write_indent();
+                let _ = writeln!(self.output, "{call};");
+                return;
+            }
+        }
+        let call = match &c.callee {
+            Expression::Identifier(id) => self.fitted_call(&strip_type_suffix(&id.name).to_lowercase(), &callee, args),
+            _ => format!("{callee}({})", args.join(", ")),
+        };
         self.write_indent();
-        let _ = writeln!(self.output, "{callee}({args_str});");
+        let _ = writeln!(self.output, "{call};");
+    }
+
+    /// `f(args)` for the program's routine `name`, with the arguments fitted
+    /// to its parameters as the VM does: every argument is evaluated, in
+    /// order; extra ones are dropped, missing ones are empty.
+    fn fitted_call(&self, name: &str, fname: &str, args: Vec<String>) -> String {
+        let params = self
+            .function_param_counts
+            .iter()
+            .find(|(n, _)| strip_type_suffix(n).eq_ignore_ascii_case(name))
+            .map(|(_, &p)| p);
+        match params {
+            Some(p) if p != args.len() => {
+                let lets: String = args.iter().enumerate().map(|(i, a)| format!("let __a{i} = {a}; ")).collect();
+                let passed: Vec<String> = (0..p).map(|i| if i < args.len() { format!("__a{i}") } else { "v_null()".to_string() }).collect();
+                format!("{{ {lets}{fname}({}) }}", passed.join(", "))
+            }
+            _ => format!("{fname}({})", args.join(", ")),
+        }
     }
 
     fn emit_if(&mut self, i: &IfStatement) {
@@ -1301,6 +1483,7 @@ impl RustCodegen {
 
         self.in_sub_or_function = true;
         self.shadowed = shadowing_names(&s.params, &s.body);
+        self.assigned_routine = assigned_names(&s.body);
         let byref = self.byref_prologue(&s.params, false);
         let body = self.prepare_statics(&s.name, &s.body);
         self.typed_locals = typed::analyze(&s.params, &body, None, &|n| self.defined_functions.contains(n));
@@ -1315,6 +1498,7 @@ impl RustCodegen {
         self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
         self.shadowed.clear();
+        self.assigned_routine.clear();
         self.typed_locals.clear();
         self.indent -= 1;
         self.line("}");
@@ -1410,7 +1594,7 @@ impl RustCodegen {
                 if let Statement::Dim(d) = s {
                     if d.is_static {
                         for decl in &d.declarators {
-                            let name = decl.name.to_lowercase();
+                            let name = strip_type_suffix(&decl.name).to_lowercase();
                             self.top_level_vars.insert(name.clone());
                             if !decl.dimensions.is_empty() {
                                 self.array_vars.insert(name);
@@ -1472,6 +1656,7 @@ impl RustCodegen {
 
         self.in_sub_or_function = true;
         self.shadowed = shadowing_names(&f.params, &f.body);
+        self.assigned_routine = assigned_names(&f.body);
         let byref = self.byref_prologue(&f.params, true);
         let body = self.prepare_statics(&f.name, &f.body);
         self.typed_locals = typed::analyze(&f.params, &body, Some(&f.name), &|n| self.defined_functions.contains(n));
@@ -1487,6 +1672,7 @@ impl RustCodegen {
         self.current_function = None;
         self.in_sub_or_function = false;
         self.shadowed.clear();
+        self.assigned_routine.clear();
         self.typed_locals.clear();
 
         self.write_indent();
@@ -1504,6 +1690,7 @@ impl RustCodegen {
             .collect();
         let mut local_refs = HashSet::new();
         collect_all_refs(body, &mut local_refs);
+        let assigned = assigned_names(body);
         let mut locals: Vec<String> = local_refs
             .iter()
             .filter(|name| {
@@ -1516,7 +1703,7 @@ impl RustCodegen {
                         name.as_str(),
                         "true" | "false" | "vttrue" | "vtfalse" | "pi" | "_with_"
                     )
-                    && builtin_function_call(name, &[]).is_none()
+                    && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
             })
             .cloned()
             .collect();
@@ -1660,32 +1847,16 @@ impl RustCodegen {
         }
     }
 
+    /// `WITH obj … .x … END WITH`: the body with `.x` meaning `obj.x`
+    /// (`rapidr_ast::resolve_with_body`, as in the VM).
     fn emit_with(&mut self, w: &WithStatement) {
-        // Check if the WITH target is a component variable
-        if let Some(comp_name) = self.get_component_name(&w.object) {
-            self.write_indent();
-            let _ = writeln!(self.output, "{{ // WITH {comp_name}");
-            self.indent += 1;
-            self.with_component_stack.push(comp_name.clone());
-            for stmt in &w.body {
-                self.emit_statement(stmt);
-            }
-            self.with_component_stack.pop();
-            self.indent -= 1;
-            self.line("} // END WITH");
-        } else {
-            let obj = self.expr_to_string(&w.object);
-            self.write_indent();
-            let _ = writeln!(self.output, "{{ // WITH {obj}");
-            self.indent += 1;
-            self.write_indent();
-            let _ = writeln!(self.output, "let _with_ = &mut {obj};");
-            for stmt in &w.body {
-                self.emit_statement(stmt);
-            }
-            self.indent -= 1;
-            self.line("} // END WITH");
+        self.line("{ // WITH");
+        self.indent += 1;
+        for stmt in &rapidr_ast::resolve_with_body(&w.body, &w.object) {
+            self.emit_statement(stmt);
         }
+        self.indent -= 1;
+        self.line("} // END WITH");
     }
 
     fn emit_exit(&mut self, e: &ExitStatement) {
@@ -1710,7 +1881,7 @@ impl RustCodegen {
             "SUB" => self.line("return;"),
             "FUNCTION" => {
                 if let Some(fname) = self.current_function.clone() {
-                    let fname_lc = fname.to_lowercase();
+                    let fname_lc = to_snake(&fname);
                     self.write_indent();
                     let _ = writeln!(
                         self.output,
@@ -1809,6 +1980,9 @@ impl RustCodegen {
                 target: b.target.clone(),
                 value: Expression::Literal(Literal { span: b.span, value: LiteralValue::Integer(id as i64) }),
             }),
+            // `BIND ptr TO Prototype` with no such routine only gives the
+            // pointer a signature (RAPIDQ2.INC then assigns it), as in the VM.
+            None if matches!(b.handler, Expression::Identifier(_)) => {}
             None => self.line("compile_error!(\"BIND … TO needs the name of a SUB or FUNCTION of the program\");"),
         }
     }
@@ -2040,16 +2214,34 @@ impl RustCodegen {
             },
             Expression::Identifier(id) => {
                 let name_lower = id.name.to_lowercase();
-                // Known implicit identifiers
+                // Builtins written without parentheses (the bytecode's
+                // `BARE_BUILTINS`), unless a variable has that name, as in
+                // the VM.
+                let bare = strip_type_suffix(&name_lower);
+                let variable = self.is_global_scalar(&bare)
+                    || self.is_global_array(&bare)
+                    || self.shadowed.contains(&bare)
+                    || self.assigned_main.contains(&bare)
+                    || self.assigned_routine.contains(&bare);
+                let bare_builtin = match name_lower.as_str() {
+                    _ if variable => None,
+                    "pi" => Some("v_dbl(std::f64::consts::PI)"),
+                    "time" | "time$" => Some("rp_time()"),
+                    "date" | "date$" => Some("rp_date()"),
+                    "command$" => Some("rp_command()"),
+                    "timer" => Some("rp_timer()"),
+                    "csrlin" => Some("console::csrlin()"),
+                    "curdir" | "curdir$" => Some("rp_curdir()"),
+                    "rnd" | "rnd!" | "rnd#" => Some("rp_rnd(&v_null())"),
+                    "dir" | "dir$" => Some("rp_dir(&v_null(), &v_null())"),
+                    _ => None,
+                };
+                if let Some(call) = bare_builtin {
+                    return call.to_string();
+                }
                 match name_lower.as_str() {
                     "true" | "vttrue" => "v_bool(true)".to_string(),
                     "false" | "vtfalse" => "v_bool(false)".to_string(),
-                    "pi" => "v_dbl(std::f64::consts::PI)".to_string(),
-                    "time" | "time$" => "rp_time()".to_string(),
-                    "date" | "date$" => "rp_date()".to_string(),
-                    "command$" => "rp_command()".to_string(),
-                    "timer" => "rp_timer()".to_string(),
-                    "csrlin" => "console::csrlin()".to_string(),
                     // An omitted argument (`COLOR , 1`, `INSTR(, a, b)`)
                     "__omitted" => "v_null()".to_string(),
                     _ => {
@@ -2066,13 +2258,21 @@ impl RustCodegen {
                         // RapidQ's RESULT inside a FUNCTION is its return value.
                         if name.eq_ignore_ascii_case("result") {
                             if let Some(fname) = &self.current_function {
-                                return format!("_{}.clone()", fname.to_lowercase());
+                                return format!("_{}.clone()", to_snake(fname));
                             }
                         }
                         // A FUNCTION named without parentheses is called
                         // (`y = Five + 1`), except inside itself, where the
                         // name is its result variable.
                         let lower = name.to_lowercase();
+                        // A SUB's name as a value (`WndProc = MyProc`) is
+                        // nothing, as in the VM.
+                        if !self.returning_functions.contains(&lower)
+                            && self.function_param_counts.keys().any(|f| strip_type_suffix(f).eq_ignore_ascii_case(&name))
+                            && !self.shadowed.contains(&lower)
+                        {
+                            return "v_null()".to_string();
+                        }
                         if self.returning_functions.contains(&lower)
                             && self.function_param_counts.get(&lower).copied().unwrap_or(0) == 0
                             && !self.current_function.as_deref().is_some_and(|f| strip_type_suffix(f).eq_ignore_ascii_case(&name))
@@ -2144,18 +2344,21 @@ impl RustCodegen {
                                 pre.join(" "), args.join(", "), post.join(" ")
                             );
                         }
-                        let args_str = args.join(", ");
-                        return format!("{fname}({args_str})");
+                        return self.fitted_call(&name_stripped, &fname, args);
                     }
-                    // Not a known function — treat as variant array indexing
+                    // Not a known function: a variable's element (variant
+                    // indexing), or — only in unreached library code — a
+                    // routine nobody defines, which fails when run (as in
+                    // the VM).
                     let varname = to_snake(&strip_type_suffix(&id.name));
-                    if args.len() == 1 {
+                    let variable = self.shadowed.contains(&name_stripped)
+                        || self.assigned_main.contains(&name_stripped)
+                        || self.assigned_routine.contains(&name_stripped)
+                        || self.is_global_scalar(&name_stripped);
+                    if args.len() == 1 && variable {
                         return format!("{varname}.rp_index(&{})", args[0]);
                     }
-                    // Multiple args or no args — fall through to regular call
-                    let fname = to_snake(&strip_type_suffix(&id.name));
-                    let args_str = args.join(", ");
-                    return format!("{fname}({args_str})");
+                    return unknown_routine(&id.name);
                 }
 
                 // Check for UDT array field access: r.Names(1) → FunctionCall(MemberAccess(r, Names), [1])
@@ -2201,7 +2404,12 @@ impl RustCodegen {
                     }
                 }
 
-                // Method call or complex callee
+                if let Expression::MemberAccess(ma) = fc.callee.as_ref() {
+                    let args: Vec<&Expression> = fc.args.iter().collect();
+                    return self.object_method_call(&ma.object, &ma.member, &args);
+                }
+
+                // Complex callee
                 let callee = self.expr_to_string(fc.callee.as_ref());
                 let args_str = args.join(", ");
                 format!("{callee}({args_str})")
@@ -2238,6 +2446,18 @@ impl RustCodegen {
                     }
                 }
 
+                // `Obj.Font.Color` on any other object: its `font.color`.
+                if let Expression::MemberAccess(inner) = ma.object.as_ref() {
+                    if matches!(inner.object.as_ref(), Expression::Identifier(id) if id.name != "_with_") {
+                        return format!(
+                            "rp_comp_get({}, \"{}.{}\")",
+                            self.receiver(&inner.object),
+                            inner.member.to_lowercase(),
+                            ma.member.to_lowercase()
+                        );
+                    }
+                }
+
                 let obj_str = self.expr_to_string(&ma.object);
                 let member = to_snake(&ma.member);
                 let member_lower = ma.member.to_lowercase();
@@ -2256,9 +2476,9 @@ impl RustCodegen {
                     }
                 }
 
-                // Generic fallback: use rp_comp_get via string name
-                // This handles event handler params typed as components (e.g. `client.host`)
-                format!("rp_comp_get(&{obj_str}.to_string_val(), \"{member_lower}\")")
+                // Any other object (`Screen.Width`, an event handler's
+                // `Sender.Caption`).
+                format!("rp_comp_get({}, \"{member_lower}\")", self.receiver(&ma.object))
             }
             Expression::MethodCall(mc) => {
                 // Component method call: comp.Method(args)
@@ -2313,7 +2533,9 @@ fn to_snake(name: &str) -> String {
     let name = strip_type_suffix(name);
     // Just lowercase for now since BASIC names are case-insensitive; a dotted
     // DECLARE name (`SLEEP.ms`) becomes `sleep_ms`.
-    let lower = name.to_lowercase().replace('.', "_");
+    // Type suffixes inside a combined name (`QDebug.Err$` → `_qdebug__err$`)
+    // aren't part of a Rust identifier either.
+    let lower: String = name.to_lowercase().replace('.', "_").chars().filter(|c| !matches!(c, '$' | '%' | '&' | '!' | '#')).collect();
     // Escape Rust reserved keywords by prefixing with r#
     // (raw identifier syntax) or appending underscore
     match lower.as_str() {
@@ -2373,6 +2595,42 @@ fn shadowing_names(params: &[Parameter], body: &[Statement]) -> HashSet<String> 
                 if !d.is_static && !d.is_redim {
                     names.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_lowercase()));
                 }
+            }
+        },
+        &mut |_| {},
+    );
+    names
+}
+
+/// A call of a routine the program doesn't define (in library code the
+/// program never reaches): a run-time error, the VM's message.
+fn unknown_routine(name: &str) -> String {
+    let name = name.replace('\\', "").replace('"', "");
+    format!("{{ eprintln!(\"run-time error: Unknown builtin function '{name}'\"); std::process::exit(1) }}")
+}
+
+/// Variables `stmts` assign to by name (`RGB$ = …`, `FOR i`, `INPUT s$`),
+/// lowercase without type suffix: a variable even when a builtin has that
+/// name.
+fn assigned_names(stmts: &[Statement]) -> HashSet<String> {
+    let mut names = HashSet::new();
+    rapidr_ast::walk(
+        stmts,
+        &mut |s| {
+            let name = match s {
+                Statement::Assignment(a) => match &a.target {
+                    Expression::Identifier(id) => Some(&id.name),
+                    _ => None,
+                },
+                Statement::Input(i) => match &i.target {
+                    Expression::Identifier(id) => Some(&id.name),
+                    _ => None,
+                },
+                Statement::For(f) => Some(&f.variable),
+                _ => None,
+            };
+            if let Some(name) = name {
+                names.insert(strip_type_suffix(name).to_lowercase());
             }
         },
         &mut |_| {},
@@ -2602,8 +2860,21 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
     }
 }
 
+/// The Cargo package (and binary) name for a program file named `stem`:
+/// Cargo accepts letters, digits, `-` and `_`, not starting with a digit
+/// (`Cancel Form Close` → `Cancel_Form_Close`, `3dview` → `rq_3dview`).
+pub fn crate_name(stem: &str) -> String {
+    let name: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    if name.is_empty() || name.starts_with(|c: char| c.is_ascii_digit() || c == '-') {
+        format!("rq_{name}")
+    } else {
+        name
+    }
+}
+
 /// Generate a Cargo.toml for the output project that depends on the runtime.
 pub fn generate_cargo_toml(project_name: &str, runtime_path: &str) -> String {
+    let project_name = crate_name(project_name);
     format!(
         r#"[package]
 name = "{project_name}"
@@ -2620,6 +2891,7 @@ rapidr-runtime-core = {{ path = "{runtime_path}" }}
 
 /// Generate a Cargo.toml for a web (WASM) project.
 pub fn generate_cargo_toml_web(project_name: &str, runtime_web_path: &str) -> String {
+    let project_name = crate_name(project_name);
     format!(
         r#"[package]
 name = "{project_name}"

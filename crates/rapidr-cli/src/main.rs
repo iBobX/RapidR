@@ -348,14 +348,14 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
     match status {
         Ok(s) if s.success() => {
             // Copy the built binary to the same directory as the .rr source
-            let binary_name = stem;
+            let binary_name = rapidr_codegen_rust::crate_name(stem);
             let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
                 Some(p) => PathBuf::from(p),
                 None => out_dir.join("target"),
             };
-            let built_binary = target_root.join(profile).join(binary_name);
+            let built_binary = target_root.join(profile).join(&binary_name);
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
-            let dest_binary = dest_dir.join(binary_name);
+            let dest_binary = dest_dir.join(stem);
 
             if built_binary.exists() {
                 if let Err(e) = fs::copy(&built_binary, &dest_binary) {
@@ -420,7 +420,7 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     let wasm_file = target_root
         .join("wasm32-unknown-unknown")
         .join(profile)
-        .join(format!("{}.wasm", stem.replace('-', "_")));
+        .join(format!("{}.wasm", rapidr_codegen_rust::crate_name(stem).replace('-', "_")));
 
     let dest_dir = source_path.parent().unwrap_or(Path::new("."));
     let web_out = dest_dir.join(format!("{stem}_web"));
@@ -455,7 +455,7 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     }
 
     // Step 3: Generate index.html
-    let wasm_module = stem.replace('-', "_");
+    let wasm_module = rapidr_codegen_rust::crate_name(stem).replace('-', "_");
     let assets = collect_assets(source_path);
     if !assets.is_empty() {
         println!("Embedding {} asset(s) in index.html...", assets.len());
