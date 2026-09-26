@@ -1,4 +1,3 @@
-' xfail: codegen — STATIC in SUB/FUNCTION is interpreter-only for now
 ' STATIC (RapidQ manual example): one variable shared by every call and recursion.
 SUB Count (N AS INTEGER)
    DIM B AS LONG

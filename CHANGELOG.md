@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.23.0] — 2026-09-25
+
+### Added
+- **Native builds (`rapidr build`) run line labels, `GOTO`, `GOSUB` and
+  `RETURN`.** A routine that uses them is emitted as a state machine
+  (`crates/rapidr-codegen-rust/src/jumps.rs`). This covers the main
+  program, SUBs and FUNCTIONs:
+  - backwards and forwards jumps, line numbers, nested GOSUB;
+  - labels inside FOR/WHILE/DO/IF bodies;
+  - GOSUB inside IF and loops, and `EXIT` out of such loops.
+
+  Only statements that contain a jump target or a GOSUB are flattened;
+  everything else stays ordinary Rust.
+- **`STATIC` variables in native builds:** each becomes a program-wide slot
+  for its routine, created once, so every call and recursion shares it.
+- **Native builds report the same compile errors as the interpreter**, with
+  line and column, e.g. an unknown SUB or a missing label. `rapidr build`
+  runs the bytecode compiler's checks first. Errors about what only the
+  interpreter lacks (DLL calls, raw memory, Windows APIs) don't stop a
+  native build (`rapidr_bcgen::error_applies_to_native_builds`).
+
+### Fixed
+- **Native `SELECT CASE` inside a loop** no longer fails to compile ("value
+  moved"): the tested value is copied.
+- **Tests:** `gosub_goto`, `gosub_advanced`, `label_not_found`,
+  `unknown_sub_error` and `static_vars` now pass on both backends (no
+  longer marked xfail for codegen). New case `goto_structured`.
+
 ## [2.22.0] — 2026-09-25
 
 ### Added

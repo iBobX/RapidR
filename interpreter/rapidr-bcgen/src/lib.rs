@@ -2768,6 +2768,13 @@ const RAPIDQ_BUILTINS: &[&str] = &[
     "unloadlibrary", "val", "varptr", "vartype", "wstring", "wstringtoascii",
 ];
 
+/// Whether a compile error also stops a native build (`rapidr build`, the
+/// Rust backend): errors about the program itself do; ones about what only
+/// the interpreter lacks (DLL calls, raw memory, Windows APIs) don't.
+pub fn error_applies_to_native_builds(message: &str) -> bool {
+    !message.contains(NATIVE_ONLY_MARKER) && !message.contains(WINDOWS_ONLY_MARKER)
+}
+
 /// Present in every error about a feature only native builds support.
 const NATIVE_ONLY_MARKER: &str = "`rapidr build`";
 /// In every error about calling Windows itself (RapidR doesn't emulate it).

@@ -8,6 +8,8 @@ use std::fmt::Write;
 
 use rapidr_ast::*;
 
+mod jumps;
+
 /// Target platform for code generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppTarget {
@@ -117,6 +119,10 @@ struct RustCodegen {
     in_sub_or_function: bool,
     /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
     create_declared_names: HashSet<String>,
+    /// Set while a routine with GOTO/GOSUB is emitted as a state machine.
+    state_machine: Option<jumps::StateMachine>,
+    /// The SUB/FUNCTION being emitted (None in the main program).
+    current_routine_name: Option<String>,
 }
 
 impl RustCodegen {
@@ -148,6 +154,8 @@ impl RustCodegen {
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
             create_declared_names: HashSet::new(),
+            state_machine: None,
+            current_routine_name: None,
         }
     }
 
@@ -367,7 +375,7 @@ impl RustCodegen {
 
         // Generated code declares every BYVAL parameter `mut` (BASIC may
         // assign to it); don't warn when a routine doesn't.
-        self.line("#![allow(unused_mut, unused_labels)]");
+        self.line("#![allow(unused_mut, unused_labels, unreachable_code, unused_assignments)]");
         self.line(match self.target {
             AppTarget::Desktop => "use rapidr_runtime_core::prelude::*;",
             AppTarget::Web => "use rapidr_runtime_web::prelude::*;",
@@ -427,12 +435,17 @@ impl RustCodegen {
             self.blank();
         }
 
-        for stmt in &program.statements {
-            match stmt {
-                Statement::Subroutine(_) | Statement::Function(_) | Statement::Type(_) | Statement::Declare(_) => {
-                    // already emitted above
+        if self.routine_needs_states(&program.statements) {
+            // Labels / GOTO / GOSUB: a state machine (jumps.rs).
+            self.emit_state_machine(&program.statements);
+        } else {
+            for stmt in &program.statements {
+                match stmt {
+                    Statement::Subroutine(_) | Statement::Function(_) | Statement::Type(_) | Statement::Declare(_) => {
+                        // already emitted above
+                    }
+                    _ => self.emit_statement(stmt),
                 }
-                _ => self.emit_statement(stmt),
             }
         }
 
@@ -514,6 +527,7 @@ impl RustCodegen {
             }
             // A label nothing jumps to (e.g. only a RESTORE target) is just a marker.
             Statement::Label(l) if !self.jump_targets.contains(&l.name.to_lowercase()) => {}
+            Statement::Goto(j) if self.in_state_machine() => self.emit_goto(j),
             // Rust has no goto; until codegen gets a state-machine lowering,
             // refuse clearly instead of generating code that runs wrongly.
             Statement::Label(_) | Statement::Goto(_) | Statement::Gosub(_) => {
@@ -529,12 +543,29 @@ impl RustCodegen {
 
     fn emit_dim(&mut self, d: &DimStatement) {
         if d.is_static && self.in_sub_or_function {
-            self.write_indent();
-            let _ = writeln!(
-                self.output,
-                "compile_error!(\"STATIC {} (a variable kept between calls) isn't supported in native builds yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
-                d.declarators.first().map(|v| v.name.as_str()).unwrap_or("")
-            );
+            // Renamed to a program-wide slot by `prepare_statics`: create it
+            // the first time only, so every call (and recursion) shares it.
+            for decl in &d.declarators {
+                let name = to_snake(&decl.name);
+                let default = default_value_for_type(&d.type_name);
+                let init = if decl.dimensions.is_empty() {
+                    default
+                } else {
+                    let bounds: Vec<String> = decl
+                        .dimensions
+                        .iter()
+                        .map(|dim| match dim {
+                            ArrayDimension::Single(upper) => format!("(0, ({}).to_i64())", self.expr_to_string(upper)),
+                            ArrayDimension::Range { start, end } => {
+                                format!("(({}).to_i64(), ({}).to_i64())", self.expr_to_string(start), self.expr_to_string(end))
+                            }
+                        })
+                        .collect();
+                    format!("rp_new_array(&[{}], {default})", bounds.join(", "))
+                };
+                self.write_indent();
+                let _ = writeln!(self.output, "GVARS.with(|g| {{ g.borrow_mut().entry(\"{name}\".to_string()).or_insert_with(|| {init}); }});");
+            }
             return;
         }
         for decl in &d.declarators {
@@ -561,7 +592,12 @@ impl RustCodegen {
                 // Check if this is a UDT type
                 if self.user_types.contains(&d.type_name.to_lowercase()) {
                     self.write_indent();
-                    let _ = writeln!(self.output, "let mut {name} = {}::default();", d.type_name);
+                    if self.in_state_machine() {
+                        self.hoist(format!("let mut {name} = {}::default();", d.type_name));
+                        let _ = writeln!(self.output, "{name} = {}::default();", d.type_name);
+                    } else {
+                        let _ = writeln!(self.output, "let mut {name} = {}::default();", d.type_name);
+                    }
                     self.var_udt_type.insert(name_lower, d.type_name.clone());
                 } else if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
                     // Module-level scalar → store in global vars
@@ -570,8 +606,7 @@ impl RustCodegen {
                     let _ = writeln!(self.output, "gs(\"{name}\", {default});");
                 } else {
                     let default = default_value_for_type(&d.type_name);
-                    self.write_indent();
-                    let _ = writeln!(self.output, "let mut {name} = {default};");
+                    self.declare_local(&name, &default);
                 }
             } else {
                 self.array_vars.insert(decl.name.to_lowercase());
@@ -612,8 +647,7 @@ impl RustCodegen {
                     self.write_indent();
                     let _ = writeln!(self.output, "gs(\"{name}\", {array});");
                 } else {
-                    self.write_indent();
-                    let _ = writeln!(self.output, "let mut {name} = {array};");
+                    self.declare_local(&name, &array);
                 }
             }
         }
@@ -626,8 +660,19 @@ impl RustCodegen {
             self.write_indent();
             let _ = writeln!(self.output, "gs(\"{name}\", {val});");
         } else {
-            self.write_indent();
-            let _ = writeln!(self.output, "let {name} = {val};");
+            self.declare_local(&name, &val);
+        }
+    }
+
+    /// `let mut name = value;` — or, inside a state machine (jumps.rs), a
+    /// declaration before its loop and an assignment here.
+    fn declare_local(&mut self, name: &str, value: &str) {
+        self.write_indent();
+        if self.in_state_machine() {
+            self.hoist(format!("let mut {name} = v_null();"));
+            let _ = writeln!(self.output, "{name} = {value};");
+        } else {
+            let _ = writeln!(self.output, "let mut {name} = {value};");
         }
     }
 
@@ -1127,7 +1172,8 @@ impl RustCodegen {
     }
 
     fn emit_select_case(&mut self, s: &SelectCaseStatement) {
-        let expr = self.expr_to_string(&s.expression);
+        // Owned: `SELECT CASE k` inside a loop mustn't move `k`.
+        let expr = self.owned_expr(&s.expression);
         self.write_indent();
         let _ = writeln!(self.output, "let _select_val = {expr};");
         let mut first = true;
@@ -1191,18 +1237,91 @@ impl RustCodegen {
 
         self.in_sub_or_function = true;
         let byref = self.byref_prologue(&s.params, false);
+        let body = self.prepare_statics(&s.name, &s.body);
         // Auto-declare local variables for refs in body that aren't params
-        self.emit_local_vars(&s.body, &s.params);
+        self.emit_local_vars(&body, &s.params);
 
         let array_params = self.enter_array_params(&s.params);
-        for stmt in &s.body {
-            self.emit_statement(stmt);
-        }
+        self.current_routine_name = Some(s.name.clone());
+        self.emit_routine_body(&body);
+        self.current_routine_name = None;
         self.leave_array_params(array_params);
         self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
         self.indent -= 1;
         self.line("}");
+    }
+
+    /// `STATIC x` in routine `routine`: `x` becomes the program-wide variable
+    /// `__static_<routine>_<x>` inside the body (a global, like a
+    /// module-level DIM), so its value survives between calls. Returns the
+    /// body with the names changed.
+    fn prepare_statics(&mut self, routine: &str, body: &[Statement]) -> Vec<Statement> {
+        let mut renames: HashMap<String, String> = HashMap::new();
+        rapidr_ast::walk(
+            body,
+            &mut |s| {
+                if let Statement::Dim(d) = s {
+                    if d.is_static {
+                        for decl in &d.declarators {
+                            let key = strip_type_suffix(&decl.name).to_lowercase();
+                            let new = format!("__static_{}_{}", strip_type_suffix(routine).to_lowercase(), key);
+                            renames.insert(key, new);
+                        }
+                    }
+                }
+            },
+            &mut |_| {},
+        );
+        let mut body = body.to_vec();
+        if renames.is_empty() {
+            return body;
+        }
+        let rename = |name: &mut String| {
+            if let Some(new) = renames.get(&strip_type_suffix(name).to_lowercase()) {
+                *name = new.clone();
+            }
+        };
+        rapidr_ast::walk_expressions_mut(&mut body, true, &mut |e| {
+            if let Expression::Identifier(id) = e {
+                rename(&mut id.name);
+            }
+        });
+        rapidr_ast::walk_statements_mut(&mut body, &mut |s| match s {
+            Statement::For(f) => rename(&mut f.variable),
+            Statement::Dim(d) => d.declarators.iter_mut().for_each(|decl| rename(&mut decl.name)),
+            _ => {}
+        });
+        rapidr_ast::walk(
+            &body,
+            &mut |s| {
+                if let Statement::Dim(d) = s {
+                    if d.is_static {
+                        for decl in &d.declarators {
+                            let name = decl.name.to_lowercase();
+                            self.top_level_vars.insert(name.clone());
+                            if !decl.dimensions.is_empty() {
+                                self.array_vars.insert(name);
+                            }
+                        }
+                    }
+                }
+            },
+            &mut |_| {},
+        );
+        body
+    }
+
+    /// A SUB/FUNCTION body: plain statements, or a state machine when it
+    /// uses labels, GOTO or GOSUB (jumps.rs).
+    fn emit_routine_body(&mut self, body: &[Statement]) {
+        if self.routine_needs_states(body) {
+            self.emit_state_machine(body);
+        } else {
+            for stmt in body {
+                self.emit_statement(stmt);
+            }
+        }
     }
 
     /// Array parameters (`list() AS STRING`) are arrays inside the body, so
@@ -1241,14 +1360,15 @@ impl RustCodegen {
 
         self.in_sub_or_function = true;
         let byref = self.byref_prologue(&f.params, true);
+        let body = self.prepare_statics(&f.name, &f.body);
         // Auto-declare local variables for refs in body that aren't params
-        self.emit_local_vars(&f.body, &f.params);
+        self.emit_local_vars(&body, &f.params);
 
         self.current_function = Some(f.name.clone());
         let array_params = self.enter_array_params(&f.params);
-        for stmt in &f.body {
-            self.emit_statement(stmt);
-        }
+        self.current_routine_name = Some(f.name.clone());
+        self.emit_routine_body(&body);
+        self.current_routine_name = None;
         self.leave_array_params(array_params);
         self.current_function = None;
         self.in_sub_or_function = false;
@@ -1506,6 +1626,12 @@ impl RustCodegen {
         match e.exit_type.as_str() {
             kind @ ("FOR" | "WHILE" | "DO") => {
                 match self.loop_labels.iter().rev().find(|(k, _)| *k == kind) {
+                    // A loop flattened into states (jumps.rs): jump to its end.
+                    Some((_, label)) if label.starts_with('@') => {
+                        let state = label[1..].to_string();
+                        self.write_indent();
+                        let _ = writeln!(self.output, "{{ __pc = {state}; continue 'sm; }}");
+                    }
                     Some((_, label)) => {
                         let label = label.clone();
                         self.write_indent();
@@ -1514,6 +1640,7 @@ impl RustCodegen {
                     None => self.line("break;"),
                 }
             }
+            "SUB" if self.in_state_machine() => self.line("break 'sm;"),
             "SUB" => self.line("return;"),
             "FUNCTION" => {
                 if let Some(fname) = self.current_function.clone() {
@@ -1535,6 +1662,11 @@ impl RustCodegen {
     }
 
     fn emit_return(&mut self, r: &ReturnStatement) {
+        if r.value.is_none() && self.in_state_machine() {
+            // Back from a GOSUB (or out of the routine if none is pending).
+            self.emit_gosub_return();
+            return;
+        }
         if let Some(val) = &r.value {
             let v = self.expr_to_string(val);
             self.write_indent();

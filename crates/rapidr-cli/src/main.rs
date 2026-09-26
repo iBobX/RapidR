@@ -227,6 +227,16 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
         }
     };
 
+    // The same checks as the bytecode compiler (unknown SUBs, missing
+    // labels, …), with positions, so both backends reject the same programs.
+    if let Err(errors) = compile_to_bytecode(path) {
+        let native: Vec<&str> = errors.lines().filter(|l| rapidr_bcgen::error_applies_to_native_builds(l)).collect();
+        if !native.is_empty() {
+            eprintln!("{}", native.join("\n"));
+            return ExitCode::from(1);
+        }
+    }
+
     // Generate Rust source
     let rust_source = rapidr_codegen_rust::generate_for_target(&program, target);
     let cargo_toml = if target == AppTarget::Web {
