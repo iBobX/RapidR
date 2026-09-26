@@ -128,11 +128,6 @@ struct RustCodegen {
     /// Names of variables declared as arrays (DIM with dimensions).
     array_vars: HashSet<String>,
     /// User-defined TYPE names (lowercase) → struct name for DIM default generation.
-    user_types: HashSet<String>,
-    /// Per-UDT, which fields are arrays: type_name(lowercase) → set of field names(lowercase).
-    udt_array_fields: HashMap<String, HashSet<String>>,
-    /// Variable name (lowercase) → UDT type name (original case) for DIM'd UDT vars.
-    var_udt_type: HashMap<String, String>,
     /// Tracks the current CREATE nesting stack (object name).
     create_stack: Vec<String>,
     /// Whether we're inside a FUNCTION body (name → return-var tracking).
@@ -180,9 +175,6 @@ impl RustCodegen {
             reported_goto: false,
             top_level_vars: HashSet::new(),
             array_vars: HashSet::new(),
-            user_types: HashSet::new(),
-            udt_array_fields: HashMap::new(),
-            var_udt_type: HashMap::new(),
             create_stack: Vec::new(),
             current_function: None,
             component_vars: HashMap::new(),
@@ -223,8 +215,6 @@ impl RustCodegen {
         self.top_level_vars.contains(&lower)
             && !self.component_vars.contains_key(&lower)
             && !self.array_vars.contains(&lower)
-            && !self.user_types.contains(&lower)
-            && !self.var_udt_type.contains_key(&lower)
     }
 
     /// The Value holding array `name`: its global, or the local variable.
@@ -366,31 +356,10 @@ impl RustCodegen {
                             let default = default_value_for_type(&d.type_name);
                             self.array_init_info.insert(name_lower.clone(), (default, size));
                         }
-                        // Track if this variable is a UDT instance
-                        if self.user_types.contains(&d.type_name.to_lowercase()) {
-                            self.var_udt_type.insert(
-                                name_lower.clone(),
-                                d.type_name.clone(),
-                            );
-                        }
                         // Track if this is a component variable (not an array of them)
                         if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
                             self.component_vars.insert(name_lower, d.type_name.to_uppercase());
                         }
-                    }
-                }
-                Statement::Type(t) => {
-                    let type_lower = t.name.to_lowercase();
-                    self.user_types.insert(type_lower.clone());
-                    // Track which fields are arrays
-                    let mut arr_fields = HashSet::new();
-                    for field in &t.fields {
-                        if field.array_size.is_some() {
-                            arr_fields.insert(field.name.to_lowercase());
-                        }
-                    }
-                    if !arr_fields.is_empty() {
-                        self.udt_array_fields.insert(type_lower, arr_fields);
                     }
                 }
                 Statement::Create(c) => {
@@ -535,7 +504,6 @@ impl RustCodegen {
             Statement::SelectCase(s) => self.emit_select_case(s),
             Statement::Subroutine(s) => self.emit_sub(s),
             Statement::Function(f) => self.emit_function(f),
-            Statement::Type(t) => self.emit_type_def(t),
             Statement::Create(c) => self.emit_create(c),
             Statement::With(w) => self.emit_with(w),
             Statement::Exit(e) => self.emit_exit(e),
@@ -544,6 +512,9 @@ impl RustCodegen {
             Statement::Input(i) => self.emit_input(i),
             Statement::Bind(b) => self.emit_bind(b),
             Statement::Declare(d) => self.emit_declare(d),
+            // TYPEs are lowered to routines and object builtins by
+            // `rapidr_ast::objects` before code generation.
+            Statement::Type(_) => {}
             Statement::Open(o) => self.emit_open(o),
             Statement::Close(c) => self.emit_close(c),
             Statement::PrintHash(p) => self.emit_print_hash(p),
@@ -665,17 +636,7 @@ impl RustCodegen {
             }
 
             if decl.dimensions.is_empty() {
-                // Check if this is a UDT type
-                if self.user_types.contains(&d.type_name.to_lowercase()) {
-                    self.write_indent();
-                    if self.in_state_machine() {
-                        self.hoist(format!("let mut {name} = {}::default();", d.type_name));
-                        let _ = writeln!(self.output, "{name} = {}::default();", d.type_name);
-                    } else {
-                        let _ = writeln!(self.output, "let mut {name} = {}::default();", d.type_name);
-                    }
-                    self.var_udt_type.insert(name_lower, d.type_name.clone());
-                } else if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
+                if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
                     // Module-level scalar → store in global vars
                     let default = default_value_for_type(&d.type_name);
                     self.write_indent();
@@ -1537,8 +1498,6 @@ impl RustCodegen {
                 if !self.is_global_array(local) {
                     let _ = writeln!(self.output, "let mut {snake} = v_null();");
                 }
-            } else if let Some(_type_name) = self.var_udt_type.get(local.as_str()) {
-                let _ = writeln!(self.output, "let mut {snake} = {}::default();", _type_name);
             } else {
                 let _ = writeln!(self.output, "let mut {snake} = v_null();");
             }
@@ -1630,63 +1589,6 @@ impl RustCodegen {
             }
         }
         (out, pre, post)
-    }
-
-    fn emit_type_def(&mut self, t: &TypeStatement) {
-        // Object TYPEs are interpreter-only for now: refuse clearly rather
-        // than emit a struct whose methods and events silently don't exist.
-        if t.extends.is_some() || !t.methods.is_empty() || !t.events.is_empty() || !t.constructor.is_empty() {
-            self.write_indent();
-            let _ = writeln!(
-                self.output,
-                "compile_error!(\"TYPE {} uses EXTENDS, methods, EVENTs or a CONSTRUCTOR, which native builds don't support yet. Run the program with the bytecode interpreter (rapidr build-bc / run-bc, --interp, or the web IDE).\");",
-                t.name
-            );
-            return;
-        }
-        let name = &t.name;
-        self.line("#[derive(Debug, Clone)]");
-        self.write_indent();
-        let _ = writeln!(self.output, "struct {name} {{");
-        self.indent += 1;
-        for field in &t.fields {
-            let fname = to_snake(&field.name);
-            self.write_indent();
-            if field.array_size.is_some() {
-                let _ = writeln!(self.output, "{fname}: Vec<Value>,");
-            } else {
-                let _ = writeln!(self.output, "{fname}: Value,");
-            }
-        }
-        self.indent -= 1;
-        self.line("}");
-        self.blank();
-
-        // Default impl
-        self.write_indent();
-        let _ = writeln!(self.output, "impl Default for {name} {{");
-        self.indent += 1;
-        self.line("fn default() -> Self {");
-        self.indent += 1;
-        self.line("Self {");
-        self.indent += 1;
-        for field in &t.fields {
-            let fname = to_snake(&field.name);
-            let default = default_value_for_type(&field.type_name);
-            self.write_indent();
-            if let Some(ref size_expr) = field.array_size {
-                let size = self.expr_to_string(size_expr);
-                let _ = writeln!(self.output, "{fname}: vec![{default}; ({size}).to_i64() as usize + 1],");
-            } else {
-                let _ = writeln!(self.output, "{fname}: {default},");
-            }
-        }
-        self.indent -= 1;
-        self.line("}");
-        self.indent -= 1;
-        self.line("}");
-        self.indent -= 1;
-        self.line("}");
     }
 
     fn emit_create(&mut self, c: &CreateStatement) {
@@ -2035,7 +1937,6 @@ impl RustCodegen {
                 format!("{obj}.{member}")
             }
             // FunctionCall as lvalue: array assignment, e.g. A(0) = 42
-            // Also handles UDT array field: r.Names(1) = "First" → FunctionCall(MemberAccess(r, Names), [1])
             Expression::FunctionCall(fc) => {
                 if let Expression::Identifier(id) = fc.callee.as_ref() {
                     let name = strip_type_suffix(&id.name).to_lowercase();
@@ -2045,47 +1946,6 @@ impl RustCodegen {
                             .map(|a| self.expr_to_string(a))
                             .unwrap_or_else(|| "0".to_string());
                         return format!("{arr}[({idx}).to_i64() as usize]");
-                    }
-                }
-                // UDT array field assignment: FunctionCall(MemberAccess(obj, field), [idx])
-                if let Expression::MemberAccess(ma) = fc.callee.as_ref() {
-                    if let Expression::Identifier(id) = ma.object.as_ref() {
-                        let var_lower = id.name.to_lowercase();
-                        if let Some(type_name) = self.var_udt_type.get(&var_lower) {
-                            let type_lower = type_name.to_lowercase();
-                            let field_lower = ma.member.to_lowercase();
-                            if let Some(arr_fields) = self.udt_array_fields.get(&type_lower) {
-                                if arr_fields.contains(&field_lower) {
-                                    let obj = to_snake(&strip_type_suffix(&id.name));
-                                    let field = to_snake(&ma.member);
-                                    let idx = fc.args.first()
-                                        .map(|a| self.expr_to_string(a))
-                                        .unwrap_or_else(|| "0".to_string());
-                                    return format!("{obj}.{field}[({idx}).to_i64() as usize]");
-                                }
-                            }
-                        }
-                    }
-                }
-                self.expr_to_string(expr)
-            }
-            // MethodCall as lvalue: UDT array field assignment, e.g. r.Names(1) = "First"
-            Expression::MethodCall(mc) => {
-                if let Expression::Identifier(id) = mc.object.as_ref() {
-                    let var_lower = id.name.to_lowercase();
-                    if let Some(type_name) = self.var_udt_type.get(&var_lower) {
-                        let type_lower = type_name.to_lowercase();
-                        let method_lower = mc.method.to_lowercase();
-                        if let Some(arr_fields) = self.udt_array_fields.get(&type_lower) {
-                            if arr_fields.contains(&method_lower) {
-                                let obj = self.lvalue_to_string(&mc.object);
-                                let field = to_snake(&mc.method);
-                                let idx = mc.args.first()
-                                    .map(|a| self.expr_to_string(a))
-                                    .unwrap_or_else(|| "0".to_string());
-                                return format!("{obj}.{field}[({idx}).to_i64() as usize]");
-                            }
-                        }
                     }
                 }
                 self.expr_to_string(expr)
@@ -2282,20 +2142,6 @@ impl RustCodegen {
 
                     if let Expression::Identifier(id) = ma.object.as_ref() {
                         let var_lower = id.name.to_lowercase();
-                        // UDT array field access
-                        if let Some(type_name) = self.var_udt_type.get(&var_lower) {
-                            let type_lower = type_name.to_lowercase();
-                            let field_lower = ma.member.to_lowercase();
-                            if let Some(arr_fields) = self.udt_array_fields.get(&type_lower) {
-                                if arr_fields.contains(&field_lower) {
-                                    let obj = to_snake(&strip_type_suffix(&id.name));
-                                    let field = to_snake(&ma.member);
-                                    let idx = args.first().map(|s| s.as_str()).unwrap_or("0");
-                                    return format!("{obj}.{field}[({idx}).to_i64() as usize].clone()");
-                                }
-                            }
-                        }
-
                         // Static component type method: RNum.sin(x) → builtin route
                         if is_component_type_name(&id.name) || var_lower == "math" {
                             let method_lower = ma.member.to_lowercase();
@@ -2364,14 +2210,6 @@ impl RustCodegen {
                     }
                 }
 
-                // Check if object is a UDT variable → use field access
-                if let Expression::Identifier(id) = ma.object.as_ref() {
-                    let var_lower = id.name.to_lowercase();
-                    if self.var_udt_type.contains_key(&var_lower) {
-                        return format!("{obj_str}.{member}");
-                    }
-                }
-
                 // Generic fallback: use rp_comp_get via string name
                 // This handles event handler params typed as components (e.g. `client.host`)
                 format!("rp_comp_get(&{obj_str}.to_string_val(), \"{member_lower}\")")
@@ -2386,24 +2224,6 @@ impl RustCodegen {
                         return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[])");
                     }
                     return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[{args_str}])");
-                }
-                // Check if this is a UDT array field access, e.g. r.Names(1)
-                if let Expression::Identifier(id) = mc.object.as_ref() {
-                    let var_lower = id.name.to_lowercase();
-                    if let Some(type_name) = self.var_udt_type.get(&var_lower) {
-                        let type_lower = type_name.to_lowercase();
-                        let method_lower = mc.method.to_lowercase();
-                        if let Some(arr_fields) = self.udt_array_fields.get(&type_lower) {
-                            if arr_fields.contains(&method_lower) {
-                                let obj = self.expr_to_string(&mc.object);
-                                let field = to_snake(&mc.method);
-                                let idx = mc.args.first()
-                                    .map(|a| self.expr_to_string(a))
-                                    .unwrap_or_else(|| "0".to_string());
-                                return format!("{obj}.{field}[({idx}).to_i64() as usize].clone()");
-                            }
-                        }
-                    }
                 }
                 // Fallback: assume object holds a component instance name (Value)
                 let obj = self.owned_expr(&mc.object);

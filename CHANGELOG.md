@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.28.1] — 2026-09-26
+
+### Removed
+- **Old object code in both compilers (about 800 lines).** Since v2.27.0
+  every TYPE goes through the shared object front end
+  (`rapidr_ast::objects`) before either backend sees it, so the interpreter
+  compiler's own TYPE handling (instance setup, method lookup, PROPERTY SET
+  setters, EVENT trampolines, `This` aliases) and the native code
+  generator's UDT-struct path could no longer run. Both are gone; the
+  compilers keep only their component paths (`Sender AS QBUTTON`, arrays of
+  components, indexed sub-objects). No behaviour change: conformance 84/84
+  on both backends, the RapidQ example corpus stays at 116/386, 44/44 native
+  examples, GUI and web IDE suites pass.
+
 ## [2.28.0] — 2026-09-26
 
 ### Security
