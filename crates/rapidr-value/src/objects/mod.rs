@@ -11,6 +11,7 @@
 pub mod bitmap;
 pub mod codec;
 pub mod font;
+pub mod grid;
 pub mod imagelist;
 pub mod listview;
 pub mod memstream;
@@ -22,6 +23,7 @@ use crate::{v_int, v_str, Value};
 use bitmap::Bitmap;
 use codec::{base64_decode, encode_bmp, BMP_DATA_URL};
 use font::Font;
+use grid::StringGrid;
 use imagelist::ImageList;
 use listview::ListView;
 use memstream::MemStream;
@@ -40,6 +42,8 @@ enum Object {
     ImageList(ImageList),
     /// QLISTVIEW's columns and items; the runtime draws the widget.
     ListView(ListView),
+    /// QSTRINGGRID's cells, sizes and selection; the runtime draws it.
+    Grid(StringGrid),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -88,6 +92,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
         "RLISTVIEW" => Object::ListView(ListView::default()),
+        "RSTRINGGRID" => Object::Grid(StringGrid::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -105,6 +110,28 @@ pub fn is_listview(id: &str) -> bool {
 pub fn with_listview<R>(id: &str, f: impl FnOnce(&ListView) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::ListView(l) => Some(f(l)),
+        _ => None,
+    })?
+}
+
+/// Whether `id` is a QSTRINGGRID (its runtime widget redraws after a change).
+pub fn is_grid(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Grid(_))).unwrap_or(false)
+}
+
+/// Reads a QSTRINGGRID's data (to draw it).
+pub fn with_grid<R>(id: &str, f: impl FnOnce(&StringGrid) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Grid(g) => Some(f(g)),
+        _ => None,
+    })?
+}
+
+/// Changes a QSTRINGGRID's data from its widget (the user edited a cell or
+/// selected one).
+pub fn with_grid_mut<R>(id: &str, f: impl FnOnce(&mut StringGrid) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Grid(g) => Some(f(g)),
         _ => None,
     })?
 }
@@ -130,6 +157,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
         Object::ListView(l) => l.get(&prop),
+        Object::Grid(g) => g.get(&prop),
     })?
 }
 
@@ -156,6 +184,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Bitmap(b) => b.set(&prop, val),
         Object::ImageList(l) => l.set(&prop, val).then_some(Ok(())),
         Object::ListView(l) => l.set(&prop, val).then_some(Ok(())),
+        Object::Grid(g) => g.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -176,6 +205,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Bitmap(_) => "bitmap",
         Object::ImageList(_) => "imagelist",
         Object::ListView(_) => "listview",
+        Object::Grid(_) => "grid",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -275,6 +305,39 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::ImageList(l) = o { l.insert(at.max(0) as usize, &src, mask); });
             Some(Ok(Value::Null))
         }
+        // SaveToFile / LoadFromFile / …Stream (File$ or S, RowOffset,
+        // ColOffset, MaxRows): rows of cells joined by the Separator.
+        ("grid", "savetofile" | "savetostream") => {
+            let (rows, cols, max) = grid_range(args);
+            let text = with(id, |o| match o {
+                Object::Grid(g) => g.to_text(rows, cols, max),
+                _ => String::new(),
+            })?;
+            if method == "savetofile" {
+                Some(write_file(&arg(0).to_string_val(), text.as_bytes()).map(|_| Value::Null))
+            } else {
+                with(&arg(0).to_string_val(), |o| if let Object::Stream(m) = o { m.write(text.as_bytes()) });
+                Some(Ok(Value::Null))
+            }
+        }
+        ("grid", "loadfromfile" | "loadfromstream") => {
+            let (rows, cols, max) = grid_range(args);
+            let bytes = if method == "loadfromfile" {
+                match read_file(&arg(0).to_string_val()) {
+                    Ok(b) => b,
+                    Err(e) => return Some(Err(e)),
+                }
+            } else {
+                with(&arg(0).to_string_val(), |o| match o {
+                    Object::Stream(m) => m.read(usize::MAX),
+                    _ => Vec::new(),
+                })
+                .unwrap_or_default()
+            };
+            let text = String::from_utf8_lossy(&bytes).into_owned();
+            with(id, |o| if let Object::Grid(g) = o { g.load_text(&text, rows, cols, max) });
+            Some(Ok(Value::Null))
+        }
         ("imagelist", "getbmp") => {
             let i = arg(0).to_i64();
             with(id, |o| match o {
@@ -307,11 +370,19 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             Object::Bitmap(b) => b.call(&method, args),
             Object::ImageList(l) => l.call(&method, args),
             Object::ListView(l) => l.call(&method, args),
+            Object::Grid(g) => g.call(&method, args),
         })?
         .map(Ok)
         // A property read written like a call (`Icons.Count` compiled as one).
         .or_else(|| if args.is_empty() { get(id, &method).map(Ok) } else { None }),
     }
+}
+
+/// A grid file method's (RowOffset, ColOffset, MaxRows): all rows unless
+/// MaxRows is given.
+fn grid_range(args: &[Value]) -> (usize, usize, usize) {
+    let n = |i: usize| args.get(i).map(|v| usize::try_from(v.to_i64()).unwrap_or(0));
+    (n(1).unwrap_or(0), n(2).unwrap_or(0), n(3).filter(|&m| m > 0).unwrap_or(usize::MAX))
 }
 
 /// `File.Open(name, mode)` (RAPIDQ.INC: fmCreate = 65535, fmOpenRead = 0,

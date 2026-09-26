@@ -186,8 +186,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("top".to_string(), v_int(0));
             props.insert("width".to_string(), v_int(300));
             props.insert("height".to_string(), v_int(200));
-            props.insert("rowcount".to_string(), v_int(0));
-            props.insert("colcount".to_string(), v_int(0));
         }
         "RPROGRESS" | "RPROGRESSBAR" => {
             props.insert("left".to_string(), v_int(0));
@@ -434,6 +432,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
+        } else if rapidr_value::objects::is_grid(name) {
+            gui_web::render_grid(&uname);
         }
         return;
     }
@@ -673,6 +673,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
+        } else if rapidr_value::objects::is_grid(name) {
+            gui_web::render_grid(&uname);
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);
@@ -1452,6 +1454,11 @@ pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
     fire(name, event, &[arg1, arg2]);
 }
 
+/// Fire an event with any number of arguments.
+pub fn rp_fire_event_args(name: &str, event: &str, args: &[Value]) {
+    fire(name, event, args);
+}
+
 /// Fire an event with 5 arguments.
 pub fn rp_fire_event_5(name: &str, event: &str, a1: Value, a2: Value, a3: Value, a4: Value, a5: Value) {
     fire(name, event, &[a1, a2, a3, a4, a5]);
@@ -1527,6 +1534,10 @@ fn bind_dom_event(name: &str, event: &str) {
     // A QLISTVIEW's clicks go through its rows and header (gui_web's
     // `create_listview`), which set ItemIndex first.
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {
+        return;
+    }
+    // A QSTRINGGRID fires its events itself (gui_web's `create_grid`).
+    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "onchange" | "onselectcell" | "onsetedittext" | "onellipsisclick") && rapidr_value::objects::is_grid(name) {
         return;
     }
 

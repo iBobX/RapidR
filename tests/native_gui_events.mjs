@@ -10,6 +10,7 @@
 //     one handler bound through `Btn(i).OnClick = Clicked`;
 //   * tests/fixtures/statusbar_panels.bas — QSTATUSBAR AddPanels / Panel(i);
 //   * tests/fixtures/listview_columns.bas — QLISTVIEW columns, items, sub-items;
+//   * tests/fixtures/string_grid.bas — QSTRINGGRID cells, rows/columns, streams;
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -53,6 +54,8 @@ const cases = [
     expect: ["lbl.caption=Ready|Line 42|INS|3|150"] },
   { name: "listview_columns", events: "lv.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
+  { name: "string_grid", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|-1"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

@@ -21,6 +21,7 @@ use fltk::{
     misc::Progress as FltkProgress,
     output::Output,
     prelude::*,
+    table::{Table, TableContext},
     text::{TextBuffer, TextEditor, StyleTableEntry},
     tree::Tree,
     valuator::HorNiceSlider,
@@ -29,7 +30,7 @@ use fltk::{
 
 use fltk_theme::{ThemeType, WidgetTheme};
 
-use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5};
+use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5, rp_fire_event_args};
 use crate::value::{v_int, v_null, v_str, Value};
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,9 @@ enum GuiWidget {
     Scroll(Scroll),
     Tree(Tree),
     Slider(HorNiceSlider),
+    /// QSTRINGGRID: a table drawn from rapidr_value::objects::grid, with the
+    /// input it edits cells in.
+    Grid(Table, Input),
     ImageFrame(Frame), // RImage — Frame with drawn image
 }
 
@@ -87,45 +91,12 @@ struct DesignState {
     drag_offset_y: i32,
 }
 
-// ---------------------------------------------------------------------------
-// String grid row tracking
-// ---------------------------------------------------------------------------
-
-#[derive(Clone, Debug)]
-struct StringGridRow {
-    cols: Vec<String>,
-}
-
-impl StringGridRow {
-    fn new(values: Vec<String>) -> Self {
-        if values.is_empty() {
-            Self { cols: vec![String::new()] }
-        } else {
-            Self { cols: values }
-        }
-    }
-
-    fn get(&self, idx: usize) -> &str {
-        self.cols.get(idx).map(|s| s.as_str()).unwrap_or("")
-    }
-}
-
-#[derive(Clone, Debug)]
-struct StringGridState {
-    rows: Vec<StringGridRow>,
-    selected_row: i32,
-    selected_col: i32,
-    cols: i32,
-    suggestions: Vec<String>,
-}
-
 thread_local! {
     static GUI_WIDGETS: RefCell<HashMap<String, GuiWidget>> = RefCell::new(HashMap::new());
     static GUI_APP: RefCell<Option<app::App>> = RefCell::new(None);
     static GUI_TEXT_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
     static GUI_STYLE_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
     static DESIGN_SURFACES: RefCell<HashMap<String, DesignState>> = RefCell::new(HashMap::new());
-    static STRING_GRIDS: RefCell<HashMap<String, StringGridState>> = RefCell::new(HashMap::new());
     /// Maps tab control names to their child group names (tab_name -> group_widget_key)
     static TAB_GROUPS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
     /// User-selected theme override: "light", "dark", "system", "aqua", "fluent", "sweet", or ""
@@ -1111,134 +1082,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let num_cols = rp_comp_get(name, "cols").to_i64().max(1) as usize;
-            let col_width = rp_comp_get(name, "colwidth").to_i64();
-            let col_w = if col_width > 0 { col_width as i32 } else { (w / num_cols as i32).max(60) };
-
-            let mut scroll = Scroll::new(x, y, w, h, None);
-            scroll.set_frame(FrameType::DownBox);
-
-            // Populate from stored state (rows added before widget creation)
-            let rows = STRING_GRIDS.with(|sg| {
-                sg.borrow().get(&name_lower).map(|s| s.rows.clone()).unwrap_or_default()
-            });
-            let sg_name = name_lower.clone();
-            let row_h = 22;
-            for (row_idx, row) in rows.iter().enumerate() {
-                let row_y = y + (row_idx as i32) * row_h;
-                for (col_idx, col_val) in row.cols.iter().enumerate() {
-                    let cell_x = x + (col_idx as i32) * col_w;
-                    let is_header = row_idx == 0;
-                    if is_header {
-                        let mut lbl = Frame::new(cell_x, row_y, col_w, row_h, None);
-                        lbl.set_label(col_val);
-                        lbl.set_frame(FrameType::FlatBox);
-                        lbl.set_color(Color::from_rgb(200, 210, 230));
-                        lbl.set_align(Align::Left | Align::Inside);
-                    } else if col_val == "..." {
-                        // Render "..." cells as clickable button-style labels
-                        let mut btn = Frame::new(cell_x, row_y, col_w, row_h, None);
-                        btn.set_label("...");
-                        btn.set_frame(FrameType::UpBox);
-                        btn.set_color(Color::from_rgb(230, 230, 230));
-                        btn.set_align(Align::Center | Align::Inside);
-                        let sg_btn = sg_name.clone();
-                        let ri = row_idx;
-                        let ci_btn = col_idx;
-                        btn.handle(move |_w, ev| {
-                            match ev {
-                                Event::Push => {
-                                    STRING_GRIDS.with(|sg| {
-                                        let mut grids = sg.borrow_mut();
-                                        if let Some(state) = grids.get_mut(&sg_btn) {
-                                            state.selected_row = ri as i32;
-                                            state.selected_col = ci_btn as i32;
-                                        }
-                                    });
-                                    rp_fire_event(&sg_btn, "ondblclick");
-                                    true
-                                }
-                                _ => false,
-                            }
-                        });
-                    } else {
-                        let mut inp = Input::new(cell_x, row_y, col_w, row_h, None);
-                        inp.set_value(col_val);
-                        inp.set_frame(FrameType::ThinUpBox);
-                        inp.set_trigger(CallbackTrigger::Changed);
-                        let sg_cb = sg_name.clone();
-                        let sg_dbl = sg_name.clone();
-                        let sg_unfocus = sg_name.clone();
-                        let ri = row_idx;
-                        let ci = col_idx;
-                        inp.set_callback(move |i| {
-                            let val = i.value();
-                            STRING_GRIDS.with(|sg| {
-                                let mut grids = sg.borrow_mut();
-                                if let Some(state) = grids.get_mut(&sg_cb) {
-                                    if ri < state.rows.len() && ci < state.rows[ri].cols.len() {
-                                        state.rows[ri].cols[ci] = val.clone();
-                                        state.selected_row = ri as i32;
-                                        state.selected_col = ci as i32;
-                                    }
-                                }
-                            });
-                            rp_fire_event(&sg_cb, "onchange");
-                        });
-                        // Double-click and Unfocus handler
-                        inp.handle(move |w, ev| {
-                            match ev {
-                                Event::Push if app::event_clicks() => {
-                                    STRING_GRIDS.with(|sg| {
-                                        let mut grids = sg.borrow_mut();
-                                        if let Some(state) = grids.get_mut(&sg_dbl) {
-                                            state.selected_row = ri as i32;
-                                            state.selected_col = ci as i32;
-                                        }
-                                    });
-                                    rp_fire_event(&sg_dbl, "ondblclick");
-                                    true
-                                }
-                                Event::Unfocus => {
-                                    // Sync value back to grid state on losing focus
-                                    let val = w.value();
-                                    STRING_GRIDS.with(|sg| {
-                                        let mut grids = sg.borrow_mut();
-                                        if let Some(state) = grids.get_mut(&sg_unfocus) {
-                                            if ri < state.rows.len() && ci < state.rows[ri].cols.len() {
-                                                state.rows[ri].cols[ci] = val;
-                                                state.selected_row = ri as i32;
-                                                state.selected_col = ci as i32;
-                                            }
-                                        }
-                                    });
-                                    rp_fire_event(&sg_unfocus, "onchange");
-                                    false
-                                }
-                                _ => false,
-                            }
-                        });
-                    }
-                }
-            }
-
-            scroll.end();
-            GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower.clone(), GuiWidget::Scroll(scroll));
-            });
-            // Initialize grid state if not already done
-            STRING_GRIDS.with(|sg| {
-                let mut grids = sg.borrow_mut();
-                if !grids.contains_key(&name_lower) {
-                    grids.insert(name_lower, StringGridState {
-                        rows: Vec::new(),
-                        selected_row: -1,
-                        selected_col: -1,
-                        cols: 2,
-                        suggestions: Vec::new(),
-                    });
-                }
-            });
+            grid_create(&name_lower, x, y, w, h);
         }
         "RTREEVIEW" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -1614,6 +1458,7 @@ pub fn gui_apply_font(name: &str) {
             GuiWidget::SysMenuBar(w) => text!(w),
             GuiWidget::Progress(w) => label!(w),
             GuiWidget::Scroll(w) => label!(w),
+            GuiWidget::Grid(w, _) => label!(w),
             GuiWidget::Tree(w) => label!(w),
             GuiWidget::Slider(w) => label!(w),
         }
@@ -3330,278 +3175,6 @@ pub fn design_surface_set(name: &str, prop: &str, val: &Value) -> bool {
 // String grid methods
 // ---------------------------------------------------------------------------
 
-/// Handle method calls on a PSTRINGGRID component.
-pub fn string_grid_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
-    match method {
-        "clear" => {
-            STRING_GRIDS.with(|sg| {
-                let mut grids = sg.borrow_mut();
-                let state = grids.entry(name_lower.clone()).or_insert_with(|| StringGridState {
-                    rows: Vec::new(),
-                    selected_row: -1,
-                    selected_col: -1,
-                    cols: 2,
-                    suggestions: Vec::new(),
-                });
-                state.rows.clear();
-                state.selected_row = -1;
-                state.selected_col = -1;
-            });
-            // Clear visual children safely — Scroll has 2 internal scrollbar
-            // children that must NOT be removed (they are the last 2 children).
-            GUI_WIDGETS.with(|gw| {
-                let mut widgets = gw.borrow_mut();
-                if let Some(GuiWidget::Scroll(ref mut scroll)) = widgets.get_mut(&name_lower) {
-                    while scroll.children() > 2 {
-                        scroll.remove_by_index(0);
-                    }
-                    scroll.scroll_to(0, 0);
-                    scroll.redraw();
-                }
-            });
-            v_null()
-        }
-        "addrow" => {
-            // AddRow(col0, col1, col2, ...) — any number of columns
-            let row_values: Vec<String> = args.iter().map(|v| v.to_string_val()).collect();
-            let row_idx = STRING_GRIDS.with(|sg| {
-                let mut grids = sg.borrow_mut();
-                let state = grids.entry(name_lower.clone()).or_insert_with(|| StringGridState {
-                    rows: Vec::new(),
-                    selected_row: -1,
-                    selected_col: -1,
-                    cols: row_values.len() as i32,
-                    suggestions: Vec::new(),
-                });
-                let n_cols = row_values.len().max(state.cols as usize);
-                if row_values.len() > state.cols as usize {
-                    state.cols = row_values.len() as i32;
-                }
-                let mut padded = row_values.clone();
-                while padded.len() < n_cols { padded.push(String::new()); }
-                state.rows.push(StringGridRow::new(padded));
-                state.rows.len() - 1
-            });
-            // Add visual row to the Scroll widget
-            let sg_name = name_lower.clone();
-            GUI_WIDGETS.with(|gw| {
-                let mut widgets = gw.borrow_mut();
-                if let Some(GuiWidget::Scroll(ref mut scroll)) = widgets.get_mut(&name_lower) {
-                    let sx = scroll.x();
-                    let sy = scroll.y();
-                    let sw = scroll.w();
-                    let row_h = 22;
-                    let row_y = sy + (row_idx as i32) * row_h;
-                    let n = row_values.len();
-                    let col_w = if n > 0 { sw / n as i32 } else { sw };
-                    let is_header = row_idx == 0;
-
-                    scroll.begin();
-                    for (ci, cell_val) in row_values.iter().enumerate() {
-                        let cell_x = sx + (ci as i32) * col_w;
-                        if is_header {
-                            let mut lbl = Frame::new(cell_x, row_y, col_w, row_h, None);
-                            lbl.set_label(cell_val);
-                            lbl.set_frame(FrameType::FlatBox);
-                            lbl.set_color(Color::from_rgb(200, 210, 230));
-                            lbl.set_align(Align::Left | Align::Inside);
-                        } else if cell_val == "..." {
-                            // Render "..." cells as clickable button-style labels
-                            let mut btn = Frame::new(cell_x, row_y, col_w, row_h, None);
-                            btn.set_label("...");
-                            btn.set_frame(FrameType::UpBox);
-                            btn.set_color(Color::from_rgb(230, 230, 230));
-                            btn.set_align(Align::Center | Align::Inside);
-                            let sg_btn = sg_name.clone();
-                            let ri = row_idx;
-                            let col_i = ci;
-                            btn.handle(move |_w, ev| {
-                                match ev {
-                                    Event::Push => {
-                                        STRING_GRIDS.with(|sg| {
-                                            let mut grids = sg.borrow_mut();
-                                            if let Some(state) = grids.get_mut(&sg_btn) {
-                                                state.selected_row = ri as i32;
-                                                state.selected_col = col_i as i32;
-                                            }
-                                        });
-                                        rp_fire_event(&sg_btn, "ondblclick");
-                                        true
-                                    }
-                                    _ => false,
-                                }
-                            });
-                        } else {
-                            let mut inp = Input::new(cell_x, row_y, col_w, row_h, None);
-                            inp.set_value(cell_val);
-                            inp.set_frame(FrameType::ThinUpBox);
-                            inp.set_trigger(CallbackTrigger::Changed);
-                            let sg_cb = sg_name.clone();
-                            let sg_focus = sg_name.clone();
-                            let sg_unfocus = sg_name.clone();
-                            let ri = row_idx;
-                            let col_i = ci;
-                            inp.set_callback(move |i| {
-                                let val = i.value();
-                                STRING_GRIDS.with(|sg| {
-                                    let mut grids = sg.borrow_mut();
-                                    if let Some(state) = grids.get_mut(&sg_cb) {
-                                        if ri < state.rows.len() && col_i < state.rows[ri].cols.len() {
-                                            state.rows[ri].cols[col_i] = val.clone();
-                                            state.selected_row = ri as i32;
-                                            state.selected_col = col_i as i32;
-                                        }
-                                    }
-                                });
-                                rp_fire_event(&sg_cb, "onchange");
-                            });
-                            // Track selected row on focus, sync value on unfocus
-                            inp.handle(move |w, ev| {
-                                match ev {
-                                    Event::Focus | Event::Push => {
-                                        STRING_GRIDS.with(|sg| {
-                                            let mut grids = sg.borrow_mut();
-                                            if let Some(state) = grids.get_mut(&sg_focus) {
-                                                state.selected_row = ri as i32;
-                                                state.selected_col = col_i as i32;
-                                            }
-                                        });
-                                        if ev == Event::Push && app::event_clicks() {
-                                            rp_fire_event(&sg_focus, "ondblclick");
-                                            return true;
-                                        }
-                                        false
-                                    }
-                                    Event::Unfocus => {
-                                        let val = w.value();
-                                        STRING_GRIDS.with(|sg| {
-                                            let mut grids = sg.borrow_mut();
-                                            if let Some(state) = grids.get_mut(&sg_unfocus) {
-                                                if ri < state.rows.len() && col_i < state.rows[ri].cols.len() {
-                                                    state.rows[ri].cols[col_i] = val;
-                                                    state.selected_row = ri as i32;
-                                                    state.selected_col = col_i as i32;
-                                                }
-                                            }
-                                        });
-                                        rp_fire_event(&sg_unfocus, "onchange");
-                                        false
-                                    }
-                                    _ => false,
-                                }
-                            });
-                        }
-                    }
-                    scroll.end();
-                    scroll.redraw();
-                }
-            });
-            v_null()
-        }
-        "cell" => {
-            // Cell(row, col)
-            let row = args.first().map(|v| v.to_i64()).unwrap_or(0);
-            let col = args.get(1).map(|v| v.to_i64()).unwrap_or(0);
-            STRING_GRIDS.with(|sg| {
-                let grids = sg.borrow();
-                if let Some(state) = grids.get(&name_lower) {
-                    if (row as usize) < state.rows.len() {
-                        let r = &state.rows[row as usize];
-                        return v_str(r.get(col as usize));
-                    }
-                }
-                v_str("")
-            })
-        }
-        "setcell" => {
-            // SetCell(row, col, value)
-            let row = args.first().map(|v| v.to_i64()).unwrap_or(0);
-            let col = args.get(1).map(|v| v.to_i64()).unwrap_or(0);
-            let val = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-            STRING_GRIDS.with(|sg| {
-                let mut grids = sg.borrow_mut();
-                if let Some(state) = grids.get_mut(&name_lower) {
-                    if (row as usize) < state.rows.len() {
-                        let r = &mut state.rows[row as usize];
-                        while r.cols.len() <= col as usize { r.cols.push(String::new()); }
-                        r.cols[col as usize] = val;
-                    }
-                }
-            });
-            v_null()
-        }
-        "setsuggestions" => {
-            let sugg_text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let suggs: Vec<String> = sugg_text.lines().map(|l| l.to_string()).collect();
-            STRING_GRIDS.with(|sg| {
-                let mut grids = sg.borrow_mut();
-                let state = grids.entry(name_lower.clone()).or_insert_with(|| StringGridState {
-                    rows: Vec::new(),
-                    selected_row: -1,
-                    selected_col: -1,
-                    cols: 2,
-                    suggestions: Vec::new(),
-                });
-                state.suggestions = suggs;
-            });
-            v_null()
-        }
-        _ => {
-            eprintln!("[WARN] StringGrid.{}() not implemented", method);
-            v_null()
-        }
-    }
-}
-
-/// Get a string grid property (Rows, SelectedRow, Cols)
-pub fn string_grid_get(name: &str, prop: &str) -> Option<Value> {
-    let name_lower = name.to_lowercase();
-    match prop.to_lowercase().as_str() {
-        "rows" | "rowcount" => {
-            Some(STRING_GRIDS.with(|sg| {
-                let grids = sg.borrow();
-                if let Some(state) = grids.get(&name_lower) {
-                    v_int(state.rows.len() as i64)
-                } else {
-                    v_int(0)
-                }
-            }))
-        }
-        "selectedrow" => {
-            Some(STRING_GRIDS.with(|sg| {
-                let grids = sg.borrow();
-                if let Some(state) = grids.get(&name_lower) {
-                    v_int(state.selected_row as i64)
-                } else {
-                    v_int(-1)
-                }
-            }))
-        }
-        "selectedcol" => {
-            Some(STRING_GRIDS.with(|sg| {
-                let grids = sg.borrow();
-                if let Some(state) = grids.get(&name_lower) {
-                    v_int(state.selected_col as i64)
-                } else {
-                    v_int(-1)
-                }
-            }))
-        }
-        "cols" | "colcount" => {
-            Some(STRING_GRIDS.with(|sg| {
-                let grids = sg.borrow();
-                if let Some(state) = grids.get(&name_lower) {
-                    v_int(state.cols as i64)
-                } else {
-                    v_int(2)
-                }
-            }))
-        }
-        _ => None,
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Code editor methods
 // ---------------------------------------------------------------------------
@@ -4163,6 +3736,7 @@ pub fn gui_set_visible(name: &str, visible: bool) {
                 GuiWidget::SysMenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Progress(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Scroll(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
+                GuiWidget::Grid(ref mut w, _) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Tree(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Slider(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::ImageFrame(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
@@ -4317,6 +3891,310 @@ pub fn listview_refresh(name: &str) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// QSTRINGGRID
+// ---------------------------------------------------------------------------
+//
+// The grid's data lives in rapidr_value::objects::grid (shared with the web
+// runtime); this is its view: an FLTK table whose column header is the first
+// fixed row and whose row header is the first fixed column (more fixed rows
+// or columns are drawn like them but scroll). Clicking selects a cell
+// (OnSelectCell, OnClick), double-clicking OnDblClick; with goEditing,
+// Enter, F2, typing or a double click edit the cell in place (every click
+// with goAlwaysShowEditor) and Enter / leaving the cell stores it
+// (OnSetEditText, then RapidR's OnChange). An ellipsis column (ColumnStyle
+// gcsEllipsis) — or, for RapidR's IDE, a cell reading "..." — shows a
+// button: OnEllipsisClick(Col, Row) (and OnDblClick).
+
+/// The header row / column the table shows (0 or 1 each).
+fn grid_headers(name: &str) -> (i32, i32) {
+    rapidr_value::objects::with_grid(name, |g| (g.fixed_rows().min(1) as i32, g.fixed_cols().min(1) as i32)).unwrap_or((0, 0))
+}
+
+/// The grid cell (col, row) a table context/row/col shows.
+fn grid_cell_of(name: &str, ctx: TableContext, row: i32, col: i32) -> Option<(i64, i64)> {
+    let (hr, hc) = grid_headers(name);
+    let (c, r) = match ctx {
+        TableContext::Cell => (col + hc, row + hr),
+        TableContext::ColHeader => (col + hc, 0),
+        TableContext::RowHeader => (0, row + hr),
+        _ => return None,
+    };
+    Some((c as i64, r as i64))
+}
+
+/// Whether cell (col, row) shows an ellipsis button.
+fn grid_has_ellipsis(g: &rapidr_value::objects::grid::StringGrid, col: usize, row: usize) -> bool {
+    let fixed = row < g.fixed_rows() || col < g.fixed_cols();
+    !fixed && (g.column_style(col) == rapidr_value::objects::grid::GCS_ELLIPSIS || g.cell(col, row) == "...")
+}
+
+fn grid_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
+    let mut table = Table::new(x, y, w, h, None);
+    table.set_frame(FrameType::DownBox);
+    table.set_color(Color::White);
+    let mut editor = Input::new(0, 0, 0, 0, None);
+    editor.set_frame(FrameType::BorderBox);
+    editor.hide();
+    table.end();
+
+    let draw_name = name.to_string();
+    table.draw_cell(move |t, ctx, row, col, cx, cy, cw, ch| grid_draw_cell(&draw_name, t, ctx, row, col, cx, cy, cw, ch));
+
+    // Enter stores the edited cell.
+    let enter_name = name.to_string();
+    editor.set_trigger(CallbackTrigger::EnterKeyAlways);
+    editor.set_callback(move |_| grid_finish_edit(&enter_name, true));
+    // Leaving the cell stores it too; Escape drops the edit.
+    let edit_name = name.to_string();
+    editor.handle(move |_, ev| match ev {
+        Event::Unfocus => {
+            grid_finish_edit(&edit_name, true);
+            false
+        }
+        Event::KeyDown if app::event_key() == Key::Escape => {
+            grid_finish_edit(&edit_name, false);
+            true
+        }
+        _ => false,
+    });
+
+    let handle_name = name.to_string();
+    table.handle(move |t, ev| grid_handle(&handle_name, t, ev));
+    GUI_WIDGETS.with(|gw| {
+        gw.borrow_mut().insert(name.to_string(), GuiWidget::Grid(table, editor));
+    });
+    grid_refresh(name);
+}
+
+/// Sizes the table from the grid's data and redraws it.
+pub fn grid_refresh(name: &str) {
+    let name = name.to_lowercase();
+    let Some((rows, cols, widths, heights, (hr, hc))) = rapidr_value::objects::with_grid(&name, |g| {
+        let hr = g.fixed_rows().min(1);
+        let hc = g.fixed_cols().min(1);
+        (g.row_count(), g.col_count(), g.col_widths.clone(), g.row_heights.clone(), (hr, hc))
+    }) else {
+        return;
+    };
+    GUI_WIDGETS.with(|gw| {
+        if let Some(GuiWidget::Grid(t, _)) = gw.borrow_mut().get_mut(&name) {
+            let size = |v: i64| v.clamp(0, 10_000) as i32;
+            t.set_col_header(hr == 1);
+            t.set_row_header(hc == 1);
+            if hr == 1 {
+                t.set_col_header_height(size(heights[0]));
+            }
+            if hc == 1 {
+                t.set_row_header_width(size(widths[0]));
+            }
+            t.set_rows((rows - hr) as i32);
+            t.set_cols((cols - hc) as i32);
+            for (i, w) in widths.iter().enumerate().skip(hc) {
+                t.set_col_width((i - hc) as i32, size(*w));
+            }
+            for (i, h) in heights.iter().enumerate().skip(hr) {
+                t.set_row_height((i - hr) as i32, size(*h));
+            }
+            t.redraw();
+        }
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i32, x: i32, y: i32, w: i32, h: i32) {
+    // The corner where the header row and column meet is cell (0, 0),
+    // which the table itself leaves blank.
+    if ctx == TableContext::EndPage && t.col_header() && t.row_header() {
+        let (x, y) = (t.x() + t.frame().dx(), t.y() + t.frame().dy());
+        let (w, h) = (t.row_header_width(), t.col_header_height());
+        let text = rapidr_value::objects::with_grid(name, |g| g.cell(0, 0).to_string()).unwrap_or_default();
+        draw::push_clip(x, y, w, h);
+        draw::draw_box(FrameType::ThinUpBox, x, y, w, h, Color::from_rgb(212, 208, 200));
+        draw::set_font(Font::Helvetica, 13);
+        draw::set_draw_color(Color::Black);
+        draw::draw_text2(&text, x + 3, y, (w - 6).max(0), h, Align::Left | Align::Inside | Align::Clip);
+        draw::pop_clip();
+        return;
+    }
+    let Some((c, r)) = grid_cell_of(name, ctx, row, col) else { return };
+    let Some((text, fixed, selected, ellipsis, lines)) = rapidr_value::objects::with_grid(name, |g| {
+        use rapidr_value::objects::grid::{GO_FIXED_HORZ_LINE, GO_HORZ_LINE, GO_ROW_SELECT};
+        let (cu, ru) = (c as usize, r as usize);
+        let fixed = ru < g.fixed_rows() || cu < g.fixed_cols();
+        let selected = !fixed && g.row == r && (g.col == c || g.has_option(GO_ROW_SELECT));
+        let lines = if fixed { g.has_option(GO_FIXED_HORZ_LINE) } else { g.has_option(GO_HORZ_LINE) };
+        (g.cell(cu, ru).to_string(), fixed, selected, grid_has_ellipsis(g, cu, ru), lines)
+    }) else {
+        return;
+    };
+    draw::push_clip(x, y, w, h);
+    if fixed {
+        draw::draw_box(FrameType::ThinUpBox, x, y, w, h, Color::from_rgb(212, 208, 200));
+    } else {
+        draw::set_draw_color(if selected { Color::from_rgb(0, 120, 215) } else { Color::White });
+        draw::draw_rectf(x, y, w, h);
+        if lines {
+            draw::set_draw_color(Color::from_rgb(192, 192, 192));
+            draw::draw_rect(x, y, w, h);
+        }
+    }
+    let button = if ellipsis { h.min(w) } else { 0 };
+    draw::set_font(Font::Helvetica, 13);
+    draw::set_draw_color(if selected { Color::White } else { Color::Black });
+    if !(ellipsis && text == "...") {
+        draw::draw_text2(&text, x + 3, y, (w - 6 - button).max(0), h, Align::Left | Align::Inside | Align::Clip);
+    }
+    if ellipsis {
+        draw::draw_box(FrameType::ThinUpBox, x + w - button, y, button, h, Color::from_rgb(230, 230, 230));
+        draw::set_draw_color(Color::Black);
+        draw::draw_text2("...", x + w - button, y, button, h, Align::Center);
+    }
+    draw::pop_clip();
+}
+
+/// Selects a cell the way a click or an arrow key does: fixed cells can't
+/// be selected; OnSelectCell(Col, Row, CanSelect) is fired when the
+/// selection moves. Returns whether it moved.
+fn grid_select(name: &str, c: i64, r: i64) -> bool {
+    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
+        if (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() || c < 0 || r < 0 {
+            return false;
+        }
+        let before = (g.col, g.row);
+        g.select(c, r);
+        (g.col, g.row) == (c, r) && before != (c, r)
+    })
+    .unwrap_or(false);
+    if ok {
+        rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
+        redraw_widget(name);
+    }
+    ok
+}
+
+/// Starts editing the selected cell (with `initial` text, or its own).
+fn grid_start_edit(name: &str, t: &mut Table, initial: Option<String>) {
+    let Some((c, r, text, editable)) = rapidr_value::objects::with_grid(name, |g| (g.col, g.row, g.cell(g.col.max(0) as usize, g.row.max(0) as usize).to_string(), g.editable())) else {
+        return;
+    };
+    if !editable || c < 0 || r < 0 {
+        return;
+    }
+    let (hr, hc) = grid_headers(name);
+    let Some((x, y, w, h)) = t.find_cell(TableContext::Cell, r as i32 - hr, c as i32 - hc) else { return };
+    GUI_WIDGETS.with(|gw| {
+        if let Some(GuiWidget::Grid(_, editor)) = gw.borrow_mut().get_mut(name) {
+            editor.resize(x, y, w, h);
+            editor.set_value(initial.as_deref().unwrap_or(&text));
+            editor.show();
+            let _ = editor.take_focus();
+            let end = editor.value().len() as i32;
+            let _ = editor.set_position(end);
+            editor.redraw();
+        }
+    });
+}
+
+/// Ends an edit: stores the text (`keep`) and fires OnSetEditText(Col,
+/// Row, Value$) and OnChange.
+fn grid_finish_edit(name: &str, keep: bool) {
+    let value = GUI_WIDGETS.with(|gw| {
+        let mut widgets = gw.borrow_mut();
+        let Some(GuiWidget::Grid(t, editor)) = widgets.get_mut(name) else { return None };
+        if !editor.visible() {
+            return None;
+        }
+        editor.hide();
+        t.redraw();
+        Some(editor.value())
+    });
+    let (Some(value), true) = (value, keep) else { return };
+    let changed = rapidr_value::objects::with_grid_mut(name, |g| {
+        let (c, r) = (g.col, g.row);
+        if c < 0 || r < 0 || g.cell(c as usize, r as usize) == value {
+            return None;
+        }
+        g.set_cell(c as usize, r as usize, value.clone());
+        Some((c, r))
+    })
+    .flatten();
+    if let Some((c, r)) = changed {
+        rp_fire_event_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
+        rp_fire_event(name, "onchange");
+    }
+}
+
+fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
+    use rapidr_value::objects::grid::GO_ALWAYS_SHOW_EDITOR;
+    match ev {
+        Event::Push => {
+            grid_finish_edit(name, true);
+            let Some((ctx, row, col, _)) = t.cursor2rowcol() else { return false };
+            let Some((c, r)) = grid_cell_of(name, ctx, row, col) else { return false };
+            // An ellipsis button.
+            let on_button = rapidr_value::objects::with_grid(name, |g| grid_has_ellipsis(g, c as usize, r as usize)).unwrap_or(false)
+                && t.find_cell(ctx, row, col).is_some_and(|(x, _, w, h)| app::event_x() >= x + w - h.min(w));
+            let _ = t.take_focus();
+            grid_select(name, c, r);
+            if on_button {
+                rp_fire_event_2(name, "onellipsisclick", v_int(c), v_int(r));
+                rp_fire_event(name, "ondblclick");
+                return true;
+            }
+            rp_fire_event(name, "onclick");
+            let always = rapidr_value::objects::with_grid(name, |g| g.has_option(GO_ALWAYS_SHOW_EDITOR)).unwrap_or(false);
+            if app::event_clicks() {
+                rp_fire_event(name, "ondblclick");
+                grid_start_edit(name, t, None);
+            } else if always {
+                grid_start_edit(name, t, None);
+            }
+            // Let the table resize columns / scroll too.
+            matches!(ctx, TableContext::Cell)
+        }
+        Event::Focus | Event::Unfocus => true,
+        Event::KeyDown => {
+            let key = app::event_key();
+            let Some((c, r)) = rapidr_value::objects::with_grid(name, |g| (g.col, g.row)) else { return false };
+            let moved = match key {
+                Key::Up => Some((c, r - 1)),
+                Key::Down => Some((c, r + 1)),
+                Key::Left => Some((c - 1, r)),
+                Key::Right => Some((c + 1, r)),
+                _ => None,
+            };
+            if let Some((nc, nr)) = moved {
+                if grid_select(name, nc, nr) {
+                    let (hr, hc) = grid_headers(name);
+                    // Keep the cell in view.
+                    let (top, left) = (t.row_position(), t.col_position());
+                    let (_, bottom, _, right) = t.visible_cells();
+                    let (tr, tc) = (nr as i32 - hr, nc as i32 - hc);
+                    if tr < top || tr > bottom {
+                        t.set_row_position(if tr < top { tr } else { top + (tr - bottom) });
+                    }
+                    if tc < left || tc > right {
+                        t.set_col_position(if tc < left { tc } else { left + (tc - right) });
+                    }
+                }
+                return true;
+            }
+            if key == Key::Enter || key == Key::KPEnter || key == Key::F2 {
+                grid_start_edit(name, t, None);
+                return true;
+            }
+            let typed = app::event_text();
+            if !typed.is_empty() && typed.chars().all(|ch| !ch.is_control()) && !app::is_event_ctrl() && !app::is_event_command() {
+                grid_start_edit(name, t, Some(typed));
+                return true;
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
 /// Redraw a component's widget (after a property it draws changed).
 pub fn gui_redraw(name: &str) {
     redraw_widget(&name.to_lowercase());
@@ -4331,6 +4209,7 @@ fn redraw_widget(name: &str) {
                 GuiWidget::Window(ref mut w) => { w.redraw(); }
                 GuiWidget::Group(ref mut w) => { w.redraw(); }
                 GuiWidget::Scroll(ref mut w) => { w.redraw(); }
+                GuiWidget::Grid(ref mut w, _) => { w.redraw(); }
                 GuiWidget::Frame(ref mut w) => { w.redraw(); }
                 GuiWidget::ImageFrame(ref mut w) => { w.redraw(); }
                 GuiWidget::Button(ref mut w) => { w.redraw(); }

@@ -140,12 +140,11 @@ impl RpComponent {
                 props.insert("fontname".into(), v_str("Arial"));
             }
             "RSTRINGGRID" => {
+                // Cells, sizes and selection: rapidr_value::objects::grid.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
                 props.insert("width".into(), v_int(300));
                 props.insert("height".into(), v_int(200));
-                props.insert("rowcount".into(), v_int(0));
-                props.insert("colcount".into(), v_int(0));
             }
             "RTABCONTROL" => {
                 props.insert("left".into(), v_int(0));
@@ -551,6 +550,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_listview(name) {
             crate::gui::listview_refresh(name);
+        } else if rapidr_value::objects::is_grid(name) {
+            crate::gui::grid_refresh(name);
         }
         return;
     }
@@ -687,11 +688,6 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                     return v;
                 }
             }
-            "RSTRINGGRID" => {
-                if let Some(v) = crate::gui::string_grid_get(name, &prop_lower) {
-                    return v;
-                }
-            }
             "RCODEEDITOR" | "RRICHEDIT" | "RMEMO" => {
                 if prop_lower == "text" {
                     return v_str(&crate::gui::gui_get_text(name));
@@ -758,6 +754,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_listview(name) {
             crate::gui::listview_refresh(name);
+        } else if rapidr_value::objects::is_grid(name) {
+            crate::gui::grid_refresh(name);
         }
         return result.unwrap_or_else(|e| {
             eprintln!("[rapidr] {name}.{method}: {e}");
@@ -839,7 +837,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "gui")]
         "RDESIGNSURFACE" => crate::gui::design_surface_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
-        "RSTRINGGRID" => crate::gui::string_grid_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
         "RCODEEDITOR" => crate::gui::code_editor_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
@@ -951,6 +948,11 @@ pub fn rp_fire_event_1(name: &str, event: &str, arg: Value) {
 /// Fire an event with 2 arguments.
 pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
     fire(name, event, &[arg1, arg2]);
+}
+
+/// Fire an event with any number of arguments.
+pub fn rp_fire_event_args(name: &str, event: &str, args: &[Value]) {
+    fire(name, event, args);
 }
 
 /// Fire an event with 5 arguments.
@@ -1481,19 +1483,6 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         | "setpixel" | "getpixel" | "drawtext" | "loadimage" | "saveimage" => {
             // Store drawing commands for later rendering
             v_null()
-        }
-        // StringGrid methods
-        "addrow" => {
-            let rowcount = rp_comp_get(name, "rowcount").to_i64();
-            rp_comp_set(name, "rowcount", v_int(rowcount + 1));
-            v_null()
-        }
-        "cells" | "cell" => {
-            // Get/set cell value: grid.Cells(col, row)
-            let col = args.first().map(|v| v.to_i64()).unwrap_or(0);
-            let row = args.get(1).map(|v| v.to_i64()).unwrap_or(0);
-            let key = format!("_cell_{}_{}", col, row);
-            rp_comp_get(name, &key)
         }
         _ => {
             eprintln!("[WARN] {}.{}() not implemented for type {}", name, method, comp_type);

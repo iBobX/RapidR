@@ -137,14 +137,17 @@ const COMPONENT_REGISTRY = {
         events: []
     },
     'RSTRINGGRID': {
-        props: ['cols', 'rows', 'fixedcols', 'fixedrows', 'colcount', 'rowcount', 'colwidth',
-                'rowheight', 'gridlinewidth', 'defaultcolwidth', 'defaultrowheight', 'width',
-                'height', 'top', 'left', 'visible', 'enabled', 'color', 'font', 'fontsize',
-                'fontcolor', 'scrollbars', 'options', 'col', 'row', 'selectedrow', 'hint', 'showhint', 'cursor',
-                'tag', 'parent', 'editorenabled', 'borderstyle', 'flat', 'cell', 'cells', 'rowsel', 'colsel'],
-        methods: ['addrow', 'deleterow', 'insertrow', 'clear', 'setcell', 'getcell',
-                  'setcolwidth', 'repaint', 'refresh', 'setfocus', 'setsuggestions'],
-        events: ['onclick', 'ondblclick', 'onselectcell', 'ondrawcell', 'onchange', 'onrowselect']
+        props: ['colcount', 'rowcount', 'fixedcols', 'fixedrows', 'defaultcolwidth', 'defaultrowheight',
+                'colwidths', 'rowheights', 'col', 'row', 'toprow', 'leftcol', 'separator', 'columnstyle',
+                'columnlist', 'gridwidth', 'gridheight', 'editormode', 'cell', 'cells',
+                'cols', 'rows', 'colwidth', 'selectedrow', 'selectedcol',
+                'width', 'height', 'top', 'left', 'visible', 'enabled', 'color', 'font', 'fontsize',
+                'fontcolor', 'hint', 'showhint', 'cursor', 'tag', 'parent'],
+        methods: ['addoptions', 'deloptions', 'insertrow', 'deleterow', 'insertcol', 'deletecol',
+                  'swaprows', 'swapcols', 'savetofile', 'loadfromfile', 'savetostream', 'loadfromstream',
+                  'addrow', 'setcell', 'getcell', 'clear', 'setrowcount', 'setcolcount',
+                  'repaint', 'refresh', 'setfocus'],
+        events: ['onclick', 'ondblclick', 'onselectcell', 'onsetedittext', 'onellipsisclick', 'onchange']
     },
     'RTABCONTROL': {
         props: ['tabindex', 'tabcount', 'width', 'height', 'top', 'left', 'visible', 'enabled',

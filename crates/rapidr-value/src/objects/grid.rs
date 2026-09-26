@@ -1,0 +1,524 @@
+//! QSTRINGGRID's data (RapidQ manual, Appendix A): a table of strings with
+//! fixed (header) rows and columns, per-column widths and per-row heights,
+//! the selected cell and the grid options. The runtimes draw it
+//! (`with_grid`); the program changes it through the properties and methods
+//! below, the same on the desktop and the web.
+//!
+//! RapidQ's API:
+//! * `Cell(col, row)` read / `Cell(col, row) = s` (compiled as the method
+//!   `cell` with the value as a last argument), also `Cells`;
+//! * `ColCount`, `RowCount` (5 each), `FixedCols`, `FixedRows` (1 each),
+//!   `DefaultColWidth` (64), `DefaultRowHeight` (24), `ColWidths(i)`,
+//!   `RowHeights(i)`, `Col`, `Row`, `TopRow`, `LeftCol`, `Separator`,
+//!   `ColumnStyle(i)`, `ColumnList(i)`, `GridWidth`, `GridHeight`;
+//! * `InsertRow`, `DeleteRow`, `InsertCol`, `DeleteCol`, `SwapRows`,
+//!   `SwapCols`, `AddOptions`, `DelOptions`, and `SaveToFile` /
+//!   `LoadFromFile` / `SaveToStream` / `LoadFromStream` (rows of cells
+//!   joined by `Separator`, through [`StringGrid::to_text`] /
+//!   [`StringGrid::load_text`]).
+//!
+//! RapidR's own additions (used by its IDE): `AddRow a, b, …` appends a row
+//! (widening the grid if needed), `GetCell(col, row)` / `SetCell(col, row,
+//! s)` (the same order as `Cell`), `Clear` (no rows left), `SetRowCount n` / `SetColCount n`, `Cols` /
+//! `Rows` / `ColWidth` (= ColCount / RowCount / DefaultColWidth) and
+//! `SelectedRow` / `SelectedCol` (= Row / Col).
+//!
+//! Indexes out of range read as "" / 0 and are ignored when written, as
+//! RapidQ doesn't stop the program for them. Sizes are capped so a program
+//! can't make a grid of billions of cells.
+
+use crate::{v_int, v_str, Value};
+
+/// Most rows / columns a grid can have, and most cells in all.
+pub const MAX_ROWS: usize = 1_000_000;
+pub const MAX_COLS: usize = 10_000;
+pub const MAX_CELLS: usize = 4_000_000;
+
+/// `AddOptions` numbers (RAPIDQ.INC `goFixedVertLine` = 0 … `goThumbTracking` = 14).
+pub const GO_FIXED_VERT_LINE: u32 = 0;
+pub const GO_FIXED_HORZ_LINE: u32 = 1;
+pub const GO_VERT_LINE: u32 = 2;
+pub const GO_HORZ_LINE: u32 = 3;
+pub const GO_RANGE_SELECT: u32 = 4;
+pub const GO_ROW_SIZING: u32 = 6;
+pub const GO_COL_SIZING: u32 = 7;
+pub const GO_EDITING: u32 = 10;
+pub const GO_TABS: u32 = 11;
+pub const GO_ROW_SELECT: u32 = 12;
+pub const GO_ALWAYS_SHOW_EDITOR: u32 = 13;
+
+/// `ColumnStyle` values.
+pub const GCS_LIST: i64 = 0;
+pub const GCS_ELLIPSIS: i64 = 1;
+pub const GCS_NONE: i64 = 2;
+
+#[derive(Clone, Debug)]
+pub struct StringGrid {
+    /// `cells[row][col]`, always `row_count() × col_count()`.
+    cells: Vec<Vec<String>>,
+    col_count: usize,
+    pub col_widths: Vec<i64>,
+    pub row_heights: Vec<i64>,
+    /// FixedCols / FixedRows as set (in effect: at most all but one).
+    want_fixed_cols: usize,
+    want_fixed_rows: usize,
+    pub default_col_width: i64,
+    pub default_row_height: i64,
+    /// The selected cell.
+    pub col: i64,
+    pub row: i64,
+    pub top_row: i64,
+    pub left_col: i64,
+    pub separator: String,
+    /// `AddOptions` bits (`1 << goEditing`, …).
+    pub options: u32,
+    pub column_styles: Vec<i64>,
+    pub column_lists: Vec<String>,
+    /// RapidR's `SetSuggestions` (one per line).
+    pub suggestions: Vec<String>,
+}
+
+impl Default for StringGrid {
+    fn default() -> Self {
+        let mut g = StringGrid {
+            cells: Vec::new(),
+            col_count: 0,
+            col_widths: Vec::new(),
+            row_heights: Vec::new(),
+            want_fixed_cols: 1,
+            want_fixed_rows: 1,
+            default_col_width: 64,
+            default_row_height: 24,
+            col: 1,
+            row: 1,
+            top_row: 1,
+            left_col: 1,
+            separator: ",".into(),
+            // Delphi's defaults: lines everywhere, range selection.
+            options: bit(GO_FIXED_VERT_LINE) | bit(GO_FIXED_HORZ_LINE) | bit(GO_VERT_LINE) | bit(GO_HORZ_LINE) | bit(GO_RANGE_SELECT),
+            column_styles: Vec::new(),
+            column_lists: Vec::new(),
+            suggestions: Vec::new(),
+        };
+        g.resize(5, 5);
+        g
+    }
+}
+
+fn bit(option: u32) -> u32 {
+    1u32.checked_shl(option).unwrap_or(0)
+}
+
+fn index(v: Option<&Value>) -> Option<usize> {
+    usize::try_from(v?.to_i64()).ok()
+}
+
+fn flag(on: bool) -> Value {
+    v_int(if on { -1 } else { 0 })
+}
+
+impl StringGrid {
+    pub fn row_count(&self) -> usize {
+        self.cells.len()
+    }
+
+    pub fn col_count(&self) -> usize {
+        self.col_count
+    }
+
+    /// The text of cell (`col`, `row`), "" outside the grid.
+    pub fn cell(&self, col: usize, row: usize) -> &str {
+        self.cells.get(row).and_then(|r| r.get(col)).map_or("", |s| s.as_str())
+    }
+
+    /// Sets cell (`col`, `row`); ignored outside the grid.
+    pub fn set_cell(&mut self, col: usize, row: usize, text: String) {
+        if let Some(c) = self.cells.get_mut(row).and_then(|r| r.get_mut(col)) {
+            *c = text;
+        }
+    }
+
+    /// Header rows / columns that don't scroll: FixedRows / FixedCols, but
+    /// always leaving one row / column that isn't fixed.
+    pub fn fixed_rows(&self) -> usize {
+        self.want_fixed_rows.min(self.row_count().saturating_sub(1))
+    }
+
+    pub fn fixed_cols(&self) -> usize {
+        self.want_fixed_cols.min(self.col_count.saturating_sub(1))
+    }
+
+    pub fn has_option(&self, option: u32) -> bool {
+        self.options & bit(option) != 0
+    }
+
+    /// The user can type into the cells (`goEditing`).
+    pub fn editable(&self) -> bool {
+        self.has_option(GO_EDITING)
+    }
+
+    pub fn column_style(&self, col: usize) -> i64 {
+        self.column_styles.get(col).copied().unwrap_or(GCS_NONE)
+    }
+
+    /// Resizes to `rows × cols` (capped), keeping the cells that still fit.
+    pub fn resize(&mut self, rows: usize, cols: usize) {
+        let cols = cols.min(MAX_COLS);
+        let rows = rows.min(MAX_ROWS).min(MAX_CELLS.checked_div(cols).unwrap_or(MAX_ROWS));
+        self.col_count = cols;
+        self.cells.resize_with(rows, Vec::new);
+        for r in &mut self.cells {
+            r.resize(cols, String::new());
+        }
+        self.col_widths.resize(cols, self.default_col_width);
+        self.row_heights.resize(rows, self.default_row_height);
+        self.fix_selection();
+    }
+
+    /// Keeps the fixed rows/columns and the selection inside the grid.
+    fn fix_selection(&mut self) {
+        let (rows, cols) = (self.row_count() as i64, self.col_count as i64);
+        if self.row >= rows {
+            self.row = rows - 1;
+        }
+        if self.col >= cols {
+            self.col = cols - 1;
+        }
+        self.top_row = self.top_row.clamp(self.fixed_rows() as i64, rows.max(1) - 1).max(0);
+        self.left_col = self.left_col.clamp(self.fixed_cols() as i64, cols.max(1) - 1).max(0);
+    }
+
+    /// Selects cell (`col`, `row`) if it's in the grid.
+    pub fn select(&mut self, col: i64, row: i64) {
+        if (0..self.col_count as i64).contains(&col) && (0..self.row_count() as i64).contains(&row) {
+            self.col = col;
+            self.row = row;
+        }
+    }
+
+    /// Rows `row_offset…` (at most `max_rows`) as text: one line per row,
+    /// the cells from `col_offset` joined by the separator.
+    pub fn to_text(&self, row_offset: usize, col_offset: usize, max_rows: usize) -> String {
+        let mut out = String::new();
+        for r in self.cells.iter().skip(row_offset).take(max_rows) {
+            let cells: Vec<&str> = r.iter().skip(col_offset).map(|s| s.as_str()).collect();
+            out.push_str(&cells.join(&self.separator));
+            out.push_str("\r\n");
+        }
+        out
+    }
+
+    /// Fills the grid from text written by [`Self::to_text`]: line `i` (at
+    /// most `max_rows`) into row `row_offset + i`, from column `col_offset`,
+    /// growing the grid to fit.
+    pub fn load_text(&mut self, text: &str, row_offset: usize, col_offset: usize, max_rows: usize) {
+        let lines: Vec<&str> = text.lines().take(max_rows).collect();
+        let split = |line: &str| -> Vec<String> {
+            if self.separator.is_empty() {
+                vec![line.to_string()]
+            } else {
+                line.split(self.separator.as_str()).map(str::to_string).collect()
+            }
+        };
+        let rows: Vec<Vec<String>> = lines.iter().map(|l| split(l)).collect();
+        let need_rows = row_offset + rows.len();
+        let need_cols = col_offset + rows.iter().map(Vec::len).max().unwrap_or(0);
+        self.resize(need_rows.max(self.row_count()), need_cols.max(self.col_count));
+        for (i, cells) in rows.into_iter().enumerate() {
+            for (j, s) in cells.into_iter().enumerate() {
+                self.set_cell(col_offset + j, row_offset + i, s);
+            }
+        }
+    }
+
+    pub fn get(&self, prop: &str) -> Option<Value> {
+        Some(match prop {
+            "colcount" | "cols" => v_int(self.col_count as i64),
+            "rowcount" | "rows" => v_int(self.row_count() as i64),
+            "fixedcols" => v_int(self.fixed_cols() as i64),
+            "fixedrows" => v_int(self.fixed_rows() as i64),
+            "defaultcolwidth" | "colwidth" => v_int(self.default_col_width),
+            "defaultrowheight" => v_int(self.default_row_height),
+            "col" | "selectedcol" => v_int(self.col),
+            "row" | "selectedrow" => v_int(self.row),
+            "toprow" => v_int(self.top_row),
+            "leftcol" => v_int(self.left_col),
+            "separator" => v_str(&self.separator),
+            "gridwidth" => v_int(self.col_widths.iter().sum()),
+            "gridheight" => v_int(self.row_heights.iter().sum()),
+            "editormode" => flag(self.editable()),
+            _ => return None,
+        })
+    }
+
+    pub fn set(&mut self, prop: &str, val: &Value) -> bool {
+        let n = val.to_i64();
+        let count = usize::try_from(n).unwrap_or(0);
+        match prop {
+            "colcount" | "cols" => self.resize(self.row_count(), count),
+            "rowcount" | "rows" => self.resize(count, self.col_count),
+            "fixedcols" => {
+                self.want_fixed_cols = count;
+                self.fix_selection();
+            }
+            "fixedrows" => {
+                self.want_fixed_rows = count;
+                self.fix_selection();
+            }
+            // Setting the default size sizes every column / row (Delphi).
+            "defaultcolwidth" | "colwidth" => {
+                self.default_col_width = n.clamp(0, 10_000);
+                self.col_widths.fill(self.default_col_width);
+            }
+            "defaultrowheight" => {
+                self.default_row_height = n.clamp(0, 10_000);
+                self.row_heights.fill(self.default_row_height);
+            }
+            "col" | "selectedcol" => self.select(n, self.row),
+            "row" | "selectedrow" => self.select(self.col, n),
+            "toprow" => {
+                self.top_row = n;
+                self.fix_selection();
+            }
+            "leftcol" => {
+                self.left_col = n;
+                self.fix_selection();
+            }
+            "separator" => self.separator = val.to_string_val(),
+            "editormode" => {
+                if val.to_bool() {
+                    self.options |= bit(GO_EDITING);
+                }
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+        let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
+        match method {
+            // Cell(col, row) [= s]; RapidR's GetCell(col, row) / SetCell(col, row, s).
+            "cell" | "cells" | "getcell" | "setcell" => {
+                let (col, row) = (index(args.first()), index(args.get(1)));
+                if args.len() >= 3 && method != "getcell" {
+                    if let (Some(col), Some(row)) = (col, row) {
+                        self.set_cell(col, row, text(2));
+                    }
+                } else if method != "setcell" {
+                    return Some(v_str(col.zip(row).map_or("", |(c, r)| self.cell(c, r))));
+                }
+            }
+            "colwidths" | "rowheights" => {
+                let sizes = if method == "colwidths" { &mut self.col_widths } else { &mut self.row_heights };
+                let i = index(args.first());
+                if args.len() >= 2 {
+                    if let Some(size) = i.and_then(|i| sizes.get_mut(i)) {
+                        *size = arg(1).to_i64().clamp(0, 10_000);
+                    }
+                } else {
+                    return Some(v_int(i.and_then(|i| sizes.get(i).copied()).unwrap_or(0)));
+                }
+            }
+            "columnstyle" => {
+                let i = index(args.first());
+                if args.len() >= 2 {
+                    if let Some(i) = i.filter(|&i| i < self.col_count) {
+                        if self.column_styles.len() <= i {
+                            self.column_styles.resize(i + 1, GCS_NONE);
+                        }
+                        self.column_styles[i] = arg(1).to_i64();
+                    }
+                } else {
+                    return Some(v_int(i.map_or(GCS_NONE, |i| self.column_style(i))));
+                }
+            }
+            "columnlist" => {
+                let i = index(args.first());
+                if args.len() >= 2 {
+                    if let Some(i) = i.filter(|&i| i < self.col_count) {
+                        if self.column_lists.len() <= i {
+                            self.column_lists.resize(i + 1, String::new());
+                        }
+                        self.column_lists[i] = text(1);
+                    }
+                } else {
+                    return Some(v_str(i.and_then(|i| self.column_lists.get(i)).map_or("", |s| s.as_str())));
+                }
+            }
+            "addoptions" | "deloptions" => {
+                for a in args {
+                    let b = u32::try_from(a.to_i64()).map(bit).unwrap_or(0);
+                    if method == "addoptions" {
+                        self.options |= b;
+                    } else {
+                        self.options &= !b;
+                    }
+                }
+            }
+            "insertrow" | "insertcol" => {
+                let at = index(args.first()).unwrap_or(usize::MAX);
+                if method == "insertrow" {
+                    if self.row_count() < MAX_ROWS && (self.row_count() + 1) * self.col_count.max(1) <= MAX_CELLS {
+                        let at = at.min(self.row_count());
+                        self.cells.insert(at, vec![String::new(); self.col_count]);
+                        self.row_heights.insert(at, self.default_row_height);
+                    }
+                } else if self.col_count < MAX_COLS && self.row_count() * (self.col_count + 1) <= MAX_CELLS {
+                    let at = at.min(self.col_count);
+                    for r in &mut self.cells {
+                        r.insert(at, String::new());
+                    }
+                    self.col_widths.insert(at, self.default_col_width);
+                    self.col_count += 1;
+                }
+            }
+            "deleterow" => {
+                if let Some(at) = index(args.first()).filter(|&i| i < self.row_count()) {
+                    self.cells.remove(at);
+                    self.row_heights.remove(at);
+                    self.fix_selection();
+                }
+            }
+            "deletecol" => {
+                if let Some(at) = index(args.first()).filter(|&i| i < self.col_count) {
+                    for r in &mut self.cells {
+                        r.remove(at);
+                    }
+                    self.col_widths.remove(at);
+                    self.col_count -= 1;
+                    self.fix_selection();
+                }
+            }
+            "swaprows" => {
+                if let (Some(a), Some(b)) = (index(args.first()), index(args.get(1))) {
+                    if a < self.row_count() && b < self.row_count() {
+                        self.cells.swap(a, b);
+                    }
+                }
+            }
+            "swapcols" => {
+                if let (Some(a), Some(b)) = (index(args.first()), index(args.get(1))) {
+                    if a < self.col_count && b < self.col_count {
+                        for r in &mut self.cells {
+                            r.swap(a, b);
+                        }
+                    }
+                }
+            }
+            // RapidR: AddRow a, b, … appends a row, widening the grid.
+            "addrow" => {
+                let cols = self.col_count.max(args.len());
+                self.resize(self.row_count() + 1, cols);
+                let row = self.row_count() - 1;
+                for (i, a) in args.iter().enumerate() {
+                    self.set_cell(i, row, a.to_string_val());
+                }
+            }
+            "clear" => self.resize(0, self.col_count),
+            "setrowcount" => self.resize(usize::try_from(arg(0).to_i64()).unwrap_or(0), self.col_count),
+            "setcolcount" => self.resize(self.row_count(), usize::try_from(arg(0).to_i64()).unwrap_or(0)),
+            "setsuggestions" => self.suggestions = text(0).lines().map(str::to_string).collect(),
+            "repaint" | "refresh" => {}
+            _ => return None,
+        }
+        Some(Value::Null)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(x: &str) -> Value {
+        v_str(x)
+    }
+
+    #[test]
+    fn rapidq_defaults_and_cells() {
+        let mut g = StringGrid::default();
+        assert_eq!((g.col_count(), g.row_count()), (5, 5));
+        assert_eq!(g.get("fixedrows").unwrap().to_i64(), 1);
+        assert_eq!(g.get("defaultcolwidth").unwrap().to_i64(), 64);
+        g.call("cell", &[v_int(1), v_int(0), s("Age")]);
+        assert_eq!(g.call("cell", &[v_int(1), v_int(0)]).unwrap().to_string_val(), "Age");
+        g.call("setcell", &[v_int(2), v_int(3), s("x")]);
+        assert_eq!(g.call("getcell", &[v_int(2), v_int(3)]).unwrap().to_string_val(), "x");
+        assert_eq!(g.cell(2, 3), "x");
+        g.call("colwidths", &[v_int(0), v_int(25)]);
+        assert_eq!(g.call("colwidths", &[v_int(0)]).unwrap().to_i64(), 25);
+        assert_eq!(g.call("colwidths", &[v_int(1)]).unwrap().to_i64(), 64);
+        assert_eq!(g.get("gridwidth").unwrap().to_i64(), 25 + 4 * 64);
+    }
+
+    #[test]
+    fn rows_and_columns_change() {
+        let mut g = StringGrid::default();
+        g.set("colcount", &v_int(3));
+        g.set("rowcount", &v_int(2));
+        g.call("cell", &[v_int(2), v_int(1), s("x")]);
+        g.call("insertrow", &[v_int(1)]);
+        assert_eq!(g.cell(2, 2), "x");
+        g.call("insertcol", &[v_int(0)]);
+        assert_eq!(g.cell(3, 2), "x");
+        g.call("swaprows", &[v_int(0), v_int(2)]);
+        assert_eq!(g.cell(3, 0), "x");
+        g.call("deletecol", &[v_int(3)]);
+        assert_eq!((g.col_count(), g.row_count()), (3, 3));
+        g.call("deleterow", &[v_int(0)]);
+        assert_eq!(g.row_count(), 2);
+        g.set("rowcount", &v_int(1));
+        assert_eq!(g.get("fixedrows").unwrap().to_i64(), 0);
+        // …and the header row comes back with the rows.
+        g.set("rowcount", &v_int(4));
+        assert_eq!(g.get("fixedrows").unwrap().to_i64(), 1);
+    }
+
+    #[test]
+    fn rapidr_add_row_and_clear() {
+        let mut g = StringGrid::default();
+        g.call("clear", &[]);
+        assert_eq!(g.row_count(), 0);
+        g.set("cols", &v_int(2));
+        g.call("addrow", &[s("Event"), s("Handler"), s("...")]);
+        g.call("addrow", &[s("OnClick"), s("Go")]);
+        assert_eq!((g.col_count(), g.row_count()), (3, 2));
+        assert_eq!(g.call("getcell", &[v_int(1), v_int(1)]).unwrap().to_string_val(), "Go");
+        assert_eq!(g.call("getcell", &[v_int(2), v_int(0)]).unwrap().to_string_val(), "...");
+        g.set("selectedrow", &v_int(1));
+        assert_eq!(g.get("row").unwrap().to_i64(), 1);
+    }
+
+    #[test]
+    fn text_round_trip() {
+        let mut g = StringGrid::default();
+        g.set("separator", &s(";"));
+        g.call("cell", &[v_int(0), v_int(0), s("a")]);
+        g.call("cell", &[v_int(4), v_int(1), s("b")]);
+        let text = g.to_text(0, 0, 2);
+        assert_eq!(text, "a;;;;\r\n;;;;b\r\n");
+        let mut h = StringGrid::default();
+        h.set("separator", &s(";"));
+        h.set("rowcount", &v_int(1));
+        h.load_text("1;2;3;4;5;6\r\nx\r\ny", 1, 0, 2);
+        assert_eq!((h.col_count(), h.row_count()), (6, 3));
+        assert_eq!(h.cell(5, 1), "6");
+        assert_eq!(h.cell(0, 2), "x");
+    }
+
+    #[test]
+    fn out_of_range_and_huge_sizes_are_harmless() {
+        let mut g = StringGrid::default();
+        assert_eq!(g.call("cell", &[v_int(-1), v_int(99)]).unwrap().to_string_val(), "");
+        g.call("cell", &[v_int(99), v_int(99), s("x")]);
+        g.call("colwidths", &[v_int(-3), v_int(10)]);
+        g.set("rowcount", &v_int(i64::MAX));
+        g.set("colcount", &v_int(i64::MAX));
+        assert!(g.row_count() * g.col_count() <= MAX_CELLS);
+        g.set("rowcount", &v_int(-5));
+        assert_eq!(g.row_count(), 0);
+        g.call("addoptions", &[v_int(99), v_int(GO_EDITING as i64)]);
+        assert!(g.editable());
+    }
+}

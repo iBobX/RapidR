@@ -151,7 +151,9 @@ Next up, in order:
 - [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
 - [x] Native builds of real RapidQ programs: all 116 corpus programs that compile to bytecode `cargo check` natively (from 49; objects by name, WITH on any object, indexed properties, builtin-named variables, nested SUBs, argument fitting) — `tools/corpus_native.sh` (v2.33.0)
 - [ ] Native corpus programs *run* like the interpreter: compare their output/behaviour, not just `cargo check`
-- [ ] QSTRINGGRID runtime: `Cell(col, row)` read/write, `ColWidths(i)`, `RowHeights(i)` stored and drawn on desktop and web (the corpus's grid examples now compile natively but the grid keeps no cells)
+- [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
+- [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
+- [ ] `Align` (alTop / alBottom / alLeft / alRight / alClient) for every component, on desktop and web — RapidQ programs use it for layout (e.g. `grids/listgrid.bas`)
 - [ ] Type suffixes (`n%` SHORT, `n&` LONG, `n!` SINGLE, `n#` DOUBLE, `n?` BYTE) as declared types
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
