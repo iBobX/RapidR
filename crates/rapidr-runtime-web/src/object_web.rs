@@ -419,11 +419,21 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    // RapidR's forms and containers have no frame inside their size: the
+    // client area is the whole component.
+    let lprop = match lprop.as_str() {
+        "clientwidth" => "width".to_string(),
+        "clientheight" => "height".to_string(),
+        _ => lprop,
+    };
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
         if let Err(e) = result {
             object_error(name, prop, &e);
+        }
+        if rapidr_value::objects::is_listview(name) {
+            gui_web::render_listview(&uname);
         }
         return;
     }
@@ -501,6 +511,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         _ => {}
     }
 
+    // A status bar redraws its panels / simple text.
+    if comp_type == "RSTATUSBAR" && (lprop.starts_with("panel") || lprop.starts_with("simple")) {
+        gui_web::render_statusbar(&uname);
+        return;
+    }
+
     // Pass to GUI layer for DOM update
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
 }
@@ -545,6 +561,13 @@ pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    // RapidR's forms and containers have no frame inside their size: the
+    // client area is the whole component.
+    let lprop = match lprop.as_str() {
+        "clientwidth" => "width".to_string(),
+        "clientheight" => "height".to_string(),
+        _ => lprop,
+    };
     if let Some(v) = rapidr_value::objects::get(name, &lprop) {
         return v;
     }
@@ -647,14 +670,28 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
     // as the component's properties `panel(0).width` unless the component
     // implements them.
-    if let Some(v) = indexed_sub_object(name, &lmethod, args) {
-        return v;
-    }
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
+        if rapidr_value::objects::is_listview(name) {
+            gui_web::render_listview(&uname);
+        }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);
             v_null()
         });
+    }
+    if let Some(v) = indexed_sub_object(name, &lmethod, args) {
+        return v;
+    }
+    if rp_comp_type(&uname) == "RSTATUSBAR" && lmethod == "addpanels" {
+        // `AddPanels "Ready", "Line 1"`: panels `panel(i).caption`, as on
+        // the desktop (rapidr-runtime-core's `statusbar_method`).
+        let mut n = rp_comp_get_stored(name, "panelcount").to_i64().max(0);
+        for a in args {
+            rp_comp_set(name, &format!("panel({n}).caption"), v_str(&a.to_string_val()));
+            n += 1;
+        }
+        rp_comp_set(name, "panelcount", v_int(n));
+        return v_null();
     }
     let comp_type = rp_comp_type(&uname);
     if comp_type.is_empty() {
@@ -1484,6 +1521,12 @@ fn bind_dom_event(name: &str, event: &str) {
             );
         }
         closure.forget();
+        return;
+    }
+
+    // A QLISTVIEW's clicks go through its rows and header (gui_web's
+    // `create_listview`), which set ItemIndex first.
+    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {
         return;
     }
 

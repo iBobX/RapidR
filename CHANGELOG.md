@@ -7,6 +7,41 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.29.0] — 2026-09-26
+
+### Added
+- **QSTATUSBAR panels.** `AddPanels "Ready", "Line 1"`, `Panel(i).Caption`,
+  `Panel(i).Width` (100 by default; the last panel takes the rest),
+  `PanelCount`, `SimplePanel` and `SimpleText` are drawn on the desktop and
+  in the web runtime, and update when the program changes them.
+- **QLISTVIEW columns, items and sub-items** (RapidQ manual, Appendix A),
+  one data model shared by both runtimes (`rapidr_value::objects::listview`):
+  - `AddColumns`, `ClearColumns`, `Column(i).Caption` / `.Width`,
+    `ColumnsCount`;
+  - `AddItems`, `InsertItem`, `DelItems`, `Clear`, `SwapItem`,
+    `Item(i).Caption` / `.Checked` / `.Selected` / `.ImageIndex` / `.Index`,
+    `ItemCount`, `ItemIndex`, `SelCount`;
+  - `AddSubItem`, `InsertSubItem`, `DelSubItem`, `SubItem(i, j)`;
+  - clicking a row sets `ItemIndex` and fires `OnClick` / `OnDblClick`;
+    clicking a header fires `OnColumnClick(Column%)`.
+  Captions are always shown as plain text (no FLTK `@` codes or HTML
+  markup), and out-of-range indexes are harmless.
+- `ClientWidth` / `ClientHeight` on forms and containers (RapidQ's ZIP
+  viewer example sized its list view with them and showed nothing).
+
+### Changed
+- **`rapidr build --interp` makes optimized executables by default.** It
+  used the debug interpreter unless `--release` was given: 328 MB and far
+  slower. The runner now comes from a stripped `runner` profile, so the
+  ZIP viewer is 44 MB. `--debug` still selects the debug runner. The runner
+  is built once; later builds take about 0.2 s.
+
+### Fixed
+- `rapidr build --interp` (and native builds) now work from any directory:
+  the CLI finds the RapidR workspace from `RAPIDR_HOME`, the current
+  directory, its own executable, or where it was compiled. It used to fail
+  with "could not find `Cargo.toml`" outside the repository.
+
 ## [2.28.1] — 2026-09-26
 
 ### Removed

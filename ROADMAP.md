@@ -141,7 +141,8 @@ Next up, in order:
 - [ ] Web: other waits through the same suspension — `SLEEP` (setTimeout), `INKEY$`/`INPUT$(n)` from the page, `DOEVENTS`; the Rust-compiled web build still uses browser dialogs
 - [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
 - [x] Arrays of components and indexed sub-objects (also inside CREATE), both backends (v2.26.0)
-- [ ] Components render their indexed sub-objects (status bar panels, list view columns)
+- [x] Components render their indexed sub-objects: QSTATUSBAR panels and QLISTVIEW columns/items/sub-items (shared model in `rapidr_value::objects::listview`), desktop and web (v2.29.0)
+- [ ] QLISTVIEW icon views (vsIcon/vsSmallIcon with image lists), CheckBoxes, MultiSelect, SortType
 - [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
 - [x] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused (v2.28.1)
 - [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)

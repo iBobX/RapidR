@@ -12,6 +12,7 @@ pub mod bitmap;
 pub mod codec;
 pub mod font;
 pub mod imagelist;
+pub mod listview;
 pub mod memstream;
 
 use std::cell::RefCell;
@@ -22,6 +23,7 @@ use bitmap::Bitmap;
 use codec::{base64_decode, encode_bmp, BMP_DATA_URL};
 use font::Font;
 use imagelist::ImageList;
+use listview::ListView;
 use memstream::MemStream;
 
 /// RapidR's names for the object types (RapidQ's QFONT is RFONT, …).
@@ -36,6 +38,8 @@ enum Object {
     Stream(MemStream),
     Bitmap(Bitmap),
     ImageList(ImageList),
+    /// QLISTVIEW's columns and items; the runtime draws the widget.
+    ListView(ListView),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -83,12 +87,26 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
+        "RLISTVIEW" => Object::ListView(ListView::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
         o.borrow_mut().entry(id.to_lowercase()).or_insert(object);
     });
     true
+}
+
+/// Whether `id` is a QLISTVIEW (its runtime widget redraws after a change).
+pub fn is_listview(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::ListView(_))).unwrap_or(false)
+}
+
+/// Reads a QLISTVIEW's data (to draw it).
+pub fn with_listview<R>(id: &str, f: impl FnOnce(&ListView) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::ListView(l) => Some(f(l)),
+        _ => None,
+    })?
 }
 
 pub fn exists(id: &str) -> bool {
@@ -111,6 +129,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Stream(m) => m.get(&prop),
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
+        Object::ListView(l) => l.get(&prop),
     })?
 }
 
@@ -136,6 +155,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Stream(m) => m.set(&prop, val).then_some(Ok(())),
         Object::Bitmap(b) => b.set(&prop, val),
         Object::ImageList(l) => l.set(&prop, val).then_some(Ok(())),
+        Object::ListView(l) => l.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -155,6 +175,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Stream(_) => "stream",
         Object::Bitmap(_) => "bitmap",
         Object::ImageList(_) => "imagelist",
+        Object::ListView(_) => "listview",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -285,6 +306,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             Object::Stream(m) => m.call(&method, args),
             Object::Bitmap(b) => b.call(&method, args),
             Object::ImageList(l) => l.call(&method, args),
+            Object::ListView(l) => l.call(&method, args),
         })?
         .map(Ok)
         // A property read written like a call (`Icons.Count` compiled as one).

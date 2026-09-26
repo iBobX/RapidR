@@ -824,12 +824,11 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let pw = if parent_name.is_empty() { 800 } else { rp_comp_get(&parent_name, "width").to_i64() as i32 };
             let ph = if parent_name.is_empty() { 600 } else { rp_comp_get(&parent_name, "height").to_i64() as i32 };
             let bar_h = 25;
-            let mut out = Output::new(0, ph - bar_h, pw, bar_h, None);
-            out.set_text_size(12);
-            let text = rp_comp_get(name, "simpletext").to_string_val();
-            out.set_value(&text);
+            let mut bar = Frame::new(0, ph - bar_h, pw, bar_h, None);
+            let id = name_lower.clone();
+            bar.draw(move |f| draw_statusbar(&id, f.x(), f.y(), f.w(), f.h()));
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Output(out));
+                gw.borrow_mut().insert(name_lower, GuiWidget::Frame(bar));
             });
         }
         "RTABCONTROL" => {
@@ -1427,15 +1426,41 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let mut browser = HoldBrowser::new(x, y, w, h, None);
             browser.set_column_char('\t');
-            let name_for_cb = name.to_lowercase();
+            browser.set_frame(FrameType::DownBox);
+            browser.set_color(Color::White);
+            let name_for_cb = name_lower.clone();
             browser.set_callback(move |b| {
-                let idx = b.value() - 1;
-                rp_comp_set(&name_for_cb, "itemindex", v_int(idx as i64));
-                rp_fire_event(&name_for_cb, "onclick");
+                let line = b.value();
+                if line <= 0 {
+                    return;
+                }
+                let header = listview_header_shown(&name_for_cb);
+                if header && line == 1 {
+                    // The column header: OnColumnClick(Column%).
+                    let widths = rapidr_value::objects::with_listview(&name_for_cb, |lv| lv.columns.iter().map(|c| c.width).collect::<Vec<_>>()).unwrap_or_default();
+                    let sel = rapidr_value::objects::with_listview(&name_for_cb, |lv| lv.item_index).unwrap_or(-1);
+                    b.deselect(0);
+                    if sel >= 0 {
+                        b.select(sel as i32 + 2);
+                    }
+                    let mut edge = b.x() as i64;
+                    let x = app::event_x() as i64;
+                    let column = widths.iter().position(|w| {
+                        edge += w.max(&1);
+                        x < edge
+                    });
+                    let column = column.unwrap_or(widths.len().saturating_sub(1)) as i64;
+                    rp_fire_event_1(&name_for_cb, "oncolumnclick", v_int(column));
+                    return;
+                }
+                let idx = line as i64 - 1 - header as i64;
+                rapidr_value::objects::set(&name_for_cb, "itemindex", &v_int(idx));
+                rp_fire_event(&name_for_cb, if app::event_clicks() { "ondblclick" } else { "onclick" });
             });
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::HoldBrowser(browser));
             });
+            listview_refresh(name);
         }
         "RFORMMDI" => {
             // MDI parent form — create a resizable Window
@@ -4149,6 +4174,90 @@ pub fn gui_set_input_value(name: &str, text: &str) {
             let _ = inp.set_value(text);
         }
     });
+}
+
+/// A QSTATUSBAR: its panels left to right (`Panel(i).Width` wide, 100 by
+/// default; the last one takes the rest), or its SimpleText when
+/// `SimplePanel` is set or it has no panels.
+fn draw_statusbar(id: &str, x: i32, y: i32, w: i32, h: i32) {
+    draw::draw_box(FrameType::FlatBox, x, y, w, h, Color::BackGround);
+    draw::set_font(Font::Helvetica, 12);
+    draw::set_draw_color(Color::Black);
+    let count = rp_comp_get(id, "panelcount").to_i64().clamp(0, 256) as i32;
+    if count == 0 || rp_comp_get(id, "simplepanel").to_bool() {
+        let text = rp_comp_get(id, "simpletext").to_string_val();
+        draw::draw_box(FrameType::ThinDownBox, x + 1, y + 2, w - 2, h - 3, Color::BackGround);
+        draw::set_draw_color(Color::Black);
+        draw::draw_text2(&text, x + 5, y, w - 10, h, Align::Left | Align::Inside | Align::Clip);
+        return;
+    }
+    let mut px = x + 1;
+    for i in 0..count {
+        let width = rp_comp_get(id, &format!("panel({i}).width")).to_i64();
+        let pw = if i == count - 1 { (x + w - 1 - px).max(0) } else if width > 0 { width.min(10_000) as i32 } else { 100 };
+        let caption = rp_comp_get(id, &format!("panel({i}).caption")).to_string_val();
+        draw::draw_box(FrameType::ThinDownBox, px, y + 2, pw - 2, h - 3, Color::BackGround);
+        draw::set_draw_color(Color::Black);
+        draw::push_clip(px + 2, y, (pw - 6).max(0), h);
+        draw::draw_text2(&caption, px + 4, y, (pw - 8).max(0), h, Align::Left | Align::Inside);
+        draw::pop_clip();
+        px += pw;
+    }
+}
+
+/// Whether a QLISTVIEW shows its column header (it has columns, and
+/// ShowColumnHeaders isn't False).
+fn listview_header_shown(name: &str) -> bool {
+    let has_columns = rapidr_value::objects::with_listview(name, |lv| !lv.columns.is_empty()).unwrap_or(false);
+    let show = rp_comp_get(name, "showcolumnheaders");
+    has_columns && (matches!(show, Value::Null) || show.to_bool())
+}
+
+/// Fills a QLISTVIEW's browser from its data (rapidr_value::objects::
+/// listview): a bold header line, then one line per item — the caption and
+/// its sub-items in the columns. Text is shown as-is (`@.` turns off FLTK's
+/// `@` formatting codes).
+pub fn listview_refresh(name: &str) {
+    let name_lower = name.to_lowercase();
+    let header = listview_header_shown(&name_lower);
+    let Some((widths, lines, selected)) = rapidr_value::objects::with_listview(&name_lower, |lv| {
+        let clean = |t: &str| t.replace(['\t', '\n', '\r'], " ");
+        let widths: Vec<i32> = lv.columns.iter().map(|c| c.width.clamp(1, 10_000) as i32).collect();
+        let n_cols = lv.columns.len().max(1);
+        let mut lines = Vec::with_capacity(lv.items.len() + 1);
+        if header {
+            lines.push(lv.columns.iter().map(|c| format!("@B49@b@.{}", clean(&c.caption))).collect::<Vec<_>>().join("\t"));
+        }
+        for item in &lv.items {
+            let cells = std::iter::once(&item.caption).chain(item.sub_items.iter()).take(n_cols);
+            lines.push(cells.map(|c| format!("@.{}", clean(c))).collect::<Vec<_>>().join("\t"));
+        }
+        (widths, lines, lv.item_index)
+    }) else {
+        return;
+    };
+    GUI_WIDGETS.with(|gw| {
+        if let Some(GuiWidget::HoldBrowser(b)) = gw.borrow_mut().get_mut(&name_lower) {
+            let scroll = b.position();
+            b.clear();
+            if !widths.is_empty() {
+                b.set_column_widths(&widths);
+            }
+            for line in &lines {
+                b.add(line);
+            }
+            if selected >= 0 {
+                b.select(selected as i32 + 1 + header as i32);
+            }
+            b.set_position(scroll);
+            b.redraw();
+        }
+    });
+}
+
+/// Redraw a component's widget (after a property it draws changed).
+pub fn gui_redraw(name: &str) {
+    redraw_widget(&name.to_lowercase());
 }
 
 /// Trigger a widget redraw.

@@ -2071,7 +2071,7 @@ fn create_statusbar(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.style().set_property("background", "#e8e8e8");
     let _ = el.style().set_property("border-top", "1px solid #ccc");
     let _ = el.style().set_property("font-size", "13px");
-    let _ = el.style().set_property("padding", "2px 8px");
+    let _ = el.style().set_property("padding", "2px 1px");
     el.set_id(id);
     let _ = el.set_attribute("data-rr-name", name);
     let style = el.style();
@@ -2080,8 +2080,52 @@ fn create_statusbar(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = style.set_property("left", "0");
     let _ = style.set_property("width", "100%");
     let _ = style.set_property("height", "24px");
+    let _ = style.set_property("display", "flex");
+    let _ = style.set_property("box-sizing", "border-box");
     let parent = props.get("parent").map(|v| v.to_string_val());
     let _ = get_parent_client(&parent).append_child(&el);
+    render_statusbar(name);
+}
+
+/// A QSTATUSBAR's panels left to right (`Panel(i).Width` px, 100 by default;
+/// the last one takes the rest), or its SimpleText when `SimplePanel` is
+/// set or it has no panels — as the desktop runtime draws it. Captions are
+/// plain text, never markup.
+pub fn render_statusbar(name: &str) {
+    use crate::object_web::rp_comp_get_stored as get;
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    el.set_inner_text("");
+    let count = get(name, "panelcount").to_i64().clamp(0, 256);
+    let panel = |text: &str, width: Option<i64>| {
+        let span = create_el("span");
+        span.set_text_content(Some(text));
+        let st = span.style();
+        let _ = st.set_property("overflow", "hidden");
+        let _ = st.set_property("white-space", "nowrap");
+        let _ = st.set_property("padding", "0 4px");
+        let _ = st.set_property("border", "1px inset #ccc");
+        let _ = st.set_property("line-height", "18px");
+        match width {
+            Some(w) => {
+                let _ = st.set_property("flex", &format!("0 0 {w}px"));
+                let _ = st.set_property("box-sizing", "border-box");
+            }
+            None => {
+                let _ = st.set_property("flex", "1 1 auto");
+            }
+        }
+        let _ = el.append_child(&span);
+    };
+    if count == 0 || get(name, "simplepanel").to_bool() {
+        panel(&get(name, "simpletext").to_string_val(), None);
+        return;
+    }
+    for i in 0..count {
+        let caption = get(name, &format!("panel({i}).caption")).to_string_val();
+        let width = get(name, &format!("panel({i}).width")).to_i64();
+        let width = if i == count - 1 { None } else if width > 0 { Some(width.min(10_000)) } else { Some(100) };
+        panel(&caption, width);
+    }
 }
 
 fn create_progress(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -2161,7 +2205,8 @@ fn create_splitter(id: &str, name: &str, props: &HashMap<String, Value>) {
 }
 
 fn create_listview(id: &str, name: &str, props: &HashMap<String, Value>) {
-    // Use a table-based list view
+    // A table drawn from the shared QLISTVIEW data (rapidr_value::objects::
+    // listview), like the desktop runtime's browser.
     let wrapper = create_el("div");
     wrapper.set_class_name("rr-widget");
     let _ = wrapper.style().set_property("overflow", "auto");
@@ -2170,8 +2215,103 @@ fn create_listview(id: &str, name: &str, props: &HashMap<String, Value>) {
     let table = create_el("table");
     table.set_id(&format!("{}-table", id));
     table.set_class_name("rr-grid");
+    let _ = table.style().set_property("border-collapse", "collapse");
+    let _ = table.style().set_property("table-layout", "fixed");
+    let _ = table.style().set_property("font-size", "13px");
     let _ = wrapper.append_child(&table);
+    // Row click: ItemIndex, then OnClick / OnDblClick; header click:
+    // OnColumnClick(Column%).
+    for dom_event in ["click", "dblclick"] {
+        let owner = name.to_uppercase();
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+            if let Ok(Some(th)) = target.closest("th") {
+                if dom_event == "click" {
+                    let col = th.get_attribute("data-col").and_then(|c| c.parse::<i64>().ok()).unwrap_or(0);
+                    crate::object_web::rp_fire_event_1(&owner, "oncolumnclick", v_int(col));
+                }
+                return;
+            }
+            let Ok(Some(tr)) = target.closest("tr") else { return };
+            let Some(row) = tr.get_attribute("data-row").and_then(|r| r.parse::<i64>().ok()) else { return };
+            rapidr_value::objects::set(&owner, "itemindex", &v_int(row));
+            render_listview(&owner);
+            crate::object_web::rp_fire_event(&owner, if dom_event == "click" { "onclick" } else { "ondblclick" });
+        });
+        let _ = wrapper.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
     setup_widget(&wrapper, id, name, props);
+    render_listview(name);
+}
+
+/// Fills a QLISTVIEW's table from its data: a header row (unless
+/// ShowColumnHeaders is False), then one row per item — the caption and its
+/// sub-items in the columns. Cells are plain text, never markup.
+pub fn render_listview(name: &str) {
+    let Some(table) = get_el(&format!("{}-table", comp_id(name))) else { return };
+    let show = crate::object_web::rp_comp_get_stored(name, "showcolumnheaders");
+    let show_header = matches!(show, Value::Null) || show.to_bool();
+    let _ = rapidr_value::objects::with_listview(name, |lv| {
+        table.set_inner_text("");
+        let n_cols = lv.columns.len().max(1);
+        if !lv.columns.is_empty() {
+            let colgroup = create_el("colgroup");
+            for c in &lv.columns {
+                let col = create_el("col");
+                let _ = col.style().set_property("width", &format!("{}px", c.width.clamp(1, 10_000)));
+                let _ = colgroup.append_child(&col);
+            }
+            let _ = table.append_child(&colgroup);
+            let total: i64 = lv.columns.iter().map(|c| c.width.clamp(1, 10_000)).sum();
+            let _ = table.style().set_property("width", &format!("{total}px"));
+        }
+        if show_header && !lv.columns.is_empty() {
+            let thead = create_el("thead");
+            let tr = create_el("tr");
+            for (i, c) in lv.columns.iter().enumerate() {
+                let th = create_el("th");
+                th.set_text_content(Some(&c.caption));
+                let _ = th.set_attribute("data-col", &i.to_string());
+                let st = th.style();
+                let _ = st.set_property("text-align", "left");
+                let _ = st.set_property("background", "#eee");
+                let _ = st.set_property("border", "1px outset #ddd");
+                let _ = st.set_property("padding", "1px 4px");
+                let _ = st.set_property("overflow", "hidden");
+                let _ = st.set_property("white-space", "nowrap");
+                let _ = st.set_property("cursor", "default");
+                let _ = tr.append_child(&th);
+            }
+            let _ = thead.append_child(&tr);
+            let _ = table.append_child(&thead);
+        }
+        let tbody = create_el("tbody");
+        for (row, item) in lv.items.iter().enumerate() {
+            let tr = create_el("tr");
+            let _ = tr.set_attribute("data-row", &row.to_string());
+            if row as i64 == lv.item_index || item.selected {
+                let _ = tr.style().set_property("background", "#3366dd");
+                let _ = tr.style().set_property("color", "white");
+                let _ = tr.set_attribute("aria-selected", "true");
+            }
+            let empty = String::new();
+            let cells = std::iter::once(&item.caption).chain(item.sub_items.iter()).chain(std::iter::repeat(&empty));
+            for cell in cells.take(n_cols) {
+                let td = create_el("td");
+                if !cell.is_empty() {
+                    td.set_text_content(Some(cell));
+                }
+                let st = td.style();
+                let _ = st.set_property("padding", "1px 4px");
+                let _ = st.set_property("overflow", "hidden");
+                let _ = st.set_property("white-space", "nowrap");
+                let _ = tr.append_child(&td);
+            }
+            let _ = tbody.append_child(&tr);
+        }
+        let _ = table.append_child(&tbody);
+    });
 }
 
 fn create_datetimepicker(id: &str, name: &str, props: &HashMap<String, Value>) {
