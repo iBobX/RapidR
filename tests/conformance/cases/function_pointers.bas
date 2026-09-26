@@ -1,4 +1,3 @@
-' xfail: codegen — function pointers (BIND/CODEPTR/CALLFUNC) are interpreter-only for now
 ' Function pointers (RapidQ manual: BIND, CALLFUNC, CODEPTR): a pointer is
 ' 0 when unset, and CALLFUNC calls SUBs and FUNCTIONs through it.
 SUB Hello (n AS INTEGER)

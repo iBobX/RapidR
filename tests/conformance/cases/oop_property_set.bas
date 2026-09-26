@@ -1,4 +1,4 @@
-' xfail: codegen — TYPE methods/PROPERTY SET not implemented in native builds yet
+' xfail: codegen — the Rust backend doesn't compile OOP TYPEs yet; `rapidr build` uses the embedded interpreter for them (RAPIDR_STRICT_CODEGEN tests the backend itself)
 ' RapidQ manual ch. 10: PROPERTY SET setters, the type name standing for the
 ' instance (TCounter.Focus, WITH TCounter), EXTENDS QObject, RESULT, obj.Func.
 TYPE TCounter EXTENDS QObject

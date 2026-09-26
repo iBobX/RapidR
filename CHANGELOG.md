@@ -7,6 +7,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.24.0] — 2026-09-25
+
+### Added
+- **Function pointers in native builds:** `BIND p TO Proc`,
+  `CODEPTR(Proc)` and `CALLFUNC(p, args…)`. Each SUB/FUNCTION gets an id,
+  and `CALLFUNC` dispatches through a generated table (BYREF parameters
+  included). An unset or wrong pointer stops with the same run-time error
+  as the interpreter.
+- **`rapidr build` handles object-oriented programs.** When a program uses
+  TYPEs with methods, CONSTRUCTOR, EVENT, EXTENDS or PROPERTY SET, which the
+  Rust backend doesn't compile yet, `rapidr build` still produces a native
+  executable (or web bundle) and says so. It uses the embedded bytecode
+  interpreter, exactly as `--interp` does, so the program behaves
+  identically. `RAPIDR_STRICT_CODEGEN=1` turns this off; the conformance
+  suite uses it so it keeps testing the Rust backend itself.
+
+### Fixed
+- **`rapidr build --interp` never embeds a stale interpreter.** It used
+  whatever `rapidrintr-runner` was already in `target/`, even one older
+  than the CLI, so new features were silently missing. It now always has
+  cargo bring the runner up to date (a quick no-op when nothing changed).
+- **Tests:** `function_pointers` now passes on both backends.
+
 ## [2.23.0] — 2026-09-25
 
 ### Added
