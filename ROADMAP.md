@@ -143,7 +143,7 @@ Next up, in order:
 - [x] Arrays of components and indexed sub-objects (also inside CREATE), both backends (v2.26.0)
 - [ ] Components render their indexed sub-objects (status bar panels, list view columns)
 - [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
-- [ ] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused
+- [x] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused (v2.28.1)
 - [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
 - [ ] Speed next: typed locals/fields (skip `Value` boxing where the type is known), fewer clones in generated code, `Module::add_string` is a linear search at compile time
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)

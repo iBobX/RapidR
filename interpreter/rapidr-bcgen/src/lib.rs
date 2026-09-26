@@ -27,7 +27,7 @@ use std::collections::{HashMap, HashSet};
 
 use rapidr_ast::{
     ArrayAccessExpression, ArrayDimension, AssignmentStatement, BinaryOperator, BindStatement,
-    CallStatement, CaseValue, TypeField, TypeStatement, VariableDeclarator,
+    CallStatement, CaseValue, VariableDeclarator,
     CreateStatement, DoLoopStatement, Expression, ForStatement, FunctionStatement, IfStatement,
     Literal, LiteralValue, Parameter, PrintStatement, Program, ReturnStatement, Statement,
     SubroutineStatement, UnaryOperator, WhileStatement,
@@ -149,15 +149,10 @@ struct Bcgen {
     /// Which source lines came from `$INCLUDE`d libraries (see
     /// [`compile_program_with_libraries`]).
     library_lines: Vec<bool>,
-    /// Nesting of `setup_instance` for TYPE fields of TYPE type.
-    instance_depth: usize,
     /// Errors about things only native builds can do (DLL calls, VARPTR, …)
     /// raised inside a routine: reported only if the program can reach it,
     /// so unused parts of big include libraries don't block a program.
     deferred_errors: HashMap<String, Vec<String>>,
-    /// Name of the TYPE method being compiled (a PROPERTY SET setter stores
-    /// its own field directly instead of calling itself).
-    current_method: Option<String>,
     warnings: Vec<String>,
     /// Compile errors ("line:col: error: message"). Collected rather than
     /// returned immediately so one compile reports every problem.
@@ -172,14 +167,8 @@ struct Bcgen {
     fn_ctx: Option<FnCtx>,
     /// Labels, GOTO/GOSUB jumps and GOSUB use of the routine being lowered.
     routine: RoutineLabels,
-    /// User TYPEs by name.
-    types: NameMap<TypeInfo>,
-    /// Declared TYPE of global variables that hold objects.
-    global_types: NameMap<String>,
     /// Global arrays of objects (`DIM lbl(3) AS QLABEL`) → element type.
     global_object_arrays: NameMap<String>,
-    /// The TYPE whose method/EVENT/CONSTRUCTOR is being lowered.
-    current_type: Option<String>,
     /// Scope stack for the function currently being lowered.
     scope: Scope,
     /// Set of declared global variables (keys from [`name_key`])
@@ -222,20 +211,6 @@ struct LoopCtx {
     breaks: Vec<usize>,
 }
 
-/// A user TYPE. Types with code (TYPE … EXTENDS with SUB/FUNCTION methods,
-/// EVENT handlers or a CONSTRUCTOR) have those compiled as functions taking
-/// the instance id as a hidden first parameter, `This`.
-#[derive(Clone, Default)]
-struct TypeInfo {
-    extends: Option<String>,
-    fields: Vec<TypeField>,
-    /// Method → (function index, is FUNCTION).
-    methods: NameMap<(u32, bool)>,
-    /// (event name, handler function index, declared parameter count).
-    events: Vec<(String, u32, usize)>,
-    constructor: Option<u32>,
-}
-
 /// Line labels of one routine (main program, SUB or FUNCTION): GOTO/GOSUB
 /// can only jump within the routine they appear in.
 #[derive(Default)]
@@ -262,9 +237,7 @@ impl Bcgen {
             module: Module::new(),
             fn_indices: NameMap::default(),
             fn_is_func: NameMap::default(),
-            current_method: None,
             current_routine: None,
-            instance_depth: 0,
             library_lines: Vec::new(),
             deferred_errors: HashMap::new(),
             warnings: Vec::new(),
@@ -274,10 +247,7 @@ impl Bcgen {
             fn_byref: NameMap::default(),
             fn_ctx: None,
             routine: RoutineLabels::default(),
-            types: NameMap::default(),
-            global_types: NameMap::default(),
             global_object_arrays: NameMap::default(),
-            current_type: None,
             scope: Scope::default(),
             globals: HashSet::new(),
             global_spelling: HashMap::new(),
@@ -324,7 +294,6 @@ impl Bcgen {
         // Pass 1: collect SUB / FUNCTION declarations so forward references work.
         let mut subs: Vec<&SubroutineStatement> = Vec::new();
         let mut funcs: Vec<&FunctionStatement> = Vec::new();
-        let mut type_defs: Vec<&TypeStatement> = Vec::new();
         for stmt in &program.statements {
             match stmt {
                 Statement::Subroutine(s) => {
@@ -346,50 +315,9 @@ impl Bcgen {
                     let lib = d.lib.clone().unwrap_or_default().trim_matches('"').to_ascii_lowercase();
                     self.lib_of.insert(name_key(&d.name), lib);
                 }
-                Statement::Type(t) => type_defs.push(t),
                 _ => {}
             }
         }
-        // User TYPEs: reserve their methods, EVENT handlers and CONSTRUCTOR
-        // (each takes the instance as a hidden first parameter, `This`).
-        let mut type_bodies: Vec<(u32, String, String, Vec<Parameter>, &[Statement], bool, String)> = Vec::new();
-        for t in &type_defs {
-            let mut info = TypeInfo { extends: t.extends.clone(), fields: t.fields.clone(), ..Default::default() };
-            let this_param = Parameter { span: t.span, name: "This".into(), type_name: t.name.clone(), by_ref: false, is_array: false };
-            let with_this = |params: &[Parameter]| {
-                let mut all = vec![this_param.clone()];
-                all.extend_from_slice(params);
-                all
-            };
-            for m in &t.methods {
-                let (name, params, body, is_func) = match m {
-                    Statement::Subroutine(sub) => (&sub.name, &sub.params, &sub.body, false),
-                    Statement::Function(f) => (&f.name, &f.params, &f.body, true),
-                    _ => continue,
-                };
-                let full = format!("{}.{}", t.name, name);
-                let params = with_this(params);
-                let idx = self.reserve_function(&full, &params, is_func);
-                info.methods.insert(name.clone(), (idx, is_func));
-                type_bodies.push((idx, name.clone(), full, params, body.as_slice(), is_func, t.name.clone()));
-            }
-            for e in &t.events {
-                let full = format!("{}.{}", t.name, e.name);
-                let params = with_this(&e.params);
-                let idx = self.reserve_function(&full, &params, false);
-                info.events.push((e.name.clone(), idx, e.params.len()));
-                type_bodies.push((idx, e.name.clone(), full, params, e.body.as_slice(), false, t.name.clone()));
-            }
-            if !t.constructor.is_empty() {
-                let full = format!("{}.CONSTRUCTOR", t.name);
-                let params = with_this(&[]);
-                let idx = self.reserve_function(&full, &params, false);
-                info.constructor = Some(idx);
-                type_bodies.push((idx, "CONSTRUCTOR".into(), full, params, t.constructor.as_slice(), false, t.name.clone()));
-            }
-            self.types.insert(t.name.clone(), info);
-        }
-
         // Pass 2: emit the implicit __main from top-level non-fn statements.
         let main_idx = self.module.add_function(Function {
             name: "__main".into(),
@@ -429,14 +357,6 @@ impl Bcgen {
             let idx = *self.fn_indices.get(&f.name).unwrap();
             self.current_routine = Some(name_key(&f.name));
             self.compile_function_body(idx, &f.name, &format!("FUNCTION {}", f.name), &f.params, &f.body, true)?;
-        }
-        for (idx, name, full, params, body, is_func, type_name) in type_bodies {
-            self.current_routine = Some(format!("type:{}", name_key(&type_name)));
-            self.current_type = Some(type_name);
-            self.current_method = Some(name.clone());
-            self.compile_function_body(idx, &name, &full, &params, body, is_func)?;
-            self.current_type = None;
-            self.current_method = None;
         }
         self.current_routine = None;
 
@@ -570,7 +490,7 @@ impl Bcgen {
         // Pre-declare parameter slots (slots 0..N).
         for p in params {
             self.scope.declare(&p.name);
-            if self.types.contains_key(&p.type_name) || is_component_type_name(&p.type_name) {
+            if is_component_type_name(&p.type_name) {
                 self.scope.types.insert(p.name.clone(), p.type_name.clone());
             }
         }
@@ -667,8 +587,6 @@ impl Bcgen {
                         self.lower_component_array(decl, &d.type_name, code)?;
                     } else if !decl.dimensions.is_empty() && !is_component_type_name(&d.type_name) {
                         self.lower_array_dim(decl, &d.type_name, code)?;
-                    } else if self.types.contains_key(&d.type_name) {
-                        self.setup_instance(&decl.name, &d.type_name, code)?;
                     } else if !is_component_type_name(&d.type_name) {
                         // `DIM n AS INTEGER` starts at 0, a STRING at "".
                         let default = self.module.add_const(type_default(&d.type_name));
@@ -1027,40 +945,6 @@ impl Bcgen {
 
     // ------------------- objects (components, TYPE instances) -------------------
 
-    /// User TYPEs from `type_name` up to its root ancestor, root first.
-    fn type_chain(&self, type_name: &str) -> Vec<TypeInfo> {
-        let mut chain = Vec::new();
-        let mut current = Some(type_name.to_string());
-        while let Some(t) = current {
-            let Some(info) = self.types.get(&t) else { break };
-            if chain.len() > 32 {
-                break; // cyclic EXTENDS
-            }
-            current = info.extends.clone();
-            chain.push(info.clone());
-        }
-        chain.reverse();
-        chain
-    }
-
-    /// The component a TYPE (or an ancestor) extends, e.g. RFORM.
-    fn base_component(&self, type_name: &str) -> Option<String> {
-        self.type_chain(type_name)
-            .iter()
-            .filter_map(|t| t.extends.clone())
-            .find(|e| rapidr_ast::is_rapidq_object_type(e))
-            .map(|e| e.to_ascii_uppercase())
-    }
-
-    /// A method of `type_name` or its nearest ancestor that defines it.
-    fn find_method(&self, type_name: &str, method: &str) -> Option<(u32, bool)> {
-        self.type_chain(type_name).iter().rev().find_map(|t| t.methods.get(method).copied())
-    }
-
-    fn type_has_field(&self, type_name: &str, field: &str) -> bool {
-        self.type_chain(type_name).iter().any(|t| t.fields.iter().any(|f| f.name.eq_ignore_ascii_case(field)))
-    }
-
     /// `Obj.Name` naming a SUB/FUNCTION defined as `SUB Obj.Name` (when
     /// `Obj` isn't a variable), as its full name.
     fn dotted_routine(&self, callee: &Expression) -> Option<String> {
@@ -1073,444 +957,64 @@ impl Bcgen {
         self.fn_indices.contains_key(&full).then_some(full)
     }
 
-    /// The type of the object an expression holds, when it holds one: a
-    /// TYPE instance or component variable/parameter (`This`, `Sender`), a
-    /// field of the current TYPE, or a field of such an object whose type is
-    /// a component or TYPE (composition: `GF.Panel`). `None` otherwise.
+    /// The component type an expression holds, when it holds one: a
+    /// component parameter (`Sender AS QBUTTON`), a CREATE/DIM component, or
+    /// an element of an array of components. `None` otherwise. (User TYPEs
+    /// never reach this compiler: `rapidr_ast::objects::lower` turns them
+    /// into plain routines and builtins first.)
     fn object_type_of(&self, e: &Expression) -> Option<String> {
         match e {
             Expression::Identifier(id) => self.var_type(&id.name).or_else(|| {
                 // A CREATE/DIM component (`SB` in `SB.Panel(0).Width`).
-                if !(self.scope.get(&id.name).is_some() && !self.in_main) {
-                    if let Some(kind) = self.component_kinds.get(&id.name.to_lowercase()) {
-                        return Some(kind.clone());
-                    }
-                }
-                let current = self.current_type.as_ref()?;
-                if self.scope.get(&id.name).is_some() || self.is_known_global(&id.name) {
+                if self.scope.get(&id.name).is_some() && !self.in_main {
                     return None;
                 }
-                self.field_object_type(current, &id.name)
+                self.component_kinds.get(&id.name.to_lowercase()).cloned()
             }),
-            Expression::MemberAccess(m) => {
-                let t = self.object_type_of(&m.object)?;
-                self.field_object_type(&t, &m.member)
-            }
-            // `lbl(i)`: an element of an array of objects.
-            Expression::FunctionCall(fc) if matches!(fc.callee.as_ref(), Expression::Identifier(id) if self.object_array_type(&id.name).is_some()) => {
-                let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
-                self.object_array_type(&id.name)
-            }
-            Expression::ArrayAccess(a) => match a.array.as_ref() {
+            // `lbl(i)`: an element of an array of components.
+            Expression::FunctionCall(fc) => match fc.callee.as_ref() {
                 Expression::Identifier(id) => self.object_array_type(&id.name),
                 _ => None,
             },
-            // `.image(i)`: an element of an array field of objects.
-            Expression::FunctionCall(fc) if fc.args.len() == 1 => match fc.callee.as_ref() {
-                Expression::MemberAccess(m) => {
-                    let t = self.object_type_of(&m.object)?;
-                    self.array_field_object_type(&t, &m.member)
-                }
-                Expression::Identifier(id) => {
-                    let current = self.current_type.as_ref()?;
-                    if self.scope.get(&id.name).is_some() || self.is_known_global(&id.name) {
-                        return None;
-                    }
-                    self.array_field_object_type(current, &id.name)
-                }
+            Expression::ArrayAccess(a) => match a.array.as_ref() {
+                Expression::Identifier(id) => self.object_array_type(&id.name),
                 _ => None,
             },
             _ => None,
         }
     }
 
-    /// Element type of an array field of objects (`image(1000) AS QBITMAP`).
-    fn array_field_object_type(&self, type_name: &str, field: &str) -> Option<String> {
-        let f = self
-            .type_chain(type_name)
-            .iter()
-            .rev()
-            .find_map(|t| t.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).cloned())?;
-        f.array_size.as_ref()?;
-        let t = rapidr_ast::canonical_type_name(&f.type_name);
-        (rapidr_ast::is_rapidq_object_type(&t) || self.types.contains_key(&t)).then_some(t)
-    }
-
-    /// `obj.Canvas.Font.Size`: when `e` is `<object>.<sub>` and the object is
-    /// a component (not a TYPE with such a field), `<sub>` is one of its
-    /// property objects (Font, …), addressed like native builds' combined
-    /// names (`font.size`). Returns the object expression and `sub`.
+    /// `obj.Canvas.Font.Size`: when `e` is `<component>.<sub>`, `<sub>` is
+    /// one of its property objects (Font, …), addressed like native builds'
+    /// combined names (`font.size`). Returns the object expression and `sub`.
     fn sub_property<'e>(&self, e: &'e Expression) -> Option<(&'e Expression, &'e str)> {
         let Expression::MemberAccess(m) = e else { return None };
         self.object_type_of(&m.object)?;
-        if self.object_type_of(e).is_some() {
-            return None;
-        }
         Some((&m.object, m.member.as_str()))
     }
 
-    /// `obj.item(i)` where `obj` is a component and `item` isn't an array
-    /// field of objects: one of the component's indexed sub-objects (a
-    /// ListView's items/columns, …). Returns the object, `item` and the index
-    /// arguments. Its members become methods with combined names:
-    /// `obj.item(i).caption` → `item.caption(i)`; assigning calls
-    /// `item.caption=(i, value)`.
+    /// `obj.item(i)` where `obj` is a component: one of its indexed
+    /// sub-objects (a ListView's items/columns, …). Returns the object,
+    /// `item` and the index arguments. Its members become methods with
+    /// combined names: `obj.item(i).caption` → `item.caption(i)`; assigning
+    /// calls `item.caption=(i, value)`.
     fn indexed_sub_object<'e>(&self, e: &'e Expression) -> Option<(&'e Expression, &'e str, &'e [Expression])> {
         let Expression::FunctionCall(fc) = e else { return None };
         let Expression::MemberAccess(m) = fc.callee.as_ref() else { return None };
-        let t = self.object_type_of(&m.object)?;
-        if self.array_field_object_type(&t, &m.member).is_some() || self.find_method(&t, &m.member).is_some() {
-            return None;
-        }
-        if self.types.contains_key(&t) && self.type_has_field(&t, &m.member) {
-            return None;
-        }
+        self.object_type_of(&m.object)?;
         Some((&m.object, m.member.as_str(), fc.args.as_slice()))
     }
 
-    /// Type of `field` of `type_name` when it holds an object (a component
-    /// or a user TYPE).
-    fn field_object_type(&self, type_name: &str, field: &str) -> Option<String> {
-        let f = self
-            .type_chain(type_name)
-            .iter()
-            .rev()
-            .find_map(|t| t.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).cloned())?;
-        if f.array_size.is_some() {
-            return None;
-        }
-        let t = rapidr_ast::canonical_type_name(&f.type_name);
-        (rapidr_ast::is_rapidq_object_type(&t) || self.types.contains_key(&t)).then_some(t)
-    }
-
-    /// Inside a TYPE's code the type's own name (or an ancestor's) stands for
-    /// the instance, as in the RapidQ manual's `QDiamondBox.Caption` and
-    /// `WITH TForm … END WITH` — unless a variable has that name.
-    fn is_this_alias(&self, name: &str) -> bool {
-        let Some(current) = &self.current_type else { return false };
-        if self.scope.get(name).is_some() || self.is_known_global(name) {
-            return false;
-        }
-        let mut t = Some(current.clone());
-        let mut depth = 0;
-        while let Some(type_name) = t {
-            if type_name.eq_ignore_ascii_case(name) {
-                return true;
-            }
-            depth += 1;
-            if depth > 32 {
-                break;
-            }
-            t = self.types.get(&type_name).and_then(|info| info.extends.clone());
-        }
-        false
-    }
-
-    /// The PROPERTY SET method for `field` of `type_name`, unless it's the
-    /// method being compiled (a setter assigns its own field directly).
-    fn property_setter(&self, type_name: &str, field: &str) -> Option<u32> {
-        let setter = self
-            .type_chain(type_name)
-            .iter()
-            .rev()
-            .find_map(|t| t.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).map(|f| f.setter.clone()))??;
-        if self.current_method.as_deref().is_some_and(|m| m.eq_ignore_ascii_case(&setter)) {
-            return None;
-        }
-        self.find_method(type_name, &setter).map(|(fi, _)| fi)
-    }
-
-    /// `obj.Field = v` (or `Field = v` inside the TYPE, or in a CREATE block
-    /// of a TYPE instance) where Field is a PROPERTY SET: call the setter
-    /// with the object and the value.
-    fn try_property_setter(&mut self, a: &AssignmentStatement, code: &mut Vec<u8>) -> Result<bool, String> {
-        enum Obj { Expr(Expression), This, Named(String) }
-        let (type_name, field, obj) = match &a.target {
-            Expression::MemberAccess(m) => {
-                let Expression::Identifier(o) = &*m.object else { return Ok(false) };
-                let Some(t) = self.var_type(&o.name) else { return Ok(false) };
-                (t, m.member.clone(), Obj::Expr((*m.object).clone()))
-            }
-            Expression::Identifier(id) => {
-                if let Some(inst) = self.create_stack.last().cloned() {
-                    let Some(t) = self.global_types.get(&inst).cloned() else { return Ok(false) };
-                    (t, id.name.clone(), Obj::Named(inst))
-                } else if self.implicit_member(&id.name) {
-                    let Some(t) = self.current_type.clone() else { return Ok(false) };
-                    (t, id.name.clone(), Obj::This)
-                } else {
-                    return Ok(false);
-                }
-            }
-            _ => return Ok(false),
-        };
-        let Some(fi) = self.property_setter(&type_name, &field) else { return Ok(false) };
-        match obj {
-            Obj::Expr(e) => self.lower_expr(&e, code)?,
-            Obj::This => self.emit_load_this(code)?,
-            Obj::Named(inst) => {
-                let c = self.module.add_const(Const::Str(inst));
-                emit(code, Op::LoadConst); push_u32(code, c);
-            }
-        }
-        self.lower_expr(&a.value, code)?;
-        emit(code, Op::CallSub); push_u32(code, fi); code.push(2);
-        Ok(true)
-    }
-
-    /// Declared TYPE of a variable holding an object (`This` included).
+    /// Declared component type of a parameter (`Sender AS QBUTTON`).
     fn var_type(&self, name: &str) -> Option<String> {
-        if let Some(t) = self.scope.types.get(name) {
-            return Some(t.clone());
-        }
-        if self.is_this_alias(name) {
-            return self.current_type.clone();
-        }
-        if !self.in_main && self.scope.get(name).is_some() {
-            return None;
-        }
-        self.global_types.get(name).cloned()
+        self.scope.types.get(name).cloned()
     }
 
     /// `x.Prop` addresses the object whose id is *stored in* `x` when `x` is
-    /// a parameter or local of the current SUB/FUNCTION (`Sender`, `This`);
+    /// a parameter or local of the current SUB/FUNCTION (`Sender`);
     /// globals and component names are addressed by name.
     fn is_dynamic_object(&self, name: &str) -> bool {
-        (!self.in_main
-            && self.scope.get(name).is_some()
-            && !self.component_instance_names.contains_key(&name.to_lowercase()))
-            || self.is_this_alias(name)
-            || (self.scope.get(name).is_none()
-                && !self.is_known_global(name)
-                && self.current_type.as_ref().is_some_and(|t| self.field_object_type(t, name).is_some()))
-    }
-
-    /// Inside a TYPE's method/EVENT/CONSTRUCTOR, a bare name that isn't a
-    /// local, parameter, global, routine or builtin is a member of `This`
-    /// (a field, or a property of the component the TYPE extends), as in
-    /// RapidQ's `CONSTRUCTOR : Caption = "Hi" : END CONSTRUCTOR`.
-    fn implicit_member(&self, name: &str) -> bool {
-        let Some(type_name) = &self.current_type else { return false };
-        if self.scope.get(name).is_some()
-            || self.scope.statics.contains_key(name)
-            || matches!(name.to_ascii_lowercase().as_str(), "this" | "me" | "true" | "false")
-        {
-            return false;
-        }
-        self.type_has_field(type_name, name)
-            || (self.base_component(type_name).is_some()
-                && !self.is_known_global(name)
-                && !self.fn_indices.contains_key(name)
-                && !builtins::is_builtin(name)
-                && !self.component_instance_names.contains_key(&name.to_lowercase()))
-    }
-
-    fn emit_load_this(&mut self, code: &mut Vec<u8>) -> Result<(), String> {
-        let slot = self.scope.get("This").ok_or("`This` is only available inside a TYPE's methods")?;
-        emit(code, Op::LoadLocal); push_u16(code, slot);
-        Ok(())
-    }
-
-    /// Store `name`'s own id in the variable, so the instance can be passed
-    /// to SUBs and used as `This`.
-    fn store_object_id(&mut self, name: &str, code: &mut Vec<u8>) {
-        let id = self.module.add_const(Const::Str(name.to_string()));
-        emit(code, Op::LoadConst); push_u32(code, id);
-        match self.scope.get(name).filter(|_| !self.in_main) {
-            Some(slot) => { emit(code, Op::StoreLocal); push_u16(code, slot); }
-            None => {
-                let s = self.global_str(name);
-                emit(code, Op::StoreGlobal); push_u32(code, s);
-            }
-        }
-    }
-
-    /// `DIM F AS TMyForm` / `CREATE F AS TMyForm`: create the component the
-    /// TYPE extends, initialise fields, bind EVENT handlers to this instance
-    /// and run the CONSTRUCTORs (base TYPE first).
-    fn setup_instance(&mut self, name: &str, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
-        if self.in_main {
-            self.global_types.insert(name.to_string(), type_name.to_string());
-        } else {
-            self.scope.types.insert(name.to_string(), type_name.to_string());
-        }
-        let chain = self.type_chain(type_name);
-        if let Some(kind) = self.base_component(type_name) {
-            let kind_s = self.module.add_string(&kind);
-            let id_s = self.module.add_string(name);
-            emit(code, Op::CreateComp);
-            push_u32(code, kind_s); push_u32(code, id_s);
-            emit(code, Op::Pop);
-            if kind == "RTIMER" {
-                self.emit_register_timer(name, code);
-            }
-        }
-        self.store_object_id(name, code);
-        for info in &chain {
-            for field in &info.fields {
-                // Composition (manual 10.5): `Panel AS QPanel` gives every
-                // instance its own component, `<instance>.Panel`; the field
-                // holds that component's id, so `obj.Panel.Left = 5` works.
-                let field_type = rapidr_ast::canonical_type_name(&field.type_name);
-                if rapidr_ast::is_rapidq_object_type(&field_type) && field.array_size.is_none() {
-                    let sub_id = format!("{name}.{}", field.name);
-                    let kind_s = self.module.add_string(&field_type.to_ascii_uppercase());
-                    let sub_s = self.module.add_string(&sub_id);
-                    emit(code, Op::CreateComp);
-                    push_u32(code, kind_s); push_u32(code, sub_s);
-                    emit(code, Op::Pop);
-                    if field_type.eq_ignore_ascii_case("RTIMER") {
-                        self.emit_register_timer(&sub_id, code);
-                    }
-                    let c = self.module.add_const(Const::Str(sub_id));
-                    emit(code, Op::LoadConst); push_u32(code, c);
-                    let id_s = self.module.add_string(name);
-                    let f_s = self.module.add_string(&field.name);
-                    emit(code, Op::SetProp);
-                    push_u32(code, id_s); push_u32(code, f_s);
-                    continue;
-                }
-                // `image(1000) AS QBITMAP`: an array whose elements are object
-                // ids `<instance>.image(i)` (objects appear when first used).
-                if let (Some(upper), true) = (&field.array_size, rapidr_ast::is_rapidq_object_type(&field_type) || self.types.contains_key(&field_type)) {
-                    let tag = code.len();
-                    let arr = self.scope.declare(&format!("__objarr_{tag}"));
-                    let i = self.scope.declare(&format!("__objidx_{tag}"));
-                    let hi = self.scope.declare(&format!("__objhi_{tag}"));
-                    let null = self.module.add_const(Const::Null);
-                    emit(code, Op::LoadConst); push_u32(code, null);
-                    match &field.array_lower {
-                        Some(lower) => self.lower_expr(lower, code)?,
-                        None => {
-                            let zero = self.module.add_const(Const::Int(0));
-                            emit(code, Op::LoadConst); push_u32(code, zero);
-                        }
-                    }
-                    emit(code, Op::StoreLocal); push_u16(code, i);
-                    emit(code, Op::LoadLocal); push_u16(code, i);
-                    self.lower_expr(upper, code)?;
-                    emit(code, Op::StoreLocal); push_u16(code, hi);
-                    emit(code, Op::LoadLocal); push_u16(code, hi);
-                    emit(code, Op::NewArray); code.push(1);
-                    emit(code, Op::StoreLocal); push_u16(code, arr);
-                    let top = code.len() as u32;
-                    emit(code, Op::LoadLocal); push_u16(code, i);
-                    emit(code, Op::LoadLocal); push_u16(code, hi);
-                    emit(code, Op::Gt);
-                    emit(code, Op::JumpIf);
-                    let exit = code.len();
-                    push_u32(code, 0);
-                    let prefix = self.module.add_const(Const::Str(format!("{name}.{}(", field.name)));
-                    let close = self.module.add_const(Const::Str(")".into()));
-                    let one = self.module.add_const(Const::Int(1));
-                    emit(code, Op::LoadLocal); push_u16(code, arr);
-                    emit(code, Op::LoadLocal); push_u16(code, i);
-                    emit(code, Op::LoadConst); push_u32(code, prefix);
-                    emit(code, Op::LoadLocal); push_u16(code, i);
-                    emit(code, Op::Add);
-                    emit(code, Op::LoadConst); push_u32(code, close);
-                    emit(code, Op::Add);
-                    emit(code, Op::ASet); code.push(1);
-                    emit(code, Op::LoadLocal); push_u16(code, i);
-                    emit(code, Op::LoadConst); push_u32(code, one);
-                    emit(code, Op::Add);
-                    emit(code, Op::StoreLocal); push_u16(code, i);
-                    emit(code, Op::Jump); push_u32(code, top);
-                    let end = code.len() as u32;
-                    patch_u32(code, exit, end);
-                    emit(code, Op::LoadLocal); push_u16(code, arr);
-                    let id_s = self.module.add_string(name);
-                    let f_s = self.module.add_string(&field.name);
-                    emit(code, Op::SetProp);
-                    push_u32(code, id_s); push_u32(code, f_s);
-                    continue;
-                }
-                // A field of a user TYPE is an object of its own.
-                if self.types.contains_key(&field_type) && field.array_size.is_none() {
-                    if self.instance_depth >= 8 {
-                        return Err(format!("TYPE {type_name} contains itself (field {}); objects can't nest endlessly", field.name));
-                    }
-                    let sub_id = format!("{name}.{}", field.name);
-                    self.instance_depth += 1;
-                    let saved_main = self.in_main;
-                    self.in_main = true; // record the sub-object's type globally
-                    let result = self.setup_instance(&sub_id, &field_type, code);
-                    self.in_main = saved_main;
-                    self.instance_depth -= 1;
-                    result?;
-                    let c = self.module.add_const(Const::Str(sub_id));
-                    emit(code, Op::LoadConst); push_u32(code, c);
-                    let id_s = self.module.add_string(name);
-                    let f_s = self.module.add_string(&field.name);
-                    emit(code, Op::SetProp);
-                    push_u32(code, id_s); push_u32(code, f_s);
-                    continue;
-                }
-                let fill = self.module.add_const(match field.type_name.to_ascii_uppercase().as_str() {
-                    "STRING" => Const::Str(String::new()),
-                    "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" => Const::Int(0),
-                    _ => Const::Null,
-                });
-                emit(code, Op::LoadConst); push_u32(code, fill);
-                if let Some(size) = &field.array_size {
-                    // `Names(2) AS STRING` → an array field 0..2;
-                    // `Colors(1 TO 16)` → 1..16.
-                    match &field.array_lower {
-                        Some(lower) => self.lower_expr(lower, code)?,
-                        None => {
-                            let zero = self.module.add_const(Const::Int(0));
-                            emit(code, Op::LoadConst); push_u32(code, zero);
-                        }
-                    }
-                    self.lower_expr(size, code)?;
-                    emit(code, Op::NewArray); code.push(1);
-                }
-                let id_s = self.module.add_string(name);
-                let f_s = self.module.add_string(&field.name);
-                emit(code, Op::SetProp);
-                push_u32(code, id_s); push_u32(code, f_s);
-            }
-        }
-        for info in &chain {
-            for (event, handler, n_params) in &info.events {
-                // `EVENT Panel.OnClick` fires on the field's component, with
-                // `This` still the instance.
-                let (target, event) = match event.rsplit_once('.') {
-                    Some((field, ev)) => (format!("{name}.{field}"), ev.to_string()),
-                    None => (name.to_string(), event.clone()),
-                };
-                let trampoline = self.event_trampoline(name, &event, *handler, *n_params);
-                let id_s = self.module.add_string(&target);
-                let ev_s = self.module.add_string(&event);
-                emit(code, Op::RegisterEvent);
-                push_u32(code, id_s); push_u32(code, ev_s); push_u32(code, trampoline);
-            }
-        }
-        for info in &chain {
-            if let Some(ctor) = info.constructor {
-                let id = self.module.add_const(Const::Str(name.to_string()));
-                emit(code, Op::LoadConst); push_u32(code, id);
-                emit(code, Op::CallSub); push_u32(code, ctor); code.push(1);
-            }
-        }
-        Ok(())
-    }
-
-    /// A tiny function registered as `id`'s handler for `event`: calls the
-    /// TYPE's EVENT handler with `This` = id plus the event's own arguments.
-    fn event_trampoline(&mut self, id: &str, event: &str, handler: u32, n_params: usize) -> u32 {
-        let id_c = self.module.add_const(Const::Str(id.to_string()));
-        let mut f = Function::default();
-        f.name = format!("{id}.{event}");
-        f.params = (0..n_params).map(|i| Param { name: format!("arg{i}"), by_ref: false }).collect();
-        f.n_locals = n_params as u32;
-        emit(&mut f.code, Op::LoadConst); push_u32(&mut f.code, id_c);
-        for i in 0..n_params {
-            emit(&mut f.code, Op::LoadLocal); push_u16(&mut f.code, i as u16);
-        }
-        emit(&mut f.code, Op::CallSub); push_u32(&mut f.code, handler); f.code.push(n_params as u8 + 1);
-        emit(&mut f.code, Op::Ret);
-        self.module.add_function(f)
+        !self.in_main && self.scope.get(name).is_some() && !self.component_instance_names.contains_key(&name.to_lowercase())
     }
 
     /// `obj.Method(args)` where obj is a TYPE instance (user method), or a
@@ -1569,67 +1073,24 @@ impl Bcgen {
                 return Ok(true);
             }
         }
-        // `GF.Panel.Show`, `b64.src.Close`: a method of the object a field holds.
+        // `lbl(i).Show`: a method of an element of an array of components.
         if let Expression::MemberAccess(m) = callee {
-            if !matches!(m.object.as_ref(), Expression::Identifier(_)) {
-                if let Some(t) = self.object_type_of(&m.object) {
-                    self.lower_expr(&m.object, code)?;
-                    for a in args {
-                        self.lower_expr(a, code)?;
-                    }
-                    if let Some((fi, is_func)) = self.find_method(&t, &m.member) {
-                        emit(code, if is_func { Op::CallFunc } else { Op::CallSub });
-                        push_u32(code, fi); code.push(args.len() as u8 + 1);
-                        match (want_value, is_func) {
-                            (true, false) => emit(code, Op::LoadNull),
-                            (false, true) => emit(code, Op::Pop),
-                            _ => {}
-                        }
-                    } else {
-                        let m_s = self.module.add_string(&m.member);
-                        emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(args.len() as u8);
-                        if !want_value {
-                            emit(code, Op::Pop);
-                        }
-                    }
-                    return Ok(true);
+            if !matches!(m.object.as_ref(), Expression::Identifier(_)) && self.object_type_of(&m.object).is_some() {
+                self.lower_expr(&m.object, code)?;
+                for a in args {
+                    self.lower_expr(a, code)?;
                 }
+                let m_s = self.module.add_string(&m.member);
+                emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(args.len() as u8);
+                if !want_value {
+                    emit(code, Op::Pop);
+                }
+                return Ok(true);
             }
         }
-        let (object, method) = match callee {
-            Expression::MemberAccess(m) => match m.object.as_ref() {
-                Expression::Identifier(o) => (Some(o.name.clone()), m.member.clone()),
-                _ => return Ok(false),
-            },
-            Expression::Identifier(id)
-                if self.current_type.as_ref().is_some_and(|t| self.find_method(t, &id.name).is_some())
-                    && !self.fn_indices.contains_key(&id.name) =>
-            {
-                (None, id.name.clone())
-            }
-            _ => return Ok(false),
-        };
-        let type_name = match &object {
-            Some(o) => self.object_type_of(&Expression::Identifier(rapidr_ast::Identifier { span: TextSpan::default(), name: o.clone() })),
-            None => self.current_type.clone(),
-        };
-        if let Some((fi, is_func)) = type_name.as_deref().and_then(|t| self.find_method(t, &method)) {
-            match &object {
-                Some(o) => self.lower_expr(&Expression::Identifier(rapidr_ast::Identifier { span: TextSpan::default(), name: o.clone() }), code)?,
-                None => self.emit_load_this(code)?,
-            }
-            for a in args {
-                self.lower_expr(a, code)?;
-            }
-            emit(code, if is_func { Op::CallFunc } else { Op::CallSub });
-            push_u32(code, fi); code.push(args.len() as u8 + 1);
-            match (want_value, is_func) {
-                (true, false) => emit(code, Op::LoadNull),
-                (false, true) => emit(code, Op::Pop),
-                _ => {}
-            }
-            return Ok(true);
-        }
+        let Expression::MemberAccess(m) = callee else { return Ok(false) };
+        let Expression::Identifier(o) = m.object.as_ref() else { return Ok(false) };
+        let (object, method) = (Some(o.name.clone()), m.member.clone());
         if let Some(o) = object.filter(|o| self.is_dynamic_object(o)) {
             self.lower_expr(&Expression::Identifier(rapidr_ast::Identifier { span: TextSpan::default(), name: o }), code)?;
             for a in args {
@@ -1685,9 +1146,6 @@ impl Bcgen {
             if let Expression::Identifier(id) = &a.target {
                 self.globals.insert(name_key(&id.name));
             }
-        }
-        if self.try_property_setter(a, code)? {
-            return Ok(());
         }
         // Special case for CREATE-block property assignment with a SUB-name RHS:
         // → emit RegisterEvent instead of SetProp.
@@ -1836,12 +1294,6 @@ impl Bcgen {
     fn store_target(&mut self, target: &Expression, code: &mut Vec<u8>) -> Result<(), String> {
         match target {
             Expression::Identifier(id) => {
-                if self.implicit_member(&id.name) {
-                    self.emit_load_this(code)?;
-                    let m_s = self.module.add_string(&id.name);
-                    emit(code, Op::SetPropDyn); push_u32(code, m_s);
-                    return Ok(());
-                }
                 if let Some(slot) = self.scope.get(&id.name) {
                     emit(code, Op::StoreLocal);
                     push_u16(code, slot);
@@ -1980,26 +1432,6 @@ impl Bcgen {
         }
         if self.try_lower_pointer_call(&c.callee, &c.args, false, code)? {
             return Ok(());
-        }
-        // Inside `CREATE x AS TType`, a bare method name calls that TYPE's
-        // method on x (RapidQ: `CREATE F AS TMyForm … Setup … END CREATE`).
-        if let (Some(obj), Expression::Identifier(id)) = (self.create_stack.last().cloned(), &c.callee) {
-            if !self.fn_indices.contains_key(&id.name) {
-                let method = self.global_types.get(&obj).cloned().and_then(|t| self.find_method(&t, &id.name));
-                if let Some((fi, is_func)) = method {
-                    let c_obj = self.module.add_const(Const::Str(obj));
-                    emit(code, Op::LoadConst); push_u32(code, c_obj);
-                    for a in &c.args {
-                        self.lower_arg(a, true, code)?;
-                    }
-                    emit(code, if is_func { Op::CallFunc } else { Op::CallSub });
-                    push_u32(code, fi); code.push(c.args.len() as u8 + 1);
-                    if is_func {
-                        emit(code, Op::Pop);
-                    }
-                    return Ok(());
-                }
-            }
         }
         // Push args.
         let user_routine = matches!(&c.callee, Expression::Identifier(id) if self.fn_indices.contains_key(&id.name));
@@ -2405,17 +1837,11 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
-        if self.types.contains_key(&c.type_name) {
-            // User TYPE: its base component, fields, events and CONSTRUCTOR;
-            // the CREATE block's own settings then apply on top.
-            self.setup_instance(&c.name, &c.type_name, code)?;
-        } else {
-            let kind_s = self.module.add_string(&c.type_name.to_uppercase());
-            let id_s = self.module.add_string(&c.name);
-            emit(code, Op::CreateComp);
-            push_u32(code, kind_s); push_u32(code, id_s);
-            emit(code, Op::Pop); // discard returned reference for now
-        }
+        let kind_s = self.module.add_string(&c.type_name.to_uppercase());
+        let id_s = self.module.add_string(&c.name);
+        emit(code, Op::CreateComp);
+        push_u32(code, kind_s); push_u32(code, id_s);
+        emit(code, Op::Pop); // discard returned reference for now
         // Nested CREATE: link this child to its parent so the runtime
         // can place / reparent the widget. Mirrors codegen-rust
         // `emit_create` → `rp_comp_set(name, "parent", v_str(parent))`.
@@ -2489,18 +1915,13 @@ impl Bcgen {
         Err("BIND needs `BIND variable TO SubName` or `BIND obj.Event TO SubName`".into())
     }
 
-    /// The routine an expression names for a function pointer: `Proc`, or a
-    /// TYPE method `TypeName.Method` / `obj.Method`.
+    /// The routine an expression names for a function pointer: `Proc`, or
+    /// a dotted `SUB Obj.Name`. (TYPE method pointers are lowered to their
+    /// `Type__Method` routine by `rapidr_ast::objects`.)
     fn routine_pointer(&self, e: &Expression) -> Option<u32> {
         match e {
             Expression::Identifier(id) => self.fn_indices.get(&id.name).copied(),
-            Expression::MemberAccess(m) => {
-                let Expression::Identifier(o) = m.object.as_ref() else { return None };
-                let t = self
-                    .var_type(&o.name)
-                    .or_else(|| self.types.contains_key(&o.name).then(|| o.name.clone()))?;
-                self.find_method(&t, &m.member).map(|(fi, _)| fi)
-            }
+            Expression::MemberAccess(_) => self.dotted_routine(e).and_then(|full| self.fn_indices.get(&full).copied()),
             _ => None,
         }
     }
@@ -2552,15 +1973,6 @@ impl Bcgen {
                 // A left-out argument (`COLOR , 1`): the callee's default.
                 if id.name == rapidr_ast::OMITTED_ARGUMENT {
                     emit(code, Op::LoadNull);
-                    return Ok(());
-                }
-                if self.is_this_alias(&id.name) {
-                    return self.emit_load_this(code);
-                }
-                if self.implicit_member(&id.name) {
-                    self.emit_load_this(code)?;
-                    let m_s = self.module.add_string(&id.name);
-                    emit(code, Op::GetPropDyn); push_u32(code, m_s);
                     return Ok(());
                 }
                 if self.component_instance_names.contains_key(&name_lower) {
@@ -2635,19 +2047,6 @@ impl Bcgen {
                 Ok(())
             }
             Expression::FunctionCall(fc) => {
-                // `obj.Names(1)` where Names is an array field of obj's TYPE.
-                if let Expression::MemberAccess(m) = fc.callee.as_ref() {
-                    if let Expression::Identifier(o) = m.object.as_ref() {
-                        if self.var_type(&o.name).is_some_and(|t| self.type_has_field(&t, &m.member)) {
-                            let element = Expression::ArrayAccess(ArrayAccessExpression {
-                                span: fc.span,
-                                array: fc.callee.clone(),
-                                indices: fc.args.clone(),
-                            });
-                            return self.lower_expr(&element, code);
-                        }
-                    }
-                }
                 if self.try_lower_object_call(&fc.callee, &fc.args, true, code)? {
                     return Ok(());
                 }
@@ -2765,14 +2164,6 @@ impl Bcgen {
                     return Ok(());
                 }
                 if let Expression::Identifier(obj) = &*m.object {
-                    // `obj.Func` without parentheses calls a FUNCTION method.
-                    let is_fn_method = self
-                        .var_type(&obj.name)
-                        .and_then(|t| self.find_method(&t, &m.member))
-                        .is_some_and(|(_, is_func)| is_func);
-                    if is_fn_method && self.try_lower_object_call(e, &[], true, code)? {
-                        return Ok(());
-                    }
                     if self.is_dynamic_object(&obj.name) {
                         self.lower_expr(&m.object, code)?;
                         let nm_s = self.module.add_string(&m.member);
@@ -2806,14 +2197,9 @@ impl Bcgen {
                     emit(code, Op::GetPropDyn); push_u32(code, nm_s);
                     return Ok(());
                 }
-                // `GF.Panel.Left`: a property of the object a field holds
-                // (or `A.Engine.Describe`, a FUNCTION method, called).
-                if let Some(t) = self.object_type_of(&m.object) {
-                    if self.find_method(&t, &m.member).is_some_and(|(_, is_func)| is_func)
-                        && self.try_lower_object_call(e, &[], true, code)?
-                    {
-                        return Ok(());
-                    }
+                // `lbl(i).Caption`: a property of an element of an array of
+                // components.
+                if self.object_type_of(&m.object).is_some() {
                     self.lower_expr(&m.object, code)?;
                     let nm_s = self.module.add_string(&m.member);
                     emit(code, Op::GetPropDyn); push_u32(code, nm_s);
@@ -3020,20 +2406,18 @@ fn windows_api_hint(api: &str) -> Option<&'static str> {
 /// Ends every error about a feature no backend supports yet.
 const UNSUPPORTED_MARKER: &str = " isn't supported yet";
 
-/// Routines the program can reach (`name_key` of SUBs/FUNCTIONs,
-/// `type:<name>` for a TYPE's methods, events and constructor), found by
+/// Routines the program can reach (`name_key` of SUBs/FUNCTIONs, TYPE
+/// methods included once `rapidr_ast::objects` has lowered them), found by
 /// following every name mentioned from the main program onwards. Any
-/// mention counts (a call, `OnClick = Handler`, BIND, CODEPTR, `DIM x AS T`),
-/// so this over-approximates what can run.
+/// mention counts (a call, `OnClick = Handler`, BIND, CODEPTR), so this
+/// over-approximates what can run.
 fn reachable_routines(program: &Program) -> HashSet<String> {
     let mut routines: HashMap<String, &[Statement]> = HashMap::new();
-    let mut types: HashMap<String, &TypeStatement> = HashMap::new();
     let mut main: Vec<&[Statement]> = Vec::new();
     for (i, stmt) in program.statements.iter().enumerate() {
         match stmt {
             Statement::Subroutine(s) => { routines.insert(name_key(&s.name), &s.body); }
             Statement::Function(f) => { routines.insert(name_key(&f.name), &f.body); }
-            Statement::Type(t) => { types.insert(name_key(&t.name), t); }
             _ => main.push(std::slice::from_ref(&program.statements[i])),
         }
     }
@@ -3065,29 +2449,11 @@ fn reachable_routines(program: &Program) -> HashSet<String> {
                     pending.push(body);
                 }
             }
-            // A TYPE in use brings its code, its base type and the TYPEs of
-            // its fields (composition) along.
-            let mut type_keys = vec![key];
-            while let Some(k) = type_keys.pop() {
-                let Some(t) = types.get(&k) else { continue };
-                if !reached.insert(format!("type:{k}")) {
-                    continue;
-                }
-                pending.push(&t.methods);
-                pending.push(&t.constructor);
-                for e in &t.events {
-                    pending.push(&e.body);
-                }
-                type_keys.extend(t.fields.iter().map(|f| name_key(&f.type_name)));
-                type_keys.extend(t.extends.as_deref().map(name_key));
-            }
         }
     }
     reached
 }
 
-/// The value a variable of a BASIC type starts with (as in native builds'
-/// `default_value_for_type`); VARIANTs and objects start as Null.
 /// The slot of `name(obj, slot, …)` with `argc` arguments and a literal
 /// slot (the object pass's field access), for the GetField/SetField opcodes.
 fn field_slot(fc: &rapidr_ast::FunctionCallExpression, name: &str, argc: usize) -> Option<u16> {
@@ -3104,6 +2470,8 @@ fn field_slot(fc: &rapidr_ast::FunctionCallExpression, name: &str, argc: usize) 
     }
 }
 
+/// The value a variable of a BASIC type starts with (as in native builds'
+/// `default_value_for_type`); VARIANTs and objects start as Null.
 fn type_default(type_name: &str) -> Const {
     match type_name.to_ascii_uppercase().as_str() {
         "STRING" => Const::Str(String::new()),
