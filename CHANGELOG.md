@@ -7,6 +7,41 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.32.0] — 2026-09-26
+
+### Changed
+- **Native builds keep numeric locals as Rust numbers.** A SUB/FUNCTION's
+  local declared BYTE, WORD, SHORT, INTEGER/LONG, DWORD, SINGLE or DOUBLE is
+  an `i64` / `f64` instead of a boxed `Value`. Arithmetic, comparisons,
+  AND/OR/XOR/NOT, IF/WHILE/DO conditions and FOR loops over such variables
+  compile to plain Rust, with exactly `Value`'s semantics:
+  - wrapping integer `+ - *`;
+  - `/`, `\` and MOD by zero give 0;
+  - comparisons are done as floats, with NaN treated as equal;
+  - FOR evaluates end and step once.
+
+  A local stays a `Value` when something else could store into it: it's
+  passed to a user SUB/FUNCTION (a possible BYREF), its address is taken,
+  it's used as an array or object, an integer counter has a fractional
+  STEP, or the routine uses GOTO/GOSUB or inline Rust.
+  - Benchmark (5M iterations of `MOD`, `/`, `AND` and IF in a SUB): 0.02 s
+    typed, 0.13 s as `Value`s, 0.62 s interpreted; all three print the same
+    result.
+  - On the RapidQ example corpus, the same 49 programs `cargo check`
+    natively before and after, so typed locals introduced no failures.
+
+### Fixed
+- A FOR counter's start value converts to the counter's declared type in
+  both backends (`FOR i = 1.5 TO 4` with `i AS INTEGER` starts at 2).
+
+### Tests
+- Conformance case `typed_locals`: every operator on typed LONG / DOUBLE /
+  SHORT / BYTE locals, including division and MOD by zero, NaN comparisons,
+  overflow, negative and fractional STEPs, DIM re-run in a loop, WHILE/DO,
+  a BYREF-passed local, and a typed FUNCTION.
+- Unit tests pin `rapidr_value::numeric`'s typed helpers to `Value`'s
+  operators on edge values.
+
 ## [2.31.0] — 2026-09-26
 
 ### Changed

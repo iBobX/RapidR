@@ -146,7 +146,11 @@ Next up, in order:
 - [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
 - [x] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused (v2.28.1)
 - [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
-- [ ] Speed next: typed locals/fields (skip `Value` boxing where the type is known), fewer clones in generated code, `Module::add_string` is a linear search at compile time
+- [x] Declared numeric types enforced in both backends (`rapidr_ast::numeric`, v2.31.0)
+- [x] Native typed locals: numeric SUB/FUNCTION locals are Rust `i64`/`f64` with native arithmetic, conditions and FOR loops (`typed.rs`, v2.32.0)
+- [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
+- [ ] Native builds of real RapidQ programs: 67 of the 116 corpus programs that compile to bytecode don't `cargo check` natively (zero-argument DECLAREd functions used without parentheses, elements of undeclared arrays, SUB names as values, package names from file names) — `scratch/corpus_native.sh`
+- [ ] Type suffixes (`n%` SHORT, `n&` LONG, `n!` SINGLE, `n#` DOUBLE, `n?` BYTE) as declared types
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
 - [ ] Fuzzing in CI
