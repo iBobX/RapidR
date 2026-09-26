@@ -9,6 +9,7 @@ use std::fmt::Write;
 use rapidr_ast::*;
 
 mod jumps;
+mod objects;
 
 /// Target platform for code generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,22 +26,10 @@ impl Default for AppTarget {
     }
 }
 
-/// What the Rust backend can't compile yet in `program`, if anything:
-/// object-oriented TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY
-/// SET). `rapidr build` reports it as an error.
+/// What the Rust backend can't compile yet in `program`, if anything (see
+/// `objects::unsupported`). `rapidr build` reports it as an error.
 pub fn native_gap(program: &Program) -> Option<String> {
-    program.statements.iter().find_map(|s| match s {
-        Statement::Type(t)
-            if t.extends.is_some()
-                || !t.methods.is_empty()
-                || !t.constructor.is_empty()
-                || !t.events.is_empty()
-                || t.fields.iter().any(|f| f.setter.is_some()) =>
-        {
-            Some(format!("TYPE {} uses methods, CONSTRUCTOR, EVENT, EXTENDS or PROPERTY SET", t.name))
-        }
-        _ => None,
-    })
+    objects::unsupported(program)
 }
 
 /// Generate a complete Rust `main.rs` from a parsed RapidP program.
@@ -51,7 +40,9 @@ pub fn generate(program: &Program) -> String {
 /// Generate code for a specific target platform.
 pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let mut gen = RustCodegen::new(target);
-    let (program, promoted) = promote_ref_params(program);
+    // Object-oriented TYPEs → plain routines over the object registry.
+    let program = objects::lower(program);
+    let (program, promoted) = promote_ref_params(&program);
     gen.promoted_byref = promoted;
     gen.emit_program(&program);
     gen.output
@@ -2525,6 +2516,30 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__data_add" => Some(format!("{{ data::add(&[{}]); v_null() }}", args.join(", "))),
         "__data_label" => Some(format!("{{ data::label(&{a0}, &{a1}); v_null() }}")),
         "__read" => Some("data::read_compiled()".to_string()),
+        // Objects (objects.rs): instances are ids in the object registry.
+        "__null" => Some("v_null()".to_string()),
+        "__objget" => Some(format!("rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val())")),
+        "__objset" => Some(format!("{{ rp_comp_set(&({a0}).to_string_val(), &({a1}).to_string_val(), ({a2}).clone()); v_null() }}")),
+        "__objcreate" => Some(format!("{{ rp_create_component(&({a0}).to_string_val(), &({a1}).to_string_val()); v_null() }}")),
+        "__objids" => Some(format!(
+            "{{ let (lo, hi) = (({a1}).to_i64(), ({a2}).to_i64()); let a = rp_new_array(&[(lo, hi)], v_null()); for i in lo..=hi {{ a.rp_set(&[i], v_str(&format!(\"{{}}{{i}})\", ({a0}).to_string_val()))); }} a }}"
+        )),
+        "__objarray" => Some(format!("rp_new_array(&[(({a0}).to_i64(), ({a1}).to_i64())], ({a2}).clone())")),
+        "__objaget" => Some(format!(
+            "rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val()).rp_get(&[{}])",
+            args.iter().skip(2).map(|i| format!("({i}).to_i64()")).collect::<Vec<_>>().join(", ")
+        )),
+        "__objaset" => {
+            let (value, idx) = args.get(2..)?.split_last()?;
+            Some(format!(
+                "{{ rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val()).rp_set(&[{}], ({value}).clone()); v_null() }}",
+                idx.iter().map(|i| format!("({i}).to_i64()")).collect::<Vec<_>>().join(", ")
+            ))
+        }
+        "__objcall" => Some(format!(
+            "rp_comp_method(&({a0}).to_string_val(), &({a1}).to_string_val(), &[{}])",
+            args.iter().skip(2).map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")
+        )),
         "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
         "__restore" => Some(if args.is_empty() {
             "data::restore_compiled(None)".to_string()

@@ -862,6 +862,9 @@ pub fn rp_bind_event_5(name: &str, event: &str, handler: fn(Value, Value, Value,
 
 /// Fire an event on a component (called by GUI backend).
 pub fn rp_fire_event(name: &str, event: &str) {
+    // An event without arguments gives a handler that takes one the firing
+    // component as `Sender` (RapidQ: SUB Button1Click (Sender AS QBUTTON)),
+    // as the bytecode interpreter does.
     let handler = EVENT_HANDLERS.with(|h| {
         h.borrow()
             .get(&(name.to_lowercase(), event.to_lowercase()))
@@ -870,11 +873,11 @@ pub fn rp_fire_event(name: &str, event: &str) {
     if let Some(handler) = handler {
         match handler {
             EventHandler::Arity0(f) => f(),
-            EventHandler::Arity1(f) => f(v_null()),
-            EventHandler::Arity2(f) => f(v_null(), v_null()),
-            EventHandler::Arity3(f) => f(v_null(), v_null(), v_null()),
-            EventHandler::Arity4(f) => f(v_null(), v_null(), v_null(), v_null()),
-            EventHandler::Arity5(f) => f(v_null(), v_null(), v_null(), v_null(), v_null()),
+            EventHandler::Arity1(f) => f(v_str(name)),
+            EventHandler::Arity2(f) => f(v_str(name), v_null()),
+            EventHandler::Arity3(f) => f(v_str(name), v_null(), v_null()),
+            EventHandler::Arity4(f) => f(v_str(name), v_null(), v_null(), v_null()),
+            EventHandler::Arity5(f) => f(v_str(name), v_null(), v_null(), v_null(), v_null()),
             // Bytecode handlers get the firing component as `Sender`
             // (RapidQ: SUB Button1Click (Sender AS QBUTTON)).
             EventHandler::Indirect(id) => dispatch_indirect(id, &[v_str(name)]),

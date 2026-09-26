@@ -195,10 +195,28 @@ fn ensure_app() {
 /// open window (forms and dialogs) as `<prefix>-<n>.bmp` after
 /// `RAPIDR_CAPTURE_DELAY` seconds (default 1.5), then exits — a way to
 /// check desktop rendering without screen-recording permission.
+/// `RAPIDR_TEST_EVENTS` lists `component.event`s to fire just before, and
+/// `RAPIDR_TEST_DUMP` `component.property`s to print after them.
 fn install_capture_hook() {
     let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") else { return };
     let delay = std::env::var("RAPIDR_CAPTURE_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(1.5);
+    // `RAPIDR_TEST_EVENTS=b1.onclick,b2.onclick`: fire these first, as if
+    // the user had clicked (tests of EVENT handlers and bindings).
+    let events = std::env::var("RAPIDR_TEST_EVENTS").unwrap_or_default();
     app::add_timeout3(delay, move |_| {
+        for e in events.split(',').filter(|e| !e.trim().is_empty()) {
+            if let Some((comp, event)) = e.trim().rsplit_once('.') {
+                crate::object::rp_fire_event(comp, event);
+            }
+        }
+        app::redraw();
+        let _ = app::wait_for(0.2);
+        // `RAPIDR_TEST_DUMP=b1.caption,b2.caption`: print these properties.
+        for p in std::env::var("RAPIDR_TEST_DUMP").unwrap_or_default().split(',').filter(|p| !p.trim().is_empty()) {
+            if let Some((comp, prop)) = p.trim().rsplit_once('.') {
+                println!("{}={}", p.trim(), rp_comp_get(comp, prop).to_string_val());
+            }
+        }
         let mut n = 0;
         for mut win in app::windows().unwrap_or_default() {
             if !win.shown() {

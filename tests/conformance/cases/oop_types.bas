@@ -1,4 +1,4 @@
-' xfail: codegen — native builds don't compile OOP TYPEs yet (a clear compile error; in progress)
+' Object-oriented TYPEs: same results natively (codegen objects.rs) and in the interpreter.
 ' TYPE with fields (incl. an array field), SUB/FUNCTION methods using This and bare field
 ' names, a CONSTRUCTOR, inheritance (base constructor first) and instances passed to SUBs.
 TYPE TCounter

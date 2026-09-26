@@ -1,4 +1,4 @@
-' xfail: codegen — native builds don't compile OOP TYPEs yet (a clear compile error; in progress)
+' Object-oriented TYPEs: same results natively (codegen objects.rs) and in the interpreter.
 ' RapidQ manual ch. 10: PROPERTY SET setters, the type name standing for the
 ' instance (TCounter.Focus, WITH TCounter), EXTENDS QObject, RESULT, obj.Func.
 TYPE TCounter EXTENDS QObject

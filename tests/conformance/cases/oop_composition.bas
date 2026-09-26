@@ -1,4 +1,4 @@
-' xfail: codegen — native builds don't compile OOP TYPEs yet (a clear compile error; in progress)
+' Object-oriented TYPEs: same results natively (codegen objects.rs) and in the interpreter.
 ' Composition (manual 10.5): a TYPE field of TYPE type is its own object per
 ' instance; nested stores, method calls and FUNCTION methods through it.
 TYPE TEngine EXTENDS QObject

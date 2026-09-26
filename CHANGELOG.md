@@ -7,6 +7,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.25.0] — 2026-09-26
+
+### Added
+- **Native builds compile object-oriented TYPEs** (RapidQ manual ch. 10) as
+  real Rust. `crates/rapidr-codegen-rust/src/objects.rs` lowers objects to
+  plain routines with the interpreter's model, so both backends behave the
+  same:
+  - methods (SUB/FUNCTION) using `This`, `Me`, the type's own name, bare
+    field names and a leading `.`;
+  - CONSTRUCTORs (base TYPE first) and inheritance (`EXTENDS`);
+  - `PROPERTY SET`, `RESULT`, and `obj.Func` without parentheses;
+  - composition (fields of TYPE or component type are their own objects);
+  - EVENT blocks bound to each instance (`EVENT OnClick`,
+    `EVENT Panel.OnClick`);
+  - `CREATE x AS TType … END CREATE`, array fields of objects, and objects
+    passed to and declared in SUBs.
+
+  This works on the desktop and the web target. Every conformance case now
+  passes on both backends: 76 of 76, none marked as a known gap.
+- **SUB parameters typed as components** (`Sender AS QBUTTON`) work in
+  native builds: `Sender.Caption = …` used to fail to compile.
+- **Desktop test hooks:** `RAPIDR_TEST_EVENTS=b1.onclick,…` fires events
+  and `RAPIDR_TEST_DUMP=b1.caption,…` prints properties, together with
+  `RAPIDR_CAPTURE`. New test `tests/native_gui_events.mjs` builds an OOP
+  GUI program natively and checks each instance's clicks and Sender.
+
+### Fixed
+- **Compiled event handlers receive the Sender.** A handler with a
+  parameter now gets the firing component, as in the interpreter; it used
+  to get Null. This applies to both runtimes.
+- **Interpreter: a bare method call inside `CREATE x AS TType`** (e.g.
+  `Describe`) calls the TYPE's method. It went to the component and
+  warned.
+- **Tests:** new conformance case `oop_create_arrays`; `oop_types`,
+  `oop_property_set` and `oop_composition` pass natively.
+
 ## [2.24.1] — 2026-09-26
 
 ### Changed
