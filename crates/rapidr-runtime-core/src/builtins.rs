@@ -103,13 +103,11 @@ pub fn rp_instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
 }
 
 pub fn rp_space(n: &Value) -> Value {
-    Value::String(" ".repeat(n.to_i64().max(0) as usize))
+    rapidr_value::strings::space(n)
 }
 
 pub fn rp_string_func(n: &Value, ch: &Value) -> Value {
-    let c = ch.to_string_val();
-    let ch = c.chars().next().unwrap_or(' ');
-    Value::String(std::iter::repeat(ch).take(n.to_i64().max(0) as usize).collect())
+    rapidr_value::strings::string_of(n, ch)
 }
 
 pub fn rp_chr(n: &Value) -> Value {

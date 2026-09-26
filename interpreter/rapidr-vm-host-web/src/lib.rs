@@ -645,7 +645,7 @@ impl DebugSession {
         }
 
         let mut globals_parts = Vec::new();
-        for (name, val) in &vm.globals {
+        for (name, val) in vm.global_values(module) {
             if !name.starts_with("__") {
                 globals_parts.push(format!("\"{}\":{}", name, serialize_val(val)));
             }

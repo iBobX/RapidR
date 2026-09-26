@@ -329,7 +329,8 @@ impl Value {
     pub fn int_div(&self, rhs: &Value) -> Value {
         let a = self.to_i64();
         let b = rhs.to_i64();
-        if b == 0 { Value::Integer(0) } else { Value::Integer(a / b) }
+        // Wrapping: `MIN \ -1` must not crash the program.
+        if b == 0 { Value::Integer(0) } else { Value::Integer(a.wrapping_div(b)) }
     }
 
     /// BASIC exponentiation (a ^ b)
@@ -485,13 +486,25 @@ impl Add for &Value {
     type Output = Value;
     fn add(self, rhs: Self) -> Value {
         match (self, rhs) {
-            (Value::String(a), Value::String(b)) => Value::String(format!("{a}{b}")),
-            (Value::String(a), _) => Value::String(format!("{a}{}", rhs.to_string_val())),
-            (_, Value::String(b)) => Value::String(format!("{}{b}", self.to_string_val())),
+            (Value::String(a), Value::String(b)) => joined(a, b),
+            (Value::String(a), _) => joined(a, &rhs.to_string_val()),
+            (_, Value::String(b)) => joined(&self.to_string_val(), b),
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_add(*b)),
             _ => Value::Double(self.to_f64() + rhs.to_f64()),
         }
     }
+}
+
+/// `a + b` for strings, within [`strings::MAX_STRING_LEN`].
+fn joined(a: &str, b: &str) -> Value {
+    // By bytes, so the check costs nothing (a character is 1–4 bytes).
+    if a.len() + b.len() > strings::MAX_STRING_LEN * 4 {
+        runtime_error(&format!("string too long: strings are limited to {} characters", strings::MAX_STRING_LEN));
+    }
+    let mut out = String::with_capacity(a.len() + b.len());
+    out.push_str(a);
+    out.push_str(b);
+    Value::String(out)
 }
 
 impl Sub for &Value {
@@ -530,7 +543,7 @@ impl Rem for &Value {
     fn rem(self, rhs: Self) -> Value {
         match (self, rhs) {
             (Value::Integer(a), Value::Integer(b)) => {
-                if *b == 0 { Value::Integer(0) } else { Value::Integer(a % b) }
+                if *b == 0 { Value::Integer(0) } else { Value::Integer(a.wrapping_rem(*b)) }
             }
             _ => {
                 let b = rhs.to_f64();
@@ -544,7 +557,7 @@ impl Neg for &Value {
     type Output = Value;
     fn neg(self) -> Value {
         match self {
-            Value::Integer(n) => Value::Integer(-n),
+            Value::Integer(n) => Value::Integer(n.wrapping_neg()),
             _ => Value::Double(-self.to_f64()),
         }
     }
@@ -644,18 +657,19 @@ pub fn rp_redim(old: &Value, bounds: &[(i64, i64)], fill: Value) -> Value {
 /// `a INV m` (RapidQ): the inverse of `a` modulo `m`, e.g. 3 INV 26 = 9;
 /// 0 when there is none.
 pub fn rp_inv(a: &Value, m: &Value) -> Value {
-    let (a, m) = (a.to_i64(), m.to_i64());
+    // In 128 bits so no step overflows (`INV(MIN, -1)` must not crash).
+    let (a, m) = (a.to_i64() as i128, m.to_i64() as i128);
     if m == 0 {
         return Value::Integer(0);
     }
-    let (mut r0, mut r1) = (a.rem_euclid(m), m.abs());
-    let (mut t0, mut t1) = (1i64, 0i64);
+    let (mut r0, mut r1) = (a.rem_euclid(m.abs()), m.abs());
+    let (mut t0, mut t1) = (1i128, 0i128);
     while r1 != 0 {
         let q = r0 / r1;
         (r0, r1) = (r1, r0 - q * r1);
         (t0, t1) = (t1, t0 - q * t1);
     }
-    Value::Integer(if r0 == 1 { t0.rem_euclid(m.abs()) } else { 0 })
+    Value::Integer(if r0 == 1 { t0.rem_euclid(m.abs()) as i64 } else { 0 })
 }
 
 #[cfg(test)]

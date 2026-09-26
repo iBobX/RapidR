@@ -94,6 +94,35 @@ pub fn replace_all(s: &Value, find: &Value, replacement: &Value) -> Value {
     Value::String(s.to_string_val().replace(&find, &replacement.to_string_val()))
 }
 
+/// Longest string a program can build (characters): SPACE$(1E12) or
+/// doubling a string in a loop stops with a run-time error instead of
+/// exhausting memory.
+pub const MAX_STRING_LEN: usize = 1 << 28;
+
+/// A repetition count checked against [`MAX_STRING_LEN`].
+fn repeat_count(n: &Value, what: &str) -> usize {
+    let n = n.to_i64().max(0) as u64;
+    if n > MAX_STRING_LEN as u64 {
+        crate::runtime_error(&format!("{what}({n}): strings are limited to {MAX_STRING_LEN} characters"));
+    }
+    n as usize
+}
+
+/// SPACE$(n).
+pub fn space(n: &Value) -> Value {
+    Value::String(" ".repeat(repeat_count(n, "SPACE$")))
+}
+
+/// STRING$(n, c): `c` is a character code (`STRING$(3, 65)` = "AAA") or a
+/// string whose first character repeats.
+pub fn string_of(n: &Value, c: &Value) -> Value {
+    let ch = match c {
+        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => char::from_u32(c.to_i64().clamp(0, 0x10FFFF) as u32).unwrap_or('?'),
+        other => other.to_string_val().chars().next().unwrap_or(' '),
+    };
+    Value::String(std::iter::repeat_n(ch, repeat_count(n, "STRING$")).collect())
+}
+
 /// ASC(s): character code of the first character (0 for an empty string),
 /// the inverse of CHR$ — `ASC("é")` is 233, not a UTF-8 byte.
 pub fn asc(s: &Value) -> Value {
@@ -106,6 +135,14 @@ mod tests {
 
     fn s(x: &str) -> Value {
         v_str(x)
+    }
+
+    #[test]
+    fn space_and_string_of() {
+        assert_eq!(space(&v_int(3)).to_string_val(), "   ");
+        assert_eq!(space(&v_int(-2)).to_string_val(), "");
+        assert_eq!(string_of(&v_int(3), &v_int(65)).to_string_val(), "AAA");
+        assert_eq!(string_of(&v_int(2), &s("xyz")).to_string_val(), "xx");
     }
 
     #[test]
