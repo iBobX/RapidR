@@ -19,7 +19,7 @@ import { createRapidrEditor } from "./monaco-host.js";
 import { AnsiScreen } from "./ansi_screen.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.31.0";
+export const RAPIDR_IDE_VERSION = "2.32.0";
 
 const _editors = new Map();
 

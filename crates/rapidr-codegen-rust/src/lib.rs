@@ -9,6 +9,7 @@ use std::fmt::Write;
 use rapidr_ast::*;
 
 mod jumps;
+mod typed;
 
 /// Target platform for code generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,6 +156,8 @@ struct RustCodegen {
     /// Names the current SUB/FUNCTION declares itself (parameters, DIM):
     /// they shadow module-level variables of the same name.
     shadowed: HashSet<String>,
+    /// The current routine's locals kept as Rust numbers (`typed`).
+    typed_locals: HashMap<String, typed::Kind>,
     /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
     create_declared_names: HashSet<String>,
     /// Set while a routine with GOTO/GOSUB is emitted as a state machine.
@@ -192,6 +195,7 @@ impl RustCodegen {
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
             shadowed: HashSet::new(),
+            typed_locals: HashMap::new(),
             create_declared_names: HashSet::new(),
             state_machine: None,
             current_routine_name: None,
@@ -649,6 +653,10 @@ impl RustCodegen {
                     let default = default_value_for_type(&d.type_name);
                     self.write_indent();
                     let _ = writeln!(self.output, "gs(\"{name}\", {default});");
+                } else if let Some(kind) = self.typed_local(&decl.name) {
+                    // Declared at the routine's start; DIM resets it.
+                    self.write_indent();
+                    let _ = writeln!(self.output, "{name} = {};", kind.zero());
                 } else {
                     let default = default_value_for_type(&d.type_name);
                     self.declare_local(&name, &default);
@@ -733,6 +741,16 @@ impl RustCodegen {
                     let _ = writeln!(self.output, "_{fname_lc} = {val};");
                     return;
                 }
+            }
+        }
+
+        // A typed local (`typed`): converted, as native arithmetic when it can be.
+        if let Expression::Identifier(id) = &a.target {
+            if let Some(kind) = self.typed_local(&id.name).filter(|_| self.create_stack.is_empty()) {
+                let value = self.typed_store(kind, &a.value);
+                self.write_indent();
+                let _ = writeln!(self.output, "{} = {value};", to_snake(&strip_type_suffix(&id.name)));
+                return;
             }
         }
 
@@ -1068,9 +1086,9 @@ impl RustCodegen {
     }
 
     fn emit_if(&mut self, i: &IfStatement) {
-        let cond = self.expr_to_string(&i.condition);
+        let cond = self.cond_to_string(&i.condition);
         self.write_indent();
-        let _ = writeln!(self.output, "if ({cond}).to_bool() {{");
+        let _ = writeln!(self.output, "if {cond} {{");
         self.indent += 1;
         for s in &i.then_body {
             self.emit_statement(s);
@@ -1078,9 +1096,9 @@ impl RustCodegen {
         self.indent -= 1;
 
         for branch in &i.elseif_branches {
-            let cond = self.expr_to_string(&branch.condition);
+            let cond = self.cond_to_string(&branch.condition);
             self.write_indent();
-            let _ = writeln!(self.output, "}} else if ({cond}).to_bool() {{");
+            let _ = writeln!(self.output, "}} else if {cond} {{");
             self.indent += 1;
             for s in &branch.body {
                 self.emit_statement(s);
@@ -1100,6 +1118,9 @@ impl RustCodegen {
     }
 
     fn emit_for(&mut self, f: &ForStatement) {
+        if let Some(kind) = self.typed_local(&f.variable) {
+            return self.emit_typed_for(f, kind);
+        }
         let var = to_snake(&f.variable);
         let start = self.owned_expr(&f.start);
         let end = self.owned_expr(&f.end);
@@ -1160,10 +1181,10 @@ impl RustCodegen {
     }
 
     fn emit_while(&mut self, w: &WhileStatement) {
-        let cond = self.expr_to_string(&w.condition);
+        let cond = self.cond_to_string(&w.condition);
         let lbl = self.open_loop("WHILE");
         self.write_indent();
-        let _ = writeln!(self.output, "{lbl}: while ({cond}).to_bool() {{");
+        let _ = writeln!(self.output, "{lbl}: while {cond} {{");
         self.indent += 1;
         for s in &w.body {
             self.emit_statement(s);
@@ -1176,17 +1197,13 @@ impl RustCodegen {
     fn emit_do_loop(&mut self, d: &DoLoopStatement) {
         let lbl = self.open_loop("DO");
         if d.pre_condition {
-            let cond = d
-                .condition
-                .as_ref()
-                .map(|e| self.expr_to_string(e))
-                .unwrap_or_else(|| "v_bool(true)".to_string());
+            let cond = d.condition.as_ref().map(|e| self.cond_to_string(e)).unwrap_or_else(|| "true".to_string());
             if d.is_until {
                 self.write_indent();
-                let _ = writeln!(self.output, "{lbl}: while !({cond}).to_bool() {{");
+                let _ = writeln!(self.output, "{lbl}: while !{cond} {{");
             } else {
                 self.write_indent();
-                let _ = writeln!(self.output, "{lbl}: while ({cond}).to_bool() {{");
+                let _ = writeln!(self.output, "{lbl}: while {cond} {{");
             }
             self.indent += 1;
             for s in &d.body {
@@ -1203,13 +1220,13 @@ impl RustCodegen {
                 self.emit_statement(s);
             }
             if let Some(cond_expr) = &d.condition {
-                let cond = self.expr_to_string(cond_expr);
+                let cond = self.cond_to_string(cond_expr);
                 if d.is_until {
                     self.write_indent();
-                    let _ = writeln!(self.output, "if ({cond}).to_bool() {{ break; }}");
+                    let _ = writeln!(self.output, "if {cond} {{ break; }}");
                 } else {
                     self.write_indent();
-                    let _ = writeln!(self.output, "if !({cond}).to_bool() {{ break; }}");
+                    let _ = writeln!(self.output, "if !{cond} {{ break; }}");
                 }
             }
             self.indent -= 1;
@@ -1286,6 +1303,7 @@ impl RustCodegen {
         self.shadowed = shadowing_names(&s.params, &s.body);
         let byref = self.byref_prologue(&s.params, false);
         let body = self.prepare_statics(&s.name, &s.body);
+        self.typed_locals = typed::analyze(&s.params, &body, None, &|n| self.defined_functions.contains(n));
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&body, &s.params);
 
@@ -1297,6 +1315,7 @@ impl RustCodegen {
         self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
         self.shadowed.clear();
+        self.typed_locals.clear();
         self.indent -= 1;
         self.line("}");
     }
@@ -1455,6 +1474,7 @@ impl RustCodegen {
         self.shadowed = shadowing_names(&f.params, &f.body);
         let byref = self.byref_prologue(&f.params, true);
         let body = self.prepare_statics(&f.name, &f.body);
+        self.typed_locals = typed::analyze(&f.params, &body, Some(&f.name), &|n| self.defined_functions.contains(n));
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&body, &f.params);
 
@@ -1467,6 +1487,7 @@ impl RustCodegen {
         self.current_function = None;
         self.in_sub_or_function = false;
         self.shadowed.clear();
+        self.typed_locals.clear();
 
         self.write_indent();
         let _ = writeln!(self.output, "_{name}");
@@ -1500,6 +1521,15 @@ impl RustCodegen {
             .cloned()
             .collect();
         locals.sort();
+        // Typed locals (`typed`) are DIMmed in this routine: always declared,
+        // as Rust numbers, even when their name is also a builtin's (`pi`).
+        let mut typed: Vec<(String, typed::Kind)> = self.typed_locals.iter().map(|(n, k)| (n.clone(), *k)).collect();
+        typed.sort();
+        for (name, kind) in typed {
+            self.write_indent();
+            let _ = writeln!(self.output, "let mut {}: {} = {};", to_snake(&name), kind.rust_type(), kind.zero());
+        }
+        locals.retain(|l| self.typed_local(l).is_none());
         for local in &locals {
             let snake = to_snake(local);
             self.write_indent();
@@ -1974,7 +2004,7 @@ impl RustCodegen {
         if matches!(expr, Expression::Identifier(_)) {
             if let Expression::Identifier(id) = expr {
                 let stripped = strip_type_suffix(&id.name);
-                if self.is_global_scalar(&stripped) || self.is_component_var(&stripped) {
+                if self.is_global_scalar(&stripped) || self.is_component_var(&stripped) || self.typed_local(&stripped).is_some() {
                     return s; // gv() and v_str() already return owned values
                 }
             }
@@ -1994,6 +2024,10 @@ impl RustCodegen {
                     }
                 }
             }
+        }
+        // Typed locals and native arithmetic on them (`typed`).
+        if let Some(boxed) = self.boxed_typed(expr) {
+            return boxed;
         }
         match expr {
             Expression::Literal(lit) => match &lit.value {

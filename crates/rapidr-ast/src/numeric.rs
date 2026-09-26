@@ -7,10 +7,12 @@
 //! stores into typed TYPE fields itself).
 //!
 //! Converted: assignments to typed variables and array elements, `INPUT`
-//! into them, BYVAL typed parameters on entry, and a typed FUNCTION's
-//! result (`f = …`, `Result = …`, `RETURN …`). A local declaration (or
-//! parameter) of another type shadows a typed global of the same name.
-//! Not (yet): FOR loop counters' own increments, type suffixes (`n%`).
+//! into them, a FOR counter's start value, BYVAL typed parameters on entry,
+//! and a typed FUNCTION's result (`f = …`, `Result = …`, `RETURN …`). A
+//! local declaration (or parameter) of another type shadows a typed global
+//! of the same name. Not converted: a FOR counter's own increments (an
+//! integer counter with an integer STEP stays an integer), type suffixes
+//! (`n%`).
 
 use std::collections::HashMap;
 
@@ -167,7 +169,16 @@ impl Pass<'_> {
                 }
                 self.body(&mut i.else_body);
             }
-            Statement::For(f) => self.body(&mut f.body),
+            Statement::For(f) => {
+                // The start value is a store into the counter; its own
+                // increments aren't converted (as in QBasic's FOR).
+                if let Slot::Scalar(conv) = self.lookup(&f.variable) {
+                    if self.in_create == 0 {
+                        f.start = convert_at(f.span, conv, f.start.clone());
+                    }
+                }
+                self.body(&mut f.body)
+            }
             Statement::While(w) => self.body(&mut w.body),
             Statement::DoLoop(d) => self.body(&mut d.body),
             Statement::SelectCase(c) => {

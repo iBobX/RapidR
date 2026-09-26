@@ -134,6 +134,80 @@ pub fn to_double(v: &Value) -> Value {
     convert(v, NumKind::Double)
 }
 
+// ---- Native builds' typed variables (rapidr-codegen-rust `typed`) ----
+//
+// A variable native code keeps as an `i64` / `f64` works with these, which
+// match `Value`'s operators exactly (`/` and `\` by zero give 0, float
+// comparisons treat NaN as equal like `Value::cmp_ord`).
+
+/// `v` stored into an integer variable of `kind`, as its number.
+#[inline]
+pub fn int_of(v: &Value, kind: NumKind) -> i64 {
+    match v {
+        Value::Integer(n) => kind.wrap(*n),
+        Value::Array(_) | Value::Object(_) => 0,
+        _ => kind.wrap(round_to_int(v.to_f64())),
+    }
+}
+
+/// `v` stored into a SINGLE/DOUBLE variable, as its number.
+#[inline]
+pub fn double_of(v: &Value) -> f64 {
+    v.to_f64()
+}
+
+/// `a / b` (always floating point; 0 when `b` is 0).
+#[inline]
+pub fn fdiv(a: f64, b: f64) -> f64 {
+    if b == 0.0 {
+        0.0
+    } else {
+        a / b
+    }
+}
+
+/// `a \ b` on integers (0 when `b` is 0; wrapping).
+#[inline]
+pub fn idiv(a: i64, b: i64) -> i64 {
+    if b == 0 {
+        0
+    } else {
+        a.wrapping_div(b)
+    }
+}
+
+/// `a MOD b` on integers (0 when `b` is 0; wrapping).
+#[inline]
+pub fn imod(a: i64, b: i64) -> i64 {
+    if b == 0 {
+        0
+    } else {
+        a.wrapping_rem(b)
+    }
+}
+
+/// `a MOD b` on floats (0 when `b` is 0).
+#[inline]
+pub fn fmod(a: f64, b: f64) -> f64 {
+    if b == 0.0 {
+        0.0
+    } else {
+        a % b
+    }
+}
+
+/// `a <= b` as `Value` compares numbers (NaN compares equal).
+#[inline]
+pub fn le(a: f64, b: f64) -> bool {
+    !matches!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater))
+}
+
+/// `a >= b` as `Value` compares numbers (NaN compares equal).
+#[inline]
+pub fn ge(a: f64, b: f64) -> bool {
+    !matches!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,5 +253,26 @@ mod tests {
         }
         assert_eq!(NumKind::of_type("Integer"), Some(NumKind::Long));
         assert_eq!(NumKind::of_type("STRING"), None);
+    }
+
+    #[test]
+    fn typed_helpers_match_value_operators() {
+        let nums = [0.0, 1.0, -1.0, 2.5, -7.0, 7.0, 1e300, f64::NAN, 3.0];
+        for &a in &nums {
+            for &b in &nums {
+                let (va, vb) = (v_dbl(a), v_dbl(b));
+                let same = |x: f64, y: Value| (x.is_nan() && y.to_f64().is_nan()) || x == y.to_f64();
+                assert!(same(fdiv(a, b), &va / &vb), "{a} / {b}");
+                assert!(same(fmod(a, b), &va % &vb), "{a} mod {b}");
+                assert_eq!(le(a, b), va.rp_le(&vb).to_bool(), "{a} <= {b}");
+                assert_eq!(ge(a, b), va.rp_ge(&vb).to_bool(), "{a} >= {b}");
+            }
+        }
+        for (a, b) in [(7, 2), (-7, 2), (7, 0), (i64::MIN, -1), (0, 5)] {
+            assert_eq!(idiv(a, b), v_int(a).int_div(&v_int(b)).to_i64());
+            assert_eq!(imod(a, b), (&v_int(a) % &v_int(b)).to_i64());
+        }
+        assert_eq!(int_of(&v_dbl(2.5), NumKind::Long), 2);
+        assert_eq!(int_of(&v_str("300"), NumKind::Byte), 44);
     }
 }
