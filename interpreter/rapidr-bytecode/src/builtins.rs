@@ -52,7 +52,7 @@ pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__dat
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
-pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "date", "pi", "time", "timer"];
+pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "pi", "rnd", "time", "timer"];
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.

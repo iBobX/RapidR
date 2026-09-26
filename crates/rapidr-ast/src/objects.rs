@@ -7,7 +7,7 @@
 //!   reference, each field in a slot fixed at compile time — the TYPE's
 //!   ancestors' fields first, so a base TYPE's methods work on derived
 //!   instances. `DIM c AS TCounter` → `c = __newobject("c", "TCounter",
-//!   "count,increment,…")` then `TCounter__init c`. Field access is
+//!   "count,increment,…")` then `TCounter___init c`. Field access is
 //!   `__getfield(obj, slot)` / `__setfield(obj, slot, v)`: an index, never a
 //!   lookup by name (native builds compile it to a direct vector access, the
 //!   interpreter to one opcode).
@@ -17,7 +17,10 @@
 //!   name and a leading `.` stand for the instance, bare field names are its
 //!   fields, and assigning a field with a PROPERTY SET calls the setter
 //!   (except inside the setter itself).
-//! * **`Type__init(This)`** creates the component a TYPE EXTENDS (whose
+//! * The routines this pass generates (`Type___init`, `Type___ctor`,
+//!   `Type___ev<i>`) have three underscores, so a method named `Init` (the
+//!   routine `Type__Init`) never replaces them.
+//! * **`Type___init(This)`** creates the component a TYPE EXTENDS (whose
 //!   properties stay in the runtime's component registry, under the
 //!   instance's id), sets every field, gives fields of TYPE or component
 //!   type their own object (`<id>.<field>`), binds the EVENT handlers to the
@@ -43,7 +46,7 @@ struct TypeDef {
     /// Method name (lowercase) → (name as written, is FUNCTION).
     methods: HashMap<String, (String, bool)>,
     has_ctor: bool,
-    /// EVENT blocks: (event, parameter count); handler `Type__ev<i>`.
+    /// EVENT blocks: (event, parameter count); handler `Type___ev<i>`.
     events: Vec<(String, usize)>,
 }
 
@@ -169,6 +172,12 @@ fn object_kind(types: &Types, type_name: &str) -> Option<String> {
 
 /// RapidQ's global objects: never a member of a TYPE's component.
 const GLOBAL_OBJECTS: &[&str] = &["application", "screen", "clipboard", "printer", "mouse"];
+
+/// Whether `name` is one of RapidQ's global objects (`Application`,
+/// `Screen`, `Clipboard`, `Printer`, `Mouse`).
+pub fn is_global_object(name: &str) -> bool {
+    GLOBAL_OBJECTS.contains(&key(name).as_str())
+}
 
 fn collect_types(program: &Program) -> Types {
     let map = program
@@ -761,7 +770,7 @@ impl Lowering<'_> {
         let names = self.types.field_names(t);
         vec![
             assign_at(span, target.clone(), call_at(span, "__newobject", vec![id, text_at(span, t), text_at(span, &names)])),
-            call_stmt_at(span, &format!("{t}__init"), vec![target]),
+            call_stmt_at(span, &format!("{t}___init"), vec![target]),
         ]
     }
 
@@ -815,7 +824,7 @@ impl Lowering<'_> {
                             }
                         }
                         out.push(assign_at(span, ident_at(span, &v.name), call_at(span, "__objectarray", args)));
-                        out.extend(self.init_elements(span, &v.name, v.dimensions.len(), &format!("{t}__init")));
+                        out.extend(self.init_elements(span, &v.name, v.dimensions.len(), &format!("{t}___init")));
                     } else if !d.is_static {
                         out.extend(self.new_instance(span, ident_at(span, &v.name), text_at(span, &v.name), t));
                     }
@@ -994,7 +1003,7 @@ impl Lowering<'_> {
         out
     }
 
-    /// `SUB Type__init (This)`: see the module docs.
+    /// `SUB Type___init (This)`: see the module docs.
     fn init_routine(&mut self, t: &str, span: TextSpan) -> SubroutineStatement {
         let mut body = Vec::new();
         let this = || ident_at(span, "This");
@@ -1024,7 +1033,7 @@ impl Lowering<'_> {
                     Some(sub) => {
                         let names = self.types.field_names(&sub);
                         body.push(set(call_at(span, "__newobject", vec![concat_at(span, this(), &format!(".{}", f.name)), text_at(span, &sub), text_at(span, &names)])));
-                        body.push(call_stmt_at(span, &format!("{sub}__init"), vec![get()]));
+                        body.push(call_stmt_at(span, &format!("{sub}___init"), vec![get()]));
                     }
                     // A component field: its own component `<id>.<field>`.
                     None => {
@@ -1050,7 +1059,7 @@ impl Lowering<'_> {
                                 is_redim: false,
                             }));
                             body.push(assign_at(span, ident_at(span, &local), get()));
-                            body.extend(self.init_elements(span, &local, 1, &format!("{sub}__init")));
+                            body.extend(self.init_elements(span, &local, 1, &format!("{sub}___init")));
                         }
                         None => body.push(set(call_at(span, "__component_array", vec![text_at(span, &kind), id, lower, upper.clone()]))),
                     }
@@ -1067,16 +1076,16 @@ impl Lowering<'_> {
                     Some((field, ev)) => (concat_at(span, this(), &format!(".{field}")), ev.to_string()),
                     None => (this(), event.clone()),
                 };
-                let ptr = call_at(span, "CODEPTR", vec![ident_at(span, &format!("{def}__ev{i}"))]);
+                let ptr = call_at(span, "CODEPTR", vec![ident_at(span, &format!("{def}___ev{i}"))]);
                 body.push(call_stmt_at(span, "__bind_event_this", vec![target, text_at(span, &event_name), ptr, this()]));
             }
         }
         for (def, _, has_ctor) in &chain {
             if *has_ctor {
-                body.push(call_stmt_at(span, &format!("{def}__ctor"), vec![this()]));
+                body.push(call_stmt_at(span, &format!("{def}___ctor"), vec![this()]));
             }
         }
-        SubroutineStatement { span, name: format!("{t}__init"), params: vec![this_param()], body }
+        SubroutineStatement { span, name: format!("{t}___init"), params: vec![this_param()], body }
     }
 }
 
@@ -1216,12 +1225,12 @@ pub fn lower(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Program {
         }
         if !t.constructor.is_empty() {
             let body = l.routine(&[], &t.constructor, Some(&tname), None);
-            out.push(Statement::Subroutine(SubroutineStatement { span: t.span, name: format!("{tname}__ctor"), params: vec![this_param()], body }));
+            out.push(Statement::Subroutine(SubroutineStatement { span: t.span, name: format!("{tname}___ctor"), params: vec![this_param()], body }));
         }
         for (i, e) in t.events.iter().enumerate() {
             let body = l.routine(&e.params, &e.body, Some(&tname), None);
             let params = std::iter::once(this_param()).chain(e.params.iter().cloned()).collect();
-            out.push(Statement::Subroutine(SubroutineStatement { span: e.span, name: format!("{tname}__ev{i}"), params, body }));
+            out.push(Statement::Subroutine(SubroutineStatement { span: e.span, name: format!("{tname}___ev{i}"), params, body }));
         }
         let init = l.init_routine(&tname, t.span);
         out.push(Statement::Subroutine(init));
