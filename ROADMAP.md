@@ -146,7 +146,7 @@ Next up, in order:
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
-- [ ] **Next:** the Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, object arrays) — today a clear compile error
+- [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)
 - [ ] Consider generating Rust from a shared, typed IR (one front end for both backends) so they can't drift
 
 - [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
@@ -163,7 +163,7 @@ Next up, in order:
 - [x] Codegen: state-machine lowering for labels/GOTO/GOSUB (jumps.rs) (v2.23.0)
 - [ ] Web codegen: `END` doesn't stop the program; labels inside SELECT CASE/WITH/CREATE bodies in native builds
 - [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
-- [ ] Codegen: OOP TYPEs (EXTENDS/methods/EVENT/CONSTRUCTOR) in the Rust backend (a clear compile error until then)
+- [x] Codegen: OOP TYPEs in the Rust backend (v2.25.0)
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
 - [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
 - [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)

@@ -1862,6 +1862,26 @@ impl Bcgen {
         if self.try_lower_pointer_call(&c.callee, &c.args, false, code)? {
             return Ok(());
         }
+        // Inside `CREATE x AS TType`, a bare method name calls that TYPE's
+        // method on x (RapidQ: `CREATE F AS TMyForm … Setup … END CREATE`).
+        if let (Some(obj), Expression::Identifier(id)) = (self.create_stack.last().cloned(), &c.callee) {
+            if !self.fn_indices.contains_key(&id.name) {
+                let method = self.global_types.get(&obj).cloned().and_then(|t| self.find_method(&t, &id.name));
+                if let Some((fi, is_func)) = method {
+                    let c_obj = self.module.add_const(Const::Str(obj));
+                    emit(code, Op::LoadConst); push_u32(code, c_obj);
+                    for a in &c.args {
+                        self.lower_arg(a, true, code)?;
+                    }
+                    emit(code, if is_func { Op::CallFunc } else { Op::CallSub });
+                    push_u32(code, fi); code.push(c.args.len() as u8 + 1);
+                    if is_func {
+                        emit(code, Op::Pop);
+                    }
+                    return Ok(());
+                }
+            }
+        }
         // Push args.
         let user_routine = matches!(&c.callee, Expression::Identifier(id) if self.fn_indices.contains_key(&id.name));
         for a in &c.args {
