@@ -27,6 +27,8 @@
 //! assert_eq!(host.output, "hello\n");
 //! ```
 
+#![forbid(unsafe_code)]
+
 pub mod host;
 
 pub use host::{Host, StubHost};
@@ -109,6 +111,21 @@ pub struct Frame {
     pub ip: usize,
     /// Return addresses of active GOSUBs in this frame.
     pub gosub: Vec<usize>,
+    /// An event handler's entry frame ([`Vm::invoke_function`]): when it
+    /// returns, the VM stops and gives control back to whoever ran the
+    /// handler. The frames below it are what the handler interrupted.
+    pub stop: bool,
+    /// Suspended in a builtin or INPUT, waiting for [`Vm::resume_with`].
+    pub waiting: bool,
+}
+
+/// How a returning frame leaves the VM.
+#[derive(PartialEq, Eq)]
+enum Returned {
+    /// Back in the caller: keep executing.
+    Continue,
+    /// The entry frame or an event handler's frame finished: stop.
+    Stop,
 }
 
 /// The interpreter.
@@ -132,9 +149,6 @@ pub struct Vm<'h, H: Host + ?Sized> {
     pub breakpoints: std::collections::HashSet<u32>,
     pub step_mode: StepMode,
     pub last_line: u32,
-    /// Frames an event handler interrupted, kept while that handler is
-    /// suspended (see [`Vm::resume_with`]).
-    suspended_outer: Vec<Vec<Frame>>,
     /// Locals vectors of returned frames, reused by the next calls (no
     /// allocation per SUB/FUNCTION call).
     spare_locals: Vec<Vec<Value>>,
@@ -153,7 +167,6 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             breakpoints: Default::default(),
             step_mode: StepMode::None,
             last_line: 0,
-            suspended_outer: Vec::new(),
             spare_locals: Vec::new(),
         }
     }
@@ -199,12 +212,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
-        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new() });
+        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false });
         let _ = ret_ip;
         Ok(())
     }
 
+    /// Runs from the top frame until the program ends (`Ok` with no frames
+    /// left), an event handler's frame returns (`Ok` with its value pushed
+    /// and the interrupted frames below), or it pauses/suspends/fails.
     fn exec(&mut self, module: &Module) -> Result<(), VmError> {
+        if self.frames.is_empty() {
+            return Ok(());
+        }
         // Per-frame instruction pointer; we keep it on the Rust stack for hot loop.
         let mut ip = self.frames.last().map(|f| f.ip).unwrap_or(0);
         // The currently executing function's code, refreshed on call/ret.
@@ -215,11 +234,20 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 code = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
             };
         }
+        // After a host operation: run the events it queued (and serve a
+        // wait it started); stop here if a handler ENDed the program.
+        macro_rules! after_host {
+            ($has_result:expr) => {
+                if !self.after_host(module, ip, $has_result)? {
+                    return Ok(());
+                }
+            };
+        }
 
         loop {
             if ip >= code.len() {
                 // Implicit return for missing trailing Halt.
-                if !self.return_frame(module, false)? {
+                if self.return_frame(module, false)? == Returned::Stop {
                     return Ok(());
                 }
                 let top = self.frames.last().unwrap();
@@ -255,7 +283,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             let op = Op::from_u8(opbyte).ok_or(VmError::BadOpcode(opbyte))?;
             match op {
                 Op::Nop => {}
-                Op::Halt => return Ok(()),
+                // END (and the main program's last instruction): the whole
+                // program stops, including code an event handler interrupted.
+                Op::Halt => {
+                    self.frames.clear();
+                    self.stack.clear();
+                    return Ok(());
+                }
 
                 // ----- constants / stack -----
                 Op::LoadConst => {
@@ -370,12 +404,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     refresh!();
                 }
                 Op::Ret => {
-                    if !self.return_frame(module, false)? { return Ok(()); }
+                    if self.return_frame(module, false)? == Returned::Stop { return Ok(()); }
                     ip = self.frames.last().unwrap().ip;
                     refresh!();
                 }
                 Op::RetVal => {
-                    if !self.return_frame(module, true)? { return Ok(()); }
+                    if self.return_frame(module, true)? == Returned::Stop { return Ok(()); }
                     ip = self.frames.last().unwrap().ip;
                     refresh!();
                 }
@@ -402,10 +436,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     args.reverse();
                     let r = self.host.call_builtin(&name, &args).map_err(VmError::HostError)?;
                     if self.host.suspend_requested() {
-                        self.frames.last_mut().unwrap().ip = ip;
+                        let top = self.frames.last_mut().unwrap();
+                        top.ip = ip;
+                        top.waiting = true;
                         return Err(VmError::Suspended);
                     }
                     self.stack.push(r);
+                    after_host!(true);
                 }
 
                 // ----- components -----
@@ -416,6 +453,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?.clone();
                     let r = self.host.create_comp(&kind, &id).map_err(VmError::HostError)?;
                     self.stack.push(r);
+                    after_host!(true);
                 }
                 Op::SetProp => {
                     let id_i = read_u32(code, &mut ip)?;
@@ -424,6 +462,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
+                    after_host!(false);
                 }
                 Op::GetProp => {
                     let id_i = read_u32(code, &mut ip)?;
@@ -432,6 +471,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
+                    after_host!(true);
                 }
                 Op::CallMethod => {
                     let id_i = read_u32(code, &mut ip)?;
@@ -444,6 +484,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     args.reverse();
                     let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
                     self.stack.push(r);
+                    after_host!(true);
                 }
                 Op::GetPropDyn => {
                     let prop_i = read_u32(code, &mut ip)?;
@@ -451,6 +492,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id = self.pop_object_id()?;
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
+                    after_host!(true);
                 }
                 Op::SetPropDyn => {
                     let prop_i = read_u32(code, &mut ip)?;
@@ -458,6 +500,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id = self.pop_object_id()?;
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
+                    after_host!(false);
                 }
                 Op::GetField => {
                     let slot = read_u16(code, &mut ip)? as usize;
@@ -498,6 +541,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id = self.pop_object_id()?;
                     let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
                     self.stack.push(r);
+                    after_host!(true);
                 }
                 Op::RegisterEvent => {
                     let id_i = read_u32(code, &mut ip)?;
@@ -571,18 +615,72 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Input => {
                     let s = self.host.input().map_err(VmError::HostError)?;
                     if self.host.suspend_requested() {
-                        self.frames.last_mut().unwrap().ip = ip;
+                        let top = self.frames.last_mut().unwrap();
+                        top.ip = ip;
+                        top.waiting = true;
                         return Err(VmError::Suspended);
                     }
                     self.stack.push(v_str(&s));
+                    after_host!(true);
                 }
             }
         }
     }
 
+    /// Runs the event handlers a host operation fired, then serves a wait
+    /// it started (see [`Host::wait_started`]), replacing the operation's
+    /// result (on the stack when `has_result`) with the wait's. Returns
+    /// false if a handler ENDed the program.
+    #[inline]
+    fn after_host(&mut self, module: &Module, ip: usize, has_result: bool) -> Result<bool, VmError> {
+        let mut waiting = self.host.wait_started();
+        loop {
+            let events = self.host.take_events();
+            if !events.is_empty() && !self.run_events(module, ip, events)? {
+                return Ok(false);
+            }
+            if !waiting {
+                return Ok(true);
+            }
+            if let Some(result) = self.host.pump() {
+                if has_result {
+                    self.pop()?;
+                    self.stack.push(result);
+                }
+                // Once more for the events the last pump queued.
+                waiting = false;
+            }
+        }
+    }
+
+    /// Runs `events` one after the other, each to completion, on top of the
+    /// current frame (whose `ip` is saved first, so a handler that suspends
+    /// leaves this code ready to continue; the events after it go back to
+    /// the host). Returns false if a handler ENDed the program.
+    fn run_events(&mut self, module: &Module, ip: usize, events: Vec<(u32, Vec<Value>)>) -> Result<bool, VmError> {
+        let mut events = events.into_iter();
+        while let Some((fn_index, args)) = events.next() {
+            if let Some(top) = self.frames.last_mut() {
+                top.ip = ip;
+            }
+            if let Err(e) = self.invoke_function(module, fn_index, args) {
+                let rest: Vec<_> = events.collect();
+                if !rest.is_empty() {
+                    self.host.defer_events(rest);
+                }
+                return Err(e);
+            }
+            if self.frames.is_empty() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     /// Pop the current frame and return a value (or Null) to the caller.
-    /// Returns false if the popped frame was the entry — the VM must stop.
-    fn return_frame(&mut self, module: &Module, with_value: bool) -> Result<bool, VmError> {
+    /// [`Returned::Stop`] when the popped frame was the entry or an event
+    /// handler's — the VM must stop.
+    fn return_frame(&mut self, module: &Module, with_value: bool) -> Result<Returned, VmError> {
         let ret = if with_value { self.pop()? } else { v_null() };
         let frame = self.frames.pop().ok_or(VmError::StackUnderflow)?;
         let n_params = module
@@ -597,13 +695,19 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             spare.clear();
             self.spare_locals.push(spare);
         }
+        if frame.stop {
+            if frame.wants_value {
+                self.stack.push(ret);
+            }
+            return Ok(Returned::Stop);
+        }
         if self.frames.is_empty() {
-            return Ok(false);
+            return Ok(Returned::Stop);
         }
         if frame.wants_value {
             self.stack.push(ret);
         }
-        Ok(true)
+        Ok(Returned::Continue)
     }
 
     fn emit_output(&mut self, s: &str) -> Result<(), VmError> {
@@ -645,32 +749,48 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         self.stack.last().ok_or(VmError::StackUnderflow)
     }
 
-    /// Allow Hosts (event handlers) to invoke a function on this VM.
-    /// Pushes args in order; any return value of a CallFunc target is left on
-    /// the data stack. For event callbacks the caller typically discards it.
+    /// Runs an event handler: `fn_index` with `args`, on top of whatever
+    /// it interrupts (nothing, a program waiting for a dialog, or — from
+    /// [`Vm::after_host`] — the code whose host operation queued the event),
+    /// and returns its value. If the handler suspends or pauses, its frames
+    /// stay on top of the interrupted ones and [`Vm::resume_with`] /
+    /// [`Vm::resume`] finish it and then continue what it interrupted.
     pub fn invoke_function(&mut self, module: &Module, fn_index: u32, args: Vec<Value>) -> Result<Value, VmError> {
-        for a in args.iter() { self.stack.push(a.clone()); }
-        let argc = args.len() as u8;
-        let saved = std::mem::take(&mut self.frames);
-        self.call(module, fn_index, argc, true)?;
+        let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
+        let argc = u8::try_from(args.len()).map_err(|_| VmError::Runtime("too many event arguments".into()))?;
+        self.stack.extend(args);
+        if let Err(e) = self.call(module, fn_index, argc, true) {
+            self.stack.truncate(base_stack);
+            return Err(e);
+        }
+        self.frames.last_mut().unwrap().stop = true;
         match self.exec(module) {
-            Ok(()) => {
-                let r = self.stack.pop().unwrap_or(v_null());
-                self.frames = saved;
-                Ok(r)
-            }
-            Err(VmError::Paused) => {
-                Err(VmError::Paused)
-            }
-            Err(VmError::Suspended) => {
-                // The handler waits (an in-page dialog); `resume_with`
-                // finishes it and then puts these frames back.
-                self.suspended_outer.push(saved);
-                Err(VmError::Suspended)
-            }
+            // The handler returned (its value is on top), or ENDed.
+            Ok(()) if self.frames.len() == base_frames => Ok(self.stack.pop().unwrap_or(Value::Null)),
+            Ok(()) => Ok(Value::Null),
+            Err(e @ (VmError::Suspended | VmError::Paused)) => Err(e),
             Err(e) => {
-                self.frames = saved;
+                // A failed handler leaves nothing behind.
+                self.frames.truncate(base_frames);
+                self.stack.truncate(base_stack);
                 Err(e)
+            }
+        }
+    }
+
+    /// Continues after a pause or suspension until the program ends, waits
+    /// again, or pauses/suspends. A finished event handler's value is
+    /// dropped (whoever ran it is gone) and the code it interrupted
+    /// continues, unless that code itself waits for a dialog.
+    fn continue_run(&mut self, module: &Module) -> Result<(), VmError> {
+        loop {
+            self.exec(module)?;
+            let Some(top) = self.frames.last() else { return Ok(()) };
+            let waiting = top.waiting;
+            // exec stopped at an event handler's frame: drop its value.
+            self.stack.pop();
+            if waiting {
+                return Ok(());
             }
         }
     }
@@ -692,44 +812,40 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     }
 
     pub fn resume(&mut self, module: &Module) -> Result<(), VmError> {
-        self.exec(module)
+        self.continue_run(module)
     }
 
     /// Continues after [`VmError::Suspended`], with `value` as the result of
-    /// the builtin (or INPUT) that suspended.
+    /// the builtin (or INPUT) that suspended. Dialogs are answered in the
+    /// order they're stacked: the innermost waiting code gets `value`.
     pub fn resume_with(&mut self, module: &Module, value: Value) -> Result<(), VmError> {
+        let Some(top) = self.frames.last_mut() else { return Ok(()) };
+        top.waiting = false;
         self.stack.push(value);
-        self.exec(module)?;
-        // A suspended event handler has finished: back to what it interrupted.
-        if self.frames.is_empty() {
-            if let Some(outer) = self.suspended_outer.pop() {
-                self.frames = outer;
-            }
-        }
-        Ok(())
+        self.continue_run(module)
     }
 
-    /// True while an event handler is suspended (see [`Vm::resume_with`]).
-    pub fn handler_suspended(&self) -> bool {
-        !self.suspended_outer.is_empty()
+    /// Whether the program (or an event handler) waits for a dialog.
+    pub fn is_waiting(&self) -> bool {
+        self.frames.iter().any(|f| f.waiting)
     }
 
     pub fn step_into(&mut self, module: &Module) -> Result<(), VmError> {
         self.step_mode = StepMode::Into;
         self.last_line = self.current_line(module).unwrap_or(0);
-        self.exec(module)
+        self.continue_run(module)
     }
 
     pub fn step_over(&mut self, module: &Module) -> Result<(), VmError> {
         self.step_mode = StepMode::Over { target_depth: self.frames.len() };
         self.last_line = self.current_line(module).unwrap_or(0);
-        self.exec(module)
+        self.continue_run(module)
     }
 
     pub fn step_out(&mut self, module: &Module) -> Result<(), VmError> {
         self.step_mode = StepMode::Out { target_depth: self.frames.len() };
         self.last_line = self.current_line(module).unwrap_or(0);
-        self.exec(module)
+        self.continue_run(module)
     }
 
     pub fn current_line(&self, module: &Module) -> Option<u32> {
@@ -932,6 +1048,222 @@ mod tests {
         assert!(matches!(vm.run(&m), Err(VmError::Suspended)));
         vm.resume_with(&m, v_int(20)).unwrap();
         assert_eq!(h.inner.output, "42\n");
+    }
+
+    /// Queues events and waits like the desktop/web hosts: `FIRE(fn)` queues
+    /// handler `fn`; `ASK` suspends; `MODAL` starts a wait that ends after
+    /// two pumps (each queuing handler 1) with the result 7.
+    #[derive(Default)]
+    struct QueueHost {
+        inner: StubHost,
+        queue: std::collections::VecDeque<(u32, Vec<Value>)>,
+        asking: bool,
+        wait: Option<u32>,
+        started: bool,
+    }
+
+    impl Host for QueueHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            match name {
+                "FIRE" => self.queue.push_back((args[0].to_i64() as u32, vec![v_str("sender")])),
+                "ASK" => self.asking = true,
+                "MODAL" => {
+                    self.wait = Some(2);
+                    self.started = true;
+                }
+                _ => return self.inner.call_builtin(name, args),
+            }
+            Ok(v_null())
+        }
+        fn suspend_requested(&mut self) -> bool { std::mem::take(&mut self.asking) }
+        fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> { self.queue.drain(..).collect() }
+        fn wait_started(&mut self) -> bool { std::mem::take(&mut self.started) }
+        fn pump(&mut self) -> Option<Value> {
+            match self.wait {
+                Some(0) | None => {
+                    self.wait = None;
+                    Some(v_int(7))
+                }
+                Some(n) => {
+                    self.wait = Some(n - 1);
+                    self.queue.push_back((1, vec![]));
+                    None
+                }
+            }
+        }
+        fn create_comp(&mut self, k: &str, id: &str) -> Result<Value, String> { self.inner.create_comp(k, id) }
+        fn set_prop(&mut self, id: &str, n: &str, v: Value) -> Result<(), String> { self.inner.set_prop(id, n, v) }
+        fn get_prop(&mut self, id: &str, n: &str) -> Result<Value, String> { self.inner.get_prop(id, n) }
+        fn call_method(&mut self, id: &str, m: &str, a: &[Value]) -> Result<Value, String> { self.inner.call_method(id, m, a) }
+        fn register_event(&mut self, id: &str, e: &str, f: u32) -> Result<(), String> { self.inner.register_event(id, e, f) }
+        fn print(&mut self, s: &str) -> Result<(), String> { self.inner.print(s) }
+        fn input(&mut self) -> Result<String, String> { self.inner.input() }
+    }
+
+    fn emit_print(f: &mut Function, m: &mut Module, text: &str) {
+        let c = m.add_const(Const::Str(text.into()));
+        f.code.push(Op::LoadConst as u8); f.code.extend_from_slice(&c.to_le_bytes());
+        f.code.push(Op::PrintLn as u8);
+    }
+
+    fn emit_builtin(f: &mut Function, m: &mut Module, name: &str, arg: Option<i64>) {
+        let n = m.add_string(name);
+        if let Some(a) = arg {
+            let c = m.add_const(Const::Int(a));
+            f.code.push(Op::LoadConst as u8); f.code.extend_from_slice(&c.to_le_bytes());
+        }
+        f.code.push(Op::CallBuiltin as u8); f.code.extend_from_slice(&n.to_le_bytes()); f.code.push(arg.is_some() as u8);
+    }
+
+    /// Module: 0 = handler A (prints "a1", optionally ASKs, prints "a2"),
+    /// 1 = handler B (prints "b"), entry = main (see each test).
+    fn event_module(handler_asks: bool, handler_ends: bool) -> (Module, Function) {
+        let mut m = Module::new();
+        let mut a = Function::default();
+        a.name = "A".into();
+        a.params = vec![rapidr_bytecode::Param { name: "Sender".into(), by_ref: false }];
+        a.n_locals = 1;
+        emit_print(&mut a, &mut m, "a1");
+        if handler_asks {
+            emit_builtin(&mut a, &mut m, "ASK", None);
+            a.code.push(Op::PrintLn as u8);
+        }
+        if handler_ends {
+            a.code.push(Op::Halt as u8);
+        }
+        emit_print(&mut a, &mut m, "a2");
+        a.code.push(Op::Ret as u8);
+        m.add_function(a);
+        let mut b = Function::default();
+        b.name = "B".into();
+        emit_print(&mut b, &mut m, "b");
+        b.code.push(Op::Ret as u8);
+        m.add_function(b);
+        let mut main = Function::default();
+        main.name = "__main".into();
+        (m, main)
+    }
+
+    #[test]
+    fn an_event_a_builtin_fires_runs_right_after_it() {
+        let (mut m, mut main) = event_module(false, false);
+        emit_print(&mut main, &mut m, "m1");
+        emit_builtin(&mut main, &mut m, "FIRE", Some(0));
+        main.code.push(Op::Pop as u8);
+        emit_print(&mut main, &mut m, "m2");
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.run(&m).unwrap();
+        assert!(vm.stack.is_empty());
+        assert_eq!(h.inner.output, "m1\na1\na2\nm2\n");
+    }
+
+    #[test]
+    fn queued_events_run_one_after_the_other_not_inside_each_other() {
+        // Two events fired by one builtin: handler A prints a1, calls a
+        // builtin (which must not start B), prints a2; then B.
+        let (mut m, mut main) = event_module(false, false);
+        let mut a = std::mem::take(&mut m.functions[0]);
+        let n = m.add_string("NOP");
+        a.code.insert(0, 0);
+        a.code.splice(0..1, [Op::CallBuiltin as u8].into_iter().chain(n.to_le_bytes()).chain([0u8, Op::Pop as u8]));
+        m.functions[0] = a;
+        let fire = m.add_string("FIRE");
+        for f in [0i64, 1] {
+            let c = m.add_const(Const::Int(f));
+            main.code.push(Op::LoadConst as u8); main.code.extend_from_slice(&c.to_le_bytes());
+            main.code.push(Op::CallBuiltin as u8); main.code.extend_from_slice(&fire.to_le_bytes()); main.code.push(1);
+            main.code.push(Op::Pop as u8);
+        }
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = QueueHost::default();
+        // Queue both before running: as a UI pump would.
+        h.queue.push_back((0, vec![v_str("s")]));
+        h.queue.push_back((1, vec![]));
+        let mut vm = Vm::new(&mut h);
+        vm.run(&m).unwrap();
+        assert_eq!(h.inner.output, "a1\na2\nb\na1\na2\nb\n");
+    }
+
+    #[test]
+    fn a_handler_that_waits_for_a_dialog_resumes_then_what_it_interrupted_continues() {
+        let (mut m, mut main) = event_module(true, false);
+        emit_print(&mut main, &mut m, "m1");
+        emit_builtin(&mut main, &mut m, "FIRE", Some(0));
+        main.code.push(Op::Pop as u8);
+        emit_print(&mut main, &mut m, "m2");
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        assert!(matches!(vm.run(&m), Err(VmError::Suspended)));
+        assert!(vm.is_waiting());
+        vm.resume_with(&m, v_str("answer")).unwrap();
+        assert!(vm.frames.is_empty() && vm.stack.is_empty());
+        assert_eq!(h.inner.output, "m1\na1\nanswer\na2\nm2\n");
+    }
+
+    #[test]
+    fn an_idle_event_runs_on_top_of_a_program_waiting_for_a_dialog() {
+        // main: PRINT ASK ; handler B runs while main waits.
+        let (mut m, mut main) = event_module(false, false);
+        emit_builtin(&mut main, &mut m, "ASK", None);
+        main.code.push(Op::PrintLn as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        assert!(matches!(vm.run(&m), Err(VmError::Suspended)));
+        vm.invoke_function(&m, 1, vec![]).unwrap();
+        assert!(vm.is_waiting());
+        vm.resume_with(&m, v_str("done")).unwrap();
+        assert_eq!(h.inner.output, "b\ndone\n");
+    }
+
+    #[test]
+    fn a_wait_the_host_starts_serves_events_and_gives_its_result() {
+        // main: PRINT MODAL  (two pumps, each queuing handler B, then 7)
+        let (mut m, mut main) = event_module(false, false);
+        emit_builtin(&mut main, &mut m, "MODAL", None);
+        main.code.push(Op::PrintLn as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.run(&m).unwrap();
+        assert_eq!(h.inner.output, "b\nb\n7\n");
+    }
+
+    #[test]
+    fn end_in_an_event_handler_ends_the_program() {
+        let (mut m, mut main) = event_module(false, true);
+        emit_builtin(&mut main, &mut m, "FIRE", Some(0));
+        main.code.push(Op::Pop as u8);
+        emit_print(&mut main, &mut m, "never");
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.run(&m).unwrap();
+        assert!(vm.frames.is_empty());
+        assert_eq!(h.inner.output, "a1\n");
+    }
+
+    #[test]
+    fn a_failing_handler_leaves_the_vm_as_it_was() {
+        let mut m = Module::new();
+        let mut bad = Function::default();
+        bad.code.push(Op::Pop as u8); // stack underflow
+        let fi = m.add_function(bad);
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        assert!(vm.invoke_function(&m, fi, vec![]).is_err());
+        assert!(vm.frames.is_empty() && vm.stack.is_empty());
+        assert!(vm.invoke_function(&m, 99, vec![v_int(1)]).is_err());
+        assert!(vm.stack.is_empty());
     }
 
     #[test]

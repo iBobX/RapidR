@@ -978,6 +978,37 @@ fn bind_handler(name: &str, event: &str, handler: EventHandler) {
     });
 }
 
+/// For the bytecode VM: `ShowModal` leaves its wait to the VM (see
+/// `gui::gui_set_cooperative_waits`), which serves it with [`rp_pump_wait`].
+pub fn rp_set_cooperative_waits(on: bool) {
+    #[cfg(feature = "gui")]
+    crate::gui::gui_set_cooperative_waits(on);
+    #[cfg(not(feature = "gui"))]
+    let _ = on;
+}
+
+/// Whether the last operation started a wait (asked once per operation).
+pub fn rp_take_wait_started() -> bool {
+    #[cfg(feature = "gui")]
+    return crate::gui::gui_take_wait_started();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
+/// Starts waiting for the program's windows (the main event loop).
+pub fn rp_begin_app_wait() {
+    #[cfg(feature = "gui")]
+    crate::gui::gui_begin_app_wait();
+}
+
+/// One step of the innermost wait: `None` while it goes on, `Some` when over.
+pub fn rp_pump_wait() -> Option<Value> {
+    #[cfg(feature = "gui")]
+    return crate::gui::gui_pump_wait();
+    #[cfg(not(feature = "gui"))]
+    Some(v_null())
+}
+
 /// Start the GUI event loop (or no-op without GUI feature).
 pub fn rp_run_app() {
     #[cfg(feature = "gui")]
