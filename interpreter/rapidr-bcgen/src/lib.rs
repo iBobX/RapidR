@@ -112,6 +112,8 @@ struct Scope {
     statics: NameMap<String>,
     /// Label of the routine this scope belongs to.
     owner: String,
+    /// Local arrays of objects (`DIM lbl(3) AS QLABEL`) → element type.
+    object_arrays: NameMap<String>,
 }
 
 impl Scope {
@@ -170,6 +172,8 @@ struct Bcgen {
     types: NameMap<TypeInfo>,
     /// Declared TYPE of global variables that hold objects.
     global_types: NameMap<String>,
+    /// Global arrays of objects (`DIM lbl(3) AS QLABEL`) → element type.
+    global_object_arrays: NameMap<String>,
     /// The TYPE whose method/EVENT/CONSTRUCTOR is being lowered.
     current_type: Option<String>,
     /// Scope stack for the function currently being lowered.
@@ -197,6 +201,9 @@ struct Bcgen {
     /// a component instance, so we emit `LoadConst(v_str("form1"))` +
     /// `SetProp` instead of trying to load a non-existent global.
     component_instance_names: HashMap<String, String>,
+    /// Component type (canonical, uppercase) of each CREATE/DIM component
+    /// instance (lowercase name), for `SB.Panel(0).Width`.
+    component_kinds: HashMap<String, String>,
     /// Whether we are currently lowering the top-level main program.
     in_main: bool,
     /// Starts of each line (byte offsets) to resolve line numbers for statements.
@@ -265,6 +272,7 @@ impl Bcgen {
             routine: RoutineLabels::default(),
             types: NameMap::default(),
             global_types: NameMap::default(),
+            global_object_arrays: NameMap::default(),
             current_type: None,
             scope: Scope::default(),
             globals: HashSet::new(),
@@ -274,6 +282,7 @@ impl Bcgen {
             create_stack: Vec::new(),
             create_declared_names: HashSet::new(),
             component_instance_names: HashMap::new(),
+            component_kinds: HashMap::new(),
             in_main: false,
             line_starts: None,
         }
@@ -288,6 +297,21 @@ impl Bcgen {
         collect_create_names(&program.statements, &mut self.create_declared_names);
         // Pass 0b: collect every component instance name (both CREATE and
         // DIM) — used to detect RHS identifiers that refer to a component.
+        rapidr_ast::walk(
+            &program.statements,
+            &mut |s| match s {
+                Statement::Create(c) if is_component_type_name(&c.type_name) => {
+                    self.component_kinds.insert(c.name.to_lowercase(), rapidr_ast::canonical_type_name(&c.type_name).to_ascii_uppercase());
+                }
+                Statement::Dim(d) if is_component_type_name(&d.type_name) => {
+                    for v in d.declarators.iter().filter(|v| v.dimensions.is_empty()) {
+                        self.component_kinds.insert(v.name.to_lowercase(), rapidr_ast::canonical_type_name(&d.type_name).to_ascii_uppercase());
+                    }
+                }
+                _ => {}
+            },
+            &mut |_| {},
+        );
         collect_component_instance_names(
             &program.statements,
             &mut self.component_instance_names,
@@ -635,6 +659,8 @@ impl Bcgen {
                     }
                     if d.is_redim && !decl.dimensions.is_empty() {
                         self.lower_redim(decl, &d.type_name, code)?;
+                    } else if !decl.dimensions.is_empty() && is_component_type_name(&d.type_name) {
+                        self.lower_component_array(decl, &d.type_name, code)?;
                     } else if !decl.dimensions.is_empty() && !is_component_type_name(&d.type_name) {
                         self.lower_array_dim(decl, &d.type_name, code)?;
                     } else if self.types.contains_key(&d.type_name) {
@@ -653,7 +679,7 @@ impl Bcgen {
                     // Component DIM → eagerly CreateComp (mirrors the
                     // compiled-mode `emit_dim` path), unless a CREATE block
                     // already declares the same name.
-                    if is_component_type_name(&d.type_name) {
+                    if is_component_type_name(&d.type_name) && decl.dimensions.is_empty() {
                         let lower = decl.name.to_lowercase();
                         if !self.create_declared_names.contains(&lower) {
                             let kind_s = self.module.add_string(&d.type_name.to_uppercase());
@@ -894,6 +920,48 @@ impl Bcgen {
 
     /// `DIM a(10)`, `DIM b(1 TO 5, 3) AS STRING`: allocate the array (each
     /// element set to the type's default) and store it in the variable.
+    /// `DIM lbl(1 TO 3) AS QLABEL`: one component per element (ids `lbl(1)`,
+    /// …, created by the host), the variable holding the array of ids.
+    fn lower_component_array(&mut self, decl: &VariableDeclarator, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
+        let kind = rapidr_ast::canonical_type_name(type_name).to_ascii_uppercase();
+        let k = self.module.add_const(Const::Str(kind.clone()));
+        emit(code, Op::LoadConst); push_u32(code, k);
+        let n = self.module.add_const(Const::Str(decl.name.clone()));
+        emit(code, Op::LoadConst); push_u32(code, n);
+        let zero = self.module.add_const(Const::Int(0));
+        for dim in &decl.dimensions {
+            match dim {
+                ArrayDimension::Single(upper) => {
+                    emit(code, Op::LoadConst); push_u32(code, zero);
+                    self.lower_expr(upper, code)?;
+                }
+                ArrayDimension::Range { start, end } => {
+                    self.lower_expr(start, code)?;
+                    self.lower_expr(end, code)?;
+                }
+            }
+        }
+        let b = self.module.add_string("__component_array");
+        emit(code, Op::CallBuiltin); push_u32(code, b); code.push(2 + 2 * decl.dimensions.len() as u8);
+        if let Some(slot) = self.scope.get(&decl.name).filter(|_| !self.in_main) {
+            emit(code, Op::StoreLocal); push_u16(code, slot);
+            self.scope.object_arrays.insert(decl.name.clone(), kind);
+        } else {
+            let s = self.global_str(&decl.name);
+            emit(code, Op::StoreGlobal); push_u32(code, s);
+            self.global_object_arrays.insert(decl.name.clone(), kind);
+        }
+        Ok(())
+    }
+
+    /// Element type of an array of objects named `name`, if it is one.
+    fn object_array_type(&self, name: &str) -> Option<String> {
+        if !self.in_main && self.scope.get(name).is_some() {
+            return self.scope.object_arrays.get(name).cloned();
+        }
+        self.global_object_arrays.get(name).cloned()
+    }
+
     fn lower_array_dim(&mut self, decl: &VariableDeclarator, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
         let fill = self.module.add_const(type_default(type_name));
         emit(code, Op::LoadConst); push_u32(code, fill);
@@ -1008,6 +1076,12 @@ impl Bcgen {
     fn object_type_of(&self, e: &Expression) -> Option<String> {
         match e {
             Expression::Identifier(id) => self.var_type(&id.name).or_else(|| {
+                // A CREATE/DIM component (`SB` in `SB.Panel(0).Width`).
+                if !(self.scope.get(&id.name).is_some() && !self.in_main) {
+                    if let Some(kind) = self.component_kinds.get(&id.name.to_lowercase()) {
+                        return Some(kind.clone());
+                    }
+                }
                 let current = self.current_type.as_ref()?;
                 if self.scope.get(&id.name).is_some() || self.is_known_global(&id.name) {
                     return None;
@@ -1018,6 +1092,15 @@ impl Bcgen {
                 let t = self.object_type_of(&m.object)?;
                 self.field_object_type(&t, &m.member)
             }
+            // `lbl(i)`: an element of an array of objects.
+            Expression::FunctionCall(fc) if matches!(fc.callee.as_ref(), Expression::Identifier(id) if self.object_array_type(&id.name).is_some()) => {
+                let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+                self.object_array_type(&id.name)
+            }
+            Expression::ArrayAccess(a) => match a.array.as_ref() {
+                Expression::Identifier(id) => self.object_array_type(&id.name),
+                _ => None,
+            },
             // `.image(i)`: an element of an array field of objects.
             Expression::FunctionCall(fc) if fc.args.len() == 1 => match fc.callee.as_ref() {
                 Expression::MemberAccess(m) => {
@@ -1617,6 +1700,26 @@ impl Bcgen {
                 }
             }
         }
+        // `lbl(i).OnClick = Handler`: bind the handler to an object known
+        // only at run time (an element of an array of components, …).
+        if let (Expression::MemberAccess(m), Expression::Identifier(rhs_id)) = (&a.target, &a.value) {
+            if m.member.to_ascii_lowercase().starts_with("on")
+                && !matches!(m.object.as_ref(), Expression::Identifier(_))
+                && self.object_type_of(&m.object).is_some()
+            {
+                if let Some(&fi) = self.fn_indices.get(&rhs_id.name) {
+                    self.lower_expr(&m.object, code)?;
+                    let ev = self.module.add_const(Const::Str(m.member.clone()));
+                    emit(code, Op::LoadConst); push_u32(code, ev);
+                    let ptr = self.module.add_const(Const::Int(fi as i64 + 1));
+                    emit(code, Op::LoadConst); push_u32(code, ptr);
+                    let b = self.module.add_string("__bind_event");
+                    emit(code, Op::CallBuiltin); push_u32(code, b); code.push(3);
+                    emit(code, Op::Pop);
+                    return Ok(());
+                }
+            }
+        }
         // Top-level (outside CREATE) `Obj.OnEvent = Handler` — emit
         // RegisterEvent so DOM/FLTK callbacks reach the bytecode SUB.
         if let (Expression::MemberAccess(m), Expression::Identifier(rhs_id)) =
@@ -1854,6 +1957,10 @@ impl Bcgen {
 
     fn lower_call_stmt(&mut self, c: &CallStatement, code: &mut Vec<u8>) -> Result<(), String> {
         if let Some(assignment) = rapidr_ast::inc_dec_assignment(c, |name| self.fn_indices.contains_key(name)) {
+            return self.lower_assignment(&assignment, code);
+        }
+        let is_stream = |e: &Expression| self.object_type_of(e).is_some_and(|t| matches!(t.to_ascii_uppercase().as_str(), "RFILESTREAM" | "RMEMORYSTREAM"));
+        if let Some(assignment) = rapidr_ast::stream_read_assignment(c, &is_stream) {
             return self.lower_assignment(&assignment, code);
         }
         if self.try_lower_object_call(&c.callee, &c.args, false, code)? {
@@ -2308,7 +2415,18 @@ impl Bcgen {
             push_u32(code, id2); push_u32(code, pn);
         }
         self.create_stack.push(c.name.clone());
-        for s in &c.body {
+        // `Panel(0).Width = 100` inside the block: `c.Panel(0).Width = 100`.
+        let body = {
+            let known = |n: &str| {
+                self.fn_indices.contains_key(n)
+                    || builtins::is_builtin(n)
+                    || self.scope.get(n).is_some()
+                    || self.is_known_global(n)
+                    || self.object_array_type(n).is_some()
+            };
+            rapidr_ast::qualify_create_body(&c.body, &c.name, &known)
+        };
+        for s in &body {
             self.lower_stmt(s, code, lines)?;
         }
         self.create_stack.pop();
@@ -2971,7 +3089,8 @@ fn collect_component_instance_names(stmts: &[Statement], out: &mut HashMap<Strin
             }
             Statement::Dim(d) => {
                 if is_component_type_name(&d.type_name) {
-                    for decl in &d.declarators {
+                    // `DIM lbl(3) AS QLABEL` is an array of components, not one.
+                    for decl in d.declarators.iter().filter(|d| d.dimensions.is_empty()) {
                         out.insert(decl.name.to_lowercase(), decl.name.clone());
                     }
                 }

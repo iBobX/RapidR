@@ -8,6 +8,8 @@
 /// Normalized names (see [`builtin_key`]).
 pub const BUILTINS: &[&str] = &[
     "__gui_register_timer",
+    // Arrays of components and dynamic event binding (bcgen)
+    "__component_array", "__bind_event",
     // SUBI / FUNCTIONI arguments (the parser inserts these calls)
     "__pack", "__paramstr", "__paramstrcount", "__paramval", "__paramvalcount",
     // DATA / READ / RESTORE (the parser inserts these calls)

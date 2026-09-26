@@ -1,14 +1,49 @@
-//! QMEMORYSTREAM (manual, Appendix A): a growable byte buffer with a
-//! position that reads and writes start from.
+//! QMEMORYSTREAM and QFILESTREAM (manual, Appendix A): a growable byte
+//! buffer with a position that reads and writes start from. A file stream is
+//! the same buffer holding the file's bytes, with every change written
+//! through to the file (`FileSink`), so both kinds share every method.
 
 use super::codec::{bytes_to_string, string_to_bytes};
 use crate::{v_dbl, v_int, v_str, Value};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct MemStream {
     pub data: Vec<u8>,
     pub pos: usize,
+    /// Set for an open QFILESTREAM: where changes are written.
+    pub file: Option<FileSink>,
 }
+
+/// The file behind a QFILESTREAM.
+#[derive(Debug)]
+pub struct FileSink {
+    pub path: String,
+    pub writable: bool,
+    /// The open file (desktop); `None` when files go through the runtime's
+    /// file hooks (the web), which then get the whole buffer on each change.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub handle: Option<std::fs::File>,
+}
+
+impl FileSink {
+    /// Writes `data[from..]` (after a change starting at `from`) to the file.
+    fn persist(&mut self, data: &[u8], from: usize) -> Result<(), String> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(f) = self.handle.as_mut() {
+            use std::io::{Seek, SeekFrom, Write};
+            let fail = |e: std::io::Error| format!("can't write {}: {e}", self.path);
+            f.seek(SeekFrom::Start(from as u64)).map_err(fail)?;
+            f.write_all(&data[from..]).map_err(fail)?;
+            f.set_len(data.len() as u64).map_err(fail)?;
+            return Ok(());
+        }
+        let _ = from;
+        super::write_file(&self.path, data)
+    }
+}
+
+/// Methods that change a stream (refused on a file opened for reading).
+pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "copyfrom"];
 
 /// Largest stream allowed, so `Mem.Size = 1E12` fails cleanly.
 const MAX_SIZE: usize = 1 << 31;
@@ -22,8 +57,19 @@ impl MemStream {
         if end > self.data.len() {
             self.data.resize(end, 0);
         }
-        self.data[self.pos..end].copy_from_slice(bytes);
+        let from = self.pos;
+        self.data[from..end].copy_from_slice(bytes);
         self.pos = end;
+        if let Some(sink) = self.file.as_mut() {
+            if let Err(e) = sink.persist(&self.data, from) {
+                eprintln!("[rapidr] {e}");
+            }
+        }
+    }
+
+    /// Content as a string, one character per byte.
+    pub fn text(&self) -> String {
+        bytes_to_string(&self.data)
     }
 
     pub fn read(&mut self, n: usize) -> Vec<u8> {
@@ -36,6 +82,12 @@ impl MemStream {
     pub fn set_size(&mut self, size: i64) {
         self.data.resize((size.max(0) as usize).min(MAX_SIZE), 0);
         self.pos = self.pos.min(self.data.len());
+        let len = self.data.len();
+        if let Some(sink) = self.file.as_mut() {
+            if let Err(e) = sink.persist(&self.data, len) {
+                eprintln!("[rapidr] {e}");
+            }
+        }
     }
 
     pub fn set_position(&mut self, pos: i64) {
@@ -53,6 +105,10 @@ impl MemStream {
         Some(match prop {
             "position" => v_int(self.pos as i64),
             "size" => v_int(self.data.len() as i64),
+            "eof" => v_int(if self.pos >= self.data.len() { -1 } else { 0 }),
+            "filename" => v_str(self.file.as_ref().map_or("", |f| f.path.as_str())),
+            // RapidR extension: the whole content as a string.
+            "text" => v_str(&self.text()),
             "linecount" => v_int(self.line_count()),
             // There are no raw memory addresses in RapidR.
             "pointer" => v_int(0),
@@ -77,6 +133,16 @@ impl MemStream {
                 *self = Self::default();
                 Value::Null
             }
+            // RapidR extensions: the rest of the stream; `Read(n)` bytes.
+            "readall" => v_str(&bytes_to_string(&self.read(usize::MAX))),
+            "read" if !args.is_empty() => v_str(&bytes_to_string(&self.read(arg(0).to_i64().max(0) as usize))),
+            // `Stream.Read(var)`, compiled as `var = Stream.__read(var)`: as
+            // many bytes as the variable's type takes (a string: its length).
+            "__read" => match arg(0) {
+                Value::String(s) => v_str(&bytes_to_string(&self.read(s.chars().count()))),
+                Value::Double(_) => read_number(&self.read(8), 8),
+                _ => read_number(&self.read(4), 4),
+            },
             "writestr" | "writebinstr" => {
                 let mut bytes = string_to_bytes(&arg(0).to_string_val());
                 if args.len() > 1 {
@@ -85,7 +151,7 @@ impl MemStream {
                 self.write(&bytes);
                 Value::Null
             }
-            "writeline" => {
+            "writeline" | "writeln" => {
                 let mut bytes = string_to_bytes(&arg(0).to_string_val());
                 bytes.extend_from_slice(b"\r\n");
                 self.write(&bytes);
@@ -107,7 +173,7 @@ impl MemStream {
                 Value::Null
             }
             "readstr" | "readbinstr" => v_str(&bytes_to_string(&self.read(arg(0).to_i64().max(0) as usize))),
-            "readline" => {
+            "readline" | "readln" => {
                 let rest = &self.data[self.pos..];
                 let len = rest.iter().position(|&b| b == b'\n').map_or(rest.len(), |i| i + 1);
                 let mut line = self.read(len);

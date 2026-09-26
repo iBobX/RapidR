@@ -102,7 +102,7 @@ pub fn v_str(s: &str) -> Value {
 }
 /// Run-time error in compiled (codegen) programs: report it BASIC-style and
 /// stop, rather than continuing with a wrong value.
-fn runtime_error(message: &str) -> ! {
+pub fn runtime_error(message: &str) -> ! {
     eprintln!("run-time error: {message}");
     std::process::exit(1);
 }

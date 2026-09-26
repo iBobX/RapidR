@@ -43,7 +43,7 @@ pub mod prelude {
         get_children_of, is_component_method, is_component_type, rp_bind_event,
         rp_bind_event_1, rp_bind_event_2, rp_bind_event_3, rp_bind_event_4,
         rp_bind_event_5, rp_bind_event_indirect, rp_clear_event_dispatcher,
-        rp_set_event_dispatcher, rp_comp_get, rp_comp_method, rp_comp_set,
+        rp_set_event_dispatcher, rp_comp_get, rp_comp_method, rp_comp_set, rp_component_array,
         rp_create_component, rp_fire_event, rp_fire_event_1, rp_fire_event_2,
         rp_fire_event_5, rp_run_app, rp_comp_get_all_properties,
     };

@@ -250,6 +250,8 @@ struct Ctx {
     local_types: HashMap<String, String>,
     /// Every parameter and DIMmed local of the routine (lowercase).
     locals: HashSet<String>,
+    /// Arrays of components of the routine (`DIM lbl(3) AS QLABEL`) → kind.
+    local_arrays: HashMap<String, String>,
     in_main: bool,
     /// Inside a TYPE's method/CONSTRUCTOR: that TYPE.
     current_type: Option<String>,
@@ -261,6 +263,10 @@ struct Lowering<'a> {
     types: &'a Types,
     /// Object variables of the main program, lowercase → TYPE.
     global_types: HashMap<String, String>,
+    /// Arrays of components of the main program → kind.
+    global_arrays: HashMap<String, String>,
+    /// CREATE/DIM components (lowercase) → kind, for `SB.Panel(0).Width`.
+    component_kinds: HashMap<String, String>,
     /// Main-program variable and constant names (lowercase).
     globals: HashSet<String>,
     /// User SUB/FUNCTION names (lowercase).
@@ -330,6 +336,15 @@ impl Lowering<'_> {
                 self.types.get(&t)?;
                 self.types.field_object_type(&t, &m.member)
             }
+            // `lbl(i)`: an element of an array of components.
+            Expression::FunctionCall(fc) if matches!(fc.callee.as_ref(), Expression::Identifier(id) if self.array_kind(&id.name).is_some()) => {
+                let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+                self.array_kind(&id.name)
+            }
+            Expression::ArrayAccess(a) => match a.array.as_ref() {
+                Expression::Identifier(id) => self.array_kind(&id.name),
+                _ => None,
+            },
             // `obj.image(i)` / `image(i)`: an element of an array field of objects.
             Expression::FunctionCall(fc) if fc.args.len() == 1 => match fc.callee.as_ref() {
                 Expression::MemberAccess(m) => {
@@ -344,6 +359,34 @@ impl Lowering<'_> {
             },
             _ => None,
         }
+    }
+
+    /// Kind of a CREATE/DIM component named `name` (not a routine's own
+    /// variable of that name, nor an object variable).
+    fn static_component(&self, name: &str) -> Option<String> {
+        if (self.is_local(name) && !self.ctx.in_main) || self.var_type(name).is_some() {
+            return None;
+        }
+        self.component_kinds.get(&key(name)).cloned()
+    }
+
+    /// `SB.Panel(0)` (a component's indexed sub-object): the component
+    /// expression, the sub-object's name and the index arguments.
+    fn indexed_sub<'e>(&self, e: &'e Expression) -> Option<(&'e Expression, &'e str, &'e [Expression])> {
+        let Expression::FunctionCall(fc) = e else { return None };
+        let Expression::MemberAccess(m) = fc.callee.as_ref() else { return None };
+        let component = match m.object.as_ref() {
+            Expression::Identifier(id) => self.static_component(&id.name).is_some(),
+            other => self.object_type(other).is_some_and(|t| !self.is_user_type(&t)),
+        };
+        component.then_some((m.object.as_ref(), m.member.as_str(), fc.args.as_slice()))
+    }
+
+    fn array_kind(&self, name: &str) -> Option<String> {
+        if !self.ctx.in_main && self.is_local(name) {
+            return self.ctx.local_arrays.get(&key(name)).cloned();
+        }
+        self.global_arrays.get(&key(name)).cloned()
     }
 
     fn array_field_type(&self, t: &str, field: &str) -> Option<String> {
@@ -416,6 +459,10 @@ impl Lowering<'_> {
                 e.clone()
             }
             Expression::MemberAccess(m) => {
+                if let Some((obj, sub, idx)) = self.indexed_sub(&m.object) {
+                    let args = [self.expr(obj), text(&format!("{sub}.{}", m.member))].into_iter().chain(idx.iter().map(|i| self.expr(i))).collect();
+                    return call("__objcall", args);
+                }
                 if let Some(t) = self.object_type(&m.object) {
                     let o = self.expr(&m.object);
                     if self.is_user_type(&t) {
@@ -500,8 +547,28 @@ impl Lowering<'_> {
     }
 
     fn assignment(&mut self, a: &AssignmentStatement) -> Vec<Statement> {
+        // `lbl(i).OnClick = Handler`: bind to the object known at run time.
+        if let (Expression::MemberAccess(m), Expression::Identifier(h)) = (&a.target, &a.value) {
+            if m.member.to_ascii_lowercase().starts_with("on")
+                && self.routines.contains(&key(&h.name))
+                && !matches!(m.object.as_ref(), Expression::Identifier(id) if self.var_type(&id.name).is_none())
+                && self.object_type(&m.object).is_some()
+            {
+                let target = Expression::MemberAccess(MemberAccessExpression { span: m.span, object: Box::new(self.expr(&m.object)), member: m.member.clone() });
+                return vec![Statement::Bind(BindStatement { span: a.span, target, handler: a.value.clone() })];
+            }
+        }
         let value = self.expr(&a.value);
         match &a.target {
+            Expression::MemberAccess(m) if self.indexed_sub(&m.object).is_some() => {
+                let (obj, sub, idx) = self.indexed_sub(&m.object).unwrap();
+                let args = [self.expr(obj), text(&format!("{sub}.{}=", m.member))]
+                    .into_iter()
+                    .chain(idx.iter().map(|i| self.expr(i)))
+                    .chain([value])
+                    .collect();
+                return vec![call_stmt("__objcall", args)];
+            }
             Expression::MemberAccess(m) => {
                 if let Some(t) = self.object_type(&m.object) {
                     let o = self.expr(&m.object);
@@ -560,8 +627,28 @@ impl Lowering<'_> {
         if let Some(a) = inc_dec_assignment(c, |n| routines.contains(&key(n))) {
             return self.assignment(&a);
         }
+        // `File.Read(x)` → `x = File.__read(x)` (shared with the interpreter).
+        let is_stream = |e: &Expression| {
+            let kind = match e {
+                Expression::Identifier(id) => self.static_component(&id.name),
+                other => self.object_type(other),
+            };
+            kind.is_some_and(|t| matches!(t.as_str(), "RFILESTREAM" | "RMEMORYSTREAM"))
+        };
+        if let Some(a) = stream_read_assignment(c, &is_stream) {
+            return self.assignment(&a);
+        }
         let args: Vec<Expression> = c.args.iter().map(|a| self.expr(a)).collect();
         match &c.callee {
+            Expression::MemberAccess(m) if self.indexed_sub(&m.object).is_some() => {
+                let (obj, sub, idx) = self.indexed_sub(&m.object).unwrap();
+                let all = [self.expr(obj), text(&format!("{sub}.{}", m.member))]
+                    .into_iter()
+                    .chain(idx.iter().map(|i| self.expr(i)))
+                    .chain(args)
+                    .collect();
+                return vec![call_stmt("__objcall", all)];
+            }
             Expression::MemberAccess(m) => {
                 if let Some(t) = self.object_type(&m.object) {
                     let o = self.expr(&m.object);
@@ -593,6 +680,15 @@ impl Lowering<'_> {
         let Some(t) = self.types.get(&d.type_name).map(|t| t.name.clone()) else {
             for v in &d.declarators {
                 self.ctx.locals.insert(key(&v.name));
+                let kind = canonical_type_name(&d.type_name);
+                if !v.dimensions.is_empty() && is_component_type_name(&kind) {
+                    let kind = kind.to_ascii_uppercase();
+                    if self.ctx.in_main {
+                        self.global_arrays.insert(key(&v.name), kind);
+                    } else {
+                        self.ctx.local_arrays.insert(key(&v.name), kind);
+                    }
+                }
             }
             let mut d = d.clone();
             for v in &mut d.declarators {
@@ -749,7 +845,18 @@ impl Lowering<'_> {
             Statement::Input(i) => vec![Statement::Assignment(input_assignment(i))].iter().flat_map(|a| self.stmt(a)).collect(),
             Statement::Create(c) => match self.types.get(&c.type_name).map(|t| t.name.clone()) {
                 Some(t) => self.create_instance(c, &t),
-                None => vec![Statement::Create(CreateStatement { body: self.body(&c.body), ..c.clone() })],
+                None => {
+                    // `Panel(0).Width = 100` inside the block is `c.Panel(0).Width`.
+                    let known = |n: &str| {
+                        self.routines.contains(&key(n))
+                            || self.globals.contains(&key(n))
+                            || self.is_local(n)
+                            || self.array_kind(n).is_some()
+                            || super::builtin_function_call(&key(n), &[]).is_some()
+                    };
+                    let body = qualify_create_body(&c.body, &c.name, &known);
+                    vec![Statement::Create(CreateStatement { body: self.body(&body), ..c.clone() })]
+                }
             },
             Statement::Subroutine(sub) => vec![Statement::Subroutine(self.routine(sub.name.clone(), &sub.params, &sub.body, None, None).into_sub(sub))],
             Statement::Function(f) => {
@@ -815,7 +922,36 @@ pub fn lower(program: &Program) -> Program {
         Statement::Function(r) => r.params.iter().any(|p| object_kind(&types, &p.type_name).is_some()),
         _ => false,
     });
-    if types.map.is_empty() && !component_params {
+    let mut component_arrays = false;
+    let mut sub_objects = false;
+    let mut component_kinds = HashMap::new();
+    walk(
+        &program.statements,
+        &mut |s| match s {
+            Statement::Dim(d) if is_component_type_name(&canonical_type_name(&d.type_name)) => {
+                let kind = canonical_type_name(&d.type_name).to_ascii_uppercase();
+                for v in &d.declarators {
+                    if v.dimensions.is_empty() {
+                        component_kinds.insert(key(&v.name), kind.clone());
+                    } else {
+                        component_arrays = true;
+                    }
+                }
+            }
+            Statement::Create(c) if is_component_type_name(&canonical_type_name(&c.type_name)) => {
+                component_kinds.insert(key(&c.name), canonical_type_name(&c.type_name).to_ascii_uppercase());
+            }
+            _ => {}
+        },
+        // `X.Sub(i).Member` / `Sub(i).Member`: indexed sub-objects; and
+        // `Stream.Read` (the callee of `Stream.Read(x)`).
+        &mut |e| {
+            if let Expression::MemberAccess(m) = e {
+                sub_objects |= matches!(m.object.as_ref(), Expression::FunctionCall(_)) || m.member.eq_ignore_ascii_case("read");
+            }
+        },
+    );
+    if types.map.is_empty() && !component_params && !component_arrays && !sub_objects {
         return program.clone();
     }
     let mut globals = HashSet::new();
@@ -841,6 +977,8 @@ pub fn lower(program: &Program) -> Program {
     let mut l = Lowering {
         types: &types,
         global_types: HashMap::new(),
+        global_arrays: HashMap::new(),
+        component_kinds,
         globals,
         routines,
         ctx: Ctx { in_main: true, ..Default::default() },
@@ -851,9 +989,12 @@ pub fn lower(program: &Program) -> Program {
     // Main-program object variables are known before any routine uses them.
     for s in &program.statements {
         if let Statement::Dim(d) = s {
-            if let Some(t) = types.get(&d.type_name) {
-                for v in &d.declarators {
+            let kind = canonical_type_name(&d.type_name);
+            for v in &d.declarators {
+                if let (Some(t), true) = (types.get(&d.type_name), v.dimensions.is_empty()) {
                     l.global_types.insert(key(&v.name), t.name.clone());
+                } else if !v.dimensions.is_empty() && is_component_type_name(&kind) {
+                    l.global_arrays.insert(key(&v.name), kind.to_ascii_uppercase());
                 }
             }
         }
