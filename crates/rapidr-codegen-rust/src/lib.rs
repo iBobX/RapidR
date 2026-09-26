@@ -45,7 +45,36 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let (program, promoted) = promote_ref_params(&program);
     gen.promoted_byref = promoted;
     gen.emit_program(&program);
-    gen.output
+    index_globals(&gen.output)
+}
+
+/// Turns the named module-level variable accesses the generator writes —
+/// `gv("total")`, `gs("total", …)`, `ginit("total", …)` — into slot indexes
+/// (`gv(0)`), and sizes the slot table. Inside a Rust string literal a quote
+/// is always escaped, so user text can't match.
+fn index_globals(code: &str) -> String {
+    let mut slots: HashMap<String, usize> = HashMap::new();
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code;
+    while let Some(pos) = ["gv(\"", "gs(\"", "ginit(\""].iter().filter_map(|p| rest.find(p).map(|i| (i, p.len()))).min() {
+        let (at, len) = pos;
+        let name_start = at + len;
+        let Some(end) = rest[name_start..].find('"') else { break };
+        let name = &rest[name_start..name_start + end];
+        let valid = !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        out.push_str(&rest[..name_start - 1]);
+        if valid {
+            let next = slots.len();
+            let slot = *slots.entry(name.to_string()).or_insert(next);
+            out.push_str(&slot.to_string());
+            rest = &rest[name_start + end + 1..];
+        } else {
+            out.push('"');
+            rest = &rest[name_start..];
+        }
+    }
+    out.push_str(rest);
+    out.replace("__GLOBAL_SLOTS__", &slots.len().max(1).to_string())
 }
 
 /// `MySub @x` passes x by reference (RapidQ manual 3.5). A Rust function
@@ -400,11 +429,16 @@ impl RustCodegen {
         self.blank();
 
         // Emit global variable helpers for module-level DIM variables
+        // Module-level variables live in slots (see `index_globals`): `gv(3)`
+        // is a vector index, not a lookup by name.
         self.line("thread_local! {");
-        self.line("    static GVARS: RefCell<HashMap<String, Value>> = RefCell::new(HashMap::new());");
+        self.line("    static GVARS: RefCell<Vec<Value>> = RefCell::new(vec![Value::Null; __GLOBAL_SLOTS__]);");
+        self.line("    static GINIT: RefCell<Vec<bool>> = RefCell::new(vec![false; __GLOBAL_SLOTS__]);");
         self.line("}");
-        self.line("fn gv(n: &str) -> Value { GVARS.with(|g| g.borrow().get(n).cloned().unwrap_or(v_null())) }");
-        self.line("fn gs(n: &str, v: Value) { GVARS.with(|g| g.borrow_mut().insert(n.to_string(), v)); }");
+        self.line("#[inline] fn gv(i: usize) -> Value { GVARS.with(|g| g.borrow()[i].clone()) }");
+        self.line("#[inline] fn gs(i: usize, v: Value) { GVARS.with(|g| g.borrow_mut()[i] = v); }");
+        self.line("/// A STATIC variable's slot, set the first time only.");
+        self.line("#[allow(dead_code)] fn ginit(i: usize, f: impl FnOnce() -> Value) { if !GINIT.with(|d| std::mem::replace(&mut d.borrow_mut()[i], true)) { gs(i, f()); } }");
         self.blank();
 
         // Emit subs/functions/declares before main
@@ -581,7 +615,7 @@ impl RustCodegen {
                     format!("rp_new_array(&[{}], {default})", bounds.join(", "))
                 };
                 self.write_indent();
-                let _ = writeln!(self.output, "GVARS.with(|g| {{ g.borrow_mut().entry(\"{name}\".to_string()).or_insert_with(|| {init}); }});");
+                let _ = writeln!(self.output, "ginit(\"{name}\", || {init});");
             }
             return;
         }
@@ -3004,7 +3038,7 @@ mod tests {
         let code = "DIM x AS INTEGER\n";
         let rust = gen(code);
         // Top-level DIM now uses global storage via gs()
-        assert!(rust.contains("gs(\"x\", v_int(0));"));
+        assert!(rust.contains("gs(0, v_int(0));"));
     }
 
     #[test]
@@ -3012,8 +3046,8 @@ mod tests {
         let code = "DIM i AS INTEGER\nFOR i = 1 TO 5\n  PRINT i\nNEXT i\n";
         let rust = gen(code);
         // i is a top-level DIM, so it uses global storage
-        assert!(rust.contains("gv(\"i\").rp_le(&__for_end_i)"));
-        assert!(rust.contains("gs(\"i\", &gv(\"i\") + &__for_step_i)"));
+        assert!(rust.contains("gv(0).rp_le(&__for_end_i)"));
+        assert!(rust.contains("gs(0, &gv(0) + &__for_step_i)"));
     }
 
     #[test]

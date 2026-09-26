@@ -78,6 +78,13 @@ impl std::fmt::Display for VmError {
 
 impl std::error::Error for VmError {}
 
+/// Deepest nesting of SUB/FUNCTION calls, so runaway recursion stops with
+/// an error instead of exhausting memory.
+pub const MAX_CALL_DEPTH: usize = 100_000;
+
+/// Most dimensions an array access may have.
+const MAX_DIMS: usize = 8;
+
 /// Width of a PRINT zone (`PRINT a, b`), as in QBasic and VB.
 pub const PRINT_ZONE_WIDTH: usize = 14;
 
@@ -109,8 +116,10 @@ pub struct Vm<'h, H: Host + ?Sized> {
     pub host: &'h mut H,
     pub stack: Vec<Value>,
     pub frames: Vec<Frame>,
-    /// Globals — name-keyed Value slots (created lazily on first STORE).
-    pub globals: std::collections::HashMap<String, Value>,
+    /// Globals by the index of their name in the module's string table
+    /// (`LoadGlobal`/`StoreGlobal`'s operand): a vector index, not a lookup
+    /// by name. `None` = never assigned.
+    pub globals: Vec<Option<Value>>,
     /// Parameter values of the most recently returned frame, read by
     /// `LoadArgOut` right after a call to write BYREF arguments back.
     pub arg_out: Vec<Value>,
@@ -126,6 +135,9 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// Frames an event handler interrupted, kept while that handler is
     /// suspended (see [`Vm::resume_with`]).
     suspended_outer: Vec<Vec<Frame>>,
+    /// Locals vectors of returned frames, reused by the next calls (no
+    /// allocation per SUB/FUNCTION call).
+    spare_locals: Vec<Vec<Value>>,
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -134,7 +146,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             host,
             stack: Vec::with_capacity(64),
             frames: Vec::with_capacity(8),
-            globals: Default::default(),
+            globals: Vec::new(),
             arg_out: Vec::new(),
             print_col: 0,
             debug_mode: false,
@@ -142,7 +154,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             step_mode: StepMode::None,
             last_line: 0,
             suspended_outer: Vec::new(),
+            spare_locals: Vec::new(),
         }
+    }
+
+    /// The globals that have been assigned, by name (debuggers).
+    pub fn global_values<'m>(&'m self, module: &'m Module) -> impl Iterator<Item = (&'m str, &'m Value)> {
+        self.globals.iter().enumerate().filter_map(|(i, v)| Some((module.strings.get(i)?.as_str(), v.as_ref()?)))
     }
 
     /// Borrow the host (e.g. to inspect output or registered events).
@@ -161,9 +179,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// to seed the parameter slots (in reverse order — last pushed = last
     /// parameter).
     pub fn call(&mut self, module: &Module, fn_index: u32, argc: u8, wants_value: bool) -> Result<(), VmError> {
+        if self.frames.len() >= MAX_CALL_DEPTH {
+            return Err(VmError::Runtime(format!("stack overflow: more than {MAX_CALL_DEPTH} nested calls (a SUB or FUNCTION calling itself without end?)")));
+        }
         let f = module.functions.get(fn_index as usize)
             .ok_or(VmError::BadFunctionIndex(fn_index))?;
-        let mut locals: Vec<Value> = (0..f.n_locals).map(|_| v_null()).collect();
+        let mut locals = self.spare_locals.pop().unwrap_or_default();
+        locals.clear();
+        locals.resize(f.n_locals as usize, Value::Null);
         // Pop args off the stack into the parameter slots. Extra arguments
         // (e.g. the Sender a host passes to a handler that declares no
         // parameters) are dropped rather than overwriting the first locals.
@@ -265,16 +288,20 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     *slot = v;
                 }
                 Op::LoadGlobal => {
-                    let i = read_u32(code, &mut ip)?;
-                    let name = module.strings.get(i as usize).ok_or(VmError::BadStringIndex(i))?;
-                    let v = self.globals.get(name).cloned().unwrap_or(v_null());
+                    let i = read_u32(code, &mut ip)? as usize;
+                    let v = self.globals.get(i).and_then(|v| v.clone()).unwrap_or(Value::Null);
                     self.stack.push(v);
                 }
                 Op::StoreGlobal => {
-                    let i = read_u32(code, &mut ip)?;
-                    let name = module.strings.get(i as usize).ok_or(VmError::BadStringIndex(i))?.clone();
+                    let i = read_u32(code, &mut ip)? as usize;
+                    if i >= module.strings.len() {
+                        return Err(VmError::BadStringIndex(i as u32));
+                    }
                     let v = self.pop()?;
-                    self.globals.insert(name, v);
+                    if i >= self.globals.len() {
+                        self.globals.resize(module.strings.len(), None);
+                    }
+                    self.globals[i] = Some(v);
                 }
 
                 // ----- arithmetic -----
@@ -496,10 +523,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::AGet => {
                     let n = read_u8(code, &mut ip)? as usize;
-                    let indices = self.pop_indices(n)?;
+                    let (buf, n) = self.pop_indices(n)?;
+                    let indices = &buf[..n];
                     let target = self.pop()?;
                     let v = match &target {
-                        Value::Array(a) => a.borrow().get(&indices).map_err(VmError::Runtime)?,
+                        Value::Array(a) => a.borrow().get(indices).map_err(VmError::Runtime)?,
                         // Legacy: indexing a comma-separated string.
                         other if n == 1 => other.rp_index(&v_int(indices[0])),
                         _ => return Err(VmError::Runtime("indexing a value that is not an array".into())),
@@ -509,9 +537,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::ASet => {
                     let n = read_u8(code, &mut ip)? as usize;
                     let val = self.pop()?;
-                    let indices = self.pop_indices(n)?;
+                    let (buf, n) = self.pop_indices(n)?;
                     match self.pop()? {
-                        Value::Array(a) => a.borrow_mut().set(&indices, val).map_err(VmError::Runtime)?,
+                        Value::Array(a) => a.borrow_mut().set(&buf[..n], val).map_err(VmError::Runtime)?,
                         _ => return Err(VmError::Runtime(
                             "assigning to an element of a variable that is not an array (DIM it with a size first)".into(),
                         )),
@@ -562,7 +590,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             .get(frame.fn_index as usize)
             .map_or(0, |f| f.params.len())
             .min(frame.locals.len());
-        self.arg_out = frame.locals[..n_params].to_vec();
+        self.arg_out.clear();
+        self.arg_out.extend_from_slice(&frame.locals[..n_params]);
+        if self.spare_locals.len() < 64 {
+            let mut spare = frame.locals;
+            spare.clear();
+            self.spare_locals.push(spare);
+        }
         if self.frames.is_empty() {
             return Ok(false);
         }
@@ -589,12 +623,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     }
 
     /// Pops `n` array indices pushed in order (first index deepest).
-    fn pop_indices(&mut self, n: usize) -> Result<Vec<i64>, VmError> {
-        let mut indices = vec![0i64; n];
-        for i in indices.iter_mut().rev() {
+    /// Pops `n` array indices (first index deepest) into a stack buffer:
+    /// no allocation per array access.
+    #[inline]
+    fn pop_indices(&mut self, n: usize) -> Result<([i64; MAX_DIMS], usize), VmError> {
+        if n > MAX_DIMS {
+            return Err(VmError::Runtime(format!("arrays have at most {MAX_DIMS} dimensions")));
+        }
+        let mut indices = [0i64; MAX_DIMS];
+        for i in indices[..n].iter_mut().rev() {
             *i = self.pop()?.to_i64();
         }
-        Ok(indices)
+        Ok((indices, n))
     }
 
     fn pop(&mut self) -> Result<Value, VmError> {
@@ -701,21 +741,25 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
 // ---------- operand decoders ----------
 
+#[inline(always)]
 fn read_u8(code: &[u8], ip: &mut usize) -> Result<u8, VmError> {
     let b = *code.get(*ip).ok_or(VmError::Truncated)?;
     *ip += 1;
     Ok(b)
 }
+#[inline(always)]
 fn read_u16(code: &[u8], ip: &mut usize) -> Result<u16, VmError> {
     if *ip + 2 > code.len() { return Err(VmError::Truncated); }
     let v = u16::from_le_bytes([code[*ip], code[*ip + 1]]);
     *ip += 2; Ok(v)
 }
+#[inline(always)]
 fn read_u32(code: &[u8], ip: &mut usize) -> Result<u32, VmError> {
     if *ip + 4 > code.len() { return Err(VmError::Truncated); }
     let v = u32::from_le_bytes([code[*ip], code[*ip + 1], code[*ip + 2], code[*ip + 3]]);
     *ip += 4; Ok(v)
 }
+#[inline(always)]
 fn read_i32(code: &[u8], ip: &mut usize) -> Result<i32, VmError> {
     Ok(read_u32(code, ip)? as i32)
 }

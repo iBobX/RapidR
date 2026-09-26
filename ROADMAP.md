@@ -144,7 +144,10 @@ Next up, in order:
 - [ ] Components render their indexed sub-objects (status bar panels, list view columns)
 - [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
 - [ ] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused
-- [ ] Speed: typed locals/fields (skip `Value` boxing where the type is known), fewer clones in generated code, a faster VM dispatch loop
+- [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
+- [ ] Speed next: typed locals/fields (skip `Value` boxing where the type is known), fewer clones in generated code, `Module::add_string` is a linear search at compile time
+- [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
+- [ ] Security: make the web VM host sound on re-entrant events (queue events fired during a statement, or restructure ownership); fuzzing in CI
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
 - [ ] Streams: ReadUDT/WriteUDT, LoadArray/SaveArray, ExtractRes; exact sizes for `Read(var)` of BYTE/SHORT variables
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas

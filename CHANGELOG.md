@@ -7,6 +7,51 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.28.0] — 2026-09-26
+
+### Security
+- **Hostile values no longer crash the runtime.** Integer `\`, `MOD` and
+  unary minus wrap instead of panicking (`MIN \ -1` took the whole program
+  down), and `INV` computes in 128 bits. The fix is in the shared value
+  layer, so both backends have it.
+- **Memory can't be exhausted by one call:**
+  - strings are capped at 256 Mi characters; `SPACE$(1E12)`, `STRING$` and
+    a string doubled in a loop stop with a clear run-time error instead of
+    hanging while allocating;
+  - the interpreter stops runaway recursion at 100,000 nested calls with a
+    "stack overflow" error instead of growing without bound (native builds
+    already stop safely with Rust's stack-overflow abort).
+- **Fuzzing:**
+  - every builtin was called with edge arguments in the interpreter (4,617
+    calls; the one crash found, `INV`, is fixed);
+  - 1,344 mutated RapidQ programs went through the compiler and the native
+    code generator with no crashes.
+- **Known issue (roadmap):** the web interpreter host reaches the VM
+  through raw pointers, and an event fired from inside a running
+  statement re-enters it. This works on single-threaded wasm but isn't
+  sound Rust; it needs an event queue or a restructured host.
+
+### Changed
+- **Faster module-level variables, in both backends.** They live in slots
+  instead of a string-keyed map. The interpreter indexes by the name's
+  string-table entry; native code gets `gv(3)` instead of `gv("total")`, so
+  every write no longer allocates a key.
+- **Faster interpreter core:**
+  - array accesses don't allocate an index vector;
+  - SUB/FUNCTION calls reuse their locals' storage;
+  - the opcode decoders are inlined.
+- **Benchmarks** (plain loop: arithmetic, a FUNCTION, an array, 5 million
+  iterations): the interpreter went from 2.05 s to 0.97 s, native from
+  1.22 s to 0.48 s. The object benchmark (10 million method and field
+  operations) now takes 1.21 s interpreted (14.5 s in v2.26.0) and 0.66 s
+  native (13.0 s in v2.26.0).
+
+### Fixed
+- **`STRING$(n, code)`** repeats the character with that code
+  (`STRING$(3, 65)` = "AAA"); it took the first digit. `SPACE$` and
+  `STRING$` are shared now (`rapidr_value::strings`).
+- **Tests:** conformance case `edge_values`.
+
 ## [2.27.0] — 2026-09-26
 
 ### Changed

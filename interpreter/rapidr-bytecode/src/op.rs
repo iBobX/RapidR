@@ -177,6 +177,7 @@ pub enum Op {
 
 impl Op {
     /// Try to convert from raw byte.
+    #[inline]
     pub fn from_u8(b: u8) -> Option<Op> {
         // Safety net: explicit table since enum repr isn't exhaustive.
         Some(match b {
