@@ -145,7 +145,7 @@ Next up, in order:
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [ ] `rapidr build --interp` reuses whatever `rapidrintr-runner` is in `target/`, even when it's older than the CLI: rebuild or version-check it
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
-- [ ] Native builds catch up (reasoning: high): GOTO/GOSUB, OOP TYPEs, STATIC, function pointers
+- [ ] Native builds catch up: ~~GOTO/GOSUB~~, ~~STATIC~~, ~~same compile errors as the VM~~ (v2.23.0); OOP TYPEs, function pointers
 
 - [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
 - [x] Built-in `RAPIDQ.INC` (colors, `mr*`, `MB_*`/`ID*`, `bs*`, `ws*`, `al*`, `mb*`, `fm*`, `VK_*`) as a single line (v2.13.0)
@@ -158,7 +158,8 @@ Next up, in order:
 - [x] `?` as PRINT (v2.13.0)
 - [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
 - [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
-- [ ] Codegen: state-machine lowering for labels/GOTO/GOSUB (currently a clear compile_error!); web codegen `END` doesn't stop the program
+- [x] Codegen: state-machine lowering for labels/GOTO/GOSUB (jumps.rs) (v2.23.0)
+- [ ] Web codegen: `END` doesn't stop the program; labels inside SELECT CASE/WITH/CREATE bodies in native builds
 - [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
 - [ ] Codegen: OOP TYPEs (EXTENDS/methods/EVENT/CONSTRUCTOR) in native builds (currently a clear compile_error!)
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
@@ -169,7 +170,7 @@ Next up, in order:
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [ ] Fix builtins per the manual: `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM
-- [ ] Codegen: `STATIC` in SUB/FUNCTION (currently a clear compile_error!) — needs the AST renaming pass (`rapidr_ast::walk_expressions_mut`)
+- [x] Codegen: `STATIC` in SUB/FUNCTION (renamed to a per-routine global slot) (v2.23.0)
 - [x] `FUNCTIONI`/`SUBI`, `SHL`/`SHR`, `DATA`/`READ`/`RESTORE`, `SWAP`, `$ESCAPECHARS`, function pointers (VM) (v2.16.0)
 - [ ] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data), `MEMCPY`
 - [ ] Dialogs with buttons: `MESSAGEBOX(msg, title, flags)` returning IDOK/IDYES…, `MESSAGEDLG(msg, mtType, mbButtons, 0)` returning mr* — needs button dialogs in FLTK and the sandboxed web preview (today `msgbox` only shows a message)

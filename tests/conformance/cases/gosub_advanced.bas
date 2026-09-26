@@ -1,4 +1,3 @@
-' xfail: codegen — native builds refuse labels/GOTO/GOSUB with a clear compile error (state-machine lowering planned)
 ' Nested GOSUB, GOSUB inside a SUB, a backwards GOTO loop, line numbers, and `DoEvents:` as a call.
 DIM n AS INTEGER
 n = 0
