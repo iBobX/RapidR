@@ -11,6 +11,18 @@ use wasm_bindgen::prelude::*;
 // PRINT — outputs to the browser console and to a #rr-console element if present
 // ---------------------------------------------------------------------------
 
+/// Hands the exact printed text (partial lines and ANSI sequences
+/// included) to `window.__rapidr_print` if the page defines it; exported web
+/// bundles use it to show a console on the page (web-ide/ansi_screen.js).
+fn print_hook(text: &str) {
+    let hook = web_sys::window()
+        .and_then(|w| js_sys::Reflect::get(&w, &JsValue::from_str("__rapidr_print")).ok())
+        .and_then(|f| f.dyn_into::<js_sys::Function>().ok());
+    if let Some(f) = hook {
+        let _ = f.call1(&JsValue::NULL, &JsValue::from_str(text));
+    }
+}
+
 pub fn rp_print(items: &[Value], newline: bool) {
     let mut parts = Vec::new();
     for item in items {
@@ -23,6 +35,7 @@ pub fn rp_print(items: &[Value], newline: bool) {
         text
     };
     track_print_column(&msg);
+    print_hook(&msg);
 
     // console.log is line-oriented: log complete lines, keep a partial one
     // (`PRINT "a";`) buffered until its newline, or until the current

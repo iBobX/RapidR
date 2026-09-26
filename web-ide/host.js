@@ -19,7 +19,7 @@ import { createRapidrEditor } from "./monaco-host.js";
 import { AnsiScreen } from "./ansi_screen.js";
 
 // IDE version — single source of truth. Bumped at release time.
-export const RAPIDR_IDE_VERSION = "2.20.0";
+export const RAPIDR_IDE_VERSION = "2.21.0";
 
 const _editors = new Map();
 
@@ -2602,10 +2602,13 @@ function doStop() {
   }
 }
 
-/// RapidR's license and the open-source notices, shipped in every bundle
-/// (the same files `rapidr bundle-bc` embeds). Missing files are skipped.
+/// RapidR's license, the open-source notices and the on-page console,
+/// shipped in every bundle (the same files `rapidr bundle-bc` embeds).
+/// Missing files are skipped.
 async function fetchNotices() {
-  const files = { "LICENSE-RapidR.txt": "../LICENSE", "THIRD_PARTY_NOTICES.md": "../THIRD_PARTY_NOTICES.md", "LICENSES.md": "../LICENSES.md" };
+  const files = { "LICENSE-RapidR.txt": "../LICENSE", "THIRD_PARTY_NOTICES.md": "../THIRD_PARTY_NOTICES.md", "LICENSES.md": "../LICENSES.md",
+    // The on-page console for PRINT output (loaded by the bundle's loader.js).
+    "bundle_console.js": "./bundle_console.js", "ansi_screen.js": "./ansi_screen.js" };
   const out = {};
   await Promise.all(Object.entries(files).map(async ([name, url]) => {
     try {

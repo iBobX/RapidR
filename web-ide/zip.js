@@ -120,6 +120,8 @@ const status = document.getElementById("rapidr-status");
 const set = (m) => { if (status) status.textContent = m; };
 (async () => {
   try {
+    // PRINT output on the page (bundle_console.js); optional.
+    await import("./bundle_console.js").then((m) => m.installConsole()).catch(() => {});
     set("init wasm…");
     await init();
     set("fetch program…");

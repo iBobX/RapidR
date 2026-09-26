@@ -47,6 +47,11 @@ pub struct BundleInputs<'a> {
 pub const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
 pub const THIRD_PARTY_NOTICES: &str = include_str!("../../../THIRD_PARTY_NOTICES.md");
 pub const LICENSES: &str = include_str!("../../../LICENSES.md");
+/// The on-page console for PRINT output: loader.js installs it
+/// (web-ide/bundle_console.js, rendering with web-ide/ansi_screen.js, shared
+/// with the IDE's own bundles).
+pub const BUNDLE_CONSOLE_JS: &str = include_str!("../../../web-ide/bundle_console.js");
+pub const ANSI_SCREEN_JS: &str = include_str!("../../../web-ide/ansi_screen.js");
 
 /// Build the ZIP bytes. Never fails on well-formed inputs — the only
 /// possible source of error is the in-memory `ZipWriter`.
@@ -76,6 +81,8 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         write_file(&mut zw, "LICENSE-RapidR.txt", RAPIDR_LICENSE.as_bytes(), deflated)?;
         write_file(&mut zw, "THIRD_PARTY_NOTICES.md", THIRD_PARTY_NOTICES.as_bytes(), deflated)?;
         write_file(&mut zw, "LICENSES.md", LICENSES.as_bytes(), deflated)?;
+        write_file(&mut zw, "bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes(), deflated)?;
+        write_file(&mut zw, "ansi_screen.js", ANSI_SCREEN_JS.as_bytes(), deflated)?;
 
         zw.finish().map_err(|e| format!("zip finish: {e}"))?;
     }
@@ -140,6 +147,8 @@ function setStatus(msg) {{ if (status) status.textContent = msg; }}
 
 (async function () {{
   try {{
+    // PRINT output on the page (bundle_console.js).
+    await import("./bundle_console.js").then((m) => m.installConsole()).catch((e) => console.warn(e));
     setStatus("init wasm…");
     await init();
     setStatus("fetch program…");
@@ -178,7 +187,7 @@ mod tests {
         assert_eq!(&bytes[0..2], b"PK");
         // Quick check that file names appear in the central dir.
         let s = String::from_utf8_lossy(&bytes);
-        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "LICENSE-RapidR.txt", "THIRD_PARTY_NOTICES.md", "LICENSES.md"] {
+        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "LICENSE-RapidR.txt", "THIRD_PARTY_NOTICES.md", "LICENSES.md", "bundle_console.js", "ansi_screen.js"] {
             assert!(s.contains(name), "missing {name} in bundle");
         }
     }

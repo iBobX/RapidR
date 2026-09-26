@@ -117,7 +117,7 @@ async function main() {
       ];
       form.code = {
         handlers: {},
-        source: 'SUB Button1_OnClick\n  Label1.caption = "hello e2e"\nEND SUB\n',
+        source: 'SUB Button1_OnClick\n  Label1.caption = "hello e2e"\n  PRINT "printed on click"\nEND SUB\n',
       };
       R.renderActiveDesigner();
       R.renderProperties();
@@ -138,6 +138,8 @@ async function main() {
        names.includes("rapidrintr.js") && names.includes("rapidrintr_bg.wasm") &&
        names.includes("manifest.json") && names.includes("e2eapp.rrbc"),
        `bundle has all required files (${JSON.stringify(names)})`);
+    ok(names.includes("bundle_console.js") && names.includes("ansi_screen.js"),
+       "bundle ships the on-page console (bundle_console.js, ansi_screen.js)");
 
     // 3. Verify manifest.json carries the IDE version.
     const manifest = JSON.parse(await fs.readFile(path.join(tmpDir, "manifest.json"), "utf8"));
@@ -175,6 +177,13 @@ async function main() {
     const after = await page2.evaluate(() => document.body.innerText);
     ok(/hello e2e/.test(after),
        `Button click updated Label1 text (got "${after.slice(0,200)}")`);
+    // 8. PRINT shows on the page, docked under the form, despite the CSP.
+    const printed = await page2.evaluate(() => {
+      const el = document.getElementById("rapidr-console");
+      return el ? { text: el.textContent, docked: el.classList.contains("docked") } : null;
+    });
+    ok(printed && /printed on click/.test(printed.text) && printed.docked,
+       `PRINT shown in the docked on-page console (${JSON.stringify(printed)})`);
 
     console.log("\nE2E build suite: ALL CHECKS PASSED");
   } finally {

@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.21.0] — 2026-09-25
+
+### Added
+- **Exported web bundles show `PRINT` output on the page.** This covers
+  both `rapidr bundle-bc` and the IDE's Build. The console
+  (`web-ide/bundle_console.js`) uses the same ANSI screen as the IDE's
+  Output panel, so `CLS`, `COLOR` and `LOCATE` work:
+  - it appears on the first PRINT;
+  - it fills the page for a console program, and docks at the bottom when
+    the program also shows forms;
+  - it works under the IDE bundle's Content-Security-Policy.
+
+  Before, bundles only wrote to the browser's developer console. The web
+  runtime now also passes each printed text, exactly as printed, to
+  `window.__rapidr_print` when a page defines it.
+- **Tests:** `tests/web_bundle_console.mjs` (a console program and a form
+  program built with the CLI). `tests/web_ide_e2e_build.mjs` now also
+  checks the console in an IDE-built bundle.
+
 ## [2.20.0] — 2026-09-25
 
 ### Added
