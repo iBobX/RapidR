@@ -11,14 +11,13 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 
-use rapidr_value::layout::{align_controls, Align, Control, Rect};
+use rapidr_value::layout::{align_controls, splitter_drag, Align, Control, Rect, SplitterDrag};
 
 use crate::object_web::{get_children_of, rp_comp_get_stored, rp_comp_set, rp_comp_type};
 use crate::value::{v_int, Value};
 
-/// A web form's title bar, and its main menu, above the client area
-/// (gui_web's `create_form` / `create_mainmenu`).
-pub const TITLE_HEIGHT: i64 = 29;
+/// A web form's main menu, above its client area (gui_web's
+/// `create_mainmenu`); the frame is `rapidr_value::layout::form_frame`.
 pub const MENU_HEIGHT: i64 = 28;
 
 thread_local! {
@@ -68,12 +67,36 @@ fn has_menu(form: &str) -> bool {
     get_children_of(form).iter().any(|(_, t)| t == "RMAINMENU")
 }
 
+/// A form's ClientWidth / ClientHeight: its size less its frame and menu.
+pub fn form_client(form: &str) -> (i64, i64) {
+    let n = |p: &str| rp_comp_get_stored(form, p);
+    let border_style = match n("borderstyle") {
+        Value::Null => 2,
+        v => v.to_i64(),
+    };
+    let menu = if has_menu(form) { MENU_HEIGHT } else { 0 };
+    rapidr_value::layout::form_client_size(n("width").to_i64(), n("height").to_i64(), border_style, menu)
+}
+
+/// The Width / Height giving a form this client size.
+pub fn form_outer(form: &str, client_width: i64, client_height: i64) -> (i64, i64) {
+    let border_style = match rp_comp_get_stored(form, "borderstyle") {
+        Value::Null => 2,
+        v => v.to_i64(),
+    };
+    let menu = if has_menu(form) { MENU_HEIGHT } else { 0 };
+    rapidr_value::layout::form_outer_size(client_width, client_height, border_style, menu)
+}
+
 /// The client area of `parent` in its children's coordinates: a form's
-/// size less its title bar and menu; any other container's whole size.
+/// inside; any other container's whole size.
 pub fn client_rect(parent: &str) -> Rect {
+    if rp_comp_type(parent) == "RFORM" {
+        let (w, h) = form_client(parent);
+        return Rect::new(0, 0, w, h);
+    }
     let n = |p: &str| rp_comp_get_stored(parent, p).to_i64();
-    let top = if rp_comp_type(parent) == "RFORM" { TITLE_HEIGHT + if has_menu(parent) { MENU_HEIGHT } else { 0 } } else { 0 };
-    Rect::new(0, 0, n("width"), (n("height") - top).max(0))
+    Rect::new(0, 0, n("width"), n("height"))
 }
 
 /// Called by `rp_comp_set` after it stored `prop` (lowercase) of `name`.
@@ -97,6 +120,7 @@ pub fn after_set(name: &str, prop: &str) {
                 realign(name, None);
             }
         }
+        "borderstyle" if rp_comp_type(name) == "RFORM" => realign(name, None),
         "parent" => {
             let parent = parent_of(name);
             if align_of(name) != Align::None {
@@ -110,6 +134,51 @@ pub fn after_set(name: &str, prop: &str) {
     }
 }
 
+fn controls_of(parent: &str) -> (Vec<(String, String)>, Vec<Control>) {
+    let children = get_children_of(parent);
+    let controls = children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n) }).collect();
+    (children, controls)
+}
+
+thread_local! {
+    /// The QSPLITTER being dragged: its name, the control it resizes and how.
+    static DRAG: RefCell<Option<(String, String, SplitterDrag)>> = const { RefCell::new(None) };
+}
+
+/// The user pressed the mouse on `splitter`: returns whether there's a
+/// control next to it to resize (as on the desktop).
+pub fn splitter_begin(splitter: &str) -> bool {
+    let splitter = splitter.to_uppercase();
+    let parent = parent_of(&splitter);
+    let (children, controls) = controls_of(&parent);
+    let Some(i) = children.iter().position(|(n, _)| *n == splitter) else { return false };
+    let min = match rp_comp_get_stored(&splitter, "minsize") {
+        Value::Null => 30,
+        v => v.to_i64().max(0),
+    };
+    let drag = splitter_drag(client_rect(&parent), &controls, i, min);
+    let found = drag.is_some();
+    DRAG.with(|d| *d.borrow_mut() = drag.map(|g| (splitter, children[g.control].0.clone(), g)));
+    found
+}
+
+/// The mouse moved `delta` pixels since the drag began.
+pub fn splitter_move(delta: i64) {
+    let Some((_, target, drag)) = DRAG.with(|d| d.borrow().clone()) else { return };
+    let size = drag.size_for(delta);
+    let prop = if drag.horizontal { "width" } else { "height" };
+    if rp_comp_get_stored(&target, prop).to_i64() != size {
+        rp_comp_set(&target, prop, v_int(size));
+    }
+}
+
+/// The drag ended: the splitter's OnMoved fires.
+pub fn splitter_end() {
+    if let Some((splitter, _, _)) = DRAG.with(|d| d.borrow_mut().take()) {
+        crate::object_web::rp_fire_event(&splitter, "onmoved");
+    }
+}
+
 /// Lays out the aligned children of `parent`; `changed` is the child whose
 /// Align, size or visibility just changed.
 pub fn realign(parent: &str, changed: Option<&str>) {
@@ -117,9 +186,7 @@ pub fn realign(parent: &str, changed: Option<&str>) {
     if parent.is_empty() || !has_aligned_children(&parent) {
         return;
     }
-    let children = get_children_of(&parent);
-    let controls: Vec<Control> =
-        children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n) }).collect();
+    let (children, controls) = controls_of(&parent);
     let changed = changed.map(str::to_uppercase).and_then(|c| children.iter().position(|(n, _)| *n == c));
     let moves: Vec<(String, Rect, bool)> = align_controls(client_rect(&parent), &controls, changed)
         .into_iter()

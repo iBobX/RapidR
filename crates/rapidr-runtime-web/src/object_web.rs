@@ -432,13 +432,20 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
-    // RapidR's forms and containers have no frame inside their size: the
-    // client area is the whole component.
-    let lprop = match lprop.as_str() {
-        "clientwidth" => "width".to_string(),
-        "clientheight" => "height".to_string(),
-        _ => lprop,
-    };
+    // ClientWidth / ClientHeight: a form's inside (layout_web::form_client);
+    // for other components, their whole size.
+    if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
+        let width = lprop == "clientwidth";
+        let (prop, v) = if rp_comp_type(&uname) == "RFORM" {
+            let (cw, ch) = crate::layout_web::form_client(&uname);
+            let (cw, ch) = if width { (val.to_i64(), ch) } else { (cw, val.to_i64()) };
+            let (w, h) = crate::layout_web::form_outer(&uname, cw, ch);
+            if width { ("width", w) } else { ("height", h) }
+        } else {
+            (if width { "width" } else { "height" }, val.to_i64())
+        };
+        return rp_comp_set(name, prop, v_int(v));
+    }
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
@@ -581,13 +588,16 @@ pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
-    // RapidR's forms and containers have no frame inside their size: the
-    // client area is the whole component.
-    let lprop = match lprop.as_str() {
-        "clientwidth" => "width".to_string(),
-        "clientheight" => "height".to_string(),
-        _ => lprop,
-    };
+    // A form's inside (its frame and main menu excluded); other components
+    // have no frame inside their size.
+    if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
+        let (w, h) = if rp_comp_type(&uname) == "RFORM" {
+            crate::layout_web::form_client(&uname)
+        } else {
+            (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
+        };
+        return v_int(if lprop == "clientwidth" { w } else { h });
+    }
     if let Some(v) = rapidr_value::objects::get(name, &lprop) {
         return v;
     }

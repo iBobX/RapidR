@@ -7,6 +7,44 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.37.0] — 2026-09-27
+
+### Changed
+- **A form's Width / Height are its whole window, and ClientWidth /
+  ClientHeight its inside**, as in RapidQ (Delphi), and the same on the
+  desktop and the web (`rapidr_value::layout::form_client_size`).
+  - The frame is a 29px caption and a 1px border on every side, plus the
+    main menu. A 400 × 300 form has a 398 × 269 client area without a menu.
+  - `BorderStyle = bsNone` (0) removes the frame: the window has no
+    decorations on the desktop and no title bar or border on the web.
+  - Setting `ClientWidth` / `ClientHeight` sets the size that gives that
+    inside.
+  - Before, a desktop form's Height was its inside (31px taller than in
+    RapidQ). A web form's Width left out its border, and `BorderStyle = 2`
+    (bsSizeable, the default) gave the web form a dashed border.
+  - Other controls' BorderStyle on the web is now none (0) or a solid line.
+
+### Added
+- **QSPLITTER can be dragged**, on the desktop and the web, as Delphi's
+  TSplitter (`rapidr_value::layout::splitter_drag`):
+  - it resizes the control just outside its anchored edge (left of an
+    alLeft splitter, above an alTop one, …);
+  - it never goes below `MinSize` (30) or leaves less than `MinSize` for
+    the rest of the client area;
+  - the other aligned controls re-flow as it moves, and `OnMoved` fires
+    when the drag ends;
+  - the cursor shows the direction.
+- Test hook `RAPIDR_TEST_SPLIT=splitter:delta` drags a splitter as the
+  mouse would. `RAPIDR_TEST_RESIZE` now takes the form's Width,Height.
+
+### Tests
+- `align_layout` (native and interpreted agree) and `tests/web_ide_align.mjs`
+  now check the client area of a framed form and a splitter drag with
+  OnMoved. The browser test drags with a real mouse. Both runtimes give
+  the same numbers for the same program.
+- Unit tests for the frame sizes and for splitter drags (neighbour found,
+  MinSize, room left, alBottom direction, nothing to resize).
+
 ## [2.36.0] — 2026-09-27
 
 ### Fixed

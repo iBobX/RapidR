@@ -1,7 +1,8 @@
 // Align in the IDE preview (the web interpreter), laid out as on the desktop
 // (rapidr_value::layout): runs tests/fixtures/align_layout.bas — the program
 // tests/native_gui_events.mjs checks natively and interpreted — and checks
-// the same numbers, the elements' places, and maximizing the form (OnResize).
+// the same numbers, the elements' places, dragging the splitter (OnMoved)
+// and maximizing the form (OnResize).
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_align.mjs
@@ -35,35 +36,55 @@ const rect = (id) => frame.evaluate((id) => {
   return [el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight];
 }, id);
 
-// The web form's client area is 400 × (300 − 29 title bar) = 400 × 271.
-ok((await text("rr-loose")) === "105,40,235,207|100|247", `laid out before the form is shown (${await text("rr-loose")})`);
+// Width / Height are the whole form: the client area of a 400 × 300 form is
+// 398 × 269 (1px border, 29px caption), as on the desktop — the numbers are
+// the ones tests/native_gui_events.mjs expects there.
+ok((await text("rr-loose")) === "105,40,233,205|100|245", `laid out before the form is shown (${await text("rr-loose")})`);
 const places = {
   bar: await rect("rr-bar"), status: await rect("rr-status"), split: await rect("rr-split"),
   tree: await rect("rr-tree"), side: await rect("rr-side"), memo: await rect("rr-memo"), loose: await rect("rr-loose"),
 };
-ok(JSON.stringify(places.bar) === "[0,0,400,40]", `alTop panel (${JSON.stringify(places.bar)})`);
-ok(JSON.stringify(places.status) === "[0,247,400,24]", `status bar docked at the bottom (${JSON.stringify(places.status)})`);
-ok(JSON.stringify(places.tree) === "[0,40,100,207]", `alLeft list (${JSON.stringify(places.tree)})`);
-ok(JSON.stringify(places.split) === "[100,40,5,207]", `splitter after it (alLeft by default) (${JSON.stringify(places.split)})`);
-ok(JSON.stringify(places.side) === "[340,40,60,207]", `alRight panel (${JSON.stringify(places.side)})`);
-ok(JSON.stringify(places.memo) === "[105,40,235,207]", `alClient fills the rest (${JSON.stringify(places.memo)})`);
+ok(JSON.stringify(places.bar) === "[0,0,398,40]", `alTop panel (${JSON.stringify(places.bar)})`);
+ok(JSON.stringify(places.status) === "[0,245,398,24]", `status bar docked at the bottom (${JSON.stringify(places.status)})`);
+ok(JSON.stringify(places.tree) === "[0,40,100,205]", `alLeft list (${JSON.stringify(places.tree)})`);
+ok(JSON.stringify(places.split) === "[100,40,5,205]", `splitter after it (alLeft by default) (${JSON.stringify(places.split)})`);
+ok(JSON.stringify(places.side) === "[338,40,60,205]", `alRight panel (${JSON.stringify(places.side)})`);
+ok(JSON.stringify(places.memo) === "[105,40,233,205]", `alClient fills the rest (${JSON.stringify(places.memo)})`);
 ok(places.loose && places.loose[0] === 150 && places.loose[1] === 60, `a control without Align stays put (${JSON.stringify(places.loose)})`);
+
+const outer = await rect("rr-form");
+ok(outer && outer[2] === 400 && outer[3] === 300, `the form is Width × Height, frame included (${JSON.stringify(outer)})`);
+const client = await frame.evaluate(() => { const c = document.getElementById("rr-form-client"); return [c.clientWidth, c.clientHeight]; });
+ok(JSON.stringify(client) === "[398,269]", `its client area is ClientWidth × ClientHeight (${JSON.stringify(client)})`);
+
+// Dragging the splitter 60px right widens the list next to it (MinSize
+// permitting) and fires OnMoved.
+const split = await frame.locator("#rr-split").boundingBox();
+await page.mouse.move(split.x + split.width / 2, split.y + split.height / 2);
+await page.mouse.down();
+await page.mouse.move(split.x + split.width / 2 + 30, split.y + split.height / 2);
+await page.mouse.move(split.x + split.width / 2 + 60, split.y + split.height / 2);
+await page.mouse.up();
+await page.waitForTimeout(300);
+ok((await text("rr-side"))?.startsWith("moved160|160|165"), `dragging the splitter resizes the list and fires OnMoved (${await text("rr-side")})`);
+const memoDragged = await rect("rr-memo");
+ok(JSON.stringify(memoDragged) === "[165,40,173,205]", `alClient follows the splitter (${JSON.stringify(memoDragged)})`);
 
 await frame.click("#rr-btn");
 await page.waitForTimeout(300);
-ok((await text("rr-status"))?.includes("295|207|5|400"), `hiding the alRight panel widens alClient (${await text("rr-status")})`);
+ok((await text("rr-status"))?.includes("233|205|5|398"), `hiding the alRight panel widens alClient (${await text("rr-status")})`);
 const memoAfter = await rect("rr-memo");
-ok(JSON.stringify(memoAfter) === "[105,40,295,207]", `memo moved (${JSON.stringify(memoAfter)})`);
+ok(JSON.stringify(memoAfter) === "[165,40,233,205]", `memo moved (${JSON.stringify(memoAfter)})`);
 
 // Maximize: the form fills the preview; OnResize reports the new layout.
 await frame.click("#rr-form .rr-form-btn-max");
 await page.waitForTimeout(400);
 const sizes = await frame.evaluate(() => [innerWidth, innerHeight]);
 const resized = await text("rr-bar");
-const expected = `${sizes[0]}x${sizes[1]}|${sizes[0] - 105}x${sizes[1] - 29 - 40 - 24}|`;
+const expected = `${sizes[0]}x${sizes[1]}|${sizes[0] - 2 - 165}x${sizes[1] - 31 - 40 - 24}|`;
 ok(resized?.startsWith(expected), `maximize lays out again and fires OnResize (${resized}; expected ${expected}…)`);
 const memoMax = await rect("rr-memo");
-ok(memoMax && memoMax[2] === sizes[0] - 105 && memoMax[3] === sizes[1] - 29 - 40 - 24, `memo fills the maximized form (${JSON.stringify(memoMax)})`);
+ok(memoMax && memoMax[2] === sizes[0] - 2 - 165 && memoMax[3] === sizes[1] - 31 - 40 - 24, `memo fills the maximized form (${JSON.stringify(memoMax)})`);
 
 const panel = await frame.evaluate(() => ({
   button: !!document.querySelector("#rr-bar #rr-btn"),

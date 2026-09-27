@@ -154,8 +154,8 @@ Next up, in order:
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
 - [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)
-- [ ] QSPLITTER dragging: resize the neighbouring aligned control by mouse (desktop and web); `MinSize`, `OnMoved`
-- [ ] Form Height semantics: RapidQ's Width/Height include the window frame (ClientWidth/ClientHeight don't); desktop forms use Width/Height as the client size, web forms include a 29px title bar — decide one rule for both
+- [x] QSPLITTER dragging on desktop and web (Delphi TSplitter: neighbour, MinSize, OnMoved) (v2.37.0)
+- [x] Form Width/Height include the frame (29px caption, 1px borders) and ClientWidth/ClientHeight exclude it and the menu, the same on desktop and web; bsNone has no frame (v2.37.0)
 - [x] QLISTBOX / QCOMBOBOX from one shared model on desktop and web: Item, ItemCount, ItemIndex, AddItems (kept only the last item on the desktop), InsertItem, DelItems, Sorted, MultiSelect/Selected/SelCount, Text, Load/SaveToFile (v2.36.0)
 - [ ] QLISTBOX extras: a multi-select list box drawn with several items selected on the desktop (FLTK MultiBrowser), owner-draw (OnDrawItem), Columns; QCOMBOBOX csDropDown edit box on the desktop
 - [ ] Type suffixes (`n%` SHORT, `n&` LONG, `n!` SINGLE, `n#` DOUBLE, `n?` BYTE) as declared types

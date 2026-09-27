@@ -57,6 +57,40 @@ pub fn default_align(type_name: &str) -> Align {
     }
 }
 
+/// A form's frame, the same in both runtimes. As in RapidQ (Delphi),
+/// `Width` / `Height` are the whole window — caption and borders included —
+/// and `ClientWidth` / `ClientHeight` the area inside, below the main menu:
+/// a 29px caption, a 1px border on every side, and no frame at all with
+/// `BorderStyle = bsNone` (0). The desktop's window manager draws its own
+/// frame, so there the frame is only accounted for, keeping a form's inside
+/// the size it has in the browser.
+pub const FORM_CAPTION: i64 = 29;
+pub const FORM_BORDER: i64 = 1;
+
+/// The frame around a form's inside: (left + right, caption + top +
+/// bottom), for its BorderStyle.
+pub fn form_frame(border_style: i64) -> (i64, i64) {
+    if border_style == 0 {
+        (0, 0)
+    } else {
+        (2 * FORM_BORDER, FORM_CAPTION + 2 * FORM_BORDER)
+    }
+}
+
+/// A form's client size for its Width / Height, BorderStyle and the height
+/// of its main menu.
+pub fn form_client_size(width: i64, height: i64, border_style: i64, menu: i64) -> (i64, i64) {
+    let (fw, fh) = form_frame(border_style);
+    ((width - fw).max(0), (height - fh - menu).max(0))
+}
+
+/// The Width / Height that give a form this client size (ClientWidth =,
+/// ClientHeight =).
+pub fn form_outer_size(client_width: i64, client_height: i64, border_style: i64, menu: i64) -> (i64, i64) {
+    let (fw, fh) = form_frame(border_style);
+    (client_width.max(0) + fw, client_height.max(0) + fh + menu)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Rect {
     pub left: i64,
@@ -149,6 +183,67 @@ pub fn align_controls(client: Rect, controls: &[Control], changed: Option<usize>
     out
 }
 
+/// Dragging a QSPLITTER (Delphi's TSplitter, which RapidQ wraps): the
+/// control just outside the splitter's anchored edge — left of an alLeft
+/// splitter, above an alTop one, … — gets wider / taller as the splitter
+/// moves away from that edge, never below `MinSize` nor leaving less than
+/// `MinSize` for the rest of the client area.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SplitterDrag {
+    /// Index (in the controls given to [`splitter_drag`]) of the control
+    /// being resized.
+    pub control: usize,
+    /// True when it's the control's Width that changes (alLeft / alRight).
+    pub horizontal: bool,
+    start: i64,
+    /// +1 when moving right / down grows the control (alLeft / alTop).
+    sign: i64,
+    min: i64,
+    max: i64,
+}
+
+impl SplitterDrag {
+    /// The control's size once the mouse moved `delta` pixels (along the
+    /// splitter's axis) from where the drag started.
+    pub fn size_for(&self, delta: i64) -> i64 {
+        (self.start + self.sign * delta).min(self.max).max(self.min)
+    }
+}
+
+/// Starts dragging splitter `splitter` among its parent's `controls`, in a
+/// client area `client` wide / high; `None` if nothing is there to resize
+/// (or the splitter isn't aligned).
+pub fn splitter_drag(client: Rect, controls: &[Control], splitter: usize, min_size: i64) -> Option<SplitterDrag> {
+    let sp = controls.get(splitter)?;
+    let r = sp.rect;
+    let (x, y, horizontal, sign) = match sp.align {
+        Align::Left => (r.left - 1, r.top, true, 1),
+        Align::Right => (r.right(), r.top, true, -1),
+        Align::Top => (r.left, r.top - 1, false, 1),
+        Align::Bottom => (r.left, r.bottom(), false, -1),
+        _ => return None,
+    };
+    let inside = |c: &Rect| {
+        // A control of no width / height still counts on its splitter side.
+        let (mut left, mut right, mut top, mut bottom) = (c.left, c.right(), c.top, c.bottom());
+        if c.width == 0 {
+            if matches!(sp.align, Align::Left | Align::Top) { left -= 1 } else { right += 1 }
+        }
+        if c.height == 0 {
+            if matches!(sp.align, Align::Left | Align::Top) { top -= 1 } else { bottom += 1 }
+        }
+        (left..right).contains(&x) && (top..bottom).contains(&y)
+    };
+    let control = (0..controls.len()).find(|&i| i != splitter && controls[i].visible && inside(&controls[i].rect))?;
+    let size = |c: &Control| if horizontal { c.rect.width } else { c.rect.height };
+    let edge_aligns: [Align; 2] = if horizontal { [Align::Left, Align::Right] } else { [Align::Top, Align::Bottom] };
+    let taken: i64 = controls.iter().filter(|c| c.visible && edge_aligns.contains(&c.align)).map(size).sum();
+    let room = if horizontal { client.width } else { client.height };
+    let start = size(&controls[control]);
+    let max = room - min_size - taken + start;
+    Some(SplitterDrag { control, horizontal, start, sign, min: min_size.min(max.max(0)), max: max.max(0) })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,6 +316,35 @@ mod tests {
         assert_eq!(r[1], Rect::new(0, 10, 100, 70));
         assert_eq!(r[2], Rect::new(0, 40, 100, 70));
         assert_eq!(r[3].height, 0, "no negative size when the space runs out");
+    }
+
+    #[test]
+    fn splitter_resizes_its_neighbour() {
+        // Tree (alLeft, 200) | Splitter (alLeft, 5) | Memo (alClient) in 500.
+        let client = Rect::new(0, 0, 500, 300);
+        let controls = [c(Align::Left, 0, 0, 200, 300), c(Align::Left, 200, 0, 5, 300), c(Align::Client, 205, 0, 295, 300)];
+        let d = splitter_drag(client, &controls, 1, 30).unwrap();
+        assert_eq!((d.control, d.horizontal), (0, true));
+        assert_eq!(d.size_for(50), 250);
+        assert_eq!(d.size_for(-500), 30, "MinSize");
+        assert_eq!(d.size_for(1000), 500 - 30 - 5, "leaves MinSize for the rest");
+        // An alBottom splitter above an alBottom panel: dragging up grows it.
+        let controls = [c(Align::Client, 0, 0, 500, 195), c(Align::Bottom, 0, 195, 500, 5), c(Align::Bottom, 0, 200, 500, 100)];
+        let d = splitter_drag(client, &controls, 1, 30).unwrap();
+        assert_eq!((d.control, d.horizontal), (2, false));
+        assert_eq!(d.size_for(-40), 140);
+        // Nothing next to it, or not aligned: no drag.
+        assert!(splitter_drag(client, &[c(Align::Left, 0, 0, 5, 300)], 0, 30).is_none());
+        assert!(splitter_drag(client, &[c(Align::None, 0, 0, 5, 300)], 0, 30).is_none());
+    }
+
+    #[test]
+    fn form_frame_sizes() {
+        assert_eq!(form_client_size(400, 300, 2, 0), (398, 269));
+        assert_eq!(form_client_size(400, 300, 2, 28), (398, 241));
+        assert_eq!(form_client_size(400, 300, 0, 0), (400, 300), "bsNone has no frame");
+        assert_eq!(form_outer_size(398, 241, 2, 28), (400, 300));
+        assert_eq!(form_client_size(1, 1, 2, 0), (0, 0));
     }
 
     #[test]

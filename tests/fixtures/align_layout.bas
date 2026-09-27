@@ -1,8 +1,10 @@
 ' Align (alTop / alBottom / alLeft / alRight / alClient), laid out as Delphi
 ' does, checked natively and interpreted by tests/native_gui_events.mjs
-' (which also resizes the form as a user would: RAPIDR_TEST_RESIZE).
+' (which also resizes the form as a user would, RAPIDR_TEST_RESIZE, and
+' drags the splitter, RAPIDR_TEST_SPLIT).
 DECLARE SUB Go
 DECLARE SUB Resized
+DECLARE SUB Moved
 CONST alTop = 1
 CONST alLeft = 3
 CONST alRight = 4
@@ -20,6 +22,7 @@ CREATE Form AS QFORM
     SimpleText = "ready"
   END CREATE
   CREATE Split AS QSPLITTER
+    OnMoved = Moved
   END CREATE
   CREATE Tree AS QLISTBOX
     Align = alLeft: Width = 100
@@ -44,6 +47,10 @@ END SUB
 
 SUB Resized
   Bar.Caption = STR$(Form.Width) + "x" + STR$(Form.Height) + "|" + STR$(Memo.Width) + "x" + STR$(Memo.Height) + "|" + STR$(Side.Left) + "|" + STR$(Loose.Left)
+END SUB
+
+SUB Moved
+  Side.Caption = "moved" + STR$(Tree.Width) + "|" + STR$(Split.Left) + "|" + STR$(Memo.Left)
 END SUB
 
 Form.ShowModal
