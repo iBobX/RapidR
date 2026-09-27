@@ -2526,10 +2526,12 @@ pub fn gui_center(name: &str) {
     });
     // Form.Left / Form.Top read where it went.
     if let Some(GuiWidget::Window(win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name_lower).cloned()) {
+        APPLYING.with(|a| a.set(a.get() + 1));
         crate::layout::quietly(|| {
             rp_comp_set(name, "left", v_int(win.x() as i64));
             rp_comp_set(name, "top", v_int(win.y() as i64));
         });
+        APPLYING.with(|a| a.set(a.get() - 1));
     }
 }
 
@@ -2996,7 +2998,7 @@ fn redraw_window_of(widget: &GuiWidget) {
 /// [`gui_move_form`]).
 pub fn gui_apply_geometry(name: &str) {
     let name = name.to_lowercase();
-    let Some(mut widget) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) else { return };
+    let Some(mut widget) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|w| w.get(&name).cloned())) else { return };
     let comp_type = rp_comp_type(&name);
     if comp_type == "RMAINMENU" {
         return;
@@ -3070,7 +3072,10 @@ pub fn gui_set_form_border(name: &str) {
 /// `Form.Left` / `Form.Top` set by the program: the window moves there.
 pub fn gui_move_form(name: &str) {
     let name = name.to_lowercase();
-    if let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
+    if APPLYING.with(|a| a.get()) > 0 {
+        return;
+    }
+    if let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|w| w.get(&name).cloned())) {
         let (x, y) = (rp_comp_get(&name, "left").to_i64() as i32, rp_comp_get(&name, "top").to_i64() as i32);
         if (win.x(), win.y()) != (x, y) {
             APPLYING.with(|a| a.set(a.get() + 1));
@@ -3088,10 +3093,20 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
     if APPLYING.with(|a| a.get()) > 0 {
         return;
     }
+    // FLTK calls this from inside `show()` / `resize()` too, which the
+    // runtime may call while it holds the widget table: handle it on the
+    // next turn of the event loop then.
+    if GUI_WIDGETS.with(|gw| gw.try_borrow_mut().is_err()) {
+        let form = form.to_string();
+        app::add_timeout3(0.0, move |_| form_resized(&form, x, y, w, h));
+        return;
+    }
+    APPLYING.with(|a| a.set(a.get() + 1));
     crate::layout::quietly(|| {
         rp_comp_set(form, "left", v_int(x as i64));
         rp_comp_set(form, "top", v_int(y as i64));
     });
+    APPLYING.with(|a| a.set(a.get() - 1));
     // The window is the inside: Width / Height add the frame.
     let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(form, "borderstyle").to_i64());
     let (w, h) = (w as i64 + fw, h as i64 + fh);

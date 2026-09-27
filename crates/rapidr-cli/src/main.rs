@@ -560,9 +560,13 @@ fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
         .iter()
         .map(|(file, _)| file.as_deref().is_some_and(|f| f != main_file))
         .collect();
-    rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines).map_err(|e| {
+    let mut compiled = rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines).map_err(|e| {
         remap(e.lines().map(|l| format!("{path}:{l}")).collect::<Vec<_>>().join("\n"))
-    })
+    })?;
+    // Run-time errors name the file and line (file names only).
+    let origins = pre.line_map.iter().map(|(file, line)| (file.as_deref().and_then(|f| f.to_str()), *line as u32));
+    compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(path, origins);
+    Ok(compiled)
 }
 
 fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {

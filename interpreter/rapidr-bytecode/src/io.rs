@@ -32,7 +32,9 @@ impl Module {
         let mut out = Vec::with_capacity(256);
         out.extend_from_slice(MAGIC);
         out.extend_from_slice(&VERSION.to_le_bytes());
-        out.extend_from_slice(&0u16.to_le_bytes()); // flags
+        // flags: bit 0 = a source map follows the entry point.
+        let has_map = !self.source_map.runs.is_empty();
+        out.extend_from_slice(&(has_map as u16).to_le_bytes());
 
         // consts
         write_u32(&mut out, self.consts.len() as u32);
@@ -55,6 +57,18 @@ impl Module {
         // entry
         write_u32(&mut out, self.entry);
 
+        if has_map {
+            write_u32(&mut out, self.source_map.files.len() as u32);
+            for f in &self.source_map.files {
+                write_str(&mut out, f);
+            }
+            write_u32(&mut out, self.source_map.runs.len() as u32);
+            for &(a, b, c, d) in &self.source_map.runs {
+                for v in [a, b, c, d] {
+                    write_u32(&mut out, v);
+                }
+            }
+        }
         out
     }
 
@@ -68,28 +82,39 @@ impl Module {
         if version != VERSION {
             return Err(Error::BadVersion(version));
         }
-        let _flags = r.read_u16()?;
+        let flags = r.read_u16()?;
 
-        let n_consts = r.read_u32()? as usize;
+        let n_consts = r.read_count(1)?;
         let mut consts = Vec::with_capacity(n_consts);
         for _ in 0..n_consts {
             consts.push(read_const(&mut r)?);
         }
 
-        let n_strings = r.read_u32()? as usize;
+        let n_strings = r.read_count(4)?;
         let mut strings = Vec::with_capacity(n_strings);
         for _ in 0..n_strings {
             strings.push(read_str(&mut r)?);
         }
 
-        let n_funcs = r.read_u32()? as usize;
+        let n_funcs = r.read_count(4)?;
         let mut functions = Vec::with_capacity(n_funcs);
         for _ in 0..n_funcs {
             functions.push(read_function(&mut r)?);
         }
 
         let entry = r.read_u32()?;
-        Ok(Module { consts, strings, functions, entry })
+        let mut source_map = crate::SourceMap::default();
+        if flags & 1 != 0 {
+            let n_files = r.read_count(4)?;
+            for _ in 0..n_files {
+                source_map.files.push(read_str(&mut r)?);
+            }
+            let n_runs = r.read_count(16)?;
+            for _ in 0..n_runs {
+                source_map.runs.push((r.read_u32()?, r.read_u32()?, r.read_u32()?, r.read_u32()?));
+            }
+        }
+        Ok(Module { consts, strings, functions, entry, source_map })
     }
 }
 
@@ -145,10 +170,21 @@ struct Reader<'a> { buf: &'a [u8], pos: usize }
 
 impl<'a> Reader<'a> {
     fn read_n(&mut self, n: usize) -> Result<&'a [u8], Error> {
-        if self.pos + n > self.buf.len() { return Err(Error::Truncated); }
-        let s = &self.buf[self.pos..self.pos + n];
-        self.pos += n;
+        // Checked: `n` comes from the file (and usize is 32-bit on wasm).
+        let end = self.pos.checked_add(n).filter(|&e| e <= self.buf.len()).ok_or(Error::Truncated)?;
+        let s = &self.buf[self.pos..end];
+        self.pos = end;
         Ok(s)
+    }
+    /// A count of items at least `item_size` bytes each: never more than
+    /// the rest of the file could hold (so a corrupt count can't make the
+    /// reader allocate gigabytes).
+    fn read_count(&mut self, item_size: usize) -> Result<usize, Error> {
+        let n = self.read_u32()? as usize;
+        if n.saturating_mul(item_size.max(1)) > self.buf.len() - self.pos {
+            return Err(Error::Truncated);
+        }
+        Ok(n)
     }
     fn read_u8(&mut self) -> Result<u8, Error> { Ok(self.read_n(1)?[0]) }
     fn read_u16(&mut self) -> Result<u16, Error> {
@@ -187,24 +223,29 @@ fn read_const(r: &mut Reader) -> Result<Const, Error> {
 
 fn read_function(r: &mut Reader) -> Result<Function, Error> {
     let name = read_str(r)?;
-    let n_params = r.read_u32()? as usize;
+    let n_params = r.read_count(5)?;
     let mut params = Vec::with_capacity(n_params);
     for _ in 0..n_params {
         let pname = read_str(r)?;
         let by_ref = r.read_u8()? != 0;
         params.push(Param { name: pname, by_ref });
     }
+    // Slots are addressed with 16 bits (LoadLocal); more is a corrupt file,
+    // which would otherwise make every call allocate that many.
     let n_locals = r.read_u32()?;
+    if n_locals > u16::MAX as u32 + 1 {
+        return Err(Error::Truncated);
+    }
     let code_len = r.read_u32()? as usize;
     let code = r.read_n(code_len)?.to_vec();
-    let n_lines = r.read_u32()? as usize;
+    let n_lines = r.read_count(8)?;
     let mut line_info = Vec::with_capacity(n_lines);
     for _ in 0..n_lines {
         let off = r.read_u32()?;
         let line = r.read_u32()?;
         line_info.push((off, line));
     }
-    let n_local_names = r.read_u32()? as usize;
+    let n_local_names = r.read_count(4)?;
     let mut local_names = Vec::with_capacity(n_local_names);
     for _ in 0..n_local_names {
         local_names.push(read_str(r)?);
@@ -214,6 +255,32 @@ fn read_function(r: &mut Reader) -> Result<Function, Error> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn corrupt_counts_are_rejected_not_allocated() {
+        // A header, then a const count of four billion.
+        let mut bytes = crate::MAGIC.to_vec();
+        bytes.extend_from_slice(&crate::VERSION.to_le_bytes());
+        bytes.extend_from_slice(&0u16.to_le_bytes());
+        bytes.extend_from_slice(&u32::MAX.to_le_bytes());
+        assert!(crate::Module::from_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn source_map_round_trip() {
+        let mut m = crate::Module::new();
+        m.source_map = crate::SourceMap::from_origins(
+            "/home/me/prog.bas",
+            [(Some("/inc/RAPIDQ.INC"), 1), (Some("/inc/RAPIDQ.INC"), 2), (None, 3), (None, 4), (Some("C:\\lib\\x.inc"), 9)],
+        );
+        assert_eq!(m.source_map.files, ["RAPIDQ.INC", "prog.bas", "x.inc"], "names only, never paths");
+        let back = crate::Module::from_bytes(&m.to_bytes()).unwrap();
+        assert_eq!(back.source_map, m.source_map);
+        assert_eq!(back.source_map.locate(2), Some(("RAPIDQ.INC", 2)));
+        assert_eq!(back.source_map.locate(4), Some(("prog.bas", 4)));
+        assert_eq!(back.source_map.locate(5), Some(("x.inc", 9)));
+        assert_eq!(back.source_map.locate(6), None);
+    }
+
     use crate::*;
 
     #[test]

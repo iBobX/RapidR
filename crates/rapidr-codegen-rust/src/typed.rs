@@ -1,6 +1,7 @@
-//! Typed variables in native builds: a SUB/FUNCTION's local declared with a
-//! numeric type (`DIM n AS LONG`, `DIM x AS DOUBLE`) is a Rust `i64` / `f64`
-//! instead of a `Value`, and arithmetic, comparisons and FOR loops on such
+//! Typed variables in native builds: a SUB/FUNCTION's local or BYVAL
+//! parameter declared with a numeric type (`DIM n AS LONG`, `x AS DOUBLE`)
+//! is a Rust `i64` / `f64` instead of a `Value`, and so is such a variable of
+//! the main program (in an atomic static, [`analyze_globals`]), and arithmetic, comparisons and FOR loops on such
 //! variables compile to plain Rust — with exactly `Value`'s semantics
 //! (wrapping integer `+ - *`, `/` and `\` by zero giving 0, comparisons as
 //! floats), so a program prints the same as in the interpreter.
@@ -64,7 +65,7 @@ impl Kind {
     }
 
     /// `rapidr_value::numeric::NumKind` for runtime calls.
-    fn runtime(self) -> &'static str {
+    pub(crate) fn runtime(self) -> &'static str {
         match self {
             Kind::Byte => "numeric::NumKind::Byte",
             Kind::Word => "numeric::NumKind::Word",
@@ -129,16 +130,22 @@ fn is_int_literal(e: &Expression) -> bool {
     }
 }
 
-/// The locals of a SUB/FUNCTION that can be typed (see the module docs).
-pub(crate) fn analyze(params: &[Parameter], body: &[Statement], function: Option<&str>, is_user_routine: &dyn Fn(&str) -> bool) -> HashMap<String, Kind> {
+/// What a body does with its variables that stops them being typed.
+struct Uses {
+    /// GOTO / GOSUB / labels / inline Rust: nothing in it is typed.
+    blocked: bool,
+    /// Passed to a user SUB/FUNCTION or an address taker, used as an array,
+    /// called, used as an object or with `@`.
+    excluded: HashSet<String>,
+    /// FOR counters and whether they step by an integer.
+    for_steps: Vec<(String, bool)>,
+}
+
+fn uses(body: &[Statement], is_user_routine: &dyn Fn(&str) -> bool) -> Uses {
     let mut blocked = false;
-    let mut declared: HashMap<String, Option<Kind>> = HashMap::new();
-    let mut excluded: HashSet<String> = params.iter().map(|p| key(&p.name)).collect();
-    excluded.insert("result".into());
-    if let Some(f) = function {
-        excluded.insert(key(f));
-    }
+    let mut excluded: HashSet<String> = HashSet::new();
     let mut for_steps: Vec<(String, bool)> = Vec::new();
+    let mut on_expr_excluded: HashSet<String> = HashSet::new();
     let exclude_bare_args = |args: &[Expression], excluded: &mut HashSet<String>| {
         for a in args {
             if let Expression::Identifier(id) = a {
@@ -146,20 +153,10 @@ pub(crate) fn analyze(params: &[Parameter], body: &[Statement], function: Option
             }
         }
     };
-    let mut on_expr_excluded: HashSet<String> = HashSet::new();
     rapidr_ast::walk(
         body,
         &mut |s| match s {
             Statement::Goto(_) | Statement::Gosub(_) | Statement::Label(_) | Statement::RustBlock(_) => blocked = true,
-            Statement::Dim(d) => {
-                for v in &d.declarators {
-                    let kind = if d.is_static || d.is_redim || !v.dimensions.is_empty() { None } else { Kind::of_type(&d.type_name) };
-                    let entry = declared.entry(key(&v.name)).or_insert(kind);
-                    if *entry != kind {
-                        *entry = None;
-                    }
-                }
-            }
             Statement::For(f) => for_steps.push((key(&f.variable), f.step.as_ref().is_none_or(is_int_literal))),
             Statement::Call(c) => {
                 if let Expression::Identifier(id) = &c.callee {
@@ -204,19 +201,133 @@ pub(crate) fn analyze(params: &[Parameter], body: &[Statement], function: Option
             _ => {}
         },
     );
-    if blocked {
-        return HashMap::new();
-    }
     excluded.extend(on_expr_excluded);
-    let mut typed: HashMap<String, Kind> = declared.into_iter().filter_map(|(n, k)| Some((n, k?))).filter(|(n, _)| !excluded.contains(n)).collect();
-    // An integer counter must step by an integer (a fractional STEP makes
-    // it a float, as `Value` addition does).
+    Uses { blocked, excluded, for_steps }
+}
+
+/// Drops the integer FOR counters that step by a fraction (it makes them
+/// floats, as `Value` addition does).
+fn drop_fractional_counters(typed: &mut HashMap<String, Kind>, for_steps: &[(String, bool)]) {
     for (var, int_step) in for_steps {
-        if !int_step && typed.get(&var).is_some_and(|k| *k != Kind::Double) {
-            typed.remove(&var);
+        if !int_step && typed.get(var).is_some_and(|k| *k != Kind::Double) {
+            typed.remove(var);
         }
     }
+}
+
+/// The locals — and BYVAL parameters — of a SUB/FUNCTION that can be typed
+/// (see the module docs). A parameter is typed from the `Value` passed in.
+pub(crate) fn analyze(params: &[Parameter], body: &[Statement], function: Option<&str>, is_user_routine: &dyn Fn(&str) -> bool) -> HashMap<String, Kind> {
+    let mut declared: HashMap<String, Option<Kind>> = HashMap::new();
+    let mut excluded: HashSet<String> = HashSet::new();
+    for p in params {
+        match Kind::of_type(&p.type_name).filter(|_| !p.by_ref && !p.is_array) {
+            Some(k) => {
+                declared.insert(key(&p.name), Some(k));
+            }
+            None => {
+                excluded.insert(key(&p.name));
+            }
+        }
+    }
+    excluded.insert("result".into());
+    if let Some(f) = function {
+        excluded.insert(key(f));
+    }
+    rapidr_ast::walk(
+        body,
+        &mut |s| {
+            if let Statement::Dim(d) = s {
+                for v in &d.declarators {
+                    let kind = if d.is_static || d.is_redim || !v.dimensions.is_empty() { None } else { Kind::of_type(&d.type_name) };
+                    let entry = declared.entry(key(&v.name)).or_insert(kind);
+                    if *entry != kind {
+                        *entry = None;
+                    }
+                }
+            }
+        },
+        &mut |_| {},
+    );
+    let u = uses(body, is_user_routine);
+    if u.blocked {
+        return HashMap::new();
+    }
+    excluded.extend(u.excluded);
+    let mut typed: HashMap<String, Kind> = declared.into_iter().filter_map(|(n, k)| Some((n, k?))).filter(|(n, _)| !excluded.contains(n)).collect();
+    drop_fractional_counters(&mut typed, &u.for_steps);
     typed
+}
+
+/// The main program's variables that can be typed: declared once with a
+/// numeric type (`DIM n AS LONG` outside any SUB), and used nowhere — in
+/// the main program or a SUB/FUNCTION that doesn't declare its own — in a
+/// way that could store something else into them (see the module docs). A
+/// GOTO / GOSUB doesn't matter here: the variable lives in a static, not in
+/// a routine's state machine. Inline Rust anywhere turns this off (it may
+/// use the variables' `Value` slots).
+pub(crate) fn analyze_globals(program: &[Statement], is_user_routine: &dyn Fn(&str) -> bool) -> HashMap<String, Kind> {
+    let mut declared: HashMap<String, Option<Kind>> = HashMap::new();
+    let mut excluded: HashSet<String> = HashSet::new();
+    let main: Vec<Statement> =
+        program.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
+    let mut inline_rust = false;
+    rapidr_ast::walk(
+        program,
+        &mut |s| {
+            if matches!(s, Statement::RustBlock(_)) {
+                inline_rust = true;
+            }
+        },
+        &mut |_| {},
+    );
+    if inline_rust {
+        return HashMap::new();
+    }
+    rapidr_ast::walk(
+        &main,
+        &mut |s| match s {
+            Statement::Dim(d) => {
+                for v in &d.declarators {
+                    let kind = if d.is_static || d.is_redim || !v.dimensions.is_empty() { None } else { Kind::of_type(&d.type_name) };
+                    let entry = declared.entry(key(&v.name)).or_insert(kind);
+                    if *entry != kind {
+                        *entry = None;
+                    }
+                }
+            }
+            Statement::Const(c) => {
+                excluded.insert(key(&c.name));
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    let mut for_steps = Vec::new();
+    let main_uses = uses(&main, is_user_routine);
+    excluded.extend(main_uses.excluded);
+    for_steps.extend(main_uses.for_steps);
+    for s in program {
+        let (params, body) = match s {
+            Statement::Subroutine(sub) => (&sub.params, &sub.body),
+            Statement::Function(f) => (&f.params, &f.body),
+            _ => continue,
+        };
+        // Names the routine declares itself are its own, not the globals.
+        let own = crate::shadowing_names(params, body);
+        let u = uses(body, is_user_routine);
+        excluded.extend(u.excluded.into_iter().filter(|n| !own.contains(n)));
+        for_steps.extend(u.for_steps.into_iter().filter(|(n, _)| !own.contains(n)));
+    }
+    let mut typed: HashMap<String, Kind> = declared.into_iter().filter_map(|(n, k)| Some((n, k?))).filter(|(n, _)| !excluded.contains(n)).collect();
+    drop_fractional_counters(&mut typed, &for_steps);
+    typed
+}
+
+/// The static holding typed global `name` (an `AtomicI64`, or an `AtomicU64`
+/// with a DOUBLE's bits).
+pub(crate) fn global_static(name: &str) -> String {
+    format!("TG_{}", crate::to_snake(&key(name)).trim_end_matches('_').to_uppercase())
 }
 
 impl RustCodegen {
@@ -228,8 +339,39 @@ impl RustCodegen {
         self.typed_locals.get(&key(name)).copied()
     }
 
+    /// A typed variable `name` — a typed local, or a typed global the
+    /// current routine doesn't shadow — as its kind and the Rust code
+    /// reading it.
+    pub(crate) fn typed_var(&self, name: &str) -> Option<(Kind, String)> {
+        if let Some(k) = self.typed_local(name) {
+            return Some((k, crate::to_snake(&strip_type_suffix(name))));
+        }
+        if self.typed_globals.is_empty() || !self.create_stack.is_empty() {
+            return None;
+        }
+        let k = key(name);
+        if self.shadowed.contains(&k) {
+            return None;
+        }
+        let kind = *self.typed_globals.get(&k)?;
+        let load = format!("{}.load(std::sync::atomic::Ordering::Relaxed)", global_static(&k));
+        Some((kind, if kind == Kind::Double { format!("f64::from_bits({load})") } else { load }))
+    }
+
+    /// The Rust statement storing `value` (code of the variable's Rust type)
+    /// into typed variable `name`.
+    pub(crate) fn typed_write(&self, name: &str, value: &str) -> String {
+        if self.typed_local(name).is_some() {
+            format!("{} = {value};", crate::to_snake(&strip_type_suffix(name)))
+        } else if self.typed_globals.get(&key(name)) == Some(&Kind::Double) {
+            format!("{}.store(({value}).to_bits(), std::sync::atomic::Ordering::Relaxed);", global_static(name))
+        } else {
+            format!("{}.store({value}, std::sync::atomic::Ordering::Relaxed);", global_static(name))
+        }
+    }
+
     /// `e` as plain Rust (`i64` / `f64` / `bool`) when every part of it is
-    /// typed: typed locals, number literals, and the operators below.
+    /// typed: typed variables, number literals, and the operators below.
     pub(crate) fn typed_expr(&self, e: &Expression) -> Option<(String, Ty)> {
         match e {
             Expression::Literal(l) => match l.value {
@@ -240,8 +382,8 @@ impl RustCodegen {
                 _ => None,
             },
             Expression::Identifier(id) => {
-                let k = self.typed_local(&id.name)?;
-                Some((crate::to_snake(&strip_type_suffix(&id.name)), k.ty()))
+                let (k, code) = self.typed_var(&id.name)?;
+                Some((code, k.ty()))
             }
             Expression::Unary(u) => {
                 let (a, t) = self.typed_expr(&u.operand)?;
@@ -319,7 +461,7 @@ impl RustCodegen {
 
     /// `e` as a `Value`, when it's typed (so the arithmetic is native).
     pub(crate) fn boxed_typed(&self, e: &Expression) -> Option<String> {
-        if matches!(e, Expression::Literal(_)) || (self.typed_locals.is_empty() && !matches!(e, Expression::Binary(_))) {
+        if matches!(e, Expression::Literal(_)) || (self.typed_locals.is_empty() && self.typed_globals.is_empty() && !matches!(e, Expression::Binary(_))) {
             return None;
         }
         let (code, ty) = self.typed_expr(e)?;
@@ -380,6 +522,7 @@ impl RustCodegen {
     pub(crate) fn emit_typed_for(&mut self, f: &rapidr_ast::ForStatement, kind: Kind) {
         use std::fmt::Write;
         let var = crate::to_snake(&strip_type_suffix(&f.variable));
+        let (_, read) = self.typed_var(&f.variable).expect("a typed FOR counter");
         let int = kind != Kind::Double;
         let end = self.typed_number(&f.end, false);
         let step = match &f.step {
@@ -395,11 +538,11 @@ impl RustCodegen {
         self.write_indent();
         let _ = writeln!(self.output, "let {step_tmp}: {} = {step};", kind.rust_type());
         self.write_indent();
-        let _ = writeln!(self.output, "{var} = {start};");
+        let _ = writeln!(self.output, "{}", self.typed_write(&f.variable, &start));
         let (cur, up) = if int {
-            (format!("({var} as f64)"), format!("{step_tmp} >= 0"))
+            (format!("({read} as f64)"), format!("{step_tmp} >= 0"))
         } else {
-            (var.clone(), format!("numeric::ge({step_tmp}, 0.0)"))
+            (read.clone(), format!("numeric::ge({step_tmp}, 0.0)"))
         };
         self.write_indent();
         let _ = writeln!(
@@ -411,11 +554,8 @@ impl RustCodegen {
             self.emit_statement(s);
         }
         self.write_indent();
-        if int {
-            let _ = writeln!(self.output, "{var} = {var}.wrapping_add({step_tmp});");
-        } else {
-            let _ = writeln!(self.output, "{var} = {var} + {step_tmp};");
-        }
+        let next = if int { format!("{read}.wrapping_add({step_tmp})") } else { format!("{read} + {step_tmp}") };
+        let _ = writeln!(self.output, "{}", self.typed_write(&f.variable, &next));
         self.indent -= 1;
         self.line("}");
         self.loop_labels.pop();
