@@ -42,7 +42,7 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let mut gen = RustCodegen::new(target);
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::hoist_routines(program);
+    let program = rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -163,6 +163,9 @@ struct RustCodegen {
     assigned_routine: HashSet<String>,
     /// The current routine's locals kept as Rust numbers (`typed`).
     typed_locals: HashMap<String, typed::Kind>,
+    /// Main-program variables kept as Rust numbers in atomic statics
+    /// (`typed::analyze_globals`).
+    typed_globals: HashMap<String, typed::Kind>,
     /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
     create_declared_names: HashSet<String>,
     /// Set while a routine with GOTO/GOSUB is emitted as a state machine.
@@ -203,6 +206,7 @@ impl RustCodegen {
             assigned_main: HashSet::new(),
             assigned_routine: HashSet::new(),
             typed_locals: HashMap::new(),
+            typed_globals: HashMap::new(),
             create_declared_names: HashSet::new(),
             state_machine: None,
             current_routine_name: None,
@@ -471,6 +475,16 @@ impl RustCodegen {
         self.line("#[inline] fn gs(i: usize, v: Value) { GVARS.with(|g| g.borrow_mut()[i] = v); }");
         self.line("/// A STATIC variable's slot, set the first time only.");
         self.line("#[allow(dead_code)] fn ginit(i: usize, f: impl FnOnce() -> Value) { if !GINIT.with(|d| std::mem::replace(&mut d.borrow_mut()[i], true)) { gs(i, f()); } }");
+        // Typed main-program variables (`typed::analyze_globals`).
+        self.typed_globals = typed::analyze_globals(&program.statements, &|n| self.defined_functions.contains(n));
+        // (Relaxed atomics: a plain memory access, no `unsafe`; a DOUBLE is
+        // kept as its bits.)
+        let mut typed: Vec<(String, typed::Kind)> = self.typed_globals.iter().map(|(n, k)| (n.clone(), *k)).collect();
+        typed.sort();
+        for (name, kind) in typed {
+            let atomic = if kind == typed::Kind::Double { "AtomicU64" } else { "AtomicI64" };
+            self.line(&format!("static {}: std::sync::atomic::{atomic} = std::sync::atomic::{atomic}::new(0);", typed::global_static(&name)));
+        }
         self.blank();
 
         // Emit subs/functions/declares before main
@@ -701,10 +715,15 @@ impl RustCodegen {
 
             if decl.dimensions.is_empty() {
                 if !self.in_sub_or_function && self.top_level_vars.contains(&name_lower) {
-                    // Module-level scalar → store in global vars
-                    let default = default_value_for_type(&d.type_name);
                     self.write_indent();
-                    let _ = writeln!(self.output, "gs(\"{name}\", {default});");
+                    if let Some((kind, _)) = self.typed_var(&decl.name) {
+                        // A typed main-program variable: DIM resets it.
+                        let _ = writeln!(self.output, "{}", self.typed_write(&decl.name, kind.zero()));
+                    } else {
+                        // Module-level scalar → store in global vars
+                        let default = default_value_for_type(&d.type_name);
+                        let _ = writeln!(self.output, "gs(\"{name}\", {default});");
+                    }
                 } else if let Some(kind) = self.typed_local(&decl.name) {
                     // Declared at the routine's start; DIM resets it.
                     self.write_indent();
@@ -804,17 +823,19 @@ impl RustCodegen {
 
         // A typed local (`typed`): converted, as native arithmetic when it can be.
         if let Expression::Identifier(id) = &a.target {
-            if let Some(kind) = self.typed_local(&id.name).filter(|_| self.create_stack.is_empty()) {
+            if let Some((kind, _)) = self.typed_var(&id.name).filter(|_| self.create_stack.is_empty()) {
                 let value = self.typed_store(kind, &a.value);
                 self.write_indent();
-                let _ = writeln!(self.output, "{} = {value};", to_snake(&strip_type_suffix(&id.name)));
+                let _ = writeln!(self.output, "{}", self.typed_write(&id.name, &value));
                 return;
             }
         }
 
-        // Assignment to bare component variable: comp = expr → evaluate for side effects
+        // Assignment to bare component variable: comp = expr → evaluate for
+        // side effects (not in a CREATE block, where `Font = Font` sets the
+        // created component's property from the variable).
         if let Expression::Identifier(id) = &a.target {
-            if self.is_component_var(&id.name) {
+            if self.is_component_var(&id.name) && self.create_stack.is_empty() {
                 let val = self.owned_expr(&a.value);
                 self.write_indent();
                 let _ = writeln!(self.output, "let _ = {val};");
@@ -1300,7 +1321,7 @@ impl RustCodegen {
     }
 
     fn emit_for(&mut self, f: &ForStatement) {
-        if let Some(kind) = self.typed_local(&f.variable) {
+        if let Some((kind, _)) = self.typed_var(&f.variable) {
             return self.emit_typed_for(f, kind);
         }
         let var = to_snake(&f.variable);
@@ -1714,7 +1735,16 @@ impl RustCodegen {
         typed.sort();
         for (name, kind) in typed {
             self.write_indent();
-            let _ = writeln!(self.output, "let mut {}: {} = {};", to_snake(&name), kind.rust_type(), kind.zero());
+            let snake = to_snake(&name);
+            // A typed BYVAL parameter: the number the caller passed.
+            let init = if !param_names.contains(&name) {
+                kind.zero().to_string()
+            } else if kind == typed::Kind::Double {
+                format!("numeric::double_of(&{snake})")
+            } else {
+                format!("numeric::int_of(&{snake}, {})", kind.runtime())
+            };
+            let _ = writeln!(self.output, "let mut {snake}: {} = {init};", kind.rust_type());
         }
         locals.retain(|l| self.typed_local(l).is_none());
         for local in &locals {
@@ -2477,7 +2507,11 @@ impl RustCodegen {
                 }
 
                 // Any other object (`Screen.Width`, an event handler's
-                // `Sender.Caption`).
+                // `Sender.Caption`); `Dlg.Execute` is a call
+                // (rapidr_ast::VALUE_METHODS, as in the VM).
+                if rapidr_ast::VALUE_METHODS.contains(&member_lower.as_str()) {
+                    return format!("rp_comp_method({}, \"{member_lower}\", &[])", self.receiver(&ma.object));
+                }
                 format!("rp_comp_get({}, \"{member_lower}\")", self.receiver(&ma.object))
             }
             Expression::MethodCall(mc) => {
@@ -2528,7 +2562,7 @@ impl RustCodegen {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn to_snake(name: &str) -> String {
+pub(crate) fn to_snake(name: &str) -> String {
     // Strip type suffixes first
     let name = strip_type_suffix(name);
     // Just lowercase for now since BASIC names are case-insensitive; a dotted
@@ -2586,7 +2620,7 @@ fn index_list(args: &[String]) -> String {
 /// The object pass's own builtins (rapidr_ast::objects::OBJECT_BUILTINS).
 /// Names a SUB/FUNCTION declares itself — parameters and (non-STATIC)
 /// DIMs — which shadow module-level variables inside it, as in the VM.
-fn shadowing_names(params: &[Parameter], body: &[Statement]) -> HashSet<String> {
+pub(crate) fn shadowing_names(params: &[Parameter], body: &[Statement]) -> HashSet<String> {
     let mut names: HashSet<String> = params.iter().map(|p| strip_type_suffix(&p.name).to_lowercase()).collect();
     rapidr_ast::walk(
         body,
@@ -3197,20 +3231,23 @@ mod tests {
     }
 
     #[test]
-    fn dim_generates_let_mut() {
-        let code = "DIM x AS INTEGER\n";
-        let rust = gen(code);
-        // Top-level DIM now uses global storage via gs()
-        assert!(rust.contains("gs(0, v_int(0));"));
+    fn dim_generates_global_storage() {
+        // A top-level STRING lives in a global slot…
+        let rust = gen("DIM s AS STRING\n");
+        assert!(rust.contains("gs(0, v_str(\"\"));"));
+        // …a numeric one in its typed static (typed::analyze_globals).
+        let rust = gen("DIM x AS INTEGER\n");
+        assert!(rust.contains("static TG_X: std::sync::atomic::AtomicI64"));
+        assert!(rust.contains("TG_X.store(0_i64"));
     }
 
     #[test]
     fn for_loop_generates_while() {
         let code = "DIM i AS INTEGER\nFOR i = 1 TO 5\n  PRINT i\nNEXT i\n";
         let rust = gen(code);
-        // i is a top-level DIM, so it uses global storage
-        assert!(rust.contains("gv(0).rp_le(&__for_end_i)"));
-        assert!(rust.contains("gs(0, &gv(0) + &__for_step_i)"));
+        // i is a typed top-level variable: a native loop over its static.
+        assert!(rust.contains("while (if __for_step_i >= 0"));
+        assert!(rust.contains("TG_I.store(TG_I.load(std::sync::atomic::Ordering::Relaxed).wrapping_add(__for_step_i)"));
     }
 
     #[test]

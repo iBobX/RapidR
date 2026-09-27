@@ -610,6 +610,11 @@ pub const COMPONENT_TYPES: &[&str] = &[
 /// no component for yet. Fields and variables of these types are objects
 /// (generic property bags at run time; unimplemented methods warn), so
 /// programs using them compile instead of failing on the type name.
+/// Methods RapidQ programs call without parentheses for their result —
+/// `IF Form.ShowModal THEN`, `IF OpenDialog.Execute THEN` — so that in an
+/// expression `Obj.Member` is a call, not a property read (both backends).
+pub const VALUE_METHODS: &[&str] = &["showmodal", "execute"];
+
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QAPPLICATION", "QBEVEL", "QCDAUDIO", "QCGI", "QCLIPBOARD", "QCOMPORT",
     "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE",
@@ -731,6 +736,105 @@ pub fn canonical_type_name(type_name: &str) -> String {
 // ---------------------------------------------------------------------------
 // Walking the tree
 // ---------------------------------------------------------------------------
+
+/// Every statement list inside `stmts` (itself included), innermost first.
+fn for_each_block_mut(stmts: &mut Vec<Statement>, f: &mut dyn FnMut(&mut Vec<Statement>)) {
+    for s in stmts.iter_mut() {
+        match s {
+            Statement::If(i) => {
+                for_each_block_mut(&mut i.then_body, f);
+                for b in &mut i.elseif_branches {
+                    for_each_block_mut(&mut b.body, f);
+                }
+                for_each_block_mut(&mut i.else_body, f);
+            }
+            Statement::For(x) => for_each_block_mut(&mut x.body, f),
+            Statement::While(x) => for_each_block_mut(&mut x.body, f),
+            Statement::DoLoop(x) => for_each_block_mut(&mut x.body, f),
+            Statement::With(x) => for_each_block_mut(&mut x.body, f),
+            Statement::SelectCase(c) => {
+                for b in &mut c.cases {
+                    for_each_block_mut(&mut b.body, f);
+                }
+                for_each_block_mut(&mut c.case_else, f);
+            }
+            _ => {}
+        }
+    }
+    f(stmts);
+}
+
+/// `DIM x AS QRegistry` (a RapidQ object RapidR has no component for) inside
+/// a SUB, FUNCTION or TYPE method: `x` refers to an object of its own name,
+/// as it does in the main program, in both backends — so its properties
+/// are kept and its methods warn that they aren't implemented, instead of
+/// the interpreter stopping ("not an object") while native builds go on.
+pub fn routine_objects(program: &Program) -> Program {
+    let user_types: std::collections::HashSet<String> = program
+        .statements
+        .iter()
+        .filter_map(|s| match s {
+            Statement::Type(t) => Some(t.name.to_ascii_uppercase()),
+            _ => None,
+        })
+        .collect();
+    let object_type = |t: &str| {
+        let upper = t.trim().to_ascii_uppercase();
+        !user_types.contains(&upper)
+            && !is_component_type_name(&canonical_type_name(&upper))
+            && (RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED.contains(&upper.as_str()) || (upper.starts_with('Q') && upper.len() > 1))
+    };
+    let mut add_objects = |body: &mut Vec<Statement>| {
+        let mut out = Vec::with_capacity(body.len());
+        for s in body.drain(..) {
+            let extra: Vec<Statement> = match &s {
+                Statement::Dim(d) if !d.is_redim && object_type(&d.type_name) => d
+                    .declarators
+                    .iter()
+                    .filter(|v| v.dimensions.is_empty())
+                    .flat_map(|v| {
+                        let span = d.span;
+                        let text = |x: &str| Expression::Literal(Literal { span, value: LiteralValue::String(x.into()) });
+                        [
+                            Statement::Call(CallStatement {
+                                span,
+                                callee: Expression::Identifier(Identifier { span, name: "__objcreate".into() }),
+                                args: vec![text(&v.name), text(&d.type_name.trim().to_ascii_uppercase())],
+                            }),
+                            Statement::Assignment(AssignmentStatement {
+                                span,
+                                target: Expression::Identifier(Identifier { span, name: v.name.clone() }),
+                                value: text(&v.name),
+                            }),
+                        ]
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            };
+            out.push(s);
+            out.extend(extra);
+        }
+        *body = out;
+    };
+    let mut program = program.clone();
+    for s in &mut program.statements {
+        match s {
+            Statement::Subroutine(sub) => for_each_block_mut(&mut sub.body, &mut add_objects),
+            Statement::Function(f) => for_each_block_mut(&mut f.body, &mut add_objects),
+            Statement::Type(t) => {
+                for m in &mut t.methods {
+                    match m {
+                        Statement::Subroutine(sub) => for_each_block_mut(&mut sub.body, &mut add_objects),
+                        Statement::Function(f) => for_each_block_mut(&mut f.body, &mut add_objects),
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    program
+}
 
 /// SUBs and FUNCTIONs written inside another SUB/FUNCTION (RapidQ accepts
 /// them, e.g. event handlers next to the code that binds them) moved to the

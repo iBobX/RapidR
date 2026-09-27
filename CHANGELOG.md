@@ -7,6 +7,64 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.38.0] — 2026-09-27
+
+### Added
+- **The RapidQ corpus now runs the same natively and interpreted.**
+  `tools/corpus_compare.mjs` builds every program that compiles, both
+  ways, runs each (no input, a time limit, window captures), and compares
+  what they print and show.
+  - 99 of the 102 programs it runs look and print the same. The other 3
+    use random numbers or the clock, so their differences are expected.
+  - 14 network programs are skipped, so the tool never contacts real hosts.
+  - The run found and led to the fixes listed below.
+- **Native builds: typed main-program variables and parameters.**
+  - A numeric variable of the main program (`DIM total AS LONG`, a FOR
+    counter, …) is now a Rust number in an atomic static rather than a
+    boxed `Value` slot. SUBs that don't declare their own variable of that
+    name use it too.
+  - A BYVAL numeric parameter is a Rust number inside its SUB/FUNCTION.
+  - The same exclusions as typed locals apply: nothing that could store
+    something else into the variable (BYREF, `@`, array or object use,
+    fractional STEP, inline Rust).
+  - Benchmark, 5M iterations of a main-program loop: 0.19 s → 0.01 s
+    native; 0.56 s interpreted.
+- **Run-time errors in the interpreter name the file and line:** `…
+  (at QFlatButton.inc line 12)`. The bytecode carries a small source map,
+  with file names only (never full paths), as an optional section that
+  older readers ignore.
+
+### Fixed
+- **Desktop, both backends: a crash when a form was resized while being
+  shown** (the window manager adjusting it). The resize callback ran while
+  the runtime held its widget table ("RefCell already mutably borrowed").
+  Introduced in v2.35.0.
+- **Native: `Font = Font` inside a CREATE block was dropped** when a QFONT
+  variable had that name. It now sets the created control's font from the
+  variable, as in RapidQ and the interpreter.
+- **Interpreter: `IF Form.ShowModal THEN` / `IF OpenDialog.Execute THEN`**
+  (the method called without parentheses for its result) read a property
+  instead of showing the form or dialog. Both backends now share the list
+  (`rapidr_ast::VALUE_METHODS`).
+- **Both backends: `DIM r AS QRegistry` (a RapidQ object RapidR doesn't
+  implement) inside a SUB, FUNCTION or TYPE method.** The interpreter
+  stopped with "not an object" while native builds went on. Now the local
+  refers to an object of its name, as in the main program: its methods
+  warn and the program continues (`rapidr_ast::routine_objects`).
+- **Security: bytecode decoding checks every count** against the bytes
+  left, so a corrupt `.rrbc` can't make the reader allocate gigabytes.
+  Slice bounds are computed with checked arithmetic (a 32-bit overflow on
+  WebAssembly could bypass the check), and a function's local count is
+  limited to the 65,536 slots the instructions can address.
+
+### Tests
+- Conformance case `typed_globals`: typed main-program variables used in
+  SUBs and shadowed by locals, typed BYVAL parameters (reassigned), BYTE
+  wrap, GOTO / GOSUB with a typed FOR counter, a global passed BYREF,
+  DIM reset, and INPUT into a typed variable. 92/92 on both backends.
+- Unit tests: bytecode source map round trip (names only), corrupt counts
+  rejected, and code-generation tests for typed globals.
+
 ## [2.37.0] — 2026-09-27
 
 ### Changed

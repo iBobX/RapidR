@@ -272,8 +272,27 @@ impl RustCodegen {
         let step = f.step.as_ref().map(|e| self.owned_expr(e)).unwrap_or_else(|| "v_int(1)".into());
         let var = to_snake(&f.variable);
         let global = self.is_global_scalar(&f.variable);
-        let get = if global { format!("gv(\"{var}\")") } else { var.clone() };
-        let assign = |value: &str| if global { format!("gs(\"{var}\", {value});") } else { format!("{var} = {value};") };
+        // A typed main-program counter (typed::analyze_globals) lives in its
+        // static; the start is already converted and the steps aren't (as in
+        // the VM), so it's stored as the plain number.
+        let typed = self.typed_var(&f.variable);
+        let get = match &typed {
+            Some((k, read)) if *k == crate::typed::Kind::Double => format!("v_dbl({read})"),
+            Some((_, read)) => format!("v_int({read})"),
+            None if global => format!("gv(\"{var}\")"),
+            None => var.clone(),
+        };
+        let store = typed.as_ref().map(|(k, _)| {
+            let write = self.typed_write(&f.variable, "\u{0}");
+            let (before, after) = write.split_once('\u{0}').unwrap_or_default();
+            let to = if *k == crate::typed::Kind::Double { "to_f64" } else { "to_i64" };
+            (before.to_string(), after.to_string(), to)
+        });
+        let assign = |value: &str| match &store {
+            Some((before, after, to)) => format!("{before}({value}).{to}(){after}"),
+            None if global => format!("gs(\"{var}\", {value});"),
+            None => format!("{var} = {value};"),
+        };
         self.write_indent();
         let _ = writeln!(self.output, "{end_tmp} = {end};");
         self.write_indent();

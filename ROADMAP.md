@@ -148,9 +148,11 @@ Next up, in order:
 - [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
 - [x] Declared numeric types enforced in both backends (`rapidr_ast::numeric`, v2.31.0)
 - [x] Native typed locals: numeric SUB/FUNCTION locals are Rust `i64`/`f64` with native arithmetic, conditions and FOR loops (`typed.rs`, v2.32.0)
+- [x] Native typed main-program variables (atomic statics) and BYVAL parameters (v2.38.0)
 - [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
 - [x] Native builds of real RapidQ programs: all 116 corpus programs that compile to bytecode `cargo check` natively (from 49; objects by name, WITH on any object, indexed properties, builtin-named variables, nested SUBs, argument fitting) — `tools/corpus_native.sh` (v2.33.0)
-- [ ] Native corpus programs *run* like the interpreter: compare their output/behaviour, not just `cargo check`
+- [x] Native corpus programs run like the interpreter: `tools/corpus_compare.mjs` runs both builds and compares output and window captures — 99/102 identical, the other 3 use RND/TIMER (v2.38.0)
+- [ ] Corpus gaps both backends share (found by corpus_compare): QMEMORYSTREAM SaveArray/LoadArray, QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board), Printer methods
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
 - [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)

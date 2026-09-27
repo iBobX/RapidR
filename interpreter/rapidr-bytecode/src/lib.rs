@@ -105,6 +105,49 @@ pub struct Module {
     pub functions: Vec<Function>,
     /// Index into `functions` for the entry point (__main).
     pub entry: u32,
+    /// Where each line of the compiled (preprocessed) program came from, for
+    /// run-time error messages; empty when unknown.
+    pub source_map: SourceMap,
+}
+
+/// Lines of the compiled program → the file (name only, never its path) and
+/// line they came from: runs of consecutive lines.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SourceMap {
+    pub files: Vec<String>,
+    /// (first compiled line, file index, its line in that file, line count)
+    pub runs: Vec<(u32, u32, u32, u32)>,
+}
+
+impl SourceMap {
+    /// From one origin per compiled line (index = line − 1): a file name
+    /// (None: the program itself, `main`) and its line there.
+    pub fn from_origins<'a>(main: &str, origins: impl IntoIterator<Item = (Option<&'a str>, u32)>) -> SourceMap {
+        let mut map = SourceMap::default();
+        for (i, (file, line)) in origins.into_iter().enumerate() {
+            let name = file.unwrap_or(main);
+            let name = name.rsplit(['/', '\\']).next().unwrap_or(name).to_string();
+            let idx = match map.files.iter().position(|f| *f == name) {
+                Some(i) => i,
+                None => {
+                    map.files.push(name);
+                    map.files.len() - 1
+                }
+            } as u32;
+            let compiled = i as u32 + 1;
+            match map.runs.last_mut() {
+                Some(r) if r.1 == idx && r.0 + r.3 == compiled && r.2 + r.3 == line => r.3 += 1,
+                _ => map.runs.push((compiled, idx, line, 1)),
+            }
+        }
+        map
+    }
+
+    /// The file and line compiled line `line` came from.
+    pub fn locate(&self, line: u32) -> Option<(&str, u32)> {
+        let r = self.runs.iter().find(|r| (r.0..r.0.saturating_add(r.3)).contains(&line))?;
+        Some((self.files.get(r.1 as usize)?.as_str(), r.2 + (line - r.0)))
+    }
 }
 
 impl Module {

@@ -59,7 +59,7 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
-    let hoisted = rapidr_ast::hoist_routines(program);
+    let hoisted = rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let lowered = rapidr_ast::numeric::lower(lowered);
@@ -2215,6 +2215,20 @@ impl Bcgen {
             Expression::MemberAccess(m) => {
                 if self.dotted_routine(e).is_some() && self.try_lower_object_call(e, &[], true, code)? {
                     return Ok(());
+                }
+                // `IF Form.ShowModal THEN`: a method call (rapidr_ast::VALUE_METHODS).
+                if let Expression::Identifier(obj) = &*m.object {
+                    if rapidr_ast::VALUE_METHODS.contains(&m.member.to_ascii_lowercase().as_str()) {
+                        let mn_s = self.module.add_string(&m.member);
+                        if self.is_dynamic_object(&obj.name) {
+                            self.lower_expr(&m.object, code)?;
+                            emit(code, Op::CallMethodDyn); push_u32(code, mn_s); code.push(0);
+                        } else {
+                            let id_s = self.module.add_string(&obj.name);
+                            emit(code, Op::CallMethod); push_u32(code, id_s); push_u32(code, mn_s); code.push(0);
+                        }
+                        return Ok(());
+                    }
                 }
                 if let Expression::Identifier(obj) = &*m.object {
                     if self.is_dynamic_object(&obj.name) {

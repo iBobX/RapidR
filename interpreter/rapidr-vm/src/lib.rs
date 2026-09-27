@@ -56,11 +56,16 @@ pub enum VmError {
     /// The host asked to wait (an in-page dialog on the web): the VM kept
     /// its state; continue with [`Vm::resume_with`] and the host's answer.
     Suspended,
+    /// An error, and the source line it happened at: the file and line
+    /// (`Module::source_map`) or just the compiled line.
+    At { error: Box<VmError>, file: Option<String>, line: u32 },
 }
 
 impl std::fmt::Display for VmError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            VmError::At { error, file: Some(file), line } => write!(f, "{error} (at {file} line {line})"),
+            VmError::At { error, file: None, line } => write!(f, "{error} (at line {line})"),
             VmError::StackUnderflow => write!(f, "stack underflow"),
             VmError::BadOpcode(b) => write!(f, "unknown opcode 0x{b:02X}"),
             VmError::BadOperand => write!(f, "operand decode failed"),
@@ -152,6 +157,12 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// Locals vectors of returned frames, reused by the next calls (no
     /// allocation per SUB/FUNCTION call).
     spare_locals: Vec<Vec<Value>>,
+    /// Offset of the instruction being run, for [`Self::error_line`].
+    fault_ip: usize,
+    /// The source line (of the compiled, preprocessed program) of the
+    /// instruction a run-time error stopped at (also in the error:
+    /// [`VmError::At`]).
+    pub error_line: Option<u32>,
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -168,6 +179,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             step_mode: StepMode::None,
             last_line: 0,
             spare_locals: Vec::new(),
+            fault_ip: 0,
+            error_line: None,
         }
     }
 
@@ -220,7 +233,28 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Runs from the top frame until the program ends (`Ok` with no frames
     /// left), an event handler's frame returns (`Ok` with its value pushed
     /// and the interrupted frames below), or it pauses/suspends/fails.
+    /// Runs from the top frame (see [`Self::exec_loop`]); a run-time error
+    /// records its line in [`Self::error_line`].
     fn exec(&mut self, module: &Module) -> Result<(), VmError> {
+        match self.exec_loop(module) {
+            Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::At { .. }) => {
+                self.error_line = self
+                    .frames
+                    .last()
+                    .and_then(|f| module.functions.get(f.fn_index as usize))
+                    .and_then(|f| f.get_line_for_ip(self.fault_ip));
+                let Some(line) = self.error_line else { return Err(e) };
+                let (file, line) = match module.source_map.locate(line) {
+                    Some((file, l)) => (Some(file.to_string()), l),
+                    None => (None, line),
+                };
+                Err(VmError::At { error: Box::new(e), file, line })
+            }
+            other => other,
+        }
+    }
+
+    fn exec_loop(&mut self, module: &Module) -> Result<(), VmError> {
         if self.frames.is_empty() {
             return Ok(());
         }
@@ -278,6 +312,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
             }
 
+            self.fault_ip = ip;
             let opbyte = code[ip];
             ip += 1;
             let op = Op::from_u8(opbyte).ok_or(VmError::BadOpcode(opbyte))?;
