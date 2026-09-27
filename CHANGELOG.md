@@ -7,6 +7,46 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.36.0] — 2026-09-27
+
+### Fixed
+- **QLISTBOX and QCOMBOBOX work like RapidQ's.** Both runtimes now draw
+  one shared model, `rapidr_value::objects::list`. The RapidQ corpus uses
+  `Item` 294 times, `AddItems` 143 and `ItemCount` 90.
+  - **Desktop:**
+    - `AddItems a, b, c` kept only the last item;
+    - `ItemCount` and `Item(i)` weren't implemented;
+    - a list box selection didn't fire `OnDblClick`.
+  - **Both runtimes:**
+    - `Item(i)` read / `Item(i) = s`, `ItemCount`, `ItemIndex` (−1 for
+      none), `AddItems`, `InsertItem i, s`, `DelItems i, …` (indexes as
+      before any deletion), `Clear`;
+    - `Sorted` (case-insensitive; the selected item stays selected),
+      `MultiSelect` with `Selected(i)` and `SelCount` (setting `Selected`
+      keeps ItemIndex, as in Delphi), `TopIndex`;
+    - `Text`: a combo box's current text, which follows ItemIndex and
+      selects the matching item when set; a list box's items as
+      CRLF-terminated lines;
+    - `LoadFromFile` / `SaveToFile`, one item per line.
+  - The user's pick is stored before the program's `OnClick` / `OnChange`
+    runs, so handlers read the new ItemIndex / Text.
+  - **Items are shown exactly as written:** FLTK's `@` formatting codes
+    and a menu's `/`, `&` and `\` are escaped on the desktop, and the web
+    uses plain-text options.
+  - The web list box shows rows rather than a drop-down; its options are
+    redrawn once per batch of changes.
+- RapidR's older names still work on the same model: `AddItem`,
+  `DeleteItem` / `RemoveItem`, `Items`, `Count` / `ListCount`,
+  `ListIndex`, `Find`.
+
+### Tests
+- `tests/fixtures/list_items.bas`, checked natively and interpreted
+  (`tests/native_gui_events.mjs`, both agree) and in the browser
+  (`tests/web_ide_lists.mjs`, including picking items with the mouse).
+- Unit tests for the list model: every item kept, index tracking through
+  inserts and deletes, sorting, multi-select, combo text, legacy names,
+  out-of-range indexes.
+
 ## [2.35.0] — 2026-09-27
 
 ### Added

@@ -745,25 +745,17 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let mut choice = Choice::new(x, y, w, h, None);
-            // Add any pre-set items
-            let items = rp_comp_get(name, "items").to_string_val();
-            for item in items.lines() {
-                if !item.is_empty() {
-                    choice.add_choice(item);
-                }
-            }
             let name_for_cb = name.to_lowercase();
             choice.set_callback(move |c| {
-                let idx = c.value();
-                rp_comp_set(&name_for_cb, "itemindex", v_int(idx as i64));
-                if let Some(text) = c.choice() {
-                    rp_comp_set(&name_for_cb, "text", v_str(&text));
-                }
+                // The user's pick: the list's ItemIndex and Text, then OnChange.
+                let idx = c.value() as i64;
+                rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.select(idx));
                 rp_fire_event(&name_for_cb, "onchange");
             });
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::Choice(choice));
             });
+            list_refresh(name);
         }
         "RLISTBOX" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -771,21 +763,19 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let mut browser = HoldBrowser::new(x, y, w, h, None);
-            let items = rp_comp_get(name, "items").to_string_val();
-            for item in items.lines() {
-                if !item.is_empty() {
-                    browser.add(item);
-                }
-            }
             let name_for_cb = name.to_lowercase();
             browser.set_callback(move |b| {
-                let idx = b.value() - 1; // FLTK browsers are 1-indexed
-                rp_comp_set(&name_for_cb, "itemindex", v_int(idx as i64));
-                rp_fire_event(&name_for_cb, "onclick");
+                let idx = b.value() as i64 - 1; // FLTK browsers are 1-indexed
+                if idx < 0 {
+                    return;
+                }
+                rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.select(idx));
+                rp_fire_event(&name_for_cb, if app::event_clicks() { "ondblclick" } else { "onclick" });
             });
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::HoldBrowser(browser));
             });
+            list_refresh(name);
         }
         "RRICHEDIT" | "RMEMO" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -4043,6 +4033,46 @@ fn draw_statusbar(id: &str, x: i32, y: i32, w: i32, h: i32) {
         draw::draw_text2(&caption, px + 4, y, (pw - 8).max(0), h, Align::Left | Align::Inside);
         draw::pop_clip();
         px += pw;
+    }
+}
+
+/// Fills a QLISTBOX's browser or a QCOMBOBOX's choice from its items
+/// (rapidr_value::objects::list), selecting ItemIndex. Items are shown as
+/// written: FLTK's `@` formatting codes and a menu's `/`, `&` and `\` are
+/// escaped.
+pub fn list_refresh(name: &str) {
+    let name = name.to_lowercase();
+    let Some((items, index, top)) =
+        rapidr_value::objects::with_list(&name, |l| (l.items.clone(), l.item_index, l.top_index))
+    else {
+        return;
+    };
+    let widget = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned());
+    match widget {
+        Some(GuiWidget::HoldBrowser(mut b)) => {
+            b.clear();
+            for item in &items {
+                b.add(&format!("@.{}", item.replace(['\n', '\r', '\t'], " ")));
+            }
+            if index >= 0 {
+                b.select(index as i32 + 1);
+            }
+            if top > 0 {
+                b.top_line(top as i32 + 1);
+            }
+            b.redraw();
+        }
+        Some(GuiWidget::Choice(mut c)) => {
+            c.clear();
+            for item in &items {
+                let label = item.replace('\\', "\\\\").replace('/', "\\/").replace('&', "&&").replace(['\n', '\r', '\t'], " ");
+                let label = if label.starts_with('_') { format!("\\{label}") } else { label };
+                c.add_choice(&label);
+            }
+            c.set_value(index as i32);
+            c.redraw();
+        }
+        _ => {}
     }
 }
 

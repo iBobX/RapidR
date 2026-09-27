@@ -1866,13 +1866,93 @@ fn create_radio(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = get_parent_client(&parent).append_child(&wrapper);
 }
 
-fn create_select(id: &str, name: &str, multiple: bool, props: &HashMap<String, Value>) {
+/// QCOMBOBOX (a drop-down) or QLISTBOX (`list`: a list of rows), drawn
+/// from the shared items (rapidr_value::objects::list) by [`render_list`].
+fn create_select(id: &str, name: &str, list: bool, props: &HashMap<String, Value>) {
     let el = create_el("select");
-    if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
-        sel.set_multiple(multiple);
+    if list {
+        let _ = el.set_attribute("size", "2");
     }
     el.set_class_name("rr-widget");
+    // The user's pick goes into the items first, so the program's OnClick /
+    // OnChange (bound later) reads the new ItemIndex / Text / Selected().
+    let owner = name.to_uppercase();
+    let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+        let Some(sel) = e.target().and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
+        let options = sel.options();
+        let picked: Vec<bool> = (0..options.length())
+            .map(|i| options.item(i).and_then(|o| o.dyn_into::<web_sys::HtmlOptionElement>().ok()).is_some_and(|o| o.selected()))
+            .collect();
+        let index = sel.selected_index() as i64;
+        rapidr_value::objects::with_list_mut(&owner, |l| {
+            if l.multi_select {
+                l.selected = picked;
+                l.selected.resize(l.items.len(), false);
+                l.item_index = index;
+            } else {
+                l.select(index);
+            }
+        });
+    });
+    // (OnChange is bound to `input`, which comes before `change`.)
+    for dom_event in ["input", "change"] {
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+    }
+    cb.forget();
     setup_widget(&el, id, name, props);
+    render_list_now(name);
+}
+
+thread_local! {
+    /// Lists to redraw once the program yields (a loop of AddItems redraws
+    /// once).
+    static LISTS_TO_RENDER: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Redraws a QLISTBOX's / QCOMBOBOX's options from its items, soon.
+pub fn render_list(name: &str) {
+    let name = name.to_uppercase();
+    let first = LISTS_TO_RENDER.with(|l| {
+        let mut l = l.borrow_mut();
+        let first = l.is_empty();
+        if !l.contains(&name) {
+            l.push(name);
+        }
+        first
+    });
+    if !first {
+        return;
+    }
+    let flush = Closure::once_into_js(move || {
+        for name in LISTS_TO_RENDER.with(|l| std::mem::take(&mut *l.borrow_mut())) {
+            render_list_now(&name);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);
+    }
+}
+
+/// The options as plain text, ItemIndex (or, with MultiSelect, every
+/// selected item) selected.
+fn render_list_now(name: &str) {
+    let Some(sel) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
+    let _ = rapidr_value::objects::with_list(name, |l| {
+        sel.set_length(0);
+        if !l.combo {
+            sel.set_multiple(l.multi_select);
+        }
+        for (i, item) in l.items.iter().enumerate() {
+            let Ok(opt) = document().create_element("option").map(|o| o.unchecked_into::<web_sys::HtmlOptionElement>()) else { continue };
+            opt.set_text(item);
+            opt.set_value(&i.to_string());
+            opt.set_selected(l.is_selected(i));
+            let _ = sel.add_with_html_option_element(&opt);
+        }
+        if !l.multi_select {
+            sel.set_selected_index(l.item_index as i32);
+        }
+    });
 }
 
 fn create_image(id: &str, name: &str, props: &HashMap<String, Value>) {
