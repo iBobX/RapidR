@@ -13,6 +13,7 @@ pub mod codec;
 pub mod font;
 pub mod grid;
 pub mod imagelist;
+pub mod list;
 pub mod listview;
 pub mod memstream;
 
@@ -25,6 +26,7 @@ use codec::{base64_decode, encode_bmp, BMP_DATA_URL};
 use font::Font;
 use grid::StringGrid;
 use imagelist::ImageList;
+use list::ItemList;
 use listview::ListView;
 use memstream::MemStream;
 
@@ -44,6 +46,8 @@ enum Object {
     ListView(ListView),
     /// QSTRINGGRID's cells, sizes and selection; the runtime draws it.
     Grid(StringGrid),
+    /// QLISTBOX's / QCOMBOBOX's items and selection; the runtime draws it.
+    List(ItemList),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -93,6 +97,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
         "RLISTVIEW" => Object::ListView(ListView::default()),
         "RSTRINGGRID" => Object::Grid(StringGrid::default()),
+        "RLISTBOX" => Object::List(ItemList::new(false)),
+        "RCOMBOBOX" => Object::List(ItemList::new(true)),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -110,6 +116,28 @@ pub fn is_listview(id: &str) -> bool {
 pub fn with_listview<R>(id: &str, f: impl FnOnce(&ListView) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::ListView(l) => Some(f(l)),
+        _ => None,
+    })?
+}
+
+/// Whether `id` is a QLISTBOX or QCOMBOBOX (its widget redraws after a
+/// change).
+pub fn is_list(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::List(_))).unwrap_or(false)
+}
+
+/// Reads a QLISTBOX's / QCOMBOBOX's items (to draw them).
+pub fn with_list<R>(id: &str, f: impl FnOnce(&ItemList) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::List(l) => Some(f(l)),
+        _ => None,
+    })?
+}
+
+/// Changes a list's selection from its widget (the user picked an item).
+pub fn with_list_mut<R>(id: &str, f: impl FnOnce(&mut ItemList) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::List(l) => Some(f(l)),
         _ => None,
     })?
 }
@@ -158,6 +186,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::ImageList(l) => l.get(&prop),
         Object::ListView(l) => l.get(&prop),
         Object::Grid(g) => g.get(&prop),
+        Object::List(l) => l.get(&prop),
     })?
 }
 
@@ -185,6 +214,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::ImageList(l) => l.set(&prop, val).then_some(Ok(())),
         Object::ListView(l) => l.set(&prop, val).then_some(Ok(())),
         Object::Grid(g) => g.set(&prop, val).then_some(Ok(())),
+        Object::List(l) => l.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -206,6 +236,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::ImageList(_) => "imagelist",
         Object::ListView(_) => "listview",
         Object::Grid(_) => "grid",
+        Object::List(_) => "list",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -338,6 +369,23 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Grid(g) = o { g.load_text(&text, rows, cols, max) });
             Some(Ok(Value::Null))
         }
+        // One item per line.
+        ("list", "loadfromfile") => {
+            let bytes = match read_file(&arg(0).to_string_val()) {
+                Ok(b) => b,
+                Err(e) => return Some(Err(e)),
+            };
+            let text = String::from_utf8_lossy(&bytes).into_owned();
+            with(id, |o| if let Object::List(l) = o { l.load_text(&text) });
+            Some(Ok(Value::Null))
+        }
+        ("list", "savetofile") => {
+            let text = with(id, |o| match o {
+                Object::List(l) => l.to_text(),
+                _ => String::new(),
+            })?;
+            Some(write_file(&arg(0).to_string_val(), text.as_bytes()).map(|_| Value::Null))
+        }
         ("imagelist", "getbmp") => {
             let i = arg(0).to_i64();
             with(id, |o| match o {
@@ -371,6 +419,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             Object::ImageList(l) => l.call(&method, args),
             Object::ListView(l) => l.call(&method, args),
             Object::Grid(g) => g.call(&method, args),
+            Object::List(l) => l.call(&method, args),
         })?
         .map(Ok)
         // A property read written like a call (`Icons.Count` compiled as one).

@@ -449,6 +449,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             gui_web::render_listview(&uname);
         } else if rapidr_value::objects::is_grid(name) {
             gui_web::render_grid(&uname);
+        } else if rapidr_value::objects::is_list(name) {
+            gui_web::render_list(&uname);
         }
         return;
     }
@@ -708,6 +710,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             gui_web::render_listview(&uname);
         } else if rapidr_value::objects::is_grid(name) {
             gui_web::render_grid(&uname);
+        } else if rapidr_value::objects::is_list(name) {
+            gui_web::render_list(&uname);
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);

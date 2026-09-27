@@ -97,23 +97,18 @@ impl RpComponent {
                 props.insert("height".into(), v_int(25));
             }
             "RCOMBOBOX" => {
-                props.insert("text".into(), v_str(""));
+                // Items, selection and Text: rapidr_value::objects::list.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
                 props.insert("width".into(), v_int(120));
                 props.insert("height".into(), v_int(25));
-                props.insert("itemindex".into(), v_int(-1));
-                props.insert("items".into(), v_str(""));
-                props.insert("count".into(), v_int(0));
             }
             "RLISTBOX" => {
+                // Items and selection: rapidr_value::objects::list.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
                 props.insert("width".into(), v_int(120));
                 props.insert("height".into(), v_int(100));
-                props.insert("itemindex".into(), v_int(-1));
-                props.insert("items".into(), v_str(""));
-                props.insert("count".into(), v_int(0));
             }
             "RTIMER" => {
                 props.insert("enabled".into(), v_bool(false));
@@ -562,6 +557,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             crate::gui::listview_refresh(name);
         } else if rapidr_value::objects::is_grid(name) {
             crate::gui::grid_refresh(name);
+        } else if rapidr_value::objects::is_list(name) {
+            crate::gui::list_refresh(name);
         }
         return;
     }
@@ -785,6 +782,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             crate::gui::listview_refresh(name);
         } else if rapidr_value::objects::is_grid(name) {
             crate::gui::grid_refresh(name);
+        } else if rapidr_value::objects::is_list(name) {
+            crate::gui::list_refresh(name);
         }
         return result.unwrap_or_else(|e| {
             eprintln!("[rapidr] {name}.{method}: {e}");
