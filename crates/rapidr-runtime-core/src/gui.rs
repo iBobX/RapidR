@@ -170,8 +170,9 @@ fn ensure_app() {
 /// check desktop rendering without screen-recording permission.
 /// `RAPIDR_TEST_EVENTS` lists `component.event`s to fire just before, and
 /// `RAPIDR_TEST_DUMP` `component.property`s to print after them.
-/// `RAPIDR_TEST_RESIZE=w,h` first resizes the frontmost form as a user
-/// dragging its border would.
+/// `RAPIDR_TEST_RESIZE=w,h` first resizes the frontmost form (to Width w,
+/// Height h) as a user dragging its border would, and
+/// `RAPIDR_TEST_SPLIT=splitter:delta` drags a QSPLITTER by `delta` pixels.
 fn install_capture_hook() {
     let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") else { return };
     let delay = std::env::var("RAPIDR_CAPTURE_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(1.5);
@@ -182,11 +183,24 @@ fn install_capture_hook() {
         let (w, h) = r.split_once(',')?;
         Some((w.trim().parse::<i32>().ok()?, h.trim().parse::<i32>().ok()?))
     });
+    let split = std::env::var("RAPIDR_TEST_SPLIT").ok().and_then(|r| {
+        let (name, delta) = r.rsplit_once(':')?;
+        Some((name.trim().to_string(), delta.trim().parse::<i64>().ok()?))
+    });
     app::add_timeout3(delay, move |_| {
+        if let Some((name, delta)) = &split {
+            if crate::layout::splitter_begin(name) {
+                crate::layout::splitter_move(delta / 2);
+                crate::layout::splitter_move(*delta);
+                crate::layout::splitter_end();
+            }
+        }
         if let Some((w, h)) = resize {
             if let Some(mut win) = app::first_window() {
+                // Width / Height of a form with a frame: the window is less.
+                let (fw, fh) = rapidr_value::layout::form_frame(2);
                 let (x, y) = (win.x(), win.y());
-                win.resize(x, y, w, h);
+                win.resize(x, y, w - fw as i32, h - fh as i32);
             }
         }
         for e in events.split(',').filter(|e| !e.trim().is_empty()) {
@@ -308,8 +322,9 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
 
     match comp_type {
         "RFORM" => {
-            let w = rp_comp_get(name, "width").to_i64() as i32;
-            let h = rp_comp_get(name, "height").to_i64() as i32;
+            // The window is the form's inside plus its in-window menu: the
+            // window manager draws the frame (rapidr_value::layout).
+            let (w, h) = form_window_size(name);
             let caption = rp_comp_get(name, "caption").to_string_val();
 
             // Check for parent form (RapidQ-style: assigning Parent removes from taskbar)
@@ -328,6 +343,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.end();
                 let form = name_lower.clone();
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
+                win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -343,6 +359,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.end();
                 let form = name_lower.clone();
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
+                win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -948,6 +965,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             } else {
                 rp_comp_get(&parent, "width").to_i64() as i32
             };
+            let pw = if parent.is_empty() { pw } else { rp_comp_get(&parent, "clientwidth").to_i64() as i32 };
             let mut mb = SysMenuBar::new(0, 0, pw, 30, None);
             mb.set_text_size(13);
             GUI_WIDGETS.with(|gw| {
@@ -1260,16 +1278,55 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
         }
         "RSPLITTER" => {
-            // Splitter — implemented as a thin resizable group
+            // Dragging it resizes the control next to it (layout.rs,
+            // rapidr_value::layout::splitter_drag).
             let x = rp_comp_get(name, "left").to_i64() as i32;
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let mut grp = Group::new(x, y, w, h, None);
-            grp.set_frame(FrameType::ThinUpBox);
-            grp.end();
+            let mut bar = Frame::new(x, y, w, h, None);
+            bar.set_frame(FrameType::ThinUpBox);
+            let id = name_lower.clone();
+            let mut start = None::<(i32, i32)>;
+            bar.handle(move |_, ev| {
+                let vertical = matches!(rp_comp_get(&id, "align").to_i64(), 1 | 2);
+                let cursor = if vertical { fltk::enums::Cursor::NS } else { fltk::enums::Cursor::WE };
+                match ev {
+                    Event::Enter => {
+                        draw::set_cursor(cursor);
+                        true
+                    }
+                    Event::Leave => {
+                        if start.is_none() {
+                            draw::set_cursor(fltk::enums::Cursor::Default);
+                        }
+                        true
+                    }
+                    Event::Push => {
+                        if crate::layout::splitter_begin(&id) {
+                            start = Some((app::event_x_root(), app::event_y_root()));
+                        }
+                        true
+                    }
+                    Event::Drag => {
+                        if let Some((sx, sy)) = start {
+                            let delta = if vertical { app::event_y_root() - sy } else { app::event_x_root() - sx };
+                            crate::layout::splitter_move(delta as i64);
+                        }
+                        true
+                    }
+                    Event::Released => {
+                        if start.take().is_some() {
+                            crate::layout::splitter_end();
+                        }
+                        draw::set_cursor(fltk::enums::Cursor::Default);
+                        true
+                    }
+                    _ => false,
+                }
+            });
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Group(grp));
+                gw.borrow_mut().insert(name_lower, GuiWidget::Frame(bar));
             });
         }
         "RSCROLLBOX" => {
@@ -2946,7 +3003,8 @@ pub fn gui_apply_geometry(name: &str) {
     }
     let n = |p: &str| rp_comp_get(&name, p).to_i64().clamp(-100_000, 100_000) as i32;
     let rect = if let GuiWidget::Window(win) = &widget {
-        (win.x(), win.y(), n("width").max(1), n("height").max(1))
+        let (w, h) = form_window_size(&name);
+        (win.x(), win.y(), w, h)
     } else {
         let parent = rp_comp_get(&name, "parent").to_string_val().to_lowercase();
         let (px, py) = get_widget_offset(&parent);
@@ -2989,6 +3047,26 @@ pub fn gui_apply_geometry(name: &str) {
     }
 }
 
+/// The FLTK window of a form: its inside plus the in-window main menu
+/// (Width / Height less the frame the window manager draws).
+fn form_window_size(name: &str) -> (i32, i32) {
+    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(name, "borderstyle").to_i64());
+    let w = (rp_comp_get(name, "width").to_i64() - fw).clamp(1, 100_000);
+    let h = (rp_comp_get(name, "height").to_i64() - fh).clamp(1, 100_000);
+    (w as i32, h as i32)
+}
+
+/// `Form.BorderStyle`: bsNone (0) takes away the window's frame.
+pub fn gui_set_form_border(name: &str) {
+    let name = name.to_lowercase();
+    if let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
+        APPLYING.with(|a| a.set(a.get() + 1));
+        win.set_border(rp_comp_get(&name, "borderstyle").to_i64() != 0);
+        APPLYING.with(|a| a.set(a.get() - 1));
+    }
+    gui_apply_geometry(&name);
+}
+
 /// `Form.Left` / `Form.Top` set by the program: the window moves there.
 pub fn gui_move_form(name: &str) {
     let name = name.to_lowercase();
@@ -3014,13 +3092,16 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
         rp_comp_set(form, "left", v_int(x as i64));
         rp_comp_set(form, "top", v_int(y as i64));
     });
-    let same = rp_comp_get(form, "width").to_i64() == w as i64 && rp_comp_get(form, "height").to_i64() == h as i64;
+    // The window is the inside: Width / Height add the frame.
+    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(form, "borderstyle").to_i64());
+    let (w, h) = (w as i64 + fw, h as i64 + fh);
+    let same = rp_comp_get(form, "width").to_i64() == w && rp_comp_get(form, "height").to_i64() == h;
     if same {
         return;
     }
     crate::layout::quietly(|| {
-        rp_comp_set(form, "width", v_int(w as i64));
-        rp_comp_set(form, "height", v_int(h as i64));
+        rp_comp_set(form, "width", v_int(w));
+        rp_comp_set(form, "height", v_int(h));
     });
     crate::layout::realign(form, None);
     gui_apply_geometry(form);

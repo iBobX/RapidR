@@ -472,14 +472,13 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             let _ = style.set_property("border-color", &value_to_css_color(val));
         }
         "borderstyle" => {
-            let bs = match val.to_i64() {
-                0 => "none",
-                1 => "solid",
-                2 => "dashed",
-                3 => "dotted",
-                _ => "solid",
-            };
-            let _ = style.set_property("border-style", bs);
+            // A form's frame (bsNone: none); another control's border line.
+            if el.class_list().contains("rr-form") {
+                let has_menu = el.query_selector(":scope > nav[data-rr-type=\"RMAINMENU\"]").ok().flatten().is_some();
+                place_form_chrome(&el, val.to_i64(), has_menu);
+            } else {
+                let _ = style.set_property("border-style", if val.to_i64() == 0 { "none" } else { "solid" });
+            }
         }
         "borderwidth" => {
             let _ = style.set_property("border-width", &format!("{}px", val.to_i64()));
@@ -1524,6 +1523,8 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = style.set_property("font-family", "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif");
     let _ = style.set_property("font-size", "13px");
     let _ = style.set_property("z-index", "10");
+    // Width / Height are the whole form, frame included, as in RapidQ.
+    let _ = style.set_property("box-sizing", "border-box");
 
     apply_geometry(&el, props, 100, 100, 640, 480);
 
@@ -1629,6 +1630,8 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
 
     // Hidden initially — shown via gui_web_finalize()
     let _ = style.set_property("display", "none");
+    let border_style = props.get("borderstyle").map_or(2, |v| v.to_i64());
+    place_form_chrome(&el, border_style, false);
 
     // Click-to-front: bring form to top of z-stack
     {
@@ -2048,8 +2051,8 @@ fn create_mainmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
         let parent_id = comp_id(p);
         if let (Some(form_el), Some(client_el)) = (get_el(&parent_id), get_el(&format!("{}-client", parent_id))) {
             let _ = form_el.insert_before(&el, Some(&client_el));
-            let _ = client_el.style().set_property("top", "57px");
-            let _ = client_el.style().set_property("height", "calc(100% - 57px)");
+            let bs = crate::object_web::rp_comp_get_stored(p, "borderstyle");
+            place_form_chrome(&form_el, if matches!(bs, Value::Null) { 2 } else { bs.to_i64() }, true);
         } else {
             let _ = get_parent_client(&parent).append_child(&el);
         }
@@ -2228,11 +2231,51 @@ fn create_toolbar(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = get_parent_client(&parent).append_child(&el);
 }
 
+/// QSPLITTER: dragging it resizes the control next to it
+/// (layout_web::splitter_begin / _move / _end, as on the desktop).
 fn create_splitter(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_class_name("rr-widget");
     let _ = el.style().set_property("background", "#ccc");
-    let _ = el.style().set_property("cursor", "col-resize");
+    let owner = name.to_uppercase();
+    let vertical = move |n: &str| matches!(crate::object_web::rp_comp_get_stored(n, "align").to_i64(), 1 | 2);
+    // The cursor follows its Align.
+    {
+        let owner = owner.clone();
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if let Some(el) = e.current_target().and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()) {
+                let _ = el.style().set_property("cursor", if vertical(&owner) { "row-resize" } else { "col-resize" });
+            }
+        });
+        let _ = el.add_event_listener_with_callback("mouseenter", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        if !crate::layout_web::splitter_begin(&owner) {
+            return;
+        }
+        e.prevent_default();
+        let v = vertical(&owner);
+        let start = if v { e.client_y() } else { e.client_x() };
+        let move_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let now = if v { e.client_y() } else { e.client_x() };
+            crate::layout_web::splitter_move((now - start) as i64);
+        });
+        let doc = document();
+        let _ = doc.add_event_listener_with_callback("mousemove", move_cb.as_ref().unchecked_ref());
+        let move_ref: JsValue = move_cb.as_ref().into();
+        let up_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::once(move |_e: web_sys::MouseEvent| {
+            let _ = document().remove_event_listener_with_callback("mousemove", move_ref.unchecked_ref());
+            drop(move_cb);
+            crate::layout_web::splitter_end();
+        });
+        let options = web_sys::AddEventListenerOptions::new();
+        options.set_once(true);
+        let _ = doc.add_event_listener_with_callback_and_add_event_listener_options("mouseup", up_cb.as_ref().unchecked_ref(), &options);
+        up_cb.forget();
+    });
+    let _ = el.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
+    down.forget();
     setup_widget(&el, id, name, props);
 }
 
@@ -3075,8 +3118,8 @@ pub fn gui_web_set_parent(name: &str, parent_name: &str) {
         let parent_id = comp_id(parent_name);
         if let (Some(form_el), Some(client_el)) = (get_el(&parent_id), get_el(&format!("{}-client", parent_id))) {
             let _ = form_el.insert_before(&el, Some(&client_el));
-            let _ = client_el.style().set_property("top", "57px");
-            let _ = client_el.style().set_property("height", "calc(100% - 57px)");
+            let bs = crate::object_web::rp_comp_get_stored(parent_name, "borderstyle");
+            place_form_chrome(&form_el, if matches!(bs, Value::Null) { 2 } else { bs.to_i64() }, true);
         }
         return;
     }
@@ -3374,6 +3417,33 @@ fn form_maximize(form_id: &str) {
             .map(|w| (w.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(0.0), w.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(0.0)))
             .unwrap_or((0.0, 0.0));
         form_resized(form_id, 0, 0, vw as i32, vh as i32);
+    }
+}
+
+/// Places a form's title bar, main menu and client area for its
+/// BorderStyle (bsNone: no title bar or border) — the frame
+/// `rapidr_value::layout::form_frame` accounts for.
+fn place_form_chrome(form: &web_sys::HtmlElement, border_style: i64, has_menu: bool) {
+    use rapidr_value::layout::{FORM_BORDER, FORM_CAPTION};
+    let framed = border_style != 0;
+    let menu = if has_menu { crate::layout_web::MENU_HEIGHT } else { 0 };
+    let caption = if framed { FORM_CAPTION } else { 0 };
+    let _ = form.style().set_property("border", if framed { &"1px solid #999"[..] } else { "none" });
+    let _ = form.style().set_property("border-width", &format!("{}px", if framed { FORM_BORDER } else { 0 }));
+    if let Ok(Some(bar)) = form.query_selector(":scope > .rr-form-titlebar") {
+        if let Ok(bar) = bar.dyn_into::<web_sys::HtmlElement>() {
+            let _ = bar.style().set_property("display", if framed { "flex" } else { "none" });
+        }
+    }
+    if let Ok(Some(nav)) = form.query_selector(":scope > nav[data-rr-type=\"RMAINMENU\"]") {
+        if let Ok(nav) = nav.dyn_into::<web_sys::HtmlElement>() {
+            let _ = nav.style().set_property("top", &format!("{caption}px"));
+        }
+    }
+    if let Some(client) = get_el(&format!("{}-client", form.id())) {
+        let top = caption + menu;
+        let _ = client.style().set_property("top", &format!("{top}px"));
+        let _ = client.style().set_property("height", &format!("calc(100% - {top}px)"));
     }
 }
 

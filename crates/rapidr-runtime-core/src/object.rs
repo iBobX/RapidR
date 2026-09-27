@@ -540,11 +540,19 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
     // RapidR's forms and containers have no frame inside their size: the
     // client area is the whole component, less a form's in-window menu.
-    let (prop_lower, val) = match prop_lower.as_str() {
-        "clientwidth" => ("width".to_string(), val),
-        "clientheight" => ("height".to_string(), v_int(val.to_i64() + menu_height(name))),
-        _ => (prop_lower, val),
-    };
+    // ClientWidth / ClientHeight: a form's inside (rapidr_value::layout::
+    // form_client_size); for other components, their whole size.
+    if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
+        let (prop, v) = if rp_comp_type(name) == "RFORM" {
+            let (cw, ch) = form_client(name);
+            let (cw, ch) = if prop_lower == "clientwidth" { (val.to_i64(), ch) } else { (cw, val.to_i64()) };
+            let (w, h) = rapidr_value::layout::form_outer_size(cw, ch, rp_comp_get(name, "borderstyle").to_i64(), menu_height(name));
+            if prop_lower == "clientwidth" { ("width", w) } else { ("height", h) }
+        } else {
+            (if prop_lower == "clientwidth" { "width" } else { "height" }, val.to_i64())
+        };
+        return rp_comp_set(name, prop, v_int(v));
+    }
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
     // with the web runtime).
@@ -675,6 +683,22 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::gui::gui_move_form(name);
     }
+    // A form with / without its frame (bsNone): the window and its inside.
+    if prop_lower == "borderstyle" && rp_comp_type(name) == "RFORM" {
+        #[cfg(feature = "gui")]
+        crate::gui::gui_set_form_border(name);
+        crate::layout::realign(name, None);
+    }
+}
+
+/// A form's ClientWidth / ClientHeight (rapidr_value::layout).
+pub fn form_client(name: &str) -> (i64, i64) {
+    rapidr_value::layout::form_client_size(
+        rp_comp_get(name, "width").to_i64(),
+        rp_comp_get(name, "height").to_i64(),
+        rp_comp_get(name, "borderstyle").to_i64(),
+        menu_height(name),
+    )
 }
 
 /// The height of a form's in-window main menu (0 on macOS or without one).
@@ -691,15 +715,16 @@ fn menu_height(name: &str) -> i64 {
 /// Get a property from a registered component.
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
-    // RapidR's forms and containers have no frame inside their size: the
-    // client area is the whole component, less a form's in-window menu.
-    if prop_lower == "clientheight" {
-        return v_int((rp_comp_get(name, "height").to_i64() - menu_height(name)).max(0));
+    // A form's inside (its frame and main menu excluded); other
+    // components have no frame inside their size.
+    if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
+        let (w, h) = if rp_comp_type(name) == "RFORM" {
+            form_client(name)
+        } else {
+            (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
+        };
+        return v_int(if prop_lower == "clientwidth" { w } else { h });
     }
-    let prop_lower = match prop_lower.as_str() {
-        "clientwidth" => "width".to_string(),
-        _ => prop_lower,
-    };
     if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
         return v;
     }

@@ -14,7 +14,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 
-use rapidr_value::layout::{align_controls, Align, Control, Rect};
+use rapidr_value::layout::{align_controls, splitter_drag, Align, Control, Rect, SplitterDrag};
 
 use crate::object::{get_children_of, rp_comp_get, rp_comp_set, rp_comp_type};
 use crate::value::{v_int, Value};
@@ -70,15 +70,15 @@ fn mark(parent: &str) {
     }
 }
 
-/// The client area of `parent`, in its children's coordinates: the whole
-/// component, less a form's in-window main menu.
+/// The client area of `parent`, in its children's coordinates: a form's
+/// inside (frame and main menu excluded), any other container's whole size.
 fn client_rect(parent: &str) -> Rect {
-    let n = |p: &str| rp_comp_get(parent, p).to_i64();
-    #[cfg(feature = "gui")]
-    let menu = crate::gui::menu_offset(parent) as i64;
-    #[cfg(not(feature = "gui"))]
-    let menu = 0;
-    Rect::new(0, 0, n("width"), (n("height") - menu).max(0))
+    let (w, h) = if rp_comp_type(parent) == "RFORM" {
+        crate::object::form_client(parent)
+    } else {
+        (rp_comp_get(parent, "width").to_i64(), rp_comp_get(parent, "height").to_i64())
+    };
+    Rect::new(0, 0, w, h)
 }
 
 /// Called by `rp_comp_set` after it stored `prop` (lowercase) of `name`.
@@ -119,6 +119,53 @@ pub(crate) fn after_set(name: &str, prop: &str) {
     }
 }
 
+fn controls_of(parent: &str) -> (Vec<(String, String)>, Vec<Control>) {
+    let children = get_children_of(parent);
+    let controls = children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n) }).collect();
+    (children, controls)
+}
+
+thread_local! {
+    /// The QSPLITTER being dragged: its name, the control it resizes and how.
+    static DRAG: RefCell<Option<(String, String, SplitterDrag)>> = const { RefCell::new(None) };
+}
+
+/// The user pressed the mouse on `splitter`: returns whether there's a
+/// control next to it to resize (`rapidr_value::layout::splitter_drag`).
+pub fn splitter_begin(splitter: &str) -> bool {
+    let splitter = splitter.to_lowercase();
+    let parent = parent_of(&splitter);
+    let (children, controls) = controls_of(&parent);
+    let Some(i) = children.iter().position(|(n, _)| *n == splitter) else { return false };
+    let min = match rp_comp_get(&splitter, "minsize") {
+        Value::Null => 30,
+        v => v.to_i64().max(0),
+    };
+    let drag = splitter_drag(client_rect(&parent), &controls, i, min);
+    let found = drag.is_some();
+    DRAG.with(|d| *d.borrow_mut() = drag.map(|g| (splitter, children[g.control].0.clone(), g)));
+    found
+}
+
+/// The mouse moved `delta` pixels (along the splitter's axis) since the
+/// drag began: the neighbour's Width / Height follow, and the parent is
+/// laid out again.
+pub fn splitter_move(delta: i64) {
+    let Some((_, target, drag)) = DRAG.with(|d| d.borrow().clone()) else { return };
+    let size = drag.size_for(delta);
+    let prop = if drag.horizontal { "width" } else { "height" };
+    if rp_comp_get(&target, prop).to_i64() != size {
+        rp_comp_set(&target, prop, v_int(size));
+    }
+}
+
+/// The drag ended: the splitter's OnMoved fires.
+pub fn splitter_end() {
+    if let Some((splitter, _, _)) = DRAG.with(|d| d.borrow_mut().take()) {
+        crate::object::rp_fire_event(&splitter, "onmoved");
+    }
+}
+
 /// Lays out the aligned children of `parent` (see `rapidr_value::layout`);
 /// `changed` is the child whose Align, size or visibility just changed.
 pub fn realign(parent: &str, changed: Option<&str>) {
@@ -126,9 +173,7 @@ pub fn realign(parent: &str, changed: Option<&str>) {
     if parent.is_empty() || !has_aligned_children(&parent) {
         return;
     }
-    let children = get_children_of(&parent);
-    let controls: Vec<Control> =
-        children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n) }).collect();
+    let (children, controls) = controls_of(&parent);
     let changed = changed.map(str::to_lowercase).and_then(|c| children.iter().position(|(n, _)| *n == c));
     let moves: Vec<(String, Rect, bool)> = align_controls(client_rect(&parent), &controls, changed)
         .into_iter()

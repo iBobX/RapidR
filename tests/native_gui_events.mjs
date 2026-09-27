@@ -39,10 +39,10 @@ function build(name, interp) {
   return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
 }
 
-function run(bin, events, dump, resize = "") {
+function run(bin, events, dump, resize = "", split = "") {
   return execFileSync(bin, [], {
     encoding: "utf8",
-    env: { ...process.env, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize },
+    env: { ...process.env, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize, RAPIDR_TEST_SPLIT: split },
   }).split("\n").filter((l) => l.includes("=")).join("\n");
 }
 
@@ -58,8 +58,8 @@ const cases = [
     expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
   { name: "string_grid", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|-1"] },
-  { name: "align_layout", events: "btn.onclick", dump: "loose.caption,bar.caption,status.simpletext", resize: "600,350",
-    expect: ["loose.caption=105,40,235,236|100|276", "bar.caption=600x350|435x286|540|150", "status.simpletext=495|286|5|600"] },
+  { name: "align_layout", events: "btn.onclick", dump: "loose.caption,side.caption,bar.caption,status.simpletext", resize: "600,350", split: "split:60",
+    expect: ["loose.caption=105,40,233,205|100|245", "side.caption=moved160|160|165", "bar.caption=600x350|373x255|538|150", "status.simpletext=433|255|5|598"] },
   { name: "list_items", events: "items.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=5|zero|four|a/b & c|3|Applepear|2|2", "lbl.caption=picked 3 four"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
@@ -71,7 +71,7 @@ for (const c of cases) {
     const kind = interp ? "interpreted" : "native";
     const bin = build(c.name, interp);
     ok(existsSync(bin), `${c.name}: ${kind} executable built`);
-    results[kind] = run(bin, c.events, c.dump, c.resize);
+    results[kind] = run(bin, c.events, c.dump, c.resize, c.split);
     for (const line of c.expect) ok(results[kind].includes(line), `${c.name} (${kind}): ${line}`);
   }
   ok(results.native === results.interpreted, `${c.name}: native and interpreted builds agree`);
