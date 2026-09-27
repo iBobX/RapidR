@@ -153,7 +153,10 @@ Next up, in order:
 - [ ] Native corpus programs *run* like the interpreter: compare their output/behaviour, not just `cargo check`
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
-- [ ] `Align` (alTop / alBottom / alLeft / alRight / alClient) for every component, on desktop and web — RapidQ programs use it for layout (e.g. `grids/listgrid.bas`)
+- [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)
+- [ ] QSPLITTER dragging: resize the neighbouring aligned control by mouse (desktop and web); `MinSize`, `OnMoved`
+- [ ] Form Height semantics: RapidQ's Width/Height include the window frame (ClientWidth/ClientHeight don't); desktop forms use Width/Height as the client size, web forms include a 29px title bar — decide one rule for both
+- [ ] QLISTBOX gaps: `ItemCount`, `Item(i)`, and the first of several items added with `AddItems a, b` inside CREATE is lost (desktop)
 - [ ] Type suffixes (`n%` SHORT, `n&` LONG, `n!` SINGLE, `n#` DOUBLE, `n?` BYTE) as declared types
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)

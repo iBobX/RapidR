@@ -8,6 +8,7 @@
 mod builtins;
 mod file_io;
 pub mod object;
+pub mod layout;
 pub use rapidr_value as value;
 
 #[cfg(feature = "database")]
