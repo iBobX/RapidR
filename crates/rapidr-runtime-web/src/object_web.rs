@@ -299,6 +299,21 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
     }
 
+    // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout_web).
+    let align = rapidr_value::layout::default_align(&utype);
+    if align != rapidr_value::layout::Align::None {
+        props.insert("align".to_string(), v_int(align.value()));
+    }
+    // Their sizes, as on the desktop.
+    let sizes: &[(&str, i64)] = match utype.as_str() {
+        "RSTATUSBAR" => &[("left", 0), ("top", 0), ("width", 200), ("height", 24)],
+        "RSPLITTER" => &[("left", 0), ("top", 0), ("width", 5), ("height", 200)],
+        _ => &[],
+    };
+    for &(p, v) in sizes {
+        props.insert(p.to_string(), v_int(v));
+    }
+
     // Create the DOM element (skip for non-visual components)
     match utype.as_str() {
         "RNUM" | "RDATAFRAME" | "RSQLITE" => {
@@ -487,6 +502,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // Handle parent re-parenting
     if lprop == "parent" {
         gui_web::gui_web_set_parent(&uname, &val.to_string_val().to_uppercase());
+        crate::layout_web::after_set(&uname, &lprop);
         return;
     }
 
@@ -519,6 +535,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     // Pass to GUI layer for DOM update
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
+    // Align (layout_web).
+    crate::layout_web::after_set(&uname, &lprop);
 }
 
 pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>, has_row: bool) {
@@ -632,6 +650,21 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             .get(&uname)
             .and_then(|comp| comp.properties.get(&lprop).cloned())
     });
+
+    // Positions are what the program (or layout) set; sizes too while the
+    // element isn't rendered (a form not shown yet, a hidden control).
+    if matches!(lprop.as_str(), "left" | "top") {
+        if let Some(v) = stored.clone() {
+            return v;
+        }
+    }
+    if matches!(lprop.as_str(), "width" | "height") {
+        let live = gui_web::gui_web_get_prop(&uname, &lprop);
+        return match stored {
+            Some(v) if live.to_i64() == 0 => v,
+            _ => live,
+        };
+    }
 
     // For visual properties, prefer live DOM values
     match lprop.as_str() {

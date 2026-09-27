@@ -11,6 +11,7 @@
 //   * tests/fixtures/statusbar_panels.bas — QSTATUSBAR AddPanels / Panel(i);
 //   * tests/fixtures/listview_columns.bas — QLISTVIEW columns, items, sub-items;
 //   * tests/fixtures/string_grid.bas — QSTRINGGRID cells, rows/columns, streams;
+//   * tests/fixtures/align_layout.bas — Align, and a form resized by the user;
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -37,10 +38,10 @@ function build(name, interp) {
   return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
 }
 
-function run(bin, events, dump) {
+function run(bin, events, dump, resize = "") {
   return execFileSync(bin, [], {
     encoding: "utf8",
-    env: { ...process.env, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump },
+    env: { ...process.env, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize },
   }).split("\n").filter((l) => l.includes("=")).join("\n");
 }
 
@@ -56,6 +57,8 @@ const cases = [
     expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
   { name: "string_grid", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|-1"] },
+  { name: "align_layout", events: "btn.onclick", dump: "loose.caption,bar.caption,status.simpletext", resize: "600,350",
+    expect: ["loose.caption=105,40,235,236|100|276", "bar.caption=600x350|435x286|540|150", "status.simpletext=495|286|5|600"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];
@@ -65,7 +68,7 @@ for (const c of cases) {
     const kind = interp ? "interpreted" : "native";
     const bin = build(c.name, interp);
     ok(existsSync(bin), `${c.name}: ${kind} executable built`);
-    results[kind] = run(bin, c.events, c.dump);
+    results[kind] = run(bin, c.events, c.dump, c.resize);
     for (const line of c.expect) ok(results[kind].includes(line), `${c.name} (${kind}): ${line}`);
   }
   ok(results.native === results.interpreted, `${c.name}: native and interpreted builds agree`);

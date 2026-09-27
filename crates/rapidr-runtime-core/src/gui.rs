@@ -38,7 +38,9 @@ use crate::value::{v_int, v_null, v_str, Value};
 // ---------------------------------------------------------------------------
 
 /// Each GUI component gets a unique handle. We store FLTK widgets in an enum
-/// because they have different types.
+/// because they have different types. (FLTK widgets are handles: a clone
+/// is the same widget.)
+#[derive(Clone)]
 enum GuiWidget {
     Window(Window),
     Button(Button),
@@ -168,13 +170,25 @@ fn ensure_app() {
 /// check desktop rendering without screen-recording permission.
 /// `RAPIDR_TEST_EVENTS` lists `component.event`s to fire just before, and
 /// `RAPIDR_TEST_DUMP` `component.property`s to print after them.
+/// `RAPIDR_TEST_RESIZE=w,h` first resizes the frontmost form as a user
+/// dragging its border would.
 fn install_capture_hook() {
     let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") else { return };
     let delay = std::env::var("RAPIDR_CAPTURE_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(1.5);
     // `RAPIDR_TEST_EVENTS=b1.onclick,b2.onclick`: fire these first, as if
     // the user had clicked (tests of EVENT handlers and bindings).
     let events = std::env::var("RAPIDR_TEST_EVENTS").unwrap_or_default();
+    let resize = std::env::var("RAPIDR_TEST_RESIZE").ok().and_then(|r| {
+        let (w, h) = r.split_once(',')?;
+        Some((w.trim().parse::<i32>().ok()?, h.trim().parse::<i32>().ok()?))
+    });
     app::add_timeout3(delay, move |_| {
+        if let Some((w, h)) = resize {
+            if let Some(mut win) = app::first_window() {
+                let (x, y) = (win.x(), win.y());
+                win.resize(x, y, w, h);
+            }
+        }
         for e in events.split(',').filter(|e| !e.trim().is_empty()) {
             if let Some((comp, event)) = e.trim().rsplit_once('.') {
                 crate::object::rp_fire_event(comp, event);
@@ -195,6 +209,10 @@ fn capture_windows(prefix: &str) {
             println!("{}={}", p.trim(), rp_comp_get(comp, prop).to_string_val());
         }
     }
+    // Draw what handlers changed since the last redraw (the interpreter runs
+    // them after the hook's own redraw).
+    app::redraw();
+    app::flush();
     let mut n = 0;
     for mut win in app::windows().unwrap_or_default() {
         if !win.shown() {
@@ -308,6 +326,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.set_label(&caption);
                 win.make_resizable(true);
                 win.end();
+                let form = name_lower.clone();
+                win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -321,6 +341,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.set_label(&caption);
                 win.make_resizable(true);
                 win.end();
+                let form = name_lower.clone();
+                win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -639,7 +661,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let grp = Group::new(x, y, w, h, None);
+            let mut grp = Group::new(x, y, w, h, None);
+            // RapidQ's panel shows its Caption centered, under its children.
+            grp.set_label(&rp_comp_get(name, "caption").to_string_val());
+            grp.set_align(Align::Center | Align::Inside | Align::Clip);
             grp.end();
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::Group(grp));
@@ -796,12 +821,13 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
         }
         "RSTATUSBAR" => {
-            // StatusBar anchored to the bottom of its parent form
-            let parent_name = rp_comp_get(name, "parent").to_string_val();
-            let pw = if parent_name.is_empty() { 800 } else { rp_comp_get(&parent_name, "width").to_i64() as i32 };
-            let ph = if parent_name.is_empty() { 600 } else { rp_comp_get(&parent_name, "height").to_i64() as i32 };
-            let bar_h = 25;
-            let mut bar = Frame::new(0, ph - bar_h, pw, bar_h, None);
+            // Docked at the bottom of its form by its Align (alBottom by
+            // default, as in RapidQ): see layout.rs.
+            let x = rp_comp_get(name, "left").to_i64() as i32;
+            let y = rp_comp_get(name, "top").to_i64() as i32;
+            let w = rp_comp_get(name, "width").to_i64() as i32;
+            let h = rp_comp_get(name, "height").to_i64() as i32;
+            let mut bar = Frame::new(x, y, w, h, None);
             let id = name_lower.clone();
             bar.draw(move |f| draw_statusbar(&id, f.x(), f.y(), f.w(), f.h()));
             GUI_WIDGETS.with(|gw| {
@@ -2451,6 +2477,13 @@ pub fn gui_center(name: &str) {
             win.set_pos(x, y);
         }
     });
+    // Form.Left / Form.Top read where it went.
+    if let Some(GuiWidget::Window(win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name_lower).cloned()) {
+        crate::layout::quietly(|| {
+            rp_comp_set(name, "left", v_int(win.x() as i64));
+            rp_comp_set(name, "top", v_int(win.y() as i64));
+        });
+    }
 }
 
 /// Execute a dialog (Open/Save/Color/Font).
@@ -2740,8 +2773,7 @@ fn build_children_recursive(parent_name: &str) {
 
     // Check if the parent form has a main menu — if so, offset children below it.
     // On macOS, SysMenuBar goes to the system menu bar so no in-window offset needed.
-    let has_menu = children.iter().any(|(_, t)| t == "RMAINMENU");
-    let menu_offset = if has_menu && !cfg!(target_os = "macos") { 30 } else { 0 };
+    let menu_offset = menu_offset(parent_name);
 
     // Begin adding children to the parent widget
     begin_widget(parent_name);
@@ -2753,21 +2785,24 @@ fn build_children_recursive(parent_name: &str) {
         let orig_left = rp_comp_get(child_name, "left").to_i64() as i32;
         let orig_top = rp_comp_get(child_name, "top").to_i64() as i32;
 
-        // Menu and StatusBar don't get the menu offset
-        let extra_y = if child_type != "RMAINMENU" && child_type != "RSTATUSBAR" { menu_offset } else { 0 };
+        // The main menu doesn't get the menu offset
+        let extra_y = if child_type != "RMAINMENU" { menu_offset } else { 0 };
 
-        if parent_x != 0 || parent_y != 0 || extra_y != 0 {
-            rp_comp_set(child_name, "left", v_int((orig_left + parent_x) as i64));
-            rp_comp_set(child_name, "top", v_int((orig_top + parent_y + extra_y) as i64));
-        }
+        // (Temporary absolute positions: nothing is laid out or moved.)
+        crate::layout::quietly(|| {
+            if parent_x != 0 || parent_y != 0 || extra_y != 0 {
+                rp_comp_set(child_name, "left", v_int((orig_left + parent_x) as i64));
+                rp_comp_set(child_name, "top", v_int((orig_top + parent_y + extra_y) as i64));
+            }
 
-        gui_create_widget(child_name, child_type);
+            gui_create_widget(child_name, child_type);
 
-        // Restore original relative positions
-        if parent_x != 0 || parent_y != 0 || extra_y != 0 {
-            rp_comp_set(child_name, "left", v_int(orig_left as i64));
-            rp_comp_set(child_name, "top", v_int(orig_top as i64));
-        }
+            // Restore original relative positions
+            if parent_x != 0 || parent_y != 0 || extra_y != 0 {
+                rp_comp_set(child_name, "left", v_int(orig_left as i64));
+                rp_comp_set(child_name, "top", v_int(orig_top as i64));
+            }
+        });
 
         // For TabControls, also build children inside each tab group
         if child_type == "RTABCONTROL" {
@@ -2834,6 +2869,172 @@ fn get_widget_offset(name: &str) -> (i32, i32) {
             (0, 0)
         }
     })
+}
+
+// ---------------------------------------------------------------------------
+// Live geometry (layout.rs keeps Left/Top/Width/Height; this moves widgets)
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    /// Set while this runtime resizes widgets itself (a form's resize
+    /// callback then isn't a user resize).
+    static APPLYING: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// The height of a form's in-window main menu (children sit below it); 0
+/// without one, and on macOS, where the menu is the system menu bar.
+pub fn menu_offset(form: &str) -> i32 {
+    let has_menu = crate::object::get_children_of(form).iter().any(|(_, t)| t == "RMAINMENU");
+    if has_menu && !cfg!(target_os = "macos") { 30 } else { 0 }
+}
+
+fn resize_widget(widget: &mut GuiWidget, x: i32, y: i32, w: i32, h: i32) {
+    match widget {
+        GuiWidget::Window(v) => v.resize(x, y, w, h),
+        GuiWidget::Button(v) => v.resize(x, y, w, h),
+        GuiWidget::Frame(v) | GuiWidget::ImageFrame(v) => v.resize(x, y, w, h),
+        GuiWidget::Input(v) => v.resize(x, y, w, h),
+        GuiWidget::Output(v) => v.resize(x, y, w, h),
+        GuiWidget::CheckButton(v) => v.resize(x, y, w, h),
+        GuiWidget::RadioButton(v) => v.resize(x, y, w, h),
+        GuiWidget::Choice(v) => v.resize(x, y, w, h),
+        GuiWidget::HoldBrowser(v) => v.resize(x, y, w, h),
+        GuiWidget::TextEditor(v) => v.resize(x, y, w, h),
+        GuiWidget::Group(v) => v.resize(x, y, w, h),
+        GuiWidget::Tabs(v) => v.resize(x, y, w, h),
+        GuiWidget::MenuBar(v) => v.resize(x, y, w, h),
+        GuiWidget::SysMenuBar(v) => v.resize(x, y, w, h),
+        GuiWidget::Progress(v) => v.resize(x, y, w, h),
+        GuiWidget::Scroll(v) => v.resize(x, y, w, h),
+        GuiWidget::Tree(v) => v.resize(x, y, w, h),
+        GuiWidget::Slider(v) => v.resize(x, y, w, h),
+        GuiWidget::Grid(v, _) => v.resize(x, y, w, h),
+    }
+}
+
+fn redraw_window_of(widget: &GuiWidget) {
+    macro_rules! redraw_win {
+        ($v:expr) => {
+            if let Some(mut w) = $v.window() {
+                w.redraw();
+            }
+        };
+    }
+    match widget {
+        GuiWidget::Window(v) => v.clone().redraw(),
+        GuiWidget::Button(v) => redraw_win!(v),
+        GuiWidget::Frame(v) | GuiWidget::ImageFrame(v) => redraw_win!(v),
+        GuiWidget::Group(v) => redraw_win!(v),
+        GuiWidget::Scroll(v) => redraw_win!(v),
+        GuiWidget::Grid(v, _) => redraw_win!(v),
+        GuiWidget::HoldBrowser(v) => redraw_win!(v),
+        GuiWidget::TextEditor(v) => redraw_win!(v),
+        GuiWidget::Input(v) => redraw_win!(v),
+        GuiWidget::Tabs(v) => redraw_win!(v),
+        GuiWidget::Output(v) => redraw_win!(v),
+        GuiWidget::CheckButton(v) => redraw_win!(v),
+        GuiWidget::RadioButton(v) => redraw_win!(v),
+        GuiWidget::Choice(v) => redraw_win!(v),
+        GuiWidget::Progress(v) => redraw_win!(v),
+        GuiWidget::Tree(v) => redraw_win!(v),
+        GuiWidget::Slider(v) => redraw_win!(v),
+        GuiWidget::MenuBar(v) => redraw_win!(v),
+        GuiWidget::SysMenuBar(v) => redraw_win!(v),
+    }
+}
+
+/// Moves / resizes `name`'s widget (if it's built) to its Left / Top /
+/// Width / Height, then its children's, which FLTK would otherwise have
+/// scaled with it. A form keeps its screen position (see
+/// [`gui_move_form`]).
+pub fn gui_apply_geometry(name: &str) {
+    let name = name.to_lowercase();
+    let Some(mut widget) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) else { return };
+    let comp_type = rp_comp_type(&name);
+    if comp_type == "RMAINMENU" {
+        return;
+    }
+    let n = |p: &str| rp_comp_get(&name, p).to_i64().clamp(-100_000, 100_000) as i32;
+    let rect = if let GuiWidget::Window(win) = &widget {
+        (win.x(), win.y(), n("width").max(1), n("height").max(1))
+    } else {
+        let parent = rp_comp_get(&name, "parent").to_string_val().to_lowercase();
+        let (px, py) = get_widget_offset(&parent);
+        (px + n("left"), py + menu_offset(&parent) + n("top"), n("width").max(0), n("height").max(0))
+    };
+    let current = match &widget {
+        GuiWidget::Window(v) => (v.x(), v.y(), v.w(), v.h()),
+        _ => (-1, -1, -1, -1),
+    };
+    if current != rect {
+        APPLYING.with(|a| a.set(a.get() + 1));
+        resize_widget(&mut widget, rect.0, rect.1, rect.2, rect.3);
+        APPLYING.with(|a| a.set(a.get() - 1));
+        redraw_window_of(&widget);
+    }
+    // A form's main menu spans its width.
+    if let GuiWidget::Window(_) = widget {
+        for (child, t) in crate::object::get_children_of(&name) {
+            if t == "RMAINMENU" {
+                if let Some(GuiWidget::SysMenuBar(mut mb)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&child).cloned()) {
+                    mb.resize(0, 0, rect.2, mb.h());
+                }
+            }
+        }
+    }
+    for (child, _) in crate::object::get_children_of(&name) {
+        gui_apply_geometry(&child);
+    }
+    // A tab control's pages sit below its tabs.
+    if comp_type == "RTABCONTROL" {
+        let pages = TAB_GROUPS.with(|tg| tg.borrow().get(&name).cloned().unwrap_or_default());
+        for page in pages {
+            if let Some(mut g) = GUI_WIDGETS.with(|gw| gw.borrow().get(&page).cloned()) {
+                resize_widget(&mut g, rect.0, rect.1 + 25, rect.2, (rect.3 - 25).max(0));
+            }
+            for (child, _) in crate::object::get_children_of(&page) {
+                gui_apply_geometry(&child);
+            }
+        }
+    }
+}
+
+/// `Form.Left` / `Form.Top` set by the program: the window moves there.
+pub fn gui_move_form(name: &str) {
+    let name = name.to_lowercase();
+    if let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
+        let (x, y) = (rp_comp_get(&name, "left").to_i64() as i32, rp_comp_get(&name, "top").to_i64() as i32);
+        if (win.x(), win.y()) != (x, y) {
+            APPLYING.with(|a| a.set(a.get() + 1));
+            win.set_pos(x, y);
+            APPLYING.with(|a| a.set(a.get() - 1));
+        }
+    }
+}
+
+/// The user moved or resized a form: its Left / Top / Width / Height
+/// follow, its aligned children are laid out again (the others keep their
+/// places, as in RapidQ — FLTK's proportional scaling is undone) and
+/// OnResize fires.
+fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
+    if APPLYING.with(|a| a.get()) > 0 {
+        return;
+    }
+    crate::layout::quietly(|| {
+        rp_comp_set(form, "left", v_int(x as i64));
+        rp_comp_set(form, "top", v_int(y as i64));
+    });
+    let same = rp_comp_get(form, "width").to_i64() == w as i64 && rp_comp_get(form, "height").to_i64() == h as i64;
+    if same {
+        return;
+    }
+    crate::layout::quietly(|| {
+        rp_comp_set(form, "width", v_int(w as i64));
+        rp_comp_set(form, "height", v_int(h as i64));
+    });
+    crate::layout::realign(form, None);
+    gui_apply_geometry(form);
+    rp_fire_event(form, "onresize");
 }
 
 // ---------------------------------------------------------------------------
@@ -3756,6 +3957,10 @@ pub fn gui_set_caption(name: &str, text: &str) {
                 GuiWidget::Button(ref mut w) => { w.set_label(text); }
                 GuiWidget::Output(ref mut w) => { let _ = w.set_value(text); }
                 GuiWidget::Window(ref mut w) => { w.set_label(text); }
+                GuiWidget::Group(ref mut w) if rp_comp_type(&name_lower) == "RPANEL" => {
+                    w.set_label(text);
+                    w.redraw();
+                }
                 _ => {}
             }
         }

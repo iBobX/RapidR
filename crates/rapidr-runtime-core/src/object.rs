@@ -194,6 +194,11 @@ impl RpComponent {
                 props.insert("color".into(), v_int(0));
             }
             "RSTATUSBAR" => {
+                // Docked at the bottom (Align = alBottom) once it has a parent.
+                props.insert("left".into(), v_int(0));
+                props.insert("top".into(), v_int(0));
+                props.insert("width".into(), v_int(200));
+                props.insert("height".into(), v_int(24));
                 props.insert("simpletext".into(), v_str(""));
                 props.insert("simplepanel".into(), v_bool(false));
                 props.insert("panelcount".into(), v_int(0));
@@ -356,6 +361,11 @@ impl RpComponent {
             _ => {
                 // Unknown component type — just empty properties
             }
+        }
+        // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout.rs).
+        let align = rapidr_value::layout::default_align(&tn);
+        if align != rapidr_value::layout::Align::None {
+            props.insert("align".into(), v_int(align.value()));
         }
         Self {
             type_name: tn,
@@ -534,11 +544,11 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
     // RapidR's forms and containers have no frame inside their size: the
-    // client area is the whole component.
-    let prop_lower = match prop_lower.as_str() {
-        "clientwidth" => "width".to_string(),
-        "clientheight" => "height".to_string(),
-        _ => prop_lower,
+    // client area is the whole component, less a form's in-window menu.
+    let (prop_lower, val) = match prop_lower.as_str() {
+        "clientwidth" => ("width".to_string(), val),
+        "clientheight" => ("height".to_string(), v_int(val.to_i64() + menu_height(name))),
+        _ => (prop_lower, val),
     };
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
@@ -655,23 +665,42 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if font_prop {
             comp.properties.insert("__fontset".into(), v_bool(true));
         }
-        comp.properties.insert(prop_lower, val);
+        comp.properties.insert(prop_lower.clone(), val);
         #[cfg(feature = "gui")]
         if font_prop {
             drop(comps);
             crate::gui::gui_apply_font(name);
         }
     });
+    // Align and geometry: lay out, move the widget (layout.rs).
+    crate::layout::after_set(name, &prop_lower);
+    #[cfg(feature = "gui")]
+    if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
+        crate::gui::gui_move_form(name);
+    }
+}
+
+/// The height of a form's in-window main menu (0 on macOS or without one).
+fn menu_height(name: &str) -> i64 {
+    #[cfg(feature = "gui")]
+    return crate::gui::menu_offset(name) as i64;
+    #[cfg(not(feature = "gui"))]
+    {
+        let _ = name;
+        0
+    }
 }
 
 /// Get a property from a registered component.
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
     // RapidR's forms and containers have no frame inside their size: the
-    // client area is the whole component.
+    // client area is the whole component, less a form's in-window menu.
+    if prop_lower == "clientheight" {
+        return v_int((rp_comp_get(name, "height").to_i64() - menu_height(name)).max(0));
+    }
     let prop_lower = match prop_lower.as_str() {
         "clientwidth" => "width".to_string(),
-        "clientheight" => "height".to_string(),
         _ => prop_lower,
     };
     if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {

@@ -227,6 +227,8 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 if let Ok(Some(title_text)) = el.query_selector(".rr-form-title-text") {
                     title_text.set_text_content(Some(&strip_ampersands(&s)));
                 }
+            } else if let Ok(Some(caption)) = el.query_selector(":scope > .rr-panel-caption") {
+                caption.set_text_content(Some(&strip_ampersands(&s)));
             } else if el.tag_name().to_uppercase() == "LABEL" {
                 if let Ok(Some(span)) = el.query_selector("span") {
                     span.set_text_content(Some(&strip_ampersands(&s)));
@@ -1800,6 +1802,16 @@ fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.style().set_property("overflow", "hidden");
     let _ = el.style().set_property("border", "1px solid #ccc");
     let _ = el.style().set_property("background", "#fafafa");
+    // RapidQ's panel shows its Caption centered, under its children (which
+    // setting the caption must not remove).
+    let caption = create_el("span");
+    caption.set_class_name("rr-panel-caption");
+    let cs = caption.style();
+    for (k, v) in [("position", "absolute"), ("inset", "0"), ("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("pointer-events", "none"), ("overflow", "hidden"), ("white-space", "nowrap")] {
+        let _ = cs.set_property(k, v);
+    }
+    caption.set_text_content(Some(&strip_ampersands(&props.get("caption").map(|v| v.to_string_val()).unwrap_or_default())));
+    let _ = el.append_child(&caption);
     setup_widget(&el, id, name, props);
 }
 
@@ -2019,10 +2031,8 @@ fn create_statusbar(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.set_attribute("data-rr-name", name);
     let style = el.style();
     let _ = style.set_property("position", "absolute");
-    let _ = style.set_property("bottom", "0");
-    let _ = style.set_property("left", "0");
-    let _ = style.set_property("width", "100%");
-    let _ = style.set_property("height", "24px");
+    // Docked by its Align (alBottom by default): layout_web.
+    apply_geometry(&el, props, 0, 0, 200, 24);
     let _ = style.set_property("display", "flex");
     let _ = style.set_property("box-sizing", "border-box");
     let parent = props.get("parent").map(|v| v.to_string_val());
@@ -2143,7 +2153,6 @@ fn create_splitter(id: &str, name: &str, props: &HashMap<String, Value>) {
     el.set_class_name("rr-widget");
     let _ = el.style().set_property("background", "#ccc");
     let _ = el.style().set_property("cursor", "col-resize");
-    let _ = el.style().set_property("width", "4px");
     setup_widget(&el, id, name, props);
 }
 
@@ -3268,6 +3277,7 @@ fn form_maximize(form_id: &str) {
         let _ = style.set_property("width", &format!("{}px", w));
         let _ = style.set_property("height", &format!("{}px", h));
         let _ = style.set_property("border-radius", "6px");
+        form_resized(form_id, l, t, w, h);
     } else {
         // Save current geometry and maximize
         let l = el.offset_left();
@@ -3280,7 +3290,28 @@ fn form_maximize(form_id: &str) {
         let _ = style.set_property("width", "100vw");
         let _ = style.set_property("height", "100vh");
         let _ = style.set_property("border-radius", "0");
+        let (vw, vh) = web_sys::window()
+            .map(|w| (w.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(0.0), w.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(0.0)))
+            .unwrap_or((0.0, 0.0));
+        form_resized(form_id, 0, 0, vw as i32, vh as i32);
     }
+}
+
+/// A form was moved / resized by the user (maximize, restore, drag): its
+/// Left / Top / Width / Height follow, its aligned children are laid out
+/// again and OnResize fires (as on the desktop).
+fn form_resized(form_id: &str, left: i32, top: i32, width: i32, height: i32) {
+    let name = form_id.strip_prefix("rr-").unwrap_or(form_id).to_uppercase();
+    crate::object_web::rp_comp_set_prop_only(&name, "left", v_int(left as i64));
+    crate::object_web::rp_comp_set_prop_only(&name, "top", v_int(top as i64));
+    let stored = |p: &str| crate::object_web::rp_comp_get_stored(&name, p).to_i64();
+    if (stored("width"), stored("height")) == (width as i64, height as i64) {
+        return;
+    }
+    crate::object_web::rp_comp_set_prop_only(&name, "width", v_int(width as i64));
+    crate::object_web::rp_comp_set_prop_only(&name, "height", v_int(height as i64));
+    crate::layout_web::realign(&name, None);
+    crate::object_web::rp_fire_event(&name, "onresize");
 }
 
 fn form_close(form_id: &str) {
@@ -3354,10 +3385,17 @@ fn setup_form_drag(titlebar: &web_sys::HtmlElement, form_id: &str) {
         let _ = doc.add_event_listener_with_callback("mousemove", move_cb.as_ref().unchecked_ref());
 
         let move_ref: JsValue = move_cb.as_ref().into();
+        let form_id_up = form_id_owned.clone();
         let up_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::once(move |_e: web_sys::MouseEvent| {
             let doc = document();
             let _ = doc.remove_event_listener_with_callback("mousemove", move_ref.unchecked_ref());
             drop(move_cb); // prevent leak
+            // Form.Left / Form.Top read where it was dragged.
+            if let Some(f) = get_el(&form_id_up) {
+                let name = form_id_up.strip_prefix("rr-").unwrap_or(&form_id_up).to_uppercase();
+                crate::object_web::rp_comp_set_prop_only(&name, "left", v_int(f.offset_left() as i64));
+                crate::object_web::rp_comp_set_prop_only(&name, "top", v_int(f.offset_top() as i64));
+            }
         });
         let options = web_sys::AddEventListenerOptions::new();
         options.set_once(true);

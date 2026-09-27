@@ -7,6 +7,66 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.35.0] — 2026-09-27
+
+### Added
+- **`Align` works on the desktop and the web**: alTop, alBottom, alLeft,
+  alRight and alClient, laid out as RapidQ's Delphi VCL controls are.
+  52 of the corpus's example programs use it.
+  - The placement is one shared function, `rapidr_value::layout`, with
+    Delphi's `AlignControls` rules:
+    - order alTop, alBottom, alLeft, alRight, then alClient;
+    - each aligned control keeps its height (top/bottom) or width
+      (left/right);
+    - controls with the same Align are ordered by position, and the one
+      whose Align, size or visibility just changed goes first (so a
+      splitter created before its tree ends up to the right of it);
+    - invisible controls are skipped.
+  - Layout works on the stored Left / Top / Width / Height, so a program
+    reads the aligned size immediately (`Grid.Align = alClient : PRINT
+    Grid.Width`), before or after the form is shown.
+  - A container is laid out again when:
+    - an aligned child changes Align, position, size or visibility;
+    - the container itself is resized;
+    - a form gets its main menu, which takes the top of the client area.
+  - QSTATUSBAR is alBottom and QSPLITTER alLeft by default, as in RapidQ.
+    The status bar now takes its space from the client area instead of
+    covering the controls behind it (web) or being drawn over them
+    (desktop).
+- **Desktop: live geometry.** Setting Left / Top / Width / Height on a
+  control that is already shown moves or resizes it; before, only the
+  stored value changed. `Form.Left` / `Form.Top` move the window, and
+  `Center` records where the form went.
+- **Desktop: resizing a form by hand** updates Width / Height, lays out its
+  aligned controls and fires `OnResize`. Other controls keep their places,
+  as in RapidQ; before, FLTK scaled every control in proportion.
+- **Web:** maximizing or restoring a form lays it out again and fires
+  `OnResize`; dragging a form updates its Left / Top.
+- `ClientHeight` is the form's height less its in-window main menu (on the
+  desktop, except on macOS where the menu is the system menu bar).
+
+### Fixed
+- **Panels show their Caption, centered.** On the web, setting a panel's
+  Caption no longer deletes the controls inside it.
+- **Web geometry reads:** Left / Top read what the program or the layout
+  set; Width / Height fall back to the stored value while an element isn't
+  rendered. Before, a control on a form not yet shown read 0.
+- **Web defaults match the desktop:** the splitter is 5px wide and the
+  status bar 24px high.
+- **Test hooks:** captures (`RAPIDR_CAPTURE`) draw what event handlers just
+  changed; interpreted programs' captures could show the previous state.
+
+### Tests
+- `tests/fixtures/align_layout.bas` in `tests/native_gui_events.mjs`: every
+  Align, the splitter's default, hiding a control, and a form resized as by
+  the user. The new `RAPIDR_TEST_RESIZE=w,h` hook drives the resize.
+  Native and interpreted builds agree.
+- `tests/web_ide_align.mjs`: the same program in the browser, including
+  element positions, maximize with OnResize, and a panel's caption keeping
+  its children.
+- Unit tests for the layout function (edges, ordering, invisible
+  controls, running out of space).
+
 ## [2.34.0] — 2026-09-26
 
 ### Added

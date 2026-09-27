@@ -12,6 +12,7 @@ pub mod data;
 pub mod console;
 pub mod dialogs;
 pub mod objects;
+pub mod layout;
 
 #[derive(Debug, Clone)]
 pub enum Value {
