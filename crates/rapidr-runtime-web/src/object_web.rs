@@ -605,6 +605,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         gui_web::render_canvas(&uname);
+        rp_fire_event(&uname, "onpaint");
     }
     // A QIMAGE's AutoSize / Stretch / Center.
     if matches!(lprop.as_str(), "autosize" | "stretch" | "center") && rapidr_value::objects::is_picture(&uname) {

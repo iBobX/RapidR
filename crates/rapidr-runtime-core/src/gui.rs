@@ -2839,6 +2839,21 @@ fn build_form_widgets(form_name: &str) {
 
     // Fire OnLoad once, after the entire form tree is materialized.
     rp_fire_event(form_name, "onload");
+    // Then the first OnPaint of the form and its canvases (RapidQ programs
+    // draw there); the surfaces keep what's drawn, so later ones are only
+    // asked for (Repaint) or follow a resize.
+    fire_first_paint(form_name);
+}
+
+fn fire_first_paint(parent: &str) {
+    rp_fire_event(parent, "onpaint");
+    for (child, type_name) in crate::object::get_children_of(parent) {
+        if type_name.eq_ignore_ascii_case("RCANVAS") {
+            rp_fire_event(&child, "onpaint");
+        } else {
+            fire_first_paint(&child);
+        }
+    }
 }
 
 /// Recursively build child widgets of a parent container.
@@ -3900,7 +3915,10 @@ thread_local! {
 pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
     match method {
         // Drawing is the shared model's (objects::call); these are the widget's.
-        "paint" | "refresh" | "update" | "repaint" => redraw_widget(&name.to_lowercase()),
+        "paint" | "refresh" | "update" | "repaint" => {
+            redraw_widget(&name.to_lowercase());
+            crate::object::rp_fire_event(name, "onpaint");
+        }
         "show" => gui_show(name),
         "hide" => gui_close(name),
         _ => eprintln!("[WARN] Canvas.{}() not implemented", method),

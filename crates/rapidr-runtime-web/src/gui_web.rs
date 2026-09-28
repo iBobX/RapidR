@@ -1029,6 +1029,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         ("RCANVAS", "refresh" | "repaint") => {
             render_canvas(name);
+            crate::object_web::rp_fire_event(name, "onpaint");
             v_null()
         }
         (_, "refresh") | (_, "repaint") | (_, "invalidate") => {
@@ -1116,6 +1117,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         // Drawing is the shared model's (objects::call); this shows it again.
         ("RCANVAS", "paint" | "update") => {
             render_canvas(name);
+            crate::object_web::rp_fire_event(name, "onpaint");
             v_null()
         }
         // TabControl methods
@@ -3710,6 +3712,17 @@ pub fn gui_web_finalize() {
                     if let Some(comp_name) = el.get_attribute("data-rr-name") {
                         crate::object_web::rp_fire_event(&comp_name, "onload");
                     }
+                }
+            }
+        }
+    }
+    // Then the first OnPaint of each form and canvas (RapidQ programs draw
+    // there); the surfaces keep what's drawn.
+    if let Ok(all) = doc.query_selector_all(".rr-form, [data-rr-type=\"RCANVAS\"]") {
+        for i in 0..all.length() {
+            if let Some(el) = all.item(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()) {
+                if let Some(comp_name) = el.get_attribute("data-rr-name") {
+                    crate::object_web::rp_fire_event(&comp_name, "onpaint");
                 }
             }
         }
