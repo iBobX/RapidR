@@ -9,3 +9,4 @@ PRINT STR$(INSTR("hello", "l"))
 PRINT CHR$(65) + STR$(ASC("B"))
 PRINT HEX$(255)
 PRINT STRING$(3, "*") + "[" + SPACE$(2) + "]"
+PRINT "mid2 "; MID$("hello", 2); "|"; MID$("hello", 9); "|"

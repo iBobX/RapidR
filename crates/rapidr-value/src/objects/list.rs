@@ -18,6 +18,7 @@
 //! RapidQ doesn't stop the program for them. A list holds at most
 //! [`MAX_ITEMS`] items.
 
+use super::filelist::{FileSource, FT_NORMAL};
 use crate::{v_int, v_str, Value};
 
 pub const MAX_ITEMS: usize = 1_000_000;
@@ -34,6 +35,8 @@ pub struct ItemList {
     /// QCOMBOBOX: true. Its Text is its edit text.
     pub combo: bool,
     pub text: String,
+    /// QFILELISTBOX: the directory its items come from.
+    pub files: Option<FileSource>,
 }
 
 fn index(v: Option<&Value>) -> Option<usize> {
@@ -47,6 +50,58 @@ fn flag(on: bool) -> Value {
 impl ItemList {
     pub fn new(combo: bool) -> ItemList {
         ItemList { item_index: -1, combo, ..Default::default() }
+    }
+
+    /// A QFILELISTBOX: the files of the current directory.
+    pub fn new_file_list() -> ItemList {
+        let mut l = ItemList { item_index: -1, files: Some(FileSource::default()), ..Default::default() };
+        l.reload_files();
+        l
+    }
+
+    /// A QFILELISTBOX's items read again from its directory.
+    pub fn reload_files(&mut self) {
+        let Some(src) = &self.files else { return };
+        let items = src.list();
+        self.selected = vec![false; items.len()];
+        self.items = items;
+        self.item_index = -1;
+        self.top_index = 0;
+    }
+
+    /// QFILELISTBOX properties and methods (`None`: not one of them).
+    fn file_member(&mut self, name: &str, args: &[Value]) -> Option<Value> {
+        let src = self.files.as_mut()?;
+        let arg = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
+        match name {
+            "directory" if args.is_empty() => return Some(v_str(&src.directory)),
+            "directory" => src.directory = arg(0),
+            "mask" if args.is_empty() => return Some(v_str(&src.mask)),
+            "mask" => src.mask = arg(0),
+            // RapidR has no drive letters off Windows: the directory's own.
+            "drive" if args.is_empty() => {
+                let d = src.directory.chars().next().filter(|_| src.directory.get(1..2) == Some(":"));
+                return Some(v_str(&d.map(String::from).unwrap_or_default()));
+            }
+            "filename" if args.is_empty() => {
+                let item = usize::try_from(self.item_index).ok().and_then(|i| self.items.get(i));
+                let path = item.map(|i| src.path_of(i)).unwrap_or_default();
+                return Some(v_str(&path));
+            }
+            "addfiletypes" | "delfiletypes" => {
+                for t in args.iter().map(|a| a.to_i64()).filter(|t| (0..=FT_NORMAL as i64).contains(t)) {
+                    if name == "addfiletypes" {
+                        src.types |= 1 << t;
+                    } else {
+                        src.types &= !(1 << t);
+                    }
+                }
+            }
+            "update" => {}
+            _ => return None,
+        }
+        self.reload_files();
+        Some(Value::Null)
     }
 
     pub fn is_selected(&self, i: usize) -> bool {
@@ -147,6 +202,9 @@ impl ItemList {
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
+        if self.files.is_some() && matches!(prop, "directory" | "mask" | "drive" | "filename") {
+            return self.clone().file_member(prop, &[]);
+        }
         Some(match prop {
             "itemcount" | "count" | "listcount" => v_int(self.items.len() as i64),
             "itemindex" | "listindex" => v_int(self.item_index),
@@ -162,6 +220,9 @@ impl ItemList {
     }
 
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
+        if self.files.is_some() && matches!(prop, "directory" | "mask") {
+            return self.file_member(prop, std::slice::from_ref(val)).is_some();
+        }
         match prop {
             "itemindex" | "listindex" => self.select(val.to_i64()),
             "sorted" => {
@@ -189,6 +250,9 @@ impl ItemList {
     }
 
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        if self.files.is_some() && matches!(method, "addfiletypes" | "delfiletypes" | "update") {
+            return self.file_member(method, args);
+        }
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
         match method {
             "additems" | "additem" | "addstring" => {

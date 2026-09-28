@@ -159,7 +159,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("width".to_string(), v_int(120));
             props.insert("height".to_string(), v_int(25));
         }
-        "RCOMBOBOX" | "RLISTBOX" => {
+        "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
             props.insert("width".to_string(), v_int(150));
@@ -346,6 +346,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     gui_web::setup_data_binding(&name_clone);
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+        // (its element may exist already)
+        if rapidr_value::objects::is_dirtree(name) {
+            gui_web::render_dirtree(&name.to_uppercase());
+        }
     }
 }
 
@@ -448,6 +452,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
+    let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get_stored_dir(name) } else { String::new() };
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
         let picture = rapidr_value::objects::is_picture(name);
         match result {
@@ -458,6 +463,17 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         if picture {
             picture_changed(&uname);
+        }
+        // A QFILELISTBOX's directory changed: OnChange.
+        if lprop == "directory" && rapidr_value::objects::is_file_list(name) {
+            rp_fire_event(&uname, "onchange");
+        }
+        // A QDIRTREE: shown again; its directory changed: OnChange.
+        if rapidr_value::objects::is_dirtree(name) {
+            gui_web::render_dirtree(&uname);
+            if matches!(lprop.as_str(), "directory" | "initialdir") && before_dir != rp_comp_get_stored_dir(name) {
+                rp_fire_event(&uname, "onchange");
+            }
         }
         if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
@@ -734,6 +750,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return v_null();
             }
             picture_changed(&uname);
+        }
+        if rapidr_value::objects::is_dirtree(name) {
+            gui_web::render_dirtree(&uname);
         }
         if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
@@ -1610,6 +1629,11 @@ fn show_image_file(name: &str, path: &str) {
     }
 }
 
+/// A QDIRTREE's Directory (to see whether a store changed it).
+fn rp_comp_get_stored_dir(name: &str) -> String {
+    rapidr_value::objects::get(name, "directory").map(|v| v.to_string_val()).unwrap_or_default()
+}
+
 fn bind_dom_event(name: &str, event: &str) {
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
@@ -1640,6 +1664,10 @@ fn bind_dom_event(name: &str, event: &str) {
     // A QLISTVIEW's clicks go through its rows and header (gui_web's
     // `create_listview`), which set ItemIndex first.
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {
+        return;
+    }
+    // A QDIRTREE fires OnChange itself (gui_web's `create_dirtree`).
+    if event == "onchange" && rapidr_value::objects::is_dirtree(name) {
         return;
     }
     // A QIMAGE fires its mouse events itself (gui_web's `picture_mouse`).
@@ -1838,6 +1866,8 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RRADIOBUTTON"
             | "RCOMBOBOX"
             | "RLISTBOX"
+            | "RFILELISTBOX"
+            | "RDIRTREE"
             | "RTIMER"
             | "RIMAGE"
             | "RCANVAS"

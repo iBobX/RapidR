@@ -10,7 +10,9 @@
 
 pub mod bitmap;
 pub mod codec;
+pub mod dirtree;
 pub mod font;
+pub mod filelist;
 pub mod grid;
 pub mod imagelist;
 pub mod list;
@@ -48,6 +50,8 @@ enum Object {
     Grid(StringGrid),
     /// QLISTBOX's / QCOMBOBOX's items and selection; the runtime draws it.
     List(ItemList),
+    /// QDIRTREE's directories; the runtime shows its rows.
+    DirTree(dirtree::DirTree),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -102,6 +106,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RLISTVIEW" => Object::ListView(ListView::default()),
         "RSTRINGGRID" => Object::Grid(StringGrid::default()),
         "RLISTBOX" => Object::List(ItemList::new(false)),
+        "RFILELISTBOX" => Object::List(ItemList::new_file_list()),
+        "RDIRTREE" => Object::DirTree(dirtree::DirTree::default()),
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
         _ => return false,
     };
@@ -128,6 +134,25 @@ pub fn with_listview<R>(id: &str, f: impl FnOnce(&ListView) -> R) -> Option<R> {
 /// change).
 pub fn is_list(id: &str) -> bool {
     with(id, |o| matches!(o, Object::List(_))).unwrap_or(false)
+}
+
+/// Whether `id` is a QDIRTREE (its widget shows its rows again after a
+/// change).
+pub fn is_dirtree(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::DirTree(_))).unwrap_or(false)
+}
+
+/// Reads or changes a QDIRTREE (to show it, or from its widget).
+pub fn with_dirtree<R>(id: &str, f: impl FnOnce(&mut dirtree::DirTree) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::DirTree(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
+/// Whether `id` is a QFILELISTBOX (setting its Directory fires OnChange).
+pub fn is_file_list(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::List(l) if l.files.is_some())).unwrap_or(false)
 }
 
 /// Reads a QLISTBOX's / QCOMBOBOX's items (to draw them).
@@ -205,6 +230,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::ListView(l) => l.get(&prop),
         Object::Grid(g) => g.get(&prop),
         Object::List(l) => l.get(&prop),
+        Object::DirTree(t) => t.get(&prop),
     })?
 }
 
@@ -235,6 +261,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::ListView(l) => l.set(&prop, val).then_some(Ok(())),
         Object::Grid(g) => g.set(&prop, val).then_some(Ok(())),
         Object::List(l) => l.set(&prop, val).then_some(Ok(())),
+        Object::DirTree(t) => t.set(&prop, val).map(|_| Ok(())),
     })?
 }
 
@@ -257,6 +284,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::ListView(_) => "listview",
         Object::Grid(_) => "grid",
         Object::List(_) => "list",
+        Object::DirTree(_) => "dirtree",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -463,6 +491,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::ListView(l) => l.call(method, args),
         Object::Grid(g) => g.call(method, args),
         Object::List(l) => l.call(method, args),
+        Object::DirTree(t) => t.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

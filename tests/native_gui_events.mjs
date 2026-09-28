@@ -19,6 +19,7 @@
 //     Rect, Sender, Repaint);
 //   * tests/fixtures/grid_range_list.bas — a grid with a gcsList column and
 //     OnDrawCell (the browser test drags a range and picks from the list);
+//   * tests/fixtures/file_browser.bas — QDIRTREE and QFILELISTBOX;
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -74,6 +75,8 @@ const cases = [
     expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"] },
   { name: "grid_range_list", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=selected1"] },
+  { name: "file_browser", events: "", dump: "lbl.caption",
+    expect: ["lbl.caption=resource_files|2|hello.txt|1"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

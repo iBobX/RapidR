@@ -149,7 +149,8 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         // have an edit box; csDropDownList = 2 only picks from the list.
         "RCOMBOBOX" if props.get("style").map_or(0, Value::to_i64) < 2 => create_edit_combo(&id, name, props),
         "RCOMBOBOX" => create_select(&id, name, false, props),
-        "RLISTBOX" => create_select(&id, name, true, props),
+        "RLISTBOX" | "RFILELISTBOX" => create_select(&id, name, true, props),
+        "RDIRTREE" => create_dirtree(&id, name, props),
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
         "RIMAGE" => create_image(&id, name, props),
         "RCANVAS" => create_canvas(&id, name, props),
@@ -1935,6 +1936,52 @@ fn create_edit_combo(id: &str, name: &str, props: &HashMap<String, Value>) {
         let _ = parent.append_child(&datalist);
     }
     render_list_now(name);
+}
+
+/// A QDIRTREE (as on the desktop): its rows in a list; a click selects a
+/// directory (OnChange), a double click opens or closes it.
+fn create_dirtree(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("select");
+    let _ = el.set_attribute("size", "2");
+    el.set_class_name("rr-widget");
+    let owner = name.to_uppercase();
+    let pick = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+        let Some(sel) = e.target().and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
+        let Ok(i) = usize::try_from(sel.selected_index()) else { return };
+        if rapidr_value::objects::with_dirtree(&owner, |t| t.click(i)).unwrap_or(false) {
+            crate::object_web::rp_fire_event(&owner, "onchange");
+        }
+    });
+    let _ = el.add_event_listener_with_callback("change", pick.as_ref().unchecked_ref());
+    pick.forget();
+    let owner = name.to_uppercase();
+    let open = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+        let Some(sel) = e.current_target().and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
+        let Ok(i) = usize::try_from(sel.selected_index()) else { return };
+        rapidr_value::objects::with_dirtree(&owner, |t| t.toggle(i));
+        render_dirtree(&owner);
+    });
+    let _ = el.add_event_listener_with_callback("dblclick", open.as_ref().unchecked_ref());
+    open.forget();
+    setup_widget(&el, id, name, props);
+    render_dirtree(name);
+}
+
+/// Shows a QDIRTREE's rows (indented, `+` closed / `-` open).
+pub fn render_dirtree(name: &str) {
+    let Some(sel) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
+    let Some((lines, selected)) = rapidr_value::objects::with_dirtree(name, |t| {
+        (t.rows().iter().map(rapidr_value::objects::dirtree::DirTree::row_text).collect::<Vec<_>>(), t.selected_row())
+    }) else {
+        return;
+    };
+    sel.set_length(0);
+    for line in lines {
+        let Ok(opt) = document().create_element("option").map(|o| o.unchecked_into::<web_sys::HtmlOptionElement>()) else { continue };
+        opt.set_text(&line.replace(' ', "\u{a0}"));
+        let _ = sel.add_with_html_option_element(&opt);
+    }
+    sel.set_selected_index(selected.map_or(-1, |i| i as i32));
 }
 
 thread_local! {

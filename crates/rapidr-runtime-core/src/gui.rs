@@ -793,7 +793,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
             list_refresh(name);
         }
-        "RLISTBOX" => {
+        "RLISTBOX" | "RFILELISTBOX" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
@@ -820,6 +820,37 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 gw.borrow_mut().insert(name_lower, GuiWidget::HoldBrowser(browser));
             });
             list_refresh(name);
+        }
+        "RDIRTREE" => {
+            let x = rp_comp_get(name, "left").to_i64() as i32;
+            let y = rp_comp_get(name, "top").to_i64() as i32;
+            let w = rp_comp_get(name, "width").to_i64() as i32;
+            let h = rp_comp_get(name, "height").to_i64() as i32;
+            let mut browser = HoldBrowser::new(x, y, w, h, None);
+            let name_for_cb = name.to_lowercase();
+            // A click selects a directory (OnChange); a double click opens
+            // or closes it (rapidr_value::objects::dirtree).
+            browser.set_callback(move |b| {
+                let Ok(i) = usize::try_from(b.value() - 1) else { return };
+                let double = app::event_clicks();
+                let changed = rapidr_value::objects::with_dirtree(&name_for_cb, |t| {
+                    if double {
+                        t.toggle(i);
+                    }
+                    t.click(i)
+                })
+                .unwrap_or(false);
+                if double {
+                    dirtree_refresh(&name_for_cb);
+                }
+                if changed {
+                    rp_fire_event(&name_for_cb, "onchange");
+                }
+            });
+            GUI_WIDGETS.with(|gw| {
+                gw.borrow_mut().insert(name_lower, GuiWidget::HoldBrowser(browser));
+            });
+            dirtree_refresh(name);
         }
         "RRICHEDIT" | "RMEMO" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -4282,6 +4313,36 @@ fn draw_statusbar(id: &str, x: i32, y: i32, w: i32, h: i32) {
 /// (rapidr_value::objects::list), selecting ItemIndex. Items are shown as
 /// written: FLTK's `@` formatting codes and a menu's `/`, `&` and `\` are
 /// escaped.
+/// Shows a QDIRTREE's rows (indented, `+` closed / `-` open), the
+/// selected directory selected.
+pub fn dirtree_refresh(name: &str) {
+    let name = name.to_lowercase();
+    let Some((lines, selected)) = rapidr_value::objects::with_dirtree(&name, |t| {
+        let lines: Vec<String> = t.rows().iter().map(rapidr_value::objects::dirtree::DirTree::row_text).collect();
+        (lines, t.selected_row())
+    }) else {
+        return;
+    };
+    let widget = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned());
+    if let Some(GuiWidget::HoldBrowser(mut b)) = widget {
+        // Keep the scroll position.
+        let top = b.position();
+        b.clear();
+        for line in &lines {
+            b.add(&format!("@.{line}"));
+        }
+        b.set_position(top);
+        if let Some(i) = selected {
+            b.select(i as i32 + 1);
+            // The selected directory in view.
+            if !b.displayed(i as i32 + 1) {
+                b.middle_line(i as i32 + 1);
+            }
+        }
+        b.redraw();
+    }
+}
+
 pub fn list_refresh(name: &str) {
     let name = name.to_lowercase();
     let Some((items, index, top, multi)) = rapidr_value::objects::with_list(&name, |l| {
