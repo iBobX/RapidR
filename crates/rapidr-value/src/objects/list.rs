@@ -73,6 +73,16 @@ impl ItemList {
         }
     }
 
+    /// The user changed a MultiSelect list box's selection: the items
+    /// selected now, and the one clicked (ItemIndex, as Delphi's focused
+    /// item).
+    pub fn set_selection(&mut self, focus: i64, selected: &[bool]) {
+        for (i, s) in self.selected.iter_mut().enumerate() {
+            *s = selected.get(i).copied().unwrap_or(false);
+        }
+        self.item_index = if (0..self.items.len() as i64).contains(&focus) { focus } else { -1 };
+    }
+
     /// Adds `s` (in order when Sorted); returns where it went.
     fn add(&mut self, s: String) -> usize {
         if self.items.len() >= MAX_ITEMS {
@@ -247,6 +257,20 @@ mod tests {
 
     fn s(x: &str) -> Value {
         v_str(x)
+    }
+
+    #[test]
+    fn user_multi_selection() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &[s("a"), s("b"), s("c")]);
+        l.set("multiselect", &v_int(1));
+        l.set_selection(2, &[true, false, true]);
+        assert_eq!(l.get("selcount").unwrap().to_i64(), 2);
+        assert_eq!(l.item_index, 2);
+        assert!(l.is_selected(0) && !l.is_selected(1));
+        // Fewer flags than items: the rest aren't selected.
+        l.set_selection(0, &[true]);
+        assert_eq!(l.get("selcount").unwrap().to_i64(), 1);
     }
 
     #[test]

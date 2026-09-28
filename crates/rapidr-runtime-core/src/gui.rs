@@ -50,6 +50,8 @@ enum GuiWidget {
     CheckButton(CheckButton),
     RadioButton(RadioRoundButton),
     Choice(Choice),
+    /// A QCOMBOBOX with an edit box (csDropDown, the default; csSimple).
+    InputChoice(fltk::misc::InputChoice),
     HoldBrowser(HoldBrowser),
     TextEditor(TextEditor),
     Group(Group),
@@ -761,16 +763,33 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let mut choice = Choice::new(x, y, w, h, None);
             let name_for_cb = name.to_lowercase();
-            choice.set_callback(move |c| {
-                // The user's pick: the list's ItemIndex and Text, then OnChange.
-                let idx = c.value() as i64;
-                rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.select(idx));
-                rp_fire_event(&name_for_cb, "onchange");
-            });
+            // Style (RAPIDQ.INC): csDropDown = 0 (the default) and csSimple
+            // = 1 have an edit box; csDropDownList = 2 and the owner-draw
+            // styles only pick from the list.
+            let widget = if rp_comp_get(name, "style").to_i64() >= 2 {
+                let mut choice = Choice::new(x, y, w, h, None);
+                choice.set_callback(move |c| {
+                    // The user's pick: the list's ItemIndex and Text, then OnChange.
+                    let idx = c.value() as i64;
+                    rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.select(idx));
+                    rp_fire_event(&name_for_cb, "onchange");
+                });
+                GuiWidget::Choice(choice)
+            } else {
+                let mut combo = fltk::misc::InputChoice::new(x, y, w, h, None);
+                combo.set_trigger(CallbackTrigger::Changed);
+                combo.set_callback(move |c| {
+                    // Typed or picked: the Text (and the ItemIndex of the item
+                    // it matches, else -1), then OnChange.
+                    let text = c.value().unwrap_or_default();
+                    rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.set("text", &v_str(&text)));
+                    rp_fire_event(&name_for_cb, "onchange");
+                });
+                GuiWidget::InputChoice(combo)
+            };
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Choice(choice));
+                gw.borrow_mut().insert(name_lower, widget);
             });
             list_refresh(name);
         }
@@ -786,7 +805,15 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 if idx < 0 {
                     return;
                 }
-                rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.select(idx));
+                // MultiSelect: every line's selection (clicks toggle, shift
+                // extends); otherwise the clicked item alone.
+                let multi = rapidr_value::objects::with_list(&name_for_cb, |l| l.multi_select).unwrap_or(false);
+                if multi {
+                    let flags: Vec<bool> = (1..=b.size()).map(|line| b.selected(line)).collect();
+                    rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.set_selection(idx, &flags));
+                } else {
+                    rapidr_value::objects::with_list_mut(&name_for_cb, |l| l.select(idx));
+                }
                 rp_fire_event(&name_for_cb, if app::event_clicks() { "ondblclick" } else { "onclick" });
             });
             GUI_WIDGETS.with(|gw| {
@@ -1522,6 +1549,14 @@ pub fn gui_apply_font(name: &str) {
             GuiWidget::CheckButton(w) => label!(w),
             GuiWidget::RadioButton(w) => label!(w),
             GuiWidget::Choice(w) => text!(w),
+            GuiWidget::InputChoice(w) => {
+                label!(w);
+                w.set_text_font(font);
+                w.set_text_size(size);
+                if let Some(c) = color {
+                    w.input().set_text_color(c);
+                }
+            }
             GuiWidget::HoldBrowser(w) => {
                 label!(w);
                 w.set_text_size(size);
@@ -2949,6 +2984,7 @@ fn resize_widget(widget: &mut GuiWidget, x: i32, y: i32, w: i32, h: i32) {
         GuiWidget::CheckButton(v) => v.resize(x, y, w, h),
         GuiWidget::RadioButton(v) => v.resize(x, y, w, h),
         GuiWidget::Choice(v) => v.resize(x, y, w, h),
+        GuiWidget::InputChoice(v) => v.resize(x, y, w, h),
         GuiWidget::HoldBrowser(v) => v.resize(x, y, w, h),
         GuiWidget::TextEditor(v) => v.resize(x, y, w, h),
         GuiWidget::Group(v) => v.resize(x, y, w, h),
@@ -2986,6 +3022,7 @@ fn redraw_window_of(widget: &GuiWidget) {
         GuiWidget::CheckButton(v) => redraw_win!(v),
         GuiWidget::RadioButton(v) => redraw_win!(v),
         GuiWidget::Choice(v) => redraw_win!(v),
+        GuiWidget::InputChoice(v) => redraw_win!(v),
         GuiWidget::Progress(v) => redraw_win!(v),
         GuiWidget::Tree(v) => redraw_win!(v),
         GuiWidget::Slider(v) => redraw_win!(v),
@@ -4123,6 +4160,7 @@ pub fn gui_set_visible(name: &str, visible: bool) {
                 GuiWidget::CheckButton(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::RadioButton(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Choice(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
+                GuiWidget::InputChoice(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::HoldBrowser(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::TextEditor(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Group(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
@@ -4246,20 +4284,29 @@ fn draw_statusbar(id: &str, x: i32, y: i32, w: i32, h: i32) {
 /// escaped.
 pub fn list_refresh(name: &str) {
     let name = name.to_lowercase();
-    let Some((items, index, top)) =
-        rapidr_value::objects::with_list(&name, |l| (l.items.clone(), l.item_index, l.top_index))
-    else {
+    let Some((items, index, top, multi)) = rapidr_value::objects::with_list(&name, |l| {
+        let multi = l.multi_select.then(|| (0..l.items.len()).map(|i| l.is_selected(i)).collect::<Vec<_>>());
+        (l.items.clone(), l.item_index, l.top_index, multi)
+    }) else {
         return;
     };
     let widget = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned());
     match widget {
         Some(GuiWidget::HoldBrowser(mut b)) => {
             b.clear();
+            // A MultiSelect list box shows several selected items.
+            b.set_type(if multi.is_some() { fltk::browser::BrowserType::Multi } else { fltk::browser::BrowserType::Hold });
             for item in &items {
                 b.add(&format!("@.{}", item.replace(['\n', '\r', '\t'], " ")));
             }
-            if index >= 0 {
-                b.select(index as i32 + 1);
+            match &multi {
+                Some(flags) => {
+                    for (i, _) in flags.iter().enumerate().filter(|(_, on)| **on) {
+                        b.select(i as i32 + 1);
+                    }
+                }
+                None if index >= 0 => b.select(index as i32 + 1),
+                None => {}
             }
             if top > 0 {
                 b.top_line(top as i32 + 1);
@@ -4269,15 +4316,32 @@ pub fn list_refresh(name: &str) {
         Some(GuiWidget::Choice(mut c)) => {
             c.clear();
             for item in &items {
-                let label = item.replace('\\', "\\\\").replace('/', "\\/").replace('&', "&&").replace(['\n', '\r', '\t'], " ");
-                let label = if label.starts_with('_') { format!("\\{label}") } else { label };
-                c.add_choice(&label);
+                c.add_choice(&menu_label(item));
             }
             c.set_value(index as i32);
             c.redraw();
         }
+        Some(GuiWidget::InputChoice(mut c)) => {
+            c.clear();
+            for item in &items {
+                c.add(&menu_label(item));
+            }
+            // The edit box shows the Text (typed, or the picked item's).
+            let text = rapidr_value::objects::with_list(&name, |l| l.text.clone()).unwrap_or_default();
+            if c.value().as_deref() != Some(text.as_str()) {
+                c.set_value(&text);
+            }
+            c.redraw();
+        }
         _ => {}
     }
+}
+
+/// An item as an FLTK menu entry, shown as written: `\`, `/`, `&` and a
+/// leading `_` are FLTK menu syntax.
+fn menu_label(item: &str) -> String {
+    let label = item.replace('\\', "\\\\").replace('/', "\\/").replace('&', "&&").replace(['\n', '\r', '\t'], " ");
+    if label.starts_with('_') { format!("\\{label}") } else { label }
 }
 
 /// Whether a QLISTVIEW shows its column header (it has columns, and
@@ -4657,6 +4721,7 @@ fn redraw_widget(name: &str) {
                 GuiWidget::CheckButton(ref mut w) => { w.redraw(); }
                 GuiWidget::RadioButton(ref mut w) => { w.redraw(); }
                 GuiWidget::Choice(ref mut w) => { w.redraw(); }
+                GuiWidget::InputChoice(ref mut w) => { w.redraw(); }
                 GuiWidget::HoldBrowser(ref mut w) => { w.redraw(); }
                 GuiWidget::TextEditor(ref mut w) => { w.redraw(); }
                 GuiWidget::Tabs(ref mut w) => { w.redraw(); }

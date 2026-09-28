@@ -2667,6 +2667,7 @@ CREATE IDE AS RFORM
 
     ' === RIGHT PANEL: Object Combo + Properties/Events ===
     CREATE ObjCombo AS RCOMBOBOX
+        Style = 2   ' csDropDownList: pick from the list only
         Left = 906 : Top = 118
         Width = 288 : Height = 24
         OnChange = ObjComboChange
