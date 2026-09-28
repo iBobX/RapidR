@@ -499,6 +499,8 @@ pub fn rp_doevents() {
 }
 
 pub fn rp_end() {
+    // What the program wrote to files it never closed is kept.
+    crate::file_io::rp_close_all();
     std::process::exit(0);
 }
 

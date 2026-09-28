@@ -158,7 +158,7 @@ pub fn set_file_io(reader: FileReader, writer: FileWriter) {
     NATIVE_FILES.with(|n| n.set(false));
 }
 
-fn read_file(path: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn read_file(path: &str) -> Result<Vec<u8>, String> {
     if let Some(bytes) = crate::resources::read_path(path) {
         return bytes;
     }

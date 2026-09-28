@@ -274,6 +274,7 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "lof" => rp_lof(&a0),
         "filelen" => rp_filelen(&a0),
         "line_input" => rp_line_input(&a0),
+        "input_field" => rp_input_field(&a0),
         "dir" => rp_dir(&a0, &a1),
         "mkdir" => { rp_mkdir(&a0); v_null() }
         "rmdir" => { rp_rmdir(&a0); v_null() }
@@ -426,5 +427,7 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     obj::rp_stop_all_timers();
     obj::rp_mark_shutting_down();
     remove_event_queue(prev);
+    // Files the program never closed keep what was written.
+    rapidr_runtime_core::value::basic_files::close_all();
     main_result
 }

@@ -532,6 +532,7 @@ impl<'src> Lexer<'src> {
             self.column,
         ));
 
+        demote_keyword_names(&mut tokens);
         Ok(tokens)
     }
 
@@ -1175,6 +1176,28 @@ fn keyword_token(identifier: &str) -> Option<TokenType> {
         "RUSTSTART" => Some(TokenType::RustStart),
         "RUSTEND" => Some(TokenType::RustEnd),
         _ => None,
+    }
+}
+
+/// Keywords of statements that RapidQ programs also use as names of their
+/// components and variables (`DIM Open AS QMENUITEM`, `Open.Caption = …`,
+/// `File.AddItems New, Open, Save`): where one is followed by `.`, is a
+/// declared name (`DIM … Open AS`), or is an argument, it's an identifier.
+fn demote_keyword_names(tokens: &mut [Token]) {
+    use TokenType::*;
+    let demotable = |k: TokenType| matches!(k, Open | Close | Write | Seek | Kill | Input | Set | Bind | Alias | Property | Extends);
+    for i in 0..tokens.len() {
+        if !demotable(tokens[i].kind) {
+            continue;
+        }
+        let prev = i.checked_sub(1).map(|j| tokens[j].kind);
+        let next = tokens.get(i + 1).map(|t| t.kind);
+        let member = next == Some(Dot);
+        let declared = matches!(prev, Some(Dim | Comma)) && next == Some(As);
+        let argument = matches!(prev, Some(Comma | LParen)) && matches!(next, Some(Comma | RParen));
+        if member || declared || argument {
+            tokens[i].kind = Identifier;
+        }
     }
 }
 
