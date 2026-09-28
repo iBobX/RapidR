@@ -98,9 +98,12 @@ pub struct StringGrid {
     want_fixed_rows: usize,
     pub default_col_width: i64,
     pub default_row_height: i64,
-    /// The selected cell.
+    /// The selected cell (the focused one of a range).
     pub col: i64,
     pub row: i64,
+    /// With goRangeSelect: the cell a range selection started from; the
+    /// range is from it to (col, row).
+    pub anchor: Option<(i64, i64)>,
     pub top_row: i64,
     pub left_col: i64,
     pub separator: String,
@@ -129,6 +132,7 @@ impl Default for StringGrid {
             default_row_height: 24,
             col: 1,
             row: 1,
+            anchor: None,
             top_row: 1,
             left_col: 1,
             separator: ",".into(),
@@ -197,6 +201,17 @@ impl StringGrid {
         self.has_option(GO_EDITING)
     }
 
+    /// A gcsList column's items (its ColumnList, one per line), for the
+    /// drop-down button of its selected cell; `None` for other cells.
+    pub fn list_items(&self, col: usize, row: usize) -> Option<Vec<String>> {
+        let fixed = row < self.fixed_rows() || col < self.fixed_cols();
+        if fixed || self.column_style(col) != GCS_LIST {
+            return None;
+        }
+        let list = self.column_lists.get(col).map_or("", |s| s.as_str());
+        Some(list.split('\n').map(|s| s.trim_end_matches('\r').to_string()).filter(|s| !s.is_empty()).collect())
+    }
+
     pub fn column_style(&self, col: usize) -> i64 {
         self.column_styles.get(col).copied().unwrap_or(GCS_NONE)
     }
@@ -233,6 +248,44 @@ impl StringGrid {
         if (0..self.col_count as i64).contains(&col) && (0..self.row_count() as i64).contains(&row) {
             self.col = col;
             self.row = row;
+            self.anchor = None;
+        }
+    }
+
+    /// Whether the user can select a range: goRangeSelect, and not
+    /// goEditing (which turns it off, per the manual).
+    pub fn range_select(&self) -> bool {
+        self.has_option(GO_RANGE_SELECT) && !self.editable()
+    }
+
+    /// The user dragged (or shift-clicked) to (col, row): with range
+    /// selection the range grows from where it started; otherwise the cell
+    /// is selected alone.
+    pub fn extend_to(&mut self, col: i64, row: i64) {
+        if !self.range_select() {
+            return self.select(col, row);
+        }
+        let anchor = self.anchor.unwrap_or((self.col, self.row));
+        if (0..self.col_count as i64).contains(&col) && (0..self.row_count() as i64).contains(&row) {
+            self.col = col;
+            self.row = row;
+            self.anchor = Some(anchor);
+        }
+    }
+
+    /// Whether cell (col, row) is selected: the selected cell, its row with
+    /// goRowSelect, or a cell of the range.
+    pub fn is_selected(&self, col: usize, row: usize) -> bool {
+        if row < self.fixed_rows() || col < self.fixed_cols() {
+            return false;
+        }
+        let (c, r) = (col as i64, row as i64);
+        if self.has_option(GO_ROW_SELECT) {
+            return r == self.row;
+        }
+        match self.anchor {
+            Some((ac, ar)) => (ac.min(self.col)..=ac.max(self.col)).contains(&c) && (ar.min(self.row)..=ar.max(self.row)).contains(&r),
+            None => (c, r) == (self.col, self.row),
         }
     }
 
@@ -371,7 +424,7 @@ impl StringGrid {
     pub fn owner_draw_needed(&mut self) -> bool {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         (&self.cells, &self.col_widths, &self.row_heights, self.col_count).hash(&mut h);
-        (self.fixed_rows(), self.fixed_cols(), self.col, self.row, self.options).hash(&mut h);
+        (self.fixed_rows(), self.fixed_cols(), self.col, self.row, self.anchor, self.options).hash(&mut h);
         let state = h.finish();
         if self.drawn_state == Some(state) {
             return false;
@@ -391,12 +444,11 @@ impl StringGrid {
                     return out;
                 }
                 let fixed = row < self.fixed_rows() || col < self.fixed_cols();
+                let focused = (col as i64, row as i64) == (self.col, self.row);
                 let state = if fixed {
                     GD_FIXED
-                } else if (col as i64, row as i64) == (self.col, self.row) {
-                    GD_SELECTED | GD_FOCUSED
                 } else {
-                    0
+                    (if self.is_selected(col, row) { GD_SELECTED } else { 0 }) | (if focused { GD_FOCUSED } else { 0 })
                 };
                 out.push((col, row, state, self.cell_rect(col, row)));
             }
@@ -575,6 +627,24 @@ impl StringGrid {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn range_selection() {
+        let mut g = StringGrid::default();
+        assert!(g.range_select());
+        g.select(1, 1);
+        g.extend_to(3, 2);
+        assert!(g.is_selected(2, 2) && g.is_selected(1, 1) && !g.is_selected(4, 2) && !g.is_selected(0, 1));
+        assert_eq!((g.col, g.row), (3, 2));
+        let states: Vec<i64> = g.owner_draw_cells().iter().filter(|c| (c.0, c.1) == (2, 1) || (c.0, c.1) == (3, 2)).map(|c| c.2).collect();
+        assert_eq!(states, [GD_SELECTED, GD_SELECTED | GD_FOCUSED]);
+        // Clicking selects one cell again; goEditing turns ranges off.
+        g.select(2, 2);
+        assert!(!g.is_selected(1, 1));
+        g.call("addoptions", &[v_int(GO_EDITING as i64)]);
+        g.extend_to(4, 4);
+        assert!(!g.is_selected(2, 2) && g.is_selected(4, 4));
+    }
 
     #[test]
     fn owner_drawing() {

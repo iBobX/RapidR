@@ -2531,6 +2531,8 @@ fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = ts.set_property("border-collapse", "collapse");
     let _ = ts.set_property("table-layout", "fixed");
     let _ = ts.set_property("font-size", "13px");
+    // Dragging selects cells, not text.
+    let _ = ts.set_property("user-select", "none");
     let _ = wrapper.append_child(&table);
 
     let owner = name.to_uppercase();
@@ -2540,6 +2542,19 @@ fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
         let Some((c, r)) = grid_target_cell(&target) else { return };
         if target.closest("[contenteditable=true]").ok().flatten().is_some() {
             return; // clicks inside the cell being edited
+        }
+        // The end of a drag that selected a range, not a click on a cell.
+        if GRID_DRAG.with(|d| d.borrow_mut().take()).is_some_and(|(_, _, moved)| moved) {
+            return;
+        }
+        if e.shift_key() && grid_extend(&click_owner, c, r) {
+            return;
+        }
+        if let Ok(Some(_)) = target.closest(".rr-grid-list") {
+            if let Ok(Some(td)) = target.closest("td") {
+                grid_drop_down(&click_owner, &td);
+            }
+            return;
         }
         grid_select(&click_owner, c, r);
         if target.closest(".rr-grid-ellipsis").ok().flatten().is_some() {
@@ -2554,6 +2569,58 @@ fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
     });
     let _ = wrapper.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
     click.forget();
+
+    // Dragging over cells selects a range (goRangeSelect).
+    let down_owner = owner.clone();
+    let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+        // On a header's border: resizing (goColSizing / goRowSizing).
+        if let Some((col, index, start)) = grid_size_edge(&down_owner, &target, &e) {
+            e.prevent_default();
+            let size = rapidr_value::objects::with_grid(&down_owner, |g| if col { g.col_widths[index] } else { g.row_heights[index] }).unwrap_or(0);
+            GRID_SIZING.with(|s| *s.borrow_mut() = Some((down_owner.clone(), col, index, start, size)));
+            // (the click that ends it doesn't select a cell)
+            GRID_DRAG.with(|d| *d.borrow_mut() = Some((down_owner.clone(), (-1, -1), true)));
+            track_grid_sizing();
+            return;
+        }
+        let cell = grid_target_cell(&target).filter(|_| e.button() == 0 && !e.shift_key());
+        GRID_DRAG.with(|d| *d.borrow_mut() = cell.map(|c| (down_owner.clone(), c, false)));
+    });
+    let _ = wrapper.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
+    down.forget();
+    let move_owner = owner.clone();
+    let drag = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        if e.buttons() & 1 == 0 {
+            // Over a header's border: the resize cursor.
+            if let (Some(target), Some(wrapper)) = (
+                e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()),
+                e.current_target().and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()),
+            ) {
+                let cursor = match grid_size_edge(&move_owner, &target, &e) {
+                    Some((true, _, _)) => "col-resize",
+                    Some((false, _, _)) => "row-resize",
+                    None => "",
+                };
+                let _ = wrapper.style().set_property("cursor", cursor);
+            }
+            return;
+        }
+        let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+        let Some((c, r)) = grid_target_cell(&target) else { return };
+        let Some((owner, start, moved)) = GRID_DRAG.with(|d| d.borrow().clone()) else { return };
+        if owner != move_owner || (!moved && (c, r) == start) || !grid_option(&owner, rapidr_value::objects::grid::GO_RANGE_SELECT) {
+            return;
+        }
+        e.prevent_default();
+        if !moved {
+            grid_select(&owner, start.0, start.1);
+        }
+        GRID_DRAG.with(|d| *d.borrow_mut() = Some((owner.clone(), start, true)));
+        grid_extend(&owner, c, r);
+    });
+    let _ = wrapper.add_event_listener_with_callback("mousemove", drag.as_ref().unchecked_ref());
+    drag.forget();
 
     let dbl_owner = owner.clone();
     // The first click redrew the table, so this acts on the cell it
@@ -2596,7 +2663,9 @@ fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
         };
         if let Some((nc, nr)) = moved {
             e.prevent_default();
-            grid_select(&key_owner, nc, nr);
+            if !(e.shift_key() && grid_extend(&key_owner, nc, nr)) {
+                grid_select(&key_owner, nc, nr);
+            }
             return;
         }
         let key = e.key();
@@ -2646,15 +2715,96 @@ fn grid_select(name: &str, c: i64, r: i64) {
         if c < 0 || r < 0 || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() {
             return false;
         }
-        let before = (g.col, g.row);
+        let before = (g.col, g.row, g.anchor);
         g.select(c, r);
-        (g.col, g.row) == (c, r) && before != (c, r)
+        (g.col, g.row) == (c, r) && before != (g.col, g.row, g.anchor)
     })
     .unwrap_or(false);
     if ok {
         render_grid_now(name);
         crate::object_web::rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
     }
+}
+
+/// Whether the mouse is on the border of a header cell that can be dragged
+/// to resize: goColSizing and the right border of a fixed row's cell (a
+/// column), or goRowSizing and the bottom border of a fixed column's cell
+/// (a row). Returns (column?, index, mouse position along it).
+fn grid_size_edge(name: &str, target: &web_sys::Element, e: &web_sys::MouseEvent) -> Option<(bool, usize, f64)> {
+    use rapidr_value::objects::grid::{GO_COL_SIZING, GO_ROW_SIZING};
+    let td = target.closest("td").ok()??;
+    let (c, r) = grid_target_cell(&td)?;
+    let rect = td.get_bounding_client_rect();
+    let (x, y) = (e.client_x() as f64, e.client_y() as f64);
+    rapidr_value::objects::with_grid(name, |g| {
+        if g.has_option(GO_COL_SIZING) && (r as usize) < g.fixed_rows() && x >= rect.right() - 5.0 {
+            Some((true, c as usize, x))
+        } else if g.has_option(GO_ROW_SIZING) && (c as usize) < g.fixed_cols() && y >= rect.bottom() - 5.0 {
+            Some((false, r as usize, y))
+        } else {
+            None
+        }
+    })?
+}
+
+thread_local! {
+    /// A header border being dragged: the grid, column (else row), its
+    /// index, where the drag started and the size then.
+    static GRID_SIZING: std::cell::RefCell<Option<(String, bool, usize, f64, i64)>> = const { std::cell::RefCell::new(None) };
+    static GRID_SIZING_TRACKED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Follows a header border drag over the whole page (once): the column's
+/// width / row's height follows the mouse until the button is released.
+fn track_grid_sizing() {
+    if GRID_SIZING_TRACKED.with(|t| t.replace(true)) {
+        return;
+    }
+    let moved = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(|e: web_sys::MouseEvent| {
+        let Some((name, col, index, start, size)) = GRID_SIZING.with(|s| s.borrow().clone()) else { return };
+        let at = if col { e.client_x() as f64 } else { e.client_y() as f64 };
+        let new = (size + (at - start).round() as i64).clamp(0, 10_000);
+        rapidr_value::objects::with_grid_mut(&name, |g| {
+            let sizes = if col { &mut g.col_widths } else { &mut g.row_heights };
+            if let Some(s) = sizes.get_mut(index) {
+                *s = new;
+            }
+        });
+        render_grid(&name);
+    });
+    let _ = document().add_event_listener_with_callback("mousemove", moved.as_ref().unchecked_ref());
+    moved.forget();
+    let up = Closure::<dyn FnMut()>::new(|| {
+        GRID_SIZING.with(|s| s.borrow_mut().take());
+    });
+    let _ = document().add_event_listener_with_callback("mouseup", up.as_ref().unchecked_ref());
+    up.forget();
+}
+
+thread_local! {
+    /// A mouse button held on a grid: the grid, the cell it went down on,
+    /// and whether it has dragged to another cell since.
+    static GRID_DRAG: std::cell::RefCell<Option<(String, (i64, i64), bool)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The user dragged or shift-clicked to a cell: with goRangeSelect the
+/// range grows to it (rapidr_value::objects::grid, as on the desktop).
+/// Returns whether the selection changed.
+fn grid_extend(name: &str, c: i64, r: i64) -> bool {
+    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
+        if !g.range_select() || c < 0 || r < 0 || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() {
+            return false;
+        }
+        let before = (g.col, g.row, g.anchor);
+        g.extend_to(c, r);
+        before != (g.col, g.row, g.anchor)
+    })
+    .unwrap_or(false);
+    if ok {
+        render_grid_now(name);
+        crate::object_web::rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
+    }
+    ok
 }
 
 fn grid_cell_el(name: &str, c: i64, r: i64) -> Option<web_sys::HtmlElement> {
@@ -2701,23 +2851,92 @@ fn grid_finish_edit(name: &str, keep: bool) {
     }
     let _ = el.remove_attribute("contenteditable");
     let value = el.text_content().unwrap_or_default();
-    let changed = keep
-        && rapidr_value::objects::with_grid_mut(name, |g| {
-            let (cu, ru) = (c as usize, r as usize);
-            if g.cell(cu, ru) == value {
-                return false;
-            }
-            g.set_cell(cu, ru, value.clone());
-            true
-        })
-        .unwrap_or(false);
+    if keep {
+        grid_store(name, value);
+    }
     render_grid_now(name);
     if let Some(wrapper) = get_el(&comp_id(name)).and_then(|w| w.dyn_into::<web_sys::HtmlElement>().ok()) {
         let _ = wrapper.focus();
     }
-    if changed {
+}
+
+/// The user entered `value` in the selected cell (edited it, or picked it
+/// from a gcsList column's drop-down): stored, then OnSetEditText(Col, Row,
+/// Value) and RapidR's OnChange, if it changed (as on the desktop).
+fn grid_store(name: &str, value: String) {
+    let changed = rapidr_value::objects::with_grid_mut(name, |g| {
+        let (c, r) = (g.col, g.row);
+        if c < 0 || r < 0 || g.cell(c as usize, r as usize) == value {
+            return None;
+        }
+        g.set_cell(c as usize, r as usize, value.clone());
+        Some((c, r))
+    })
+    .flatten();
+    if let Some((c, r)) = changed {
+        render_grid_now(name);
         crate::object_web::rp_fire_event_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
         crate::object_web::rp_fire_event(name, "onchange");
+    }
+}
+
+/// A gcsList column's drop-down: its ColumnList under the selected cell;
+/// picking an item stores it like an edit, a click elsewhere closes it.
+fn grid_drop_down(name: &str, cell: &web_sys::Element) {
+    close_grid_drop_down();
+    let Some((c, r)) = rapidr_value::objects::with_grid(name, |g| (g.col, g.row)) else { return };
+    let Some(items) = rapidr_value::objects::with_grid(name, |g| g.list_items(c as usize, r as usize)).flatten() else { return };
+    let rect = cell.get_bounding_client_rect();
+    let list = create_el("div");
+    list.set_class_name("rr-grid-dropdown");
+    let st = list.style();
+    for (k, v) in [("position", "fixed"), ("background", "white"), ("border", "1px solid #666"), ("z-index", "100000"), ("max-height", "200px"), ("overflow-y", "auto"), ("font-size", "13px"), ("box-shadow", "2px 2px 4px rgba(0,0,0,.3)")] {
+        let _ = st.set_property(k, v);
+    }
+    let _ = st.set_property("left", &format!("{}px", rect.left()));
+    let _ = st.set_property("top", &format!("{}px", rect.bottom()));
+    let _ = st.set_property("min-width", &format!("{}px", rect.width()));
+    for item in items {
+        let row = create_el("div");
+        row.set_class_name("rr-grid-dropdown-item");
+        row.set_text_content(Some(&item));
+        let _ = row.style().set_property("padding", "1px 4px");
+        let _ = row.style().set_property("cursor", "default");
+        let owner = name.to_uppercase();
+        let pick = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            e.stop_propagation();
+            close_grid_drop_down();
+            grid_store(&owner, item.clone());
+        });
+        let _ = row.add_event_listener_with_callback("mousedown", pick.as_ref().unchecked_ref());
+        pick.forget();
+        let _ = list.append_child(&row);
+    }
+    if let Some(body) = document().body() {
+        let _ = body.append_child(&list);
+    }
+    // A click anywhere else closes it.
+    let close = Closure::once_into_js(move || {
+        let outside = Closure::<dyn FnMut()>::new(close_grid_drop_down);
+        let _ = document().add_event_listener_with_callback_and_add_event_listener_options(
+            "mousedown",
+            outside.as_ref().unchecked_ref(),
+            web_sys::AddEventListenerOptions::new().once(true),
+        );
+        outside.forget();
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(close.unchecked_ref(), 0);
+    }
+}
+
+fn close_grid_drop_down() {
+    if let Ok(open) = document().query_selector_all(".rr-grid-dropdown") {
+        for i in 0..open.length() {
+            if let Some(el) = open.item(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()) {
+                el.remove();
+            }
+        }
     }
 }
 
@@ -2754,7 +2973,7 @@ pub fn render_grid(name: &str) {
 /// Redraws a QSTRINGGRID's table now: fixed cells shaded, the selected
 /// cell highlighted, cell text as plain text (never markup).
 fn render_grid_now(name: &str) {
-    use rapidr_value::objects::grid::{GO_HORZ_LINE, GO_ROW_SELECT, GO_VERT_LINE};
+    use rapidr_value::objects::grid::{GO_HORZ_LINE, GO_VERT_LINE};
     let Some(table) = get_el(&format!("{}-table", comp_id(name))) else { return };
     let _ = rapidr_value::objects::with_grid(name, |g| {
         table.set_inner_text("");
@@ -2781,7 +3000,7 @@ fn render_grid_now(name: &str) {
                 let _ = td.set_attribute("data-col", &c.to_string());
                 let _ = td.set_attribute("data-row", &r.to_string());
                 let fixed = r < g.fixed_rows() || c < g.fixed_cols();
-                let selected = !fixed && g.row == r as i64 && (g.col == c as i64 || g.has_option(GO_ROW_SELECT));
+                let selected = g.is_selected(c, r);
                 let st = td.style();
                 // Text at Left + 2, Top + 2, as Delphi's grid (and the
                 // desktop runtime) draws it.
@@ -2809,6 +3028,18 @@ fn render_grid_now(name: &str) {
                     text.set_text_content(Some(text_cell));
                 }
                 let _ = td.append_child(&text);
+                // A gcsList column's selected cell: its drop-down button.
+                if (g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some() {
+                    let _ = st.set_property("position", "relative");
+                    let button = create_el("span");
+                    button.set_class_name("rr-grid-list");
+                    button.set_text_content(Some("\u{25BE}"));
+                    let bs = button.style();
+                    for (k, v) in [("position", "absolute"), ("right", "0"), ("top", "0"), ("bottom", "0"), ("padding", "0 4px"), ("background", "#e6e6e6"), ("color", "black"), ("border", "1px outset #f4f4f4"), ("cursor", "pointer")] {
+                        let _ = bs.set_property(k, v);
+                    }
+                    let _ = td.append_child(&button);
+                }
                 if ellipsis {
                     let _ = st.set_property("position", "relative");
                     let button = create_el("span");
