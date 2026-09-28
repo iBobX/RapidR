@@ -7,6 +7,36 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.47.0] — 2026-09-28
+
+### Added
+- **QCANVAS is drawn by the shared bitmap model**, like QBITMAP and a
+  QIMAGE's picture: every drawing method draws into one surface the
+  control's size, and each runtime only shows its pixels. The desktop, the
+  web, native and interpreted builds now draw the same pixels.
+  - `TextOut(x, y, text, color, background)`, `TextWidth`, `TextHeight` and
+    `Font` / `Font.*` on a canvas, in the built-in Liberation fonts (as
+    on bitmaps since v2.46.0).
+  - `Pixel(x, y)` reads a canvas back; `RoundRect`, `Paint(x, y, color,
+    border)` (flood fill), `CopyRect` and `StretchDraw` work on canvases
+    as they do on bitmaps.
+  - The canvas keeps its `Color` as background: `Cls` fills with it, and
+    a resized canvas shows it in the new area.
+  - `PenColor` / `BrushColor` / `FontColor` / `FontSize` are the colors
+    and size drawing uses when none is given.
+  - RapidR's own forms are kept: `DrawText`, `Cls`, `Circle(cx, cy, r
+    [, color])`, `FillCircle`, `Ellipse`, `SetFont`, `SetPixel`.
+- Tests: `canvas_surface` (conformance, both backends) and
+  `tests/web_ide_canvas.mjs` (the HTML canvas shows exactly the model's
+  pixels).
+
+### Fixed
+- **Desktop `Rect` / `FillRect` read their arguments as x, y, width,
+  height**; RapidQ's (and the web's) are the two corners, x1, y1, x2, y2.
+  Programs that filled rectangles (the corpus's games) drew the wrong size
+  on the desktop.
+- Compiler warnings on the web build (unused variables in the file list).
+
 ## [2.46.0] — 2026-09-28
 
 ### Added

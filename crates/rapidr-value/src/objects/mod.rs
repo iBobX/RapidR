@@ -178,6 +178,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
+        "RCANVAS" => Object::Bitmap(Bitmap::new_canvas()),
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
         "RLISTVIEW" => Object::ListView(ListView::default()),
         "RSTRINGGRID" => Object::Grid(StringGrid::default()),
@@ -279,6 +280,24 @@ pub fn is_picture(id: &str) -> bool {
 pub fn with_picture<R>(id: &str, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::Bitmap(b) if b.picture => Some(f(b)),
+        _ => None,
+    })?
+}
+
+/// Whether `id` is a QCANVAS (its runtime widget shows the surface again
+/// after a change).
+pub fn is_canvas(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
+}
+
+/// Reads a QCANVAS's surface (to show it), first giving it the control's
+/// size `width` × `height`.
+pub fn with_canvas<R>(id: &str, width: i64, height: i64, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Bitmap(b) if b.canvas => {
+            b.fit(width, height);
+            Some(f(b))
+        }
         _ => None,
     })?
 }
@@ -400,6 +419,11 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     // (read before borrowing the registry: `props` may read objects too).
     let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw")
         || (method == "pixel" && args.len() >= 3);
+    // A QCANVAS is always the control's size.
+    if with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas))? {
+        let (w, h) = (props(id, "width").to_i64(), props(id, "height").to_i64());
+        with(id, |o| if let Object::Bitmap(b) = o { b.fit(w, h) });
+    }
     if drawing && with(id, |o| matches!(o, Object::Bitmap(b) if b.picture && b.img.pixels.is_empty()))? {
         let (w, h) = (props(id, "width").to_i64(), props(id, "height").to_i64());
         with(id, |o| if let Object::Bitmap(b) = o { b.resize(w, h) });

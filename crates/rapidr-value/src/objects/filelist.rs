@@ -59,7 +59,9 @@ impl FileSource {
     pub fn list(&self) -> Vec<String> {
         let mut dirs = Vec::new();
         let mut files = Vec::new();
+        #[cfg(not(target_arch = "wasm32"))]
         let hidden_ok = self.types & (1 << FT_HIDDEN) != 0;
+        #[cfg(not(target_arch = "wasm32"))]
         let files_ok = self.types & (1 << FT_NORMAL | 1 << FT_ARCHIVE | 1 << FT_READ_ONLY) != 0;
         #[cfg(not(target_arch = "wasm32"))]
         if let Ok(entries) = std::fs::read_dir(&self.directory) {
