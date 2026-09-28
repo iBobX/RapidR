@@ -42,7 +42,7 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
     let mut gen = RustCodegen::new(target);
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program)));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);

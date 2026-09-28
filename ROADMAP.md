@@ -152,7 +152,7 @@ Next up, in order:
 - [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
 - [x] Native builds of real RapidQ programs: all 116 corpus programs that compile to bytecode `cargo check` natively (from 49; objects by name, WITH on any object, indexed properties, builtin-named variables, nested SUBs, argument fitting) — `tools/corpus_native.sh` (v2.33.0)
 - [x] Native corpus programs run like the interpreter: `tools/corpus_compare.mjs` runs both builds and compares output and window captures — 99/102 identical, the other 3 use RND/TIMER (v2.38.0)
-- [ ] Corpus gaps both backends share (found by corpus_compare): QMEMORYSTREAM SaveArray/LoadArray, QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board), Printer methods
+- [ ] Corpus gaps both backends share (found by corpus_compare): ~~QMEMORYSTREAM SaveArray/LoadArray~~ (v2.39.0), QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board), Printer methods
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
 - [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)
@@ -165,7 +165,7 @@ Next up, in order:
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
 - [ ] Fuzzing in CI
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
-- [ ] Streams: ReadUDT/WriteUDT, LoadArray/SaveArray, ExtractRes; exact sizes for `Read(var)` of BYTE/SHORT variables
+- [ ] Streams: ReadUDT/WriteUDT, ExtractRes (LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0)
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
