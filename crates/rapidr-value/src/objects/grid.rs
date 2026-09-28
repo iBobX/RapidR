@@ -23,11 +23,45 @@
 //! `Rows` / `ColWidth` (= ColCount / RowCount / DefaultColWidth) and
 //! `SelectedRow` / `SelectedCol` (= Row / Col).
 //!
+//! Owner drawing (OnDrawCell): after the grid's content or layout changes,
+//! the runtimes fire `OnDrawCell(Col, Row, State, Rect)` for each cell
+//! ([`StringGrid::owner_draw_needed`], [`StringGrid::owner_draw_cells`]);
+//! the handler's `Line`, `Rectangle`, `FillRect`, `Circle`, `Pset`,
+//! `TextOut` and `Draw` on the grid are kept per cell ([`CellDraw`]) and
+//! drawn over the cell until the grid changes again. Rect is in the grid's
+//! own coordinates (cells from the top left, 1px grid lines), like
+//! Delphi's for an unscrolled grid.
+//!
 //! Indexes out of range read as "" / 0 and are ignored when written, as
 //! RapidQ doesn't stop the program for them. Sizes are capped so a program
 //! can't make a grid of billions of cells.
 
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
+use super::bitmap::Bitmap;
 use crate::{v_int, v_str, Value};
+
+/// Delphi's TGridDrawState bits, as OnDrawCell's State.
+pub const GD_SELECTED: i64 = 1;
+pub const GD_FOCUSED: i64 = 2;
+pub const GD_FIXED: i64 = 4;
+
+/// Most cells OnDrawCell is fired for after a change.
+pub const MAX_OWNER_DRAWN: usize = 20_000;
+
+/// Something OnDrawCell drew on a cell, relative to the cell's top left.
+/// Colors are &HBBGGRR; `None` = transparent.
+#[derive(Clone, Debug)]
+pub enum CellDraw {
+    Line(i64, i64, i64, i64, u32),
+    Rect(i64, i64, i64, i64, u32),
+    Fill(i64, i64, i64, i64, u32),
+    Ellipse(i64, i64, i64, i64, u32, Option<u32>),
+    Pixel(i64, i64, u32),
+    Text(i64, i64, String, u32, Option<u32>),
+    Image(i64, i64, Bitmap),
+}
 
 /// Most rows / columns a grid can have, and most cells in all.
 pub const MAX_ROWS: usize = 1_000_000;
@@ -76,6 +110,10 @@ pub struct StringGrid {
     pub column_lists: Vec<String>,
     /// RapidR's `SetSuggestions` (one per line).
     pub suggestions: Vec<String>,
+    /// What OnDrawCell drew, per cell (col, row).
+    pub owner_drawing: HashMap<(usize, usize), Vec<CellDraw>>,
+    /// The state OnDrawCell was last fired for ([`Self::owner_draw_needed`]).
+    drawn_state: Option<u64>,
 }
 
 impl Default for StringGrid {
@@ -99,6 +137,8 @@ impl Default for StringGrid {
             column_styles: Vec::new(),
             column_lists: Vec::new(),
             suggestions: Vec::new(),
+            owner_drawing: HashMap::new(),
+            drawn_state: None,
         };
         g.resize(5, 5);
         g
@@ -295,9 +335,114 @@ impl StringGrid {
         true
     }
 
+    /// Cell (col, row)'s rectangle (left, top, right, bottom; right and
+    /// bottom excluded) in the grid's coordinates: cells from the top left
+    /// with a 1px line after each.
+    pub fn cell_rect(&self, col: usize, row: usize) -> (i64, i64, i64, i64) {
+        let size = |v: &i64| (*v).clamp(0, 10_000);
+        let left: i64 = self.col_widths.iter().take(col).map(|w| size(w) + 1).sum();
+        let top: i64 = self.row_heights.iter().take(row).map(|h| size(h) + 1).sum();
+        let w = self.col_widths.get(col).map_or(0, size);
+        let h = self.row_heights.get(row).map_or(0, size);
+        (left, top, left + w, top + h)
+    }
+
+    /// The cell at (x, y) in the grid's coordinates.
+    pub fn cell_at(&self, x: i64, y: i64) -> Option<(usize, usize)> {
+        fn find(sizes: &[i64], at: i64) -> Option<usize> {
+            let mut edge = 0;
+            for (i, s) in sizes.iter().enumerate() {
+                edge += (*s).clamp(0, 10_000) + 1;
+                if at < edge {
+                    return Some(i);
+                }
+            }
+            None
+        }
+        if x < 0 || y < 0 {
+            return None;
+        }
+        Some((find(&self.col_widths, x)?, find(&self.row_heights, y)?))
+    }
+
+    /// Whether the grid changed (content, sizes, selection, options) since
+    /// OnDrawCell was last fired: if so its drawing is dropped and it must
+    /// be fired again. Drawing on the grid isn't a change.
+    pub fn owner_draw_needed(&mut self) -> bool {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (&self.cells, &self.col_widths, &self.row_heights, self.col_count).hash(&mut h);
+        (self.fixed_rows(), self.fixed_cols(), self.col, self.row, self.options).hash(&mut h);
+        let state = h.finish();
+        if self.drawn_state == Some(state) {
+            return false;
+        }
+        self.drawn_state = Some(state);
+        self.owner_drawing.clear();
+        true
+    }
+
+    /// Each cell's OnDrawCell arguments: (col, row, State, Rect), up to
+    /// [`MAX_OWNER_DRAWN`] cells.
+    pub fn owner_draw_cells(&self) -> Vec<(usize, usize, i64, (i64, i64, i64, i64))> {
+        let mut out = Vec::new();
+        for row in 0..self.row_count() {
+            for col in 0..self.col_count() {
+                if out.len() >= MAX_OWNER_DRAWN {
+                    return out;
+                }
+                let fixed = row < self.fixed_rows() || col < self.fixed_cols();
+                let state = if fixed {
+                    GD_FIXED
+                } else if (col as i64, row as i64) == (self.col, self.row) {
+                    GD_SELECTED | GD_FOCUSED
+                } else {
+                    0
+                };
+                out.push((col, row, state, self.cell_rect(col, row)));
+            }
+        }
+        out
+    }
+
+    /// Keeps a drawing whose anchor is (x, y): on the cell there, with
+    /// `make` given that cell's origin (to make it relative).
+    pub fn record(&mut self, x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
+        let Some((col, row)) = self.cell_at(x, y) else { return };
+        let (left, top, _, _) = self.cell_rect(col, row);
+        let list = self.owner_drawing.entry((col, row)).or_default();
+        if list.len() < 1_000 {
+            list.push(make(left, top));
+        }
+    }
+
+    /// The owner-drawing methods (except `Draw`, which needs the source
+    /// image: rapidr_value::objects).
+    fn draw(&mut self, method: &str, args: &[Value]) -> bool {
+        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+        let c = |i: usize| n(i) as u32 & 0xFFFFFF;
+        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0).map(|v| v as u32 & 0xFFFFFF);
+        match method {
+            "line" => self.record(n(0), n(1), |l, t| CellDraw::Line(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
+            "rectangle" => self.record(n(0), n(1), |l, t| CellDraw::Rect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
+            "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
+            "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
+            "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
+            // TextOut(x, y, text, color, background (-1: transparent)).
+            "textout" => {
+                let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
+                self.record(n(0), n(1), |l, t| CellDraw::Text(n(0) - l, n(1) - t, text, c(3), optional(4)))
+            }
+            _ => return false,
+        }
+        true
+    }
+
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
         let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
+        if self.draw(method, args) {
+            return Some(Value::Null);
+        }
         match method {
             // Cell(col, row) [= s]; RapidR's GetCell(col, row) / SetCell(col, row, s).
             "cell" | "cells" | "getcell" | "setcell" => {
@@ -420,7 +565,8 @@ impl StringGrid {
             "setrowcount" => self.resize(usize::try_from(arg(0).to_i64()).unwrap_or(0), self.col_count),
             "setcolcount" => self.resize(self.row_count(), usize::try_from(arg(0).to_i64()).unwrap_or(0)),
             "setsuggestions" => self.suggestions = text(0).lines().map(str::to_string).collect(),
-            "repaint" | "refresh" => {}
+            // Every cell is drawn again: OnDrawCell fires again.
+            "repaint" | "refresh" => self.drawn_state = None,
             _ => return None,
         }
         Some(Value::Null)
@@ -429,6 +575,36 @@ impl StringGrid {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn owner_drawing() {
+        let mut g = StringGrid::default();
+        // 64 wide columns, 24 high rows, 1px lines.
+        assert_eq!(g.cell_rect(2, 1), (130, 25, 194, 49));
+        assert_eq!(g.cell_at(130, 25), Some((2, 1)));
+        assert_eq!(g.cell_at(129, 25), Some((1, 1)));
+        assert!(g.owner_draw_needed());
+        assert!(!g.owner_draw_needed());
+        let cells = g.owner_draw_cells();
+        assert_eq!(cells.len(), 25);
+        assert_eq!(cells[0].2, GD_FIXED);
+        assert_eq!(cells.iter().find(|c| (c.0, c.1) == (1, 1)).unwrap().2, GD_SELECTED | GD_FOCUSED);
+        // Drawing is kept relative to its cell and isn't a change.
+        g.call("line", &[v_int(135), v_int(30), v_int(140), v_int(40), v_int(255)]);
+        g.call("textout", &[v_int(132), v_int(27), v_str("x"), v_int(0), v_int(-1)]);
+        let kept = &g.owner_drawing[&(2, 1)];
+        assert!(matches!(kept[0], CellDraw::Line(5, 5, 10, 15, 255)));
+        assert!(matches!(&kept[1], CellDraw::Text(2, 2, t, 0, None) if t == "x"));
+        let _ = g.call("cell", &[v_int(1), v_int(1)]);
+        assert!(!g.owner_draw_needed());
+        // Repaint draws again, as does a change (which drops the drawing).
+        g.call("repaint", &[]);
+        assert!(g.owner_draw_needed());
+        g.call("cell", &[v_int(1), v_int(1), v_str("new")]);
+        assert!(g.owner_draw_needed());
+        assert!(g.owner_drawing.is_empty());
+    }
+
     use super::*;
 
     fn s(x: &str) -> Value {

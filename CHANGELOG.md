@@ -7,6 +7,36 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.42.0] — 2026-09-27
+
+### Added
+- **QSTRINGGRID `OnDrawCell(Col, Row, State, Rect, Sender)`, on desktop
+  and web from the shared grid model.**
+  - After the grid's content, sizes, selection or options change, or on
+    `Repaint` / `Refresh`, the event fires once for every cell (up to
+    20,000).
+  - `State` uses Delphi's bits (gdSelected = 1, gdFocused = 2,
+    gdFixed = 4). `Rect` is a QRECT in the grid's coordinates.
+  - What the handler draws on the grid is kept on its cell and drawn over
+    it: `Line`, `Rectangle`, `FillRect`, `Circle`, `Pset`,
+    `TextOut(x, y, text, color, background)` and `Draw(x, y, bitmap)`.
+  - Reading the grid in the handler doesn't fire the event again.
+  - The corpus's `chkgrid.bas` draws its checkbox column, identically
+    natively and interpreted.
+
+### Changed
+- **Every event passes its component last, as `Sender`**, as in RapidQ
+  (`SUB DrawCell (…, Rect AS QRECT, Sender AS QSTRINGGRID)`). Before, only
+  events without arguments passed it. Handlers that declare fewer
+  parameters are unaffected.
+- **Grid cell text is drawn at Left + 2, Top + 2**, as Delphi's grid draws
+  it, on desktop and web. It was vertically centered.
+
+### Tests
+- `tests/fixtures/grid_draw_cell.bas` in `tests/native_gui_events.mjs`
+  (native and interpreted) and in the new `tests/web_ide_grid_draw.mjs`;
+  new model unit test.
+
 ## [2.41.0] — 2026-09-27
 
 ### Added

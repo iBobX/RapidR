@@ -329,6 +329,16 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 .map(|_| Value::Null),
             )
         }
+        // OnDrawCell's `Sender.Draw(x, y, Bitmap.BMP)` on a grid.
+        ("grid", "draw") => {
+            let src = match load_image(&arg(2)) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            let (x, y) = (arg(0).to_i64(), arg(1).to_i64());
+            with(id, |o| if let Object::Grid(g) = o { g.record(x, y, |l, t| grid::CellDraw::Image(x - l, y - t, src)) });
+            Some(Ok(Value::Null))
+        }
         ("bitmap", "draw") => {
             let src = match load_image(&arg(2)) {
                 Ok(src) => src,
