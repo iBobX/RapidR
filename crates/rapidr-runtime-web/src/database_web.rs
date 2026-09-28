@@ -753,7 +753,8 @@ pub(crate) fn get_rapidr_asset(filename: &str) -> Option<String> {
     None
 }
 
-pub(crate) fn decode_base64(mut s: &str) -> Option<Vec<u8>> {
+/// Decodes base64 (or a `data:…;base64,` URL's payload).
+pub fn decode_base64(mut s: &str) -> Option<Vec<u8>> {
     if let Some(pos) = s.find("base64,") {
         s = &s[pos + 7..];
     }

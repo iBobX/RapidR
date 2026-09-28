@@ -129,6 +129,8 @@
       const url = URL.createObjectURL(new Blob([data.runtimeJs], { type: "text/javascript" }));
       const rt = await import(url);
       URL.revokeObjectURL(url);
+      // (for tests and tools: read a property the way the program does)
+      window.__rapidr_rt = rt;
       await rt.default({ module_or_path: data.runtimeWasm });
       send({ __rapidr_status: "preview ready — running" });
 

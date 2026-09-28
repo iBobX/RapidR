@@ -729,7 +729,12 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
             } else if let Ok(sel) = el.clone().dyn_into::<web_sys::HtmlSelectElement>() {
                 v_str(&sel.value())
             } else {
-                v_str(&el.inner_text())
+                // What's shown has its `&` accelerator marks taken out; the
+                // program reads back what it set while that's still shown.
+                let shown = el.inner_text();
+                let stored = crate::object_web::rp_comp_get_stored(name, prop).to_string_val();
+                let squash = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
+                if squash(&strip_ampersands(&stored)) == squash(&shown) { v_str(&stored) } else { v_str(&shown) }
             }
         }
         "left" => v_int(el.offset_left() as i64),
@@ -1075,6 +1080,10 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 let _ = el.style().set_property("left", &format!("{}px", ((vw - w) / 2).max(0)));
                 let _ = el.style().set_property("top", &format!("{}px", ((vh - h) / 2).max(0)));
             }
+            // As on the desktop, ShowModal waits until the form closes (the
+            // VM suspends the code that called it); where nothing can wait it
+            // returns at once.
+            crate::dialog_web::begin_modal(&id);
             v_null()
         }
         (_, "center") if comp_type == "RFORM" => {
@@ -4118,6 +4127,8 @@ fn hide_modal_backdrop(form_id: &str) {
     if let Some(bd) = document().get_element_by_id(&backdrop_id) {
         bd.remove();
     }
+    // A program waiting in this form's ShowModal continues.
+    crate::dialog_web::modal_closed(form_id);
 }
 
 /// Setup drag-to-move on a form's titlebar.

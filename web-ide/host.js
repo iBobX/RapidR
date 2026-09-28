@@ -176,7 +176,7 @@ function computeDiagnostics() {
   if (!state.wasmReady) return [];
   const { source, mapping } = getProjectSourceAndMapping(state.project);
   try {
-    compile(source, state.project.name);
+    compile(source, state.project.name, projectAssetMap());
     return [];
   } catch (err) {
     return parseCompileErrors(err, mapping);
@@ -2557,7 +2557,7 @@ async function doRun() {
   try {
     const src = serializeProject(state.project);
     logOutput("------ source ------\n" + src);
-    const bc = compile(src, state.project.name);
+    const bc = compile(src, state.project.name, projectAssetMap());
     setDiagnostics([]);
     setStatus("running");
 
@@ -2625,7 +2625,7 @@ async function doBuild() {
   try {
     const { buildBundleZip } = await import("./zip.js");
     const src = serializeProject(state.project);
-    const rrbc = compile(src, state.project.name);
+    const rrbc = compile(src, state.project.name, projectAssetMap());
     const [jsText, wasmRes, notices] = await Promise.all([
       fetch("./runtime/rapidrintr.js").then(r => r.text()),
       fetch("./runtime/rapidrintr_bg.wasm").then(r => r.arrayBuffer()),
@@ -4157,7 +4157,7 @@ async function doDebug() {
   try {
     const { source, mapping, fileToUnified } = getProjectSourceAndMapping(state.project);
     logOutput("------ debug source ------\n" + source);
-    const bc = compile(source, state.project.name);
+    const bc = compile(source, state.project.name, projectAssetMap());
     
     state.lastMapping = mapping;
     state.lastFileToUnified = fileToUnified;

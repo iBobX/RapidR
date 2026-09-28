@@ -7,6 +7,57 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.52.0] — 2026-09-28
+
+The web IDE kept in step with the desktop, native and interpreter builds.
+
+### Added
+- **The conformance suite runs in the browser**: `node tests/web_conformance.mjs`
+  compiles every console case of `tests/conformance/cases` with the web
+  IDE's wasm compiler, runs it in the wasm VM, and compares with the same
+  `.expected` file the interpreter and the native build are held to. 53 of
+  55 match; two can't be compared in a browser (ANSI terminal codes, the
+  file system) and carry a `' xfail: web — reason` marker.
+- **`$RESOURCE` in the web IDE**: the files come from the project's assets
+  (found by their last path part, `resource_files\two.bin` → `two.bin`), and
+  are built into the program as on the desktop. A missing one is a compile
+  error that names it. The wasm `compile()` takes the assets as a third
+  argument.
+
+- **The desktop's GUI fixtures run in the browser too**:
+  `node tests/web_gui_parity.mjs` fires the same events on the same
+  `tests/fixtures/*.bas` as `tests/native_gui_events.mjs` (both read the
+  table in `tests/gui_parity_cases.mjs`) and compares the same properties
+  with the same expected values. 21 checks match; two cases don't apply to a
+  browser (a window resized by the user, a directory listing).
+- `rapidr_get_prop(name, prop)` on the wasm module (and
+  `window.__rapidr_rt` in the preview): a property as the program reads
+  it, for tests and tools.
+
+### Fixed
+- **`ShowModal` waits on the web when a handler calls it**: a second form
+  opened from a button handler now blocks that handler until the form
+  closes (the VM suspends it, as the desktop's wait does) — the code after
+  `Form2.ShowModal` ran at once in the browser before. Method calls can now
+  suspend the VM like builtins do. The startup form's `ShowModal` in the
+  main body still doesn't wait: the IDE puts it before the program's own
+  statements.
+- `Label.Caption` and the other captions read back what the program set;
+  the browser returned the shown text with its `&` accelerator marks
+  taken out (`"a & b"` came back as `"a  b"`).
+- A new QLABEL / QBUTTON has an empty caption on the web as on the
+  desktop (it was "Label" / "Button").
+- **QSTRINGLIST was two different implementations**: the desktop's had
+  `Item(i)`, the web's had `Get(i)` only, so RapidQ programs that call
+  `Names.Item(1)` got "" in the browser. It is now one shared model
+  (rapidr-value, the list box's items) both runtimes use, with `Add`,
+  `Insert`, `Delete`, `Item(i)` read and write, `Count`, `IndexOf`, `Sort`,
+  `Text`, `Clear`, `LoadFromFile` and `SaveToFile`.
+- `Form.Font.Size = 12`, `Font.Name`, `.Bold`, `.Italic` and `.Color` set
+  the flat font properties on the web too, as they do on the desktop, so
+  text drawn on a form uses the size the program set.
+- Conformance case `stringlist`, `resources_memory` and the web run above.
+
 ## [2.51.0] — 2026-09-28
 
 RapidQ syntax that real programs use and RapidR refused. Of the 386 programs

@@ -1,3 +1,4 @@
+' xfail: web — the browser has no directories to list
 ' QFILELISTBOX: a list box of a directory's files — Directory, Mask (several
 ' with ;), AddFileTypes / DelFileTypes (directories in brackets), FileName,
 ' OnChange when the directory changes.

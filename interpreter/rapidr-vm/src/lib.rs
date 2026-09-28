@@ -518,6 +518,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     for _ in 0..argc { args.push(self.pop()?); }
                     args.reverse();
                     let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    // A method that waits (the web's ShowModal): suspended
+                    // until the host resumes with its result.
+                    if self.host.suspend_requested() {
+                        let top = self.frames.last_mut().unwrap();
+                        top.ip = ip;
+                        top.waiting = true;
+                        return Err(VmError::Suspended);
+                    }
                     self.stack.push(r);
                     after_host!(true);
                 }
@@ -580,6 +588,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     args.reverse();
                     let id = self.pop_object_id()?;
                     let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    // A method that waits (the web's ShowModal): suspended
+                    // until the host resumes with its result.
+                    if self.host.suspend_requested() {
+                        let top = self.frames.last_mut().unwrap();
+                        top.ip = ip;
+                        top.waiting = true;
+                        return Err(VmError::Suspended);
+                    }
                     self.stack.push(r);
                     after_host!(true);
                 }

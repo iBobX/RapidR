@@ -364,7 +364,18 @@ thread_local! {
     /// waits for a dialog: they run from `run_idle_events`, first.
     static DEFERRED: RefCell<VecDeque<Event>> = const { RefCell::new(VecDeque::new()) };
     static HAS_COMPONENTS: Cell<bool> = const { Cell::new(false) };
+    /// The forms were shown already (see [`finalize_forms`]).
+    static FINALIZED: Cell<bool> = const { Cell::new(false) };
     static NEXT_GENERATION: Cell<u64> = const { Cell::new(0) };
+}
+
+/// Shows the program's forms, once (a program that waits in ShowModal shows
+/// them then; finishing later must not reopen the forms the user closed).
+fn finalize_forms() {
+    if FINALIZED.with(|f| f.replace(true)) {
+        return;
+    }
+    rapidr_runtime_web::gui_web::gui_web_finalize();
 }
 
 fn take_queued_events() -> Vec<Event> {
@@ -373,9 +384,12 @@ fn take_queued_events() -> Vec<Event> {
 
 /// Replaces the page's program: the old session and its queued events go.
 fn start_session(session: Session) {
+    dialog::clear_modals();
+    dialog::set_main_running(true);
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
     HAS_COMPONENTS.with(|h| h.set(false));
+    FINALIZED.with(|f| f.set(false));
     SESSION.with(|s| {
         if let Ok(mut slot) = s.try_borrow_mut() {
             *slot = Some(session);
@@ -415,6 +429,8 @@ fn report(result: Result<(), VmError>, what: &str) {
 /// borrowed) this does nothing: the VM runs them at its next safe point.
 fn run_idle_events() {
     loop {
+        // The forms the program waits on that have closed: it goes on.
+        while dialog::resume_after_modal() {}
         let outcome = SESSION.with(|s| {
             let Ok(mut guard) = s.try_borrow_mut() else { return None };
             let session = guard.as_mut()?;
@@ -466,12 +482,13 @@ fn install_resume_handler() {
             let main_done = result.is_ok() && session.main_waiting && session.vm.frames.is_empty();
             if main_done {
                 session.main_waiting = false;
+                dialog::set_main_running(false);
             }
             Some((result, main_done))
         });
         let Some((result, main_done)) = outcome else { return };
         if main_done && HAS_COMPONENTS.with(Cell::get) {
-            rapidr_runtime_web::gui_web::gui_web_finalize();
+            finalize_forms();
         }
         report(result, "vm error");
         run_idle_events();
@@ -503,6 +520,8 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
         dialog::leave_vm();
         if matches!(result, Err(VmError::Suspended)) {
             session.main_waiting = true;
+        } else {
+            dialog::set_main_running(false);
         }
         Ok::<_, JsValue>(result)
     })?;
@@ -512,11 +531,16 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
             // the DOM tree (parents form windows, applies title-bars, shows
             // the entry form). Without this nothing is visible.
             if HAS_COMPONENTS.with(Cell::get) {
-                rapidr_runtime_web::gui_web::gui_web_finalize();
+                finalize_forms();
             }
         }
-        // Waiting for a dialog: the forms appear when `__main` finishes.
-        Err(VmError::Suspended) => {}
+        // Waiting for a dialog: the forms appear when `__main` finishes;
+        // waiting in ShowModal, now (the form is what it waits for).
+        Err(VmError::Suspended) => {
+            if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
+                finalize_forms();
+            }
+        }
         Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
     }
     run_idle_events();
@@ -530,17 +554,46 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
 // `compile()` here (instead of in a separate cdylib) means the IDE only
 // needs one `init()` call and one wasm download.
 
+/// A component's property as text (what the program reads), for tests and
+/// tools that compare the browser with the desktop.
+#[wasm_bindgen]
+pub fn rapidr_get_prop(name: &str, prop: &str) -> String {
+    rapidr_runtime_web::object_web::rp_comp_get(name, prop).to_string_val()
+}
+
 /// Compile a single RapidR source string to `.rrbc` bytecode bytes.
 ///
 /// Mirrors `rapidr-compiler-wasm::compile` so any tool depending on the
 /// older crate can switch over without behaviour change. On error,
 /// returns the human-readable message as a JS exception.
+///
+/// `assets` (optional) maps the project's asset names (`name` and
+/// `assets/name`) to data URLs: the files a `$RESOURCE` line names are
+/// built into the program from there, as the desktop compiler reads them
+/// from disk.
 #[wasm_bindgen]
-pub fn compile(source: &str, _project_name: &str) -> Result<Vec<u8>, JsValue> {
-    compile_inner(source).map_err(|e| JsValue::from_str(&e))
+pub fn compile(source: &str, _project_name: &str, assets: JsValue) -> Result<Vec<u8>, JsValue> {
+    compile_inner(source, &assets).map_err(|e| JsValue::from_str(&e))
 }
 
-fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
+/// A `$RESOURCE` file's bytes from the project's assets: the name as
+/// written, or its last part (`resource_files\two.bin` → `two.bin`), or under
+/// `assets/`.
+fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
+    if assets.is_undefined() || assets.is_null() {
+        return None;
+    }
+    let written = file.replace('\\', "/");
+    let base = written.rsplit('/').next().unwrap_or(&written).to_string();
+    for key in [written.clone(), format!("assets/{written}"), base.clone(), format!("assets/{base}")] {
+        if let Some(url) = js_sys::Reflect::get(assets, &JsValue::from_str(&key)).ok().and_then(|v| v.as_string()) {
+            return rapidr_runtime_web::database_web::decode_base64(&url);
+        }
+    }
+    None
+}
+
+fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {
     let pre = rapidr_preprocessor::preprocess_source(
         source,
         ".",
@@ -556,8 +609,15 @@ fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
     let program = rapidr_parser::parse_tokens(&tokens)
         .map_err(|e| e.to_string())?;
 
-    let compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
+    let mut compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
         .map_err(|e| format!("bcgen error: {e}"))?;
+
+    // `$RESOURCE` files are built into the module.
+    for r in &pre.resources {
+        let bytes = resource_bytes(assets, &r.file)
+            .ok_or_else(|| format!("$RESOURCE {}: file not found in the project's assets: '{}' (add it under Assets)", r.name, r.file))?;
+        compiled.module.resources.push((r.name.clone(), bytes));
+    }
 
     Ok(compiled.module.to_bytes())
 }
@@ -595,12 +655,21 @@ impl DebugSession {
             .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?;
         let status = match result {
             Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
-                rapidr_runtime_web::gui_web::gui_web_finalize();
+                dialog::set_main_running(false);
+                finalize_forms();
                 "waiting"
             }
-            Ok(()) => "halted",
+            Ok(()) => {
+                dialog::set_main_running(false);
+                "halted"
+            }
             Err(VmError::Paused) => "paused",
-            Err(VmError::Suspended) => "waiting",
+            Err(VmError::Suspended) => {
+                if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
+                    finalize_forms();
+                }
+                "waiting"
+            }
             Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
         };
         run_idle_events();

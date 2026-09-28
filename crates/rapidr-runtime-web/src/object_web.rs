@@ -51,7 +51,6 @@ thread_local! {
     static COMPONENTS: RefCell<HashMap<String, RpComponent>> = RefCell::new(HashMap::new());
     static EVENT_HANDLERS: RefCell<HashMap<(String, String), EventHandler>> = RefCell::new(HashMap::new());
     static CREATION_COUNTER: RefCell<u32> = RefCell::new(0);
-    static STRINGLISTS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
     static TIMER_HANDLES: RefCell<HashMap<String, i32>> = RefCell::new(HashMap::new());
     static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
 }
@@ -119,14 +118,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("visible".to_string(), v_bool(true));
         }
         "RBUTTON" => {
-            props.insert("caption".to_string(), v_str("Button"));
+            props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
             props.insert("width".to_string(), v_int(100));
             props.insert("height".to_string(), v_int(30));
         }
         "RLABEL" => {
-            props.insert("caption".to_string(), v_str("Label"));
+            props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
             props.insert("width".to_string(), v_int(100));
@@ -212,11 +211,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RWEBNOTIFICATION" => {
             props.insert("title".to_string(), v_str("Notification"));
             props.insert("body".to_string(), v_str(""));
-        }
-        "RSTRINGLIST" => {
-            STRINGLISTS.with(|sl| {
-                sl.borrow_mut().insert(uname.clone(), Vec::new());
-            });
         }
         "RNUM" => {
             // Non-visual component — no DOM element
@@ -533,6 +527,20 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
     }
 
+    // `Form.Font.Size = 12` and `FontSize = 12` are one property (as on the
+    // desktop): the flat name is what drawing and the DOM read.
+    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.color", "fontcolor")] {
+        if lprop == dotted {
+            rp_comp_set(name, flat, val.clone());
+        } else if lprop == flat {
+            COMPONENTS.with(|c| {
+                if let Some(comp) = c.borrow_mut().get_mut(&uname) {
+                    comp.properties.insert(dotted.to_string(), val.clone());
+                }
+            });
+        }
+    }
+
     // Handle timer interval/enabled specially
     COMPONENTS.with(|c| {
         let mut comps = c.borrow_mut();
@@ -551,23 +559,6 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     if lprop == "datasource" || lprop == "datafield" {
         crate::gui_web::setup_data_binding(&uname);
-    }
-
-    // Handle StringList operations
-    if lprop == "text" {
-        COMPONENTS.with(|c| {
-            let comps = c.borrow();
-            if let Some(comp) = comps.get(&uname) {
-                if comp.type_name == "RSTRINGLIST" {
-                    let text = val.to_string_val();
-                    let lines: Vec<String> = text.lines().map(|l| l.to_string()).collect();
-                    STRINGLISTS.with(|sl| {
-                        sl.borrow_mut().insert(uname.clone(), lines);
-                    });
-                    return;
-                }
-            }
-        });
     }
 
     // Handle parent re-parenting
@@ -678,31 +669,6 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
     if let Some(v) = rapidr_value::objects::get(name, &lprop) {
         return v;
-    }
-
-    // Check StringList first
-    let is_stringlist = COMPONENTS.with(|c| {
-        c.borrow()
-            .get(&uname)
-            .map(|comp| comp.type_name == "RSTRINGLIST")
-            .unwrap_or(false)
-    });
-
-    if is_stringlist {
-        return match lprop.as_str() {
-            "count" => STRINGLISTS.with(|sl| {
-                v_int(sl.borrow().get(&uname).map(|v| v.len()).unwrap_or(0) as i64)
-            }),
-            "text" => STRINGLISTS.with(|sl| {
-                v_str(
-                    &sl.borrow()
-                        .get(&uname)
-                        .map(|v| v.join("\n"))
-                        .unwrap_or_default(),
-                )
-            }),
-            _ => v_null(),
-        };
     }
 
     // Check data-science / database component properties
@@ -849,11 +815,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             name
         )));
         return v_null();
-    }
-
-    // StringList special handling
-    if comp_type == "RSTRINGLIST" {
-        return stringlist_method(&uname, &lmethod, args);
     }
 
     // JSON special handling
@@ -1412,73 +1373,6 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
         }
         _ => v_null(),
     }
-}
-
-fn stringlist_method(name: &str, method: &str, args: &[Value]) -> Value {
-    STRINGLISTS.with(|sl| {
-        let mut lists = sl.borrow_mut();
-        let list = lists.entry(name.to_string()).or_insert_with(Vec::new);
-
-        match method {
-            "add" if args.len() >= 1 => {
-                list.push(args[0].to_string_val());
-                v_null()
-            }
-            "insert" if args.len() >= 2 => {
-                let idx = args[0].to_i64() as usize;
-                if idx <= list.len() {
-                    list.insert(idx, args[1].to_string_val());
-                }
-                v_null()
-            }
-            "delete" | "remove" if args.len() >= 1 => {
-                let idx = args[0].to_i64() as usize;
-                if idx < list.len() {
-                    list.remove(idx);
-                }
-                v_null()
-            }
-            "clear" => {
-                list.clear();
-                v_null()
-            }
-            "get" | "strings" if args.len() >= 1 => {
-                let idx = args[0].to_i64() as usize;
-                if idx < list.len() {
-                    v_str(&list[idx])
-                } else {
-                    v_str("")
-                }
-            }
-            "indexof" | "find" if args.len() >= 1 => {
-                let needle = args[0].to_string_val();
-                v_int(
-                    list.iter()
-                        .position(|s| s == &needle)
-                        .map(|i| i as i64)
-                        .unwrap_or(-1),
-                )
-            }
-            "sort" => {
-                list.sort();
-                v_null()
-            }
-            "savetofile" if args.len() >= 1 => {
-                // On web, we can't save files directly — offer download instead
-                let content = list.join("\n");
-                trigger_download(&args[0].to_string_val(), "text/plain", &content);
-                v_null()
-            }
-            "loadfromfile" => {
-                // Not supported on web
-                web_sys::console::warn_1(&JsValue::from_str(
-                    "[WARN] StringList.LoadFromFile not supported on web",
-                ));
-                v_null()
-            }
-            _ => v_null(),
-        }
-    })
 }
 
 // ---------------------------------------------------------------------------

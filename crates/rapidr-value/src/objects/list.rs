@@ -62,6 +62,9 @@ pub struct ItemList {
     pub text: String,
     /// QFILELISTBOX: the directory its items come from.
     pub files: Option<FileSource>,
+    /// A QSTRINGLIST (no widget): the same items, with RapidQ's own method
+    /// names (`Add`, `Insert`, `Delete`, `Get`, `Strings`).
+    pub plain: bool,
     /// `Style` and `ItemHeight` (owner drawing, see the module docs).
     pub style: i64,
     pub item_height: i64,
@@ -81,6 +84,11 @@ fn flag(on: bool) -> Value {
 impl ItemList {
     pub fn new(combo: bool) -> ItemList {
         ItemList { item_index: -1, combo, ..Default::default() }
+    }
+
+    /// A QSTRINGLIST.
+    pub fn new_string_list() -> ItemList {
+        ItemList { item_index: -1, plain: true, ..Default::default() }
     }
 
     /// A QFILELISTBOX: the files of the current directory.
@@ -172,7 +180,7 @@ impl ItemList {
 
     /// Keeps a drawing whose anchor is (x, y) on the item there, with
     /// `make` given that item's top left (to make it relative).
-    pub fn record(&mut self, x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
+    pub fn record(&mut self, _x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
         let h = self.row_height();
         if y < 0 {
             return;
@@ -387,6 +395,18 @@ impl ItemList {
         if !self.combo && self.draw(method, args) {
             return Some(Value::Null);
         }
+        // QSTRINGLIST's names for the same operations.
+        let method = if self.plain {
+            match method {
+                "add" => "additems",
+                "insert" => "insertitem",
+                "delete" | "remove" => "delitems",
+                "get" | "strings" | "string" => "item",
+                other => other,
+            }
+        } else {
+            method
+        };
         match method {
             "additems" | "additem" | "addstring" => {
                 for a in args {

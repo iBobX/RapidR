@@ -156,7 +156,10 @@ Next up, in order:
 - [x] Corpus comparison after v2.40.0: 98/101 identical (3 RND/TIMER); rotate.bas needs its missing `$RESOURCE` file
 - [x] `$RESOURCE` on both backends: files built into the program (bytecode section / `include_bytes!`), RESOURCE(n), RESOURCECOUNT, EXTRACTRESOURCE, `Stream.ExtractRes`, BMPHandle, AddBMPHandle (v2.40.0)
 - [x] QIMAGE as a picture from the shared Bitmap model on desktop and web: BMP / BMPHandle, AutoSize, Stretch, Center, Transparent, drawing, Pixel; RapidQ's mouse events; MOUSEX / MOUSEY (v2.40.0)
-- [ ] Resources next: `$RESOURCE` in the web IDE (project files), ICOHandle / IconHandle (forms, QIMAGE), non-BMP resources (JPG) on the desktop (PLAYWAV of files and resources: v2.45.0)
+- [x] `$RESOURCE` in the web IDE: the files are the project's assets (v2.52.0)
+- [x] The conformance suite (`tests/web_conformance.mjs`) and the desktop GUI fixtures (`tests/web_gui_parity.mjs`) run in the browser too (v2.52.0): 53 of 55 conformance cases and 21 GUI checks match; the rest are marked
+- [ ] Web: the startup form's `ShowModal` in the main body doesn't wait (the IDE puts it before the program's own statements); `Form.Repaint`, timers stopping after a modal closes, a resized window (`align_layout`) have no web parity check yet
+- [ ] Resources next: ICOHandle / IconHandle (forms, QIMAGE), non-BMP resources (JPG) on the desktop (PLAYWAV of files and resources: v2.45.0)
 - [ ] Mouse event arguments: RapidQ's order is OnMouseDown/Up (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — QIMAGE follows it; QCANVAS and other controls still pass (X, Y, Button), which RapidR's own web IDE relies on
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)

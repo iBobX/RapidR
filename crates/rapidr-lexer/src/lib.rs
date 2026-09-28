@@ -942,7 +942,6 @@ impl<'src> Lexer<'src> {
             ));
         }
 
-        let digits = &self.source[digit_start..self.index];
         // A long-integer suffix (`&H1&`, `&HFFFF&` in the Windows includes):
         // the `&` right after the digits, not a concatenation.
         let digits_end = self.index;
