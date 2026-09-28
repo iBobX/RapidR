@@ -782,8 +782,11 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
                 return Some(Ok(numeric::convert(&arg(0), kind)));
             }
         }
-        // `__newarray(fill, lo, hi)`: an array field's initial value.
-        "__newarray" => return Some(v_array(vec![(arg(1).to_i64(), arg(2).to_i64())], arg(0))),
+        // `__newarray(fill, lo, hi [, lo, hi …])`: an array field's initial value.
+        "__newarray" => {
+            let dims: Vec<(i64, i64)> = args.get(1..).unwrap_or(&[]).chunks(2).map(|b| (b[0].to_i64(), b.get(1).map_or(0, Value::to_i64))).collect();
+            return Some(v_array(dims, arg(0)));
+        }
         "__aget" | "__aset" => {
             let Value::Array(a) = arg(0) else {
                 return Some(Err(format!("this is not an array ({})", describe(&arg(0)))));

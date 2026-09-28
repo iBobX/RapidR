@@ -327,6 +327,10 @@ impl<'a> Parser<'a> {
                     self.consume_eol();
                     continue;
                 }
+                // `310 NEXT I`: the line's label, then the block's end.
+                if self.is_at_terminator(terminators) {
+                    continue;
+                }
             }
             if let Some(stmt) = self.parse_statement() {
                 stmts.push(stmt);
@@ -1207,8 +1211,13 @@ impl<'a> Parser<'a> {
         let condition = self.parse_expression()?;
         self.expect(TokenType::Then)?;
 
+        // `IF c THEN: a: b: END IF` (or `THEN :a` with `ELSE :b` and END IF on
+        // later lines): a colon right after THEN starts a block, whose
+        // statements are separated by colons or lines.
+        let block_after_colon = self.match_kind(TokenType::Colon);
+
         // Single-line IF: non-empty remainder after THEN on the same line
-        if !self.at_eol() {
+        if !block_after_colon && !self.at_eol() {
             let mut then_body = Vec::new();
             // Parse one or more colon-separated statements on the THEN line
             loop {
@@ -1216,7 +1225,7 @@ impl<'a> Parser<'a> {
                     then_body.push(s);
                     then_body.append(&mut self.pending);
                 }
-                if !self.match_kind(TokenType::Colon) {
+                if !self.match_kind(TokenType::Colon) || self.at_eol() {
                     break;
                 }
             }
@@ -1228,10 +1237,15 @@ impl<'a> Parser<'a> {
                         else_body.push(s);
                         else_body.append(&mut self.pending);
                     }
-                    if !self.match_kind(TokenType::Colon) {
+                    if !self.match_kind(TokenType::Colon) || self.at_eol() {
                         break;
                     }
                 }
+            }
+            // `IF c THEN x END IF` on one line: the END IF is redundant.
+            if self.peek_kind() == Some(TokenType::End) && self.peek_kind_at(1) == Some(TokenType::If) {
+                self.advance();
+                self.advance();
             }
             return Some(IfStatement {
                 span: self.span_from(start),
@@ -1266,6 +1280,7 @@ impl<'a> Parser<'a> {
         }
 
         let else_body = if self.match_kind(TokenType::Else) {
+            self.match_kind(TokenType::Colon);
             self.consume_eol();
             self.parse_body(&[Terminator::EndPair("IF")])
         } else {
@@ -1491,13 +1506,12 @@ impl<'a> Parser<'a> {
                 values.push(self.parse_case_value()?);
             }
             // `CASE 1: PRINT "one"` — the body may start on the same line.
-            let same_line = self.match_kind(TokenType::Colon);
-            if !same_line && !self.at_eol() {
-                let message = format!("Unexpected '{}' in CASE list", self.tokens[self.pos].lexeme);
-                self.error_at(self.pos, message);
-                self.skip_to_eol();
+            // (RapidQ also lets the body follow the list without a colon:
+            // `CASE 4, 7  C = -2`.)
+            self.match_kind(TokenType::Colon);
+            if self.at_eol() {
+                self.consume_eol();
             }
-            self.consume_eol();
             let body = self.parse_body(terminators);
             cases.push(CaseBranch {
                 span: self.span_from(case_start),
@@ -1747,17 +1761,24 @@ impl<'a> Parser<'a> {
             if self.peek_kind() == Some(TokenType::Identifier) {
                 let field_start = self.pos;
                 let fname = self.advance()?.lexeme.clone();
+                let mut more_dims: Vec<(Expression, Expression)> = Vec::new();
                 let (arr, arr_lower) = if self.match_kind(TokenType::LParen) {
-                    // A one-dimensional array field: `Names(2)` or `Colors(1 TO 16)`.
+                    // An array field: `Names(2)`, `Colors(1 TO 16)`, `vertex(9, 2)`.
                     let dims = self.parse_array_dimensions();
                     self.expect(TokenType::RParen);
+                    let span = self.span_from(field_start);
+                    let bounds = |d: &ArrayDimension| match d {
+                        ArrayDimension::Single(upper) => (Expression::Literal(Literal { span, value: LiteralValue::Integer(0) }), upper.clone()),
+                        ArrayDimension::Range { start, end } => (start.clone(), end.clone()),
+                    };
                     match dims.as_deref() {
-                        Some([ArrayDimension::Single(upper)]) => (Some(upper.clone()), None),
-                        Some([ArrayDimension::Range { start, end }]) => {
-                            (Some(end.clone()), (!is_zero_literal(start)).then(|| start.clone()))
+                        Some([first, rest @ ..]) => {
+                            let (lo, hi) = bounds(first);
+                            more_dims = rest.iter().map(bounds).collect();
+                            (Some(hi), (!is_zero_literal(&lo)).then_some(lo))
                         }
                         _ => {
-                            self.error_at(field_start, format!("Array field {fname} in TYPE {name}: only one dimension is supported yet"));
+                            self.error_at(field_start, format!("Array field {fname} in TYPE {name}: the dimensions aren't valid"));
                             self.skip_to_eol();
                             continue;
                         }
@@ -1797,6 +1818,7 @@ impl<'a> Parser<'a> {
                     type_name: ftype,
                     array_size: arr,
                     array_lower: arr_lower,
+                    more_dims,
                     setter,
                 });
                 if !self.at_eol() {

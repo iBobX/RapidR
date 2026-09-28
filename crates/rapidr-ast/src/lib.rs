@@ -2,6 +2,7 @@ use rapidr_diagnostics::TextSpan;
 
 pub mod numeric;
 pub mod objects;
+pub mod array_refs;
 pub mod stream_arrays;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -260,6 +261,9 @@ pub struct TypeField {
     pub array_size: Option<Expression>,
     /// Lower bound of an array field, when written (`Colors(1 TO 16)`); 0 otherwise.
     pub array_lower: Option<Expression>,
+    /// The further dimensions of a multi-dimensional array field
+    /// (`vertex(0 TO 9, 2)`): (lower, upper) of the 2nd, 3rd, …
+    pub more_dims: Vec<(Expression, Expression)>,
     /// `Focus AS LONG PROPERTY SET Set_Focus`: assigning the field from
     /// outside the setter calls the `PROPERTY SET Set_Focus (v AS LONG)`
     /// method instead (which stores the value itself).
