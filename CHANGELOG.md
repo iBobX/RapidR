@@ -7,6 +7,39 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.50.0] — 2026-09-28
+
+### Added
+- **Owner-drawn list boxes**: QLISTBOX with `Style = lbOwnerDrawFixed` or
+  `lbOwnerDrawVariable`, `ItemHeight` and `OnDrawItem(Index, State, Rect)`,
+  on desktop and web, natively and interpreted. RapidQ's *OwnerDraw ListBox*
+  example now looks as intended.
+  - `FillRect`, `TextOut`, `Line`, `Rectangle`, `Circle`, `Pset` and `Draw`
+    on the list draw the item they land on (`Rect` is the item's slot in the
+    list); the items are made from the shared bitmap model, so the desktop
+    and the web draw the same pixels, text in the built-in Liberation fonts
+    and the list's `Font`.
+  - `OnDrawItem` fires for every item when the list changes (items,
+    selection, height): `State` is 0 for the selected item and 1 for the
+    others, as RapidQ programs test it. An item nothing was drawn on shows
+    plainly (the selected one white on blue).
+  - Clicks and the arrow keys, Home, End, PageUp and PageDown select
+    (OnClick / OnDblClick; a MultiSelect list toggles).
+  - Every item is `ItemHeight` tall: `OnMeasureItem`'s answers aren't read
+    yet (an event can't return a value), and combo boxes aren't owner-drawn.
+- **330 constants of RapidQ's `RAPIDQ.INC` were missing** and silently
+  evaluated to 0 or "": now `lbStandard` / `lbOwnerDrawFixed` /
+  `lbOwnerDrawVariable`, `csOwnerDraw…`, `gcsList…`, every `go…` grid option,
+  `ta…` alignments, `cr…` cursors, `ss…`, `vs…`, `bk…`, `ft…`, `sc…`, `os…`,
+  the rest of the `cl…` system colors (their usual Windows values) and more.
+  A test keeps names unique and checks a sample of values.
+- Tests: a unit test for owner drawing, `tests/fixtures/owner_list.bas` (native
+  and interpreted agree), `tests/web_ide_owner_list.mjs`.
+
+### Fixed
+- `clGreen` and `clPurple` had Delphi's values; RapidQ's are `&H00FF00` and
+  `&HFF00FF`.
+
 ## [2.49.0] — 2026-09-28
 
 ### Added

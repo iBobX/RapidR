@@ -499,6 +499,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if rapidr_value::objects::is_canvas(name) {
             gui_web::render_canvas(&uname);
         }
+        // A list box that's owner-drawn now (its Style): the element changes.
+        if lprop == "style" && rapidr_value::objects::with_list(name, |l| l.owner_drawn()).unwrap_or(false) {
+            gui_web::convert_to_owner_list(&uname);
+        }
         // A QFILELISTBOX's directory changed: OnChange.
         if lprop == "directory" && rapidr_value::objects::is_file_list(name) {
             rp_fire_event(&uname, "onchange");

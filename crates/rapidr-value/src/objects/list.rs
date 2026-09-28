@@ -14,14 +14,39 @@
 //!   `Items(i)`, `Count` / `ListCount`, `ListIndex`, and `Items` read /
 //!   written as newline-separated text.
 //!
+//! Owner drawing (QLISTBOX `Style = lbOwnerDrawFixed` / `lbOwnerDrawVariable`):
+//! the runtimes fire `OnDrawItem(Index, State, Rect)` for each item after the
+//! list changed ([`ItemList::owner_draw_needed`], [`ItemList::owner_draw_items`]);
+//! `FillRect`, `TextOut`, `Draw`, … on the list are kept per item
+//! ([`CellDraw`]) and painted ([`ItemList::render_item`]) into a bitmap the
+//! runtimes show, so every platform draws the same pixels. Every item is
+//! `ItemHeight` tall: `OnMeasureItem`'s answers aren't read yet (events
+//! can't return values). `State` is 0 for the selected item and 1 for the
+//! others, as RapidQ programs test it.
+//!
 //! Indexes out of range read as "" / 0 and are ignored when written, as
 //! RapidQ doesn't stop the program for them. A list holds at most
 //! [`MAX_ITEMS`] items.
 
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
+use super::bitmap::Bitmap;
 use super::filelist::{FileSource, FT_NORMAL};
+use super::font::Font;
+use super::grid::CellDraw;
 use crate::{v_int, v_str, Value};
 
 pub const MAX_ITEMS: usize = 1_000_000;
+
+/// `Style` values (RAPIDQ.INC's `lbStandard`, `lbOwnerDrawFixed`, `lbOwnerDrawVariable`).
+pub const LB_OWNER_FIXED: i64 = 1;
+pub const LB_OWNER_VARIABLE: i64 = 2;
+
+/// Most items OnDrawItem is fired for after a change, and the height of an
+/// item without an `ItemHeight`.
+pub const MAX_OWNER_DRAWN: usize = 5_000;
+pub const DEFAULT_ITEM_HEIGHT: i64 = 16;
 
 #[derive(Clone, Debug, Default)]
 pub struct ItemList {
@@ -37,6 +62,12 @@ pub struct ItemList {
     pub text: String,
     /// QFILELISTBOX: the directory its items come from.
     pub files: Option<FileSource>,
+    /// `Style` and `ItemHeight` (owner drawing, see the module docs).
+    pub style: i64,
+    pub item_height: i64,
+    /// What OnDrawItem drew, per item, relative to the item's top left.
+    pub owner_drawing: HashMap<usize, Vec<CellDraw>>,
+    drawn_state: Option<u64>,
 }
 
 fn index(v: Option<&Value>) -> Option<usize> {
@@ -102,6 +133,101 @@ impl ItemList {
         }
         self.reload_files();
         Some(Value::Null)
+    }
+
+    /// Whether the items are drawn by OnDrawItem (a list box's `Style`).
+    pub fn owner_drawn(&self) -> bool {
+        !self.combo && matches!(self.style, LB_OWNER_FIXED | LB_OWNER_VARIABLE)
+    }
+
+    /// Height of an item, in pixels.
+    pub fn row_height(&self) -> i64 {
+        if self.item_height > 0 { self.item_height.min(2_000) } else { DEFAULT_ITEM_HEIGHT }
+    }
+
+    /// Whether the list changed (items, selection, style, height) since
+    /// OnDrawItem was last fired: if so its drawing is dropped and it must
+    /// be fired again. Drawing on the list isn't a change.
+    pub fn owner_draw_needed(&mut self) -> bool {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (&self.items, &self.selected, self.item_index, self.style, self.item_height).hash(&mut h);
+        let state = h.finish();
+        if self.drawn_state == Some(state) {
+            return false;
+        }
+        self.drawn_state = Some(state);
+        self.owner_drawing.clear();
+        true
+    }
+
+    /// Each item's OnDrawItem arguments: (index, State, Rect), the rect in
+    /// the list's content (the top of item i is i × its height), up to
+    /// [`MAX_OWNER_DRAWN`] items.
+    pub fn owner_draw_items(&self, width: i64) -> Vec<(usize, i64, (i64, i64, i64, i64))> {
+        let h = self.row_height();
+        (0..self.items.len().min(MAX_OWNER_DRAWN))
+            .map(|i| (i, if self.is_selected(i) { 0 } else { 1 }, (0, i as i64 * h, width, (i as i64 + 1) * h)))
+            .collect()
+    }
+
+    /// Keeps a drawing whose anchor is (x, y) on the item there, with
+    /// `make` given that item's top left (to make it relative).
+    pub fn record(&mut self, x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
+        let h = self.row_height();
+        if y < 0 {
+            return;
+        }
+        let i = (y / h) as usize;
+        if i >= self.items.len() {
+            return;
+        }
+        let list = self.owner_drawing.entry(i).or_default();
+        if list.len() < 1_000 {
+            list.push(make(0, i as i64 * h));
+        }
+    }
+
+    /// The owner-drawing methods (except `Draw`, which needs the source
+    /// image: rapidr_value::objects).
+    fn draw(&mut self, method: &str, args: &[Value]) -> bool {
+        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+        let c = |i: usize| n(i) as u32 & 0xFFFFFF;
+        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0).map(|v| v as u32 & 0xFFFFFF);
+        match method {
+            "line" => self.record(n(0), n(1), |l, t| CellDraw::Line(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
+            "rectangle" => self.record(n(0), n(1), |l, t| CellDraw::Rect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
+            "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
+            "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
+            "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
+            // TextOut(x, y, text, color, background (-1: transparent)).
+            "textout" => {
+                let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
+                self.record(n(0), n(1), |l, t| CellDraw::Text(n(0) - l, n(1) - t, text, c(3), optional(4)))
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    /// Item `i` as a `width` × ItemHeight bitmap: what OnDrawItem drew on
+    /// it, text in `font`; an item it didn't draw on is drawn plainly
+    /// (selected: white on blue).
+    pub fn render_item(&self, i: usize, width: i64, font: &Font) -> Bitmap {
+        let mut b = Bitmap::default();
+        b.resize(width.clamp(1, 10_000), self.row_height());
+        match self.owner_drawing.get(&i) {
+            Some(ops) => ops.iter().for_each(|op| op.paint(&mut b, font)),
+            None => {
+                let selected = self.is_selected(i);
+                if selected {
+                    b.fill_rect(0, 0, width, self.row_height(), 0xD77800);
+                }
+                let color = if selected { 0xFFFFFF } else { 0 };
+                let text = self.items.get(i).map_or("", String::as_str);
+                super::text::text_out(&mut b, 2, 0, text, font, color, None);
+            }
+        }
+        b
     }
 
     pub fn is_selected(&self, i: usize) -> bool {
@@ -212,6 +338,8 @@ impl ItemList {
             "sorted" => flag(self.sorted),
             "multiselect" => flag(self.multi_select),
             "topindex" => v_int(self.top_index),
+            "style" if !self.combo => v_int(self.style),
+            "itemheight" if !self.combo => v_int(self.row_height()),
             "text" if self.combo => v_str(&self.text),
             "text" => v_str(&self.to_text()),
             "items" => v_str(&self.items.join("\n")),
@@ -239,6 +367,8 @@ impl ItemList {
                 }
             }
             "topindex" => self.top_index = val.to_i64().clamp(0, self.items.len().saturating_sub(1) as i64),
+            "style" if !self.combo => self.style = val.to_i64(),
+            "itemheight" if !self.combo => self.item_height = val.to_i64().clamp(0, 2_000),
             "text" if self.combo => {
                 self.text = val.to_string_val();
                 self.item_index = self.items.iter().position(|s| *s == self.text).map_or(-1, |i| i as i64);
@@ -254,6 +384,9 @@ impl ItemList {
             return self.file_member(method, args);
         }
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
+        if !self.combo && self.draw(method, args) {
+            return Some(Value::Null);
+        }
         match method {
             "additems" | "additem" | "addstring" => {
                 for a in args {
@@ -409,5 +542,35 @@ mod tests {
         assert!(l.call("item", &[v_int(9), s("q")]).is_some());
         assert_eq!(l.call("find", &[s("z")]).unwrap().to_i64(), 1);
         assert!(l.call("bogus", &[]).is_none());
+    }
+
+    #[test]
+    fn owner_drawing() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &[s("a"), s("b"), s("c")]);
+        l.set("style", &v_int(LB_OWNER_VARIABLE));
+        l.set("itemheight", &v_int(20));
+        assert!(l.owner_drawn());
+        l.select(1);
+        assert!(l.owner_draw_needed());
+        assert!(!l.owner_draw_needed());
+        // State 0 is the selected item; each Rect is the item's slot.
+        assert_eq!(l.owner_draw_items(100), vec![(0, 1, (0, 0, 100, 20)), (1, 0, (0, 20, 100, 40)), (2, 1, (0, 40, 100, 60))]);
+        // Drawing at content y = 25 lands on item 1, relative to its top.
+        l.call("fillrect", &[v_int(0), v_int(20), v_int(100), v_int(40), v_int(0x00FF00)]);
+        l.call("textout", &[v_int(4), v_int(25), s("hi"), v_int(0), v_int(-1)]);
+        assert_eq!(l.owner_drawing.get(&1).map(Vec::len), Some(2));
+        assert!(l.owner_drawing.get(&0).is_none());
+        let b = l.render_item(1, 100, &Font::default());
+        assert_eq!((b.img.width, b.img.height), (100, 20));
+        assert_eq!((b.pixel(50, 2), b.pixel(99, 19)), (Some(0x00FF00), Some(0x00FF00)));
+        assert!((0..100).any(|x| (0..20).any(|y| b.pixel(x, y) == Some(0))), "the text was drawn");
+        // An item nothing was drawn on: plain (unselected: white).
+        assert_eq!(l.render_item(0, 100, &Font::default()).pixel(90, 10), Some(0xFFFFFF));
+        // Drawing isn't a change; selecting is.
+        assert!(!l.owner_draw_needed());
+        l.select(2);
+        assert!(l.owner_draw_needed());
+        assert!(l.owner_drawing.is_empty());
     }
 }

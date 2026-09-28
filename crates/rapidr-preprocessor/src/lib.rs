@@ -516,8 +516,8 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     // PLAYWAV options
     ("SND_SYNC", 0), ("SND_ASYNC", 1), ("SND_LOOP", 8),
     // Colors (&HBBGGRR)
-    ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x008000),
-    ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0x800080),
+    ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x00FF00),
+    ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0xFF00FF),
     ("clTeal", 0x808000), ("clGray", 0x808080), ("clSilver", 0xC0C0C0),
     ("clRed", 0x0000FF), ("clLime", 0x00FF00), ("clYellow", 0x00FFFF),
     ("clBlue", 0xFF0000), ("clFuchsia", 0xFF00FF), ("clAqua", 0xFFFF00),
@@ -566,6 +566,76 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("VK_F1", 112), ("VK_F2", 113), ("VK_F3", 114), ("VK_F4", 115), ("VK_F5", 116),
     ("VK_F6", 117), ("VK_F7", 118), ("VK_F8", 119), ("VK_F9", 120), ("VK_F10", 121),
     ("VK_F11", 122), ("VK_F12", 123),
+    // The rest of RapidQ's RAPIDQ.INC (ENUM-like option numbers: alignment,
+    // styles, grid options, cursors, …). The system colors have no OS lookup
+    // in RapidR: the usual Windows defaults.
+    ("taLeftJustify", 0), ("taRightJustify", 1), ("taCenter", 2), ("SND_NODEFAULT", 2), ("SND_NOSTOP", 16),
+    ("SND_MEMORY", 4), ("clScrollBar", 0xc8c8c8), ("clBackGround", 0x000000), ("clActiveCaption", 0xd1b499), ("clInActiveCaption", 0xdbcdbf),
+    ("clMenu", 0xf0f0f0), ("clWindowFrame", 0x646464), ("clMenuText", 0x000000), ("clCaptionText", 0x000000), ("clActiveBorder", 0xb4b4b4),
+    ("clInActiveBorder", 0xfcf7f4), ("clAppWorkSpace", 0xababab), ("clHilight", 0xd77800), ("clHilightText", 0xffffff), ("clInActiveCaptionText", 0x000000),
+    ("clBtnHighlight", 0xffffff), ("cl3DDkShadow", 0x696969), ("cl3DLight", 0xe3e3e3), ("clInfoText", 0x000000), ("clInfoBk3DDkShadow", 0xe1ffff),
+    ("ssShift", 256), ("ssCtrl", 16), ("ssAlt", 1), ("fpDefault", 0), ("fpVariable", 1),
+    ("fpFixed", 2), ("ANSI_CHARSET", 0), ("DEFAULT_CHARSET", 1), ("SYMBOL_CHARSET", 2), ("MAC_CHARSET", 77),
+    ("SHIFTJIS_CHARSET", 128), ("HANGEUL_CHARSET", 129), ("JOHAB_CHARSET", 130), ("GB2312_CHARSET", 134), ("CHINESEBIG5_CHARSET", 136),
+    ("GREEK_CHARSET", 161), ("TURKISH_CHARSET", 162), ("VIETNAMESE_CHARSET", 163), ("HEBREW_CHARSET", 177), ("ARABIC_CHARSET", 178),
+    ("BALTIC_CHARSET", 186), ("RUSSIAN_CHARSET", 204), ("THAI_CHARSET", 222), ("EASTEUROPE_CHARSET", 238), ("OEM_CHARSET", 255),
+    ("fsNormal", 0), ("fsMDIChild", 1), ("fsMDIForm", 2), ("fsStayOnTop", 3), ("CtrlDown", 1),
+    ("AltDown", 16), ("ShiftDown", 256), ("biSystemMenu", 0), ("biMinimize", 1), ("biMaximize", 2),
+    ("biHelp", 3), ("caNone", 0), ("caHide", 1), ("caFree", 2), ("caMinimize", 3),
+    ("tlTop", 0), ("tlCenter", 1), ("tlBottom", 2), ("lsNone", 0), ("lsRaised", 1),
+    ("lsRecessed", 2), ("bvNone", 0), ("bvLowered", 1), ("bvRaised", 2), ("bpNone", 0),
+    ("bpSingle", 1), ("ecNormal", 0), ("ecUpperCase", 1), ("ecLowerCase", 2), ("csDropDown", 0),
+    ("csSimple", 1), ("csDropDownList", 2), ("csOwnerDrawFixed", 3), ("csOwnerDrawVariable", 4), ("ssNone", 0),
+    ("ssHorizontal", 1), ("ssVertical", 2), ("ssBoth", 3), ("mrNoToAll", 9), ("mrYesToAll", 10),
+    ("blBMPLeft", 0), ("blBMPRight", 1), ("blBMPTop", 2), ("blBMPBottom", 3), ("bkCustom", 0),
+    ("bkOK", 1), ("bkCancel", 2), ("bkHelp", 3), ("bkYes", 4), ("bkNo", 5),
+    ("bkClose", 6), ("bkAbort", 7), ("bkRetry", 8), ("bkIgnore", 9), ("bkAll", 10),
+    ("crDefault", 0), ("crNone", -1), ("crArrow", -2), ("crCross", -3), ("crIBeam", -4),
+    ("crSize", -5), ("crSizeNESW", -6), ("crSizeNS", -7), ("crSizeNWSE", -8), ("crSizeWE", -9),
+    ("crUpArrow", -10), ("crHourGlass", -11), ("crDrag", -12), ("crNoDrop", -13), ("crHSplit", -14),
+    ("crVSplit", -15), ("crMultiDrag", -16), ("crSQLWait", -17), ("crNo", -18), ("crAppStart", -19),
+    ("crHelp", -20), ("crHandPoint", -21), ("ftReadOnly", 0), ("ftHidden", 1), ("ftSystem", 2),
+    ("ftVolumeID", 3), ("ftDirectory", 4), ("ftArchive", 5), ("ftNormal", 6), ("sbHorizontal", 0),
+    ("sbVertical", 1), ("scLineUp", 0), ("scLineDown", 1), ("scPageUp", 2), ("scPageDown", 3),
+    ("scPosition", 4), ("scTrack", 5), ("scTop", 6), ("scBottom", 7), ("scEndScroll", 8),
+    ("dsFocused", 0), ("dsSelected", 1), ("dsNormal", 2), ("dsTransparent", 3), ("itImage", 0),
+    ("itMask", 1), ("stNone", 0), ("stText", 2), ("vsIcon", 0), ("vsSmallIcon", 1),
+    ("vsList", 2), ("vsReport", 3), ("tbHorizontal", 0), ("tbVertical", 1), ("tmBottomRight", 0),
+    ("tmTopLeft", 1), ("tmBoth", 2), ("tsNone", 0), ("tsAuto", 1), ("tsManual", 2),
+    ("goFixedVertLine", 0), ("goFixedHorzLine", 1), ("goVertLine", 2), ("goHorzLine", 3), ("goRangeSelect", 4),
+    ("goDrawFocusSelected", 5), ("goRowSizing", 6), ("goColSizing", 7), ("goRowMoving", 8), ("goColMoving", 9),
+    ("goEditing", 10), ("goTabs", 11), ("goRowSelect", 12), ("goAlwaysShowEditor", 13), ("goThumbTracking", 14),
+    ("gcsList", 0), ("gcsEllipsis", 1), ("gcsNone", 2), ("osText", 0), ("osPlusMinusText", 1),
+    ("osPictureText", 2), ("osPlusMinusPictureText", 3), ("osTreeText", 4), ("osTreePictureText", 5), ("ooDrawTreeRoot", 0),
+    ("ooDrawFocusRect", 1), ("ooDrawStretchBitmaps", 2), ("gkText", 0), ("gkHorizontalBar", 1), ("gkVerticalBar", 2),
+    ("gkPie", 3), ("gkNeedle", 4), ("cmBlackness", 66), ("cmDstInvert", 5570569), ("cmMergeCopy", 12583114),
+    ("cmMergePaint", 12255782), ("cmNotSrcCopy", 3342344), ("cmNotSrcErase", 1114278), ("cmPatCopy", 15728673), ("cmPatInvert", 5898313),
+    ("cmPatPaint", 16452105), ("cmSrcAnd", 8913094), ("cmSrcCopy", 13369376), ("cmSrcErase", 4457256), ("cmSrcInvert", 6684742),
+    ("cmSrcPaint", 15597702), ("cmWhiteness", 16711778), ("tmAuto", 0), ("tmFixed", 1), ("lbStandard", 0),
+    ("lbOwnerDrawFixed", 1), ("lbOwnerDrawVariable", 2), ("br110", 0), ("br300", 1), ("br600", 2),
+    ("br1200", 3), ("br2400", 4), ("br4800", 5), ("br9600", 6), ("br14400", 7),
+    ("br19200", 8), ("br38400", 9), ("br56000", 10), ("br57600", 11), ("br115200", 12),
+    ("sbOneStopBit", 0), ("sbOne5StopBits", 1), ("sbTwoStopBits", 2), ("prNone", 0), ("prOdd", 1),
+    ("prEven", 2), ("prMark", 3), ("prSpace", 4), ("fdAnsiOnly", 0), ("fdTrueTypeOnly", 1),
+    ("fdEffects", 2), ("fdFixedPitchOnly", 3), ("fdForceFontExist", 4), ("fdNoFaceSel", 5), ("fdNoOEMFonts", 6),
+    ("fdNoSimulations", 7), ("fdNoSizeSel", 8), ("fdNoStyleSel", 9), ("fdNoVectorFonts", 10), ("fdShowHelp", 11),
+    ("fdWysiwyg", 12), ("fdLimitSize", 13), ("fdScalableOnly", 14), ("fdApplyButton", 15), ("dtReadOnly", 0),
+    ("dtHidden", 1), ("dtSystem", 2), ("dtNormal", 3), ("dtAll", 4), ("drtUnknown", 0),
+    ("drtRemovable", 1), ("drtFixed", 2), ("drtRemote", 3), ("drtCDRom", 4), ("drtRamDisk", 5),
+    ("IPPROTO_IP", 0), ("IPPROTO_ICMP", 1), ("IPPROTO_IGMP", 2), ("IPPROTO_TCP", 6), ("IPPROTO_PUP", 12),
+    ("IPPROTO_UDP", 17), ("IPPROTO_IDP", 22), ("IPPROTO_RAW", 255), ("SOCK_STREAM", 1), ("SOCK_DGRAM", 2),
+    ("SOCK_RAW", 3), ("SOCK_RDM", 4), ("SOCK_SEQPACKET", 5), ("AF_UNSPEC", 0), ("AF_UNIX", 1),
+    ("AF_INET", 2), ("AF_IMPLINK", 3), ("AF_PUP", 4), ("AF_CHAOS", 5), ("AF_IPX", 6),
+    ("AF_NS", 6), ("AF_ISO", 7), ("AF_ECMA", 8), ("AF_DATAKIT", 9), ("AF_CCITT", 10),
+    ("AF_SNA", 11), ("AF_DECnet", 12), ("AF_DLI", 13), ("AF_LAT", 14), ("AF_HYLINK", 15),
+    ("AF_APPLETALK", 16), ("AF_NETBIOS", 17), ("AF_VOICEVIEW", 18), ("AF_FIREFOX", 19), ("AF_UNKNOWN1", 20),
+    ("AF_BAN", 21), ("hsText", 0), ("hsOwnerDraw", 1), ("dupIgnore", 0), ("dupAccept", 1),
+    ("dupError", 2), ("smClip", 0), ("smCenter", 1), ("smScale", 2), ("smStretch", 3),
+    ("smAutoSize", 4), ("osEmpty", 0), ("osLoaded", 1), ("osRunning", 2), ("osOpen", 3),
+    ("osInPlaceActive", 4), ("osUIActive", 5), ("ffGeneral", 0), ("ffExponent", 1), ("ffFixed", 2),
+    ("ffNumber", 3), ("faReadOnly", 1), ("faHidden", 2), ("faSysFile", 4), ("faVolumeID", 8),
+    ("faDirectory", 16), ("faArchive", 32), ("faAnyFile", 63), ("poPortrait", 0), ("poLandscape", 1),
+    ("caClose", 2),
 ];
 
 /// Built-in replacement for an include file that isn't on disk, as a single
@@ -939,6 +1009,26 @@ mod tests {
         let result = preprocess("$DEFINE GREETING Hello\nPRINT \"GREETING\"\nPRINT GREETING");
         assert!(result.contains("PRINT \"GREETING\""));
         assert!(result.contains("PRINT Hello"));
+    }
+
+    #[test]
+    fn rapidq_inc_has_the_option_constants() {
+        // RapidQ's own values (its RAPIDQ.INC): styles, grid options,
+        // alignment, cursors; clGreen and clPurple are RapidQ's, not Delphi's.
+        let names = [
+            ("lbOwnerDrawVariable", 2), ("csOwnerDrawFixed", 3), ("gcsList", 0), ("goRangeSelect", 4), ("goColSizing", 7),
+            ("taCenter", 2), ("taRightJustify", 1), ("crHandPoint", -21), ("ssShift", 256), ("vsReport", 3), ("clGreen", 0x00FF00),
+            ("clPurple", 0xFF00FF),
+        ];
+        for (name, value) in names {
+            let found = crate::RAPIDQ_INC_CONSTANTS.iter().find(|(n, _)| n.eq_ignore_ascii_case(name));
+            assert_eq!(found.map(|(_, v)| *v), Some(value), "{name}");
+        }
+        // No name twice (the first would silently win).
+        let mut seen = std::collections::HashSet::new();
+        for (n, _) in crate::RAPIDQ_INC_CONSTANTS {
+            assert!(seen.insert(n.to_ascii_lowercase()), "{n} is defined twice");
+        }
     }
 
     #[test]

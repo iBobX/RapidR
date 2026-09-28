@@ -800,6 +800,12 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
+            // Style = lbOwnerDrawFixed / lbOwnerDrawVariable: the items are
+            // drawn by OnDrawItem (a table of one column).
+            if rapidr_value::objects::with_list(name, |l| l.owner_drawn()).unwrap_or(false) {
+                owner_list_create(&name_lower, x, y, w, h);
+                return;
+            }
             let mut browser = HoldBrowser::new(x, y, w, h, None);
             let name_for_cb = name.to_lowercase();
             browser.set_callback(move |b| {
@@ -4209,6 +4215,18 @@ pub fn list_refresh(name: &str) {
             }
             b.redraw();
         }
+        // An owner-drawn list box: a table with a row per item.
+        Some(GuiWidget::Grid(mut t, _)) => {
+            let h = rapidr_value::objects::with_list(&name, |l| l.row_height()).unwrap_or(16) as i32;
+            t.set_rows(items.len() as i32);
+            t.set_row_height_all(h);
+            t.set_col_width_all((t.w() - 4 - 16).max(10));
+            if top > 0 {
+                t.set_row_position(top as i32);
+            }
+            t.redraw();
+            list_owner_draw(&name);
+        }
         Some(GuiWidget::Choice(mut c)) => {
             c.clear();
             for item in &items {
@@ -4230,6 +4248,130 @@ pub fn list_refresh(name: &str) {
             c.redraw();
         }
         _ => {}
+    }
+}
+
+/// An owner-drawn list box (`Style = lbOwnerDrawFixed / lbOwnerDrawVariable`):
+/// a table of one column whose cells are the items, drawn from
+/// rapidr_value::objects::list (`render_item`) — what OnDrawItem drew, or
+/// the plain item. A click or the arrow keys select an item (OnClick).
+fn owner_list_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
+    let mut table = Table::new(x, y, w, h, None);
+    table.set_frame(FrameType::DownBox);
+    table.set_color(Color::White);
+    let hidden = Input::new(0, 0, 0, 0, None);
+    table.end();
+    let mut hidden = hidden;
+    hidden.hide();
+    table.set_cols(1);
+    table.set_col_header(false);
+    table.set_row_header(false);
+    table.set_col_resize(false);
+    table.set_row_resize(false);
+    let draw_name = name.to_string();
+    table.draw_cell(move |t, ctx, row, _col, cx, cy, cw, ch| {
+        if ctx != TableContext::Cell || row < 0 {
+            return;
+        }
+        let font = rapidr_value::objects::font_from_props(&draw_name, &|id, p| rp_comp_get(id, p));
+        let Some((iw, ih, rgba)) = rapidr_value::objects::list_item_pixels(&draw_name, row as usize, cw as i64, &font) else { return };
+        if let Ok(mut img) = RgbImage::new(&rgba, iw as i32, ih as i32, ColorDepth::Rgba8) {
+            draw::push_clip(cx, cy, cw, ch);
+            img.draw(cx, cy, iw as i32, ih as i32);
+            draw::pop_clip();
+        }
+        let _ = t;
+    });
+    let handle_name = name.to_string();
+    table.handle(move |t, ev| owner_list_handle(&handle_name, t, ev));
+    GUI_WIDGETS.with(|gw| {
+        gw.borrow_mut().insert(name.to_string(), GuiWidget::Grid(table, hidden));
+    });
+    list_refresh(name);
+}
+
+/// Selects item `i` the way a click does (a MultiSelect list toggles it).
+fn owner_list_select(name: &str, i: i64) {
+    rapidr_value::objects::with_list_mut(name, |l| {
+        if l.multi_select {
+            if let Some(s) = l.selected.get_mut(i as usize) {
+                *s = !*s;
+            }
+            l.item_index = i;
+        } else {
+            l.select(i);
+        }
+    });
+}
+
+fn owner_list_handle(name: &str, t: &mut Table, ev: Event) -> bool {
+    let count = rapidr_value::objects::with_list(name, |l| l.items.len() as i64).unwrap_or(0);
+    match ev {
+        Event::Push => {
+            let _ = t.take_focus();
+            if let Some((TableContext::Cell, row, _, _)) = t.cursor2rowcol() {
+                if (row as i64) < count {
+                    owner_list_select(name, row as i64);
+                    list_refresh(name);
+                    rp_fire_event(name, if app::event_clicks() { "ondblclick" } else { "onclick" });
+                }
+            }
+            true
+        }
+        Event::Focus | Event::Unfocus => true,
+        Event::KeyDown => {
+            let current = rapidr_value::objects::with_list(name, |l| l.item_index).unwrap_or(-1);
+            let page = i64::from((t.h() / rapidr_value::objects::with_list(name, |l| l.row_height()).unwrap_or(16) as i32).max(1));
+            let next = match app::event_key() {
+                Key::Down => current + 1,
+                Key::Up => (current - 1).max(0),
+                Key::PageDown => current + page,
+                Key::PageUp => (current - page).max(0),
+                Key::Home => 0,
+                Key::End => count - 1,
+                _ => return false,
+            };
+            let next = next.clamp(0, (count - 1).max(0));
+            if count > 0 && next != current {
+                owner_list_select(name, next);
+                // Scrolled so the item shows.
+                let (top, bottom, _, _) = t.visible_cells();
+                if (next as i32) < top {
+                    t.set_row_position(next as i32);
+                } else if (next as i32) > bottom {
+                    t.set_row_position((next as i32 - (bottom - top)).max(0));
+                }
+                list_refresh(name);
+                rp_fire_event(name, "onclick");
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// OnDrawItem(Index, State, Rect): fired for every item after the list
+/// changed (rapidr_value::objects::list::ItemList::owner_draw_needed); what
+/// the handler draws is kept per item and shown by [`owner_list_create`]'s
+/// cells. Each item's Rect is a QRECT (a property bag).
+fn list_owner_draw(name: &str) {
+    if !crate::object::rp_has_handler(name, "ondrawitem") {
+        return;
+    }
+    if !rapidr_value::objects::with_list_mut(name, |l| l.owner_draw_needed()).unwrap_or(false) {
+        return;
+    }
+    let width = GUI_WIDGETS.with(|gw| match gw.borrow().get(name) {
+        Some(GuiWidget::Grid(t, _)) => t.col_width(0) as i64,
+        _ => 0,
+    });
+    let items = rapidr_value::objects::with_list(name, |l| l.owner_draw_items(width)).unwrap_or_default();
+    for (i, state, (left, top, right, bottom)) in items {
+        let rect = format!("{name}.itemrect({i})");
+        for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
+            crate::object::rp_comp_set(&rect, prop, v_int(v));
+        }
+        rp_fire_event_args(name, "ondrawitem", &[v_int(i as i64), v_int(state), v_str(&rect)]);
     }
 }
 
