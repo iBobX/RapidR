@@ -19,6 +19,7 @@ pub mod list;
 pub mod listview;
 pub mod memstream;
 pub mod printer;
+pub mod text;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -323,14 +324,18 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
-    // `Printer.Font = Font`: the QFONT's settings.
-    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_))), Some(true)) {
+    // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.
+    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_) | Object::Bitmap(_))), Some(true)) {
         let font = with(&val.to_string_val(), |o| match o {
             Object::Font(f) => Some(f.clone()),
             _ => None,
         })
         .flatten()?;
-        with(id, |o| if let Object::Printer(p) = o { p.font = font });
+        with(id, |o| match o {
+            Object::Printer(p) => p.font = font,
+            Object::Bitmap(b) => b.font = font,
+            _ => {}
+        });
         return Some(Ok(()));
     }
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).

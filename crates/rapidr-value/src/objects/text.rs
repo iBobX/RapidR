@@ -1,0 +1,281 @@
+//! Text on bitmaps (`Bitmap.TextOut`, `TextWidth`, `TextHeight`; a
+//! QIMAGE's picture too): drawn the same on every platform, from fonts
+//! built into RapidR — the Liberation fonts (SIL Open Font License 1.1,
+//! `fonts/`), made with the same character widths as Arial, Times New Roman
+//! and Courier New, which RapidQ programs name — read with `ttf-parser`
+//! and filled here with 4 × 4 anti-aliasing.
+//!
+//! A QFONT's name picks the face (Courier / mono: Liberation Mono; Times /
+//! serif / Roman: Liberation Serif; anything else: Liberation Sans), its
+//! size is points at 96 dpi (Windows' screen resolution: 12 pt = 16 px);
+//! bold is drawn twice a pixel apart, italic slanted, underline and
+//! strike-out as lines. Like Windows' TextOut, (x, y) is the top left of
+//! the text's cell and a background colour fills the cell.
+
+use super::bitmap::Bitmap;
+use super::font::Font;
+
+const SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
+const SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
+const MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
+
+/// Longest text drawn in one call (so a huge string can't stall drawing).
+const MAX_CHARS: usize = 10_000;
+
+fn face_data(name: &str) -> &'static [u8] {
+    let n = name.to_ascii_lowercase();
+    if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
+        MONO
+    } else if n.contains("times") || n.contains("serif") || n.contains("roman") || n.contains("georgia") {
+        SERIF
+    } else {
+        SANS
+    }
+}
+
+/// The font's size in pixels (points at 96 dpi); a negative size is
+/// already pixels, as Windows fonts' heights can be.
+fn pixel_size(font: &Font) -> f32 {
+    let size = font.size.clamp(-1_000, 1_000);
+    if size < 0 {
+        -size as f32
+    } else {
+        (size.max(1) as f32) * 96.0 / 72.0
+    }
+}
+
+/// A face and its scale for a font.
+struct Scaled {
+    face: ttf_parser::Face<'static>,
+    scale: f32,
+    ascent: f32,
+    height: f32,
+}
+
+fn scaled(font: &Font) -> Option<Scaled> {
+    let face = ttf_parser::Face::parse(face_data(&font.name), 0).ok()?;
+    let px = pixel_size(font);
+    let scale = px / face.units_per_em() as f32;
+    let ascent = face.ascender() as f32 * scale;
+    let height = (face.ascender() as f32 - face.descender() as f32) * scale;
+    Some(Scaled { face, scale, ascent, height })
+}
+
+impl Scaled {
+    fn advance(&self, c: char) -> f32 {
+        let g = self.face.glyph_index(c).or_else(|| self.face.glyph_index('?'));
+        g.and_then(|g| self.face.glyph_hor_advance(g)).unwrap_or(0) as f32 * self.scale
+    }
+}
+
+/// `TextWidth` / `TextHeight` of `text` in `font`, in pixels.
+pub fn text_size(text: &str, font: &Font) -> (i64, i64) {
+    let Some(s) = scaled(font) else { return (0, 0) };
+    let bold = font.styles & 1 != 0;
+    let w: f32 = text.chars().take(MAX_CHARS).map(|c| s.advance(c)).sum::<f32>() + if bold { 1.0 } else { 0.0 };
+    (w.round() as i64, s.height.ceil() as i64)
+}
+
+/// Collects a glyph's outline as line segments (curves flattened), in
+/// pixels, y down.
+struct Edges {
+    edges: Vec<(f32, f32, f32, f32)>,
+    at: (f32, f32),
+    start: (f32, f32),
+    scale: f32,
+    origin: (f32, f32),
+    slant: f32,
+}
+
+impl Edges {
+    fn point(&self, x: f32, y: f32) -> (f32, f32) {
+        let (px, py) = (self.origin.0 + x * self.scale, self.origin.1 - y * self.scale);
+        // Italic: the higher, the further right.
+        (px + self.slant * (self.origin.1 - py), py)
+    }
+
+    fn line(&mut self, to: (f32, f32)) {
+        if to != self.at {
+            self.edges.push((self.at.0, self.at.1, to.0, to.1));
+        }
+        self.at = to;
+    }
+}
+
+impl ttf_parser::OutlineBuilder for Edges {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.at = self.point(x, y);
+        self.start = self.at;
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        let p = self.point(x, y);
+        self.line(p);
+    }
+
+    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        let (p0, p1, p2) = (self.at, self.point(x1, y1), self.point(x, y));
+        for i in 1..=8 {
+            let t = i as f32 / 8.0;
+            let u = 1.0 - t;
+            self.line((u * u * p0.0 + 2.0 * u * t * p1.0 + t * t * p2.0, u * u * p0.1 + 2.0 * u * t * p1.1 + t * t * p2.1));
+        }
+    }
+
+    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+        let (p0, p1, p2, p3) = (self.at, self.point(x1, y1), self.point(x2, y2), self.point(x, y));
+        for i in 1..=10 {
+            let t = i as f32 / 10.0;
+            let u = 1.0 - t;
+            let (a, b, c, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
+            self.line((a * p0.0 + b * p1.0 + c * p2.0 + d * p3.0, a * p0.1 + b * p1.1 + c * p2.1 + d * p3.1));
+        }
+    }
+
+    fn close(&mut self) {
+        let s = self.start;
+        self.line(s);
+    }
+}
+
+/// Subsamples per pixel on each axis.
+const SUB: usize = 4;
+
+/// Fills the outline `edges` (nonzero winding) onto `bmp` in colour `c`,
+/// each pixel by how much of it is covered.
+fn fill(bmp: &mut Bitmap, edges: &[(f32, f32, f32, f32)], c: u32) {
+    if edges.is_empty() {
+        return;
+    }
+    let (w, h) = (bmp.img.width as i64, bmp.img.height as i64);
+    let min_y = edges.iter().map(|e| e.1.min(e.3)).fold(f32::MAX, f32::min).floor().max(0.0) as i64;
+    let max_y = (edges.iter().map(|e| e.1.max(e.3)).fold(f32::MIN, f32::max).ceil() as i64).min(h);
+    let min_x = edges.iter().map(|e| e.0.min(e.2)).fold(f32::MAX, f32::min).floor().max(0.0) as i64;
+    let max_x = (edges.iter().map(|e| e.0.max(e.2)).fold(f32::MIN, f32::max).ceil() as i64).min(w);
+    if min_y >= max_y || min_x >= max_x {
+        return;
+    }
+    let cols = (max_x - min_x) as usize;
+    let mut cover = vec![0u16; cols];
+    let mut crossings: Vec<(f32, i32)> = Vec::new();
+    for py in min_y..max_y {
+        cover.iter_mut().for_each(|c| *c = 0);
+        for sy in 0..SUB {
+            let y = py as f32 + (sy as f32 + 0.5) / SUB as f32;
+            crossings.clear();
+            for &(x0, y0, x1, y1) in edges {
+                if (y0 <= y) != (y1 <= y) {
+                    let x = x0 + (y - y0) * (x1 - x0) / (y1 - y0);
+                    crossings.push((x, if y1 > y0 { 1 } else { -1 }));
+                }
+            }
+            crossings.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let mut winding = 0;
+            for pair in crossings.windows(2) {
+                winding += pair[0].1;
+                if winding == 0 {
+                    continue;
+                }
+                // Subsample columns whose centres are inside [a, b).
+                let (a, b) = (pair[0].0, pair[1].0);
+                let first = ((a - min_x as f32) * SUB as f32 - 0.5).ceil().max(0.0) as usize;
+                let last = ((b - min_x as f32) * SUB as f32 - 0.5).ceil().max(0.0) as usize;
+                for s in first..last.min(cols * SUB) {
+                    cover[s / SUB] += 1;
+                }
+            }
+        }
+        for (i, &n) in cover.iter().enumerate() {
+            if n > 0 {
+                blend(bmp, min_x + i as i64, py, c, n as u32 * 255 / (SUB * SUB) as u32);
+            }
+        }
+    }
+}
+
+/// Mixes `c` into pixel (x, y) with coverage `a` (0–255).
+fn blend(bmp: &mut Bitmap, x: i64, y: i64, c: u32, a: u32) {
+    let Some(old) = bmp.pixel(x, y) else { return };
+    let a = a.min(255);
+    let mix = |shift: u32| {
+        let (o, n) = ((old >> shift) & 0xFF, (c >> shift) & 0xFF);
+        ((n * a + o * (255 - a) + 127) / 255) << shift
+    };
+    bmp.pset(x, y, mix(0) | mix(8) | mix(16));
+}
+
+/// `TextOut(x, y, text, colour, background)` on `bmp` in `font`
+/// (background `None`: transparent).
+pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color: u32, background: Option<u32>) {
+    let Some(s) = scaled(font) else { return };
+    let (tw, th) = text_size(text, font);
+    if let Some(bg) = background {
+        bmp.fill_rect(x, y, x + tw, y + th, bg);
+    }
+    let bold = font.styles & 1 != 0;
+    let slant = if font.styles & 2 != 0 { 0.2 } else { 0.0 };
+    let baseline = y as f32 + s.ascent;
+    let mut pen = x as f32;
+    for c in text.chars().take(MAX_CHARS) {
+        let Some(g) = s.face.glyph_index(c).or_else(|| s.face.glyph_index('?')) else { continue };
+        for dx in 0..=usize::from(bold) {
+            let mut e = Edges { edges: Vec::new(), at: (0.0, 0.0), start: (0.0, 0.0), scale: s.scale, origin: (pen + dx as f32, baseline), slant };
+            if s.face.outline_glyph(g, &mut e).is_some() {
+                fill(bmp, &e.edges, color);
+            }
+        }
+        pen += s.advance(c);
+    }
+    let line = |bmp: &mut Bitmap, at: f32| {
+        let yy = at.round() as i64;
+        let thick = (pixel_size(font) / 16.0).round().max(1.0) as i64;
+        bmp.fill_rect(x, yy, x + tw, yy + thick, color);
+    };
+    if font.styles & 4 != 0 {
+        line(bmp, baseline + 1.0);
+    }
+    if font.styles & 8 != 0 {
+        line(bmp, baseline - s.ascent * 0.3);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn font(name: &str, size: i64) -> Font {
+        Font { name: name.into(), size, ..Font::default() }
+    }
+
+    #[test]
+    fn metrics_like_arial() {
+        // Liberation Sans has Arial's widths: "Hello" at 12 pt (16 px).
+        let (w, h) = text_size("Hello", &font("Arial", 12));
+        assert_eq!(w, 36);
+        assert!((17..=20).contains(&h), "{h}");
+        // Courier New / Liberation Mono: every character 0.6 em.
+        assert_eq!(text_size("iiii", &font("Courier New", 12)).0, text_size("MMMM", &font("Courier New", 12)).0);
+    }
+
+    #[test]
+    fn draws_text() {
+        let mut b = Bitmap::default();
+        b.resize(60, 30);
+        text_out(&mut b, 2, 2, "Hi", &font("Arial", 12), 0x0000FF, None);
+        let red = b.img.pixels.iter().filter(|&&p| p == 0x0000FF).count();
+        let touched = b.img.pixels.iter().filter(|&&p| p != 0xFFFFFF).count();
+        assert!(red > 10 && touched > red, "solid and anti-aliased pixels ({red}, {touched})");
+        // Nothing outside the text's cell.
+        let (tw, th) = text_size("Hi", &font("Arial", 12));
+        for y in 0..30 {
+            for x in 0..60 {
+                if x < 2 || y < 2 || x >= 2 + tw + 1 || y >= 2 + th {
+                    assert_eq!(b.pixel(x, y), Some(0xFFFFFF), "({x}, {y})");
+                }
+            }
+        }
+        // A background fills the cell.
+        text_out(&mut b, 30, 2, "x", &font("Arial", 12), 0, Some(0x00FF00));
+        assert_eq!(b.pixel(30, 2), Some(0x00FF00));
+    }
+}
