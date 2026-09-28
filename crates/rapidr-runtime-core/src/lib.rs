@@ -9,6 +9,7 @@ mod builtins;
 mod file_io;
 pub mod object;
 pub mod layout;
+mod sound;
 pub use rapidr_value as value;
 
 #[cfg(feature = "database")]
@@ -29,6 +30,7 @@ pub mod ffi;
 pub mod prelude {
     pub use crate::builtins::*;
     pub use crate::file_io::*;
+    pub use crate::sound::rp_playwav;
     pub use crate::object::{
         is_component_method, is_component_type, rp_bind_event, rp_bind_event_1,
         rp_bind_event_2, rp_bind_event_3, rp_bind_event_4, rp_bind_event_5,

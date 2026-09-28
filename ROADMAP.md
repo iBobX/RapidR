@@ -152,11 +152,11 @@ Next up, in order:
 - [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
 - [x] Native builds of real RapidQ programs: all 116 corpus programs that compile to bytecode `cargo check` natively (from 49; objects by name, WITH on any object, indexed properties, builtin-named variables, nested SUBs, argument fitting) — `tools/corpus_native.sh` (v2.33.0)
 - [x] Native corpus programs run like the interpreter: `tools/corpus_compare.mjs` runs both builds and compares output and window captures — 99/102 identical, the other 3 use RND/TIMER (v2.38.0)
-- [ ] Corpus gaps both backends share (found by corpus_compare): ~~QMEMORYSTREAM SaveArray/LoadArray~~ (v2.39.0), ~~QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board)~~ (v2.40.0), Printer methods
+- [x] Corpus gaps both backends share (found by corpus_compare): ~~QMEMORYSTREAM SaveArray/LoadArray~~ (v2.39.0), ~~QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board)~~ (v2.40.0), ~~Printer~~ (v2.45.0, PDF through CUPS / the browser)
 - [x] Corpus comparison after v2.40.0: 98/101 identical (3 RND/TIMER); rotate.bas needs its missing `$RESOURCE` file
 - [x] `$RESOURCE` on both backends: files built into the program (bytecode section / `include_bytes!`), RESOURCE(n), RESOURCECOUNT, EXTRACTRESOURCE, `Stream.ExtractRes`, BMPHandle, AddBMPHandle (v2.40.0)
 - [x] QIMAGE as a picture from the shared Bitmap model on desktop and web: BMP / BMPHandle, AutoSize, Stretch, Center, Transparent, drawing, Pixel; RapidQ's mouse events; MOUSEX / MOUSEY (v2.40.0)
-- [ ] Resources next: `$RESOURCE` in the web IDE (project files), ICOHandle / IconHandle (forms, QIMAGE), PLAYWAV of a resource, non-BMP resources (JPG) on the desktop
+- [ ] Resources next: `$RESOURCE` in the web IDE (project files), ICOHandle / IconHandle (forms, QIMAGE), non-BMP resources (JPG) on the desktop (PLAYWAV of files and resources: v2.45.0)
 - [ ] Mouse event arguments: RapidQ's order is OnMouseDown/Up (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — QIMAGE follows it; QCANVAS and other controls still pass (X, Y, Button), which RapidR's own web IDE relies on
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)

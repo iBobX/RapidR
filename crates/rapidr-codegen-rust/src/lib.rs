@@ -2779,6 +2779,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "fileexists" => Some(format!("rp_fileexists(&{a0})")),
         "resource" => Some(format!("rp_resource(&{a0})")),
         "resourcecount" => Some("rp_resourcecount()".to_string()),
+        "playwav" => Some(format!("{{ rp_playwav(&{a0}, &{a1}); v_null() }}")),
         "mousex" => Some("rp_mousex()".to_string()),
         "mousey" => Some("rp_mousey()".to_string()),
         "extractresource" => Some(format!("{{ rp_extractresource(&{a0}, &{a1}); v_null() }}")),

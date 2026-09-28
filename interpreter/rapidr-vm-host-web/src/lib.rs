@@ -235,6 +235,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "fileexists" => rp_fileexists(&a0),
         "resource" => rp_resource(&a0),
         "resourcecount" => rp_resourcecount(),
+        "playwav" => { rp_playwav(&a0, &a1); v_null() }
         "mousex" => rp_mousex(),
         "mousey" => rp_mousey(),
         "extractresource" => { rp_extractresource(&a0, &a1); v_null() }
@@ -489,6 +490,7 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     let module = Module::from_bytes(bytes)
         .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
     rapidr_runtime_web::value::resources::set_all(&module.resources);
+    rapidr_runtime_web::object_web::install_object_hooks();
     // Installed before `__main` runs, so events fired during setup (an
     // RSqlite OnConnect, a synchronous RHTTP OnLoad, …) reach their handlers.
     start_session(Session::new(module, false));

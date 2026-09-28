@@ -252,6 +252,7 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "fileexists" => rp_fileexists(&a0),
         "resource" => rp_resource(&a0),
         "resourcecount" => rp_resourcecount(),
+        "playwav" => { rp_playwav(&a0, &a1); v_null() }
         "mousex" => rp_mousex(),
         "mousey" => rp_mousey(),
         "extractresource" => { rp_extractresource(&a0, &a1); v_null() }
