@@ -1231,57 +1231,18 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             frm.set_frame(FrameType::FlatBox);
             frm.set_color(bgr_to_fltk_color(bg_color));
 
-            // Install draw callback to render stored canvas commands
+            // The canvas's surface is a shared model (rapidr_value::objects,
+            // a Bitmap): every drawing method draws there, this shows it.
             let name_for_draw = name.to_lowercase();
             frm.draw(move |f| {
-                // Fill background
-                draw::draw_rect_fill(f.x(), f.y(), f.w(), f.h(), f.color());
-                // Canvas coordinates are relative to the canvas, as in RapidQ.
-                let (ox, oy) = (f.x(), f.y());
-                draw::push_clip(ox, oy, f.w(), f.h());
-                CANVAS_CMDS.with(|cmds| {
-                    let map = cmds.borrow();
-                    if let Some(cmd_list) = map.get(&name_for_draw) {
-                        for cmd in cmd_list {
-                            match cmd {
-                                DrawCmd::Line(x1, y1, x2, y2, color) => {
-                                    draw::set_draw_color(*color);
-                                    draw::draw_line(ox + *x1, oy + *y1, ox + *x2, oy + *y2);
-                                }
-                                DrawCmd::Rect(rx, ry, rw, rh, color) => {
-                                    draw::set_draw_color(*color);
-                                    draw::draw_rect(ox + *rx, oy + *ry, *rw, *rh);
-                                }
-                                DrawCmd::FillRect(rx, ry, rw, rh, color) => {
-                                    draw::set_draw_color(*color);
-                                    draw::draw_rect_fill(ox + *rx, oy + *ry, *rw, *rh, *color);
-                                }
-                                DrawCmd::Circle(cx, cy, r, color) => {
-                                    draw::set_draw_color(*color);
-                                    draw::draw_circle((ox + *cx) as f64, (oy + *cy) as f64, *r as f64);
-                                }
-                                DrawCmd::DrawText(text, tx, ty, color, font_size) => {
-                                    draw::set_draw_color(*color);
-                                    draw::set_font(Font::Helvetica, *font_size);
-                                    draw::draw_text2(text, ox + *tx, oy + *ty, 0, 0, Align::Left);
-                                }
-                                DrawCmd::Ellipse(ex, ey, ew, eh, color) => {
-                                    draw::set_draw_color(*color);
-                                    draw::draw_arc(ox + *ex, oy + *ey, *ew, *eh, 0.0, 360.0);
-                                }
-                                DrawCmd::Pixel(px, py, color) => {
-                                    draw::draw_rect_fill(ox + *px, oy + *py, 1, 1, *color);
-                                }
-                                DrawCmd::Image(ix, iy, iw, ih, rgba) => {
-                                    if let Ok(mut img) = RgbImage::new(rgba, *iw, *ih, ColorDepth::Rgba8) {
-                                        img.draw(ox + *ix, oy + *iy, *iw, *ih);
-                                    }
-                                }
-                            }
-                        }
+                let (ox, oy, w, h) = (f.x(), f.y(), f.w(), f.h());
+                draw::draw_rect_fill(ox, oy, w, h, f.color());
+                let rgba = rapidr_value::objects::with_canvas(&name_for_draw, w as i64, h as i64, |b| b.to_rgba());
+                if let Some(rgba) = rgba {
+                    if let Ok(mut img) = RgbImage::new(&rgba, w, h, ColorDepth::Rgba8) {
+                        img.draw(ox, oy, w, h);
                     }
-                });
-                draw::pop_clip();
+                }
             });
 
             let name_for_cb = name.to_lowercase();
@@ -3734,20 +3695,6 @@ pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
 // Canvas methods (drawing on a Frame widget via FLTK draw)
 // ---------------------------------------------------------------------------
 
-/// Canvas drawing commands stored for batch rendering
-#[derive(Clone, Debug)]
-enum DrawCmd {
-    Line(i32, i32, i32, i32, Color),
-    Rect(i32, i32, i32, i32, Color),
-    FillRect(i32, i32, i32, i32, Color),
-    Circle(i32, i32, i32, Color),
-    DrawText(String, i32, i32, Color, i32),
-    Ellipse(i32, i32, i32, i32, Color),
-    Pixel(i32, i32, Color),
-    /// A QBITMAP drawn with `Canvas.Draw(x, y, BMP)`: x, y, width, height, RGBA.
-    Image(i32, i32, i32, i32, Vec<u8>),
-}
-
 /// RImage method dispatch — loadfromfile, loadfromplot, etc.
 pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
     let name_lower = name.to_lowercase();
@@ -3948,150 +3895,17 @@ fn load_image_file(name: &str, path: &str) {
 }
 
 thread_local! {
-    static CANVAS_CMDS: RefCell<HashMap<String, Vec<DrawCmd>>> = RefCell::new(HashMap::new());
 }
 
-pub fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
+pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
     match method {
-        "line" => {
-            let x1 = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y1 = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let x2 = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y2 = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::Line(x1, y1, x2, y2, bgr_to_fltk_color(color_val)));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "rect" => {
-            let x = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let w = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let h = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::Rect(x, y, w, h, bgr_to_fltk_color(color_val)));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "fillrect" => {
-            let x = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let w = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let h = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "brushcolor").to_i64());
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::FillRect(x, y, w, h, bgr_to_fltk_color(color_val)));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "circle" => {
-            let cx = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let cy = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let r = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = args.get(3).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::Circle(cx, cy, r, bgr_to_fltk_color(color_val)));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "drawtext" => {
-            // Support both conventions:
-            //   drawtext text, x, y [, color [, fontsize]]
-            //   drawtext x, y, text [, color [, fontsize]] (if first arg is numeric)
-            let first_is_number = match args.first() {
-                Some(Value::Integer(_)) | Some(Value::Double(_)) => true,
-                _ => false,
-            };
-            let (text, x, y) = if first_is_number {
-                let xv = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-                let yv = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-                let tv = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-                (tv, xv, yv)
-            } else {
-                let tv = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-                let xv = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-                let yv = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-                (tv, xv, yv)
-            };
-            let color_val = args.get(3).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "fontcolor").to_i64());
-            let font_size = args.get(4).map(|v| v.to_i64() as i32).unwrap_or_else(|| rp_comp_get(name, "fontsize").to_i64() as i32);
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::DrawText(text, x, y, bgr_to_fltk_color(color_val), font_size));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "clear" | "cls" => {
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().remove(&name_lower);
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "rectangle" => canvas_method(name, "rect", args),
-        "pset" | "setpixel" => {
-            let px = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let py = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = args.get(2).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::Pixel(px, py, bgr_to_fltk_color(color_val)));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "ellipse" => {
-            let ex = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let ey = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let ew = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let eh = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let color_val = args.get(4).map(|v| v.to_i64()).unwrap_or_else(|| rp_comp_get(name, "pencolor").to_i64());
-            CANVAS_CMDS.with(|cmds| {
-                cmds.borrow_mut().entry(name_lower.clone()).or_default()
-                    .push(DrawCmd::Ellipse(ex, ey, ew, eh, bgr_to_fltk_color(color_val)));
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        // `Canvas.Draw(x, y, Bitmap.BMP)` / `Canvas.Draw(x, y, Bitmap)`.
-        "draw" => {
-            let x = args.first().map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            match rapidr_value::objects::load_image(args.get(2).unwrap_or(&Value::Null)) {
-                Ok(b) => {
-                    let (w, h) = (b.img.width as i32, b.img.height as i32);
-                    CANVAS_CMDS.with(|cmds| {
-                        cmds.borrow_mut().entry(name_lower.clone()).or_default().push(DrawCmd::Image(x, y, w, h, b.to_rgba()));
-                    });
-                    redraw_widget(&name_lower);
-                }
-                Err(e) => eprintln!("[rapidr] {name}.Draw: {e}"),
-            }
-            v_null()
-        }
-        "paint" | "refresh" | "update" => {
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "show" => { gui_show(name); v_null() }
-        "hide" => { gui_close(name); v_null() }
-        _ => {
-            eprintln!("[WARN] Canvas.{}() not implemented", method);
-            v_null()
-        }
+        // Drawing is the shared model's (objects::call); these are the widget's.
+        "paint" | "refresh" | "update" | "repaint" => redraw_widget(&name.to_lowercase()),
+        "show" => gui_show(name),
+        "hide" => gui_close(name),
+        _ => eprintln!("[WARN] Canvas.{}() not implemented", method),
     }
+    v_null()
 }
 
 // ---------------------------------------------------------------------------
@@ -4967,7 +4781,7 @@ pub fn gui_redraw(name: &str) {
 }
 
 /// Trigger a widget redraw.
-fn redraw_widget(name: &str) {
+pub fn redraw_widget(name: &str) {
     GUI_WIDGETS.with(|gw| {
         let mut widgets = gw.borrow_mut();
         if let Some(widget) = widgets.get_mut(name) {

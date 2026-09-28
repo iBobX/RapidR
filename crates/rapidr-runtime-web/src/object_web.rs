@@ -351,6 +351,9 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         if rapidr_value::objects::is_dirtree(name) {
             gui_web::render_dirtree(&name.to_uppercase());
         }
+        if rapidr_value::objects::is_canvas(name) {
+            gui_web::render_canvas(&name.to_uppercase());
+        }
     }
 }
 
@@ -491,6 +494,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if picture {
             picture_changed(&uname);
         }
+        if rapidr_value::objects::is_canvas(name) {
+            gui_web::render_canvas(&uname);
+        }
         // A QFILELISTBOX's directory changed: OnChange.
         if lprop == "directory" && rapidr_value::objects::is_file_list(name) {
             rp_fire_event(&uname, "onchange");
@@ -596,6 +602,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
     // Align (layout_web).
     crate::layout_web::after_set(&uname, &lprop);
+    // A QCANVAS's new size (its surface follows).
+    if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
+        gui_web::render_canvas(&uname);
+    }
     // A QIMAGE's AutoSize / Stretch / Center.
     if matches!(lprop.as_str(), "autosize" | "stretch" | "center") && rapidr_value::objects::is_picture(&uname) {
         picture_changed(&uname);
@@ -777,6 +787,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return v_null();
             }
             picture_changed(&uname);
+        }
+        if rapidr_value::objects::is_canvas(name) {
+            gui_web::render_canvas(&uname);
         }
         if rapidr_value::objects::is_dirtree(name) {
             gui_web::render_dirtree(&uname);

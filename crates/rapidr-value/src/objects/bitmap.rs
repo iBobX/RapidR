@@ -6,6 +6,12 @@
 //! while its Width / Height are the control's, not the picture's; drawing
 //! on an image without a picture first gives it one the control's size, as
 //! Delphi's TImage does.
+//!
+//! A QCANVAS is one too (`canvas`): the same drawing methods and text, on a
+//! surface that is always the control's size, filled with its `Color`. So
+//! the desktop and the web show the same pixels. RapidR's own canvas
+//! methods (`DrawText`, `Cls`, `Circle(cx, cy, r)`, `FillCircle`,
+//! `SetFont`, `PenColor` / `BrushColor` as the default colors) are kept.
 
 use super::codec::{bmp_data_url, decode_bmp, Pixels, MAX_PIXELS};
 use super::font::Font;
@@ -20,6 +26,14 @@ pub struct Bitmap {
     pub picture: bool,
     /// The font TextOut draws with (`Bitmap.Font = Font`, `Font.Size`, …).
     pub font: Font,
+    /// A QCANVAS (see the module docs).
+    pub canvas: bool,
+    /// A canvas's `Color`: what `Cls` fills with and new area shows.
+    pub background: u32,
+    /// A canvas's `PenColor` / `BrushColor`: the colors drawing uses when
+    /// none is given.
+    pub pen: u32,
+    pub brush: u32,
 }
 
 /// Color of a new bitmap's pixels.
@@ -27,7 +41,17 @@ const BACKGROUND: u32 = 0xFFFFFF;
 
 impl Default for Bitmap {
     fn default() -> Self {
-        Self { img: Pixels { width: 0, height: 0, pixels: Vec::new() }, transparent: false, transparent_color: BACKGROUND, picture: false, font: Font::default() }
+        Self {
+            img: Pixels { width: 0, height: 0, pixels: Vec::new() },
+            transparent: false,
+            transparent_color: BACKGROUND,
+            picture: false,
+            font: Font::default(),
+            canvas: false,
+            background: BACKGROUND,
+            pen: 0,
+            brush: BACKGROUND,
+        }
     }
 }
 
@@ -36,13 +60,31 @@ impl Bitmap {
         Self { img, ..Self::default() }
     }
 
+    /// A QCANVAS's surface.
+    pub fn new_canvas() -> Self {
+        Self { canvas: true, ..Self::default() }
+    }
+
+    /// A control's surface (QIMAGE picture, QCANVAS): Width / Height are the
+    /// control's, not the bitmap's.
+    fn surface(&self) -> bool {
+        self.picture || self.canvas
+    }
+
+    /// A canvas takes its control's size (new area shows the background).
+    pub fn fit(&mut self, width: i64, height: i64) {
+        if self.canvas && (self.img.width as i64, self.img.height as i64) != (width.clamp(0, 32767), height.clamp(0, 32767)) {
+            self.resize(width, height);
+        }
+    }
+
     /// Resizes, keeping the pixels that still fit.
     pub fn resize(&mut self, width: i64, height: i64) {
         let (w, h) = (width.clamp(0, 32767) as usize, height.clamp(0, 32767) as usize);
         if w * h > MAX_PIXELS {
             return;
         }
-        let mut pixels = vec![BACKGROUND; w * h];
+        let mut pixels = vec![self.background; w * h];
         for y in 0..h.min(self.img.height) {
             for x in 0..w.min(self.img.width) {
                 pixels[y * w + x] = self.img.pixels[y * self.img.width + x];
@@ -183,11 +225,23 @@ impl Bitmap {
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
-        if self.picture && matches!(prop, "width" | "height") {
+        if self.surface() && matches!(prop, "width" | "height") {
             return None;
         }
         if let Some(p) = prop.strip_prefix("font.") {
             return self.font.get(p);
+        }
+        if self.canvas {
+            match prop {
+                "color" => return Some(v_int(self.background as i64)),
+                "pencolor" => return Some(v_int(self.pen as i64)),
+                "brushcolor" => return Some(v_int(self.brush as i64)),
+                "fontcolor" => return Some(v_int(self.font.color)),
+                "fontname" => return Some(v_str(&self.font.name)),
+                // RapidR's FontSize is in pixels.
+                "fontsize" => return Some(v_int(self.font.size.abs())),
+                _ => {}
+            }
         }
         Some(match prop {
             "width" => v_int(self.img.width as i64),
@@ -202,11 +256,30 @@ impl Bitmap {
 
     /// Sets a property; `Err` for a BMP that can't be loaded.
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<Result<(), String>> {
-        if self.picture && matches!(prop, "width" | "height" | "transparentcolor") {
+        if self.surface() && matches!(prop, "width" | "height" | "transparentcolor") {
             return None;
         }
         if let Some(p) = prop.strip_prefix("font.") {
             return self.font.set(p, val).then_some(Ok(()));
+        }
+        if self.canvas {
+            let color = val.to_i64() as u32 & 0xFFFFFF;
+            match prop {
+                // The background changes under what's drawn: only pixels
+                // still showing it change.
+                "color" => {
+                    let old = std::mem::replace(&mut self.background, color);
+                    self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = color);
+                    return None;
+                }
+                "pencolor" => self.pen = color,
+                "brushcolor" => self.brush = color,
+                "fontcolor" => self.font.color = color as i64,
+                "fontname" => self.font.name = val.to_string_val(),
+                "fontsize" => self.font.size = -val.to_i64().clamp(1, 1000),
+                _ => return None,
+            }
+            return Some(Ok(()));
         }
         match prop {
             // A QIMAGE's transparent color is its bottom-left pixel's
@@ -226,6 +299,15 @@ impl Bitmap {
 
     /// Drawing methods (the ones that need nothing but this bitmap).
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        if self.canvas {
+            // The runtime's: showing, hiding, painting again.
+            if matches!(method, "update" | "refresh" | "repaint" | "show" | "hide") || (method == "paint" && args.len() < 3) {
+                return None;
+            }
+            if let Some(v) = self.canvas_call(method, args) {
+                return Some(v);
+            }
+        }
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
         let c = |i: usize| n(i) as u32 & 0xFFFFFF;
         match method {
@@ -257,6 +339,70 @@ impl Bitmap {
             }
             "textwidth" => return Some(v_int(super::text::text_size(&args.first().map(|v| v.to_string_val()).unwrap_or_default(), &self.font).0)),
             "textheight" => return Some(v_int(super::text::text_size(&args.first().map(|v| v.to_string_val()).unwrap_or_default(), &self.font).1)),
+            _ => return None,
+        }
+        Some(Value::Null)
+    }
+
+    /// The canvas methods that differ from a bitmap's: default colors from
+    /// the pen and brush, and RapidR's own (`DrawText`, `Cls`, `Circle(cx,
+    /// cy, r)`, `FillCircle`, `Ellipse`, `SetFont`, `SetPixel`).
+    fn canvas_call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+        let color = |i: usize, default: u32| if args.len() > i { n(i) as u32 & 0xFFFFFF } else { default };
+        let (pen, brush) = (self.pen, self.brush);
+        match method {
+            "line" => self.line(n(0), n(1), n(2), n(3), color(4, pen)),
+            "rectangle" | "rect" => self.rectangle(n(0), n(1), n(2), n(3), color(4, pen)),
+            "fillrect" => self.fill_rect(n(0), n(1), n(2), n(3), color(4, brush)),
+            "pset" | "setpixel" => self.pset(n(0), n(1), color(2, pen)),
+            "pixel" if args.len() >= 3 => self.pset(n(0), n(1), color(2, pen)),
+            // RapidQ: Circle(x1, y1, x2, y2, color, fill); RapidR: Circle(cx, cy, r [, color]).
+            "circle" if args.len() <= 4 => {
+                let r = n(2).abs();
+                self.ellipse(n(0) - r, n(1) - r, n(0) + r + 1, n(1) + r + 1, color(3, pen), false);
+            }
+            "circle" => {
+                if args.len() > 5 {
+                    self.ellipse(n(0), n(1), n(2), n(3), n(5) as u32 & 0xFFFFFF, true);
+                }
+                self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
+            }
+            "fillcircle" => {
+                let r = n(2).abs();
+                self.ellipse(n(0) - r, n(1) - r, n(0) + r + 1, n(1) + r + 1, color(3, brush), true);
+            }
+            // Ellipse(x1, y1, x2, y2 [, color [, fill]]).
+            "ellipse" => {
+                if args.len() > 5 {
+                    self.ellipse(n(0), n(1), n(2), n(3), n(5) as u32 & 0xFFFFFF, true);
+                }
+                self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
+            }
+            "clear" | "cls" => {
+                let bg = self.background;
+                self.img.pixels.iter_mut().for_each(|p| *p = bg);
+            }
+            // DrawText(text, x, y [, color [, size]]) or (x, y, text …);
+            // the size in pixels.
+            "drawtext" => {
+                let text_first = !matches!(args.first(), Some(Value::Integer(_) | Value::Double(_)));
+                let (text, x, y) = if text_first {
+                    (args.first().map(Value::to_string_val), n(1), n(2))
+                } else {
+                    (args.get(2).map(Value::to_string_val), n(0), n(1))
+                };
+                let mut font = self.font.clone();
+                if let Some(size) = args.get(4).map(Value::to_i64).filter(|s| *s > 0) {
+                    font.size = -size.min(1000);
+                }
+                let fg = color(3, font.color as u32 & 0xFFFFFF);
+                super::text::text_out(self, x, y, &text.unwrap_or_default(), &font, fg, None);
+            }
+            "setfont" => {
+                self.font.name = args.first().map(Value::to_string_val).filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "Arial".into());
+                self.font.size = -args.get(1).map_or(12, Value::to_i64).clamp(1, 1000);
+            }
             _ => return None,
         }
         Some(Value::Null)

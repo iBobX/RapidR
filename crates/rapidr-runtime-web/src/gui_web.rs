@@ -989,11 +989,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             }
             v_null()
         }
-        // Canvas clear/cls — must come before generic (_, "clear")
-        ("RCANVAS", "cls") | ("RCANVAS", "clear") => {
-            canvas_clear(&id);
-            v_null()
-        }
         // RWEBSTORAGE clear — must come before generic (_, "clear")
         ("RWEBSTORAGE", "clear") => {
             let st = crate::object_web::rp_comp_get_stored(name, "storagetype").to_string_val();
@@ -1030,6 +1025,10 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             if let Some(el) = get_el(&id) {
                 let _ = el.focus();
             }
+            v_null()
+        }
+        ("RCANVAS", "refresh" | "repaint") => {
+            render_canvas(name);
             v_null()
         }
         (_, "refresh") | (_, "repaint") | (_, "invalidate") => {
@@ -1114,50 +1113,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         // Canvas draw methods
-        ("RCANVAS", "line") if args.len() >= 4 => {
-            canvas_line(&id, &args[0], &args[1], &args[2], &args[3], args.get(4));
-            v_null()
-        }
-        ("RCANVAS", "rect" | "rectangle") if args.len() >= 4 => {
-            canvas_rect(&id, &args[0], &args[1], &args[2], &args[3], args.get(4), false);
-            v_null()
-        }
-        ("RCANVAS", "fillrect") if args.len() >= 4 => {
-            canvas_rect(&id, &args[0], &args[1], &args[2], &args[3], args.get(4), true);
-            v_null()
-        }
-        ("RCANVAS", "circle") if args.len() >= 3 => {
-            canvas_circle(&id, &args[0], &args[1], &args[2], args.get(3), false);
-            v_null()
-        }
-        ("RCANVAS", "fillcircle") if args.len() >= 3 => {
-            canvas_circle(&id, &args[0], &args[1], &args[2], args.get(3), true);
-            v_null()
-        }
-        ("RCANVAS", "drawtext" | "textout") if args.len() >= 3 => {
-            canvas_text(&id, &args[0], &args[1], &args[2], args.get(3));
-            v_null()
-        }
-        ("RCANVAS", "setfont") if args.len() >= 1 => {
-            // Args: (name [, size [, style]]). Style is currently ignored.
-            let fname = args[0].to_string_val();
-            let fsize = args.get(1).map(|v| v.to_i64()).unwrap_or(12);
-            canvas_set_font(&id, &fname, fsize);
-            v_null()
-        }
-        ("RCANVAS", "setpixel" | "pset") if args.len() >= 2 => {
-            canvas_pixel(&id, &args[0], &args[1], args.get(2));
-            v_null()
-        }
-        // `Canvas.Draw(x, y, Bitmap.BMP)` / `Canvas.Draw(x, y, Bitmap)`.
-        ("RCANVAS", "draw") if args.len() >= 3 => {
-            match rapidr_value::objects::load_image(&args[2]) {
-                Ok(b) => canvas_draw_bitmap(&id, args[0].to_f64(), args[1].to_f64(), &b),
-                Err(e) => web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] {id}.Draw: {e}"))),
-            }
-            v_null()
-        }
+        // Drawing is the shared model's (objects::call); this shows it again.
         ("RCANVAS", "paint" | "update") => {
+            render_canvas(name);
             v_null()
         }
         // TabControl methods
@@ -2166,6 +2124,58 @@ fn render_picture_now(name: &str) {
     };
     let _ = img.style().set_property("object-fit", fit);
     let _ = img.style().set_property("object-position", position);
+}
+
+thread_local! {
+    static CANVASES_TO_RENDER: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Shows a QCANVAS's surface (rapidr_value::objects, a Bitmap, as on the
+/// desktop), soon (batched).
+pub fn render_canvas(name: &str) {
+    let name = name.to_uppercase();
+    let first = CANVASES_TO_RENDER.with(|g| {
+        let mut g = g.borrow_mut();
+        let first = g.is_empty();
+        if !g.contains(&name) {
+            g.push(name);
+        }
+        first
+    });
+    if !first {
+        return;
+    }
+    let flush = Closure::once_into_js(move || {
+        for name in CANVASES_TO_RENDER.with(|g| std::mem::take(&mut *g.borrow_mut())) {
+            render_canvas_now(&name);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);
+    }
+}
+
+/// Puts a QCANVAS's surface on its HTML canvas, whose pixels are the
+/// control's size.
+fn render_canvas_now(name: &str) {
+    let Some(canvas) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_i64();
+    let Some((w, h, rgba)) = rapidr_value::objects::with_canvas(name, stored("width"), stored("height"), |b| {
+        (b.img.width as u32, b.img.height as u32, b.to_rgba())
+    }) else {
+        return;
+    };
+    if w == 0 || h == 0 {
+        return;
+    }
+    if canvas.width() != w || canvas.height() != h {
+        canvas.set_width(w);
+        canvas.set_height(h);
+    }
+    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w, h) {
+        let _ = ctx.put_image_data(&data, 0.0, 0.0);
+    }
 }
 
 thread_local! {
@@ -3405,151 +3415,6 @@ fn create_video(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     el.set_class_name("rr-widget");
     setup_widget(&el, id, name, props);
-}
-
-// ---------------------------------------------------------------------------
-// Canvas drawing helpers
-// ---------------------------------------------------------------------------
-
-fn get_canvas_ctx(id: &str) -> Option<web_sys::CanvasRenderingContext2d> {
-    let el = get_el(id)?;
-    let canvas = el.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
-    canvas
-        .get_context("2d")
-        .ok()?
-        .map(|ctx| ctx.dyn_into::<web_sys::CanvasRenderingContext2d>().ok())
-        .flatten()
-}
-
-fn canvas_clear(id: &str) {
-    if let Some(el) = get_el(id) {
-        if let Ok(canvas) = el.dyn_into::<web_sys::HtmlCanvasElement>() {
-            if let Some(ctx) = get_canvas_ctx(id) {
-                ctx.clear_rect(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
-            }
-        }
-    }
-}
-
-fn canvas_line(id: &str, x1: &Value, y1: &Value, x2: &Value, y2: &Value, color: Option<&Value>) {
-    if let Some(ctx) = get_canvas_ctx(id) {
-        if let Some(c) = color {
-            ctx.set_stroke_style_str(&value_to_css_color(c));
-        }
-        ctx.begin_path();
-        ctx.move_to(x1.to_f64(), y1.to_f64());
-        ctx.line_to(x2.to_f64(), y2.to_f64());
-        ctx.stroke();
-    }
-}
-
-fn canvas_rect(id: &str, x1v: &Value, y1v: &Value, x2v: &Value, y2v: &Value, color: Option<&Value>, fill: bool) {
-    if let Some(ctx) = get_canvas_ctx(id) {
-        if let Some(c) = color {
-            let css = value_to_css_color(c);
-            if fill {
-                ctx.set_fill_style_str(&css);
-            } else {
-                ctx.set_stroke_style_str(&css);
-            }
-        }
-        // Convert (x1, y1, x2, y2) to (x, y, w, h)
-        let x1 = x1v.to_f64();
-        let y1 = y1v.to_f64();
-        let x2 = x2v.to_f64();
-        let y2 = y2v.to_f64();
-        let x = x1.min(x2);
-        let y = y1.min(y2);
-        let w = (x2 - x1).abs();
-        let h = (y2 - y1).abs();
-        if fill {
-            ctx.fill_rect(x, y, w, h);
-        } else {
-            ctx.stroke_rect(x, y, w, h);
-        }
-    }
-}
-
-fn canvas_circle(id: &str, cx: &Value, cy: &Value, r: &Value, color: Option<&Value>, fill: bool) {
-    if let Some(ctx) = get_canvas_ctx(id) {
-        if let Some(c) = color {
-            let css = value_to_css_color(c);
-            if fill {
-                ctx.set_fill_style_str(&css);
-            } else {
-                ctx.set_stroke_style_str(&css);
-            }
-        }
-        ctx.begin_path();
-        let _ = ctx.arc(
-            cx.to_f64(),
-            cy.to_f64(),
-            r.to_f64(),
-            0.0,
-            std::f64::consts::PI * 2.0,
-        );
-        if fill {
-            ctx.fill();
-        } else {
-            ctx.stroke();
-        }
-    }
-}
-
-fn canvas_text(id: &str, x: &Value, y: &Value, text: &Value, color: Option<&Value>) {
-    if let Some(ctx) = get_canvas_ctx(id) {
-        if let Some(c) = color {
-            ctx.set_fill_style_str(&value_to_css_color(c));
-        }
-        // Match desktop FLTK semantics: y is the TOP of the text, not the alphabetic baseline.
-        // Without this, text drawn at small y coordinates is clipped above the canvas.
-        ctx.set_text_baseline("top");
-        let _ = ctx.fill_text(&text.to_string_val(), x.to_f64(), y.to_f64());
-    }
-}
-
-fn canvas_pixel(id: &str, x: &Value, y: &Value, color: Option<&Value>) {
-    if let Some(ctx) = get_canvas_ctx(id) {
-        if let Some(c) = color {
-            ctx.set_fill_style_str(&value_to_css_color(c));
-        }
-        ctx.fill_rect(x.to_f64(), y.to_f64(), 1.0, 1.0);
-    }
-}
-
-/// Draws a QBITMAP (its transparent color left out) through an off-screen
-/// canvas, so transparency blends like the other drawing does.
-fn canvas_draw_bitmap(id: &str, x: f64, y: f64, b: &rapidr_value::objects::bitmap::Bitmap) {
-    let (w, h) = (b.img.width as u32, b.img.height as u32);
-    let Some(ctx) = get_canvas_ctx(id) else { return };
-    if w == 0 || h == 0 {
-        return;
-    }
-    let rgba = b.to_rgba();
-    let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w, h) else { return };
-    let Some(off) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
-    off.set_width(w);
-    off.set_height(h);
-    let Some(off_ctx) = off.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
-    let _ = off_ctx.put_image_data(&data, 0.0, 0.0);
-    let _ = ctx.draw_image_with_html_canvas_element(&off, x, y);
-}
-
-fn canvas_set_font(id: &str, family: &str, size: i64) {
-    if let Some(ctx) = get_canvas_ctx(id) {
-        let fam = if family.trim().is_empty() {
-            "sans-serif".to_string()
-        } else {
-            // Quote families containing spaces so they parse correctly.
-            if family.contains(' ') && !family.starts_with('"') {
-                format!("\"{}\"", family)
-            } else {
-                family.to_string()
-            }
-        };
-        let sz = if size > 0 { size } else { 12 };
-        ctx.set_font(&format!("{}px {}", sz, fam));
-    }
 }
 
 // ---------------------------------------------------------------------------

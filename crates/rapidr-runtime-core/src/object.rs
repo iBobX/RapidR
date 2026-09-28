@@ -572,6 +572,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if picture {
             picture_changed(name);
         }
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_canvas(name) {
+            crate::gui::redraw_widget(name);
+        }
         // A QFILELISTBOX's directory changed: OnChange.
         if prop_lower == "directory" && rapidr_value::objects::is_file_list(name) {
             rp_fire_event(name, "onchange");
@@ -699,6 +703,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     });
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // A QCANVAS's new size shows more or less of its surface.
+    #[cfg(feature = "gui")]
+    if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
+        crate::gui::redraw_widget(name);
+    }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
     if matches!(prop_lower.as_str(), "autosize" | "stretch" | "center" | "width" | "height") && rapidr_value::objects::is_picture(name) {
         if prop_lower == "autosize" {
@@ -860,6 +869,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return crate::gui::image_method(name, &method_lower, args);
             }
             picture_changed(name);
+        }
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_canvas(name) {
+            crate::gui::redraw_widget(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
