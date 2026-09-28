@@ -346,7 +346,10 @@ impl RustCodegen {
         if let Some(k) = self.typed_local(name) {
             return Some((k, crate::to_snake(&strip_type_suffix(name))));
         }
-        if self.typed_globals.is_empty() || !self.create_stack.is_empty() {
+        // (Inside CREATE a value like `Width = bx` still reads the variable;
+        // only an assignment's target there can be the component's property,
+        // which the assignment checks itself.)
+        if self.typed_globals.is_empty() {
             return None;
         }
         let k = key(name);

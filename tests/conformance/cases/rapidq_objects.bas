@@ -33,7 +33,7 @@ DIM Bmp AS QBITMAP
 Bmp.Width = 20
 Bmp.Height = 10
 Bmp.FillRect(0, 0, 20, 10, clRed)
-Bmp.Circle(2, 2, 9, 9, clBlue, 1)
+Bmp.Circle(2, 2, 9, 9, clBlue, clBlue)
 Bmp.Line(0, 9, 19, 9, clBlack)
 Bmp.Pset(19, 0, clLime)
 Bmp.Pixel(0, 0) = clYellow

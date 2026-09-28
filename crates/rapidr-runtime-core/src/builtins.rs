@@ -941,3 +941,19 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
         v_int(buttons.first().map_or(1, |b| b.result))
     }
 }
+
+/// `MOUSEX` / `MOUSEY`: the mouse pointer relative to the active form's
+/// client area.
+pub fn rp_mousex() -> Value {
+    #[cfg(feature = "gui")]
+    return v_int(crate::gui::mouse_in_form().0);
+    #[cfg(not(feature = "gui"))]
+    v_int(0)
+}
+
+pub fn rp_mousey() -> Value {
+    #[cfg(feature = "gui")]
+    return v_int(crate::gui::mouse_in_form().1);
+    #[cfg(not(feature = "gui"))]
+    v_int(0)
+}

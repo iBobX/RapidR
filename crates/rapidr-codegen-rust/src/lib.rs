@@ -39,7 +39,15 @@ pub fn generate(program: &Program) -> String {
 
 /// Generate code for a specific target platform.
 pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
+    generate_with_resources(program, target, &[])
+}
+
+/// Like [`generate_for_target`], for a program with `$RESOURCE`s: each is
+/// (name, file) in order, built into the program with `include_bytes!` and
+/// registered at startup (`rapidr_value::resources`).
+pub fn generate_with_resources(program: &Program, target: AppTarget, resources: &[(String, String)]) -> String {
     let mut gen = RustCodegen::new(target);
+    gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
     let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program)));
@@ -111,6 +119,8 @@ fn promote_ref_params(program: &Program) -> (Program, HashMap<String, Vec<usize>
 
 struct RustCodegen {
     output: String,
+    /// `$RESOURCE`s: (name, file) in order.
+    resources: Vec<(String, String)>,
     indent: usize,
     /// Target platform.
     target: AppTarget,
@@ -180,6 +190,7 @@ struct RustCodegen {
 impl RustCodegen {
     fn new(target: AppTarget) -> Self {
         Self {
+            resources: Vec::new(),
             output: String::with_capacity(4096),
             indent: 0,
             target,
@@ -450,6 +461,23 @@ impl RustCodegen {
             }
         }
 
+        // Components DIMmed in a nested block (`IF … : DIM Dlg AS
+        // QOPENDIALOG`), in the main program or a routine: created by their
+        // DIM like any other (as in the VM).
+        rapidr_ast::walk(
+            &program.statements,
+            &mut |s| {
+                if let Statement::Dim(d) = s {
+                    if is_component_type_name(&d.type_name) {
+                        for decl in d.declarators.iter().filter(|v| v.dimensions.is_empty()) {
+                            self.component_vars.entry(strip_type_suffix(&decl.name).to_lowercase()).or_insert_with(|| d.type_name.to_uppercase());
+                        }
+                    }
+                }
+            },
+            &mut |_| {},
+        );
+
         // Second pass: collect all referenced variable names for implicit variable detection
         collect_all_refs(&program.statements, &mut self.all_referenced_vars);
 
@@ -510,6 +538,10 @@ impl RustCodegen {
             self.line("fn main() {");
         }
         self.indent += 1;
+        let runtime = if self.target == AppTarget::Web { "rapidr_runtime_web" } else { "rapidr_runtime_core" };
+        for (name, file) in self.resources.clone() {
+            self.line(&format!("{runtime}::value::resources::register({name:?}, include_bytes!({file:?}).as_slice());"));
+        }
 
         // Auto-declare implicit variables (referenced but never DIM'd)
         let assigned = self.assigned_main.clone();
@@ -2264,6 +2296,9 @@ impl RustCodegen {
                     "curdir" | "curdir$" => Some("rp_curdir()"),
                     "rnd" | "rnd!" | "rnd#" => Some("rp_rnd(&v_null())"),
                     "dir" | "dir$" => Some("rp_dir(&v_null(), &v_null())"),
+                    "resourcecount" => Some("rp_resourcecount()"),
+                    "mousex" => Some("rp_mousex()"),
+                    "mousey" => Some("rp_mousey()"),
                     _ => None,
                 };
                 if let Some(call) = bare_builtin {
@@ -2448,7 +2483,7 @@ impl RustCodegen {
                 // Component property/method access
                 if let Some(comp_name) = self.get_component_name(&ma.object) {
                     let member_lower = ma.member.to_lowercase();
-                    if is_component_method_name(&member_lower) {
+                    if is_component_method_name(&member_lower) && !is_also_property(&member_lower) {
                         return format!("rp_comp_method(\"{comp_name}\", \"{member_lower}\", &[])");
                     }
                     return format!("rp_comp_get(\"{comp_name}\", \"{member_lower}\")");
@@ -2468,7 +2503,7 @@ impl RustCodegen {
                     if id.name == "_with_" {
                         if let Some(with_comp) = self.with_component_stack.last() {
                             let member_lower = ma.member.to_lowercase();
-                            if is_component_method_name(&member_lower) {
+                            if is_component_method_name(&member_lower) && !is_also_property(&member_lower) {
                                 return format!("rp_comp_method(\"{with_comp}\", \"{member_lower}\", &[])");
                             }
                             return format!("rp_comp_get(\"{with_comp}\", \"{member_lower}\")");
@@ -2742,6 +2777,11 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "messagedlg" => Some(format!("rp_messagedlg(&{a0}, &{a1}, &{a2}, &v_null())")),
         "direxists" => Some(format!("rp_direxists(&{a0})")),
         "fileexists" => Some(format!("rp_fileexists(&{a0})")),
+        "resource" => Some(format!("rp_resource(&{a0})")),
+        "resourcecount" => Some("rp_resourcecount()".to_string()),
+        "mousex" => Some("rp_mousex()".to_string()),
+        "mousey" => Some("rp_mousey()".to_string()),
+        "extractresource" => Some(format!("{{ rp_extractresource(&{a0}, &{a1}); v_null() }}")),
         "dir" => Some(format!("rp_dir(&{a0}, &{a1})")),
         "input" | "input_func" => Some(format!("rp_input(&{a0})")),
 
@@ -2951,6 +2991,12 @@ wasm-bindgen = "=0.2.118"
 /// Check if a type name is a known RapidP component type.
 fn is_component_type_name(type_name: &str) -> bool {
     rapidr_ast::is_component_type_name(type_name)
+}
+
+/// A method that is also a property, read as the property (`Img.Center`:
+/// QIMAGE's Center setting; `Form.Center` as a statement centers the form).
+fn is_also_property(member: &str) -> bool {
+    member == "center"
 }
 
 /// Check if a member name is a known component method (not a property).

@@ -13,6 +13,8 @@
 //   * tests/fixtures/string_grid.bas — QSTRINGGRID cells, rows/columns, streams;
 //   * tests/fixtures/align_layout.bas — Align, and a form resized by the user;
 //   * tests/fixtures/list_items.bas — QLISTBOX / QCOMBOBOX items and selection;
+//   * tests/fixtures/picture_resource.bas — $RESOURCE, QIMAGE BMPHandle,
+//     AutoSize, Transparent, drawing, Pixel, OnClick;
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -62,6 +64,8 @@ const cases = [
     expect: ["loose.caption=105,40,233,205|100|245", "side.caption=moved160|160|165", "bar.caption=600x350|373x255|538|150", "status.simpletext=433|255|5|598"] },
   { name: "list_items", events: "items.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=5|zero|four|a/b & c|3|Applepear|2|2", "lbl.caption=picked 3 four"] },
+  { name: "picture_resource", events: "img.onclick,img.onclick", dump: "summary.caption,lbl.caption",
+    expect: ["summary.caption=1|20x10|FF00|FF0000|80FFFF|40|FF|FFFFFF|-1", "lbl.caption=click;click;"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

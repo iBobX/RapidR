@@ -449,8 +449,15 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
-        if let Err(e) = result {
-            object_error(name, prop, &e);
+        let picture = rapidr_value::objects::is_picture(name);
+        match result {
+            // `Image.BMP = "photo.png"`: not a BMP; the browser shows it.
+            Err(_) if picture && lprop == "bmp" => show_image_file(&uname, &val.to_string_val()),
+            Err(e) => object_error(name, prop, &e),
+            Ok(()) => {}
+        }
+        if picture {
+            picture_changed(&uname);
         }
         if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
@@ -546,6 +553,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
     // Align (layout_web).
     crate::layout_web::after_set(&uname, &lprop);
+    // A QIMAGE's AutoSize / Stretch / Center.
+    if matches!(lprop.as_str(), "autosize" | "stretch" | "center") && rapidr_value::objects::is_picture(&uname) {
+        picture_changed(&uname);
+    }
 }
 
 pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>, has_row: bool) {
@@ -716,6 +727,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // as the component's properties `panel(0).width` unless the component
     // implements them.
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
+        if rapidr_value::objects::is_picture(name) {
+            // `Image.LoadFromFile "photo.png"`: not a BMP; the browser shows it.
+            if result.is_err() && matches!(lmethod.as_str(), "loadfromfile" | "load") {
+                show_image_file(&uname, &args.first().map(|v| v.to_string_val()).unwrap_or_default());
+                return v_null();
+            }
+            picture_changed(&uname);
+        }
         if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
         } else if rapidr_value::objects::is_grid(name) {
@@ -1551,6 +1570,36 @@ pub fn rp_rebind_component_events(name: &str) {
 // DOM event binding — wire up browser events to fire RapidR events
 // ---------------------------------------------------------------------------
 
+/// A QIMAGE's picture changed: with AutoSize the control takes the
+/// picture's size; the element shows it again (as on the desktop).
+fn picture_changed(name: &str) {
+    if rp_comp_get_stored(name, "autosize").to_bool() {
+        if let Some(Some((w, h))) = rapidr_value::objects::with_picture(name, |b| {
+            (!b.img.pixels.is_empty()).then_some((b.img.width as i64, b.img.height as i64))
+        }) {
+            if rp_comp_get_stored(name, "width").to_i64() != w {
+                rp_comp_set(name, "width", v_int(w));
+            }
+            if rp_comp_get_stored(name, "height").to_i64() != h {
+                rp_comp_set(name, "height", v_int(h));
+            }
+        }
+    }
+    crate::gui_web::render_picture(name);
+}
+
+/// A QIMAGE showing an image file other than a BMP (PNG, JPEG, …).
+fn show_image_file(name: &str, path: &str) {
+    let id = format!("rr-{}", name.to_lowercase());
+    if let Some(img) = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.get_element_by_id(&id))
+        .and_then(|e| e.dyn_into::<web_sys::HtmlImageElement>().ok())
+    {
+        img.set_src(path);
+    }
+}
+
 fn bind_dom_event(name: &str, event: &str) {
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
@@ -1581,6 +1630,10 @@ fn bind_dom_event(name: &str, event: &str) {
     // A QLISTVIEW's clicks go through its rows and header (gui_web's
     // `create_listview`), which set ItemIndex first.
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {
+        return;
+    }
+    // A QIMAGE fires its mouse events itself (gui_web's `picture_mouse`).
+    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "onmousedown" | "onmouseup" | "onmousemove") && rapidr_value::objects::is_picture(name) {
         return;
     }
     // A QSTRINGGRID fires its events itself (gui_web's `create_grid`).

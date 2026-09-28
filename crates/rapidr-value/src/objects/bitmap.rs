@@ -1,6 +1,11 @@
 //! QBITMAP (manual, Appendix A): an off-screen image to draw on, load and
 //! save as BMP. Colors are RapidQ's &HBBGGRR integers. Rectangles follow
 //! Windows: the right and bottom edges are excluded.
+//!
+//! A QIMAGE's picture is one too (`picture`): the same loading and drawing,
+//! while its Width / Height are the control's, not the picture's; drawing
+//! on an image without a picture first gives it one the control's size, as
+//! Delphi's TImage does.
 
 use super::codec::{bmp_data_url, decode_bmp, Pixels, MAX_PIXELS};
 use crate::{v_int, v_str, Value};
@@ -10,6 +15,8 @@ pub struct Bitmap {
     pub img: Pixels,
     pub transparent: bool,
     pub transparent_color: u32,
+    /// A QIMAGE's picture (see the module docs).
+    pub picture: bool,
 }
 
 /// Color of a new bitmap's pixels.
@@ -17,7 +24,7 @@ const BACKGROUND: u32 = 0xFFFFFF;
 
 impl Default for Bitmap {
     fn default() -> Self {
-        Self { img: Pixels { width: 0, height: 0, pixels: Vec::new() }, transparent: false, transparent_color: BACKGROUND }
+        Self { img: Pixels { width: 0, height: 0, pixels: Vec::new() }, transparent: false, transparent_color: BACKGROUND, picture: false }
     }
 }
 
@@ -173,6 +180,9 @@ impl Bitmap {
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
+        if self.picture && matches!(prop, "width" | "height") {
+            return None;
+        }
         Some(match prop {
             "width" => v_int(self.img.width as i64),
             "height" => v_int(self.img.height as i64),
@@ -186,7 +196,16 @@ impl Bitmap {
 
     /// Sets a property; `Err` for a BMP that can't be loaded.
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<Result<(), String>> {
+        if self.picture && matches!(prop, "width" | "height" | "transparentcolor") {
+            return None;
+        }
         match prop {
+            // A QIMAGE's transparent color is its bottom-left pixel's
+            // (TImage's automatic mode).
+            "transparent" if self.picture => {
+                self.transparent = val.to_bool();
+                self.auto_transparent_color();
+            }
             "width" => self.resize(val.to_i64(), self.img.height as i64),
             "height" => self.resize(self.img.width as i64, val.to_i64()),
             "transparent" => self.transparent = val.to_bool(),
@@ -208,7 +227,14 @@ impl Bitmap {
             "line" => self.line(n(0), n(1), n(2), n(3), c(4)),
             "rectangle" => self.rectangle(n(0), n(1), n(2), n(3), c(4)),
             "fillrect" => self.fill_rect(n(0), n(1), n(2), n(3), c(4)),
-            "circle" => self.ellipse(n(0), n(1), n(2), n(3), c(4), args.len() > 5 && n(5) != 0),
+            // `Circle(x1, y1, x2, y2, c, fill)`: outlined in c, filled with
+            // the color fill (Delphi's pen and brush).
+            "circle" => {
+                if args.len() > 5 {
+                    self.ellipse(n(0), n(1), n(2), n(3), c(5), true);
+                }
+                self.ellipse(n(0), n(1), n(2), n(3), c(4), false);
+            }
             "roundrect" => self.round_rect(n(0), n(1), n(2), n(3), n(4), n(5), c(6)),
             "paint" => self.flood_fill(n(0), n(1), c(2), c(3)),
             _ => return None,
@@ -253,7 +279,17 @@ impl Bitmap {
 
     pub fn load_bmp_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
         self.img = decode_bmp(bytes)?;
+        self.auto_transparent_color();
         Ok(())
+    }
+
+    /// A QIMAGE's transparent color: its picture's bottom-left pixel.
+    pub fn auto_transparent_color(&mut self) {
+        if self.picture && self.img.height > 0 {
+            if let Some(c) = self.pixel(0, self.img.height as i64 - 1) {
+                self.transparent_color = c;
+            }
+        }
     }
 }
 

@@ -28,7 +28,7 @@ await page.evaluate(() => {
     'Bmp.Width = 40',
     'Bmp.Height = 30',
     'Bmp.FillRect(0, 0, 40, 30, clRed)',
-    'Bmp.Circle(5, 5, 26, 26, clBlue, 1)',
+    'Bmp.Circle(5, 5, 26, 26, clBlue, clBlue)',
     'Bmp.Transparent = 1',
     'Bmp.TransparentColor = clRed',
     'CREATE Form AS QFORM',

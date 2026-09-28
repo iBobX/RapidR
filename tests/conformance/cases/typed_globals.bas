@@ -53,6 +53,13 @@ PRINT "fr "; fr
 DIM got AS LONG
 INPUT "number? ", got
 PRINT "got "; got + 1
+' A typed global read as a property value inside CREATE.
+DEFINT bw
+bw = 7 * 3
+CREATE Pnl AS QPANEL
+  Width = bw: Height = got + 1
+END CREATE
+PRINT "panel "; Pnl.Width; " "; Pnl.Height
 END
 sub1:
 PRINT "gosub at "; fr

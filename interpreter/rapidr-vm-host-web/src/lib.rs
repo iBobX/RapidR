@@ -233,6 +233,11 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "messagedlg" => rp_messagedlg(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null)),
         "direxists" => rp_direxists(&a0),
         "fileexists" => rp_fileexists(&a0),
+        "resource" => rp_resource(&a0),
+        "resourcecount" => rp_resourcecount(),
+        "mousex" => rp_mousex(),
+        "mousey" => rp_mousey(),
+        "extractresource" => { rp_extractresource(&a0, &a1); v_null() }
         "shell" => rp_shell(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
@@ -483,6 +488,7 @@ fn install_resume_handler() {
 pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     let module = Module::from_bytes(bytes)
         .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
+    rapidr_runtime_web::value::resources::set_all(&module.resources);
     // Installed before `__main` runs, so events fired during setup (an
     // RSqlite OnConnect, a synchronous RHTTP OnLoad, …) reach their handlers.
     start_session(Session::new(module, false));
@@ -606,6 +612,7 @@ impl DebugSession {
     pub fn new(bytes: &[u8]) -> Result<DebugSession, JsValue> {
         let module = Module::from_bytes(bytes)
             .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
+        rapidr_runtime_web::value::resources::set_all(&module.resources);
         let session = Session::new(module, true);
         let generation = session.generation;
         start_session(session);

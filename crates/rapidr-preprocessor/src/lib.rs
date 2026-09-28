@@ -35,6 +35,7 @@ struct PpState {
     include_stack: Vec<PathBuf>,
     include_dirs: Vec<PathBuf>,
     app_type: Option<String>,
+    resources: Vec<Resource>,
 }
 
 impl PpState {
@@ -49,6 +50,7 @@ impl PpState {
             include_stack: Vec::new(),
             include_dirs: options.include_dirs,
             app_type: None,
+            resources: Vec::new(),
         }
     }
 
@@ -114,7 +116,23 @@ pub struct PreprocessResult {
     pub line_map: Vec<LineOrigin>,
     /// The value of `$APPTYPE` if present (e.g. "GUI", "CONSOLE", "WEB").
     pub app_type: Option<String>,
+    /// `$RESOURCE NAME AS "file"`, in order: the name, the file as written
+    /// and where it was found (`None`: not found). Resource `i` has the
+    /// handle `RESOURCE_BASE + i`, which the directive defines as `NAME`.
+    pub resources: Vec<Resource>,
 }
+
+/// One `$RESOURCE` of a program.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Resource {
+    pub name: String,
+    pub file: String,
+    pub path: Option<PathBuf>,
+}
+
+/// Handle of the first resource (`RESOURCE(0)`); RapidQ's handles are the
+/// resource's position in the program, so never 0.
+pub const RESOURCE_BASE: i64 = 65536;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreprocessError {
@@ -168,7 +186,7 @@ pub fn preprocess_file(
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut state = PpState::new(options);
     let (source, line_map) = preprocess_with_state(&source, base_dir, Some(path.to_path_buf()), &mut state)?;
-    Ok(PreprocessResult { source, line_map, app_type: state.app_type })
+    Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
 }
 
 pub fn preprocess_source(
@@ -179,7 +197,7 @@ pub fn preprocess_source(
 ) -> Result<PreprocessResult, PreprocessError> {
     let mut state = PpState::new(options);
     let (source, line_map) = preprocess_with_state(source, base_dir.as_ref(), file_path, &mut state)?;
-    Ok(PreprocessResult { source, line_map, app_type: state.app_type })
+    Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
 }
 
 fn preprocess_with_state(
@@ -355,6 +373,23 @@ fn preprocess_with_state(
                 }
             }
             emit_line(&mut output_lines, &mut origins, &file_path, line_number, original_line.to_string());
+            continue;
+        }
+
+        // `$RESOURCE NAME AS "file"` (several may share a line, separated
+        // by `:`): `NAME` is the resource's handle.
+        if upper_line.starts_with("$RESOURCE") {
+            let mut consts = Vec::new();
+            for part in split_statements(line) {
+                let (name, file) = parse_resource(part.trim()).ok_or_else(|| {
+                    PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone())
+                })?;
+                let handle = RESOURCE_BASE + state.resources.len() as i64;
+                let path = resolve_include_path(base_dir, &file, &[]);
+                state.resources.push(Resource { name: name.clone(), file, path });
+                consts.push(format!("CONST {name} = {handle}"));
+            }
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, consts.join(" : "));
             continue;
         }
 
@@ -572,6 +607,39 @@ fn parse_macro_definition(line: &str) -> Option<(String, MacroDefinition)> {
     } else {
         Some((head.to_string(), MacroDefinition::new(None, body)))
     }
+}
+
+/// A line's `:`-separated parts (outside quotes), without a trailing
+/// comment part (`' …`).
+fn split_statements(line: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let (mut start, mut quoted) = (0, false);
+    for (i, c) in line.char_indices() {
+        match c {
+            '"' => quoted = !quoted,
+            ':' if !quoted => {
+                parts.push(&line[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&line[start..]);
+    parts.retain(|p| !p.trim().is_empty() && !p.trim_start().starts_with('\''));
+    parts
+}
+
+/// `$RESOURCE NAME AS "file"` → (NAME, file).
+fn parse_resource(line: &str) -> Option<(String, String)> {
+    let rest = line.get("$RESOURCE".len()..)?.trim_start();
+    let name: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+    let after = rest[name.len()..].trim_start();
+    if name.is_empty() || !after.get(..2).is_some_and(|a| a.eq_ignore_ascii_case("AS")) {
+        return None;
+    }
+    let quoted = after[2..].trim_start().strip_prefix('"')?;
+    let file = &quoted[..quoted.find('"')?];
+    Some((name, file.to_string()))
 }
 
 fn parse_include_target(line: &str) -> Option<String> {
@@ -844,6 +912,17 @@ mod tests {
     fn parameterized_macro_expands() {
         let result = preprocess("$MACRO MAX(a,b) = IIF(a > b, a, b)\nx = MAX(10, 20)");
         assert!(result.contains("x = IIF(10 > 20, 10, 20)"));
+    }
+
+    #[test]
+    fn resources_become_handles() {
+        let result = preprocess_source("$RESOURCE GRID_BMP AS \"grid.bmp\" ' board\n$resource Snd as \"a.wav\"\nPRINT GRID_BMP", ".", None, PreprocessOptions::default()).unwrap();
+        assert_eq!(result.source, "CONST GRID_BMP = 65536\nCONST Snd = 65537\nPRINT GRID_BMP");
+        let names: Vec<_> = result.resources.iter().map(|r| (r.name.as_str(), r.file.as_str())).collect();
+        assert_eq!(names, [("GRID_BMP", "grid.bmp"), ("Snd", "a.wav")]);
+        // Several on a line.
+        let result = preprocess_source("$resource T0 as \"a:b.bmp\" : $resource T1 as \"c.bmp\" ' tiles", ".", None, PreprocessOptions::default()).unwrap();
+        assert_eq!(result.source, "CONST T0 = 65536 : CONST T1 = 65537");
     }
 
     #[test]

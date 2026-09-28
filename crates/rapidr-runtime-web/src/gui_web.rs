@@ -1507,6 +1507,7 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_id(id);
     el.set_class_name("rr-form");
+    track_mouse();
     let _ = el.set_attribute("data-rr-name", name);
     let _ = el.set_attribute("data-rr-type", "RFORM");
     if let Some(p) = props.get("parent").map(|v| v.to_string_val()).filter(|s| !s.is_empty()) {
@@ -1973,7 +1974,146 @@ fn create_image(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     el.set_class_name("rr-widget");
     let _ = el.style().set_property("object-fit", "contain");
+    let _ = el.set_attribute("draggable", "false");
+    picture_mouse(&el, name);
     setup_widget(&el, id, name, props);
+    render_picture(name);
+}
+
+/// A QIMAGE's mouse events (manual), as on the desktop: OnMouseDown /
+/// OnMouseUp (Button, X, Y, Shift), OnMouseMove (X, Y, Shift), OnClick,
+/// OnDblClick; X and Y are in the image. (`object_web::bind_dom_event`
+/// leaves images to this.)
+fn picture_mouse(el: &web_sys::HtmlElement, name: &str) {
+    for dom_event in ["mousedown", "mouseup", "mousemove", "click", "dblclick"] {
+        let owner = name.to_uppercase();
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let Some(target) = e.current_target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+            let rect = target.get_bounding_client_rect();
+            let x = v_int((e.client_x() as f64 - rect.left()) as i64);
+            let y = v_int((e.client_y() as f64 - rect.top()) as i64);
+            let shift = v_int(i64::from(e.shift_key()) * 256 | i64::from(e.ctrl_key()) * 16 | i64::from(e.alt_key()));
+            // mbLeft = 0, mbRight = 1, mbMiddle = 2 (the DOM's middle is 1).
+            let button = v_int(match e.button() {
+                1 => 2,
+                2 => 1,
+                _ => 0,
+            });
+            match dom_event {
+                "mousedown" | "mouseup" => {
+                    let event = if dom_event == "mousedown" { "onmousedown" } else { "onmouseup" };
+                    crate::object_web::rp_fire_event_args(&owner, event, &[button, x, y, shift]);
+                }
+                "mousemove" => crate::object_web::rp_fire_event_args(&owner, "onmousemove", &[x, y, shift]),
+                "click" => crate::object_web::rp_fire_event(&owner, "onclick"),
+                _ => crate::object_web::rp_fire_event(&owner, "ondblclick"),
+            }
+        });
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+}
+
+thread_local! {
+    /// QIMAGEs whose picture changed since they were last shown (shown
+    /// once, soon, however many drawing calls change it).
+    static PICTURES_TO_RENDER: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Shows a QIMAGE's picture (rapidr_value::objects, a Bitmap, as on the
+/// desktop), soon (batched).
+pub fn render_picture(name: &str) {
+    let name = name.to_uppercase();
+    let first = PICTURES_TO_RENDER.with(|g| {
+        let mut g = g.borrow_mut();
+        let first = g.is_empty();
+        if !g.contains(&name) {
+            g.push(name);
+        }
+        first
+    });
+    if !first {
+        return;
+    }
+    let flush = Closure::once_into_js(move || {
+        for name in PICTURES_TO_RENDER.with(|g| std::mem::take(&mut *g.borrow_mut())) {
+            render_picture_now(&name);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);
+    }
+}
+
+/// Shows a QIMAGE's picture now, as a PNG (so Transparent keeps its alpha):
+/// at the top left, centered (Center) or scaled to the control (Stretch).
+/// An image without a picture keeps what it shows.
+fn render_picture_now(name: &str) {
+    let Some(img) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlImageElement>().ok()) else { return };
+    let Some(Some((w, h, rgba))) = rapidr_value::objects::with_picture(name, |b| {
+        (!b.img.pixels.is_empty()).then(|| (b.img.width as u32, b.img.height as u32, b.to_rgba()))
+    }) else {
+        return;
+    };
+    let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w, h) else { return };
+    let Some(off) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    off.set_width(w);
+    off.set_height(h);
+    let Some(ctx) = off.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    let _ = ctx.put_image_data(&data, 0.0, 0.0);
+    if let Ok(url) = off.to_data_url() {
+        img.set_src(&url);
+    }
+    let prop = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_bool();
+    let (fit, position) = match (prop("stretch"), prop("center")) {
+        (true, _) => ("fill", "center"),
+        (false, true) => ("none", "center"),
+        _ => ("none", "left top"),
+    };
+    let _ = img.style().set_property("object-fit", fit);
+    let _ = img.style().set_property("object-position", position);
+}
+
+thread_local! {
+    /// The last mouse position in the page (for MOUSEX / MOUSEY).
+    static MOUSE_AT: std::cell::Cell<(f64, f64)> = const { std::cell::Cell::new((0.0, 0.0)) };
+    static MOUSE_TRACKED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Follows the mouse over the page (once), for MOUSEX / MOUSEY.
+pub fn track_mouse() {
+    if MOUSE_TRACKED.with(|t| t.replace(true)) {
+        return;
+    }
+    let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(|e: web_sys::MouseEvent| {
+        MOUSE_AT.with(|m| m.set((e.client_x() as f64, e.client_y() as f64)));
+    });
+    for event in ["mousemove", "mousedown"] {
+        // Captured, so it's known before any handler of the click runs.
+        let _ = document().add_event_listener_with_callback_and_bool(event, cb.as_ref().unchecked_ref(), true);
+    }
+    cb.forget();
+}
+
+/// `MOUSEX` / `MOUSEY`: the mouse relative to the client area of the form
+/// it's over (else the frontmost form), as on the desktop.
+pub fn mouse_in_form() -> (i64, i64) {
+    let (x, y) = MOUSE_AT.with(std::cell::Cell::get);
+    let doc = document();
+    let form = doc
+        .element_from_point(x as f32, y as f32)
+        .and_then(|e| e.closest(".rr-form").ok().flatten())
+        .or_else(|| {
+            let forms = doc.query_selector_all(".rr-form").ok()?;
+            (0..forms.length()).rev().filter_map(|i| forms.item(i)?.dyn_into::<web_sys::Element>().ok()).find(|f| {
+                f.dyn_ref::<web_sys::HtmlElement>().is_some_and(|h| h.style().get_property_value("display").ok().as_deref() != Some("none"))
+            })
+        });
+    let client = form.and_then(|f| get_el(&format!("{}-client", f.id())).map(|c| c.get_bounding_client_rect()));
+    match client {
+        Some(r) => ((x - r.left()) as i64, (y - r.top()) as i64),
+        None => (x as i64, y as i64),
+    }
 }
 
 fn create_canvas(id: &str, name: &str, props: &HashMap<String, Value>) {

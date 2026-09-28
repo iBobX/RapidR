@@ -198,9 +198,15 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     let workspace_root = find_workspace_root();
 
     // Preprocess to detect $APPTYPE
-    let app_type = preprocess_file(path, PreprocessOptions::default())
-        .ok()
-        .and_then(|r| r.app_type);
+    let pre = preprocess_file(path, PreprocessOptions::default()).ok();
+    let app_type = pre.as_ref().and_then(|r| r.app_type.clone());
+    let resources = match pre.as_ref().map(resource_files).transpose() {
+        Ok(r) => r.unwrap_or_default(),
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
 
     let target = if force_web || app_type.as_deref() == Some("WEB") {
         AppTarget::Web
@@ -240,7 +246,7 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     }
 
     // Generate Rust source
-    let rust_source = rapidr_codegen_rust::generate_for_target(&program, target);
+    let rust_source = rapidr_codegen_rust::generate_with_resources(&program, target, &resources);
     let cargo_toml = if target == AppTarget::Web {
         rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy())
     } else {
@@ -566,7 +572,25 @@ fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     // Run-time errors name the file and line (file names only).
     let origins = pre.line_map.iter().map(|(file, line)| (file.as_deref().and_then(|f| f.to_str()), *line as u32));
     compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(path, origins);
+    // `$RESOURCE` files are built into the module.
+    for (name, file) in resource_files(&pre)? {
+        let bytes = fs::read(&file).map_err(|e| format!("$RESOURCE {name}: {file}: {e}"))?;
+        compiled.module.resources.push((name, bytes));
+    }
     Ok(compiled)
+}
+
+/// The `$RESOURCE` files of a program, as (name, absolute path); an error
+/// names one that wasn't found (as RapidQ's compiler does).
+fn resource_files(pre: &rapidr_preprocessor::PreprocessResult) -> Result<Vec<(String, String)>, String> {
+    pre.resources
+        .iter()
+        .map(|r| {
+            let path = r.path.as_ref().ok_or_else(|| format!("$RESOURCE {}: file not found: '{}'", r.name, r.file))?;
+            let abs = path.canonicalize().map_err(|e| format!("$RESOURCE {}: {}: {e}", r.name, path.display()))?;
+            Ok((r.name.clone(), abs.to_string_lossy().into_owned()))
+        })
+        .collect()
 }
 
 fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {

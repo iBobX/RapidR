@@ -28,15 +28,15 @@ pub const BUILTINS: &[&str] = &[
     "cos", "csng", "csrlin", "curdir",
     "date", "date_func", "delete", "dir", "direxists", "doevents",
     "e", "end", "environ", "eof", "exp",
-    "field", "fileexists", "filelen", "fix", "floor", "format", "frac", "freefile",
+    "extractresource", "field", "fileexists", "filelen", "fix", "floor", "format", "frac", "freefile",
     "hex", "hextodec",
     "iif", "input", "input_func", "insert", "instr", "int", "inv", "isnumeric",
     "kill",
     "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
-    "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "msgbox",
+    "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "mousex", "mousey", "msgbox",
     "oct", "open",
     "pi", "playsound", "pos", "print", "print_hash", "println",
-    "randomize", "rename", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
+    "randomize", "rename", "resource", "resourcecount", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
     "rnd", "round", "rtrim",
     "seek", "sgn", "shell", "shellwait", "shl", "shr", "showmessage", "sin", "sizeof", "sleep",
     "sound", "space", "sqr", "str", "strf", "string",
@@ -52,7 +52,7 @@ pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__dat
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
-pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "pi", "rnd", "time", "timer"];
+pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.

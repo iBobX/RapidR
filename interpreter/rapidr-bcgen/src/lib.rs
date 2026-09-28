@@ -2034,6 +2034,12 @@ impl Bcgen {
                     let s = self.module.add_string(&id.name);
                     emit(code, Op::CallBuiltin);
                     push_u32(code, s); code.push(0);
+                } else if !self.is_known_global(&id.name) && matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse") {
+                    // `True` / `False` without RAPIDQ.INC's constants: -1 / 0,
+                    // as in native builds.
+                    let c = self.module.add_const(Const::Bool(name_lower.ends_with("true")));
+                    emit(code, Op::LoadConst);
+                    push_u32(code, c);
                 } else if let (Some(&fi), Some(true), false) = (
                     self.fn_indices.get(&id.name),
                     self.fn_is_func.get(&id.name).copied(),

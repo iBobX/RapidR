@@ -7,6 +7,62 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.40.0] — 2026-09-27
+
+### Added
+- **`$RESOURCE`: files built into the program, on both backends.**
+  - `$RESOURCE NAME AS "file"` makes `NAME` the resource's handle.
+    Several directives may share a line, separated by `:`.
+  - The files are built into the program: interpreted builds carry them
+    in a new optional bytecode section; native builds use `include_bytes!`.
+  - A missing file is a compile error, as in RapidQ.
+  - New: `RESOURCE(n)`, `RESOURCECOUNT`, `EXTRACTRESOURCE handle, file`
+    and `Stream.ExtractRes(handle)`.
+  - `BMPHandle = NAME` and `ImageList.AddBMPHandle NAME` show a resource
+    bitmap.
+- **QIMAGE shows and draws pictures, the same on desktop and web.**
+  - It is backed by the shared bitmap model (`rapidr_value::objects`),
+    like QSTRINGGRID and QLISTBOX.
+  - Supported: `BMP`, `BMPHandle`, `AutoSize`, `Stretch`, `Center`,
+    `Transparent` (the bottom-left pixel's color, as in Delphi's TImage),
+    `Pixel`, and the QBITMAP drawing methods.
+  - Drawing on an image without a picture first gives it one the size of
+    the control.
+  - PNG and JPEG files still load as before.
+  - The RapidQ Othello game now shows its board and chips, identically
+    both ways.
+- **QIMAGE mouse events** in RapidQ's order, on desktop and web:
+  OnMouseDown / OnMouseUp (Button, X, Y, Shift), OnMouseMove (X, Y,
+  Shift), OnClick, OnDblClick.
+- **`MOUSEX` / `MOUSEY`**: the mouse position relative to the active
+  form's client area.
+
+### Fixed
+- **Native builds: a typed main-program variable read inside a CREATE
+  block** (`Width = bx`) read an empty value (since v2.38.0). The
+  Sokoban level editor's board was invisible because of it.
+- **`Circle(x1, y1, x2, y2, c, fill)`** fills with the color `fill`, as
+  in RapidQ; it was treated as a yes/no flag and filled with `c`.
+- **Interpreter: `True` / `False` without RAPIDQ.INC** are -1 / 0, as in
+  native builds; they were empty.
+- **Native builds: reading `Img.Center`** reads the property; it called
+  the Center method.
+- **Native builds: a component DIMmed inside a block** (`IF … DIM Dlg AS
+  QOPENDIALOG`) was never created, so RapidQ's rqb2html skipped its file
+  dialog. Components are now created by their DIM at any depth, as in the
+  interpreter.
+
+### Tests
+- **Corpus comparison** (`tools/corpus_compare.mjs`): 98 of the 101
+  programs that build run the same natively and interpreted. The other 3
+  use random numbers or the clock. `graphics/rotate/rotate.bas` no longer
+  builds, because its `$RESOURCE` file isn't in the corpus.
+- New conformance cases `resources` and `nested_component_dim`;
+  `typed_globals` covers CREATE blocks; 98/98 pass on both backends.
+- `tests/fixtures/picture_resource.bas` in `tests/native_gui_events.mjs`,
+  natively and interpreted.
+- New `tests/web_ide_picture.mjs` for the browser.
+
 ## [2.39.0] — 2026-09-27
 
 ### Added

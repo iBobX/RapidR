@@ -108,6 +108,9 @@ pub struct Module {
     /// Where each line of the compiled (preprocessed) program came from, for
     /// run-time error messages; empty when unknown.
     pub source_map: SourceMap,
+    /// The program's `$RESOURCE`s in order: name and bytes
+    /// (`rapidr_value::resources`, registered by the host at startup).
+    pub resources: Vec<(String, Vec<u8>)>,
 }
 
 /// Lines of the compiled program → the file (name only, never its path) and

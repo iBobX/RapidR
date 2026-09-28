@@ -79,6 +79,9 @@ pub fn set_file_io(reader: FileReader, writer: FileWriter) {
 }
 
 fn read_file(path: &str) -> Result<Vec<u8>, String> {
+    if let Some(bytes) = crate::resources::read_path(path) {
+        return bytes;
+    }
     let reader = FILE_IO.with(|io| io.borrow().0);
     reader(path)
 }
@@ -94,6 +97,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RFONT" => Object::Font(Font::default()),
         "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
+        "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
         "RLISTVIEW" => Object::ListView(ListView::default()),
         "RSTRINGGRID" => Object::Grid(StringGrid::default()),
@@ -164,6 +168,20 @@ pub fn with_grid_mut<R>(id: &str, f: impl FnOnce(&mut StringGrid) -> R) -> Optio
     })?
 }
 
+/// Whether `id` is a QIMAGE (its runtime widget shows its picture again
+/// after a change).
+pub fn is_picture(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Bitmap(b) if b.picture)).unwrap_or(false)
+}
+
+/// Reads a QIMAGE's picture (to show it).
+pub fn with_picture<R>(id: &str, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Bitmap(b) if b.picture => Some(f(b)),
+        _ => None,
+    })?
+}
+
 pub fn exists(id: &str) -> bool {
     OBJECTS.with(|o| o.borrow().contains_key(&id.to_lowercase()))
 }
@@ -194,7 +212,8 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 /// that can't be loaded), `None` if not an object property.
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     let prop = prop.to_lowercase();
-    if prop == "bmp" && matches!(with(id, |o| matches!(o, Object::Bitmap(_))), Some(true)) {
+    // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
+    if matches!(prop.as_str(), "bmp" | "bmphandle") && matches!(with(id, |o| matches!(o, Object::Bitmap(_))), Some(true)) {
         let loaded = load_image(val);
         return Some(loaded.map(|src| {
             with(id, |o| {
@@ -203,6 +222,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
                         (b.transparent, b.transparent_color) = (true, src.transparent_color);
                     }
                     b.img = src.img;
+                    b.auto_transparent_color();
                 }
             });
         }));
@@ -244,6 +264,14 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         if read_only {
             return Some(Err(format!("{method}: the file was opened for reading (fmOpenRead)")));
         }
+    }
+    // Drawing on a QIMAGE without a picture: first one the control's size
+    // (read before borrowing the registry: `props` may read objects too).
+    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw")
+        || (method == "pixel" && args.len() >= 3);
+    if drawing && with(id, |o| matches!(o, Object::Bitmap(b) if b.picture && b.img.pixels.is_empty()))? {
+        let (w, h) = (props(id, "width").to_i64(), props(id, "height").to_i64());
+        with(id, |o| if let Object::Bitmap(b) = o { b.resize(w, h) });
     }
     match (kind, method.as_str()) {
         ("stream", "open") => Some(open_file(id, &arg(0).to_string_val(), if args.len() > 1 { arg(1).to_i64() } else { 0 })),
@@ -412,19 +440,23 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             });
             drawn.filter(|d| *d).map(|_| Ok(Value::Null))
         }
-        _ => with(id, |o| match o {
-            Object::Font(f) => f.call(&method, args),
-            Object::Stream(m) => m.call(&method, args),
-            Object::Bitmap(b) => b.call(&method, args),
-            Object::ImageList(l) => l.call(&method, args),
-            Object::ListView(l) => l.call(&method, args),
-            Object::Grid(g) => g.call(&method, args),
-            Object::List(l) => l.call(&method, args),
-        })?
-        .map(Ok)
-        // A property read written like a call (`Icons.Count` compiled as one).
-        .or_else(|| if args.is_empty() { get(id, &method).map(Ok) } else { None }),
+        _ => call_object(id, &method, args),
     }
+}
+
+fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    with(id, |o| match o {
+        Object::Font(f) => f.call(method, args),
+        Object::Stream(m) => m.call(method, args),
+        Object::Bitmap(b) => b.call(method, args),
+        Object::ImageList(l) => l.call(method, args),
+        Object::ListView(l) => l.call(method, args),
+        Object::Grid(g) => g.call(method, args),
+        Object::List(l) => l.call(method, args),
+    })?
+    .map(Ok)
+    // A property read written like a call (`Icons.Count` compiled as one).
+    .or_else(|| if args.is_empty() { get(id, method).map(Ok) } else { None })
 }
 
 /// A grid file method's (RowOffset, ColOffset, MaxRows): all rows unless
@@ -491,6 +523,13 @@ pub fn stream_load(id: &str, bytes: Vec<u8>) {
 /// The image a value names: a QBITMAP's id, the `data:` URL of a bitmap's
 /// `.BMP`, or a BMP file.
 pub fn load_image(v: &Value) -> Result<Bitmap, String> {
+    // A `$RESOURCE` handle (`AddBMPHandle GRID_BMP`).
+    if matches!(v, Value::Integer(_) | Value::Double(_)) {
+        let bytes = crate::resources::bytes(v.to_i64()).ok_or_else(|| format!("no resource {}", v.to_i64()))?;
+        let mut b = Bitmap::default();
+        b.load_bmp_bytes(&bytes)?;
+        return Ok(b);
+    }
     let s = v.to_string_val();
     if let Some(Some(b)) = with(&s, |o| match o {
         Object::Bitmap(b) => Some(b.clone()),
