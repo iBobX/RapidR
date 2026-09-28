@@ -4473,10 +4473,11 @@ fn grid_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
 /// Sizes the table from the grid's data and redraws it.
 pub fn grid_refresh(name: &str) {
     let name = name.to_lowercase();
-    let Some((rows, cols, widths, heights, (hr, hc))) = rapidr_value::objects::with_grid(&name, |g| {
+    let Some((rows, cols, widths, heights, (hr, hc), (col_sizing, row_sizing))) = rapidr_value::objects::with_grid(&name, |g| {
+        use rapidr_value::objects::grid::{GO_COL_SIZING, GO_ROW_SIZING};
         let hr = g.fixed_rows().min(1);
         let hc = g.fixed_cols().min(1);
-        (g.row_count(), g.col_count(), g.col_widths.clone(), g.row_heights.clone(), (hr, hc))
+        (g.row_count(), g.col_count(), g.col_widths.clone(), g.row_heights.clone(), (hr, hc), (g.has_option(GO_COL_SIZING), g.has_option(GO_ROW_SIZING)))
     }) else {
         return;
     };
@@ -4485,6 +4486,10 @@ pub fn grid_refresh(name: &str) {
             let size = |v: i64| v.clamp(0, 10_000) as i32;
             t.set_col_header(hr == 1);
             t.set_row_header(hc == 1);
+            // goColSizing / goRowSizing: the user drags the headers' borders
+            // ([`grid_sync_sizes`] keeps the new sizes).
+            t.set_col_resize(col_sizing);
+            t.set_row_resize(row_sizing);
             if hr == 1 {
                 t.set_col_header_height(size(heights[0]));
             }
@@ -4503,6 +4508,28 @@ pub fn grid_refresh(name: &str) {
         }
     });
     grid_owner_draw(&name);
+}
+
+/// The user resized columns or rows (goColSizing / goRowSizing): their new
+/// sizes go into ColWidths / RowHeights.
+fn grid_sync_sizes(name: &str, t: &Table) {
+    let (hr, hc) = grid_headers(name);
+    let changed = rapidr_value::objects::with_grid_mut(name, |g| {
+        let before = (g.col_widths.clone(), g.row_heights.clone());
+        for i in 0..g.col_widths.len() {
+            let w = if i < hc as usize { t.row_header_width() } else { t.col_width(i as i32 - hc) };
+            g.col_widths[i] = w.max(0) as i64;
+        }
+        for i in 0..g.row_heights.len() {
+            let h = if i < hr as usize { t.col_header_height() } else { t.row_height(i as i32 - hr) };
+            g.row_heights[i] = h.max(0) as i64;
+        }
+        before != (g.col_widths.clone(), g.row_heights.clone())
+    })
+    .unwrap_or(false);
+    if changed {
+        grid_refresh(name);
+    }
 }
 
 /// OnDrawCell(Col, Row, State, Rect): fired for every cell after the grid
@@ -4601,14 +4628,15 @@ fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i
         return;
     }
     let Some((c, r)) = grid_cell_of(name, ctx, row, col) else { return };
-    let Some((text, fixed, selected, ellipsis, lines, drawn)) = rapidr_value::objects::with_grid(name, |g| {
-        use rapidr_value::objects::grid::{GO_FIXED_HORZ_LINE, GO_HORZ_LINE, GO_ROW_SELECT};
+    let Some((text, fixed, selected, ellipsis, lines, drawn, list)) = rapidr_value::objects::with_grid(name, |g| {
+        use rapidr_value::objects::grid::{GO_FIXED_HORZ_LINE, GO_HORZ_LINE};
         let (cu, ru) = (c as usize, r as usize);
         let fixed = ru < g.fixed_rows() || cu < g.fixed_cols();
-        let selected = !fixed && g.row == r && (g.col == c || g.has_option(GO_ROW_SELECT));
+        let selected = g.is_selected(cu, ru);
         let lines = if fixed { g.has_option(GO_FIXED_HORZ_LINE) } else { g.has_option(GO_HORZ_LINE) };
         let drawn = g.owner_drawing.get(&(cu, ru)).cloned();
-        (g.cell(cu, ru).to_string(), fixed, selected, grid_has_ellipsis(g, cu, ru), lines, drawn)
+        let list = (g.col, g.row) == (c, r) && g.list_items(cu, ru).is_some();
+        (g.cell(cu, ru).to_string(), fixed, selected, grid_has_ellipsis(g, cu, ru), lines, drawn, list)
     }) else {
         return;
     };
@@ -4623,7 +4651,7 @@ fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i
             draw::draw_rect(x, y, w, h);
         }
     }
-    let button = if ellipsis { h.min(w) } else { 0 };
+    let button = if ellipsis || list { h.min(w) } else { 0 };
     draw::set_font(Font::Helvetica, 13);
     draw::set_draw_color(if selected { Color::White } else { Color::Black });
     // At Left + 2, Top + 2, as Delphi's grid draws a cell's text (an
@@ -4635,6 +4663,14 @@ fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i
         draw::draw_box(FrameType::ThinUpBox, x + w - button, y, button, h, Color::from_rgb(230, 230, 230));
         draw::set_draw_color(Color::Black);
         draw::draw_text2("...", x + w - button, y, button, h, Align::Center);
+    }
+    // A gcsList column's selected cell: its drop-down button.
+    if list {
+        let (bx, bw) = (x + w - button, button);
+        draw::draw_box(FrameType::ThinUpBox, bx, y, bw, h, Color::from_rgb(230, 230, 230));
+        draw::set_draw_color(Color::Black);
+        let (cx, cy) = (bx + bw / 2, y + h / 2);
+        draw::draw_polygon(cx - 4, cy - 2, cx + 4, cy - 2, cx, cy + 2);
     }
     if let Some(ops) = drawn {
         grid_replay(&ops, x, y);
@@ -4650,14 +4686,34 @@ fn grid_select(name: &str, c: i64, r: i64) -> bool {
         if (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() || c < 0 || r < 0 {
             return false;
         }
-        let before = (g.col, g.row);
+        let before = (g.col, g.row, g.anchor);
         g.select(c, r);
-        (g.col, g.row) == (c, r) && before != (c, r)
+        (g.col, g.row) == (c, r) && before != (g.col, g.row, g.anchor)
     })
     .unwrap_or(false);
     if ok {
         rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
-        redraw_widget(name);
+        grid_refresh(name);
+    }
+    ok
+}
+
+/// The user dragged or shift-clicked to a cell: with goRangeSelect the
+/// range grows to it (rapidr_value::objects::grid::StringGrid::extend_to).
+/// Returns whether the selection changed.
+fn grid_extend(name: &str, c: i64, r: i64) -> bool {
+    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
+        if !g.range_select() || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() || c < 0 || r < 0 {
+            return false;
+        }
+        let before = (g.col, g.row, g.anchor);
+        g.extend_to(c, r);
+        before != (g.col, g.row, g.anchor)
+    })
+    .unwrap_or(false);
+    if ok {
+        rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
+        grid_refresh(name);
     }
     ok
 }
@@ -4699,6 +4755,13 @@ fn grid_finish_edit(name: &str, keep: bool) {
         Some(editor.value())
     });
     let (Some(value), true) = (value, keep) else { return };
+    grid_store(name, value);
+}
+
+/// The user entered `value` in the selected cell (edited it, or picked it
+/// from a gcsList column's drop-down): stored, then OnSetEditText(Col, Row,
+/// Value) and RapidR's OnChange, if it changed.
+fn grid_store(name: &str, value: String) {
     let changed = rapidr_value::objects::with_grid_mut(name, |g| {
         let (c, r) = (g.col, g.row);
         if c < 0 || r < 0 || g.cell(c as usize, r as usize) == value {
@@ -4711,6 +4774,32 @@ fn grid_finish_edit(name: &str, keep: bool) {
     if let Some((c, r)) = changed {
         rp_fire_event_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
         rp_fire_event(name, "onchange");
+        grid_refresh(name);
+    }
+}
+
+/// A gcsList column's drop-down: its ColumnList under the selected cell
+/// (x, y, w, h); the pick is stored like an edit.
+fn grid_drop_down(name: &str, items: &[String], (x, y, w, h): (i32, i32, i32, i32)) {
+    if items.is_empty() {
+        return;
+    }
+    // A menu button over the cell, not in any window, just to pop its list.
+    let current = fltk::group::Group::try_current();
+    fltk::group::Group::set_current(None::<&fltk::group::Group>);
+    let mut button = fltk::menu::MenuButton::new(x, y, w, h, None);
+    if let Some(group) = current {
+        fltk::group::Group::set_current(Some(&group));
+    }
+    for item in items {
+        button.add_choice(&menu_label(item));
+    }
+    let picked = button.popup().map(|_| button.value());
+    fltk::menu::MenuButton::delete(button);
+    if let Some(i) = picked.and_then(|i| usize::try_from(i).ok()) {
+        if let Some(value) = items.get(i) {
+            grid_store(name, value.clone());
+        }
     }
 }
 
@@ -4725,6 +4814,20 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
             let on_button = rapidr_value::objects::with_grid(name, |g| grid_has_ellipsis(g, c as usize, r as usize)).unwrap_or(false)
                 && t.find_cell(ctx, row, col).is_some_and(|(x, _, w, h)| app::event_x() >= x + w - h.min(w));
             let _ = t.take_focus();
+            // The drop-down button of a gcsList column's selected cell.
+            let focused = rapidr_value::objects::with_grid(name, |g| (g.col, g.row) == (c, r)).unwrap_or(false);
+            if focused {
+                if let Some(items) = rapidr_value::objects::with_grid(name, |g| g.list_items(c as usize, r as usize)).flatten() {
+                    if let Some(cell) = t.find_cell(ctx, row, col).filter(|&(x, _, w, h)| app::event_x() >= x + w - h.min(w)) {
+                        grid_drop_down(name, &items, cell);
+                        return true;
+                    }
+                }
+            }
+            if app::is_event_shift() && matches!(ctx, TableContext::Cell) {
+                grid_extend(name, c, r);
+                return true;
+            }
             grid_select(name, c, r);
             if on_button {
                 rp_fire_event_2(name, "onellipsisclick", v_int(c), v_int(r));
@@ -4742,6 +4845,18 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
             // Let the table resize columns / scroll too.
             matches!(ctx, TableContext::Cell)
         }
+        // The end of a drag: resized columns / rows keep their sizes.
+        Event::Released => {
+            grid_sync_sizes(name, t);
+            false
+        }
+        // Dragging over cells selects a range (goRangeSelect).
+        Event::Drag => {
+            let Some((TableContext::Cell, row, col, _)) = t.cursor2rowcol() else { return false };
+            let Some((c, r)) = grid_cell_of(name, TableContext::Cell, row, col) else { return false };
+            grid_extend(name, c, r);
+            true
+        }
         Event::Focus | Event::Unfocus => true,
         Event::KeyDown => {
             let key = app::event_key();
@@ -4754,7 +4869,8 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
                 _ => None,
             };
             if let Some((nc, nr)) = moved {
-                if grid_select(name, nc, nr) {
+                let moved = if app::is_event_shift() { grid_extend(name, nc, nr) } else { grid_select(name, nc, nr) };
+                if moved {
                     let (hr, hc) = grid_headers(name);
                     // Keep the cell in view.
                     let (top, left) = (t.row_position(), t.col_position());

@@ -7,6 +7,35 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.43.0] — 2026-09-28
+
+### Added
+- **QSTRINGGRID range selection (goRangeSelect)**, on desktop and web.
+  - Dragging over cells, shift-clicking or shift+arrow keys select a block
+    of cells.
+  - The block is highlighted, and OnDrawCell's `State` has gdSelected for
+    each of its cells (gdFocused for the current one).
+  - It is on by default, as in Delphi, and off with goEditing, as the
+    manual says.
+- **gcsList columns** (`ColumnStyle(i) = gcsList`, `ColumnList(i)`). The
+  selected cell shows a drop-down button listing the column's items.
+  Picking one stores it like an edit: the cell, then OnSetEditText, then
+  OnChange.
+- **goColSizing / goRowSizing**: dragging a header's border resizes the
+  column or row, and `ColWidths` / `RowHeights` follow.
+
+### Fixed
+- **Selecting the current cell again clears a range selection.** OnDrawCell
+  also fires again when the selection changes, with each cell's new
+  `State`, as Delphi redraws selected cells.
+
+### Tests
+- New fixture `grid_range_list.bas`, in `tests/native_gui_events.mjs` and
+  `tests/web_ide_grid_draw.mjs`. The browser test drags a range, picks
+  from a drop-down and resizes a column. New model unit test.
+- The corpus's grid and list-view programs (9) run the same natively and
+  interpreted.
+
 ## [2.42.0] — 2026-09-27
 
 ### Added
