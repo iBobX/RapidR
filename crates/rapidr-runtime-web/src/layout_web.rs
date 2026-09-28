@@ -26,6 +26,11 @@ thread_local! {
 }
 
 /// Runs `f` without its geometry stores laying anything out.
+/// Whether geometry is being stored internally (see [`quietly`]).
+pub fn is_quiet() -> bool {
+    BUSY.with(Cell::get) > 0
+}
+
 pub fn quietly<R>(f: impl FnOnce() -> R) -> R {
     BUSY.with(|b| b.set(b.get() + 1));
     let r = f();

@@ -30,6 +30,10 @@ pub struct Bitmap {
     pub canvas: bool,
     /// A canvas's `Color`: what `Cls` fills with and new area shows.
     pub background: u32,
+    /// A QFORM's own surface (`Form.TextOut`, `Form.Line`, …): a canvas
+    /// under the form's controls whose `background` shows the form through
+    /// (it is the form's `Color`), and whose font is the form's.
+    pub form: bool,
     /// A canvas's `PenColor` / `BrushColor`: the colors drawing uses when
     /// none is given.
     pub pen: u32,
@@ -48,6 +52,7 @@ impl Default for Bitmap {
             picture: false,
             font: Font::default(),
             canvas: false,
+            form: false,
             background: BACKGROUND,
             pen: 0,
             brush: BACKGROUND,
@@ -63,6 +68,12 @@ impl Bitmap {
     /// A QCANVAS's surface.
     pub fn new_canvas() -> Self {
         Self { canvas: true, ..Self::default() }
+    }
+
+    /// A QFORM's surface: transparent where nothing is drawn.
+    pub fn new_form_surface(color: u32) -> Self {
+        let color = color & 0xFFFFFF;
+        Self { canvas: true, form: true, transparent: true, transparent_color: color, background: color, ..Self::default() }
     }
 
     /// A control's surface (QIMAGE picture, QCANVAS): Width / Height are the
@@ -228,6 +239,9 @@ impl Bitmap {
         if self.surface() && matches!(prop, "width" | "height") {
             return None;
         }
+        if self.form {
+            return None;
+        }
         if let Some(p) = prop.strip_prefix("font.") {
             return self.font.get(p);
         }
@@ -257,6 +271,17 @@ impl Bitmap {
     /// Sets a property; `Err` for a BMP that can't be loaded.
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<Result<(), String>> {
         if self.surface() && matches!(prop, "width" | "height" | "transparentcolor") {
+            return None;
+        }
+        // A form's properties are the form's (the runtime keeps them); only
+        // its color matters here: the surface shows it through.
+        if self.form {
+            if prop == "color" {
+                let color = val.to_i64() as u32 & 0xFFFFFF;
+                let old = std::mem::replace(&mut self.background, color);
+                self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = color);
+                self.transparent_color = color;
+            }
             return None;
         }
         if let Some(p) = prop.strip_prefix("font.") {

@@ -538,6 +538,8 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
+    // A form's size before (it paints again only when it changes).
+    let form_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get(name, &prop_lower).to_i64());
     // RapidR's forms and containers have no frame inside their size: the
     // client area is the whole component, less a form's in-window menu.
     // ClientWidth / ClientHeight: a form's inside (rapidr_value::layout::
@@ -706,7 +708,15 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QCANVAS's new size shows more or less of its surface.
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
-        crate::gui::redraw_widget(name);
+        crate::gui::canvas_redraw(name);
+        // (a form's is fired below, once its size really changed)
+        if !rapidr_value::objects::is_form_surface(name) {
+            rp_fire_event(name, "onpaint");
+        }
+    }
+    // A form's new size: it paints again (drawn on its surface, or its
+    // canvases' handlers).
+    if form_size_before.is_some_and(|before| before != rp_comp_get(name, &prop_lower).to_i64()) && !crate::layout::is_quiet() && form_is_built(name) {
         rp_fire_event(name, "onpaint");
     }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
@@ -853,11 +863,32 @@ fn picture_changed(name: &str) {
     crate::gui::picture_refresh(name);
 }
 
+/// Whether form `name`'s window exists (a size set while the form is being
+/// declared paints nothing).
+fn form_is_built(name: &str) -> bool {
+    #[cfg(feature = "gui")]
+    return crate::gui::form_window_exists(name);
+    #[cfg(not(feature = "gui"))]
+    {
+        let _ = name;
+        false
+    }
+}
+
 /// Call a method on a registered component.
 /// Dispatches to the appropriate backend based on component type.
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
+
+    // A QFORM gets its own drawing surface the first time it's drawn on.
+    if comp_type == "RFORM"
+        && rapidr_value::objects::is_drawing_method(&method_lower)
+        && !(method_lower == "paint" && args.len() < 3)
+        && !rapidr_value::objects::is_form_surface(name)
+    {
+        rapidr_value::objects::create_form_surface(name, rapidr_value::objects::form_color(&rp_comp_get(name, "color")));
+    }
 
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {
@@ -873,7 +904,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) {
-            crate::gui::redraw_widget(name);
+            crate::gui::canvas_redraw(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {

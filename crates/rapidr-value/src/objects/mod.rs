@@ -290,6 +290,47 @@ pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
 }
 
+/// Gives form `id` its own drawing surface (`Form.TextOut`, …) the first
+/// time it's drawn on; `color` is the form's.
+pub fn create_form_surface(id: &str, color: i64) {
+    OBJECTS.with(|o| {
+        o.borrow_mut().entry(id.to_lowercase()).or_insert_with(|| Object::Bitmap(Bitmap::new_form_surface(color as u32)));
+    });
+}
+
+/// A form's `Color` as a &HBBGGRR integer: the runtimes keep it as an
+/// integer or as a `#rrggbb` string (themes, the web); a form without one
+/// is the usual light grey.
+pub fn form_color(v: &Value) -> i64 {
+    match v {
+        Value::Integer(_) | Value::Double(_) => v.to_i64() & 0xFFFFFF,
+        Value::Null => 0xF0F0F0,
+        other => {
+            let s = other.to_string_val();
+            match s.strip_prefix('#').filter(|h| h.len() == 6).and_then(|h| u32::from_str_radix(h, 16).ok()) {
+                Some(rgb) => i64::from((rgb & 0xFF) << 16 | (rgb & 0xFF00) | rgb >> 16),
+                None if s.trim().is_empty() => 0xF0F0F0,
+                None => other.to_i64() & 0xFFFFFF,
+            }
+        }
+    }
+}
+
+/// Whether the form `id` has a drawing surface.
+pub fn is_form_surface(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Bitmap(b) if b.form)).unwrap_or(false)
+}
+
+/// Whether `method` draws (or measures) on a bitmap / canvas — what a QFORM
+/// gets a surface for.
+pub fn is_drawing_method(method: &str) -> bool {
+    matches!(
+        method,
+        "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw"
+            | "textout" | "textwidth" | "textheight" | "pixel" | "cls" | "clear" | "drawtext" | "fillcircle" | "ellipse" | "setpixel"
+    )
+}
+
 /// Reads a QCANVAS's surface (to show it), first giving it the control's
 /// size `width` × `height`.
 pub fn with_canvas<R>(id: &str, width: i64, height: i64, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
@@ -344,7 +385,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
     // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.
-    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_) | Object::Bitmap(_))), Some(true)) {
+    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_)) || matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let font = with(&val.to_string_val(), |o| match o {
             Object::Font(f) => Some(f.clone()),
             _ => None,
@@ -358,7 +399,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         return Some(Ok(()));
     }
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
-    if matches!(prop.as_str(), "bmp" | "bmphandle") && matches!(with(id, |o| matches!(o, Object::Bitmap(_))), Some(true)) {
+    if matches!(prop.as_str(), "bmp" | "bmphandle") && matches!(with(id, |o| matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let loaded = load_image(val);
         return Some(loaded.map(|src| {
             with(id, |o| {
@@ -419,10 +460,29 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     // (read before borrowing the registry: `props` may read objects too).
     let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw")
         || (method == "pixel" && args.len() >= 3);
-    // A QCANVAS is always the control's size.
-    if with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas))? {
-        let (w, h) = (props(id, "width").to_i64(), props(id, "height").to_i64());
-        with(id, |o| if let Object::Bitmap(b) = o { b.fit(w, h) });
+    // A QCANVAS is always the control's size; a QFORM's surface its client
+    // area's, drawing in the form's font.
+    if let Some(form) = with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas).then(|| matches!(o, Object::Bitmap(b) if b.form)))? {
+        let (w, h) = if form { (props(id, "clientwidth").to_i64(), props(id, "clientheight").to_i64()) } else { (props(id, "width").to_i64(), props(id, "height").to_i64()) };
+        let font = form.then(|| {
+            let name = props(id, "fontname").to_string_val();
+            let flag = |p: &str| props(id, p).to_bool();
+            let size = props(id, "fontsize").to_i64();
+            Font {
+                name: if name.trim().is_empty() { "Arial".into() } else { name },
+                size: if size > 0 { size } else { 10 },
+                color: props(id, "fontcolor").to_i64() & 0xFFFFFF,
+                styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
+            }
+        });
+        with(id, |o| {
+            if let Object::Bitmap(b) = o {
+                b.fit(w, h);
+                if let Some(f) = font {
+                    b.font = f;
+                }
+            }
+        });
     }
     if drawing && with(id, |o| matches!(o, Object::Bitmap(b) if b.picture && b.img.pixels.is_empty()))? {
         let (w, h) = (props(id, "width").to_i64(), props(id, "height").to_i64());

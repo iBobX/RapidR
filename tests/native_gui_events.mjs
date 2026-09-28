@@ -22,6 +22,8 @@
 //   * tests/fixtures/file_browser.bas — QDIRTREE and QFILELISTBOX;
 //   * tests/fixtures/canvas_onpaint.bas — QCANVAS OnPaint (form built,
 //     Repaint, resize), drawn pixels, TextWidth;
+//   * tests/fixtures/form_draw.bas — drawing on a QFORM in its OnPaint
+//     (Pixel, TextWidth, a resize paints again);
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -81,6 +83,8 @@ const cases = [
     expect: ["lbl.caption=resource_files|2|hello.txt|1"] },
   { name: "canvas_onpaint", events: "btn.onclick,big.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=paints3|form1|255|65280|220x80|36"] },
+  { name: "form_draw", events: "big.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=paints2|255|14737632|36|"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

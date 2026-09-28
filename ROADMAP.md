@@ -178,7 +178,7 @@ Next up, in order:
 - [x] QBITMAP text (`TextOut`, `TextWidth`/`TextHeight`, Font) from built-in Liberation fonts (OFL) on every platform (v2.46.0)
 - [x] QCANVAS drawn by the shared bitmap model (text, fonts, `Pixel`, same pixels on desktop and web); desktop `Rect`/`FillRect` now take corners like RapidQ (v2.47.0)
 - [x] QCANVAS/QFORM `OnPaint`: form built, resize, Repaint/Refresh/Update (v2.48.0)
-- [ ] Drawing on a QFORM itself (`Form.TextOut`, `Form.Line`, …) — a surface for forms like the canvas's
+- [x] Drawing on a QFORM itself (`Form.TextOut`, `Form.Line`, …) on desktop and web from the shared bitmap model; a form paints again when resized (v2.49.0)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`

@@ -466,6 +466,8 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    // A form's size before (it paints again only when it changes).
+    let form_size_before = (matches!(lprop.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get_stored(name, &lprop).to_i64());
     // ClientWidth / ClientHeight: a form's inside (layout_web::form_client);
     // for other components, their whole size.
     if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
@@ -605,6 +607,13 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         gui_web::render_canvas(&uname);
+        if !rapidr_value::objects::is_form_surface(&uname) {
+            rp_fire_event(&uname, "onpaint");
+        }
+    }
+    // A form's new size: it paints again.
+    let form_size_changed = form_size_before.is_some_and(|before| before != rp_comp_get_stored(name, &lprop).to_i64()) && !crate::layout_web::is_quiet();
+    if form_size_changed {
         rp_fire_event(&uname, "onpaint");
     }
     // A QIMAGE's AutoSize / Stretch / Center.
@@ -780,6 +789,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
     // as the component's properties `panel(0).width` unless the component
     // implements them.
+    // A QFORM gets its own drawing surface the first time it's drawn on.
+    if rp_comp_type(name) == "RFORM"
+        && rapidr_value::objects::is_drawing_method(&lmethod)
+        && !(lmethod == "paint" && args.len() < 3)
+        && !rapidr_value::objects::is_form_surface(name)
+    {
+        rapidr_value::objects::create_form_surface(name, rapidr_value::objects::form_color(&rp_comp_get_stored(name, "color")));
+    }
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {
             // `Image.LoadFromFile "photo.png"`: not a BMP; the browser shows it.
