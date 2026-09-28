@@ -23,6 +23,7 @@ CREATE MainForm AS RForm
         END CREATE
         
         CREATE TypeCombo AS RComboBox
+            Style = 2   ' csDropDownList: pick from the list only
             Left = 100
             Top = 10
             Width = 150

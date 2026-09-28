@@ -145,6 +145,9 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RPANEL" => create_panel(&id, name, props),
         "RCHECKBOX" => create_checkbox(&id, name, props),
         "RRADIOBUTTON" => create_radio(&id, name, props),
+        // Style (RAPIDQ.INC): csDropDown = 0 (the default) and csSimple = 1
+        // have an edit box; csDropDownList = 2 only picks from the list.
+        "RCOMBOBOX" if props.get("style").map_or(0, Value::to_i64) < 2 => create_edit_combo(&id, name, props),
         "RCOMBOBOX" => create_select(&id, name, false, props),
         "RLISTBOX" => create_select(&id, name, true, props),
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
@@ -1907,6 +1910,33 @@ fn create_select(id: &str, name: &str, list: bool, props: &HashMap<String, Value
     render_list_now(name);
 }
 
+/// A QCOMBOBOX with an edit box (as on the desktop): an input suggesting
+/// the items (a datalist). Typing or picking sets its Text (and the
+/// ItemIndex of the item it matches, else -1) before OnChange, which is
+/// bound to `input`.
+fn create_edit_combo(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("input");
+    el.set_class_name("rr-widget");
+    let list_id = format!("{id}-items");
+    let _ = el.set_attribute("list", &list_id);
+    let _ = el.set_attribute("autocomplete", "off");
+    let owner = name.to_uppercase();
+    let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+        let Some(input) = e.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok()) else { return };
+        let text = input.value();
+        rapidr_value::objects::with_list_mut(&owner, |l| l.set("text", &crate::value::v_str(&text)));
+    });
+    let _ = el.add_event_listener_with_callback("input", cb.as_ref().unchecked_ref());
+    cb.forget();
+    setup_widget(&el, id, name, props);
+    let datalist = create_el("datalist");
+    datalist.set_id(&list_id);
+    if let Some(parent) = el.parent_node() {
+        let _ = parent.append_child(&datalist);
+    }
+    render_list_now(name);
+}
+
 thread_local! {
     /// Lists to redraw once the program yields (a loop of AddItems redraws
     /// once).
@@ -1940,7 +1970,24 @@ pub fn render_list(name: &str) {
 /// The options as plain text, ItemIndex (or, with MultiSelect, every
 /// selected item) selected.
 fn render_list_now(name: &str) {
-    let Some(sel) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    // An edit combo: the items as suggestions, the Text in the edit box.
+    if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+        let Some(datalist) = get_el(&format!("{}-items", comp_id(name))) else { return };
+        let _ = rapidr_value::objects::with_list(name, |l| {
+            datalist.set_inner_text("");
+            for item in &l.items {
+                let Ok(opt) = document().create_element("option").map(|o| o.unchecked_into::<web_sys::HtmlOptionElement>()) else { continue };
+                opt.set_value(item);
+                let _ = datalist.append_child(&opt);
+            }
+            if input.value() != l.text {
+                input.set_value(&l.text);
+            }
+        });
+        return;
+    }
+    let Ok(sel) = el.dyn_into::<web_sys::HtmlSelectElement>() else { return };
     let _ = rapidr_value::objects::with_list(name, |l| {
         sel.set_length(0);
         if !l.combo {

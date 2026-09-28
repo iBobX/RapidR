@@ -80,6 +80,7 @@ CREATE Form1 AS RFORM
 
     ' --- Combo box ---
     CREATE Combo1 AS RCOMBOBOX
+        Style = 2   ' csDropDownList: pick from the list only
         Left = 20
         Top = 165
         Width = 250

@@ -36,20 +36,26 @@ ok((await text("rr-summary")) === "5|zero|four|a/b  c|3|Applepear|2|2", `same va
 const shown = await frame.evaluate(() => {
   const opts = (id) => [...(document.getElementById(id)?.options ?? [])].map((o) => o.text);
   const items = document.getElementById("rr-items");
+  // A combo box (csDropDown, the default) is an edit box suggesting its items.
   const combo = document.getElementById("rr-combo");
-  return { items: opts("rr-items"), combo: opts("rr-combo"), itemIndex: items?.selectedIndex, comboIndex: combo?.selectedIndex, list: items?.size > 1 };
+  const suggested = [...document.querySelectorAll("#rr-combo-items option")].map((o) => o.value);
+  return { items: opts("rr-items"), combo: suggested, itemIndex: items?.selectedIndex, comboText: combo?.value, editable: combo?.tagName === "INPUT", list: items?.size > 1 };
 });
 ok(JSON.stringify(shown.items) === JSON.stringify(["zero", "ONE", "@b not bold", "four", "five"]), `list box options (${JSON.stringify(shown.items)})`);
 ok(JSON.stringify(shown.combo) === JSON.stringify(["red", "a/b & c", "blue"]), `combo box options (${JSON.stringify(shown.combo)})`);
-ok(shown.itemIndex === 3 && shown.comboIndex === 1, `ItemIndex shown selected (${shown.itemIndex}, ${shown.comboIndex})`);
+ok(shown.itemIndex === 3 && shown.comboText === "a/b & c", `ItemIndex / Text shown (${shown.itemIndex}, ${shown.comboText})`);
+ok(shown.editable, "a combo box has an edit box (csDropDown)");
 ok(shown.list, "a list box shows rows, not a drop-down");
 
 await frame.selectOption("#rr-items", "4");
 await page.waitForTimeout(300);
 ok((await text("rr-lbl")) === "picked 4 five", `picking an item sets ItemIndex before OnClick (${await text("rr-lbl")})`);
-await frame.selectOption("#rr-combo", "2");
+await frame.fill("#rr-combo", "blue");
 await page.waitForTimeout(300);
-ok((await text("rr-lbl")) === "combo 2 blue", `picking a combo item sets ItemIndex / Text before OnChange (${await text("rr-lbl")})`);
+ok((await text("rr-lbl")) === "combo 2 blue", `typing an item's text sets ItemIndex / Text before OnChange (${await text("rr-lbl")})`);
+await frame.fill("#rr-combo", "violet");
+await page.waitForTimeout(300);
+ok((await text("rr-lbl")) === "combo -1 violet", `other text: ItemIndex -1 (${await text("rr-lbl")})`);
 
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 await page.screenshot({ path: "scratch/web_ide_lists.png" });

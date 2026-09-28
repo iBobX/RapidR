@@ -7,6 +7,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.41.0] — 2026-09-27
+
+### Added
+- **QCOMBOBOX edit box, as in RapidQ.** The default style, csDropDown,
+  lets the user type as well as pick, on desktop and web.
+  - Typing sets `Text`, and `ItemIndex` becomes the matching item or -1,
+    before OnChange fires.
+  - `Style = csDropDownList` (2) keeps a pick-only list.
+  - RapidR's own examples that use combos as pick lists now set it.
+
+### Fixed
+- **QLISTBOX with `MultiSelect` on the desktop** now shows every selected
+  item, and the user can select several (click, shift-click). The
+  selection goes into `Selected(i)` / `SelCount`, with `ItemIndex` as the
+  clicked item. Before, only one item was ever shown selected.
+
+### Tests
+- `tests/web_ide_lists.mjs` types into the combo; new unit test for the
+  user's multi-selection.
+
 ## [2.40.0] — 2026-09-27
 
 ### Added

@@ -164,7 +164,8 @@ Next up, in order:
 - [x] QSPLITTER dragging on desktop and web (Delphi TSplitter: neighbour, MinSize, OnMoved) (v2.37.0)
 - [x] Form Width/Height include the frame (29px caption, 1px borders) and ClientWidth/ClientHeight exclude it and the menu, the same on desktop and web; bsNone has no frame (v2.37.0)
 - [x] QLISTBOX / QCOMBOBOX from one shared model on desktop and web: Item, ItemCount, ItemIndex, AddItems (kept only the last item on the desktop), InsertItem, DelItems, Sorted, MultiSelect/Selected/SelCount, Text, Load/SaveToFile (v2.36.0)
-- [ ] QLISTBOX extras: a multi-select list box drawn with several items selected on the desktop (FLTK MultiBrowser), owner-draw (OnDrawItem), Columns; QCOMBOBOX csDropDown edit box on the desktop
+- [x] QLISTBOX MultiSelect drawn and picked on the desktop; QCOMBOBOX csDropDown edit box on desktop and web (v2.41.0)
+- [ ] QLISTBOX extras: owner-draw (OnDrawItem, csOwnerDraw combos), Columns
 - [ ] Type suffixes (`n%` SHORT, `n&` LONG, `n!` SINGLE, `n#` DOUBLE, `n?` BYTE) as declared types
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
