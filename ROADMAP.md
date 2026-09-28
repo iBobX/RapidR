@@ -180,6 +180,9 @@ Next up, in order:
 - [x] QCANVAS/QFORM `OnPaint`: form built, resize, Repaint/Refresh/Update (v2.48.0)
 - [x] Drawing on a QFORM itself (`Form.TextOut`, `Form.Line`, …) on desktop and web from the shared bitmap model; a form paints again when resized (v2.49.0)
 - [x] Owner-drawn QLISTBOX (`Style`, `ItemHeight`, `OnDrawItem`) on desktop and web from the shared list model (v2.50.0); all of RAPIDQ.INC's option constants (v2.50.0)
+- [x] RapidQ syntax gaps found by the example corpus: `Arr()` arguments, multi-dimensional TYPE array fields, `THEN:` blocks, `=>` / `=<`, `&H…&`, `CASE list stmt`, line-numbered `NEXT` / `DATA`, per-file `$ESCAPECHARS` (v2.51.0); 130 of 386 example programs compile (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples`)
+- [ ] Native builds: routines whose names differ only by a type suffix (`FUNCTION Day$` and `FUNCTION Day`, `reminder/dayfunction.bas`), `DEFSTR MONTH$(1 to 12) = {…}` arrays, a line label inside SELECT CASE / WITH (`richedit/using.bas`)
+- [ ] More corpus gaps: `CREATE name(0 TO n) AS QBITMAP` (component arrays), `ON ERROR RESUME NEXT`, `DIM s AS STRING * n` (fixed length), keyword-named variables (`DIM Open AS QMenuItem`), `CBOOL`
 - [ ] Events that return values (`OnMeasureItem(Index, Height)`, `OnClose(Action)`, `OnSelectCell(…, CanSelect)`): a by-reference argument channel from the VM handler back to the runtime
 - [ ] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`); grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas

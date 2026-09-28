@@ -483,13 +483,15 @@ impl<'src> Lexer<'src> {
                 }
                 '=' => {
                     self.advance_char();
-                    tokens.push(Token::new(
-                        TokenType::Eq,
-                        "=".to_string(),
-                        TextSpan::new(start, self.index),
-                        line,
-                        column,
-                    ));
+                    // `=>` and `=<` are `>=` and `<=` (RapidQ accepts both orders).
+                    let (kind, text) = if self.match_char('>') {
+                        (TokenType::Gte, ">=")
+                    } else if self.match_char('<') {
+                        (TokenType::Lte, "<=")
+                    } else {
+                        (TokenType::Eq, "=")
+                    };
+                    tokens.push(Token::new(kind, text.to_string(), TextSpan::new(start, self.index), line, column));
                 }
                 '#' => {
                     self.advance_char();
@@ -698,10 +700,14 @@ impl<'src> Lexer<'src> {
         if after.chars().next().is_some_and(Self::is_identifier_part) {
             return false;
         }
-        let at_statement_start = matches!(
-            tokens.last().map(|t| t.kind),
-            None | Some(TokenType::Newline | TokenType::Colon)
-        );
+        // (a line number in front is a label: `130 DATA 1, 2`)
+        let after_line_number = tokens.last().is_some_and(|t| t.kind == TokenType::Number && t.lexeme.chars().all(|c| c.is_ascii_digit()))
+            && matches!(tokens.len().checked_sub(2).and_then(|i| tokens.get(i)).map(|t| t.kind), None | Some(TokenType::Newline));
+        let at_statement_start = after_line_number
+            || matches!(
+                tokens.last().map(|t| t.kind),
+                None | Some(TokenType::Newline | TokenType::Colon)
+            );
         let next = after.trim_start_matches([' ', '\t']).chars().next();
         at_statement_start && !matches!(next, Some('=' | '(' | '.'))
     }
@@ -937,6 +943,15 @@ impl<'src> Lexer<'src> {
         }
 
         let digits = &self.source[digit_start..self.index];
+        // A long-integer suffix (`&H1&`, `&HFFFF&` in the Windows includes):
+        // the `&` right after the digits, not a concatenation.
+        let digits_end = self.index;
+        if self.current_char() == Some('&')
+            && !matches!(self.peek_char(1), Some(c) if c.is_alphanumeric() || matches!(c, '_' | '"' | '(' | '&'))
+        {
+            self.advance_char();
+        }
+        let digits = &self.source[digit_start..digits_end];
         let normalized = match prefix {
             'H' | 'h' => format!("0x{digits}"),
             'O' | 'o' => format!("0o{digits}"),

@@ -7,6 +7,49 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.51.0] — 2026-09-28
+
+RapidQ syntax that real programs use and RapidR refused. Of the 386 programs
+in RapidQ's own example folder, 130 now compile (116 before); most of the
+rest call Windows APIs, which RapidR doesn't emulate.
+
+### Added
+- **Whole arrays as arguments**: `Fill M(), 5`, `Total(M(), n)`,
+  `CALL Sort(Names())` pass the array to a SUB / FUNCTION with an array
+  parameter (`A() AS INTEGER`). `M()` was read as a call of a function `M`.
+  A shared pass, so both backends agree.
+- **Multi-dimensional array fields in a TYPE**: `vertex(9, 2) AS SINGLE`,
+  `tag(1 TO 2, 0 TO 1) AS STRING` (the OpenGL, CGI and toolbar includes
+  use them), on both backends.
+- `IF c THEN: a: b: END IF` and `IF c THEN :a` with `ELSE :b` on the next
+  line: a colon right after THEN starts a block. A statement after a colon
+  may be a comment (`… : ' note`), and a redundant `END IF` may end a
+  one-line IF.
+- `=>` and `=<` for `>=` and `<=`.
+- `&H1&`, `&HFFFF&`: hex literals with the long-integer suffix, as the
+  Windows includes write them.
+- `CASE 4, 7  C = -2`: the body may follow the case list without a colon.
+- A line number in front of `NEXT`, `WEND` and the other ends of a block
+  (`310 NEXT I`), and in front of `DATA` (`130 DATA 1, 2`).
+
+### Fixed
+- **Native builds now share undeclared variables like the interpreter.** A
+  variable that is never DIMmed is global — one variable for the main
+  program and every SUB / FUNCTION, kept between calls. Natively each
+  routine got its own copy, so `q = 5` in a SUB never reached the main
+  program and `w = w + 1` restarted at 0 on every call.
+- A program that uses `pi` as a variable of its own (`3dcube.bas`) built
+  natively with an error; `pi` is a constant only while nothing assigns it.
+- **`$ESCAPECHARS ON` belongs to its own file.** A program that turned it
+  on before `$INCLUDE "RapidQ2.inc"` broke the include's plain `""`
+  strings; an include file now starts with it off, and the includer's
+  setting comes back after it.
+
+### Tests
+- Conformance: `syntax_forms`, `array_refs`, `type_multidim_fields`,
+  `implicit_globals`, `pi_variable`, and a preprocessor test for the
+  `$ESCAPECHARS` scope.
+
 ## [2.50.0] — 2026-09-28
 
 ### Added

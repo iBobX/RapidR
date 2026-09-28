@@ -36,6 +36,10 @@ struct PpState {
     include_dirs: Vec<PathBuf>,
     app_type: Option<String>,
     resources: Vec<Resource>,
+    /// `$ESCAPECHARS ON` is in effect (it belongs to the file it's in: an
+    /// include file starts with it off, and the includer's setting comes back
+    /// after the include).
+    escape_chars: bool,
 }
 
 impl PpState {
@@ -51,6 +55,7 @@ impl PpState {
             include_dirs: options.include_dirs,
             app_type: None,
             resources: Vec::new(),
+            escape_chars: false,
         }
     }
 
@@ -363,6 +368,9 @@ fn preprocess_with_state(
             || upper_line.starts_with("$ESCAPECHARS")
             || upper_line.starts_with("$THEME")
         {
+            if upper_line.starts_with("$ESCAPECHARS") {
+                state.escape_chars = strip_inline_comment(line.split_once(char::is_whitespace).map_or("", |(_, v)| v)).trim().eq_ignore_ascii_case("ON");
+            }
             // Extract $APPTYPE value
             if upper_line.starts_with("$APPTYPE") {
                 if let Some((_, value)) = line.split_once(char::is_whitespace) {
@@ -439,6 +447,12 @@ fn preprocess_with_state(
                 )
             })?;
 
+            // The include file has its own $ESCAPECHARS: off to begin with.
+            let escape_before = state.escape_chars;
+            if escape_before {
+                emit_line(&mut output_lines, &mut origins, &file_path, line_number, "$ESCAPECHARS OFF".to_string());
+                state.escape_chars = false;
+            }
             state.include_stack.push(include_path.clone());
             let nested = preprocess_with_state(
                 &include_source,
@@ -450,6 +464,12 @@ fn preprocess_with_state(
             let (nested_source, nested_origins) = nested?;
             output_lines.push(nested_source);
             origins.extend(nested_origins);
+            // …and the includer's comes back.
+            if state.escape_chars != escape_before {
+                let text = if escape_before { "$ESCAPECHARS ON" } else { "$ESCAPECHARS OFF" };
+                emit_line(&mut output_lines, &mut origins, &file_path, line_number, text.to_string());
+                state.escape_chars = escape_before;
+            }
             continue;
         }
 
@@ -1029,6 +1049,23 @@ mod tests {
         for (n, _) in crate::RAPIDQ_INC_CONSTANTS {
             assert!(seen.insert(n.to_ascii_lowercase()), "{n} is defined twice");
         }
+    }
+
+    #[test]
+    fn escapechars_belongs_to_its_file() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("rapidr-escape-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("lib.inc"), "p$ = \"\\\"\n").unwrap();
+        let main = root.join("main.rr");
+        fs::write(&main, "$ESCAPECHARS ON\n$INCLUDE \"lib.inc\"\nPRINT \"a\\tb\"\n").unwrap();
+        let result = preprocess_file(&main, PreprocessOptions::default()).unwrap();
+        let lines: Vec<&str> = result.source.lines().collect();
+        let off = lines.iter().position(|l| l.trim() == "$ESCAPECHARS OFF").expect("off before the include");
+        let on = lines.iter().rposition(|l| l.trim() == "$ESCAPECHARS ON").expect("on again after it");
+        let include = lines.iter().position(|l| l.contains("p$ =")).unwrap();
+        assert!(off < include && include < on, "{lines:?}");
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

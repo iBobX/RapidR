@@ -1064,7 +1064,13 @@ impl Lowering<'_> {
                         None => body.push(set(call_at(span, "__component_array", vec![text_at(span, &kind), id, lower, upper.clone()]))),
                     }
                 }
-                (Some(upper), None) => body.push(set(call_at(span, "__newarray", vec![field_fill(span, &f.type_name), lower, upper.clone()]))),
+                (Some(upper), None) => {
+                    let mut args = vec![field_fill(span, &f.type_name), lower, upper.clone()];
+                    for (lo, hi) in &f.more_dims {
+                        args.extend([lo.clone(), hi.clone()]);
+                    }
+                    body.push(set(call_at(span, "__newarray", args)));
+                }
                 (None, None) => body.push(set(field_fill(span, &f.type_name))),
             }
         }

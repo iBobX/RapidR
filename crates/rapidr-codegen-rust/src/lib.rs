@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program)));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -273,6 +273,55 @@ impl RustCodegen {
     }
 
     /// Check if a variable is a module-level scalar (DIM at top level, not component, not array, not UDT).
+    /// The names the program uses without declaring them (no DIM, parameter,
+    /// component, constant or routine of that name): the main program's and
+    /// every routine's, lowercase. A routine's own DIMs and parameters
+    /// shadow; names of builtins stay builtins unless assigned.
+    fn implicit_global_names(&self, program: &Program) -> HashSet<String> {
+        let main: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_) | Statement::Type(_))).cloned().collect();
+        let mut used: HashSet<String> = HashSet::new();
+        let mut assigned = assigned_names(&main);
+        collect_all_refs(&main, &mut used);
+        for stmt in &program.statements {
+            let (params, body): (Vec<String>, &[Statement]) = match stmt {
+                Statement::Subroutine(r) => (r.params.iter().map(|p| strip_type_suffix(&p.name).to_lowercase()).collect(), &r.body),
+                Statement::Function(f) => (f.params.iter().map(|p| strip_type_suffix(&p.name).to_lowercase()).collect(), &f.body),
+                _ => continue,
+            };
+            let mut local: HashSet<String> = params.into_iter().collect();
+            rapidr_ast::walk(
+                body,
+                &mut |s| {
+                    if let Statement::Dim(d) = s {
+                        local.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_lowercase()));
+                    }
+                    if let Statement::Create(c) = s {
+                        local.insert(c.name.to_lowercase());
+                    }
+                },
+                &mut |_| {},
+            );
+            let mut refs = HashSet::new();
+            collect_all_refs(body, &mut refs);
+            used.extend(refs.into_iter().filter(|n| !local.contains(n)));
+            assigned.extend(assigned_names(body).into_iter().filter(|n| !local.contains(n)));
+        }
+        used.into_iter()
+            .filter(|name| {
+                let n = name.as_str();
+                !self.top_level_vars.contains(n)
+                    && !self.defined_functions.contains(n)
+                    && !self.component_vars.contains_key(n)
+                    // (`RESULT` is a FUNCTION's own return value)
+                    && !matches!(n, "true" | "false" | "vttrue" | "vtfalse" | "_with_" | "result")
+                    && (n != "pi" || assigned.contains("pi"))
+                    && (builtin_function_call(n, &[]).is_none() || assigned.contains(n))
+                    && n.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                    && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            })
+            .collect()
+    }
+
     fn is_global_scalar(&self, name: &str) -> bool {
         let lower = strip_type_suffix(name).to_lowercase();
         !self.shadowed.contains(strip_type_suffix(&lower).as_str())
@@ -481,6 +530,13 @@ impl RustCodegen {
         // Second pass: collect all referenced variable names for implicit variable detection
         collect_all_refs(&program.statements, &mut self.all_referenced_vars);
 
+        // Variables that are never DIMmed are global — one variable shared by
+        // the main program and every routine, kept between calls — as in the
+        // VM: they join the module-level variables.
+        for name in self.implicit_global_names(&program) {
+            self.top_level_vars.insert(name);
+        }
+
         // Generated code declares every BYVAL parameter `mut` (BASIC may
         // assign to it); don't warn when a routine doesn't.
         self.line("#![allow(unused_mut, unused_labels, unreachable_code, unused_assignments)]");
@@ -550,7 +606,9 @@ impl RustCodegen {
                 !self.top_level_vars.contains(name.as_str())
                     && !self.defined_functions.contains(name.as_str())
                     && !self.component_vars.contains_key(name.as_str())
-                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "pi" | "_with_")
+                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
+                    // (`pi` is the constant unless the program assigns it)
+                    && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
             })
             .cloned()
@@ -1752,10 +1810,8 @@ impl RustCodegen {
                     && !self.component_vars.contains_key(name.as_str())
                     && !self.is_global_scalar(name)
                     && !self.is_global_array(name)
-                    && !matches!(
-                        name.as_str(),
-                        "true" | "false" | "vttrue" | "vtfalse" | "pi" | "_with_"
-                    )
+                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
+                    && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
             })
             .cloned()
@@ -2848,7 +2904,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
             "rp_new_object_array(&{a0}, &{a1}, &{a2}, &[{}])",
             bounds_list(args.get(3..).unwrap_or(&[]))
         )),
-        "__newarray" => Some(format!("rp_new_array(&[(({a1}).to_i64(), ({a2}).to_i64())], ({a0}).clone())")),
+        "__newarray" => Some(format!("rp_new_array(&[{}], ({a0}).clone())", bounds_list(args.get(1..).unwrap_or(&[])))),
         "__aget" => Some(format!("({a0}).rp_get(&[{}])", index_list(args.get(1..).unwrap_or(&[])))),
         "__aset" => {
             let (value, idx) = args.get(1..)?.split_last()?;
