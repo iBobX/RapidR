@@ -4502,6 +4502,86 @@ pub fn grid_refresh(name: &str) {
             t.redraw();
         }
     });
+    grid_owner_draw(&name);
+}
+
+/// OnDrawCell(Col, Row, State, Rect): fired for every cell after the grid
+/// changed (rapidr_value::objects::grid::StringGrid::owner_draw_needed);
+/// what the handler draws is kept per cell and drawn over it
+/// ([`grid_draw_cell`]). Each cell's Rect is a QRECT (a property bag).
+fn grid_owner_draw(name: &str) {
+    if !crate::object::rp_has_handler(name, "ondrawcell") {
+        return;
+    }
+    if !rapidr_value::objects::with_grid_mut(name, |g| g.owner_draw_needed()).unwrap_or(false) {
+        return;
+    }
+    let cells = rapidr_value::objects::with_grid(name, |g| g.owner_draw_cells()).unwrap_or_default();
+    for (col, row, state, (left, top, right, bottom)) in cells {
+        let rect = format!("{name}.cellrect({col},{row})");
+        for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
+            crate::object::rp_comp_set(&rect, prop, v_int(v));
+        }
+        rp_fire_event_args(name, "ondrawcell", &[v_int(col as i64), v_int(row as i64), v_int(state), v_str(&rect)]);
+    }
+}
+
+/// An &HBBGGRR color as FLTK's.
+fn bgr_color(c: u32) -> Color {
+    Color::from_rgb(c as u8, (c >> 8) as u8, (c >> 16) as u8)
+}
+
+/// Draws what OnDrawCell drew on a cell whose top left is (x, y).
+fn grid_replay(ops: &[rapidr_value::objects::grid::CellDraw], x: i32, y: i32) {
+    use rapidr_value::objects::grid::CellDraw;
+    let p = |v: i64| v.clamp(-100_000, 100_000) as i32;
+    for op in ops {
+        match op {
+            CellDraw::Line(x1, y1, x2, y2, c) => {
+                draw::set_draw_color(bgr_color(*c));
+                draw::draw_line(x + p(*x1), y + p(*y1), x + p(*x2), y + p(*y2));
+            }
+            CellDraw::Rect(x1, y1, x2, y2, c) => {
+                draw::set_draw_color(bgr_color(*c));
+                draw::draw_rect(x + p(*x1.min(x2)), y + p(*y1.min(y2)), p((x2 - x1).abs()), p((y2 - y1).abs()));
+            }
+            CellDraw::Fill(x1, y1, x2, y2, c) => {
+                draw::set_draw_color(bgr_color(*c));
+                draw::draw_rectf(x + p(*x1.min(x2)), y + p(*y1.min(y2)), p((x2 - x1).abs()), p((y2 - y1).abs()));
+            }
+            CellDraw::Ellipse(x1, y1, x2, y2, c, fill) => {
+                let (l, t, w, h) = (x + p(*x1.min(x2)), y + p(*y1.min(y2)), p((x2 - x1).abs()), p((y2 - y1).abs()));
+                if let Some(f) = fill {
+                    draw::set_draw_color(bgr_color(*f));
+                    draw::draw_pie(l, t, w, h, 0.0, 360.0);
+                }
+                draw::set_draw_color(bgr_color(*c));
+                draw::draw_arc(l, t, w, h, 0.0, 360.0);
+            }
+            CellDraw::Pixel(px, py, c) => {
+                draw::set_draw_color(bgr_color(*c));
+                draw::draw_point(x + p(*px), y + p(*py));
+            }
+            CellDraw::Text(tx, ty, text, c, bg) => {
+                draw::set_font(Font::Helvetica, 13);
+                let (tx, ty) = (x + p(*tx), y + p(*ty));
+                if let Some(bg) = bg {
+                    draw::set_draw_color(bgr_color(*bg));
+                    draw::draw_rectf(tx, ty, draw::width(text) as i32, draw::height());
+                }
+                draw::set_draw_color(bgr_color(*c));
+                draw::draw_text2(text, tx, ty, 0, draw::height(), Align::Left | Align::Top | Align::Inside);
+            }
+            CellDraw::Image(ix, iy, b) => {
+                let (w, h) = (b.img.width as i32, b.img.height as i32);
+                if w > 0 && h > 0 {
+                    if let Ok(mut img) = RgbImage::new(&b.to_rgba(), w, h, ColorDepth::Rgba8) {
+                        img.draw(x + p(*ix), y + p(*iy), w, h);
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -4521,13 +4601,14 @@ fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i
         return;
     }
     let Some((c, r)) = grid_cell_of(name, ctx, row, col) else { return };
-    let Some((text, fixed, selected, ellipsis, lines)) = rapidr_value::objects::with_grid(name, |g| {
+    let Some((text, fixed, selected, ellipsis, lines, drawn)) = rapidr_value::objects::with_grid(name, |g| {
         use rapidr_value::objects::grid::{GO_FIXED_HORZ_LINE, GO_HORZ_LINE, GO_ROW_SELECT};
         let (cu, ru) = (c as usize, r as usize);
         let fixed = ru < g.fixed_rows() || cu < g.fixed_cols();
         let selected = !fixed && g.row == r && (g.col == c || g.has_option(GO_ROW_SELECT));
         let lines = if fixed { g.has_option(GO_FIXED_HORZ_LINE) } else { g.has_option(GO_HORZ_LINE) };
-        (g.cell(cu, ru).to_string(), fixed, selected, grid_has_ellipsis(g, cu, ru), lines)
+        let drawn = g.owner_drawing.get(&(cu, ru)).cloned();
+        (g.cell(cu, ru).to_string(), fixed, selected, grid_has_ellipsis(g, cu, ru), lines, drawn)
     }) else {
         return;
     };
@@ -4545,13 +4626,18 @@ fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i
     let button = if ellipsis { h.min(w) } else { 0 };
     draw::set_font(Font::Helvetica, 13);
     draw::set_draw_color(if selected { Color::White } else { Color::Black });
+    // At Left + 2, Top + 2, as Delphi's grid draws a cell's text (an
+    // OnDrawCell TextOut there covers it exactly).
     if !(ellipsis && text == "...") {
-        draw::draw_text2(&text, x + 3, y, (w - 6 - button).max(0), h, Align::Left | Align::Inside | Align::Clip);
+        draw::draw_text2(&text, x + 2, y + 2, (w - 4 - button).max(0), (h - 2).max(0), Align::Left | Align::Top | Align::Inside | Align::Clip);
     }
     if ellipsis {
         draw::draw_box(FrameType::ThinUpBox, x + w - button, y, button, h, Color::from_rgb(230, 230, 230));
         draw::set_draw_color(Color::Black);
         draw::draw_text2("...", x + w - button, y, button, h, Align::Center);
+    }
+    if let Some(ops) = drawn {
+        grid_replay(&ops, x, y);
     }
     draw::pop_clip();
 }

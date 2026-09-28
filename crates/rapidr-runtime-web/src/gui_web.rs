@@ -180,7 +180,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI" => { /* no DOM element */ }
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI" | "RUDT" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
         "RDOM" => create_dom_element(&id, name, props),
@@ -2783,7 +2783,10 @@ fn render_grid_now(name: &str) {
                 let fixed = r < g.fixed_rows() || c < g.fixed_cols();
                 let selected = !fixed && g.row == r as i64 && (g.col == c as i64 || g.has_option(GO_ROW_SELECT));
                 let st = td.style();
-                let _ = st.set_property("padding", "0 3px");
+                // Text at Left + 2, Top + 2, as Delphi's grid (and the
+                // desktop runtime) draws it.
+                let _ = st.set_property("padding", "2px 2px 0 2px");
+                let _ = st.set_property("vertical-align", "top");
                 let _ = st.set_property("overflow", "hidden");
                 let _ = st.set_property("white-space", "nowrap");
                 let _ = st.set_property("cursor", "default");
@@ -2823,12 +2826,112 @@ fn render_grid_now(name: &str) {
                     let _ = bs.set_property("cursor", "pointer");
                     let _ = td.append_child(&button);
                 }
+                // What OnDrawCell drew, over the cell.
+                if let Some(ops) = g.owner_drawing.get(&(c, r)) {
+                    let _ = st.set_property("position", "relative");
+                    grid_replay(&td, ops, g.col_widths[c].clamp(0, 10_000) as u32, g.row_heights[r].clamp(0, 10_000) as u32);
+                }
                 let _ = tr.append_child(&td);
             }
             let _ = tbody.append_child(&tr);
         }
         let _ = table.append_child(&tbody);
     });
+    grid_owner_draw(name);
+}
+
+/// OnDrawCell(Col, Row, State, Rect): fired for every cell after the grid
+/// changed, as on the desktop (rapidr_value::objects::grid). Each cell's
+/// Rect is a QRECT (a property bag).
+fn grid_owner_draw(name: &str) {
+    if !crate::object_web::rp_has_handler(name, "ondrawcell") {
+        return;
+    }
+    if !rapidr_value::objects::with_grid_mut(name, |g| g.owner_draw_needed()).unwrap_or(false) {
+        return;
+    }
+    let cells = rapidr_value::objects::with_grid(name, |g| g.owner_draw_cells()).unwrap_or_default();
+    for (col, row, state, (left, top, right, bottom)) in cells {
+        let rect = format!("{}.CELLRECT({col},{row})", name.to_uppercase());
+        // A property bag, as the desktop runtime's.
+        crate::object_web::rp_create_component(&rect, "RUDT");
+        for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
+            crate::object_web::rp_comp_set(&rect, prop, v_int(v));
+        }
+        crate::object_web::rp_fire_event_args(name, "ondrawcell", &[v_int(col as i64), v_int(row as i64), v_int(state), crate::value::v_str(&rect)]);
+    }
+}
+
+/// Draws what OnDrawCell drew on a cell: a canvas over the cell.
+fn grid_replay(td: &web_sys::HtmlElement, ops: &[rapidr_value::objects::grid::CellDraw], w: u32, h: u32) {
+    use rapidr_value::objects::grid::CellDraw;
+    let Some(canvas) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    canvas.set_width(w.max(1));
+    canvas.set_height(h.max(1));
+    let cs = canvas.style();
+    let _ = cs.set_property("position", "absolute");
+    let _ = cs.set_property("left", "0");
+    let _ = cs.set_property("top", "0");
+    let _ = cs.set_property("pointer-events", "none");
+    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    let css = |c: u32| format!("rgb({},{},{})", c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
+    let f = |v: i64| v.clamp(-100_000, 100_000) as f64;
+    for op in ops {
+        match op {
+            CellDraw::Line(x1, y1, x2, y2, c) => {
+                ctx.set_stroke_style_str(&css(*c));
+                ctx.begin_path();
+                ctx.move_to(f(*x1) + 0.5, f(*y1) + 0.5);
+                ctx.line_to(f(*x2) + 0.5, f(*y2) + 0.5);
+                ctx.stroke();
+            }
+            CellDraw::Rect(x1, y1, x2, y2, c) => {
+                ctx.set_stroke_style_str(&css(*c));
+                ctx.stroke_rect(f(*x1.min(x2)) + 0.5, f(*y1.min(y2)) + 0.5, f((x2 - x1).abs() - 1), f((y2 - y1).abs() - 1));
+            }
+            CellDraw::Fill(x1, y1, x2, y2, c) => {
+                ctx.set_fill_style_str(&css(*c));
+                ctx.fill_rect(f(*x1.min(x2)), f(*y1.min(y2)), f((x2 - x1).abs()), f((y2 - y1).abs()));
+            }
+            CellDraw::Ellipse(x1, y1, x2, y2, c, fill) => {
+                let (rx, ry) = (f((x2 - x1).abs()) / 2.0, f((y2 - y1).abs()) / 2.0);
+                let (cx, cy) = (f(*x1.min(x2)) + rx, f(*y1.min(y2)) + ry);
+                ctx.begin_path();
+                let _ = ctx.ellipse(cx, cy, rx.max(0.0), ry.max(0.0), 0.0, 0.0, std::f64::consts::TAU);
+                if let Some(fc) = fill {
+                    ctx.set_fill_style_str(&css(*fc));
+                    ctx.fill();
+                }
+                ctx.set_stroke_style_str(&css(*c));
+                ctx.stroke();
+            }
+            CellDraw::Pixel(x, y, c) => {
+                ctx.set_fill_style_str(&css(*c));
+                ctx.fill_rect(f(*x), f(*y), 1.0, 1.0);
+            }
+            CellDraw::Text(x, y, text, c, bg) => {
+                ctx.set_font("13px sans-serif");
+                ctx.set_text_baseline("top");
+                if let Some(bg) = bg {
+                    let width = ctx.measure_text(text).map(|m| m.width()).unwrap_or(0.0);
+                    ctx.set_fill_style_str(&css(*bg));
+                    ctx.fill_rect(f(*x), f(*y), width, 15.0);
+                }
+                ctx.set_fill_style_str(&css(*c));
+                let _ = ctx.fill_text(text, f(*x), f(*y));
+            }
+            CellDraw::Image(x, y, b) => {
+                let (bw, bh) = (b.img.width as u32, b.img.height as u32);
+                if bw == 0 || bh == 0 {
+                    continue;
+                }
+                let rgba = b.to_rgba();
+                let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), bw, bh) else { continue };
+                let _ = ctx.put_image_data(&data, f(*x), f(*y));
+            }
+        }
+    }
+    let _ = td.append_child(&canvas);
 }
 
 /// Fills a QLISTVIEW's table from its data: a header row (unless

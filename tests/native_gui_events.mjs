@@ -15,6 +15,8 @@
 //   * tests/fixtures/list_items.bas — QLISTBOX / QCOMBOBOX items and selection;
 //   * tests/fixtures/picture_resource.bas — $RESOURCE, QIMAGE BMPHandle,
 //     AutoSize, Transparent, drawing, Pixel, OnClick;
+//   * tests/fixtures/grid_draw_cell.bas — QSTRINGGRID OnDrawCell (State,
+//     Rect, Sender, Repaint);
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -66,6 +68,8 @@ const cases = [
     expect: ["summary.caption=5|zero|four|a/b & c|3|Applepear|2|2", "lbl.caption=picked 3 four"] },
   { name: "picture_resource", events: "img.onclick,img.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=1|20x10|FF00|FF0000|80FFFF|40|FF|FFFFFF|-1", "lbl.caption=click;click;"] },
+  { name: "grid_draw_cell", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

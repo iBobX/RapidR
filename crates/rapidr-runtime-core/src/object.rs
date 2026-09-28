@@ -1010,13 +1010,17 @@ pub fn rp_bind_event_5(name: &str, event: &str, handler: fn(Value, Value, Value,
 }
 
 /// Runs the handler bound to `name`'s `event` with the event's arguments.
-/// An event without arguments passes the firing component (`Sender`, as in
-/// RapidQ's `SUB Button1Click (Sender AS QBUTTON)`). The handler is copied
-/// out first, so it may bind or fire other events.
+/// The firing component is passed last (`Sender`, as in RapidQ's `SUB
+/// Button1Click (Sender AS QBUTTON)`). The handler is copied out first, so
+/// it may bind or fire other events.
 fn fire(name: &str, event: &str, args: &[Value]) {
     let Some(handler) = lookup_handler(name, event) else { return };
-    let sender = [v_str(name)];
-    let args: &[Value] = if args.is_empty() { &sender } else { args };
+    // The firing component comes last (`Sender`), after the event's own
+    // arguments, as in RapidQ (`SUB DrawCell (Col%, Row%, State%, Rect AS
+    // QRECT, Sender AS QSTRINGGRID)`); handlers declaring fewer parameters
+    // don't get it.
+    let with_sender: Vec<Value> = args.iter().cloned().chain(std::iter::once(v_str(name))).collect();
+    let args: &[Value] = &with_sender;
     let a = |i: usize| args.get(i).cloned().unwrap_or_else(v_null);
     match handler {
         EventHandler::Arity0(f) => f(),
@@ -1067,6 +1071,12 @@ pub fn rp_bind_event_indirect_this(name: &str, event: &str, handler_id: u32, thi
 /// Bind a compiled closure (see [`EventHandler::Closure`]).
 pub fn rp_bind_event_closure(name: &str, event: &str, f: std::rc::Rc<dyn Fn(&[Value])>) {
     bind_handler(name, event, EventHandler::Closure(f));
+}
+
+/// Whether the program handles `name`'s `event` (the runtime then does the
+/// work to fire it, e.g. OnDrawCell for every cell).
+pub fn rp_has_handler(name: &str, event: &str) -> bool {
+    lookup_handler(name, event).is_some()
 }
 
 fn lookup_handler(name: &str, event: &str) -> Option<EventHandler> {

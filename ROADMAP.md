@@ -159,7 +159,8 @@ Next up, in order:
 - [ ] Resources next: `$RESOURCE` in the web IDE (project files), ICOHandle / IconHandle (forms, QIMAGE), PLAYWAV of a resource, non-BMP resources (JPG) on the desktop
 - [ ] Mouse event arguments: RapidQ's order is OnMouseDown/Up (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — QIMAGE follows it; QCANVAS and other controls still pass (X, Y, Button), which RapidR's own web IDE relies on
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
-- [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
+- [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)
+- [ ] QSTRINGGRID extras: gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
 - [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)
 - [x] QSPLITTER dragging on desktop and web (Delphi TSplitter: neighbour, MinSize, OnMoved) (v2.37.0)
 - [x] Form Width/Height include the frame (29px caption, 1px borders) and ClientWidth/ClientHeight exclude it and the menu, the same on desktop and web; bsNone has no frame (v2.37.0)
