@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.48.0] — 2026-09-28
+
+### Added
+- **`OnPaint`** for QCANVAS and QFORM, on desktop and web, natively and
+  interpreted. RapidQ programs draw their canvases there, and it was
+  never fired, so those programs showed nothing.
+  - It fires once when a form is built (the form, then each canvas),
+    again when a canvas is resized, and when the program calls the
+    canvas's `Repaint`, `Refresh`, `Update` or `Paint` (no arguments).
+  - It isn't fired when the window is only uncovered: a canvas keeps
+    what's drawn on it, so there is nothing to redraw. A handler that
+    draws can't make more `OnPaint` events.
+- Tests: `tests/fixtures/canvas_onpaint.bas` (native and interpreted agree)
+  and new checks in `tests/web_ide_canvas.mjs`.
+
+### Not yet
+- Drawing on a QFORM itself (`Form.TextOut`, `Form.Line`): its `OnPaint`
+  fires, but the form has no surface to draw on yet.
+
 ## [2.47.0] — 2026-09-28
 
 ### Added

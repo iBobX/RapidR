@@ -81,6 +81,58 @@ ok(shown && diff === 0, `the HTML canvas shows the model's pixels (${diff} of ${
 ok(ink > 100, `something was drawn (${ink} pixels not the background)`);
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 
+// OnPaint: fired when the form is built, and again by Repaint; what the
+// handler draws stays on the canvas.
+await page.evaluate(() => {
+  window.RapidR.runCommand("run.stop");
+  window.RapidR.state.project.forms[0].code = { handlers: {}, source: [
+    '$INCLUDE "RAPIDQ.INC"',
+    'DECLARE SUB PaintIt',
+    'DECLARE SUB Again',
+    'DIM paints AS INTEGER',
+    'CREATE Form AS QFORM',
+    '  Width = 300',
+    '  Height = 220',
+    '  CREATE B AS QBUTTON',
+    '    Caption = "Again"',
+    '    Left = 10',
+    '    Top = 100',
+    '    OnClick = Again',
+    '  END CREATE',
+    '  CREATE C AS QCANVAS',
+    '    Left = 10',
+    '    Top = 10',
+    '    Width = 100',
+    '    Height = 60',
+    '    OnPaint = PaintIt',
+    '  END CREATE',
+    'END CREATE',
+    'SUB PaintIt',
+    '  paints = paints + 1',
+    '  C.FillRect(0, 0, 30, 30, &HFF)',
+    '  PRINT "paint"; paints',
+    'END SUB',
+    'SUB Again',
+    '  C.Repaint',
+    'END SUB',
+    'Form.ShowModal',
+  ].join("\n") };
+  window.RapidR.runCommand("run.start");
+});
+await page.waitForTimeout(2500);
+let out2 = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]').textContent);
+ok(/paint1/.test(out2), `OnPaint fired when the form was built (${JSON.stringify(out2.slice(-30))})`);
+const frame2 = page.frames().find((f) => f.url().includes("preview.html"));
+await frame2.evaluate(() => document.getElementById("rr-b").click());
+await page.waitForTimeout(700);
+out2 = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]').textContent);
+ok(/paint2/.test(out2), `Repaint fires OnPaint again (${JSON.stringify(out2.slice(-30))})`);
+const red = await frame2.evaluate(() => {
+  const d = document.getElementById("rr-c").getContext("2d").getImageData(10, 10, 1, 1).data;
+  return Array.from(d).slice(0, 3).join(",");
+});
+ok(red === "255,0,0", `what OnPaint drew is on the canvas (${red})`);
+
 await page.screenshot({ path: "scratch/web_ide_canvas.png" });
 await browser.close();
 if (failed) { console.log(`\nCanvas: ${failed} CHECK(S) FAILED`); process.exit(1); }

@@ -707,6 +707,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
         crate::gui::redraw_widget(name);
+        rp_fire_event(name, "onpaint");
     }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
     if matches!(prop_lower.as_str(), "autosize" | "stretch" | "center" | "width" | "height") && rapidr_value::objects::is_picture(name) {
