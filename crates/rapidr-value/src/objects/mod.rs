@@ -183,6 +183,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RLISTVIEW" => Object::ListView(ListView::default()),
         "RSTRINGGRID" => Object::Grid(StringGrid::default()),
         "RLISTBOX" => Object::List(ItemList::new(false)),
+        "RSTRINGLIST" => Object::List(ItemList::new_string_list()),
         "RFILELISTBOX" => Object::List(ItemList::new_file_list()),
         "RDIRTREE" => Object::DirTree(dirtree::DirTree::default()),
         "RCOMBOBOX" => Object::List(ItemList::new(true)),

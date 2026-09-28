@@ -993,7 +993,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
         }
         "RJSON" => json_method(name, &method_lower, args),
-        "RSTRINGLIST" => stringlist_method(name, &method_lower, args),
         // Specialized GUI component method dispatch
         #[cfg(feature = "gui")]
         "RDESIGNSURFACE" => crate::gui::design_surface_method(name, &method_lower, args),
@@ -1428,8 +1427,6 @@ fn value_to_json(val: &Value) -> serde_json::Value {
     }
 }
 
-// ---------------------------------------------------------------------------
-// RStringList methods
 // ---------------------------------------------------------------------------
 
 thread_local! {

@@ -31,6 +31,20 @@ thread_local! {
     static SUSPEND: Cell<bool> = const { Cell::new(false) };
     static WAITING: Cell<bool> = const { Cell::new(false) };
     static RESUME: RefCell<Option<ResumeHandler>> = const { RefCell::new(None) };
+    /// The forms the program waits on (`ShowModal`), outermost first, and
+    /// whether each has closed yet.
+    static MODALS: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
+    /// The program's main body hasn't finished (it may wait for a dialog).
+    static MAIN_RUNNING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// The VM host says whether the program's main body is still running. A
+/// ShowModal in it doesn't wait: the IDE puts the startup form's ShowModal
+/// before the program's own statements, which run at once, as they always
+/// have in the browser. One in an event handler (a second form opened from
+/// a button) waits, as on the desktop.
+pub fn set_main_running(running: bool) {
+    MAIN_RUNNING.with(|m| m.set(running));
 }
 
 /// Installed by the VM host: how to continue the program after a dialog.
@@ -55,6 +69,70 @@ pub fn can_wait() -> bool {
 /// A dialog is open and the program is waiting for it.
 pub fn is_waiting() -> bool {
     WAITING.with(Cell::get)
+}
+
+/// `Form.ShowModal`: asks the VM to suspend the program until the form
+/// closes ([`modal_closed`]), as the desktop's ShowModal blocks. `false`
+/// where it can't wait (see the module docs): the caller then shows the
+/// form without waiting.
+pub fn begin_modal(form_id: &str) -> bool {
+    if MAIN_RUNNING.with(Cell::get) || VM_DEPTH.with(Cell::get) != 1 || is_waiting() || RESUME.with(|r| r.borrow().is_none()) {
+        return false;
+    }
+    MODALS.with(|m| m.borrow_mut().push((form_id.to_string(), false)));
+    SUSPEND.with(|s| s.set(true));
+    true
+}
+
+/// The form `form_id` closed (or hid): if the program waits on it, it
+/// continues — now, or, inside the VM, once the VM is idle again
+/// ([`resume_after_modal`]).
+pub fn modal_closed(form_id: &str) {
+    let waiting = MODALS.with(|m| {
+        m.borrow_mut().iter_mut().rev().find(|(id, closed)| id == form_id && !*closed).map(|e| e.1 = true).is_some()
+    });
+    if waiting && VM_DEPTH.with(Cell::get) == 0 {
+        while resume_after_modal() {}
+    }
+}
+
+/// Continues the program after the form it waits on closed: the innermost
+/// wait resumes when its form has closed and no message dialog is open (the
+/// dialog's answer goes to the code above it first). `true` if it did.
+pub fn resume_after_modal() -> bool {
+    if VM_DEPTH.with(Cell::get) != 0 || is_waiting() {
+        return false;
+    }
+    let due = MODALS.with(|m| {
+        let mut m = m.borrow_mut();
+        if m.last().is_some_and(|(_, closed)| *closed) {
+            m.pop();
+            true
+        } else {
+            false
+        }
+    });
+    if !due {
+        return false;
+    }
+    let handler = RESUME.with(|r| r.borrow().clone());
+    match handler {
+        Some(h) => {
+            h(Value::Null, None);
+            true
+        }
+        None => false,
+    }
+}
+
+/// The program waits in a ShowModal.
+pub fn modal_waiting() -> bool {
+    MODALS.with(|m| !m.borrow().is_empty())
+}
+
+/// Forgets the waits of a program that was replaced.
+pub fn clear_modals() {
+    MODALS.with(|m| m.borrow_mut().clear());
 }
 
 /// Asked by the VM host after each builtin: did it open a dialog?
