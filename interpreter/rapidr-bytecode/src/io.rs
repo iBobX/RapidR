@@ -32,9 +32,11 @@ impl Module {
         let mut out = Vec::with_capacity(256);
         out.extend_from_slice(MAGIC);
         out.extend_from_slice(&VERSION.to_le_bytes());
-        // flags: bit 0 = a source map follows the entry point.
+        // flags: bit 0 = a source map follows the entry point; bit 1 =
+        // resources follow (after the source map).
         let has_map = !self.source_map.runs.is_empty();
-        out.extend_from_slice(&(has_map as u16).to_le_bytes());
+        let has_resources = !self.resources.is_empty();
+        out.extend_from_slice(&(u16::from(has_map) | u16::from(has_resources) << 1).to_le_bytes());
 
         // consts
         write_u32(&mut out, self.consts.len() as u32);
@@ -67,6 +69,14 @@ impl Module {
                 for v in [a, b, c, d] {
                     write_u32(&mut out, v);
                 }
+            }
+        }
+        if has_resources {
+            write_u32(&mut out, self.resources.len() as u32);
+            for (name, bytes) in &self.resources {
+                write_str(&mut out, name);
+                write_u32(&mut out, bytes.len() as u32);
+                out.extend_from_slice(bytes);
             }
         }
         out
@@ -114,7 +124,16 @@ impl Module {
                 source_map.runs.push((r.read_u32()?, r.read_u32()?, r.read_u32()?, r.read_u32()?));
             }
         }
-        Ok(Module { consts, strings, functions, entry, source_map })
+        let mut resources = Vec::new();
+        if flags & 2 != 0 {
+            let n = r.read_count(8)?;
+            for _ in 0..n {
+                let name = read_str(&mut r)?;
+                let len = r.read_count(1)?;
+                resources.push((name, r.read_n(len)?.to_vec()));
+            }
+        }
+        Ok(Module { consts, strings, functions, entry, source_map, resources })
     }
 }
 
@@ -263,6 +282,18 @@ mod tests {
         bytes.extend_from_slice(&0u16.to_le_bytes());
         bytes.extend_from_slice(&u32::MAX.to_le_bytes());
         assert!(crate::Module::from_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn resources_round_trip() {
+        let mut m = Module::default();
+        m.resources = vec![("GRID_BMP".into(), vec![1, 2, 3]), ("E".into(), vec![])];
+        let back = Module::from_bytes(&m.to_bytes()).unwrap();
+        assert_eq!(back.resources, m.resources);
+        // A resource longer than the file is refused.
+        let mut bytes = m.to_bytes();
+        bytes.truncate(bytes.len() - 6);
+        assert!(Module::from_bytes(&bytes).is_err());
     }
 
     #[test]

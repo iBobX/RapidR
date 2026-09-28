@@ -5,6 +5,8 @@
 //! reference file I/O compile and run (gracefully degraded).
 
 use crate::value::{v_int, v_str, Value};
+/// `RESOURCE(n)`, `RESOURCECOUNT`, `EXTRACTRESOURCE` (shared, rapidr_value::resources).
+pub use crate::value::resources::{rp_extractresource, rp_resource, rp_resourcecount};
 use wasm_bindgen::prelude::*;
 
 fn warn(msg: &str) {

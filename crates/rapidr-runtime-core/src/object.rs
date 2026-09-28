@@ -557,8 +557,19 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
     // with the web runtime).
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
-        if let Err(e) = result {
-            eprintln!("[rapidr] {name}.{prop}: {e}");
+        let picture = rapidr_value::objects::is_picture(name);
+        match result {
+            // `Image.BMP = "photo.png"`: not a BMP; FLTK shows it.
+            Err(_) if picture && prop_lower == "bmp" => {
+                rp_comp_set(name, "__imagefile", val.clone());
+                #[cfg(feature = "gui")]
+                crate::gui::image_method(name, "loadfromfile", std::slice::from_ref(&val));
+            }
+            Err(e) => eprintln!("[rapidr] {name}.{prop}: {e}"),
+            Ok(()) => {}
+        }
+        if picture {
+            picture_changed(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_listview(name) {
@@ -634,10 +645,6 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if prop_lower == "text" && (comp_type == "RCODEEDITOR" || comp_type == "RRICHEDIT" || comp_type == "RMEMO") {
             crate::gui::gui_set_text(name, &val.to_string_val());
         }
-        // `Image.BMP = Bitmap.BMP` (or a file) on a shown image.
-        if prop_lower == "bmp" && comp_type == "RIMAGE" {
-            crate::gui::image_method(name, "loadfromfile", std::slice::from_ref(&val));
-        }
         // Update text on Input (REDIT)
         if prop_lower == "text" && comp_type == "REDIT" {
             crate::gui::gui_set_input_value(name, &val.to_string_val());
@@ -679,6 +686,15 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     });
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
+    if matches!(prop_lower.as_str(), "autosize" | "stretch" | "center" | "width" | "height") && rapidr_value::objects::is_picture(name) {
+        if prop_lower == "autosize" {
+            picture_changed(name);
+        } else {
+            #[cfg(feature = "gui")]
+            crate::gui::picture_refresh(name);
+        }
+    }
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::gui::gui_move_form(name);
@@ -795,6 +811,25 @@ pub fn rp_comp_type(name: &str) -> String {
     })
 }
 
+/// A QIMAGE's picture changed: with AutoSize the control takes the
+/// picture's size; the widget shows it again.
+fn picture_changed(name: &str) {
+    if rp_comp_get(name, "autosize").to_bool() {
+        if let Some(Some((w, h))) = rapidr_value::objects::with_picture(name, |b| {
+            (!b.img.pixels.is_empty()).then_some((b.img.width as i64, b.img.height as i64))
+        }) {
+            if rp_comp_get(name, "width").to_i64() != w {
+                rp_comp_set(name, "width", v_int(w));
+            }
+            if rp_comp_get(name, "height").to_i64() != h {
+                rp_comp_set(name, "height", v_int(h));
+            }
+        }
+    }
+    #[cfg(feature = "gui")]
+    crate::gui::picture_refresh(name);
+}
+
 /// Call a method on a registered component.
 /// Dispatches to the appropriate backend based on component type.
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
@@ -802,6 +837,17 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let method_lower = method.to_lowercase();
 
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
+        if rapidr_value::objects::is_picture(name) {
+            // `Image.LoadFromFile "photo.png"`: not a BMP; FLTK shows it.
+            if result.is_err() && matches!(method_lower.as_str(), "loadfromfile" | "load") {
+                if let Some(file) = args.first() {
+                    rp_comp_set(name, "__imagefile", file.clone());
+                }
+                #[cfg(feature = "gui")]
+                return crate::gui::image_method(name, &method_lower, args);
+            }
+            picture_changed(name);
+        }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_listview(name) {
             crate::gui::listview_refresh(name);

@@ -22,7 +22,7 @@
 // Env: RAPIDR_BIN (default ./rapidr), CONFORMANCE_WORK (scratch dir).
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync, cpSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -73,6 +73,9 @@ function runCodegen(name, src, input) {
   mkdirSync(dir, { recursive: true });
   const rr = join(dir, `${name}.rr`);
   copyFileSync(src, rr);
+  // Files cases build in with $RESOURCE, next to the copy as next to the case.
+  const resources = join(CASES, "resource_files");
+  if (existsSync(resources)) cpSync(resources, join(dir, "resource_files"), { recursive: true });
   const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target") };
   const c = run(RAPIDR, ["build", rr, join(dir, `${name}_rust`)], { env, timeout: 600_000 });
   const bin = join(dir, name);

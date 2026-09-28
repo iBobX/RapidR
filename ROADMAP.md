@@ -152,7 +152,12 @@ Next up, in order:
 - [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
 - [x] Native builds of real RapidQ programs: all 116 corpus programs that compile to bytecode `cargo check` natively (from 49; objects by name, WITH on any object, indexed properties, builtin-named variables, nested SUBs, argument fitting) — `tools/corpus_native.sh` (v2.33.0)
 - [x] Native corpus programs run like the interpreter: `tools/corpus_compare.mjs` runs both builds and compares output and window captures — 99/102 identical, the other 3 use RND/TIMER (v2.38.0)
-- [ ] Corpus gaps both backends share (found by corpus_compare): ~~QMEMORYSTREAM SaveArray/LoadArray~~ (v2.39.0), QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board), Printer methods
+- [ ] Corpus gaps both backends share (found by corpus_compare): ~~QMEMORYSTREAM SaveArray/LoadArray~~ (v2.39.0), ~~QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board)~~ (v2.40.0), Printer methods
+- [x] Corpus comparison after v2.40.0: 98/101 identical (3 RND/TIMER); rotate.bas needs its missing `$RESOURCE` file
+- [x] `$RESOURCE` on both backends: files built into the program (bytecode section / `include_bytes!`), RESOURCE(n), RESOURCECOUNT, EXTRACTRESOURCE, `Stream.ExtractRes`, BMPHandle, AddBMPHandle (v2.40.0)
+- [x] QIMAGE as a picture from the shared Bitmap model on desktop and web: BMP / BMPHandle, AutoSize, Stretch, Center, Transparent, drawing, Pixel; RapidQ's mouse events; MOUSEX / MOUSEY (v2.40.0)
+- [ ] Resources next: `$RESOURCE` in the web IDE (project files), ICOHandle / IconHandle (forms, QIMAGE), PLAYWAV of a resource, non-BMP resources (JPG) on the desktop
+- [ ] Mouse event arguments: RapidQ's order is OnMouseDown/Up (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — QIMAGE follows it; QCANVAS and other controls still pass (X, Y, Button), which RapidR's own web IDE relies on
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [ ] QSTRINGGRID extras: OnDrawCell with the grid's drawing methods (FillRect, TextOut, … on a cell), gcsList drop-down lists (ColumnList / OnListDropDown), goRangeSelect ranges, row/column sizing and moving by mouse, VisibleRowCount/VisibleColCount
 - [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)
@@ -165,7 +170,7 @@ Next up, in order:
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
 - [ ] Fuzzing in CI
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
-- [ ] Streams: ReadUDT/WriteUDT, ExtractRes (LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0)
+- [ ] Streams: ReadUDT/WriteUDT (LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0, ExtractRes in v2.40.0)
 - [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
@@ -192,7 +197,7 @@ Next up, in order:
 - [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
 - [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)
 - [ ] Runtimes: implement the remaining RapidQ objects (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM done in v2.20.0) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
-- [ ] Accept `$RESOURCE`, `$OPTION ICON`, etc. (`$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
+- [ ] Accept `$OPTION ICON`, etc. (`$RESOURCE` since v2.40.0; `$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [ ] Fix builtins per the manual: `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM

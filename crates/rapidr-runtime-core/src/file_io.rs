@@ -4,6 +4,8 @@
 //! Files are tracked by integer handle in a thread-local table.
 
 use crate::value::{v_int, v_str, Value};
+/// `RESOURCE(n)`, `RESOURCECOUNT`, `EXTRACTRESOURCE` (shared, rapidr_value::resources).
+pub use crate::value::resources::{rp_extractresource, rp_resource, rp_resourcecount};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};

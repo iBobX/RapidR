@@ -1262,10 +1262,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let mut frm = Frame::new(x, y, w, h, None);
             frm.set_frame(FrameType::FlatBox);
-            // Load image if BMP/filename is set
-            let bmp = rp_comp_get(name, "bmp").to_string_val();
-            if !bmp.is_empty() {
-                if let Some(mut img) = load_shared_image(&bmp) {
+            // A picture other than a BMP (PNG, JPEG, …: FLTK reads it).
+            let file = rp_comp_get(name, "__imagefile").to_string_val();
+            if !file.is_empty() {
+                if let Some(mut img) = load_shared_image(&file) {
                     let stretch = rp_comp_get(name, "stretch").to_i64() != 0;
                     if stretch {
                         img.scale(w, h, true, true);
@@ -1273,9 +1273,11 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     frm.set_image(Some(img));
                 }
             }
+            frm.handle(picture_mouse(&name_lower));
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::ImageFrame(frm));
+                gw.borrow_mut().insert(name_lower.clone(), GuiWidget::ImageFrame(frm));
             });
+            picture_refresh(&name_lower);
         }
         "RSPLITTER" => {
             // Dragging it resizes the control next to it (layout.rs,
@@ -3735,6 +3737,112 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
     }
+}
+
+/// RapidQ's mouse button (mbLeft = 0, mbRight = 1, mbMiddle = 2) of the
+/// current FLTK event.
+fn mouse_button() -> i64 {
+    match app::event_mouse_button() {
+        app::MouseButton::Right => 1,
+        app::MouseButton::Middle => 2,
+        _ => 0,
+    }
+}
+
+/// RapidQ's Shift state (RAPIDQ.INC: ssShift = 256, ssCtrl = 16, ssAlt = 1)
+/// of the current FLTK event.
+fn mouse_shift() -> i64 {
+    let s = app::event_state();
+    let mut shift = 0;
+    if s.contains(fltk::enums::Shortcut::Shift) {
+        shift |= 256;
+    }
+    if s.contains(fltk::enums::Shortcut::Ctrl) {
+        shift |= 16;
+    }
+    if s.contains(fltk::enums::Shortcut::Alt) {
+        shift |= 1;
+    }
+    shift
+}
+
+/// A QIMAGE's mouse events (manual): OnMouseDown / OnMouseUp (Button, X,
+/// Y, Shift), OnMouseMove (X, Y, Shift), OnClick, OnDblClick; X and Y are
+/// in the image.
+fn picture_mouse(name: &str) -> impl FnMut(&mut Frame, Event) -> bool {
+    let name = name.to_string();
+    move |f, ev| {
+        let (x, y) = (v_int((app::event_x() - f.x()) as i64), v_int((app::event_y() - f.y()) as i64));
+        match ev {
+            Event::Push => {
+                crate::object::rp_fire_event_args(&name, "onmousedown", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
+                true
+            }
+            Event::Released => {
+                crate::object::rp_fire_event_args(&name, "onmouseup", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
+                rp_fire_event(&name, if app::event_clicks() { "ondblclick" } else { "onclick" });
+                true
+            }
+            Event::Move | Event::Drag => {
+                crate::object::rp_fire_event_args(&name, "onmousemove", &[x, y, v_int(mouse_shift())]);
+                true
+            }
+            // Receive Move events.
+            Event::Enter | Event::Leave => true,
+            _ => false,
+        }
+    }
+}
+
+/// `MOUSEX` / `MOUSEY`: the mouse pointer relative to the active form's
+/// client area (below its menu).
+pub fn mouse_in_form() -> (i64, i64) {
+    let (sx, sy) = app::get_mouse();
+    let Some(win) = app::first_window() else { return (sx as i64, sy as i64) };
+    let ptr = win.as_widget_ptr();
+    let form = GUI_WIDGETS.with(|gw| {
+        gw.try_borrow().ok().and_then(|w| {
+            w.iter().find_map(|(n, g)| match g {
+                GuiWidget::Window(v) if v.as_widget_ptr() == ptr => Some(n.clone()),
+                _ => None,
+            })
+        })
+    });
+    let menu = form.as_deref().map_or(0, menu_offset);
+    ((sx - win.x_root()) as i64, (sy - win.y_root() - menu) as i64)
+}
+
+/// Shows a QIMAGE's picture (rapidr_value::objects, a Bitmap): at the top
+/// left, centered (Center) or scaled to the control (Stretch); with
+/// Transparent, pixels of the transparent color show what's behind.
+/// An image without a picture keeps what it shows (a PNG loaded by FLTK).
+pub fn picture_refresh(name: &str) {
+    let name_lower = name.to_lowercase();
+    let Some(Some((w, h, rgba, transparent))) = rapidr_value::objects::with_picture(&name_lower, |b| {
+        (!b.img.pixels.is_empty()).then(|| (b.img.width as i32, b.img.height as i32, b.to_rgba(), b.transparent))
+    }) else {
+        return;
+    };
+    let stretch = rp_comp_get(&name_lower, "stretch").to_bool();
+    let center = rp_comp_get(&name_lower, "center").to_bool();
+    GUI_WIDGETS.with(|gw| {
+        let Ok(mut widgets) = gw.try_borrow_mut() else { return };
+        let Some(GuiWidget::ImageFrame(frm)) = widgets.get_mut(&name_lower) else { return };
+        let Ok(img) = RgbImage::new(&rgba, w, h, ColorDepth::Rgba8) else { return };
+        let Ok(mut img) = SharedImage::from_image(&img) else { return };
+        if stretch && frm.w() > 0 && frm.h() > 0 {
+            img.scale(frm.w(), frm.h(), false, true);
+        }
+        frm.set_frame(if transparent { FrameType::NoBox } else { FrameType::FlatBox });
+        frm.set_align(if center || stretch { Align::Center | Align::Inside } else { Align::Left | Align::Top | Align::Inside });
+        frm.set_image(Some(img));
+        frm.redraw();
+        if transparent {
+            if let Some(mut parent) = frm.parent() {
+                parent.redraw();
+            }
+        }
+    });
 }
 
 /// An image for a widget: a QBITMAP (by id, or the `data:` URL its `.BMP`

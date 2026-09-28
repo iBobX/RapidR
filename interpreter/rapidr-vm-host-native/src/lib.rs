@@ -250,6 +250,11 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "messagedlg" => rp_messagedlg(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null)),
         "direxists" => rp_direxists(&a0),
         "fileexists" => rp_fileexists(&a0),
+        "resource" => rp_resource(&a0),
+        "resourcecount" => rp_resourcecount(),
+        "mousex" => rp_mousex(),
+        "mousey" => rp_mousey(),
+        "extractresource" => { rp_extractresource(&a0, &a1); v_null() }
         "shell" => rp_shell(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
@@ -405,6 +410,7 @@ fn serve_app<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
 /// `rapidrintr-runner` stub binary (Phase 8: bytecode → single exe).
 pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     let module = Module::from_bytes(bytes).map_err(|e| format!("decode error: {e}"))?;
+    rapidr_runtime_core::value::resources::set_all(&module.resources);
     let mut host = NativeHost::default();
     let mut vm = Vm::new(&mut host);
     let prev = install_event_queue();

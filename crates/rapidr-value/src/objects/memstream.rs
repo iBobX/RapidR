@@ -43,7 +43,7 @@ impl FileSink {
 }
 
 /// Methods that change a stream (refused on a file opened for reading).
-pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "copyfrom"];
+pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "copyfrom", "extractres"];
 
 /// Largest stream allowed, so `Mem.Size = 1E12` fails cleanly.
 const MAX_SIZE: usize = 1 << 31;
@@ -197,6 +197,15 @@ impl MemStream {
                 v_int(self.pos as i64)
             }
             "eof" => v_int(if self.pos >= self.data.len() { -1 } else { 0 }),
+            // `Mem.ExtractRes(Resource(0))`: the resource's bytes, written
+            // at the position (rapidr_value::resources).
+            "extractres" => {
+                match crate::resources::bytes(arg(0).to_i64()) {
+                    Some(b) => self.write(&b),
+                    None => eprintln!("[rapidr] ExtractRes: no resource {}", arg(0).to_i64()),
+                }
+                Value::Null
+            }
             _ => return None,
         })
     }

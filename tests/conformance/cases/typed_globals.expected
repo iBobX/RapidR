@@ -13,3 +13,4 @@ goto 3
 gosub at 2
 fr 4
 number? got 42
+panel 21 42

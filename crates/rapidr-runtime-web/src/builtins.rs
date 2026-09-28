@@ -869,3 +869,13 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
         [] => v_int(0),
     }
 }
+
+/// `MOUSEX` / `MOUSEY`: the mouse relative to the client area of the form
+/// it's over (gui_web::mouse_in_form).
+pub fn rp_mousex() -> Value {
+    v_int(crate::gui_web::mouse_in_form().0)
+}
+
+pub fn rp_mousey() -> Value {
+    v_int(crate::gui_web::mouse_in_form().1)
+}
