@@ -26,6 +26,8 @@
 //     (Pixel, TextWidth, a resize paints again);
 //   * tests/fixtures/owner_list.bas — an owner-drawn QLISTBOX (OnDrawItem's
 //     State and Rect, redrawn when the selection changes);
+//   * tests/fixtures/dotted_paint.bas — a canvas's OnPaint handler named with
+//     a dot (`bups.OnPaint = bups.paint`);
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //

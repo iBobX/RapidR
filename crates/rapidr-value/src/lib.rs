@@ -11,6 +11,7 @@ pub mod variadic;
 pub mod data;
 pub mod console;
 pub mod dialogs;
+pub mod basic_files;
 pub mod objects;
 pub mod layout;
 pub mod resources;

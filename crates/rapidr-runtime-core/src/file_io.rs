@@ -8,244 +8,42 @@ use crate::value::{v_int, v_str, Value};
 pub use crate::value::resources::{rp_extractresource, rp_resource, rp_resourcecount};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write};
+use std::fs;
 use std::path::Path;
 
-enum FileHandle {
-    Reader(BufReader<File>),
-    Writer(BufWriter<File>),
-}
-
 thread_local! {
-    static FILE_HANDLES: RefCell<HashMap<i64, FileHandle>> = RefCell::new(HashMap::new());
     static DIR_ITER: RefCell<Option<std::vec::IntoIter<String>>> = RefCell::new(None);
 }
 
-// ---------------------------------------------------------------------------
-// FREEFILE — return next available file number
-// ---------------------------------------------------------------------------
-
+// BASIC file I/O by file number is shared with the web runtime and the
+// interpreter (rapidr_value::basic_files).
+pub use crate::value::basic_files::{close_all as rp_close_all, input_field as rp_input_field};
 pub fn rp_freefile() -> Value {
-    FILE_HANDLES.with(|fh| {
-        let map = fh.borrow();
-        for i in 1..=255 {
-            if !map.contains_key(&i) {
-                return v_int(i);
-            }
-        }
-        v_int(0)
-    })
+    crate::value::basic_files::freefile()
 }
-
-// ---------------------------------------------------------------------------
-// OPEN "filename" FOR mode AS #n
-// ---------------------------------------------------------------------------
-
 pub fn rp_open(filename: &Value, mode: &Value, file_num: &Value) {
-    let path = filename.to_string_val();
-    let mode_str = mode.to_string_val().to_uppercase();
-    let num = file_num.to_i64();
-
-    let handle = match mode_str.as_str() {
-        "INPUT" => {
-            File::open(&path).ok().map(|f| FileHandle::Reader(BufReader::new(f)))
-        }
-        "OUTPUT" => {
-            File::create(&path).ok().map(|f| FileHandle::Writer(BufWriter::new(f)))
-        }
-        "APPEND" => {
-            OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&path)
-                .ok()
-                .map(|f| FileHandle::Writer(BufWriter::new(f)))
-        }
-        "BINARY" | "RANDOM" => {
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(&path)
-                .ok()
-                .map(|f| FileHandle::Writer(BufWriter::new(f)))
-        }
-        _ => {
-            // Default to input
-            File::open(&path).ok().map(|f| FileHandle::Reader(BufReader::new(f)))
-        }
-    };
-
-    if let Some(h) = handle {
-        FILE_HANDLES.with(|fh| {
-            fh.borrow_mut().insert(num, h);
-        });
-    }
+    crate::value::basic_files::open(filename, mode, file_num)
 }
-
-// ---------------------------------------------------------------------------
-// CLOSE #n
-// ---------------------------------------------------------------------------
-
 pub fn rp_close(file_num: &Value) {
-    let num = file_num.to_i64();
-    FILE_HANDLES.with(|fh| {
-        if let Some(handle) = fh.borrow_mut().remove(&num) {
-            // Flush writer before dropping
-            if let FileHandle::Writer(mut w) = handle {
-                let _ = w.flush();
-            }
-        }
-    });
+    crate::value::basic_files::close(file_num)
 }
-
-// ---------------------------------------------------------------------------
-// LINE INPUT #n — read a line from file
-// ---------------------------------------------------------------------------
-
 pub fn rp_line_input(file_num: &Value) -> Value {
-    let num = file_num.to_i64();
-    FILE_HANDLES.with(|fh| {
-        let mut map = fh.borrow_mut();
-        if let Some(FileHandle::Reader(reader)) = map.get_mut(&num) {
-            let mut line = String::new();
-            match reader.read_line(&mut line) {
-                Ok(0) => v_str(""),
-                Ok(_) => {
-                    // Strip trailing newline
-                    if line.ends_with('\n') {
-                        line.pop();
-                    }
-                    if line.ends_with('\r') {
-                        line.pop();
-                    }
-                    Value::String(line)
-                }
-                Err(_) => v_str(""),
-            }
-        } else {
-            v_str("")
-        }
-    })
+    crate::value::basic_files::line_input(file_num)
 }
-
-// ---------------------------------------------------------------------------
-// PRINT #n — write to file
-// ---------------------------------------------------------------------------
-
 pub fn rp_print_hash(file_num: &Value, items: &[Value]) {
-    let num = file_num.to_i64();
-    FILE_HANDLES.with(|fh| {
-        let mut map = fh.borrow_mut();
-        if let Some(FileHandle::Writer(writer)) = map.get_mut(&num) {
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    let _ = write!(writer, " ");
-                }
-                let _ = write!(writer, "{}", item.to_string_val());
-            }
-            let _ = writeln!(writer);
-        }
-    });
+    crate::value::basic_files::print_hash(file_num, items)
 }
-
-// ---------------------------------------------------------------------------
-// WRITE #n — write comma-separated quoted values
-// ---------------------------------------------------------------------------
-
 pub fn rp_write_hash(file_num: &Value, items: &[Value]) {
-    let num = file_num.to_i64();
-    FILE_HANDLES.with(|fh| {
-        let mut map = fh.borrow_mut();
-        if let Some(FileHandle::Writer(writer)) = map.get_mut(&num) {
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    let _ = write!(writer, ",");
-                }
-                match item {
-                    Value::String(s) => {
-                        let _ = write!(writer, "\"{}\"", s);
-                    }
-                    _ => {
-                        let _ = write!(writer, "{}", item.to_string_val());
-                    }
-                }
-            }
-            let _ = writeln!(writer);
-        }
-    });
+    crate::value::basic_files::write_hash(file_num, items)
 }
-
-// ---------------------------------------------------------------------------
-// EOF(#n) — check if at end of file
-// ---------------------------------------------------------------------------
-
 pub fn rp_eof(file_num: &Value) -> Value {
-    let num = file_num.to_i64();
-    FILE_HANDLES.with(|fh| {
-        let mut map = fh.borrow_mut();
-        if let Some(FileHandle::Reader(reader)) = map.get_mut(&num) {
-            // Check if next read would return 0 bytes
-            match reader.fill_buf() {
-                Ok(buf) => v_int(if buf.is_empty() { -1 } else { 0 }),
-                Err(_) => v_int(-1),
-            }
-        } else {
-            v_int(-1)
-        }
-    })
+    crate::value::basic_files::eof(file_num)
 }
-
-// ---------------------------------------------------------------------------
-// LOF(#n) — length of open file
-// ---------------------------------------------------------------------------
-
 pub fn rp_lof(file_num: &Value) -> Value {
-    let num = file_num.to_i64();
-    FILE_HANDLES.with(|fh| {
-        let mut map = fh.borrow_mut();
-        match map.get_mut(&num) {
-            Some(FileHandle::Reader(reader)) => {
-                let inner = reader.get_mut();
-                let pos = inner.stream_position().unwrap_or(0);
-                let end = inner.seek(SeekFrom::End(0)).unwrap_or(0);
-                let _ = inner.seek(SeekFrom::Start(pos));
-                v_int(end as i64)
-            }
-            Some(FileHandle::Writer(writer)) => {
-                let _ = writer.flush();
-                let inner = writer.get_mut();
-                let pos = inner.stream_position().unwrap_or(0);
-                let end = inner.seek(SeekFrom::End(0)).unwrap_or(0);
-                let _ = inner.seek(SeekFrom::Start(pos));
-                v_int(end as i64)
-            }
-            None => v_int(0),
-        }
-    })
+    crate::value::basic_files::lof(file_num)
 }
-
-// ---------------------------------------------------------------------------
-// SEEK #n, pos — set file position (1-based)
-// ---------------------------------------------------------------------------
-
 pub fn rp_seek(file_num: &Value, position: &Value) {
-    let num = file_num.to_i64();
-    let pos = (position.to_i64() - 1).max(0) as u64;
-    FILE_HANDLES.with(|fh| {
-        let mut map = fh.borrow_mut();
-        match map.get_mut(&num) {
-            Some(FileHandle::Reader(reader)) => {
-                let _ = reader.seek(SeekFrom::Start(pos));
-            }
-            Some(FileHandle::Writer(writer)) => {
-                let _ = writer.flush();
-                let _ = writer.seek(SeekFrom::Start(pos));
-            }
-            None => {}
-        }
-    });
+    crate::value::basic_files::seek(file_num, position)
 }
 
 // ---------------------------------------------------------------------------
@@ -372,6 +170,7 @@ pub fn rp_chdir(path: &Value) {
 mod tests {
     use super::*;
     use crate::value::{v_int, v_str};
+    use std::fs::File;
     use std::io::Write;
 
     #[test]

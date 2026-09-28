@@ -42,6 +42,8 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|36|"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  { name: "dotted_paint", events: "", dump: "lbl.caption",
+    expect: ["lbl.caption=painted 255"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

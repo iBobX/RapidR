@@ -1,0 +1,7 @@
+free 1
+[Hello World]
+[a b] 14 [z]
+rest: last line
+lof 34 eof -1
+lines 4
+missing: eof -1 [Hello World]

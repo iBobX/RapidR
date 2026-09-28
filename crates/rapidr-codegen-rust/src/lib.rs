@@ -322,6 +322,24 @@ impl RustCodegen {
             .collect()
     }
 
+    /// The SUB an expression names as an event handler: `Handler`, or a
+    /// routine defined with a dotted name (`bups.OnPaint = bups.paint`,
+    /// `SUB bups.paint`), as its Rust function's name.
+    fn handler_name(&self, e: &Expression) -> Option<String> {
+        match e {
+            Expression::Identifier(id) => {
+                let n = strip_type_suffix(&id.name).to_lowercase();
+                self.defined_functions.contains(&n).then(|| to_snake(&n))
+            }
+            Expression::MemberAccess(ma) => {
+                let Expression::Identifier(o) = ma.object.as_ref() else { return None };
+                let full = format!("{}.{}", o.name, ma.member).to_lowercase();
+                self.defined_functions.contains(&full).then(|| to_snake(&full))
+            }
+            _ => None,
+        }
+    }
+
     fn is_global_scalar(&self, name: &str) -> bool {
         let lower = strip_type_suffix(name).to_lowercase();
         !self.shadowed.contains(strip_type_suffix(&lower).as_str())
@@ -640,6 +658,9 @@ impl RustCodegen {
         // For web targets, finalize: auto-parent orphan widgets and show forms
         if self.target == AppTarget::Web {
             self.line("gui_web_finalize();");
+        } else {
+            // Files the program never closed keep what was written.
+            self.line("rp_close_all();");
         }
 
         self.indent -= 1;
@@ -958,10 +979,7 @@ impl RustCodegen {
                 let value = self.owned_expr(&a.value);
                 // Event binding: comp.OnClick = handler
                 if prop.starts_with("on") {
-                    let handler = match &a.value {
-                        Expression::Identifier(id) => to_snake(&strip_type_suffix(&id.name)),
-                        _ => value.clone(),
-                    };
+                    let handler = self.handler_name(&a.value).unwrap_or_else(|| value.clone());
                     self.emit_bind_event_call(&comp_name, &prop, &handler);
                     return;
                 }
@@ -995,10 +1013,7 @@ impl RustCodegen {
                         let prop = ma.member.to_lowercase();
                         let value = self.owned_expr(&a.value);
                         if prop.starts_with("on") {
-                            let handler = match &a.value {
-                                Expression::Identifier(hid) => to_snake(&strip_type_suffix(&hid.name)),
-                                _ => value.clone(),
-                            };
+                            let handler = self.handler_name(&a.value).unwrap_or_else(|| value.clone());
                             self.emit_bind_event_call(&with_comp, &prop, &handler);
                             return;
                         }
@@ -1030,12 +1045,9 @@ impl RustCodegen {
                     if id.name != "_with_" {
                         let prop = ma.member.to_lowercase();
                         if prop.starts_with("on") {
-                            if let Expression::Identifier(h) = &a.value {
-                                let handler = strip_type_suffix(&h.name).to_lowercase();
-                                if self.defined_functions.contains(&handler) {
-                                    self.emit_bind_event_call(&id.name.to_lowercase(), &prop, &to_snake(&handler));
-                                    return;
-                                }
+                            if let Some(handler) = self.handler_name(&a.value) {
+                                self.emit_bind_event_call(&id.name.to_lowercase(), &prop, &handler);
+                                return;
                             }
                         }
                         let receiver = self.receiver(&ma.object);
@@ -1085,10 +1097,7 @@ impl RustCodegen {
                 let prop = id.name.to_lowercase();
                 let value = self.owned_expr(&a.value);
                 if prop.starts_with("on") {
-                    let handler = match &a.value {
-                        Expression::Identifier(hid) => to_snake(&strip_type_suffix(&hid.name)),
-                        _ => value.clone(),
-                    };
+                    let handler = self.handler_name(&a.value).unwrap_or_else(|| value.clone());
                     self.emit_bind_event_call(&obj, &prop, &handler);
                     return;
                 }
@@ -2348,6 +2357,7 @@ impl RustCodegen {
                     "date" | "date$" => Some("rp_date()"),
                     "command$" => Some("rp_command()"),
                     "timer" => Some("rp_timer()"),
+                    "freefile" => Some("rp_freefile()"),
                     "csrlin" => Some("console::csrlin()"),
                     "curdir" | "curdir$" => Some("rp_curdir()"),
                     "rnd" | "rnd!" | "rnd#" => Some("rp_rnd(&v_null())"),
@@ -2948,6 +2958,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "lof" => Some(format!("rp_lof(&{a0})")),
         "filelen" => Some(format!("rp_filelen(&{a0})")),
         "line_input" => Some(format!("rp_line_input(&{a0})")),
+        "input_field" => Some(format!("rp_input_field(&{a0})")),
 
         // File/directory management
         "mkdir" => Some(format!("rp_mkdir(&{a0})")),

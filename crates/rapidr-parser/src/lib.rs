@@ -403,7 +403,46 @@ impl<'a> Parser<'a> {
         stmt
     }
 
+    /// `INPUT #n, a, b` and `LINE INPUT #n, s`: reads from the file open as
+    /// #n, as assignments of the `input_field` / `line_input` builtins.
+    fn parse_file_input(&mut self, line: bool) -> Option<Statement> {
+        let start = self.pos;
+        if line {
+            self.advance()?; // LINE
+        }
+        self.advance()?; // INPUT
+        self.expect(TokenType::Hash)?;
+        let file = self.parse_expression()?;
+        self.expect(TokenType::Comma)?;
+        let builtin = if line { "line_input" } else { "input_field" };
+        let mut assignments = Vec::new();
+        loop {
+            let target = self.parse_postfix_expression()?;
+            let span = self.span_from(start);
+            let read = Expression::FunctionCall(FunctionCallExpression {
+                span,
+                callee: Box::new(Expression::Identifier(Identifier { span, name: builtin.into() })),
+                args: vec![file.clone()],
+            });
+            assignments.push(Statement::Assignment(AssignmentStatement { span, target, value: read }));
+            if line || !self.match_kind(TokenType::Comma) {
+                break;
+            }
+        }
+        let mut rest = assignments.into_iter();
+        let first = rest.next()?;
+        self.pending.extend(rest);
+        Some(first)
+    }
+
     fn parse_statement_inner(&mut self) -> Option<Statement> {
+        // `LINE INPUT #n, s`
+        if self.peek().is_some_and(|t| t.kind == TokenType::Identifier && t.lexeme.eq_ignore_ascii_case("LINE"))
+            && self.peek_kind_at(1) == Some(TokenType::Input)
+            && self.peek_kind_at(2) == Some(TokenType::Hash)
+        {
+            return self.parse_file_input(true);
+        }
         match self.peek_kind()? {
             TokenType::Directive => self.parse_directive(),
             TokenType::Dim => self.parse_declaration(None),
@@ -450,10 +489,11 @@ impl<'a> Parser<'a> {
             TokenType::Sub => self.parse_sub().map(Statement::Subroutine),
             TokenType::Function => self.parse_function().map(Statement::Function),
             TokenType::Type => self.parse_type_def().map(Statement::Type),
-            TokenType::Create => self.parse_create().map(Statement::Create),
+            TokenType::Create => self.parse_create(),
             TokenType::With => self.parse_with().map(Statement::With),
             TokenType::Exit => self.parse_exit().map(Statement::Exit),
             TokenType::Return => self.parse_return().map(Statement::Return),
+            TokenType::Input if self.peek_kind_at(1) == Some(TokenType::Hash) => self.parse_file_input(false),
             TokenType::Input => self.parse_input().map(Statement::Input),
             TokenType::Bind => self.parse_bind().map(Statement::Bind),
             TokenType::Declare => self.parse_declare().map(Statement::Declare),
@@ -1868,22 +1908,45 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_create(&mut self) -> Option<CreateStatement> {
+    fn parse_create(&mut self) -> Option<Statement> {
         let start = self.pos;
         self.expect(TokenType::Create)?;
         let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // `CREATE cells(0 TO 9, 0 TO 4) AS QBITMAP … END CREATE`: an array of
+        // components, as `DIM cells(0 TO 9, 0 TO 4) AS QBITMAP`.
+        if self.match_kind(TokenType::LParen) {
+            let dimensions = self.parse_array_dimensions().unwrap_or_default();
+            self.expect(TokenType::RParen)?;
+            self.expect(TokenType::As)?;
+            let type_name = canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme);
+            self.consume_eol();
+            let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
+            self.expect(TokenType::End);
+            self.expect(TokenType::Create);
+            if body.iter().any(|s| !matches!(s, Statement::Comment(_))) {
+                self.error_at(start, format!("CREATE {name}(…) makes an array of components: set their properties after it, one element at a time"));
+            }
+            let span = self.span_from(start);
+            return Some(Statement::Dim(DimStatement {
+                span,
+                declarators: vec![VariableDeclarator { span, name, dimensions }],
+                type_name,
+                is_static: false,
+                is_redim: false,
+            }));
+        }
         self.expect(TokenType::As)?;
         let type_name = canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme);
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
         self.expect(TokenType::End);
         self.expect(TokenType::Create);
-        Some(CreateStatement {
+        Some(Statement::Create(CreateStatement {
             span: self.span_from(start),
             name,
             type_name,
             body,
-        })
+        }))
     }
 
     fn parse_with(&mut self) -> Option<WithStatement> {

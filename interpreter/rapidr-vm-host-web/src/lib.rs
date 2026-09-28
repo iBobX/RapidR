@@ -55,8 +55,16 @@ impl Host for WebHost {
                 .ok_or_else(|| format!("{}: argument is not an array, or it has no dimension {dim}", key.to_uppercase()));
         }
         let key = rapidr_bytecode::builtins::builtin_key(name);
+        // PRINT # / WRITE # take any number of items after the file number.
         if key == "print_hash" || key == "write_hash" {
-            return Err("PRINT # / WRITE # to file numbers is not supported in the browser yet; use RFileStream".into());
+            let rest = args.get(1..).unwrap_or(&[]);
+            let file = args.first().cloned().unwrap_or_else(v_null);
+            if key == "print_hash" {
+                rp_print_hash(&file, rest);
+            } else {
+                rp_write_hash(&file, rest);
+            }
+            return Ok(v_null());
         }
         Ok(call_builtin_web(name, args))
     }
@@ -257,6 +265,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "lof" => rp_lof(&a0),
         "filelen" => rp_filelen(&a0),
         "line_input" => rp_line_input(&a0),
+        "input_field" => rp_input_field(&a0),
         "dir" => rp_dir(&a0, &a1),
         "mkdir" => { rp_mkdir(&a0); v_null() }
         "rmdir" => { rp_rmdir(&a0); v_null() }

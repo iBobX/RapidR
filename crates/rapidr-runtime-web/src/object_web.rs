@@ -404,6 +404,22 @@ fn web_read_file(path: &str) -> Result<Vec<u8>, String> {
     Ok(text.chars().map(|c| (c as u32 & 0xFF) as u8).collect())
 }
 
+/// Makes the page's own files the ones BASIC file I/O and the stream
+/// objects read and write (once).
+pub fn install_file_hooks() {
+    rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+}
+
+/// A file's length (0 if it can't be read).
+pub fn web_file_len(path: &str) -> i64 {
+    web_read_file(path).map_or(0, |b| b.len() as i64)
+}
+
+/// `KILL`: the page's saved copy of the file goes.
+pub fn web_remove_file(path: &str) {
+    SAVED_FILES.with(|f| f.borrow_mut().remove(path));
+}
+
 fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     SAVED_FILES.with(|f| f.borrow_mut().insert(path.to_string(), bytes.to_vec()));
     Ok(())

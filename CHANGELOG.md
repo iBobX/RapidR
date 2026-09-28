@@ -7,6 +7,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.53.0] — 2026-09-28
+
+### Added
+- **`INPUT #n, a, b` and `LINE INPUT #n, s`** read from a file opened
+  `FOR INPUT AS #n`: a field is a quoted string or text up to the next
+  comma or line break; `LINE INPUT` takes the rest of the line. Both
+  backends and the browser.
+- **BASIC file I/O works in the browser**: `OPEN … FOR INPUT | OUTPUT |
+  APPEND | BINARY AS #n`, `PRINT #`, `WRITE #`, `EOF`, `LOF`, `SEEK`,
+  `CLOSE`, `KILL`, `FILELEN` use the page's own files (the same store the
+  stream objects use); they were stubs, and `PRINT #` stopped the program.
+  It is one shared implementation (`rapidr_value::basic_files`) for the
+  interpreter, native builds and the web: a file is read whole when opened,
+  and what's written goes back when it is closed, when its length is asked
+  for, or when the program ends — a file the program never closed keeps its
+  data (the desktop lost it before).
+- `FREEFILE` without parentheses (`n = FREEFILE`) is the function, not an
+  undeclared variable.
+- **Keywords as names**: `DIM New AS QMENUITEM, Open AS QMENUITEM`,
+  `Open.Caption = "&Open"`, `File.AddItems New, Open, Save`. A statement
+  keyword (`Open`, `Close`, `Write`, `Seek`, `Kill`, `Input`, …) followed
+  by `.`, declared with `AS`, or used as an argument is an identifier.
+- **`CREATE cells(0 TO 9, 0 TO 4) AS QBITMAP … END CREATE`** makes an array
+  of components, like the same `DIM`.
+
+### Fixed
+- **Native builds ignored `bups.OnPaint = bups.paint`** when the handler is
+  a SUB with a dotted name (`SUB bups.paint`): the event was set to null, so
+  the corpus's Sokoban (GB) drew only its buttons natively. Native and
+  interpreted builds now draw the same window.
+
+### Tests
+- Conformance `basic_file_io` and `create_array` (both backends; the
+  first also in the browser), `dotted_paint` (desktop and web), unit tests
+  for the file module.
+
 ## [2.52.0] — 2026-09-28
 
 The web IDE kept in step with the desktop, native and interpreter builds.
