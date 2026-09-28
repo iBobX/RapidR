@@ -513,6 +513,8 @@ fn emit_line(
 pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     // As in the real RAPIDQ.INC (comparisons themselves give -1 / 0).
     ("False", 0), ("True", 1),
+    // PLAYWAV options
+    ("SND_SYNC", 0), ("SND_ASYNC", 1), ("SND_LOOP", 8),
     // Colors (&HBBGGRR)
     ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x008000),
     ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0x800080),

@@ -677,6 +677,42 @@ pub fn rp_playsound(filename: &Value) -> Value {
     v_null()
 }
 
+thread_local! {
+    /// The sound PLAYWAV is playing (one at a time, as on the desktop).
+    static WAV: std::cell::RefCell<Option<web_sys::HtmlAudioElement>> = const { std::cell::RefCell::new(None) };
+}
+
+/// PLAYWAV file|resource, options (as on the desktop, crates/rapidr-
+/// runtime-core/src/sound.rs): a new sound replaces the one playing, `""`
+/// stops it; SND_LOOP (8, or the manual's 3) repeats it. The page can't
+/// wait for the end, so SND_SYNC plays in the background too.
+pub fn rp_playwav(source: &Value, options: &Value) {
+    WAV.with(|w| {
+        if let Some(old) = w.borrow_mut().take() {
+            let _ = old.pause();
+        }
+    });
+    let options = options.to_i64();
+    let src = match source {
+        Value::Integer(_) | Value::Double(_) => match rapidr_value::resources::bytes(source.to_i64()) {
+            Some(b) => format!("data:audio/wav;base64,{}", rapidr_value::objects::codec::base64_encode(&b)),
+            None => return,
+        },
+        _ => {
+            let path = source.to_string_val();
+            if path.is_empty() {
+                return;
+            }
+            crate::database_web::get_rapidr_asset(&path).unwrap_or(path)
+        }
+    };
+    if let Ok(audio) = web_sys::HtmlAudioElement::new_with_src(&src) {
+        audio.set_loop(options & 8 != 0 || options == 3);
+        let _ = audio.play();
+        WAV.with(|w| *w.borrow_mut() = Some(audio));
+    }
+}
+
 // ---------------------------------------------------------------------------
 // File system stubs — NOT SUPPORTED on web
 // ---------------------------------------------------------------------------

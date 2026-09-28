@@ -344,6 +344,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     });
 
     gui_web::setup_data_binding(&name_clone);
+    install_object_hooks();
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
         // (its element may exist already)
@@ -351,6 +352,32 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             gui_web::render_dirtree(&name.to_uppercase());
         }
     }
+}
+
+/// How shared objects print on the web (`Printer.EndDoc`, [`web_print`]).
+pub fn install_object_hooks() {
+    rapidr_value::objects::set_print_hook(web_print);
+}
+
+/// `Printer.EndDoc` on the web: the document (a PDF) opens in a new tab,
+/// where the browser's viewer prints it; if pop-ups are blocked, it's
+/// downloaded instead.
+fn web_print(job: &rapidr_value::objects::printer::PrintJob) -> Result<(), String> {
+    let bytes = js_sys::Uint8Array::from(job.pdf.as_slice());
+    let parts = js_sys::Array::of1(&bytes);
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type("application/pdf");
+    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options).map_err(|_| "can't make the PDF".to_string())?;
+    let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(|_| "can't make the PDF".to_string())?;
+    let window = web_sys::window().ok_or("no window")?;
+    if window.open_with_url_and_target(&url, "_blank").ok().flatten().is_none() {
+        let doc = window.document().ok_or("no document")?;
+        let a = doc.create_element("a").map_err(|_| "no link")?.dyn_into::<web_sys::HtmlAnchorElement>().map_err(|_| "no link")?;
+        a.set_href(&url);
+        a.set_download(&format!("{}.pdf", if job.title.is_empty() { "RapidR print" } else { &job.title }));
+        a.click();
+    }
+    Ok(())
 }
 
 thread_local! {

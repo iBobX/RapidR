@@ -7,6 +7,43 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.45.0] — 2026-09-28
+
+### Added
+- **The PRINTER object**, the same in both backends, from one shared model
+  (`rapidr_value::objects::printer`).
+  - `BeginDoc`, then the drawing methods (`TextOut`, `Line`, `Rectangle`,
+    `FillRect`, `Circle`, `Pset`, `Draw`, `StretchDraw`, `CopyRect`),
+    `NewPage`, then `EndDoc` or `Abort`.
+  - Properties: `Font` (a QFONT, or `Printer.Font.Size = …`),
+    `TextWidth` / `TextHeight`, `PageWidth` / `PageHeight` (A4 at
+    300 dpi, swapped by `Orientation`), `PageNumber`, `Printing`,
+    `Aborted`, `Copies`, `Title`, `Printers(i)` / `PrintersCount` /
+    `PrinterIndex`, `Capabilities.*`.
+  - The document becomes a PDF: text in Helvetica (the PDF standard font,
+    nothing embedded; widths from its metrics), shapes as vectors,
+    bitmaps as images.
+  - **Where it goes:** on the desktop, `EndDoc` sends it to the chosen
+    printer with CUPS `lp`. With no printer it saves a PDF in the current
+    directory. `RAPIDR_PRINT_TO=file-or-directory` saves it instead of
+    printing. On the web it opens in the browser for printing.
+  - The conformance runner and `tools/corpus_compare.mjs` always set
+    `RAPIDR_PRINT_TO`, so tests never print on paper.
+- **`PLAYWAV file|resource, options`** on desktop and web.
+  - A WAV file or a `$RESOURCE` handle; `SND_SYNC` waits, `SND_ASYNC`
+    plays in the background, `SND_LOOP` (8, or the manual's 3) repeats.
+  - A new sound replaces the one playing; `PLAYWAV ""` stops it.
+  - The sound device is opened once and kept open.
+  - `SND_SYNC`, `SND_ASYNC` and `SND_LOOP` are among the built-in
+    RAPIDQ.INC constants.
+
+### Tests
+- New conformance case `printer` (it aborts, so it never prints);
+  102/102 pass on both backends. New model unit test for pages and the
+  PDF.
+- The corpus's Printer and PLAYWAV programs that build run the same
+  natively and interpreted.
+
 ## [2.44.0] — 2026-09-28
 
 ### Added

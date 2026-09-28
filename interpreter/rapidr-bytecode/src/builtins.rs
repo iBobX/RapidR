@@ -35,7 +35,7 @@ pub const BUILTINS: &[&str] = &[
     "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
     "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "mousex", "mousey", "msgbox",
     "oct", "open",
-    "pi", "playsound", "pos", "print", "print_hash", "println",
+    "pi", "playsound", "playwav", "pos", "print", "print_hash", "println",
     "randomize", "rename", "resource", "resourcecount", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
     "rnd", "round", "rtrim",
     "seek", "sgn", "shell", "shellwait", "shl", "shr", "showmessage", "sin", "sizeof", "sleep",

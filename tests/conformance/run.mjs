@@ -50,7 +50,12 @@ mkdirSync(WORK, { recursive: true });
 
 const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").trimEnd();
 
+// A case that prints (Printer.EndDoc) writes a PDF here, never on paper.
+const PRINTS = join(WORK, "prints");
+mkdirSync(PRINTS, { recursive: true });
+
 function run(cmd, cmdArgs, opts = {}) {
+  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS } };
   const r = spawnSync(cmd, cmdArgs, { encoding: "utf8", timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT, ...opts });
   let err = r.stderr || "";
   if (r.error?.code === "ENOBUFS") err += `\noutput exceeded ${MAX_OUTPUT} bytes (runaway loop?)`;

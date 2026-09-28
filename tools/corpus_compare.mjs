@@ -40,7 +40,10 @@ const VARIES = /\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount|now)
 
 // No incremental build caches: every program is its own crate, so they'd
 // add up to tens of GB over the corpus.
-const env = { ...process.env, RAPIDR_INCLUDE_PATH: INCLUDE, CARGO_TARGET_DIR: CARGO_TARGET, CARGO_INCREMENTAL: "0" };
+// Printer.EndDoc saves PDFs here instead of printing on paper.
+const PRINTS = join(ROOT, "tests/conformance/.work/corpus-prints");
+mkdirSync(PRINTS, { recursive: true });
+const env = { ...process.env, RAPIDR_INCLUDE_PATH: INCLUDE, CARGO_TARGET_DIR: CARGO_TARGET, CARGO_INCREMENTAL: "0", RAPIDR_PRINT_TO: PRINTS };
 
 // The package name `rapidr build` gives a program (rapidr_codegen_rust::crate_name).
 function crateName(stem) {

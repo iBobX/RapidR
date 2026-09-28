@@ -18,6 +18,7 @@ pub mod imagelist;
 pub mod list;
 pub mod listview;
 pub mod memstream;
+pub mod printer;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -52,6 +53,8 @@ enum Object {
     List(ItemList),
     /// QDIRTREE's directories; the runtime shows its rows.
     DirTree(dirtree::DirTree),
+    /// The global PRINTER's document.
+    Printer(printer::Printer),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -73,6 +76,78 @@ thread_local! {
     /// False once a runtime replaces the file functions (the web): files
     /// are then read and written whole through them.
     static NATIVE_FILES: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+/// Sends a finished print job somewhere (`Printer.EndDoc`).
+pub type PrintHook = fn(&printer::PrintJob) -> Result<(), String>;
+
+thread_local! {
+    static PRINT_HOOK: std::cell::Cell<PrintHook> = const { std::cell::Cell::new(default_print) };
+}
+
+/// Replaces where `Printer.EndDoc` sends documents (the web runtime: the
+/// browser's print dialog).
+pub fn set_print_hook(hook: PrintHook) {
+    PRINT_HOOK.with(|h| h.set(hook));
+}
+
+/// The printers `Printer.Printers(i)` lists: the system's (CUPS `lpstat`),
+/// read once; the web's hook prints through the browser.
+pub fn printer_names() -> Vec<String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+        NAMES
+            .get_or_init(|| {
+                std::process::Command::new("lpstat")
+                    .arg("-e")
+                    .output()
+                    .ok()
+                    .filter(|o| o.status.success())
+                    .map(|o| String::from_utf8_lossy(&o.stdout).lines().map(str::trim).filter(|l| !l.is_empty()).map(String::from).collect())
+                    .unwrap_or_default()
+            })
+            .clone()
+    }
+    #[cfg(target_arch = "wasm32")]
+    vec!["Browser".to_string()]
+}
+
+/// Where documents go by default: to `RAPIDR_PRINT_TO` (a PDF file, or a
+/// directory to put it in) when set — tests never print on paper; else to
+/// the chosen printer with `lp`; with no printer (or no `lp`), a PDF in the
+/// current directory.
+fn default_print(job: &printer::PrintJob) -> Result<(), String> {
+    let name = {
+        let t: String = job.title.chars().filter(|c| c.is_alphanumeric() || " -_".contains(*c)).collect();
+        format!("{}.pdf", if t.trim().is_empty() { "RapidR print" } else { t.trim() })
+    };
+    let save = |path: std::path::PathBuf| -> Result<(), String> {
+        std::fs::write(&path, &job.pdf).map_err(|e| format!("can't write {}: {e}", path.display()))?;
+        eprintln!("[rapidr] printed to {}", path.display());
+        Ok(())
+    };
+    if let Some(to) = std::env::var_os("RAPIDR_PRINT_TO") {
+        let to = std::path::PathBuf::from(to);
+        return save(if to.is_dir() { to.join(name) } else { to });
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if !job.printer.is_empty() || !printer_names().is_empty() {
+        let file = std::env::temp_dir().join(format!("rapidr-print-{}.pdf", std::process::id()));
+        std::fs::write(&file, &job.pdf).map_err(|e| format!("can't write {}: {e}", file.display()))?;
+        let mut lp = std::process::Command::new("lp");
+        if !job.printer.is_empty() {
+            lp.args(["-d", &job.printer]);
+        }
+        lp.args(["-n", &job.copies.to_string()]);
+        if !job.title.is_empty() {
+            lp.args(["-t", &job.title]);
+        }
+        if lp.arg(&file).status().is_ok_and(|s| s.success()) {
+            return Ok(());
+        }
+    }
+    save(std::path::PathBuf::from(name))
 }
 
 /// Replaces how objects read and write files (the web runtime has no file
@@ -218,7 +293,15 @@ fn with<R>(id: &str, f: impl FnOnce(&mut Object) -> R) -> Option<R> {
 /// A property of object `id`; `None` if `id` isn't an object or the
 /// property isn't one it implements (the runtime then keeps it as a plain
 /// stored property).
+/// The global PRINTER exists once it's used.
+fn ensure_printer(id: &str) {
+    if id.eq_ignore_ascii_case("printer") && !exists(id) {
+        OBJECTS.with(|o| o.borrow_mut().insert("printer".into(), Object::Printer(printer::Printer::default())));
+    }
+}
+
 pub fn get(id: &str, prop: &str) -> Option<Value> {
+    ensure_printer(id);
     let prop = prop.to_lowercase();
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
@@ -231,13 +314,25 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Grid(g) => g.get(&prop),
         Object::List(l) => l.get(&prop),
         Object::DirTree(t) => t.get(&prop),
+        Object::Printer(p) => p.get(&prop),
     })?
 }
 
 /// Sets a property; `Some(Ok)` if handled, `Some(Err)` if it failed (a BMP
 /// that can't be loaded), `None` if not an object property.
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
+    ensure_printer(id);
     let prop = prop.to_lowercase();
+    // `Printer.Font = Font`: the QFONT's settings.
+    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_))), Some(true)) {
+        let font = with(&val.to_string_val(), |o| match o {
+            Object::Font(f) => Some(f.clone()),
+            _ => None,
+        })
+        .flatten()?;
+        with(id, |o| if let Object::Printer(p) = o { p.font = font });
+        return Some(Ok(()));
+    }
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
     if matches!(prop.as_str(), "bmp" | "bmphandle") && matches!(with(id, |o| matches!(o, Object::Bitmap(_))), Some(true)) {
         let loaded = load_image(val);
@@ -262,6 +357,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Grid(g) => g.set(&prop, val).then_some(Ok(())),
         Object::List(l) => l.set(&prop, val).then_some(Ok(())),
         Object::DirTree(t) => t.set(&prop, val).map(|_| Ok(())),
+        Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -272,6 +368,7 @@ pub type PropReader<'a> = &'a dyn Fn(&str, &str) -> Value;
 /// Calls a method; `None` if `id` isn't an object or it has no such method.
 /// `Some(Err)` is a failure to report (e.g. a file that can't be read).
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
+    ensure_printer(id);
     let method = method.to_lowercase();
     let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
     // Methods that need another object or a file, handled outside the
@@ -285,6 +382,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Grid(_) => "grid",
         Object::List(_) => "list",
         Object::DirTree(_) => "dirtree",
+        Object::Printer(_) => "printer",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -356,6 +454,45 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 })?
                 .map(|_| Value::Null),
             )
+        }
+        ("printer", "enddoc") => {
+            let job = with(id, |o| match o {
+                Object::Printer(p) => p.end_doc(),
+                _ => None,
+            })
+            .flatten();
+            let hook = PRINT_HOOK.with(std::cell::Cell::get);
+            Some(job.map_or(Ok(()), |j| hook(&j)).map(|_| Value::Null))
+        }
+        // Printer.Draw(x, y, BMP) / StretchDraw(Rect, BMP) / CopyRect(D, Image, S).
+        ("printer", "draw" | "stretchdraw" | "copyrect") => {
+            let rect = |v: &Value| {
+                let r = v.to_string_val();
+                let n = |p: &str| props(&r, p).to_i64();
+                (n("left"), n("top"), n("right"), n("bottom"))
+            };
+            let source = if method == "draw" { arg(2) } else { arg(1) };
+            let mut src = match load_image(&source) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            let (x, y, w, h) = match method.as_str() {
+                "draw" => (arg(0).to_i64(), arg(1).to_i64(), src.img.width as i64, src.img.height as i64),
+                _ => {
+                    let (l, t, r, b) = rect(&arg(0));
+                    (l, t, r - l, b - t)
+                }
+            };
+            // CopyRect copies part of the image (S).
+            if method == "copyrect" {
+                let s = rect(&arg(2));
+                let mut part = Bitmap::default();
+                part.resize(s.2 - s.0, s.3 - s.1);
+                part.copy_rect((0, 0, s.2 - s.0, s.3 - s.1), &src, s);
+                src = part;
+            }
+            with(id, |o| if let Object::Printer(p) = o { p.draw(printer::PageOp::Image(x, y, w, h, src)) });
+            Some(Ok(Value::Null))
         }
         // OnDrawCell's `Sender.Draw(x, y, Bitmap.BMP)` on a grid.
         ("grid", "draw") => {
@@ -492,6 +629,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Grid(g) => g.call(method, args),
         Object::List(l) => l.call(method, args),
         Object::DirTree(t) => t.call(method, args),
+        Object::Printer(p) => p.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).
