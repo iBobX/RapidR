@@ -2,6 +2,7 @@ use rapidr_diagnostics::TextSpan;
 
 pub mod numeric;
 pub mod objects;
+pub mod stream_arrays;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -1222,7 +1223,7 @@ pub fn walk_statements_mut(stmts: &mut [Statement], f: &mut dyn FnMut(&mut State
     }
 }
 
-fn child_bodies_mut(stmt: &mut Statement) -> Vec<&mut Vec<Statement>> {
+pub(crate) fn child_bodies_mut(stmt: &mut Statement) -> Vec<&mut Vec<Statement>> {
     match stmt {
         Statement::Create(c) => vec![&mut c.body],
         Statement::DoLoop(d) => vec![&mut d.body],

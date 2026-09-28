@@ -7,6 +7,30 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.39.0] — 2026-09-27
+
+### Added
+- **QMEMORYSTREAM / QFILESTREAM `SaveArray` and `LoadArray`**, on both
+  backends from one shared rewrite (`rapidr_ast::stream_arrays`).
+  - `Stream.SaveArray(A(i), n)` writes `n` elements starting at `A(i)`;
+    `LoadArray` reads them back.
+  - Each element takes its declared type's bytes, as in RapidQ: BYTE 1,
+    SHORT 2, LONG 4, SINGLE 4, DOUBLE 8, …
+  - For a multi-dimensional array the last index steps, so
+    `LoadArray(vertex(i, j, 0), 3)` fills `vertex(i, j, 0..2)`.
+  - Loading or saving stops at the array's last element. RapidQ wrote past
+    it; the corpus's own `arrins.bas` does this.
+  - The corpus programs `arrins.bas` and `sieve.bas` now run, and run the
+    same both ways.
+
+### Fixed
+- **`Stream.Read(x)` and `Stream.Write(x)` use `x`'s declared size.**
+  Before, BYTE, SHORT, WORD, DWORD and SINGLE variables always took 4 or
+  8 bytes.
+
+### Tests
+- New conformance case `stream_arrays`; 94/94 pass on both backends.
+
 ## [2.38.0] — 2026-09-27
 
 ### Added
