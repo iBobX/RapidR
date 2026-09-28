@@ -282,6 +282,10 @@ pub fn rp_frac(val: &Value) -> Value {
     v_dbl(n - (n as i64) as f64)
 }
 
+pub fn rp_cbool(val: &Value) -> Value {
+    rapidr_value::cbool(val)
+}
+
 /// CINT — round to nearest integer
 pub fn rp_cint(val: &Value) -> Value {
     v_int(val.to_f64().round() as i64)

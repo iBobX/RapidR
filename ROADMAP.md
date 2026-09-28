@@ -183,10 +183,12 @@ Next up, in order:
 - [x] QCANVAS/QFORM `OnPaint`: form built, resize, Repaint/Refresh/Update (v2.48.0)
 - [x] Drawing on a QFORM itself (`Form.TextOut`, `Form.Line`, …) on desktop and web from the shared bitmap model; a form paints again when resized (v2.49.0)
 - [x] Owner-drawn QLISTBOX (`Style`, `ItemHeight`, `OnDrawItem`) on desktop and web from the shared list model (v2.50.0); all of RAPIDQ.INC's option constants (v2.50.0)
-- [x] RapidQ syntax gaps found by the example corpus: `Arr()` arguments, multi-dimensional TYPE array fields, `THEN:` blocks, `=>` / `=<`, `&H…&`, `CASE list stmt`, line-numbered `NEXT` / `DATA`, per-file `$ESCAPECHARS` (v2.51.0); 130 of 386 example programs compile (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples`)
-- [ ] Native builds: routines whose names differ only by a type suffix (`FUNCTION Day$` and `FUNCTION Day`, `reminder/dayfunction.bas`), `DEFSTR MONTH$(1 to 12) = {…}` arrays, a line label inside SELECT CASE / WITH (`richedit/using.bas`)
+- [x] RapidQ syntax gaps found by the example corpus: `Arr()` arguments, multi-dimensional TYPE array fields, `THEN:` blocks, `=>` / `=<`, `&H…&`, `CASE list stmt`, line-numbered `NEXT` / `DATA`, per-file `$ESCAPECHARS` (v2.51.0); 134 of 386 example programs compile, all of them build natively (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples`)
+- [x] Native builds: routines that differ only by a type suffix, `DEFSTR` arrays next to same-named locals, `GOSUB` / labels inside SELECT CASE (v2.54.0)
+- [ ] Native builds: a line label / `GOSUB` inside `WITH` or `CREATE`
 - [x] `INPUT #`, `LINE INPUT #`, BASIC file I/O on the web, `CREATE name(dims) AS type`, keywords as names (v2.53.0)
-- [ ] More corpus gaps: `ON ERROR RESUME NEXT`, `DIM s AS STRING * n` (fixed length), `CBOOL`
+- [x] `DIM s AS STRING * n` (stores cut to n), `CBOOL`, `ON ERROR …` accepted (ignored), an unclosed `WITH` closed by `END SUB` (v2.54.0)
+- [ ] Real `ON ERROR RESUME NEXT` / `Err` (VB): resuming after a run-time error needs recovery points in the VM and native code; fixed strings also need padding to `n` in `WriteUDT`/`ReadUDT`
 - [ ] Events that return values (`OnMeasureItem(Index, Height)`, `OnClose(Action)`, `OnSelectCell(…, CanSelect)`): a by-reference argument channel from the VM handler back to the runtime
 - [ ] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`); grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas

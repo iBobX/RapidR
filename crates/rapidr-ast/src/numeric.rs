@@ -34,43 +34,75 @@ pub fn conversion_for(type_name: &str) -> Option<&'static str> {
 }
 
 /// The conversion builtins this pass (and `objects`) emit.
-pub const CONVERSION_BUILTINS: &[&str] = &["__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double"];
+pub const CONVERSION_BUILTINS: &[&str] = &["__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_fixed"];
+
+/// A conversion applied to a store: a numeric builtin, or `__to_fixed(v, n)`
+/// for a `STRING * n` (the text cut to `n` characters).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Conv {
+    name: &'static str,
+    len: Option<usize>,
+}
+
+/// The conversion for a declared type (`AS INTEGER`, `AS STRING * 8`), if
+/// stores into it convert.
+pub fn conv_for(type_name: &str, fixed_len: Option<usize>) -> Option<Conv> {
+    match (conversion_for(type_name), fixed_len) {
+        (Some(name), _) => Some(Conv { name, len: None }),
+        (None, Some(len)) if type_name.trim().eq_ignore_ascii_case("STRING") => Some(Conv { name: "__to_fixed", len: Some(len) }),
+        _ => None,
+    }
+}
 
 /// What a name holds in a scope: a typed scalar, a typed array, or anything
 /// else (which shadows a typed global).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Slot {
-    Scalar(&'static str),
-    Array(&'static str),
+    Scalar(Conv),
+    Array(Conv),
     Other,
 }
 
 type Scope = HashMap<String, Slot>;
 
+impl Slot {
+    /// A numeric scalar only (a FOR counter isn't a string).
+    fn filter_numeric(self) -> Slot {
+        match self {
+            Slot::Scalar(c) if c.len.is_some() => Slot::Other,
+            s => s,
+        }
+    }
+}
+
 fn key(name: &str) -> String {
     name.to_ascii_lowercase()
 }
 
-fn slot_for(type_name: &str, is_array: bool) -> Slot {
-    match (conversion_for(type_name), is_array) {
+fn slot_for(type_name: &str, fixed_len: Option<usize>, is_array: bool) -> Slot {
+    match (conv_for(type_name, fixed_len), is_array) {
         (Some(c), false) => Slot::Scalar(c),
         (Some(c), true) => Slot::Array(c),
         (None, _) => Slot::Other,
     }
 }
 
-/// `conv(value)`.
-pub fn convert_at(span: TextSpan, conv: &str, value: Expression) -> Expression {
+/// `conv(value)` (`__to_fixed(value, n)` for a fixed-length string).
+pub fn convert_at(span: TextSpan, conv: Conv, value: Expression) -> Expression {
     // Already converted (a literal of the right kind stays as written).
     if let Expression::FunctionCall(fc) = &value {
-        if matches!(fc.callee.as_ref(), Expression::Identifier(id) if id.name == conv) {
+        if matches!(fc.callee.as_ref(), Expression::Identifier(id) if id.name == conv.name) {
             return value;
         }
     }
+    let mut args = vec![value];
+    if let Some(len) = conv.len {
+        args.push(Expression::Literal(Literal { span, value: LiteralValue::Integer(len as i64) }));
+    }
     Expression::FunctionCall(FunctionCallExpression {
         span,
-        callee: Box::new(Expression::Identifier(Identifier { span, name: conv.into() })),
-        args: vec![value],
+        callee: Box::new(Expression::Identifier(Identifier { span, name: conv.name.into() })),
+        args,
     })
 }
 
@@ -82,7 +114,7 @@ fn declare(stmts: &[Statement], scope: &mut Scope) {
         &mut |s| {
             if let Statement::Dim(d) = s {
                 for v in &d.declarators {
-                    scope.insert(key(&v.name), slot_for(&d.type_name, !v.dimensions.is_empty()));
+                    scope.insert(key(&v.name), slot_for(&d.type_name, d.fixed_len, !v.dimensions.is_empty()));
                 }
             }
         },
@@ -94,7 +126,7 @@ struct Pass<'a> {
     globals: &'a Scope,
     locals: Scope,
     /// A typed FUNCTION being converted: its name (lowercase) and conversion.
-    result: Option<(String, &'static str)>,
+    result: Option<(String, Conv)>,
     /// Inside a CREATE block, bare names are the component's properties.
     in_create: usize,
 }
@@ -107,14 +139,14 @@ impl Pass<'_> {
         }
         if let Some((f, conv)) = &self.result {
             if k == *f || k == "result" {
-                return Slot::Scalar(conv);
+                return Slot::Scalar(*conv);
             }
         }
         self.globals.get(&k).copied().unwrap_or(Slot::Other)
     }
 
     /// The conversion a store into `target` needs.
-    fn target_conversion(&self, target: &Expression) -> Option<&'static str> {
+    fn target_conversion(&self, target: &Expression) -> Option<Conv> {
         match target {
             Expression::Identifier(id) if self.in_create == 0 => match self.lookup(&id.name) {
                 Slot::Scalar(c) => Some(c),
@@ -159,7 +191,7 @@ impl Pass<'_> {
             }
             Statement::Return(r) => {
                 if let (Some(v), Some((_, conv))) = (r.value.as_mut(), self.result.as_ref()) {
-                    *v = convert_at(r.span, conv, v.clone());
+                    *v = convert_at(r.span, *conv, v.clone());
                 }
             }
             Statement::If(i) => {
@@ -172,7 +204,7 @@ impl Pass<'_> {
             Statement::For(f) => {
                 // The start value is a store into the counter; its own
                 // increments aren't converted (as in QBasic's FOR).
-                if let Slot::Scalar(conv) = self.lookup(&f.variable) {
+                if let Slot::Scalar(conv) = self.lookup(&f.variable).filter_numeric() {
                     if self.in_create == 0 {
                         f.start = convert_at(f.span, conv, f.start.clone());
                     }
@@ -200,10 +232,10 @@ impl Pass<'_> {
 
     /// A SUB/FUNCTION: its own scope, BYVAL typed parameters converted on
     /// entry.
-    fn routine(globals: &Scope, params: &[Parameter], body: &mut Vec<Statement>, result: Option<(String, &'static str)>, span: TextSpan) {
+    fn routine(globals: &Scope, params: &[Parameter], body: &mut Vec<Statement>, result: Option<(String, Conv)>, span: TextSpan) {
         let mut locals = Scope::new();
         for p in params {
-            locals.insert(key(&p.name), slot_for(&p.type_name, p.is_array));
+            locals.insert(key(&p.name), slot_for(&p.type_name, None, p.is_array));
         }
         declare(body, &mut locals);
         // A local of the function's own name would shadow its result.
@@ -214,7 +246,7 @@ impl Pass<'_> {
             .iter()
             .filter(|p| !p.by_ref && !p.is_array)
             .filter_map(|p| {
-                let conv = conversion_for(&p.type_name)?;
+                let conv = conv_for(&p.type_name, None)?;
                 let target = Expression::Identifier(Identifier { span, name: p.name.clone() });
                 Some(Statement::Assignment(AssignmentStatement { span, value: convert_at(span, conv, target.clone()), target }))
             })
@@ -242,7 +274,7 @@ pub fn lower(mut program: Program) -> Program {
             }
             Statement::Function(f) => {
                 let span = f.span;
-                let result = f.return_type.as_deref().and_then(conversion_for).map(|c| (key(&f.name), c));
+                let result = f.return_type.as_deref().and_then(|t| conv_for(t, None)).map(|c| (key(&f.name), c));
                 Pass::routine(&globals, &f.params, &mut f.body, result, span);
                 out.push(s);
             }

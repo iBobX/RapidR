@@ -7,6 +7,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.54.0] — 2026-09-28
+
+### Added
+- **`DIM s AS STRING * n`** and `Name AS STRING * n` inside `TYPE`: a store
+  is cut to `n` characters (RapidQ keeps a fixed string in an `n`-byte
+  buffer; what a shorter value leaves unused isn't part of the text), for
+  variables, array elements, TYPE fields and locals. Shared by both
+  backends and the browser (`__to_fixed`, `rapidr_ast::numeric`).
+  `STRING * 0` (an API buffer in old code) stays unbounded.
+- **`CBOOL(x)`**: true for a non-zero number or numeric string, and for any
+  other non-empty string. Interpreter, native and web.
+- **`ON ERROR RESUME NEXT` / `ON ERROR GOTO label|0`** (VB code, not RapidQ)
+  is accepted and ignored — a run-time error still ends the program — so
+  such sources compile instead of failing on the first line.
+- **A `WITH` left open** is closed by `END SUB` / `END FUNCTION`, as RapidQ
+  allows.
+- **Routines that differ only by type suffix** (`FUNCTION Day$` and
+  `FUNCTION Day`) are different routines on both backends
+  (`rapidr_ast::suffix_routines`); the interpreter used to run the last
+  one for both, native builds didn't compile.
+- **Native builds: `GOSUB` / labels inside `SELECT CASE`** (the selector is
+  kept across states, each branch is a state). A label inside `WITH` or
+  `CREATE` is still refused with a message.
+
+### Fixed
+- Native builds: a local variable sharing a global array's name (`month&`
+  next to `DEFSTR MONTH$(1 to 12)`) made the array unknown in every routine
+  after it (`cannot find value month`); a routine's own declarations no
+  longer change what a name means elsewhere.
+
+### Tests
+- Conformance: `fixed_strings`, `on_error_accepted`, `with_unclosed`,
+  `suffix_names`, `local_shadows_array`, `gosub_in_select` (interpreter and
+  native); unit tests for the parser, `rapidr_value` and the renaming pass.
+- 134 of 386 example programs compile (was 130) and all 134 build natively.
+
 ## [2.53.0] — 2026-09-28
 
 ### Added

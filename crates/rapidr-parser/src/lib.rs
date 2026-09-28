@@ -517,6 +517,18 @@ impl<'a> Parser<'a> {
             {
                 self.parse_variadic_routine()
             }
+            // VB's `ON ERROR RESUME NEXT` / `ON ERROR GOTO label|0`: accepted, not acted on
+            // (a run-time error still ends the program, as RapidQ itself does).
+            TokenType::Identifier
+                if self.peek_identifier_eq("ON")
+                    && self.tokens.get(self.pos + 1).is_some_and(|t| t.lexeme.eq_ignore_ascii_case("ERROR")) =>
+            {
+                let start = self.pos;
+                self.skip_to_eol();
+                let span = self.span_from(start);
+                let text = self.tokens[start..self.pos].iter().map(|t| t.lexeme.as_str()).collect::<Vec<_>>().join(" ");
+                Some(Statement::Comment(CommentStatement { span, text: format!("{text} (not supported: a run-time error still ends the program)") }))
+            }
             TokenType::Data => {
                 let tok = self.advance()?;
                 for label in std::mem::take(&mut self.labels_awaiting_data) {
@@ -710,9 +722,13 @@ impl<'a> Parser<'a> {
                 None if self.match_kind(TokenType::As) => canonical_type_name(&self.advance()?.lexeme),
                 None => "VARIANT".to_string(),
             };
-            // `AS STRING * 20`: a fixed-length string, kept as a STRING.
+            // `AS STRING * 20`: a fixed-length string (a STRING cut to 20).
+            let mut fixed_len = None;
             if self.match_kind(TokenType::Star) {
-                self.parse_unary()?;
+                let len = self.parse_unary()?;
+                if type_name == "STRING" {
+                    fixed_len = literal_length(&len);
+                }
             }
             let init = if self.match_kind(TokenType::Eq) {
                 if self.match_kind(TokenType::LBrace) {
@@ -746,6 +762,7 @@ impl<'a> Parser<'a> {
                         dimensions: dimensions.clone(),
                     }],
                     type_name: type_name.clone(),
+                    fixed_len,
                     is_static,
                     is_redim,
                 }));
@@ -1841,9 +1858,14 @@ impl<'a> Parser<'a> {
                     }
                     ftype = "EVENT".to_string();
                 }
-                // `Name AS STRING * 20`: fixed-length string, stored as STRING.
+                // `Name AS STRING * 20`: a fixed-length string (a STRING cut to 20).
+                let mut fixed_len = None;
                 if self.match_kind(TokenType::Star) {
-                    self.parse_unary();
+                    if let Some(len) = self.parse_unary() {
+                        if ftype.eq_ignore_ascii_case("STRING") {
+                            fixed_len = literal_length(&len);
+                        }
+                    }
                 }
                 let setter = if self.peek_kind() == Some(TokenType::Property) && self.peek_kind_at(1) == Some(TokenType::Set) {
                     self.advance();
@@ -1856,6 +1878,7 @@ impl<'a> Parser<'a> {
                     span: self.span_from(field_start),
                     name: fname,
                     type_name: ftype,
+                    fixed_len,
                     array_size: arr,
                     array_lower: arr_lower,
                     more_dims,
@@ -1931,6 +1954,7 @@ impl<'a> Parser<'a> {
                 span,
                 declarators: vec![VariableDeclarator { span, name, dimensions }],
                 type_name,
+                fixed_len: None,
                 is_static: false,
                 is_redim: false,
             }));
@@ -1954,9 +1978,12 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::With)?;
         let object = self.parse_expression()?;
         self.consume_eol();
-        let body = self.parse_body(&[Terminator::EndPair("WITH")]);
-        self.expect(TokenType::End);
-        self.expect(TokenType::With);
+        // RapidQ lets `END SUB` / `END FUNCTION` close a WITH left open.
+        let body = self.parse_body(&[Terminator::EndPair("WITH"), Terminator::EndPair("SUB"), Terminator::EndPair("FUNCTION")]);
+        if self.peek_is_end_followed_by("WITH") {
+            self.expect(TokenType::End);
+            self.expect(TokenType::With);
+        }
         Some(WithStatement {
             span: self.span_from(start),
             object,
@@ -2596,6 +2623,14 @@ fn assign(span: TextSpan, name: &str, index: Vec<Expression>, value: Expression)
     Statement::Assignment(AssignmentStatement { span, target, value })
 }
 
+/// The length in `STRING * 20` (a positive literal; anything else leaves the string unbounded).
+fn literal_length(e: &Expression) -> Option<usize> {
+    match e {
+        Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) if *n > 0 => Some(*n as usize),
+        _ => None,
+    }
+}
+
 /// Element indices for `= {v1, v2, ...}`, filled in memory order (the last
 /// subscript varies fastest, as the RapidQ manual describes). Returns `None`
 /// when a bound other than the first dimension's lower bound isn't a literal.
@@ -2774,6 +2809,34 @@ mod tests {
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert_eq!(errs[0].0, 3);
         assert!(errs[0].2.contains("Syntax error in DEFINT statement"), "{errs:?}");
+    }
+
+    #[test]
+    fn fixed_length_strings_and_unclosed_with_and_on_error() {
+        let stmts = parse("DIM s AS STRING * 8, u AS STRING * 0, n AS INTEGER\nTYPE R\n  Name AS STRING * 5\nEND TYPE\n");
+        let lens: Vec<Option<usize>> = stmts.iter().filter_map(|s| if let Statement::Dim(d) = s { Some(d.fixed_len) } else { None }).collect();
+        assert_eq!(lens, vec![Some(8), None, None]);
+        let field_len = stmts.iter().find_map(|s| if let Statement::Type(t) = s { t.fields.first().map(|f| f.fixed_len) } else { None });
+        assert_eq!(field_len, Some(Some(5)));
+        // WITH closed by END SUB; ON ERROR accepted.
+        let stmts = parse("SUB A\n  ON ERROR RESUME NEXT\n  WITH x\n    .Y = 1\nEND SUB\nON ERROR GOTO 0\n");
+        assert!(matches!(stmts[0], Statement::Subroutine(_)));
+        assert!(matches!(stmts[1], Statement::Comment(_)));
+    }
+
+    #[test]
+    fn routines_differing_only_by_suffix_get_their_own_names() {
+        let names = |code: &str| -> Vec<String> {
+            let program = rapidr_ast::Program { span: rapidr_diagnostics::TextSpan::new(0, 0), statements: parse(code) };
+            rapidr_ast::suffix_routines::lower(&program)
+                .statements
+                .iter()
+                .filter_map(|s| if let Statement::Function(f) = s { Some(f.name.clone()) } else { None })
+                .collect()
+        };
+        let pair = "FUNCTION Day$ (k) AS STRING\nDay$ = \"x\"\nEND FUNCTION\nFUNCTION Day (k) AS INTEGER\nDay = 1\nEND FUNCTION\nPRINT Day$(1), Day(2)\n";
+        assert_eq!(names(pair), ["day__str", "Day"]);
+        assert_eq!(names("FUNCTION Name$ (k) AS STRING\nName$ = \"x\"\nEND FUNCTION\n"), ["Name$"]);
     }
 
     #[test]

@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program))));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::hoist_routines(program)))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -1537,6 +1537,34 @@ impl RustCodegen {
         self.loop_labels.pop();
     }
 
+    /// The tests of a `CASE` branch against the selector held in `sel`, one
+    /// per value; the branch runs when any holds. Same BASIC comparison
+    /// helpers as ordinary expressions (so 2 matches 2.0), not Rust's `==`.
+    pub(crate) fn case_conditions(&self, sel: &str, case: &CaseBranch) -> Vec<String> {
+        case.values
+            .iter()
+            .map(|v| match v {
+                CaseValue::Value(e) => format!("{sel}.rp_eq(&{}).to_bool()", self.expr_to_string(e)),
+                CaseValue::Range(low, high) => format!(
+                    "({sel}.rp_ge(&{}).to_bool() && {sel}.rp_le(&{}).to_bool())",
+                    self.expr_to_string(low),
+                    self.expr_to_string(high)
+                ),
+                CaseValue::Is(op, e) => {
+                    let method = match op {
+                        BinaryOperator::Equal => "rp_eq",
+                        BinaryOperator::NotEqual => "rp_ne",
+                        BinaryOperator::LessThan => "rp_lt",
+                        BinaryOperator::LessThanOrEqual => "rp_le",
+                        BinaryOperator::GreaterThan => "rp_gt",
+                        _ => "rp_ge",
+                    };
+                    format!("{sel}.{method}(&{}).to_bool()", self.expr_to_string(e))
+                }
+            })
+            .collect()
+    }
+
     fn emit_select_case(&mut self, s: &SelectCaseStatement) {
         // Owned: `SELECT CASE k` inside a loop mustn't move `k`.
         let expr = self.owned_expr(&s.expression);
@@ -1544,33 +1572,7 @@ impl RustCodegen {
         let _ = writeln!(self.output, "let _select_val = {expr};");
         let mut first = true;
         for case in &s.cases {
-            // Same BASIC comparison helpers as ordinary expressions (so
-            // 2 matches 2.0), not Rust's strict `==`.
-            let conditions: Vec<String> = case
-                .values
-                .iter()
-                .map(|v| match v {
-                    CaseValue::Value(e) => {
-                        format!("_select_val.rp_eq(&{}).to_bool()", self.expr_to_string(e))
-                    }
-                    CaseValue::Range(low, high) => format!(
-                        "(_select_val.rp_ge(&{}).to_bool() && _select_val.rp_le(&{}).to_bool())",
-                        self.expr_to_string(low),
-                        self.expr_to_string(high)
-                    ),
-                    CaseValue::Is(op, e) => {
-                        let method = match op {
-                            BinaryOperator::Equal => "rp_eq",
-                            BinaryOperator::NotEqual => "rp_ne",
-                            BinaryOperator::LessThan => "rp_lt",
-                            BinaryOperator::LessThanOrEqual => "rp_le",
-                            BinaryOperator::GreaterThan => "rp_gt",
-                            _ => "rp_ge",
-                        };
-                        format!("_select_val.{method}(&{}).to_bool()", self.expr_to_string(e))
-                    }
-                })
-                .collect();
+            let conditions = self.case_conditions("_select_val", case);
             let keyword = if first { "if" } else { "} else if" };
             first = false;
             self.write_indent();
@@ -1594,7 +1596,15 @@ impl RustCodegen {
         }
     }
 
+    /// A routine's own `DIM`s (and array parameters) must not change what a
+    /// name means in the routines that follow.
     fn emit_sub(&mut self, s: &SubroutineStatement) {
+        let arrays = self.array_vars.clone();
+        self.emit_sub_body(s);
+        self.array_vars = arrays;
+    }
+
+    fn emit_sub_body(&mut self, s: &SubroutineStatement) {
         let name = to_snake(&s.name);
         let params = self.emit_params(&s.params);
         self.write_indent();
@@ -1759,6 +1769,12 @@ impl RustCodegen {
     }
 
     fn emit_function(&mut self, f: &FunctionStatement) {
+        let arrays = self.array_vars.clone();
+        self.emit_function_body(f);
+        self.array_vars = arrays;
+    }
+
+    fn emit_function_body(&mut self, f: &FunctionStatement) {
         let name = to_snake(&f.name);
         let params = self.emit_params(&f.params);
         self.write_indent();
@@ -2857,6 +2873,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         // Math / conversion
         "fix" => Some(format!("rp_fix(&{a0})")),
         "frac" => Some(format!("rp_frac(&{a0})")),
+        "cbool" => Some(format!("rp_cbool(&{a0})")),
         "cint" => Some(format!("rp_cint(&{a0})")),
         "clng" => Some(format!("rp_clng(&{a0})")),
         "cdbl" => Some(format!("rp_cdbl(&{a0})")),
@@ -2907,6 +2924,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__to_long" => Some(format!("numeric::to_long(&{a0})")),
         "__to_dword" => Some(format!("numeric::to_dword(&{a0})")),
         "__to_double" => Some(format!("numeric::to_double(&{a0})")),
+        "__to_fixed" => Some(format!("rp_fixed_string(&{a0}, ({a1}).to_i64().max(0) as usize)")),
         "__newobject" => Some(format!("rp_new_object(&{a0}, &{a1}, &{a2})")),
         "__getfield" => Some(format!("obj_field(&{a0}, ({a1}).to_i64() as usize)")),
         "__setfield" => Some(format!("{{ set_obj_field(&{a0}, ({a1}).to_i64() as usize, ({a2}).clone()); v_null() }}")),
