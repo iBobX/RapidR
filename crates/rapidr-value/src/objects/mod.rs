@@ -233,6 +233,15 @@ pub fn is_file_list(id: &str) -> bool {
 }
 
 /// Reads a QLISTBOX's / QCOMBOBOX's items (to draw them).
+/// An owner-drawn list box's item `i` as RGBA pixels (width, height, bytes),
+/// `width` wide, text in `font` (see `list::ItemList::render_item`).
+pub fn list_item_pixels(id: &str, i: usize, width: i64, font: &Font) -> Option<(usize, usize, Vec<u8>)> {
+    with_list(id, |l| {
+        let b = l.render_item(i, width, font);
+        (b.img.width, b.img.height, b.to_rgba())
+    })
+}
+
 pub fn with_list<R>(id: &str, f: impl FnOnce(&ItemList) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::List(l) => Some(f(l)),
@@ -288,6 +297,21 @@ pub fn with_picture<R>(id: &str, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
 /// after a change).
 pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
+}
+
+/// The font a component's properties describe (`Font = Font`, `Font.Size = …`
+/// keep them as `fontname`, `fontsize` (points), `fontcolor`, `fontbold`, …):
+/// what text drawn for the component (a form's surface, a list's items) uses.
+pub fn font_from_props(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Font {
+    let name = props(id, "fontname").to_string_val();
+    let flag = |p: &str| props(id, p).to_bool();
+    let size = props(id, "fontsize").to_i64();
+    Font {
+        name: if name.trim().is_empty() { "Arial".into() } else { name },
+        size: if size > 0 { size } else { 10 },
+        color: props(id, "fontcolor").to_i64() & 0xFFFFFF,
+        styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
+    }
 }
 
 /// Gives form `id` its own drawing surface (`Form.TextOut`, …) the first
@@ -464,17 +488,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     // area's, drawing in the form's font.
     if let Some(form) = with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas).then(|| matches!(o, Object::Bitmap(b) if b.form)))? {
         let (w, h) = if form { (props(id, "clientwidth").to_i64(), props(id, "clientheight").to_i64()) } else { (props(id, "width").to_i64(), props(id, "height").to_i64()) };
-        let font = form.then(|| {
-            let name = props(id, "fontname").to_string_val();
-            let flag = |p: &str| props(id, p).to_bool();
-            let size = props(id, "fontsize").to_i64();
-            Font {
-                name: if name.trim().is_empty() { "Arial".into() } else { name },
-                size: if size > 0 { size } else { 10 },
-                color: props(id, "fontcolor").to_i64() & 0xFFFFFF,
-                styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
-            }
-        });
+        let font = form.then(|| font_from_props(id, props));
         with(id, |o| {
             if let Object::Bitmap(b) = o {
                 b.fit(w, h);
@@ -591,6 +605,16 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             };
             let (x, y) = (arg(0).to_i64(), arg(1).to_i64());
             with(id, |o| if let Object::Grid(g) = o { g.record(x, y, |l, t| grid::CellDraw::Image(x - l, y - t, src)) });
+            Some(Ok(Value::Null))
+        }
+        // OnDrawItem's `Sender.Draw(x, y, Bitmap.BMP)` on a list box.
+        ("list", "draw") => {
+            let src = match load_image(&arg(2)) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            let (x, y) = (arg(0).to_i64(), arg(1).to_i64());
+            with(id, |o| if let Object::List(l) = o { l.record(x, y, |l, t| grid::CellDraw::Image(x - l, y - t, src)) });
             Some(Ok(Value::Null))
         }
         ("bitmap", "draw") => {

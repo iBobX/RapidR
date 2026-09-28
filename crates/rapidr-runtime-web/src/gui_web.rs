@@ -149,6 +149,8 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         // have an edit box; csDropDownList = 2 only picks from the list.
         "RCOMBOBOX" if props.get("style").map_or(0, Value::to_i64) < 2 => create_edit_combo(&id, name, props),
         "RCOMBOBOX" => create_select(&id, name, false, props),
+        // Style = lbOwnerDrawFixed / lbOwnerDrawVariable: drawn by OnDrawItem.
+        "RLISTBOX" | "RFILELISTBOX" if matches!(props.get("style").map(|v| v.to_i64()), Some(1 | 2)) => create_owner_list(&id, name, props),
         "RLISTBOX" | "RFILELISTBOX" => create_select(&id, name, true, props),
         "RDIRTREE" => create_dirtree(&id, name, props),
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
@@ -1869,6 +1871,103 @@ fn create_select(id: &str, name: &str, list: bool, props: &HashMap<String, Value
     cb.forget();
     setup_widget(&el, id, name, props);
     render_list_now(name);
+    // (its Style was set before the element was made)
+    if list && rapidr_value::objects::with_list(name, |l| l.owner_drawn()).unwrap_or(false) {
+        convert_to_owner_list(name);
+    }
+}
+
+/// An owner-drawn QLISTBOX (`Style = lbOwnerDrawFixed / lbOwnerDrawVariable`):
+/// a scrolling list of canvases, one per item, from the shared model
+/// (rapidr_value::objects::list, `render_item`): what OnDrawItem drew, or the
+/// plain item. A click or the arrow keys select (the items first, then the
+/// program's OnClick, bound later); a MultiSelect list toggles.
+fn create_owner_list(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("div");
+    el.set_class_name("rr-widget");
+    attach_owner_list(&el, name);
+    setup_widget(&el, id, name, props);
+    render_list_now(name);
+}
+
+/// `Style = lbOwnerDrawFixed / lbOwnerDrawVariable` set on a list box whose
+/// element is a `<select>` already (the style comes after it's made): the
+/// element becomes the owner-drawn list, keeping its place and geometry.
+/// (Events the program bound to the old element must come after the Style.)
+pub fn convert_to_owner_list(name: &str) {
+    let Some(old) = get_el(&comp_id(name)) else { return };
+    if !old.tag_name().eq_ignore_ascii_case("select") {
+        return;
+    }
+    let el = create_el("div");
+    for attr in ["id", "class", "style", "data-rr-name", "data-rr-type"] {
+        if let Some(v) = old.get_attribute(attr) {
+            let _ = el.set_attribute(attr, &v);
+        }
+    }
+    attach_owner_list(&el, name);
+    let _ = old.replace_with_with_node_1(&el);
+    render_list_now(name);
+}
+
+/// The look and the click / keyboard selection of an owner-drawn list.
+fn attach_owner_list(el: &web_sys::HtmlElement, name: &str) {
+    let _ = el.set_attribute("tabindex", "0");
+    let st = el.style();
+    let _ = st.set_property("overflow-y", "auto");
+    let _ = st.set_property("overflow-x", "hidden");
+    let _ = st.set_property("background", "white");
+    let _ = st.set_property("border", "1px solid #999");
+    let _ = st.set_property("box-sizing", "border-box");
+    let owner = name.to_uppercase();
+    let select = move |i: i64| {
+        rapidr_value::objects::with_list_mut(&owner, |l| {
+            if l.multi_select {
+                if let Some(s) = l.selected.get_mut(i as usize) {
+                    *s = !*s;
+                }
+                l.item_index = i;
+            } else {
+                l.select(i);
+            }
+        });
+        render_list(&owner);
+    };
+    let click_select = select.clone();
+    let click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        let mut node = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok());
+        while let Some(n) = node {
+            if let Some(i) = n.get_attribute("data-item").and_then(|v| v.parse::<i64>().ok()) {
+                click_select(i);
+                return;
+            }
+            node = n.parent_element();
+        }
+    });
+    let _ = el.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+    click.forget();
+    let key_owner = name.to_uppercase();
+    let key = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+        let Some((count, current, height)) = rapidr_value::objects::with_list(&key_owner, |l| (l.items.len() as i64, l.item_index, l.row_height())) else { return };
+        let page = (e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).map_or(200, |t| t.client_height() as i64) / height).max(1);
+        let next = match e.key().as_str() {
+            "ArrowDown" => current + 1,
+            "ArrowUp" => (current - 1).max(0),
+            "PageDown" => current + page,
+            "PageUp" => (current - page).max(0),
+            "Home" => 0,
+            "End" => count - 1,
+            _ => return,
+        };
+        e.prevent_default();
+        let next = next.clamp(0, (count - 1).max(0));
+        if count > 0 && next != current {
+            select(next);
+            crate::object_web::rp_fire_event(&key_owner, "onclick");
+        }
+    });
+    let _ = el.add_event_listener_with_callback("keydown", key.as_ref().unchecked_ref());
+    key.forget();
 }
 
 /// A QCOMBOBOX with an edit box (as on the desktop): an input suggesting
@@ -1994,6 +2093,11 @@ fn render_list_now(name: &str) {
         });
         return;
     }
+    // An owner-drawn list box: a canvas per item.
+    if el.class_list().contains("rr-widget") && el.tag_name().eq_ignore_ascii_case("div") {
+        render_owner_list(&el, name);
+        return;
+    }
     let Ok(sel) = el.dyn_into::<web_sys::HtmlSelectElement>() else { return };
     let _ = rapidr_value::objects::with_list(name, |l| {
         sel.set_length(0);
@@ -2011,6 +2115,59 @@ fn render_list_now(name: &str) {
             sel.set_selected_index(l.item_index as i32);
         }
     });
+}
+
+/// Shows an owner-drawn list box's items (see [`create_owner_list`]) and
+/// fires OnDrawItem for them if the list changed.
+fn render_owner_list(el: &web_sys::Element, name: &str) {
+    // The control's width less its frame and scroll bar (as on the desktop).
+    let width = (crate::object_web::rp_comp_get_stored(name, "width").to_i64() - 20).max(20);
+    let scroll = el.scroll_top();
+    let font = rapidr_value::objects::font_from_props(name, &|id, p| crate::object_web::rp_comp_get_stored(id, p));
+    let count = rapidr_value::objects::with_list(name, |l| l.items.len()).unwrap_or(0).min(rapidr_value::objects::list::MAX_OWNER_DRAWN);
+    el.set_inner_html("");
+    for i in 0..count {
+        let Some((w, h, rgba)) = rapidr_value::objects::list_item_pixels(name, i, width, &font) else { continue };
+        let row = create_el("div");
+        let _ = row.set_attribute("data-item", &i.to_string());
+        let rs = row.style();
+        let _ = rs.set_property("height", &format!("{h}px"));
+        let _ = rs.set_property("cursor", "default");
+        let Some(canvas) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { continue };
+        canvas.set_width(w as u32);
+        canvas.set_height(h as u32);
+        let _ = canvas.style().set_property("display", "block");
+        if let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) {
+            if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w as u32, h as u32) {
+                let _ = ctx.put_image_data(&data, 0.0, 0.0);
+            }
+        }
+        let _ = row.append_child(&canvas);
+        let _ = el.append_child(&row);
+    }
+    el.set_scroll_top(scroll);
+    list_owner_draw(name, width);
+}
+
+/// OnDrawItem(Index, State, Rect): fired for every item after the list
+/// changed, as on the desktop (rapidr_value::objects::list). Each item's
+/// Rect is a QRECT (a property bag).
+fn list_owner_draw(name: &str, width: i64) {
+    if !crate::object_web::rp_has_handler(name, "ondrawitem") {
+        return;
+    }
+    if !rapidr_value::objects::with_list_mut(name, |l| l.owner_draw_needed()).unwrap_or(false) {
+        return;
+    }
+    let items = rapidr_value::objects::with_list(name, |l| l.owner_draw_items(width)).unwrap_or_default();
+    for (i, state, (left, top, right, bottom)) in items {
+        let rect = format!("{}.ITEMRECT({i})", name.to_uppercase());
+        crate::object_web::rp_create_component(&rect, "RUDT");
+        for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
+            crate::object_web::rp_comp_set(&rect, prop, v_int(v));
+        }
+        crate::object_web::rp_fire_event_args(name, "ondrawitem", &[v_int(i as i64), v_int(state), crate::value::v_str(&rect)]);
+    }
 }
 
 fn create_image(id: &str, name: &str, props: &HashMap<String, Value>) {

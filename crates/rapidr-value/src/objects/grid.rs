@@ -63,6 +63,27 @@ pub enum CellDraw {
     Image(i64, i64, Bitmap),
 }
 
+impl CellDraw {
+    /// Paints this onto `bmp` (whose top left is the cell's), text in
+    /// `font`: the same pixels on every platform.
+    pub fn paint(&self, bmp: &mut Bitmap, font: &super::font::Font) {
+        match self {
+            CellDraw::Line(x1, y1, x2, y2, c) => bmp.line(*x1, *y1, *x2, *y2, *c),
+            CellDraw::Rect(x1, y1, x2, y2, c) => bmp.rectangle(*x1, *y1, *x2, *y2, *c),
+            CellDraw::Fill(x1, y1, x2, y2, c) => bmp.fill_rect(*x1, *y1, *x2, *y2, *c),
+            CellDraw::Ellipse(x1, y1, x2, y2, c, fill) => {
+                if let Some(f) = fill {
+                    bmp.ellipse(*x1, *y1, *x2, *y2, *f, true);
+                }
+                bmp.ellipse(*x1, *y1, *x2, *y2, *c, false);
+            }
+            CellDraw::Pixel(x, y, c) => bmp.pset(*x, *y, *c),
+            CellDraw::Text(x, y, text, c, bg) => super::text::text_out(bmp, *x, *y, text, font, *c, *bg),
+            CellDraw::Image(x, y, src) => bmp.draw(*x, *y, src),
+        }
+    }
+}
+
 /// Most rows / columns a grid can have, and most cells in all.
 pub const MAX_ROWS: usize = 1_000_000;
 pub const MAX_COLS: usize = 10_000;

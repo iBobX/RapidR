@@ -24,6 +24,8 @@
 //     Repaint, resize), drawn pixels, TextWidth;
 //   * tests/fixtures/form_draw.bas — drawing on a QFORM in its OnPaint
 //     (Pixel, TextWidth, a resize paints again);
+//   * tests/fixtures/owner_list.bas — an owner-drawn QLISTBOX (OnDrawItem's
+//     State and Rect, redrawn when the selection changes);
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
 //     opened (and closed by a timer) inside an event handler.
 //
@@ -85,6 +87,8 @@ const cases = [
     expect: ["lbl.caption=paints3|form1|255|65280|220x80|36"] },
   { name: "form_draw", events: "big.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=paints2|255|14737632|36|"] },
+  { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];
