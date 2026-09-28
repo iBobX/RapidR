@@ -103,7 +103,7 @@ impl RpComponent {
                 props.insert("width".into(), v_int(120));
                 props.insert("height".into(), v_int(25));
             }
-            "RLISTBOX" => {
+            "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" => {
                 // Items and selection: rapidr_value::objects::list.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
@@ -556,6 +556,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
     // with the web runtime).
+    let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get(name, "directory").to_string_val() } else { String::new() };
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
         let picture = rapidr_value::objects::is_picture(name);
         match result {
@@ -570,6 +571,18 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         if picture {
             picture_changed(name);
+        }
+        // A QFILELISTBOX's directory changed: OnChange.
+        if prop_lower == "directory" && rapidr_value::objects::is_file_list(name) {
+            rp_fire_event(name, "onchange");
+        }
+        // A QDIRTREE: shown again; its directory changed: OnChange.
+        if rapidr_value::objects::is_dirtree(name) {
+            #[cfg(feature = "gui")]
+            crate::gui::dirtree_refresh(name);
+            if matches!(prop_lower.as_str(), "directory" | "initialdir") && before_dir != rp_comp_get(name, "directory").to_string_val() {
+                rp_fire_event(name, "onchange");
+            }
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_listview(name) {
@@ -847,6 +860,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return crate::gui::image_method(name, &method_lower, args);
             }
             picture_changed(name);
+        }
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_dirtree(name) {
+            crate::gui::dirtree_refresh(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_listview(name) {
@@ -1605,7 +1622,7 @@ pub fn is_component_type(type_name: &str) -> bool {
     matches!(
         type_name.to_uppercase().as_str(),
         "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL"
-        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX"
+        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
         | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
         | "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"

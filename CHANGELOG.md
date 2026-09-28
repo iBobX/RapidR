@@ -7,6 +7,49 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.44.0] — 2026-09-28
+
+### Added
+- **QFILELISTBOX, on desktop and web**: a list box of a directory's files,
+  from the shared list model (`rapidr_value::objects::filelist`).
+  - `Directory` starts at the current directory; setting it fires
+    OnChange.
+  - `Mask` (`*.*`; several separated by `;`, case-insensitive as on
+    Windows), `AddFileTypes` / `DelFileTypes` (ftDirectory lists `[..]`
+    and `[dir]` entries, ftHidden adds dot files), `Update`, `FileName`
+    and `Drive`.
+  - The list box's own properties and events work as on a QLISTBOX.
+- **QDIRTREE, on desktop and web**: a directory tree from the filesystem
+  root, shown as indented rows (`rapidr_value::objects::dirtree`).
+  - `InitialDir` / `Directory` select a directory, open the ones above it
+    and scroll it into view.
+  - A click selects a directory (OnChange); a double click opens or closes
+    it.
+  - `FullCollapse`, `FullExpand` (up to 5,000 rows), `Reload`.
+  - Directories are read only when they're opened.
+- The web has no filesystem, so there both show nothing, or just the root.
+
+### Fixed
+- **`MID$(s, i)` without a length** returns the rest of the string, as in
+  QBasic; it returned "".
+
+### Tooling
+- `tools/corpus_compare.mjs` removes each program's own native build
+  outputs after running it and builds without incremental caches. A full
+  run had grown `tests/conformance/.work` to 165 GB and filled the disk.
+  Window captures are written next to each program's folder, not in it,
+  so programs that list their directory see the same files in both runs.
+- Full comparison: the programs that differ from one run to the next do so
+  from timing and focus (windows on a live desktop), not from the
+  backends; reruns match.
+
+### Tests
+- New conformance case `file_list_box`, and two-argument `MID$` in
+  `strings`; 100/100 pass on both backends.
+- New GUI fixture `file_browser.bas` (a QDirTree driving a QFileListBox)
+  in `tests/native_gui_events.mjs`.
+- Model unit tests for wildcards, listing and the tree.
+
 ## [2.43.0] — 2026-09-28
 
 ### Added

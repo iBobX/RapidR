@@ -29,10 +29,12 @@ pub fn len(s: &Value) -> Value {
     v_int(s.to_string_val().chars().count() as i64)
 }
 
+/// MID$(s, i, n); without n (`MID$(s, i)`), the rest of s, as in QBasic.
 pub fn mid(s: &Value, start: &Value, length: &Value) -> Value {
     let c = chars(s);
     let start = index0(start).min(c.len());
-    let end = start.saturating_add(count(length)).min(c.len());
+    let n = if matches!(length, Value::Null) { c.len() } else { count(length) };
+    let end = start.saturating_add(n).min(c.len());
     Value::String(c[start..end].iter().collect())
 }
 
@@ -162,6 +164,7 @@ mod tests {
     fn out_of_range_arguments_are_clamped() {
         assert_eq!(mid(&s("abc"), &v_int(10), &v_int(2)).to_string_val(), "");
         assert_eq!(mid(&s("abc"), &v_int(0), &v_int(2)).to_string_val(), "ab");
+        assert_eq!(mid(&s("hello"), &v_int(2), &Value::Null).to_string_val(), "ello");
         assert_eq!(left(&s("abc"), &v_int(-1)).to_string_val(), "");
         assert_eq!(right(&s("abc"), &v_int(99)).to_string_val(), "abc");
         assert_eq!(instr(&v_int(9), &s("abc"), &s("c")).to_i64(), 0);

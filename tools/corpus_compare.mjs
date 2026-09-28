@@ -38,7 +38,30 @@ const NETWORK = /\b(qsocket|qclientsocket|qserversocket|qmysql|qhttp|qftp|qsmtp|
 // differences are listed but counted apart.
 const VARIES = /\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount|now)\b/i;
 
-const env = { ...process.env, RAPIDR_INCLUDE_PATH: INCLUDE, CARGO_TARGET_DIR: CARGO_TARGET };
+// No incremental build caches: every program is its own crate, so they'd
+// add up to tens of GB over the corpus.
+const env = { ...process.env, RAPIDR_INCLUDE_PATH: INCLUDE, CARGO_TARGET_DIR: CARGO_TARGET, CARGO_INCREMENTAL: "0" };
+
+// The package name `rapidr build` gives a program (rapidr_codegen_rust::crate_name).
+function crateName(stem) {
+  const name = stem.replace(/[^A-Za-z0-9_-]/g, "_");
+  return !name || /^[0-9-]/.test(name) ? `rq_${name}` : name;
+}
+
+// Removes a program's own build outputs (the shared runtime builds stay).
+function cleanNativeBuild(stem) {
+  const crate = crateName(stem);
+  const artifact = crate.replace(/-/g, "_");
+  for (const sub of ["debug", "debug/deps", "debug/.fingerprint", "debug/build"]) {
+    const dir = join(CARGO_TARGET, sub);
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (f === crate || f === artifact || f.startsWith(`${crate}-`) || f.startsWith(`${artifact}-`) || f.startsWith(`${crate}.`)) {
+        rmSync(join(dir, f), { recursive: true, force: true });
+      }
+    }
+  }
+}
 const results = JSON.parse(readFileSync(jsonPath, "utf8")).results;
 // `filter`: comma-separated parts of program paths (e.g. "grids/,games/puzzle").
 const wanted = filter ? filter.split(",").map((f) => f.trim()).filter(Boolean) : [];
@@ -51,14 +74,19 @@ function build(src, out, interp) {
   return r.status === 0 ? null : (r.stderr || r.stdout || "").split("\n").filter((l) => /error/i.test(l)).slice(0, 3).join(" | ") || `exit ${r.status}`;
 }
 
+// Window captures go next to the program's folder, not in it: programs
+// that list their directory (QFILELISTBOX) must see the same files in both
+// runs.
 function run(bin, cwd, prefix) {
-  for (const f of readdirSync(cwd)) if (f.startsWith(basename(prefix) + "-")) rmSync(join(cwd, f));
+  const capDir = dirname(prefix);
+  mkdirSync(capDir, { recursive: true });
+  for (const f of readdirSync(capDir)) if (f.startsWith(basename(prefix) + "-")) rmSync(join(capDir, f));
   const r = spawnSync(bin, [], {
     cwd, input: "", encoding: "utf8", timeout: RUN_SECONDS * 1000, killSignal: "SIGKILL",
     env: { ...env, RAPIDR_CAPTURE: prefix, RAPIDR_CAPTURE_DELAY: "2" },
   });
-  const captures = readdirSync(cwd).filter((f) => f.startsWith(basename(prefix) + "-") && f.endsWith(".bmp")).sort()
-    .map((f) => readFileSync(join(cwd, f)));
+  const captures = readdirSync(capDir).filter((f) => f.startsWith(basename(prefix) + "-") && f.endsWith(".bmp")).sort()
+    .map((f) => readFileSync(join(capDir, f)));
   // Messages the capture hook itself prints, and paths, don't count.
   const clean = (s) => (s || "").split("\n").filter((l) => !l.startsWith("[rapidr] captured window")).join("\n").replaceAll(cwd, "<dir>");
   return { stdout: clean(r.stdout), stderr: clean(r.stderr), status: r.status, timedOut: r.error?.code === "ETIMEDOUT", captures };
@@ -99,8 +127,12 @@ for (const rel of programs) {
     console.log(`✗ ${rel}: ${entry.result}: ${entry.detail}`);
     continue;
   }
-  const native = run(join(dir, stem), dir, join(dir, "cap-native"));
-  const interp = run(join(dir, "interp", stem), dir, join(dir, "cap-interp"));
+  const captures = `${dir}.captures`;
+  const native = run(join(dir, stem), dir, join(captures, "cap-native"));
+  const interp = run(join(dir, "interp", stem), dir, join(captures, "cap-interp"));
+  // Only what's needed to look into a difference stays on disk.
+  cleanNativeBuild(stem);
+  rmSync(join(dir, "native-project"), { recursive: true, force: true });
   const diffs = [];
   if (native.stdout !== interp.stdout) diffs.push("output");
   if (native.timedOut !== interp.timedOut) diffs.push(`timeout (native ${native.timedOut}, interpreted ${interp.timedOut})`);
