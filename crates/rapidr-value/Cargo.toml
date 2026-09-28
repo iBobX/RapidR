@@ -5,3 +5,7 @@ version.workspace = true
 publish = false
 license.workspace = true
 description = "Shared dynamic Value type for RapidR runtimes and bytecode VM"
+
+[dependencies]
+# Text on bitmaps (objects/text.rs): reads the built-in Liberation fonts.
+ttf-parser = { version = "0.25", default-features = false, features = ["std"] }

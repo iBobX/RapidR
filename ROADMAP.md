@@ -175,7 +175,8 @@ Next up, in order:
 - [ ] Fuzzing in CI
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
 - [ ] Streams: ReadUDT/WriteUDT (LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0, ExtractRes in v2.40.0)
-- [ ] QBITMAP/QCANVAS text (`TextOut`, `TextWidth`/`TextHeight`), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.Read(var)`/`ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
+- [x] QBITMAP text (`TextOut`, `TextWidth`/`TextHeight`, Font) from built-in Liberation fonts (OFL) on every platform (v2.46.0)
+- [ ] QCANVAS text from the same fonts (the desktop canvas draws with FLTK's), `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)

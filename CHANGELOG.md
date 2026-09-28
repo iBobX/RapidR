@@ -7,6 +7,35 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.46.0] — 2026-09-28
+
+### Added
+- **Text on bitmaps**: `TextOut(x, y, text, color, background)`,
+  `TextWidth`, `TextHeight`, `Font` and `Font.*` on QBITMAP, and on a
+  QIMAGE's picture.
+  - The same pixels on desktop and web, natively and interpreted.
+  - It uses the fonts now built into RapidR: the **Liberation fonts** (Sans,
+    Serif, Mono; SIL Open Font License 1.1). They have the same character
+    widths as Arial, Times New Roman and Courier New, the Windows fonts
+    RapidQ programs name, so their text layouts come out the same.
+  - A font name with Courier / mono picks Liberation Mono; Times / serif /
+    Roman picks Liberation Serif; anything else, Liberation Sans.
+  - Sizes are points at 96 dpi, as on Windows screens.
+  - Bold, italic, underline and strike-out are drawn from the regular
+    faces.
+  - The font files are read with `ttf-parser` (MIT OR Apache-2.0) and
+    filled by RapidR's own anti-aliased rasterizer.
+  - They're credited in `LICENSES.md`, with the license in
+    `crates/rapidr-value/fonts/`. The web runtime grows by about 1.1 MB.
+  - The corpus's *Print QBitmap* now prints its numbers.
+
+### Tests
+- New conformance case `bitmap_text` (widths, heights and the exact
+  pixels drawn); 104/104 pass on both backends. New rasterizer unit
+  tests.
+- The 24 corpus programs that draw or measure text run the same natively
+  and interpreted.
+
 ## [2.45.0] — 2026-09-28
 
 ### Added

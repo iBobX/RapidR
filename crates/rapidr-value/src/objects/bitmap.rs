@@ -8,6 +8,7 @@
 //! Delphi's TImage does.
 
 use super::codec::{bmp_data_url, decode_bmp, Pixels, MAX_PIXELS};
+use super::font::Font;
 use crate::{v_int, v_str, Value};
 
 #[derive(Debug, Clone)]
@@ -17,6 +18,8 @@ pub struct Bitmap {
     pub transparent_color: u32,
     /// A QIMAGE's picture (see the module docs).
     pub picture: bool,
+    /// The font TextOut draws with (`Bitmap.Font = Font`, `Font.Size`, …).
+    pub font: Font,
 }
 
 /// Color of a new bitmap's pixels.
@@ -24,7 +27,7 @@ const BACKGROUND: u32 = 0xFFFFFF;
 
 impl Default for Bitmap {
     fn default() -> Self {
-        Self { img: Pixels { width: 0, height: 0, pixels: Vec::new() }, transparent: false, transparent_color: BACKGROUND, picture: false }
+        Self { img: Pixels { width: 0, height: 0, pixels: Vec::new() }, transparent: false, transparent_color: BACKGROUND, picture: false, font: Font::default() }
     }
 }
 
@@ -183,6 +186,9 @@ impl Bitmap {
         if self.picture && matches!(prop, "width" | "height") {
             return None;
         }
+        if let Some(p) = prop.strip_prefix("font.") {
+            return self.font.get(p);
+        }
         Some(match prop {
             "width" => v_int(self.img.width as i64),
             "height" => v_int(self.img.height as i64),
@@ -198,6 +204,9 @@ impl Bitmap {
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<Result<(), String>> {
         if self.picture && matches!(prop, "width" | "height" | "transparentcolor") {
             return None;
+        }
+        if let Some(p) = prop.strip_prefix("font.") {
+            return self.font.set(p, val).then_some(Ok(()));
         }
         match prop {
             // A QIMAGE's transparent color is its bottom-left pixel's
@@ -237,6 +246,17 @@ impl Bitmap {
             }
             "roundrect" => self.round_rect(n(0), n(1), n(2), n(3), n(4), n(5), c(6)),
             "paint" => self.flood_fill(n(0), n(1), c(2), c(3)),
+            // TextOut(x, y, text, colour, background (-1: transparent)),
+            // in the bitmap's Font (objects/text.rs).
+            "textout" => {
+                let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
+                let color = if args.len() > 3 { c(3) } else { self.font.color as u32 & 0xFFFFFF };
+                let bg = args.get(4).map(Value::to_i64).filter(|v| *v >= 0).map(|v| v as u32 & 0xFFFFFF);
+                let font = self.font.clone();
+                super::text::text_out(self, n(0), n(1), &text, &font, color, bg);
+            }
+            "textwidth" => return Some(v_int(super::text::text_size(&args.first().map(|v| v.to_string_val()).unwrap_or_default(), &self.font).0)),
+            "textheight" => return Some(v_int(super::text::text_size(&args.first().map(|v| v.to_string_val()).unwrap_or_default(), &self.font).1)),
             _ => return None,
         }
         Some(Value::Null)

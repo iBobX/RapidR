@@ -60,14 +60,32 @@ allowlist in `deny.toml` (`cargo deny check licenses`).
 
 ---
 
-## 4. Inter, Tahoma, MS Sans Serif fonts
+## 4. Fonts
+
+### Liberation fonts 2.1.5 — SIL Open Font License 1.1
+
+`crates/rapidr-value/fonts/` holds Liberation Sans, Liberation Serif and
+Liberation Mono (Regular), unmodified, from
+<https://github.com/liberationfonts/liberation-fonts>. They are built into
+the RapidR runtimes (desktop apps, the interpreter runner and the web
+WebAssembly), which draw text on bitmaps with them; they have the same
+character widths as Arial, Times New Roman and Courier New.
+
+> Digitized data copyright (c) 2010 Google Corporation with Reserved Font
+> Arimo, Tinos and Cousine. Copyright (c) 2012 Red Hat, Inc. with Reserved
+> Font Name Liberation.
+>
+> This Font Software is licensed under the SIL Open Font License, Version
+> 1.1. The full license text is in
+> [`crates/rapidr-value/fonts/OFL-1.1.txt`](crates/rapidr-value/fonts/OFL-1.1.txt)
+> and at <https://openfontlicense.org>.
+
+### System fonts named by the IDE
 
 The IDE references the system-installed `Inter`, `Tahoma`, `Arial`,
 `Verdana`, `Times New Roman`, `Courier New`, `Segoe UI`, and
-`MS Sans Serif` fonts via CSS only. No font files are vendored or
-redistributed. End users supply their own fonts via the operating system
-or browser. If `Inter` is bundled in a future release it will be added
-here under the SIL Open Font License 1.1.
+`MS Sans Serif` fonts via CSS only. Those font files are not vendored or
+redistributed; end users supply them via the operating system or browser.
 
 ---
 
