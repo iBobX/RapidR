@@ -7,6 +7,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.49.0] — 2026-09-28
+
+### Added
+- **Drawing on a QFORM itself**: `Form.TextOut`, `Line`, `Rectangle`,
+  `FillRect`, `Circle`, `Pset`, `Pixel`, `Draw`, `TextWidth`, `TextHeight`,
+  `Cls`, … — the RapidQ "Hello World" that draws in its form's `OnPaint`
+  now shows its text.
+  - Same shared bitmap model as QCANVAS, so the desktop, the web, native
+    and interpreted builds draw the same pixels.
+  - The form gets its surface the first time it's drawn on. It lies under
+    the form's controls, the form's own `Color` shows through where
+    nothing is drawn, and it takes no mouse events.
+  - Text uses the form's `Font` (name, size, color, styles).
+  - The surface is the form's client area (`ClientWidth` × `ClientHeight`).
+- A form paints again (`OnPaint`) when its size changes: the user drags
+  its edge, or the program sets `Width` / `Height`. Sizes stored while the
+  form is being declared or laid out don't.
+- Tests: `form_surface` (conformance, both backends), `form_draw.bas`
+  (desktop, native and interpreted agree) and checks in
+  `tests/web_ide_canvas.mjs` (the browser canvas under the controls shows
+  the model's pixels).
+
+### Changed
+- `Form.Repaint` / `Refresh` don't fire `OnPaint` (a handler that calls
+  them would loop); a canvas's do.
+
 ## [2.48.0] — 2026-09-28
 
 ### Added

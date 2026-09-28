@@ -342,6 +342,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 let mut win = Window::new(x, y, w, h, None);
                 win.set_label(&caption);
                 win.make_resizable(true);
+                form_surface_overlay(&name_lower, w, h);
                 win.end();
                 let form = name_lower.clone();
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
@@ -358,6 +359,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 let mut win = Window::new(100, 100, w, h, None);
                 win.set_label(&caption);
                 win.make_resizable(true);
+                form_surface_overlay(&name_lower, w, h);
                 win.end();
                 let form = name_lower.clone();
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
@@ -3167,6 +3169,7 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
     crate::layout::realign(form, None);
     gui_apply_geometry(form);
     rp_fire_event(form, "onresize");
+    rp_fire_event(form, "onpaint");
 }
 
 // ---------------------------------------------------------------------------
@@ -4790,6 +4793,47 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
             false
         }
         _ => false,
+    }
+}
+
+/// The first child of a form's window: shows the form's own drawing surface
+/// (`Form.TextOut`, `Form.Line`, … — rapidr_value::objects, a Bitmap) under
+/// the form's controls, whose pixels of the form's color show the window
+/// through. It takes no events and draws nothing until the form is drawn on.
+fn form_surface_overlay(form: &str, w: i32, h: i32) {
+    let mut frm = Frame::new(0, 0, w, h, None);
+    frm.set_frame(FrameType::NoBox);
+    let form_name = form.to_string();
+    frm.draw(move |f| {
+        let menu = menu_offset(&form_name);
+        let (cw, ch) = (f.w(), f.h() - menu);
+        if ch <= 0 {
+            return;
+        }
+        let rgba = rapidr_value::objects::with_canvas(&form_name, cw as i64, ch as i64, |b| b.to_rgba());
+        if let Some(rgba) = rgba {
+            if let Ok(mut img) = RgbImage::new(&rgba, cw, ch, ColorDepth::Rgba8) {
+                img.draw(f.x(), f.y() + menu, cw, ch);
+            }
+        }
+    });
+    GUI_WIDGETS.with(|gw| {
+        gw.borrow_mut().insert(format!("{form}.surface"), GuiWidget::Frame(frm));
+    });
+}
+
+/// Whether form `name` has its window yet.
+pub fn form_window_exists(name: &str) -> bool {
+    GUI_WIDGETS.with(|gw| gw.try_borrow().map_or(true, |w| matches!(w.get(&name.to_lowercase()), Some(GuiWidget::Window(_)))))
+}
+
+/// A QCANVAS's or a QFORM's surface changed: show it again.
+pub fn canvas_redraw(name: &str) {
+    let name = name.to_lowercase();
+    if rapidr_value::objects::is_form_surface(&name) {
+        redraw_widget(&format!("{name}.surface"));
+    } else {
+        redraw_widget(&name);
     }
 }
 

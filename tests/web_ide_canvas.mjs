@@ -133,6 +133,66 @@ const red = await frame2.evaluate(() => {
 });
 ok(red === "255,0,0", `what OnPaint drew is on the canvas (${red})`);
 
+// Drawing on a QFORM itself: its surface lies under the controls, and the
+// form's own color shows through where nothing is drawn.
+await page.evaluate(() => {
+  window.RapidR.runCommand("run.stop");
+  window.RapidR.state.project.forms[0].code = { handlers: {}, source: [
+    '$INCLUDE "RAPIDQ.INC"',
+    'DECLARE SUB FormPaint',
+    'CREATE Win AS QFORM',
+    '  Width = 300',
+    '  Height = 200',
+    '  OnPaint = FormPaint',
+    '  CREATE Btn AS QBUTTON',
+    '    Caption = "Top"',
+    '    Left = 10',
+    '    Top = 60',
+    '  END CREATE',
+    'END CREATE',
+    'SUB FormPaint',
+    '  Win.FillRect(10, 10, 60, 40, &H0000FF)',
+    '  Win.TextOut(80, 10, "Hello", &H000000, -1)',
+    '  PRINT "tw="; Win.TextWidth("Hello")',
+    '  FOR y = 10 TO 39 STEP 5',
+    '    s$ = ""',
+    '    FOR x = 10 TO 109 STEP 5',
+    '      s$ = s$ + STR$(Win.Pixel(x, y)) + ","',
+    '    NEXT x',
+    '    PRINT "F"; s$',
+    '  NEXT y',
+    'END SUB',
+    'Win.ShowModal',
+  ].join("\n") };
+  window.RapidR.runCommand("run.start");
+});
+await page.waitForTimeout(2500);
+const out3 = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]').textContent);
+const frows = out3.split("\n").filter((l) => /^F\d/.test(l)).map((l) => l.slice(1).split(",").filter(Boolean).map((v) => Number(v.trim())));
+ok(frows.length === 6 && frows[0].length === 20, `the form's pixels were read back (${frows.length} rows)`);
+const frame3 = page.frames().find((f) => f.url().includes("preview.html"));
+const fshown = await frame3.evaluate(() => {
+  const c = document.querySelector('canvas[id$="-surface"]');
+  const btn = document.getElementById("rr-btn");
+  if (!c || !btn) return { missing: true, canvas: !!c, btn: !!btn };
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height);
+  const at = (x, y) => { const i = (y * d.width + x) * 4; return { rgb: d.data[i] | (d.data[i + 1] << 8) | (d.data[i + 2] << 16), a: d.data[i + 3] }; };
+  const rows = [];
+  for (let y = 10; y < 40; y += 5) { const r = []; for (let x = 10; x < 110; x += 5) r.push(at(x, y)); rows.push(r); }
+  const before = btn.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_PRECEDING;
+  return { rows, under: !!before, events: getComputedStyle(c).pointerEvents };
+});
+ok(!fshown.missing, "the form's surface canvas exists next to its controls");
+let fdiff = 0, painted = 0, clear = 0;
+if (!fshown.missing) for (let y = 0; y < frows.length; y++) for (let x = 0; x < 20; x++) {
+  const m = frows[y][x], w = fshown.rows[y][x];
+  if (w.a === 0) { clear++; } else { painted++; if (w.rgb !== m) fdiff++; }
+  if (w.a === 0 && m !== 0xF0F0F0) fdiff++;
+}
+ok(!fshown.missing && fdiff === 0, `the browser shows the model's pixels (${fdiff} differ; ${painted} drawn, ${clear} see-through)`);
+ok(!fshown.missing && painted > 20 && clear > 20, "drawn pixels are opaque and the rest lets the form show");
+ok(!fshown.missing && fshown.under && fshown.events === "none", "it lies under the controls and takes no mouse events");
+
 await page.screenshot({ path: "scratch/web_ide_canvas.png" });
 await browser.close();
 if (failed) { console.log(`\nCanvas: ${failed} CHECK(S) FAILED`); process.exit(1); }

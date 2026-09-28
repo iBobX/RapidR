@@ -36,6 +36,12 @@ pub fn quietly<R>(f: impl FnOnce() -> R) -> R {
     r
 }
 
+/// Whether geometry is being stored internally (see [`quietly`]) rather than
+/// changed by the program or the user.
+pub fn is_quiet() -> bool {
+    busy()
+}
+
 fn busy() -> bool {
     BUSY.with(Cell::get) > 0
 }

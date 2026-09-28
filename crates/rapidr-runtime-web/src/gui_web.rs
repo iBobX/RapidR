@@ -2158,13 +2158,29 @@ pub fn render_canvas(name: &str) {
 }
 
 /// Puts a QCANVAS's surface on its HTML canvas, whose pixels are the
-/// control's size.
+/// control's size; a QFORM's on a canvas under its controls (made the first
+/// time), whose pixels are its client area's.
 fn render_canvas_now(name: &str) {
-    let Some(canvas) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    let form = rapidr_value::objects::is_form_surface(name);
+    let canvas_id = if form { format!("{}-surface", comp_id(name)) } else { comp_id(name) };
+    let mut canvas = get_el(&canvas_id).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok());
     let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_i64();
-    let Some((w, h, rgba)) = rapidr_value::objects::with_canvas(name, stored("width"), stored("height"), |b| {
-        (b.img.width as u32, b.img.height as u32, b.to_rgba())
-    }) else {
+    let (cw, ch) = if form {
+        (crate::object_web::rp_comp_get(name, "clientwidth").to_i64(), crate::object_web::rp_comp_get(name, "clientheight").to_i64())
+    } else {
+        (stored("width"), stored("height"))
+    };
+    if canvas.is_none() && form {
+        // Under the form's controls: the first child of its client area.
+        let Some(client) = get_el(&format!("{}-client", comp_id(name))) else { return };
+        let Some(el) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+        el.set_id(&canvas_id);
+        let _ = el.set_attribute("style", "position:absolute;left:0;top:0;pointer-events:none;");
+        let _ = client.insert_before(&el, client.first_child().as_ref());
+        canvas = Some(el);
+    }
+    let Some(canvas) = canvas else { return };
+    let Some((w, h, rgba)) = rapidr_value::objects::with_canvas(name, cw, ch, |b| (b.img.width as u32, b.img.height as u32, b.to_rgba())) else {
         return;
     };
     if w == 0 || h == 0 {
