@@ -3,6 +3,7 @@ use rapidr_diagnostics::TextSpan;
 pub mod numeric;
 pub mod objects;
 pub mod array_refs;
+pub mod suffix_routines;
 pub mod stream_arrays;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,6 +81,8 @@ pub struct DimStatement {
     pub span: TextSpan,
     pub declarators: Vec<VariableDeclarator>,
     pub type_name: String,
+    /// `AS STRING * 20`: the fixed length (stores are cut to it).
+    pub fixed_len: Option<usize>,
     /// `STATIC x AS T` inside a SUB/FUNCTION: one variable shared by every
     /// call (and recursion) of that procedure, initialised once.
     pub is_static: bool,
@@ -257,6 +260,8 @@ pub struct TypeField {
     pub span: TextSpan,
     pub name: String,
     pub type_name: String,
+    /// `Name AS STRING * 20`: the fixed length (stores are cut to it).
+    pub fixed_len: Option<usize>,
     /// Upper bound of an array field (`Names(2)` or `Colors(1 TO 16)`).
     pub array_size: Option<Expression>,
     /// Lower bound of an array field, when written (`Colors(1 TO 16)`); 0 otherwise.

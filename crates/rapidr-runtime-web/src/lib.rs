@@ -25,7 +25,7 @@ pub use rapidr_rrcss::RR_BASE_CSS;
 
 pub mod prelude {
     // Value type + constructors
-    pub use crate::value::{rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
+    pub use crate::value::{rp_fixed_string, rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
     // SUBI / FUNCTIONI arguments
     pub use crate::value::variadic;
     // DATA / READ / RESTORE

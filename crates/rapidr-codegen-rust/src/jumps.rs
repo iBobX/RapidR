@@ -228,8 +228,9 @@ impl RustCodegen {
                 self.start_state(exit);
             }
             Statement::DoLoop(d) if flatten => self.flat_do(d),
-            Statement::SelectCase(_) | Statement::With(_) | Statement::Create(_) if flatten => {
-                self.line("compile_error!(\"A line label or GOSUB inside SELECT CASE, WITH or CREATE isn't supported in native builds yet; move it outside, or run the program with the bytecode interpreter.\");");
+            Statement::SelectCase(c) if flatten => self.flat_select(c),
+            Statement::With(_) | Statement::Create(_) if flatten => {
+                self.line("compile_error!(\"A line label or GOSUB inside WITH or CREATE isn't supported in native builds yet; move it outside, or run the program with the bytecode interpreter.\");");
             }
             _ => self.emit_statement(stmt),
         }
@@ -255,6 +256,33 @@ impl RustCodegen {
             self.start_state(next);
         }
         self.flat_body(&i.else_body);
+        self.start_state(end);
+    }
+
+    /// `SELECT CASE` holding a label or GOSUB: the selector is kept in a
+    /// hoisted variable and each branch is a state, like `flat_if`.
+    fn flat_select(&mut self, c: &SelectCaseStatement) {
+        let n = {
+            let sm = self.state_machine.as_mut().expect("state machine");
+            sm.for_counter += 1;
+            sm.for_counter
+        };
+        let sel = format!("__sm_select_{n}");
+        self.hoist(format!("let mut {sel} = v_null();"));
+        let value = self.owned_expr(&c.expression);
+        self.write_indent();
+        let _ = writeln!(self.output, "{sel} = {value};");
+        let end = self.new_state();
+        for case in &c.cases {
+            let next = self.new_state();
+            let test = self.case_conditions(&sel, case).join(" || ");
+            self.write_indent();
+            let _ = writeln!(self.output, "if !({test}) {{ __pc = {next}; continue 'sm; }}");
+            self.flat_body(&case.body);
+            self.jump(end);
+            self.start_state(next);
+        }
+        self.flat_body(&c.case_else);
         self.start_state(end);
     }
 

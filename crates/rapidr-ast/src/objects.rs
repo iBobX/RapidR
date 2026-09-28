@@ -131,8 +131,9 @@ impl Types {
 
     /// The conversion a store into field `f` needs (a numeric field;
     /// `crate::numeric`).
-    fn field_conversion(&self, t: &str, f: &str) -> Option<&'static str> {
-        crate::numeric::conversion_for(&self.field(t, f)?.type_name)
+    fn field_conversion(&self, t: &str, f: &str) -> Option<crate::numeric::Conv> {
+        let field = self.field(t, f)?;
+        crate::numeric::conv_for(&field.type_name, field.fixed_len)
     }
 
     fn setter(&self, t: &str, f: &str) -> Option<(String, String)> {
@@ -814,7 +815,7 @@ impl Lowering<'_> {
                 Some(t) if !d.is_redim => {
                     let array = !v.dimensions.is_empty();
                     self.record_object_var(&v.name, t, array);
-                    out.push(Statement::Dim(DimStatement { span, declarators: vec![v.clone()], type_name: "VARIANT".into(), is_static: d.is_static, is_redim: false }));
+                    out.push(Statement::Dim(DimStatement { span, declarators: vec![v.clone()], type_name: "VARIANT".into(), fixed_len: None, is_static: d.is_static, is_redim: false }));
                     if array {
                         let mut args = vec![text_at(span, &v.name), text_at(span, t), text_at(span, &self.types.field_names(t))];
                         for dim in &v.dimensions {
@@ -854,6 +855,7 @@ impl Lowering<'_> {
             span,
             declarators: vec![VariableDeclarator { span, name: c.name.clone(), dimensions: Vec::new() }],
             type_name: "VARIANT".into(),
+            fixed_len: None,
             is_static: false,
             is_redim: false,
         })];
@@ -1055,6 +1057,7 @@ impl Lowering<'_> {
                                 span,
                                 declarators: vec![VariableDeclarator { span, name: local.clone(), dimensions: vec![ArrayDimension::Single(int_at(span, 0))] }],
                                 type_name: "VARIANT".into(),
+                                fixed_len: None,
                                 is_static: false,
                                 is_redim: false,
                             }));

@@ -265,6 +265,29 @@ pub fn array_bound(v: &Value, dim: i64, upper: bool) -> Option<i64> {
 pub fn v_bool(b: bool) -> Value {
     Value::Boolean(b)
 }
+
+/// A store into `STRING * n`: the text cut to `n` characters (RapidQ keeps
+/// a fixed string in an `n`-byte buffer; what a shorter value leaves unused
+/// isn't part of the text).
+pub fn rp_fixed_string(val: &Value, n: usize) -> Value {
+    let s = val.to_string_val();
+    match s.char_indices().nth(n) {
+        Some((cut, _)) => Value::String(s[..cut].to_string().into()),
+        None => Value::String(s.into()),
+    }
+}
+
+/// CBOOL: numbers and numeric strings are true when non-zero; any other
+/// string is true when it isn't empty.
+pub fn cbool(val: &Value) -> Value {
+    Value::Boolean(match val {
+        Value::String(s) => match s.trim().parse::<f64>() {
+            Ok(n) => n != 0.0,
+            Err(_) => !s.is_empty(),
+        },
+        v => v.to_bool(),
+    })
+}
 pub fn v_null() -> Value {
     Value::Null
 }
@@ -695,6 +718,21 @@ mod input_tests {
 }
 
 #[cfg(test)]
+mod fixed_string_tests {
+    use super::*;
+
+    #[test]
+    fn fixed_strings_cut_by_characters_and_cbool() {
+        assert_eq!(rp_fixed_string(&v_str("hello world"), 8).to_string_val(), "hello wo");
+        assert_eq!(rp_fixed_string(&v_str("hi"), 8).to_string_val(), "hi");
+        assert_eq!(rp_fixed_string(&v_str("héllo"), 2).to_string_val(), "hé");
+        assert_eq!(rp_fixed_string(&v_int(12345), 3).to_string_val(), "123");
+        assert!(cbool(&v_int(5)).to_bool() && !cbool(&v_int(0)).to_bool());
+        assert!(!cbool(&v_str("0")).to_bool() && !cbool(&v_str("")).to_bool() && cbool(&v_str("x")).to_bool());
+    }
+}
+
+#[cfg(test)]
 mod redim_tests {
     use super::*;
 
@@ -777,6 +815,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
             }));
         }
         "__null" => return Some(Ok(Value::Null)),
+        "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),
         // Stores into declared numeric types (`numeric`, rapidr_ast::numeric).
         _ if key.starts_with("__to_") => {
             if let Some(kind) = numeric::NumKind::from_builtin(key) {

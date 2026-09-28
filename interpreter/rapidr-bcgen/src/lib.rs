@@ -59,7 +59,7 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
-    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::hoist_routines(program))));
+    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::hoist_routines(program)))));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let lowered = rapidr_ast::numeric::lower(lowered);
@@ -2367,7 +2367,7 @@ fn collect_create_names(stmts: &[Statement], out: &mut HashSet<String>) {
 /// RapidR doesn't support yet", not a typo.
 const RAPIDQ_BUILTINS: &[&str] = &[
     "abs", "acos", "asc", "asin", "atan", "atn", "bin", "callback", "callfunc", "ceil",
-    "chdir", "chr", "cint", "clng", "cls", "codeptr", "color", "command", "commandcount",
+    "cbool", "chdir", "chr", "cint", "clng", "cls", "codeptr", "color", "command", "commandcount",
     "convbase", "convbasex", "cos", "csrlin", "curdir", "date", "delete", "dir",
     "direxists", "doevents", "environ", "execute", "exp", "extractresource", "field",
     "fileexists", "fix", "floor", "format", "frac", "get", "getcapture", "getfocus", "hex",

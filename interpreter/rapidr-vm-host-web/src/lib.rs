@@ -214,6 +214,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "rnd" => rp_rnd(&a0),
         "fix" => rp_fix(&a0),
         "frac" => rp_frac(&a0),
+        "cbool" => rp_cbool(&a0),
         "cint" => rp_cint(&a0),
         "clng" => rp_clng(&a0),
         "cdbl" => rp_cdbl(&a0),
