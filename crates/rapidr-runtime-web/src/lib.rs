@@ -15,6 +15,7 @@ pub fn builtins_input_line() -> value::Value {
     builtins::rp_input_line()
 }
 mod file_io_web;
+pub mod globals_web;
 pub mod gui_web;
 pub mod layout_web;
 pub mod mdi_web;

@@ -512,6 +512,10 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
+    // Screen, Application, Clipboard, Mouse (globals.rs).
+    if crate::globals::set(name, &prop_lower, &val) {
+        return;
+    }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
         return;
@@ -758,6 +762,10 @@ fn menu_height(name: &str) -> i64 {
 /// Get a property from a registered component.
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
+    // Screen, Application, Clipboard, Mouse (globals.rs).
+    if let Some(v) = crate::globals::get(name, &prop_lower) {
+        return v;
+    }
     // A form's inside (its frame and main menu excluded); other
     // components have no frame inside their size.
     if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
@@ -832,7 +840,8 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             .get(&name.to_lowercase())
             .and_then(|comp| comp.properties.get(&prop_lower))
             .cloned()
-            .unwrap_or_else(v_null)
+            // (a QRECT's fields, and positions, are 0 until set)
+            .unwrap_or_else(|| if matches!(prop_lower.as_str(), "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
     })
 }
 
@@ -882,6 +891,10 @@ fn form_is_built(name: &str) -> bool {
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
+    // Screen, Application, Clipboard, Mouse (globals.rs).
+    if let Some(v) = crate::globals::call(name, &method_lower, args) {
+        return v;
+    }
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi::method(name, &method_lower, args) {

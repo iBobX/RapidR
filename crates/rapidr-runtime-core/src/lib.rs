@@ -10,6 +10,7 @@ mod file_io;
 pub mod object;
 pub mod layout;
 pub mod mdi;
+pub mod globals;
 mod sound;
 pub use rapidr_value as value;
 

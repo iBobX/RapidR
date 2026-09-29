@@ -7,6 +7,37 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.65.0] — 2026-09-29
+
+### Added
+- **QTREEVIEW in-place editing** on native, interpreter and web: F2, or a
+  click on the node already selected (a double click doesn't), asks
+  `OnEditing (Index, AllowEdit)` — which may refuse — and opens an editor
+  over the node's text; Enter or leaving it asks `OnEdited (Index, S)`,
+  whose `S` answers back the node's new text; Escape drops the edit, and
+  `ReadOnly` allows none. Test actions `tree.__edit` / `__enter` /
+  `__escape` (desktop hooks and the web harness); fixture `tree_edit.bas`.
+- **RapidQ's global objects** from one shared model
+  (`rapidr_value::globals`) on native, interpreter and web — they were
+  property bags, so `Screen.Width` read 0: `Screen` (`Width`, `Height`,
+  `ClientWidth` / `ClientHeight`, `MouseX` / `MouseY`, `Monitors`,
+  `Cursor` over every form), `Application` (`ExeName`, `Path`, `Title`,
+  `Terminate`, `Minimize`, hint settings kept), `Clipboard` (`Text`,
+  `SetAsText`, `GetAsText(n)`, `Clear`, `HasFormat(CF_TEXT)`,
+  `FormatCount`, `Open` / `Close`) and `Mouse.X` / `Y`. The desktop uses
+  the system clipboard (arboard, MIT/Apache); the web keeps the
+  program's own and writes it to the browser's when allowed. Tests set
+  `RAPIDR_TEST_CLIPBOARD` and never touch the user's clipboard.
+- Component `Cursor` on the desktop (it was ignored), with RapidQ's codes
+  (`crDefault` 0 … `crHandPoint` -21) shared by both runtimes.
+
+### Fixed
+- Web: `Cursor` used made-up numbers (1 = hand); it takes RAPIDQ.INC's
+  `cr*` codes now.
+- A `QRECT`'s (or any object's) `Left` / `Top` / `Right` / `Bottom` read
+  0 until set (they were empty); on the web a DIM'd object's fields were
+  not kept at all.
+
 ## [2.64.0] — 2026-09-29
 
 ### Added

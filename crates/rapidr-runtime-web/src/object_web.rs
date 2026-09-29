@@ -468,6 +468,10 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    // Screen, Application, Clipboard, Mouse (globals_web.rs).
+    if crate::globals_web::set(name, &lprop, &val) {
+        return;
+    }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
         return;
@@ -559,6 +563,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // Handle timer interval/enabled specially
     COMPONENTS.with(|c| {
         let mut comps = c.borrow_mut();
+        // An unknown name is a property bag (a DIM'd QRECT or TYPE
+        // variable), as on the desktop: its fields are kept.
+        if !comps.contains_key(&uname) {
+            comps.insert(uname.clone(), RpComponent { type_name: "RUDT".into(), properties: HashMap::new(), creation_order: 0 });
+        }
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
 
@@ -690,6 +699,10 @@ pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    // Screen, Application, Clipboard, Mouse (globals_web.rs).
+    if let Some(v) = crate::globals_web::get(name, &lprop) {
+        return v;
+    }
     // A form's inside (its frame and main menu excluded); other components
     // have no frame inside their size.
     if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
@@ -755,6 +768,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
+    // A QRECT's Right / Bottom (Left / Top below): 0 until set.
+    if matches!(lprop.as_str(), "right" | "bottom") {
+        return stored.unwrap_or(v_int(0));
+    }
     if matches!(lprop.as_str(), "width" | "height") {
         let live = gui_web::gui_web_get_prop(&uname, &lprop);
         return match stored {
@@ -774,6 +791,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         | "route" | "hash" | "cssstyle" | "cssclass" => {
             // A component with no element (a QTIMER's Enabled): what was stored.
             match gui_web::gui_web_get_prop(&uname, &lprop) {
+                Value::Null if matches!(lprop.as_str(), "left" | "top") => stored.unwrap_or(v_int(0)),
                 Value::Null => stored.unwrap_or_else(v_null),
                 live => live,
             }
@@ -799,6 +817,10 @@ pub fn rp_comp_type(name: &str) -> String {
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     let lmethod = method.to_lowercase();
+    // Screen, Application, Clipboard, Mouse (globals_web.rs).
+    if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
+        return v;
+    }
     // A QFORMMDI's AddChild, CascadeChild, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi_web::method(name, &lmethod, args) {

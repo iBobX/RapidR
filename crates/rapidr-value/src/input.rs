@@ -175,9 +175,90 @@ pub fn text_of_vk(vk: i64) -> String {
     }
 }
 
+/// A mouse pointer: RAPIDQ.INC's `crDefault` 0, `crNone` -1, `crArrow` -2,
+/// `crCross` -3, `crIBeam` -4, `crSize` -5, `crSizeNESW` -6, `crSizeNS` -7,
+/// `crSizeNWSE` -8, `crSizeWE` -9, `crUpArrow` -10, `crHourGlass` -11,
+/// `crDrag` -12, `crNoDrop` -13, `crHSplit` -14, `crVSplit` -15,
+/// `crMultiDrag` -16, `crSQLWait` -17, `crNo` -18, `crAppStart` -19,
+/// `crHelp` -20, `crHandPoint` -21.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cursor {
+    Default,
+    None,
+    Arrow,
+    Cross,
+    IBeam,
+    Move,
+    SizeNESW,
+    SizeNS,
+    SizeNWSE,
+    SizeWE,
+    UpArrow,
+    Wait,
+    NoDrop,
+    Help,
+    Hand,
+    Progress,
+}
+
+impl Cursor {
+    pub fn of(code: i64) -> Cursor {
+        match code {
+            -1 => Cursor::None,
+            -2 => Cursor::Arrow,
+            -3 => Cursor::Cross,
+            -4 => Cursor::IBeam,
+            -5 => Cursor::Move,
+            -6 => Cursor::SizeNESW,
+            -7 | -15 => Cursor::SizeNS,
+            -8 => Cursor::SizeNWSE,
+            -9 | -14 => Cursor::SizeWE,
+            -10 => Cursor::UpArrow,
+            -11 | -17 => Cursor::Wait,
+            -12 | -16 => Cursor::Arrow,
+            -13 | -18 => Cursor::NoDrop,
+            -19 => Cursor::Progress,
+            -20 => Cursor::Help,
+            -21 => Cursor::Hand,
+            _ => Cursor::Default,
+        }
+    }
+
+    /// The CSS cursor.
+    pub fn css(self) -> &'static str {
+        match self {
+            Cursor::Default | Cursor::Arrow => "default",
+            Cursor::None => "none",
+            Cursor::Cross => "crosshair",
+            Cursor::IBeam => "text",
+            Cursor::Move => "move",
+            Cursor::SizeNESW => "nesw-resize",
+            Cursor::SizeNS => "ns-resize",
+            Cursor::SizeNWSE => "nwse-resize",
+            Cursor::SizeWE => "ew-resize",
+            Cursor::UpArrow => "n-resize",
+            Cursor::Wait => "wait",
+            Cursor::NoDrop => "not-allowed",
+            Cursor::Help => "help",
+            Cursor::Hand => "pointer",
+            Cursor::Progress => "progress",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cursors() {
+        assert_eq!(Cursor::of(0), Cursor::Default);
+        assert_eq!(Cursor::of(-21).css(), "pointer");
+        assert_eq!(Cursor::of(-11).css(), "wait");
+        assert_eq!(Cursor::of(-4).css(), "text");
+        assert_eq!(Cursor::of(-15), Cursor::SizeNS);
+        assert_eq!(Cursor::of(5), Cursor::Default);
+    }
 
     #[test]
     fn keys() {

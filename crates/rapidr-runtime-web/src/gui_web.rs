@@ -483,17 +483,9 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                 el.set_tab_index(val.to_i64() as i32);
             }
         }
+        // RAPIDQ.INC's crDefault 0, crHandPoint -21, … (rapidr_value::input)
         "cursor" => {
-            let cursor = match val.to_i64() {
-                0 => "default",
-                1 => "pointer",
-                2 => "crosshair",
-                3 => "text",
-                4 => "wait",
-                11 => "help",
-                _ => "default",
-            };
-            let _ = style.set_property("cursor", cursor);
+            let _ = style.set_property("cursor", rapidr_value::input::Cursor::of(val.to_i64()).css());
         }
         "bordercolor" => {
             let _ = style.set_property("border-color", &value_to_css_color(val));
@@ -2881,17 +2873,38 @@ fn create_treeview(id: &str, name: &str, props: &HashMap<String, Value>) {
         let owner = name.to_uppercase();
         let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
             let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+            // (clicks in the node editor are its own)
+            if target.class_name().contains("rr-tree-editor") {
+                return;
+            }
             let Some(row) = target.closest("[data-node]").ok().flatten() else { return };
             let Some(i) = row.get_attribute("data-node").and_then(|v| v.parse::<usize>().ok()) else { return };
             let on_button = target.closest(".rr-tree-button").ok().flatten().is_some();
+            let click = TREE_CLICKS.with(|c| {
+                c.set(c.get() + 1);
+                c.get()
+            });
             if dom_event == "dblclick" {
                 crate::object_web::rp_fire_event(&owner, "ondblclick");
                 tree_toggle(&owner, i);
                 return;
             }
+            let was_selected = rapidr_value::objects::with_tree(&owner, |m| m.item_index == i as i64).unwrap_or(false);
             crate::object_web::rp_fire_event(&owner, "onclick");
             if on_button {
                 tree_toggle(&owner, i);
+            } else if was_selected && target.closest(".rr-tree-text").ok().flatten().is_some() {
+                // A click on the selected node's text: an edit, a moment
+                // later, unless a double click comes.
+                let tree = owner.clone();
+                let later = Closure::once_into_js(move || {
+                    if TREE_CLICKS.with(|c| c.get()) == click {
+                        tree_begin_edit(&tree, i);
+                    }
+                });
+                if let Some(window) = web_sys::window() {
+                    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 500);
+                }
             } else {
                 tree_user_select(&owner, i);
             }
@@ -2901,6 +2914,17 @@ fn create_treeview(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     let key_owner = name.to_uppercase();
     let key = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+        // (keys in the node editor are its own)
+        if e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).is_some_and(|t| t.class_name().contains("rr-tree-editor")) {
+            return;
+        }
+        if e.key() == "F2" {
+            e.prevent_default();
+            if let Some(i) = rapidr_value::objects::with_tree(&key_owner, |m| usize::try_from(m.item_index).ok()).flatten() {
+                tree_begin_edit(&key_owner, i);
+            }
+            return;
+        }
         let Some((rows, current, expanded, has_children, parent)) = rapidr_value::objects::with_tree(&key_owner, |m| {
             let cur = usize::try_from(m.item_index).ok().filter(|&i| i < m.nodes.len());
             (m.visible_rows(), m.item_index, cur.is_some_and(|i| m.nodes[i].expanded), cur.is_some_and(|i| m.has_children(i)), cur.and_then(|i| m.parent(i)))
@@ -2934,6 +2958,92 @@ fn create_treeview(id: &str, name: &str, props: &HashMap<String, Value>) {
     key.forget();
     setup_widget(&el, id, name, props);
     render_tree(name);
+}
+
+thread_local! {
+    /// Bumped by every click on a tree (a double click cancels the edit
+    /// a click on the selected node starts).
+    static TREE_CLICKS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// The node each tree's editor edits.
+    static TREE_EDITING: std::cell::RefCell<HashMap<String, usize>> = std::cell::RefCell::new(HashMap::new());
+}
+
+/// The user starts editing node `i`'s text (F2, or a click on the selected
+/// node): not in a ReadOnly tree; OnEditing(Index, AllowEdit) may refuse;
+/// then an input over the node's text — Enter or leaving it keeps the
+/// edit, Escape drops it.
+fn tree_begin_edit(name: &str, i: usize) {
+    if rapidr_value::objects::with_tree(name, |m| m.read_only || i >= m.nodes.len()).unwrap_or(true) {
+        return;
+    }
+    let tree = name.to_uppercase();
+    crate::object_web::rp_fire_event_then(name, "onediting", &[v_int(i as i64), v_int(-1)], move |a| {
+        if a[1].to_i64() == 0 {
+            return;
+        }
+        let Some(el) = get_el(&comp_id(&tree)) else { return };
+        let Some(label) = el.query_selector(&format!("[data-node=\"{i}\"] .rr-tree-text")).ok().flatten() else { return };
+        let Some(text) = rapidr_value::objects::with_tree(&tree, |m| m.nodes.get(i).map(|n| n.text.clone())).flatten() else { return };
+        let Some(input) = document().create_element("input").ok().and_then(|x| x.dyn_into::<web_sys::HtmlInputElement>().ok()) else { return };
+        input.set_class_name("rr-tree-editor");
+        input.set_value(&text);
+        for (k, v) in [("font", "inherit"), ("padding", "0 2px"), ("border", "1px solid #333"), ("height", "16px"), ("box-sizing", "border-box"), ("min-width", "60px")] {
+            let _ = input.style().set_property(k, v);
+        }
+        let _ = input.style().set_property("width", &format!("{}px", (label.get_bounding_client_rect().width() as i64 + 30).max(60)));
+        let _ = label.set_attribute("style", &format!("{};display:none", label.get_attribute("style").unwrap_or_default()));
+        if let Some(row) = label.parent_node() {
+            let _ = row.insert_before(&input, label.next_sibling().as_ref());
+        }
+        TREE_EDITING.with(|t| t.borrow_mut().insert(tree.clone(), i));
+        let key_tree = tree.clone();
+        let key = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| match e.key().as_str() {
+            "Enter" => {
+                e.prevent_default();
+                tree_end_edit(&key_tree, true);
+            }
+            "Escape" => {
+                e.prevent_default();
+                tree_end_edit(&key_tree, false);
+            }
+            _ => {}
+        });
+        let _ = input.add_event_listener_with_callback("keydown", key.as_ref().unchecked_ref());
+        key.forget();
+        let blur_tree = tree.clone();
+        let blur = Closure::<dyn FnMut()>::new(move || tree_end_edit(&blur_tree, true));
+        let _ = input.add_event_listener_with_callback("blur", blur.as_ref().unchecked_ref());
+        blur.forget();
+        let _ = input.focus();
+        input.select();
+    });
+}
+
+/// Ends an edit: with `keep`, OnEdited(Index, S) — S the text, which the
+/// program may change — and the node gets it.
+fn tree_end_edit(name: &str, keep: bool) {
+    let tree = name.to_uppercase();
+    let Some(i) = TREE_EDITING.with(|t| t.borrow_mut().remove(&tree)) else { return };
+    let el = get_el(&comp_id(&tree));
+    let text = el
+        .as_ref()
+        .and_then(|el| el.query_selector(".rr-tree-editor").ok().flatten())
+        .and_then(|x| x.dyn_into::<web_sys::HtmlInputElement>().ok())
+        .map(|x| x.value())
+        .unwrap_or_default();
+    // (the tree drawn again drops the editor; focus back on the tree)
+    render_tree(&tree);
+    if let Some(el) = el.and_then(|x| x.dyn_into::<web_sys::HtmlElement>().ok()) {
+        let _ = el.focus();
+    }
+    if !keep {
+        return;
+    }
+    crate::object_web::rp_fire_event_then(&tree.clone(), "onedited", &[v_int(i as i64), v_str(&text)], move |a| {
+        let text = a[1].to_string_val();
+        rapidr_value::objects::with_tree(&tree, |m| m.set_text(i, text));
+        render_tree(&tree);
+    });
 }
 
 /// The user picked node `i`: OnChanging may refuse; then OnChange.

@@ -172,6 +172,16 @@ impl TreeView {
     }
 
     /// Expands (or collapses) node `i`, with `recurse` its whole subtree.
+    /// Node `i`'s text (the user edited it).
+    pub fn set_text(&mut self, i: usize, text: String) {
+        if let Some(n) = self.nodes.get_mut(i) {
+            if n.text != text {
+                n.text = text;
+                self.changed();
+            }
+        }
+    }
+
     pub fn set_expanded(&mut self, i: usize, on: bool, recurse: bool) {
         if i >= self.nodes.len() {
             return;
