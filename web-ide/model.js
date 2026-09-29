@@ -172,15 +172,16 @@ export function serializeProject(project) {
   }
   if (bindings.length) { lines.push(...bindings, ""); }
 
-  // Show the startup form.
-  const start = project.forms.find(f => f.id === project.startupForm) || project.forms[0];
-  if (start) lines.push(`${start.name}.ShowModal`, "");
-
   // Append the user-authored code-behind source for each form.
   for (const f of project.forms) {
     const src = (f.code?.source || "").trim();
     if (src) lines.push(src, "");
   }
+
+  // Show the startup form last, as RapidQ's designer does: the program's
+  // own statements run first, and what follows a ShowModal waits for it.
+  const start = project.forms.find(f => f.id === project.startupForm) || project.forms[0];
+  if (start) lines.push(`${start.name}.ShowModal`, "");
 
   return lines.join("\n") + "\n";
 }

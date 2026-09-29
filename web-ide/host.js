@@ -3972,13 +3972,6 @@ function getProjectSourceAndMapping(project) {
     addLine("");
   }
 
-  // Show the startup form.
-  const start = project.forms.find(f => f.id === project.startupForm) || project.forms[0];
-  if (start) {
-    addLine(`${start.name}.ShowModal`);
-    addLine("");
-  }
-
   // Append the user-authored code-behind source for each form.
   for (const f of project.forms) {
     const src = (f.code?.source || "").trim();
@@ -3989,6 +3982,14 @@ function getProjectSourceAndMapping(project) {
       }
       addLine("");
     }
+  }
+
+  // Show the startup form last, as RapidQ's designer does: the program's
+  // own statements run first, and what follows a ShowModal waits for it.
+  const start = project.forms.find(f => f.id === project.startupForm) || project.forms[0];
+  if (start) {
+    addLine(`${start.name}.ShowModal`);
+    addLine("");
   }
 
   const finalSource = lines.join("\n") + "\n";
