@@ -75,6 +75,14 @@ fn value_to_css_color(val: &Value) -> String {
     }
 }
 
+/// Whether `name` has an element the user can see (rendered, not hidden).
+pub fn element_shown(name: &str) -> bool {
+    document()
+        .get_element_by_id(&comp_id(name))
+        .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok())
+        .is_some_and(|el| el.is_connected() && (el.offset_width() > 0 || el.offset_height() > 0))
+}
+
 /// Compute an element ID from the RapidR component name.
 fn comp_id(name: &str) -> String {
     format!("rr-{}", name.to_lowercase())
@@ -170,6 +178,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RUPDOWN" => create_updown(&id, name, props),
         "RSCROLLBAR" => create_range(&id, name, props),
         "RTOOLBAR" => create_toolbar(&id, name, props),
+        "RMDICHILD" => create_mdi_frame(&id, name, props),
         "RSPLITTER" => create_splitter(&id, name, props),
         "RLISTVIEW" => create_listview(&id, name, props),
         "RDATETIMEPICKER" => create_datetimepicker(&id, name, props),
@@ -183,7 +192,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RFORMMDI" | "RUDT" => { /* no DOM element */ }
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RUDT" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
         "RDOM" => create_dom_element(&id, name, props),
@@ -219,6 +228,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
     let s = val.to_string_val();
     let style = el.style();
 
+    // A QFORMMDI child's frame draws its own caption (mdi_frame_update).
+    if el.class_list().contains("rr-mdichild") && matches!(prop, "caption" | "text") {
+        return;
+    }
     match prop {
         "caption" | "text" => {
             if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
@@ -1774,6 +1787,141 @@ pub fn toggle_down_set(name: &str) {
     let mut changes = rapidr_value::toggle_group::set_down(name, down, &toggle_members(name));
     changes.push((name.to_string(), down));
     toggle_apply(changes);
+}
+
+/// A QFORMMDI child window's frame (`RMDICHILD`, placed by
+/// `rapidr_value::mdi`): border, a title bar with the title and minimize /
+/// maximize / close buttons; dragged by its title bar or its corner.
+fn create_mdi_frame(id: &str, name: &str, props: &HashMap<String, Value>) {
+    use rapidr_value::mdi::{Action, BORDER, TITLE_HEIGHT};
+    let el = create_el("div");
+    el.set_class_name("rr-widget rr-mdichild");
+    let style = el.style();
+    for (k, v) in [("background", "#d4d0c8"), ("border", "1px outset #eee"), ("box-sizing", "border-box"), ("user-select", "none")] {
+        let _ = style.set_property(k, v);
+    }
+    let bar = create_el("div");
+    bar.set_class_name("rr-mdichild-title");
+    let bs = bar.style();
+    let bar_h = (TITLE_HEIGHT - 2).to_string() + "px";
+    for (k, v) in [("position", "absolute"), ("left", &format!("{BORDER}px")), ("right", &format!("{BORDER}px")), ("top", &format!("{BORDER}px")), ("height", bar_h.as_str()), ("display", "flex"), ("align-items", "center"), ("color", "#fff"), ("font", "bold 12px sans-serif"), ("padding-left", "4px"), ("box-sizing", "border-box"), ("cursor", "default")] {
+        let _ = bs.set_property(k, v);
+    }
+    let title = create_el("span");
+    title.set_class_name("rr-mdichild-caption");
+    let _ = title.style().set_property("flex", "1");
+    let _ = title.style().set_property("overflow", "hidden");
+    let _ = title.style().set_property("white-space", "nowrap");
+    let _ = bar.append_child(&title);
+    let owner = name.to_uppercase();
+    let target = |owner: &str| {
+        let form = crate::object_web::rp_comp_get_stored(owner, "__form").to_string_val();
+        let component = crate::object_web::rp_comp_get_stored(owner, "__component").to_string_val();
+        (form, component)
+    };
+    for (glyph, action) in [("_", Action::Minimize), ("\u{25a1}", Action::ToggleMaximize), ("x", Action::Close)] {
+        let b = create_el("button");
+        b.set_inner_text(glyph);
+        b.set_class_name("rr-mdichild-button");
+        let _ = b.set_attribute("data-action", &format!("{action:?}").to_lowercase());
+        let s = b.style();
+        for (k, v) in [("width", "17px"), ("height", "15px"), ("padding", "0"), ("margin-left", "2px"), ("font", "bold 10px sans-serif"), ("line-height", "10px")] {
+            let _ = s.set_property(k, v);
+        }
+        let o = owner.clone();
+        let click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            e.stop_propagation();
+            let (form, component) = target(&o);
+            crate::mdi_web::user(&form, &component, action);
+        });
+        let _ = b.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+        click.forget();
+        // (a press on a button doesn't start a drag)
+        let stop = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(|e: web_sys::MouseEvent| e.stop_propagation());
+        let _ = b.add_event_listener_with_callback("mousedown", stop.as_ref().unchecked_ref());
+        stop.forget();
+        let _ = bar.append_child(&b);
+    }
+    let _ = el.append_child(&bar);
+    let grip = create_el("div");
+    let gs = grip.style();
+    for (k, v) in [("position", "absolute"), ("right", "0"), ("bottom", "0"), ("width", "12px"), ("height", "12px"), ("cursor", "nwse-resize")] {
+        let _ = gs.set_property(k, v);
+    }
+    let _ = el.append_child(&grip);
+    // A press anywhere activates; on the title bar it moves the window, on
+    // the corner it resizes it.
+    for (part, resize) in [(bar.clone(), false), (grip.clone(), true), (el.clone(), false)] {
+        let o = owner.clone();
+        let is_frame = part == el;
+        let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let (form, component) = target(&o);
+            crate::mdi_web::user(&form, &component, Action::Activate);
+            if is_frame {
+                return;
+            }
+            e.stop_propagation();
+            e.prevent_default();
+            let get = |p: &str| crate::object_web::rp_comp_get_stored(&o, p).to_i64();
+            let start = if resize { (get("width"), get("height")) } else { (get("left"), get("top")) };
+            let (mx, my) = (e.client_x() as i64, e.client_y() as i64);
+            let (f2, c2) = (form.clone(), component.clone());
+            let moving = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |m: web_sys::MouseEvent| {
+                let (dx, dy) = (m.client_x() as i64 - mx, m.client_y() as i64 - my);
+                let action = if resize { Action::Resize(start.0 + dx, start.1 + dy) } else { Action::Move(start.0 + dx, start.1 + dy) };
+                crate::mdi_web::user(&f2, &c2, action);
+            });
+            let doc = document();
+            let _ = doc.add_event_listener_with_callback("mousemove", moving.as_ref().unchecked_ref());
+            let moving_fn: js_sys::Function = moving.into_js_value().unchecked_into();
+            let mv = moving_fn.clone();
+            let up = Closure::once_into_js(move || {
+                let _ = document().remove_event_listener_with_callback("mousemove", &mv);
+            });
+            let options = web_sys::AddEventListenerOptions::new();
+            options.set_once(true);
+            let _ = doc.add_event_listener_with_callback_and_add_event_listener_options("mouseup", up.unchecked_ref(), &options);
+        });
+        let _ = part.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
+        down.forget();
+    }
+    let o = owner.clone();
+    let dbl = Closure::<dyn FnMut()>::new(move || {
+        let (form, component) = target(&o);
+        crate::mdi_web::user(&form, &component, Action::ToggleMaximize);
+    });
+    let _ = bar.add_event_listener_with_callback("dblclick", dbl.as_ref().unchecked_ref());
+    dbl.forget();
+    setup_widget(&el, id, name, props);
+    mdi_frame_update(name);
+}
+
+/// A child window's frame shows its title, whether it's the active one,
+/// and whether it's maximized.
+pub fn mdi_frame_update(name: &str) {
+    let Some(el) = document().get_element_by_id(&comp_id(name)) else { return };
+    let get = |p: &str| crate::object_web::rp_comp_get_stored(name, p);
+    if let Ok(Some(t)) = el.query_selector(".rr-mdichild-caption") {
+        t.set_text_content(Some(&get("caption").to_string_val()));
+    }
+    if let Ok(Some(bar)) = el.query_selector(".rr-mdichild-title") {
+        if let Ok(bar) = bar.dyn_into::<web_sys::HtmlElement>() {
+            let _ = bar.style().set_property("background", if get("active").to_bool() { "#0a246a" } else { "#808080" });
+        }
+    }
+    if let Ok(Some(b)) = el.query_selector("[data-action=togglemaximize]") {
+        b.set_text_content(Some(if get("childstate").to_i64() == 2 { "=" } else { "\u{25a1}" }));
+    }
+}
+
+/// Puts these elements on top of the others in their parent, in order (the
+/// last on top): a QFORMMDI's frames and components.
+pub fn stack_elements(names: &[String]) {
+    for (i, name) in names.iter().enumerate() {
+        if let Some(el) = document().get_element_by_id(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok()) {
+            let _ = el.style().set_property("z-index", &(100 + i).to_string());
+        }
+    }
 }
 
 fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {

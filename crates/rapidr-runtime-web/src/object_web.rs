@@ -91,6 +91,11 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
 // ---------------------------------------------------------------------------
 
 pub fn rp_create_component(name: &str, type_name: &str) {
+    // A QFORMMDI is a QFORM whose client area holds child windows (mdi_web.rs).
+    if type_name.eq_ignore_ascii_case("RFORMMDI") {
+        rapidr_value::mdi::register(name);
+        return rp_create_component(name, "RFORM");
+    }
     let uname = name.to_uppercase();
     let utype = type_name.to_uppercase();
 
@@ -479,6 +484,10 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
+    // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi_web.rs).
+    if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
+        return;
+    }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(lprop.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get_stored(name, &lprop).to_i64());
     // ClientWidth / ClientHeight: a form's inside (layout_web::form_client);
@@ -628,7 +637,15 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A form's new size: it paints again.
     let form_size_changed = form_size_before.is_some_and(|before| before != rp_comp_get_stored(name, &lprop).to_i64()) && !crate::layout_web::is_quiet();
     if form_size_changed {
+        // (an MDI form's maximized children follow)
+        if rapidr_value::mdi::is_mdi(&uname) {
+            crate::mdi_web::resized(&uname);
+        }
         rp_fire_event(&uname, "onpaint");
+    }
+    // A child window's frame shows its title and whether it's active.
+    if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
+        gui_web::mdi_frame_update(&uname);
     }
     // A QIMAGE's AutoSize / Stretch / Center.
     if matches!(lprop.as_str(), "autosize" | "stretch" | "center") && rapidr_value::objects::is_picture(&uname) {
@@ -689,6 +706,14 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
         };
         return v_int(if lprop == "clientwidth" { w } else { h });
+    }
+    // A component's Handle (rapidr_value::handles).
+    if lprop == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&uname)) {
+        return v_int(rapidr_value::handles::handle_of(name));
+    }
+    // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
+    if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
+        return v;
     }
     if let Some(v) = rapidr_value::objects::get(name, &lprop) {
         return v;
@@ -781,6 +806,12 @@ pub fn rp_comp_type(name: &str) -> String {
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     let lmethod = method.to_lowercase();
+    // A QFORMMDI's AddChild, CascadeChild, … (mdi_web.rs).
+    if rapidr_value::mdi::is_mdi(name) {
+        if let Some(v) = crate::mdi_web::method(name, &lmethod, args) {
+            return v;
+        }
+    }
 
     // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
     // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
@@ -1587,6 +1618,19 @@ pub fn rp_bind_event_closure(name: &str, event: &str, f: std::rc::Rc<dyn Fn(&[Va
     bind_handler(name, event, EventHandler::Closure(f));
 }
 
+/// Fires `event`, then runs `then` once its handler has run — at once in a
+/// native build; in the interpreter, queued behind the handler
+/// (`rapidr_value::events`). For events whose handler sets something the
+/// runtime reads afterwards (a QFORMMDI's `ChildResult`).
+pub fn rp_fire_event_then(name: &str, event: &str, args: &[Value], then: impl FnOnce() + 'static) {
+    rapidr_value::events::arm(Box::new(then));
+    fire(name, event, args);
+    // Not queued with a handler for the interpreter: it runs now.
+    if let Some(then) = rapidr_value::events::disarm() {
+        then();
+    }
+}
+
 fn lookup_handler(name: &str, event: &str) -> Option<EventHandler> {
     EVENT_HANDLERS.with(|h| h.borrow().get(&(name.to_uppercase(), event.to_lowercase())).cloned())
 }
@@ -1921,7 +1965,6 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RSOCKET"
             | "RSERVERSOCKET"
             | "RHTTP"
-            | "RFORMMDI"
             | "RSPLITTER"
             | "RSCROLLBOX"
             | "RLISTVIEW"

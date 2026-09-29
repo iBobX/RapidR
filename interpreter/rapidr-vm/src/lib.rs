@@ -36,6 +36,7 @@ pub use rapidr_bytecode as bytecode;
 pub use rapidr_value::Value;
 
 use rapidr_bytecode::{Module, Op};
+use rapidr_value::events::QueuedEvent;
 use rapidr_value::{v_array, v_bool, v_int, v_null, v_str};
 
 #[derive(Debug)]
@@ -122,6 +123,9 @@ pub struct Frame {
     pub stop: bool,
     /// Suspended in a builtin or INPUT, waiting for [`Vm::resume_with`].
     pub waiting: bool,
+    /// An event handler's entry frame: what the runtime does once it has
+    /// run (`rapidr_value::events`), handed to the host when it returns.
+    pub then: Vec<u32>,
 }
 
 /// How a returning frame leaves the VM.
@@ -225,7 +229,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
-        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false });
+        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false, then: Vec::new() });
         let _ = ret_ip;
         Ok(())
     }
@@ -691,9 +695,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     fn after_host(&mut self, module: &Module, ip: usize, has_result: bool) -> Result<bool, VmError> {
         let mut waiting = self.host.wait_started();
         loop {
-            let events = self.host.take_events();
-            if !events.is_empty() && !self.run_events(module, ip, events)? {
-                return Ok(false);
+            // Until none is left (a continuation queued behind a handler
+            // runs once the handler has: rapidr_value::events).
+            loop {
+                let events = self.host.take_events();
+                if events.is_empty() {
+                    break;
+                }
+                if !self.run_events(module, ip, events)? {
+                    return Ok(false);
+                }
             }
             if !waiting {
                 return Ok(true);
@@ -713,13 +724,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// current frame (whose `ip` is saved first, so a handler that suspends
     /// leaves this code ready to continue; the events after it go back to
     /// the host). Returns false if a handler ENDed the program.
-    fn run_events(&mut self, module: &Module, ip: usize, events: Vec<(u32, Vec<Value>)>) -> Result<bool, VmError> {
+    fn run_events(&mut self, module: &Module, ip: usize, events: Vec<QueuedEvent>) -> Result<bool, VmError> {
         let mut events = events.into_iter();
-        while let Some((fn_index, args)) = events.next() {
+        while let Some(event) = events.next() {
             if let Some(top) = self.frames.last_mut() {
                 top.ip = ip;
             }
-            if let Err(e) = self.invoke_function(module, fn_index, args) {
+            if let Err(e) = self.invoke_event(module, event) {
                 let rest: Vec<_> = events.collect();
                 if !rest.is_empty() {
                     self.host.defer_events(rest);
@@ -754,6 +765,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         if frame.stop {
             if frame.wants_value {
                 self.stack.push(ret);
+            }
+            if !frame.then.is_empty() {
+                self.host.event_finished(frame.then);
             }
             return Ok(Returned::Stop);
         }
@@ -812,21 +826,35 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// stay on top of the interrupted ones and [`Vm::resume_with`] /
     /// [`Vm::resume`] finish it and then continue what it interrupted.
     pub fn invoke_function(&mut self, module: &Module, fn_index: u32, args: Vec<Value>) -> Result<Value, VmError> {
+        self.invoke_event(module, QueuedEvent::new(fn_index, args))
+    }
+
+    /// Runs a queued event's handler; its continuations go to the host when
+    /// it returns (or fails).
+    pub fn invoke_event(&mut self, module: &Module, event: QueuedEvent) -> Result<Value, VmError> {
+        let QueuedEvent { handler: fn_index, args, then } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         let argc = u8::try_from(args.len()).map_err(|_| VmError::Runtime("too many event arguments".into()))?;
         self.stack.extend(args);
         if let Err(e) = self.call(module, fn_index, argc, true) {
             self.stack.truncate(base_stack);
+            self.host.event_finished(then);
             return Err(e);
         }
-        self.frames.last_mut().unwrap().stop = true;
+        let top = self.frames.last_mut().unwrap();
+        top.stop = true;
+        top.then = then;
         match self.exec(module) {
             // The handler returned (its value is on top), or ENDed.
             Ok(()) if self.frames.len() == base_frames => Ok(self.stack.pop().unwrap_or(Value::Null)),
             Ok(()) => Ok(Value::Null),
             Err(e @ (VmError::Suspended | VmError::Paused)) => Err(e),
             Err(e) => {
-                // A failed handler leaves nothing behind.
+                // A failed handler leaves nothing behind (its continuations run).
+                if let Some(f) = self.frames.get_mut(base_frames) {
+                    let then = std::mem::take(&mut f.then);
+                    self.host.event_finished(then);
+                }
                 self.frames.truncate(base_frames);
                 self.stack.truncate(base_stack);
                 Err(e)
@@ -1112,7 +1140,7 @@ mod tests {
     #[derive(Default)]
     struct QueueHost {
         inner: StubHost,
-        queue: std::collections::VecDeque<(u32, Vec<Value>)>,
+        queue: std::collections::VecDeque<QueuedEvent>,
         asking: bool,
         wait: Option<u32>,
         started: bool,
@@ -1121,7 +1149,7 @@ mod tests {
     impl Host for QueueHost {
         fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
             match name {
-                "FIRE" => self.queue.push_back((args[0].to_i64() as u32, vec![v_str("sender")])),
+                "FIRE" => self.queue.push_back(QueuedEvent::new(args[0].to_i64() as u32, vec![v_str("sender")])),
                 "ASK" => self.asking = true,
                 "MODAL" => {
                     self.wait = Some(2);
@@ -1132,7 +1160,7 @@ mod tests {
             Ok(v_null())
         }
         fn suspend_requested(&mut self) -> bool { std::mem::take(&mut self.asking) }
-        fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> { self.queue.drain(..).collect() }
+        fn take_events(&mut self) -> Vec<QueuedEvent> { self.queue.drain(..).collect() }
         fn wait_started(&mut self) -> bool { std::mem::take(&mut self.started) }
         fn pump(&mut self) -> Option<Value> {
             match self.wait {
@@ -1142,7 +1170,7 @@ mod tests {
                 }
                 Some(n) => {
                     self.wait = Some(n - 1);
-                    self.queue.push_back((1, vec![]));
+                    self.queue.push_back(QueuedEvent::new(1, vec![]));
                     None
                 }
             }
@@ -1237,8 +1265,8 @@ mod tests {
         m.entry = m.add_function(main);
         let mut h = QueueHost::default();
         // Queue both before running: as a UI pump would.
-        h.queue.push_back((0, vec![v_str("s")]));
-        h.queue.push_back((1, vec![]));
+        h.queue.push_back(QueuedEvent::new(0, vec![v_str("s")]));
+        h.queue.push_back(QueuedEvent::new(1, vec![]));
         let mut vm = Vm::new(&mut h);
         vm.run(&m).unwrap();
         assert_eq!(h.inner.output, "a1\na2\nb\na1\na2\nb\n");

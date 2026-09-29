@@ -19,6 +19,7 @@ use rapidr_bytecode::Module;
 use rapidr_runtime_core::object as obj;
 use rapidr_runtime_core::prelude::*;
 use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
+use rapidr_value::events::QueuedEvent;
 use rapidr_vm::{Host, Vm};
 
 /// Native host: routes the [`Host`] surface to `rapidr-runtime-core`.
@@ -84,11 +85,11 @@ impl Host for NativeHost {
         Ok(rp_comp_method(id, method, args))
     }
 
-    fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> {
+    fn take_events(&mut self) -> Vec<QueuedEvent> {
         EVENTS.with(|q| q.borrow_mut().drain(..).collect())
     }
 
-    fn defer_events(&mut self, events: Vec<(u32, Vec<Value>)>) {
+    fn defer_events(&mut self, events: Vec<QueuedEvent>) {
         // Before anything queued since.
         EVENTS.with(|q| {
             let mut q = q.borrow_mut();
@@ -352,14 +353,16 @@ thread_local! {
     /// Event handlers the runtime fired, waiting for the VM to run them
     /// ([`Host::take_event`]). The runtime never calls into the VM: it
     /// only queues here, so an event can't re-enter the VM mid-operation.
-    static EVENTS: RefCell<VecDeque<(u32, Vec<Value>)>> = const { RefCell::new(VecDeque::new()) };
+    static EVENTS: RefCell<VecDeque<QueuedEvent>> = const { RefCell::new(VecDeque::new()) };
 }
 
 /// Routes the runtime's events for bytecode handlers into [`EVENTS`].
 fn install_event_queue() -> Option<obj::IndirectDispatcher> {
     obj::rp_set_cooperative_waits(true);
     obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
-        EVENTS.with(|q| q.borrow_mut().push_back((fn_index, args.to_vec())));
+        // (with the continuation of an event fired with rp_fire_event_then)
+        let event = QueuedEvent { then: rapidr_value::events::take_armed(), ..QueuedEvent::new(fn_index, args.to_vec()) };
+        EVENTS.with(|q| q.borrow_mut().push_back(event));
     }))
 }
 
@@ -388,10 +391,18 @@ pub fn run_event_loop<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
 fn serve_app<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
     obj::rp_begin_app_wait();
     loop {
-        // Each handler runs to completion before the next UI event.
-        for (fn_index, args) in vm.host_mut().take_events() {
-            if let Err(e) = vm.invoke_function(module, fn_index, args) {
-                eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
+        // Each handler runs to completion before the next UI event (and
+        // what they queue, continuations included, before it too).
+        loop {
+            let events = vm.host_mut().take_events();
+            if events.is_empty() {
+                break;
+            }
+            for event in events {
+                let fn_index = event.handler;
+                if let Err(e) = vm.invoke_event(module, event) {
+                    eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
+                }
             }
         }
         if obj::rp_pump_wait().is_some() {

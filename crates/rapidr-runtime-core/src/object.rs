@@ -307,18 +307,6 @@ impl RpComponent {
                 props.insert("timeout".into(), v_int(5000));
                 props.insert("usessl".into(), v_int(0));
             }
-            "RFORMMDI" => {
-                props.insert("caption".into(), v_str(""));
-                props.insert("width".into(), v_int(800));
-                props.insert("height".into(), v_int(600));
-                props.insert("left".into(), v_int(100));
-                props.insert("top".into(), v_int(100));
-                props.insert("visible".into(), v_bool(true));
-                props.insert("color".into(), v_int(0xFFFFFF));
-                props.insert("borderstyle".into(), v_int(2));
-                props.insert("childcount".into(), v_int(0));
-                props.insert("childmax".into(), v_int(1024));
-            }
             "RSPLITTER" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
@@ -498,6 +486,11 @@ pub fn rp_stop_all_timers() {
 
 /// Create a new component and register it in the global registry.
 pub fn rp_create_component(name: &str, type_name: &str) {
+    // A QFORMMDI is a QFORM whose client area holds child windows (mdi.rs).
+    if type_name.eq_ignore_ascii_case("RFORMMDI") {
+        rapidr_value::mdi::register(name);
+        return rp_create_component(name, "RFORM");
+    }
     let name_lower = name.to_lowercase();
     // Idempotent: if component already exists with the same type, skip
     let already_exists = COMPONENTS.with(|c| {
@@ -539,6 +532,10 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let prop_lower = prop.to_lowercase();
+    // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi.rs).
+    if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
+        return;
+    }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get(name, &prop_lower).to_i64());
     // RapidR's forms and containers have no frame inside their size: the
@@ -706,6 +703,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     });
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // A parent whose widget exists already: the widget is made now.
+    #[cfg(feature = "gui")]
+    if prop_lower == "parent" && !crate::layout::is_quiet() {
+        crate::gui::attach_late(name);
+    }
     // `CoolBtn.Down = True`: the others of its group come up.
     #[cfg(feature = "gui")]
     if prop_lower == "down" {
@@ -723,6 +725,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A form's new size: it paints again (drawn on its surface, or its
     // canvases' handlers).
     if form_size_before.is_some_and(|before| before != rp_comp_get(name, &prop_lower).to_i64()) && !crate::layout::is_quiet() && form_is_built(name) {
+        // (an MDI form's maximized children follow)
+        if rapidr_value::mdi::is_mdi(name) {
+            crate::mdi::resized(name);
+        }
         rp_fire_event(name, "onpaint");
     }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
@@ -779,6 +785,14 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
         };
         return v_int(if prop_lower == "clientwidth" { w } else { h });
+    }
+    // A component's Handle (rapidr_value::handles).
+    if prop_lower == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&name.to_lowercase())) {
+        return v_int(rapidr_value::handles::handle_of(name));
+    }
+    // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
+    if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
+        return v;
     }
     if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
         return v;
@@ -886,6 +900,12 @@ fn form_is_built(name: &str) -> bool {
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
+    // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
+    if rapidr_value::mdi::is_mdi(name) {
+        if let Some(v) = crate::mdi::method(name, &method_lower, args) {
+            return v;
+        }
+    }
 
     // A QFORM gets its own drawing surface the first time it's drawn on.
     if comp_type == "RFORM"
@@ -1011,8 +1031,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         "RTREEVIEW" => crate::gui::tree_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
         "RCANVAS" => crate::gui::canvas_method(name, &method_lower, args),
-        #[cfg(feature = "gui")]
-        "RFORMMDI" => crate::gui::formmdi_method(name, &method_lower, args),
         // Data science component methods
         #[cfg(feature = "datascience")]
         "RNUM" => crate::datascience::num_method(name, &method_lower, args),
@@ -1128,6 +1146,19 @@ pub fn rp_fire_event_args(name: &str, event: &str, args: &[Value]) {
 /// Fire an event with 5 arguments.
 pub fn rp_fire_event_5(name: &str, event: &str, a1: Value, a2: Value, a3: Value, a4: Value, a5: Value) {
     fire(name, event, &[a1, a2, a3, a4, a5]);
+}
+
+/// Fires `event`, then runs `then` once its handler has run — at once in a
+/// native build; in the interpreter, queued behind the handler
+/// (`rapidr_value::events`). For events whose handler sets something the
+/// runtime reads afterwards (a QFORMMDI's `ChildResult`).
+pub fn rp_fire_event_then(name: &str, event: &str, args: &[Value], then: impl FnOnce() + 'static) {
+    rapidr_value::events::arm(Box::new(then));
+    fire(name, event, args);
+    // Not queued with a handler for the interpreter: it runs now.
+    if let Some(then) = rapidr_value::events::disarm() {
+        then();
+    }
 }
 
 /// Bind a bytecode EVENT handler to one instance (see [`EventHandler::IndirectThis`]).

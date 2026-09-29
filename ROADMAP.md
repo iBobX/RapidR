@@ -192,8 +192,10 @@ Next up, in order:
 - [x] `INPUT #`, `LINE INPUT #`, BASIC file I/O on the web, `CREATE name(dims) AS type`, keywords as names (v2.53.0)
 - [x] `DIM s AS STRING * n` (stores cut to n), `CBOOL`, `ON ERROR …` accepted (ignored), an unclosed `WITH` closed by `END SUB` (v2.54.0)
 - [ ] Real `ON ERROR RESUME NEXT` / `Err` (VB): resuming after a run-time error needs recovery points in the VM and native code; fixed strings also need padding to `n` in `WriteUDT`/`ReadUDT`
-- [ ] Events that return values (`OnMeasureItem(Index, Height)`, `OnClose(Action)`, `OnSelectCell(…, CanSelect)`): a by-reference argument channel from the VM handler back to the runtime
-- [ ] QFORMMDI (`rapidq2.inc` add-on; no corpus program uses it): today a stub on the desktop (AddChild only counts) and no element on the web — needs real child windows, activation, cascade/tile, OnChildClose/Active/Resize, on both runtimes
+- [x] The runtime continues after an event's handler has run (`rp_fire_event_then`, `rapidr_value::events`): at once natively; in the interpreter the continuation travels with the queued event and the VM hands it back when the handler returns, even after a dialog (v2.57.0)
+- [ ] Events that return values through by-reference parameters (`OnMeasureItem(Index, Height)`, `OnClose(Action)`, `OnSelectCell(…, CanSelect)`): the continuation above plus the handler's final argument values (the VM has them when the frame returns; native handlers need to hand them back)
+- [x] QFORMMDI: child windows (AddChild by Handle, frames with title bar / minimize / maximize / close, drag, resize), activation, next / previous, cascade, tiling, arrange icons, minimize / maximize / restore all, GetChild / ChildExist / FreeChild, Child* properties, OnChildActive / OnChildClose (ChildResult) / OnChildResize — one model (`rapidr_value::mdi`) for the desktop and the web (v2.57.0). Not yet: `MDIMenu` (the window list in a menu), `ChildIcon`, `SetDeskBar`
+- [x] Components given a parent after their form is shown get their widget then (desktop; the web did) (v2.57.0); `Handle` for components (v2.57.0)
 - [ ] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`); grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
@@ -255,6 +257,10 @@ Next up, in order:
 
 ## Phase 3 — IDE (~5 weeks, can overlap Phase 2)
 
+**Direction (user, 2026-09-28): a professional IDE in the tradition of RapidQ / VB6 / Delphi / Xojo — an MDI workspace on the desktop and on the web alike.** Starts once RapidQ compatibility is complete across native, interpreter and web.
+
+- [ ] MDI workspace: form designers, code editors, the property inspector, the project tree and the running program as child windows inside one main window (cascade / tile, window menu), built on the same child-window model as QFORMMDI (`rapidr_value::mdi`); the running program's forms as windows in the workspace instead of the web preview iframe
+- [ ] Desktop IDE rebuilt on it (the current IDE modified), the web IDE the same workspace in the browser
 - [ ] Split `web-ide/host.js` into modules
 - [ ] Compiler-backed language service: go-to-definition, references, rename, outline, typed completion (replace regex `resolveVariableType`)
 - [ ] VB-style events tab (double-click → handler stub), menu editor, tab-order editor, code/designer toggle

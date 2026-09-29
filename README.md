@@ -411,7 +411,7 @@ Powered by **FLTK** (via the `fltk` crate), the runtime provides **51+ component
 | Component | Description |
 |-----------|-------------|
 | `RForm` | Top-level window |
-| `RFormMDI` | MDI parent form (WIP) |
+| `RFormMDI` | MDI parent form: child windows each showing a component (`AddChild`, cascade / tile, OnChildActive / OnChildClose) |
 | `RPanel` | Container panel |
 | `RGroupBox` | Labeled group container |
 | `RTabControl` | Tabbed container |

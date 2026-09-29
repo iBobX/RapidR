@@ -115,11 +115,11 @@ impl Host for WebHost {
         rapidr_runtime_web::dialog_web::take_suspend()
     }
 
-    fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> {
+    fn take_events(&mut self) -> Vec<Event> {
         take_queued_events()
     }
 
-    fn defer_events(&mut self, events: Vec<(u32, Vec<Value>)>) {
+    fn defer_events(&mut self, events: Vec<Event>) {
         DEFERRED.with(|q| q.borrow_mut().extend(events));
     }
 }
@@ -363,7 +363,7 @@ impl Session {
     }
 }
 
-type Event = (u32, Vec<Value>);
+type Event = rapidr_value::events::QueuedEvent;
 
 use rapidr_runtime_web::dialog_web as dialog;
 
@@ -407,7 +407,9 @@ fn start_session(session: Session) {
         }
     });
     let _ = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
-        EVENTS.with(|q| q.borrow_mut().push_back((fn_index, args.to_vec())));
+        // (with the continuation of an event fired with rp_fire_event_then)
+        let event = Event { then: rapidr_value::events::take_armed(), ..Event::new(fn_index, args.to_vec()) };
+        EVENTS.with(|q| q.borrow_mut().push_back(event));
         run_idle_events();
     }));
     install_resume_handler();
@@ -453,8 +455,8 @@ fn run_idle_events() {
             let mut batch = batch.into_iter();
             let mut result = Ok(());
             dialog::enter_vm();
-            for (fn_index, args) in batch.by_ref() {
-                if let Err(e) = session.vm.invoke_function(&session.module, fn_index, args) {
+            for event in batch.by_ref() {
+                if let Err(e) = session.vm.invoke_event(&session.module, event) {
                     result = Err(e);
                     break;
                 }
@@ -569,6 +571,10 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
 /// tools that compare the browser with the desktop.
 #[wasm_bindgen]
 pub fn rapidr_get_prop(name: &str, prop: &str) -> String {
+    // `__shown`: whether the component has an element the user can see.
+    if prop == "__shown" {
+        return i64::from(rapidr_runtime_web::gui_web::element_shown(name)).to_string();
+    }
     rapidr_runtime_web::object_web::rp_comp_get(name, prop).to_string_val()
 }
 
