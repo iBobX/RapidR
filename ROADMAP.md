@@ -204,7 +204,8 @@ Next up, in order:
 - [ ] Modern platform looks by default (fltk-theme's Aqua on macOS, Fluent on Windows): RapidR's buttons, grids and lists need styling for those schemes first (default-colored buttons vanish, Fluent draws grid headers wrong); fltk-theme's `crystal` scheme panics (upstream)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `ImageList.Draw` onto a canvas (`ReadUDT`/`WriteUDT`: v2.56.0)
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
-- [ ] QTREEVIEW from a shared model (nodes, `Items`, `AddChild*`, images, `Selected`, expand / collapse) on desktop and web, with its events including the answering ones (`OnChanging(Index, AllowChange)`, `OnExpanding`, `OnCollapsing`, `OnEditing`, `OnEdited(Index, S)`)
+- [x] QTREEVIEW from a shared model (`rapidr_value::objects::tree`): nodes numbered depth-first, AddItems / AddChildItems / InsertItem / DelItems / Clear / Sort, Expand / Collapse / FullExpand / FullCollapse, GetItemAt, Item(i).Text / ImageIndex / SelectedIndex / StateIndex / HasChildren / Selected / Expanded / Count / Level / IsVisible / Parent, Images icons, LoadFromFile / SaveToFile, OnChanging / OnExpanding / OnCollapsing (answering), OnChange / OnExpanded / OnCollapsed / OnDeletion / OnClick / OnDblClick on native, interpreter and web (v2.64.0)
+- [ ] QTREEVIEW: in-place editing (OnEditing / OnEdited, ReadOnly), StateImages, OnGetImageIndex, HideSelection
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)

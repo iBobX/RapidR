@@ -569,7 +569,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             }
         }
         #[cfg(feature = "gui")]
-        if rapidr_value::objects::is_listview(name) {
+        if rapidr_value::objects::is_tree(name) {
+            crate::gui::tree_refresh(name);
+        } else if rapidr_value::objects::is_listview(name) {
             crate::gui::listview_refresh(name);
         } else if rapidr_value::objects::is_grid(name) {
             crate::gui::grid_refresh(name);
@@ -917,7 +919,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             crate::gui::dirtree_refresh(name);
         }
         #[cfg(feature = "gui")]
-        if rapidr_value::objects::is_listview(name) {
+        if rapidr_value::objects::is_tree(name) {
+            crate::gui::tree_refresh(name);
+        } else if rapidr_value::objects::is_listview(name) {
             crate::gui::listview_refresh(name);
         } else if rapidr_value::objects::is_grid(name) {
             crate::gui::grid_refresh(name);

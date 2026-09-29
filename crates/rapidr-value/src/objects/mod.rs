@@ -11,6 +11,7 @@
 pub mod bitmap;
 pub mod codec;
 pub mod dirtree;
+pub mod tree;
 pub mod font;
 pub mod filelist;
 pub mod grid;
@@ -54,6 +55,8 @@ enum Object {
     List(ItemList),
     /// QDIRTREE's directories; the runtime shows its rows.
     DirTree(dirtree::DirTree),
+    /// QTREEVIEW's nodes; the runtime shows them.
+    Tree(tree::TreeView),
     /// The global PRINTER's document.
     Printer(printer::Printer),
 }
@@ -186,6 +189,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RSTRINGLIST" => Object::List(ItemList::new_string_list()),
         "RFILELISTBOX" => Object::List(ItemList::new_file_list()),
         "RDIRTREE" => Object::DirTree(dirtree::DirTree::default()),
+        "RTREEVIEW" => Object::Tree(tree::TreeView::default()),
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
         _ => return false,
     };
@@ -212,6 +216,19 @@ pub fn with_listview<R>(id: &str, f: impl FnOnce(&ListView) -> R) -> Option<R> {
 /// change).
 pub fn is_list(id: &str) -> bool {
     with(id, |o| matches!(o, Object::List(_))).unwrap_or(false)
+}
+
+/// Whether `id` is a QTREEVIEW.
+pub fn is_tree(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Tree(_))).unwrap_or(false)
+}
+
+/// Reads or changes a QTREEVIEW's nodes (to show them, or from its widget).
+pub fn with_tree<R>(id: &str, f: impl FnOnce(&mut tree::TreeView) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Tree(t) => Some(f(t)),
+        _ => None,
+    })?
 }
 
 /// Whether `id` is a QDIRTREE (its widget shows its rows again after a
@@ -241,6 +258,15 @@ pub fn list_item_pixels(id: &str, i: usize, width: i64, font: &Font) -> Option<(
         let b = l.render_item(i, width, font);
         (b.img.width, b.img.height, b.to_rgba())
     })
+}
+
+/// Image `i` of QIMAGELIST `id` as (width, height, RGBA pixels): a tree
+/// node's icon.
+pub fn imagelist_pixels(id: &str, i: i64) -> Option<(usize, usize, Vec<u8>)> {
+    with(id, |o| match o {
+        Object::ImageList(l) => usize::try_from(i).ok().and_then(|i| l.images.get(i)).map(|b| (b.img.width, b.img.height, b.to_rgba())),
+        _ => None,
+    })?
 }
 
 pub fn with_list<R>(id: &str, f: impl FnOnce(&ItemList) -> R) -> Option<R> {
@@ -419,6 +445,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Grid(g) => g.get(&prop),
         Object::List(l) => l.get(&prop),
         Object::DirTree(t) => t.get(&prop),
+        Object::Tree(t) => t.get(&prop),
         Object::Printer(p) => p.get(&prop),
     })?
 }
@@ -466,6 +493,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Grid(g) => g.set(&prop, val).then_some(Ok(())),
         Object::List(l) => l.set(&prop, val).then_some(Ok(())),
         Object::DirTree(t) => t.set(&prop, val).map(|_| Ok(())),
+        Object::Tree(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
     })?
 }
@@ -491,6 +519,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Grid(_) => "grid",
         Object::List(_) => "list",
         Object::DirTree(_) => "dirtree",
+        Object::Tree(_) => "tree",
         Object::Printer(_) => "printer",
     })?;
     // A file opened for reading can't be written.
@@ -720,6 +749,23 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Grid(g) = o { g.load_text(&text, rows, cols, max) });
             Some(Ok(Value::Null))
         }
+        // A node per line, a tab per level.
+        ("tree", "loadfromfile") => {
+            let bytes = match read_file(&arg(0).to_string_val()) {
+                Ok(b) => b,
+                Err(e) => return Some(Err(e)),
+            };
+            let text = String::from_utf8_lossy(&bytes).into_owned();
+            with(id, |o| if let Object::Tree(t) = o { t.load_text(&text) });
+            Some(Ok(Value::Null))
+        }
+        ("tree", "savetofile") => {
+            let text = with(id, |o| match o {
+                Object::Tree(t) => t.to_text(),
+                _ => String::new(),
+            })?;
+            Some(write_file(&arg(0).to_string_val(), text.as_bytes()).map(|_| Value::Null))
+        }
         // One item per line.
         ("list", "loadfromfile") => {
             let bytes = match read_file(&arg(0).to_string_val()) {
@@ -777,6 +823,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Grid(g) => g.call(method, args),
         Object::List(l) => l.call(method, args),
         Object::DirTree(t) => t.call(method, args),
+        Object::Tree(t) => t.call(method, args),
         Object::Printer(p) => p.call(method, args),
     })?
     .map(Ok)

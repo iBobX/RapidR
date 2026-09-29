@@ -66,7 +66,10 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
     // The desktop's test actions: `form.__close` (the close button) and
     // `grid.__cell_c_r` (a click on a cell).
     const cell = /^__cell_(\d+)_(\d+)$/i.exec(action || "");
-    const selector = action?.toLowerCase() === "__close" ? ".rr-form-btn-close"
+    // `tree.__node_2` / `tree.__toggle_0`: a click on node 2's text / node 0's button.
+    const node = /^__(node|toggle)_(\d+)$/i.exec(action || "");
+    const selector = node ? `[data-node="${node[2]}"] ${node[1].toLowerCase() === "node" ? ".rr-tree-text" : ".rr-tree-button"}`
+      : action?.toLowerCase() === "__close" ? ".rr-form-btn-close"
       : cell ? `td[data-col="${cell[1]}"][data-row="${cell[2]}"]`
       : c.webClick?.[target.toLowerCase()];
     // `edit.__key_65`: the key typed in it; `canvas.__mousedown_10_20`
