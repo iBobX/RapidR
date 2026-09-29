@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.67.0] — 2026-09-29
+
+### Added
+- **SVG images** wherever RapidQ takes a bitmap — QBITMAP and QIMAGE
+  (`LoadFromFile`, `BMP`, `BMPHandle`), QIMAGELIST (`AddBMPFile`,
+  `AddBMPHandle`), `Canvas.Draw`, `$RESOURCE` — on native, interpreter
+  and web: drawn by resvg (pure Rust, Apache/MIT) in the shared image
+  model, with soft edges (each pixel's opacity is kept, blended when
+  drawn, and survives `.BMP` as a 32-bit BMP). RapidQ's BMP handling is
+  unchanged.
+
 ## [2.66.0] — 2026-09-29
 
 ### Added

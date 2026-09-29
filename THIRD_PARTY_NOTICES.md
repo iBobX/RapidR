@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**489 libraries** under 24 license expressions.
+**507 libraries** under 25 license expressions.
 
-## Apache-2.0 OR MIT (276)
+## Apache-2.0 OR MIT (286)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -59,6 +59,7 @@ which also carries their full license texts.
 | crossbeam-utils | 0.8.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crypto-common | 0.1.7 | <https://github.com/RustCrypto/traits> |
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
+| data-url | 0.3.2 | <https://github.com/servo/rust-url> |
 | debug_unsafe | 0.1.4 | <https://github.com/RoDmitry/debug_unsafe> |
 | deranged | 0.5.8 | <https://github.com/jhpratt/deranged> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
@@ -72,6 +73,7 @@ which also carries their full license texts.
 | equivalent | 1.0.2 | <https://github.com/indexmap-rs/equivalent> |
 | errno | 0.3.14 | <https://github.com/lambda-fairy/rust-errno> |
 | ethnum | 1.5.3 | <https://github.com/nlordell/ethnum-rs> |
+| euclid | 0.22.14 | <https://github.com/servo/euclid> |
 | fallible-iterator | 0.3.0 | <https://github.com/sfackler/rust-fallible-iterator> |
 | fallible-streaming-iterator | 0.1.9 | <https://github.com/sfackler/fallible-streaming-iterator> |
 | fast-float2 | 0.2.3 | <https://github.com/Alexhuszagh/fast-float-rust> |
@@ -129,6 +131,7 @@ which also carries their full license texts.
 | jni-sys-macros | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jpeg-decoder | 0.3.2 | <https://github.com/image-rs/jpeg-decoder> |
 | js-sys | 0.3.92 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys> |
+| kurbo | 0.13.1 | <https://github.com/linebender/kurbo> |
 | lazy_static | 1.5.0 | <https://github.com/rust-lang-nursery/lazy-static.rs> |
 | leb128fmt | 0.1.0 | <https://github.com/bluk/leb128fmt> |
 | lewton | 0.10.2 | <https://github.com/RustAudio/lewton> |
@@ -166,6 +169,8 @@ which also carries their full license texts.
 | pin-project-lite | 0.2.17 | <https://github.com/taiki-e/pin-project-lite> |
 | planus | 0.3.1 | <https://github.com/planus-org/planus> |
 | png | 0.17.16 | <https://github.com/image-rs/image-png> |
+| png | 0.18.1 | <https://github.com/image-rs/image-png> |
+| polycool | 0.4.0 | <https://github.com/linebender/kurbo> |
 | portable-atomic | 1.13.1 | <https://github.com/taiki-e/portable-atomic> |
 | portable-atomic-util | 0.2.6 | <https://github.com/taiki-e/portable-atomic-util> |
 | powerfmt | 0.2.0 | <https://github.com/jhpratt/powerfmt> |
@@ -189,7 +194,9 @@ which also carries their full license texts.
 | regex | 1.12.3 | <https://github.com/rust-lang/regex> |
 | regex-automata | 0.4.14 | <https://github.com/rust-lang/regex> |
 | regex-syntax | 0.8.10 | <https://github.com/rust-lang/regex> |
+| resvg | 0.48.1 | <https://github.com/linebender/resvg> |
 | rodio | 0.19.0 | <https://github.com/RustAudio/rodio> |
+| roxmltree | 0.21.1 | <https://github.com/RazrFalcon/roxmltree> |
 | rustls-pki-types | 1.14.0 | <https://github.com/rustls/pki-types> |
 | rustversion | 1.0.22 | <https://github.com/dtolnay/rustversion> |
 | scopeguard | 1.2.0 | <https://github.com/bluss/scopeguard> |
@@ -207,6 +214,7 @@ which also carries their full license texts.
 | signal-hook-registry | 1.4.8 | <https://github.com/vorner/signal-hook> |
 | simd-json | 0.14.3 | <https://github.com/simd-lite/simd-json> |
 | simdutf8 | 0.1.5 | <https://github.com/rusticstuff/simdutf8> |
+| simplecss | 0.2.2 | <https://github.com/linebender/simplecss> |
 | siphasher | 1.0.2 | <https://github.com/jedisct1/rust-siphash> |
 | smallvec | 1.15.1 | <https://github.com/servo/rust-smallvec> |
 | socket2 | 0.5.10 | <https://github.com/rust-lang/socket2> |
@@ -216,6 +224,7 @@ which also carries their full license texts.
 | static_assertions | 1.1.0 | <https://github.com/nvzqz/static-assertions-rs> |
 | streaming-iterator | 0.1.9 | <https://github.com/sfackler/streaming-iterator> |
 | strength_reduce | 0.2.4 | <http://github.com/ejmahler/strength_reduce> |
+| svgtypes | 0.16.1 | <https://github.com/linebender/svgtypes> |
 | syn | 1.0.109 | <https://github.com/dtolnay/syn> |
 | syn | 2.0.117 | <https://github.com/dtolnay/syn> |
 | tempfile | 3.27.0 | <https://github.com/Stebalien/tempfile> |
@@ -239,6 +248,7 @@ which also carries their full license texts.
 | unicode-xid | 0.2.6 | <https://github.com/unicode-rs/unicode-xid> |
 | ureq | 2.12.1 | <https://github.com/algesten/ureq> |
 | url | 2.5.8 | <https://github.com/servo/rust-url> |
+| usvg | 0.48.1 | <https://github.com/linebender/resvg> |
 | utf8_iter | 1.0.4 | <https://github.com/hsivonen/utf8_iter> |
 | uuid | 1.23.0 | <https://github.com/uuid-rs/uuid> |
 | value-trait | 0.10.1 | <https://github.com/simd-lite/value-trait> |
@@ -293,7 +303,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (117)
+## MIT (122)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -317,6 +327,7 @@ which also carries their full license texts.
 | darling_macro | 0.20.11 | <https://github.com/TedDriggs/darling> |
 | dlib | 0.5.3 | <https://github.com/elinorbgr/dlib> |
 | float-cmp | 0.10.0 | <https://github.com/mikedilger/float-cmp> |
+| float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |
 | fltk | 1.5.22 | <https://github.com/fltk-rs/fltk-rs> |
 | fltk-sys | 1.5.22 | <https://github.com/fltk-rs/fltk-rs> |
 | fltk-theme | 0.7.9 | <https://github.com/fltk-rs/fltk-theme> |
@@ -333,6 +344,7 @@ which also carries their full license texts.
 | http-range-header | 0.4.2 | <https://github.com/MarcusGrass/parse-range-headers> |
 | hyper | 1.9.0 | <https://github.com/hyperium/hyper> |
 | hyper-util | 0.1.20 | <https://github.com/hyperium/hyper-util> |
+| imagesize | 0.15.0 | <https://github.com/Roughsketch/imagesize> |
 | jsonpath_lib_polars_vendor | 0.0.1 | <https://github.com/freestrings/jsonpath> |
 | libm | 0.2.16 | <https://github.com/rust-lang/compiler-builtins> |
 | libredox | 0.1.15 | <https://gitlab.redox-os.org/redox-os/libredox.git> |
@@ -352,6 +364,7 @@ which also carries their full license texts.
 | pem | 3.0.6 | <https://github.com/jcreekmore/pem-rs.git> |
 | phf | 0.12.1 | <https://github.com/rust-phf/rust-phf> |
 | phf_shared | 0.12.1 | <https://github.com/rust-phf/rust-phf> |
+| pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
 | plotters | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | plotters-backend | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | plotters-bitmap | 0.3.7 | <https://github.com/plotters-rs/plotters> |
@@ -383,6 +396,7 @@ which also carries their full license texts.
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_users | 0.5.2 | <https://gitlab.redox-os.org/redox-os/users> |
 | rend | 0.4.2 | <https://github.com/djkoloski/rend> |
+| rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
 | rkyv | 0.7.46 | <https://github.com/rkyv/rkyv> |
 | rkyv_derive | 0.7.46 | <https://github.com/rkyv/rkyv> |
 | rusqlite | 0.32.1 | <https://github.com/rusqlite/rusqlite> |
@@ -393,6 +407,7 @@ which also carries their full license texts.
 | simd-adler32 | 0.3.9 | <https://github.com/mcountryman/simd-adler32> |
 | slab | 0.4.12 | <https://github.com/tokio-rs/slab> |
 | spin | 0.9.9 | <https://github.com/mvdnes/spin-rs.git> |
+| strict-num | 0.1.1 | <https://github.com/RazrFalcon/strict-num> |
 | strsim | 0.11.1 | <https://github.com/rapidfuzz/strsim-rs> |
 | strum_macros | 0.26.4 | <https://github.com/Peternator7/strum> |
 | synstructure | 0.13.2 | <https://github.com/mystor/synstructure> |
@@ -512,6 +527,15 @@ which also carries their full license texts.
 | symphonia-core | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-metadata | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 
+## BSD-3-Clause (4)
+
+| Library | Version | Upstream |
+|---|---|---|
+| ogg | 0.8.0 | <https://github.com/RustAudio/ogg> |
+| subtle | 2.6.1 | <https://github.com/dalek-cryptography/subtle> |
+| tiny-skia | 0.12.0 | <https://github.com/linebender/tiny-skia> |
+| tiny-skia-path | 0.12.0 | <https://github.com/linebender/tiny-skia/tree/master/path> |
+
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 
 | Library | Version | Upstream |
@@ -557,13 +581,6 @@ which also carries their full license texts.
 |---|---|---|
 | r-efi | 5.3.0 | <https://github.com/r-efi/r-efi> |
 | r-efi | 6.0.0 | <https://github.com/r-efi/r-efi> |
-
-## BSD-3-Clause (2)
-
-| Library | Version | Upstream |
-|---|---|---|
-| ogg | 0.8.0 | <https://github.com/RustAudio/ogg> |
-| subtle | 2.6.1 | <https://github.com/dalek-cryptography/subtle> |
 
 ## CDLA-Permissive-2.0 (2)
 
@@ -614,6 +631,12 @@ which also carries their full license texts.
 | Library | Version | Upstream |
 |---|---|---|
 | rustls | 0.23.45 | <https://github.com/rustls/rustls> |
+
+## BSD-2-Clause (1)
+
+| Library | Version | Upstream |
+|---|---|---|
+| arrayref | 0.3.9 | <https://github.com/droundy/arrayref> |
 
 ## MIT AND BSD-3-Clause (1)
 

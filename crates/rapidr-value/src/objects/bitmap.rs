@@ -13,7 +13,7 @@
 //! methods (`DrawText`, `Cls`, `Circle(cx, cy, r)`, `FillCircle`,
 //! `SetFont`, `PenColor` / `BrushColor` as the default colors) are kept.
 
-use super::codec::{bmp_data_url, decode_bmp, Pixels, MAX_PIXELS};
+use super::codec::{base64_encode, bmp_data_url, decode_bmp_alpha, decode_svg, encode_bmp_alpha, is_svg, Pixels, BMP_DATA_URL, MAX_PIXELS};
 use super::font::Font;
 use crate::{v_int, v_str, Value};
 
@@ -38,6 +38,16 @@ pub struct Bitmap {
     /// none is given.
     pub pen: u32,
     pub brush: u32,
+    /// Each pixel's opacity, for an image with soft edges (an SVG); used
+    /// only while it matches the pixels (drawing on it makes pixels opaque).
+    pub alpha: Option<Vec<u8>>,
+}
+
+/// `over` (RapidQ &HBBGGRR) at opacity `a` over `under`.
+fn blend(under: u32, over: u32, a: u8) -> u32 {
+    let a = u32::from(a);
+    let ch = |shift: u32| (((over >> shift) & 0xFF) * a + ((under >> shift) & 0xFF) * (255 - a) + 127) / 255;
+    ch(16) << 16 | ch(8) << 8 | ch(0)
 }
 
 /// Color of a new bitmap's pixels.
@@ -56,6 +66,7 @@ impl Default for Bitmap {
             background: BACKGROUND,
             pen: 0,
             brush: BACKGROUND,
+            alpha: None,
         }
     }
 }
@@ -113,7 +124,12 @@ impl Bitmap {
 
     pub fn pset(&mut self, x: i64, y: i64, c: u32) {
         if x >= 0 && y >= 0 && (x as usize) < self.img.width && (y as usize) < self.img.height {
-            self.img.pixels[y as usize * self.img.width + x as usize] = c;
+            let i = y as usize * self.img.width + x as usize;
+            self.img.pixels[i] = c;
+            // (what's drawn is opaque)
+            if let Some(a) = self.alpha.as_mut().filter(|a| a.len() > i) {
+                a[i] = 255;
+            }
         }
     }
 
@@ -208,14 +224,31 @@ impl Bitmap {
     /// Draws `src` with its top-left corner at (x, y), skipping its
     /// transparent color if it has one.
     pub fn draw(&mut self, x: i64, y: i64, src: &Bitmap) {
+        let alpha = src.alpha_channel();
         for sy in 0..src.img.height {
             for sx in 0..src.img.width {
-                let c = src.img.pixels[sy * src.img.width + sx];
-                if !(src.transparent && c == src.transparent_color) {
-                    self.pset(x + sx as i64, y + sy as i64, c);
+                let i = sy * src.img.width + sx;
+                let c = src.img.pixels[i];
+                if src.transparent && c == src.transparent_color {
+                    continue;
+                }
+                let (dx, dy) = (x + sx as i64, y + sy as i64);
+                match alpha.map(|a| a[i]) {
+                    Some(0) => {}
+                    Some(a) if a < 255 => {
+                        if let Some(under) = self.pixel(dx, dy) {
+                            self.pset(dx, dy, blend(under, c, a));
+                        }
+                    }
+                    _ => self.pset(dx, dy, c),
                 }
             }
         }
+    }
+
+    /// The opacity of each pixel, when it has one that fits.
+    pub fn alpha_channel(&self) -> Option<&[u8]> {
+        self.alpha.as_deref().filter(|a| a.len() == self.img.pixels.len())
     }
 
     /// Copies the (sx1,sy1)-(sx2,sy2) area of `src`, scaled, onto the
@@ -449,7 +482,10 @@ impl Bitmap {
     /// color (if any) as a `#transparent=` fragment so drawing it elsewhere
     /// keeps it (browsers ignore the fragment when showing the image).
     pub fn data_url(&self) -> String {
-        let url = bmp_data_url(&self.img);
+        let url = match self.alpha_channel() {
+            Some(a) => format!("{BMP_DATA_URL}{}", base64_encode(&encode_bmp_alpha(&self.img, a))),
+            None => bmp_data_url(&self.img),
+        };
         if self.transparent {
             format!("{url}#transparent={}", self.transparent_color)
         } else {
@@ -461,15 +497,25 @@ impl Bitmap {
     /// the bitmap has one) gets alpha 0.
     pub fn to_rgba(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.img.pixels.len() * 4);
-        for &c in &self.img.pixels {
-            let alpha = if self.transparent && c == self.transparent_color { 0 } else { 255 };
+        let soft = self.alpha_channel();
+        for (i, &c) in self.img.pixels.iter().enumerate() {
+            let alpha = if self.transparent && c == self.transparent_color { 0 } else { soft.map_or(255, |a| a[i]) };
             out.extend_from_slice(&[c as u8, (c >> 8) as u8, (c >> 16) as u8, alpha]);
         }
         out
     }
 
+    /// Loads a BMP — or an SVG, drawn at its size (with its soft edges).
     pub fn load_bmp_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
-        self.img = decode_bmp(bytes)?;
+        if is_svg(bytes) {
+            let (img, alpha) = decode_svg(bytes, 1.0)?;
+            self.img = img;
+            self.alpha = Some(alpha);
+            return Ok(());
+        }
+        let (img, alpha) = decode_bmp_alpha(bytes)?;
+        self.img = img;
+        self.alpha = alpha;
         self.auto_transparent_color();
         Ok(())
     }

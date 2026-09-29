@@ -4619,7 +4619,7 @@ pub fn mouse_in_form() -> (i64, i64) {
 pub fn picture_refresh(name: &str) {
     let name_lower = name.to_lowercase();
     let Some(Some((w, h, rgba, transparent))) = rapidr_value::objects::with_picture(&name_lower, |b| {
-        (!b.img.pixels.is_empty()).then(|| (b.img.width as i32, b.img.height as i32, b.to_rgba(), b.transparent))
+        (!b.img.pixels.is_empty()).then(|| (b.img.width as i32, b.img.height as i32, b.to_rgba(), b.transparent || b.alpha_channel().is_some()))
     }) else {
         return;
     };
