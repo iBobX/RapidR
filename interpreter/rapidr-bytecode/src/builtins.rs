@@ -40,7 +40,7 @@ pub const BUILTINS: &[&str] = &[
     "pi", "playsound", "playwav", "pos", "print", "print_hash", "println",
     "randomize", "rename", "resource", "resourcecount", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
     "rnd", "round", "rtrim",
-    "seek", "sgn", "shell", "shellwait", "shl", "shr", "showmessage", "sin", "sleep",
+    "run", "seek", "sgn", "shell", "shellwait", "shl", "shr", "showmessage", "sin", "sleep",
     "sound", "space", "sqr", "str", "strf", "string",
     "tally", "tan", "time", "time_func", "timer", "trim",
     "ubound", "ucase",

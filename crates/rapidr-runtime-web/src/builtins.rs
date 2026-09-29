@@ -354,6 +354,12 @@ pub fn rp_msgbox(msg: &Value) -> Value {
     v_int(0)
 }
 
+/// RUN: a browser starts no programs.
+pub fn rp_run(_command: &Value) -> Value {
+    web_sys::console::warn_1(&JsValue::from_str("[WARN] RUN is not supported in the browser"));
+    v_int(0)
+}
+
 pub fn rp_shell(_command: &Value) -> Value {
     web_sys::console::warn_1(&JsValue::from_str(
         "[WARN] SHELL is not supported in WASM",

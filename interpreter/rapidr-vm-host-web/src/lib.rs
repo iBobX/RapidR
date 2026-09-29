@@ -250,6 +250,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "mousey" => rp_mousey(),
         "extractresource" => { rp_extractresource(&a0, &a1); v_null() }
         "shell" => rp_shell(&a0),
+        "run" => rp_run(&a0),
         "shellwait" => rp_shellwait(&a0),
         "beep" => { rp_beep(); v_null() }
         "replacesubstr" => rp_replacesubstr(&a0, &a1, &a2),

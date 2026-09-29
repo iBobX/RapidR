@@ -14,3 +14,13 @@ CREATE P AS QSplit
 END CREATE
 P.Place
 PRINT P.MoverRect.Top
+TYPE TBox EXTENDS QOBJECT
+  Names AS QSTRINGLIST
+  SUB Fill
+    This.Names.AddItems "a", "bb", "ccc"
+    PRINT This.Names.ItemCount; " "; LEN(This.Names.Item(2))
+  END SUB
+END TYPE
+DIM B AS TBox
+B.Fill
+PRINT B.Names.Item(1)

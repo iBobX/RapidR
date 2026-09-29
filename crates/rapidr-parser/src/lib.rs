@@ -1111,8 +1111,10 @@ impl<'a> Parser<'a> {
         };
         self.consume_eol();
         let keyword = if is_function { "FUNCTIONI" } else { "SUBI" };
-        let mut body = self.parse_body(&[Terminator::EndPair(keyword)]);
-        if self.peek_is_end_followed_by(keyword) {
+        // (RapidQ also closed them with END FUNCTION / END SUB: QAVI.inc)
+        let plain = if is_function { "FUNCTION" } else { "SUB" };
+        let mut body = self.parse_body(&[Terminator::EndPair(keyword), Terminator::EndPair(plain)]);
+        if self.peek_is_end_followed_by(keyword) || self.peek_is_end_followed_by(plain) {
             self.advance();
             self.advance();
         } else {
