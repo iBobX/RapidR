@@ -174,7 +174,7 @@ Next up, in order:
 - [x] QLISTBOX MultiSelect drawn and picked on the desktop; QCOMBOBOX csDropDown edit box on desktop and web (v2.41.0)
 - [x] QFILELISTBOX and QDIRTREE on desktop and web from shared models (v2.44.0)
 - [x] QLISTBOX owner-draw (OnDrawItem) (v2.50.0)
-- [ ] QLISTBOX `Columns`; owner-drawn QCOMBOBOX (below)
+- [x] QLISTBOX `Columns`; owner-drawn QCOMBOBOX (v2.60.0)
 - [x] Type suffixes as declared types: `?` BYTE, `??` WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE (v2.55.0)
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
@@ -197,7 +197,9 @@ Next up, in order:
 - [x] Keyboard and mouse events with RapidQ's arguments on desktop and web: OnKeyDown / OnKeyUp (Key, Shift), OnKeyPress (Key), OnMouseDown / OnMouseUp (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — `rapidr_value::input` (v2.59.0). Not yet: `KeyPreview` order (the form after the control), a handler changing `Key` to swallow it, `KillMessage`
 - [x] QFORMMDI: child windows (AddChild by Handle, frames with title bar / minimize / maximize / close, drag, resize), activation, next / previous, cascade, tiling, arrange icons, minimize / maximize / restore all, GetChild / ChildExist / FreeChild, Child* properties, OnChildActive / OnChildClose (ChildResult) / OnChildResize — one model (`rapidr_value::mdi`) for the desktop and the web (v2.57.0). Not yet: `MDIMenu` (the window list in a menu), `ChildIcon`, `SetDeskBar`
 - [x] Components given a parent after their form is shown get their widget then (desktop; the web did) (v2.57.0); `Handle` for components (v2.57.0)
-- [ ] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`); grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser)
+- [x] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`: OnDrawItem, OnMeasureItem) and QLISTBOX `Columns` on desktop and web from the shared list model (v2.60.0)
+- [ ] Grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser); QLISTBOX `TabWidth`, `ExtendedSelect`
+- [ ] Desktop look: update fltk / fltk-theme to their latest releases and check the theme chosen per OS (macOS, Windows, Linux; `$THEME` / manual override) so native and interpreted programs look and behave like the platform's own; the web keeps its own theme
 - [ ] `Rotate`, ICO files for QIMAGELIST, `ImageList.Draw` onto a canvas (`ReadUDT`/`WriteUDT`: v2.56.0)
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [ ] QTREEVIEW from a shared model (nodes, `Items`, `AddChild*`, images, `Selected`, expand / collapse) on desktop and web, with its events including the answering ones (`OnChanging(Index, AllowChange)`, `OnExpanding`, `OnCollapsing`, `OnEditing`, `OnEdited(Index, S)`)

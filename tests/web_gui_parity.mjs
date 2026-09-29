@@ -60,10 +60,26 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
     // (…up, …move): the mouse at (10, 20) in it.
     const key = /^__key_(\d+)$/i.exec(action || "");
     const mouse = /^__mouse(down|up|move)_(\d+)_(\d+)$/i.exec(action || "");
-    const fired = await frame.evaluate(({ id, selector, key, mouse }) => {
+    // `list.__item_4`: item 4 clicked (an owner-drawn combo box's picked).
+    const item = /^__item_(\d+)$/i.exec(action || "");
+    const fired = await frame.evaluate(({ id, selector, key, mouse, item }) => {
       const host = document.getElementById(id);
       const el = selector ? host?.querySelector(selector) : host;
       if (!el) return false;
+      if (item) {
+        const down = (e) => e.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        if (host.classList.contains("rr-owner-combo")) {
+          down(host);
+          const pick = document.querySelector(`.rr-grid-dropdown [data-item="${item}"]`);
+          if (!pick) return false;
+          down(pick);
+        } else {
+          const it = host.querySelector(`[data-item="${item}"]`);
+          if (!it) return false;
+          it.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        }
+        return true;
+      }
       if (key) {
         const vk = Number(key);
         const names = { 8: "Backspace", 9: "Tab", 13: "Enter", 27: "Escape", 32: " ", 37: "ArrowLeft", 38: "ArrowUp", 39: "ArrowRight", 40: "ArrowDown" };
@@ -79,7 +95,7 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
       // (a list box answers a pick with `change`, anything else a click)
       el.dispatchEvent(host.tagName === "SELECT" ? new Event("change", { bubbles: true }) : new MouseEvent("click", { bubbles: true, cancelable: true }));
       return true;
-    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]] });
+    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]], item: item?.[1] });
     if (!fired) ok(false, `${c.name}: ${target} exists`);
     await page.waitForTimeout(300);
   }
