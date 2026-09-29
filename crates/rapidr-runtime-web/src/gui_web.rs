@@ -2147,17 +2147,9 @@ fn attach_owner_list(el: &web_sys::HtmlElement, name: &str) {
     let _ = st.set_property("border", "1px solid #999");
     let _ = st.set_property("box-sizing", "border-box");
     let owner = name.to_uppercase();
-    let select = move |i: i64| {
-        rapidr_value::objects::with_list_mut(&owner, |l| {
-            if l.multi_select {
-                if let Some(s) = l.selected.get_mut(i as usize) {
-                    *s = !*s;
-                }
-                l.item_index = i;
-            } else {
-                l.select(i);
-            }
-        });
+    // (MultiSelect: Shift / Ctrl held extend or toggle, as on the desktop)
+    let select = move |i: i64, shift: bool, ctrl: bool| {
+        rapidr_value::objects::with_list_mut(&owner, |l| l.click(i, shift, ctrl));
         render_list(&owner);
     };
     let click_select = select.clone();
@@ -2165,7 +2157,7 @@ fn attach_owner_list(el: &web_sys::HtmlElement, name: &str) {
         let mut node = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok());
         while let Some(n) = node {
             if let Some(i) = n.get_attribute("data-item").and_then(|v| v.parse::<i64>().ok()) {
-                click_select(i);
+                click_select(i, e.shift_key(), e.ctrl_key() || e.meta_key());
                 return;
             }
             node = n.parent_element();
@@ -2192,7 +2184,7 @@ fn attach_owner_list(el: &web_sys::HtmlElement, name: &str) {
         e.prevent_default();
         let next = next.clamp(0, (count - 1).max(0));
         if count > 0 && next != current {
-            select(next);
+            select(next, false, false);
             crate::object_web::rp_fire_event(&key_owner, "onclick");
         }
     });

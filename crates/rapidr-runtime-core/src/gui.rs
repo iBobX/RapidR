@@ -4859,18 +4859,11 @@ fn owner_combo_pick(name: &str, i: i64) {
     rp_fire_event(name, "onchange");
 }
 
-/// Selects item `i` the way a click does (a MultiSelect list toggles it).
+/// Selects item `i` the way a click does (MultiSelect: Shift / Ctrl held
+/// extend or toggle, `ItemList::click`).
 fn owner_list_select(name: &str, i: i64) {
-    rapidr_value::objects::with_list_mut(name, |l| {
-        if l.multi_select {
-            if let Some(s) = l.selected.get_mut(i as usize) {
-                *s = !*s;
-            }
-            l.item_index = i;
-        } else {
-            l.select(i);
-        }
-    });
+    let (shift, ctrl) = (app::is_event_shift(), app::is_event_ctrl() || app::is_event_command());
+    rapidr_value::objects::with_list_mut(name, |l| l.click(i, shift, ctrl));
 }
 
 /// The item in table cell (row, col): one per row, or with `Columns` down

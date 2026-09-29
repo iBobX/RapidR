@@ -198,7 +198,8 @@ Next up, in order:
 - [x] QFORMMDI: child windows (AddChild by Handle, frames with title bar / minimize / maximize / close, drag, resize), activation, next / previous, cascade, tiling, arrange icons, minimize / maximize / restore all, GetChild / ChildExist / FreeChild, Child* properties, OnChildActive / OnChildClose (ChildResult) / OnChildResize — one model (`rapidr_value::mdi`) for the desktop and the web (v2.57.0). Not yet: `MDIMenu` (the window list in a menu), `ChildIcon`, `SetDeskBar`
 - [x] Components given a parent after their form is shown get their widget then (desktop; the web did) (v2.57.0); `Handle` for components (v2.57.0)
 - [x] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`: OnDrawItem, OnMeasureItem) and QLISTBOX `Columns` on desktop and web from the shared list model (v2.60.0)
-- [ ] Grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser); QLISTBOX `TabWidth`, `ExtendedSelect`
+- [x] QLISTBOX `TabWidth`, `ExtendedSelect` (v2.63.0)
+- [ ] Grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser); `ExtendedSelect` for plain (not drawn) multi-select lists on the desktop (FLTK's own browser)
 - [x] Desktop look: `$THEME` / `RAPIDR_THEME` name any fltk-theme theme or scheme or FLTK scheme; the interpreter honors `$THEME` too; Linux defaults to a light look (was Dark); fltk 1.5 / fltk-theme 0.7.9 are current (v2.62.0)
 - [ ] Modern platform looks by default (fltk-theme's Aqua on macOS, Fluent on Windows): RapidR's buttons, grids and lists need styling for those schemes first (default-colored buttons vanish, Fluent draws grid headers wrong); fltk-theme's `crystal` scheme panics (upstream)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `ImageList.Draw` onto a canvas (`ReadUDT`/`WriteUDT`: v2.56.0)

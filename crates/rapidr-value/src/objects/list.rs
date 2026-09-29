@@ -62,6 +62,13 @@ pub struct ItemList {
     pub item_index: i64,
     pub sorted: bool,
     pub multi_select: bool,
+    /// `ExtendedSelect` (default on): in a MultiSelect list, Shift+click
+    /// selects a range and Ctrl+click toggles; off, a click toggles.
+    pub no_extended_select: bool,
+    /// Where a Shift+click range starts.
+    anchor: Option<usize>,
+    /// `TabWidth` (dialog units, 0: the default stops) for tabs in items.
+    pub tab_width: i64,
     pub top_index: i64,
     /// QCOMBOBOX: true. Its Text is its edit text.
     pub combo: bool,
@@ -359,7 +366,16 @@ impl ItemList {
                 }
                 let color = if selected { 0xFFFFFF } else { 0 };
                 let text = self.items.get(i).map_or("", String::as_str);
-                super::text::text_out(&mut b, 2, 0, text, font, color, None);
+                // Tabs go on to the TabWidth stops.
+                let avg = super::text::text_size("x", font).0;
+                let mut x = 2;
+                for (k, part) in text.split('\t').enumerate() {
+                    if k > 0 {
+                        x = 2 + self.next_tab_stop(x - 2, avg);
+                    }
+                    super::text::text_out(&mut b, x, 0, part, font, color, None);
+                    x += super::text::text_size(part, font).0;
+                }
             }
         }
         b
@@ -375,6 +391,44 @@ impl ItemList {
 
     /// Selects item `i` alone (-1: nothing); a combo box shows it as its
     /// text.
+    /// The user clicked item `i` (with Shift / Ctrl held): selects it as
+    /// a list box does (MultiSelect: ExtendedSelect ranges and toggles).
+    pub fn click(&mut self, i: i64, shift: bool, ctrl: bool) {
+        let Ok(u) = usize::try_from(i) else { return };
+        if u >= self.items.len() {
+            return;
+        }
+        if !self.multi_select {
+            return self.select(i);
+        }
+        self.selected.resize(self.items.len(), false);
+        if self.no_extended_select || ctrl {
+            self.selected[u] = !self.selected[u];
+            self.anchor = Some(u);
+        } else if shift {
+            let a = self.anchor.unwrap_or(u);
+            let (lo, hi) = (a.min(u), a.max(u));
+            for (k, s) in self.selected.iter_mut().enumerate() {
+                *s = (lo..=hi).contains(&k);
+            }
+        } else {
+            for (k, s) in self.selected.iter_mut().enumerate() {
+                *s = k == u;
+            }
+            self.anchor = Some(u);
+        }
+        self.item_index = i;
+    }
+
+    /// Where a tab in an item goes on to (pixels from the item's left):
+    /// the next stop, every `TabWidth` dialog units (a quarter of an
+    /// average character), 32 by default.
+    pub fn next_tab_stop(&self, x: i64, avg_char: i64) -> i64 {
+        let units = if self.tab_width > 0 { self.tab_width } else { 32 };
+        let step = (units * avg_char.max(1) / 4).max(1);
+        (x / step + 1) * step
+    }
+
     pub fn select(&mut self, i: i64) {
         let i = if (0..self.items.len() as i64).contains(&i) { i } else { -1 };
         self.item_index = i;
@@ -472,6 +526,8 @@ impl ItemList {
             "selcount" => v_int((0..self.items.len()).filter(|&i| self.is_selected(i)).count() as i64),
             "sorted" => flag(self.sorted),
             "multiselect" => flag(self.multi_select),
+            "extendedselect" => flag(!self.no_extended_select),
+            "tabwidth" => v_int(self.tab_width),
             "topindex" => v_int(self.top_index),
             "style" if !self.combo => v_int(self.style),
             "itemheight" => v_int(self.row_height()),
@@ -495,6 +551,8 @@ impl ItemList {
                     self.sort();
                 }
             }
+            "extendedselect" => self.no_extended_select = !val.to_bool(),
+            "tabwidth" => self.tab_width = val.to_i64().clamp(0, 10_000),
             "multiselect" => {
                 self.multi_select = val.to_bool();
                 if !self.multi_select {
@@ -758,6 +816,26 @@ mod tests {
         assert_eq!(asks.len(), 4);
         assert!(!l.measured(round, 0, 99));
         assert_eq!(l.item_h(0), 20);
+    }
+
+    #[test]
+    fn extended_select_and_tabs() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &(0..6).map(|i| s(&format!("i{i}"))).collect::<Vec<_>>());
+        l.set("multiselect", &v_int(-1));
+        l.click(1, false, false);
+        l.click(4, true, false);
+        assert_eq!(l.get("selcount").unwrap().to_i64(), 4);
+        l.click(2, false, true);
+        assert_eq!(l.get("selcount").unwrap().to_i64(), 3);
+        l.click(5, false, false);
+        assert_eq!(l.get("selcount").unwrap().to_i64(), 1);
+        l.set("extendedselect", &v_int(0));
+        l.click(0, true, false);
+        assert_eq!(l.get("selcount").unwrap().to_i64(), 2);
+        l.set("tabwidth", &v_int(40));
+        assert_eq!(l.next_tab_stop(3, 8), 80);
+        assert_eq!(l.next_tab_stop(85, 8), 160);
     }
 
     #[test]
