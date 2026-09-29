@@ -767,7 +767,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 self.stack.push(ret);
             }
             if !frame.then.is_empty() {
-                self.host.event_finished(frame.then);
+                // (with the handler's parameters: RapidQ's event arguments
+                // come back, e.g. OnClose's Action)
+                let params = std::mem::take(&mut self.arg_out);
+                self.host.event_finished(frame.then, &params);
+                self.arg_out = params;
             }
             return Ok(Returned::Stop);
         }
@@ -838,7 +842,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         self.stack.extend(args);
         if let Err(e) = self.call(module, fn_index, argc, true) {
             self.stack.truncate(base_stack);
-            self.host.event_finished(then);
+            self.host.event_finished(then, &[]);
             return Err(e);
         }
         let top = self.frames.last_mut().unwrap();
@@ -853,7 +857,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 // A failed handler leaves nothing behind (its continuations run).
                 if let Some(f) = self.frames.get_mut(base_frames) {
                     let then = std::mem::take(&mut f.then);
-                    self.host.event_finished(then);
+                    self.host.event_finished(then, &[]);
                 }
                 self.frames.truncate(base_frames);
                 self.stack.truncate(base_stack);

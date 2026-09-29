@@ -744,7 +744,10 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
             } else {
                 // What's shown has its `&` accelerator marks taken out; the
                 // program reads back what it set while that's still shown.
-                let shown = el.inner_text();
+                // A form's is its title bar's text (not its buttons' and
+                // controls').
+                let title = el.query_selector(":scope > .rr-form-titlebar > .rr-form-title-text").ok().flatten();
+                let shown = title.and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()).unwrap_or_else(|| el.clone()).inner_text();
                 let stored = crate::object_web::rp_comp_get_stored(name, prop).to_string_val();
                 let squash = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
                 if squash(&strip_ampersands(&stored)) == squash(&shown) { v_str(&stored) } else { v_str(&shown) }
@@ -1121,13 +1124,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         (_, "close") if comp_type == "RFORM" => {
-            crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(false));
-            if let Some(el) = get_el(&id) {
-                let _ = el.style().set_property("display", "none");
-            }
-            hide_modal_backdrop(&id);
-            // Fire onclose symmetrically with form_close()
-            crate::object_web::rp_fire_event(name, "onclose");
+            close_form(name);
             v_null()
         }
         // Re-parent a widget (or form) into another container.
@@ -2340,6 +2337,9 @@ fn render_list_now(name: &str) {
 /// Shows an owner-drawn list box's items (see [`create_owner_list`]) and
 /// fires OnDrawItem for them if the list changed.
 fn render_owner_list(el: &web_sys::Element, name: &str) {
+    if list_measure(name) {
+        return;
+    }
     // The control's width less its frame and scroll bar (as on the desktop).
     let width = (crate::object_web::rp_comp_get_stored(name, "width").to_i64() - 20).max(20);
     let scroll = el.scroll_top();
@@ -2367,6 +2367,25 @@ fn render_owner_list(el: &web_sys::Element, name: &str) {
     }
     el.set_scroll_top(scroll);
     list_owner_draw(name, width);
+}
+
+/// OnMeasureItem(Index, Height) for each item of a `lbOwnerDrawVariable`
+/// list whose items changed, as on the desktop (rapidr_value::objects::
+/// list): each answer is the item's height, and the list is shown again
+/// once the last is in. `true` while answers are still to come.
+fn list_measure(name: &str) -> bool {
+    if crate::object_web::rp_has_handler(name, "onmeasureitem") {
+        let asks = rapidr_value::objects::with_list_mut(name, |l| l.measure_needed()).unwrap_or_default();
+        for (round, i, h) in asks {
+            let list = name.to_string();
+            crate::object_web::rp_fire_event_then(name, "onmeasureitem", &[v_int(i as i64), v_int(h)], move |a| {
+                if rapidr_value::objects::with_list_mut(&list, |l| l.measured(round, i, a[1].to_i64())).unwrap_or(false) {
+                    render_list(&list);
+                }
+            });
+        }
+    }
+    rapidr_value::objects::with_list(name, |l| l.measuring()).unwrap_or(false)
 }
 
 /// OnDrawItem(Index, State, Rect): fired for every item after the list
@@ -3159,23 +3178,28 @@ fn grid_option(name: &str, option: u32) -> bool {
     rapidr_value::objects::with_grid(name, |g| g.has_option(option)).unwrap_or(false)
 }
 
-/// Selects a cell as a click or an arrow key does: fixed cells can't be
-/// selected; OnSelectCell(Col, Row, CanSelect) is fired when the selection
-/// moves.
+/// Selects a cell as a click or an arrow key does (fixed cells can't be
+/// selected).
 fn grid_select(name: &str, c: i64, r: i64) {
-    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
-        if c < 0 || r < 0 || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() {
-            return false;
+    grid_user_select(name, c, r, false);
+}
+
+/// A selection the user made (`StringGrid::user_select`, as on the
+/// desktop): when it moves, OnSelectCell(Col, Row, CanSelect) is fired, and
+/// `CanSelect = 0` puts the selection back.
+fn grid_user_select(name: &str, c: i64, r: i64, extend: bool) -> bool {
+    let Some(before) = rapidr_value::objects::with_grid_mut(name, |g| g.user_select(c, r, extend)).flatten() else {
+        return false;
+    };
+    render_grid_now(name);
+    let grid = name.to_string();
+    crate::object_web::rp_fire_event_then(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)], move |a| {
+        if a[2].to_i64() == 0 {
+            rapidr_value::objects::with_grid_mut(&grid, |g| g.set_selection(before));
+            render_grid_now(&grid);
         }
-        let before = (g.col, g.row, g.anchor);
-        g.select(c, r);
-        (g.col, g.row) == (c, r) && before != (g.col, g.row, g.anchor)
-    })
-    .unwrap_or(false);
-    if ok {
-        render_grid_now(name);
-        crate::object_web::rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
-    }
+    });
+    true
 }
 
 /// Whether the mouse is on the border of a header cell that can be dragged
@@ -3243,20 +3267,7 @@ thread_local! {
 /// range grows to it (rapidr_value::objects::grid, as on the desktop).
 /// Returns whether the selection changed.
 fn grid_extend(name: &str, c: i64, r: i64) -> bool {
-    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
-        if !g.range_select() || c < 0 || r < 0 || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() {
-            return false;
-        }
-        let before = (g.col, g.row, g.anchor);
-        g.extend_to(c, r);
-        before != (g.col, g.row, g.anchor)
-    })
-    .unwrap_or(false);
-    if ok {
-        render_grid_now(name);
-        crate::object_web::rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
-    }
-    ok
+    grid_user_select(name, c, r, true)
 }
 
 fn grid_cell_el(name: &str, c: i64, r: i64) -> Option<web_sys::HtmlElement> {
@@ -3337,7 +3348,18 @@ fn grid_store(name: &str, value: String) {
 fn grid_drop_down(name: &str, cell: &web_sys::Element) {
     close_grid_drop_down();
     let Some((c, r)) = rapidr_value::objects::with_grid(name, |g| (g.col, g.row)) else { return };
-    let Some(items) = rapidr_value::objects::with_grid(name, |g| g.list_items(c as usize, r as usize)).flatten() else { return };
+    let Some(list) = rapidr_value::objects::with_grid(name, |g| g.list_text(c as usize, r as usize)).flatten() else { return };
+    // OnListDropDown(Col, Row, S) may change the items (as on the desktop).
+    let (grid, cell) = (name.to_string(), cell.clone());
+    crate::object_web::rp_fire_event_then(name, "onlistdropdown", &[v_int(c), v_int(r), v_str(&list)], move |a| {
+        show_grid_drop_down(&grid, &cell, rapidr_value::objects::grid::list_lines(&a[2].to_string_val()));
+    });
+}
+
+fn show_grid_drop_down(name: &str, cell: &web_sys::Element, items: Vec<String>) {
+    if items.is_empty() {
+        return;
+    }
     let rect = cell.get_bounding_client_rect();
     let list = create_el("div");
     list.set_class_name("rr-grid-dropdown");
@@ -4311,16 +4333,22 @@ pub fn hide_form(name: &str) {
 }
 
 fn form_close(form_id: &str) {
-    if let Some(el) = get_el(form_id) {
-        let _ = el.style().set_property("display", "none");
-    }
-    hide_modal_backdrop(form_id);
-    // Fire onclose event
-    let comp_name = form_id
-        .strip_prefix("rr-")
-        .unwrap_or(form_id)
-        .to_uppercase();
-    crate::object_web::rp_fire_event(&comp_name, "onclose");
+    close_form(&form_id.strip_prefix("rr-").unwrap_or(form_id).to_uppercase());
+}
+
+/// `Form.Close` and the title bar's ✕: OnClose's `Action` (it starts as
+/// `caHide`) decides whether the form goes, stays or is minimized.
+pub fn close_form(name: &str) {
+    use rapidr_value::events::{CloseAction, CA_HIDE};
+    let form = name.to_string();
+    crate::object_web::rp_fire_event_then(name, "onclose", &[v_int(CA_HIDE)], move |a| match CloseAction::of(&a[0]) {
+        CloseAction::Stay => {}
+        CloseAction::Minimize => form_minimize(&comp_id(&form)),
+        CloseAction::Close => {
+            crate::object_web::rp_comp_set(&form, "visible", crate::value::v_bool(false));
+            hide_form(&form);
+        }
+    });
 }
 
 /// Show a dimmed backdrop behind a modal form. The backdrop sits one z-index

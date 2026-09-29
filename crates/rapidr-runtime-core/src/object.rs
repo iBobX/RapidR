@@ -363,28 +363,8 @@ impl RpComponent {
 // Global component registry
 // ---------------------------------------------------------------------------
 
-/// Handler enum supporting event callbacks with 0..=5 parameters,
-/// plus an `Indirect` variant carrying an opaque handler id (used by
-/// the bytecode interpreter — the id is dispatched via the
-/// thread-local [`INDIRECT_DISPATCHER`]).
-#[derive(Clone)]
-pub enum EventHandler {
-    Arity0(fn()),
-    Arity1(fn(Value)),
-    Arity2(fn(Value, Value)),
-    Arity3(fn(Value, Value, Value)),
-    Arity4(fn(Value, Value, Value, Value)),
-    Arity5(fn(Value, Value, Value, Value, Value)),
-    /// Opaque handler id (e.g. a bytecode function index) — invoked
-    /// through the registered indirect dispatcher.
-    Indirect(u32),
-    /// A bytecode EVENT handler of a TYPE bound to one instance: invoked
-    /// with that instance (`This`) before the event's arguments.
-    IndirectThis(u32, Value),
-    /// A compiled handler bound to one instance (native EVENT blocks and
-    /// `obj(i).OnClick = Handler`), given the event's arguments.
-    Closure(std::rc::Rc<dyn Fn(&[Value])>),
-}
+/// A handler bound to a component's event (shared with the web runtime).
+pub use rapidr_value::events::Handler as EventHandler;
 
 /// Type alias for the indirect event dispatcher used by the bytecode
 /// interpreter's NativeHost. Receives `(handler_id, args)`.
@@ -1094,71 +1074,56 @@ pub fn rp_bind_event_5(name: &str, event: &str, handler: fn(Value, Value, Value,
     });
 }
 
-/// Runs the handler bound to `name`'s `event` with the event's arguments.
-/// The firing component is passed last (`Sender`, as in RapidQ's `SUB
-/// Button1Click (Sender AS QBUTTON)`). The handler is copied out first, so
-/// it may bind or fire other events.
-fn fire(name: &str, event: &str, args: &[Value]) {
-    let Some(handler) = lookup_handler(name, event) else { return };
-    // The firing component comes last (`Sender`), after the event's own
-    // arguments, as in RapidQ (`SUB DrawCell (Col%, Row%, State%, Rect AS
-    // QRECT, Sender AS QSTRINGGRID)`); handlers declaring fewer parameters
-    // don't get it.
-    let with_sender: Vec<Value> = args.iter().cloned().chain(std::iter::once(v_str(name))).collect();
-    let args: &[Value] = &with_sender;
-    let a = |i: usize| args.get(i).cloned().unwrap_or_else(v_null);
-    match handler {
-        EventHandler::Arity0(f) => f(),
-        EventHandler::Arity1(f) => f(a(0)),
-        EventHandler::Arity2(f) => f(a(0), a(1)),
-        EventHandler::Arity3(f) => f(a(0), a(1), a(2)),
-        EventHandler::Arity4(f) => f(a(0), a(1), a(2), a(3)),
-        EventHandler::Arity5(f) => f(a(0), a(1), a(2), a(3), a(4)),
-        EventHandler::Indirect(id) => dispatch_indirect(id, args),
-        EventHandler::IndirectThis(id, this) => {
-            let all: Vec<Value> = std::iter::once(this).chain(args.iter().cloned()).collect();
-            dispatch_indirect(id, &all)
-        }
-        EventHandler::Closure(f) => f(args),
-    }
+/// Bind a compiled handler of `n` parameters that writes them back (RapidQ's
+/// event parameters are by reference: OnClose's `Action`, …).
+pub fn rp_bind_event_out(name: &str, event: &str, n: usize, handler: fn(&mut [Value])) {
+    bind_handler(name, event, EventHandler::Out(n, handler));
+}
+
+/// Runs the handler bound to `name`'s `event` with the event's arguments
+/// (the firing component is passed last, as `Sender`); returns them as a
+/// compiled handler left them. The handler is copied out first, so it may
+/// bind or fire other events.
+fn fire(name: &str, event: &str, args: &[Value]) -> Vec<Value> {
+    let Some(handler) = lookup_handler(name, event) else { return args.to_vec() };
+    rapidr_value::events::call(handler, name, args, dispatch_indirect)
 }
 
 /// Fire an event with no arguments (handlers get the Sender).
 pub fn rp_fire_event(name: &str, event: &str) {
-    fire(name, event, &[]);
+    let _ = fire(name, event, &[]);
 }
 
 /// Fire an event with 1 argument.
 pub fn rp_fire_event_1(name: &str, event: &str, arg: Value) {
-    fire(name, event, &[arg]);
+    let _ = fire(name, event, &[arg]);
 }
 
 /// Fire an event with 2 arguments.
 pub fn rp_fire_event_2(name: &str, event: &str, arg1: Value, arg2: Value) {
-    fire(name, event, &[arg1, arg2]);
+    let _ = fire(name, event, &[arg1, arg2]);
 }
 
 /// Fire an event with any number of arguments.
 pub fn rp_fire_event_args(name: &str, event: &str, args: &[Value]) {
-    fire(name, event, args);
+    let _ = fire(name, event, args);
 }
 
 /// Fire an event with 5 arguments.
 pub fn rp_fire_event_5(name: &str, event: &str, a1: Value, a2: Value, a3: Value, a4: Value, a5: Value) {
-    fire(name, event, &[a1, a2, a3, a4, a5]);
+    let _ = fire(name, event, &[a1, a2, a3, a4, a5]);
 }
 
 /// Fires `event`, then runs `then` once its handler has run — at once in a
 /// native build; in the interpreter, queued behind the handler
 /// (`rapidr_value::events`). For events whose handler sets something the
 /// runtime reads afterwards (a QFORMMDI's `ChildResult`).
-pub fn rp_fire_event_then(name: &str, event: &str, args: &[Value], then: impl FnOnce() + 'static) {
-    rapidr_value::events::arm(Box::new(then));
-    fire(name, event, args);
-    // Not queued with a handler for the interpreter: it runs now.
-    if let Some(then) = rapidr_value::events::disarm() {
-        then();
-    }
+///
+/// `then` gets the arguments as the handler left them (RapidQ's event
+/// parameters are by reference: OnClose's `Action`, OnSelectCell's
+/// `CanSelect`, …).
+pub fn rp_fire_event_then(name: &str, event: &str, args: &[Value], then: impl FnOnce(&[Value]) + 'static) {
+    rapidr_value::events::fire_then(args, || fire(name, event, args), then);
 }
 
 /// Bind a bytecode EVENT handler to one instance (see [`EventHandler::IndirectThis`]).
@@ -1167,7 +1132,7 @@ pub fn rp_bind_event_indirect_this(name: &str, event: &str, handler_id: u32, thi
 }
 
 /// Bind a compiled closure (see [`EventHandler::Closure`]).
-pub fn rp_bind_event_closure(name: &str, event: &str, f: std::rc::Rc<dyn Fn(&[Value])>) {
+pub fn rp_bind_event_closure(name: &str, event: &str, f: std::rc::Rc<dyn Fn(&mut Vec<Value>)>) {
     bind_handler(name, event, EventHandler::Closure(f));
 }
 
@@ -1500,7 +1465,11 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         "close" | "hide" => {
             #[cfg(feature = "gui")]
             {
-                crate::gui::gui_close(name);
+                if method == "close" {
+                    crate::gui::gui_close(name);
+                } else {
+                    crate::gui::gui_hide(name);
+                }
                 return v_null();
             }
             #[cfg(not(feature = "gui"))]

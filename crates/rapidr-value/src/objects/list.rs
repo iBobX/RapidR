@@ -20,8 +20,11 @@
 //! `FillRect`, `TextOut`, `Draw`, … on the list are kept per item
 //! ([`CellDraw`]) and painted ([`ItemList::render_item`]) into a bitmap the
 //! runtimes show, so every platform draws the same pixels. Every item is
-//! `ItemHeight` tall: `OnMeasureItem`'s answers aren't read yet (events
-//! can't return values). `State` is 0 for the selected item and 1 for the
+//! `ItemHeight` tall, except with `lbOwnerDrawVariable`: the runtimes then
+//! first fire `OnMeasureItem(Index, Height)` for each item after the items
+//! changed ([`ItemList::measure_needed`]), and the `Height` each handler
+//! answers ([`ItemList::measured`]) is that item's; OnDrawItem waits until
+//! all have answered. `State` is 0 for the selected item and 1 for the
 //! others, as RapidQ programs test it.
 //!
 //! Indexes out of range read as "" / 0 and are ignored when written, as
@@ -71,6 +74,13 @@ pub struct ItemList {
     /// What OnDrawItem drew, per item, relative to the item's top left.
     pub owner_drawing: HashMap<usize, Vec<CellDraw>>,
     drawn_state: Option<u64>,
+    /// lbOwnerDrawVariable: each item's height as OnMeasureItem answered
+    /// (0: `ItemHeight`); the items it was asked for, and the answers
+    /// still to come for the current round (`measure_round`).
+    item_heights: Vec<i64>,
+    measured_state: Option<u64>,
+    measure_round: u32,
+    measures_pending: usize,
 }
 
 fn index(v: Option<&Value>) -> Option<usize> {
@@ -153,12 +163,78 @@ impl ItemList {
         if self.item_height > 0 { self.item_height.min(2_000) } else { DEFAULT_ITEM_HEIGHT }
     }
 
-    /// Whether the list changed (items, selection, style, height) since
+    /// Whether items have their own heights (`lbOwnerDrawVariable`).
+    pub fn variable(&self) -> bool {
+        !self.combo && self.style == LB_OWNER_VARIABLE
+    }
+
+    /// Height of item `i`: what OnMeasureItem answered for it, else
+    /// `ItemHeight`.
+    pub fn item_h(&self, i: usize) -> i64 {
+        match self.item_heights.get(i) {
+            Some(&h) if h > 0 && self.variable() => h,
+            _ => self.row_height(),
+        }
+    }
+
+    /// Top of each item in the list's content, and the bottom of the last.
+    fn tops(&self) -> Vec<i64> {
+        let mut tops = Vec::with_capacity(self.items.len() + 1);
+        let mut y = 0;
+        tops.push(0);
+        for i in 0..self.items.len() {
+            y += self.item_h(i);
+            tops.push(y);
+        }
+        tops
+    }
+
+    /// OnMeasureItem: when the items (or Style, ItemHeight) of a
+    /// `lbOwnerDrawVariable` list changed, (round, index, Height) for each
+    /// item to ask about, Height starting as `ItemHeight`; otherwise none.
+    pub fn measure_needed(&mut self) -> Vec<(u32, usize, i64)> {
+        if !self.variable() {
+            return Vec::new();
+        }
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (&self.items, self.style, self.item_height).hash(&mut h);
+        let state = h.finish();
+        if self.measured_state == Some(state) {
+            return Vec::new();
+        }
+        self.measured_state = Some(state);
+        self.measure_round = self.measure_round.wrapping_add(1);
+        let n = self.items.len().min(MAX_OWNER_DRAWN);
+        self.item_heights = vec![0; n];
+        self.measures_pending = n;
+        (0..n).map(|i| (self.measure_round, i, self.row_height())).collect()
+    }
+
+    /// OnMeasureItem of `round` answered `height` for item `i`: `true` when
+    /// it was the last answer to come (the runtime then shows the items and
+    /// fires OnDrawItem).
+    pub fn measured(&mut self, round: u32, i: usize, height: i64) -> bool {
+        if round != self.measure_round {
+            return false;
+        }
+        if let Some(h) = self.item_heights.get_mut(i) {
+            *h = height.clamp(0, 2_000);
+        }
+        self.measures_pending = self.measures_pending.saturating_sub(1);
+        self.measures_pending == 0
+    }
+
+    /// Whether OnMeasureItem answers are still to come (OnDrawItem waits).
+    pub fn measuring(&self) -> bool {
+        self.measures_pending > 0
+    }
+
+    /// Whether the list changed (items, selection, style, heights) since
     /// OnDrawItem was last fired: if so its drawing is dropped and it must
     /// be fired again. Drawing on the list isn't a change.
     pub fn owner_draw_needed(&mut self) -> bool {
         let mut h = std::collections::hash_map::DefaultHasher::new();
-        (&self.items, &self.selected, self.item_index, self.style, self.item_height).hash(&mut h);
+        (&self.items, &self.selected, self.item_index, self.style, self.item_height, &self.item_heights).hash(&mut h);
         let state = h.finish();
         if self.drawn_state == Some(state) {
             return false;
@@ -169,29 +245,30 @@ impl ItemList {
     }
 
     /// Each item's OnDrawItem arguments: (index, State, Rect), the rect in
-    /// the list's content (the top of item i is i × its height), up to
+    /// the list's content (items stacked by their heights), up to
     /// [`MAX_OWNER_DRAWN`] items.
     pub fn owner_draw_items(&self, width: i64) -> Vec<(usize, i64, (i64, i64, i64, i64))> {
-        let h = self.row_height();
+        let tops = self.tops();
         (0..self.items.len().min(MAX_OWNER_DRAWN))
-            .map(|i| (i, if self.is_selected(i) { 0 } else { 1 }, (0, i as i64 * h, width, (i as i64 + 1) * h)))
+            .map(|i| (i, if self.is_selected(i) { 0 } else { 1 }, (0, tops[i], width, tops[i + 1])))
             .collect()
     }
 
     /// Keeps a drawing whose anchor is (x, y) on the item there, with
     /// `make` given that item's top left (to make it relative).
     pub fn record(&mut self, _x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
-        let h = self.row_height();
         if y < 0 {
             return;
         }
-        let i = (y / h) as usize;
+        let tops = self.tops();
+        // The item whose slot [top, next top) holds y.
+        let i = tops.partition_point(|&t| t <= y).saturating_sub(1);
         if i >= self.items.len() {
             return;
         }
         let list = self.owner_drawing.entry(i).or_default();
         if list.len() < 1_000 {
-            list.push(make(0, i as i64 * h));
+            list.push(make(0, tops[i]));
         }
     }
 
@@ -222,13 +299,14 @@ impl ItemList {
     /// (selected: white on blue).
     pub fn render_item(&self, i: usize, width: i64, font: &Font) -> Bitmap {
         let mut b = Bitmap::default();
-        b.resize(width.clamp(1, 10_000), self.row_height());
+        let height = self.item_h(i);
+        b.resize(width.clamp(1, 10_000), height);
         match self.owner_drawing.get(&i) {
             Some(ops) => ops.iter().for_each(|op| op.paint(&mut b, font)),
             None => {
                 let selected = self.is_selected(i);
                 if selected {
-                    b.fill_rect(0, 0, width, self.row_height(), 0xD77800);
+                    b.fill_rect(0, 0, width, height, 0xD77800);
                 }
                 let color = if selected { 0xFFFFFF } else { 0 };
                 let text = self.items.get(i).map_or("", String::as_str);
@@ -592,5 +670,34 @@ mod tests {
         l.select(2);
         assert!(l.owner_draw_needed());
         assert!(l.owner_drawing.is_empty());
+    }
+
+    #[test]
+    fn measured_items() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &[s("a"), s("b"), s("c")]);
+        l.set("itemheight", &v_int(20));
+        // Fixed: no OnMeasureItem.
+        l.set("style", &v_int(LB_OWNER_FIXED));
+        assert!(l.measure_needed().is_empty());
+        l.set("style", &v_int(LB_OWNER_VARIABLE));
+        let asks = l.measure_needed();
+        assert_eq!(asks.iter().map(|a| (a.1, a.2)).collect::<Vec<_>>(), vec![(0, 20), (1, 20), (2, 20)]);
+        assert!(l.measure_needed().is_empty() && l.measuring());
+        let round = asks[0].0;
+        assert!(!l.measured(round, 0, 30));
+        assert!(!l.measured(round, 1, 0)); // 0: ItemHeight
+        assert!(l.measured(round, 2, 50) && !l.measuring());
+        assert_eq!(l.owner_draw_items(80), vec![(0, 1, (0, 0, 80, 30)), (1, 1, (0, 30, 80, 50)), (2, 1, (0, 50, 80, 100))]);
+        assert_eq!(l.render_item(2, 80, &Font::default()).img.height, 50);
+        // Drawing at y = 60 lands on item 2 (its top is 50).
+        l.call("fillrect", &[v_int(0), v_int(60), v_int(10), v_int(70), v_int(0xFF)]);
+        assert_eq!(l.owner_drawing.get(&2).map(Vec::len), Some(1));
+        // The items changed: asked again; an old round's answer is ignored.
+        l.call("additems", &[s("d")]);
+        let asks = l.measure_needed();
+        assert_eq!(asks.len(), 4);
+        assert!(!l.measured(round, 0, 99));
+        assert_eq!(l.item_h(0), 20);
     }
 }

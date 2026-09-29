@@ -7,6 +7,35 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.58.0] — 2026-09-28
+
+### Added
+- **Event parameters come back to the runtime**, as in RapidQ (which passes
+  them by reference), on native builds, the interpreter and the web:
+  - QFORM `OnClose(Action)`: `Action = caNone` (or `False`) keeps the form
+    open, `caMinimize` minimizes it; it starts as `caHide`;
+  - QSTRINGGRID `OnSelectCell(Col, Row, CanSelect)`: `CanSelect = 0` puts
+    the selection back (also from a TYPE's `EVENT OnSelectCell`);
+  - QLISTBOX `OnMeasureItem(Index, Height)` (`lbOwnerDrawVariable`): each
+    item is as tall as its handler says; OnDrawItem's Rects follow;
+  - QSTRINGGRID `OnListDropDown(Col, Row, S)`: a gcsList column's
+    drop-down shows the items the handler leaves in `S`.
+
+  The continuation of an event (v2.57.0) now gets the arguments as the
+  handler left them: the VM hands over the handler's parameters when it
+  returns; native builds bind handlers so their parameters write back
+  (`rp_bind_event_out`; a SUB bound to an event takes its parameters by
+  reference from the runtime, still by value when the program calls it).
+  One handler type and calling rule for both runtimes
+  (`rapidr_value::events::Handler`, `call`).
+
+### Fixed
+- Desktop: the window's close button fired no OnClose (FLTK hid the window
+  itself; Escape closed forms too); `Form.Hide` fired OnClose, which only
+  `Close` does.
+- Web: `Form.Caption` read back the whole window's text (title bar
+  buttons, controls); it reads the title.
+
 ## [2.57.0] — 2026-09-28
 
 ### Added

@@ -35,6 +35,9 @@
 //   * tests/fixtures/timer_default.bas — a QTIMER ticks without Enabled set;
 //   * tests/fixtures/late_parent.bas — components parented after the form is shown;
 //   * tests/fixtures/mdi_children.bas — QFORMMDI child windows, OnChildClose's ChildResult.
+//   * tests/fixtures/event_answers.bas — event parameters that come back:
+//     OnClose's Action, OnSelectCell's CanSelect (also a TYPE's EVENT),
+//     OnMeasureItem's Height.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)

@@ -49,7 +49,13 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
   if (!frame) { ok(false, `${c.name}: preview frame`); continue; }
   const idOf = (name) => "rr-" + name.toLowerCase();
   for (const ev of c.events.split(",").filter(Boolean)) {
-    const [target] = ev.split(".");
+    const [target, action] = ev.split(".");
+    // The desktop's test actions: `form.__close` (the close button) and
+    // `grid.__cell_c_r` (a click on a cell).
+    const cell = /^__cell_(\d+)_(\d+)$/i.exec(action || "");
+    const selector = action?.toLowerCase() === "__close" ? ".rr-form-btn-close"
+      : cell ? `td[data-col="${cell[1]}"][data-row="${cell[2]}"]`
+      : c.webClick?.[target.toLowerCase()];
     const fired = await frame.evaluate(({ id, selector }) => {
       const host = document.getElementById(id);
       const el = selector ? host?.querySelector(selector) : host;
@@ -57,7 +63,7 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
       // (a list box answers a pick with `change`, anything else a click)
       el.dispatchEvent(host.tagName === "SELECT" ? new Event("change", { bubbles: true }) : new MouseEvent("click", { bubbles: true, cancelable: true }));
       return true;
-    }, { id: idOf(target), selector: c.webClick?.[target.toLowerCase()] });
+    }, { id: idOf(target), selector });
     if (!fired) ok(false, `${c.name}: ${target} exists`);
     await page.waitForTimeout(300);
   }
