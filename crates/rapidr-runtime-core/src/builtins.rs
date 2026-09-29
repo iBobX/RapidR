@@ -3,6 +3,8 @@
 use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
 use std::io::{self, Write};
 
+pub use crate::value::builtins::*;
+
 #[cfg(feature = "audio")]
 use rodio::Source;
 
@@ -62,319 +64,62 @@ pub fn rp_input(prompt: &Value) -> Value {
 // String functions
 // ---------------------------------------------------------------------------
 
-pub fn rp_len(val: &Value) -> Value {
-    rapidr_value::strings::len(val)
-}
 
-pub fn rp_mid(s: &Value, start: &Value, length: &Value) -> Value {
-    rapidr_value::strings::mid(s, start, length)
-}
 
-pub fn rp_left(s: &Value, n: &Value) -> Value {
-    rapidr_value::strings::left(s, n)
-}
 
-pub fn rp_right(s: &Value, n: &Value) -> Value {
-    rapidr_value::strings::right(s, n)
-}
 
-pub fn rp_ucase(s: &Value) -> Value {
-    Value::String(s.to_string_val().to_uppercase())
-}
 
-pub fn rp_lcase(s: &Value) -> Value {
-    Value::String(s.to_string_val().to_lowercase())
-}
 
-pub fn rp_ltrim(s: &Value) -> Value {
-    Value::String(s.to_string_val().trim_start().to_string())
-}
 
-pub fn rp_rtrim(s: &Value) -> Value {
-    Value::String(s.to_string_val().trim_end().to_string())
-}
 
-pub fn rp_trim(s: &Value) -> Value {
-    Value::String(s.to_string_val().trim().to_string())
-}
 
-pub fn rp_instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
-    rapidr_value::strings::instr(start, haystack, needle)
-}
 
-pub fn rp_space(n: &Value) -> Value {
-    rapidr_value::strings::space(n)
-}
 
-pub fn rp_string_func(n: &Value, ch: &Value) -> Value {
-    rapidr_value::strings::string_of(n, ch)
-}
 
-pub fn rp_chr(n: &Value) -> Value {
-    Value::String(String::from(char::from(n.to_i64() as u8)))
-}
 
-pub fn rp_asc(s: &Value) -> Value {
-    rapidr_value::strings::asc(s)
-}
 
-pub fn rp_replace(s: &Value, old: &Value, new: &Value) -> Value {
-    Value::String(s.to_string_val().replace(&old.to_string_val(), &new.to_string_val()))
-}
 
 // ---------------------------------------------------------------------------
 // Numeric / conversion functions
 // ---------------------------------------------------------------------------
 
-pub fn rp_str(val: &Value) -> Value {
-    Value::String(val.to_string_val())
-}
 
-pub fn rp_val(s: &Value) -> Value {
-    let s = s.to_string_val().trim().to_string();
-    if let Ok(n) = s.parse::<i64>() {
-        v_int(n)
-    } else if let Ok(n) = s.parse::<f64>() {
-        v_dbl(n)
-    } else {
-        v_int(0)
-    }
-}
 
-pub fn rp_int(val: &Value) -> Value {
-    v_int(val.to_f64().floor() as i64)
-}
 
-pub fn rp_abs(val: &Value) -> Value {
-    match val {
-        Value::Integer(n) => v_int(n.abs()),
-        _ => v_dbl(val.to_f64().abs()),
-    }
-}
 
-pub fn rp_sgn(val: &Value) -> Value {
-    let n = val.to_f64();
-    v_int(if n > 0.0 { 1 } else if n < 0.0 { -1 } else { 0 })
-}
 
-pub fn rp_sqr(val: &Value) -> Value {
-    v_dbl(val.to_f64().sqrt())
-}
 
-pub fn rp_sin(val: &Value) -> Value {
-    let s = val.to_string_val();
-    if s.contains(',') {
-        // Vectorized: apply sin to each element of comma-separated array
-        let result: String = s.split(',')
-            .map(|v| v.trim().parse::<f64>().unwrap_or(0.0).sin().to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        v_str(&result)
-    } else {
-        v_dbl(val.to_f64().sin())
-    }
-}
 
-pub fn rp_cos(val: &Value) -> Value {
-    let s = val.to_string_val();
-    if s.contains(',') {
-        // Vectorized: apply cos to each element of comma-separated array
-        let result: String = s.split(',')
-            .map(|v| v.trim().parse::<f64>().unwrap_or(0.0).cos().to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        v_str(&result)
-    } else {
-        v_dbl(val.to_f64().cos())
-    }
-}
 
-pub fn rp_tan(val: &Value) -> Value {
-    v_dbl(val.to_f64().tan())
-}
 
-pub fn rp_atn(val: &Value) -> Value {
-    v_dbl(val.to_f64().atan())
-}
 
-pub fn rp_acos(val: &Value) -> Value {
-    v_dbl(val.to_f64().acos())
-}
 
-pub fn rp_asin(val: &Value) -> Value {
-    v_dbl(val.to_f64().asin())
-}
 
-pub fn rp_log(val: &Value) -> Value {
-    v_dbl(val.to_f64().ln())
-}
 
-pub fn rp_exp(val: &Value) -> Value {
-    v_dbl(val.to_f64().exp())
-}
 
-pub fn rp_ceil(val: &Value) -> Value {
-    v_dbl(val.to_f64().ceil())
-}
 
-pub fn rp_floor(val: &Value) -> Value {
-    v_dbl(val.to_f64().floor())
-}
 
-pub fn rp_round(val: &Value) -> Value {
-    v_dbl(val.to_f64().round())
-}
 
-pub fn rp_hex(val: &Value) -> Value {
-    Value::String(format!("{:X}", val.to_i64()))
-}
 
-pub fn rp_oct(val: &Value) -> Value {
-    Value::String(format!("{:o}", val.to_i64()))
-}
 
-pub fn rp_bin(val: &Value) -> Value {
-    Value::String(format!("{:b}", val.to_i64()))
-}
 
-pub fn rp_rnd(upper: &Value) -> Value {
-    use rand::Rng;
-    let mut rng = rand::rng();
-    let u = upper.to_i64();
-    if u > 0 {
-        v_int(rng.random_range(0..u))
-    } else {
-        v_dbl(rng.random::<f64>())
-    }
-}
 
-pub fn rp_randomize(seed: &Value) {
-    // Seed is acknowledged but rand crate uses thread_rng automatically.
-    // Full deterministic seeding would require a custom RNG wrapper.
-    let _ = seed;
-}
 
-pub fn rp_randint(low: &Value, high: &Value, size: &Value) -> Value {
-    use rand::Rng;
-    let mut rng = rand::rng();
-    let lo = low.to_i64();
-    let hi = high.to_i64();
-    let n = size.to_i64().max(0) as usize;
-    let vals: Vec<String> = (0..n)
-        .map(|_| rng.random_range(lo..=hi).to_string())
-        .collect();
-    v_str(&vals.join(","))
-}
 
 // ---------------------------------------------------------------------------
 // Additional math / conversion (Phase 3d)
 // ---------------------------------------------------------------------------
 
-/// FIX — truncate toward zero (unlike INT which floors)
-pub fn rp_fix(val: &Value) -> Value {
-    let n = val.to_f64();
-    v_int(n as i64)  // Rust truncates toward zero
-}
 
-/// FRAC — fractional part
-pub fn rp_frac(val: &Value) -> Value {
-    let n = val.to_f64();
-    v_dbl(n - (n as i64) as f64)
-}
 
-pub fn rp_cbool(val: &Value) -> Value {
-    rapidr_value::cbool(val)
-}
 
-/// CINT — round to nearest integer
-pub fn rp_cint(val: &Value) -> Value {
-    v_int(val.to_f64().round() as i64)
-}
 
-/// CLNG — round to nearest long integer (same as CINT in Rust)
-pub fn rp_clng(val: &Value) -> Value {
-    v_int(val.to_f64().round() as i64)
-}
 
-/// CDBL — convert to double
-pub fn rp_cdbl(val: &Value) -> Value {
-    v_dbl(val.to_f64())
-}
 
-/// CSNG — convert to single (still stored as f64)
-pub fn rp_csng(val: &Value) -> Value {
-    v_dbl(val.to_f64())
-}
 
-/// IIF — inline if (both branches are pre-evaluated, matching BASIC semantics)
-pub fn rp_iif(condition: &Value, true_val: &Value, false_val: &Value) -> Value {
-    if condition.to_bool() {
-        true_val.clone()
-    } else {
-        false_val.clone()
-    }
-}
 
-/// HEXTODEC — convert hex string to decimal integer
-pub fn rp_hextodec(val: &Value) -> Value {
-    let mut s = val.to_string_val().trim().to_uppercase();
-    if s.starts_with("&H") {
-        s = s[2..].to_string();
-    } else if s.starts_with("0X") {
-        s = s[2..].to_string();
-    }
-    match i64::from_str_radix(&s, 16) {
-        Ok(n) => v_int(n),
-        Err(_) => v_int(0),
-    }
-}
 
-/// CONVBASE$ — convert number string between bases
-pub fn rp_convbase(num_str: &Value, from_base: &Value, to_base: &Value) -> Value {
-    let s = num_str.to_string_val();
-    let from = from_base.to_i64() as u32;
-    let to = to_base.to_i64() as u32;
-    if !(2..=36).contains(&from) || !(2..=36).contains(&to) {
-        return v_str("");
-    }
-    let decimal = match i64::from_str_radix(s.trim(), from) {
-        Ok(n) => n,
-        Err(_) => return v_str(""),
-    };
-    match to {
-        10 => Value::String(decimal.to_string()),
-        16 => Value::String(format!("{:X}", decimal)),
-        8 => Value::String(format!("{:o}", decimal)),
-        2 => Value::String(format!("{:b}", decimal)),
-        _ => {
-            // General base conversion
-            if decimal == 0 {
-                return v_str("0");
-            }
-            let negative = decimal < 0;
-            let mut n = decimal.unsigned_abs();
-            let digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            let mut result = Vec::new();
-            while n > 0 {
-                result.push(digits[(n % to as u64) as usize]);
-                n /= to as u64;
-            }
-            if negative {
-                result.push(b'-');
-            }
-            result.reverse();
-            Value::String(String::from_utf8_lossy(&result).into_owned())
-        }
-    }
-}
 
-/// RGB — create a BGR color integer
-pub fn rp_rgb(r: &Value, g: &Value, b: &Value) -> Value {
-    let r = r.to_i64() & 0xFF;
-    let g = g.to_i64() & 0xFF;
-    let b = b.to_i64() & 0xFF;
-    v_int((b << 16) | (g << 8) | r)
-}
 
 /// DATE$ — current date as MM-DD-YYYY
 pub fn rp_date() -> Value {
@@ -415,46 +160,10 @@ fn days_to_ymd(z: i64) -> (i64, u32, u32) {
     (y, m, d)
 }
 
-/// LBOUND — lower bound of array (always 0 in Rust)
-pub fn rp_lbound(_arr: &[Value]) -> Value {
-    v_int(0)
-}
 
-/// UBOUND — upper bound of array
-pub fn rp_ubound(arr: &[Value]) -> Value {
-    v_int(if arr.is_empty() { 0 } else { (arr.len() - 1) as i64 })
-}
 
-/// VARTYPE — return type code for a value
-pub fn rp_vartype(val: &Value) -> Value {
-    v_int(match val {
-        Value::Integer(_) => 2,
-        Value::Double(_) => 5,
-        Value::String(_) => 8,
-        Value::Boolean(_) => 11,
-        Value::Null => 0,
-        Value::Array(_) => 8204, // vbArray + vbVariant, as in VB
-        Value::Object(_) => 9,   // vbObject
-    })
-}
 
-/// SIZEOF — return approximate size in bytes
-pub fn rp_sizeof(val: &Value) -> Value {
-    v_int(match val {
-        Value::Integer(_) => 8,
-        Value::Double(_) => 8,
-        Value::String(s) => s.len() as i64,
-        Value::Boolean(_) => 1,
-        Value::Null => 0,
-        Value::Array(a) => 8 * a.borrow().data.len() as i64,
-        Value::Object(o) => 8 * o.fields.borrow().len() as i64,
-    })
-}
 
-/// VARPTR — return a dummy pointer value (no real pointers in safe Rust)
-pub fn rp_varptr(_val: &Value) -> Value {
-    v_int(0)
-}
 
 /// VARPTR$ — return a string representation of a variable's address
 pub fn rp_varptr_str(val: &Value) -> Value {
@@ -465,13 +174,6 @@ pub fn rp_varptr_str(val: &Value) -> Value {
 // Type checking
 // ---------------------------------------------------------------------------
 
-pub fn rp_isnumeric(val: &Value) -> Value {
-    match val {
-        Value::Integer(_) | Value::Double(_) => v_int(-1),
-        Value::String(s) => v_int(if s.parse::<f64>().is_ok() { -1 } else { 0 }),
-        _ => v_int(0),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Misc
@@ -498,9 +200,6 @@ pub fn rp_environ(name: &Value) -> Value {
     }
 }
 
-pub fn rp_doevents() {
-    // no-op in console mode
-}
 
 pub fn rp_end() {
     // What the program wrote to files it never closed is kept.
@@ -536,84 +235,19 @@ pub fn rp_fileexists(path: &Value) -> Value {
 }
 
 // Default value for types
-pub fn rp_default_for_type(type_name: &str) -> Value {
-    match type_name.to_uppercase().as_str() {
-        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "INT64" => v_int(0),
-        "DOUBLE" | "SINGLE" | "CURRENCY" => v_dbl(0.0),
-        "STRING" => v_str(""),
-        _ => v_null(),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Additional string functions (Phase 3c)
 // ---------------------------------------------------------------------------
 
-/// INSERT$ — insert substring at 1-based position
-pub fn rp_insert(s: &Value, pos: &Value, substr: &Value) -> Value {
-    rapidr_value::strings::insert(s, pos, substr)
-}
 
-/// DELETE$ — delete count characters starting at 1-based position
-pub fn rp_delete(s: &Value, start: &Value, count: &Value) -> Value {
-    rapidr_value::strings::delete(s, start, count)
-}
 
-/// REVERSE$ — reverse a string
-pub fn rp_reverse(s: &Value) -> Value {
-    Value::String(s.to_string_val().chars().rev().collect())
-}
 
-/// FIELD$ — return the nth field (1-based) split by delimiter
-pub fn rp_field(s: &Value, delim: &Value, n: &Value) -> Value {
-    let s = s.to_string_val();
-    let delim = delim.to_string_val();
-    let n = n.to_i64();
-    let parts: Vec<&str> = s.split(&delim).collect();
-    if n < 1 || n > parts.len() as i64 {
-        v_str("")
-    } else {
-        Value::String(parts[(n - 1) as usize].to_string())
-    }
-}
 
-/// TALLY — count occurrences of substring in string
-pub fn rp_tally(s: &Value, substr: &Value) -> Value {
-    let s = s.to_string_val();
-    let sub = substr.to_string_val();
-    if sub.is_empty() {
-        return v_int(0);
-    }
-    v_int(s.matches(&sub).count() as i64)
-}
 
-/// RINSTR — find last occurrence of substring (1-based, 0 if not found)
-/// REPLACESUBSTR$ — replace every occurrence of a substring
-pub fn rp_replacesubstr(s: &Value, find: &Value, replacement: &Value) -> Value {
-    rapidr_value::strings::replace_all(s, find, replacement)
-}
 
-pub fn rp_rinstr(s: &Value, substr: &Value) -> Value {
-    rapidr_value::strings::rinstr(s, substr)
-}
 
-/// FORMAT$ — basic number formatting
-pub fn rp_format(fmt_str: &Value, val: &Value) -> Value {
-    let fmt = fmt_str.to_string_val();
-    let n = val.to_f64();
-    // Count decimal places in format string
-    if let Some(dot_pos) = fmt.find('.') {
-        let decimals = fmt.len() - dot_pos - 1;
-        Value::String(format!("{:.prec$}", n, prec = decimals))
-    } else {
-        Value::String(format!("{}", n as i64))
-    }
-}
 
-/// STRF$ — convert number to string (alias for STR$)
-pub fn rp_strf(val: &Value) -> Value {
-    Value::String(val.to_string_val())
-}
 
 // ---------------------------------------------------------------------------
 // System / Shell (Phase 3b partial — no crossterm yet)
@@ -852,7 +486,9 @@ mod tests {
 
     #[test]
     fn test_insert_delete() {
-        assert_eq!(rp_insert(&v_str("Hello World"), &v_int(6), &v_str(" Beautiful")), v_str("Hello Beautiful World"));
+        // RapidQ order: INSERT$(insert, source, index).
+        assert_eq!(rp_insert(&v_str(" Beautiful"), &v_str("Hello World"), &v_int(6)), v_str("Hello Beautiful World"));
+        assert_eq!(rp_insert(&v_str("hi"), &v_str("Hello"), &v_int(3)), v_str("Hehillo"));
         assert_eq!(rp_delete(&v_str("Hello World"), &v_int(6), &v_int(1)), v_str("HelloWorld"));
     }
 
@@ -880,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_format() {
-        assert_eq!(rp_format(&v_str("#.##"), &v_dbl(3.14159)), v_str("3.14"));
+        assert_eq!(rp_format(&v_str("%.2f|%.5d"), &[v_dbl(3.14159), v_int(42)]), v_str("3.14|00042"));
     }
 
     #[test]

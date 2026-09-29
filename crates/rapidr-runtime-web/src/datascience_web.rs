@@ -215,7 +215,7 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
                 if let Some(a) = s.borrow_mut().get_mut(&uname) {
                     // Simple Fisher-Yates using js_sys::Math::random
                     for i in (1..a.len()).rev() {
-                        let j = (js_sys::Math::random() * (i + 1) as f64) as usize;
+                        let j = (rapidr_value::builtins::random_unit() * (i + 1) as f64) as usize;
                         a.swap(i, j);
                     }
                 }
@@ -327,7 +327,7 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
         // --- Random ---
         "rand" | "random" => {
             let n = args.first().map(|v| v.to_i64()).unwrap_or(10) as usize;
-            let arr: Vec<f64> = (0..n).map(|_| js_sys::Math::random()).collect();
+            let arr: Vec<f64> = (0..n).map(|_| rapidr_value::builtins::random_unit()).collect();
             NUM_STORE.with(|s| s.borrow_mut().insert(uname, arr));
             v_null()
         }
@@ -337,8 +337,8 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
             let std = args.get(2).map(|v| v.to_f64()).unwrap_or(1.0);
             let arr: Vec<f64> = (0..n).map(|_| {
                 // Box-Muller transform
-                let u1 = js_sys::Math::random().max(1e-10);
-                let u2 = js_sys::Math::random();
+                let u1 = rapidr_value::builtins::random_unit().max(1e-10);
+                let u2 = rapidr_value::builtins::random_unit();
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 mean + std * z
             }).collect();
@@ -349,7 +349,7 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
             let lo = args.first().map(|v| v.to_f64()).unwrap_or(0.0);
             let hi = args.get(1).map(|v| v.to_f64()).unwrap_or(1.0);
             let n = args.get(2).map(|v| v.to_i64()).unwrap_or(10) as usize;
-            let arr: Vec<f64> = (0..n).map(|_| lo + js_sys::Math::random() * (hi - lo)).collect();
+            let arr: Vec<f64> = (0..n).map(|_| lo + rapidr_value::builtins::random_unit() * (hi - lo)).collect();
             NUM_STORE.with(|s| s.borrow_mut().insert(uname, arr));
             v_null()
         }
@@ -358,7 +358,7 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
             let hi = args.get(1).map(|v| v.to_i64()).unwrap_or(100);
             let n = args.get(2).map(|v| v.to_i64()).unwrap_or(10) as usize;
             let range = (hi - lo) as f64;
-            let arr: Vec<f64> = (0..n).map(|_| lo as f64 + (js_sys::Math::random() * range).floor()).collect();
+            let arr: Vec<f64> = (0..n).map(|_| lo as f64 + (rapidr_value::builtins::random_unit() * range).floor()).collect();
             NUM_STORE.with(|s| s.borrow_mut().insert(uname, arr));
             v_null()
         }
@@ -369,7 +369,7 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let a = match store.get(&uname) { Some(a) => a, None => return vec![] };
                 if a.is_empty() { return vec![]; }
                 (0..n).map(|_| {
-                    let idx = (js_sys::Math::random() * a.len() as f64) as usize;
+                    let idx = (rapidr_value::builtins::random_unit() * a.len() as f64) as usize;
                     a[idx.min(a.len() - 1)]
                 }).collect()
             });
@@ -927,7 +927,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
                     if df.data.len() > n {
                         let mut sampled = Vec::new();
                         for _ in 0..n {
-                            let idx = (js_sys::Math::random() * df.data.len() as f64) as usize;
+                            let idx = (rapidr_value::builtins::random_unit() * df.data.len() as f64) as usize;
                             sampled.push(df.data[idx.min(df.data.len() - 1)].clone());
                         }
                         df.data = sampled;

@@ -19,7 +19,6 @@ use fltk::{
     input::Input,
     menu::{Choice, MenuBar, SysMenuBar},
     misc::Progress as FltkProgress,
-    output::Output,
     prelude::*,
     table::{Table, TableContext},
     text::{TextBuffer, TextEditor, StyleTableEntry},
@@ -46,7 +45,6 @@ enum GuiWidget {
     Button(Button),
     Frame(Frame),
     Input(Input),
-    Output(Output),
     CheckButton(CheckButton),
     RadioButton(RadioRoundButton),
     Choice(Choice),
@@ -175,8 +173,25 @@ fn ensure_app() {
 /// `RAPIDR_TEST_RESIZE=w,h` first resizes the frontmost form (to Width w,
 /// Height h) as a user dragging its border would, and
 /// `RAPIDR_TEST_SPLIT=splitter:delta` drags a QSPLITTER by `delta` pixels.
+/// Under a GUI test only the test's own events (`RAPIDR_TEST_EVENTS`)
+/// drive the program: the mouse and keyboard are ignored, since the test's
+/// window takes the keyboard when it opens and whatever someone types
+/// meanwhile would otherwise click its focused button.
+fn ignore_user_input() {
+    fn dispatch(ev: Event, win: app::WindowPtr) -> bool {
+        match ev {
+            Event::Push | Event::Released | Event::Drag | Event::KeyDown | Event::KeyUp | Event::Shortcut | Event::MouseWheel => false,
+            // SAFETY: `win` is the window FLTK passed in for this event.
+            _ => unsafe { app::handle_raw(ev, win) },
+        }
+    }
+    // SAFETY: `dispatch` only forwards the window pointer it is given.
+    unsafe { app::event_dispatch(dispatch) };
+}
+
 fn install_capture_hook() {
     let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") else { return };
+    ignore_user_input();
     let delay = std::env::var("RAPIDR_CAPTURE_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(1.5);
     // `RAPIDR_TEST_EVENTS=b1.onclick,b2.onclick`: fire these first, as if
     // the user had clicked (tests of EVENT handlers and bindings).
@@ -205,17 +220,30 @@ fn install_capture_hook() {
                 win.resize(x, y, w - fw as i32, h - fh as i32);
             }
         }
-        for e in events.split(',').filter(|e| !e.trim().is_empty()) {
-            if let Some((comp, event)) = e.trim().rsplit_once('.') {
-                crate::object::rp_fire_event(comp, event);
-            }
-        }
-        app::redraw();
-        // Later, so the handlers have run (the bytecode VM runs them once
-        // this callback returns) and the windows are redrawn.
-        let prefix = prefix.clone();
-        app::add_timeout3(0.3, move |_| capture_windows(&prefix));
+        // One event per turn of the event loop, as real clicks come (the
+        // bytecode VM runs a handler once the callback that fired it returns).
+        let queue: Vec<String> = events.split(',').map(|e| e.trim().to_string()).filter(|e| !e.is_empty()).collect();
+        fire_test_events(queue, prefix.clone());
     });
+}
+
+/// Fires the first of `queue`, then the rest a turn later; then (once the
+/// last handlers have run) redraws and captures the windows.
+fn fire_test_events(mut queue: Vec<String>, prefix: String) {
+    if queue.is_empty() {
+        app::redraw();
+        app::add_timeout3(0.3, move |_| capture_windows(&prefix));
+        return;
+    }
+    let e = queue.remove(0);
+    if let Some((comp, event)) = e.rsplit_once('.') {
+        // A toggle button's click goes through its group, as the widget's does.
+        if event.eq_ignore_ascii_case("onclick") && is_toggle_button(comp) {
+            toggle_press(&comp.to_lowercase());
+        }
+        crate::object::rp_fire_event(comp, event);
+    }
+    app::add_timeout3(0.05, move |_| fire_test_events(queue.clone(), prefix.clone()));
 }
 
 fn capture_windows(prefix: &str) {
@@ -394,6 +422,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 b_c.saturating_sub(25),
             );
             let hover_label = Color::from_rgb(0, 60, 180);
+            let name_for_press = name.to_lowercase();
             let focus_color = Color::from_rgb(
                 r.saturating_add(10).min(245),
                 g.saturating_add(15).min(248),
@@ -416,6 +445,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         true
                     }
                     Event::Push => {
+                        press_begin(&name_for_press);
                         b.set_color(press_color);
                         b.set_frame(FrameType::DownBox);
                         b.redraw();
@@ -425,7 +455,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         b.set_color(hover_color);
                         b.set_frame(FrameType::UpBox);
                         b.redraw();
-                        b.do_callback();
+                        // A click: pressed on the button and released over it.
+                        if press_end(&name_for_press) && app::event_inside_widget(b) {
+                            b.do_callback();
+                        }
                         true
                     }
                     Event::Focus => {
@@ -441,15 +474,16 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         b.redraw();
                         true
                     }
-                    Event::KeyDown => {
-                        let key = app::event_key();
-                        if key == Key::Enter || key == Key::from_char(' ') {
+                    // Enter clicks; Space clicks when it's released (once,
+                    // as a Windows button does).
+                    Event::KeyDown | Event::KeyUp => match key_click(&name_for_press, ev) {
+                        Some(true) => {
                             b.do_callback();
                             true
-                        } else {
-                            false
                         }
-                    }
+                        Some(false) => true,
+                        None => false,
+                    },
                     _ => false,
                 }
             });
@@ -470,11 +504,13 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let h = rp_comp_get(name, "height").to_i64() as i32;
             let caption = rp_comp_get(name, "caption").to_string_val();
             let flat = rp_comp_get(name, "flat").to_i64() != 0;
-            let group_idx = rp_comp_get(name, "groupindex").to_i64();
+            let down = rp_comp_get(name, "down").to_bool();
 
             let mut btn = Button::new(x, y, w, h, None);
             btn.set_label(&caption);
-            if flat {
+            if down {
+                btn.set_frame(FrameType::DownBox);
+            } else if flat {
                 btn.set_frame(FrameType::FlatBox);
             } else {
                 btn.set_frame(FrameType::UpBox);
@@ -516,31 +552,32 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         true
                     }
                     Event::Push => {
+                        press_begin(&name_for_handle);
                         b.set_frame(FrameType::DownBox);
                         b.redraw();
                         true
                     }
-                    Event::Released => {
-                        let gi = rp_comp_get(&name_for_handle, "groupindex").to_i64();
-                        if gi > 0 {
-                            // Toggle behavior
-                            let cur_down = rp_comp_get(&name_for_handle, "down").to_i64() != 0;
-                            let allow_all_up = rp_comp_get(&name_for_handle, "allowallup").to_i64() != 0;
-                            if cur_down && !allow_all_up {
-                                // Can't un-toggle if AllowAllUp is false
-                                return true;
-                            }
-                            rp_comp_set(&name_for_handle, "down", v_int(if cur_down { 0 } else { 1 }));
-                            if !cur_down {
-                                b.set_frame(FrameType::DownBox);
-                            } else {
-                                b.set_frame(if is_flat { FrameType::FlatBox } else { FrameType::UpBox });
-                            }
+                    Event::Released | Event::KeyDown | Event::KeyUp => {
+                        // A click (pressed on it and released over it, or
+                        // Enter / Space): its group (rapidr_value::toggle_group);
+                        // then it shows its Down.
+                        let click = if ev == Event::Released {
+                            press_end(&name_for_handle) && app::event_inside_widget(b)
                         } else {
-                            b.set_frame(if is_flat { FrameType::FlatBox } else { FrameType::UpBox });
+                            match key_click(&name_for_handle, ev) {
+                                Some(click) => click,
+                                None => return false,
+                            }
+                        };
+                        if click {
+                            toggle_press(&name_for_handle);
                         }
+                        let down = rp_comp_get(&name_for_handle, "down").to_bool();
+                        b.set_frame(if down { FrameType::DownBox } else if is_flat { FrameType::FlatBox } else { FrameType::UpBox });
                         b.redraw();
-                        b.do_callback();
+                        if click {
+                            b.do_callback();
+                        }
                         true
                     }
                     _ => false,
@@ -606,15 +643,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             btn.handle(move |b, ev| {
                 match ev {
                     Event::Push => {
-                        let gi = rp_comp_get(&name_for_handle, "groupindex").to_i64();
-                        if gi > 0 {
-                            let cur_down = rp_comp_get(&name_for_handle, "down").to_i64() != 0;
-                            let allow_all_up = rp_comp_get(&name_for_handle, "allowallup").to_i64() != 0;
-                            if cur_down && !allow_all_up {
-                                return true;
-                            }
-                            rp_comp_set(&name_for_handle, "down", v_int(if cur_down { 0 } else { 1 }));
-                        }
+                        toggle_press(&name_for_handle);
                         b.redraw();
                         b.do_callback();
                         true
@@ -912,7 +941,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let mut tabs = Tabs::new(x, y, w, h, None);
+            let tabs = Tabs::new(x, y, w, h, None);
 
             // Create tab groups from stored AddTabs data
             let group_names = TAB_GROUPS.with(|tg| {
@@ -1257,6 +1286,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             frm.handle(move |_, ev| {
                 match ev {
                     Event::Push => {
+                        press_begin(&name_for_cb);
                         let mx = app::event_x();
                         let my = app::event_y();
                         rp_fire_event(&name_for_cb, "onclick");
@@ -1264,9 +1294,11 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                         true
                     }
                     Event::Released => {
-                        let mx = app::event_x();
-                        let my = app::event_y();
-                        rp_fire_event_2(&name_for_cb, "onmouseup", v_int(mx as i64), v_int(my as i64));
+                        if press_end(&name_for_cb) {
+                            let mx = app::event_x();
+                            let my = app::event_y();
+                            rp_fire_event_2(&name_for_cb, "onmouseup", v_int(mx as i64), v_int(my as i64));
+                        }
                         true
                     }
                     Event::Move | Event::Drag => {
@@ -1452,7 +1484,6 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
         }
         "RSCROLLBAR" => {
-            use fltk::valuator::Scrollbar;
             let x = rp_comp_get(name, "left").to_i64() as i32;
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
@@ -1545,7 +1576,6 @@ pub fn gui_apply_font(name: &str) {
             GuiWidget::Button(w) => label!(w),
             GuiWidget::Frame(w) | GuiWidget::ImageFrame(w) => label!(w),
             GuiWidget::Input(w) => text!(w),
-            GuiWidget::Output(w) => text!(w),
             GuiWidget::CheckButton(w) => label!(w),
             GuiWidget::RadioButton(w) => label!(w),
             GuiWidget::Choice(w) => text!(w),
@@ -1834,7 +1864,6 @@ fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
                     }
                     "RRADIOBUTTON" => {
                         // Radiobutton: circle + label
-                        let rx = cx + 8;
                         let ry = cy + comp.h / 2;
                         draw::set_draw_color(Color::White);
                         draw::draw_pie(cx + 2, ry - 6, 13, 13, 0.0, 360.0);
@@ -2995,7 +3024,6 @@ fn resize_widget(widget: &mut GuiWidget, x: i32, y: i32, w: i32, h: i32) {
         GuiWidget::Button(v) => v.resize(x, y, w, h),
         GuiWidget::Frame(v) | GuiWidget::ImageFrame(v) => v.resize(x, y, w, h),
         GuiWidget::Input(v) => v.resize(x, y, w, h),
-        GuiWidget::Output(v) => v.resize(x, y, w, h),
         GuiWidget::CheckButton(v) => v.resize(x, y, w, h),
         GuiWidget::RadioButton(v) => v.resize(x, y, w, h),
         GuiWidget::Choice(v) => v.resize(x, y, w, h),
@@ -3033,7 +3061,6 @@ fn redraw_window_of(widget: &GuiWidget) {
         GuiWidget::TextEditor(v) => redraw_win!(v),
         GuiWidget::Input(v) => redraw_win!(v),
         GuiWidget::Tabs(v) => redraw_win!(v),
-        GuiWidget::Output(v) => redraw_win!(v),
         GuiWidget::CheckButton(v) => redraw_win!(v),
         GuiWidget::RadioButton(v) => redraw_win!(v),
         GuiWidget::Choice(v) => redraw_win!(v),
@@ -3814,12 +3841,17 @@ fn picture_mouse(name: &str) -> impl FnMut(&mut Frame, Event) -> bool {
         let (x, y) = (v_int((app::event_x() - f.x()) as i64), v_int((app::event_y() - f.y()) as i64));
         match ev {
             Event::Push => {
+                press_begin(&name);
                 crate::object::rp_fire_event_args(&name, "onmousedown", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
                 true
             }
             Event::Released => {
-                crate::object::rp_fire_event_args(&name, "onmouseup", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
-                rp_fire_event(&name, if app::event_clicks() { "ondblclick" } else { "onclick" });
+                if press_end(&name) {
+                    crate::object::rp_fire_event_args(&name, "onmouseup", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
+                    if app::event_inside_widget(f) {
+                        rp_fire_event(&name, if app::event_clicks() { "ondblclick" } else { "onclick" });
+                    }
+                }
                 true
             }
             Event::Move | Event::Drag => {
@@ -3943,6 +3975,9 @@ thread_local! {
     static MDI_CHILDREN: RefCell<HashMap<String, Vec<MdiChild>>> = RefCell::new(HashMap::new());
 }
 
+/// QFORMMDI is a stub: children are only counted (ROADMAP: real child
+/// windows, activation, cascade/tile, OnChild* events, on both runtimes).
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 struct MdiChild {
     title: String,
@@ -4028,7 +4063,6 @@ pub fn gui_set_visible(name: &str, visible: bool) {
                 GuiWidget::Button(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Frame(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Input(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
-                GuiWidget::Output(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::CheckButton(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::RadioButton(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Choice(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
@@ -4059,7 +4093,6 @@ pub fn gui_set_caption(name: &str, text: &str) {
             match widget {
                 GuiWidget::Frame(ref mut w) => { w.set_label(text); }
                 GuiWidget::Button(ref mut w) => { w.set_label(text); }
-                GuiWidget::Output(ref mut w) => { let _ = w.set_value(text); }
                 GuiWidget::Window(ref mut w) => { w.set_label(text); }
                 GuiWidget::Group(ref mut w) if rp_comp_type(&name_lower) == "RPANEL" => {
                     w.set_label(text);
@@ -4984,6 +5017,93 @@ pub fn gui_redraw(name: &str) {
     redraw_widget(&name.to_lowercase());
 }
 
+thread_local! {
+    /// The widget the mouse button went down on (only it gets the release).
+    static PRESSED: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// The mouse button went down on `name`.
+fn press_begin(name: &str) {
+    PRESSED.with(|p| *p.borrow_mut() = Some(name.to_string()));
+}
+
+/// The mouse button came up over `name`: whether it went down on it (a
+/// release alone — the system can deliver one when a window appears — is
+/// no click and no mouse-up).
+fn press_end(name: &str) -> bool {
+    PRESSED.with(|p| p.borrow_mut().take_if(|n| n == name).is_some())
+}
+
+/// A key on a focused button: `Some(true)` when it clicks (Enter; Space
+/// when released after being pressed on this button), `Some(false)` when
+/// the button takes the key without clicking, `None` for other keys.
+fn key_click(name: &str, ev: Event) -> Option<bool> {
+    let key = app::event_key();
+    match (ev, key) {
+        (Event::KeyDown, Key::Enter) => Some(true),
+        (Event::KeyDown, k) if k == Key::from_char(' ') => {
+            press_begin(name);
+            Some(false)
+        }
+        (Event::KeyUp, k) if k == Key::from_char(' ') => Some(press_end(name)),
+        _ => None,
+    }
+}
+
+fn is_toggle_button(name: &str) -> bool {
+    matches!(rp_comp_type(name).as_str(), "RCOOLBTN" | "ROVALBTN")
+}
+
+/// The toggle buttons sharing `name`'s parent.
+fn toggle_members(name: &str) -> Vec<rapidr_value::toggle_group::Member> {
+    let parent = rp_comp_get(name, "parent").to_string_val();
+    crate::object::get_children_of(&parent)
+        .into_iter()
+        .filter(|(_, t)| matches!(t.as_str(), "RCOOLBTN" | "ROVALBTN"))
+        .map(|(n, _)| rapidr_value::toggle_group::Member {
+            group: rp_comp_get(&n, "groupindex").to_i64(),
+            down: rp_comp_get(&n, "down").to_bool(),
+            name: n,
+        })
+        .collect()
+}
+
+/// Stores the new Down values and shows them.
+fn toggle_apply(changes: Vec<(String, bool)>) {
+    for (n, down) in changes {
+        crate::object::store_prop(&n, "down", v_int(if down { -1 } else { 0 }));
+        let flat = rp_comp_get(&n, "flat").to_bool();
+        let cool = rp_comp_type(&n) == "RCOOLBTN";
+        GUI_WIDGETS.with(|gw| {
+            if let Some(GuiWidget::Button(b)) = gw.borrow_mut().get_mut(&n) {
+                if cool {
+                    b.set_frame(if down { FrameType::DownBox } else if flat { FrameType::FlatBox } else { FrameType::UpBox });
+                }
+                b.redraw();
+            }
+        });
+    }
+}
+
+/// The user pressed a QCOOLBTN / QOVALBTN.
+fn toggle_press(name: &str) {
+    let allow_all_up = rp_comp_get(name, "allowallup").to_bool();
+    toggle_apply(rapidr_value::toggle_group::press(name, allow_all_up, &toggle_members(name)));
+}
+
+/// The program set a button's Down: the others of its group come up, and
+/// it shows the new state.
+pub(crate) fn toggle_down_set(name: &str) {
+    if !is_toggle_button(name) {
+        return;
+    }
+    let name = name.to_lowercase();
+    let down = rp_comp_get(&name, "down").to_bool();
+    let mut changes = rapidr_value::toggle_group::set_down(&name, down, &toggle_members(&name));
+    changes.push((name, down));
+    toggle_apply(changes);
+}
+
 /// Trigger a widget redraw.
 pub fn redraw_widget(name: &str) {
     GUI_WIDGETS.with(|gw| {
@@ -4998,7 +5118,6 @@ pub fn redraw_widget(name: &str) {
                 GuiWidget::ImageFrame(ref mut w) => { w.redraw(); }
                 GuiWidget::Button(ref mut w) => { w.redraw(); }
                 GuiWidget::Input(ref mut w) => { w.redraw(); }
-                GuiWidget::Output(ref mut w) => { w.redraw(); }
                 GuiWidget::CheckButton(ref mut w) => { w.redraw(); }
                 GuiWidget::RadioButton(ref mut w) => { w.redraw(); }
                 GuiWidget::Choice(ref mut w) => { w.redraw(); }

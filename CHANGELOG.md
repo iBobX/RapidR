@@ -7,6 +7,74 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.55.0] — 2026-09-28
+
+Closing open items before adding new syntax: an audit of the roadmap's
+compatibility list, every fix made on native, interpreted and web together.
+
+### Changed
+- **One builtin library for all three runtimes**: the 63 string / math /
+  conversion builtins that the desktop and web runtimes each had a copy of
+  now live once in `rapidr_value::builtins` (about 900 duplicated lines
+  gone), so a fix reaches native builds, the interpreter and the browser at
+  once.
+- **Numbers print as RapidQ shows them** (Delphi's `FloatToStr`, which the
+  manual's `FORMAT$` / `STRF$` point to): 15 significant digits, so
+  `0.1 + 0.2` prints `0.3`, `1 / 3` `0.333333333333333`, `2 ^ 70`
+  `1.18059162071741E21`, `1E-7` stays short; `NAN` / `INF`.
+- **QTIMER is enabled by default**, as the manual says: a timer with only
+  `Interval` and `OnTimer` set now ticks (it never did, on any runtime).
+
+### Fixed
+- **`INSERT$(insert, source, index)`** takes RapidQ's argument order
+  (`INSERT$("hi", "Hello", 3)` = `Hehillo`); it inserted the wrong way round.
+- **`FORMAT$`** is Pascal's `Format` with any number of arguments: `%d %u
+  %x` (`.prec` = at least that many digits), `%e %f %g %n %m`, `%s` (`.prec`
+  = at most), width, `-`, `%1:d` argument index, `*`, `%%`. It formatted one
+  number with a VB-like picture.
+- **`STRF$(v, format, precision, digits)`** is `FloatToStrF` (ffGeneral,
+  ffExponent, ffFixed, ffNumber); it ignored its arguments. Decimal digits
+  round half away from zero, as in RapidQ (`%.1f` of 2.25 is `2.3`).
+- **`RANDOMIZE seed`** repeats the sequence (it was ignored everywhere), with
+  one generator on every runtime; the data-science components (`shuffle`,
+  `rand`, `randn`, `choice`, …) draw from it too.
+- **Type suffixes declare types** (manual): `?` BYTE, `??` WORD, `???`
+  DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE — `q% = 40000` holds
+  -25536, `b? = 300` holds 44; `DIM n%`, parameters and `FUNCTION f%`
+  without `AS` take the suffix's type. `b?` / `w??` didn't parse.
+- **QCOOLBTN / QOVALBTN groups** (`GroupIndex`, `Down`, `AllowAllUp`):
+  pressing one releases the others of its group, `Down = True` from the
+  program too, the button that's down stays down unless `AllowAllUp`; OnClick
+  reads the new `Down`. The desktop only toggled the pressed button, the web
+  didn't toggle at all. One rule (`rapidr_value::toggle_group`) for both.
+- Desktop buttons, cool buttons and images click only when the mouse went
+  down on them and came up over them: a stray release (macOS can deliver one
+  when a window appears) clicked a focused button twice. Space clicks a
+  button once, when it's released; Enter at once.
+- **`END` in the browser** stops the program as on the desktop — in the web
+  interpreter and in compiled web builds (`rapidr build --web`, where END
+  only logged and the program went on): what was written to files is kept,
+  the forms close, timers stop, no event reaches the program any more.
+- The web read `Enabled` (and other visual properties) of a component with
+  no element, such as a QTIMER, as empty.
+
+### Tests
+- Conformance: `builtins_manual`, `type_suffixes`, `early_findings` (the
+  first review's findings, all fixed), `inv_instr_redim`; GUI parity
+  (desktop native + interpreted + browser): `coolbtn_group`,
+  `timer_default`; `tests/web_end_timer.mjs` runs END in both web builds —
+  the first test of a compiled web build.
+- Desktop GUI tests ignore the real mouse and keyboard (only the test's own
+  events drive the program): a key typed elsewhere during a run landed in
+  the test window and clicked its focused button, making results vary.
+- The desktop GUI test hook fires one click per turn of the event loop, as
+  real clicks come (the interpreter runs handlers after the click returns);
+  `node tests/native_gui_events.mjs <name>` runs one case.
+- Builds are warning-free: unused code removed (the old QSTRINGLIST, a
+  widget kind nothing created, unread fields), deprecated web-sys call.
+  QFORMMDI, found to be a stub, is on the roadmap.
+- `rand` is no longer a dependency.
+
 ## [2.54.0] — 2026-09-28
 
 ### Added

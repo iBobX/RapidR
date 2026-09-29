@@ -12,6 +12,9 @@ pub mod data;
 pub mod console;
 pub mod dialogs;
 pub mod basic_files;
+pub mod builtins;
+pub mod format;
+pub mod toggle_group;
 pub mod objects;
 pub mod layout;
 pub mod resources;
@@ -332,15 +335,9 @@ impl Value {
     pub fn to_string_val(&self) -> String {
         match self {
             Value::Integer(n) => n.to_string(),
-            Value::Double(n) => {
-                // BASIC shows whole numbers without a decimal part:
-                // PRINT 2 ^ 10 → 1024, not 1024.0.
-                if *n == n.trunc() && n.abs() < 1e15 {
-                    format!("{}", *n as i64)
-                } else {
-                    n.to_string()
-                }
-            }
+            // As RapidQ shows numbers (Delphi's FloatToStr, `format`): 15
+            // significant digits, so PRINT 2 ^ 10 → 1024 and 0.1 + 0.2 → 0.3.
+            Value::Double(n) => crate::format::float_to_str(*n),
             Value::String(s) => s.clone(),
             // RapidQ has no boolean type: a comparison is -1 (true) or 0.
             Value::Boolean(b) => if *b { "-1".to_string() } else { "0".to_string() },

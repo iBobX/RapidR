@@ -24,6 +24,8 @@ Status: open source (MIT). Monetization is explicitly deferred. Possible future 
 
 ### Compatibility / correctness (verified by running programs, see Appendix A)
 
+> **All fixed** — re-checked on both backends in v2.55.0 (`tests/conformance/cases/early_findings.bas`, `builtins_manual.bas`); kept as history.
+
 | Construct | Result |
 |---|---|
 | `$INCLUDE "RAPIDQ.INC"` | Hard error — file not found |
@@ -63,7 +65,7 @@ Working: `IIF`, `FIELD$`, `TALLY`, `RINSTR`, `CONVBASE$`, `HEX$`, `CHR$`, `ASC`,
 | ~~EXIT SUB/FUNCTION only left loops; EXIT FOR in nested WHILE left the WHILE~~ fixed v2.10.1 | ok | ok |
 | Calls to unknown SUBs / builtins: ~~VM silent no-op~~ compile error (v2.10.0); codegen confusing rustc error | ok | ✗ |
 
-Open questions (need real RapidQ to decide): 14-column PRINT zone width; `INSERT$` argument order; non-whole number formatting (`0.1 + 0.2` prints Rust's full precision); numeric formatting after `;` in PRINT and in `STR$` — VM prints `x:5`, codegen `x: 5` (QBasic-style leading space). Kept out of expected outputs until confirmed.
+Open questions — settled in v2.55.0 from the manual: `INSERT$(insert, source, index)`; numbers print as Delphi's `FloatToStr` (15 significant digits: `0.1 + 0.2` → `0.3`), which RapidQ's `FORMAT$` / `STRF$` (Delphi `Format` / `FloatToStrF`) point to; both backends print `x:5` (no leading space). Still unconfirmed without a real RapidQ: the 14-column PRINT zone width.
 
 Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 
@@ -103,7 +105,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] Unsupported constructs → hard diagnostics: parser errors with line/col for every bad line; bytecode compiler rejects unknown SUB/FUNCTION names (shared builtin registry) and statements it can't run; no catch-all arm left (v2.10.0). Codegen still reports unknown calls only via rustc.
 - [x] IDE diagnostics: squiggles via `setModelMarkers` in the right form/module, clickable Errors panel, live checking while typing (v2.10.0; errors travel as `line:col: error:` text — move to a structured wasm API when the language service lands)
 - [x] `tests/conformance/` harness (`run.mjs`) — now 34 pass / 4 known failures (all codegen): `*.bas` + `*.expected` / `*.expected-error`, VM **and** Rust codegen, xfail markers for known bugs, runs in CI — 15 seed cases, 7 pass / 23 known failures
-- [ ] Fix conformance failures (table above) until every case passes on both backends
+- [x] Fix conformance failures (table above) until every case passes on both backends (all pass; re-verified v2.55.0)
 - [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
 - [x] Undo/redo in the IDE: snapshot-based project history, menu/toolbar/Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, 100 steps, `tests/web_ide_undo.mjs` (v2.9.0)
 - [ ] Fix pre-existing failures in `tests/web_ide_bugfixes.mjs` (About-dialog credits) and `tests/web_ide_phaseF.mjs` (project restore); add all `tests/web_ide_*.mjs` to CI
@@ -171,8 +173,9 @@ Next up, in order:
 - [x] QLISTBOX / QCOMBOBOX from one shared model on desktop and web: Item, ItemCount, ItemIndex, AddItems (kept only the last item on the desktop), InsertItem, DelItems, Sorted, MultiSelect/Selected/SelCount, Text, Load/SaveToFile (v2.36.0)
 - [x] QLISTBOX MultiSelect drawn and picked on the desktop; QCOMBOBOX csDropDown edit box on desktop and web (v2.41.0)
 - [x] QFILELISTBOX and QDIRTREE on desktop and web from shared models (v2.44.0)
-- [ ] QLISTBOX extras: owner-draw (OnDrawItem, csOwnerDraw combos), Columns
-- [ ] Type suffixes (`n%` SHORT, `n&` LONG, `n!` SINGLE, `n#` DOUBLE, `n?` BYTE) as declared types
+- [x] QLISTBOX owner-draw (OnDrawItem) (v2.50.0)
+- [ ] QLISTBOX `Columns`; owner-drawn QCOMBOBOX (below)
+- [x] Type suffixes as declared types: `?` BYTE, `??` WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE (v2.55.0)
 - [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
 - [ ] Fuzzing in CI
@@ -190,6 +193,7 @@ Next up, in order:
 - [x] `DIM s AS STRING * n` (stores cut to n), `CBOOL`, `ON ERROR …` accepted (ignored), an unclosed `WITH` closed by `END SUB` (v2.54.0)
 - [ ] Real `ON ERROR RESUME NEXT` / `Err` (VB): resuming after a run-time error needs recovery points in the VM and native code; fixed strings also need padding to `n` in `WriteUDT`/`ReadUDT`
 - [ ] Events that return values (`OnMeasureItem(Index, Height)`, `OnClose(Action)`, `OnSelectCell(…, CanSelect)`): a by-reference argument channel from the VM handler back to the runtime
+- [ ] QFORMMDI (`rapidq2.inc` add-on; no corpus program uses it): today a stub on the desktop (AddChild only counts) and no element on the web — needs real child windows, activation, cascade/tile, OnChildClose/Active/Resize, on both runtimes
 - [ ] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`); grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser)
 - [ ] `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
@@ -210,7 +214,7 @@ Next up, in order:
 - [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
 - [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
 - [x] Codegen: state-machine lowering for labels/GOTO/GOSUB (jumps.rs) (v2.23.0)
-- [ ] Web codegen: `END` doesn't stop the program; labels inside SELECT CASE/WITH/CREATE bodies in native builds
+- [x] Web: `END` stops the program in both web builds (forms close, timers stop, no more events) (v2.55.0); labels inside SELECT CASE in native builds (v2.54.0; WITH / CREATE: item above)
 - [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
 - [x] Codegen: OOP TYPEs in the Rust backend (v2.25.0)
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
@@ -219,12 +223,11 @@ Next up, in order:
 - [ ] Runtimes: implement the remaining RapidQ objects (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM done in v2.20.0) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
 - [ ] Accept `$OPTION ICON`, etc. (`$RESOURCE` since v2.40.0; `$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
-- [ ] Fix builtins per the manual: `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
+- [x] Fix builtins per the manual (v2.55.0, shared `rapidr_value::format` / `builtins`): `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM
 - [x] Codegen: `STATIC` in SUB/FUNCTION (renamed to a per-routine global slot) (v2.23.0)
 - [x] `FUNCTIONI`/`SUBI`, `SHL`/`SHR`, `DATA`/`READ`/`RESTORE`, `SWAP`, `$ESCAPECHARS`, function pointers (VM) (v2.16.0)
-- [ ] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data), `MEMCPY`
-- [ ] Dialogs with buttons: `MESSAGEBOX(msg, title, flags)` returning IDOK/IDYES…, `MESSAGEDLG(msg, mtType, mbButtons, 0)` returning mr* — needs button dialogs in FLTK and the sandboxed web preview (today `msgbox` only shows a message)
+- [x] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data) (verified v2.55.0). `VARPTR` / `MEMCPY` / `MEMSET` (raw memory): refused with a message by design — the runtimes are memory-safe and a browser can't allow it
 - [x] Codegen: function pointers (v2.24.0)
 - [ ] SUB/FUNCTION pointers as Win32 callbacks (native FFI)
 - [ ] Win32 shim table for top ~50 `DECLARE … LIB "user32"/"kernel32"/"shell32"` calls; clear warnings for the rest

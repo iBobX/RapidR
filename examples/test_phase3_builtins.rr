@@ -21,7 +21,7 @@ PRINT "CONVBASE$('10', 10, 2) = " + CONVBASE$("10", 10, 2)
 
 PRINT ""
 PRINT "--- New String Functions ---"
-PRINT "INSERT$('Hello World', 6, ' Beautiful') = " + INSERT$("Hello World", 6, " Beautiful")
+PRINT "INSERT$(' Beautiful', 'Hello World', 6) = " + INSERT$(" Beautiful", "Hello World", 6)
 PRINT "DELETE$('Hello World', 6, 1) = " + DELETE$("Hello World", 6, 1)
 PRINT "REVERSE$('Hello') = " + REVERSE$("Hello")
 PRINT "FIELD$('one,two,three', ',', 2) = " + FIELD$("one,two,three", ",", 2)

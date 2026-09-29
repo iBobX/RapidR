@@ -538,12 +538,13 @@ Over **100 built-in functions** covering string manipulation, math, file I/O, sy
 | `STRING$(n, c)` | Repeat character |
 | `STR$(n)` / `VAL(s)` | Number ↔ string conversion |
 | `REPLACE$(s, old, new)` | String replacement |
-| `INSERT$(s, pos, sub)` | Insert substring |
+| `INSERT$(insert, source, index)` | Insert `insert` before position `index` of `source` |
 | `DELETE$(s, start, count)` | Delete from string |
 | `REVERSE$(s)` | Reverse string |
 | `FIELD$(s, delim, n)` | Extract delimited field |
 | `TALLY(s, sub)` | Count occurrences |
-| `FORMAT$(fmt, val)` | Formatted output |
+| `FORMAT$(fmt, arg, …)` | Pascal `Format`: `%d %.5d %-8s %.2f %n %m %e %g %x %0:d` |
+| `STRF$(v, fmt, prec, digits)` | `FloatToStrF`: 0 ffGeneral, 1 ffExponent, 2 ffFixed, 3 ffNumber |
 | `CONVBASE$(num, from, to)` | Base conversion |
 | `HEX$(n)` / `OCT$(n)` / `BIN$(n)` | Numeric base formatting |
 | `HEXTODEC(s)` | Hex to decimal |

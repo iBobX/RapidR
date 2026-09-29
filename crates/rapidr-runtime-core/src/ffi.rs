@@ -26,7 +26,7 @@ use libloading::{Library, Symbol};
 
 use crate::value::{v_dbl, v_int, v_null, v_str, Value};
 
-/// Cached loaded libraries (by path)
+// Cached loaded libraries (by path)
 thread_local! {
     static LOADED_LIBS: RefCell<HashMap<String, Library>> = RefCell::new(HashMap::new());
 }

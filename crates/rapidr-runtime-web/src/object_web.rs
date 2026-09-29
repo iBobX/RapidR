@@ -164,9 +164,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("width".to_string(), v_int(150));
             props.insert("height".to_string(), v_int(25));
         }
+        // QTIMER: Enabled is True by default (manual).
         "RTIMER" => {
             props.insert("interval".to_string(), v_int(1000));
-            props.insert("enabled".to_string(), v_bool(false));
+            props.insert("enabled".to_string(), v_bool(true));
         }
         "RIMAGE" => {
             props.insert("left".to_string(), v_int(0));
@@ -354,6 +355,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
 /// How shared objects print on the web (`Printer.EndDoc`, [`web_print`]).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
+    // RND's first seed (wasm has no clock).
+    rapidr_value::builtins::set_entropy(|| (js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
 }
 
 /// `Printer.EndDoc` on the web: the document (a PDF) opens in a new tab,
@@ -631,6 +634,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(lprop.as_str(), "autosize" | "stretch" | "center") && rapidr_value::objects::is_picture(&uname) {
         picture_changed(&uname);
     }
+    // `CoolBtn.Down = True`: the others of its group come up.
+    if lprop == "down" {
+        gui_web::toggle_down_set(&uname);
+    }
 }
 
 pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>, has_row: bool) {
@@ -747,7 +754,11 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         | "url" | "html" | "sandbox" | "src" | "picture" | "controls" | "loop" | "autoplay"
         | "poster" | "storagetype" | "latitude" | "longitude" | "accuracy" | "title" | "body"
         | "route" | "hash" | "cssstyle" | "cssclass" => {
-            gui_web::gui_web_get_prop(&uname, &lprop)
+            // A component with no element (a QTIMER's Enabled): what was stored.
+            match gui_web::gui_web_get_prop(&uname, &lprop) {
+                Value::Null => stored.unwrap_or_else(v_null),
+                live => live,
+            }
         }
         _ => stored.unwrap_or_else(v_null),
     }
@@ -1477,11 +1488,46 @@ pub fn rp_bind_event_5(name: &str, event: &str, handler: fn(Value, Value, Value,
 // Event firing
 // ---------------------------------------------------------------------------
 
+thread_local! {
+    /// The program ran END: nothing more of it runs.
+    static ENDED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// END in the browser, as the desktop's (which exits): what was written to
+/// files is kept, the forms close (without OnClose), timers stop and no
+/// event reaches the program any more.
+pub fn end_program() {
+    if ENDED.with(|e| e.replace(true)) {
+        return;
+    }
+    rapidr_value::basic_files::close_all();
+    TIMER_HANDLES.with(|th| {
+        if let Some(window) = web_sys::window() {
+            for (_, handle) in th.borrow_mut().drain() {
+                window.clear_interval_with_handle(handle);
+            }
+        }
+    });
+    let forms: Vec<String> = COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name.eq_ignore_ascii_case("RFORM")).map(|(n, _)| n.clone()).collect());
+    for form in forms {
+        gui_web::hide_form(&form);
+    }
+    web_sys::console::log_1(&JsValue::from_str("[RapidR] Program ended."));
+}
+
+/// Whether the program ran END.
+pub fn program_ended() -> bool {
+    ENDED.with(|e| e.get())
+}
+
 /// Runs the handler bound to `name`'s `event` with the event's arguments.
 /// The firing component is passed last (`Sender`, as in RapidQ's `SUB
 /// Button1Click (Sender AS QBUTTON)`). The handler is copied out first, so
 /// it may bind or fire other events.
 fn fire(name: &str, event: &str, args: &[Value]) {
+    if program_ended() {
+        return;
+    }
     let Some(handler) = lookup_handler(name, event) else { return };
     // The firing component comes last (`Sender`), after the event's own
     // arguments, as in RapidQ (`SUB DrawCell (Col%, Row%, State%, Rect AS

@@ -198,8 +198,8 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "__paramstrcount" => rapidr_value::variadic::param_str_count(&a0),
         "__paramvalcount" => rapidr_value::variadic::param_val_count(&a0),
         "rinstr" => rp_rinstr(&a0, &a1),
-        "format" => rp_format(&a0, &a1),
-        "strf" => rp_strf(&a0),
+        "format" => rp_format(&a0, args.get(1..).unwrap_or(&[])),
+        "strf" => rp_strf(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null)),
 
         // --- Numeric / math ---
         "int" => rp_int(&a0),

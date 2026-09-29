@@ -264,10 +264,11 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "shuffle" => {
-            use rand::seq::SliceRandom;
             let arr = num_arr_get(name);
             let mut v = arr.to_vec();
-            v.shuffle(&mut rand::rng());
+            for i in (1..v.len()).rev() {
+                v.swap(i, crate::value::builtins::random_index(i + 1));
+            }
             num_arr_set(name, Array1::from(v));
             v_null()
         }
@@ -357,59 +358,49 @@ pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
 
         // --- Random (instance methods) ---
         "rand" | "random" => {
-            use rand::Rng;
             let n = args.first().map(|v| v.to_i64()).unwrap_or(1) as usize;
-            let mut rng = rand::rng();
-            let vals: Vec<f64> = (0..n).map(|_| rng.random::<f64>()).collect();
+            let vals: Vec<f64> = (0..n).map(|_| crate::value::builtins::random_unit()).collect();
             num_arr_set(name, Array1::from(vals));
             v_null()
         }
         "randn" | "random_normal" | "normal" => {
-            use rand::Rng;
             let n = args.first().map(|v| v.to_i64()).unwrap_or(1) as usize;
             let mean = args.get(1).map(|v| v.to_f64()).unwrap_or(0.0);
             let std_dev = args.get(2).map(|v| v.to_f64()).unwrap_or(1.0);
-            let mut rng = rand::rng();
             // Box-Muller transform for normal distribution
             let vals: Vec<f64> = (0..n).map(|_| {
-                let u1: f64 = rng.random();
-                let u2: f64 = rng.random();
+                let u1: f64 = crate::value::builtins::random_unit().max(1e-10);
+                let u2: f64 = crate::value::builtins::random_unit();
                 mean + std_dev * (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
             }).collect();
             num_arr_set(name, Array1::from(vals));
             v_null()
         }
         "uniform" | "random_uniform" => {
-            use rand::Rng;
             let lo = args.first().map(|v| v.to_f64()).unwrap_or(0.0);
             let hi = args.get(1).map(|v| v.to_f64()).unwrap_or(1.0);
             let n = args.get(2).map(|v| v.to_i64()).unwrap_or(1) as usize;
-            let mut rng = rand::rng();
-            let vals: Vec<f64> = (0..n).map(|_| rng.random::<f64>() * (hi - lo) + lo).collect();
+            let vals: Vec<f64> = (0..n).map(|_| crate::value::builtins::random_unit() * (hi - lo) + lo).collect();
             num_arr_set(name, Array1::from(vals));
             v_null()
         }
         "randint" => {
-            use rand::Rng;
             let lo = args.first().map(|v| v.to_i64()).unwrap_or(0);
             let hi = args.get(1).map(|v| v.to_i64()).unwrap_or(10);
             let n = args.get(2).map(|v| v.to_i64()).unwrap_or(1) as usize;
-            let mut rng = rand::rng();
-            let vals: Vec<f64> = (0..n).map(|_| rng.random_range(lo..=hi) as f64).collect();
+            let vals: Vec<f64> = (0..n).map(|_| (lo + crate::value::builtins::random_index((hi - lo + 1).max(1) as usize) as i64) as f64).collect();
             num_arr_set(name, Array1::from(vals));
             v_null()
         }
         "choice" => {
-            use rand::Rng;
             let arr = num_arr_get(name);
             if arr.is_empty() { return v_dbl(0.0); }
             let n = args.first().map(|v| v.to_i64()).unwrap_or(1) as usize;
-            let mut rng = rand::rng();
             if n == 1 {
-                let idx = rng.random_range(0..arr.len());
+                let idx = crate::value::builtins::random_index(arr.len());
                 return v_dbl(arr[idx]);
             }
-            let vals: Vec<f64> = (0..n).map(|_| arr[rng.random_range(0..arr.len())]).collect();
+            let vals: Vec<f64> = (0..n).map(|_| arr[crate::value::builtins::random_index(arr.len())]).collect();
             num_arr_set(name, Array1::from(vals));
             v_null()
         }

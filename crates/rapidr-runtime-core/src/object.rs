@@ -110,8 +110,9 @@ impl RpComponent {
                 props.insert("width".into(), v_int(120));
                 props.insert("height".into(), v_int(100));
             }
+            // QTIMER: Enabled is True by default (manual).
             "RTIMER" => {
-                props.insert("enabled".into(), v_bool(false));
+                props.insert("enabled".into(), v_bool(true));
                 props.insert("interval".into(), v_int(1000));
             }
             "RIMAGE" => {
@@ -705,6 +706,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     });
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // `CoolBtn.Down = True`: the others of its group come up.
+    #[cfg(feature = "gui")]
+    if prop_lower == "down" {
+        crate::gui::toggle_down_set(name);
+    }
     // A QCANVAS's new size shows more or less of its surface.
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
@@ -1429,75 +1435,6 @@ fn value_to_json(val: &Value) -> serde_json::Value {
 
 // ---------------------------------------------------------------------------
 
-thread_local! {
-    static STRINGLISTS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
-}
-
-fn stringlist_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
-    STRINGLISTS.with(|sl| {
-        let mut lists = sl.borrow_mut();
-        let list = lists.entry(name_lower.clone()).or_insert_with(Vec::new);
-        match method {
-            "clear" => {
-                list.clear();
-                rp_comp_set(name, "count", v_int(0));
-                v_null()
-            }
-            "add" => {
-                let item = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-                list.push(item);
-                rp_comp_set(name, "count", v_int(list.len() as i64));
-                v_null()
-            }
-            "delete" => {
-                let idx = args.first().map(|v| v.to_i64()).unwrap_or(0) as usize;
-                if idx < list.len() {
-                    list.remove(idx);
-                }
-                rp_comp_set(name, "count", v_int(list.len() as i64));
-                v_null()
-            }
-            "loadfromfile" => {
-                let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-                if let Ok(content) = std::fs::read_to_string(&filename) {
-                    *list = content.lines().map(String::from).collect();
-                    rp_comp_set(name, "count", v_int(list.len() as i64));
-                }
-                v_null()
-            }
-            "savetofile" => {
-                let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-                let content = list.join("\n");
-                let _ = std::fs::write(&filename, content);
-                v_null()
-            }
-            "sort" => {
-                list.sort();
-                v_null()
-            }
-            "find" => {
-                let needle = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-                match list.iter().position(|s| *s == needle) {
-                    Some(pos) => v_int(pos as i64),
-                    None => v_int(-1),
-                }
-            }
-            "items" | "item" => {
-                let idx = args.first().map(|v| v.to_i64()).unwrap_or(0) as usize;
-                if idx < list.len() {
-                    v_str(&list[idx])
-                } else {
-                    v_str("")
-                }
-            }
-            _ => {
-                eprintln!("[WARN] RStringList.{}() not implemented", method);
-                v_null()
-            }
-        }
-    })
-}
 
 // ---------------------------------------------------------------------------
 // Generic GUI component methods (stub for non-GUI builds, real with GUI)
@@ -1682,6 +1619,15 @@ pub fn is_component_type(type_name: &str) -> bool {
 }
 
 /// Get all child components whose "parent" property matches the given form name.
+/// Stores a property without any of `rp_comp_set`'s effects.
+pub(crate) fn store_prop(name: &str, prop: &str, val: Value) {
+    COMPONENTS.with(|c| {
+        if let Some(comp) = c.borrow_mut().get_mut(&name.to_lowercase()) {
+            comp.properties.insert(prop.to_lowercase(), val);
+        }
+    });
+}
+
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
     let parent_lower = parent_name.to_lowercase();
     COMPONENTS.with(|c| {
