@@ -122,11 +122,17 @@ struct Parser<'a> {
     data_labels: Vec<(String, usize)>,
     /// Labels seen since the last DATA statement.
     labels_awaiting_data: Vec<String>,
+    /// Parameters of the routine being parsed that a keyword names
+    /// (`SetMultiSelect(select AS BOOLEAN)`), lowercase: in its code they
+    /// are the parameter.
+    keyword_params: Vec<String>,
+    /// Keywords the program uses as variables (`type = 2`), lowercase.
+    keyword_vars: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new() }
     }
 
     // --- diagnostics ---
@@ -270,7 +276,8 @@ impl<'a> Parser<'a> {
     fn peek_is_end_followed_by(&self, kw: &str) -> bool {
         self.peek_kind() == Some(TokenType::End)
             && self.tokens.get(self.pos + 1).map_or(false, |t| {
-                t.lexeme.eq_ignore_ascii_case(kw)
+                // (`END STRUCT` ends a TYPE: STRUCT is its synonym)
+                t.lexeme.eq_ignore_ascii_case(kw) || (kw == "TYPE" && t.kind == TokenType::Type)
             })
     }
 
@@ -439,7 +446,22 @@ impl<'a> Parser<'a> {
         {
             return self.parse_file_input(true);
         }
+        // `type = 2`: a keyword RapidQ lets name a variable (a keyword and
+        // `=` start no statement); from here on it is that variable.
+        if self.peek_kind() != Some(TokenType::Identifier) && self.peek_is_word() && self.peek_kind_at(1) == Some(TokenType::Eq) {
+            let name = self.peek()?.lexeme.to_ascii_lowercase();
+            if !self.keyword_vars.contains(&name) {
+                self.keyword_vars.push(name);
+            }
+        }
         match self.peek_kind()? {
+            // (only before `=` or `.`: `CASE 1` stays a CASE in a routine
+            // with a parameter named case)
+            _ if self.peek().is_some_and(|t| t.kind != TokenType::Identifier && self.is_keyword_name(&t.lexeme))
+                && matches!(self.peek_kind_at(1), Some(TokenType::Eq | TokenType::Dot)) =>
+            {
+                self.parse_assignment_or_call()
+            }
             TokenType::Directive => self.parse_directive(),
             TokenType::Dim => self.parse_declaration(None),
             TokenType::DefStr => self.parse_declaration(Some("STRING")),
@@ -1593,7 +1615,12 @@ impl<'a> Parser<'a> {
     /// with dotted names (`FUNCTION Screen.MousePresent() AS LONG`), called
     /// as `Screen.MousePresent`.
     fn parse_routine_name(&mut self) -> Option<String> {
-        let mut name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // (a keyword names a method too: QDataBase.inc's `FUNCTION Create`)
+        let mut name = if self.peek_is_word() && self.peek_kind() != Some(TokenType::Identifier) {
+            self.advance()?.lexeme.clone()
+        } else {
+            self.expect(TokenType::Identifier)?.lexeme.clone()
+        };
         while self.peek_kind() == Some(TokenType::Dot) && self.tokens.get(self.pos + 1).is_some_and(|t| t.kind != TokenType::Newline) {
             self.advance();
             name = format!("{name}.{}", self.advance()?.lexeme);
@@ -1601,10 +1628,23 @@ impl<'a> Parser<'a> {
         Some(name)
     }
 
+    /// Whether keyword `word` names a parameter of this routine or a
+    /// variable of the program here.
+    fn is_keyword_name(&self, word: &str) -> bool {
+        let w = word.to_ascii_lowercase();
+        self.keyword_params.contains(&w) || self.keyword_vars.contains(&w)
+    }
+
+    /// Whether the next token is a word (a name or a keyword), not a symbol.
+    fn peek_is_word(&self) -> bool {
+        self.peek().is_some_and(|t| t.lexeme.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && t.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+    }
+
     fn parse_sub(&mut self) -> Option<SubroutineStatement> {
         let start = self.pos;
         self.expect(TokenType::Sub)?;
         let name = self.parse_routine_name()?;
+        self.keyword_params.clear();
         let params = if self.match_kind(TokenType::LParen) {
             let p = self.parse_parameter_list()?;
             self.expect(TokenType::RParen);
@@ -1631,6 +1671,7 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::Function)?;
         let name = self.parse_routine_name()?;
+        self.keyword_params.clear();
         let params = if self.match_kind(TokenType::LParen) {
             let p = self.parse_parameter_list()?;
             self.expect(TokenType::RParen);
@@ -1782,6 +1823,7 @@ impl<'a> Parser<'a> {
                     continue;
                 };
                 let setter_name = name_tok.lexeme.clone();
+                self.keyword_params.clear();
                 let params = if self.match_kind(TokenType::LParen) {
                     let p = self.parse_parameter_list().unwrap_or_default();
                     self.expect(TokenType::RParen);
@@ -1794,6 +1836,8 @@ impl<'a> Parser<'a> {
                 if self.peek_is_end_followed_by("PROPERTY") {
                     self.advance();
                     self.advance();
+                    // (`END PROPERTY SET`, as QRichEditXt.inc writes it)
+                    self.match_kind(TokenType::Set);
                 } else {
                     self.error_at(prop_start, format!("PROPERTY SET {setter_name} is missing END PROPERTY"));
                 }
@@ -1815,8 +1859,9 @@ impl<'a> Parser<'a> {
                 self.skip_to_eol();
                 continue;
             }
-            // Field: name[(dims)] AS Type [* len] [PROPERTY SET Setter]
-            if self.peek_kind() == Some(TokenType::Identifier) {
+            // Field: name[(dims)] AS Type [* len] [PROPERTY SET Setter] — a
+            // keyword names a field too (`Step AS DOUBLE`, `Open AS INTEGER`).
+            if self.peek_kind() == Some(TokenType::Identifier) || (self.peek_is_word() && self.peek_kind_at(1) == Some(TokenType::As)) {
                 let field_start = self.pos;
                 let fname = self.advance()?.lexeme.clone();
                 let mut more_dims: Vec<(Expression, Expression)> = Vec::new();
@@ -2017,7 +2062,9 @@ impl<'a> Parser<'a> {
                 Some(t) if t.lexeme.chars().all(|c| c.is_ascii_alphabetic())
                     && self.peek_kind_at(1) == Some(TokenType::As) =>
                 {
-                    self.advance()?.lexeme.clone()
+                    let name = self.advance()?.lexeme.clone();
+                    self.keyword_params.push(name.to_ascii_lowercase());
+                    name
                 }
                 _ => self.expect(TokenType::Identifier)?.lexeme.clone(),
             };
@@ -2300,6 +2347,11 @@ impl<'a> Parser<'a> {
             let span = self.peek().map(|t| t.span).unwrap_or_default();
             return Some(Expression::Identifier(Identifier { span, name: OMITTED_ARGUMENT.to_string() }));
         }
+        // `ByVal 0&` in a call (Visual Basic's way to pass a value to an
+        // API function): the value.
+        if matches!(self.peek_kind(), Some(TokenType::ByVal | TokenType::ByRef)) && !matches!(self.peek_kind_at(1), Some(TokenType::Comma | TokenType::RParen)) {
+            self.advance();
+        }
         self.parse_expression()
     }
 
@@ -2312,6 +2364,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_primary(&mut self) -> Option<Expression> {
+        // A parameter a keyword names, read in its routine.
+        if let Some(t) = self.peek().filter(|t| t.kind != TokenType::Identifier && self.is_keyword_name(&t.lexeme)) {
+            let tok = t.clone();
+            self.advance();
+            return Some(Expression::Identifier(Identifier { span: tok.span, name: tok.lexeme.clone() }));
+        }
         match self.peek_kind()? {
             // A type name as a value (`SIZEOF(SINGLE)`): its name as text.
             TokenType::Integer | TokenType::String | TokenType::Double | TokenType::Single | TokenType::Byte

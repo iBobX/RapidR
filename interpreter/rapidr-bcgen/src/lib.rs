@@ -2295,7 +2295,13 @@ impl Bcgen {
                         return Ok(());
                     }
                 }
-                Err("nested member access not yet supported".into())
+                // Any other object expression (`P.MoverRect.Top`, an object
+                // field's own property): the object at run time, then its
+                // property.
+                self.lower_expr(&m.object, code)?;
+                let nm_s = self.module.add_string(&m.member);
+                emit(code, Op::GetPropDyn); push_u32(code, nm_s);
+                Ok(())
             }
             Expression::ArrayAccess(a) => {
                 self.lower_expr(&a.array, code)?;
