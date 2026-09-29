@@ -7,6 +7,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.63.0] — 2026-09-29
+
+### Added
+- QLISTBOX `ExtendedSelect` (on by default, as in RapidQ): in a
+  MultiSelect list, Shift+click selects a range, Ctrl+click toggles, a
+  click selects one item; off, a click toggles. `TabWidth`: tabs in items
+  go on to its stops (dialog units; 32 by default). In the shared list model
+  (`ItemList::click`), for drawn lists on the desktop and the web.
+
 ## [2.62.0] — 2026-09-29
 
 ### Added
