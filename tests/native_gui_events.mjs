@@ -42,6 +42,7 @@
 //   * tests/fixtures/list_columns.bas — QLISTBOX Columns, an owner-drawn QCOMBOBOX.
 //   * tests/fixtures/startup_modal.bas — ShowModal in the main program waits; Form.Repaint.
 //   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.
+//   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
 //   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]

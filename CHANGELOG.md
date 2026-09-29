@@ -7,6 +7,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.66.0] — 2026-09-29
+
+### Added
+- QPANEL `BevelOuter`, `BevelInner`, `BevelWidth`, `BorderWidth` drawn as
+  RapidQ does (a raised outer bevel by default) on desktop and web, from
+  one shared model (`rapidr_value::objects::bevel`).
+- `examples/digdisplay`: a clock on RapidQ's QDigDisplay.inc, with
+  RapidR's own seven-segment bitmaps (the originals were never
+  distributed; `tools/make_digit_bitmaps.py` makes them).
+
+### Fixed
+- RapidQ's include libraries (QBevel.inc, QDigDisplay.inc, …), both
+  backends: an instance of a TYPE extending a component created inside a
+  form stopped with "not an object"; `.Field = x` in its PROPERTY SET was
+  lost; fields redeclaring the component's properties (`Width AS LONG`)
+  never reached the widget; FOR counters and `Result` in its code were
+  taken for the component's properties.
+- A canvas setting its own size in its OnPaint (QDigDisplay) repainted
+  forever: a size change repaints only when the size really changes.
+
 ## [2.65.0] — 2026-09-29
 
 ### Added

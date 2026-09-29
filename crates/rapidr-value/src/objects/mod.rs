@@ -8,6 +8,7 @@
 //! `Bitmap.Draw(0, 0, Sprite)`) arrives as that id; an image can also be a
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
+pub mod bevel;
 pub mod bitmap;
 pub mod codec;
 pub mod dirtree;

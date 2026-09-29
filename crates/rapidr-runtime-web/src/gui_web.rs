@@ -1984,8 +1984,7 @@ fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_class_name("rr-widget");
     let _ = el.style().set_property("overflow", "hidden");
-    let _ = el.style().set_property("border", "1px solid #ccc");
-    let _ = el.style().set_property("background", "#fafafa");
+    let _ = el.style().set_property("background", "#f0f0f0");
     // RapidQ's panel shows its Caption centered, under its children (which
     // setting the caption must not remove).
     let caption = create_el("span");
@@ -1997,6 +1996,38 @@ fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
     caption.set_text_content(Some(&strip_ampersands(&props.get("caption").map(|v| v.to_string_val()).unwrap_or_default())));
     let _ = el.append_child(&caption);
     setup_widget(&el, id, name, props);
+    render_panel_bevels(name);
+}
+
+/// A QPANEL's BevelOuter / BevelInner frames (rapidr_value::objects::
+/// bevel): one-pixel boxes over its edges, under its children.
+pub fn render_panel_bevels(name: &str) {
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    if let Ok(old) = el.query_selector_all(":scope > .rr-bevel") {
+        for i in 0..old.length() {
+            if let Some(n) = old.item(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()) {
+                n.remove();
+            }
+        }
+    }
+    let prop = |p: &str| crate::object_web::rp_comp_get(name, p).to_i64();
+    let hex = |c: u32| format!("#{c:06x}");
+    let first = el.first_child();
+    for f in rapidr_value::objects::bevel::frames(prop("bevelouter"), prop("bevelinner"), prop("bevelwidth"), prop("borderwidth")) {
+        let b = create_el("div");
+        b.set_class_name("rr-bevel");
+        let (tl, br) = (hex(f.top_left), hex(f.bottom_right));
+        for (k, v) in [
+            ("position", "absolute".to_string()),
+            ("inset", format!("{}px", f.inset)),
+            ("pointer-events", "none".into()),
+            ("border", "1px solid".into()),
+            ("border-color", format!("{tl} {br} {br} {tl}")),
+        ] {
+            let _ = b.style().set_property(k, &v);
+        }
+        let _ = el.insert_before(&b, first.as_ref());
+    }
 }
 
 fn create_checkbox(id: &str, name: &str, props: &HashMap<String, Value>) {

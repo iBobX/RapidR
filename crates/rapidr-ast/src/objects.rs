@@ -219,8 +219,27 @@ fn collect_types(program: &Program) -> Types {
             )
         })
         .collect();
-    Types { map }
+    let mut types = Types { map };
+    // A field that redeclares a property of the component the TYPE extends
+    // (QDigDisplay.inc's `Width AS LONG` on a QCANVAS) is that property, as
+    // in RapidQ — not a slot of its own that never reaches the widget.
+    let names: Vec<String> = types.map.keys().cloned().collect();
+    for n in names {
+        if types.base_component(&n).is_none() {
+            continue;
+        }
+        if let Some(d) = types.map.get_mut(&n) {
+            d.fields.retain(|f| f.setter.is_some() || f.array_size.is_some() || !COMPONENT_PROPERTIES.contains(&key(&f.name).as_str()));
+        }
+    }
+    types
 }
+
+/// Properties every RapidQ visual component has.
+const COMPONENT_PROPERTIES: &[&str] = &[
+    "left", "top", "width", "height", "caption", "text", "color", "visible", "enabled", "hint", "showhint", "tag", "cursor",
+    "align", "parent", "font", "clientwidth", "clientheight", "tabstop", "taborder", "popupmenu", "handle",
+];
 
 // ---------- building blocks ----------
 
@@ -328,7 +347,8 @@ impl Lowering<'_> {
     /// field, or a property of the component the TYPE extends.
     fn implicit_member(&self, name: &str) -> bool {
         let Some(t) = &self.ctx.current_type else { return false };
-        if self.is_local(name) || matches!(key(name).as_str(), "this" | "me" | "true" | "false") {
+        // (`Result`: a FUNCTION's value, never a property)
+        if self.is_local(name) || matches!(key(name).as_str(), "this" | "me" | "true" | "false" | "result") {
             return false;
         }
         self.types.field(t, name).is_some()
@@ -424,7 +444,8 @@ impl Lowering<'_> {
         match m.object.as_ref() {
             Expression::Identifier(id) => {
                 let t = self.ctx.current_type.as_ref()?;
-                if self.types.base_component(t).is_none() || self.types.field(t, &id.name).is_some() || !self.implicit_member(&id.name) {
+                // (`TypeName.X` / `This.X`: the instance's own member)
+                if self.types.base_component(t).is_none() || self.types.field(t, &id.name).is_some() || !self.implicit_member(&id.name) || self.is_this(&id.name) {
                     return None;
                 }
                 Some((ident_at(m.span, "This"), format!("{}.{}", key(&id.name), key(&m.member))))
@@ -914,6 +935,13 @@ impl Lowering<'_> {
                 vec![Statement::If(IfStatement { span: i.span, condition, then_body, elseif_branches, else_body })]
             }
             Statement::For(f) => {
+                // A FOR counter in a TYPE's code that's no field nor global is
+                // a local (not a property of the component it extends).
+                if let Some(t) = self.ctx.current_type.clone() {
+                    if self.types.field(&t, &f.variable).is_none() && !self.globals.contains(&key(&f.variable)) {
+                        self.ctx.locals.insert(key(&f.variable));
+                    }
+                }
                 let (start, end, step) = (self.expr(&f.start), self.expr(&f.end), f.step.as_ref().map(|x| self.expr(x)));
                 let body = self.body(&f.body);
                 vec![Statement::For(ForStatement { start, end, step, body, ..f.clone() })]
@@ -967,8 +995,19 @@ impl Lowering<'_> {
                     let known = |n: &str| {
                         self.routines.contains(&key(n)) || self.globals.contains(&key(n)) || self.is_local(n) || self.array_kind(n).is_some() || (self.is_builtin)(&key(n))
                     };
-                    let body = qualify_create_body(&c.body, &c.name, &known);
-                    vec![Statement::Create(CreateStatement { body: self.body(&body), ..c.clone() })]
+                    // A TYPE's instance created inside (a QBEVEL on a form):
+                    // set up after the component, with it as its Parent.
+                    let (typed, rest): (Vec<&Statement>, Vec<&Statement>) =
+                        c.body.iter().partition(|x| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some()));
+                    let rest: Vec<Statement> = rest.into_iter().cloned().collect();
+                    let body = qualify_create_body(&rest, &c.name, &known);
+                    let mut out = vec![Statement::Create(CreateStatement { body: self.body(&body), ..c.clone() })];
+                    for x in typed {
+                        let Statement::Create(child) = x else { continue };
+                        out.extend(self.stmt(x));
+                        out.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
+                    }
+                    out
                 }
             },
             Statement::Subroutine(sub) => {

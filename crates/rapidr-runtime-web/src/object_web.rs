@@ -478,6 +478,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(lprop.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get_stored(name, &lprop).to_i64());
+    // A canvas's size before (it paints again only when it changes).
+    let canvas_size_before = (matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname)).then(|| rp_comp_get_stored(name, &lprop).to_i64());
     // ClientWidth / ClientHeight: a form's inside (layout_web::form_client);
     // for other components, their whole size.
     if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
@@ -625,6 +627,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         return;
     }
 
+    // A panel's bevels drawn again.
+    if rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL" {
+        gui_web::render_panel_bevels(&uname);
+        return;
+    }
     // Pass to GUI layer for DOM update
     gui_web::gui_web_set_prop(&uname, &lprop, &val);
     // Align (layout_web).
@@ -632,7 +639,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         gui_web::render_canvas(&uname);
-        if !rapidr_value::objects::is_form_surface(&uname) {
+        if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
             rp_fire_event(&uname, "onpaint");
         }
     }
@@ -796,7 +803,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                 live => live,
             }
         }
-        _ => stored.unwrap_or_else(v_null),
+        // (a panel's bevels: RapidQ's defaults until set)
+        _ => stored
+            .or_else(|| (rp_comp_type(&uname) == "RPANEL").then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
+            .unwrap_or_else(v_null),
     }
 }
 
