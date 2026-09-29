@@ -42,6 +42,7 @@
 //   * tests/fixtures/list_columns.bas — QLISTBOX Columns, an owner-drawn QCOMBOBOX.
 //   * tests/fixtures/startup_modal.bas — ShowModal in the main program waits; Form.Repaint.
 //   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.
+//   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
@@ -54,6 +55,8 @@ import { cases } from "./gui_parity_cases.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/native_gui_events");
+// (the programs use their own clipboard, never the user's)
+process.env.RAPIDR_TEST_CLIPBOARD = "1";
 const CARGO_TARGET = join(ROOT, "tests/conformance/.work/cargo-target");
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
@@ -84,7 +87,7 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     const bin = build(c.name, interp);
     ok(existsSync(bin), `${c.name}: ${kind} executable built`);
     results[kind] = run(bin, c.events, c.dump, c.resize, c.split);
-    for (const line of c.expect) ok(results[kind].includes(line), `${c.name} (${kind}): ${line}`);
+    for (const line of c.expect) ok(results[kind].includes(line), `${c.name} (${kind}): ${line}` + (results[kind].includes(line) ? "" : `\n    got: ${results[kind].trim().split("\n").join(" / ")}`));
   }
   ok(results.native === results.interpreted, `${c.name}: native and interpreted builds agree`);
 }

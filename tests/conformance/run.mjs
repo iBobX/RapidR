@@ -30,6 +30,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../..");
 const CASES = join(HERE, "cases");
 const RAPIDR = resolve(ROOT, process.env.RAPIDR_BIN || "rapidr");
+// (the programs use their own clipboard, never the user's)
+process.env.RAPIDR_TEST_CLIPBOARD = "1";
 const WORK = resolve(process.env.CONFORMANCE_WORK || join(HERE, ".work"));
 const TIMEOUT_MS = 30_000;
 const MAX_OUTPUT = 1 << 20;  // 1 MB: more than any case prints; catches runaway loops

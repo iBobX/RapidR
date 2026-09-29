@@ -351,6 +351,9 @@ fn install_input_dispatch() {
             // (FLTK passes a move on twice: the second isn't a new one)
             let spot = (target.clone(), app::event_x(), app::event_y());
             let repeated = kind == rapidr_value::input::Mouse::Move && LAST_MOVE.with(|m| m.replace(Some(spot.clone())) == Some(spot));
+            if ev == Event::Move && !repeated {
+                apply_cursor(target.as_deref(), win);
+            }
             if let Some(name) = target.filter(|_| !repeated) {
                 let (x, y) = widget_origin(&name, win);
                 mouse_event(&name, kind, button_of(mouse_button()), app::event_x() - x, app::event_y() - y, mouse_shift());
@@ -360,6 +363,43 @@ fn install_input_dispatch() {
     }
     // SAFETY: `dispatch` only forwards the window pointer it is given.
     unsafe { app::event_dispatch(dispatch) };
+}
+
+thread_local! {
+    /// The pointer shown last (rapidr_value::input::Cursor).
+    static SHOWN_CURSOR: Cell<rapidr_value::input::Cursor> = const { Cell::new(rapidr_value::input::Cursor::Default) };
+}
+
+/// The mouse pointer over component `name`: Screen.Cursor, else its own
+/// Cursor (crDefault: the arrow). Only a change is shown, so widgets that
+/// set their own (a splitter's) keep theirs.
+fn apply_cursor(name: Option<&str>, win: app::WindowPtr) {
+    use rapidr_value::input::Cursor as C;
+    let screen = crate::globals::screen_cursor();
+    let code = if screen != 0 { screen } else { name.map_or(0, |n| rp_comp_get(n, "cursor").to_i64()) };
+    let cursor = C::of(code);
+    if SHOWN_CURSOR.with(|s| s.replace(cursor)) == cursor {
+        return;
+    }
+    let fl = match cursor {
+        C::Default | C::Arrow | C::NoDrop => fltk::enums::Cursor::Default,
+        C::None => fltk::enums::Cursor::None,
+        C::Cross => fltk::enums::Cursor::Cross,
+        C::IBeam => fltk::enums::Cursor::Insert,
+        C::Move => fltk::enums::Cursor::Move,
+        C::SizeNESW => fltk::enums::Cursor::NESW,
+        C::SizeNS => fltk::enums::Cursor::NS,
+        C::SizeNWSE => fltk::enums::Cursor::NWSE,
+        C::SizeWE => fltk::enums::Cursor::WE,
+        C::UpArrow => fltk::enums::Cursor::N,
+        C::Wait | C::Progress => fltk::enums::Cursor::Wait,
+        C::Help => fltk::enums::Cursor::Help,
+        C::Hand => fltk::enums::Cursor::Hand,
+    };
+    let Some(form) = window_component(win) else { return };
+    if let Some(GuiWidget::Window(mut w)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&form).cloned())) {
+        w.set_cursor(fl);
+    }
 }
 
 fn button_of(b: i64) -> rapidr_value::input::Button {
@@ -562,6 +602,19 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
         // expanded or collapsed.
         if let Some([i]) = nums("__node_").as_deref() {
             tree_user_select(&comp_lower, *i as usize);
+        } else if event == "__edit" {
+            // F2: the selected node edited; `__enter` types "Renamed" and
+            // Enter in its editor, `__escape` drops the edit.
+            if let Some(i) = rapidr_value::objects::with_tree(&comp_lower, |m| usize::try_from(m.item_index).ok()).flatten() {
+                tree_begin_edit(&comp_lower, i);
+            }
+        } else if event == "__enter" || event == "__escape" {
+            TREE_EDITORS.with(|e| {
+                if let Some((editor, _)) = e.borrow_mut().get_mut(&comp_lower) {
+                    editor.set_value("Renamed");
+                }
+            });
+            tree_end_edit(&comp_lower, event == "__enter");
         } else if let Some([i]) = nums("__toggle_").as_deref() {
             let open = !rapidr_value::objects::with_tree(&comp_lower, |m| m.nodes.get(*i as usize).is_some_and(|n| n.expanded)).unwrap_or(true);
             tree_user_toggle(&comp_lower, *i as usize, open);
@@ -587,7 +640,7 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
         }
         match (event.as_str(), cell) {
-            _ if ["__key_", "__mouse", "__item_", "__node_", "__toggle_"].iter().any(|p| event.starts_with(p)) => {}
+            _ if ["__key_", "__mouse", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape"].iter().any(|p| event.starts_with(p)) => {}
             // `form.__close`: the window's close button.
             ("__close", _) => gui_close(comp),
             (_, Some((c, r))) => {
@@ -4074,6 +4127,11 @@ thread_local! {
     static TREE_SHAPES: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
     /// Trees whose rebuild waits for the event loop's next turn.
     static TREES_TO_BUILD: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    /// Each tree's in-place editor, and the node it edits.
+    static TREE_EDITORS: RefCell<HashMap<String, (Input, Option<usize>)>> = RefCell::new(HashMap::new());
+    /// Bumped by every click on a tree: a click on the selected node starts
+    /// an edit a moment later unless another click (a double click) came.
+    static TREE_CLICKS: Cell<u64> = const { Cell::new(0) };
 }
 
 /// A QTREEVIEW: an FLTK tree showing rapidr_value::objects::tree's nodes.
@@ -4088,8 +4146,44 @@ fn tree_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
     tree.set_color(Color::White);
     tree.set_show_root(false);
     tree.set_select_mode(fltk::tree::TreeSelect::Single);
+    // (a click on the selected node calls back too: it starts an edit)
+    tree.set_item_reselect_mode(fltk::tree::TreeItemReselectMode::Always);
     let cb_name = name.to_string();
     tree.set_callback(move |t| tree_callback(&cb_name, t));
+    // F2 edits the selected node's text.
+    let key_name = name.to_string();
+    tree.super_handle_first(false);
+    tree.handle(move |_, ev| {
+        if ev == Event::KeyDown && app::event_key() == Key::F2 {
+            if let Some(i) = rapidr_value::objects::with_tree(&key_name, |m| usize::try_from(m.item_index).ok()).flatten() {
+                tree_begin_edit(&key_name, i);
+            }
+            return true;
+        }
+        false
+    });
+    // The in-place editor: a sibling over the node's text, drawn after it.
+    let mut editor = Input::new(0, 0, 0, 0, None);
+    editor.set_frame(FrameType::BorderBox);
+    editor.hide();
+    let enter_name = name.to_string();
+    editor.set_trigger(CallbackTrigger::EnterKeyAlways);
+    editor.set_callback(move |_| tree_end_edit(&enter_name, true));
+    // Leaving it keeps the edit, as Windows does; Escape drops it.
+    let edit_name = name.to_string();
+    editor.super_handle_first(false);
+    editor.handle(move |_, ev| match ev {
+        Event::Unfocus => {
+            tree_end_edit(&edit_name, true);
+            false
+        }
+        Event::KeyDown if app::event_key() == Key::Escape => {
+            tree_end_edit(&edit_name, false);
+            true
+        }
+        _ => false,
+    });
+    TREE_EDITORS.with(|e| e.borrow_mut().insert(name.to_string(), (editor, None)));
     GUI_WIDGETS.with(|gw| {
         gw.borrow_mut().insert(name.to_string(), GuiWidget::Tree(tree));
     });
@@ -4127,7 +4221,26 @@ fn tree_callback(name: &str, t: &mut Tree) {
     let Some(item) = t.callback_item() else { return };
     let Some(i) = tree_index_of(t, &item) else { return };
     let clicked = matches!(app::event(), Event::Push | Event::Released);
+    if clicked {
+        TREE_CLICKS.with(|c| c.set(c.get() + 1));
+    }
     match t.callback_reason() {
+        // A click on the node already selected: an edit, unless it is
+        // (or becomes) a double click.
+        TreeReason::Reselected if clicked => {
+            rp_fire_event(name, "onclick");
+            if app::event_clicks() {
+                rp_fire_event(name, "ondblclick");
+                return;
+            }
+            let click = TREE_CLICKS.with(Cell::get);
+            let tree = name.to_string();
+            app::add_timeout3(0.5, move |_| {
+                if TREE_CLICKS.with(Cell::get) == click {
+                    tree_begin_edit(&tree, i);
+                }
+            });
+        }
         TreeReason::Selected | TreeReason::Reselected => {
             tree_user_select(name, i);
             if clicked {
@@ -4181,6 +4294,68 @@ fn tree_user_toggle(name: &str, i: usize, open: bool) {
         if allowed {
             rp_fire_event_1(&tree, if open { "onexpanded" } else { "oncollapsed" }, v_int(i as i64));
         }
+    });
+}
+
+/// The user starts editing node `i`'s text (F2, or a click on the selected
+/// node): not in a ReadOnly tree; OnEditing(Index, AllowEdit) may refuse;
+/// then an editor over the node's text.
+fn tree_begin_edit(name: &str, i: usize) {
+    if rapidr_value::objects::with_tree(name, |m| m.read_only || i >= m.nodes.len()).unwrap_or(true) {
+        return;
+    }
+    let tree = name.to_string();
+    rp_fire_event_then(name, "onediting", &[v_int(i as i64), v_int(-1)], move |a| {
+        if a[1].to_i64() == 0 {
+            return;
+        }
+        let Some(GuiWidget::Tree(mut t)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&tree).cloned()) else { return };
+        let Some(item) = tree_items(&t).get(i).cloned() else { return };
+        let Some(text) = rapidr_value::objects::with_tree(&tree, |m| m.nodes.get(i).map(|n| n.text.clone())).flatten() else { return };
+        t.show_item_middle(&item);
+        t.redraw();
+        app::flush();
+        let (x, y, h) = (item.label_x(), item.label_y(), item.label_h().max(t.item_label_size() + 6));
+        let w = (t.x() + t.w() - x - 3).max(40);
+        TREE_EDITORS.with(|e| {
+            if let Some((editor, editing)) = e.borrow_mut().get_mut(&tree) {
+                *editing = Some(i);
+                editor.resize(x, y - 1, w, h + 2);
+                editor.set_value(&text);
+                editor.show();
+                let _ = editor.take_focus();
+                let _ = editor.set_position(text.len() as i32);
+                let _ = editor.set_mark(0);
+                editor.redraw();
+            }
+        });
+    });
+}
+
+/// Ends an edit: with `keep`, OnEdited(Index, S) — S the text, which the
+/// program may change — and the node gets it.
+fn tree_end_edit(name: &str, keep: bool) {
+    let ended = TREE_EDITORS.with(|e| {
+        let mut editors = e.borrow_mut();
+        let (editor, editing) = editors.get_mut(name)?;
+        let i = editing.take()?;
+        let text = editor.value();
+        editor.hide();
+        Some((i, text))
+    });
+    let Some((i, text)) = ended else { return };
+    if let Some(GuiWidget::Tree(mut t)) = GUI_WIDGETS.with(|gw| gw.borrow().get(name).cloned()) {
+        let _ = t.take_focus();
+        t.redraw();
+    }
+    if !keep {
+        return;
+    }
+    let tree = name.to_string();
+    rp_fire_event_then(name, "onedited", &[v_int(i as i64), v_str(&text)], move |a| {
+        let text = a[1].to_string_val();
+        rapidr_value::objects::with_tree(&tree, |m| m.set_text(i, text));
+        tree_refresh(&tree);
     });
 }
 

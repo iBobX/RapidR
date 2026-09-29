@@ -19,12 +19,13 @@ plotters = { version = "0.3", optional = true }
 image = { version = "0.24", optional = true, default-features = false, features = ["png"] }
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
+arboard = { version = "3", optional = true, default-features = false }
 
 [features]
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rusqlite", "dep:mysql"]
 network = ["dep:ureq"]
-gui = ["dep:fltk", "dep:fltk-theme"]
+gui = ["dep:fltk", "dep:fltk-theme", "dep:arboard"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
 ffi = ["dep:libloading"]

@@ -205,7 +205,10 @@ Next up, in order:
 - [ ] `Rotate`, ICO files for QIMAGELIST, `ImageList.Draw` onto a canvas (`ReadUDT`/`WriteUDT`: v2.56.0)
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [x] QTREEVIEW from a shared model (`rapidr_value::objects::tree`): nodes numbered depth-first, AddItems / AddChildItems / InsertItem / DelItems / Clear / Sort, Expand / Collapse / FullExpand / FullCollapse, GetItemAt, Item(i).Text / ImageIndex / SelectedIndex / StateIndex / HasChildren / Selected / Expanded / Count / Level / IsVisible / Parent, Images icons, LoadFromFile / SaveToFile, OnChanging / OnExpanding / OnCollapsing (answering), OnChange / OnExpanded / OnCollapsed / OnDeletion / OnClick / OnDblClick on native, interpreter and web (v2.64.0)
-- [ ] QTREEVIEW: in-place editing (OnEditing / OnEdited, ReadOnly), StateImages, OnGetImageIndex, HideSelection
+- [x] QTREEVIEW in-place editing: F2 or a click on the selected node, `OnEditing (Index, AllowEdit)` / `OnEdited (Index, S)` answering, Enter / leaving keeps, Escape drops, ReadOnly on native, interpreter and web (v2.65.0)
+- [ ] QTREEVIEW: StateImages, OnGetImageIndex / OnGetSelectedIndex, HideSelection
+- [x] RapidQ global objects `Screen`, `Application`, `Clipboard`, `Mouse` from a shared model (system clipboard on the desktop), component `Cursor` codes, QRECT fields default 0 on native, interpreter and web (v2.65.0)
+- [ ] `Canvas.CopyRect(D AS QRECT, Image, S AS QRECT)`, `Screen.CaptureToBMP`, `Application.Icon` / `IcoHandle`
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)

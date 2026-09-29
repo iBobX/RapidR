@@ -10,7 +10,7 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**478 libraries** under 24 license expressions.
+**489 libraries** under 24 license expressions.
 
 ## Apache-2.0 OR MIT (276)
 
@@ -22,6 +22,7 @@ which also carries their full license texts.
 | alsa | 0.9.1 | <https://github.com/diwic/alsa-rs> |
 | android_system_properties | 0.1.5 | <https://github.com/nical/android_system_properties> |
 | anyhow | 1.0.102 | <https://github.com/dtolnay/anyhow> |
+| arboard | 3.6.1 | <https://github.com/1Password/arboard> |
 | array-init-cursor | 0.2.1 | <https://github.com/planus-org/planus> |
 | arrayvec | 0.7.6 | <https://github.com/bluss/arrayvec> |
 | async-trait | 0.1.89 | <https://github.com/dtolnay/async-trait> |
@@ -177,11 +178,8 @@ which also carries their full license texts.
 | psm | 0.1.30 | <https://github.com/rust-lang/stacker/> |
 | quote | 1.0.45 | <https://github.com/dtolnay/quote> |
 | rand | 0.8.5 | <https://github.com/rust-random/rand> |
-| rand | 0.9.5 | <https://github.com/rust-random/rand> |
 | rand_chacha | 0.3.1 | <https://github.com/rust-random/rand> |
-| rand_chacha | 0.9.0 | <https://github.com/rust-random/rand> |
 | rand_core | 0.6.4 | <https://github.com/rust-random/rand> |
-| rand_core | 0.9.5 | <https://github.com/rust-random/rand> |
 | rand_distr | 0.4.3 | <https://github.com/rust-random/rand> |
 | rawpointer | 0.2.1 | <https://github.com/bluss/rawpointer/> |
 | rayon | 1.11.0 | <https://github.com/rayon-rs/rayon> |
@@ -289,11 +287,13 @@ which also carries their full license texts.
 | windows_x86_64_msvc | 0.42.2 | <https://github.com/microsoft/windows-rs> |
 | windows_x86_64_msvc | 0.52.6 | <https://github.com/microsoft/windows-rs> |
 | wio | 0.2.2 | <https://github.com/retep998/wio-rs> |
+| x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
+| x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
 | zeroize | 1.8.2 | <https://github.com/RustCrypto/utils> |
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (114)
+## MIT (117)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -345,6 +345,9 @@ which also carries their full license texts.
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
 | now | 0.1.3 | <https://github.com/Kilerd/now> |
+| objc2 | 0.6.4 | <https://github.com/madsmtm/objc2> |
+| objc2-encode | 4.1.0 | <https://github.com/madsmtm/objc2> |
+| objc2-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | openssl-sys | 0.9.112 | <https://github.com/rust-openssl/rust-openssl> |
 | pem | 3.0.6 | <https://github.com/jcreekmore/pem-rs.git> |
 | phf | 0.12.1 | <https://github.com/rust-phf/rust-phf> |
@@ -454,13 +457,14 @@ which also carries their full license texts.
 | wit-component | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component> |
 | wit-parser | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser> |
 
-## Apache-2.0 (11)
+## Apache-2.0 (12)
 
 | Library | Version | Upstream |
 |---|---|---|
 | borsh-derive | 1.6.1 | <https://github.com/near/borsh-rs> |
 | claxon | 0.4.3 | <https://github.com/ruuda/claxon> |
 | cpal | 0.15.3 | <https://github.com/rustaudio/cpal> |
+| gethostname | 1.1.0 | <https://codeberg.org/swsnr/gethostname.rs.git> |
 | hound | 3.5.1 | <https://github.com/ruuda/hound> |
 | oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
 | oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
@@ -469,6 +473,21 @@ which also carries their full license texts.
 | sqlparser | 0.53.0 | <https://github.com/apache/datafusion-sqlparser-rs> |
 | streaming-decompression | 0.1.2 | <https://github.com/jorgecarleitao/streaming-decompressor> |
 | sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
+
+## Apache-2.0 OR MIT OR Zlib (10)
+
+| Library | Version | Upstream |
+|---|---|---|
+| bytemuck | 1.25.0 | <https://github.com/Lokathor/bytemuck> |
+| bytemuck_derive | 1.10.2 | <https://github.com/Lokathor/bytemuck> |
+| dispatch2 | 0.3.1 | <https://github.com/madsmtm/objc2> |
+| miniz_oxide | 0.8.9 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
+| objc2-app-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
+| tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
 
 ## MIT OR Unlicense (7)
 
@@ -493,16 +512,6 @@ which also carries their full license texts.
 | symphonia-core | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-metadata | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 
-## Apache-2.0 OR MIT OR Zlib (5)
-
-| Library | Version | Upstream |
-|---|---|---|
-| bytemuck | 1.25.0 | <https://github.com/Lokathor/bytemuck> |
-| bytemuck_derive | 1.10.2 | <https://github.com/Lokathor/bytemuck> |
-| miniz_oxide | 0.8.9 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
-| tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
-| tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
-
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 
 | Library | Version | Upstream |
@@ -510,6 +519,14 @@ which also carries their full license texts.
 | mach2 | 0.4.3 | <https://github.com/JohnTitor/mach2> |
 | zerocopy | 0.8.47 | <https://github.com/google/zerocopy> |
 | zerocopy-derive | 0.8.47 | <https://github.com/google/zerocopy> |
+
+## BSL-1.0 (3)
+
+| Library | Version | Upstream |
+|---|---|---|
+| clipboard-win | 5.4.1 | <https://github.com/DoumanAsh/clipboard-win> |
+| error-code | 3.4.0 | <https://github.com/DoumanAsh/error-code> |
+| xxhash-rust | 0.8.15 | <https://github.com/DoumanAsh/xxhash-rust> |
 
 ## ISC (3)
 
@@ -597,12 +614,6 @@ which also carries their full license texts.
 | Library | Version | Upstream |
 |---|---|---|
 | rustls | 0.23.45 | <https://github.com/rustls/rustls> |
-
-## BSL-1.0 (1)
-
-| Library | Version | Upstream |
-|---|---|---|
-| xxhash-rust | 0.8.15 | <https://github.com/DoumanAsh/xxhash-rust> |
 
 ## MIT AND BSD-3-Clause (1)
 
