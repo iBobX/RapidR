@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::hoist_routines(program)))));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::hoist_routines(program))))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -2462,9 +2462,10 @@ impl RustCodegen {
                     UnaryOperator::Negate => format!("(-&{operand})"),
                     UnaryOperator::Positive => operand,
                     UnaryOperator::Not => format!("{operand}.not()"),
-                    // `@x` outside a user SUB/FUNCTION call (a DLL argument):
-                    // the variable's address, like VARPTR(x).
-                    UnaryOperator::Ref => format!("rp_varptr(&{operand})"),
+                    // `@x` to the program's own SUB / FUNCTION (a DLL's is
+                    // VARPTR(x): rapidr_ast::memory): the value; the call
+                    // passes it back (user_call_args).
+                    UnaryOperator::Ref => operand,
                 }
             }
             Expression::FunctionCall(fc) => {
@@ -2885,7 +2886,6 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "time" => Some("rp_time()".to_string()),
         "randomize" => Some(format!("rp_randomize(&{a0})")),
         "vartype" => Some(format!("rp_vartype(&{a0})")),
-        "sizeof" => Some(format!("rp_sizeof(&{a0})")),
 
         // String functions
         "insert" => Some(format!("rp_insert(&{a0}, &{a1}, &{a2})")),
@@ -3012,8 +3012,17 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "codeptr" | "callback" => Some(
             "compile_error!(\"CODEPTR(Name) takes the name of a SUB or FUNCTION of the program\")".to_string(),
         ),
-        "varptr" => Some(format!("rp_varptr(&{a0})")),
-        "varptr$" => Some(format!("rp_varptr_str(&{a0})")),
+        // Memory (rapidr_ast::memory; rapidr_value::memory)
+        "__varptr_var" => Some(format!("memory::rp_varptr_var(&{a0}, &{a1}, &{a2})")),
+        "__varptr_elem" => Some(format!("memory::rp_varptr_elem(&{a0}, &{a1}, &[{}])", index_list(args.get(2..).unwrap_or(&[])))),
+        "__mem_refresh" => Some(format!("memory::rp_mem_refresh(&{a0}, &{a1}, &{a2})")),
+        "__mem_sync" => Some(format!("memory::rp_mem_sync(&{a0}, &{a1}, &{a2})")),
+        "__sizeof" => Some(format!("memory::rp_sizeof(&{a0}, &{a1})")),
+        "__sizeof_type" => Some(format!("memory::rp_sizeof_type(&{a0})")),
+        "__cstring" => Some(format!("memory::rp_cstring(&{a0})")),
+        "memcpy" => Some(format!("memory::rp_memcpy(&{a0}, &{a1}, &{a2})")),
+        "memset" => Some(format!("memory::rp_memset(&{a0}, &{a1}, &{a2})")),
+        "memcmp" => Some(format!("memory::rp_memcmp(&{a0}, &{a1}, &{a2})")),
 
         _ => None,
     }

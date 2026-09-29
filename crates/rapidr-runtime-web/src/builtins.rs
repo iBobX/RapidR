@@ -261,10 +261,6 @@ pub fn rp_time() -> Value {
 
 
 
-pub fn rp_varptr_str(_val: &Value) -> Value {
-    v_str("0x0000000000000000") // no real pointers in WASM
-}
-
 
 // ---------------------------------------------------------------------------
 // Timer — uses performance.now() on web

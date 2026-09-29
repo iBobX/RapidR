@@ -7,6 +7,43 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.56.0] — 2026-09-28
+
+### Added
+- **Memory functions, memory-safe, on every backend**: `VARPTR`,
+  `UDTPTR`, `VARPTR$`, `MEMCPY`, `MEMSET`, `MEMCMP`, `RTLMOVEMEMORY`,
+  `SIZEOF`, `QMemoryStream.Pointer`, `@x` passed to a DLL — natively,
+  interpreted and in the browser (`rapidr_value::memory`,
+  `rapidr_ast::memory`). An address is an ordinary number (it fits a LONG;
+  `ptr + 4` works) inside a live view of the program's own data: an array's
+  elements, a TYPE's fields, a stream's buffer, or a plain variable's bytes
+  (copied back into the variable after a statement that writes memory).
+  Bytes are laid out as RapidQ stores them: BYTE 1, WORD / SHORT 2,
+  INTEGER / LONG / DWORD / SINGLE 4, DOUBLE 8, `STRING * n` n bytes, a
+  STRING as the address of its characters, TYPE fields packed. An address
+  that isn't the program's memory, runs past the end of it, or belongs to
+  something that no longer exists is a run-time error, never a crash. The
+  interpreter refused these, and native builds returned 0 for `VARPTR`.
+- **`Stream.WriteUDT` / `ReadUDT`** write and read a TYPE's bytes (the
+  manual's `S AS STRING*8, N AS INTEGER` is 12 bytes).
+- **Native DLL calls get real memory**: an argument that is an address the
+  program got (`VARPTR`, a stream's `Pointer`, a TYPE) is passed as a real
+  buffer holding those bytes, and what the DLL writes there is copied back
+  (checked with the C library's `strlen` / `memset`).
+
+### Fixed
+- `SIZEOF(INTEGER)` is 4 (it was the length of the text "INTEGER", 7),
+  `SIZEOF(SHORT)` 2, `SIZEOF(TMyType)` the TYPE's packed size, a STRING
+  variable its length.
+- The web IDE's help for `VARPTR` / `VARPTR$`, and entries for `UDTPTR`,
+  `MEMCPY`, `MEMSET`, `MEMCMP`, `SIZEOF`, `RTLMOVEMEMORY` and `CBOOL`.
+
+### Tests
+- Conformance `memory_functions` (the manual's examples: variables, strings,
+  arrays, TYPEs, streams, a SUB swapping two variables through pointers);
+  unit tests for the layout, copies and bad addresses.
+- 136 of 386 example programs compile (was 134), all build natively.
+
 ## [2.55.0] — 2026-09-28
 
 Closing open items before adding new syntax: an audit of the roadmap's

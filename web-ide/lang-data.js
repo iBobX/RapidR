@@ -676,6 +676,7 @@ const BUILTIN_FUNCTIONS = [
     { name: 'FRAC', description: 'Returns fractional portion', signature: 'FRAC(number)', snippet: 'FRAC(${1:number})' },
     { name: 'ROUND', description: 'Rounds to n decimal places', signature: 'ROUND(number [, places])', snippet: 'ROUND(${1:number}, ${2:places})' },
     { name: 'SGN', description: 'Returns sign (-1, 0, or 1)', signature: 'SGN(number)', snippet: 'SGN(${1:number})' },
+    { name: 'CBOOL', description: 'True (-1) for a non-zero number or numeric string, or any other non-empty string', signature: 'CBOOL(value)', snippet: 'CBOOL(${1:value})' },
     { name: 'CINT', description: 'Converts to integer', signature: 'CINT(number)', snippet: 'CINT(${1:number})' },
     { name: 'CLNG', description: 'Converts to long integer', signature: 'CLNG(number)', snippet: 'CLNG(${1:number})' },
     { name: 'INT', description: 'Returns integer portion', signature: 'INT(number)', snippet: 'INT(${1:number})' },
@@ -734,8 +735,14 @@ const BUILTIN_FUNCTIONS = [
     { name: 'REDIM', description: 'Resizes an array', signature: 'REDIM(array, newSize)', snippet: 'REDIM(${1:array}, ${2:newSize})' },
 
     // VARPTR
-    { name: 'VARPTR', description: 'Returns reference to variable', signature: 'VARPTR(variable)', snippet: 'VARPTR(${1:variable})' },
-    { name: 'VARPTR$', description: 'Returns string representation of reference', signature: 'VARPTR$(variable)', snippet: 'VARPTR\\$(${1:variable})' },
+    { name: 'VARPTR', description: 'The address of a variable or array element (for MEMCPY, MEMSET, VARPTR$, DLL calls); memory-safe', signature: 'VARPTR(variable)', snippet: 'VARPTR(${1:variable})' },
+    { name: 'VARPTR$', description: 'The text at an address, up to a NUL character', signature: 'VARPTR$(address)', snippet: 'VARPTR\\$(${1:address})' },
+    { name: 'UDTPTR', description: 'The address of a TYPE variable', signature: 'UDTPTR(udt)', snippet: 'UDTPTR(${1:udt})' },
+    { name: 'MEMCPY', description: 'Copies n bytes from one address to another (a TYPE variable is its own address)', signature: 'MEMCPY(destination, source, n)', snippet: 'MEMCPY(${1:dest}, ${2:source}, ${3:n})' },
+    { name: 'MEMSET', description: 'Fills n bytes at an address with a byte value', signature: 'MEMSET(address, byte, n)', snippet: 'MEMSET(${1:address}, ${2:0}, ${3:n})' },
+    { name: 'MEMCMP', description: 'Compares n bytes at two addresses: non-zero when they are the same', signature: 'MEMCMP(address1, address2, n)', snippet: 'MEMCMP(${1:a}, ${2:b}, ${3:n})' },
+    { name: 'SIZEOF', description: 'The size in bytes of a type (INTEGER, a TYPE) or a variable (a STRING: its length)', signature: 'SIZEOF(type | variable)', snippet: 'SIZEOF(${1:INTEGER})' },
+    { name: 'RTLMOVEMEMORY', description: 'Copies n bytes from one variable to another (by reference)', signature: 'RTLMOVEMEMORY(dest, source, n)', snippet: 'RTLMOVEMEMORY(${1:dest}, ${2:source}, ${3:n})' },
     { name: 'VARTYPE', description: 'Returns type of variable', signature: 'VARTYPE(variable)', snippet: 'VARTYPE(${1:variable})' },
 ];
 
