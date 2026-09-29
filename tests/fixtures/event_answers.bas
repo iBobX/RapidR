@@ -117,7 +117,7 @@ SUB PickCell (Col AS INTEGER, Row AS INTEGER, CanSelect AS INTEGER)
 END SUB
 
 SUB Measure (Index AS INTEGER, Height AS INTEGER)
-  Height = 10 + Index * 10
+  Height = 16 + Index * 8
 END SUB
 
 SUB DrawItem (Index AS INTEGER, State AS INTEGER, R AS QRECT)

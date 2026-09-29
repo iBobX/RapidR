@@ -1743,7 +1743,7 @@ SUB FormsList_OnChange()
     RedrawDesigner()
 END SUB
 
-SUB Designer_OnMouseDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+SUB Designer_OnMouseDown(btn AS INTEGER, mx AS INTEGER, my AS INTEGER, shift AS INTEGER)
     Status.Caption = "MD enter " + STR(mx) + "," + STR(my)
     DoHitTest(mx, my)
     Status.Caption = "MD post-hit r=" + STR(HitRegion) + " i=" + STR(HitInfo)
@@ -1858,7 +1858,7 @@ SUB Designer_OnMouseDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
     END IF
 END SUB
 
-SUB Designer_OnMouseMove(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+SUB Designer_OnMouseMove(mx AS INTEGER, my AS INTEGER, shift AS INTEGER)
     IF DragMode = 1 THEN
         IF SelKind = 2 AND SelIndex >= 0 THEN
             CompX(SelIndex) = DragOrigX + (mx - DragStartX)
@@ -1876,7 +1876,7 @@ SUB Designer_OnMouseMove(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
     END IF
 END SUB
 
-SUB Designer_OnMouseUp(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+SUB Designer_OnMouseUp(btn AS INTEGER, mx AS INTEGER, my AS INTEGER, shift AS INTEGER)
     IF DragMode = 1 AND SelKind = 2 AND SelIndex >= 0 THEN
         Status.Caption = "Moved " + CompName(SelIndex)
     ELSEIF DragMode = 2 AND ActiveForm >= 0 THEN

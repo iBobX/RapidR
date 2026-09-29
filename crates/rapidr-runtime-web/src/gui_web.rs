@@ -1492,6 +1492,10 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_id(id);
     el.set_class_name("rr-form");
+    // Focusable by a click (not by Tab), so a form's OnKeyDown gets the
+    // keys when none of its controls has the focus.
+    let _ = el.set_attribute("tabindex", "-1");
+    let _ = el.style().set_property("outline", "none");
     track_mouse();
     let _ = el.set_attribute("data-rr-name", name);
     let _ = el.set_attribute("data-rr-type", "RFORM");
@@ -2407,6 +2411,9 @@ fn list_owner_draw(name: &str, width: i64) {
         }
         crate::object_web::rp_fire_event_args(name, "ondrawitem", &[v_int(i as i64), v_int(state), crate::value::v_str(&rect)]);
     }
+    // The items were shown before OnDrawItem ran: show what it drew (or,
+    // where it drew nothing, the plain item as selected now).
+    render_list(name);
 }
 
 fn create_image(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -2643,6 +2650,9 @@ fn create_canvas(id: &str, name: &str, props: &HashMap<String, Value>) {
         canvas.set_height(h);
     }
     el.set_class_name("rr-widget");
+    // Focusable by a click, for its key events (as the desktop's).
+    let _ = el.set_attribute("tabindex", "-1");
+    let _ = el.style().set_property("outline", "none");
     setup_widget(&el, id, name, props);
 }
 

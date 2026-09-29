@@ -149,7 +149,7 @@ SUB Redraw()
     NEXT i
 END SUB
 
-SUB OnDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+SUB OnDown(btn AS INTEGER, mx AS INTEGER, my AS INTEGER, shift AS INTEGER)
     Status.Caption = "MD enter " + STR(mx) + "," + STR(my)
     DoHitTest(mx, my)
     Status.Caption = "MD post-hit r=" + STR(HitRegion) + " i=" + STR(HitInfo)

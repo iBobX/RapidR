@@ -1,0 +1,205 @@
+//! Keyboard and mouse events as RapidQ passes them, the same in both
+//! runtimes (RapidQ manual, chapter 5 and the component tables):
+//!
+//! * `OnKeyDown(Key AS WORD, Shift AS INTEGER)`, `OnKeyUp(Key, Shift)`: the
+//!   Windows virtual-key code (`A` = 65 whatever the case, arrows 37–40,
+//!   F1 = 112, …) and the Shift state;
+//! * `OnKeyPress(Key AS BYTE)`: the character typed (shifted, as typed),
+//!   Enter 13, Backspace 8, Tab 9, Escape 27; keys that type nothing don't
+//!   fire it;
+//! * `OnMouseDown(Button, X, Y, Shift)`, `OnMouseUp(…)` and
+//!   `OnMouseMove(X, Y, Shift)`: `mbLeft` 0, `mbRight` 1, `mbMiddle` 2; X
+//!   and Y in the component.
+//!
+//! The Shift state is RAPIDQ.INC's `ssShift` 256, `ssCtrl` 16, `ssAlt` 1.
+//! A key event goes to the focused component, then to its form; a mouse
+//! event to the component under the mouse (the one pressed, while a button
+//! is held).
+
+use crate::{v_int, Value};
+
+pub const SS_SHIFT: i64 = 256;
+pub const SS_CTRL: i64 = 16;
+pub const SS_ALT: i64 = 1;
+
+/// The Shift state of modifier keys held.
+pub fn shift_state(shift: bool, ctrl: bool, alt: bool) -> i64 {
+    (if shift { SS_SHIFT } else { 0 }) | (if ctrl { SS_CTRL } else { 0 }) | (if alt { SS_ALT } else { 0 })
+}
+
+/// RapidQ's button: `mbLeft` 0, `mbRight` 1, `mbMiddle` 2.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Button {
+    Left = 0,
+    Right = 1,
+    Middle = 2,
+}
+
+impl Button {
+    /// From a DOM `MouseEvent.button` (0 left, 1 middle, 2 right).
+    pub fn from_dom(b: i16) -> Button {
+        match b {
+            1 => Button::Middle,
+            2 => Button::Right,
+            _ => Button::Left,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mouse {
+    Down,
+    Up,
+    Move,
+}
+
+impl Mouse {
+    pub fn event(self) -> &'static str {
+        match self {
+            Mouse::Down => "onmousedown",
+            Mouse::Up => "onmouseup",
+            Mouse::Move => "onmousemove",
+        }
+    }
+
+    /// The event's arguments: (Button, X, Y, Shift), or (X, Y, Shift) for
+    /// OnMouseMove.
+    pub fn args(self, button: Button, x: i64, y: i64, shift: i64) -> Vec<Value> {
+        match self {
+            Mouse::Move => vec![v_int(x), v_int(y), v_int(shift)],
+            _ => vec![v_int(button as i64), v_int(x), v_int(y), v_int(shift)],
+        }
+    }
+}
+
+/// The virtual-key code of a key by its DOM name (`KeyboardEvent.key`,
+/// with `code` telling the numeric keypad apart), or a single character.
+pub fn vk_of_key(key: &str, code: &str) -> Option<i64> {
+    if let Some(d) = code.strip_prefix("Numpad").and_then(|d| d.parse::<i64>().ok()) {
+        return Some(96 + d);
+    }
+    let named = match key {
+        "Backspace" => 8,
+        "Tab" => 9,
+        "Enter" => 13,
+        "Shift" => 16,
+        "Control" => 17,
+        "Alt" => 18,
+        "Pause" => 19,
+        "CapsLock" => 20,
+        "Escape" | "Esc" => 27,
+        " " | "Spacebar" => 32,
+        "PageUp" => 33,
+        "PageDown" => 34,
+        "End" => 35,
+        "Home" => 36,
+        "ArrowLeft" | "Left" => 37,
+        "ArrowUp" | "Up" => 38,
+        "ArrowRight" | "Right" => 39,
+        "ArrowDown" | "Down" => 40,
+        "PrintScreen" => 44,
+        "Insert" => 45,
+        "Delete" | "Del" => 46,
+        "Meta" | "OS" => 91,
+        "ContextMenu" => 93,
+        "NumLock" => 144,
+        "ScrollLock" => 145,
+        _ => 0,
+    };
+    if named != 0 {
+        return Some(named);
+    }
+    if let Some(n) = key.strip_prefix('F').and_then(|n| n.parse::<i64>().ok()).filter(|n| (1..=24).contains(n)) {
+        return Some(111 + n);
+    }
+    let mut chars = key.chars();
+    let c = chars.next()?;
+    if chars.next().is_some() {
+        return None;
+    }
+    vk_of_char(c)
+}
+
+/// The virtual-key code of the key that types `c` (US layout).
+pub fn vk_of_char(c: char) -> Option<i64> {
+    Some(match c {
+        'a'..='z' => c.to_ascii_uppercase() as i64,
+        'A'..='Z' | '0'..='9' => c as i64,
+        ')' => 48,
+        '!' => 49,
+        '@' => 50,
+        '#' => 51,
+        '$' => 52,
+        '%' => 53,
+        '^' => 54,
+        '&' => 55,
+        '*' => 56,
+        '(' => 57,
+        ' ' => 32,
+        ';' | ':' => 186,
+        '=' | '+' => 187,
+        ',' | '<' => 188,
+        '-' | '_' => 189,
+        '.' | '>' => 190,
+        '/' | '?' => 191,
+        '`' | '~' => 192,
+        '[' | '{' => 219,
+        '\\' | '|' => 220,
+        ']' | '}' => 221,
+        '\'' | '"' => 222,
+        _ => return None,
+    })
+}
+
+/// OnKeyPress's Key for a key that typed `text` (virtual-key `vk`): the
+/// character's code, or Enter / Backspace / Tab / Escape's; `None` if the
+/// key types nothing (arrows, F-keys, modifiers).
+pub fn press_code(vk: i64, text: &str) -> Option<i64> {
+    if matches!(vk, 8 | 9 | 13 | 27) {
+        return Some(vk);
+    }
+    let mut chars = text.chars();
+    let c = chars.next()?;
+    if chars.next().is_some() || (c as u32) < 32 || c as u32 == 127 {
+        return None;
+    }
+    Some(if (c as u32) < 256 { c as i64 } else { '?' as i64 })
+}
+
+/// For tests: what typing the key `vk` without modifiers types.
+pub fn text_of_vk(vk: i64) -> String {
+    match vk {
+        65..=90 => ((vk as u8 + 32) as char).to_string(),
+        48..=57 | 32 => (vk as u8 as char).to_string(),
+        _ => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keys() {
+        assert_eq!(vk_of_key("a", "KeyA"), Some(65));
+        assert_eq!(vk_of_key("A", "KeyA"), Some(65));
+        assert_eq!(vk_of_key("ArrowUp", "ArrowUp"), Some(38));
+        assert_eq!(vk_of_key("F5", "F5"), Some(116));
+        assert_eq!(vk_of_key("7", "Numpad7"), Some(103));
+        assert_eq!(vk_of_key("!", "Digit1"), Some(49));
+        assert_eq!(vk_of_key("Dead", ""), None);
+        assert_eq!(press_code(65, "A"), Some(65));
+        assert_eq!(press_code(65, "a"), Some(97));
+        assert_eq!(press_code(13, "\r"), Some(13));
+        assert_eq!(press_code(38, ""), None);
+        assert_eq!(shift_state(true, true, false), 272);
+    }
+
+    #[test]
+    fn mouse_arguments() {
+        let a = Mouse::Down.args(Button::from_dom(2), 3, 4, SS_CTRL);
+        assert_eq!(a.iter().map(Value::to_i64).collect::<Vec<_>>(), vec![1, 3, 4, 16]);
+        let m = Mouse::Move.args(Button::Left, 3, 4, 0);
+        assert_eq!(m.iter().map(Value::to_i64).collect::<Vec<_>>(), vec![3, 4, 0]);
+    }
+}

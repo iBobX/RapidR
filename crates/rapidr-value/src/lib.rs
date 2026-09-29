@@ -17,6 +17,7 @@ pub mod memory;
 pub mod handles;
 pub mod mdi;
 pub mod events;
+pub mod input;
 pub mod format;
 pub mod toggle_group;
 pub mod objects;

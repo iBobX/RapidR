@@ -38,6 +38,7 @@
 //   * tests/fixtures/event_answers.bas — event parameters that come back:
 //     OnClose's Action, OnSelectCell's CanSelect (also a TYPE's EVENT),
 //     OnMeasureItem's Height.
+//   * tests/fixtures/input_events.bas — key and mouse events with RapidQ's arguments.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)

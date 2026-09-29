@@ -852,16 +852,28 @@ function populateObjEvtDropdowns(form, pane, editor) {
   };
 }
 
-// Event metadata per component. Each entry is [EventName, [param,...]].
+// Event metadata per component. Each entry is [EventName, [param,...]]:
+// RapidQ's parameters (rapidr_value::input for keys and the mouse).
+const KEY_EVENTS = [
+  ["OnKeyDown",  ["Key AS WORD", "Shift AS INTEGER"]],
+  ["OnKeyPress", ["Key AS BYTE"]],
+  ["OnKeyUp",    ["Key AS WORD", "Shift AS INTEGER"]],
+];
+const MOUSE_EVENTS = [
+  ["OnMouseDown", ["Button AS INTEGER", "X AS INTEGER", "Y AS INTEGER", "Shift AS INTEGER"]],
+  ["OnMouseMove", ["X AS INTEGER", "Y AS INTEGER", "Shift AS INTEGER"]],
+  ["OnMouseUp",   ["Button AS INTEGER", "X AS INTEGER", "Y AS INTEGER", "Shift AS INTEGER"]],
+];
 const EVENT_META = {
   RForm: [
     ["OnLoad", []],
     ["OnShow", []],
-    ["OnClose", []],
-    ["OnResize", ["newWidth", "newHeight"]],
-    ["OnKeyDown", ["key"]],
-    ["OnKeyUp",   ["key"]],
-    ["OnMouseMove", ["x", "y"]],
+    ["OnClose", ["Action AS INTEGER"]],
+    ["OnResize", []],
+    ["OnClick", []],
+    ["OnPaint", []],
+    ...KEY_EVENTS,
+    ...MOUSE_EVENTS,
   ],
   RButton: [
     ["OnClick", []],
@@ -870,6 +882,8 @@ const EVENT_META = {
     ["OnMouseLeave", []],
     ["OnFocus", []],
     ["OnBlur", []],
+    ...KEY_EVENTS,
+    ...MOUSE_EVENTS,
   ],
   RCheckBox: [
     ["OnClick",  []],
@@ -883,25 +897,38 @@ const EVENT_META = {
     ["OnChange", ["text"]],
     ["OnEnter",  []],
     ["OnExit",   []],
-    ["OnKeyDown", ["key"]],
     ["OnFocus",   []],
     ["OnBlur",    []],
+    ...KEY_EVENTS,
   ],
   RComboBox: [
     ["OnChange", ["selectedIndex"]],
     ["OnFocus",  []],
     ["OnBlur",   []],
+    ...KEY_EVENTS,
   ],
   RListBox: [
     ["OnChange",   ["selectedIndex"]],
     ["OnDblClick", ["selectedIndex"]],
+    ["OnMeasureItem", ["Index AS INTEGER", "Height AS INTEGER"]],
+    ["OnDrawItem", ["Index AS INTEGER", "State AS INTEGER", "Rect AS QRECT"]],
   ],
   RTimer: [
     ["OnTimer", []],
   ],
-  RImage:    [["OnClick", []], ["OnDblClick", []]],
-  RPanel:    [["OnClick", []]],
-  RGroupBox: [["OnClick", []]],
+  RImage:    [["OnClick", []], ["OnDblClick", []], ...MOUSE_EVENTS],
+  RCanvas:   [["OnClick", []], ["OnPaint", []], ...MOUSE_EVENTS],
+  RLabel:    [["OnClick", []], ["OnDblClick", []], ...MOUSE_EVENTS],
+  RPanel:    [["OnClick", []], ...MOUSE_EVENTS],
+  RGroupBox: [["OnClick", []], ...MOUSE_EVENTS],
+  RStringGrid: [
+    ["OnClick", []],
+    ["OnSelectCell", ["Col AS INTEGER", "Row AS INTEGER", "CanSelect AS INTEGER"]],
+    ["OnSetEditText", ["Col AS INTEGER", "Row AS INTEGER", "Value AS STRING"]],
+    ["OnDrawCell", ["Col AS INTEGER", "Row AS INTEGER", "State AS INTEGER", "Rect AS QRECT"]],
+    ["OnListDropDown", ["Col AS INTEGER", "Row AS INTEGER", "S AS STRING"]],
+    ...KEY_EVENTS,
+  ],
 };
 
 function eventsFor(type) {
