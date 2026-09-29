@@ -331,6 +331,11 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
             if let Value::String(s) = &a0 { gui_register_timer(s); }
             v_null()
         }
+        // `$THEME name`
+        "__set_theme" => {
+            set_theme(&a0.to_string_val());
+            v_null()
+        }
 
         _ => v_null(),
     }

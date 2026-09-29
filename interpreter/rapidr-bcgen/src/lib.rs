@@ -629,6 +629,16 @@ impl Bcgen {
             Statement::Subroutine(_) | Statement::Function(_) => {
                 // Already collected in pass 1.
             }
+            // `$THEME name`: the desktop look (as native builds' set_theme).
+            Statement::Directive(d) if d.name.eq_ignore_ascii_case("$THEME") || d.name.eq_ignore_ascii_case("THEME") => {
+                if let Some(value) = &d.value {
+                    let c = self.module.add_const(Const::Str(value.to_lowercase()));
+                    emit(code, Op::LoadConst); push_u32(code, c);
+                    let bi = self.module.add_string("__set_theme");
+                    emit(code, Op::CallBuiltin); push_u32(code, bi); code.push(1u8);
+                    emit(code, Op::Pop);
+                }
+            }
             Statement::Comment(_) | Statement::Directive(_) | Statement::Line(_)
             | Statement::Import(_) => {
                 // No runtime effect.
