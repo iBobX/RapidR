@@ -250,25 +250,40 @@ pub fn rp_fileexists(path: &Value) -> Value {
 
 /// SHELL — execute a command asynchronously
 pub fn rp_shell(command: &Value) -> Value {
-    let cmd = command.to_string_val();
-    match std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&cmd)
-        .status()
-    {
+    match shell_command(&command.to_string_val()).status() {
         Ok(status) => v_int(status.code().unwrap_or(-1) as i64),
         Err(_) => v_int(-1),
     }
 }
 
+/// The system's shell running `cmd` (`cmd /C` on Windows, `sh -c` elsewhere).
+fn shell_command(cmd: &str) -> std::process::Command {
+    #[cfg(windows)]
+    {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/C").arg(cmd);
+        c
+    }
+    #[cfg(not(windows))]
+    {
+        let mut c = std::process::Command::new("sh");
+        c.arg("-c").arg(cmd);
+        c
+    }
+}
+
+/// RUN — starts a program without waiting for it; its process ID (0 when
+/// it couldn't start).
+pub fn rp_run(command: &Value) -> Value {
+    match shell_command(&command.to_string_val()).spawn() {
+        Ok(child) => v_int(child.id() as i64),
+        Err(_) => v_int(0),
+    }
+}
+
 /// SHELLWAIT — execute a command and wait, return exit code
 pub fn rp_shellwait(command: &Value) -> Value {
-    let cmd = command.to_string_val();
-    match std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&cmd)
-        .status()
-    {
+    match shell_command(&command.to_string_val()).status() {
         Ok(status) => v_int(status.code().unwrap_or(-1) as i64),
         Err(_) => v_int(-1),
     }

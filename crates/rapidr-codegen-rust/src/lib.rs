@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::hoist_routines(program))))));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::hoist_routines(program)))))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -3058,6 +3058,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
 
         // System
         "shell" => Some(format!("rp_shell(&{a0})")),
+        "run" => Some(format!("rp_run(&{a0})")),
         "shellwait" => Some(format!("rp_shellwait(&{a0})")),
         "beep" => Some("rp_beep()".to_string()),
         "date_func" | "date$" => Some("rp_date()".to_string()),

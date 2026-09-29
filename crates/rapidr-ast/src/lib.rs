@@ -593,6 +593,71 @@ pub fn inc_dec_assignment(c: &CallStatement, is_user_routine: impl Fn(&str) -> b
     })
 }
 
+/// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
+/// `A(LBOUND(A) + 1) = v2`, … — the first elements get the values (both
+/// backends; not when the program has its own routine of that name).
+pub fn init_arrays(program: &Program) -> Program {
+    let own = program.statements.iter().any(|s| match s {
+        Statement::Subroutine(r) => r.name.eq_ignore_ascii_case("initarray"),
+        Statement::Function(f) => f.name.eq_ignore_ascii_case("initarray"),
+        _ => false,
+    });
+    let mut program = program.clone();
+    if own {
+        return program;
+    }
+    let mut lower = |block: &mut Vec<Statement>| {
+        if !block.iter().any(|s| matches!(s, Statement::Call(c) if matches!(&c.callee, Expression::Identifier(id) if id.name.eq_ignore_ascii_case("initarray")))) {
+            return;
+        }
+        let mut out = Vec::with_capacity(block.len());
+        for s in block.drain(..) {
+            match s {
+                Statement::Call(c) if matches!(&c.callee, Expression::Identifier(id) if id.name.eq_ignore_ascii_case("initarray")) && c.args.len() >= 2 => {
+                    let span = c.span;
+                    let array = c.args[0].clone();
+                    let lbound = Expression::FunctionCall(FunctionCallExpression {
+                        span,
+                        callee: Box::new(Expression::Identifier(Identifier { span, name: "LBOUND".into() })),
+                        args: vec![array.clone()],
+                    });
+                    for (i, value) in c.args[1..].iter().enumerate() {
+                        let index = Expression::Binary(BinaryExpression {
+                            span,
+                            left: Box::new(lbound.clone()),
+                            operator: BinaryOperator::Add,
+                            right: Box::new(Expression::Literal(Literal { span, value: LiteralValue::Integer(i as i64) })),
+                        });
+                        let target = Expression::FunctionCall(FunctionCallExpression { span, callee: Box::new(array.clone()), args: vec![index] });
+                        out.push(Statement::Assignment(AssignmentStatement { span, target, value: value.clone() }));
+                    }
+                }
+                other => out.push(other),
+            }
+        }
+        *block = out;
+    };
+    for s in &mut program.statements {
+        match s {
+            Statement::Subroutine(r) => for_each_block_mut(&mut r.body, &mut lower),
+            Statement::Function(f) => for_each_block_mut(&mut f.body, &mut lower),
+            Statement::Type(t) => {
+                for m in &mut t.methods {
+                    match m {
+                        Statement::Subroutine(r) => for_each_block_mut(&mut r.body, &mut lower),
+                        Statement::Function(f) => for_each_block_mut(&mut f.body, &mut lower),
+                        _ => {}
+                    }
+                }
+                for_each_block_mut(&mut t.constructor, &mut lower);
+            }
+            _ => {}
+        }
+    }
+    for_each_block_mut(&mut program.statements, &mut lower);
+    program
+}
+
 /// `INPUT [prompt,] var` as the assignment
 /// `var = __input_value(INPUT(prompt), var, suffix)`: `INPUT(prompt)` prints
 /// the prompt and reads a line, and `__input_value` stores it as text or a

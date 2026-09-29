@@ -59,7 +59,7 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
-    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::hoist_routines(program))))));
+    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::hoist_routines(program)))))));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let lowered = rapidr_ast::numeric::lower(lowered);
@@ -1101,6 +1101,33 @@ impl Bcgen {
             }
         }
         let Expression::MemberAccess(m) = callee else { return Ok(false) };
+        if !matches!(m.object.as_ref(), Expression::Identifier(_)) {
+            // (`RNum.random.randint()`: a static call, lowered by the caller)
+            let static_call = matches!(m.object.as_ref(), Expression::MemberAccess(inner)
+                if matches!(inner.object.as_ref(), Expression::Identifier(id) if is_component_type_name(&id.name) || id.name.eq_ignore_ascii_case("math")));
+            if static_call {
+                return Ok(false);
+            }
+            // `printer.Font.DelStyles(3)`: the sub-object's method, by its
+            // combined name on the object (as a component's Font methods).
+            let (object, method) = match m.object.as_ref() {
+                Expression::MemberAccess(inner) if matches!(inner.object.as_ref(), Expression::Identifier(_)) => {
+                    (inner.object.as_ref().clone(), format!("{}.{}", inner.member.to_lowercase(), m.member.to_lowercase()))
+                }
+                // Any other object (`This.RichEdit.Line(i)`): found at run time.
+                other => (other.clone(), m.member.clone()),
+            };
+            self.lower_expr(&object, code)?;
+            for a in args {
+                self.lower_expr(a, code)?;
+            }
+            let m_s = self.module.add_string(&method);
+            emit(code, Op::CallMethodDyn); push_u32(code, m_s); code.push(args.len() as u8);
+            if !want_value {
+                emit(code, Op::Pop);
+            }
+            return Ok(true);
+        }
         let Expression::Identifier(o) = m.object.as_ref() else { return Ok(false) };
         let (object, method) = (Some(o.name.clone()), m.member.clone());
         if let Some(o) = object.filter(|o| self.is_dynamic_object(o)) {

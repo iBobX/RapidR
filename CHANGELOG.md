@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.69.0] — 2026-09-29
+
+### Added
+- `RUN "program"`: starts a program without waiting (its process ID), on
+  native and interpreted desktop builds (the browser starts none).
+- `INITARRAY(A, v1, v2, …)`: the first elements of A get the values (both
+  backends).
+- A method of any object expression (`This.Names.Item(2)`, a sub-object's
+  `printer.Font.DelStyles(3)`); SUBI / FUNCTIONI closed by `END SUB` /
+  `END FUNCTION` (QAVI.inc).
+- Include folder: 85 of 108 libraries compile; example corpus: 148 of 386.
+
+### Fixed
+- SHELL / SHELLWAIT / RUN run the command through `cmd /C` on Windows
+  (they used `sh -c` everywhere).
+
 ## [2.68.0] — 2026-09-29
 
 ### Added

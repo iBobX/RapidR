@@ -60,7 +60,10 @@ for (const name of names) {
   for (let waited = 0; waited < 20000; waited += 250) {
     await page.waitForTimeout(250);
     text = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]')?.innerText || "");
-    if (ended.test(text)) break;
+    // (only after this case's start: an earlier case's "Program ended." line
+    // is still in the output tab)
+    const start = text.lastIndexOf(`${tag}B\n`);
+    if (start >= 0 && ended.test(text.slice(start))) break;
   }
   const m = new RegExp(`^${tag}B\\n?([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text.replace(/\r\n/g, "\n").replace(new RegExp(`^.*PRINT "${tag}[BE]".*$`, "gm"), ""));
   const got = m ? norm(m[1]) : `<no output: ${JSON.stringify(text.slice(-200))}>`;
