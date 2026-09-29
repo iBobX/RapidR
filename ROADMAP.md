@@ -211,7 +211,8 @@ Next up, in order:
 - [ ] `Canvas.CopyRect(D AS QRECT, Image, S AS QRECT)`, `Screen.CaptureToBMP`, `Application.Icon` / `IcoHandle`
 - [x] RapidQ's include libraries: a TYPE extending a component created inside a form, `TypeName.Field` in its PROPERTY SET, fields redeclaring the component's properties, FOR counters and `Result` in its code; QPANEL BevelOuter / BevelInner / BevelWidth / BorderWidth (QBevel.inc works; QDigDisplay.inc with RapidR's own digit bitmaps, `examples/digdisplay`) (v2.66.0)
 - [ ] RapidQ's include folder: 72 of 108 libraries compile (`include/*.inc` one by one); portable gaps left: nested member access (`.MoverRect.Top`), CREATE inside a TYPE, variadic `FUNCTIONI f(...)`, keywords as parameter names (`case`); the rest call the Windows API or have typos
-- [ ] SVG wherever images go (QIMAGE, QIMAGELIST, Canvas.Draw, icons, `$RESOURCE`): FLTK's SvgImage on the desktop, native in the browser — RapidR is RapidQ-compatible and modern
+- [x] SVG wherever a bitmap goes — QBITMAP / QIMAGE (`LoadFromFile`, `BMP`, `BMPHandle`), QIMAGELIST (`AddBMPFile`, `AddBMPHandle`), `Canvas.Draw`, `$RESOURCE` — drawn by resvg in the shared model with soft edges (per-pixel alpha, kept through `.BMP`) on native, interpreter and web (v2.67.0)
+- [ ] SVG form / application icons; SVG drawn at the screen's scale (with the high-DPI audit below)
 - [ ] High-DPI audit: canvases / form surfaces / owner-drawn lists drawn at the screen's scale (web `devicePixelRatio`, FLTK on Retina), bitmaps scaled cleanly, RapidR's own icons as vectors
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)

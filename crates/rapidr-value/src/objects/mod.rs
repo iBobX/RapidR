@@ -480,7 +480,11 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
                         (b.transparent, b.transparent_color) = (true, src.transparent_color);
                     }
                     b.img = src.img;
-                    b.auto_transparent_color();
+                    // (an image with soft edges has its own transparency)
+                    b.alpha = src.alpha;
+                    if b.alpha.is_none() {
+                        b.auto_transparent_color();
+                    }
                 }
             });
         }));

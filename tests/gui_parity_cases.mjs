@@ -68,6 +68,8 @@ export const cases = [
     expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum -1"] },
   { name: "panel_bevels", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=201 123 112"] },
+  { name: "svg_picture", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=48 1 D4FF FFFFFF"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];
