@@ -45,6 +45,9 @@ pub const MAX_ITEMS: usize = 1_000_000;
 /// `Style` values (RAPIDQ.INC's `lbStandard`, `lbOwnerDrawFixed`, `lbOwnerDrawVariable`).
 pub const LB_OWNER_FIXED: i64 = 1;
 pub const LB_OWNER_VARIABLE: i64 = 2;
+/// QCOMBOBOX's owner-draw `Style`s (`csOwnerDrawFixed`, `csOwnerDrawVariable`).
+pub const CS_OWNER_FIXED: i64 = 3;
+pub const CS_OWNER_VARIABLE: i64 = 4;
 
 /// Most items OnDrawItem is fired for after a change, and the height of an
 /// item without an `ItemHeight`.
@@ -71,6 +74,12 @@ pub struct ItemList {
     /// `Style` and `ItemHeight` (owner drawing, see the module docs).
     pub style: i64,
     pub item_height: i64,
+    /// A QLISTBOX's `Columns`: items flow down each column, then into the
+    /// next; that many columns show (0: one column).
+    pub columns: i64,
+    /// The size the runtime shows the items in (for multi-column layout
+    /// and for finding the item a drawing lands on).
+    view: (i64, i64),
     /// What OnDrawItem drew, per item, relative to the item's top left.
     pub owner_drawing: HashMap<usize, Vec<CellDraw>>,
     drawn_state: Option<u64>,
@@ -153,9 +162,26 @@ impl ItemList {
         Some(Value::Null)
     }
 
-    /// Whether the items are drawn by OnDrawItem (a list box's `Style`).
+    /// Whether the items are drawn by OnDrawItem: a list box's `Style`
+    /// lbOwnerDrawFixed / lbOwnerDrawVariable, a combo box's
+    /// csOwnerDrawFixed / csOwnerDrawVariable.
     pub fn owner_drawn(&self) -> bool {
-        !self.combo && matches!(self.style, LB_OWNER_FIXED | LB_OWNER_VARIABLE)
+        if self.combo {
+            matches!(self.style, CS_OWNER_FIXED | CS_OWNER_VARIABLE)
+        } else {
+            !self.plain && matches!(self.style, LB_OWNER_FIXED | LB_OWNER_VARIABLE)
+        }
+    }
+
+    /// A multi-column list box (`Columns`).
+    pub fn multi_column(&self) -> bool {
+        !self.combo && !self.plain && self.columns > 0
+    }
+
+    /// Whether the runtime shows the items as pictures from this model
+    /// (owner-drawn, or in columns) rather than as a plain list.
+    pub fn custom_drawn(&self) -> bool {
+        self.owner_drawn() || self.multi_column()
     }
 
     /// Height of an item, in pixels.
@@ -163,9 +189,10 @@ impl ItemList {
         if self.item_height > 0 { self.item_height.min(2_000) } else { DEFAULT_ITEM_HEIGHT }
     }
 
-    /// Whether items have their own heights (`lbOwnerDrawVariable`).
+    /// Whether items have their own heights (`lbOwnerDrawVariable`,
+    /// `csOwnerDrawVariable`; not in columns).
     pub fn variable(&self) -> bool {
-        !self.combo && self.style == LB_OWNER_VARIABLE
+        !self.multi_column() && self.style == if self.combo { CS_OWNER_VARIABLE } else { LB_OWNER_VARIABLE }
     }
 
     /// Height of item `i`: what OnMeasureItem answered for it, else
@@ -234,7 +261,7 @@ impl ItemList {
     /// be fired again. Drawing on the list isn't a change.
     pub fn owner_draw_needed(&mut self) -> bool {
         let mut h = std::collections::hash_map::DefaultHasher::new();
-        (&self.items, &self.selected, self.item_index, self.style, self.item_height, &self.item_heights).hash(&mut h);
+        (&self.items, &self.selected, self.item_index, self.style, self.item_height, &self.item_heights, self.columns, self.view).hash(&mut h);
         let state = h.finish();
         if self.drawn_state == Some(state) {
             return false;
@@ -244,31 +271,53 @@ impl ItemList {
         true
     }
 
-    /// Each item's OnDrawItem arguments: (index, State, Rect), the rect in
-    /// the list's content (items stacked by their heights), up to
-    /// [`MAX_OWNER_DRAWN`] items.
-    pub fn owner_draw_items(&self, width: i64) -> Vec<(usize, i64, (i64, i64, i64, i64))> {
+    /// Items in columns: (items per column, column width) for the view.
+    pub fn column_layout(&self) -> (i64, i64) {
+        let (w, h) = self.view;
+        ((h / self.row_height()).max(1), (w / self.columns.max(1)).max(1))
+    }
+
+    /// Each item's rect in the list's content (Left, Top, Right, Bottom):
+    /// stacked by their heights, or in columns; up to [`MAX_OWNER_DRAWN`].
+    pub fn item_rects(&self) -> Vec<(i64, i64, i64, i64)> {
+        let n = self.items.len().min(MAX_OWNER_DRAWN);
+        if self.multi_column() {
+            let (per, cw) = self.column_layout();
+            let h = self.row_height();
+            return (0..n as i64).map(|i| ((i / per) * cw, (i % per) * h, (i / per + 1) * cw, (i % per + 1) * h)).collect();
+        }
         let tops = self.tops();
-        (0..self.items.len().min(MAX_OWNER_DRAWN))
-            .map(|i| (i, if self.is_selected(i) { 0 } else { 1 }, (0, tops[i], width, tops[i + 1])))
-            .collect()
+        (0..n).map(|i| (0, tops[i], self.view.0, tops[i + 1])).collect()
+    }
+
+    /// The item at (x, y) in the content (a click, a drawing).
+    pub fn item_at(&self, x: i64, y: i64) -> Option<usize> {
+        self.item_rects().iter().position(|&(l, t, r, b)| x >= l && x < r.max(l + 1) && y >= t && y < b)
+    }
+
+    /// The runtime shows the items `width` × `height` (a list box's
+    /// client area; a combo box's drop-down width).
+    pub fn set_view(&mut self, width: i64, height: i64) {
+        self.view = (width.max(1), height.max(1));
+    }
+
+    /// Each item's OnDrawItem arguments: (index, State, Rect), the rect in
+    /// the list's content ([`Self::item_rects`], in the view the runtime
+    /// set first with [`Self::set_view`]), up to [`MAX_OWNER_DRAWN`] items.
+    pub fn owner_draw_items(&self) -> Vec<(usize, i64, (i64, i64, i64, i64))> {
+        self.item_rects().into_iter().enumerate().map(|(i, r)| (i, if self.is_selected(i) { 0 } else { 1 }, r)).collect()
     }
 
     /// Keeps a drawing whose anchor is (x, y) on the item there, with
     /// `make` given that item's top left (to make it relative).
-    pub fn record(&mut self, _x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
-        if y < 0 {
-            return;
-        }
-        let tops = self.tops();
-        // The item whose slot [top, next top) holds y.
-        let i = tops.partition_point(|&t| t <= y).saturating_sub(1);
-        if i >= self.items.len() {
-            return;
-        }
+    pub fn record(&mut self, x: i64, y: i64, make: impl FnOnce(i64, i64) -> CellDraw) {
+        // (in one column, anything left or right of the items is its row's)
+        let x = if self.multi_column() { x } else { 0 };
+        let Some(i) = self.item_at(x, y) else { return };
+        let (l, t, _, _) = self.item_rects()[i];
         let list = self.owner_drawing.entry(i).or_default();
         if list.len() < 1_000 {
-            list.push(make(0, tops[i]));
+            list.push(make(l, t));
         }
     }
 
@@ -425,7 +474,8 @@ impl ItemList {
             "multiselect" => flag(self.multi_select),
             "topindex" => v_int(self.top_index),
             "style" if !self.combo => v_int(self.style),
-            "itemheight" if !self.combo => v_int(self.row_height()),
+            "itemheight" => v_int(self.row_height()),
+            "columns" if !self.combo => v_int(self.columns),
             "text" if self.combo => v_str(&self.text),
             "text" => v_str(&self.to_text()),
             "items" => v_str(&self.items.join("\n")),
@@ -454,7 +504,14 @@ impl ItemList {
             }
             "topindex" => self.top_index = val.to_i64().clamp(0, self.items.len().saturating_sub(1) as i64),
             "style" if !self.combo => self.style = val.to_i64(),
-            "itemheight" if !self.combo => self.item_height = val.to_i64().clamp(0, 2_000),
+            // (a combo box's is kept by the runtime too: it builds the
+            // widget from it)
+            "style" => {
+                self.style = val.to_i64();
+                return false;
+            }
+            "itemheight" => self.item_height = val.to_i64().clamp(0, 2_000),
+            "columns" if !self.combo => self.columns = val.to_i64().clamp(0, 1_000),
             "text" if self.combo => {
                 self.text = val.to_string_val();
                 self.item_index = self.items.iter().position(|s| *s == self.text).map_or(-1, |i| i as i64);
@@ -470,7 +527,7 @@ impl ItemList {
             return self.file_member(method, args);
         }
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
-        if !self.combo && self.draw(method, args) {
+        if self.owner_drawn() && self.draw(method, args) {
             return Some(Value::Null);
         }
         // QSTRINGLIST's names for the same operations.
@@ -650,10 +707,11 @@ mod tests {
         l.set("itemheight", &v_int(20));
         assert!(l.owner_drawn());
         l.select(1);
+        l.set_view(100, 120);
         assert!(l.owner_draw_needed());
         assert!(!l.owner_draw_needed());
         // State 0 is the selected item; each Rect is the item's slot.
-        assert_eq!(l.owner_draw_items(100), vec![(0, 1, (0, 0, 100, 20)), (1, 0, (0, 20, 100, 40)), (2, 1, (0, 40, 100, 60))]);
+        assert_eq!(l.owner_draw_items(), vec![(0, 1, (0, 0, 100, 20)), (1, 0, (0, 20, 100, 40)), (2, 1, (0, 40, 100, 60))]);
         // Drawing at content y = 25 lands on item 1, relative to its top.
         l.call("fillrect", &[v_int(0), v_int(20), v_int(100), v_int(40), v_int(0x00FF00)]);
         l.call("textout", &[v_int(4), v_int(25), s("hi"), v_int(0), v_int(-1)]);
@@ -688,7 +746,8 @@ mod tests {
         assert!(!l.measured(round, 0, 30));
         assert!(!l.measured(round, 1, 0)); // 0: ItemHeight
         assert!(l.measured(round, 2, 50) && !l.measuring());
-        assert_eq!(l.owner_draw_items(80), vec![(0, 1, (0, 0, 80, 30)), (1, 1, (0, 30, 80, 50)), (2, 1, (0, 50, 80, 100))]);
+        l.set_view(80, 200);
+        assert_eq!(l.owner_draw_items(), vec![(0, 1, (0, 0, 80, 30)), (1, 1, (0, 30, 80, 50)), (2, 1, (0, 50, 80, 100))]);
         assert_eq!(l.render_item(2, 80, &Font::default()).img.height, 50);
         // Drawing at y = 60 lands on item 2 (its top is 50).
         l.call("fillrect", &[v_int(0), v_int(60), v_int(10), v_int(70), v_int(0xFF)]);
@@ -699,5 +758,40 @@ mod tests {
         assert_eq!(asks.len(), 4);
         assert!(!l.measured(round, 0, 99));
         assert_eq!(l.item_h(0), 20);
+    }
+
+    #[test]
+    fn columns() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &(0..7).map(|i| s(&format!("i{i}"))).collect::<Vec<_>>());
+        l.set("itemheight", &v_int(20));
+        l.set("columns", &v_int(2));
+        assert!(l.custom_drawn() && !l.owner_drawn());
+        // 65 px high: 3 items a column; 2 columns show in 200 px.
+        l.set_view(200, 65);
+        assert_eq!(l.column_layout(), (3, 100));
+        assert_eq!(l.item_rects()[4], (100, 20, 200, 40));
+        assert_eq!(l.item_rects()[6], (200, 0, 300, 20));
+        assert_eq!(l.item_at(150, 25), Some(4));
+        assert_eq!(l.item_at(250, 30), None);
+        // Owner-drawn in columns: a drawing lands on its item, made relative.
+        l.set("style", &v_int(LB_OWNER_FIXED));
+        l.call("fillrect", &[v_int(110), v_int(22), v_int(120), v_int(30), v_int(0xFF)]);
+        assert!(matches!(l.owner_drawing.get(&4).map(Vec::as_slice), Some([CellDraw::Fill(10, 2, 20, 10, 0xFF)])));
+    }
+
+    #[test]
+    fn owner_drawn_combo() {
+        let mut c = ItemList::new(true);
+        c.call("additems", &[s("a"), s("b")]);
+        // (a combo's Style is the runtime's too)
+        assert!(!c.set("style", &v_int(CS_OWNER_VARIABLE)));
+        assert!(c.owner_drawn() && c.variable());
+        c.set("itemheight", &v_int(18));
+        assert_eq!(c.get("itemheight").unwrap().to_i64(), 18);
+        c.set_view(90, 300);
+        assert_eq!(c.measure_needed().len(), 2);
+        assert!(c.call("textout", &[v_int(2), v_int(20), s("x"), v_int(0), v_int(-1)]).is_some());
+        assert_eq!(c.owner_drawing.get(&1).map(Vec::len), Some(1));
     }
 }

@@ -58,6 +58,8 @@ export const cases = [
   { name: "input_events", events: "ed.__key_65,ed.__key_13,ed.__key_38,cv.__mousedown_10_20,cv.__mousemove_11_21,cv.__mouseup_12_22,pn.__mousedown_3_4",
     dump: "lk.caption,lm.caption",
     expect: ["lk.caption=d65,0 p97 fd65 fpa u65 d13,0 p13 fd13 fp\r u13 d38,0 fd38 u38 ", "lm.caption=down010200 move11210 up01222 panel34"] },
+  { name: "list_columns", events: "lst.__item_4,cb.__item_2", dump: "lbl.caption,lbl2.caption,cb.itemindex",
+    expect: ["lbl.caption=i4 a4 cols2", "lbl2.caption=c2 0-18/112 18-38/112 38-60/112", "cb.itemindex=2"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

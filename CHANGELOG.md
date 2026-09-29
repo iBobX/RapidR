@@ -7,6 +7,27 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.60.0] — 2026-09-29
+
+### Added
+- **QLISTBOX `Columns`**: items flow down each column and into the next,
+  that many columns showing, scrolled sideways; the arrow keys move within
+  and across columns. Owner-drawn lists can have columns too (OnDrawItem's
+  Rect is the item's cell).
+- **Owner-drawn QCOMBOBOX** (`Style = csOwnerDrawFixed / csOwnerDrawVariable`):
+  OnDrawItem draws each item (FillRect, TextOut, Draw, … on the combo box),
+  OnMeasureItem sizes them (Variable); the box shows the selected item as
+  drawn, the drop-down lists the items as drawn, a pick sets ItemIndex and
+  fires OnChange, Up / Down pick the item before / after.
+- Both from the shared list model on native, interpreter and web
+  (`ItemList::item_rects`, `item_at`, `set_view`).
+
+### Fixed
+- Desktop: QSTRINGGRID and owner-drawn QLISTBOX scroll bars weren't drawn
+  (FLTK's table left them unpainted under the theme); an owner-drawn list
+  box's background showed the theme's shading past its items; clicking an
+  owner-drawn list box redrew only part of it.
+
 ## [2.59.0] — 2026-09-29
 
 ### Added
