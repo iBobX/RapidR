@@ -586,6 +586,33 @@ impl<'src> Lexer<'src> {
         }
     }
 
+    /// Whether the `_` here is the last thing on its line (spaces or a
+    /// `' comment` may follow).
+    fn underscore_ends_line(&self) -> bool {
+        let rest = &self.source[self.index + 1..];
+        let rest = rest.trim_start_matches([' ', '\t']);
+        rest.is_empty() || rest.starts_with(['\r', '\n', '\''])
+    }
+
+    /// After a continuation: lines holding only a comment are skipped (the
+    /// statement goes on after them).
+    fn skip_comment_lines(&mut self) {
+        loop {
+            let rest = &self.source[self.index..];
+            let trimmed = rest.trim_start_matches([' ', '\t']);
+            if !trimmed.starts_with('\'') {
+                return;
+            }
+            while !matches!(self.current_char(), None | Some('\r' | '\n')) {
+                self.advance_char();
+            }
+            if self.current_char().is_none() {
+                return;
+            }
+            self.consume_newline();
+        }
+    }
+
     fn try_consume_line_continuation(&mut self) -> bool {
         if self.current_char() != Some('_') {
             return false;
@@ -601,6 +628,7 @@ impl<'src> Lexer<'src> {
                         self.advance_char();
                     }
                     self.consume_newline();
+                    self.skip_comment_lines();
                     return true;
                 }
                 // `_   ' comment` continues the line too.
@@ -610,6 +638,7 @@ impl<'src> Lexer<'src> {
                     }
                     if self.current_char().is_some() {
                         self.consume_newline();
+                        self.skip_comment_lines();
                     }
                     return true;
                 }
@@ -709,8 +738,11 @@ impl<'src> Lexer<'src> {
                 tokens.last().map(|t| t.kind),
                 None | Some(TokenType::Newline | TokenType::Colon)
             );
-        let next = after.trim_start_matches([' ', '\t']).chars().next();
-        at_statement_start && !matches!(next, Some('=' | '(' | '.'))
+        let next_text = after.trim_start_matches([' ', '\t']);
+        let next = next_text.chars().next();
+        // (`Data AS QStringGrid`: a TYPE's field named Data)
+        let field = next_text.get(..2).is_some_and(|w| w.eq_ignore_ascii_case("as")) && !next_text[2..].chars().next().is_some_and(Self::is_identifier_part);
+        at_statement_start && !field && !matches!(next, Some('=' | '(' | '.'))
     }
 
     /// The rest of a DATA line, without a trailing `' comment` (a `'` inside
@@ -1016,6 +1048,11 @@ impl<'src> Lexer<'src> {
     fn lex_identifier(&mut self, start: usize, line: usize, column: usize) -> Token {
         self.advance_char();
         while let Some(ch) = self.current_char() {
+            // `Getreditformhndle_` at the end of a line: RapidQ's line
+            // continuation, stuck to the name.
+            if ch == '_' && self.underscore_ends_line() {
+                break;
+            }
             if Self::is_identifier_part(ch) {
                 self.advance_char();
             } else {
@@ -1149,7 +1186,8 @@ fn keyword_token(identifier: &str) -> Option<TokenType> {
         "IMPORT" => Some(TokenType::Import),
         "CREATE" => Some(TokenType::Create),
         "CONST" => Some(TokenType::Const),
-        "TYPE" => Some(TokenType::Type),
+        // (RapidQ's `STRUCT … END STRUCT` is a TYPE)
+        "TYPE" | "STRUCT" => Some(TokenType::Type),
         "DECLARE" => Some(TokenType::Declare),
         "LIB" => Some(TokenType::Lib),
         "ALIAS" => Some(TokenType::Alias),

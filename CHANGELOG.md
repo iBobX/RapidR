@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.68.0] — 2026-09-29
+
+### Added
+- RapidQ syntax used by its include libraries and example programs, on
+  both backends: an object field's own properties (`P.MoverRect.Top`);
+  keywords as a TYPE's field and method names (`Step AS DOUBLE`,
+  `Data AS QStringGrid`, `FUNCTION Create`, `SUB Close`), as parameters
+  (`select`, `case` — SELECT CASE keeps working) and as variables
+  (`type = 2`); `END PROPERTY SET`; `STRUCT … END STRUCT` (a TYPE);
+  `ByVal` in a call's arguments; `_` stuck to a name at the end of a line
+  continues it; comment lines inside a continued statement.
+- RapidQ's include folder: 83 of 108 libraries compile on their own (72
+  before); the example corpus: 140 of 386 programs (135).
+
 ## [2.67.0] — 2026-09-29
 
 ### Added
