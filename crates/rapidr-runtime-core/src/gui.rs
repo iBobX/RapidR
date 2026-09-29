@@ -1133,6 +1133,9 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             grp.set_label(&rp_comp_get(name, "caption").to_string_val());
             grp.set_align(Align::Center | Align::Inside | Align::Clip);
             grp.end();
+            // Its bevels (rapidr_value::objects::bevel), over what FLTK drew.
+            let bevel_name = name_lower.clone();
+            grp.draw(move |g| panel_bevels(&bevel_name, g.x(), g.y(), g.w(), g.h()));
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::Group(grp));
             });
@@ -4104,6 +4107,25 @@ pub fn tab_control_method(name: &str, method: &str, args: &[Value]) -> Value {
             eprintln!("[WARN] TabControl.{}() not implemented", method);
             v_null()
         }
+    }
+}
+
+/// A QPANEL's BevelOuter / BevelInner frames.
+fn panel_bevels(name: &str, x: i32, y: i32, w: i32, h: i32) {
+    let prop = |p: &str| rp_comp_get(name, p).to_i64();
+    let frames = rapidr_value::objects::bevel::frames(prop("bevelouter"), prop("bevelinner"), prop("bevelwidth"), prop("borderwidth"));
+    for f in frames {
+        let i = f.inset as i32;
+        let (x0, y0, x1, y1) = (x + i, y + i, x + w - 1 - i, y + h - 1 - i);
+        if x1 <= x0 || y1 <= y0 {
+            break;
+        }
+        draw::set_draw_color(Color::from_hex(f.top_left));
+        draw::draw_line(x0, y0, x1, y0);
+        draw::draw_line(x0, y0, x0, y1);
+        draw::set_draw_color(Color::from_hex(f.bottom_right));
+        draw::draw_line(x0, y1, x1, y1);
+        draw::draw_line(x1, y0, x1, y1);
     }
 }
 

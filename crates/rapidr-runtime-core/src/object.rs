@@ -522,6 +522,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get(name, &prop_lower).to_i64());
+    // A canvas's size before (it paints again only when it changes: a
+    // library setting its size in its own OnPaint mustn't loop).
+    let canvas_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name)).then(|| rp_comp_get(name, &prop_lower).to_i64());
     // RapidR's forms and containers have no frame inside their size: the
     // client area is the whole component, less a form's in-window menu.
     // ClientWidth / ClientHeight: a form's inside (rapidr_value::layout::
@@ -687,6 +690,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             crate::gui::gui_apply_font(name);
         }
     });
+    // A panel's bevels drawn again.
+    #[cfg(feature = "gui")]
+    if rapidr_value::objects::bevel::default(&prop_lower).is_some() {
+        crate::gui::redraw_widget(name);
+    }
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
     // A parent whose widget exists already: the widget is made now.
@@ -704,7 +712,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
         crate::gui::canvas_redraw(name);
         // (a form's is fired below, once its size really changed)
-        if !rapidr_value::objects::is_form_surface(name) {
+        if !rapidr_value::objects::is_form_surface(name) && canvas_size_before != Some(rp_comp_get(name, &prop_lower).to_i64()) {
             rp_fire_event(name, "onpaint");
         }
     }
@@ -840,9 +848,15 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             .get(&name.to_lowercase())
             .and_then(|comp| comp.properties.get(&prop_lower))
             .cloned()
-            // (a QRECT's fields, and positions, are 0 until set)
+            // (a QRECT's fields, and positions, are 0 until set; a panel's
+            // bevels RapidQ's defaults)
+            .or_else(|| (comp_is_panel(name)).then(|| rapidr_value::objects::bevel::default(&prop_lower).map(v_int)).flatten())
             .unwrap_or_else(|| if matches!(prop_lower.as_str(), "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
     })
+}
+
+fn comp_is_panel(name: &str) -> bool {
+    COMPONENTS.with(|c| c.try_borrow().ok().and_then(|c| c.get(&name.to_lowercase()).map(|x| x.type_name == "RPANEL")).unwrap_or(false))
 }
 
 /// Get the type name of a registered component.
