@@ -1752,54 +1752,61 @@ fn bind_dom_event(name: &str, event: &str) {
     let name_for_closure = name_owned.clone();
     let event_for_closure = event_owned.clone();
 
-    // For keyboard events, we pass the key code as an argument
+    // Key events (rapidr_value::input): OnKeyDown / OnKeyUp (Key, Shift)
+    // and OnKeyPress (Key) for a key that types; they bubble from the
+    // focused control to its form, as the desktop gives them to both.
     if dom_event_name == "keydown" || dom_event_name == "keyup" {
         let closure = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
-            let key_code = e.key_code() as i64;
-            let shift = e.shift_key();
-            let ctrl = e.ctrl_key();
-            let alt = e.alt_key();
-            rp_fire_event_5(
-                &name_for_closure,
-                &event_for_closure,
-                v_int(key_code),
-                v_bool(shift),
-                v_bool(ctrl),
-                v_bool(alt),
-                v_null(),
-            );
+            use rapidr_value::input;
+            let key = e.key();
+            let vk = match e.key_code() {
+                0 => input::vk_of_key(&key, &e.code()).unwrap_or(0),
+                k => k as i64,
+            };
+            let shift = input::shift_state(e.shift_key(), e.ctrl_key(), e.alt_key());
+            if event_for_closure == "onkeypress" {
+                if let Some(k) = input::press_code(vk, &key) {
+                    rp_fire_event_1(&name_for_closure, "onkeypress", v_int(k));
+                }
+            } else {
+                rp_fire_event_2(&name_for_closure, &event_for_closure, v_int(vk), v_int(shift));
+            }
         });
         let _ = el.add_event_listener_with_callback(dom_event_name, closure.as_ref().unchecked_ref());
         closure.forget();
         return;
     }
 
-    // For mouse events, pass coordinates
+    // Mouse events (rapidr_value::input): (Button, X, Y, Shift), OnMouseMove
+    // (X, Y, Shift), X and Y in the component (a form's below its title
+    // bar); only the innermost component gets them, as on the desktop.
     if dom_event_name == "mousemove"
         || dom_event_name == "mousedown"
         || dom_event_name == "mouseup"
     {
         let closure = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            let target_el = e.current_target()
-                .and_then(|t| t.dyn_into::<web_sys::Element>().ok());
-            let (x, y) = if let Some(el) = target_el {
-                let rect = el.get_bounding_client_rect();
-                let cx = (e.client_x() as f64 - rect.left()) as i64;
-                let cy = (e.client_y() as f64 - rect.top()) as i64;
-                (cx, cy)
-            } else {
-                (e.offset_x() as i64, e.offset_y() as i64)
+            use rapidr_value::input::{shift_state, Button, Mouse};
+            let Some(el) = e.current_target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+            let inner = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).and_then(|t| t.closest(".rr-widget, .rr-form").ok().flatten());
+            if inner.is_some_and(|i| i != el) {
+                return;
+            }
+            let rect = el.get_bounding_client_rect();
+            let title = el
+                .query_selector(":scope > .rr-form-titlebar")
+                .ok()
+                .flatten()
+                .and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok())
+                .map_or(0, |t| t.offset_height() as i64);
+            let x = (e.client_x() as f64 - rect.left()) as i64;
+            let y = (e.client_y() as f64 - rect.top()) as i64 - title;
+            let kind = match event_for_closure.as_str() {
+                "onmousedown" => Mouse::Down,
+                "onmouseup" => Mouse::Up,
+                _ => Mouse::Move,
             };
-            let button = e.button() as i64;
-            rp_fire_event_5(
-                &name_for_closure,
-                &event_for_closure,
-                v_int(x),
-                v_int(y),
-                v_int(button),
-                v_null(),
-                v_null(),
-            );
+            let shift = shift_state(e.shift_key(), e.ctrl_key(), e.alt_key());
+            rp_fire_event_args(&name_for_closure, kind.event(), &kind.args(Button::from_dom(e.button()), x, y, shift));
         });
         let _ = el.add_event_listener_with_callback(dom_event_name, closure.as_ref().unchecked_ref());
         closure.forget();

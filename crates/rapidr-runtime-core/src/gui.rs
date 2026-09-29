@@ -3,7 +3,7 @@
 //! This module provides actual GUI rendering when the "gui" feature is enabled.
 //! Components are created as FLTK widgets and managed through a handle registry.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use fltk::{
@@ -235,6 +235,7 @@ fn ensure_app() {
             *app_ref = Some(app);
         }
     });
+    install_input_dispatch();
     install_capture_hook();
 }
 
@@ -252,15 +253,196 @@ fn ensure_app() {
 /// window takes the keyboard when it opens and whatever someone types
 /// meanwhile would otherwise click its focused button.
 fn ignore_user_input() {
+    IGNORE_USER.with(|i| i.set(true));
+}
+
+thread_local! {
+    static IGNORE_USER: Cell<bool> = const { Cell::new(false) };
+    /// The component a mouse button went down on: it gets the drag and the
+    /// button's release (rapidr_value::input).
+    static MOUSE_CAPTURE: RefCell<Option<String>> = const { RefCell::new(None) };
+    static LAST_MOVE: RefCell<Option<(Option<String>, i32, i32)>> = const { RefCell::new(None) };
+}
+
+/// Every FLTK event passes here first: the program's keyboard and mouse
+/// events (OnKeyDown / OnKeyPress / OnKeyUp to the focused component and
+/// its form, OnMouseDown / OnMouseMove / OnMouseUp to the component under
+/// the mouse, with RapidQ's arguments: rapidr_value::input); under a GUI
+/// test the user's input is dropped ([`ignore_user_input`]).
+fn install_input_dispatch() {
     fn dispatch(ev: Event, win: app::WindowPtr) -> bool {
-        match ev {
-            Event::Push | Event::Released | Event::Drag | Event::KeyDown | Event::KeyUp | Event::Shortcut | Event::MouseWheel => false,
-            // SAFETY: `win` is the window FLTK passed in for this event.
-            _ => unsafe { app::handle_raw(ev, win) },
+        let user = matches!(ev, Event::Push | Event::Released | Event::Drag | Event::KeyDown | Event::KeyUp | Event::Shortcut | Event::MouseWheel);
+        if user && IGNORE_USER.with(Cell::get) {
+            return false;
         }
+        if matches!(ev, Event::KeyDown | Event::KeyUp) {
+            let chain = component_chain(app::focus().map(|w| w.as_base_widget()));
+            let chain = if chain.is_empty() { window_component(win).into_iter().collect() } else { chain };
+            let vk = fltk_vk(app::event_key().bits());
+            key_events(&chain, ev == Event::KeyDown, vk, mouse_shift(), &app::event_text());
+        }
+        // SAFETY: `win` is the window FLTK passed in for this event.
+        let handled = unsafe { app::handle_raw(ev, win) };
+        let kind = match ev {
+            Event::Push => Some(rapidr_value::input::Mouse::Down),
+            Event::Released => Some(rapidr_value::input::Mouse::Up),
+            Event::Move | Event::Drag => Some(rapidr_value::input::Mouse::Move),
+            _ => None,
+        };
+        if let Some(kind) = kind {
+            let target = match ev {
+                Event::Drag => MOUSE_CAPTURE.with(|c| c.borrow().clone()),
+                Event::Released => MOUSE_CAPTURE.with(|c| c.borrow_mut().take()),
+                _ => component_under_mouse(win),
+            };
+            if ev == Event::Push {
+                MOUSE_CAPTURE.with(|c| *c.borrow_mut() = target.clone());
+            }
+            // (FLTK passes a move on twice: the second isn't a new one)
+            let spot = (target.clone(), app::event_x(), app::event_y());
+            let repeated = kind == rapidr_value::input::Mouse::Move && LAST_MOVE.with(|m| m.replace(Some(spot.clone())) == Some(spot));
+            if let Some(name) = target.filter(|_| !repeated) {
+                let (x, y) = widget_origin(&name, win);
+                mouse_event(&name, kind, button_of(mouse_button()), app::event_x() - x, app::event_y() - y, mouse_shift());
+            }
+        }
+        handled
     }
     // SAFETY: `dispatch` only forwards the window pointer it is given.
     unsafe { app::event_dispatch(dispatch) };
+}
+
+fn button_of(b: i64) -> rapidr_value::input::Button {
+    match b {
+        1 => rapidr_value::input::Button::Right,
+        2 => rapidr_value::input::Button::Middle,
+        _ => rapidr_value::input::Button::Left,
+    }
+}
+
+/// Fires `name`'s mouse event (QIMAGE fires its own: `picture_mouse`).
+fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_value::input::Button, x: i32, y: i32, shift: i64) {
+    if rp_comp_type(name).eq_ignore_ascii_case("RIMAGE") {
+        return;
+    }
+    rp_fire_event_args(name, kind.event(), &kind.args(button, x as i64, y as i64, shift));
+}
+
+/// Key events for `chain` (the focused component first, its form last):
+/// OnKeyDown / OnKeyUp (Key, Shift) and, for a key that types, OnKeyPress
+/// (Key), to the component and then its form.
+fn key_events(chain: &[String], down: bool, vk: i64, shift: i64, text: &str) {
+    let mut targets: Vec<&String> = chain.first().into_iter().collect();
+    if let Some(form) = chain.last().filter(|f| chain.len() > 1 && Some(*f) != chain.first()) {
+        targets.push(form);
+    }
+    let press = if down { rapidr_value::input::press_code(vk, text) } else { None };
+    for name in targets {
+        rp_fire_event_2(name, if down { "onkeydown" } else { "onkeyup" }, v_int(vk), v_int(shift));
+        if let Some(key) = press {
+            rp_fire_event_1(name, "onkeypress", v_int(key));
+        }
+    }
+}
+
+/// Each widget's component, by widget address (none while the widgets are
+/// being changed: FLTK dispatches events from inside `show`, `hide`, …).
+fn components_by_widget() -> HashMap<usize, String> {
+    GUI_WIDGETS.with(|gw| gw.try_borrow().map(|gw| gw.iter().map(|(n, w)| (w.base().as_widget_ptr() as usize, n.clone())).collect()).unwrap_or_default())
+}
+
+/// The components from widget `w` (or its nearest parent that is one) up to
+/// its form.
+fn component_chain(w: Option<fltk::widget::Widget>) -> Vec<String> {
+    let map = components_by_widget();
+    let mut chain = Vec::new();
+    let mut w = w;
+    while let Some(widget) = w {
+        if let Some(name) = map.get(&(widget.as_widget_ptr() as usize)) {
+            chain.push(name.clone());
+        }
+        w = widget.parent().map(|p| p.as_base_widget());
+    }
+    chain
+}
+
+fn window_component(win: app::WindowPtr) -> Option<String> {
+    components_by_widget().remove(&(win as usize))
+}
+
+/// The component under the mouse in window `win`: the smallest shown
+/// widget there (the innermost), else the window's form.
+fn component_under_mouse(win: app::WindowPtr) -> Option<String> {
+    let (ex, ey) = (app::event_x(), app::event_y());
+    GUI_WIDGETS.with(|gw| {
+        let gw = gw.try_borrow().ok()?;
+        let mut best: Option<(i64, &String)> = None;
+        for (name, widget) in gw.iter() {
+            let w = widget.base();
+            if w.as_widget_ptr() as usize == win as usize || !w.visible_r() {
+                continue;
+            }
+            let in_win = w.window().is_some_and(|ww| ww.as_widget_ptr() as usize == win as usize);
+            if !in_win || ex < w.x() || ey < w.y() || ex >= w.x() + w.w() || ey >= w.y() + w.h() {
+                continue;
+            }
+            let area = i64::from(w.w()) * i64::from(w.h());
+            if best.is_none_or(|(a, _)| area < a) {
+                best = Some((area, name));
+            }
+        }
+        best.map(|(_, n)| n.clone())
+    })
+    .or_else(|| window_component(win))
+}
+
+/// Where `name`'s widget starts in window `win`'s coordinates (a window's
+/// own events are in its coordinates already).
+fn widget_origin(name: &str, win: app::WindowPtr) -> (i32, i32) {
+    GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(name).map(GuiWidget::base))).filter(|w| w.as_widget_ptr() as usize != win as usize).map_or((0, 0), |w| (w.x(), w.y()))
+}
+
+/// The Windows virtual-key code of an FLTK key (rapidr_value::input).
+fn fltk_vk(key: i32) -> i64 {
+    match key {
+        0xff08 => 8,
+        0xff09 => 9,
+        0xff0d | 0xff8d => 13,
+        0xff13 => 19,
+        0xff14 => 145,
+        0xff1b => 27,
+        0xff50 => 36,
+        0xff51 => 37,
+        0xff52 => 38,
+        0xff53 => 39,
+        0xff54 => 40,
+        0xff55 => 33,
+        0xff56 => 34,
+        0xff57 => 35,
+        0xff61 => 44,
+        0xff63 => 45,
+        0xff67 => 93,
+        0xff7f => 144,
+        0xffe1 | 0xffe2 => 16,
+        0xffe3 | 0xffe4 => 17,
+        0xffe5 => 20,
+        0xffe7 | 0xffe8 => 91,
+        0xffe9 | 0xffea => 18,
+        0xffff => 46,
+        // The keypad: digits 96–105, * + - . / 106, 107, 109, 110, 111.
+        k if (0xff80 + 0x30..=0xff80 + 0x39).contains(&k) => 96 + (k - 0xff80 - 0x30) as i64,
+        k if (0xff80..0xffbd).contains(&k) => match (k - 0xff80) as u8 {
+            b'*' => 106,
+            b'+' => 107,
+            b'-' => 109,
+            b'.' => 110,
+            b'/' => 111,
+            _ => 0,
+        },
+        k if (0xffbe..=0xffd5).contains(&k) => 111 + (k - 0xffbd) as i64,
+        k if (0..256).contains(&k) => char::from_u32(k as u32).and_then(rapidr_value::input::vk_of_char).unwrap_or(0),
+        _ => 0,
+    }
 }
 
 fn install_capture_hook() {
@@ -321,7 +503,26 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             let (c, r) = rc.split_once('_')?;
             Some((c.parse::<i64>().ok()?, r.parse::<i64>().ok()?))
         });
+        let comp_lower = comp.to_lowercase();
+        let nums = |prefix: &str| -> Option<Vec<i64>> { event.strip_prefix(prefix).map(|r| r.split('_').filter_map(|n| n.parse().ok()).collect()) };
+        let widget = || GUI_WIDGETS.with(|gw| gw.borrow().get(&comp_lower).map(GuiWidget::base));
+        // `edit.__key_65`: the key typed with `edit` focused;
+        // `canvas.__mousedown_10_20` (…up, …move): the mouse at (10, 20) in it.
+        if let Some([vk]) = nums("__key_").as_deref() {
+            let chain = component_chain(widget());
+            let text = rapidr_value::input::text_of_vk(*vk);
+            key_events(&chain, true, *vk, 0, &text);
+            key_events(&chain, false, *vk, 0, "");
+        } else if let Some((kind, [x, y])) = [("__mousedown_", rapidr_value::input::Mouse::Down), ("__mouseup_", rapidr_value::input::Mouse::Up), ("__mousemove_", rapidr_value::input::Mouse::Move)]
+            .iter()
+            .find_map(|(p, k)| nums(p).and_then(|n| <[i64; 2]>::try_from(n).ok()).map(|n| (*k, n)))
+            .as_ref()
+            .map(|(k, n)| (*k, *n))
+        {
+            mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
+        }
         match (event.as_str(), cell) {
+            _ if event.starts_with("__key_") || event.starts_with("__mouse") => {}
             // `form.__close`: the window's close button.
             ("__close", _) => gui_close(comp),
             (_, Some((c, r))) => {
@@ -1375,28 +1576,17 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let name_for_cb = name.to_lowercase();
             frm.handle(move |_, ev| {
                 match ev {
+                    // (Its mouse events: `install_input_dispatch`.)
                     Event::Push => {
                         press_begin(&name_for_cb);
-                        let mx = app::event_x();
-                        let my = app::event_y();
                         rp_fire_event(&name_for_cb, "onclick");
-                        rp_fire_event_2(&name_for_cb, "onmousedown", v_int(mx as i64), v_int(my as i64));
                         true
                     }
                     Event::Released => {
-                        if press_end(&name_for_cb) {
-                            let mx = app::event_x();
-                            let my = app::event_y();
-                            rp_fire_event_2(&name_for_cb, "onmouseup", v_int(mx as i64), v_int(my as i64));
-                        }
+                        press_end(&name_for_cb);
                         true
                     }
-                    Event::Move | Event::Drag => {
-                        let mx = app::event_x();
-                        let my = app::event_y();
-                        rp_fire_event_2(&name_for_cb, "onmousemove", v_int(mx as i64), v_int(my as i64));
-                        true
-                    }
+                    Event::Move | Event::Drag => true,
                     _ => false,
                 }
             });
@@ -2643,11 +2833,12 @@ pub fn gui_showmodal(name: &str) {
 
 /// Hide a widget (form window or embedded frame): no OnClose.
 pub fn gui_hide(name: &str) {
-    GUI_WIDGETS.with(|gw| match gw.borrow_mut().get_mut(&name.to_lowercase()) {
-        Some(GuiWidget::Window(win)) => win.hide(),
-        Some(GuiWidget::Frame(frm)) => frm.hide(),
+    // (a handle to the widget: FLTK dispatches events while hiding)
+    match GUI_WIDGETS.with(|gw| gw.borrow().get(&name.to_lowercase()).cloned()) {
+        Some(GuiWidget::Window(mut win)) => win.hide(),
+        Some(GuiWidget::Frame(mut frm)) => frm.hide(),
         _ => {}
-    });
+    }
 }
 
 /// `Form.Close` and the window's close button: OnClose's `Action` (it
@@ -2661,15 +2852,13 @@ pub fn gui_close(name: &str) {
         return gui_hide(name);
     }
     rp_fire_event_then(name, "onclose", &[v_int(CA_HIDE)], move |a| {
-        GUI_WIDGETS.with(|gw| {
-            if let Some(GuiWidget::Window(win)) = gw.borrow_mut().get_mut(&name_lower) {
-                match CloseAction::of(&a[0]) {
-                    CloseAction::Stay => {}
-                    CloseAction::Minimize => win.iconize(),
-                    CloseAction::Close => win.hide(),
-                }
+        if let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name_lower).cloned()) {
+            match CloseAction::of(&a[0]) {
+                CloseAction::Stay => {}
+                CloseAction::Minimize => win.iconize(),
+                CloseAction::Close => win.hide(),
             }
-        })
+        }
     });
 }
 
@@ -3916,9 +4105,11 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
 /// RapidQ's mouse button (mbLeft = 0, mbRight = 1, mbMiddle = 2) of the
 /// current FLTK event.
 fn mouse_button() -> i64 {
-    match app::event_mouse_button() {
-        app::MouseButton::Right => 1,
-        app::MouseButton::Middle => 2,
+    // (the raw number: fltk's `event_mouse_button` panics when no button
+    // is down, as on a mouse move)
+    match app::event_button() {
+        3 => 1,
+        2 => 2,
         _ => 0,
     }
 }
@@ -5028,12 +5219,24 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
     match ev {
         Event::Push => {
             grid_finish_edit(name, true);
-            let Some((ctx, row, col, _)) = t.cursor2rowcol() else { return false };
+            let Some((ctx, row, col, resize)) = t.cursor2rowcol() else { return false };
+            // On a header's border (goColSizing / goRowSizing): FLTK's table
+            // resizes. Any other click is the grid's alone: FLTK's own
+            // handling of a header click (selecting the column) redrew
+            // only part of the table, leaving the rest blank.
+            let resizing = !matches!(resize, fltk::table::TableResizeFlag::None);
+            if resizing && !matches!(ctx, TableContext::Cell) {
+                return false;
+            }
             let Some((c, r)) = grid_cell_of(name, ctx, row, col) else { return false };
             // An ellipsis button.
             let on_button = rapidr_value::objects::with_grid(name, |g| grid_has_ellipsis(g, c as usize, r as usize)).unwrap_or(false)
                 && t.find_cell(ctx, row, col).is_some_and(|(x, _, w, h)| app::event_x() >= x + w - h.min(w));
             let _ = t.take_focus();
+            // All of it drawn again: FLTK's table handles the click first
+            // (cfltk) and redraws only part of itself — a header click left
+            // the headers and the other cells blank.
+            t.redraw();
             // The drop-down button of a gcsList column's selected cell.
             let focused = rapidr_value::objects::with_grid(name, |g| (g.col, g.row) == (c, r)).unwrap_or(false);
             if focused {
@@ -5066,12 +5269,12 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
             } else if always {
                 grid_start_edit(name, t, None);
             }
-            // Let the table resize columns / scroll too.
-            matches!(ctx, TableContext::Cell)
+            !resizing
         }
         // The end of a drag: resized columns / rows keep their sizes.
         Event::Released => {
             grid_sync_sizes(name, t);
+            t.redraw();
             false
         }
         // Dragging over cells selects a range (goRangeSelect).
@@ -5159,7 +5362,10 @@ pub fn form_window_exists(name: &str) -> bool {
 pub fn canvas_redraw(name: &str) {
     let name = name.to_lowercase();
     if rapidr_value::objects::is_form_surface(&name) {
-        redraw_widget(&format!("{name}.surface"));
+        // The whole window: the surface lies under the controls, which
+        // must be drawn over it again (redrawing the surface alone painted
+        // over them).
+        redraw_widget(&name);
     } else {
         redraw_widget(&name);
     }

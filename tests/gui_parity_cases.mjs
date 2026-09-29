@@ -54,7 +54,10 @@ export const cases = [
     expect: ["lbl.caption=painted 255"] },
   { name: "event_answers", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",
     dump: "lbl.caption,lbl2.caption,dlg.__shown,dlg2.__shown,grid.col,grid.row",
-    expect: ["lbl.caption=keep1 let1lets close cell22 cell31 keep1 code |2,2|2,1,1", "lbl2.caption=0-10 10-30 30-60 ", "dlg.__shown=1", "dlg2.__shown=0", "grid.col=2", "grid.row=2"] },
+    expect: ["lbl.caption=keep1 let1lets close cell22 cell31 keep1 code |2,2|2,1,1", "lbl2.caption=0-16 16-40 40-72 ", "dlg.__shown=1", "dlg2.__shown=0", "grid.col=2", "grid.row=2"] },
+  { name: "input_events", events: "ed.__key_65,ed.__key_13,ed.__key_38,cv.__mousedown_10_20,cv.__mousemove_11_21,cv.__mouseup_12_22,pn.__mousedown_3_4",
+    dump: "lk.caption,lm.caption",
+    expect: ["lk.caption=d65,0 p97 fd65 fpa u65 d13,0 p13 fd13 fp\r u13 d38,0 fd38 u38 ", "lm.caption=down010200 move11210 up01222 panel34"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

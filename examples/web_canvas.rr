@@ -158,7 +158,7 @@ SUB BtnRect_OnClick()
 END SUB
 
 ' --- Canvas mouse events ---
-SUB Canvas1_OnMouseDown(x AS INTEGER, y AS INTEGER, button AS INTEGER)
+SUB Canvas1_OnMouseDown(button AS INTEGER, x AS INTEGER, y AS INTEGER, shift AS INTEGER)
     isDrawing = 1
     lastX = x
     lastY = y
@@ -173,7 +173,7 @@ SUB Canvas1_OnMouseDown(x AS INTEGER, y AS INTEGER, button AS INTEGER)
     END IF
 END SUB
 
-SUB Canvas1_OnMouseMove(x AS INTEGER, y AS INTEGER, button AS INTEGER)
+SUB Canvas1_OnMouseMove(x AS INTEGER, y AS INTEGER, shift AS INTEGER)
     LblCoords.Caption = "X: " + STR(x) + ", Y: " + STR(y)
     IF isDrawing = 1 AND shapeMode = "free" THEN
         Canvas1.Line(lastX, lastY, x, y, drawColor)
@@ -182,7 +182,7 @@ SUB Canvas1_OnMouseMove(x AS INTEGER, y AS INTEGER, button AS INTEGER)
     END IF
 END SUB
 
-SUB Canvas1_OnMouseUp(x AS INTEGER, y AS INTEGER, button AS INTEGER)
+SUB Canvas1_OnMouseUp(button AS INTEGER, x AS INTEGER, y AS INTEGER, shift AS INTEGER)
     isDrawing = 0
 END SUB
 

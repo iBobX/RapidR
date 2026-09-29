@@ -56,14 +56,30 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
     const selector = action?.toLowerCase() === "__close" ? ".rr-form-btn-close"
       : cell ? `td[data-col="${cell[1]}"][data-row="${cell[2]}"]`
       : c.webClick?.[target.toLowerCase()];
-    const fired = await frame.evaluate(({ id, selector }) => {
+    // `edit.__key_65`: the key typed in it; `canvas.__mousedown_10_20`
+    // (…up, …move): the mouse at (10, 20) in it.
+    const key = /^__key_(\d+)$/i.exec(action || "");
+    const mouse = /^__mouse(down|up|move)_(\d+)_(\d+)$/i.exec(action || "");
+    const fired = await frame.evaluate(({ id, selector, key, mouse }) => {
       const host = document.getElementById(id);
       const el = selector ? host?.querySelector(selector) : host;
       if (!el) return false;
+      if (key) {
+        const vk = Number(key);
+        const names = { 8: "Backspace", 9: "Tab", 13: "Enter", 27: "Escape", 32: " ", 37: "ArrowLeft", 38: "ArrowUp", 39: "ArrowRight", 40: "ArrowDown" };
+        const k = names[vk] ?? String.fromCharCode(vk).toLowerCase();
+        for (const type of ["keydown", "keyup"]) el.dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true, cancelable: true }));
+        return true;
+      }
+      if (mouse) {
+        const r = el.getBoundingClientRect();
+        el.dispatchEvent(new MouseEvent("mouse" + mouse[0], { clientX: r.left + Number(mouse[1]), clientY: r.top + Number(mouse[2]), button: 0, bubbles: true, cancelable: true }));
+        return true;
+      }
       // (a list box answers a pick with `change`, anything else a click)
       el.dispatchEvent(host.tagName === "SELECT" ? new Event("change", { bubbles: true }) : new MouseEvent("click", { bubbles: true, cancelable: true }));
       return true;
-    }, { id: idOf(target), selector });
+    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]] });
     if (!fired) ok(false, `${c.name}: ${target} exists`);
     await page.waitForTimeout(300);
   }

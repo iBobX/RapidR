@@ -7,6 +7,41 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.59.0] — 2026-09-29
+
+### Added
+- **Keyboard events on the desktop** (there were none): `OnKeyDown(Key,
+  Shift)` and `OnKeyUp(Key, Shift)` with the Windows virtual-key code
+  (`A` = 65, arrows 37–40, F1 = 112, …) and RapidQ's Shift state (`ssShift`
+  256, `ssCtrl` 16, `ssAlt` 1); `OnKeyPress(Key)` with the character typed
+  (Enter 13, Backspace 8, Tab 9, Escape 27). They go to the focused
+  component, then to its form — the same on the web, where a click lets
+  a form or canvas take the keyboard.
+- **Mouse events on every component** with RapidQ's arguments: 
+  `OnMouseDown` / `OnMouseUp(Button, X, Y, Shift)` (`mbLeft` 0, `mbRight`
+  1, `mbMiddle` 2) and `OnMouseMove(X, Y, Shift)`, to the component under
+  the mouse (the one pressed while a button is held), X and Y in it. On the
+  desktop only QCANVAS (with just X, Y) and QIMAGE had them.
+- One set of rules for both runtimes (`rapidr_value::input`: key codes,
+  typed characters, Shift bits, argument lists).
+- The web IDE's handler stubs use RapidQ's parameters (OnClose's Action,
+  keys, mouse, OnSelectCell, OnMeasureItem, …).
+
+### Changed
+- Web: key events passed (keyCode, shift, ctrl, alt) and mouse events (X,
+  Y, Button) — five values, so a `Sender` parameter got the wrong one; a
+  form also got the mouse events of its controls. The examples
+  (`web_canvas.rr`, `web_ide.rr`, `strip_ide.rr`) use RapidQ's order.
+
+### Fixed
+- Desktop: clicking a QSTRINGGRID's header left the grid blank but for a
+  few cells (FLTK's table handles the click first and redrew only part of
+  itself); the grid is drawn whole after a click.
+- Desktop: redrawing a form's drawing surface painted over its controls.
+- Web: an owner-drawn QLISTBOX showed its items as they were before
+  OnDrawItem ran (a newly selected item didn't show as selected).
+- The `event_answers` test gives its list items readable heights.
+
 ## [2.58.0] — 2026-09-28
 
 ### Added

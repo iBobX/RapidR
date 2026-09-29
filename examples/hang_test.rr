@@ -47,7 +47,7 @@ SUB HitTest(mx AS INTEGER, my AS INTEGER)
     Lbl.Caption = "no hit"
 END SUB
 
-SUB OnDown(mx AS INTEGER, my AS INTEGER, btn AS INTEGER)
+SUB OnDown(btn AS INTEGER, mx AS INTEGER, my AS INTEGER, shift AS INTEGER)
     HitTest(mx, my)
     IF CompCount < 20 THEN
         CompX(CompCount) = mx
