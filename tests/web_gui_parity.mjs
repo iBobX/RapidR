@@ -37,7 +37,7 @@ await page.waitForFunction(() => document.getElementById("status")?.textContent?
 await page.evaluate((a) => { window.RapidR.state.project.assets = a; }, assets);
 
 for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
-  if (c.resize || c.split || c.web === false) { skipped++; console.log(`- ${c.name}: skipped (${c.resize || c.split ? "desktop window hooks" : c.why || "no browser counterpart"})`); continue; }
+  if (c.web === false) { skipped++; console.log(`- ${c.name}: skipped (${c.why || "no browser counterpart"})`); continue; }
   const source = readFileSync(join(HERE, "fixtures", c.name + ".bas"), "utf8");
   await page.evaluate((src) => {
     window.RapidR.runCommand("run.stop");
@@ -48,6 +48,19 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
   const frame = page.frames().find((f) => f.url().includes("preview.html"));
   if (!frame) { ok(false, `${c.name}: preview frame`); continue; }
   const idOf = (name) => "rr-" + name.toLowerCase();
+  // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,
+  // then resizes the frontmost form — before the events, as the desktop
+  // test's hooks do.
+  if (c.resize || c.split) {
+    const [w, h] = (c.resize || "0,0").split(",").map(Number);
+    const [sp, delta] = c.split ? c.split.split(":") : ["", "0"];
+    await frame.evaluate(({ w, h, sp, delta }) => {
+      const forms = [...document.querySelectorAll(".rr-form")].filter((f) => f.offsetWidth > 0);
+      const top = forms.sort((a, b) => (Number(b.style.zIndex) || 0) - (Number(a.style.zIndex) || 0))[0];
+      window.__rapidr_rt.rapidr_test_resize(top?.dataset.rrName || "", w, h, sp, Number(delta));
+    }, { w, h, sp, delta });
+    await page.waitForTimeout(300);
+  }
   for (const ev of c.events.split(",").filter(Boolean)) {
     const [target, action] = ev.split(".");
     // The desktop's test actions: `form.__close` (the close button) and

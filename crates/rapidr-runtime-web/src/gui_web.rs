@@ -75,6 +75,12 @@ fn value_to_css_color(val: &Value) -> String {
     }
 }
 
+/// Whether any of the program's forms is showing.
+pub fn any_form_shown() -> bool {
+    let Ok(forms) = document().query_selector_all(".rr-form") else { return false };
+    (0..forms.length()).filter_map(|i| forms.item(i)?.dyn_into::<web_sys::HtmlElement>().ok()).any(|f| f.is_connected() && (f.offset_width() > 0 || f.offset_height() > 0))
+}
+
 /// Whether `name` has an element the user can see (rendered, not hidden).
 pub fn element_shown(name: &str) -> bool {
     document()
@@ -749,8 +755,13 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
                 // A form's is its title bar's text (not its buttons' and
                 // controls').
                 let title = el.query_selector(":scope > .rr-form-titlebar > .rr-form-title-text").ok().flatten();
-                let shown = title.and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()).unwrap_or_else(|| el.clone()).inner_text();
                 let stored = crate::object_web::rp_comp_get_stored(name, prop).to_string_val();
+                // A container's (a panel holding controls): its own, not
+                // theirs too.
+                if title.is_none() && el.query_selector("[data-rr-name]").ok().flatten().is_some() {
+                    return v_str(&stored);
+                }
+                let shown = title.and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()).unwrap_or_else(|| el.clone()).inner_text();
                 let squash = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
                 if squash(&strip_ampersands(&stored)) == squash(&shown) { v_str(&stored) } else { v_str(&shown) }
             }
@@ -1052,7 +1063,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             }
             v_null()
         }
-        ("RCANVAS", "refresh" | "repaint") => {
+        ("RCANVAS" | "RFORM", "refresh" | "repaint" | "update" | "paint") => {
             render_canvas(name);
             crate::object_web::rp_fire_event(name, "onpaint");
             v_null()
@@ -1134,13 +1145,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             let parent_name = args[0].to_string_val();
             gui_web_set_parent(name, &parent_name);
             crate::object_web::rp_comp_set(name, "parent", v_str(&parent_name));
-            v_null()
-        }
-        // Canvas draw methods
-        // Drawing is the shared model's (objects::call); this shows it again.
-        ("RCANVAS", "paint" | "update") => {
-            render_canvas(name);
-            crate::object_web::rp_fire_event(name, "onpaint");
             v_null()
         }
         // TabControl methods
@@ -4522,6 +4526,16 @@ fn form_resized(form_id: &str, left: i32, top: i32, width: i32, height: i32) {
     crate::object_web::rp_comp_set_prop_only(&name, "height", v_int(height as i64));
     crate::layout_web::realign(&name, None);
     crate::object_web::rp_fire_event(&name, "onresize");
+}
+
+/// For tests (as the desktop's `RAPIDR_TEST_RESIZE`): the user resizes
+/// form `name` to Width × Height.
+pub fn test_resize_form(name: &str, width: i32, height: i32) {
+    let id = comp_id(name);
+    let Some(el) = get_el(&id) else { return };
+    let _ = el.style().set_property("width", &format!("{width}px"));
+    let _ = el.style().set_property("height", &format!("{height}px"));
+    form_resized(&id, el.offset_left(), el.offset_top(), width, height);
 }
 
 /// Hides a form (END: no OnClose).

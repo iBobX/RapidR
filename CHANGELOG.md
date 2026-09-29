@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.61.0] — 2026-09-29
+
+### Fixed
+- Web: a `ShowModal` in the main program didn't wait — the statements after
+  it ran at once. It waits for the form to close, as on the desktop; the web
+  IDE shows the project's startup form after the program's own statements
+  (as RapidQ's designer places it), not before them.
+- Web: a program whose main body finishes with no form open ends (its
+  timers stop, no event reaches it), as the desktop program exits.
+- `Form.Repaint` (`Refresh`, `Update`, `Paint`) fires the form's OnPaint on
+  the desktop (it was "not implemented") and the web.
+- Web: a QPANEL's `Caption` read back the text of the controls inside it.
+
+### Added
+- Web GUI parity checks for a resized form and a dragged QSPLITTER
+  (`align_layout`, through `rapidr_test_resize`), a ShowModal in the main
+  program and Form.Repaint (`startup_modal`).
+
 ## [2.60.0] — 2026-09-29
 
 ### Added

@@ -1478,6 +1478,13 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 v_null()
             }
         }
+        // `Form.Repaint` (Refresh, Update, Paint): drawn again, OnPaint.
+        "repaint" | "refresh" | "update" | "paint" => {
+            #[cfg(feature = "gui")]
+            crate::gui::canvas_redraw(name);
+            rp_fire_event(name, "onpaint");
+            v_null()
+        }
         "center" => {
             #[cfg(feature = "gui")]
             {
@@ -1502,9 +1509,6 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 rp_comp_set(name, "parent", v_str(&parent));
                 v_null()
             }
-        }
-        "refresh" => {
-            v_null()
         }
         "clear" => {
             // For ListBox, ComboBox, StringGrid, etc.

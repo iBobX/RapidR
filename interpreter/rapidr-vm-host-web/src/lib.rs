@@ -396,7 +396,6 @@ fn take_queued_events() -> Vec<Event> {
 /// Replaces the page's program: the old session and its queued events go.
 fn start_session(session: Session) {
     dialog::clear_modals();
-    dialog::set_main_running(true);
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
     HAS_COMPONENTS.with(|h| h.set(false));
@@ -495,13 +494,18 @@ fn install_resume_handler() {
             let main_done = result.is_ok() && session.main_waiting && session.vm.frames.is_empty();
             if main_done {
                 session.main_waiting = false;
-                dialog::set_main_running(false);
             }
             Some((result, main_done))
         });
         let Some((result, main_done)) = outcome else { return };
         if main_done && HAS_COMPONENTS.with(Cell::get) {
             finalize_forms();
+            // The main program went on after its ShowModal and finished with
+            // no form open: it's over, as on the desktop (which exits) —
+            // its timers stop and no event reaches it any more.
+            if result.is_ok() && !rapidr_runtime_web::gui_web::any_form_shown() {
+                rapidr_runtime_web::object_web::end_program();
+            }
         }
         report(result, "vm error");
         run_idle_events();
@@ -533,8 +537,6 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
         dialog::leave_vm();
         if matches!(result, Err(VmError::Suspended)) {
             session.main_waiting = true;
-        } else {
-            dialog::set_main_running(false);
         }
         Ok::<_, JsValue>(result)
     })?;
@@ -576,6 +578,22 @@ pub fn rapidr_get_prop(name: &str, prop: &str) -> String {
         return i64::from(rapidr_runtime_web::gui_web::element_shown(name)).to_string();
     }
     rapidr_runtime_web::object_web::rp_comp_get(name, prop).to_string_val()
+}
+
+/// For tests (as the desktop's `RAPIDR_TEST_RESIZE` / `RAPIDR_TEST_SPLIT`):
+/// the user drags QSPLITTER `splitter` (if not empty) by `delta` pixels,
+/// then resizes form `form` to `width` × `height`.
+#[wasm_bindgen]
+pub fn rapidr_test_resize(form: &str, width: i32, height: i32, splitter: &str, delta: i32) {
+    // (in the desktop hooks' order: the splitter, then the size)
+    if !splitter.is_empty() && rapidr_runtime_web::layout_web::splitter_begin(splitter) {
+        rapidr_runtime_web::layout_web::splitter_move(i64::from(delta / 2));
+        rapidr_runtime_web::layout_web::splitter_move(i64::from(delta));
+        rapidr_runtime_web::layout_web::splitter_end();
+    }
+    if width > 0 && height > 0 {
+        rapidr_runtime_web::gui_web::test_resize_form(form, width, height);
+    }
 }
 
 /// Compile a single RapidR source string to `.rrbc` bytecode bytes.
@@ -672,12 +690,10 @@ impl DebugSession {
             .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?;
         let status = match result {
             Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
-                dialog::set_main_running(false);
                 finalize_forms();
                 "waiting"
             }
             Ok(()) => {
-                dialog::set_main_running(false);
                 "halted"
             }
             Err(VmError::Paused) => "paused",

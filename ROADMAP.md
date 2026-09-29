@@ -160,9 +160,9 @@ Next up, in order:
 - [x] QIMAGE as a picture from the shared Bitmap model on desktop and web: BMP / BMPHandle, AutoSize, Stretch, Center, Transparent, drawing, Pixel; RapidQ's mouse events; MOUSEX / MOUSEY (v2.40.0)
 - [x] `$RESOURCE` in the web IDE: the files are the project's assets (v2.52.0)
 - [x] The conformance suite (`tests/web_conformance.mjs`) and the desktop GUI fixtures (`tests/web_gui_parity.mjs`) run in the browser too (v2.52.0): 53 of 55 conformance cases and 21 GUI checks match; the rest are marked
-- [ ] Web: the startup form's `ShowModal` in the main body doesn't wait (the IDE puts it before the program's own statements); `Form.Repaint`, timers stopping after a modal closes, a resized window (`align_layout`) have no web parity check yet
+- [x] Web: a `ShowModal` in the main program waits (the IDE shows the startup form after the program's own statements, as RapidQ's designer does); the program ends when its main body finishes with no form open (timers stop); `Form.Repaint`; web parity checks for them and for a resized form with a dragged splitter (`align_layout`) (v2.61.0)
 - [ ] Resources next: ICOHandle / IconHandle (forms, QIMAGE), non-BMP resources (JPG) on the desktop (PLAYWAV of files and resources: v2.45.0)
-- [ ] Mouse event arguments: RapidQ's order is OnMouseDown/Up (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — QIMAGE follows it; QCANVAS and other controls still pass (X, Y, Button), which RapidR's own web IDE relies on
+- [x] Mouse event arguments in RapidQ's order everywhere (v2.59.0)
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)
 - [x] QSTRINGGRID goRangeSelect, gcsList drop-downs, goColSizing / goRowSizing on desktop and web (v2.43.0)

@@ -34,17 +34,6 @@ thread_local! {
     /// The forms the program waits on (`ShowModal`), outermost first, and
     /// whether each has closed yet.
     static MODALS: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
-    /// The program's main body hasn't finished (it may wait for a dialog).
-    static MAIN_RUNNING: Cell<bool> = const { Cell::new(false) };
-}
-
-/// The VM host says whether the program's main body is still running. A
-/// ShowModal in it doesn't wait: the IDE puts the startup form's ShowModal
-/// before the program's own statements, which run at once, as they always
-/// have in the browser. One in an event handler (a second form opened from
-/// a button) waits, as on the desktop.
-pub fn set_main_running(running: bool) {
-    MAIN_RUNNING.with(|m| m.set(running));
 }
 
 /// Installed by the VM host: how to continue the program after a dialog.
@@ -76,7 +65,7 @@ pub fn is_waiting() -> bool {
 /// where it can't wait (see the module docs): the caller then shows the
 /// form without waiting.
 pub fn begin_modal(form_id: &str) -> bool {
-    if MAIN_RUNNING.with(Cell::get) || VM_DEPTH.with(Cell::get) != 1 || is_waiting() || RESUME.with(|r| r.borrow().is_none()) {
+    if VM_DEPTH.with(Cell::get) != 1 || is_waiting() || RESUME.with(|r| r.borrow().is_none()) {
         return false;
     }
     MODALS.with(|m| m.borrow_mut().push((form_id.to_string(), false)));
