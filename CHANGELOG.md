@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.64.0] — 2026-09-29
+
+### Added
+- **QTREEVIEW** from a shared model (`rapidr_value::objects::tree`) on
+  native, interpreter and web: nodes numbered depth-first as RapidQ does,
+  `AddItems`, `AddChildItems`, `InsertItem`, `DelItems` (with the node's
+  subtree), `Clear`, `Sort`, `Expand` / `Collapse` (recursive),
+  `FullExpand` / `FullCollapse`, `GetItemAt`, `Item(i).Text` /
+  `ImageIndex` / `SelectedIndex` / `StateIndex` / `HasChildren` /
+  `Selected` / `Expanded` / `Count` / `Level` / `IsVisible` / `Parent` /
+  `Handle`, `ItemCount`, `ItemIndex`, `TopIndex`, `ShowButtons`,
+  `ShowLines`, `Indent`, `Images` (node icons), `LoadFromFile` /
+  `SaveToFile` (tab-indented lines). What the user does asks the program
+  first — `OnChanging (Index, AllowChange)`, `OnExpanding`,
+  `OnCollapsing` — then `OnChange`, `OnExpanded`, `OnCollapsed`;
+  `OnDeletion` for every deleted node; `OnClick`, `OnDblClick`. RapidR's
+  older names (`AddRoot`, `AddChild` by text, `SelectedItem`) still work.
+  It was a bare FLTK tree / HTML list with a few RapidR-only methods.
+
+### Fixed
+- Desktop: **a click on a button fired OnClick twice**, and every widget
+  with its own event handling (buttons, check boxes, edits, grids, lists,
+  canvases, splitters, MDI frames) also got FLTK's handling first: fltk-rs
+  runs a widget's own handler before a custom one by default. RapidR's
+  handlers run first now (`super_handle_first(false)`), as they were
+  written to.
+- Desktop: a click on an owner-drawn list box's scroll bar now scrolls it.
+
 ## [2.63.0] — 2026-09-29
 
 ### Added

@@ -521,7 +521,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
                 rp_fire_event(&uname, "onchange");
             }
         }
-        if rapidr_value::objects::is_listview(name) {
+        if rapidr_value::objects::is_tree(name) {
+            gui_web::render_tree(&uname);
+        } else if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
         } else if rapidr_value::objects::is_grid(name) {
             gui_web::render_grid(&uname);
@@ -831,7 +833,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         if rapidr_value::objects::is_dirtree(name) {
             gui_web::render_dirtree(&uname);
         }
-        if rapidr_value::objects::is_listview(name) {
+        if rapidr_value::objects::is_tree(name) {
+            gui_web::render_tree(&uname);
+        } else if rapidr_value::objects::is_listview(name) {
             gui_web::render_listview(&uname);
         } else if rapidr_value::objects::is_grid(name) {
             gui_web::render_grid(&uname);
@@ -1702,6 +1706,10 @@ fn bind_dom_event(name: &str, event: &str) {
     // A QLISTVIEW's clicks go through its rows and header (gui_web's
     // `create_listview`), which set ItemIndex first.
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {
+        return;
+    }
+    // A QTREEVIEW fires its clicks itself (gui_web's `create_treeview`).
+    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "onchange") && rapidr_value::objects::is_tree(name) {
         return;
     }
     // A QDIRTREE fires OnChange itself (gui_web's `create_dirtree`).

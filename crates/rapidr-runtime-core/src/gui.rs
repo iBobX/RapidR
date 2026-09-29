@@ -558,8 +558,14 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
         let widget = || GUI_WIDGETS.with(|gw| gw.borrow().get(&comp_lower).map(GuiWidget::base));
         // `edit.__key_65`: the key typed with `edit` focused;
         // `canvas.__mousedown_10_20` (…up, …move): the mouse at (10, 20) in it.
-        // `list.__item_4`: item 4 clicked (an owner-drawn combo box's picked).
-        if let Some([i]) = nums("__item_").as_deref() {
+        // `tree.__node_2`: node 2 picked; `tree.__toggle_0`: node 0
+        // expanded or collapsed.
+        if let Some([i]) = nums("__node_").as_deref() {
+            tree_user_select(&comp_lower, *i as usize);
+        } else if let Some([i]) = nums("__toggle_").as_deref() {
+            let open = !rapidr_value::objects::with_tree(&comp_lower, |m| m.nodes.get(*i as usize).is_some_and(|n| n.expanded)).unwrap_or(true);
+            tree_user_toggle(&comp_lower, *i as usize, open);
+        } else if let Some([i]) = nums("__item_").as_deref() {
             if rapidr_value::objects::with_list(&comp_lower, |l| l.combo).unwrap_or(false) {
                 owner_combo_pick(&comp_lower, *i);
             } else {
@@ -581,7 +587,7 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
         }
         match (event.as_str(), cell) {
-            _ if event.starts_with("__key_") || event.starts_with("__mouse") || event.starts_with("__item_") => {}
+            _ if ["__key_", "__mouse", "__item_", "__node_", "__toggle_"].iter().any(|p| event.starts_with(p)) => {}
             // `form.__close`: the window's close button.
             ("__close", _) => gui_close(comp),
             (_, Some((c, r))) => {
@@ -778,6 +784,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 g.saturating_add(15).min(248),
                 b_c.saturating_add(40).min(255),
             );
+            // (RapidR's handler first: it returns true for what it handles alone)
+            btn.super_handle_first(false);
             btn.handle(move |b, ev| {
                 match ev {
                     Event::Enter => {
@@ -885,6 +893,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let name_for_handle = name.to_lowercase();
             let is_flat = flat;
 
+            // (RapidR's handler first: it returns true for what it handles alone)
+            btn.super_handle_first(false);
             btn.handle(move |b, ev| {
                 match ev {
                     Event::Enter => {
@@ -990,6 +1000,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let name_for_cb = name.to_lowercase();
             let name_for_handle = name.to_lowercase();
 
+            // (RapidR's handler first: it returns true for what it handles alone)
+            btn.super_handle_first(false);
             btn.handle(move |b, ev| {
                 match ev {
                     Event::Push => {
@@ -1045,6 +1057,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
             let normal_frame = FrameType::DownBox;
             let focus_frame = FrameType::BorderBox;
+            // (RapidR's handler first: it returns true for what it handles alone)
+            inp.super_handle_first(false);
             inp.handle(move |w, ev| {
                 match ev {
                     Event::Focus => { w.set_frame(focus_frame); w.redraw(); false }
@@ -1080,6 +1094,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             cb.set_label(&caption);
             let normal_lbl_color = cb.label_color();
             let hover_lbl_color = Color::from_rgb(0, 60, 180);
+            // (RapidR's handler first: it returns true for what it handles alone)
+            cb.super_handle_first(false);
             cb.handle(move |c, ev| {
                 match ev {
                     Event::Enter => {
@@ -1114,6 +1130,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             rb.set_label(&caption);
             let normal_rb_color = rb.label_color();
             let hover_rb_color = Color::from_rgb(0, 60, 180);
+            // (RapidR's handler first: it returns true for what it handles alone)
+            rb.super_handle_first(false);
             rb.handle(move |r, ev| {
                 match ev {
                     Event::Enter => {
@@ -1512,6 +1530,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     draw_design_surface(&ds_name, wid.x(), wid.y(), wid.w(), wid.h());
                 });
                 let ds_name2 = name_lower.clone();
+                // (RapidR's handler first: it returns true for what it handles alone)
+                frm.super_handle_first(false);
                 frm.handle(move |wid, ev| {
                     handle_design_surface_frame_event(&ds_name2, wid, ev)
                 });
@@ -1540,6 +1560,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     draw_design_surface(&ds_name, wid.x(), wid.y(), wid.w(), wid.h());
                 });
                 let ds_name2 = name_lower.clone();
+                // (RapidR's handler first: it returns true for what it handles alone)
+                win.super_handle_first(false);
                 win.handle(move |wid, ev| {
                     handle_design_surface_event(&ds_name2, wid, ev)
                 });
@@ -1573,23 +1595,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let mut tree = Tree::new(x, y, w, h, None);
-            tree.set_show_root(false);
-            let name_for_cb = name.to_lowercase();
-            tree.set_callback(move |t| {
-                // Store the selected item label as a property
-                if let Some(item) = t.first_selected_item() {
-                    if let Some(label) = item.label() {
-                        // Extract just the leaf label (after last '/')
-                        let leaf = label.rsplit('/').next().unwrap_or(&label);
-                        rp_comp_set(&name_for_cb, "selecteditem", v_str(leaf));
-                    }
-                }
-                rp_fire_event(&name_for_cb, "onclick");
-            });
-            GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Tree(tree));
-            });
+            tree_create(&name_lower, x, y, w, h);
         }
         "RTRACKBAR" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -1638,6 +1644,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
 
             let name_for_cb = name.to_lowercase();
+            // (RapidR's handler first: it returns true for what it handles alone)
+            frm.super_handle_first(false);
             frm.handle(move |_, ev| {
                 match ev {
                     // (Its mouse events: `install_input_dispatch`.)
@@ -1676,6 +1684,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                     frm.set_image(Some(img));
                 }
             }
+            // (RapidR's handler first: it returns true for what it handles alone)
+            frm.super_handle_first(false);
             frm.handle(picture_mouse(&name_lower));
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower.clone(), GuiWidget::ImageFrame(frm));
@@ -1693,6 +1703,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             bar.set_frame(FrameType::ThinUpBox);
             let id = name_lower.clone();
             let mut start = None::<(i32, i32)>;
+            // (RapidR's handler first: it returns true for what it handles alone)
+            bar.super_handle_first(false);
             bar.handle(move |_, ev| {
                 let vertical = matches!(rp_comp_get(&id, "align").to_i64(), 1 | 2);
                 let cursor = if vertical { fltk::enums::Cursor::NS } else { fltk::enums::Cursor::WE };
@@ -4046,61 +4058,218 @@ pub fn tab_control_method(name: &str, method: &str, args: &[Value]) -> Value {
 // TreeView methods
 // ---------------------------------------------------------------------------
 
-pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
+pub fn tree_method(name: &str, method: &str, _args: &[Value]) -> Value {
+    // (the nodes are the shared model's: rapidr_value::objects::tree)
     match method {
-        "addroot" => {
-            let label = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            GUI_WIDGETS.with(|gw| {
-                let mut widgets = gw.borrow_mut();
-                if let Some(GuiWidget::Tree(ref mut tree)) = widgets.get_mut(&name_lower) {
-                    tree.add(&label);
+        "show" => gui_show(name),
+        "hide" => gui_hide(name),
+        _ => eprintln!("[WARN] TreeView.{}() not implemented", method),
+    }
+    v_null()
+}
+
+thread_local! {
+    /// Each tree widget's items were built from this shape of its nodes
+    /// (`TreeView::shape_hash`); a rebuild is due once it changes.
+    static TREE_SHAPES: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+    /// Trees whose rebuild waits for the event loop's next turn.
+    static TREES_TO_BUILD: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A QTREEVIEW: an FLTK tree showing rapidr_value::objects::tree's nodes.
+/// What the user does asks the program first — OnChanging (Index,
+/// AllowChange), OnExpanding / OnCollapsing (Index, Allow…) — and changes
+/// the nodes if it may, then OnChange / OnExpanded / OnCollapsed; OnClick
+/// and OnDblClick follow a click.
+fn tree_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
+    let mut tree = Tree::new(x, y, w, h, None);
+    // (a flat white box, as the lists: the theme shades the empty part)
+    tree.set_frame(FrameType::BorderBox);
+    tree.set_color(Color::White);
+    tree.set_show_root(false);
+    tree.set_select_mode(fltk::tree::TreeSelect::Single);
+    let cb_name = name.to_string();
+    tree.set_callback(move |t| tree_callback(&cb_name, t));
+    GUI_WIDGETS.with(|gw| {
+        gw.borrow_mut().insert(name.to_string(), GuiWidget::Tree(tree));
+    });
+    TREE_SHAPES.with(|s| s.borrow_mut().remove(name));
+    tree_refresh(name);
+}
+
+/// The node an FLTK item shows: its place in FLTK's depth-first order
+/// (the model's), the hidden root not counted.
+fn tree_index_of(t: &Tree, item: &fltk::tree::TreeItem) -> Option<usize> {
+    let mut it = t.first()?.next();
+    let mut k = 0;
+    while let Some(x) = it {
+        if x == *item {
+            return Some(k);
+        }
+        k += 1;
+        it = x.next();
+    }
+    None
+}
+
+fn tree_items(t: &Tree) -> Vec<fltk::tree::TreeItem> {
+    let mut items = Vec::new();
+    let mut it = t.first().and_then(|r| r.next());
+    while let Some(x) = it {
+        it = x.next();
+        items.push(x);
+    }
+    items
+}
+
+fn tree_callback(name: &str, t: &mut Tree) {
+    use fltk::tree::TreeReason;
+    let Some(item) = t.callback_item() else { return };
+    let Some(i) = tree_index_of(t, &item) else { return };
+    let clicked = matches!(app::event(), Event::Push | Event::Released);
+    match t.callback_reason() {
+        TreeReason::Selected | TreeReason::Reselected => {
+            tree_user_select(name, i);
+            if clicked {
+                rp_fire_event(name, "onclick");
+                if app::event_clicks() {
+                    rp_fire_event(name, "ondblclick");
+                }
+            }
+        }
+        reason @ (TreeReason::Opened | TreeReason::Closed) => {
+            if clicked {
+                rp_fire_event(name, "onclick");
+            }
+            tree_user_toggle(name, i, reason == TreeReason::Opened);
+        }
+        // A click on no node leaves the selection as it was (Windows).
+        TreeReason::Deselected => tree_refresh(name),
+        _ => {}
+    }
+}
+
+/// The user picked node `i` (FLTK shows it picked already): OnChanging may
+/// refuse (the old one shows again); then OnChange.
+fn tree_user_select(name: &str, i: usize) {
+    if rapidr_value::objects::with_tree(name, |m| m.item_index) == Some(i as i64) {
+        return;
+    }
+    let tree = name.to_string();
+    rp_fire_event_then(name, "onchanging", &[v_int(i as i64), v_int(-1)], move |a| {
+        let allowed = a[1].to_i64() != 0;
+        if allowed {
+            rapidr_value::objects::with_tree(&tree, |m| m.select(i as i64));
+        }
+        tree_refresh(&tree);
+        if allowed {
+            rp_fire_event_1(&tree, "onchange", v_int(i as i64));
+        }
+    });
+}
+
+/// The user expanded (`open`) or collapsed node `i`: OnExpanding /
+/// OnCollapsing may refuse; then OnExpanded / OnCollapsed.
+fn tree_user_toggle(name: &str, i: usize, open: bool) {
+    let tree = name.to_string();
+    rp_fire_event_then(name, if open { "onexpanding" } else { "oncollapsing" }, &[v_int(i as i64), v_int(-1)], move |a| {
+        let allowed = a[1].to_i64() != 0;
+        if allowed {
+            rapidr_value::objects::with_tree(&tree, |m| m.set_expanded(i, open, false));
+        }
+        tree_refresh(&tree);
+        if allowed {
+            rp_fire_event_1(&tree, if open { "onexpanded" } else { "oncollapsed" }, v_int(i as i64));
+        }
+    });
+}
+
+/// Shows the tree's nodes: expanded, selected and icons at once on the
+/// items there are; new texts or levels rebuild the items on the event
+/// loop's next turn (never inside the tree's own callback). Fires
+/// OnDeletion for nodes the program deleted.
+pub fn tree_refresh(name: &str) {
+    let name = name.to_lowercase();
+    for i in rapidr_value::objects::with_tree(&name, |m| m.take_deleted()).unwrap_or_default() {
+        rp_fire_event_1(&name, "ondeletion", v_int(i as i64));
+    }
+    let Some(shape) = rapidr_value::objects::with_tree(&name, |m| m.shape_hash()) else { return };
+    if TREE_SHAPES.with(|s| s.borrow().get(&name) != Some(&shape)) {
+        let first = TREES_TO_BUILD.with(|b| {
+            let mut b = b.borrow_mut();
+            let first = b.is_empty();
+            if !b.contains(&name) {
+                b.push(name.clone());
+            }
+            first
+        });
+        if first {
+            app::add_timeout3(0.0, |_| {
+                for name in TREES_TO_BUILD.with(|b| std::mem::take(&mut *b.borrow_mut())) {
+                    tree_build(&name);
                 }
             });
-            v_null()
         }
-        "addchild" => {
-            // AddChild(parentPath, childLabel)
-            let parent = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let child = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-            let path = format!("{}/{}", parent, child);
-            GUI_WIDGETS.with(|gw| {
-                let mut widgets = gw.borrow_mut();
-                if let Some(GuiWidget::Tree(ref mut tree)) = widgets.get_mut(&name_lower) {
-                    tree.add(&path);
-                }
-            });
-            v_null()
-        }
-        "clear" => {
-            GUI_WIDGETS.with(|gw| {
-                let mut widgets = gw.borrow_mut();
-                if let Some(GuiWidget::Tree(ref mut tree)) = widgets.get_mut(&name_lower) {
-                    tree.clear();
-                }
-            });
-            v_null()
-        }
-        "expand" | "fullexpand" => {
-            // Expand all or a specific node
-            v_null()
-        }
-        "collapse" | "fullcollapse" => {
-            v_null()
-        }
-        "show" => {
-            gui_show(name);
-            v_null()
-        }
-        "hide" => {
-            gui_hide(name);
-            v_null()
-        }
-        _ => {
-            eprintln!("[WARN] TreeView.{}() not implemented", method);
-            v_null()
+        return;
+    }
+    tree_sync(&name);
+}
+
+/// Builds the widget's items from the nodes.
+fn tree_build(name: &str) {
+    let Some(GuiWidget::Tree(mut t)) = GUI_WIDGETS.with(|gw| gw.borrow().get(name).cloned()) else { return };
+    let Some((nodes, shape)) = rapidr_value::objects::with_tree(name, |m| (m.nodes.iter().map(|n| (n.text.clone(), n.level)).collect::<Vec<_>>(), m.shape_hash())) else { return };
+    let Some(root) = t.root() else { return };
+    t.clear_children(&root);
+    let mut parents: Vec<fltk::tree::TreeItem> = Vec::new();
+    for (text, level) in nodes {
+        parents.truncate(level);
+        let parent = parents.last().cloned().unwrap_or_else(|| root.clone());
+        if let Some(item) = t.insert(&parent, &text, parent.children()) {
+            parents.push(item);
         }
     }
+    TREE_SHAPES.with(|s| s.borrow_mut().insert(name.to_string(), shape));
+    tree_sync(name);
+}
+
+/// Expanded, selected, icons and looks from the nodes onto the items.
+fn tree_sync(name: &str) {
+    use fltk::tree::TreeConnectorStyle;
+    let Some(GuiWidget::Tree(mut t)) = GUI_WIDGETS.with(|gw| gw.borrow().get(name).cloned()) else { return };
+    let Some((flags, selected, show)) = rapidr_value::objects::with_tree(name, |m| {
+        let flags: Vec<(bool, i64, i64)> = m.nodes.iter().map(|n| (n.expanded, n.image_index, n.selected_index)).collect();
+        (flags, m.item_index, (m.show_lines, m.show_buttons, m.indent))
+    }) else {
+        return;
+    };
+    let images = rp_comp_get(name, "images").to_string_val();
+    t.set_connector_style(if show.0 { TreeConnectorStyle::Dotted } else { TreeConnectorStyle::None });
+    t.set_show_collapse(show.1);
+    t.set_connector_width(show.2.clamp(4, 200) as i32);
+    let items = tree_items(&t);
+    for (k, mut item) in items.iter().cloned().enumerate() {
+        let Some(&(expanded, image, selected_image)) = flags.get(k) else { break };
+        if item.has_children() {
+            if expanded { item.open() } else { item.close() }
+        }
+        if !images.is_empty() {
+            let i = if k as i64 == selected { selected_image } else { image };
+            let icon = rapidr_value::objects::imagelist_pixels(&images, i).and_then(|(w, h, rgba)| RgbImage::new(&rgba, w as i32, h as i32, ColorDepth::Rgba8).ok());
+            item.set_user_icon(icon);
+        }
+    }
+    match usize::try_from(selected).ok().and_then(|i| items.get(i)) {
+        Some(item) => {
+            let _ = t.select_only(item, false);
+        }
+        None => {
+            if let Some(root) = t.root() {
+                let _ = t.deselect_all(&root, false);
+            }
+        }
+    }
+    t.redraw();
 }
 
 // ---------------------------------------------------------------------------
@@ -4376,6 +4545,8 @@ fn mdi_frame_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
         }
     });
     let frame = name.to_string();
+    // (RapidR's handler first: it returns true for what it handles alone)
+    f.super_handle_first(false);
     f.handle(move |f, ev| {
         let form = rp_comp_get(&frame, "__form").to_string_val();
         let component = rp_comp_get(&frame, "__component").to_string_val();
@@ -4749,6 +4920,8 @@ fn owner_list_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
         }
     });
     let handle_name = name.to_string();
+    // (RapidR's handler first: it returns true for what it handles alone)
+    table.super_handle_first(false);
     table.handle(move |t, ev| owner_list_handle(&handle_name, t, ev));
     GUI_WIDGETS.with(|gw| {
         gw.borrow_mut().insert(name.to_string(), GuiWidget::Grid(table, hidden));
@@ -4796,6 +4969,8 @@ fn owner_combo_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
         draw::draw_polygon(cx - 4, cy - 2, cx + 4, cy - 2, cx, cy + 2);
     });
     let handle_name = name.to_string();
+    // (RapidR's handler first: it returns true for what it handles alone)
+    f.super_handle_first(false);
     f.handle(move |f, ev| match ev {
         Event::Push => {
             let _ = f.take_focus();
@@ -4879,22 +5054,17 @@ fn owner_list_index(name: &str, row: i32, col: i32) -> Option<usize> {
 fn owner_list_handle(name: &str, t: &mut Table, ev: Event) -> bool {
     let Some((count, per, multi)) = rapidr_value::objects::with_list(name, |l| (l.items.len() as i64, l.column_layout().0, l.multi_column())) else { return false };
     match ev {
+        // A click on an item selects it; anywhere else (the scroll bars) is
+        // the table's.
         Event::Push => {
+            let Some((TableContext::Cell, row, col, _)) = t.cursor2rowcol() else { return false };
             let _ = t.take_focus();
-            // (FLTK's table handles the click first and redraws only part
-            // of itself: all of it is drawn again)
             t.redraw();
-            if let Some((TableContext::Cell, row, col, _)) = t.cursor2rowcol() {
-                if let Some(i) = owner_list_index(name, row, col) {
-                    owner_list_select(name, i as i64);
-                    list_refresh(name);
-                    rp_fire_event(name, if app::event_clicks() { "ondblclick" } else { "onclick" });
-                }
+            if let Some(i) = owner_list_index(name, row, col) {
+                owner_list_select(name, i as i64);
+                list_refresh(name);
+                rp_fire_event(name, if app::event_clicks() { "ondblclick" } else { "onclick" });
             }
-            true
-        }
-        Event::Released => {
-            t.redraw();
             true
         }
         Event::Focus | Event::Unfocus => true,
@@ -5092,6 +5262,8 @@ fn grid_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
     editor.set_callback(move |_| grid_finish_edit(&enter_name, true));
     // Leaving the cell stores it too; Escape drops the edit.
     let edit_name = name.to_string();
+    // (RapidR's handler first: it returns true for what it handles alone)
+    editor.super_handle_first(false);
     editor.handle(move |_, ev| match ev {
         Event::Unfocus => {
             grid_finish_edit(&edit_name, true);
@@ -5105,6 +5277,8 @@ fn grid_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
     });
 
     let handle_name = name.to_string();
+    // (RapidR's handler first: it returns true for what it handles alone)
+    table.super_handle_first(false);
     table.handle(move |t, ev| grid_handle(&handle_name, t, ev));
     GUI_WIDGETS.with(|gw| {
         gw.borrow_mut().insert(name.to_string(), GuiWidget::Grid(table, editor));

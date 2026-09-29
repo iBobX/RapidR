@@ -1156,11 +1156,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             tab_remove(&id, args[0].to_i64() as usize);
             v_null()
         }
-        // TreeView methods
-        ("RTREEVIEW", "addnode" | "additem") if args.len() >= 1 => {
-            tree_add_node(&id, &args[0].to_string_val(), args.get(1).map(|v| v.to_string_val()).as_deref());
-            v_null()
-        }
         // Web-exclusive: RWebView
         ("RWEBVIEW", "sethtml") if args.len() >= 1 => {
             if let Some(el) = get_el(&id) {
@@ -2868,19 +2863,175 @@ fn create_tabcontrol(id: &str, name: &str, props: &HashMap<String, Value>) {
     setup_widget(&el, id, name, props);
 }
 
+/// A QTREEVIEW (as on the desktop): rows for the shared model's visible
+/// nodes (rapidr_value::objects::tree) — a button to expand / collapse, the
+/// node's image from its Images list, its text. What the user does asks
+/// the program first — OnChanging (Index, AllowChange), OnExpanding /
+/// OnCollapsing (Index, Allow…) — and changes the nodes if it may, then
+/// OnChange / OnExpanded / OnCollapsed; OnClick / OnDblClick follow a
+/// click (a double click also expands or collapses, as Windows does).
 fn create_treeview(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
-    el.set_class_name("rr-widget");
-    let _ = el.style().set_property("border", "1px solid #aaa");
-    let _ = el.style().set_property("background", "white");
-    let _ = el.style().set_property("overflow", "auto");
-    let _ = el.style().set_property("font-size", "13px");
-    let ul = create_el("ul");
-    ul.set_id(&format!("{}-tree", id));
-    let _ = ul.style().set_property("list-style", "none");
-    let _ = ul.style().set_property("padding-left", "16px");
-    let _ = el.append_child(&ul);
+    el.set_class_name("rr-widget rr-tree");
+    let _ = el.set_attribute("tabindex", "0");
+    for (k, v) in [("border", "1px solid #999"), ("background", "white"), ("overflow", "auto"), ("font-size", "13px"), ("box-sizing", "border-box"), ("outline", "none"), ("cursor", "default"), ("user-select", "none")] {
+        let _ = el.style().set_property(k, v);
+    }
+    for dom_event in ["click", "dblclick"] {
+        let owner = name.to_uppercase();
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
+            let Some(row) = target.closest("[data-node]").ok().flatten() else { return };
+            let Some(i) = row.get_attribute("data-node").and_then(|v| v.parse::<usize>().ok()) else { return };
+            let on_button = target.closest(".rr-tree-button").ok().flatten().is_some();
+            if dom_event == "dblclick" {
+                crate::object_web::rp_fire_event(&owner, "ondblclick");
+                tree_toggle(&owner, i);
+                return;
+            }
+            crate::object_web::rp_fire_event(&owner, "onclick");
+            if on_button {
+                tree_toggle(&owner, i);
+            } else {
+                tree_user_select(&owner, i);
+            }
+        });
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    let key_owner = name.to_uppercase();
+    let key = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+        let Some((rows, current, expanded, has_children, parent)) = rapidr_value::objects::with_tree(&key_owner, |m| {
+            let cur = usize::try_from(m.item_index).ok().filter(|&i| i < m.nodes.len());
+            (m.visible_rows(), m.item_index, cur.is_some_and(|i| m.nodes[i].expanded), cur.is_some_and(|i| m.has_children(i)), cur.and_then(|i| m.parent(i)))
+        }) else {
+            return;
+        };
+        let at = rows.iter().position(|&r| r as i64 == current);
+        let target = match (e.key().as_str(), at) {
+            ("ArrowDown", Some(p)) => rows.get(p + 1).copied(),
+            ("ArrowDown", None) => rows.first().copied(),
+            ("ArrowUp", Some(p)) => p.checked_sub(1).and_then(|p| rows.get(p)).copied(),
+            ("ArrowRight", Some(_)) if has_children && !expanded => {
+                e.prevent_default();
+                tree_toggle(&key_owner, current as usize);
+                return;
+            }
+            ("ArrowLeft", Some(_)) if expanded => {
+                e.prevent_default();
+                tree_toggle(&key_owner, current as usize);
+                return;
+            }
+            ("ArrowLeft", Some(_)) => parent,
+            _ => return,
+        };
+        e.prevent_default();
+        if let Some(i) = target {
+            tree_user_select(&key_owner, i);
+        }
+    });
+    let _ = el.add_event_listener_with_callback("keydown", key.as_ref().unchecked_ref());
+    key.forget();
     setup_widget(&el, id, name, props);
+    render_tree(name);
+}
+
+/// The user picked node `i`: OnChanging may refuse; then OnChange.
+fn tree_user_select(name: &str, i: usize) {
+    if rapidr_value::objects::with_tree(name, |m| m.item_index) == Some(i as i64) {
+        return;
+    }
+    let tree = name.to_uppercase();
+    crate::object_web::rp_fire_event_then(name, "onchanging", &[v_int(i as i64), v_int(-1)], move |a| {
+        if a[1].to_i64() != 0 {
+            rapidr_value::objects::with_tree(&tree, |m| m.select(i as i64));
+            render_tree(&tree);
+            crate::object_web::rp_fire_event_1(&tree, "onchange", v_int(i as i64));
+        }
+    });
+}
+
+/// The user expands or collapses node `i`: OnExpanding / OnCollapsing may
+/// refuse; then OnExpanded / OnCollapsed.
+fn tree_toggle(name: &str, i: usize) {
+    let Some((open, has)) = rapidr_value::objects::with_tree(name, |m| (!m.nodes[i].expanded, m.has_children(i))) else { return };
+    if !has {
+        return;
+    }
+    let tree = name.to_uppercase();
+    crate::object_web::rp_fire_event_then(name, if open { "onexpanding" } else { "oncollapsing" }, &[v_int(i as i64), v_int(-1)], move |a| {
+        if a[1].to_i64() != 0 {
+            rapidr_value::objects::with_tree(&tree, |m| m.set_expanded(i, open, false));
+            render_tree(&tree);
+            crate::object_web::rp_fire_event_1(&tree, if open { "onexpanded" } else { "oncollapsed" }, v_int(i as i64));
+        }
+    });
+}
+
+/// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
+/// program deleted).
+pub fn render_tree(name: &str) {
+    for i in rapidr_value::objects::with_tree(name, |m| m.take_deleted()).unwrap_or_default() {
+        crate::object_web::rp_fire_event_1(name, "ondeletion", v_int(i as i64));
+    }
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    let images = crate::object_web::rp_comp_get_stored(name, "images").to_string_val();
+    let Some(rows) = rapidr_value::objects::with_tree(name, |m| {
+        m.visible_rows()
+            .into_iter()
+            .map(|i| {
+                let n = &m.nodes[i];
+                let selected = m.item_index == i as i64;
+                (i, n.level, n.text.clone(), m.has_children(i), n.expanded, selected, if selected { n.selected_index } else { n.image_index })
+            })
+            .collect::<Vec<_>>()
+    }) else {
+        return;
+    };
+    let (indent, buttons) = rapidr_value::objects::with_tree(name, |m| (m.indent, m.show_buttons)).unwrap_or((19, true));
+    let scroll = el.scroll_top();
+    el.set_inner_html("");
+    for (i, level, text, has, expanded, selected, image) in rows {
+        let row = create_el("div");
+        let _ = row.set_attribute("data-node", &i.to_string());
+        let st = row.style();
+        for (k, v) in [("display", "flex"), ("align-items", "center"), ("height", "18px"), ("white-space", "nowrap")] {
+            let _ = st.set_property(k, v);
+        }
+        let _ = st.set_property("padding-left", &format!("{}px", 2 + level as i64 * indent));
+        let button = create_el("span");
+        button.set_class_name("rr-tree-button");
+        let _ = button.style().set_property("width", "14px");
+        let _ = button.style().set_property("display", "inline-block");
+        if has && buttons {
+            button.set_text_content(Some(if expanded { "▾" } else { "▸" }));
+        }
+        let _ = row.append_child(&button);
+        if let Some((w, h, rgba)) = rapidr_value::objects::imagelist_pixels(&images, image).filter(|_| !images.is_empty()) {
+            if let Some(canvas) = document().create_element("canvas").ok().and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok()) {
+                canvas.set_width(w as u32);
+                canvas.set_height(h as u32);
+                let _ = canvas.style().set_property("margin-right", "3px");
+                if let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) {
+                    if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w as u32, h as u32) {
+                        let _ = ctx.put_image_data(&data, 0.0, 0.0);
+                    }
+                }
+                let _ = row.append_child(&canvas);
+            }
+        }
+        let label = create_el("span");
+        label.set_class_name("rr-tree-text");
+        label.set_text_content(Some(&text));
+        let _ = label.style().set_property("padding", "0 2px");
+        if selected {
+            let _ = label.style().set_property("background", "#0078d7");
+            let _ = label.style().set_property("color", "white");
+        }
+        let _ = row.append_child(&label);
+        let _ = el.append_child(&row);
+    }
+    el.set_scroll_top(scroll);
 }
 
 fn create_mainmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -4127,17 +4278,6 @@ fn tab_remove(id: &str, index: usize) {
 // ---------------------------------------------------------------------------
 // TreeView helpers
 // ---------------------------------------------------------------------------
-
-fn tree_add_node(id: &str, text: &str, _parent_node: Option<&str>) {
-    let tree_id = format!("{}-tree", id);
-    if let Some(tree) = get_el(&tree_id) {
-        let li = create_el("li");
-        li.set_inner_text(text);
-        let _ = li.style().set_property("padding", "2px 0");
-        let _ = li.style().set_property("cursor", "pointer");
-        let _ = tree.append_child(&li);
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Show form helper

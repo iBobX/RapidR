@@ -41,6 +41,7 @@
 //   * tests/fixtures/input_events.bas — key and mouse events with RapidQ's arguments.
 //   * tests/fixtures/list_columns.bas — QLISTBOX Columns, an owner-drawn QCOMBOBOX.
 //   * tests/fixtures/startup_modal.bas — ShowModal in the main program waits; Form.Repaint.
+//   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
