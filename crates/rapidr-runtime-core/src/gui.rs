@@ -29,7 +29,7 @@ use fltk::{
 
 use fltk_theme::{ThemeType, WidgetTheme};
 
-use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5, rp_fire_event_args};
+use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5, rp_fire_event_args, rp_fire_event_then};
 use crate::value::{v_int, v_null, v_str, Value};
 
 // ---------------------------------------------------------------------------
@@ -315,7 +315,20 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
         if event.eq_ignore_ascii_case("onclick") && is_toggle_button(comp) {
             toggle_press(&comp.to_lowercase());
         }
-        crate::object::rp_fire_event(comp, event);
+        let event = event.to_ascii_lowercase();
+        // `grid.__cell_2_1`: the user clicks cell (2, 1).
+        let cell = event.strip_prefix("__cell_").and_then(|rc| {
+            let (c, r) = rc.split_once('_')?;
+            Some((c.parse::<i64>().ok()?, r.parse::<i64>().ok()?))
+        });
+        match (event.as_str(), cell) {
+            // `form.__close`: the window's close button.
+            ("__close", _) => gui_close(comp),
+            (_, Some((c, r))) => {
+                grid_select(&comp.to_lowercase(), c, r);
+            }
+            _ => crate::object::rp_fire_event(comp, &event),
+        }
     }
     app::add_timeout3(0.05, move |_| fire_test_events(queue.clone(), prefix.clone()));
 }
@@ -450,6 +463,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 let form = name_lower.clone();
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
+                close_button(&mut win, &name_lower);
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -467,6 +481,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 let form = name_lower.clone();
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
+                close_button(&mut win, &name_lower);
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -2626,20 +2641,47 @@ pub fn gui_showmodal(name: &str) {
     crate::object::rp_stop_all_timers();
 }
 
-/// Close/hide a widget (form window or embedded frame).
+/// Hide a widget (form window or embedded frame): no OnClose.
+pub fn gui_hide(name: &str) {
+    GUI_WIDGETS.with(|gw| match gw.borrow_mut().get_mut(&name.to_lowercase()) {
+        Some(GuiWidget::Window(win)) => win.hide(),
+        Some(GuiWidget::Frame(frm)) => frm.hide(),
+        _ => {}
+    });
+}
+
+/// `Form.Close` and the window's close button: OnClose's `Action` (it
+/// starts as `caHide`) decides whether the form goes, stays or is
+/// minimized. Anything else just hides.
 pub fn gui_close(name: &str) {
+    use rapidr_value::events::{CloseAction, CA_HIDE};
     let name_lower = name.to_lowercase();
-    let was_window = GUI_WIDGETS.with(|gw| {
-        let mut widgets = gw.borrow_mut();
-        match widgets.get_mut(&name_lower) {
-            Some(GuiWidget::Window(ref mut win)) => { win.hide(); true }
-            Some(GuiWidget::Frame(ref mut frm)) => { frm.hide(); false }
-            _ => false,
+    let is_window = GUI_WIDGETS.with(|gw| matches!(gw.borrow().get(&name_lower), Some(GuiWidget::Window(_))));
+    if !is_window {
+        return gui_hide(name);
+    }
+    rp_fire_event_then(name, "onclose", &[v_int(CA_HIDE)], move |a| {
+        GUI_WIDGETS.with(|gw| {
+            if let Some(GuiWidget::Window(win)) = gw.borrow_mut().get_mut(&name_lower) {
+                match CloseAction::of(&a[0]) {
+                    CloseAction::Stay => {}
+                    CloseAction::Minimize => win.iconize(),
+                    CloseAction::Close => win.hide(),
+                }
+            }
+        })
+    });
+}
+
+/// The window's close button goes through OnClose ([`gui_close`]); FLTK's
+/// Escape-closes-the-window doesn't (RapidQ forms stay).
+fn close_button(win: &mut Window, name: &str) {
+    let name = name.to_string();
+    win.set_callback(move |_| {
+        if app::event() == Event::Close {
+            gui_close(&name);
         }
     });
-    if was_window {
-        rp_fire_event(name, "onclose");
-    }
 }
 
 /// Center a window on screen.
@@ -3527,7 +3569,7 @@ pub fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value 
             v_null()
         }
         "hide" => {
-            gui_close(name);
+            gui_hide(name);
             v_null()
         }
         "count" => {
@@ -3798,7 +3840,7 @@ pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "hide" => {
-            gui_close(name);
+            gui_hide(name);
             v_null()
         }
         _ => {
@@ -4027,7 +4069,7 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
             crate::object::rp_fire_event(name, "onpaint");
         }
         "show" => gui_show(name),
-        "hide" => gui_close(name),
+        "hide" => gui_hide(name),
         _ => eprintln!("[WARN] Canvas.{}() not implemented", method),
     }
     v_null()
@@ -4339,11 +4381,17 @@ pub fn list_refresh(name: &str) {
             }
             b.redraw();
         }
-        // An owner-drawn list box: a table with a row per item.
+        // An owner-drawn list box: a table with a row per item, each as
+        // tall as OnMeasureItem said (lbOwnerDrawVariable).
         Some(GuiWidget::Grid(mut t, _)) => {
-            let h = rapidr_value::objects::with_list(&name, |l| l.row_height()).unwrap_or(16) as i32;
+            if list_measure(&name) {
+                return;
+            }
+            let heights = rapidr_value::objects::with_list(&name, |l| (0..l.items.len()).map(|i| l.item_h(i) as i32).collect::<Vec<_>>()).unwrap_or_default();
             t.set_rows(items.len() as i32);
-            t.set_row_height_all(h);
+            for (i, h) in heights.iter().enumerate() {
+                t.set_row_height(i as i32, *h);
+            }
             t.set_col_width_all((t.w() - 4 - 16).max(10));
             if top > 0 {
                 t.set_row_position(top as i32);
@@ -4472,6 +4520,25 @@ fn owner_list_handle(name: &str, t: &mut Table, ev: Event) -> bool {
         }
         _ => false,
     }
+}
+
+/// OnMeasureItem(Index, Height) for each item of a `lbOwnerDrawVariable`
+/// list whose items changed (rapidr_value::objects::list::ItemList::
+/// measure_needed): each answer is the item's height, and the list is shown
+/// again once the last is in. `true` while answers are still to come.
+fn list_measure(name: &str) -> bool {
+    if crate::object::rp_has_handler(name, "onmeasureitem") {
+        let asks = rapidr_value::objects::with_list_mut(name, |l| l.measure_needed()).unwrap_or_default();
+        for (round, i, h) in asks {
+            let list = name.to_string();
+            rp_fire_event_then(name, "onmeasureitem", &[v_int(i as i64), v_int(h)], move |a| {
+                if rapidr_value::objects::with_list_mut(&list, |l| l.measured(round, i, a[1].to_i64())).unwrap_or(false) {
+                    list_refresh(&list);
+                }
+            });
+        }
+    }
+    rapidr_value::objects::with_list(name, |l| l.measuring()).unwrap_or(false)
 }
 
 /// OnDrawItem(Index, State, Rect): fired for every item after the list
@@ -4840,44 +4907,35 @@ fn grid_draw_cell(name: &str, t: &mut Table, ctx: TableContext, row: i32, col: i
     draw::pop_clip();
 }
 
-/// Selects a cell the way a click or an arrow key does: fixed cells can't
-/// be selected; OnSelectCell(Col, Row, CanSelect) is fired when the
-/// selection moves. Returns whether it moved.
+/// Selects a cell the way a click or an arrow key does (fixed cells can't
+/// be selected). Returns whether it moved.
 fn grid_select(name: &str, c: i64, r: i64) -> bool {
-    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
-        if (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() || c < 0 || r < 0 {
-            return false;
-        }
-        let before = (g.col, g.row, g.anchor);
-        g.select(c, r);
-        (g.col, g.row) == (c, r) && before != (g.col, g.row, g.anchor)
-    })
-    .unwrap_or(false);
-    if ok {
-        rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
-        grid_refresh(name);
-    }
-    ok
+    grid_user_select(name, c, r, false)
 }
 
 /// The user dragged or shift-clicked to a cell: with goRangeSelect the
 /// range grows to it (rapidr_value::objects::grid::StringGrid::extend_to).
 /// Returns whether the selection changed.
 fn grid_extend(name: &str, c: i64, r: i64) -> bool {
-    let ok = rapidr_value::objects::with_grid_mut(name, |g| {
-        if !g.range_select() || (r as usize) < g.fixed_rows() || (c as usize) < g.fixed_cols() || c < 0 || r < 0 {
-            return false;
+    grid_user_select(name, c, r, true)
+}
+
+/// A selection the user made (`StringGrid::user_select`): when it moves,
+/// OnSelectCell(Col, Row, CanSelect) is fired, and `CanSelect = 0` puts the
+/// selection back.
+fn grid_user_select(name: &str, c: i64, r: i64, extend: bool) -> bool {
+    let Some(before) = rapidr_value::objects::with_grid_mut(name, |g| g.user_select(c, r, extend)).flatten() else {
+        return false;
+    };
+    let grid = name.to_string();
+    rp_fire_event_then(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)], move |a| {
+        if a[2].to_i64() == 0 {
+            rapidr_value::objects::with_grid_mut(&grid, |g| g.set_selection(before));
+            grid_refresh(&grid);
         }
-        let before = (g.col, g.row, g.anchor);
-        g.extend_to(c, r);
-        before != (g.col, g.row, g.anchor)
-    })
-    .unwrap_or(false);
-    if ok {
-        rp_fire_event_args(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)]);
-        grid_refresh(name);
-    }
-    ok
+    });
+    grid_refresh(name);
+    true
 }
 
 /// Starts editing the selected cell (with `initial` text, or its own).
@@ -4979,9 +5037,13 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
             // The drop-down button of a gcsList column's selected cell.
             let focused = rapidr_value::objects::with_grid(name, |g| (g.col, g.row) == (c, r)).unwrap_or(false);
             if focused {
-                if let Some(items) = rapidr_value::objects::with_grid(name, |g| g.list_items(c as usize, r as usize)).flatten() {
+                if let Some(list) = rapidr_value::objects::with_grid(name, |g| g.list_text(c as usize, r as usize)).flatten() {
                     if let Some(cell) = t.find_cell(ctx, row, col).filter(|&(x, _, w, h)| app::event_x() >= x + w - h.min(w)) {
-                        grid_drop_down(name, &items, cell);
+                        // OnListDropDown(Col, Row, S) may change the items.
+                        let grid = name.to_string();
+                        rp_fire_event_then(name, "onlistdropdown", &[v_int(c), v_int(r), v_str(&list)], move |a| {
+                            grid_drop_down(&grid, &rapidr_value::objects::grid::list_lines(&a[2].to_string_val()), cell);
+                        });
                         return true;
                     }
                 }

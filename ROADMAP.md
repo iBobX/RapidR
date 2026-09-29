@@ -193,12 +193,14 @@ Next up, in order:
 - [x] `DIM s AS STRING * n` (stores cut to n), `CBOOL`, `ON ERROR …` accepted (ignored), an unclosed `WITH` closed by `END SUB` (v2.54.0)
 - [ ] Real `ON ERROR RESUME NEXT` / `Err` (VB): resuming after a run-time error needs recovery points in the VM and native code; fixed strings also need padding to `n` in `WriteUDT`/`ReadUDT`
 - [x] The runtime continues after an event's handler has run (`rp_fire_event_then`, `rapidr_value::events`): at once natively; in the interpreter the continuation travels with the queued event and the VM hands it back when the handler returns, even after a dialog (v2.57.0)
-- [ ] Events that return values through by-reference parameters (`OnMeasureItem(Index, Height)`, `OnClose(Action)`, `OnSelectCell(…, CanSelect)`): the continuation above plus the handler's final argument values (the VM has them when the frame returns; native handlers need to hand them back)
+- [x] Events that return values through by-reference parameters: `OnClose(Action)`, `OnSelectCell(…, CanSelect)`, `OnMeasureItem(Index, Height)`, `OnListDropDown(Col, Row, S)` on native, interpreter and web (v2.58.0). QTREEVIEW's `OnChanging` / `OnExpanding` / `OnCollapsing` / `OnEditing` / `OnEdited` come with QTREEVIEW's nodes (below)
+- [ ] Keyboard and mouse events everywhere, with RapidQ's arguments: the desktop fires no `OnKeyDown` / `OnKeyUp` / `OnKeyPress` yet; a QCANVAS's mouse events pass (X, Y) instead of (Button, X, Y, Shift); the web's key events pass (Key, shift, ctrl, alt) instead of (Key, Shift)
 - [x] QFORMMDI: child windows (AddChild by Handle, frames with title bar / minimize / maximize / close, drag, resize), activation, next / previous, cascade, tiling, arrange icons, minimize / maximize / restore all, GetChild / ChildExist / FreeChild, Child* properties, OnChildActive / OnChildClose (ChildResult) / OnChildResize — one model (`rapidr_value::mdi`) for the desktop and the web (v2.57.0). Not yet: `MDIMenu` (the window list in a menu), `ChildIcon`, `SetDeskBar`
 - [x] Components given a parent after their form is shown get their widget then (desktop; the web did) (v2.57.0); `Handle` for components (v2.57.0)
 - [ ] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`); grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser)
-- [ ] `Rotate`, ICO files for QIMAGELIST, `QMEMORYSTREAM.ReadUDT`/`WriteUDT`, `ImageList.Draw` onto a canvas
+- [ ] `Rotate`, ICO files for QIMAGELIST, `ImageList.Draw` onto a canvas (`ReadUDT`/`WriteUDT`: v2.56.0)
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
+- [ ] QTREEVIEW from a shared model (nodes, `Items`, `AddChild*`, images, `Selected`, expand / collapse) on desktop and web, with its events including the answering ones (`OnChanging(Index, AllowChange)`, `OnExpanding`, `OnCollapsing`, `OnEditing`, `OnEdited(Index, S)`)
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)

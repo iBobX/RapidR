@@ -71,7 +71,7 @@ ok((await text2("rr-lbl")) === "selected1", `a click selects one cell again (${a
 await frame2.click('#rr-grid td[data-col="1"][data-row="1"] .rr-grid-list');
 await page.waitForTimeout(300);
 const listed = await frame2.evaluate(() => [...document.querySelectorAll(".rr-grid-dropdown-item")].map((d) => d.textContent));
-ok(JSON.stringify(listed) === JSON.stringify(["red", "blue", "green"]), `the gcsList drop-down lists ColumnList (${JSON.stringify(listed)})`);
+ok(JSON.stringify(listed) === JSON.stringify(["red", "blue", "green", "pink"]), `the gcsList drop-down lists ColumnList, as OnListDropDown's S left it (${JSON.stringify(listed)})`);
 await frame2.locator(".rr-grid-dropdown-item", { hasText: "blue" }).dispatchEvent("mousedown");
 await page.waitForTimeout(400);
 ok((await text2("rr-info")) === "set1,1 blue blue", `picking stores it, then OnSetEditText (${await text2("rr-info")})`);

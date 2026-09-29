@@ -107,6 +107,15 @@ pub const GCS_LIST: i64 = 0;
 pub const GCS_ELLIPSIS: i64 = 1;
 pub const GCS_NONE: i64 = 2;
 
+/// The items of a drop-down list's text (one per line, empty lines left
+/// out): a ColumnList, or what OnListDropDown answered.
+pub fn list_lines(text: &str) -> Vec<String> {
+    text.split('\n').map(|s| s.trim_end_matches('\r').to_string()).filter(|s| !s.is_empty()).collect()
+}
+
+/// A grid's selection: (Col, Row, where a range started).
+pub type Selection = (i64, i64, Option<(i64, i64)>);
+
 #[derive(Clone, Debug)]
 pub struct StringGrid {
     /// `cells[row][col]`, always `row_count() × col_count()`.
@@ -225,12 +234,17 @@ impl StringGrid {
     /// A gcsList column's items (its ColumnList, one per line), for the
     /// drop-down button of its selected cell; `None` for other cells.
     pub fn list_items(&self, col: usize, row: usize) -> Option<Vec<String>> {
+        self.list_text(col, row).map(|t| list_lines(&t))
+    }
+
+    /// A gcsList column's ColumnList as written (items on lines): what
+    /// OnListDropDown(Col, Row, S) gets as `S`; `None` for other cells.
+    pub fn list_text(&self, col: usize, row: usize) -> Option<String> {
         let fixed = row < self.fixed_rows() || col < self.fixed_cols();
         if fixed || self.column_style(col) != GCS_LIST {
             return None;
         }
-        let list = self.column_lists.get(col).map_or("", |s| s.as_str());
-        Some(list.split('\n').map(|s| s.trim_end_matches('\r').to_string()).filter(|s| !s.is_empty()).collect())
+        Some(self.column_lists.get(col).cloned().unwrap_or_default())
     }
 
     pub fn column_style(&self, col: usize) -> i64 {
@@ -271,6 +285,35 @@ impl StringGrid {
             self.row = row;
             self.anchor = None;
         }
+    }
+
+    /// The selection: the selected cell and where a range started.
+    pub fn selection(&self) -> Selection {
+        (self.col, self.row, self.anchor)
+    }
+
+    /// Puts a selection back (OnSelectCell answered `CanSelect = 0`).
+    pub fn set_selection(&mut self, (col, row, anchor): Selection) {
+        (self.col, self.row, self.anchor) = (col, row, anchor);
+    }
+
+    /// The user clicked (or moved with the keys) to cell (`col`, `row`), or
+    /// with `extend` dragged or shift-clicked to it: selects it (fixed
+    /// cells can't be; a range needs goRangeSelect). Returns the selection
+    /// before if it moved: the runtime then fires OnSelectCell(Col, Row,
+    /// CanSelect) and puts it back if the handler refuses.
+    pub fn user_select(&mut self, col: i64, row: i64, extend: bool) -> Option<Selection> {
+        if col < 0 || row < 0 || (row as usize) < self.fixed_rows() || (col as usize) < self.fixed_cols() || (extend && !self.range_select()) {
+            return None;
+        }
+        let before = self.selection();
+        if extend {
+            self.extend_to(col, row);
+        } else {
+            self.select(col, row);
+        }
+        let reached = extend || (self.col, self.row) == (col, row);
+        (reached && before != self.selection()).then_some(before)
     }
 
     /// Whether the user can select a range: goRangeSelect, and not

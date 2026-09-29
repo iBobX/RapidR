@@ -92,11 +92,15 @@ fn index_globals(code: &str) -> String {
 /// `MySub @x` passes x by reference (RapidQ manual 3.5). A Rust function
 /// can't choose per call, so every parameter some call site passes with `@`
 /// becomes BYREF (`&mut Value`); calls without `@` then pass a temporary.
+/// So does every parameter of an event handler: RapidQ's event arguments
+/// come back to the runtime (OnClose's `Action = caNone`), which binds the
+/// handler with [`RustCodegen::out_handler`].
 /// Returns the program with those parameters marked, and the promoted
 /// positions per routine (lowercase name).
 fn promote_ref_params(program: &Program) -> (Program, HashMap<String, Vec<usize>>) {
     let refs = rapidr_ast::ref_argument_positions(&program.statements);
-    if refs.is_empty() {
+    let handlers = event_handlers(&program.statements);
+    if refs.is_empty() && handlers.is_empty() {
         return (program.clone(), HashMap::new());
     }
     let mut program = program.clone();
@@ -107,14 +111,62 @@ fn promote_ref_params(program: &Program) -> (Program, HashMap<String, Vec<usize>
             Statement::Function(f) => (strip_type_suffix(&f.name).to_lowercase(), &mut f.params),
             _ => continue,
         };
-        for &i in refs.get(&name).map(Vec::as_slice).unwrap_or(&[]) {
-            if let Some(p) = params.get_mut(i).filter(|p| !p.by_ref) {
+        let positions: Vec<usize> = if handlers.contains(&name) || handlers.contains(&strip_type_suffix(&name).to_lowercase()) {
+            (0..params.len()).collect()
+        } else {
+            refs.get(&name).cloned().unwrap_or_default()
+        };
+        for i in positions {
+            if let Some(p) = params.get_mut(i).filter(|p| !p.by_ref && !p.is_array) {
                 p.by_ref = true;
                 promoted.entry(name.clone()).or_default().push(i);
             }
         }
     }
     (program, promoted)
+}
+
+/// Routines bound to events (lowercase): `OnClose = FormClose` in a CREATE,
+/// `Form.OnClose = FormClose`, and the object pass's
+/// `__bind_event(obj, event, CODEPTR(Handler))`.
+fn event_handlers(stmts: &[Statement]) -> HashSet<String> {
+    fn is_event(target: &Expression) -> bool {
+        let name = match target {
+            Expression::Identifier(id) => &id.name,
+            Expression::MemberAccess(m) => &m.member,
+            _ => return false,
+        };
+        name.len() > 2 && name[..2].eq_ignore_ascii_case("on")
+    }
+    fn routine(e: &Expression) -> Option<String> {
+        match e {
+            Expression::Identifier(id) => Some(id.name.to_lowercase()),
+            Expression::MemberAccess(m) => match m.object.as_ref() {
+                Expression::Identifier(o) => Some(format!("{}.{}", o.name, m.member).to_lowercase()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    let mut names = HashSet::new();
+    rapidr_ast::walk(
+        stmts,
+        &mut |s| match s {
+            Statement::Assignment(a) if is_event(&a.target) => names.extend(routine(&a.value)),
+            Statement::Bind(b) if is_event(&b.target) => names.extend(routine(&b.handler)),
+            Statement::Call(c) => {
+                let bind = matches!(&c.callee, Expression::Identifier(id) if id.name == "__bind_event" || id.name == "__bind_event_this");
+                if let (true, Some(Expression::FunctionCall(f))) = (bind, c.args.get(2)) {
+                    if matches!(f.callee.as_ref(), Expression::Identifier(id) if id.name.eq_ignore_ascii_case("CODEPTR")) {
+                        names.extend(f.args.first().and_then(routine));
+                    }
+                }
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    names
 }
 
 struct RustCodegen {
@@ -396,26 +448,43 @@ impl RustCodegen {
         }
     }
 
-    /// Emit rp_bind_event / rp_bind_event_N depending on handler arity.
+    /// Binds `handler` (the Rust name of a SUB/FUNCTION) to an event: one
+    /// with parameters through [`Self::out_handler`], so they come back.
     fn emit_bind_event_call(&mut self, comp_name: &str, event: &str, handler: &str) {
-        // `handler` is the Rust name of a SUB/FUNCTION (`n_01click` for
-        // `01Click`); a name that isn't one (a handler the program never
-        // defines) sets the event to nothing, as in the VM.
-        let routine = self.function_param_counts.iter().find(|(name, _)| to_snake(name) == handler);
-        let Some((_, &arity)) = routine else {
+        // A name that isn't a routine (a handler the program never defines)
+        // sets the event to nothing, as in the VM.
+        let Some(bind) = self.bind_handler_call(&format!("\"{comp_name}\""), event, handler) else {
             self.write_indent();
             let _ = writeln!(self.output, "rp_comp_set(\"{comp_name}\", \"{event}\", v_null());");
             return;
         };
         self.write_indent();
-        match arity {
-            0 => { let _ = writeln!(self.output, "rp_bind_event(\"{comp_name}\", \"{event}\", {handler});"); }
-            1 => { let _ = writeln!(self.output, "rp_bind_event_1(\"{comp_name}\", \"{event}\", {handler});"); }
-            2 => { let _ = writeln!(self.output, "rp_bind_event_2(\"{comp_name}\", \"{event}\", {handler});"); }
-            3 => { let _ = writeln!(self.output, "rp_bind_event_3(\"{comp_name}\", \"{event}\", {handler});"); }
-            4 => { let _ = writeln!(self.output, "rp_bind_event_4(\"{comp_name}\", \"{event}\", {handler});"); }
-            _ => { let _ = writeln!(self.output, "rp_bind_event_5(\"{comp_name}\", \"{event}\", {handler});"); }
-        }
+        let _ = writeln!(self.output, "{bind};");
+    }
+
+    /// `rp_bind_event(obj, "event", handler)` for a handler without
+    /// parameters, else `rp_bind_event_out(obj, "event", n, |a| …)`; `None`
+    /// if `handler` (a Rust name) isn't one of the program's routines.
+    fn bind_handler_call(&self, obj: &str, event: &str, handler: &str) -> Option<String> {
+        let (lower, &arity) = self.function_param_counts.iter().find(|(name, _)| to_snake(name) == handler)?;
+        Some(match arity {
+            0 => format!("rp_bind_event({obj}, \"{event}\", {handler})"),
+            n => format!("rp_bind_event_out({obj}, \"{event}\", {n}, {})", self.out_handler(lower, handler, n)),
+        })
+    }
+
+    /// A non-capturing closure (`fn(&mut [Value])`) running `handler` on the
+    /// event's arguments, its BYREF parameters (all but arrays, see
+    /// [`promote_ref_params`]) writing back into them.
+    fn out_handler(&self, lower: &str, handler: &str, n: usize) -> String {
+        let byref = self.fn_byref.get(lower).cloned().unwrap_or_default();
+        let names: Vec<String> = (0..n).map(|i| format!("p{i}")).collect();
+        let args: Vec<String> = names
+            .iter()
+            .enumerate()
+            .map(|(i, p)| if byref.get(i).copied().unwrap_or(false) { p.clone() } else { format!("{p}.clone()") })
+            .collect();
+        format!("|a: &mut [Value]| if let [{}, ..] = a {{ {handler}({}); }}", names.join(", "), args.join(", "))
     }
 
     // --- program ---
@@ -1654,23 +1723,28 @@ impl RustCodegen {
             return;
         }
         self.line("#[allow(dead_code)]");
-        self.line("fn __callfunc(ptr: &Value, args: &[Value]) -> Value {");
+        // BYREF parameters write back into `args` (an event's arguments).
+        self.line("fn __callfunc(ptr: &Value, args: &mut Vec<Value>) -> Value {");
         self.indent += 1;
-        self.line("let arg = |i: usize| args.get(i).cloned().unwrap_or(v_null());");
         self.line("match ptr.to_i64() {");
         self.indent += 1;
         for (i, (name, byref, returns)) in self.routine_pointers.clone().iter().enumerate() {
-            let args: Vec<String> = byref
-                .iter()
-                .enumerate()
-                .map(|(k, r)| if *r { format!("&mut arg({k})") } else { format!("arg({k})") })
-                .collect();
+            let n = byref.len();
+            let names: Vec<String> = (0..n).map(|k| format!("p{k}")).collect();
+            let args: Vec<String> =
+                names.iter().zip(byref).map(|(p, r)| if *r { p.clone() } else { format!("{p}.clone()") }).collect();
             let call = format!("{}({})", to_snake(name), args.join(", "));
+            let call = if *returns { call } else { format!("{{ {call}; v_null() }}") };
             self.write_indent();
-            if *returns {
+            if n == 0 {
                 let _ = writeln!(self.output, "{} => {call},", i + 1);
             } else {
-                let _ = writeln!(self.output, "{} => {{ {call}; v_null() }}", i + 1);
+                let _ = writeln!(
+                    self.output,
+                    "{} => {{ if args.len() < {n} {{ args.resize({n}, v_null()); }} match &mut args[..] {{ [{}, ..] => {call}, _ => unreachable!() }} }}",
+                    i + 1,
+                    names.join(", ")
+                );
             }
         }
         self.line("p => { eprintln!(\"run-time error: CALLFUNC: {p} is not a function pointer (use BIND or CODEPTR)\"); std::process::exit(1) }");
@@ -2101,16 +2175,13 @@ impl RustCodegen {
             if ma.member.to_ascii_lowercase().starts_with("on") {
                 if let Expression::Identifier(h) = &b.handler {
                     if self.defined_functions.contains(&strip_type_suffix(&h.name).to_lowercase()) {
-                        let obj = self.expr_to_string(&ma.object);
+                        let obj = format!("&({}).to_string_val()", self.expr_to_string(&ma.object));
                         let handler = to_snake(&strip_type_suffix(&h.name));
-                        let arity = self.function_param_counts.get(&h.name.to_lowercase()).copied().unwrap_or(0);
-                        let bind = match arity {
-                            0 => "rp_bind_event".to_string(),
-                            n => format!("rp_bind_event_{}", n.min(5)),
-                        };
-                        self.write_indent();
-                        let _ = writeln!(self.output, "{bind}(&({obj}).to_string_val(), \"{}\", {handler});", ma.member.to_lowercase());
-                        return;
+                        if let Some(bind) = self.bind_handler_call(&obj, &ma.member.to_lowercase(), &handler) {
+                            self.write_indent();
+                            let _ = writeln!(self.output, "{bind};");
+                            return;
+                        }
                     }
                 }
             }
@@ -2951,12 +3022,12 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         // Handlers bound to an object known at run time: through the
         // function-pointer table (`__callfunc`), `This` first for EVENTs.
         "__bind_event" => Some(format!(
-            "{{ let ptr = ({a2}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &[Value]| {{ __callfunc(&ptr, args); }})); v_null() }}"
+            "{{ let ptr = ({a2}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &mut Vec<Value>| {{ __callfunc(&ptr, args); }})); v_null() }}"
         )),
         "__bind_event_this" => {
             let a3 = args.get(3).map(|s| s.as_str()).unwrap_or("v_null()");
             Some(format!(
-                "{{ let ptr = ({a2}).clone(); let this = ({a3}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &[Value]| {{ let mut all = vec![this.clone()]; all.extend_from_slice(args); __callfunc(&ptr, &all); }})); v_null() }}"
+                "{{ let ptr = ({a2}).clone(); let this = ({a3}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &mut Vec<Value>| {{ let mut all = vec![this.clone()]; all.append(args); __callfunc(&ptr, &mut all); args.extend(all.drain(1..)); }})); v_null() }}"
             ))
         }
         "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
@@ -3006,7 +3077,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
 
         // Pointer helpers
         "callfunc" => Some(format!(
-            "__callfunc(&{a0}, &[{}])",
+            "__callfunc(&{a0}, &mut vec![{}])",
             args.iter().skip(1).map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")
         )),
         "codeptr" | "callback" => Some(

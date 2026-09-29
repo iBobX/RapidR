@@ -27,7 +27,7 @@ impl Runtime for Web {
         rp_fire_event_args(name, event, args)
     }
     fn fire_then(self, name: &str, event: &str, args: &[Value], then: Box<dyn FnOnce()>) {
-        rp_fire_event_then(name, event, args, then)
+        rp_fire_event_then(name, event, args, move |_| then())
     }
     fn children(self, name: &str) -> Vec<(String, String)> {
         get_children_of(name)

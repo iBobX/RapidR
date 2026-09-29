@@ -1,0 +1,6 @@
+direct 5
+parens 5
+callfunc 5
+ref 0
+byref 11 2
+function 22 11
