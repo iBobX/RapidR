@@ -250,10 +250,6 @@ impl<'a> Parser<'a> {
         self.pos.checked_sub(1).and_then(|i| self.tokens.get(i))
     }
 
-    fn current_span(&self) -> TextSpan {
-        self.peek().map(|t| t.span).unwrap_or_default()
-    }
-
     fn span_from(&self, start: usize) -> TextSpan {
         let s = self.tokens.get(start).map(|t| t.span.start).unwrap_or(0);
         let e = self
@@ -717,6 +713,7 @@ impl<'a> Parser<'a> {
             } else {
                 Vec::new()
             };
+            let explicit_type = fixed_type.is_some() || self.peek_kind() == Some(TokenType::As);
             let type_name = match fixed_type {
                 Some(t) => t.to_string(),
                 None if self.match_kind(TokenType::As) => canonical_type_name(&self.advance()?.lexeme),
@@ -761,7 +758,11 @@ impl<'a> Parser<'a> {
                         name: name_tok.lexeme.clone(),
                         dimensions: dimensions.clone(),
                     }],
-                    type_name: type_name.clone(),
+                    // `DIM n%` (no AS): the suffix says the type.
+                    type_name: match rapidr_ast::suffix_type(&name_tok.lexeme) {
+                        Some(t) if !explicit_type => t.to_string(),
+                        _ => type_name.clone(),
+                    },
                     fixed_len,
                     is_static,
                     is_redim,
@@ -1640,7 +1641,7 @@ impl<'a> Parser<'a> {
         let return_type = if self.match_kind(TokenType::As) {
             Some(self.advance()?.lexeme.clone())
         } else {
-            None
+            rapidr_ast::suffix_type(&name).map(str::to_string)
         };
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("FUNCTION"), Terminator::EndPair("SUB")]);
@@ -2029,7 +2030,7 @@ impl<'a> Parser<'a> {
             let ptype = if self.match_kind(TokenType::As) {
                 canonical_type_name(&self.advance()?.lexeme)
             } else {
-                "VARIANT".to_string()
+                rapidr_ast::suffix_type(&pname).unwrap_or("VARIANT").to_string()
             };
             params.push(Parameter {
                 span: self.span_from(p_start),

@@ -613,6 +613,9 @@ impl RustCodegen {
         }
         self.indent += 1;
         let runtime = if self.target == AppTarget::Web { "rapidr_runtime_web" } else { "rapidr_runtime_core" };
+        if self.target == AppTarget::Web {
+            self.line("rapidr_runtime_web::object_web::install_object_hooks();");
+        }
         for (name, file) in self.resources.clone() {
             self.line(&format!("{runtime}::value::resources::register({name:?}, include_bytes!({file:?}).as_slice());"));
         }
@@ -2686,7 +2689,7 @@ pub(crate) fn to_snake(name: &str) -> String {
     // DECLARE name (`SLEEP.ms`) becomes `sleep_ms`.
     // Type suffixes inside a combined name (`QDebug.Err$` → `_qdebug__err$`)
     // aren't part of a Rust identifier either.
-    let lower: String = name.to_lowercase().replace('.', "_").chars().filter(|c| !matches!(c, '$' | '%' | '&' | '!' | '#')).collect();
+    let lower: String = name.to_lowercase().replace('.', "_").chars().filter(|c| !matches!(c, '$' | '%' | '&' | '!' | '#' | '?')).collect();
     // Escape Rust reserved keywords by prefixing with r#
     // (raw identifier syntax) or appending underscore
     match lower.as_str() {
@@ -2704,11 +2707,7 @@ pub(crate) fn to_snake(name: &str) -> String {
 }
 
 fn strip_type_suffix(name: &str) -> String {
-    let mut s = name.to_string();
-    if s.ends_with('$') || s.ends_with('%') || s.ends_with('#') || s.ends_with('&') || s.ends_with('!') {
-        s.pop();
-    }
-    s
+    rapidr_ast::strip_type_suffix(name).to_string()
 }
 
 fn default_value_for_type(type_name: &str) -> String {
@@ -2967,8 +2966,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
             format!("data::restore_compiled(Some(&{a0}))")
         }),
         "rinstr" => Some(format!("rp_rinstr(&{a0}, &{a1})")),
-        "format" => Some(format!("rp_format(&{a0}, &{a1})")),
-        "strf" => Some(format!("rp_strf(&{a0})")),
+        "format" => Some(format!("rp_format(&{a0}, &[{}])", args.get(1..).unwrap_or(&[]).iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        "strf" => Some(format!("rp_strf(&{a0}, &{a1}, &{a2}, &{})", args.get(3).map(|s| s.as_str()).unwrap_or("v_null()"))),
 
         // File I/O (function forms)
         "freefile" => Some("rp_freefile()".to_string()),
@@ -3130,7 +3129,7 @@ fn is_component_method_name(member: &str) -> bool {
         | "sin" | "cos" | "tan" | "asin" | "arcsin" | "acos" | "arccos" | "atan" | "arctan"
         | "sqrt" | "abs" | "exp" | "log" | "ln" | "log2" | "log10"
         | "floor" | "ceil" | "round" | "sign" | "reciprocal" | "square" | "negative" | "neg"
-        | "add" | "subtract" | "sub" | "multiply" | "mul" | "divide" | "div"
+        | "subtract" | "sub" | "multiply" | "mul" | "divide" | "div"
         | "power" | "pow" | "mod" | "fmod" | "clip" | "clamp"
         | "reverse" | "flip" | "unique" | "shuffle" | "append" | "concatenate" | "slice"
         | "cumsum" | "cumprod" | "diff" | "any" | "all" | "nonzero" | "searchsorted"
@@ -3143,7 +3142,7 @@ fn is_component_method_name(member: &str) -> bool {
         | "loadfromjson" | "read_json" | "savetojson" | "to_json"
         | "head" | "tail" | "describe" | "columns" | "info" | "dtypes" | "shape"
         | "cellbyname" | "at" | "setcell" | "iloc" | "select"
-        | "sort_values" | "filter" | "query"
+        | "sort_values" | "filter"
         | "groupby" | "group_by" | "value_counts" | "nunique" | "corr" | "correlation"
         | "drop" | "drop_column" | "rename" | "rename_column"
         | "addcolumn" | "add_column" | "set_column"
@@ -3163,7 +3162,7 @@ fn is_component_method_name(member: &str) -> bool {
         | "setprop" | "getprop" | "setcompbounds" | "setname"
         | "selectcomp" | "removecomponent" | "clearall"
         // StringGrid methods
-        | "cell" | "cells" | "setcell" | "setsuggestions"
+        | "cell" | "cells" | "setsuggestions"
         // CodeEditor methods
         | "getsublist" | "gotosub" | "gotoline"
         // TabControl methods
@@ -3171,8 +3170,8 @@ fn is_component_method_name(member: &str) -> bool {
         // Web-exclusive methods
         | "sethtml" | "navigate" | "appendto" | "setattribute" | "getattribute"
         | "addclass" | "removeclass" | "toggleclass" | "queryselector" | "queryselectorall"
-        | "eval" | "call" | "set" | "haskey" | "keys"
-        | "play" | "pause" | "stop" | "seek" | "fullscreen"
+        | "eval" | "call" | "set" | "haskey"
+        | "play" | "pause" | "seek" | "fullscreen"
         | "requestpermission" | "getposition" | "watchposition" | "clearwatch"
         | "addroute" | "back" | "forward"
         // Web file-bridge methods (RFILESTREAM)

@@ -651,12 +651,12 @@ const BUILTIN_FUNCTIONS = [
     { name: 'STR$', description: 'Converts number to string', signature: 'STR$(number)', snippet: 'STR\\$(${1:number})' },
     { name: 'REPLACE', description: 'Replaces occurrences in string', signature: 'REPLACE(str, old, new)', snippet: 'REPLACE(${1:str}, ${2:old}, ${3:new})' },
     { name: 'REPLACESUBSTR', description: 'Replaces substring', signature: 'REPLACESUBSTR(str, old, new)', snippet: 'REPLACESUBSTR(${1:str}, ${2:old}, ${3:new})' },
-    { name: 'INSERT', description: 'Inserts string at position', signature: 'INSERT(str, pos, text)', snippet: 'INSERT(${1:str}, ${2:pos}, ${3:text})' },
+    { name: 'INSERT', description: 'Inserts a string into another before a 1-based position (INSERT$("hi", "Hello", 3) = "Hehillo")', signature: 'INSERT$(insert, source, index)', snippet: 'INSERT\\$(${1:insert}, ${2:source}, ${3:index})' },
     { name: 'DELETE', description: 'Deletes characters from string', signature: 'DELETE(str, pos, count)', snippet: 'DELETE(${1:str}, ${2:pos}, ${3:count})' },
     { name: 'REVERSE', description: 'Reverses a string', signature: 'REVERSE(str)', snippet: 'REVERSE(${1:str})' },
     { name: 'FIELD', description: 'Returns nth field from delimited string', signature: 'FIELD(str, delimiter, n)', snippet: 'FIELD(${1:str}, ${2:delim}, ${3:n})' },
     { name: 'TALLY', description: 'Counts occurrences of substring', signature: 'TALLY(str, search)', snippet: 'TALLY(${1:str}, ${2:search})' },
-    { name: 'STRF', description: 'Formatted string conversion', signature: 'STRF(number, format)', snippet: 'STRF(${1:number}, ${2:format})' },
+    { name: 'STRF', description: 'Number as text (FloatToStrF): format 0 ffGeneral, 1 ffExponent, 2 ffFixed, 3 ffNumber', signature: 'STRF$(number, format, precision, digits)', snippet: 'STRF\\$(${1:number}, ${2:ffFixed}, ${3:15}, ${4:2})' },
 
     // Math functions
     { name: 'ABS', description: 'Returns absolute value', signature: 'ABS(number)', snippet: 'ABS(${1:number})' },
@@ -689,7 +689,7 @@ const BUILTIN_FUNCTIONS = [
     { name: 'OCT$', description: 'Converts number to octal string', signature: 'OCT$(number)', snippet: 'OCT\\$(${1:number})' },
     { name: 'HEXTODEC', description: 'Converts hex string to decimal', signature: 'HEXTODEC(hexStr)', snippet: 'HEXTODEC(${1:hexStr})' },
     { name: 'CONVBASE', description: 'Converts between number bases', signature: 'CONVBASE(value, fromBase, toBase)', snippet: 'CONVBASE(${1:value}, ${2:fromBase}, ${3:toBase})' },
-    { name: 'FORMAT$', description: 'Formats number/date', signature: 'FORMAT$(value, formatStr)', snippet: 'FORMAT\\$(${1:value}, ${2:format})' },
+    { name: 'FORMAT$', description: 'Pascal-style Format: %d %.5d %-8s %.2f %n %m %e %g %x, %0:d reuses an argument', signature: 'FORMAT$(format, arg1, arg2, ...)', snippet: 'FORMAT\\$("${1:%d}", ${2:value})' },
 
     // I/O functions
     { name: 'DIR$', description: 'Returns directory listing', signature: 'DIR$([path])', snippet: 'DIR\\$(${1:path})' },

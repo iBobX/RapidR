@@ -82,11 +82,7 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
 /// BASIC identifiers are case-insensitive and may carry a type suffix
 /// (`Name$`, `Count%`): all name lookups go through this key.
 fn name_key(name: &str) -> String {
-    let mut key = name.to_ascii_lowercase();
-    if matches!(key.chars().last(), Some('$' | '%' | '#' | '&' | '!')) && key.len() > 1 {
-        key.pop();
-    }
-    key
+    rapidr_ast::strip_type_suffix(&name.to_ascii_lowercase()).to_string()
 }
 
 /// Map keyed case-insensitively by BASIC identifier (see [`name_key`]).

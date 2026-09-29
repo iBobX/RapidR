@@ -189,8 +189,8 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "__paramstrcount" => rapidr_value::variadic::param_str_count(&a0),
         "__paramvalcount" => rapidr_value::variadic::param_val_count(&a0),
         "rinstr" => rp_rinstr(&a0, &a1),
-        "format" => rp_format(&a0, &a1),
-        "strf" => rp_strf(&a0),
+        "format" => rp_format(&a0, args.get(1..).unwrap_or(&[])),
+        "strf" => rp_strf(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null)),
 
         // Numeric / math
         "int" => rp_int(&a0),
@@ -235,7 +235,9 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "command" => rp_command(),
         "environ" => rp_environ(&a0),
         "doevents" => { rp_doevents(); v_null() }
-        "end" => { rp_end(); v_null() }
+        // END: the VM halts after this (bcgen); the program's forms,
+        // timers and events end here.
+        "end" => { rapidr_runtime_web::object_web::end_program(); v_null() }
         "showmessage" => { rp_showmessage(&a0); v_null() }
         "msgbox" => rp_msgbox(&a0),
         "messagebox" => rp_messagebox(&a0, &a1, &a2),

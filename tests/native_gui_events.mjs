@@ -29,9 +29,13 @@
 //   * tests/fixtures/dotted_paint.bas — a canvas's OnPaint handler named with
 //     a dot (`bups.OnPaint = bups.paint`);
 //   * tests/fixtures/nested_modal.bas — timers during ShowModal, a modal form
-//     opened (and closed by a timer) inside an event handler.
+//     opened (and closed by a timer) inside an event handler;
+//   * tests/fixtures/coolbtn_group.bas — QCOOLBTN GroupIndex / Down /
+//     AllowAllUp, Down set by the program;
+//   * tests/fixtures/timer_default.bas — a QTIMER ticks without Enabled set.
 //
-// Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs
+// Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
+// (only the cases whose name contains one of the arguments)
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
@@ -63,7 +67,8 @@ function run(bin, events, dump, resize = "", split = "") {
 }
 
 rmSync(WORK, { recursive: true, force: true });
-for (const c of cases) {
+const only = process.argv.slice(2);
+for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.includes(f)))) {
   const results = {};
   for (const interp of [false, true]) {
     const kind = interp ? "interpreted" : "native";

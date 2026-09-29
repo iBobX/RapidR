@@ -1025,6 +1025,14 @@ impl<'src> Lexer<'src> {
 
         if matches!(self.current_char(), Some('$' | '%' | '#' | '&' | '!')) {
             self.advance_char();
+        } else if self.current_char() == Some('?') && keyword_token(&self.source[start..self.index]).is_none() {
+            // `b?` BYTE, `w??` WORD, `d???` DWORD (a `?` after a keyword is PRINT).
+            for _ in 0..3 {
+                if self.current_char() != Some('?') {
+                    break;
+                }
+                self.advance_char();
+            }
         }
 
         let lexeme = self.source[start..self.index].to_string();
@@ -1291,6 +1299,9 @@ mod tests {
         assert_eq!(tokens[1].lexeme, "value%");
         assert_eq!(tokens[2].lexeme, "x#");
         assert_eq!(tokens[3].lexeme, "ptr&");
+        let tokens = lex("b? w?? d??? IF x THEN? 1");
+        assert_eq!([tokens[0].lexeme.as_str(), &tokens[1].lexeme, &tokens[2].lexeme], ["b?", "w??", "d???"]);
+        assert_eq!(tokens[6].kind, TokenType::Print);
     }
 
     #[test]

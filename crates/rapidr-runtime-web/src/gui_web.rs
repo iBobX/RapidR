@@ -1713,6 +1713,67 @@ fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
 
     setup_widget(&el, id, name, props);
+    toggle_on_click(&el, name);
+    show_down(name);
+}
+
+/// A QCOOLBTN / QOVALBTN press applies its group's rule (added before the
+/// program's OnClick, which then reads the new Down).
+fn toggle_on_click(el: &web_sys::HtmlElement, name: &str) {
+    let owner = name.to_uppercase();
+    let cb = Closure::<dyn FnMut()>::new(move || toggle_press(&owner));
+    let _ = el.add_event_listener_with_callback("click", cb.as_ref().unchecked_ref());
+    cb.forget();
+}
+
+/// The toggle buttons sharing `name`'s parent.
+fn toggle_members(name: &str) -> Vec<rapidr_value::toggle_group::Member> {
+    use crate::object_web::{get_children_of, rp_comp_get_stored};
+    let parent = rp_comp_get_stored(name, "parent").to_string_val();
+    get_children_of(&parent)
+        .into_iter()
+        .filter(|(_, t)| matches!(t.to_uppercase().as_str(), "RCOOLBTN" | "ROVALBTN"))
+        .map(|(n, _)| rapidr_value::toggle_group::Member {
+            group: rp_comp_get_stored(&n, "groupindex").to_i64(),
+            down: rp_comp_get_stored(&n, "down").to_bool(),
+            name: n,
+        })
+        .collect()
+}
+
+/// A button shows its Down (pressed in).
+fn show_down(name: &str) {
+    let down = crate::object_web::rp_comp_get_stored(name, "down").to_bool();
+    if let Some(el) = document().get_element_by_id(&comp_id(name)) {
+        let _ = el.class_list().toggle_with_force("rr-down", down);
+        if let Ok(el) = el.dyn_into::<web_sys::HtmlElement>() {
+            let _ = el.style().set_property("border-style", if down { "inset" } else { "" });
+        }
+    }
+}
+
+fn toggle_apply(changes: Vec<(String, bool)>) {
+    for (n, down) in changes {
+        crate::object_web::rp_comp_set_prop_only(&n, "down", v_int(if down { -1 } else { 0 }));
+        show_down(&n);
+    }
+}
+
+fn toggle_press(name: &str) {
+    let allow_all_up = crate::object_web::rp_comp_get_stored(name, "allowallup").to_bool();
+    toggle_apply(rapidr_value::toggle_group::press(name, allow_all_up, &toggle_members(name)));
+}
+
+/// The program set a button's Down: the others of its group come up, and
+/// it shows the new state.
+pub fn toggle_down_set(name: &str) {
+    if !matches!(crate::object_web::rp_comp_type(name).to_uppercase().as_str(), "RCOOLBTN" | "ROVALBTN") {
+        return;
+    }
+    let down = crate::object_web::rp_comp_get_stored(name, "down").to_bool();
+    let mut changes = rapidr_value::toggle_group::set_down(name, down, &toggle_members(name));
+    changes.push((name.to_string(), down));
+    toggle_apply(changes);
 }
 
 fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -1740,6 +1801,8 @@ fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = style.set_property("cursor", "pointer");
 
     setup_widget(&el, id, name, props);
+    toggle_on_click(&el, name);
+    show_down(name);
 }
 
 fn create_label(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -3159,11 +3222,9 @@ fn grid_drop_down(name: &str, cell: &web_sys::Element) {
     // A click anywhere else closes it.
     let close = Closure::once_into_js(move || {
         let outside = Closure::<dyn FnMut()>::new(close_grid_drop_down);
-        let _ = document().add_event_listener_with_callback_and_add_event_listener_options(
-            "mousedown",
-            outside.as_ref().unchecked_ref(),
-            web_sys::AddEventListenerOptions::new().once(true),
-        );
+        let options = web_sys::AddEventListenerOptions::new();
+        options.set_once(true);
+        let _ = document().add_event_listener_with_callback_and_add_event_listener_options("mousedown", outside.as_ref().unchecked_ref(), &options);
         outside.forget();
     });
     if let Some(window) = web_sys::window() {
@@ -4090,6 +4151,15 @@ fn form_resized(form_id: &str, left: i32, top: i32, width: i32, height: i32) {
     crate::object_web::rp_comp_set_prop_only(&name, "height", v_int(height as i64));
     crate::layout_web::realign(&name, None);
     crate::object_web::rp_fire_event(&name, "onresize");
+}
+
+/// Hides a form (END: no OnClose).
+pub fn hide_form(name: &str) {
+    let id = comp_id(name);
+    if let Some(el) = get_el(&id) {
+        let _ = el.style().set_property("display", "none");
+    }
+    hide_modal_backdrop(&id);
 }
 
 fn form_close(form_id: &str) {

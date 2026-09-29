@@ -253,7 +253,7 @@ fn field_fill(span: TextSpan, type_name: &str) -> Expression {
 }
 
 fn strip_suffix(name: &str) -> &str {
-    name.trim_end_matches(['$', '%', '&', '!', '#'])
+    crate::strip_type_suffix(name)
 }
 
 fn this_param() -> Parameter {

@@ -4,6 +4,32 @@ pub mod numeric;
 pub mod objects;
 pub mod array_refs;
 pub mod suffix_routines;
+
+/// A name without its type suffix (`n%` → `n`, `w??` → `w`).
+pub fn strip_type_suffix(name: &str) -> &str {
+    let base = name.trim_end_matches('?');
+    let base = if base.len() < name.len() { base } else { name.strip_suffix(['$', '%', '&', '!', '#']).unwrap_or(name) };
+    if base.is_empty() { name } else { base }
+}
+
+/// The type a suffix declares (RapidQ manual, data types): `?` BYTE, `??`
+/// WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE, `$`
+/// STRING.
+pub fn suffix_type(name: &str) -> Option<&'static str> {
+    let qs = name.len() - name.trim_end_matches('?').len();
+    Some(match (qs, name.chars().last()?) {
+        (1, _) => "BYTE",
+        (2, _) => "WORD",
+        (3, _) => "DWORD",
+        (_, '%') => "SHORT",
+        (_, '&') => "LONG",
+        (_, '!') => "SINGLE",
+        (_, '#') => "DOUBLE",
+        (_, '$') => "STRING",
+        _ => return None,
+    })
+    .filter(|_| strip_type_suffix(name).len() < name.len())
+}
 pub mod stream_arrays;
 
 #[derive(Debug, Clone, PartialEq)]

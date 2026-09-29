@@ -75,8 +75,10 @@ impl Slot {
     }
 }
 
+/// Names are keyed without their type suffix, as both backends do (`n%`
+/// is `n`).
 fn key(name: &str) -> String {
-    name.to_ascii_lowercase()
+    crate::strip_type_suffix(&name.to_ascii_lowercase()).to_string()
 }
 
 fn slot_for(type_name: &str, fixed_len: Option<usize>, is_array: bool) -> Slot {
@@ -142,7 +144,8 @@ impl Pass<'_> {
                 return Slot::Scalar(*conv);
             }
         }
-        self.globals.get(&k).copied().unwrap_or(Slot::Other)
+        // An undeclared `q% = 40000` stores as its suffix's type.
+        self.globals.get(&k).copied().unwrap_or_else(|| slot_for(crate::suffix_type(name).unwrap_or(""), None, false))
     }
 
     /// The conversion a store into `target` needs.
