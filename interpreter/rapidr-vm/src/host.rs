@@ -35,14 +35,19 @@ pub trait Host {
     /// after the host operation that fired it, or from a wait / the host's
     /// idle loop. Each handler runs to completion before the next one, as
     /// in a native build, and no event re-enters the VM mid-operation.
-    fn take_events(&mut self) -> Vec<(u32, Vec<Value>)> {
+    fn take_events(&mut self) -> Vec<rapidr_value::events::QueuedEvent> {
         Vec::new()
     }
     /// Events taken with [`Host::take_events`] that couldn't run because a
     /// handler before them stopped (waits for a dialog): the host runs them
     /// later, from its idle loop.
-    fn defer_events(&mut self, events: Vec<(u32, Vec<Value>)>) {
+    fn defer_events(&mut self, events: Vec<rapidr_value::events::QueuedEvent>) {
         let _ = events;
+    }
+    /// An event handler returned: its continuations (what the runtime
+    /// does once the handler has run, `rapidr_value::events`).
+    fn event_finished(&mut self, then: Vec<u32>) {
+        rapidr_value::events::run_all(then);
     }
     /// Asked after each host operation: `true` if it started a wait the VM
     /// must serve (a desktop `ShowModal`): the VM then calls [`Host::pump`]

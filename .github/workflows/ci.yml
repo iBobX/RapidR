@@ -1,9 +1,10 @@
 name: CI
 
+# Runs only when started by hand (Actions → CI → Run workflow): every check
+# runs locally before a commit (tools/regress.sh);
+# a push to development or main doesn't spend Actions minutes.
 on:
-  push:
-    branches: [main, development]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

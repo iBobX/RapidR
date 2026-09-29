@@ -66,6 +66,80 @@ enum GuiWidget {
     ImageFrame(Frame), // RImage — Frame with drawn image
 }
 
+impl GuiWidget {
+    /// The widget as a plain FLTK widget (a handle to the same one).
+    fn base(&self) -> fltk::widget::Widget {
+        match self {
+            GuiWidget::Window(v) => v.as_base_widget(),
+            GuiWidget::Button(v) => v.as_base_widget(),
+            GuiWidget::Frame(v) | GuiWidget::ImageFrame(v) => v.as_base_widget(),
+            GuiWidget::Input(v) => v.as_base_widget(),
+            GuiWidget::CheckButton(v) => v.as_base_widget(),
+            GuiWidget::RadioButton(v) => v.as_base_widget(),
+            GuiWidget::Choice(v) => v.as_base_widget(),
+            GuiWidget::InputChoice(v) => v.as_base_widget(),
+            GuiWidget::HoldBrowser(v) => v.as_base_widget(),
+            GuiWidget::TextEditor(v) => v.as_base_widget(),
+            GuiWidget::Group(v) => v.as_base_widget(),
+            GuiWidget::Tabs(v) => v.as_base_widget(),
+            GuiWidget::MenuBar(v) => v.as_base_widget(),
+            GuiWidget::SysMenuBar(v) => v.as_base_widget(),
+            GuiWidget::Progress(v) => v.as_base_widget(),
+            GuiWidget::Scroll(v) => v.as_base_widget(),
+            GuiWidget::Tree(v) => v.as_base_widget(),
+            GuiWidget::Slider(v) => v.as_base_widget(),
+            GuiWidget::Grid(v, _) => v.as_base_widget(),
+        }
+    }
+}
+
+/// Whether `name` has a widget the user can see now (the test hooks'
+/// `name.__shown`).
+fn widget_shown(name: &str) -> bool {
+    GUI_WIDGETS.with(|gw| gw.borrow().get(&name.to_lowercase()).map(GuiWidget::base)).is_some_and(|w| w.visible_r())
+}
+
+/// A component given a parent whose widget exists already (`Late.Parent =
+/// Form` in an event handler, a QFORMMDI's child frame): its widget, and
+/// those of the children it has, are made inside the parent now.
+pub(crate) fn attach_late(name: &str) {
+    let name = name.to_lowercase();
+    if GUI_WIDGETS.with(|gw| gw.borrow().contains_key(&name)) {
+        return;
+    }
+    let parent = rp_comp_get(&name, "parent").to_string_val().to_lowercase();
+    let parent_is_container = GUI_WIDGETS.with(|gw| {
+        matches!(gw.borrow().get(&parent), Some(GuiWidget::Window(_) | GuiWidget::Group(_) | GuiWidget::Tabs(_) | GuiWidget::Scroll(_)))
+    });
+    if parent.is_empty() || !parent_is_container {
+        return;
+    }
+    let child_type = rp_comp_type(&name);
+    if child_type == "RFORM" {
+        return;
+    }
+    let (parent_x, parent_y) = get_widget_offset(&parent);
+    let extra_y = if child_type != "RMAINMENU" { menu_offset(&parent) } else { 0 };
+    let (orig_left, orig_top) = (rp_comp_get(&name, "left").to_i64(), rp_comp_get(&name, "top").to_i64());
+    begin_widget(&parent);
+    crate::layout::quietly(|| {
+        rp_comp_set(&name, "left", v_int(orig_left + parent_x as i64));
+        rp_comp_set(&name, "top", v_int(orig_top + parent_y as i64 + extra_y as i64));
+        gui_create_widget(&name, &child_type);
+        rp_comp_set(&name, "left", v_int(orig_left));
+        rp_comp_set(&name, "top", v_int(orig_top));
+    });
+    build_children_recursive(&name);
+    end_widget(&parent);
+    if let Some(w) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
+        let mut b = w.base();
+        if rp_comp_get(&name, "visible").to_string_val() != "0" && !matches!(rp_comp_get(&name, "visible"), Value::Boolean(false)) {
+            b.show();
+        }
+        redraw_window_of(&w);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Design surface component tracking
 // ---------------------------------------------------------------------------
@@ -250,7 +324,8 @@ fn capture_windows(prefix: &str) {
     // `RAPIDR_TEST_DUMP=b1.caption,b2.caption`: print these properties.
     for p in std::env::var("RAPIDR_TEST_DUMP").unwrap_or_default().split(',').filter(|p| !p.trim().is_empty()) {
         if let Some((comp, prop)) = p.trim().rsplit_once('.') {
-            println!("{}={}", p.trim(), rp_comp_get(comp, prop).to_string_val());
+            let value = if prop == "__shown" { i64::from(widget_shown(comp)).to_string() } else { rp_comp_get(comp, prop).to_string_val() };
+            println!("{}={}", p.trim(), value);
         }
     }
     // Draw what handlers changed since the last redraw (the interpreter runs
@@ -1446,18 +1521,9 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
             listview_refresh(name);
         }
-        "RFORMMDI" => {
-            // MDI parent form — create a resizable Window
-            let w = rp_comp_get(name, "width").to_i64() as i32;
-            let h = rp_comp_get(name, "height").to_i64() as i32;
-            let caption = rp_comp_get(name, "caption").to_string_val();
-            let mut win = Window::new(100, 100, w, h, None);
-            win.set_label(&caption);
-            win.make_resizable(true);
-            win.end();
-            GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
-            });
+        "RMDICHILD" => {
+            let (x, y, w, h) = (rp_comp_get(name, "left").to_i64() as i32, rp_comp_get(name, "top").to_i64() as i32, rp_comp_get(name, "width").to_i64() as i32, rp_comp_get(name, "height").to_i64() as i32);
+            mdi_frame_create(name, x, y, w, h);
         }
         "RPROGRESSBAR" => {
             // Alias for RPROGRESS — uses the same FltkProgress widget
@@ -3968,82 +4034,107 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
 }
 
 // ---------------------------------------------------------------------------
-// QFormMDI methods
+// QFORMMDI child windows (the model: rapidr_value::mdi; mdi.rs applies it)
 // ---------------------------------------------------------------------------
 
+/// A drag on a child window's frame: its frame component, what it moves
+/// (true: the size), and where the mouse and the frame started.
+struct MdiDrag {
+    frame: String,
+    resize: bool,
+    mouse: (i32, i32),
+    start: (i64, i64),
+}
+
 thread_local! {
-    static MDI_CHILDREN: RefCell<HashMap<String, Vec<MdiChild>>> = RefCell::new(HashMap::new());
+    static MDI_DRAG: RefCell<Option<MdiDrag>> = const { RefCell::new(None) };
 }
 
-/// QFORMMDI is a stub: children are only counted (ROADMAP: real child
-/// windows, activation, cascade/tile, OnChild* events, on both runtimes).
-#[allow(dead_code)]
-#[derive(Clone, Debug)]
-struct MdiChild {
-    title: String,
-    comp_index: i32,
-    group_key: String,
+/// An `RMDICHILD`: a child window's frame — border, title bar with the
+/// title and its buttons — drawn from its component (`caption`, `active`).
+fn mdi_frame_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
+    use rapidr_value::mdi::{Action, BORDER, TITLE_HEIGHT};
+    let mut f = Frame::new(x, y, w, h, None);
+    let draw_name = name.to_string();
+    f.draw(move |f| {
+        let (b, t) = (BORDER as i32, TITLE_HEIGHT as i32);
+        let active = rp_comp_get(&draw_name, "active").to_bool();
+        let title = rp_comp_get(&draw_name, "caption").to_string_val();
+        let maximized = rp_comp_get(&draw_name, "childstate").to_i64() == 2;
+        draw::draw_box(FrameType::UpBox, f.x(), f.y(), f.w(), f.h(), Color::from_rgb(212, 208, 200));
+        let bar = if active { Color::from_rgb(10, 36, 106) } else { Color::from_rgb(128, 128, 128) };
+        draw::set_draw_color(bar);
+        draw::draw_rectf(f.x() + b, f.y() + b, f.w() - 2 * b, t - 2);
+        draw::set_draw_color(Color::White);
+        draw::set_font(Font::HelveticaBold, 12);
+        draw::push_clip(f.x() + b + 4, f.y() + b, (f.w() - 2 * b - 3 * (t - 2) - 8).max(0), t - 2);
+        draw::draw_text2(&title, f.x() + b + 4, f.y() + b, f.w(), t - 2, Align::Left | Align::Inside);
+        draw::pop_clip();
+        for (slot, glyph) in [(0, "x"), (1, if maximized { "=" } else { "\u{25a1}" }), (2, "_")] {
+            let bx = f.x() + f.w() - b - (slot + 1) * (t - 2) + 1;
+            draw::draw_box(FrameType::UpBox, bx, f.y() + b + 2, t - 5, t - 6, Color::from_rgb(212, 208, 200));
+            draw::set_draw_color(Color::Black);
+            draw::set_font(Font::HelveticaBold, 11);
+            draw::draw_text2(glyph, bx, f.y() + b + 2, t - 5, t - 6, Align::Center);
+        }
+    });
+    let frame = name.to_string();
+    f.handle(move |f, ev| {
+        let form = rp_comp_get(&frame, "__form").to_string_val();
+        let component = rp_comp_get(&frame, "__component").to_string_val();
+        let (ex, ey) = (app::event_x() - f.x(), app::event_y() - f.y());
+        match ev {
+            Event::Push => {
+                if let Some(action) = rapidr_value::mdi::button_at(f.w() as i64, ex as i64, ey as i64) {
+                    crate::mdi::user(&form, &component, action);
+                    return true;
+                }
+                if ey < (BORDER + TITLE_HEIGHT) as i32 && app::event_clicks() {
+                    crate::mdi::user(&form, &component, Action::ToggleMaximize);
+                    return true;
+                }
+                crate::mdi::user(&form, &component, Action::Activate);
+                let corner = ex > f.w() - 12 && ey > f.h() - 12;
+                let start = if corner {
+                    (rp_comp_get(&frame, "width").to_i64(), rp_comp_get(&frame, "height").to_i64())
+                } else {
+                    (rp_comp_get(&frame, "left").to_i64(), rp_comp_get(&frame, "top").to_i64())
+                };
+                if corner || ey < (BORDER + TITLE_HEIGHT) as i32 {
+                    MDI_DRAG.with(|d| *d.borrow_mut() = Some(MdiDrag { frame: frame.clone(), resize: corner, mouse: (app::event_x(), app::event_y()), start }));
+                }
+                true
+            }
+            Event::Drag => {
+                let Some((resize, mouse, start)) = MDI_DRAG.with(|d| d.borrow().as_ref().filter(|d| d.frame == frame).map(|d| (d.resize, d.mouse, d.start))) else { return false };
+                let (dx, dy) = ((app::event_x() - mouse.0) as i64, (app::event_y() - mouse.1) as i64);
+                let action = if resize { Action::Resize(start.0 + dx, start.1 + dy) } else { Action::Move(start.0 + dx, start.1 + dy) };
+                crate::mdi::user(&form, &component, action);
+                true
+            }
+            Event::Released => {
+                MDI_DRAG.with(|d| *d.borrow_mut() = None);
+                true
+            }
+            _ => false,
+        }
+    });
+    GUI_WIDGETS.with(|gw| {
+        gw.borrow_mut().insert(name.to_lowercase(), GuiWidget::Frame(f));
+    });
 }
 
-pub fn formmdi_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
-    match method {
-        "showmodal" => {
-            gui_showmodal(name);
-            v_null()
-        }
-        "show" => {
-            gui_show(name);
-            v_null()
-        }
-        "close" | "hide" => {
-            gui_close(name);
-            v_null()
-        }
-        "addchild" => {
-            // AddChild(handle, title, index, left, top, width, height, default_size)
-            let _handle = args.first().map(|v| v.to_i64()).unwrap_or(0);
-            let title = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-            let index = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let _left = args.get(3).map(|v| v.to_i64()).unwrap_or(10) as i32;
-            let _top = args.get(4).map(|v| v.to_i64()).unwrap_or(10) as i32;
-            let _width = args.get(5).map(|v| v.to_i64()).unwrap_or(400) as i32;
-            let _height = args.get(6).map(|v| v.to_i64()).unwrap_or(300) as i32;
-
-            let group_key = format!("{}__mdi_child_{}", name_lower, index);
-            MDI_CHILDREN.with(|mc| {
-                let mut children = mc.borrow_mut();
-                let child_list = children.entry(name_lower.clone()).or_default();
-                child_list.push(MdiChild {
-                    title: title.clone(),
-                    comp_index: index,
-                    group_key,
-                });
-                let count = child_list.len() as i64;
-                rp_comp_set(name, "childcount", v_int(count));
-            });
-            v_null()
-        }
-        "closechild" => {
-            // Close active child
-            v_null()
-        }
-        "closeallchild" => {
-            MDI_CHILDREN.with(|mc| {
-                mc.borrow_mut().remove(&name_lower);
-            });
-            rp_comp_set(name, "childcount", v_int(0));
-            v_null()
-        }
-        "cascadechild" | "sethorzchild" | "setvertchild" | "iconarrangechild" => {
-            v_null()
-        }
-        "center" => {
-            v_null()
-        }
-        _ => {
-            eprintln!("[WARN] FormMDI.{}() not implemented", method);
-            v_null()
+/// Puts these widgets on top of their parents' other children, in order
+/// (the last on top): a QFORMMDI's frames and components.
+pub(crate) fn stack_widgets(names: &[String]) {
+    for name in names {
+        let Some(w) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name.to_lowercase()).cloned()) else { continue };
+        let w = w.base();
+        if let Some(mut parent) = w.parent() {
+            if parent.find(&w) != parent.children() - 1 {
+                parent.remove(&w);
+                parent.add(&w);
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ mod builtins;
 mod file_io;
 pub mod object;
 pub mod layout;
+pub mod mdi;
 mod sound;
 pub use rapidr_value as value;
 

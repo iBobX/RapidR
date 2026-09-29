@@ -7,6 +7,52 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.57.0] — 2026-09-28
+
+### Added
+- **QFORMMDI** (RAPIDQ2.INC's MDI form) on the desktop and the web: child
+  windows inside the form, each showing one of the program's components
+  (`AddChild(Edit(i).Handle, "Title", i, left, top, width, height,
+  DefaultSize)`), with a title bar, minimize / maximize / close buttons,
+  moved by the title bar and sized by the corner, double-click to
+  maximize; `CloseChild`, `CloseAllChild`, `CascadeChild`, `SetHorzChild`,
+  `SetVertChild`, `IconArrangeChild`, `MinimizeAllChild`,
+  `MaximizeAllChild`, `RestoreChild`, `ActiveNextChild`,
+  `ActivePreviousChild`, `ActiveChild`, `GetChild`, `ChildExist`,
+  `FreeChild`; `ChildCount`, `ChildMax`, `ChildCaption`, `ChildHandle`,
+  `ChildLeft` / `Top` / `Width` / `Height`, `ChildState`,
+  `ComponentIndex`, `ChildResult`; `OnChildActive`, `OnChildClose` (setting
+  `ChildResult` to False keeps the child open), `OnChildResize`. One model
+  (`rapidr_value::mdi`, the same code applies it in both runtimes); it was
+  a stub (AddChild only counted) on the desktop and nothing on the web.
+- **`Component.Handle`**: a stable number for each component (it was
+  empty), and the way back from it (`rapidr_value::handles`).
+- **Events whose handler the runtime waits for** (`rp_fire_event_then`,
+  `rapidr_value::events`): the runtime goes on once the handler has run —
+  at once in a native build; in the interpreter the continuation travels
+  with the queued event and the VM hands it back when the handler returns,
+  even if it waited for a dialog. OnChildClose's `ChildResult` uses it; the
+  by-reference event results (OnClose's Action, …) will.
+
+### Fixed
+- Desktop: a component given a parent after its form is shown (`Late.Parent
+  = Form` in an event handler) got no widget; it gets one then, with its
+  children (the web did this already).
+- The interpreter runs the events a host operation queued until none is
+  left (events a handler's continuation fires included).
+
+### Tests
+- **GitHub Actions no longer run on push** (they cost minutes and failed on
+  Linux): the CI workflow runs only when started by hand; every check runs
+  locally before a commit — `tools/regress.sh` (unit, conformance on both
+  backends, native examples via `tools/native_examples.sh`, desktop GUI
+  events, the web suites).
+- GUI parity (desktop native + interpreted + browser): `mdi_children`
+  (adding, tiling, next, closing with a veto, FreeChild / GetChild /
+  ChildExist, the components' places), `late_parent`; the test hooks read
+  `name.__shown` (a widget the user can see). Unit tests for the MDI model
+  and the event continuations.
+
 ## [2.56.0] — 2026-09-28
 
 ### Added

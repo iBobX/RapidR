@@ -32,7 +32,9 @@
 //     opened (and closed by a timer) inside an event handler;
 //   * tests/fixtures/coolbtn_group.bas — QCOOLBTN GroupIndex / Down /
 //     AllowAllUp, Down set by the program;
-//   * tests/fixtures/timer_default.bas — a QTIMER ticks without Enabled set.
+//   * tests/fixtures/timer_default.bas — a QTIMER ticks without Enabled set;
+//   * tests/fixtures/late_parent.bas — components parented after the form is shown;
+//   * tests/fixtures/mdi_children.bas — QFORMMDI child windows, OnChildClose's ChildResult.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
