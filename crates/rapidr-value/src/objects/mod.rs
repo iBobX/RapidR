@@ -250,6 +250,21 @@ pub fn with_list<R>(id: &str, f: impl FnOnce(&ItemList) -> R) -> Option<R> {
     })?
 }
 
+/// A QMEMORYSTREAM / QFILESTREAM's buffer (`memory`: its Pointer).
+pub fn with_stream<R>(id: &str, f: impl FnOnce(&MemStream) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Stream(s) => Some(f(s)),
+        _ => None,
+    })?
+}
+
+pub fn with_stream_mut<R>(id: &str, f: impl FnOnce(&mut MemStream) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Stream(s) => Some(f(s)),
+        _ => None,
+    })?
+}
+
 /// Changes a list's selection from its widget (the user picked an item).
 pub fn with_list_mut<R>(id: &str, f: impl FnOnce(&mut ItemList) -> R) -> Option<R> {
     with(id, |o| match o {
@@ -389,6 +404,10 @@ fn ensure_printer(id: &str) {
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    // `Mem.Pointer`: the address of its first byte (crate::memory).
+    if prop == "pointer" && with(id, |o| matches!(o, Object::Stream(_))) == Some(true) {
+        return Some(Value::Integer(crate::memory::stream_pointer(id)));
+    }
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
@@ -504,6 +523,21 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         with(id, |o| if let Object::Bitmap(b) = o { b.resize(w, h) });
     }
     match (kind, method.as_str()) {
+        // A TYPE's bytes as RapidQ lays them out (crate::memory).
+        ("stream", "writeudt") => {
+            let bytes = crate::memory::udt_bytes(&arg(0));
+            with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
+            Some(Ok(Value::Null))
+        }
+        ("stream", "readudt") => {
+            let n = crate::memory::udt_bytes(&arg(0)).len();
+            let bytes = with(id, |o| match o {
+                Object::Stream(m) => m.read(n),
+                _ => Vec::new(),
+            })?;
+            crate::memory::udt_from_bytes(&arg(0), &bytes);
+            Some(Ok(Value::Null))
+        }
         ("stream", "open") => Some(open_file(id, &arg(0).to_string_val(), if args.len() > 1 { arg(1).to_i64() } else { 0 })),
         ("stream", "copyfrom") => {
             let src = arg(0).to_string_val();

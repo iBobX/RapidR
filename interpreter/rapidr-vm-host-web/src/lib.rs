@@ -225,7 +225,6 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "rgb" => rp_rgb(&a0, &a1, &a2),
         "randomize" => { rp_randomize(&a0); v_null() }
         "vartype" => rp_vartype(&a0),
-        "sizeof" => rp_sizeof(&a0),
 
         // Time / system
         "date" | "date_func" | "date$" => rp_date(),

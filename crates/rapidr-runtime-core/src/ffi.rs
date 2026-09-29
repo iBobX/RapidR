@@ -91,8 +91,32 @@ pub fn ffi_call(lib_path: &str, func_name: &str, args: &[Value], ret_type: &str)
         let mut f_args = [0f64; 4];
         let mut af = [false; 4];
 
+        // An address the program got from VARPTR / Pointer / a UDT
+        // (rapidr_value::memory) isn't real memory: the DLL gets a real
+        // buffer with those bytes, copied back after the call.
+        let mut buffers: Vec<(usize, i64, Vec<u8>)> = args
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, a)| match a {
+                Value::Integer(v) if crate::value::memory::is_issued(*v) => {
+                    let mut bytes = crate::value::memory::bytes_from(*v).ok()?;
+                    let len = bytes.len();
+                    // (a NUL after the bytes, for C strings)
+                    bytes.push(0);
+                    bytes.truncate(len + 1);
+                    Some((idx, *v, bytes))
+                }
+                _ => None,
+            })
+            .collect();
+
         for (idx, arg) in args.iter().enumerate() {
             match arg {
+                Value::Integer(_) if buffers.iter().any(|(i, _, _)| *i == idx) => {
+                    let buf = buffers.iter_mut().find(|(i, _, _)| *i == idx).map(|(_, _, b)| b.as_mut_ptr()).unwrap_or(std::ptr::null_mut());
+                    i_args[idx] = buf as i64;
+                    f_args[idx] = i_args[idx] as f64;
+                }
                 Value::Integer(v) => { i_args[idx] = *v; f_args[idx] = *v as f64; }
                 Value::Double(v)  => { i_args[idx] = v.to_bits() as i64; f_args[idx] = *v; af[idx] = true; }
                 Value::Boolean(v) => { let b = if *v { 1i64 } else { 0i64 }; i_args[idx] = b; f_args[idx] = b as f64; }
@@ -217,6 +241,11 @@ pub fn ffi_call(lib_path: &str, func_name: &str, args: &[Value], ret_type: &str)
 
         // c_strings is still live here; drop happens after this point.
         drop(c_strings);
+        // What the DLL wrote into the buffers goes back to the program's memory.
+        for (_, addr, bytes) in buffers.drain(..) {
+            let n = bytes.len() - 1;
+            let _ = crate::value::memory::write(addr, &bytes[..n]);
+        }
 
         match raw_result {
             Err(e) => { eprintln!("[ERROR] {}", e); v_null() }

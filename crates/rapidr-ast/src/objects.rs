@@ -93,9 +93,17 @@ impl Types {
         self.slots(t).iter().rposition(|f| f.name.eq_ignore_ascii_case(field))
     }
 
-    /// The field names, comma separated, for `__newobject`.
+    /// The fields, comma separated, for `__newobject`: `Name:TYPE` (the
+    /// type for rapidr_value::memory's layout; `STRING*8` when fixed).
     fn field_names(&self, t: &str) -> String {
-        self.slots(t).iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(",")
+        self.slots(t)
+            .iter()
+            .map(|f| match f.fixed_len {
+                Some(n) => format!("{}:STRING*{n}", f.name),
+                None => format!("{}:{}", f.name, f.type_name),
+            })
+            .collect::<Vec<_>>()
+            .join(",")
     }
 
     /// The component the TYPE (or an ancestor) extends, e.g. RFORM.

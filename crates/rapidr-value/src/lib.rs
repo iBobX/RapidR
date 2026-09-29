@@ -13,6 +13,7 @@ pub mod console;
 pub mod dialogs;
 pub mod basic_files;
 pub mod builtins;
+pub mod memory;
 pub mod format;
 pub mod toggle_group;
 pub mod objects;
@@ -59,12 +60,16 @@ thread_local! {
 
 impl Instance {
     /// A new instance of `type_name` whose slots are `names` (comma
-    /// separated, as the compilers pass them), all Null.
+    /// separated, as the compilers pass them: `Name:STRING*5,Age:INTEGER`,
+    /// each with its type for `memory`), all Null.
     pub fn new(id: &str, type_name: &str, names: &str) -> Rc<Self> {
         let names = FIELD_NAMES.with(|c| {
             c.borrow_mut()
                 .entry(format!("{type_name}:{names}"))
-                .or_insert_with(|| names.split(',').filter(|n| !n.is_empty()).map(str::to_string).collect::<Vec<_>>().into())
+                .or_insert_with(|| {
+                    memory::register_layout(type_name, names);
+                    names.split(',').filter(|n| !n.is_empty()).map(|n| n.split(':').next().unwrap_or(n).to_string()).collect::<Vec<_>>().into()
+                })
                 .clone()
         });
         let fields = RefCell::new(vec![Value::Null; names.len()]);
@@ -170,7 +175,7 @@ impl BasicArray {
         Ok(Self { bounds, data: vec![fill; len] })
     }
 
-    fn offset(&self, indices: &[i64]) -> Result<usize, String> {
+    pub(crate) fn offset(&self, indices: &[i64]) -> Result<usize, String> {
         if indices.len() != self.bounds.len() {
             return Err(format!(
                 "array has {} dimension(s) but {} index(es) were given",
@@ -793,6 +798,10 @@ pub fn new_object_array(name: &str, type_name: &str, fields: &str, bounds: &[(i6
 }
 
 pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    // VARPTR, MEMCPY, SIZEOF, … (memory.rs).
+    if let Some(r) = memory::shared(key, args) {
+        return Some(r);
+    }
     // Objects (rapidr_ast::objects): instances and their field slots.
     let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
     match key {

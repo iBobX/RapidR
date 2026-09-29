@@ -165,11 +165,6 @@ fn days_to_ymd(z: i64) -> (i64, u32, u32) {
 
 
 
-/// VARPTR$ — return a string representation of a variable's address
-pub fn rp_varptr_str(val: &Value) -> Value {
-    v_str(&format!("0x{:016x}", val as *const Value as usize))
-}
-
 // ---------------------------------------------------------------------------
 // Type checking
 // ---------------------------------------------------------------------------

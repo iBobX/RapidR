@@ -611,8 +611,9 @@ Over **100 built-in functions** covering string manipulation, math, file I/O, sy
 | `COLOR(fg, bg)` | Set console colors |
 | `CLS` | Clear screen buffer |
 | `CSRLIN` / `POS(0)` | Get cursor row/column |
-| `SIZEOF(var)` | Size of variable |
-| `MEMCPY` / `MEMSET` / `MEMCMP` | Memory operations |
+| `SIZEOF(type or var)` | Size as RapidQ stores it (`SIZEOF(INTEGER)` = 4, a TYPE's packed fields, a STRING's length) |
+| `VARPTR(x)` / `UDTPTR(t)` / `VARPTR$(addr)` | Addresses of variables, array elements and TYPEs; the text at an address |
+| `MEMCPY` / `MEMSET` / `MEMCMP` / `RTLMOVEMEMORY` | Memory operations — memory-safe (addresses are views of the program's own data; a bad one is a run-time error), the same natively, interpreted and in the browser; a native DLL call gets real buffers |
 | `CODEPTR(func)` | Get function reference |
 
 #### Array Functions

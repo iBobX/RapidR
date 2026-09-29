@@ -111,7 +111,6 @@ impl MemStream {
             "text" => v_str(&self.text()),
             "linecount" => v_int(self.line_count()),
             // There are no raw memory addresses in RapidR.
-            "pointer" => v_int(0),
             _ => return None,
         })
     }

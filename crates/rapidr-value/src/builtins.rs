@@ -305,24 +305,6 @@ pub fn rp_vartype(val: &Value) -> Value {
     })
 }
 
-/// SIZEOF — return approximate size in bytes
-pub fn rp_sizeof(val: &Value) -> Value {
-    v_int(match val {
-        Value::Integer(_) => 8,
-        Value::Double(_) => 8,
-        Value::String(s) => s.len() as i64,
-        Value::Boolean(_) => 1,
-        Value::Null => 0,
-        Value::Array(a) => 8 * a.borrow().data.len() as i64,
-        Value::Object(o) => 8 * o.fields.borrow().len() as i64,
-    })
-}
-
-/// VARPTR — return a dummy pointer value (no real pointers in safe Rust)
-pub fn rp_varptr(_val: &Value) -> Value {
-    v_int(0)
-}
-
 pub fn rp_isnumeric(val: &Value) -> Value {
     match val {
         Value::Integer(_) | Value::Double(_) => v_int(-1),

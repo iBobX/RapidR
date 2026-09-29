@@ -4,6 +4,7 @@ pub mod numeric;
 pub mod objects;
 pub mod array_refs;
 pub mod suffix_routines;
+pub mod memory;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
 pub fn strip_type_suffix(name: &str) -> &str {
@@ -774,7 +775,7 @@ pub fn canonical_type_name(type_name: &str) -> String {
 // ---------------------------------------------------------------------------
 
 /// Every statement list inside `stmts` (itself included), innermost first.
-fn for_each_block_mut(stmts: &mut Vec<Statement>, f: &mut dyn FnMut(&mut Vec<Statement>)) {
+pub(crate) fn for_each_block_mut(stmts: &mut Vec<Statement>, f: &mut dyn FnMut(&mut Vec<Statement>)) {
     for s in stmts.iter_mut() {
         match s {
             Statement::If(i) => {
