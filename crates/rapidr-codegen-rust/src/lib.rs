@@ -747,8 +747,8 @@ impl RustCodegen {
                 // Handle $THEME directive — emit set_theme() call
                 if d.name.eq_ignore_ascii_case("$THEME") || d.name.eq_ignore_ascii_case("THEME") {
                     if let Some(ref val) = d.value {
-                        let theme_lower = val.to_lowercase();
-                        self.line(&format!("set_theme(\"{}\");", theme_lower));
+                        // (a Rust string literal: the text can't break out of it)
+                        self.line(&format!("set_theme({:?});", val.to_lowercase()));
                     }
                 }
                 // Other directives like $TYPECHECK, $APPTYPE are compile-time; skip
@@ -3121,6 +3121,14 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
+
+# Debug builds keep line tables only (a panic still says where): full debug
+# info made every program's build hundreds of megabytes.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
 
 [dependencies]
 rapidr-runtime-core = {{ path = "{runtime_path}" }}

@@ -7,6 +7,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.62.0] — 2026-09-29
+
+### Added
+- **`$THEME` in interpreted programs** (only native builds honored it) and
+  a `RAPIDR_THEME` environment variable for programs without one. Names:
+  fltk-theme's themes (`classic`, `aero`, `metro`, `aquaclassic`,
+  `greybird`, `blue`, `dark`, `highcontrast`) and schemes (`aqua`,
+  `fluent`, `clean`, `gleam`, `svg`, `sweet`, `fleet1`, `fleet2`, in light
+  colors), FLTK's (`base`, `gtk`, `plastic`, `oxy`), and platform names
+  (`windows`, `mac`, `linux`, `win7`, …).
+
+### Changed
+- Linux (and other non-macOS / Windows systems) default to a light look
+  (Gleam) instead of Dark: RapidQ programs set their colors for a light
+  look. macOS (classic Aqua) and Windows (Metro) keep theirs.
+- Native debug builds keep line tables only (`[profile.dev]`): full debug
+  info made every program's build hundreds of megabytes.
+
+### Fixed
+- Native builds: a `$THEME` value with a quote in it broke (or injected
+  into) the generated program; it is escaped.
+- `$THEME crystal` crashed (fltk-theme's scheme panics): it gives `clean`.
+
 ## [2.61.0] — 2026-09-29
 
 ### Fixed

@@ -175,18 +175,95 @@ thread_local! {
     static DESIGN_SURFACES: RefCell<HashMap<String, DesignState>> = RefCell::new(HashMap::new());
     /// Maps tab control names to their child group names (tab_name -> group_widget_key)
     static TAB_GROUPS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
-    /// User-selected theme override: "light", "dark", "system", "aqua", "fluent", "sweet", or ""
+    /// `$THEME` (see [`look_for`]); "" for the platform's own look
     static THEME_OVERRIDE: RefCell<String> = RefCell::new(String::new());
     /// Active timer names (component names that are RTimer)
     static ACTIVE_TIMERS: RefCell<Vec<String>> = RefCell::new(Vec::new());
 }
 
-/// Set the application theme. Call before any window is shown.
-/// Accepted values: "light", "dark", "system", "aqua", "fluent", "sweet".
+/// Set the application theme (`$THEME`, see [`look_for`]). Call before any
+/// window is shown.
 pub fn set_theme(theme: &str) {
     THEME_OVERRIDE.with(|t| {
         *t.borrow_mut() = theme.to_lowercase();
     });
+}
+
+/// The desktop look for `$THEME name` (or the platform's own, `""` /
+/// `"system"` / `"light"`) on `os` (`std::env::consts::OS`): a key of
+/// [`apply_look`]. By default a program looks like its platform, in light
+/// colors (RapidQ programs are made for them): classic Aqua on macOS, Metro
+/// on Windows, Gleam elsewhere. Any fltk-theme theme or scheme, and FLTK's
+/// own schemes, can be asked for by name (`$THEME`, `RAPIDR_THEME`).
+fn look_for(name: &str, os: &str) -> &'static str {
+    const NAMED: &[&str] = &[
+        // fltk-theme widget themes (frames and colors)
+        "classic", "aero", "metro", "aquaclassic", "greybird", "blue", "dark", "highcontrast",
+        // fltk-theme widget schemes (frames; light colors)
+        "aqua", "fluent", "clean", "gleam", "svg", "sweet", "fleet1", "fleet2",
+        // FLTK's own schemes
+        "base", "gtk", "plastic", "oxy",
+    ];
+    let name = name.trim().to_ascii_lowercase();
+    if let Some(n) = NAMED.iter().find(|n| **n == name) {
+        return n;
+    }
+    match name.as_str() {
+        "windows" | "win10" | "win11" => "fluent",
+        // (fltk-theme 0.7.9's crystal scheme panics: its neighbour instead)
+        "crystal" => "clean",
+        "mac" | "macos" => "aqua",
+        "linux" | "xfce" => "greybird",
+        "windows7" | "win7" => "aero",
+        "windows8" | "win8" => "metro",
+        "windows95" | "win95" | "win2000" => "classic",
+        // The platform's own. (fltk-theme's modern Aqua and Fluent schemes
+        // don't show RapidR's default buttons yet: the classic themes.)
+        _ => match os {
+            "macos" => "aquaclassic",
+            "windows" => "metro",
+            _ => "gleam",
+        },
+    }
+}
+
+/// Applies a look from [`look_for`].
+fn apply_look(look: &str) {
+    use fltk_theme::{SchemeType, WidgetScheme};
+    let theme = |t: ThemeType| WidgetTheme::new(t).apply();
+    let scheme = |s: SchemeType| WidgetScheme::new(s).apply();
+    match look {
+        "classic" => theme(ThemeType::Classic),
+        "aero" => theme(ThemeType::Aero),
+        "metro" => theme(ThemeType::Metro),
+        "aquaclassic" => theme(ThemeType::AquaClassic),
+        "greybird" => theme(ThemeType::Greybird),
+        "blue" => theme(ThemeType::Blue),
+        "dark" => theme(ThemeType::Dark),
+        "highcontrast" => theme(ThemeType::HighContrast),
+        "base" => app::set_scheme(app::Scheme::Base),
+        "gtk" => app::set_scheme(app::Scheme::Gtk),
+        "plastic" => app::set_scheme(app::Scheme::Plastic),
+        "oxy" => app::set_scheme(app::Scheme::Oxy),
+        _ => {
+            // A scheme: its frames, in the platform's light colors.
+            match look {
+                "aqua" => scheme(SchemeType::Aqua),
+                "clean" => scheme(SchemeType::Clean),
+                "gleam" => scheme(SchemeType::Gleam),
+                "svg" => scheme(SchemeType::SvgBased),
+                "sweet" => scheme(SchemeType::Sweet),
+                "fleet1" => scheme(SchemeType::Fleet1),
+                "fleet2" => scheme(SchemeType::Fleet2),
+                _ => scheme(SchemeType::Fluent),
+            }
+            let (window, selection) = if look == "aqua" { ((236, 236, 236), (0, 122, 255)) } else { ((240, 240, 240), (0, 120, 215)) };
+            app::background(window.0, window.1, window.2);
+            app::background2(255, 255, 255);
+            app::foreground(0, 0, 0);
+            app::set_selection_color(selection.0, selection.1, selection.2);
+        }
+    }
 }
 
 fn ensure_app() {
@@ -200,37 +277,10 @@ fn ensure_app() {
         if app_ref.is_none() {
             let app = app::App::default();
 
-            // Determine theme
+            // `$THEME`, else the `RAPIDR_THEME` environment variable.
             let theme_name = THEME_OVERRIDE.with(|t| t.borrow().clone());
-            let theme_type = match theme_name.as_str() {
-                "aqua" | "aquaclassic" => Some(ThemeType::AquaClassic),
-                "fluent" | "metro" => Some(ThemeType::Metro),
-                "aero" => Some(ThemeType::Aero),
-                "sweet" | "dark" => Some(ThemeType::Dark),
-                "greybird" | "light" => Some(ThemeType::Greybird),
-                "highcontrast" => Some(ThemeType::HighContrast),
-                "classic" => Some(ThemeType::Classic),
-                "blue" => Some(ThemeType::Blue),
-                "system" | "" => {
-                    // Auto-detect OS
-                    if cfg!(target_os = "macos") {
-                        Some(ThemeType::AquaClassic)
-                    } else if cfg!(target_os = "windows") {
-                        Some(ThemeType::Metro)
-                    } else {
-                        // Linux and others
-                        Some(ThemeType::Dark)
-                    }
-                }
-                _ => None,
-            };
-
-            if let Some(tt) = theme_type {
-                let widget_theme = WidgetTheme::new(tt);
-                widget_theme.apply();
-            } else {
-                app::set_scheme(app::Scheme::Gtk);
-            }
+            let theme_name = if theme_name.is_empty() { std::env::var("RAPIDR_THEME").unwrap_or_default() } else { theme_name };
+            apply_look(look_for(&theme_name, std::env::consts::OS));
 
             *app_ref = Some(app);
         }
@@ -5722,4 +5772,22 @@ pub fn gui_set_parent(child_name: &str, parent_name: &str) {
     // This is complex in FLTK — just record it in the component registry.
     // The actual re-parenting happens during build_form_widgets.
     rp_comp_set(child_name, "parent", v_str(parent_name));
+}
+
+#[cfg(test)]
+mod look_tests {
+    use super::look_for;
+
+    #[test]
+    fn a_program_looks_like_its_platform_unless_it_names_a_look() {
+        assert_eq!(look_for("", "macos"), "aquaclassic");
+        assert_eq!(look_for("system", "windows"), "metro");
+        assert_eq!(look_for("light", "linux"), "gleam");
+        assert_eq!(look_for("mac", "linux"), "aqua");
+        assert_eq!(look_for("Dark", "macos"), "dark");
+        assert_eq!(look_for("AquaClassic", "windows"), "aquaclassic");
+        assert_eq!(look_for("win7", "macos"), "aero");
+        assert_eq!(look_for("crystal", "macos"), "clean");
+        assert_eq!(look_for("no such look", "freebsd"), "gleam");
+    }
 }
