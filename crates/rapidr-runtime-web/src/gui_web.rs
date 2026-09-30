@@ -3685,45 +3685,230 @@ fn create_splitter(id: &str, name: &str, props: &HashMap<String, Value>) {
     setup_widget(&el, id, name, props);
 }
 
+/// A QLISTVIEW, as on the desktop: a canvas the shared model
+/// (rapidr_value::objects::listview) paints — its four views, image lists,
+/// check boxes, header and scroll bars — and the mouse, the wheel and the
+/// keys passed to it; what the user did fires OnChange / OnClick /
+/// OnDblClick / OnColumnClick.
 fn create_listview(id: &str, name: &str, props: &HashMap<String, Value>) {
-    // A table drawn from the shared QLISTVIEW data (rapidr_value::objects::
-    // listview), like the desktop runtime's browser.
-    let wrapper = create_el("div");
-    wrapper.set_class_name("rr-widget");
-    let _ = wrapper.style().set_property("overflow", "auto");
-    let _ = wrapper.style().set_property("border", "1px solid #aaa");
-    let _ = wrapper.style().set_property("background", "white");
-    let table = create_el("table");
-    table.set_id(&format!("{}-table", id));
-    table.set_class_name("rr-grid");
-    let _ = table.style().set_property("border-collapse", "collapse");
-    let _ = table.style().set_property("table-layout", "fixed");
-    let _ = table.style().set_property("font-size", "13px");
-    let _ = wrapper.append_child(&table);
-    // Row click: ItemIndex, then OnClick / OnDblClick; header click:
-    // OnColumnClick(Column%).
-    for dom_event in ["click", "dblclick"] {
-        let owner = name.to_uppercase();
-        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            let Some(target) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
-            if let Ok(Some(th)) = target.closest("th") {
-                if dom_event == "click" {
-                    let col = th.get_attribute("data-col").and_then(|c| c.parse::<i64>().ok()).unwrap_or(0);
-                    crate::object_web::rp_fire_event_1(&owner, "oncolumnclick", v_int(col));
-                }
+    let Some(canvas) = create_el("canvas").dyn_into::<web_sys::HtmlCanvasElement>().ok() else { return };
+    canvas.set_class_name("rr-widget rr-listview");
+    let _ = canvas.set_attribute("tabindex", "0");
+    let _ = canvas.style().set_property("outline", "none");
+    let el: web_sys::HtmlElement = canvas.clone().into();
+    let owner = name.to_uppercase();
+    // The mouse: down on the control; moves and the release wherever they
+    // are while it's held (a column's edge, a scroll bar's thumb).
+    let at = |el: &web_sys::HtmlElement, e: &web_sys::MouseEvent| {
+        let r = el.get_bounding_client_rect();
+        ((e.client_x() as f64 - r.left()) as i64, (e.client_y() as f64 - r.top()) as i64)
+    };
+    {
+        let (owner, target) = (owner.clone(), el.clone());
+        let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if e.button() != 0 {
                 return;
             }
-            let Ok(Some(tr)) = target.closest("tr") else { return };
-            let Some(row) = tr.get_attribute("data-row").and_then(|r| r.parse::<i64>().ok()) else { return };
-            rapidr_value::objects::set(&owner, "itemindex", &v_int(row));
+            let _ = target.focus();
+            let (x, y) = at(&target, &e);
+            listview_prepare(&owner);
+            let ctrl = e.ctrl_key() || e.meta_key();
+            let events = rapidr_value::objects::with_listview_mut(&owner, |lv| lv.mouse_down(x, y, e.shift_key(), ctrl, e.detail() >= 2)).unwrap_or_default();
             render_listview(&owner);
-            crate::object_web::rp_fire_event(&owner, if dom_event == "click" { "onclick" } else { "ondblclick" });
+            listview_fire(&owner, events);
         });
-        let _ = wrapper.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        let _ = el.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
+        down.forget();
+    }
+    for dom_event in ["mousemove", "mouseup"] {
+        let (owner, target) = (owner.clone(), el.clone());
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let (x, y) = at(&target, &e);
+            let over = e.target().and_then(|t| t.dyn_into::<web_sys::Node>().ok()).is_some_and(|n| target.contains(Some(&n)));
+            let held = rapidr_value::objects::with_listview(&owner, |lv| lv.held()).unwrap_or(false);
+            if !over && !held {
+                return;
+            }
+            listview_prepare(&owner);
+            if dom_event == "mouseup" {
+                let events = rapidr_value::objects::with_listview_mut(&owner, |lv| lv.mouse_up(x, y)).unwrap_or_default();
+                render_listview(&owner);
+                listview_fire(&owner, events);
+                return;
+            }
+            let custom = crate::object_web::rp_comp_get_stored(&owner, "cursor").to_i64() != 0;
+            if !custom {
+                let grip = rapidr_value::objects::with_listview(&owner, |lv| lv.on_grip(x, y)).unwrap_or(false);
+                let _ = target.style().set_property("cursor", if grip { "col-resize" } else { "" });
+            }
+            if rapidr_value::objects::with_listview_mut(&owner, |lv| lv.mouse_move(x, y)).unwrap_or(false) {
+                render_listview(&owner);
+            }
+        });
+        let _ = document().add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
         cb.forget();
     }
-    setup_widget(&wrapper, id, name, props);
+    {
+        let owner = owner.clone();
+        let leave = Closure::<dyn FnMut()>::new(move || {
+            if rapidr_value::objects::with_listview_mut(&owner, |lv| lv.mouse_leave()).unwrap_or(false) {
+                render_listview(&owner);
+            }
+        });
+        let _ = el.add_event_listener_with_callback("mouseleave", leave.as_ref().unchecked_ref());
+        leave.forget();
+    }
+    {
+        let owner = owner.clone();
+        let wheel = Closure::<dyn FnMut(web_sys::WheelEvent)>::new(move |e: web_sys::WheelEvent| {
+            let notches = e.delta_y().signum() as i64;
+            listview_prepare(&owner);
+            if notches != 0 && rapidr_value::objects::with_listview_mut(&owner, |lv| lv.wheel(notches)).unwrap_or(false) {
+                e.prevent_default();
+                render_listview(&owner);
+            }
+        });
+        let _ = el.add_event_listener_with_callback("wheel", wheel.as_ref().unchecked_ref());
+        wheel.forget();
+    }
+    {
+        let owner = owner.clone();
+        let key = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+            let Some(vk) = rapidr_value::input::vk_of_key(&e.key(), &e.code()) else { return };
+            listview_prepare(&owner);
+            let (events, changed) = rapidr_value::objects::with_listview_mut(&owner, |lv| lv.key_down(vk, e.shift_key(), e.ctrl_key() || e.meta_key())).unwrap_or_default();
+            if changed {
+                e.prevent_default();
+                render_listview(&owner);
+            }
+            listview_fire(&owner, events);
+        });
+        let _ = el.add_event_listener_with_callback("keydown", key.as_ref().unchecked_ref());
+        key.forget();
+    }
+    for dom_event in ["focus", "blur"] {
+        let owner = owner.clone();
+        let cb = Closure::<dyn FnMut()>::new(move || render_listview(&owner));
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    setup_widget(&el, id, name, props);
     render_listview(name);
+}
+
+/// Gives a QLISTVIEW's model its control's size and font, and whether it
+/// has the keyboard's focus.
+fn listview_prepare(name: &str) {
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_i64();
+    let focused = document().active_element().is_some_and(|a| a == *el);
+    let font = rapidr_value::objects::font_from_props(name, &|id, p| crate::object_web::rp_comp_get_stored(id, p));
+    rapidr_value::objects::listview_setup(name, stored("width"), stored("height"), &font, focused);
+}
+
+/// Fires what the user did to a QLISTVIEW, in order.
+fn listview_fire(name: &str, events: Vec<rapidr_value::objects::listview::Event>) {
+    use rapidr_value::objects::listview::Event as E;
+    for e in events {
+        match e {
+            E::Click => crate::object_web::rp_fire_event(name, "onclick"),
+            E::DblClick => crate::object_web::rp_fire_event(name, "ondblclick"),
+            E::ColumnClick(i) => crate::object_web::rp_fire_event_1(name, "oncolumnclick", v_int(i as i64)),
+            E::Change(i, ct) => crate::object_web::rp_fire_event_args(name, "onchange", &[v_int(i as i64), v_int(ct)]),
+            E::Edit(i) => listview_begin_edit(name, i),
+            E::EditSoon(i) => {
+                let (lv, clicks) = (name.to_uppercase(), rapidr_value::objects::with_listview(name, |lv| lv.clicks).unwrap_or(0));
+                let later = Closure::once_into_js(move || {
+                    if rapidr_value::objects::with_listview(&lv, |m| m.clicks) == Some(clicks) {
+                        listview_begin_edit(&lv, i);
+                    }
+                });
+                if let Some(window) = web_sys::window() {
+                    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 500);
+                }
+            }
+        }
+    }
+}
+
+thread_local! {
+    /// The item each QLISTVIEW's caption editor edits.
+    static LISTVIEW_EDITING: std::cell::RefCell<HashMap<String, usize>> = std::cell::RefCell::new(HashMap::new());
+}
+
+/// Edits item `i`'s caption in place, as on the desktop: an input over
+/// the canvas (`data-for` its id); Enter or leaving it keeps the text,
+/// Escape drops it.
+fn listview_begin_edit(name: &str, i: usize) {
+    let lv = name.to_uppercase();
+    let id = comp_id(&lv);
+    let Some(canvas) = get_el(&id) else { return };
+    listview_prepare(&lv);
+    let Some(Some((l, t, r, b))) = rapidr_value::objects::with_listview_mut(&lv, |m| m.editor_rect(i)) else { return };
+    let Some(text) = rapidr_value::objects::with_listview(&lv, |m| m.items.get(i).map(|it| it.caption.clone())).flatten() else { return };
+    render_listview(&lv);
+    listview_drop_editor(&id);
+    let Some(input) = document().create_element("input").ok().and_then(|x| x.dyn_into::<web_sys::HtmlInputElement>().ok()) else { return };
+    input.set_class_name("rr-tree-editor rr-listview-editor");
+    let _ = input.set_attribute("data-for", &id);
+    input.set_value(&text);
+    let font = rapidr_value::objects::font_from_props(&lv, &|id, p| crate::object_web::rp_comp_get_stored(id, p));
+    let css = format!(
+        "position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;box-sizing:border-box;padding:0 2px;border:1px solid #333;font-family:Arial,sans-serif;font-size:{}px;z-index:5",
+        canvas.offset_left() as i64 + l,
+        canvas.offset_top() as i64 + t,
+        r - l,
+        b - t,
+        (font.size.max(1) * 96 / 72).clamp(8, 72)
+    );
+    let _ = input.set_attribute("style", &css);
+    let Some(parent) = canvas.parent_node() else { return };
+    let _ = parent.insert_before(&input, canvas.next_sibling().as_ref());
+    LISTVIEW_EDITING.with(|e| e.borrow_mut().insert(lv.clone(), i));
+    let key_lv = lv.clone();
+    let key = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| match e.key().as_str() {
+        "Enter" => {
+            e.prevent_default();
+            listview_end_edit(&key_lv, true);
+        }
+        "Escape" => {
+            e.prevent_default();
+            listview_end_edit(&key_lv, false);
+        }
+        _ => {}
+    });
+    let _ = input.add_event_listener_with_callback("keydown", key.as_ref().unchecked_ref());
+    key.forget();
+    let blur_lv = lv.clone();
+    let blur = Closure::<dyn FnMut()>::new(move || listview_end_edit(&blur_lv, true));
+    let _ = input.add_event_listener_with_callback("blur", blur.as_ref().unchecked_ref());
+    blur.forget();
+    let _ = input.focus();
+    input.select();
+}
+
+fn listview_drop_editor(id: &str) -> Option<String> {
+    let input = document().query_selector(&format!(".rr-listview-editor[data-for=\"{id}\"]")).ok().flatten()?.dyn_into::<web_sys::HtmlInputElement>().ok()?;
+    let text = input.value();
+    input.remove();
+    Some(text)
+}
+
+/// Ends a caption's edit: with `keep`, the item gets the text
+/// (OnChange (Index, ctText)).
+fn listview_end_edit(name: &str, keep: bool) {
+    let lv = name.to_uppercase();
+    let Some(i) = LISTVIEW_EDITING.with(|e| e.borrow_mut().remove(&lv)) else { return };
+    let id = comp_id(&lv);
+    let text = listview_drop_editor(&id).unwrap_or_default();
+    if let Some(canvas) = get_el(&id) {
+        let _ = canvas.focus();
+    }
+    if keep {
+        let events = rapidr_value::objects::with_listview_mut(&lv, |m| m.edited(i, text)).unwrap_or_default();
+        render_listview(&lv);
+        listview_fire(&lv, events);
+    }
 }
 
 /// A QSTRINGGRID: a table drawn from the shared grid data
@@ -4398,73 +4583,21 @@ fn grid_replay(td: &web_sys::HtmlElement, ops: &[rapidr_value::objects::grid::Ce
     let _ = td.append_child(&canvas);
 }
 
-/// Fills a QLISTVIEW's table from its data: a header row (unless
-/// ShowColumnHeaders is False), then one row per item — the caption and its
-/// sub-items in the columns. Cells are plain text, never markup.
+/// Shows a QLISTVIEW as its model paints it (at the screen's scale).
 pub fn render_listview(name: &str) {
-    let Some(table) = get_el(&format!("{}-table", comp_id(name))) else { return };
-    let show = crate::object_web::rp_comp_get_stored(name, "showcolumnheaders");
-    let show_header = matches!(show, Value::Null) || show.to_bool();
-    let _ = rapidr_value::objects::with_listview(name, |lv| {
-        table.set_inner_text("");
-        let n_cols = lv.columns.len().max(1);
-        if !lv.columns.is_empty() {
-            let colgroup = create_el("colgroup");
-            for c in &lv.columns {
-                let col = create_el("col");
-                let _ = col.style().set_property("width", &format!("{}px", c.width.clamp(1, 10_000)));
-                let _ = colgroup.append_child(&col);
-            }
-            let _ = table.append_child(&colgroup);
-            let total: i64 = lv.columns.iter().map(|c| c.width.clamp(1, 10_000)).sum();
-            let _ = table.style().set_property("width", &format!("{total}px"));
-        }
-        if show_header && !lv.columns.is_empty() {
-            let thead = create_el("thead");
-            let tr = create_el("tr");
-            for (i, c) in lv.columns.iter().enumerate() {
-                let th = create_el("th");
-                th.set_text_content(Some(&c.caption));
-                let _ = th.set_attribute("data-col", &i.to_string());
-                let st = th.style();
-                let _ = st.set_property("text-align", "left");
-                let _ = st.set_property("background", "#eee");
-                let _ = st.set_property("border", "1px outset #ddd");
-                let _ = st.set_property("padding", "1px 4px");
-                let _ = st.set_property("overflow", "hidden");
-                let _ = st.set_property("white-space", "nowrap");
-                let _ = st.set_property("cursor", "default");
-                let _ = tr.append_child(&th);
-            }
-            let _ = thead.append_child(&tr);
-            let _ = table.append_child(&thead);
-        }
-        let tbody = create_el("tbody");
-        for (row, item) in lv.items.iter().enumerate() {
-            let tr = create_el("tr");
-            let _ = tr.set_attribute("data-row", &row.to_string());
-            if row as i64 == lv.item_index || item.selected {
-                let _ = tr.style().set_property("background", "#3366dd");
-                let _ = tr.style().set_property("color", "white");
-                let _ = tr.set_attribute("aria-selected", "true");
-            }
-            let empty = String::new();
-            let cells = std::iter::once(&item.caption).chain(item.sub_items.iter()).chain(std::iter::repeat(&empty));
-            for cell in cells.take(n_cols) {
-                let td = create_el("td");
-                if !cell.is_empty() {
-                    td.set_text_content(Some(cell));
-                }
-                let st = td.style();
-                let _ = st.set_property("padding", "1px 4px");
-                let _ = st.set_property("overflow", "hidden");
-                let _ = st.set_property("white-space", "nowrap");
-                let _ = tr.append_child(&td);
-            }
-            let _ = tbody.append_child(&tr);
-        }
-        let _ = table.append_child(&tbody);
-    });
+    let Some(canvas) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    note_display_scale();
+    listview_prepare(name);
+    let background = match crate::object_web::rp_comp_get_stored(name, "color") {
+        Value::Null => 0xFFFFFF,
+        Value::String(s) if s.is_empty() => 0xFFFFFF,
+        v => rapidr_value::objects::form_color(&v) as u32,
+    };
+    let Some(mut b) = rapidr_value::objects::listview_paint(name, background) else { return };
+    let (w, h, rgba, scale) = b.display_rgba();
+    if w > 0 && h > 0 {
+        put_display(&canvas, w, h, &rgba, scale);
+    }
 }
 
 fn create_datetimepicker(id: &str, name: &str, props: &HashMap<String, Value>) {

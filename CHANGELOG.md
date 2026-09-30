@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.77.0] — 2026-09-30
+
+### Added
+- **QLISTVIEW as RapidQ has it**, on native, interpreter and web alike:
+  the control is laid out and painted by the shared model (sharp on
+  high-DPI screens) instead of a plain text list / an HTML table.
+  - `ViewStyle`: vsIcon (RapidQ's default: large icons with captions under
+    them), vsSmallIcon, vsList (columns) and vsReport (rows under a column
+    header); `LargeImages` / `SmallImages` / `StateImages`, `ImageIndex` /
+    `StateIndex`.
+  - `CheckBoxes` (click the box or press Space; `Item(i).Checked`),
+    `MultiSelect` (Ctrl / ⌘-click, Shift-click, Ctrl+A; `SelCount`,
+    `Selected(i)`), `SortType` stText (kept sorted by caption), `RowSelect`,
+    `GridLines`, `HotTrack`, `HideSelection`, `BorderStyle`.
+  - The header: its buttons fire OnColumnClick (`ColumnClick`), its edges
+    resize the columns; scroll bars, the mouse wheel, and the keyboard
+    (arrows, Home / End, Page Up / Down).
+  - In-place caption editing when `ReadOnly` is False (as Windows): F2, or
+    a click on the item already selected.
+  - OnChange (Index, Change: ctText 0 / ctState 2) for each item whose
+    selection, check or caption the user changed, then OnClick /
+    OnDblClick.
+
+### Changed
+- A QLISTVIEW without `ViewStyle` now shows RapidQ's default, the icon
+  view (it always looked like a report before); items have no state image
+  until `StateIndex` is set (-1).
+
 ## [2.76.0] — 2026-09-30
 
 ### Added

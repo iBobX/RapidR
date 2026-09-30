@@ -761,6 +761,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::gui::gui_move_form(name);
     }
+    // A list view drawn in its color and font again.
+    #[cfg(feature = "gui")]
+    if (prop_lower == "color" || prop_lower.starts_with("font")) && rapidr_value::objects::is_listview(name) {
+        crate::gui::listview_refresh(name);
+    }
     // A tree's image lists: its icons shown again.
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(name) {
