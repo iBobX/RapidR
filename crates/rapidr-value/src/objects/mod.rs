@@ -16,6 +16,7 @@ pub mod tree;
 pub mod font;
 pub mod filelist;
 pub mod grid;
+pub mod header;
 pub mod imagelist;
 pub mod list;
 pub mod listview;
@@ -81,6 +82,8 @@ thread_local! {
     /// False once a runtime replaces the file functions (the web): files
     /// are then read and written whole through them.
     static NATIVE_FILES: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+    /// QHEADER's sections; its surface is a canvas in OBJECTS.
+    static HEADERS: RefCell<HashMap<String, header::Header>> = RefCell::new(HashMap::new());
 }
 
 /// Sends a finished print job somewhere (`Printer.EndDoc`).
@@ -183,6 +186,12 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
         "RCANVAS" => Object::Bitmap(Bitmap::new_canvas()),
+        "RHEADER" => {
+            HEADERS.with(|h| {
+                h.borrow_mut().entry(id.to_lowercase()).or_default();
+            });
+            Object::Bitmap(Bitmap::new_canvas())
+        }
         "RIMAGELIST" => Object::ImageList(ImageList::default()),
         "RLISTVIEW" => Object::ListView(ListView::default()),
         "RSTRINGGRID" => Object::Grid(StringGrid::default()),
@@ -230,6 +239,27 @@ pub fn with_tree<R>(id: &str, f: impl FnOnce(&mut tree::TreeView) -> R) -> Optio
         Object::Tree(t) => Some(f(t)),
         _ => None,
     })?
+}
+
+/// Whether `id` is a QHEADER.
+pub fn is_header(id: &str) -> bool {
+    HEADERS.with(|h| h.borrow().contains_key(&id.to_lowercase()))
+}
+
+/// Reads or changes a QHEADER's sections (to show them, or from the mouse).
+pub fn with_header<R>(id: &str, f: impl FnOnce(&mut header::Header) -> R) -> Option<R> {
+    HEADERS.with(|h| h.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+}
+
+/// Paints QHEADER `id`'s faces on its surface, `width` × `height`; returns
+/// the owner-drawn sections (index, pressed, rect) for OnDrawSection.
+pub fn paint_header(id: &str, width: i64, height: i64) -> Vec<header::OwnerDrawn> {
+    let Some(model) = with_header(id, |h| h.clone()) else { return Vec::new() };
+    with_canvas(id, width, height, |b| {
+        let font = b.font.clone();
+        model.paint(b, &font)
+    })
+    .unwrap_or_default()
 }
 
 /// Whether `id` is a QDIRTREE (its widget shows its rows again after a
@@ -434,6 +464,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if prop == "pointer" && with(id, |o| matches!(o, Object::Stream(_))) == Some(true) {
         return Some(Value::Integer(crate::memory::stream_pointer(id)));
     }
+    if let Some(v) = with_header(id, |h| h.get(&prop)).flatten() {
+        return Some(v);
+    }
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
@@ -455,6 +488,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    if with_header(id, |h| h.set(&prop, val)) == Some(true) {
+        return Some(Ok(()));
+    }
     // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.
     if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_)) || matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let font = with(&val.to_string_val(), |o| match o {
@@ -512,6 +548,9 @@ pub type PropReader<'a> = &'a dyn Fn(&str, &str) -> Value;
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
     ensure_printer(id);
     let method = method.to_lowercase();
+    if let Some(v) = with_header(id, |h| h.call(&method, args)).flatten() {
+        return Some(Ok(v));
+    }
     let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
     // Methods that need another object or a file, handled outside the
     // object so the registry isn't borrowed twice.

@@ -4,7 +4,7 @@
 //! Components are created as FLTK widgets and managed through a handle registry.
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use fltk::{
     app,
@@ -377,6 +377,12 @@ fn apply_cursor(name: Option<&str>, win: app::WindowPtr) {
     use rapidr_value::input::Cursor as C;
     let screen = crate::globals::screen_cursor();
     let code = if screen != 0 { screen } else { name.map_or(0, |n| rp_comp_get(n, "cursor").to_i64()) };
+    // (on a QHEADER section's edge: the resize cursor)
+    let grip = name.filter(|n| rapidr_value::objects::is_header(n)).is_some_and(|n| {
+        let x = app::event_x() - widget_origin(n, win).0;
+        rapidr_value::objects::with_header(n, |h| h.on_grip(x as i64)).unwrap_or(false)
+    });
+    let code = if grip && code == 0 { -9 } else { code };
     let cursor = C::of(code);
     if SHOWN_CURSOR.with(|s| s.replace(cursor)) == cursor {
         return;
@@ -414,6 +420,9 @@ fn button_of(b: i64) -> rapidr_value::input::Button {
 fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_value::input::Button, x: i32, y: i32, shift: i64) {
     if rp_comp_type(name).eq_ignore_ascii_case("RIMAGE") {
         return;
+    }
+    if rapidr_value::objects::is_header(name) && button == rapidr_value::input::Button::Left {
+        header_mouse(name, kind, x as i64);
     }
     rp_fire_event_args(name, kind.event(), &kind.args(button, x as i64, y as i64, shift));
 }
@@ -1678,7 +1687,7 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 gw.borrow_mut().insert(name_lower, GuiWidget::Slider(slider));
             });
         }
-        "RCANVAS" => {
+        "RCANVAS" | "RHEADER" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
@@ -1695,6 +1704,11 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 let (ox, oy, w, h) = (f.x(), f.y(), f.w(), f.h());
                 draw::draw_rect_fill(ox, oy, w, h, f.color());
                 note_display_scale(f);
+                // (a QHEADER's faces are painted again at a new size)
+                if rapidr_value::objects::is_header(&name_for_draw) && HEADER_SIZES.with(|s| s.borrow().get(&name_for_draw) != Some(&(w, h))) {
+                    let name = name_for_draw.clone();
+                    app::add_timeout3(0.0, move |_| header_refresh(&name));
+                }
                 let shown = rapidr_value::objects::with_canvas(&name_for_draw, w as i64, h as i64, |b| b.display_rgba());
                 if let Some(mut img) = shown.and_then(|(pw, ph, rgba, scale)| display_image(pw, ph, &rgba, scale)) {
                     img.draw(ox, oy, w, h);
@@ -6017,6 +6031,61 @@ fn form_surface_overlay(form: &str, w: i32, h: i32) {
 /// Whether form `name` has its window yet.
 pub fn form_window_exists(name: &str) -> bool {
     GUI_WIDGETS.with(|gw| gw.try_borrow().map_or(true, |w| matches!(w.get(&name.to_lowercase()), Some(GuiWidget::Window(_)))))
+}
+
+thread_local! {
+    /// Each QHEADER's size when its faces were last painted.
+    static HEADER_SIZES: RefCell<HashMap<String, (i32, i32)>> = RefCell::new(HashMap::new());
+    static HEADERS_PAINTING: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
+
+/// Paints a shown QHEADER's section faces again and fires OnDrawSection
+/// (Index, Pressed, Rect) for its owner-drawn ones, which draw on it.
+pub fn header_refresh(name: &str) {
+    let name = name.to_lowercase();
+    let Some((w, h)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name).map(|w| (w.base().w(), w.base().h())))) else { return };
+    if !HEADERS_PAINTING.with(|p| p.borrow_mut().insert(name.clone())) {
+        return;
+    }
+    HEADER_SIZES.with(|s| s.borrow_mut().insert(name.clone(), (w, h)));
+    for (i, pressed, (left, top, right, bottom)) in rapidr_value::objects::paint_header(&name, w as i64, h as i64) {
+        let rect = format!("{name}.sectionrect({i})");
+        for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
+            crate::object::rp_comp_set(&rect, prop, v_int(v));
+        }
+        rp_fire_event_args(&name, "ondrawsection", &[v_int(i as i64), v_int(if pressed { -1 } else { 0 }), v_str(&rect)]);
+    }
+    HEADERS_PAINTING.with(|p| p.borrow_mut().remove(&name));
+    redraw_widget(&name);
+}
+
+/// The left button on a QHEADER at x: sections pressed, clicked, resized
+/// (OnSectionClick, OnSectionTrack, OnSectionResize).
+fn header_mouse(name: &str, kind: rapidr_value::input::Mouse, x: i64) {
+    use rapidr_value::input::Mouse;
+    use rapidr_value::objects::header::{Action, TS_END};
+    let before = rapidr_value::objects::with_header(name, |h| h.clone());
+    let actions = rapidr_value::objects::with_header(name, |h| match kind {
+        Mouse::Down => h.press(x),
+        Mouse::Move => h.drag_to(x),
+        Mouse::Up => h.release(x),
+    })
+    .unwrap_or_default();
+    for action in actions {
+        match action {
+            Action::Click(i) => rp_fire_event_1(name, "onsectionclick", v_int(i as i64)),
+            Action::Track(i, width, state) => {
+                rp_fire_event_args(name, "onsectiontrack", &[v_int(i as i64), v_int(width), v_int(state)]);
+                if state == TS_END {
+                    rp_fire_event_1(name, "onsectionresize", v_int(i as i64));
+                }
+            }
+        }
+    }
+    let after = rapidr_value::objects::with_header(name, |h| h.clone());
+    if before.map(|h| (h.pressed, h.sections)) != after.map(|h| (h.pressed, h.sections)) {
+        header_refresh(name);
+    }
 }
 
 /// A QCANVAS's or a QFORM's surface changed: show it again.

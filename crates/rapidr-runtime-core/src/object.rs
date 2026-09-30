@@ -135,6 +135,14 @@ impl RpComponent {
                 props.insert("fontsize".into(), v_int(12));
                 props.insert("fontname".into(), v_str("Arial"));
             }
+            "RHEADER" => {
+                // Sections: rapidr_value::objects::header; a canvas to draw on.
+                props.insert("left".into(), v_int(0));
+                props.insert("top".into(), v_int(0));
+                props.insert("width".into(), v_int(200));
+                props.insert("height".into(), v_int(20));
+                props.insert("color".into(), v_int(0xF0F0F0));
+            }
             "RSTRINGGRID" => {
                 // Cells, sizes and selection: rapidr_value::objects::grid.
                 props.insert("left".into(), v_int(0));
@@ -719,7 +727,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A QCANVAS's new size shows more or less of its surface.
     #[cfg(feature = "gui")]
-    if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
+    if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_header(name) {
+        crate::gui::redraw_widget(name);
+    } else if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
         crate::gui::canvas_redraw(name);
         // (a form's is fired below, once its size really changed)
         if !rapidr_value::objects::is_form_surface(name) && canvas_size_before != Some(rp_comp_get(name, &prop_lower).to_i64()) {
@@ -961,6 +971,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         if rapidr_value::objects::is_dirtree(name) {
             crate::gui::dirtree_refresh(name);
         }
+        // A QHEADER's sections changed (not a drawing on it): painted again.
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_header(name) && rapidr_value::objects::header::changes_sections(&method_lower) {
+            crate::gui::header_refresh(name);
+        }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tree(name) {
             crate::gui::tree_refresh(name);
@@ -1058,6 +1073,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         "RTREEVIEW" => crate::gui::tree_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
         "RCANVAS" => crate::gui::canvas_method(name, &method_lower, args),
+        #[cfg(feature = "gui")]
+        "RHEADER" if matches!(method_lower.as_str(), "repaint" | "refresh" | "update" | "paint") => {
+            crate::gui::header_refresh(name);
+            v_null()
+        }
+        #[cfg(feature = "gui")]
+        "RHEADER" => crate::gui::canvas_method(name, &method_lower, args),
         // Data science component methods
         #[cfg(feature = "datascience")]
         "RNUM" => crate::datascience::num_method(name, &method_lower, args),
@@ -1658,7 +1680,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
         | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
         | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
-        | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"
+        | "RHEADER" | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"
         | "RFONT" | "RMEMORYSTREAM" | "RBITMAP"
         | "RTRACKBAR" | "RSCROLLBOX" | "RSPLITTER" | "RPRINTER"
         | "RSQLITE" | "RMYSQL"
