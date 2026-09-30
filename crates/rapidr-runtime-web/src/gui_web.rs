@@ -146,6 +146,7 @@ fn jsvalue_to_value(v: &JsValue) -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String, Value>) {
+    note_display_scale();
     inject_form_styles();
     let id = comp_id(name);
     match comp_type {
@@ -2406,22 +2407,43 @@ fn render_owner_list(el: &web_sys::Element, name: &str) {
     list_owner_draw(name);
 }
 
+/// The page's scale (`devicePixelRatio`: 2 on a Retina screen, more when
+/// zoomed in), for bitmaps to keep what they show at it
+/// (rapidr_value::objects::bitmap); a page's `RAPIDR_SCALE` sets it (tests).
+fn note_display_scale() {
+    let Some(window) = web_sys::window() else { return };
+    let forced = js_sys::Reflect::get(&window, &"RAPIDR_SCALE".into()).ok().and_then(|v| v.as_f64());
+    rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| window.device_pixel_ratio()));
+}
+
+/// Puts what a bitmap shows (`display_rgba`: w × h device pixels, `scale`
+/// of them a pixel) on `canvas`, sized in pixels on the page.
+fn put_display(canvas: &web_sys::HtmlCanvasElement, w: usize, h: usize, rgba: &[u8], scale: usize) {
+    let (w32, h32) = (w as u32, h as u32);
+    if canvas.width() != w32 || canvas.height() != h32 {
+        canvas.set_width(w32);
+        canvas.set_height(h32);
+    }
+    let _ = canvas.style().set_property("width", &format!("{}px", w / scale.max(1)));
+    let _ = canvas.style().set_property("height", &format!("{}px", h / scale.max(1)));
+    if let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) {
+        if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(rgba), w32, h32) {
+            let _ = ctx.put_image_data(&data, 0.0, 0.0);
+        }
+    }
+}
+
 /// Item `i` of a list as its model draws it (`render_item`: what OnDrawItem
 /// drew, or the plain item), `width` wide: a div holding a canvas.
 fn item_canvas(name: &str, i: usize, width: i64) -> Option<web_sys::HtmlElement> {
     let font = rapidr_value::objects::font_from_props(name, &|id, p| crate::object_web::rp_comp_get_stored(id, p));
-    let (w, h, rgba) = rapidr_value::objects::list_item_pixels(name, i, width, &font)?;
+    note_display_scale();
+    let (w, h, rgba, scale) = rapidr_value::objects::list_item_pixels(name, i, width, &font)?;
     let row = create_el("div");
-    let _ = row.style().set_property("height", &format!("{h}px"));
+    let _ = row.style().set_property("height", &format!("{}px", h / scale.max(1)));
     let canvas = document().create_element("canvas").ok()?.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
-    canvas.set_width(w as u32);
-    canvas.set_height(h as u32);
     let _ = canvas.style().set_property("display", "block");
-    if let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) {
-        if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w as u32, h as u32) {
-            let _ = ctx.put_image_data(&data, 0.0, 0.0);
-        }
-    }
+    put_display(&canvas, w, h, &rgba, scale);
     let _ = row.append_child(&canvas);
     Some(row)
 }
@@ -2712,11 +2734,11 @@ pub fn render_picture(name: &str) {
 /// An image without a picture keeps what it shows.
 fn render_picture_now(name: &str) {
     let Some(img) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlImageElement>().ok()) else { return };
-    let Some(Some((w, h, rgba))) = rapidr_value::objects::with_picture(name, |b| {
-        (!b.img.pixels.is_empty()).then(|| (b.img.width as u32, b.img.height as u32, b.to_rgba()))
-    }) else {
+    note_display_scale();
+    let Some(Some((w, h, rgba, scale))) = rapidr_value::objects::with_picture(name, |b| (!b.img.pixels.is_empty()).then(|| b.display_rgba())) else {
         return;
     };
+    let (w, h) = (w as u32, h as u32);
     let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w, h) else { return };
     let Some(off) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
     off.set_width(w);
@@ -2724,6 +2746,8 @@ fn render_picture_now(name: &str) {
     let Some(ctx) = off.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
     let _ = ctx.put_image_data(&data, 0.0, 0.0);
     if let Ok(url) = off.to_data_url() {
+        // (`2x`: the picture's device pixels shown in its size)
+        let _ = img.set_attribute("srcset", &format!("{url} {scale}x"));
         img.set_src(&url);
     }
     let prop = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_bool();
@@ -2788,20 +2812,14 @@ fn render_canvas_now(name: &str) {
         canvas = Some(el);
     }
     let Some(canvas) = canvas else { return };
-    let Some((w, h, rgba)) = rapidr_value::objects::with_canvas(name, cw, ch, |b| (b.img.width as u32, b.img.height as u32, b.to_rgba())) else {
+    note_display_scale();
+    let Some((w, h, rgba, scale)) = rapidr_value::objects::with_canvas(name, cw, ch, |b| b.display_rgba()) else {
         return;
     };
     if w == 0 || h == 0 {
         return;
     }
-    if canvas.width() != w || canvas.height() != h {
-        canvas.set_width(w);
-        canvas.set_height(h);
-    }
-    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
-    if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w, h) {
-        let _ = ctx.put_image_data(&data, 0.0, 0.0);
-    }
+    put_display(&canvas, w, h, &rgba, scale);
 }
 
 thread_local! {
@@ -3112,6 +3130,7 @@ fn tree_toggle(name: &str, i: usize) {
 /// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
 /// program deleted).
 pub fn render_tree(name: &str) {
+    note_display_scale();
     for i in rapidr_value::objects::with_tree(name, |m| m.take_deleted()).unwrap_or_default() {
         crate::object_web::rp_fire_event_1(name, "ondeletion", v_int(i as i64));
     }
@@ -3148,16 +3167,10 @@ pub fn render_tree(name: &str) {
             button.set_text_content(Some(if expanded { "▾" } else { "▸" }));
         }
         let _ = row.append_child(&button);
-        if let Some((w, h, rgba)) = rapidr_value::objects::imagelist_pixels(&images, image).filter(|_| !images.is_empty()) {
+        if let Some((w, h, rgba, scale)) = rapidr_value::objects::imagelist_pixels(&images, image).filter(|_| !images.is_empty()) {
             if let Some(canvas) = document().create_element("canvas").ok().and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok()) {
-                canvas.set_width(w as u32);
-                canvas.set_height(h as u32);
                 let _ = canvas.style().set_property("margin-right", "3px");
-                if let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) {
-                    if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), w as u32, h as u32) {
-                        let _ = ctx.put_image_data(&data, 0.0, 0.0);
-                    }
-                }
+                put_display(&canvas, w, h, &rgba, scale);
                 let _ = row.append_child(&canvas);
             }
         }

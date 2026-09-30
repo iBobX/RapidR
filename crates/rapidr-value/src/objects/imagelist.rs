@@ -47,6 +47,17 @@ impl ImageList {
         let (w, h) = (self.width as usize, self.height as usize);
         let count = if src.img.width > w && src.img.width.is_multiple_of(w) { src.img.width / w } else { 1 };
         let index = index.min(self.images.len());
+        // An SVG of the list's size is kept whole (drawn again at the
+        // screen's scale).
+        if count == 1 && src.is_svg() && (src.img.width, src.img.height) == (w, h) {
+            let mut image = src.clone();
+            if let (Some(mask), true) = (mask, self.masked) {
+                image.transparent = true;
+                image.transparent_color = mask;
+            }
+            self.images.insert(index, image);
+            return 1;
+        }
         for i in 0..count {
             let mut image = Bitmap::default();
             image.resize(w as i64, h as i64);

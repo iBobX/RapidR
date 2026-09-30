@@ -263,6 +263,10 @@ pub fn encode_bmp_alpha(img: &Pixels, alpha: &[u8]) -> Vec<u8> {
 /// The prefix of the `data:` URLs a QBITMAP's `.BMP` property returns.
 pub const BMP_DATA_URL: &str = "data:image/bmp;base64,";
 
+/// The prefix of the `.BMP` of an image that is an SVG's (not drawn on):
+/// the SVG itself, so what it's drawn onto can draw it at any scale.
+pub const SVG_DATA_URL: &str = "data:image/svg+xml;base64,";
+
 pub fn bmp_data_url(img: &Pixels) -> String {
     format!("{BMP_DATA_URL}{}", base64_encode(&encode_bmp(img)))
 }

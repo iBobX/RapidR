@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.70.0] — 2026-09-29
+
+### Added
+- **High-DPI screens** (Retina, a browser at 2×) on native, interpreter
+  and web: canvases, form surfaces, QIMAGE pictures, owner-drawn list and
+  combo items, grid images and tree icons are shown at the screen's scale
+  instead of enlarged — text, diagonal lines and ellipses are drawn from
+  the device pixels, SVGs at the scale (drawn again when the scale is
+  learned or changes). The pixels a program reads and saves (`Pixel`,
+  `.BMP`, flood fills, SaveToFile) are exactly the 1× ones: each bitmap
+  keeps what the screen shows next to them. `RAPIDR_SCALE` forces a scale
+  on the desktop (tests); the whole desktop GUI suite and both web suites
+  pass unchanged at 2×, and `tools/regress.sh` runs the web GUI suite at
+  2× too.
+- An image that is an SVG's (not drawn on) hands out the SVG itself as its
+  `.BMP` / `GetBMP` data, so what it's drawn onto can draw it sharply.
+
 ## [2.69.0] — 2026-09-29
 
 ### Added

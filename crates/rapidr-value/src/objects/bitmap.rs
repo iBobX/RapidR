@@ -12,10 +12,181 @@
 //! the desktop and the web show the same pixels. RapidR's own canvas
 //! methods (`DrawText`, `Cls`, `Circle(cx, cy, r)`, `FillCircle`,
 //! `SetFont`, `PenColor` / `BrushColor` as the default colors) are kept.
+//!
+//! High-DPI screens (Retina, a browser at 2×): the pixels a program reads
+//! and saves (`Pixel`, `.BMP`, flood fills) are always the bitmap's own,
+//! `img`, exactly as on a 1× screen. Next to them a bitmap keeps what the
+//! screen shows, `hi`, at the screen's scale (see [`set_display_scale`]):
+//! every drawing call draws it too at full resolution — lines, ellipses
+//! and text finer, SVGs drawn at that scale — and the runtimes show it
+//! in the bitmap's size, so nothing looks blurry or blocky.
 
-use super::codec::{base64_encode, bmp_data_url, decode_bmp_alpha, decode_svg, encode_bmp_alpha, is_svg, Pixels, BMP_DATA_URL, MAX_PIXELS};
+use super::codec::{base64_encode, bmp_data_url, decode_bmp_alpha, decode_svg, encode_bmp_alpha, is_svg, Pixels, BMP_DATA_URL, MAX_PIXELS, SVG_DATA_URL};
 use super::font::Font;
 use crate::{v_int, v_str, Value};
+use std::cell::Cell;
+
+thread_local! {
+    static DISPLAY_SCALE: Cell<usize> = const { Cell::new(1) };
+}
+
+/// The screen's scale (device pixels per pixel, e.g. 2 on a Retina
+/// screen): bitmaps keep what they show at it (rounded up, at most 3).
+pub fn set_display_scale(scale: f64) {
+    let s = if scale.is_finite() { scale.ceil().clamp(1.0, 3.0) as usize } else { 1 };
+    DISPLAY_SCALE.with(|d| d.set(s));
+}
+
+pub fn display_scale() -> usize {
+    DISPLAY_SCALE.with(Cell::get)
+}
+
+/// What a bitmap shows on a high-DPI screen: its pixels `scale` times
+/// finer (with each one's opacity, for soft-edged images).
+#[derive(Debug, Clone)]
+pub struct HiRes {
+    pub scale: usize,
+    pub img: Pixels,
+    pub alpha: Option<Vec<u8>>,
+}
+
+impl HiRes {
+    /// `lo` shown `scale` times larger (each pixel a scale × scale block).
+    fn upscaled(lo: &Pixels, alpha: Option<&[u8]>, scale: usize) -> Option<HiRes> {
+        let (w, h) = (lo.width * scale, lo.height * scale);
+        if w.saturating_mul(h) > MAX_PIXELS {
+            return None;
+        }
+        let mut pixels = Vec::with_capacity(w * h);
+        let mut hi_alpha = alpha.map(|_| Vec::with_capacity(w * h));
+        for y in 0..h {
+            let row = (y / scale) * lo.width;
+            for x in 0..w {
+                pixels.push(lo.pixels[row + x / scale]);
+                if let (Some(out), Some(a)) = (hi_alpha.as_mut(), alpha) {
+                    out.push(a[row + x / scale]);
+                }
+            }
+        }
+        Some(HiRes { scale, img: Pixels { width: w, height: h, pixels }, alpha: hi_alpha })
+    }
+
+    pub fn pixel(&self, x: i64, y: i64) -> Option<u32> {
+        if x < 0 || y < 0 || x as usize >= self.img.width || y as usize >= self.img.height {
+            return None;
+        }
+        Some(self.img.pixels[y as usize * self.img.width + x as usize])
+    }
+
+    /// Sets a device pixel (drawn: opaque).
+    pub fn put(&mut self, x: i64, y: i64, c: u32) {
+        if x >= 0 && y >= 0 && (x as usize) < self.img.width && (y as usize) < self.img.height {
+            let i = y as usize * self.img.width + x as usize;
+            self.img.pixels[i] = c;
+            if let Some(a) = self.alpha.as_mut().filter(|a| a.len() > i) {
+                a[i] = 255;
+            }
+        }
+    }
+
+    /// Fills device pixels [l, r) × [t, b).
+    fn fill(&mut self, l: i64, t: i64, r: i64, b: i64, c: u32) {
+        let (w, h) = (self.img.width as i64, self.img.height as i64);
+        let (l, t, r, b) = (l.clamp(0, w), t.clamp(0, h), r.clamp(0, w), b.clamp(0, h));
+        for y in t..b {
+            for x in l..r {
+                self.put(x, y, c);
+            }
+        }
+    }
+
+    /// Pixel (x, y) of the bitmap: its scale × scale block.
+    fn block(&mut self, x: i64, y: i64, c: u32) {
+        let s = self.scale as i64;
+        self.fill(x * s, y * s, x * s + s, y * s + s, c);
+    }
+
+    /// The line from pixel (x1, y1) to (x2, y2) of the bitmap, a pixel
+    /// wide: device-pixel steps under a square pen.
+    fn line(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
+        let s = self.scale as i64;
+        bresenham(x1 * s, y1 * s, x2 * s, y2 * s, |x, y| self.fill(x, y, x + s, y + s, c));
+    }
+
+    /// The ellipse inside pixels (x1,y1)-(x2,y2) of the bitmap: filled, or
+    /// outlined a pixel (scale device pixels) thick.
+    fn ellipse(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32, fill: bool) {
+        let s = self.scale as i64;
+        let (l, t, r, b) = (x1.min(x2) * s, y1.min(y2) * s, x1.max(x2) * s, y1.max(y2) * s);
+        let rings = if fill { 1 } else { s };
+        for k in 0..rings {
+            ellipse_spans(l + k, t + k, r - k, b - k, fill, |xa, xb, y| {
+                for x in xa..=xb {
+                    self.put(x, y, c);
+                }
+            });
+        }
+    }
+
+    fn to_rgba(&self, transparent: Option<u32>) -> Vec<u8> {
+        let soft = self.alpha.as_deref().filter(|a| a.len() == self.img.pixels.len());
+        let mut out = Vec::with_capacity(self.img.pixels.len() * 4);
+        for (i, &c) in self.img.pixels.iter().enumerate() {
+            let alpha = if transparent == Some(c) { 0 } else { soft.map_or(255, |a| a[i]) };
+            out.extend_from_slice(&[c as u8, (c >> 8) as u8, (c >> 16) as u8, alpha]);
+        }
+        out
+    }
+}
+
+/// The points of the line (x1, y1)–(x2, y2), both ends included.
+fn bresenham(x1: i64, y1: i64, x2: i64, y2: i64, mut put: impl FnMut(i64, i64)) {
+    let (dx, dy) = ((x2 - x1).abs(), -(y2 - y1).abs());
+    let (sx, sy) = (if x1 < x2 { 1 } else { -1 }, if y1 < y2 { 1 } else { -1 });
+    let (mut x, mut y, mut err) = (x1, y1, dx + dy);
+    // Bounded so a huge coordinate can't loop for ages off-bitmap.
+    for _ in 0..=(dx - dy).min(1 << 21) {
+        put(x, y);
+        if x == x2 && y == y2 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
+/// The rows of the ellipse inside (x1,y1)-(x2,y2) (right and bottom edges
+/// excluded): `span(xa, xb, y)` for each run of it, filled or outlined.
+fn ellipse_spans(x1: i64, y1: i64, x2: i64, y2: i64, fill: bool, mut span: impl FnMut(i64, i64, i64)) {
+    let (l, t, r, b) = (x1.min(x2) as f64, y1.min(y2) as f64, (x1.max(x2) - 1) as f64, (y1.max(y2) - 1) as f64);
+    let (cx, cy, rx, ry) = ((l + r) / 2.0, (t + b) / 2.0, (r - l) / 2.0, (b - t) / 2.0);
+    if rx < 0.0 || ry < 0.0 {
+        return;
+    }
+    let mut prev: Option<(i64, i64)> = None;
+    for y in t as i64..=b as i64 {
+        let dy = if ry == 0.0 { 0.0 } else { (y as f64 - cy) / ry };
+        let half = rx * (1.0 - dy * dy).max(0.0).sqrt();
+        let (xa, xb) = ((cx - half).round() as i64, (cx + half).round() as i64);
+        if fill {
+            span(xa, xb, y);
+        } else {
+            // Each side spans to where the previous row's was, so the
+            // flat top and bottom and the steep sides have no gaps.
+            let (pa, pb) = prev.unwrap_or((xa, xb));
+            span(xa.min(pa), xa.max(pa), y);
+            span(xb.min(pb), xb.max(pb), y);
+        }
+        prev = Some((xa, xb));
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Bitmap {
@@ -41,6 +212,25 @@ pub struct Bitmap {
     /// Each pixel's opacity, for an image with soft edges (an SVG); used
     /// only while it matches the pixels (drawing on it makes pixels opaque).
     pub alpha: Option<Vec<u8>>,
+    /// What the screen shows at a high-DPI scale (module docs); made from
+    /// `img` when missing or out of date.
+    pub(crate) hi: Option<Box<HiRes>>,
+    /// The SVG these pixels were drawn from, until something draws on them:
+    /// what's shown is drawn from it again at a new screen scale.
+    pub(crate) svg: Option<std::rc::Rc<Vec<u8>>>,
+}
+
+/// `img` cut or padded (transparent) to w × h.
+fn fit_hi(img: Pixels, alpha: Vec<u8>, w: usize, h: usize, scale: usize) -> HiRes {
+    let mut pixels = vec![0; w * h];
+    let mut a = vec![0u8; w * h];
+    for y in 0..h.min(img.height) {
+        for x in 0..w.min(img.width) {
+            pixels[y * w + x] = img.pixels[y * img.width + x];
+            a[y * w + x] = alpha[y * img.width + x];
+        }
+    }
+    HiRes { scale, img: Pixels { width: w, height: h, pixels }, alpha: Some(a) }
 }
 
 /// `over` (RapidQ &HBBGGRR) at opacity `a` over `under`.
@@ -67,6 +257,8 @@ impl Default for Bitmap {
             pen: 0,
             brush: BACKGROUND,
             alpha: None,
+            hi: None,
+            svg: None,
         }
     }
 }
@@ -106,13 +298,85 @@ impl Bitmap {
         if w * h > MAX_PIXELS {
             return;
         }
+        if (w, h) != (self.img.width, self.img.height) {
+            self.svg = None;
+        }
         let mut pixels = vec![self.background; w * h];
         for y in 0..h.min(self.img.height) {
             for x in 0..w.min(self.img.width) {
                 pixels[y * w + x] = self.img.pixels[y * self.img.width + x];
             }
         }
+        // What's shown keeps its fine pixels too.
+        if let Some(hi) = self.hi.as_mut() {
+            let s = hi.scale;
+            let (hw, hh) = (w * s, h * s);
+            if hw.saturating_mul(hh) <= MAX_PIXELS && hi.alpha.is_none() {
+                let mut hp = vec![self.background; hw * hh];
+                for y in 0..hh.min(hi.img.height) {
+                    for x in 0..hw.min(hi.img.width) {
+                        hp[y * hw + x] = hi.img.pixels[y * hi.img.width + x];
+                    }
+                }
+                hi.img = Pixels { width: hw, height: hh, pixels: hp };
+            } else {
+                self.hi = None;
+            }
+        }
         self.img = Pixels { width: w, height: h, pixels };
+    }
+
+    /// What the screen shows, at the display scale (made from the pixels
+    /// when it's missing or out of date); `None` at 1×.
+    fn hi_mut(&mut self) -> Option<&mut HiRes> {
+        let s = display_scale();
+        if s <= 1 {
+            self.hi = None;
+            return None;
+        }
+        let fits = self.hi.as_ref().is_some_and(|h| h.scale == s && h.img.width == self.img.width * s && h.img.height == self.img.height * s);
+        if !fits {
+            // An SVG's pixels: drawn again at this scale; others: enlarged.
+            let (w, h) = (self.img.width * s, self.img.height * s);
+            let from_svg = self.svg.as_ref().and_then(|svg| decode_svg(svg, s as f32).ok()).map(|(fine, a)| fit_hi(fine, a, w, h, s));
+            self.hi = from_svg.or_else(|| HiRes::upscaled(&self.img, self.alpha_channel(), s)).map(Box::new);
+        }
+        self.hi.as_deref_mut()
+    }
+
+    /// What the screen shows, for drawing on it (text.rs); `None` at 1×.
+    pub(crate) fn display_mut(&mut self) -> Option<&mut HiRes> {
+        self.hi_mut()
+    }
+
+    /// Drops what the screen shows (the pixels changed some other way).
+    pub fn invalidate_display(&mut self) {
+        self.hi = None;
+    }
+
+    /// Takes `src`'s high-DPI pixels along with its pixels (`BMP = …`).
+    pub fn take_display(&mut self, src: &mut Bitmap) {
+        self.hi = src.hi.take();
+        self.svg = src.svg.take();
+    }
+
+    /// Whether these pixels are an SVG's, not drawn on since.
+    pub fn is_svg(&self) -> bool {
+        self.svg.is_some()
+    }
+
+    /// What the screen shows: (width, height, RGBA, scale) — at the display
+    /// scale when there is one, else the pixels themselves (scale 1). The
+    /// runtimes draw it in the bitmap's size (width / scale × height / scale).
+    pub fn display_rgba(&mut self) -> (usize, usize, Vec<u8>, usize) {
+        let transparent = self.transparent.then_some(self.transparent_color);
+        if self.img.pixels.is_empty() {
+            return (0, 0, Vec::new(), 1);
+        }
+        match self.hi_mut() {
+            Some(hi) => (hi.img.width, hi.img.height, hi.to_rgba(transparent), hi.scale),
+            None => (self.img.width, self.img.height, self.to_rgba(), 1),
+        }
     }
 
     pub fn pixel(&self, x: i64, y: i64) -> Option<u32> {
@@ -122,7 +386,9 @@ impl Bitmap {
         Some(self.img.pixels[y as usize * self.img.width + x as usize])
     }
 
-    pub fn pset(&mut self, x: i64, y: i64, c: u32) {
+    /// Sets one of the pixels (only: what the screen shows is the caller's).
+    pub(crate) fn lo_pset(&mut self, x: i64, y: i64, c: u32) {
+        self.svg = None;
         if x >= 0 && y >= 0 && (x as usize) < self.img.width && (y as usize) < self.img.height {
             let i = y as usize * self.img.width + x as usize;
             self.img.pixels[i] = c;
@@ -133,25 +399,23 @@ impl Bitmap {
         }
     }
 
+    pub fn pset(&mut self, x: i64, y: i64, c: u32) {
+        self.lo_pset(x, y, c);
+        if self.pixel(x, y).is_some() {
+            if let Some(hi) = self.hi_mut() {
+                hi.block(x, y, c);
+            }
+        }
+    }
+
+    fn lo_line(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
+        bresenham(x1, y1, x2, y2, |x, y| self.lo_pset(x, y, c));
+    }
+
     pub fn line(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
-        let (dx, dy) = ((x2 - x1).abs(), -(y2 - y1).abs());
-        let (sx, sy) = (if x1 < x2 { 1 } else { -1 }, if y1 < y2 { 1 } else { -1 });
-        let (mut x, mut y, mut err) = (x1, y1, dx + dy);
-        // Bounded so a huge coordinate can't loop for ages off-bitmap.
-        for _ in 0..=(dx - dy).min(1 << 20) {
-            self.pset(x, y, c);
-            if x == x2 && y == y2 {
-                break;
-            }
-            let e2 = 2 * err;
-            if e2 >= dy {
-                err += dy;
-                x += sx;
-            }
-            if e2 <= dx {
-                err += dx;
-                y += sy;
-            }
+        self.lo_line(x1, y1, x2, y2, c);
+        if let Some(hi) = self.hi_mut() {
+            hi.line(x1, y1, x2, y2, c);
         }
     }
 
@@ -161,11 +425,16 @@ impl Bitmap {
     }
 
     pub fn fill_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
+        self.svg = None;
         let (l, t, r, b) = self.clip(x1, y1, x2, y2);
         for y in t..b {
             for x in l..r {
                 self.img.pixels[y as usize * self.img.width + x as usize] = c;
             }
+        }
+        if let Some(hi) = self.hi_mut() {
+            let s = hi.scale as i64;
+            hi.fill(l * s, t * s, r * s, b * s, c);
         }
     }
 
@@ -182,33 +451,24 @@ impl Bitmap {
 
     /// The ellipse inside (x1,y1)-(x2,y2), outlined or filled.
     pub fn ellipse(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32, fill: bool) {
-        let (l, t, r, b) = (x1.min(x2) as f64, y1.min(y2) as f64, (x1.max(x2) - 1) as f64, (y1.max(y2) - 1) as f64);
-        let (cx, cy, rx, ry) = ((l + r) / 2.0, (t + b) / 2.0, (r - l) / 2.0, (b - t) / 2.0);
-        if rx < 0.0 || ry < 0.0 {
-            return;
+        let mut spans = Vec::new();
+        ellipse_spans(x1, y1, x2, y2, fill, |xa, xb, y| spans.push((xa, xb, y)));
+        for (xa, xb, y) in spans {
+            self.lo_line(xa, y, xb, y, c);
         }
-        let mut prev: Option<(i64, i64)> = None;
-        for y in t as i64..=b as i64 {
-            let dy = if ry == 0.0 { 0.0 } else { (y as f64 - cy) / ry };
-            let half = rx * (1.0 - dy * dy).max(0.0).sqrt();
-            let (xa, xb) = ((cx - half).round() as i64, (cx + half).round() as i64);
-            if fill {
-                self.line(xa, y, xb, y, c);
-            } else {
-                // Each side spans to where the previous row's was, so the
-                // flat top and bottom and the steep sides have no gaps.
-                let (pa, pb) = prev.unwrap_or((xa, xb));
-                self.line(xa.min(pa), y, xa.max(pa), y, c);
-                self.line(xb.min(pb), y, xb.max(pb), y, c);
-            }
-            prev = Some((xa, xb));
+        if let Some(hi) = self.hi_mut() {
+            hi.ellipse(x1, y1, x2, y2, c, fill);
         }
     }
 
-    /// Fills the region around (x, y) up to pixels of `border` color.
+    /// Fills the region around (x, y) up to pixels of `border` color. What
+    /// the screen shows gets the same region: each filled pixel's device
+    /// pixels that aren't the border's color.
     pub fn flood_fill(&mut self, x: i64, y: i64, c: u32, border: u32) {
+        self.svg = None;
         let mut stack = vec![(x, y)];
         let mut seen = vec![false; self.img.pixels.len()];
+        let mut filled = Vec::new();
         while let Some((x, y)) = stack.pop() {
             let Some(p) = self.pixel(x, y) else { continue };
             let i = y as usize * self.img.width + x as usize;
@@ -217,7 +477,20 @@ impl Bitmap {
             }
             seen[i] = true;
             self.img.pixels[i] = c;
+            filled.push((x, y));
             stack.extend([(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]);
+        }
+        if let Some(hi) = self.hi_mut() {
+            let s = hi.scale as i64;
+            for (x, y) in filled {
+                for py in y * s..y * s + s {
+                    for px in x * s..x * s + s {
+                        if hi.pixel(px, py).is_some_and(|p| p != border) {
+                            hi.put(px, py, c);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -237,10 +510,46 @@ impl Bitmap {
                     Some(0) => {}
                     Some(a) if a < 255 => {
                         if let Some(under) = self.pixel(dx, dy) {
-                            self.pset(dx, dy, blend(under, c, a));
+                            self.lo_pset(dx, dy, blend(under, c, a));
                         }
                     }
-                    _ => self.pset(dx, dy, c),
+                    _ => self.lo_pset(dx, dy, c),
+                }
+            }
+        }
+        let key = src.transparent.then_some(src.transparent_color);
+        let Some(hi) = self.hi_mut() else { return };
+        let s = hi.scale;
+        // `src` as the screen shows it, at this scale.
+        let shown = match src.hi.as_deref().filter(|h| h.scale == s && h.img.width == src.img.width * s && h.img.height == src.img.height * s) {
+            Some(h) => std::borrow::Cow::Borrowed(h),
+            None => {
+                let (w, h) = (src.img.width * s, src.img.height * s);
+                let from_svg = src.svg.as_ref().and_then(|svg| decode_svg(svg, s as f32).ok()).map(|(fine, a)| fit_hi(fine, a, w, h, s));
+                match from_svg.or_else(|| HiRes::upscaled(&src.img, src.alpha_channel(), s)) {
+                    Some(h) => std::borrow::Cow::Owned(h),
+                    None => return,
+                }
+            }
+        };
+        let soft = shown.alpha.as_deref().filter(|a| a.len() == shown.img.pixels.len());
+        let (ox, oy) = (x * s as i64, y * s as i64);
+        for sy in 0..shown.img.height {
+            for sx in 0..shown.img.width {
+                let i = sy * shown.img.width + sx;
+                let c = shown.img.pixels[i];
+                if key == Some(c) {
+                    continue;
+                }
+                let (dx, dy) = (ox + sx as i64, oy + sy as i64);
+                match soft.map(|a| a[i]) {
+                    Some(0) => {}
+                    Some(a) if a < 255 => {
+                        if let Some(under) = hi.pixel(dx, dy) {
+                            hi.put(dx, dy, blend(under, c, a));
+                        }
+                    }
+                    _ => hi.put(dx, dy, c),
                 }
             }
         }
@@ -262,7 +571,25 @@ impl Bitmap {
         for y in 0..dh {
             for x in 0..dw {
                 if let Some(c) = src.pixel(sx1 + x * sw / dw, sy1 + y * sh / dh) {
-                    self.pset(dx1 + x, dy1 + y, c);
+                    self.lo_pset(dx1 + x, dy1 + y, c);
+                }
+            }
+        }
+        let Some(hi) = self.hi_mut() else { return };
+        let s = hi.scale as i64;
+        // (from what `src` shows at this scale, when it has it)
+        let fine = src.hi.as_deref().filter(|h| h.scale as i64 == s && h.img.width == src.img.width * s as usize && h.img.height == src.img.height * s as usize);
+        let (pw, ph) = (dw * s, dh * s);
+        for y in 0..ph {
+            for x in 0..pw {
+                // The source device pixel under this one.
+                let (fx, fy) = (sx1 * s + x * sw / dw, sy1 * s + y * sh / dh);
+                let c = match fine {
+                    Some(f) => f.pixel(fx, fy),
+                    None => src.pixel(fx.div_euclid(s), fy.div_euclid(s)),
+                };
+                if let Some(c) = c {
+                    hi.put(dx1 * s + x, dy1 * s + y, c);
                 }
             }
         }
@@ -312,7 +639,7 @@ impl Bitmap {
             if prop == "color" {
                 let color = val.to_i64() as u32 & 0xFFFFFF;
                 let old = std::mem::replace(&mut self.background, color);
-                self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = color);
+                self.recolor(old, color);
                 self.transparent_color = color;
             }
             return None;
@@ -327,7 +654,7 @@ impl Bitmap {
                 // still showing it change.
                 "color" => {
                     let old = std::mem::replace(&mut self.background, color);
-                    self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = color);
+                    self.recolor(old, color);
                     return None;
                 }
                 "pencolor" => self.pen = color,
@@ -438,8 +765,12 @@ impl Bitmap {
                 self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
             }
             "clear" | "cls" => {
+                self.svg = None;
                 let bg = self.background;
                 self.img.pixels.iter_mut().for_each(|p| *p = bg);
+                if let Some(hi) = self.hi_mut() {
+                    hi.img.pixels.iter_mut().for_each(|p| *p = bg);
+                }
             }
             // DrawText(text, x, y [, color [, size]]) or (x, y, text …);
             // the size in pixels.
@@ -466,6 +797,15 @@ impl Bitmap {
         Some(Value::Null)
     }
 
+    /// Pixels of color `old` (the background showing) become `new`.
+    fn recolor(&mut self, old: u32, new: u32) {
+        self.svg = None;
+        self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = new);
+        if let Some(hi) = self.hi.as_mut() {
+            hi.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = new);
+        }
+    }
+
     /// A filled rectangle with corners rounded by an ellipse of w × h.
     #[allow(clippy::too_many_arguments)]
     fn round_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, w: i64, h: i64, c: u32) {
@@ -482,9 +822,12 @@ impl Bitmap {
     /// color (if any) as a `#transparent=` fragment so drawing it elsewhere
     /// keeps it (browsers ignore the fragment when showing the image).
     pub fn data_url(&self) -> String {
-        let url = match self.alpha_channel() {
-            Some(a) => format!("{BMP_DATA_URL}{}", base64_encode(&encode_bmp_alpha(&self.img, a))),
-            None => bmp_data_url(&self.img),
+        let url = match (self.svg.as_deref(), self.alpha_channel()) {
+            (Some(svg), _) => format!("{SVG_DATA_URL}{}", base64_encode(svg)),
+            (None, a) => match a {
+                Some(a) => format!("{BMP_DATA_URL}{}", base64_encode(&encode_bmp_alpha(&self.img, a))),
+                None => bmp_data_url(&self.img),
+            },
         };
         if self.transparent {
             format!("{url}#transparent={}", self.transparent_color)
@@ -507,10 +850,20 @@ impl Bitmap {
 
     /// Loads a BMP — or an SVG, drawn at its size (with its soft edges).
     pub fn load_bmp_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
+        self.hi = None;
+        self.svg = None;
         if is_svg(bytes) {
             let (img, alpha) = decode_svg(bytes, 1.0)?;
+            // What the screen shows: the SVG drawn at the display scale.
+            let s = display_scale();
+            if s > 1 {
+                if let Ok((fine, fine_alpha)) = decode_svg(bytes, s as f32) {
+                    self.hi = Some(Box::new(fit_hi(fine, fine_alpha, img.width * s, img.height * s, s)));
+                }
+            }
             self.img = img;
             self.alpha = Some(alpha);
+            self.svg = Some(std::rc::Rc::new(bytes.to_vec()));
             return Ok(());
         }
         let (img, alpha) = decode_bmp_alpha(bytes)?;
@@ -555,6 +908,94 @@ mod tests {
         assert_eq!(b.pixel(-1, 0), None);
         b.resize(12, 3);
         assert_eq!((b.pixel(0, 0), b.pixel(11, 2)), (Some(0xFF), Some(0xFFFFFF)));
+    }
+
+    /// Every kind of drawing, on a bitmap at the current display scale.
+    fn scene() -> Bitmap {
+        let mut b = bmp(40, 30);
+        b.fill_rect(2, 2, 12, 8, 0xFF);
+        b.line(0, 29, 39, 0, 0x00FF00);
+        b.rectangle(20, 2, 30, 10, 0);
+        b.ellipse(5, 12, 25, 28, 0xFF0000, false);
+        b.ellipse(28, 14, 38, 24, 0x00FFFF, true);
+        b.pset(39, 29, 0x123456);
+        b.flood_fill(24, 5, 0xAA00AA, 0);
+        let mut font = Font::default();
+        font.size = 10;
+        super::super::text::text_out(&mut b, 3, 14, "Ag", &font, 0x0000FF, Some(0xEEEEEE));
+        let mut sprite = bmp(3, 2);
+        sprite.fill_rect(0, 0, 3, 2, 0x404040);
+        sprite.pset(1, 0, 0xFFFFFF);
+        sprite.transparent = true;
+        b.draw(33, 3, &sprite);
+        b.copy_rect((0, 26, 8, 30), &sprite, (0, 0, 3, 2));
+        b
+    }
+
+    #[test]
+    fn high_dpi_keeps_the_pixels_programs_read() {
+        set_display_scale(1.0);
+        let one = scene();
+        set_display_scale(2.0);
+        let mut two = scene();
+        assert_eq!(one.img, two.img, "the pixels a program reads are the same at 2×");
+        assert!(one.hi.is_none());
+        let (w, h, rgba, s) = two.display_rgba();
+        assert_eq!((w, h, s, rgba.len()), (80, 60, 2, 80 * 60 * 4));
+        set_display_scale(1.0);
+    }
+
+    #[test]
+    fn high_dpi_shows_the_same_picture_finer() {
+        set_display_scale(2.0);
+        let b = scene();
+        let hi = b.hi.as_deref().expect("drawn at 2×");
+        // Where edges are straight, each pixel's 2 × 2 block is its color.
+        for (x, y) in [(3, 3), (11, 7), (20, 5), (29, 9), (24, 5), (33, 3), (35, 4), (39, 29), (1, 27), (0, 0)] {
+            let c = b.pixel(x, y).unwrap();
+            for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                assert_eq!(hi.pixel(x * 2 + dx, y * 2 + dy), Some(c), "({x}, {y}) +({dx}, {dy})");
+            }
+        }
+        // The sprite's transparent pixel shows what's under it, as in the pixels.
+        assert_eq!(b.pixel(34, 3), hi.pixel(68, 6));
+        // Text: glyphs drawn from device pixels (not 2 × 2 blocks).
+        let blocky = (28..=60).step_by(2).all(|y| (6..40).step_by(2).all(|x| hi.pixel(x, y) == hi.pixel(x + 1, y) && hi.pixel(x, y) == hi.pixel(x, y + 1)));
+        assert!(!blocky, "the text is finer than 2 × 2 blocks");
+        set_display_scale(1.0);
+    }
+
+    #[test]
+    fn high_dpi_svg_and_redraws() {
+        set_display_scale(2.0);
+        let mut icon = Bitmap::default();
+        icon.load_bmp_bytes(br##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="4" fill="#ff0000"/></svg>"##).unwrap();
+        let hi = icon.hi.as_deref().expect("the SVG drawn at 2×");
+        assert_eq!((hi.img.width, hi.img.height, icon.img.width), (20, 20, 10));
+        // Loaded before the screen's scale was known: drawn again at it.
+        set_display_scale(1.0);
+        let mut early = Bitmap::default();
+        early.load_bmp_bytes(br##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="4" fill="#ff0000"/></svg>"##).unwrap();
+        assert!(early.hi.is_none());
+        set_display_scale(2.0);
+        let (w, _, rgba, _) = early.display_rgba();
+        assert_eq!(w, 20);
+        let (_, _, enlarged, _) = { let mut b = early.clone(); b.svg = None; b.hi = None; b.display_rgba() };
+        assert_ne!(rgba, enlarged, "drawn again, not enlarged");
+        // Drawn onto a canvas, it stays fine; loading a BMP drops it.
+        let mut c = bmp(20, 20);
+        c.draw(2, 2, &icon);
+        assert_eq!(c.hi.as_deref().unwrap().pixel(14, 14), Some(0x0000FF));
+        let mut plain = bmp(2, 2);
+        plain.fill_rect(0, 0, 2, 2, 0);
+        let bytes = super::super::codec::encode_bmp(&plain.img);
+        icon.load_bmp_bytes(&bytes).unwrap();
+        assert!(icon.hi.is_none());
+        // Resizing keeps what's shown, at its new size.
+        c.resize(25, 5);
+        let hi = c.hi.as_deref().unwrap();
+        assert_eq!((hi.img.width, hi.img.height), (50, 10));
+        set_display_scale(1.0);
     }
 
     #[test]
