@@ -21,7 +21,7 @@
 //! and text finer, SVGs drawn at that scale — and the runtimes show it
 //! in the bitmap's size, so nothing looks blurry or blocky.
 
-use super::codec::{base64_encode, bmp_data_url, decode_bmp_alpha, decode_svg, encode_bmp_alpha, is_svg, Pixels, BMP_DATA_URL, MAX_PIXELS, SVG_DATA_URL};
+use super::codec::{base64_encode, bmp_data_url, decode_svg, encode_bmp_alpha, is_svg, Pixels, BMP_DATA_URL, MAX_PIXELS, SVG_DATA_URL};
 use super::font::Font;
 use crate::{v_int, v_str, Value};
 use std::cell::Cell;
@@ -866,7 +866,7 @@ impl Bitmap {
             self.svg = Some(std::rc::Rc::new(bytes.to_vec()));
             return Ok(());
         }
-        let (img, alpha) = decode_bmp_alpha(bytes)?;
+        let (img, alpha) = super::codec::decode_raster(bytes)?;
         self.img = img;
         self.alpha = alpha;
         self.auto_transparent_color();

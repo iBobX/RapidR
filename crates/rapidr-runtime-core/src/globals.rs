@@ -21,6 +21,11 @@ thread_local! {
 }
 
 impl Platform for Desktop {
+    fn set_icon(&self) {
+        #[cfg(feature = "gui")]
+        crate::gui::gui_apply_icons();
+    }
+
     fn screen_size(&self) -> (i64, i64) {
         #[cfg(feature = "gui")]
         {

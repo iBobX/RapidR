@@ -3347,6 +3347,7 @@ fn build_form_widgets(form_name: &str) {
 
     // First, create the form window
     gui_create_widget(form_name, "RFORM");
+    gui_apply_icon(form_name);
 
     // Recursively build all children
     build_children_recursive(form_name);
@@ -3625,6 +3626,26 @@ pub fn gui_set_form_border(name: &str) {
         APPLYING.with(|a| a.set(a.get() - 1));
     }
     gui_apply_geometry(&name);
+}
+
+/// A form's window icon: its `IcoHandle` / `Icon` (an ICO, BMP, PNG or
+/// SVG), else the application's (`Application.Icon`); none: the system's.
+/// (macOS shows no window icons; Windows and Linux do.)
+pub fn gui_apply_icon(name: &str) {
+    let name = name.to_lowercase();
+    let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|w| w.get(&name).cloned())) else { return };
+    let own = ["icohandle", "icon"].into_iter().map(|p| rp_comp_get(&name, p)).find(rapidr_value::objects::has_icon);
+    let icon = own.or_else(rapidr_value::globals::application_icon).and_then(|v| rapidr_value::objects::icon_pixels(&v));
+    let image = icon.and_then(|(w, h, rgba, _)| fltk::image::RgbImage::new(&rgba, w as i32, h as i32, fltk::enums::ColorDepth::Rgba8).ok());
+    win.set_icon(image);
+}
+
+/// `Application.Icon` changed: every form without its own icon.
+pub fn gui_apply_icons() {
+    let forms: Vec<String> = GUI_WIDGETS.with(|gw| gw.borrow().iter().filter(|(_, w)| matches!(w, GuiWidget::Window(_))).map(|(n, _)| n.clone()).collect());
+    for form in forms {
+        gui_apply_icon(&form);
+    }
 }
 
 /// `Form.Left` / `Form.Top` set by the program: the window moves there.

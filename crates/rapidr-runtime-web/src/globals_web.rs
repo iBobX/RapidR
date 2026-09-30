@@ -99,6 +99,10 @@ impl Platform for Web {
         style.set_text_content(Some(&if cursor == 0 { String::new() } else { format!("* {{ cursor: {css} !important; }}") }));
     }
 
+    fn set_icon(&self) {
+        crate::gui_web::apply_application_icon();
+    }
+
     fn set_title(&self, title: &str) {
         if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
             doc.set_title(title);

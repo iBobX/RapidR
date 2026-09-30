@@ -747,6 +747,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
     if matches!(prop_lower.as_str(), "autosize" | "stretch" | "center" | "width" | "height") && rapidr_value::objects::is_picture(name) {
+        if matches!(prop_lower.as_str(), "width" | "height") {
+            store_prop(name, "__sized", v_bool(true));
+        }
         if prop_lower == "autosize" {
             picture_changed(name);
         } else {
@@ -757,6 +760,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::gui::gui_move_form(name);
+    }
+    #[cfg(feature = "gui")]
+    if matches!(prop_lower.as_str(), "icon" | "icohandle") && matches!(rp_comp_type(name).as_str(), "RFORM" | "RFORMMDI") {
+        crate::gui::gui_apply_icon(name);
     }
     // A form with / without its frame (bsNone): the window and its inside.
     if prop_lower == "borderstyle" && rp_comp_type(name) == "RFORM" {
@@ -892,7 +899,9 @@ pub fn rp_comp_type(name: &str) -> String {
 /// A QIMAGE's picture changed: with AutoSize the control takes the
 /// picture's size; the widget shows it again.
 fn picture_changed(name: &str) {
-    if rp_comp_get(name, "autosize").to_bool() {
+    // (AutoSize; or a picture loaded into a new QIMAGE, whose size the
+    // program hasn't set: the picture's, as in RapidQ)
+    if rp_comp_get(name, "autosize").to_bool() || !rp_comp_get(name, "__sized").to_bool() {
         if let Some(Some((w, h))) = rapidr_value::objects::with_picture(name, |b| {
             (!b.img.pixels.is_empty()).then_some((b.img.width as i64, b.img.height as i64))
         }) {
@@ -1680,7 +1689,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
         | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
         | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
-        | "RHEADER" | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"
+        | "RHEADER" | "RRECT" | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"
         | "RFONT" | "RMEMORYSTREAM" | "RBITMAP"
         | "RTRACKBAR" | "RSCROLLBOX" | "RSPLITTER" | "RPRINTER"
         | "RSQLITE" | "RMYSQL"
