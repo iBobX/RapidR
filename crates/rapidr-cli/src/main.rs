@@ -574,18 +574,22 @@ fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(path, origins);
     // `$RESOURCE` files are built into the module.
     for (name, file) in resource_files(&pre)? {
-        let bytes = fs::read(&file).map_err(|e| format!("$RESOURCE {name}: {file}: {e}"))?;
+        let bytes = if file.is_empty() { Vec::new() } else { fs::read(&file).map_err(|e| format!("$RESOURCE {name}: {file}: {e}"))? };
         compiled.module.resources.push((name, bytes));
     }
     Ok(compiled)
 }
 
 /// The `$RESOURCE` files of a program, as (name, absolute path); an error
-/// names one that wasn't found (as RapidQ's compiler does).
+/// names one that wasn't found (as RapidQ's compiler does) — an optional one
+/// (`$OPTION ICON`) that isn't there has an empty path: built in empty.
 fn resource_files(pre: &rapidr_preprocessor::PreprocessResult) -> Result<Vec<(String, String)>, String> {
     pre.resources
         .iter()
         .map(|r| {
+            if r.optional && r.path.is_none() {
+                return Ok((r.name.clone(), String::new()));
+            }
             let path = r.path.as_ref().ok_or_else(|| format!("$RESOURCE {}: file not found: '{}'", r.name, r.file))?;
             let abs = path.canonicalize().map_err(|e| format!("$RESOURCE {}: {}: {e}", r.name, path.display()))?;
             Ok((r.name.clone(), abs.to_string_lossy().into_owned()))

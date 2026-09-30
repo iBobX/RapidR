@@ -248,7 +248,8 @@ Next up, in order:
 - [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
 - [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)
 - [ ] Runtimes: implement the remaining RapidQ objects (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM done in v2.20.0) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
-- [ ] Accept `$OPTION ICON`, etc. (`$RESOURCE` since v2.40.0; `$TYPECHECK` and forward `DECLARE SUB` work since v2.13.0)
+- [x] `$OPTION ICON "app.ico"` (the program's icon, built in; a missing one leaves the default) and `$OPTION BYREF` on both backends; `$OPTION EXPLICIT` / BYTECODE / GTK / INKEY$ / VBDLL / WEAKTYPE accepted (v2.79.0)
+- [ ] `$OPTION DIM type` (undeclared variables' type) and `$OPTION DECIMAL` (VAL's decimal character)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [x] Fix builtins per the manual (v2.55.0, shared `rapidr_value::format` / `builtins`): `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM

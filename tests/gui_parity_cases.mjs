@@ -92,6 +92,9 @@ export const cases = [
     webCheck: `(() => { const src = (n) => { const i = document.querySelector('.rr-form[data-rr-name="' + n + '"] .rr-form-icon'); return i && i.style.display !== "none" ? i.src : ""; };
       return [src("FORM").startsWith("data:image/png"), src("OTHER").startsWith("data:image/png"), src("FORM") !== src("OTHER"), !!document.querySelector("link[rel~='icon'][href^='data:image/png']")].join(","); })()`,
     webExpect: "true,true,true,true" },
+  { name: "option_icon", events: "", dump: "lbl.caption", expect: ["lbl.caption=-1"],
+    webCheck: `(() => { const i = document.querySelector('.rr-form[data-rr-name="FORM"] .rr-form-icon'); return !!i && i.style.display !== "none" && i.src.startsWith("data:image/png"); })()`,
+    webExpect: true },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

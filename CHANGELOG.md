@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.79.0] — 2026-09-30
+
+### Added
+- `$OPTION ICON "app.ico"`: the program's icon, built into it and made
+  the application's (every form without its own shows it) on native,
+  interpreter and web; an icon that isn't there leaves the default one
+  instead of failing the build.
+- `$OPTION BYREF`: from that line on, parameters without BYVAL are passed
+  by reference (RapidQ's default is BYVAL), on both backends.
+
 ## [2.78.0] — 2026-09-30
 
 ### Added

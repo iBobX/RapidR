@@ -692,7 +692,12 @@ impl RustCodegen {
             self.line("rapidr_runtime_web::object_web::install_object_hooks();");
         }
         for (name, file) in self.resources.clone() {
-            self.line(&format!("{runtime}::value::resources::register({name:?}, include_bytes!({file:?}).as_slice());"));
+            if file.is_empty() {
+                // (an optional one that isn't there: `$OPTION ICON`)
+                self.line(&format!("{runtime}::value::resources::register({name:?}, &[] as &[u8]);"));
+            } else {
+                self.line(&format!("{runtime}::value::resources::register({name:?}, include_bytes!({file:?}).as_slice());"));
+            }
         }
 
         // Auto-declare implicit variables (referenced but never DIM'd)
