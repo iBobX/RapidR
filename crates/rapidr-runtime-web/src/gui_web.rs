@@ -3989,10 +3989,35 @@ fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
             return;
         }
         let cell = grid_target_cell(&target).filter(|_| e.button() == 0 && !e.shift_key());
+        // A fixed row's cell dragged (goColMoving) moves its column, a
+        // fixed column's (goRowMoving) its row: on the release.
+        if let Some((c, r)) = cell {
+            if let Some(cols) = grid_move_kind(&down_owner, c, r) {
+                e.prevent_default();
+                GRID_MOVING.with(|m| *m.borrow_mut() = Some((down_owner.clone(), cols, if cols { c } else { r })));
+                return;
+            }
+        }
         GRID_DRAG.with(|d| *d.borrow_mut() = cell.map(|c| (down_owner.clone(), c, false)));
     });
     let _ = wrapper.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
     down.forget();
+    let up_owner = owner.clone();
+    let up = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        let Some((owner, cols, from)) = GRID_MOVING.with(|m| m.borrow_mut().take()) else { return };
+        if owner != up_owner {
+            return;
+        }
+        let to = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).and_then(|t| grid_target_cell(&t));
+        if let Some((c, r)) = to {
+            let to = if cols { c } else { r };
+            if rapidr_value::objects::with_grid_mut(&owner, |g| if cols { g.move_col(from as usize, to as usize) } else { g.move_row(from as usize, to as usize) }).unwrap_or(false) {
+                render_grid(&owner);
+            }
+        }
+    });
+    let _ = wrapper.add_event_listener_with_callback("mouseup", up.as_ref().unchecked_ref());
+    up.forget();
     let move_owner = owner.clone();
     let drag = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
         if e.buttons() & 1 == 0 {
@@ -4097,6 +4122,28 @@ fn create_grid(id: &str, name: &str, props: &HashMap<String, Value>) {
 
     setup_widget(&wrapper, id, name, props);
     render_grid(name);
+}
+
+thread_local! {
+    /// A column (true) / row being moved by the mouse: the grid, from where.
+    static GRID_MOVING: std::cell::RefCell<Option<(String, bool, i64)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// What a press on cell (c, r) moves, as on the desktop: its column (a
+/// fixed row's cell, goColMoving) or its row (a fixed column's, goRowMoving).
+fn grid_move_kind(name: &str, c: i64, r: i64) -> Option<bool> {
+    use rapidr_value::objects::grid::{GO_COL_MOVING, GO_ROW_MOVING};
+    rapidr_value::objects::with_grid(name, |g| {
+        let (fr, fc) = (g.fixed_rows() as i64, g.fixed_cols() as i64);
+        if r < fr && c >= fc && g.has_option(GO_COL_MOVING) {
+            Some(true)
+        } else if c < fc && r >= fr && g.has_option(GO_ROW_MOVING) {
+            Some(false)
+        } else {
+            None
+        }
+    })
+    .flatten()
 }
 
 /// The grid cell (col, row) a clicked element is in.
@@ -4380,6 +4427,11 @@ pub fn render_grid(name: &str) {
 fn render_grid_now(name: &str) {
     use rapidr_value::objects::grid::{GO_HORZ_LINE, GO_VERT_LINE};
     let Some(table) = get_el(&format!("{}-table", comp_id(name))) else { return };
+    // (VisibleRowCount / VisibleColCount: what fits inside its frame, as on
+    // the desktop)
+    let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_i64();
+    let (w, h) = (stored("width"), stored("height"));
+    rapidr_value::objects::with_grid_mut(name, |g| g.view = (w - 4, h - 4));
     let _ = rapidr_value::objects::with_grid(name, |g| {
         table.set_inner_text("");
         let colgroup = create_el("colgroup");

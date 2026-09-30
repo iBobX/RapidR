@@ -24,6 +24,8 @@ export const cases = [
     expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
   { name: "listview_views", events: "lv.__mousedown_45_31,lv.__mouseup_45_31,lv.__mousedown_8_49,lv.__mouseup_8_49,lv.__key_40,lv.__key_32,lv.__mousedown_150_10,lv.__mouseup_150_10,btn2.onclick,lv.__mousedown_190_20,lv.__mouseup_190_20,lv.__edit,lv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0:2 k c1:2 k c0:2 c1:2 c1:2 h1 c1:2 c2:2 k c2:0 | 2 0 Apple 0 2 0"] },
+  { name: "grid_moving", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=5 3 H1a1 40 R2 3"] },
   { name: "string_grid", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|-1"] },
   { name: "align_layout", events: "btn.onclick", dump: "loose.caption,side.caption,bar.caption,status.simpletext", resize: "600,350", split: "split:60",

@@ -166,7 +166,7 @@ Next up, in order:
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)
 - [x] QSTRINGGRID goRangeSelect, gcsList drop-downs, goColSizing / goRowSizing on desktop and web (v2.43.0)
-- [ ] QSTRINGGRID extras: row/column moving by mouse (goColMoving / goRowMoving), VisibleRowCount/VisibleColCount, the program reading a range (Selection)
+- [x] QSTRINGGRID extras: row / column moving by the mouse (goRowMoving / goColMoving: a header cell dragged), VisibleRowCount / VisibleColCount, RapidR's MoveCol / MoveRow, on native, interpreter and web (v2.78.0); a selected range read by the program: RapidQ has no property for it (goRangeSelect's range stays the user's)
 - [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (Delphi's AlignControls), live geometry on the desktop, form resizing with OnResize (v2.35.0)
 - [x] QSPLITTER dragging on desktop and web (Delphi TSplitter: neighbour, MinSize, OnMoved) (v2.37.0)
 - [x] Form Width/Height include the frame (29px caption, 1px borders) and ClientWidth/ClientHeight exclude it and the menu, the same on desktop and web; bsNone has no frame (v2.37.0)

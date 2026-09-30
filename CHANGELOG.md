@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.78.0] — 2026-09-30
+
+### Added
+- QSTRINGGRID on native, interpreter and web: goColMoving / goRowMoving
+  (dragging a fixed row's cell moves its column, a fixed column's cell its
+  row — cells, width / height, column style and list with it; the selected
+  cell follows), `VisibleRowCount` / `VisibleColCount` (rows / columns shown
+  whole), and RapidR's `MoveCol From, To` / `MoveRow From, To`.
+- `tools/real_input.py`: `d:x1,y1,x2,y2` drags.
+
 ## [2.77.0] — 2026-09-30
 
 ### Added

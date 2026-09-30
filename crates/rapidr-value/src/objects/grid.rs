@@ -97,6 +97,10 @@ pub const GO_HORZ_LINE: u32 = 3;
 pub const GO_RANGE_SELECT: u32 = 4;
 pub const GO_ROW_SIZING: u32 = 6;
 pub const GO_COL_SIZING: u32 = 7;
+/// The user drags a fixed column's cell to move its row, a fixed row's cell
+/// to move its column ([`StringGrid::move_row`] / [`StringGrid::move_col`]).
+pub const GO_ROW_MOVING: u32 = 8;
+pub const GO_COL_MOVING: u32 = 9;
 pub const GO_EDITING: u32 = 10;
 pub const GO_TABS: u32 = 11;
 pub const GO_ROW_SELECT: u32 = 12;
@@ -147,6 +151,9 @@ pub struct StringGrid {
     pub owner_drawing: HashMap<(usize, usize), Vec<CellDraw>>,
     /// The state OnDrawCell was last fired for ([`Self::owner_draw_needed`]).
     drawn_state: Option<u64>,
+    /// The control's inside (width, height), as the runtime shows it, for
+    /// VisibleRowCount / VisibleColCount.
+    pub view: (i64, i64),
 }
 
 impl Default for StringGrid {
@@ -173,9 +180,24 @@ impl Default for StringGrid {
             suggestions: Vec::new(),
             owner_drawing: HashMap::new(),
             drawn_state: None,
+            view: (0, 0),
         };
         g.resize(5, 5);
         g
+    }
+}
+
+/// Where index `i` is after the item at `from` moved to `to`.
+fn moved_index(i: i64, from: usize, to: usize) -> i64 {
+    let (f, t) = (from as i64, to as i64);
+    if i == f {
+        t
+    } else if f < t && i > f && i <= t {
+        i - 1
+    } else if t < f && i >= t && i < f {
+        i + 1
+    } else {
+        i
     }
 }
 
@@ -404,6 +426,8 @@ impl StringGrid {
             "gridwidth" => v_int(self.col_widths.iter().sum()),
             "gridheight" => v_int(self.row_heights.iter().sum()),
             "editormode" => flag(self.editable()),
+            "visiblerowcount" => v_int(self.visible_count(&self.row_heights, self.fixed_rows(), self.top_row, self.view.1)),
+            "visiblecolcount" => v_int(self.visible_count(&self.col_widths, self.fixed_cols(), self.left_col, self.view.0)),
             _ => return None,
         })
     }
@@ -449,6 +473,70 @@ impl StringGrid {
             }
             _ => return false,
         }
+        true
+    }
+
+    /// VisibleRowCount / VisibleColCount: the scrolling rows (columns) shown
+    /// whole from `first` on, in `room` pixels less the fixed ones (each with
+    /// its grid line).
+    fn visible_count(&self, sizes: &[i64], fixed: usize, first: i64, room: i64) -> i64 {
+        let size = |v: &i64| (*v).clamp(0, 10_000) + 1;
+        let mut left = room - sizes.iter().take(fixed).map(size).sum::<i64>();
+        let mut n = 0;
+        for s in sizes.iter().skip(usize::try_from(first).unwrap_or(0).max(fixed)) {
+            left -= size(s);
+            if left < 0 {
+                break;
+            }
+            n += 1;
+        }
+        n
+    }
+
+    /// Moves column `from` to `to` (goColMoving): its cells, width, style
+    /// and list go with it, and the selection stays on the cell it was on.
+    pub fn move_col(&mut self, from: usize, to: usize) -> bool {
+        let n = self.col_count;
+        if from >= n || to >= n || from == to {
+            return false;
+        }
+        for row in &mut self.cells {
+            let c = row.remove(from);
+            row.insert(to, c);
+        }
+        let w = self.col_widths.remove(from);
+        self.col_widths.insert(to, w);
+        for v in [&mut self.column_styles] {
+            if v.len() > from.max(to) {
+                let x = v.remove(from);
+                v.insert(to, x);
+            }
+        }
+        if self.column_lists.len() > from.max(to) {
+            let x = self.column_lists.remove(from);
+            self.column_lists.insert(to, x);
+        }
+        self.col = moved_index(self.col, from, to);
+        self.anchor = self.anchor.map(|(c, r)| (moved_index(c, from, to), r));
+        self.owner_drawing.clear();
+        self.drawn_state = None;
+        true
+    }
+
+    /// Moves row `from` to `to` (goRowMoving), as [`Self::move_col`].
+    pub fn move_row(&mut self, from: usize, to: usize) -> bool {
+        let n = self.row_count();
+        if from >= n || to >= n || from == to {
+            return false;
+        }
+        let r = self.cells.remove(from);
+        self.cells.insert(to, r);
+        let h = self.row_heights.remove(from);
+        self.row_heights.insert(to, h);
+        self.row = moved_index(self.row, from, to);
+        self.anchor = self.anchor.map(|(c, r)| (c, moved_index(r, from, to)));
+        self.owner_drawing.clear();
+        self.drawn_state = None;
         true
     }
 
@@ -652,6 +740,17 @@ impl StringGrid {
                     self.fix_selection();
                 }
             }
+            // (RapidR: what goColMoving / goRowMoving do, from the program)
+            "movecol" | "movecolumn" => {
+                if let (Some(a), Some(b)) = (index(args.first()), index(args.get(1))) {
+                    self.move_col(a, b);
+                }
+            }
+            "moverow" => {
+                if let (Some(a), Some(b)) = (index(args.first()), index(args.get(1))) {
+                    self.move_row(a, b);
+                }
+            }
             "swaprows" => {
                 if let (Some(a), Some(b)) = (index(args.first()), index(args.get(1))) {
                     if a < self.row_count() && b < self.row_count() {
@@ -691,6 +790,30 @@ impl StringGrid {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn moving_and_visible_counts() {
+        let mut g = StringGrid::default();
+        for c in 0..5 {
+            g.set_cell(c, 1, format!("c{c}"));
+        }
+        g.col_widths[1] = 30;
+        g.select(1, 1);
+        assert!(g.move_col(1, 3));
+        assert_eq!((g.cell(3, 1), g.cell(1, 1), g.col_widths[3], g.col), ("c1", "c2", 30, 3));
+        g.set_cell(0, 2, "row2".into());
+        assert!(g.move_row(2, 4));
+        assert_eq!(g.cell(0, 4), "row2");
+        assert_eq!(g.row, 1);
+        assert!(!g.move_col(9, 0));
+        // Rows of 24 (+1 line), a fixed one: 99 px show 2 whole, 100 px 3.
+        g.view = (300, 99);
+        assert_eq!(g.get("visiblerowcount").unwrap().to_i64(), 2);
+        g.view = (300, 100);
+        assert_eq!(g.get("visiblerowcount").unwrap().to_i64(), 3);
+        g.view = (1000, 1000);
+        assert_eq!(g.get("visiblecolcount").unwrap().to_i64(), 4);
+    }
 
     #[test]
     fn range_selection() {
