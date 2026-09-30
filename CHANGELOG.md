@@ -7,6 +7,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.72.0] — 2026-09-29
+
+### Added
+- **QHEADER** on native, interpreter and web: column headers the user
+  clicks and resizes. `AddSections`, `Clear`, `SectionsCount`, and
+  `Sections(i).Caption` / `Width` / `MinWidth` / `MaxWidth` / `Alignment` /
+  `AllowClick` / `Style`; dragging a section's edge (the resize cursor
+  shows there) fires OnSectionTrack (Index, Width, State: begin, move,
+  end) and then OnSectionResize; a click fires OnSectionClick. Sections
+  with `Style = hsOwnerDraw` are drawn by OnDrawSection (Index, Pressed,
+  Rect), with the header's own canvas methods (`Sender.FillRect`, …).
+
 ## [2.71.0] — 2026-09-29
 
 ### Added

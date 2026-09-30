@@ -173,6 +173,10 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
         "RIMAGE" => create_image(&id, name, props),
         "RCANVAS" => create_canvas(&id, name, props),
+        "RHEADER" => {
+            create_canvas(&id, name, props);
+            header_mouse_events(&id, name);
+        }
         "RSTRINGGRID" => create_grid(&id, name, props),
         "RTABCONTROL" => create_tabcontrol(&id, name, props),
         "RTREEVIEW" => create_treeview(&id, name, props),
@@ -1054,6 +1058,10 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             if let Some(el) = get_el(&id) {
                 let _ = el.focus();
             }
+            v_null()
+        }
+        ("RHEADER", "refresh" | "repaint" | "update" | "paint") => {
+            refresh_header(name);
             v_null()
         }
         ("RCANVAS" | "RFORM", "refresh" | "repaint" | "update" | "paint") => {
@@ -2820,6 +2828,111 @@ fn render_canvas_now(name: &str) {
         return;
     }
     put_display(&canvas, w, h, &rgba, scale);
+}
+
+thread_local! {
+    static HEADERS_TO_REFRESH: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Paints a QHEADER's section faces again and fires OnDrawSection (Index,
+/// Pressed, Rect) for its owner-drawn ones, as on the desktop — soon
+/// (batched, and never inside the CREATE that adds its sections).
+pub fn refresh_header(name: &str) {
+    let name = name.to_uppercase();
+    let first = HEADERS_TO_REFRESH.with(|g| {
+        let mut g = g.borrow_mut();
+        let first = g.is_empty();
+        if !g.contains(&name) {
+            g.push(name);
+        }
+        first
+    });
+    if !first {
+        return;
+    }
+    let flush = Closure::once_into_js(move || {
+        for name in HEADERS_TO_REFRESH.with(|g| std::mem::take(&mut *g.borrow_mut())) {
+            refresh_header_now(&name);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);
+    }
+}
+
+fn refresh_header_now(name: &str) {
+    let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_i64();
+    for (i, pressed, (left, top, right, bottom)) in rapidr_value::objects::paint_header(name, stored("width"), stored("height")) {
+        let rect = format!("{name}.SECTIONRECT({i})");
+        crate::object_web::rp_create_component(&rect, "RUDT");
+        for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
+            crate::object_web::rp_comp_set(&rect, prop, v_int(v));
+        }
+        crate::object_web::rp_fire_event_args(name, "ondrawsection", &[v_int(i as i64), v_int(if pressed { -1 } else { 0 }), crate::value::v_str(&rect)]);
+    }
+    render_canvas(name);
+}
+
+/// A QHEADER's left button, as on the desktop: sections pressed, clicked
+/// and resized (OnSectionClick, OnSectionTrack, OnSectionResize); a drag
+/// follows the mouse outside the header; the resize cursor on an edge.
+fn header_mouse_events(id: &str, name: &str) {
+    use rapidr_value::input::Mouse;
+    let fire = |name: &str, kind: Mouse, x: i64| {
+        use rapidr_value::objects::header::{Action, TS_END};
+        let before = rapidr_value::objects::with_header(name, |h| (h.pressed, h.sections.clone()));
+        let actions = rapidr_value::objects::with_header(name, |h| match kind {
+            Mouse::Down => h.press(x),
+            Mouse::Move => h.drag_to(x),
+            Mouse::Up => h.release(x),
+        })
+        .unwrap_or_default();
+        for action in actions {
+            match action {
+                Action::Click(i) => crate::object_web::rp_fire_event_args(name, "onsectionclick", &[v_int(i as i64)]),
+                Action::Track(i, width, state) => {
+                    crate::object_web::rp_fire_event_args(name, "onsectiontrack", &[v_int(i as i64), v_int(width), v_int(state)]);
+                    if state == TS_END {
+                        crate::object_web::rp_fire_event_args(name, "onsectionresize", &[v_int(i as i64)]);
+                    }
+                }
+            }
+        }
+        if before != rapidr_value::objects::with_header(name, |h| (h.pressed, h.sections.clone())) {
+            refresh_header(name);
+        }
+    };
+    let Some(el) = get_el(id) else { return };
+    let x_in = |el: &web_sys::HtmlElement, e: &web_sys::MouseEvent| (e.client_x() as f64 - el.get_bounding_client_rect().left()) as i64;
+    let (owner, target) = (name.to_uppercase(), el.clone());
+    let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        if e.button() == 0 {
+            fire(&owner, Mouse::Down, x_in(&target, &e));
+        }
+    });
+    let _ = el.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
+    down.forget();
+    // (on the document: a drag goes on outside the header)
+    for dom_event in ["mousemove", "mouseup"] {
+        let (owner, target) = (name.to_uppercase(), el.clone());
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let x = x_in(&target, &e);
+            // (`grip`: also while an edge is dragged)
+            let Some((held, grip)) = rapidr_value::objects::with_header(&owner, |h| (h.pressed.is_some(), h.on_grip(x))) else { return };
+            if dom_event == "mousemove" {
+                let over = e.target().and_then(|t| t.dyn_into::<web_sys::Node>().ok()).is_some_and(|n| target.contains(Some(&n)));
+                let custom = crate::object_web::rp_comp_get_stored(&owner, "cursor").to_i64() != 0;
+                if !custom {
+                    let _ = target.style().set_property("cursor", if grip && over { "col-resize" } else { "" });
+                }
+                fire(&owner, Mouse::Move, x);
+            } else if held || grip {
+                fire(&owner, Mouse::Up, x);
+            }
+        });
+        let _ = document().add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
 }
 
 thread_local! {

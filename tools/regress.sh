@@ -7,6 +7,7 @@
 # the web artifacts (tools/build_web_artifacts.sh) and the repo served on
 # http://localhost:8765 for the browser tests (Playwright). Run one at a time.
 cd "$(dirname "$0")/.."
+curl -s -o /dev/null localhost:8765/ || { echo "serve the repo on http://localhost:8765 first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }
 # The suites build into tests/conformance/.work; keep it bounded (a run
 # adds ~35 GB, mostly per-case debug executables and the shared cache).
 W=tests/conformance/.work

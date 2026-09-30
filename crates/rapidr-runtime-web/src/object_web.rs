@@ -170,6 +170,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("width".to_string(), v_int(400));
             props.insert("height".to_string(), v_int(300));
         }
+        "RHEADER" => {
+            // Sections: rapidr_value::objects::header; a canvas to draw on.
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+            props.insert("width".to_string(), v_int(200));
+            props.insert("height".to_string(), v_int(20));
+            props.insert("color".to_string(), v_int(0xF0F0F0));
+        }
         "RSTRINGGRID" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
@@ -346,7 +354,9 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         if rapidr_value::objects::is_dirtree(name) {
             gui_web::render_dirtree(&name.to_uppercase());
         }
-        if rapidr_value::objects::is_canvas(name) {
+        if rapidr_value::objects::is_header(name) {
+            gui_web::refresh_header(name);
+        } else if rapidr_value::objects::is_canvas(name) {
             gui_web::render_canvas(&name.to_uppercase());
         }
     }
@@ -648,7 +658,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // Align (layout_web).
     crate::layout_web::after_set(&uname, &lprop);
     // A QCANVAS's new size (its surface follows).
-    if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
+    if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_header(&uname) {
+        gui_web::refresh_header(&uname);
+    } else if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         gui_web::render_canvas(&uname);
         if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
             rp_fire_event(&uname, "onpaint");
@@ -876,7 +888,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
             picture_changed(&uname);
         }
-        if rapidr_value::objects::is_canvas(name) {
+        if rapidr_value::objects::is_header(name) && rapidr_value::objects::header::changes_sections(&lmethod) {
+            gui_web::refresh_header(&uname);
+        } else if rapidr_value::objects::is_canvas(name) {
             gui_web::render_canvas(&uname);
         }
         if rapidr_value::objects::is_dirtree(name) {
@@ -1979,6 +1993,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RTIMER"
             | "RIMAGE"
             | "RCANVAS"
+            | "RHEADER"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"
