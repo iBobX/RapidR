@@ -19,6 +19,7 @@ pub mod mdi;
 pub mod events;
 pub mod input;
 pub mod globals;
+pub mod file_dialog;
 pub mod format;
 pub mod toggle_group;
 pub mod objects;

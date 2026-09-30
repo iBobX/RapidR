@@ -130,6 +130,16 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
     }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]], item: item?.[1], edit });
     if (!fired) ok(false, `${c.name}: ${target} exists`);
     await page.waitForTimeout(300);
+    // A file dialog the event opened: the case's answer typed in, then Open / Save.
+    if (c.fileDialog !== undefined) {
+      await frame.evaluate((answer) => {
+        const dlg = document.querySelector(".rr-file-dialog");
+        if (!dlg) return;
+        dlg.querySelector(".rr-file-name").value = answer;
+        dlg.querySelector(answer ? ".rr-file-ok" : ".rr-file-cancel").click();
+      }, c.fileDialog);
+      await page.waitForTimeout(300);
+    }
   }
   await page.waitForTimeout(500);
   // (The properties as the program reads them, as the desktop test prints them.)

@@ -688,7 +688,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RCHECKBOX", "RRADIOBUTTON", "RCOMBOBOX", "RLISTBOX", "RFILELISTBOX", "RDIRTREE",
     "RTIMER", "RIMAGE", "RCANVAS", "RSTRINGGRID", "RTABCONTROL",
     "RTREEVIEW", "RMAINMENU", "RMENUITEM", "RPOPUPMENU",
-    "ROPENDIALOG", "RSAVEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
+    "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
     "RTOOLBAR", "RSTATUSBAR", "RPROGRESS", "RRICHEDIT", "RMEMO",
     "RSCROLLBAR", "RUPDOWN", "RDATETIMEPICKER",
     "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER",
@@ -722,8 +722,8 @@ pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE",
     "QD3DVECTOR", "QD3DVISUAL", "QD3DWRAP", "QDIGDISPLAY", "QDIRLISTVIEW",
     "QDOCKFORM", "QDOWNLOAD", "QDXIMAGELIST", "QDXSCREEN", "QDXSOUND", "QDXTIMER",
-    "QFILEDIALOG", "QGLASSFRAME", "QHEADER", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
-    "QOUTLINE", "QRECT", "QVIDEO", "QWAVE",
+"QGLASSFRAME", "QHEADER", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
+    "QRECT", "QVIDEO", "QWAVE",
 ];
 
 /// The type suffix of an INPUT variable (`name$` → "$"), or "": with the
@@ -826,6 +826,11 @@ pub fn canonical_type_name(type_name: &str) -> String {
         // RapidQ components whose RapidR counterpart has another name.
         if rest == "GAUGE" {
             return "RPROGRESSBAR".into();
+        }
+        // QOUTLINE (Windows 3.1's tree): a tree view with its own methods
+        // (rapidr_value::objects::tree).
+        if rest == "OUTLINE" {
+            return "RTREEVIEW".into();
         }
         let r_name = format!("R{rest}");
         if is_component_type_name(&r_name) {

@@ -290,8 +290,8 @@ impl TreeView {
 
     pub fn get(&self, prop: &str) -> Option<Value> {
         Some(match prop {
-            "itemcount" | "count" => v_int(self.nodes.len() as i64),
-            "itemindex" => v_int(self.item_index),
+            "itemcount" | "count" | "linecount" => v_int(self.nodes.len() as i64),
+            "itemindex" | "row" => v_int(self.item_index),
             "topindex" => v_int(self.top_index),
             "showbuttons" => flag(self.show_buttons),
             "showlines" => flag(self.show_lines),
@@ -308,7 +308,7 @@ impl TreeView {
 
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
-            "itemindex" => self.select(val.to_i64()),
+            "itemindex" | "row" => self.select(val.to_i64()),
             "topindex" => self.top_index = val.to_i64().clamp(0, self.nodes.len().saturating_sub(1) as i64),
             "showbuttons" => self.show_buttons = val.to_bool(),
             "showlines" => self.show_lines = val.to_bool(),
@@ -384,6 +384,36 @@ impl TreeView {
             "addroot" => {
                 let at = self.nodes.len();
                 self.insert(at, texts(0).into_iter().take(1), 0);
+            }
+            // QOUTLINE: AddLines "Parent", " Child", "  Grandchild" — each
+            // leading space (or tab) a level deeper.
+            "addlines" => {
+                for line in texts(0) {
+                    let depth = line.chars().take_while(|c| matches!(c, ' ' | '\t')).count();
+                    let max = self.nodes.last().map_or(0, |n| n.level + 1);
+                    let at = self.nodes.len();
+                    self.insert(at, [line.trim_start_matches([' ', '\t']).to_string()], depth.min(max));
+                }
+            }
+            // QOUTLINE's AddChild(Index, S) and Insert(Index, S).
+            "addchild" if matches!(args.first(), Some(Value::Integer(_) | Value::Double(_))) => {
+                return self.call("addchilditems", args);
+            }
+            "insert" => return self.call("insertitem", args),
+            "dellines" => return self.call("delitems", args),
+            "addoptions" | "deloptions" => {}
+            // QOUTLINE's Item(i): a line's text (`Item(i) = s`: the value
+            // comes as a second argument).
+            "item" if args.len() >= 2 => return self.call("item=", args),
+            "item" => {
+                let i = index(args.first()).filter(|&i| i < self.nodes.len());
+                return Some(v_str(i.map_or("", |i| &self.nodes[i].text)));
+            }
+            "item=" => {
+                if let Some(i) = index(args.first()).filter(|&i| i < self.nodes.len()) {
+                    self.nodes[i].text = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
+                    self.changed();
+                }
             }
             "addchild" => {
                 let parent = args.first().map(|v| v.to_string_val()).unwrap_or_default();
@@ -532,6 +562,19 @@ mod tests {
         let mut u = TreeView::default();
         u.load_text("root\n\t\tdeep\n\tchild\nnext\n");
         assert_eq!(texts(&u), ["root", ".deep", ".child", "next"]);
+    }
+
+    #[test]
+    fn outline_lines() {
+        let mut t = TreeView::default();
+        t.call("addlines", &[s("Parent 1"), s(" Child"), s("  Grandchild"), s("Parent 2"), s("   too deep")]);
+        assert_eq!(t.nodes.iter().map(|n| n.level).collect::<Vec<_>>(), vec![0, 1, 2, 0, 1]);
+        assert_eq!(t.call("item", &[v_int(2)]).unwrap().to_string_val(), "Grandchild");
+        t.call("addchild", &[v_int(0), s("Second child")]);
+        assert_eq!(texts(&t), vec!["Parent 1", ".Child", "..Grandchild", ".Second child", "Parent 2", ".too deep"]);
+        t.call("item=", &[v_int(4), s("P2")]);
+        t.set("row", &v_int(4));
+        assert_eq!((t.get("linecount").unwrap().to_i64(), t.get("row").unwrap().to_i64(), t.nodes[4].text.as_str()), (6, 4, "P2"));
     }
 
     #[test]

@@ -260,10 +260,21 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("eof".to_string(), v_bool(false));
             props.insert("mimetype".to_string(), v_str("text/plain"));
         }
-        "ROPENDIALOG" | "RSAVEDIALOG" => {
+        "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" => {
             props.insert("filename".to_string(), v_str(""));
-            props.insert("filter".to_string(), v_str("*.*"));
+            props.insert("filetitle".to_string(), v_str(""));
+            props.insert("filter".to_string(), v_str(""));
+            props.insert("filterindex".to_string(), v_int(1));
+            props.insert("initialdir".to_string(), v_str(""));
             props.insert("title".to_string(), v_str(""));
+            props.insert("selcount".to_string(), v_int(0));
+            if type_name == "RFILEDIALOG" {
+                props.insert("caption".to_string(), v_str("Open"));
+                props.insert("filter".to_string(), v_str("All Files|*.*"));
+                props.insert("mode".to_string(), v_int(0));
+                props.insert("multiselect".to_string(), v_bool(false));
+                props.insert("warnifoverwrite".to_string(), v_bool(true));
+            }
         }
         "RCOLORDIALOG" => {
             props.insert("color".to_string(), v_int(0xFFFFFF));
@@ -831,6 +842,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
         return v;
     }
+    // A file dialog's Files(i): the folder (0), then the picked names.
+    if lmethod == "files" && matches!(rp_comp_type(name).as_str(), "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG") {
+        let i = args.first().map_or(0, Value::to_i64);
+        let v = rp_comp_get_stored(name, &format!("files({i})"));
+        return if matches!(v, Value::Null) { v_str("") } else { v };
+    }
     // A QFORMMDI's AddChild, CascadeChild, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi_web::method(name, &lmethod, args) {
@@ -915,7 +932,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Native browser dialogs (synchronous via prompt() / async file input)
     if matches!(
         comp_type.as_str(),
-        "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
+        "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
     ) {
         return dialog_web_method(&uname, &comp_type, &lmethod, args);
     }
@@ -1317,65 +1334,71 @@ fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {
 // File *content* loading should go through RFILESTREAM.PickFile().
 // ---------------------------------------------------------------------------
 
+/// Open / Save in the page (dialog_web::open_files, rapidr_value::
+/// file_dialog): the program's files matching the Filter, a name, Upload;
+/// the answer in FileName, FileTitle, Files(…), SelCount. Where the program
+/// can't wait (a Rust-built page), the browser's prompt asks for a name.
+fn web_file_dialog(name: &str, save: bool, multi: bool) -> Value {
+    use rapidr_value::file_dialog as fd;
+    let prop = |p: &str| rp_comp_get_stored(name, p).to_string_val();
+    let filters = fd::parse_filter(&prop("filter"));
+    let index = (rp_comp_get_stored(name, "filterindex").to_i64().max(1) - 1) as usize;
+    let default_ext = prop("defaultext");
+    let owner = name.to_string();
+    let answer = move |names: Vec<String>| {
+        let mut names = names;
+        if save {
+            if let Some(first) = names.first_mut() {
+                *first = fd::with_default_ext(first, &default_ext);
+            }
+        }
+        if names.is_empty() {
+            return;
+        }
+        let picked = fd::picked(&names);
+        rp_comp_set_prop_only(&owner, "filename", v_str(&picked.file_name));
+        rp_comp_set_prop_only(&owner, "filetitle", v_str(&picked.file_title));
+        rp_comp_set_prop_only(&owner, "selcount", v_int(picked.sel_count));
+        for (i, f) in picked.files.iter().enumerate() {
+            rp_comp_set_prop_only(&owner, &format!("files({i})"), v_str(f));
+        }
+    };
+    if !crate::dialog_web::can_wait() {
+        let chosen = web_sys::window().and_then(|w| w.prompt_with_message_and_default(if save { "Save as:" } else { "Open file:" }, &prop("filename")).ok().flatten());
+        let names: Vec<String> = chosen.map(|c| c.split(';').map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).collect()).unwrap_or_default();
+        let picked = !names.is_empty();
+        answer(names);
+        return v_int(if picked { -1 } else { 0 });
+    }
+    let mut files: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().filter(|n| fd::fits(&filters, index, n)).cloned().collect());
+    files.sort();
+    let title = [prop("caption"), prop("title")].into_iter().find(|t| !t.is_empty()).unwrap_or_default();
+    crate::dialog_web::open_files(crate::dialog_web::FileRequest {
+        title,
+        save,
+        multi,
+        files,
+        initial: fd::file_title(&prop("filename")),
+        accept: fd::html_accept(&filters, index),
+        store: std::rc::Rc::new(|path: &str, bytes: Vec<u8>| {
+            let _ = web_write_file(path, &bytes);
+        }),
+        done: std::rc::Rc::new(answer),
+    });
+    v_int(0)
+}
+
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
     if method != "execute" {
         return v_null();
     }
     let _ = args;
     match comp_type {
-        "RSAVEDIALOG" => {
-            // Prompt for a filename; default = current `filename` prop.
-            let cur = COMPONENTS.with(|c| {
-                c.borrow()
-                    .get(name)
-                    .and_then(|comp| comp.properties.get("filename").map(|v| v.to_string_val()))
-                    .unwrap_or_default()
-            });
-            if let Some(window) = web_sys::window() {
-                if let Ok(Some(fname)) = window.prompt_with_message_and_default(
-                    "Save as filename:",
-                    &cur,
-                ) {
-                    if !fname.is_empty() {
-                        rp_comp_set_prop_only(name, "filename", v_str(&fname));
-                        return v_int(1);
-                    }
-                }
-            }
-            v_int(0)
-        }
-        "ROPENDIALOG" => {
-            // Use a hidden file input to let the user pick a file.
-            // We only capture its *name* into `filename` (sync). To actually
-            // load the contents, use RFILESTREAM.PickFile() instead.
-            let doc = crate::gui_web::document();
-            let input_el = match doc.create_element("input") {
-                Ok(el) => el,
-                Err(_) => return v_int(0),
-            };
-            let input = match input_el.dyn_into::<web_sys::HtmlInputElement>() {
-                Ok(i) => i,
-                Err(_) => return v_int(0),
-            };
-            input.set_type("file");
-            let _ = input.style().set_property("display", "none");
-            let name_for_cb = name.to_string();
-            let input_clone = input.clone();
-            let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |_e: web_sys::Event| {
-                if let Some(files) = input_clone.files() {
-                    if let Some(file) = files.item(0) {
-                        rp_comp_set_prop_only(&name_for_cb, "filename", v_str(&file.name()));
-                        rp_fire_event(&name_for_cb, "onclose");
-                    }
-                }
-            });
-            input.set_onchange(Some(cb.as_ref().unchecked_ref()));
-            cb.forget();
-            if let Some(body) = doc.body() {
-                let _ = body.append_child(&input);
-            }
-            input.click();
-            v_int(1)
+        "ROPENDIALOG" => web_file_dialog(name, false, false),
+        "RSAVEDIALOG" => web_file_dialog(name, true, false),
+        "RFILEDIALOG" => {
+            let save = rp_comp_get_stored(name, "mode").to_i64() == 1;
+            web_file_dialog(name, save, !save && rp_comp_get_stored(name, "multiselect").to_bool())
         }
         "RCOLORDIALOG" => {
             let cur = COMPONENTS
@@ -1967,6 +1990,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RCODEEDITOR"
             | "ROPENDIALOG"
             | "RSAVEDIALOG"
+            | "RFILEDIALOG"
             | "RCOLORDIALOG"
             | "RFONTDIALOG"
             | "RSTATUSBAR"

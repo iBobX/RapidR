@@ -180,11 +180,21 @@ impl RpComponent {
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("checked".into(), v_bool(false));
             }
-            "ROPENDIALOG" | "RSAVEDIALOG" => {
+            "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" => {
                 props.insert("filename".into(), v_str(""));
+                props.insert("filetitle".into(), v_str(""));
                 props.insert("filter".into(), v_str(""));
+                props.insert("filterindex".into(), v_int(1));
                 props.insert("initialdir".into(), v_str(""));
                 props.insert("title".into(), v_str(""));
+                props.insert("selcount".into(), v_int(0));
+                if type_name == "RFILEDIALOG" {
+                    props.insert("caption".into(), v_str("Open"));
+                    props.insert("filter".into(), v_str("All Files|*.*"));
+                    props.insert("mode".into(), v_int(0));
+                    props.insert("multiselect".into(), v_bool(false));
+                    props.insert("warnifoverwrite".into(), v_bool(true));
+                }
             }
             "RCOLORDIALOG" | "RFONTDIALOG" => {
                 props.insert("color".into(), v_int(0));
@@ -909,6 +919,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(v) = crate::globals::call(name, &method_lower, args) {
         return v;
     }
+    // A file dialog's Files(i): the folder (0), then the picked names.
+    if method_lower == "files" && matches!(comp_type.as_str(), "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG") {
+        let i = args.first().map_or(0, Value::to_i64);
+        let v = rp_comp_get(name, &format!("files({i})"));
+        return if matches!(v, Value::Null) { v_str("") } else { v };
+    }
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi::method(name, &method_lower, args) {
@@ -1603,7 +1619,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         "execute" => {
             // For dialogs (POpenDialog, PSaveDialog)
             match comp_type {
-                "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => {
+                "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => {
                     // In non-GUI mode, return false
                     #[cfg(feature = "gui")]
                     {
@@ -1639,7 +1655,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
         | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
-        | "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
+        | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
         | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
         | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
         | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST"

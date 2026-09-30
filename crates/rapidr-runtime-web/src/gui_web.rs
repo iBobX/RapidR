@@ -198,7 +198,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RDATAFRAME" => crate::datascience_web::create_dataframe_widget(&id, name, props),
         "RNUM" => crate::datascience_web::create_num_widget(&id, name, props),
         // Dialogs — these are virtual and use browser native dialogs
-        "ROPENDIALOG" | "RSAVEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
+        "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
         | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RUDT" => { /* no DOM element */ }

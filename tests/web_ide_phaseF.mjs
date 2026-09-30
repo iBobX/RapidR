@@ -94,7 +94,7 @@ ok(saved.forms[1].name === "Form2" && saved.forms[1].children[0].name === "Label
 // 5) project.new wipes back to one empty form
 await page.evaluate(() => document.querySelector('[data-cmd="project.new"]').click());
 await page.waitForTimeout(150);
-const cleanForms = await page.$$eval("#proj-tree .tree-item .tree-label", els => els.map(e => e.textContent));
+const cleanForms = await page.$$eval("#proj-tree .tree-item:not(.tree-sub-item) .tree-label", els => els.map(e => e.textContent));
 ok(cleanForms.length === 1, "project.new resets to 1 form");
 
 // 6) Load saved JSON back
@@ -107,7 +107,7 @@ await page.evaluate((j) => {
 }, saved);
 await page.waitForTimeout(400);
 const restored = await page.evaluate(() => ({
-  forms: Array.from(document.querySelectorAll("#proj-tree .tree-item .tree-label")).map(e => e.textContent),
+  forms: Array.from(document.querySelectorAll("#proj-tree .tree-item:not(.tree-sub-item) .tree-label")).map(e => e.textContent),
   tabs: Array.from(document.querySelectorAll("#mdi-tabs .mtab-name")).map(e => e.textContent),
 }));
 ok(restored.forms.join(",") === "Form1,Form2", "restored Form1,Form2 in tree");

@@ -216,6 +216,8 @@ Next up, in order:
 - [ ] Example corpus: 148 of 386 compile (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples --include ~/Downloads/Rapidq/include`); most of the rest call the Windows API, miss include files, or have typos RapidQ couldn't compile either
 - [x] SVG wherever a bitmap goes — QBITMAP / QIMAGE (`LoadFromFile`, `BMP`, `BMPHandle`), QIMAGELIST (`AddBMPFile`, `AddBMPHandle`), `Canvas.Draw`, `$RESOURCE` — drawn by resvg in the shared model with soft edges (per-pixel alpha, kept through `.BMP`) on native, interpreter and web (v2.67.0)
 - [ ] SVG form / application icons
+- [x] QOUTLINE (a tree view: AddLines by indentation, AddChild(Index, S), Insert, Item(i), Row, LineCount); QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG from a shared model (RapidQ filters, FilterIndex, InitialDir, DefaultExt, MultiSelect, Files(), SelCount, FileTitle; an in-page dialog on the web with Upload) on native, interpreter and web (v2.71.0)
+- [ ] QHEADER
 - [x] High-DPI: canvases, form surfaces, QIMAGE pictures, owner-drawn list / combo items, grid images and tree icons shown at the screen's scale (FLTK `pixels_per_unit` on Retina, the browser's `devicePixelRatio`): each bitmap keeps what the screen shows next to the pixels programs read (`Pixel`, `.BMP`, flood fills — unchanged, checked by the GUI suites at 2×); text, lines and ellipses drawn finer, SVGs drawn at the scale (v2.70.0)
 - [ ] High-DPI leftovers: grid cells' own drawing on the web (1× canvas), RapidR's own IDE icons as vectors
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
