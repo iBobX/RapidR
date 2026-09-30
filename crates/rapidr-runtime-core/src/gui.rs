@@ -600,8 +600,10 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
         // `canvas.__mousedown_10_20` (…up, …move): the mouse at (10, 20) in it.
         // `tree.__node_2`: node 2 picked; `tree.__toggle_0`: node 0
         // expanded or collapsed.
+        // (as a click: the pick, then OnClick; OnClick before a toggle)
         if let Some([i]) = nums("__node_").as_deref() {
             tree_user_select(&comp_lower, *i as usize);
+            rp_fire_event(&comp_lower, "onclick");
         } else if event == "__edit" {
             // F2: the selected node edited; `__enter` types "Renamed" and
             // Enter in its editor, `__escape` drops the edit.
@@ -617,6 +619,7 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             tree_end_edit(&comp_lower, event == "__enter");
         } else if let Some([i]) = nums("__toggle_").as_deref() {
             let open = !rapidr_value::objects::with_tree(&comp_lower, |m| m.nodes.get(*i as usize).is_some_and(|n| n.expanded)).unwrap_or(true);
+            rp_fire_event(&comp_lower, "onclick");
             tree_user_toggle(&comp_lower, *i as usize, open);
         } else if let Some([i]) = nums("__item_").as_deref() {
             if rapidr_value::objects::with_list(&comp_lower, |l| l.combo).unwrap_or(false) {
@@ -2057,7 +2060,7 @@ fn basic_syntax_highlight(source: &str) -> String {
         "RIMAGE", "RRICHEDIT", "RPROGRESSBAR", "RTRACKBAR", "RSCROLLBAR",
         "RSPLITTER", "RMAINMENU", "RMENUITEM", "RMYSQL", "RSQLITE",
         "RCOOLBTN", "ROVALBTN",
-        "ROPENDIALOG", "RSAVEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
+        "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
         "RFILESTREAM", "RJSON", "RHTTP", "RSOCKET", "$THEME",
         "LEFT", "RIGHT", "MID", "LEN", "INSTR", "UCASE", "LCASE",
         "VAL", "STR", "CHR", "ASC", "TRIM",
@@ -3032,47 +3035,76 @@ pub fn gui_center(name: &str) {
     }
 }
 
+/// An Open / Save dialog (rapidr_value::file_dialog): Caption (or Title),
+/// Filter / FilterIndex, InitialDir, FileName preset; the answer in
+/// FileName, FileTitle, Files(…) and SelCount; DefaultExt added to a saved
+/// name; a save asks before replacing a file (WarnIfOverWrite).
+fn file_dialog(name: &str, save: bool, multi: bool) -> Value {
+    use rapidr_value::file_dialog as fd;
+    let prop = |p: &str| rp_comp_get(name, p).to_string_val();
+    let kind = match (save, multi) {
+        (true, _) => dialog::NativeFileChooserType::BrowseSaveFile,
+        (false, true) => dialog::NativeFileChooserType::BrowseMultiFile,
+        (false, false) => dialog::NativeFileChooserType::BrowseFile,
+    };
+    let mut dlg = dialog::NativeFileChooser::new(kind);
+    let title = [prop("caption"), prop("title")].into_iter().find(|t| !t.is_empty());
+    if let Some(title) = title {
+        dlg.set_title(&title);
+    }
+    let filters = fd::parse_filter(&prop("filter"));
+    if !filters.is_empty() {
+        dlg.set_filter(&fd::fltk_filter(&filters));
+        // (FilterIndex counts from 1)
+        let index = rp_comp_get(name, "filterindex").to_i64();
+        dlg.set_filter_value((index.max(1) - 1).min(filters.len() as i64 - 1) as i32);
+    }
+    let dir = prop("initialdir");
+    if !dir.is_empty() {
+        let _ = dlg.set_directory(&dir);
+    }
+    let preset = prop("filename");
+    if !preset.is_empty() {
+        dlg.set_preset_file(&fd::file_title(&preset));
+    }
+    let warn = rp_comp_get(name, "warnifoverwrite");
+    if save && (matches!(warn, Value::Null) || warn.to_bool()) {
+        dlg.set_option(dialog::FileDialogOptions::SaveAsConfirm);
+    }
+    // (`RAPIDR_TEST_FILE_DIALOG=a;b`: tests pick these; empty: Cancel)
+    let mut paths: Vec<String> = match std::env::var("RAPIDR_TEST_FILE_DIALOG") {
+        Ok(answer) => answer.split(';').filter(|p| !p.is_empty()).take(if multi { usize::MAX } else { 1 }).map(str::to_string).collect(),
+        Err(_) => {
+            dlg.show();
+            dlg.filenames().iter().map(|p| p.to_string_lossy().into_owned()).filter(|p| !p.is_empty()).collect()
+        }
+    };
+    if paths.is_empty() {
+        return v_int(0);
+    }
+    if save {
+        paths[0] = fd::with_default_ext(&paths[0], &prop("defaultext"));
+    }
+    let picked = fd::picked(&paths);
+    rp_comp_set(name, "filename", v_str(&picked.file_name));
+    rp_comp_set(name, "filetitle", v_str(&picked.file_title));
+    rp_comp_set(name, "selcount", v_int(picked.sel_count));
+    for (i, f) in picked.files.iter().enumerate() {
+        rp_comp_set(name, &format!("files({i})"), v_str(f));
+    }
+    v_int(-1)
+}
+
 /// Execute a dialog (Open/Save/Color/Font).
 pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
     ensure_app();
     match comp_type {
-        "ROPENDIALOG" => {
-            let filter = rp_comp_get(name, "filter").to_string_val();
-            let title = rp_comp_get(name, "title").to_string_val();
-            let mut dlg = dialog::NativeFileChooser::new(dialog::NativeFileChooserType::BrowseFile);
-            if !title.is_empty() {
-                dlg.set_title(&title);
-            }
-            if !filter.is_empty() {
-                dlg.set_filter(&filter);
-            }
-            dlg.show();
-            let filename = dlg.filename().to_string_lossy().to_string();
-            if !filename.is_empty() {
-                rp_comp_set(name, "filename", v_str(&filename));
-                v_int(1)
-            } else {
-                v_int(0)
-            }
-        }
-        "RSAVEDIALOG" => {
-            let filter = rp_comp_get(name, "filter").to_string_val();
-            let title = rp_comp_get(name, "title").to_string_val();
-            let mut dlg = dialog::NativeFileChooser::new(dialog::NativeFileChooserType::BrowseSaveFile);
-            if !title.is_empty() {
-                dlg.set_title(&title);
-            }
-            if !filter.is_empty() {
-                dlg.set_filter(&filter);
-            }
-            dlg.show();
-            let filename = dlg.filename().to_string_lossy().to_string();
-            if !filename.is_empty() {
-                rp_comp_set(name, "filename", v_str(&filename));
-                v_int(1)
-            } else {
-                v_int(0)
-            }
+        "ROPENDIALOG" => file_dialog(name, false, false),
+        "RSAVEDIALOG" => file_dialog(name, true, false),
+        // RAPIDQ2.INC's QFILEDIALOG: Mode fdOpen 0 / fdSave 1, MultiSelect.
+        "RFILEDIALOG" => {
+            let save = rp_comp_get(name, "mode").to_i64() == 1;
+            file_dialog(name, save, !save && rp_comp_get(name, "multiselect").to_bool())
         }
         "RCOLORDIALOG" => {
             // Show FLTK color chooser dialog

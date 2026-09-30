@@ -7,6 +7,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.71.0] — 2026-09-29
+
+### Added
+- **QOUTLINE** on native, interpreter and web — Windows 3.1's tree, shown
+  as a tree view: `AddLines` (each leading space a level deeper),
+  `AddChild(Index, S)`, `Insert`, `DelLines`, `Item(i)` read and written,
+  `Row`, `LineCount`, OnClick / OnDblClick.
+- **QFILEDIALOG** (RAPIDQ2.INC's): `Mode` fdOpen / fdSave, `MultiSelect`,
+  `Files(0)` the folder then the picked names, `SelCount`, `FileTitle`,
+  `DefaultExt`, `WarnIfOverWrite`, `Caption`.
+- Web file dialogs: Open / Save now wait for the user (as on the desktop)
+  in a dialog in the page listing the program's files, with a name field
+  and Upload… for a file from the computer.
+- Desktop test hook `RAPIDR_TEST_FILE_DIALOG` (what the dialogs answer).
+
+### Fixed
+- QOPENDIALOG / QSAVEDIALOG: RapidQ's `Filter` ("Pictures|*.bmp;*.ico|All
+  Files|*.*") and `FilterIndex` work (the filter went to the dialog
+  unconverted); `InitialDir`, `Caption`, a preset `FileName`; the web's
+  Open returned True before anything was picked.
+- The desktop test actions `__node_i` / `__toggle_i` fire OnClick as a
+  click does.
+- `tools/regress.sh` keeps its build folder bounded (it grew ~35 GB per
+  run and filled the disk) and reports a web test that fails by its exit
+  code; the IDE project-reload test counts forms, not their controls.
+
 ## [2.70.0] — 2026-09-29
 
 ### Added

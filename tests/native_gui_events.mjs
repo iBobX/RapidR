@@ -42,6 +42,8 @@
 //   * tests/fixtures/list_columns.bas — QLISTBOX Columns, an owner-drawn QCOMBOBOX.
 //   * tests/fixtures/startup_modal.bas — ShowModal in the main program waits; Form.Repaint.
 //   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.
+//   * tests/fixtures/file_dialogs.bas — QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG answers (RAPIDR_TEST_FILE_DIALOG).
+//   * tests/fixtures/outline.bas — QOUTLINE (a tree view): AddLines by indent, AddChild(Index, S), Item(i), Row.
 //   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
 //   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.
 //
@@ -72,10 +74,12 @@ function build(name, interp) {
   return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
 }
 
-function run(bin, events, dump, resize = "", split = "") {
+function run(bin, events, dump, resize = "", split = "", fileDialog = undefined) {
+  // (`fileDialog`: what the file dialogs answer, `a;b`)
+  const answer = fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: fileDialog };
   return execFileSync(bin, [], {
     encoding: "utf8",
-    env: { ...process.env, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize, RAPIDR_TEST_SPLIT: split },
+    env: { ...process.env, ...answer, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize, RAPIDR_TEST_SPLIT: split },
   }).split("\n").filter((l) => l.includes("=")).join("\n");
 }
 
@@ -87,7 +91,7 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     const kind = interp ? "interpreted" : "native";
     const bin = build(c.name, interp);
     ok(existsSync(bin), `${c.name}: ${kind} executable built`);
-    results[kind] = run(bin, c.events, c.dump, c.resize, c.split);
+    results[kind] = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog);
     for (const line of c.expect) ok(results[kind].includes(line), `${c.name} (${kind}): ${line}` + (results[kind].includes(line) ? "" : `\n    got: ${results[kind].trim().split("\n").join(" / ")}`));
   }
   ok(results.native === results.interpreted, `${c.name}: native and interpreted builds agree`);

@@ -271,3 +271,180 @@ pub fn open(d: Dialog<'_>) {
     WAITING.with(|w| w.set(true));
     SUSPEND.with(|s| s.set(true));
 }
+
+/// What a file dialog asks for (QOPENDIALOG, QSAVEDIALOG, QFILEDIALOG).
+pub struct FileRequest {
+    pub title: String,
+    pub save: bool,
+    pub multi: bool,
+    /// The program's files it lists (those matching the filter).
+    pub files: Vec<String>,
+    /// The name it starts with (FileName).
+    pub initial: String,
+    /// The file input's `accept` for Upload (".txt,.csv"; "" any).
+    pub accept: String,
+    /// Keeps an uploaded file among the program's files.
+    pub store: Rc<dyn Fn(&str, Vec<u8>)>,
+    /// Gets the picked names (none: Cancel) before the program goes on.
+    pub done: Rc<dyn Fn(Vec<String>)>,
+}
+
+/// An Open / Save dialog in the page: the program's files (a click picks
+/// one, Ctrl / Cmd-click adds with MultiSelect), a name field (several
+/// names split by `;`), Upload… (a file from the computer, kept among the
+/// program's files), OK and Cancel. The program waits for it (as for a
+/// message dialog) and gets True / False from Execute. Only call when
+/// [`can_wait`] is true.
+pub fn open_files(req: FileRequest) {
+    let doc = document();
+    let Some(body) = doc.body() else { return };
+    let backdrop = create_el("div");
+    backdrop.set_class_name("rr-dialog-backdrop");
+    let _ = backdrop.set_attribute("style", BACKDROP);
+    let panel = create_el("div");
+    panel.set_class_name("rr-dialog rr-file-dialog");
+    let _ = panel.set_attribute("style", BOX);
+    let _ = panel.set_attribute("role", "dialog");
+    let _ = panel.set_attribute("aria-modal", "true");
+    let title_text = if req.title.is_empty() { if req.save { "Save As" } else { "Open" } } else { req.title.as_str() };
+    let title = create_el("div");
+    let _ = title.set_attribute("style", TITLE);
+    title.set_text_content(Some(title_text));
+    let _ = panel.set_attribute("aria-label", title_text);
+    let _ = panel.append_child(&title);
+
+    let list = create_el("div");
+    list.set_class_name("rr-file-list");
+    let _ = list.set_attribute("role", "listbox");
+    let _ = list.set_attribute(
+        "style",
+        "margin:10px 16px 4px;height:160px;overflow:auto;background:#fff;border:1px solid #999;border-radius:3px;",
+    );
+    let Ok(field) = doc.create_element("input").map(|e| e.unchecked_into::<web_sys::HtmlInputElement>()) else { return };
+    field.set_class_name("rr-file-name");
+    let _ = field.set_attribute("style", FIELD);
+    let _ = field.set_attribute("aria-label", "File name");
+    field.set_value(&req.initial);
+    let add_row = {
+        let (list, field, multi) = (list.clone(), field.clone(), req.multi);
+        Rc::new(move |name: &str| {
+            let row = create_el("div");
+            row.set_class_name("rr-file-item");
+            let _ = row.set_attribute("data-file", name);
+            let _ = row.set_attribute("role", "option");
+            let _ = row.set_attribute("style", "padding:2px 6px;cursor:default;white-space:nowrap;");
+            row.set_text_content(Some(name));
+            let (field, name) = (field.clone(), name.to_string());
+            let click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+                let adding = multi && (e.ctrl_key() || e.meta_key()) && !field.value().trim().is_empty();
+                field.set_value(&if adding { format!("{};{name}", field.value()) } else { name.clone() });
+            });
+            let _ = row.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+            click.forget();
+            let _ = list.append_child(&row);
+        })
+    };
+    for f in &req.files {
+        add_row(f);
+    }
+    let _ = panel.append_child(&list);
+    let _ = panel.append_child(&field);
+
+    // The answer, once: OK / Enter (the names), Cancel / Escape (none).
+    let done = Rc::new(Cell::new(false));
+    let finish: Rc<dyn Fn(bool)> = {
+        let (done, backdrop, field, answer) = (done.clone(), backdrop.clone(), field.clone(), req.done.clone());
+        let multi = req.multi;
+        Rc::new(move |ok: bool| {
+            if done.replace(true) {
+                return;
+            }
+            let mut names: Vec<String> = if ok { field.value().split(';').map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).collect() } else { Vec::new() };
+            if !multi {
+                names.truncate(1);
+            }
+            backdrop.remove();
+            WAITING.with(|w| w.set(false));
+            let picked = !names.is_empty();
+            answer(names);
+            if let Some(resume) = RESUME.with(|r| r.borrow().clone()) {
+                resume(Value::Integer(if picked { -1 } else { 0 }), None);
+            }
+        })
+    };
+
+    let row = create_el("div");
+    let _ = row.set_attribute("style", BUTTONS);
+    // Upload…: a file from the computer joins the program's files.
+    if let Ok(upload) = doc.create_element("input").map(|e| e.unchecked_into::<web_sys::HtmlInputElement>()) {
+        upload.set_type("file");
+        upload.set_multiple(req.multi);
+        if !req.accept.is_empty() {
+            upload.set_accept(&req.accept);
+        }
+        let _ = upload.style().set_property("display", "none");
+        let (store, add_row, field, source) = (req.store.clone(), add_row.clone(), field.clone(), upload.clone());
+        let changed = Closure::<dyn FnMut()>::new(move || {
+            let Some(files) = source.files() else { return };
+            let mut names = Vec::new();
+            for i in 0..files.length() {
+                let Some(file) = files.item(i) else { continue };
+                let name = file.name();
+                names.push(name.clone());
+                let (store, add_row) = (store.clone(), add_row.clone());
+                let read = Closure::once(move |buffer: JsValue| {
+                    store(&name, js_sys::Uint8Array::new(&buffer).to_vec());
+                    add_row(&name);
+                });
+                let _ = file.array_buffer().then(&read);
+                read.forget();
+            }
+            field.set_value(&names.join(";"));
+        });
+        let _ = upload.add_event_listener_with_callback("change", changed.as_ref().unchecked_ref());
+        changed.forget();
+        let button = create_el("button");
+        button.set_class_name("rr-file-upload");
+        let _ = button.set_attribute("type", "button");
+        let _ = button.set_attribute("style", &format!("{BUTTON}margin-right:auto;"));
+        button.set_text_content(Some("Upload…"));
+        let click = Closure::<dyn FnMut()>::new(move || upload.click());
+        let _ = button.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+        click.forget();
+        let _ = row.append_child(&button);
+    }
+    for (label, ok, class) in [(if req.save { "Save" } else { "Open" }, true, "rr-file-ok"), ("Cancel", false, "rr-file-cancel")] {
+        let button = create_el("button");
+        button.set_class_name(class);
+        let _ = button.set_attribute("type", "button");
+        let _ = button.set_attribute("style", if ok { DEFAULT_BUTTON } else { BUTTON });
+        button.set_text_content(Some(label));
+        let finish = finish.clone();
+        let click = Closure::<dyn FnMut()>::new(move || finish(ok));
+        let _ = button.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+        click.forget();
+        let _ = row.append_child(&button);
+    }
+    let _ = panel.append_child(&row);
+    let _ = backdrop.append_child(&panel);
+    let keys = {
+        let finish = finish.clone();
+        Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| match e.key().as_str() {
+            "Escape" => {
+                e.prevent_default();
+                finish(false);
+            }
+            "Enter" if !e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).is_some_and(|t| t.tag_name() == "BUTTON") => {
+                e.prevent_default();
+                finish(true);
+            }
+            _ => {}
+        })
+    };
+    let _ = backdrop.add_event_listener_with_callback("keydown", keys.as_ref().unchecked_ref());
+    keys.forget();
+    let _ = body.append_child(&backdrop);
+    let _ = field.focus();
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+}

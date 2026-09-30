@@ -7,6 +7,11 @@
 # the web artifacts (tools/build_web_artifacts.sh) and the repo served on
 # http://localhost:8765 for the browser tests (Playwright). Run one at a time.
 cd "$(dirname "$0")/.."
+# The suites build into tests/conformance/.work; keep it bounded (a run
+# adds ~35 GB, mostly per-case debug executables and the shared cache).
+W=tests/conformance/.work
+if [ -d "$W/cargo-target" ] && [ "$(du -sk "$W/cargo-target" | cut -f1)" -gt 31457280 ]; then rm -rf "$W/cargo-target"; fi
+trap 'find "$W/cargo-target/debug" -maxdepth 1 -type f -perm +111 -delete 2>/dev/null; rm -rf "$W/codegen" "$W/native_gui_events"' EXIT
 echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5; echo "(unit done)"
 echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
 echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1
@@ -14,5 +19,7 @@ echo "== gui events"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI e
 echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
 echo "== web gui parity"; node tests/web_gui_parity.mjs 2>&1 | tail -1
 echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 node tests/web_gui_parity.mjs 2>&1 | tail -1
-echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs; do r=$(node "$t" 2>&1 | tail -1); echo "$t: $r"; done 2>&1 | grep -v -i "PASSED\|PASS$\|passed"
+echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs; do
+  out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
+done
 echo ALLDONE

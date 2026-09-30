@@ -70,6 +70,10 @@ export const cases = [
     expect: ["lbl.caption=201 123 112"] },
   { name: "svg_picture", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=48 1 D4FF FFFFFF"] },
+  { name: "outline", events: "outline.__toggle_3,outline.__node_4,btn.onclick", dump: "lbl.caption,outline.row",
+    expect: ["lbl.caption=6 First Child of Parent 2 2", "outline.row=4"] },
+  { name: "file_dialogs", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
+    expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];
