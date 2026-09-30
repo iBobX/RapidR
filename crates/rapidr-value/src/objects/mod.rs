@@ -299,6 +299,32 @@ pub fn imagelist_pixels(id: &str, i: i64) -> Option<(usize, usize, Vec<u8>, usiz
     })?
 }
 
+/// A tree node's icon as the screen shows it — (width, height, RGBA,
+/// scale): its state image (`StateIndex` in `StateImages`; index 0 is
+/// none, as in Windows) and then its image (`image` in `Images`), side by
+/// side, 2 pixels apart; `None` when it has neither.
+pub fn tree_icon(images: &str, state_images: &str, image: i64, state: i64) -> Option<(usize, usize, Vec<u8>, usize)> {
+    let state = (state > 0 && !state_images.is_empty()).then(|| imagelist_pixels(state_images, state)).flatten();
+    let image = (!images.is_empty()).then(|| imagelist_pixels(images, image)).flatten();
+    let (a, b) = match (state, image) {
+        (None, None) => return None,
+        (Some(one), None) | (None, Some(one)) => return Some(one),
+        (Some(a), Some(b)) => (a, b),
+    };
+    let scale = a.3.max(b.3);
+    let gap = 2 * scale;
+    let (w, h) = (a.0 + gap + b.0, a.1.max(b.1));
+    let mut rgba = vec![0u8; w * h * 4];
+    for (x0, (pw, ph, px, _)) in [(0, &a), (a.0 + gap, &b)] {
+        let y0 = (h - ph) / 2;
+        for y in 0..*ph {
+            let (from, to) = (y * pw * 4, ((y0 + y) * w + x0) * 4);
+            rgba[to..to + pw * 4].copy_from_slice(&px[from..from + pw * 4]);
+        }
+    }
+    Some((w, h, rgba, scale))
+}
+
 pub fn with_list<R>(id: &str, f: impl FnOnce(&ItemList) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::List(l) => Some(f(l)),

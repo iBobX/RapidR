@@ -64,6 +64,10 @@ export const cases = [
     expect: ["lbl.caption=before after", "lbl2.caption=repainted1", "dlg.__shown=0", "form.__shown=1"] },
   { name: "tree_view", events: "tv.__toggle_0,tv.__node_2,tv.__node_1,tv.__toggle_4,btn.onclick", dump: "lbl.caption,lbl2.caption,tv.itemindex",
     expect: ["lbl.caption=exp0 chg1 |8|Sub 1|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
+  { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 -1"],
+    // (web: the node's state image beside its own; the selection hidden while the tree hasn't focus)
+    webCheck: `[...document.querySelectorAll('[data-rr-name="Tv" i] [data-node] canvas')].map(c => c.width > c.height * 1.5).join(",") + " " + document.querySelectorAll('[data-rr-name="Tv" i] .rr-tree-text[style*="background"]').length`,
+    webExpect: "true,false,false 0" },
   { name: "tree_edit", events: "tv.__node_0,tv.__edit,tv.__enter,tv.__node_2,tv.__edit,tv.__enter,tv.__node_1,tv.__edit,tv.__escape,ro.onclick,tv.__edit,tv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum -1"] },
   { name: "panel_bevels", events: "btn.onclick", dump: "lbl.caption",

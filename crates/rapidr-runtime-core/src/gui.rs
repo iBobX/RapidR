@@ -4202,9 +4202,18 @@ fn panel_bevels(name: &str, x: i32, y: i32, w: i32, h: i32) {
 // TreeView methods
 // ---------------------------------------------------------------------------
 
-pub fn tree_method(name: &str, method: &str, _args: &[Value]) -> Value {
+pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
     // (the nodes are the shared model's: rapidr_value::objects::tree)
     match method {
+        // GetItemAt(X, Y): the node shown there (-1: none).
+        "getitemat" => {
+            let y = args.get(1).map_or(0, Value::to_i64) as i32;
+            let Some(GuiWidget::Tree(t)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name.to_lowercase()).cloned()) else { return v_int(-1) };
+            let at = t.y() + y;
+            let shown = |k: usize| rapidr_value::objects::with_tree(name, |m| m.is_visible(k)).unwrap_or(false);
+            let hit = tree_items(&t).iter().enumerate().find(|(k, item)| shown(*k) && item.y() <= at && at < item.y() + item.h()).map(|(k, _)| k as i64);
+            return v_int(hit.unwrap_or(-1));
+        }
         "show" => gui_show(name),
         "hide" => gui_hide(name),
         _ => eprintln!("[WARN] TreeView.{}() not implemented", method),
@@ -4245,6 +4254,11 @@ fn tree_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
     let key_name = name.to_string();
     tree.super_handle_first(false);
     tree.handle(move |_, ev| {
+        // HideSelection: the selection shows only while the tree has focus.
+        if matches!(ev, Event::Focus | Event::Unfocus) && rapidr_value::objects::with_tree(&key_name, |m| m.hide_selection).unwrap_or(false) {
+            let name = key_name.clone();
+            app::add_timeout3(0.0, move |_| tree_sync(&name));
+        }
         if ev == Event::KeyDown && app::event_key() == Key::F2 {
             if let Some(i) = rapidr_value::objects::with_tree(&key_name, |m| usize::try_from(m.item_index).ok()).flatten() {
                 tree_begin_edit(&key_name, i);
@@ -4499,33 +4513,68 @@ fn tree_build(name: &str) {
     tree_sync(name);
 }
 
+thread_local! {
+    /// Trees asking their program for icons (OnGetImageIndex): what that
+    /// changes shows without asking again.
+    static TREES_ASKING: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+    /// What each tree showed when it last asked (`TreeView::view_hash`).
+    static TREES_ASKED: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+}
+
+/// OnGetImageIndex (Index) for each shown node, OnGetSelectedIndex (Index)
+/// for the selected one: the program sets `Item(Index).ImageIndex` /
+/// `.SelectedIndex` there, as Windows asks when it draws a node.
+fn tree_ask_images(name: &str) {
+    let ask = |e: &str| crate::object::rp_has_handler(name, e);
+    let key = name.to_lowercase();
+    let Some(view) = rapidr_value::objects::with_tree(name, |m| m.view_hash()) else { return };
+    if !(ask("ongetimageindex") || ask("ongetselectedindex")) || TREES_ASKED.with(|a| a.borrow().get(&key) == Some(&view)) {
+        return;
+    }
+    if !TREES_ASKING.with(|a| a.borrow_mut().insert(key.clone())) {
+        return;
+    }
+    TREES_ASKED.with(|a| a.borrow_mut().insert(key.clone(), view));
+    let (rows, selected) = rapidr_value::objects::with_tree(name, |m| (m.visible_rows(), m.item_index)).unwrap_or_default();
+    for i in rows {
+        let event = if i as i64 == selected { "ongetselectedindex" } else { "ongetimageindex" };
+        rp_fire_event_1(name, event, v_int(i as i64));
+    }
+    TREES_ASKING.with(|a| a.borrow_mut().remove(&key));
+}
+
 /// Expanded, selected, icons and looks from the nodes onto the items.
 fn tree_sync(name: &str) {
     use fltk::tree::TreeConnectorStyle;
+    tree_ask_images(name);
     let Some(GuiWidget::Tree(mut t)) = GUI_WIDGETS.with(|gw| gw.borrow().get(name).cloned()) else { return };
-    let Some((flags, selected, show)) = rapidr_value::objects::with_tree(name, |m| {
-        let flags: Vec<(bool, i64, i64)> = m.nodes.iter().map(|n| (n.expanded, n.image_index, n.selected_index)).collect();
-        (flags, m.item_index, (m.show_lines, m.show_buttons, m.indent))
+    let Some((flags, selected, show, hide)) = rapidr_value::objects::with_tree(name, |m| {
+        let flags: Vec<(bool, i64, i64, i64)> = m.nodes.iter().map(|n| (n.expanded, n.image_index, n.selected_index, n.state_index)).collect();
+        (flags, m.item_index, (m.show_lines, m.show_buttons, m.indent), m.hide_selection)
     }) else {
         return;
     };
+    // (HideSelection: none shown while the tree hasn't focus)
+    let focused = app::focus().is_some_and(|f| f.as_widget_ptr() == t.as_widget_ptr());
+    let shown_selected = if hide && !focused { -1 } else { selected };
     let images = rp_comp_get(name, "images").to_string_val();
+    let state_images = rp_comp_get(name, "stateimages").to_string_val();
     t.set_connector_style(if show.0 { TreeConnectorStyle::Dotted } else { TreeConnectorStyle::None });
     t.set_show_collapse(show.1);
     t.set_connector_width(show.2.clamp(4, 200) as i32);
     let items = tree_items(&t);
     for (k, mut item) in items.iter().cloned().enumerate() {
-        let Some(&(expanded, image, selected_image)) = flags.get(k) else { break };
+        let Some(&(expanded, image, selected_image, state)) = flags.get(k) else { break };
         if item.has_children() {
             if expanded { item.open() } else { item.close() }
         }
-        if !images.is_empty() {
+        if !images.is_empty() || !state_images.is_empty() {
             let i = if k as i64 == selected { selected_image } else { image };
-            let icon = rapidr_value::objects::imagelist_pixels(&images, i).and_then(|(w, h, rgba, scale)| display_image(w, h, &rgba, scale));
+            let icon = rapidr_value::objects::tree_icon(&images, &state_images, i, state).and_then(|(w, h, rgba, scale)| display_image(w, h, &rgba, scale));
             item.set_user_icon(icon);
         }
     }
-    match usize::try_from(selected).ok().and_then(|i| items.get(i)) {
+    match usize::try_from(shown_selected).ok().and_then(|i| items.get(i)) {
         Some(item) => {
             let _ = t.select_only(item, false);
         }
