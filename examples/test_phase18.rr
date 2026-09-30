@@ -15,7 +15,7 @@ PRINT "HEXtoDEC('&HFF') = " + STR$(HEXtoDEC("&HFF"))
 
 PRINT "--- Delay AND Beep ---"
 PRINT "Waiting 500ms..."
-Sleep(500)
+Sleep(0.5)
 PRINT "Beep!"
 SOUND(1000, 500)
 PRINT "Done!"

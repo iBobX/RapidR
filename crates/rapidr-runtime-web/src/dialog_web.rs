@@ -114,6 +114,28 @@ pub fn resume_after_modal() -> bool {
     }
 }
 
+/// `SLEEP` / `DOEVENTS`: the program pauses `ms` milliseconds while the
+/// browser goes on (painting, events — a DOEVENTS loop no longer freezes
+/// the page), then continues. `false` where it can't wait (see the module
+/// docs).
+pub fn pause(ms: f64) -> bool {
+    if !can_wait() {
+        return false;
+    }
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+    let wake = Closure::once_into_js(move || {
+        WAITING.with(|w| w.set(false));
+        if let Some(h) = RESUME.with(|r| r.borrow().clone()) {
+            h(Value::Null, None);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(wake.unchecked_ref(), ms.clamp(0.0, 86_400_000.0) as i32);
+    }
+    true
+}
+
 /// The program waits in a ShowModal.
 pub fn modal_waiting() -> bool {
     MODALS.with(|m| !m.borrow().is_empty())

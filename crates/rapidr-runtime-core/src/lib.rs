@@ -12,6 +12,7 @@ pub mod layout;
 pub mod mdi;
 pub mod globals;
 mod sound;
+pub mod terminal;
 pub use rapidr_value as value;
 
 #[cfg(feature = "database")]

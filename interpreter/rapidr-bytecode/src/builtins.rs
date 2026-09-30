@@ -28,7 +28,7 @@ pub const BUILTINS: &[&str] = &[
     "beep", "bin",
     "cbool", "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "convbase",
     "cos", "csng", "csrlin", "curdir",
-    "date", "date_func", "delete", "dir", "direxists", "doevents",
+    "date", "date_func", "delete", "dir", "direxists", "doevents", "inkey",
     "e", "end", "environ", "eof", "exp",
     "extractresource", "field", "fileexists", "filelen", "fix", "floor", "format", "frac", "freefile",
     "hex", "hextodec",
@@ -54,7 +54,7 @@ pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__dat
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
-pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "freefile", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
+pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "freefile", "inkey", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.

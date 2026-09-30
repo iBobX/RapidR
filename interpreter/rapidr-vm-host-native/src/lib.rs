@@ -125,6 +125,8 @@ impl Host for NativeHost {
 
     fn input(&mut self) -> Result<String, String> {
         let mut line = String::new();
+        // (INKEY$ may have left the terminal reading a key at a time)
+        rapidr_runtime_core::terminal::line_mode();
         io::stdin().lock().read_line(&mut line).map_err(|e| e.to_string())?;
         if line.ends_with('\n') { line.pop(); }
         if line.ends_with('\r') { line.pop(); }
@@ -240,6 +242,7 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "date" | "date_func" | "date$" => rp_date(),
         "time" | "time_func" | "time$" => rp_time(),
         "timer" => rp_timer(),
+        "inkey" => rp_inkey(),
         "sleep" => { rp_sleep(&a0); v_null() }
         "command" => rp_command(),
         "environ" => rp_environ(&a0),

@@ -230,10 +230,30 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "date" | "date_func" | "date$" => rp_date(),
         "time" | "time_func" | "time$" => rp_time(),
         "timer" => rp_timer(),
-        "sleep" => { rp_sleep(&a0); v_null() }
+        // (none yet: the browser gets a turn, so a key can come — a
+        // `DO: LOOP UNTIL INKEY$ <> ""` doesn't freeze the page)
+        "inkey" => {
+            let k = rp_inkey();
+            if k.to_string_val().is_empty() {
+                rapidr_runtime_web::dialog_web::pause(0.0);
+            }
+            k
+        }
+        // (the program pauses, the browser goes on: dialog_web::pause)
+        "sleep" => {
+            if !rapidr_runtime_web::dialog_web::pause(a0.to_f64().max(0.0) * 1000.0) {
+                rp_sleep(&a0);
+            }
+            v_null()
+        }
         "command" => rp_command(),
         "environ" => rp_environ(&a0),
-        "doevents" => { rp_doevents(); v_null() }
+        "doevents" => {
+            if !rapidr_runtime_web::dialog_web::pause(0.0) {
+                rp_doevents();
+            }
+            v_null()
+        }
         // END: the VM halts after this (bcgen); the program's forms,
         // timers and events end here.
         "end" => { rapidr_runtime_web::object_web::end_program(); v_null() }

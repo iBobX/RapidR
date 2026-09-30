@@ -707,13 +707,14 @@ const BUILTIN_FUNCTIONS = [
     { name: 'SHELL', description: 'Executes a shell command', signature: 'SHELL(command)', snippet: 'SHELL(${1:command})' },
     { name: 'SHELLWAIT', description: 'Executes shell command and waits', signature: 'SHELLWAIT(command)', snippet: 'SHELLWAIT(${1:command})' },
     { name: 'RUN', description: 'Runs an external program', signature: 'RUN(program)', snippet: 'RUN(${1:program})' },
-    { name: 'SLEEP', description: 'Pauses execution (milliseconds)', signature: 'SLEEP(ms)', snippet: 'SLEEP(${1:ms})' },
+    { name: 'SLEEP', description: 'Pauses execution for a number of seconds (SLEEP 1.5: one and a half)', signature: 'SLEEP seconds', snippet: 'SLEEP ${1:seconds}' },
     { name: 'TIMER', description: 'Returns seconds since midnight', signature: 'TIMER', snippet: 'TIMER' },
     { name: 'DATE$', description: 'Returns current date string', signature: 'DATE$', snippet: 'DATE\\$' },
     { name: 'TIME$', description: 'Returns current time string', signature: 'TIME$', snippet: 'TIME\\$' },
     { name: 'COMMAND$', description: 'Returns command line arguments', signature: 'COMMAND$', snippet: 'COMMAND\\$' },
     { name: 'ENVIRON$', description: 'Returns environment variable', signature: 'ENVIRON$(name)', snippet: 'ENVIRON\\$(${1:name})' },
     { name: 'DOEVENTS', description: 'Processes pending GUI events', signature: 'DOEVENTS', snippet: 'DOEVENTS' },
+    { name: 'INKEY$', description: 'The next key pressed, or "" (does not wait); arrows and function keys are CHR$(0) + their scan code', signature: 'INKEY$', snippet: 'INKEY$' },
     { name: 'END', description: 'Terminates the program', signature: 'END', snippet: 'END' },
 
     // GUI functions

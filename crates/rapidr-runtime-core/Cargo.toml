@@ -21,6 +21,10 @@ rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
 
+[target.'cfg(unix)'.dependencies]
+# INKEY$: the terminal read a key at a time (terminal.rs).
+libc = "0.2"
+
 [features]
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rusqlite", "dep:mysql"]

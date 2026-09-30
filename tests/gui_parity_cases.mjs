@@ -95,6 +95,8 @@ export const cases = [
   { name: "option_icon", events: "", dump: "lbl.caption", expect: ["lbl.caption=-1"],
     webCheck: `(() => { const i = document.querySelector('.rr-form[data-rr-name="FORM"] .rr-form-icon'); return !!i && i.style.display !== "none" && i.src.startsWith("data:image/png"); })()`,
     webExpect: true },
+  { name: "doevents_loop", events: "", dump: "lbl.caption", expect: ["lbl.caption=ticked -1 -1"] },
+  { name: "inkey_wait", events: "lbl.__key_65,lbl.__key_38", dump: "lbl.caption", expect: ["lbl.caption=97/1 0/2"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];
