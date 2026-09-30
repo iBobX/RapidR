@@ -7,6 +7,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.75.0] — 2026-09-30
+
+### Added
+- RapidQ's dotted TYPE fields (CommCtrl.inc, qdataBaseSQL.inc):
+  `hdr.hwndFrom AS LONG`, `Table.Name(150) AS STRING`, nested as deep as
+  written, are a record inside the record — `N.hdr.hwndFrom`,
+  `N.Table.Name(2)` — on both backends.
+
+### Fixed
+- High-DPI on the web: a QSTRINGGRID's owner-drawn cells (OnDrawCell)
+  are drawn at the screen's scale — lines, text and images sharp at 2×.
+
 ## [2.74.0] — 2026-09-30
 
 ### Added

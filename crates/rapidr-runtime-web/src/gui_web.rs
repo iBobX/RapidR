@@ -4317,14 +4317,21 @@ fn grid_owner_draw(name: &str) {
 fn grid_replay(td: &web_sys::HtmlElement, ops: &[rapidr_value::objects::grid::CellDraw], w: u32, h: u32) {
     use rapidr_value::objects::grid::CellDraw;
     let Some(canvas) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
-    canvas.set_width(w.max(1));
-    canvas.set_height(h.max(1));
+    // (drawn at the screen's scale, shown at the cell's size: sharp on a
+    // high-DPI screen)
+    note_display_scale();
+    let scale = rapidr_value::objects::bitmap::display_scale().max(1) as u32;
+    canvas.set_width(w.max(1) * scale);
+    canvas.set_height(h.max(1) * scale);
     let cs = canvas.style();
     let _ = cs.set_property("position", "absolute");
     let _ = cs.set_property("left", "0");
     let _ = cs.set_property("top", "0");
+    let _ = cs.set_property("width", &format!("{}px", w.max(1)));
+    let _ = cs.set_property("height", &format!("{}px", h.max(1)));
     let _ = cs.set_property("pointer-events", "none");
     let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    let _ = ctx.scale(f64::from(scale), f64::from(scale));
     let css = |c: u32| format!("rgb({},{},{})", c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
     let f = |v: i64| v.clamp(-100_000, 100_000) as f64;
     for op in ops {
@@ -4376,9 +4383,15 @@ fn grid_replay(td: &web_sys::HtmlElement, ops: &[rapidr_value::objects::grid::Ce
                 if bw == 0 || bh == 0 {
                     continue;
                 }
-                let rgba = b.to_rgba();
-                let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), bw, bh) else { continue };
-                let _ = ctx.put_image_data(&data, f(*x), f(*y));
+                // (its screen pixels, drawn into its size: see Bitmap::display_rgba)
+                let (dw, dh, rgba, _) = b.clone().display_rgba();
+                let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(&rgba), dw as u32, dh as u32) else { continue };
+                let Some(off) = document().create_element("canvas").ok().and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { continue };
+                off.set_width(dw as u32);
+                off.set_height(dh as u32);
+                let Some(octx) = off.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { continue };
+                let _ = octx.put_image_data(&data, 0.0, 0.0);
+                let _ = ctx.draw_image_with_html_canvas_element_and_dw_and_dh(&off, f(*x), f(*y), f64::from(bw), f64::from(bh));
             }
         }
     }

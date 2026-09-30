@@ -1639,7 +1639,12 @@ impl<'a> Parser<'a> {
 
     /// Whether the next token is a word (a name or a keyword), not a symbol.
     fn peek_is_word(&self) -> bool {
-        self.peek().is_some_and(|t| t.lexeme.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && t.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+        self.peek_is_word_at(0)
+    }
+
+    /// Whether the token `n` ahead is a word (an identifier or a keyword).
+    fn peek_is_word_at(&self, n: usize) -> bool {
+        self.tokens.get(self.pos + n).is_some_and(|t| t.lexeme.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && t.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
     }
 
     fn parse_sub(&mut self) -> Option<SubroutineStatement> {
@@ -1865,7 +1870,14 @@ impl<'a> Parser<'a> {
             // keyword names a field too (`Step AS DOUBLE`, `Open AS INTEGER`).
             if self.peek_kind() == Some(TokenType::Identifier) || (self.peek_is_word() && self.peek_kind_at(1) == Some(TokenType::As)) {
                 let field_start = self.pos;
-                let fname = self.advance()?.lexeme.clone();
+                let mut fname = self.advance()?.lexeme.clone();
+                // `hdr.hwndFrom AS LONG`, `Table.Name(150) AS STRING`: a
+                // field of a nested record (rapidr_ast::dotted_fields).
+                while self.peek_kind() == Some(TokenType::Dot) && (self.peek_kind_at(1) == Some(TokenType::Identifier) || self.peek_is_word_at(1)) {
+                    self.advance();
+                    let part = self.advance()?.lexeme.clone();
+                    fname = format!("{fname}.{part}");
+                }
                 let mut more_dims: Vec<(Expression, Expression)> = Vec::new();
                 let (arr, arr_lower) = if self.match_kind(TokenType::LParen) {
                     // An array field: `Names(2)`, `Colors(1 TO 16)`, `vertex(9, 2)`.
