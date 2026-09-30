@@ -31,7 +31,10 @@ export const cases = [
   { name: "picture_resource", events: "img.onclick,img.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=1|20x10|FF00|FF0000|80FFFF|40|FF|FFFFFF|-1", "lbl.caption=click;click;"] },
   { name: "grid_draw_cell", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"] },
+    expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"],
+    // (web: each owner-drawn cell drawn at the screen's scale — sharp at 2×)
+    webCheck: `(() => { const c = [...document.querySelectorAll("td canvas")]; return c.length > 0 && c.every(k => k.width === Math.round(parseFloat(k.style.width) * Math.min(3, Math.max(1, Math.ceil(devicePixelRatio))))); })()`,
+    webExpect: true },
   { name: "grid_range_list", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=selected1"] },
   { name: "file_browser", events: "", dump: "lbl.caption", web: false, why: "a browser has no directories to list",

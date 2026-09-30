@@ -593,6 +593,76 @@ pub fn inc_dec_assignment(c: &CallStatement, is_user_routine: impl Fn(&str) -> b
     })
 }
 
+/// RapidQ's dotted TYPE fields — `hdr.hwndFrom AS LONG`, `hdr.code AS
+/// LONG`, `Table.Name(150) AS STRING` — a record inside the record: the
+/// TYPE gets one field `hdr` of a TYPE made for it (`NMHDR2__hdr`, declared
+/// just before), holding `hwndFrom` and `code`; `N.hdr.hwndFrom` is then an
+/// ordinary nested member (both backends).
+pub fn dotted_fields(program: &Program) -> Program {
+    fn split(t: &TypeStatement, out: &mut Vec<Statement>) -> TypeStatement {
+        let mut fields: Vec<TypeField> = Vec::new();
+        let mut groups: Vec<(String, Vec<TypeField>)> = Vec::new();
+        for f in &t.fields {
+            match f.name.split_once('.') {
+                Some((head, rest)) => {
+                    let inner = TypeField { name: rest.to_string(), ..f.clone() };
+                    match groups.iter_mut().find(|(h, _)| h.eq_ignore_ascii_case(head)) {
+                        Some((_, g)) => g.push(inner),
+                        None => {
+                            groups.push((head.to_string(), vec![inner]));
+                            // (the nested record's place among the fields)
+                            fields.push(TypeField {
+                                name: head.to_string(),
+                                type_name: String::new(),
+                                fixed_len: None,
+                                array_size: None,
+                                array_lower: None,
+                                more_dims: Vec::new(),
+                                setter: None,
+                                ..f.clone()
+                            });
+                        }
+                    }
+                }
+                None => fields.push(f.clone()),
+            }
+        }
+        for (head, group) in groups {
+            let nested_name = format!("{}__{}", t.name, head);
+            let nested = TypeStatement {
+                span: t.span,
+                name: nested_name.clone(),
+                extends: None,
+                fields: group,
+                methods: Vec::new(),
+                constructor: Vec::new(),
+                events: Vec::new(),
+            };
+            // (its own dotted fields nest further)
+            let nested = split(&nested, out);
+            out.push(Statement::Type(nested));
+            if let Some(f) = fields.iter_mut().find(|f| f.name.eq_ignore_ascii_case(&head) && f.type_name.is_empty()) {
+                f.type_name = nested_name;
+            }
+        }
+        TypeStatement { fields, ..t.clone() }
+    }
+    if !program.statements.iter().any(|s| matches!(s, Statement::Type(t) if t.fields.iter().any(|f| f.name.contains('.')))) {
+        return program.clone();
+    }
+    let mut statements = Vec::with_capacity(program.statements.len());
+    for s in &program.statements {
+        match s {
+            Statement::Type(t) if t.fields.iter().any(|f| f.name.contains('.')) => {
+                let t = split(t, &mut statements);
+                statements.push(Statement::Type(t));
+            }
+            _ => statements.push(s.clone()),
+        }
+    }
+    Program { statements, ..program.clone() }
+}
+
 /// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
 /// `A(LBOUND(A) + 1) = v2`, … — the first elements get the values (both
 /// backends; not when the program has its own routine of that name).
