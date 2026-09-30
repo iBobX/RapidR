@@ -126,13 +126,16 @@ struct Parser<'a> {
     /// (`SetMultiSelect(select AS BOOLEAN)`), lowercase: in its code they
     /// are the parameter.
     keyword_params: Vec<String>,
+    /// `$OPTION BYREF` seen: parameters without BYVAL are passed by
+    /// reference from there on (RapidQ's default is BYVAL).
+    default_by_ref: bool,
     /// Keywords the program uses as variables (`type = 2`), lowercase.
     keyword_vars: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false }
     }
 
     // --- diagnostics ---
@@ -690,6 +693,13 @@ impl<'a> Parser<'a> {
         let span_start = tok.span.start;
         let name = tok.lexeme.clone();
         let value = tok.trailing.clone();
+        if name.eq_ignore_ascii_case("$OPTION") {
+            if let Some(v) = value.as_deref().map(|v| v.trim().to_ascii_uppercase()) {
+                if v.starts_with("BYREF") {
+                    self.default_by_ref = true;
+                }
+            }
+        }
         // Directives consume the rest of the line
         self.skip_to_eol();
         let span = TextSpan::new(span_start, self.previous().map(|t| t.span.end).unwrap_or(span_start));
@@ -2067,7 +2077,7 @@ impl<'a> Parser<'a> {
             } else if self.match_kind(TokenType::ByRef) {
                 true
             } else {
-                false
+                self.default_by_ref
             };
             // A keyword may name a parameter (`(hwnd AS LONG, type AS LONG)`
             // in RAPIDQ2.INC's API declarations).

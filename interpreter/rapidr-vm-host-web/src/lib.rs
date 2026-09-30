@@ -652,8 +652,12 @@ fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {
 
     // `$RESOURCE` files are built into the module.
     for r in &pre.resources {
-        let bytes = resource_bytes(assets, &r.file)
-            .ok_or_else(|| format!("$RESOURCE {}: file not found in the project's assets: '{}' (add it under Assets)", r.name, r.file))?;
+        let bytes = match resource_bytes(assets, &r.file) {
+            Some(b) => b,
+            // (`$OPTION ICON` without its icon: the default one)
+            None if r.optional => Vec::new(),
+            None => return Err(format!("$RESOURCE {}: file not found in the project's assets: '{}' (add it under Assets)", r.name, r.file)),
+        };
         compiled.module.resources.push((r.name.clone(), bytes));
     }
 

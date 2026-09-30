@@ -133,6 +133,9 @@ pub struct Resource {
     pub name: String,
     pub file: String,
     pub path: Option<PathBuf>,
+    /// Built in if it's there, empty if not (`$OPTION ICON`'s icon: a
+    /// missing one leaves the default icon rather than failing the build).
+    pub optional: bool,
 }
 
 /// Handle of the first resource (`RESOURCE(0)`); RapidQ's handles are the
@@ -384,6 +387,25 @@ fn preprocess_with_state(
             continue;
         }
 
+        // `$OPTION ICON "app.ico"`: the program's icon — built in as a
+        // resource and made the application's (every form's without its
+        // own). An icon that isn't there leaves the default one.
+        if upper_line.starts_with("$OPTION") && upper_line["$OPTION".len()..].trim_start().starts_with("ICON") {
+            let file = line.find('"').and_then(|a| line[a + 1..].find('"').map(|b| line[a + 1..a + 1 + b].to_string()));
+            // (resolved here on the desktop; the web finds it in the project's assets)
+            let text = match file {
+                Some(file) => {
+                    let handle = RESOURCE_BASE + state.resources.len() as i64;
+                    let path = resolve_include_path(base_dir, &file, &[]);
+                    state.resources.push(Resource { name: "RAPIDR_OPTION_ICON".into(), file, path, optional: true });
+                    format!("CONST RAPIDR_OPTION_ICON = {handle} : Application.IcoHandle = RAPIDR_OPTION_ICON")
+                }
+                None => String::new(),
+            };
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, text);
+            continue;
+        }
+
         // `$RESOURCE NAME AS "file"` (several may share a line, separated
         // by `:`): `NAME` is the resource's handle.
         if upper_line.starts_with("$RESOURCE") {
@@ -394,7 +416,7 @@ fn preprocess_with_state(
                 })?;
                 let handle = RESOURCE_BASE + state.resources.len() as i64;
                 let path = resolve_include_path(base_dir, &file, &[]);
-                state.resources.push(Resource { name: name.clone(), file, path });
+                state.resources.push(Resource { name: name.clone(), file, path, optional: false });
                 consts.push(format!("CONST {name} = {handle}"));
             }
             emit_line(&mut output_lines, &mut origins, &file_path, line_number, consts.join(" : "));
