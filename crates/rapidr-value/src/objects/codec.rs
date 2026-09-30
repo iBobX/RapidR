@@ -118,16 +118,55 @@ pub fn is_png(b: &[u8]) -> bool {
     b.starts_with(b"\x89PNG\r\n\x1a\n")
 }
 
+/// Whether `b` is a JPEG image.
+pub fn is_jpeg(b: &[u8]) -> bool {
+    b.starts_with(&[0xFF, 0xD8, 0xFF])
+}
+
+/// Decodes a JPEG (color, grayscale or CMYK).
+pub fn decode_jpeg(b: &[u8]) -> Result<Pixels, String> {
+    let mut d = jpeg_decoder::Decoder::new(b);
+    d.read_info().map_err(|e| format!("not a JPEG image RapidR can read ({e})"))?;
+    let info = d.info().ok_or("not a JPEG image RapidR can read")?;
+    let (w, h) = (info.width as usize, info.height as usize);
+    if w * h > MAX_PIXELS {
+        return Err("JPEG image is too large".into());
+    }
+    let data = d.decode().map_err(|e| format!("not a JPEG image RapidR can read ({e})"))?;
+    use jpeg_decoder::PixelFormat as F;
+    let bgr = |r: u8, g: u8, b: u8| u32::from(b) << 16 | u32::from(g) << 8 | u32::from(r);
+    let pixels: Vec<u32> = match info.pixel_format {
+        F::RGB24 => data.chunks_exact(3).map(|p| bgr(p[0], p[1], p[2])).collect(),
+        F::L8 => data.iter().map(|&v| bgr(v, v, v)).collect(),
+        F::L16 => data.chunks_exact(2).map(|p| bgr(p[0], p[0], p[0])).collect(),
+        F::CMYK32 => data
+            .chunks_exact(4)
+            .map(|p| {
+                // (Adobe's CMYK JPEGs store the inks inverted)
+                let k = u32::from(p[3]);
+                let ch = |c: u8| (u32::from(c) * k / 255) as u8;
+                bgr(ch(p[0]), ch(p[1]), ch(p[2]))
+            })
+            .collect(),
+    };
+    if pixels.len() != w * h {
+        return Err("not a JPEG image RapidR can read".into());
+    }
+    Ok(Pixels { width: w, height: h, pixels })
+}
+
 /// Whether `b` is a Windows icon (.ICO).
 pub fn is_ico(b: &[u8]) -> bool {
     b.len() >= 6 && u16_at(b, 0) == Some(0) && u16_at(b, 2) == Some(1) && u16_at(b, 4).is_some_and(|n| n > 0)
 }
 
-/// A BMP, PNG or ICO image: its pixels, and each one's opacity when it has
+/// A BMP, PNG, JPEG or ICO image: its pixels, and each one's opacity when it has
 /// soft edges or see-through parts (`None` when it's all opaque).
 pub fn decode_raster(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
     if is_png(b) {
         decode_png(b)
+    } else if is_jpeg(b) {
+        decode_jpeg(b).map(|img| (img, None))
     } else if is_ico(b) {
         decode_ico(b)
     } else {

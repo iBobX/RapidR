@@ -117,6 +117,10 @@ struct Scope {
     owner: String,
     /// Local arrays of objects (`DIM lbl(3) AS QLABEL`) → element type.
     object_arrays: NameMap<String>,
+    /// Parameters and locals that aren't components (lowercase): a global
+    /// component of that name is hidden in this routine (`b` while a
+    /// QBITMAP `B` exists).
+    shadows: std::collections::HashSet<String>,
 }
 
 impl Scope {
@@ -489,6 +493,8 @@ impl Bcgen {
             self.scope.declare(&p.name);
             if is_component_type_name(&p.type_name) {
                 self.scope.types.insert(p.name.clone(), p.type_name.clone());
+            } else {
+                self.scope.shadows.insert(p.name.to_lowercase());
             }
         }
         // A FUNCTION's own name is a local holding its result; RapidQ's
@@ -579,6 +585,9 @@ impl Bcgen {
                     if !self.in_main {
                         if !resizes_global {
                             self.scope.declare(&decl.name);
+                            if !is_component_type_name(&d.type_name) && !rapidr_ast::is_rapidq_object_type(&d.type_name) {
+                                self.scope.shadows.insert(decl.name.to_lowercase());
+                            }
                         }
                     } else {
                         self.globals.insert(name_key(&decl.name));
@@ -1022,11 +1031,18 @@ impl Bcgen {
         self.scope.types.get(name).cloned()
     }
 
+    /// Whether `name` is a component addressed by name here: not when a
+    /// parameter or local of the current routine hides it.
+    fn is_component_name(&self, name: &str) -> bool {
+        let lower = name.to_lowercase();
+        self.component_instance_names.contains_key(&lower) && (self.in_main || !self.scope.shadows.contains(&lower))
+    }
+
     /// `x.Prop` addresses the object whose id is *stored in* `x` when `x` is
     /// a parameter or local of the current SUB/FUNCTION (`Sender`);
     /// globals and component names are addressed by name.
     fn is_dynamic_object(&self, name: &str) -> bool {
-        !self.in_main && self.scope.get(name).is_some() && !self.component_instance_names.contains_key(&name.to_lowercase())
+        !self.in_main && self.scope.get(name).is_some() && !self.is_component_name(name)
     }
 
     /// `obj.Method(args)` where obj is a TYPE instance (user method), or a
@@ -1272,7 +1288,7 @@ impl Bcgen {
             (&a.target, &a.value)
         {
             if let Expression::Identifier(obj) = &*m.object {
-                if self.component_instance_names.contains_key(&rhs_id.name.to_lowercase()) {
+                if self.is_component_name(&rhs_id.name) {
                     let cs = self.module.add_const(Const::Str(rhs_id.name.clone()));
                     emit(code, Op::LoadConst);
                     push_u32(code, cs);
@@ -1330,7 +1346,7 @@ impl Bcgen {
                 // string literal (component id) rather than a variable load
                 // — same reason as the top-level case above.
                 if let Expression::Identifier(rhs_id) = &a.value {
-                    if self.component_instance_names.contains_key(&rhs_id.name.to_lowercase()) {
+                    if self.is_component_name(&rhs_id.name) {
                         let cs = self.module.add_const(Const::Str(rhs_id.name.clone()));
                         emit(code, Op::LoadConst);
                         push_u32(code, cs);
@@ -1892,7 +1908,7 @@ impl Bcgen {
         match e {
             Expression::Identifier(id) => {
                 !self.fn_indices.contains_key(&id.name)
-                    && !self.component_instance_names.contains_key(&id.name.to_lowercase())
+                    && !self.is_component_name(&id.name)
             }
             Expression::ArrayAccess(_) => true,
             Expression::FunctionCall(fc) => match fc.callee.as_ref() {
@@ -2052,7 +2068,7 @@ impl Bcgen {
                     emit(code, Op::LoadNull);
                     return Ok(());
                 }
-                if self.component_instance_names.contains_key(&name_lower) {
+                if self.is_component_name(&name_lower) {
                     let cs = self.module.add_const(Const::Str(id.name.clone()));
                     emit(code, Op::LoadConst);
                     push_u32(code, cs);

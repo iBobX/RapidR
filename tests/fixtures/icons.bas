@@ -13,6 +13,10 @@ CREATE Form AS QFORM
     Left = 10 : Top = 10
     BMPHandle = DISC
   END CREATE
+  CREATE Img2 AS QIMAGE
+    Left = 40 : Top = 10
+    ICOHandle = DISC
+  END CREATE
   CREATE Lbl AS QLABEL
     Left = 10 : Top = 60 : Width = 280
   END CREATE

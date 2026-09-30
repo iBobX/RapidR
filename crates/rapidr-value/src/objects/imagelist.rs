@@ -72,6 +72,35 @@ impl ImageList {
         count
     }
 
+    /// Adds an icon (…ICOFile / …ICOHandle) at `index`: whole, scaled to
+    /// the list's size, its see-through parts kept (a strip of pictures is
+    /// cut into images; an icon never is).
+    pub fn insert_icon(&mut self, index: usize, src: &Bitmap) {
+        let (w, h) = (self.width.max(1) as usize, self.height.max(1) as usize);
+        let index = index.min(self.images.len());
+        if (src.img.width, src.img.height) == (w, h) || src.img.width == 0 || src.img.height == 0 {
+            self.images.insert(index, src.clone());
+            return;
+        }
+        let mut image = Bitmap::default();
+        image.resize(w as i64, h as i64);
+        let (sw, sh) = (src.img.width, src.img.height);
+        let alpha = src.alpha.as_deref().filter(|a| a.len() == sw * sh);
+        let mut out_alpha = alpha.map(|_| vec![0u8; w * h]);
+        for y in 0..h {
+            for x in 0..w {
+                let from = (y * sh / h) * sw + x * sw / w;
+                image.img.pixels[y * w + x] = src.img.pixels[from];
+                if let (Some(a), Some(o)) = (alpha, out_alpha.as_mut()) {
+                    o[y * w + x] = a[from];
+                }
+            }
+        }
+        image.alpha = out_alpha;
+        (image.transparent, image.transparent_color) = (src.transparent, src.transparent_color);
+        self.images.insert(index, image);
+    }
+
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
         match method {
             "clear" => self.images.clear(),

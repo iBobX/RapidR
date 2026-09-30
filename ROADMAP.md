@@ -108,7 +108,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] Fix conformance failures (table above) until every case passes on both backends (all pass; re-verified v2.55.0)
 - [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
 - [x] Undo/redo in the IDE: snapshot-based project history, menu/toolbar/Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, 100 steps, `tests/web_ide_undo.mjs` (v2.9.0)
-- [ ] Fix pre-existing failures in `tests/web_ide_bugfixes.mjs` (About-dialog credits) and `tests/web_ide_phaseF.mjs` (project restore); add all `tests/web_ide_*.mjs` to CI
+- [x] `tests/web_ide_bugfixes.mjs` and `tests/web_ide_phaseF.mjs` pass; every `tests/web_ide_*.mjs` runs in `tools/regress.sh` (local; CI is manual-only) (v2.71.0)
 
 **Rest of Phase 0**
 - [ ] Upgrade `mysql` crate to drop `proc-macro-error2` (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
@@ -161,7 +161,7 @@ Next up, in order:
 - [x] `$RESOURCE` in the web IDE: the files are the project's assets (v2.52.0)
 - [x] The conformance suite (`tests/web_conformance.mjs`) and the desktop GUI fixtures (`tests/web_gui_parity.mjs`) run in the browser too (v2.52.0): 53 of 55 conformance cases and 21 GUI checks match; the rest are marked
 - [x] Web: a `ShowModal` in the main program waits (the IDE shows the startup form after the program's own statements, as RapidQ's designer does); the program ends when its main body finishes with no form open (timers stop); `Form.Repaint`; web parity checks for them and for a resized form with a dragged splitter (`align_layout`) (v2.61.0)
-- [ ] Resources next: ICOHandle / IconHandle (forms, QIMAGE), non-BMP resources (JPG) on the desktop (PLAYWAV of files and resources: v2.45.0)
+- [x] Resources: ICOHandle / Icon (forms v2.73.0, QIMAGE v2.76.0); ICO, PNG and JPEG resources and files wherever a bitmap goes, in the shared model (v2.73.0 / v2.76.0) (PLAYWAV of files and resources: v2.45.0)
 - [x] Mouse event arguments in RapidQ's order everywhere (v2.59.0)
 - [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)
@@ -202,7 +202,8 @@ Next up, in order:
 - [ ] Grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser); `ExtendedSelect` for plain (not drawn) multi-select lists on the desktop (FLTK's own browser)
 - [x] Desktop look: `$THEME` / `RAPIDR_THEME` name any fltk-theme theme or scheme or FLTK scheme; the interpreter honors `$THEME` too; Linux defaults to a light look (was Dark); fltk 1.5 / fltk-theme 0.7.9 are current (v2.62.0)
 - [ ] Modern platform looks by default (fltk-theme's Aqua on macOS, Fluent on Windows): RapidR's buttons, grids and lists need styling for those schemes first (default-colored buttons vanish, Fluent draws grid headers wrong); fltk-theme's `crystal` scheme panics (upstream)
-- [ ] `Rotate`, ICO files for QIMAGELIST, `ImageList.Draw` onto a canvas (`ReadUDT`/`WriteUDT`: v2.56.0)
+- [x] QIMAGELIST AddICOFile / AddICOHandle / InsertICO… / GetICO (an icon scaled whole to the list's size) and `ImageList.Draw` onto a canvas (v2.76.0)
+- [ ] `Rotate (xOrigin, yOrigin, Angle)` on QBITMAP / QCANVAS / QIMAGE: the manual doesn't say the direction or what fills the uncovered area — needs a real RapidQ to compare
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
 - [x] QTREEVIEW from a shared model (`rapidr_value::objects::tree`): nodes numbered depth-first, AddItems / AddChildItems / InsertItem / DelItems / Clear / Sort, Expand / Collapse / FullExpand / FullCollapse, GetItemAt, Item(i).Text / ImageIndex / SelectedIndex / StateIndex / HasChildren / Selected / Expanded / Count / Level / IsVisible / Parent, Images icons, LoadFromFile / SaveToFile, OnChanging / OnExpanding / OnCollapsing (answering), OnChange / OnExpanded / OnCollapsed / OnDeletion / OnClick / OnDblClick on native, interpreter and web (v2.64.0)
 - [x] QTREEVIEW in-place editing: F2 or a click on the selected node, `OnEditing (Index, AllowEdit)` / `OnEdited (Index, S)` answering, Enter / leaving keeps, Escape drops, ReadOnly on native, interpreter and web (v2.65.0)
