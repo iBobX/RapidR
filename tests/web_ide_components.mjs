@@ -30,6 +30,7 @@ await page.evaluate(() => {
     '  CREATE LV AS QLISTVIEW',
     '    Width = 400',
     '    Height = 150',
+    '    ViewStyle = 3',
     '    AddColumns "FileName", "Size", "Method"',
     '    Column(0).Width = 200',
     '    OnClick = Clicked',
@@ -94,31 +95,28 @@ ok(got.first === 150, `Panel(0).Width = 150 (${got.first})`);
 ok(got.second === 100, `default panel width 100 (${got.second})`);
 ok(got.simple === "<b>plain</b>" && !got.simpleBold, `SimpleText shown as plain text, never markup (${got.simple})`);
 
+// The list view is a canvas the shared model paints (rapidr_value::objects::
+// listview, the same on the desktop); what it holds is the program's to read.
 const lv = await frame.evaluate(() => {
-  const table = document.getElementById("rr-lv-table");
-  if (!table) return { missing: true };
-  const rows = [...table.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => td.textContent));
-  return {
-    header: [...table.querySelectorAll("th")].map((th) => th.textContent),
-    rows,
-    selected: [...table.querySelectorAll("tbody tr")].findIndex((tr) => tr.getAttribute("aria-selected") === "true"),
-    firstWidth: Math.round(table.querySelector("th")?.getBoundingClientRect().width || 0),
-    markup: !!table.querySelector("tbody b"),
-  };
+  const canvas = document.getElementById("rr-lv");
+  if (!canvas || canvas.tagName !== "CANVAS") return { missing: true };
+  const rt = window.__rapidr_rt;
+  const get = (p) => rt.rapidr_get_prop("LV", p);
+  const r = canvas.getBoundingClientRect();
+  return { size: [Math.round(r.width), Math.round(r.height)], count: get("itemcount"), columns: get("columnscount"), index: get("itemindex"), painted: canvas.width > 0 };
 });
-ok(!lv.missing, "list view rendered");
-ok(JSON.stringify(lv.header) === JSON.stringify(["FileName", "Size", "Method"]), `column headers (${JSON.stringify(lv.header)})`);
-ok(JSON.stringify(lv.rows) === JSON.stringify([["readme.txt", "1200", "Stored"], ["first.txt", "", ""], ["photo.jpg", "", ""], ["data.bin", "88", "Deflated"], ["<b>not bold</b>", "", ""]]),
-  `items with sub-items in their columns (${JSON.stringify(lv.rows)})`);
-ok(lv.selected === 2, `ItemIndex = 2 selects the third row (${lv.selected})`);
-ok(lv.firstWidth === 200, `Column(0).Width = 200 (${lv.firstWidth})`);
-ok(!lv.markup, "item captions are plain text, never markup");
+ok(!lv.missing, "list view rendered (a canvas)");
+ok(JSON.stringify(lv.size) === "[400,150]" && lv.painted, `drawn at its size (${JSON.stringify(lv.size)})`);
+ok(String(lv.count) === "5" && String(lv.columns) === "3", `five items in three columns (${lv.count}, ${lv.columns})`);
+ok(String(lv.index) === "2", `ItemIndex = 2 (${lv.index})`);
 
-await frame.click("#rr-lv-table tbody tr[data-row='3'] td");
+// Row 3 (the header 21 px high, rows 18: its middle at y = 1 + 21 + 3 * 18 + 9).
+const box = await frame.locator("#rr-lv").boundingBox();
+await page.mouse.click(box.x + 20, box.y + 85);
 await page.waitForTimeout(300);
 const clicked = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
 ok(clicked === "3|data.bin|Deflated|5|3|200|Method", `clicking a row sets ItemIndex and fires OnClick (${clicked})`);
-await frame.click("#rr-lv-table th[data-col='1']");
+await page.mouse.click(box.x + 230, box.y + 10);
 await page.waitForTimeout(300);
 const headed = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
 ok(headed === "column1", `clicking a header fires OnColumnClick(1) (${headed})`);

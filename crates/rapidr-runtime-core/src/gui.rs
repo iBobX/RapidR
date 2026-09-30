@@ -382,6 +382,11 @@ fn apply_cursor(name: Option<&str>, win: app::WindowPtr) {
         let x = app::event_x() - widget_origin(n, win).0;
         rapidr_value::objects::with_header(n, |h| h.on_grip(x as i64)).unwrap_or(false)
     });
+    let grip = grip
+        || name.filter(|n| rapidr_value::objects::is_listview(n)).is_some_and(|n| {
+            let (ox, oy) = widget_origin(n, win);
+            rapidr_value::objects::with_listview(n, |lv| lv.on_grip((app::event_x() - ox) as i64, (app::event_y() - oy) as i64)).unwrap_or(false)
+        });
     let code = if grip && code == 0 { -9 } else { code };
     let cursor = C::of(code);
     if SHOWN_CURSOR.with(|s| s.replace(cursor)) == cursor {
@@ -424,6 +429,9 @@ fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_valu
     if rapidr_value::objects::is_header(name) && button == rapidr_value::input::Button::Left {
         header_mouse(name, kind, x as i64);
     }
+    if rapidr_value::objects::is_listview(name) && (button == rapidr_value::input::Button::Left || kind == rapidr_value::input::Mouse::Move) {
+        listview_mouse(name, kind, x as i64, y as i64, shift);
+    }
     rp_fire_event_args(name, kind.event(), &kind.args(button, x as i64, y as i64, shift));
 }
 
@@ -431,6 +439,10 @@ fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_valu
 /// OnKeyDown / OnKeyUp (Key, Shift) and, for a key that types, OnKeyPress
 /// (Key), to the component and then its form.
 fn key_events(chain: &[String], down: bool, vk: i64, shift: i64, text: &str) {
+    // (a list view moves its selection first, as Windows' does)
+    if let Some(first) = chain.first().filter(|n| down && rapidr_value::objects::is_listview(n)) {
+        listview_key(first, vk, shift);
+    }
     let mut targets: Vec<&String> = chain.first().into_iter().collect();
     if let Some(form) = chain.last().filter(|f| chain.len() > 1 && Some(*f) != chain.first()) {
         targets.push(form);
@@ -613,6 +625,16 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
         if let Some([i]) = nums("__node_").as_deref() {
             tree_user_select(&comp_lower, *i as usize);
             rp_fire_event(&comp_lower, "onclick");
+        } else if event == "__edit" && rapidr_value::objects::is_listview(&comp_lower) {
+            // (a list view: F2 on it)
+            listview_key(&comp_lower, 113, 0);
+        } else if (event == "__enter" || event == "__escape") && rapidr_value::objects::is_listview(&comp_lower) {
+            LISTVIEW_EDITORS.with(|e| {
+                if let Some((editor, _)) = e.borrow_mut().get_mut(&comp_lower) {
+                    editor.set_value("Renamed");
+                }
+            });
+            listview_end_edit(&comp_lower, event == "__enter");
         } else if event == "__edit" {
             // F2: the selected node edited; `__enter` types "Renamed" and
             // Enter in its editor, `__escape` drops the edit.
@@ -1831,48 +1853,85 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
         }
         "RLISTVIEW" => {
-            // Multi-column list — use HoldBrowser as a simple approximation
+            // Drawn by the shared model (rapidr_value::objects::listview):
+            // this shows it and passes it the mouse (`mouse_event`), the
+            // keys (`key_events`) and the wheel.
             let x = rp_comp_get(name, "left").to_i64() as i32;
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let mut browser = HoldBrowser::new(x, y, w, h, None);
-            browser.set_column_char('\t');
-            browser.set_frame(FrameType::DownBox);
-            browser.set_color(Color::White);
+            let mut frm = Frame::new(x, y, w, h, None);
+            frm.set_frame(FrameType::FlatBox);
+            let name_for_draw = name_lower.clone();
+            frm.draw(move |f| {
+                note_display_scale(f);
+                let focused = app::focus().is_some_and(|w| w.as_widget_ptr() == f.as_widget_ptr());
+                listview_prepare_sized(&name_for_draw, f.w(), f.h(), focused);
+                let shown = rapidr_value::objects::listview_paint(&name_for_draw, listview_background(&name_for_draw)).map(|mut b| b.display_rgba());
+                if let Some(mut img) = shown.and_then(|(pw, ph, rgba, scale)| display_image(pw, ph, &rgba, scale)) {
+                    img.draw(f.x(), f.y(), f.w(), f.h());
+                }
+            });
             let name_for_cb = name_lower.clone();
-            browser.set_callback(move |b| {
-                let line = b.value();
-                if line <= 0 {
-                    return;
+            frm.super_handle_first(false);
+            frm.handle(move |f, ev| match ev {
+                // (it takes the keyboard's focus, as a list view does)
+                Event::Focus | Event::Unfocus => {
+                    f.redraw();
+                    true
                 }
-                let header = listview_header_shown(&name_for_cb);
-                if header && line == 1 {
-                    // The column header: OnColumnClick(Column%).
-                    let widths = rapidr_value::objects::with_listview(&name_for_cb, |lv| lv.columns.iter().map(|c| c.width).collect::<Vec<_>>()).unwrap_or_default();
-                    let sel = rapidr_value::objects::with_listview(&name_for_cb, |lv| lv.item_index).unwrap_or(-1);
-                    b.deselect(0);
-                    if sel >= 0 {
-                        b.select(sel as i32 + 2);
+                Event::Push => {
+                    let _ = f.take_focus();
+                    true
+                }
+                Event::MouseWheel => {
+                    let notches = match app::event_dy() {
+                        app::MouseWheel::Up => -1,
+                        app::MouseWheel::Down => 1,
+                        _ => 0,
+                    };
+                    listview_prepare(&name_for_cb);
+                    if notches != 0 && rapidr_value::objects::with_listview_mut(&name_for_cb, |lv| lv.wheel(notches)).unwrap_or(false) {
+                        f.redraw();
                     }
-                    let mut edge = b.x() as i64;
-                    let x = app::event_x() as i64;
-                    let column = widths.iter().position(|w| {
-                        edge += w.max(&1);
-                        x < edge
-                    });
-                    let column = column.unwrap_or(widths.len().saturating_sub(1)) as i64;
-                    rp_fire_event_1(&name_for_cb, "oncolumnclick", v_int(column));
-                    return;
+                    true
                 }
-                let idx = line as i64 - 1 - header as i64;
-                rapidr_value::objects::set(&name_for_cb, "itemindex", &v_int(idx));
-                rp_fire_event(&name_for_cb, if app::event_clicks() { "ondblclick" } else { "onclick" });
+                Event::Leave => {
+                    if rapidr_value::objects::with_listview_mut(&name_for_cb, |lv| lv.mouse_leave()).unwrap_or(false) {
+                        f.redraw();
+                    }
+                    false
+                }
+                // (the arrows move in the list, not to the next control)
+                Event::KeyDown => matches!(app::event_key(), Key::Up | Key::Down | Key::Left | Key::Right | Key::PageUp | Key::PageDown | Key::Home | Key::End)
+                    || app::event_text() == " ",
+                Event::Move | Event::Drag | Event::Released | Event::Enter => true,
+                _ => false,
             });
+            // The caption's editor (ReadOnly False): a sibling over it.
+            let mut editor = Input::new(0, 0, 0, 0, None);
+            editor.set_frame(FrameType::BorderBox);
+            editor.hide();
+            let enter_name = name_lower.clone();
+            editor.set_trigger(CallbackTrigger::EnterKeyAlways);
+            editor.set_callback(move |_| listview_end_edit(&enter_name, true));
+            let edit_name = name_lower.clone();
+            editor.super_handle_first(false);
+            editor.handle(move |_, ev| match ev {
+                Event::Unfocus => {
+                    listview_end_edit(&edit_name, true);
+                    false
+                }
+                Event::KeyDown if app::event_key() == Key::Escape => {
+                    listview_end_edit(&edit_name, false);
+                    true
+                }
+                _ => false,
+            });
+            LISTVIEW_EDITORS.with(|e| e.borrow_mut().insert(name_lower.clone(), (editor, None)));
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::HoldBrowser(browser));
+                gw.borrow_mut().insert(name_lower, GuiWidget::Frame(frm));
             });
-            listview_refresh(name);
         }
         "RMDICHILD" => {
             let (x, y, w, h) = (rp_comp_get(name, "left").to_i64() as i32, rp_comp_get(name, "top").to_i64() as i32, rp_comp_get(name, "width").to_i64() as i32, rp_comp_get(name, "height").to_i64() as i32);
@@ -5504,54 +5563,134 @@ fn menu_label(item: &str) -> String {
     if label.starts_with('_') { format!("\\{label}") } else { label }
 }
 
-/// Whether a QLISTVIEW shows its column header (it has columns, and
-/// ShowColumnHeaders isn't False).
-fn listview_header_shown(name: &str) -> bool {
-    let has_columns = rapidr_value::objects::with_listview(name, |lv| !lv.columns.is_empty()).unwrap_or(false);
-    let show = rp_comp_get(name, "showcolumnheaders");
-    has_columns && (matches!(show, Value::Null) || show.to_bool())
+thread_local! {
+    /// Each QLISTVIEW's caption editor, and the item it edits.
+    static LISTVIEW_EDITORS: RefCell<HashMap<String, (Input, Option<usize>)>> = RefCell::new(HashMap::new());
 }
 
-/// Fills a QLISTVIEW's browser from its data (rapidr_value::objects::
-/// listview): a bold header line, then one line per item — the caption and
-/// its sub-items in the columns. Text is shown as-is (`@.` turns off FLTK's
-/// `@` formatting codes).
-pub fn listview_refresh(name: &str) {
-    let name_lower = name.to_lowercase();
-    let header = listview_header_shown(&name_lower);
-    let Some((widths, lines, selected)) = rapidr_value::objects::with_listview(&name_lower, |lv| {
-        let clean = |t: &str| t.replace(['\t', '\n', '\r'], " ");
-        let widths: Vec<i32> = lv.columns.iter().map(|c| c.width.clamp(1, 10_000) as i32).collect();
-        let n_cols = lv.columns.len().max(1);
-        let mut lines = Vec::with_capacity(lv.items.len() + 1);
-        if header {
-            lines.push(lv.columns.iter().map(|c| format!("@B49@b@.{}", clean(&c.caption))).collect::<Vec<_>>().join("\t"));
-        }
-        for item in &lv.items {
-            let cells = std::iter::once(&item.caption).chain(item.sub_items.iter()).take(n_cols);
-            lines.push(cells.map(|c| format!("@.{}", clean(c))).collect::<Vec<_>>().join("\t"));
-        }
-        (widths, lines, lv.item_index)
-    }) else {
-        return;
-    };
-    GUI_WIDGETS.with(|gw| {
-        if let Some(GuiWidget::HoldBrowser(b)) = gw.borrow_mut().get_mut(&name_lower) {
-            let scroll = b.position();
-            b.clear();
-            if !widths.is_empty() {
-                b.set_column_widths(&widths);
-            }
-            for line in &lines {
-                b.add(line);
-            }
-            if selected >= 0 {
-                b.select(selected as i32 + 1 + header as i32);
-            }
-            b.set_position(scroll);
-            b.redraw();
+/// Edits item `i`'s caption in place (F2, a click on the selected item).
+fn listview_begin_edit(name: &str, i: usize) {
+    let name = name.to_lowercase();
+    listview_prepare(&name);
+    let Some(GuiWidget::Frame(f)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) else { return };
+    let Some(Some((l, t, r, b))) = rapidr_value::objects::with_listview_mut(&name, |lv| lv.editor_rect(i)) else { return };
+    let Some(text) = rapidr_value::objects::with_listview(&name, |lv| lv.items.get(i).map(|it| it.caption.clone())).flatten() else { return };
+    redraw_widget(&name);
+    let font = rapidr_value::objects::font_from_props(&name, &|id, p| rp_comp_get(id, p));
+    LISTVIEW_EDITORS.with(|e| {
+        if let Some((editor, editing)) = e.borrow_mut().get_mut(&name) {
+            *editing = Some(i);
+            editor.resize(f.x() + l as i32, f.y() + t as i32, (r - l) as i32, (b - t) as i32);
+            editor.set_text_size(((font.size.max(1) * 96 / 72) as i32).clamp(8, 72));
+            editor.set_value(&text);
+            editor.show();
+            let _ = editor.take_focus();
+            let _ = editor.set_position(text.len() as i32);
+            let _ = editor.set_mark(0);
+            editor.redraw();
         }
     });
+}
+
+/// Ends a caption's edit: with `keep`, the item gets the text
+/// (OnChange (Index, ctText)).
+fn listview_end_edit(name: &str, keep: bool) {
+    let ended = LISTVIEW_EDITORS.with(|e| {
+        let mut editors = e.borrow_mut();
+        let (editor, editing) = editors.get_mut(name)?;
+        let i = editing.take()?;
+        let text = editor.value();
+        editor.hide();
+        Some((i, text))
+    });
+    let Some((i, text)) = ended else { return };
+    if let Some(GuiWidget::Frame(mut f)) = GUI_WIDGETS.with(|gw| gw.borrow().get(name).cloned()) {
+        let _ = f.take_focus();
+        f.redraw();
+    }
+    if keep {
+        let events = rapidr_value::objects::with_listview_mut(name, |lv| lv.edited(i, text)).unwrap_or_default();
+        redraw_widget(name);
+        listview_fire(name, events);
+    }
+}
+
+/// A QLISTVIEW changed: its control shows it again.
+pub fn listview_refresh(name: &str) {
+    redraw_widget(&name.to_lowercase());
+}
+
+/// A QLISTVIEW's Color (a list view is white unless the program says).
+fn listview_background(name: &str) -> u32 {
+    match rp_comp_get(name, "color") {
+        Value::Null => 0xFFFFFF,
+        Value::String(s) if s.is_empty() => 0xFFFFFF,
+        v => rapidr_value::objects::form_color(&v) as u32,
+    }
+}
+
+/// Gives a QLISTVIEW's model its control's size and font.
+fn listview_prepare_sized(name: &str, w: i32, h: i32, focused: bool) {
+    let font = rapidr_value::objects::font_from_props(name, &|id, p| rp_comp_get(id, p));
+    rapidr_value::objects::listview_setup(name, w as i64, h as i64, &font, focused);
+}
+
+/// [`listview_prepare_sized`] from the widget (before the mouse or a key).
+fn listview_prepare(name: &str) {
+    let Some(w) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name.to_lowercase()).map(GuiWidget::base))) else { return };
+    let focused = app::focus().is_some_and(|f| f.as_widget_ptr() == w.as_widget_ptr());
+    listview_prepare_sized(name, w.w(), w.h(), focused);
+}
+
+/// Fires what the user did to a QLISTVIEW (rapidr_value::objects::
+/// listview::Event), in order.
+fn listview_fire(name: &str, events: Vec<rapidr_value::objects::listview::Event>) {
+    use rapidr_value::objects::listview::Event as E;
+    for e in events {
+        match e {
+            E::Click => rp_fire_event(name, "onclick"),
+            E::DblClick => rp_fire_event(name, "ondblclick"),
+            E::ColumnClick(i) => rp_fire_event_1(name, "oncolumnclick", v_int(i as i64)),
+            E::Change(i, ct) => rp_fire_event_2(name, "onchange", v_int(i as i64), v_int(ct)),
+            E::Edit(i) => listview_begin_edit(name, i),
+            E::EditSoon(i) => {
+                let (lv, clicks) = (name.to_string(), rapidr_value::objects::with_listview(name, |lv| lv.clicks).unwrap_or(0));
+                app::add_timeout3(0.5, move |_| {
+                    if rapidr_value::objects::with_listview(&lv, |m| m.clicks) == Some(clicks) {
+                        listview_begin_edit(&lv, i);
+                    }
+                });
+            }
+        }
+    }
+}
+
+/// The mouse on a QLISTVIEW (x, y in it; `shift`: RapidQ's Shift).
+fn listview_mouse(name: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, shift: i64) {
+    use rapidr_value::input::Mouse;
+    listview_prepare(name);
+    // (⌘ on macOS picks as Ctrl does on Windows)
+    let ctrl = shift & 16 != 0 || app::event_state().contains(fltk::enums::Shortcut::Meta);
+    let (events, changed) = match kind {
+        Mouse::Down => (rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_down(x, y, shift & 256 != 0, ctrl, app::event_clicks())).unwrap_or_default(), true),
+        Mouse::Up => (rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_up(x, y)).unwrap_or_default(), true),
+        Mouse::Move => (Vec::new(), rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_move(x, y)).unwrap_or(false)),
+    };
+    if changed {
+        redraw_widget(&name.to_lowercase());
+    }
+    listview_fire(name, events);
+}
+
+/// A key down on a focused QLISTVIEW.
+fn listview_key(name: &str, vk: i64, shift: i64) {
+    listview_prepare(name);
+    let ctrl = shift & 16 != 0 || app::event_state().contains(fltk::enums::Shortcut::Meta);
+    let (events, changed) = rapidr_value::objects::with_listview_mut(name, |lv| lv.key_down(vk, shift & 256 != 0, ctrl)).unwrap_or_default();
+    if changed {
+        redraw_widget(&name.to_lowercase());
+    }
+    listview_fire(name, events);
 }
 
 // ---------------------------------------------------------------------------

@@ -91,7 +91,8 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
         return true;
       }
       if (edit) {
-        const input = el.querySelector(".rr-tree-editor");
+        // (a list view's editor lies over its canvas: `data-for` its id)
+        const input = el.querySelector(".rr-tree-editor") || document.querySelector(`.rr-tree-editor[data-for="${id}"]`);
         if (input) {
           input.value = "Renamed";
           input.dispatchEvent(new KeyboardEvent("keydown", { key: edit === "enter" ? "Enter" : "Escape", bubbles: true, cancelable: true }));
@@ -149,6 +150,8 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
   })), c.dump.split(","));
   const text = Object.entries(dumped).map(([k, v]) => `${k}=${v}`).join("\n");
   for (const line of c.expect) ok(text.includes(line), `${c.name} (web): ${line}${text.includes(line) ? "" : `   [got: ${text.replace(/\n/g, " ; ")}]`}`);
+  // (RAPIDR_SHOT=dir: a screenshot of each case's page, to look at)
+  if (process.env.RAPIDR_SHOT) await page.screenshot({ path: join(process.env.RAPIDR_SHOT, c.name + ".png") });
   // (`webCheck`: what the page shows, where the program can't read it)
   if (c.webCheck) {
     const got = await frame.evaluate(c.webCheck);

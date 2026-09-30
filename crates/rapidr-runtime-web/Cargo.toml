@@ -54,7 +54,7 @@ features = [
     "ErrorEvent",
     "Event",
     "EventTarget",
-    "MouseEvent",
+    "MouseEvent", "WheelEvent",
     "KeyboardEvent",
     "InputEvent",
     "HashChangeEvent",

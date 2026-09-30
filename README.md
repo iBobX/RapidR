@@ -453,7 +453,7 @@ Powered by **FLTK** (via the `fltk` crate), the runtime provides **51+ component
 | `RStringGrid` | Spreadsheet-style grid |
 | `RListBox` | List box |
 | `RFileListBox` | File listing list box |
-| `RListView` | Multi-column list view |
+| `RListView` | List view: icon, small icon, list and report views, image lists, check boxes, multi-select, sorting, in-place caption editing |
 | `RTreeView` | Tree view with nodes |
 
 #### Menu Components

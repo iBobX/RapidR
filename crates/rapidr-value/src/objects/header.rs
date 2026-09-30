@@ -90,6 +90,11 @@ impl Header {
         spans.iter().position(|&(l, r)| x >= l && x < r).map(|i| (i, false))
     }
 
+    /// Whether a section's edge is being dragged.
+    pub fn dragging(&self) -> bool {
+        self.drag.is_some()
+    }
+
     /// Whether x is where the mouse resizes (for the cursor).
     pub fn on_grip(&self, x: i64) -> bool {
         self.drag.is_some() || self.hit(x).is_some_and(|(_, grip)| grip)
@@ -138,12 +143,19 @@ impl Header {
     /// raised buttons (sunken while pressed) with their captions; returns
     /// the owner-drawn sections as (index, pressed, rect) for OnDrawSection.
     pub fn paint(&self, surface: &mut Bitmap, font: &Font) -> Vec<OwnerDrawn> {
+        self.paint_scrolled(surface, font, 0)
+    }
+
+    /// [`Header::paint`] with the sections `dx` pixels to the left (a list
+    /// view's header follows its columns when they scroll sideways).
+    pub fn paint_scrolled(&self, surface: &mut Bitmap, font: &Font, dx: i64) -> Vec<OwnerDrawn> {
         let h = surface.img.height as i64;
         let w = surface.img.width as i64;
         let face = 0xF0F0F0;
         surface.fill_rect(0, 0, w, h, face);
         let mut owner = Vec::new();
-        for (i, (s, (l, r))) in self.sections.iter().zip(self.spans()).enumerate() {
+        let spans: Vec<(i64, i64)> = self.spans().into_iter().map(|(l, r)| (l - dx, r - dx)).collect();
+        for (i, (s, &(l, r))) in self.sections.iter().zip(spans.iter()).enumerate() {
             let pressed = self.pressed == Some(i);
             let (light, dark) = if pressed { (0x808080, 0xFFFFFF) } else { (0xFFFFFF, 0x808080) };
             surface.line(l, 0, r - 1, 0, light);
@@ -167,7 +179,7 @@ impl Header {
             super::text::text_out(surface, tx, ty, &s.caption, font, color, None);
         }
         // What's past the last section: the header's face (drawn raised).
-        let end = self.spans().last().map_or(0, |s| s.1);
+        let end = spans.last().map_or(0, |s| s.1);
         if end < w {
             surface.line(end, h - 1, w - 1, h - 1, 0x808080);
         }

@@ -222,6 +222,58 @@ pub fn with_listview<R>(id: &str, f: impl FnOnce(&ListView) -> R) -> Option<R> {
     })?
 }
 
+/// Changes a QLISTVIEW (from what the user does to its control).
+pub fn with_listview_mut<R>(id: &str, f: impl FnOnce(&mut ListView) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::ListView(l) => Some(f(l)),
+        _ => None,
+    })?
+}
+
+/// An image list's image size (None: `id` isn't one).
+fn imagelist_size(id: &str) -> Option<(i64, i64)> {
+    if id.is_empty() {
+        return None;
+    }
+    with(id, |o| match o {
+        Object::ImageList(l) => Some((l.width, l.height)),
+        _ => None,
+    })?
+}
+
+fn imagelist_images(id: &str) -> Vec<Bitmap> {
+    if id.is_empty() {
+        return Vec::new();
+    }
+    with(id, |o| match o {
+        Object::ImageList(l) => l.images.clone(),
+        _ => Vec::new(),
+    })
+    .unwrap_or_default()
+}
+
+/// Gives QLISTVIEW `id`'s control its size, font and image sizes (the
+/// runtime, before it paints it or passes it the mouse or a key).
+pub fn listview_setup(id: &str, width: i64, height: i64, font: &Font, focused: bool) -> bool {
+    let Some((small, large, state)) = with_listview(id, |lv| (lv.small_images.clone(), lv.large_images.clone(), lv.state_images.clone())) else {
+        return false;
+    };
+    let view = listview::View { width, height, font: font.clone(), small: imagelist_size(&small), large: imagelist_size(&large), state: imagelist_size(&state) };
+    with_listview_mut(id, |lv| {
+        lv.set_view(view);
+        lv.focused = focused;
+    })
+    .is_some()
+}
+
+/// QLISTVIEW `id`'s control as the screen shows it (after
+/// [`listview_setup`]); `background`: its Color.
+pub fn listview_paint(id: &str, background: u32) -> Option<Bitmap> {
+    let (small, large, state) = with_listview(id, |lv| (lv.small_images.clone(), lv.large_images.clone(), lv.state_images.clone()))?;
+    let images = listview::Images { small: imagelist_images(&small), large: imagelist_images(&large), state: imagelist_images(&state) };
+    with_listview_mut(id, |lv| lv.paint(background, &images))
+}
+
 /// Whether `id` is a QLISTBOX or QCOMBOBOX (its widget redraws after a
 /// change).
 pub fn is_list(id: &str) -> bool {
