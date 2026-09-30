@@ -5785,6 +5785,10 @@ pub fn grid_refresh(name: &str) {
     }) else {
         return;
     };
+    // (VisibleRowCount / VisibleColCount: what fits inside its frame)
+    if let Some((w, h)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name).map(|w| (w.base().w(), w.base().h())))) {
+        rapidr_value::objects::with_grid_mut(&name, |g| g.view = ((w - 4) as i64, (h - 4) as i64));
+    }
     GUI_WIDGETS.with(|gw| {
         if let Some(GuiWidget::Grid(t, _)) = gw.borrow_mut().get_mut(&name) {
             let size = |v: i64| v.clamp(0, 10_000) as i32;
@@ -6099,6 +6103,28 @@ fn grid_drop_down(name: &str, items: &[String], (x, y, w, h): (i32, i32, i32, i3
     }
 }
 
+thread_local! {
+    /// A column (true) / row being moved by the mouse, from where.
+    static GRID_MOVE: Cell<Option<(bool, i64)>> = const { Cell::new(None) };
+}
+
+/// What a press on cell (c, r) moves: its column (true: a fixed row's cell,
+/// goColMoving) or its row (false: a fixed column's, goRowMoving).
+fn grid_move_kind(name: &str, c: i64, r: i64) -> Option<bool> {
+    use rapidr_value::objects::grid::{GO_COL_MOVING, GO_ROW_MOVING};
+    rapidr_value::objects::with_grid(name, |g| {
+        let (fr, fc) = (g.fixed_rows() as i64, g.fixed_cols() as i64);
+        if r < fr && c >= fc && g.has_option(GO_COL_MOVING) {
+            Some(true)
+        } else if c < fc && r >= fr && g.has_option(GO_ROW_MOVING) {
+            Some(false)
+        } else {
+            None
+        }
+    })
+    .flatten()
+}
+
 fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
     use rapidr_value::objects::grid::GO_ALWAYS_SHOW_EDITOR;
     match ev {
@@ -6114,6 +6140,12 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
                 return false;
             }
             let Some((c, r)) = grid_cell_of(name, ctx, row, col) else { return false };
+            // A fixed row's cell dragged (goColMoving) moves its column, a
+            // fixed column's (goRowMoving) its row: on the release.
+            if let Some(moving) = grid_move_kind(name, c, r) {
+                GRID_MOVE.with(|m| m.set(Some((moving, if moving { c } else { r }))));
+                return true;
+            }
             // An ellipsis button.
             let on_button = rapidr_value::objects::with_grid(name, |g| grid_has_ellipsis(g, c as usize, r as usize)).unwrap_or(false)
                 && t.find_cell(ctx, row, col).is_some_and(|(x, _, w, h)| app::event_x() >= x + w - h.min(w));
@@ -6156,12 +6188,27 @@ fn grid_handle(name: &str, t: &mut Table, ev: Event) -> bool {
             }
             !resizing
         }
-        // The end of a drag: resized columns / rows keep their sizes.
+        // The end of a drag: a moved column / row …
+        Event::Released if GRID_MOVE.with(|m| m.get()).is_some() => {
+            let Some((cols, from)) = GRID_MOVE.with(|m| m.take()) else { return false };
+            let to = t.cursor2rowcol().and_then(|(ctx, row, col, _)| grid_cell_of(name, ctx, row, col));
+            if let Some((c, r)) = to {
+                let to = if cols { c } else { r };
+                if rapidr_value::objects::with_grid_mut(name, |g| if cols { g.move_col(from as usize, to as usize) } else { g.move_row(from as usize, to as usize) }).unwrap_or(false) {
+                    grid_refresh(name);
+                }
+            }
+            t.redraw();
+            true
+        }
+        // … resized columns / rows keep their sizes.
         Event::Released => {
             grid_sync_sizes(name, t);
             t.redraw();
             false
         }
+        // (a column / row being moved: no range selected on the way)
+        Event::Drag if GRID_MOVE.with(|m| m.get()).is_some() => true,
         // Dragging over cells selects a range (goRangeSelect).
         Event::Drag => {
             let Some((TableContext::Cell, row, col, _)) = t.cursor2rowcol() else { return false };

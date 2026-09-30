@@ -1,5 +1,5 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
-# python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) k:keycode s:out.png
+# python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
 # act.py PID action... : actions "c:x,y" (click), "k:code" (key), "s:file" (screenshot of the window)
 import Quartz,time,sys,subprocess
@@ -17,6 +17,13 @@ for a in sys.argv[2:]:
     if kind=="c":
         x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
         mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1); mouse(Quartz.kCGEventLeftMouseDown,x,y); time.sleep(0.05); mouse(Quartz.kCGEventLeftMouseUp,x,y)
+    elif kind=="d":
+        # drag: d:x1,y1,x2,y2 (the left button held from one point to the other)
+        x1,y1,x2,y2=[float(v) for v in arg.split(",")]; x1+=b['X']; x2+=b['X']; y1+=b['Y']; y2+=b['Y']
+        mouse(Quartz.kCGEventMouseMoved,x1,y1); time.sleep(0.1); mouse(Quartz.kCGEventLeftMouseDown,x1,y1); time.sleep(0.1)
+        for k in range(1,11):
+            mouse(Quartz.kCGEventLeftMouseDragged,x1+(x2-x1)*k/10,y1+(y2-y1)*k/10); time.sleep(0.03)
+        mouse(Quartz.kCGEventLeftMouseUp,x2,y2)
     elif kind=="k":
         for d in (True,False): Quartz.CGEventPost(Quartz.kCGHIDEventTap,Quartz.CGEventCreateKeyboardEvent(None,int(arg),d)); time.sleep(0.05)
     elif kind=="s":
