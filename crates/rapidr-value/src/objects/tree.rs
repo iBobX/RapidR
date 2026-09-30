@@ -238,6 +238,16 @@ impl TreeView {
         h.finish()
     }
 
+    /// What the tree shows, images aside: its shape, which nodes are shown
+    /// and the selected one. OnGetImageIndex asks again only when this
+    /// changed — never because the program set a node's image.
+    pub fn view_hash(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (self.shape_hash(), self.visible_rows(), self.item_index).hash(&mut h);
+        h.finish()
+    }
+
     /// Nodes deleted since last asked, as they were numbered (OnDeletion).
     pub fn take_deleted(&mut self) -> Vec<usize> {
         std::mem::take(&mut self.deleted)

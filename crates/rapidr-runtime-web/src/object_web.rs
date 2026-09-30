@@ -679,6 +679,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
         gui_web::mdi_frame_update(&uname);
     }
+    // A tree's image lists: its icons shown again.
+    if matches!(lprop.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(&uname) {
+        gui_web::render_tree(&uname);
+    }
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_picture(&uname) {
         store_prop(&uname, "__sized", v_bool(true));
     }

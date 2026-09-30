@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.74.0] — 2026-09-30
+
+### Added
+- QTREEVIEW on native, interpreter and web: `StateImages` (a node's
+  `StateIndex` image beside its own; index 0 is none, as in Windows),
+  OnGetImageIndex / OnGetSelectedIndex (Index) — the program sets
+  `Item(Index).ImageIndex` / `.SelectedIndex` as nodes are shown, asked
+  again when the shown nodes or the selection change — `HideSelection`
+  (no selection shown while the tree hasn't focus), and `GetItemAt(X, Y)`
+  (the manual's hot-tracking example).
+
+### Fixed
+- Setting a tree's `Images` after it was shown now shows the icons.
+- The web no longer warns about QIMAGELIST as an unknown component.
+
 ## [2.73.0] — 2026-09-30
 
 ### Added

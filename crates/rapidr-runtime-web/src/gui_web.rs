@@ -205,7 +205,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RUDT" | "RRECT" => { /* no DOM element */ }
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RUDT" | "RRECT" | "RIMAGELIST" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
         "RDOM" => create_dom_element(&id, name, props),
@@ -1035,6 +1035,20 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
     let id = comp_id(name);
 
     match (comp_type, method) {
+        // A tree's GetItemAt(X, Y): the node shown there (-1: none).
+        ("RTREEVIEW", "getitemat") => {
+            let y = args.get(1).map_or(0, Value::to_i64) as f64;
+            let Some(el) = get_el(&id) else { return v_int(-1) };
+            let top = el.get_bounding_client_rect().top() + el.client_top() as f64;
+            let rows = el.query_selector_all("[data-node]").ok();
+            let hit = rows.and_then(|rows| {
+                (0..rows.length()).filter_map(|i| rows.item(i)?.dyn_into::<web_sys::Element>().ok()).find_map(|r| {
+                    let b = r.get_bounding_client_rect();
+                    (b.top() - top <= y && y < b.bottom() - top).then(|| r.get_attribute("data-node")?.parse::<i64>().ok()).flatten()
+                })
+            });
+            v_int(hit.unwrap_or(-1))
+        }
         // LIST methods (RCOMBOBOX, RLISTBOX)
         (_, "additem") | (_, "additems") if args.len() >= 1 => {
             if let Some(el) = get_el(&id) {
@@ -3097,6 +3111,17 @@ fn create_treeview(id: &str, name: &str, props: &HashMap<String, Value>) {
     for (k, v) in [("border", "1px solid #999"), ("background", "white"), ("overflow", "auto"), ("font-size", "13px"), ("box-sizing", "border-box"), ("outline", "none"), ("cursor", "default"), ("user-select", "none")] {
         let _ = el.style().set_property(k, v);
     }
+    // HideSelection: the selection shows only while the tree has focus.
+    for dom_event in ["focus", "blur"] {
+        let owner = name.to_uppercase();
+        let cb = Closure::<dyn FnMut()>::new(move || {
+            if rapidr_value::objects::with_tree(&owner, |m| m.hide_selection).unwrap_or(false) {
+                render_tree(&owner);
+            }
+        });
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
     for dom_event in ["click", "dblclick"] {
         let owner = name.to_uppercase();
         let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
@@ -3308,20 +3333,62 @@ fn tree_toggle(name: &str, i: usize) {
 
 /// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
 /// program deleted).
+thread_local! {
+    /// Trees asking their program for icons (OnGetImageIndex): what that
+    /// changes shows without asking again.
+    static TREES_ASKING: std::cell::RefCell<std::collections::HashSet<String>> = std::cell::RefCell::new(std::collections::HashSet::new());
+    /// What each tree showed when it last asked (`TreeView::view_hash`).
+    static TREES_ASKED: std::cell::RefCell<HashMap<String, u64>> = std::cell::RefCell::new(HashMap::new());
+}
+
+/// OnGetImageIndex (Index) for each shown node, OnGetSelectedIndex (Index)
+/// for the selected one, as on the desktop — soon (never inside the
+/// program's own statement that changed the tree), then shown again.
+fn tree_ask_images(name: &str) {
+    let ask = |e: &str| crate::object_web::rp_has_handler(name, e);
+    let key = name.to_uppercase();
+    let Some(view) = rapidr_value::objects::with_tree(name, |m| m.view_hash()) else { return };
+    if !(ask("ongetimageindex") || ask("ongetselectedindex")) || TREES_ASKED.with(|a| a.borrow().get(&key) == Some(&view)) {
+        return;
+    }
+    if !TREES_ASKING.with(|a| a.borrow_mut().insert(key.clone())) {
+        return;
+    }
+    TREES_ASKED.with(|a| a.borrow_mut().insert(key.clone(), view));
+    let later = Closure::once_into_js(move || {
+        let (rows, selected) = rapidr_value::objects::with_tree(&key, |m| (m.visible_rows(), m.item_index)).unwrap_or_default();
+        for i in rows {
+            let event = if i as i64 == selected { "ongetselectedindex" } else { "ongetimageindex" };
+            crate::object_web::rp_fire_event_1(&key, event, v_int(i as i64));
+        }
+        render_tree(&key);
+        TREES_ASKING.with(|a| a.borrow_mut().remove(&key));
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
+    }
+}
+
 pub fn render_tree(name: &str) {
     note_display_scale();
+    tree_ask_images(name);
     for i in rapidr_value::objects::with_tree(name, |m| m.take_deleted()).unwrap_or_default() {
         crate::object_web::rp_fire_event_1(name, "ondeletion", v_int(i as i64));
     }
     let Some(el) = get_el(&comp_id(name)) else { return };
     let images = crate::object_web::rp_comp_get_stored(name, "images").to_string_val();
+    let state_images = crate::object_web::rp_comp_get_stored(name, "stateimages").to_string_val();
+    // (HideSelection: none shown while the tree hasn't focus)
+    let focused = document().active_element().is_some_and(|a| a == *el);
     let Some(rows) = rapidr_value::objects::with_tree(name, |m| {
+        let hidden = m.hide_selection && !focused;
         m.visible_rows()
             .into_iter()
             .map(|i| {
                 let n = &m.nodes[i];
                 let selected = m.item_index == i as i64;
-                (i, n.level, n.text.clone(), m.has_children(i), n.expanded, selected, if selected { n.selected_index } else { n.image_index })
+                let image = if selected { n.selected_index } else { n.image_index };
+                (i, n.level, n.text.clone(), m.has_children(i), n.expanded, selected && !hidden, (image, n.state_index))
             })
             .collect::<Vec<_>>()
     }) else {
@@ -3346,7 +3413,7 @@ pub fn render_tree(name: &str) {
             button.set_text_content(Some(if expanded { "▾" } else { "▸" }));
         }
         let _ = row.append_child(&button);
-        if let Some((w, h, rgba, scale)) = rapidr_value::objects::imagelist_pixels(&images, image).filter(|_| !images.is_empty()) {
+        if let Some((w, h, rgba, scale)) = rapidr_value::objects::tree_icon(&images, &state_images, image.0, image.1) {
             if let Some(canvas) = document().create_element("canvas").ok().and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok()) {
                 let _ = canvas.style().set_property("margin-right", "3px");
                 put_display(&canvas, w, h, &rgba, scale);

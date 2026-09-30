@@ -761,6 +761,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::gui::gui_move_form(name);
     }
+    // A tree's image lists: its icons shown again.
+    #[cfg(feature = "gui")]
+    if matches!(prop_lower.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(name) {
+        crate::gui::tree_refresh(name);
+    }
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "icon" | "icohandle") && matches!(rp_comp_type(name).as_str(), "RFORM" | "RFORMMDI") {
         crate::gui::gui_apply_icon(name);
