@@ -12,8 +12,40 @@
 //! strike-out as lines. Like Windows' TextOut, (x, y) is the top left of
 //! the text's cell and a background colour fills the cell.
 
-use super::bitmap::Bitmap;
+use super::bitmap::{Bitmap, HiRes};
 use super::font::Font;
+
+/// What text is drawn onto: a bitmap's pixels, or what a high-DPI screen
+/// shows of them (drawn at its scale).
+trait Target {
+    fn size(&self) -> (i64, i64);
+    fn get(&self, x: i64, y: i64) -> Option<u32>;
+    fn set(&mut self, x: i64, y: i64, c: u32);
+}
+
+impl Target for Bitmap {
+    fn size(&self) -> (i64, i64) {
+        (self.img.width as i64, self.img.height as i64)
+    }
+    fn get(&self, x: i64, y: i64) -> Option<u32> {
+        self.pixel(x, y)
+    }
+    fn set(&mut self, x: i64, y: i64, c: u32) {
+        self.lo_pset(x, y, c);
+    }
+}
+
+impl Target for HiRes {
+    fn size(&self) -> (i64, i64) {
+        (self.img.width as i64, self.img.height as i64)
+    }
+    fn get(&self, x: i64, y: i64) -> Option<u32> {
+        self.pixel(x, y)
+    }
+    fn set(&mut self, x: i64, y: i64, c: u32) {
+        self.put(x, y, c);
+    }
+}
 
 const SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
 const SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
@@ -53,8 +85,13 @@ struct Scaled {
 }
 
 fn scaled(font: &Font) -> Option<Scaled> {
+    scaled_by(font, 1.0)
+}
+
+/// The font drawn `by` times larger (on a high-DPI screen's pixels).
+fn scaled_by(font: &Font, by: f32) -> Option<Scaled> {
     let face = ttf_parser::Face::parse(face_data(&font.name), 0).ok()?;
-    let px = pixel_size(font);
+    let px = pixel_size(font) * by;
     let scale = px / face.units_per_em() as f32;
     let ascent = face.ascender() as f32 * scale;
     let height = (face.ascender() as f32 - face.descender() as f32) * scale;
@@ -143,11 +180,11 @@ const SUB: usize = 4;
 
 /// Fills the outline `edges` (nonzero winding) onto `bmp` in colour `c`,
 /// each pixel by how much of it is covered.
-fn fill(bmp: &mut Bitmap, edges: &[(f32, f32, f32, f32)], c: u32) {
+fn fill(bmp: &mut impl Target, edges: &[(f32, f32, f32, f32)], c: u32) {
     if edges.is_empty() {
         return;
     }
-    let (w, h) = (bmp.img.width as i64, bmp.img.height as i64);
+    let (w, h) = bmp.size();
     let min_y = edges.iter().map(|e| e.1.min(e.3)).fold(f32::MAX, f32::min).floor().max(0.0) as i64;
     let max_y = (edges.iter().map(|e| e.1.max(e.3)).fold(f32::MIN, f32::max).ceil() as i64).min(h);
     let min_x = edges.iter().map(|e| e.0.min(e.2)).fold(f32::MAX, f32::min).floor().max(0.0) as i64;
@@ -194,14 +231,36 @@ fn fill(bmp: &mut Bitmap, edges: &[(f32, f32, f32, f32)], c: u32) {
 }
 
 /// Mixes `c` into pixel (x, y) with coverage `a` (0–255).
-fn blend(bmp: &mut Bitmap, x: i64, y: i64, c: u32, a: u32) {
-    let Some(old) = bmp.pixel(x, y) else { return };
+fn blend(bmp: &mut impl Target, x: i64, y: i64, c: u32, a: u32) {
+    let Some(old) = bmp.get(x, y) else { return };
     let a = a.min(255);
     let mix = |shift: u32| {
         let (o, n) = ((old >> shift) & 0xFF, (c >> shift) & 0xFF);
         ((n * a + o * (255 - a) + 127) / 255) << shift
     };
-    bmp.pset(x, y, mix(0) | mix(8) | mix(16));
+    bmp.set(x, y, mix(0) | mix(8) | mix(16));
+}
+
+/// The glyphs of `text` from (x, y) (their cell's top left) on `target`,
+/// `by` times larger than the font's size.
+#[allow(clippy::too_many_arguments)]
+fn glyphs(target: &mut impl Target, s: &Scaled, x: f32, y: f32, by: f32, text: &str, font: &Font, color: u32) {
+    let bold = font.styles & 1 != 0;
+    let slant = if font.styles & 2 != 0 { 0.2 } else { 0.0 };
+    let baseline = y + s.ascent;
+    let mut pen = x;
+    for c in text.chars().take(MAX_CHARS) {
+        let Some(g) = s.face.glyph_index(c).or_else(|| s.face.glyph_index('?')) else { continue };
+        // (bold: drawn again a pixel — `by` device pixels — to the right)
+        let passes = if bold { 1 + by.round().max(1.0) as usize } else { 1 };
+        for dx in 0..passes {
+            let mut e = Edges { edges: Vec::new(), at: (0.0, 0.0), start: (0.0, 0.0), scale: s.scale, origin: (pen + dx as f32, baseline), slant };
+            if s.face.outline_glyph(g, &mut e).is_some() {
+                fill(target, &e.edges, color);
+            }
+        }
+        pen += s.advance(c);
+    }
 }
 
 /// `TextOut(x, y, text, colour, background)` on `bmp` in `font`
@@ -212,19 +271,15 @@ pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color
     if let Some(bg) = background {
         bmp.fill_rect(x, y, x + tw, y + th, bg);
     }
-    let bold = font.styles & 1 != 0;
-    let slant = if font.styles & 2 != 0 { 0.2 } else { 0.0 };
     let baseline = y as f32 + s.ascent;
-    let mut pen = x as f32;
-    for c in text.chars().take(MAX_CHARS) {
-        let Some(g) = s.face.glyph_index(c).or_else(|| s.face.glyph_index('?')) else { continue };
-        for dx in 0..=usize::from(bold) {
-            let mut e = Edges { edges: Vec::new(), at: (0.0, 0.0), start: (0.0, 0.0), scale: s.scale, origin: (pen + dx as f32, baseline), slant };
-            if s.face.outline_glyph(g, &mut e).is_some() {
-                fill(bmp, &e.edges, color);
-            }
+    glyphs(bmp, &s, x as f32, y as f32, 1.0, text, font, color);
+    // What a high-DPI screen shows: the same text at its scale (the glyphs
+    // finer, where they start and advance the same).
+    if let Some(hi) = bmp.display_mut() {
+        let by = hi.scale as f32;
+        if let Some(fine) = scaled_by(font, by) {
+            glyphs(hi, &fine, x as f32 * by, y as f32 * by, by, text, font, color);
         }
-        pen += s.advance(c);
     }
     let line = |bmp: &mut Bitmap, at: f32| {
         let yy = at.round() as i64;

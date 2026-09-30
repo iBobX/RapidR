@@ -1691,11 +1691,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             frm.draw(move |f| {
                 let (ox, oy, w, h) = (f.x(), f.y(), f.w(), f.h());
                 draw::draw_rect_fill(ox, oy, w, h, f.color());
-                let rgba = rapidr_value::objects::with_canvas(&name_for_draw, w as i64, h as i64, |b| b.to_rgba());
-                if let Some(rgba) = rgba {
-                    if let Ok(mut img) = RgbImage::new(&rgba, w, h, ColorDepth::Rgba8) {
-                        img.draw(ox, oy, w, h);
-                    }
+                note_display_scale(f);
+                let shown = rapidr_value::objects::with_canvas(&name_for_draw, w as i64, h as i64, |b| b.display_rgba());
+                if let Some(mut img) = shown.and_then(|(pw, ph, rgba, scale)| display_image(pw, ph, &rgba, scale)) {
+                    img.draw(ox, oy, w, h);
                 }
             });
 
@@ -2935,6 +2934,9 @@ pub fn gui_showmodal(name: &str) {
                 win.set_pos(x, y);
             }
             win.show();
+            // (what's drawn from now on is kept at the screen's scale)
+            let forced = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok());
+            rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| f64::from(win.pixels_per_unit())));
         }
     });
 
@@ -4452,7 +4454,7 @@ fn tree_sync(name: &str) {
         }
         if !images.is_empty() {
             let i = if k as i64 == selected { selected_image } else { image };
-            let icon = rapidr_value::objects::imagelist_pixels(&images, i).and_then(|(w, h, rgba)| RgbImage::new(&rgba, w as i32, h as i32, ColorDepth::Rgba8).ok());
+            let icon = rapidr_value::objects::imagelist_pixels(&images, i).and_then(|(w, h, rgba, scale)| display_image(w, h, &rgba, scale));
             item.set_user_icon(icon);
         }
     }
@@ -4612,14 +4614,47 @@ pub fn mouse_in_form() -> (i64, i64) {
     ((sx - win.x_root()) as i64, (sy - win.y_root() - menu) as i64)
 }
 
+/// An image of what a bitmap shows (rapidr_value's `display_rgba`: `w` ×
+/// `h` device pixels, `scale` of them a pixel), sized in pixels: on a
+/// high-DPI screen FLTK draws every device pixel, so it isn't blurry.
+/// The screen's scale where `w` is shown (device pixels per pixel: 2 on a
+/// Retina screen), for bitmaps to keep what they show at it
+/// (rapidr_value::objects::bitmap); `RAPIDR_SCALE` sets it (tests).
+fn note_display_scale(w: &impl WidgetExt) {
+    let scale = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok()).or_else(|| {
+        let top = w.top_window()?.as_widget_ptr();
+        GUI_WIDGETS.with(|gw| {
+            gw.try_borrow().ok()?.values().find_map(|x| match x {
+                GuiWidget::Window(win) if win.as_widget_ptr() == top => Some(f64::from(win.pixels_per_unit())),
+                _ => None,
+            })
+        })
+    });
+    if let Some(s) = scale.filter(|s| *s > 0.0) {
+        rapidr_value::objects::bitmap::set_display_scale(s);
+    }
+}
+
+fn display_image(w: usize, h: usize, rgba: &[u8], scale: usize) -> Option<RgbImage> {
+    let mut img = RgbImage::new(rgba, w as i32, h as i32, ColorDepth::Rgba8).ok()?;
+    if scale > 1 {
+        img.scale((w / scale) as i32, (h / scale) as i32, false, true);
+    }
+    Some(img)
+}
+
 /// Shows a QIMAGE's picture (rapidr_value::objects, a Bitmap): at the top
 /// left, centered (Center) or scaled to the control (Stretch); with
 /// Transparent, pixels of the transparent color show what's behind.
 /// An image without a picture keeps what it shows (a PNG loaded by FLTK).
 pub fn picture_refresh(name: &str) {
     let name_lower = name.to_lowercase();
-    let Some(Some((w, h, rgba, transparent))) = rapidr_value::objects::with_picture(&name_lower, |b| {
-        (!b.img.pixels.is_empty()).then(|| (b.img.width as i32, b.img.height as i32, b.to_rgba(), b.transparent || b.alpha_channel().is_some()))
+    let Some(Some((pw, ph, rgba, scale, transparent))) = rapidr_value::objects::with_picture(&name_lower, |b| {
+        let transparent = b.transparent || b.alpha_channel().is_some();
+        (!b.img.pixels.is_empty()).then(|| {
+            let (pw, ph, rgba, scale) = b.display_rgba();
+            (pw, ph, rgba, scale, transparent)
+        })
     }) else {
         return;
     };
@@ -4628,7 +4663,7 @@ pub fn picture_refresh(name: &str) {
     GUI_WIDGETS.with(|gw| {
         let Ok(mut widgets) = gw.try_borrow_mut() else { return };
         let Some(GuiWidget::ImageFrame(frm)) = widgets.get_mut(&name_lower) else { return };
-        let Ok(img) = RgbImage::new(&rgba, w, h, ColorDepth::Rgba8) else { return };
+        let Some(img) = display_image(pw, ph, &rgba, scale) else { return };
         let Ok(mut img) = SharedImage::from_image(&img) else { return };
         if stretch && frm.w() > 0 && frm.h() > 0 {
             img.scale(frm.w(), frm.h(), false, true);
@@ -4650,9 +4685,9 @@ pub fn picture_refresh(name: &str) {
 fn load_shared_image(src: &str) -> Option<SharedImage> {
     let bitmap = src.starts_with("data:") || rapidr_value::objects::exists(src) || src.to_ascii_lowercase().ends_with(".bmp");
     if bitmap {
-        if let Ok(b) = rapidr_value::objects::load_image(&v_str(src)) {
-            let rgb = RgbImage::new(&b.to_rgba(), b.img.width as i32, b.img.height as i32, ColorDepth::Rgba8).ok()?;
-            return SharedImage::from_image(&rgb).ok();
+        if let Ok(mut b) = rapidr_value::objects::load_image(&v_str(src)) {
+            let (pw, ph, rgba, scale) = b.display_rgba();
+            return SharedImage::from_image(&display_image(pw, ph, &rgba, scale)?).ok();
         }
     }
     SharedImage::load(src).ok()
@@ -5109,10 +5144,10 @@ fn owner_list_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
             return;
         };
         let font = rapidr_value::objects::font_from_props(&draw_name, &|id, p| rp_comp_get(id, p));
-        let Some((iw, ih, rgba)) = rapidr_value::objects::list_item_pixels(&draw_name, i, cw as i64, &font) else { return };
-        if let Ok(mut img) = RgbImage::new(&rgba, iw as i32, ih as i32, ColorDepth::Rgba8) {
+        let Some((iw, ih, rgba, scale)) = rapidr_value::objects::list_item_pixels(&draw_name, i, cw as i64, &font) else { return };
+        if let Some(mut img) = display_image(iw, ih, &rgba, scale) {
             draw::push_clip(cx, cy, cw, ch);
-            img.draw(cx, cy, iw as i32, ih as i32);
+            img.draw(cx, cy, (iw / scale) as i32, (ih / scale) as i32);
             draw::pop_clip();
         }
     });
@@ -5153,10 +5188,11 @@ fn owner_combo_create(name: &str, x: i32, y: i32, w: i32, h: i32) {
         let (bx, by, bw, bh) = (f.x() + f.w() - button - 2, f.y() + 2, button, f.h() - 4);
         let index = rapidr_value::objects::with_list(&draw_name, |l| l.item_index).unwrap_or(-1);
         let font = rapidr_value::objects::font_from_props(&draw_name, &|id, p| rp_comp_get(id, p));
-        if let Some((iw, ih, rgba)) = usize::try_from(index).ok().and_then(|i| rapidr_value::objects::list_item_pixels(&draw_name, i, i64::from(bx - f.x() - 2), &font)) {
-            if let Ok(mut img) = RgbImage::new(&rgba, iw as i32, ih as i32, ColorDepth::Rgba8) {
+        if let Some((iw, ih, rgba, scale)) = usize::try_from(index).ok().and_then(|i| rapidr_value::objects::list_item_pixels(&draw_name, i, i64::from(bx - f.x() - 2), &font)) {
+            if let Some(mut img) = display_image(iw, ih, &rgba, scale) {
+                let (lw, lh) = ((iw / scale) as i32, (ih / scale) as i32);
                 draw::push_clip(f.x() + 2, f.y() + 2, bx - f.x() - 2, f.h() - 4);
-                img.draw(f.x() + 2, f.y() + (f.h() - ih as i32) / 2, iw as i32, ih as i32);
+                img.draw(f.x() + 2, f.y() + (f.h() - lh) / 2, lw, lh);
                 draw::pop_clip();
             }
         }
@@ -5211,8 +5247,8 @@ fn owner_combo_drop(name: &str, f: &Frame) {
     }
     for i in 0..count {
         menu.add_choice(" ");
-        let Some((iw, ih, rgba)) = rapidr_value::objects::list_item_pixels(name, i, i64::from(f.w() - 8), &font) else { continue };
-        if let (Some(mut item), Ok(img)) = (menu.at(i as i32), RgbImage::new(&rgba, iw as i32, ih as i32, ColorDepth::Rgba8)) {
+        let Some((iw, ih, rgba, scale)) = rapidr_value::objects::list_item_pixels(name, i, i64::from(f.w() - 8), &font) else { continue };
+        if let (Some(mut item), Some(img)) = (menu.at(i as i32), display_image(iw, ih, &rgba, scale)) {
             item.add_image(Some(img), true);
         }
     }
@@ -5615,7 +5651,8 @@ fn grid_replay(ops: &[rapidr_value::objects::grid::CellDraw], x: i32, y: i32) {
             CellDraw::Image(ix, iy, b) => {
                 let (w, h) = (b.img.width as i32, b.img.height as i32);
                 if w > 0 && h > 0 {
-                    if let Ok(mut img) = RgbImage::new(&b.to_rgba(), w, h, ColorDepth::Rgba8) {
+                    let (pw, ph, rgba, scale) = b.clone().display_rgba();
+                    if let Some(mut img) = display_image(pw, ph, &rgba, scale) {
                         img.draw(x + p(*ix), y + p(*iy), w, h);
                     }
                 }
@@ -5934,11 +5971,10 @@ fn form_surface_overlay(form: &str, w: i32, h: i32) {
         if ch <= 0 {
             return;
         }
-        let rgba = rapidr_value::objects::with_canvas(&form_name, cw as i64, ch as i64, |b| b.to_rgba());
-        if let Some(rgba) = rgba {
-            if let Ok(mut img) = RgbImage::new(&rgba, cw, ch, ColorDepth::Rgba8) {
-                img.draw(f.x(), f.y() + menu, cw, ch);
-            }
+        note_display_scale(f);
+        let shown = rapidr_value::objects::with_canvas(&form_name, cw as i64, ch as i64, |b| b.display_rgba());
+        if let Some(mut img) = shown.and_then(|(pw, ph, rgba, scale)| display_image(pw, ph, &rgba, scale)) {
+            img.draw(f.x(), f.y() + menu, cw, ch);
         }
     });
     GUI_WIDGETS.with(|gw| {

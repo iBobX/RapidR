@@ -27,7 +27,8 @@ const names = readdirSync(CASES).filter((f) => f.endsWith(".bas")).map((f) => f.
   .filter((n) => !filters.length || filters.some((f) => n.includes(f)));
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
+// (`RAPIDR_DPR=2`: a high-DPI screen — what programs read must not change)
+const page = await browser.newPage({ deviceScaleFactor: Number(process.env.RAPIDR_DPR || 1) });
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });

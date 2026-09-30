@@ -28,7 +28,7 @@ use std::collections::HashMap;
 
 use crate::{v_int, v_str, Value};
 use bitmap::Bitmap;
-use codec::{base64_decode, encode_bmp, BMP_DATA_URL};
+use codec::{base64_decode, encode_bmp, BMP_DATA_URL, SVG_DATA_URL};
 use font::Font;
 use grid::StringGrid;
 use imagelist::ImageList;
@@ -252,20 +252,19 @@ pub fn is_file_list(id: &str) -> bool {
 }
 
 /// Reads a QLISTBOX's / QCOMBOBOX's items (to draw them).
-/// An owner-drawn list box's item `i` as RGBA pixels (width, height, bytes),
-/// `width` wide, text in `font` (see `list::ItemList::render_item`).
-pub fn list_item_pixels(id: &str, i: usize, width: i64, font: &Font) -> Option<(usize, usize, Vec<u8>)> {
-    with_list(id, |l| {
-        let b = l.render_item(i, width, font);
-        (b.img.width, b.img.height, b.to_rgba())
-    })
+/// An owner-drawn list box's item `i` as the screen shows it — (width,
+/// height, RGBA, scale): `scale` device pixels a pixel, see
+/// `Bitmap::display_rgba` — `width` pixels wide, text in `font` (see
+/// `list::ItemList::render_item`).
+pub fn list_item_pixels(id: &str, i: usize, width: i64, font: &Font) -> Option<(usize, usize, Vec<u8>, usize)> {
+    with_list(id, |l| l.render_item(i, width, font).display_rgba())
 }
 
-/// Image `i` of QIMAGELIST `id` as (width, height, RGBA pixels): a tree
-/// node's icon.
-pub fn imagelist_pixels(id: &str, i: i64) -> Option<(usize, usize, Vec<u8>)> {
+/// Image `i` of QIMAGELIST `id` as the screen shows it (width, height,
+/// RGBA, scale): a tree node's icon.
+pub fn imagelist_pixels(id: &str, i: i64) -> Option<(usize, usize, Vec<u8>, usize)> {
     with(id, |o| match o {
-        Object::ImageList(l) => usize::try_from(i).ok().and_then(|i| l.images.get(i)).map(|b| (b.img.width, b.img.height, b.to_rgba())),
+        Object::ImageList(l) => usize::try_from(i).ok().and_then(|i| l.images.get(i)).map(|b| b.clone().display_rgba()),
         _ => None,
     })?
 }
@@ -329,7 +328,7 @@ pub fn is_picture(id: &str) -> bool {
 }
 
 /// Reads a QIMAGE's picture (to show it).
-pub fn with_picture<R>(id: &str, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
+pub fn with_picture<R>(id: &str, f: impl FnOnce(&mut Bitmap) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::Bitmap(b) if b.picture => Some(f(b)),
         _ => None,
@@ -400,7 +399,7 @@ pub fn is_drawing_method(method: &str) -> bool {
 
 /// Reads a QCANVAS's surface (to show it), first giving it the control's
 /// size `width` × `height`.
-pub fn with_canvas<R>(id: &str, width: i64, height: i64, f: impl FnOnce(&Bitmap) -> R) -> Option<R> {
+pub fn with_canvas<R>(id: &str, width: i64, height: i64, f: impl FnOnce(&mut Bitmap) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::Bitmap(b) if b.canvas => {
             b.fit(width, height);
@@ -473,12 +472,13 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
     if matches!(prop.as_str(), "bmp" | "bmphandle") && matches!(with(id, |o| matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let loaded = load_image(val);
-        return Some(loaded.map(|src| {
+        return Some(loaded.map(|mut src| {
             with(id, |o| {
                 if let Object::Bitmap(b) = o {
                     if src.transparent {
                         (b.transparent, b.transparent_color) = (true, src.transparent_color);
                     }
+                    b.take_display(&mut src);
                     b.img = src.img;
                     // (an image with soft edges has its own transparency)
                     b.alpha = src.alpha;
@@ -915,7 +915,7 @@ pub fn load_image(v: &Value) -> Result<Bitmap, String> {
         return Ok(b);
     }
     let mut b = Bitmap::default();
-    match s.strip_prefix(BMP_DATA_URL) {
+    match s.strip_prefix(BMP_DATA_URL).or_else(|| s.strip_prefix(SVG_DATA_URL)) {
         Some(data) => {
             let (data, fragment) = data.split_once('#').unwrap_or((data, ""));
             b.load_bmp_bytes(&base64_decode(data).ok_or("invalid BMP data")?)?;

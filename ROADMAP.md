@@ -215,8 +215,9 @@ Next up, in order:
 - [ ] RapidQ's include folder: 85 of 108 libraries compile (`include/*.inc` one by one; was 72); left: dotted field names (`Table.Name(150) AS STRING`), `MemCpy .Button(i)` (Windows memory); the rest call the Windows API or have typos
 - [ ] Example corpus: 148 of 386 compile (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples --include ~/Downloads/Rapidq/include`); most of the rest call the Windows API, miss include files, or have typos RapidQ couldn't compile either
 - [x] SVG wherever a bitmap goes — QBITMAP / QIMAGE (`LoadFromFile`, `BMP`, `BMPHandle`), QIMAGELIST (`AddBMPFile`, `AddBMPHandle`), `Canvas.Draw`, `$RESOURCE` — drawn by resvg in the shared model with soft edges (per-pixel alpha, kept through `.BMP`) on native, interpreter and web (v2.67.0)
-- [ ] SVG form / application icons; SVG drawn at the screen's scale (with the high-DPI audit below)
-- [ ] High-DPI audit: canvases / form surfaces / owner-drawn lists drawn at the screen's scale (web `devicePixelRatio`, FLTK on Retina), bitmaps scaled cleanly, RapidR's own icons as vectors
+- [ ] SVG form / application icons
+- [x] High-DPI: canvases, form surfaces, QIMAGE pictures, owner-drawn list / combo items, grid images and tree icons shown at the screen's scale (FLTK `pixels_per_unit` on Retina, the browser's `devicePixelRatio`): each bitmap keeps what the screen shows next to the pixels programs read (`Pixel`, `.BMP`, flood fills — unchanged, checked by the GUI suites at 2×); text, lines and ellipses drawn finer, SVGs drawn at the scale (v2.70.0)
+- [ ] High-DPI leftovers: grid cells' own drawing on the web (1× canvas), RapidR's own IDE icons as vectors
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)
