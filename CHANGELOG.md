@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.73.0] — 2026-09-30
+
+### Added
+- Window icons on native, interpreter and web: `Form.Icon` (a file) /
+  `Form.IcoHandle` (a `$RESOURCE`), and `Application.Icon` / `IcoHandle`
+  for every form without its own — an ICO, BMP, PNG or SVG. The web shows
+  them in the forms' title bars and as the page's icon. (macOS shows no
+  window icons; Windows and Linux do.)
+- ICO and PNG pictures wherever RapidQ takes a bitmap (QBITMAP, QIMAGE,
+  QIMAGELIST, `Draw`, `$RESOURCE`), decoded by the shared model with their
+  see-through parts — every icon of RapidQ's own icon folder reads.
+
+### Fixed
+- `CopyRect(D, Image, S)` with `DIM R AS QRECT` rectangles copied nothing
+  (a DIMmed QRECT had no value to pass).
+- A QIMAGE whose size the program hasn't set takes its first picture's
+  size, as RapidQ's manual says (it stayed 100 × 100).
+
 ## [2.72.0] — 2026-09-29
 
 ### Added

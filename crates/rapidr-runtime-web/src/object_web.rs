@@ -679,6 +679,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
         gui_web::mdi_frame_update(&uname);
     }
+    if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_picture(&uname) {
+        store_prop(&uname, "__sized", v_bool(true));
+    }
     // A QIMAGE's AutoSize / Stretch / Center.
     if matches!(lprop.as_str(), "autosize" | "stretch" | "center") && rapidr_value::objects::is_picture(&uname) {
         picture_changed(&uname);
@@ -1712,8 +1715,19 @@ pub fn rp_rebind_component_events(name: &str) {
 
 /// A QIMAGE's picture changed: with AutoSize the control takes the
 /// picture's size; the element shows it again (as on the desktop).
+/// Stores a property without any of `rp_comp_set`'s effects.
+fn store_prop(name: &str, prop: &str, val: Value) {
+    COMPONENTS.with(|c| {
+        if let Some(comp) = c.borrow_mut().get_mut(&name.to_uppercase()) {
+            comp.properties.insert(prop.to_lowercase(), val);
+        }
+    });
+}
+
 fn picture_changed(name: &str) {
-    if rp_comp_get_stored(name, "autosize").to_bool() {
+    // (AutoSize; or a picture loaded into a new QIMAGE, whose size the
+    // program hasn't set: the picture's, as in RapidQ)
+    if rp_comp_get_stored(name, "autosize").to_bool() || !rp_comp_get_stored(name, "__sized").to_bool() {
         if let Some(Some((w, h))) = rapidr_value::objects::with_picture(name, |b| {
             (!b.img.pixels.is_empty()).then_some((b.img.width as i64, b.img.height as i64))
         }) {
@@ -1994,6 +2008,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RIMAGE"
             | "RCANVAS"
             | "RHEADER"
+            | "RRECT"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"

@@ -149,6 +149,11 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
   })), c.dump.split(","));
   const text = Object.entries(dumped).map(([k, v]) => `${k}=${v}`).join("\n");
   for (const line of c.expect) ok(text.includes(line), `${c.name} (web): ${line}${text.includes(line) ? "" : `   [got: ${text.replace(/\n/g, " ; ")}]`}`);
+  // (`webCheck`: what the page shows, where the program can't read it)
+  if (c.webCheck) {
+    const got = await frame.evaluate(c.webCheck);
+    ok(got === c.webExpect, `${c.name} (web page): ${c.webExpect}${got === c.webExpect ? "" : `   [got: ${got}]`}`);
+  }
 }
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 await browser.close();

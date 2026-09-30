@@ -205,7 +205,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => { /* virtual */ }
         // Non-GUI components (SQLite, HTTP, etc.) — no DOM element
         "RSQLITE" | "RMYSQL" | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RUDT" => { /* no DOM element */ }
+        | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RPRINTER" | "RUDT" | "RRECT" => { /* no DOM element */ }
         // Web-exclusive components
         "RWEBVIEW" => create_webview(&id, name, props),
         "RDOM" => create_dom_element(&id, name, props),
@@ -232,6 +232,61 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
 // Property get/set — universal DOM property access
 // ---------------------------------------------------------------------------
 
+/// RGBA pixels as a PNG data URL (an off-screen canvas).
+fn rgba_data_url(w: usize, h: usize, rgba: &[u8]) -> Option<String> {
+    let data = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(rgba), w as u32, h as u32).ok()?;
+    let off = document().create_element("canvas").ok()?.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
+    off.set_width(w as u32);
+    off.set_height(h as u32);
+    let ctx = off.get_context("2d").ok().flatten()?.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()?;
+    ctx.put_image_data(&data, 0.0, 0.0).ok()?;
+    off.to_data_url().ok()
+}
+
+/// A form's title bar icon, as on the desktop: its `IcoHandle` / `Icon`
+/// (an ICO, BMP, PNG or SVG), else the application's; none: hidden.
+pub fn apply_form_icon(name: &str) {
+    let Some(img) = get_el(&comp_id(name)).and_then(|e| e.query_selector(":scope > .rr-form-titlebar > .rr-form-icon").ok().flatten()) else { return };
+    let Ok(img) = img.dyn_into::<web_sys::HtmlImageElement>() else { return };
+    note_display_scale();
+    let own = ["icohandle", "icon"].into_iter().map(|p| crate::object_web::rp_comp_get_stored(name, p)).find(rapidr_value::objects::has_icon);
+    let icon = own.or_else(rapidr_value::globals::application_icon).and_then(|v| rapidr_value::objects::icon_pixels(&v));
+    match icon.and_then(|(w, h, rgba, _)| rgba_data_url(w, h, &rgba)) {
+        Some(url) => {
+            img.set_src(&url);
+            let _ = img.style().set_property("display", "");
+        }
+        None => {
+            let _ = img.style().set_property("display", "none");
+        }
+    }
+}
+
+/// `Application.Icon` changed: the page's icon, and every form without its
+/// own.
+pub fn apply_application_icon() {
+    let doc = document();
+    let url = rapidr_value::globals::application_icon().and_then(|v| rapidr_value::objects::icon_pixels(&v)).and_then(|(w, h, rgba, _)| rgba_data_url(w, h, &rgba));
+    if let Some(url) = url {
+        let link = doc.query_selector("link[rel~='icon']").ok().flatten().or_else(|| {
+            let l = doc.create_element("link").ok()?;
+            let _ = l.set_attribute("rel", "icon");
+            doc.query_selector("head").ok().flatten()?.append_child(&l).ok()?;
+            Some(l)
+        });
+        if let Some(link) = link {
+            let _ = link.set_attribute("href", &url);
+        }
+    }
+    if let Ok(forms) = doc.query_selector_all(".rr-form[data-rr-name]") {
+        for i in 0..forms.length() {
+            if let Some(name) = forms.item(i).and_then(|f| f.dyn_into::<web_sys::Element>().ok()).and_then(|f| f.get_attribute("data-rr-name")) {
+                apply_form_icon(&name);
+            }
+        }
+    }
+}
+
 pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
     let id = comp_id(name);
     let el = match get_el(&id) {
@@ -241,6 +296,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
     let s = val.to_string_val();
     let style = el.style();
 
+    if matches!(prop, "icon" | "icohandle") && el.class_list().contains("rr-form") {
+        apply_form_icon(name);
+        return;
+    }
     // A QFORMMDI child's frame draws its own caption (mdi_frame_update).
     if el.class_list().contains("rr-mdichild") && matches!(prop, "caption" | "text") {
         return;
@@ -1547,6 +1606,12 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
         .map(|v| v.to_string_val())
         .unwrap_or_default();
     title_span.set_inner_text(&caption);
+    // Its icon (Icon / IcoHandle, else Application.Icon): `apply_form_icon`.
+    let icon = create_el("img");
+    icon.set_class_name("rr-form-icon");
+    let _ = icon.set_attribute("style", "width:16px;height:16px;margin-right:6px;display:none;");
+    let _ = icon.set_attribute("draggable", "false");
+    let _ = titlebar.append_child(&icon);
     let _ = titlebar.append_child(&title_span);
 
     // Window control buttons (minimize, maximize, close)
@@ -1643,6 +1708,7 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let parent_name = props.get("parent").map(|v| v.to_string_val()).filter(|s| !s.is_empty());
     let host = get_parent_client(&parent_name);
     let _ = host.append_child(&el);
+    apply_form_icon(name);
 }
 
 fn get_parent_client(parent_name: &Option<String>) -> web_sys::HtmlElement {

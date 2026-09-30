@@ -35,6 +35,9 @@ pub trait Platform {
     fn set_cursor(&self, _cursor: i64) {}
     /// Application.Title: the program's name (task bar / tab).
     fn set_title(&self, _title: &str) {}
+    /// `Application.Icon` / `IcoHandle` changed: forms without their own
+    /// icon take it ([`application_icon`]).
+    fn set_icon(&self) {}
 }
 
 thread_local! {
@@ -66,6 +69,12 @@ pub fn exe_folder(path: &str) -> String {
         Some(i) => path[..i].to_string(),
         None => String::new(),
     }
+}
+
+/// The application's icon (`Application.IcoHandle`, else `.Icon`), for
+/// forms without their own.
+pub fn application_icon() -> Option<Value> {
+    ["icohandle", "icon"].into_iter().filter_map(|p| stored("application", p)).find(|v| crate::objects::has_icon(v))
 }
 
 /// A property of global object `name` (lowercase `prop`); `None` for one it
@@ -113,6 +122,10 @@ pub fn set(p: &dyn Platform, name: &str, prop: &str, value: &Value) -> bool {
         ("application", "title") => {
             p.set_title(&value.to_string_val());
             store(object, prop, value.clone());
+        }
+        ("application", "icon" | "icohandle") => {
+            store(object, prop, value.clone());
+            p.set_icon();
         }
         // (read-only: what the platform answers)
         ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors") => {}

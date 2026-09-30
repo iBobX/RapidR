@@ -76,6 +76,11 @@ export const cases = [
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
   { name: "header", events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart FF00"] },
+  { name: "icons", events: "", dump: "lbl.caption,img.width", expect: ["lbl.caption=16x16 C85A14", "img.width=16"],
+    // (web: each form's title bar icon — its own, else the application's — and the page's)
+    webCheck: `(() => { const src = (n) => { const i = document.querySelector('.rr-form[data-rr-name="' + n + '"] .rr-form-icon'); return i && i.style.display !== "none" ? i.src : ""; };
+      return [src("FORM").startsWith("data:image/png"), src("OTHER").startsWith("data:image/png"), src("FORM") !== src("OTHER"), !!document.querySelector("link[rel~='icon'][href^='data:image/png']")].join(","); })()`,
+    webExpect: "true,true,true,true" },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

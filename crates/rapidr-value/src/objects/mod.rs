@@ -543,6 +543,19 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
 /// plain property bags in the runtime).
 pub type PropReader<'a> = &'a dyn Fn(&str, &str) -> Value;
 
+/// A QRECT argument's (Left, Top, Right, Bottom): a `DIM R AS QRECT` (a
+/// record), or a component's property bag by name (OnDrawItem's Rect).
+pub fn rect_of(v: &Value, props: PropReader) -> (i64, i64, i64, i64) {
+    if let Value::Object(inst) = v {
+        let fields = inst.fields.borrow();
+        let n = |p: &str| inst.names.iter().position(|f| f.eq_ignore_ascii_case(p)).and_then(|i| fields.get(i)).map_or(0, Value::to_i64);
+        return (n("left"), n("top"), n("right"), n("bottom"));
+    }
+    let r = v.to_string_val();
+    let n = |p: &str| props(&r, p).to_i64();
+    (n("left"), n("top"), n("right"), n("bottom"))
+}
+
 /// Calls a method; `None` if `id` isn't an object or it has no such method.
 /// `Some(Err)` is a failure to report (e.g. a file that can't be read).
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
@@ -677,11 +690,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         }
         // Printer.Draw(x, y, BMP) / StretchDraw(Rect, BMP) / CopyRect(D, Image, S).
         ("printer", "draw" | "stretchdraw" | "copyrect") => {
-            let rect = |v: &Value| {
-                let r = v.to_string_val();
-                let n = |p: &str| props(&r, p).to_i64();
-                (n("left"), n("top"), n("right"), n("bottom"))
-            };
+            let rect = |v: &Value| rect_of(v, props);
             let source = if method == "draw" { arg(2) } else { arg(1) };
             let mut src = match load_image(&source) {
                 Ok(src) => src,
@@ -734,11 +743,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             Some(Ok(Value::Null))
         }
         ("bitmap", "copyrect" | "stretchdraw") => {
-            let rect = |v: &Value| {
-                let r = v.to_string_val();
-                let n = |p: &str| props(&r, p).to_i64();
-                (n("left"), n("top"), n("right"), n("bottom"))
-            };
+            let rect = |v: &Value| rect_of(v, props);
             let (dest, src_value, src_rect) =
                 if method == "copyrect" { (rect(&arg(0)), arg(1), Some(rect(&arg(2)))) } else { (rect(&arg(0)), arg(1), None) };
             let src = match load_image(&src_value) {
@@ -966,6 +971,27 @@ pub fn load_image(v: &Value) -> Result<Bitmap, String> {
         None => b.load_bmp_bytes(&read_file(&s)?)?,
     }
     Ok(b)
+}
+
+/// Whether an `Icon` / `IcoHandle` value names an icon (not unset or 0).
+pub fn has_icon(v: &Value) -> bool {
+    match v {
+        Value::Integer(n) => *n != 0,
+        Value::Double(d) => *d != 0.0,
+        Value::Null => false,
+        _ => !v.to_string_val().trim().is_empty(),
+    }
+}
+
+/// A window icon as the screen shows it — (width, height, RGBA, scale) —
+/// from `Icon` (a file) or `IcoHandle` (a `$RESOURCE`): an ICO, BMP, PNG or
+/// SVG; `None` when there's none or it can't be read.
+pub fn icon_pixels(v: &Value) -> Option<(usize, usize, Vec<u8>, usize)> {
+    if !has_icon(v) {
+        return None;
+    }
+    let mut b = load_image(v).ok()?;
+    (b.img.width > 0 && b.img.height > 0).then(|| b.display_rgba())
 }
 
 /// Image `index` of image list `id` (for drawing it onto a canvas).

@@ -113,6 +113,111 @@ pub fn decode_svg(b: &[u8], scale: f32) -> Result<(Pixels, Vec<u8>), String> {
     Ok((Pixels { width: w as usize, height: h as usize, pixels }, alpha))
 }
 
+/// Whether `b` is a PNG image.
+pub fn is_png(b: &[u8]) -> bool {
+    b.starts_with(b"\x89PNG\r\n\x1a\n")
+}
+
+/// Whether `b` is a Windows icon (.ICO).
+pub fn is_ico(b: &[u8]) -> bool {
+    b.len() >= 6 && u16_at(b, 0) == Some(0) && u16_at(b, 2) == Some(1) && u16_at(b, 4).is_some_and(|n| n > 0)
+}
+
+/// A BMP, PNG or ICO image: its pixels, and each one's opacity when it has
+/// soft edges or see-through parts (`None` when it's all opaque).
+pub fn decode_raster(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
+    if is_png(b) {
+        decode_png(b)
+    } else if is_ico(b) {
+        decode_ico(b)
+    } else {
+        decode_bmp_alpha(b)
+    }
+}
+
+/// Decodes a PNG (tiny-skia's decoder).
+pub fn decode_png(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
+    let pixmap = resvg::tiny_skia::Pixmap::decode_png(b).map_err(|e| format!("not a PNG image RapidR can read ({e})"))?;
+    let (w, h) = (pixmap.width() as usize, pixmap.height() as usize);
+    if w * h > MAX_PIXELS {
+        return Err("PNG image is too large".into());
+    }
+    let mut pixels = Vec::with_capacity(w * h);
+    let mut alpha = Vec::with_capacity(w * h);
+    for p in pixmap.pixels() {
+        let c = p.demultiply();
+        pixels.push(u32::from(c.blue()) << 16 | u32::from(c.green()) << 8 | u32::from(c.red()));
+        alpha.push(c.alpha());
+    }
+    let alpha = alpha.iter().any(|&a| a != 255).then_some(alpha);
+    Ok((Pixels { width: w, height: h, pixels }, alpha))
+}
+
+/// Decodes a Windows icon: its largest, deepest image — a PNG, or a BMP
+/// without its file header whose height counts its see-through mask too.
+pub fn decode_ico(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
+    let bad = || "not an icon RapidR can read".to_string();
+    let count = u16_at(b, 4).ok_or_else(bad)? as usize;
+    let entry = (0..count.min(256))
+        .filter_map(|i| {
+            let e = 6 + i * 16;
+            let side = |v: u8| if v == 0 { 256 } else { u32::from(v) };
+            let (w, h, bpp) = (side(*b.get(e)?), side(*b.get(e + 1)?), u16_at(b, e + 6)?);
+            Some(((w * h, bpp), u32_at(b, e + 8)? as usize, u32_at(b, e + 12)? as usize))
+        })
+        .max_by_key(|&(rank, _, _)| rank)
+        .ok_or_else(bad)?;
+    let (_, size, offset) = entry;
+    let data = b.get(offset..offset.checked_add(size).ok_or_else(bad)?).ok_or_else(bad)?;
+    if is_png(data) {
+        return decode_png(data);
+    }
+    // The image as a BMP file: a file header, and half the height.
+    let header_size = u32_at(data, 0).ok_or_else(bad)? as usize;
+    let width = u32_at(data, 4).ok_or_else(bad)? as i32;
+    let height = (u32_at(data, 8).ok_or_else(bad)? as i32) / 2;
+    let bpp = u16_at(data, 14).ok_or_else(bad)?;
+    if width <= 0 || height <= 0 || header_size < 40 || header_size > data.len() {
+        return Err(bad());
+    }
+    let colors = if bpp <= 8 {
+        match u32_at(data, 32).unwrap_or(0) {
+            0 => 1usize << bpp,
+            n => (n as usize).min(256),
+        }
+    } else {
+        0
+    };
+    let pixel_offset = 14 + header_size + colors * 4;
+    let mut bmp = Vec::with_capacity(14 + data.len());
+    bmp.extend_from_slice(b"BM");
+    bmp.extend_from_slice(&((14 + data.len()) as u32).to_le_bytes());
+    bmp.extend_from_slice(&[0; 4]);
+    bmp.extend_from_slice(&(pixel_offset as u32).to_le_bytes());
+    bmp.extend_from_slice(data);
+    bmp[14 + 8..14 + 12].copy_from_slice(&height.to_le_bytes());
+    let (img, alpha) = decode_bmp_alpha(&bmp)?;
+    if alpha.is_some() {
+        return Ok((img, alpha));
+    }
+    // The AND mask after the pixels: a set bit is see-through.
+    let (w, h) = (img.width, img.height);
+    let xor_bytes = (w * bpp as usize).div_ceil(32) * 4 * h;
+    let mask_row = w.div_ceil(32) * 4;
+    let mask_at = pixel_offset - 14 + xor_bytes;
+    let mut alpha = vec![255u8; w * h];
+    for row in 0..h {
+        let Some(line) = data.get(mask_at + (h - 1 - row) * mask_row..mask_at + (h - row) * mask_row) else { break };
+        for x in 0..w {
+            if line[x / 8] >> (7 - x % 8) & 1 == 1 {
+                alpha[row * w + x] = 0;
+            }
+        }
+    }
+    let alpha = alpha.iter().any(|&a| a != 255).then_some(alpha);
+    Ok((img, alpha))
+}
+
 /// Decodes an uncompressed BMP (1, 4, 8, 24 or 32 bits per pixel).
 pub fn decode_bmp(b: &[u8]) -> Result<Pixels, String> {
     decode_bmp_alpha(b).map(|(img, _)| img)
@@ -274,6 +379,66 @@ pub fn bmp_data_url(img: &Pixels) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A 2×2 icon, 4 bits a pixel: red, green / blue, see-through.
+    fn tiny_ico() -> Vec<u8> {
+        let mut dib = Vec::new();
+        for v in [40u32, 2, 4] {
+            dib.extend_from_slice(&v.to_le_bytes());
+        }
+        dib.extend_from_slice(&1u16.to_le_bytes());
+        dib.extend_from_slice(&4u16.to_le_bytes());
+        dib.extend_from_slice(&[0; 24]);
+        // Palette (B, G, R, 0): 0 black, 1 red, 2 green, 3 blue.
+        let mut pal = vec![[0u8, 0, 0, 0]; 16];
+        (pal[1], pal[2], pal[3]) = ([0, 0, 255, 0], [0, 255, 0, 0], [255, 0, 0, 0]);
+        dib.extend(pal.concat());
+        // Pixels, bottom row first, rows of 4 bytes: (blue, black) then (red, green).
+        dib.extend_from_slice(&[0x30, 0, 0, 0, 0x12, 0, 0, 0]);
+        // Mask, bottom row first: the bottom-right pixel see-through.
+        dib.extend_from_slice(&[0x40, 0, 0, 0, 0x00, 0, 0, 0]);
+        let mut ico = vec![0, 0, 1, 0, 1, 0, 2, 2, 16, 0, 1, 0, 4, 0];
+        ico.extend_from_slice(&(dib.len() as u32).to_le_bytes());
+        ico.extend_from_slice(&22u32.to_le_bytes());
+        ico.extend(dib);
+        ico
+    }
+
+    #[test]
+    fn icons_and_pngs() {
+        let (img, alpha) = decode_raster(&tiny_ico()).unwrap();
+        assert_eq!(img.pixels, vec![0x0000FF, 0x00FF00, 0xFF0000, 0]);
+        assert_eq!(alpha, Some(vec![255, 255, 255, 0]));
+        // A PNG, alone and inside an icon.
+        let mut pm = resvg::tiny_skia::Pixmap::new(3, 1).unwrap();
+        pm.pixels_mut()[0] = resvg::tiny_skia::ColorU8::from_rgba(255, 0, 0, 255).premultiply();
+        let png = pm.encode_png().unwrap();
+        let (img, alpha) = decode_raster(&png).unwrap();
+        assert_eq!((img.width, img.pixels[0]), (3, 0x0000FF));
+        assert_eq!(alpha, Some(vec![255, 0, 0]));
+        let mut ico = vec![0, 0, 1, 0, 1, 0, 3, 1, 0, 0, 1, 0, 32, 0];
+        ico.extend_from_slice(&(png.len() as u32).to_le_bytes());
+        ico.extend_from_slice(&22u32.to_le_bytes());
+        ico.extend(&png);
+        assert_eq!(decode_raster(&ico).unwrap().0.pixels[0], 0x0000FF);
+        assert!(decode_raster(&ico[..30]).is_err());
+    }
+
+    /// Every icon of a RapidQ install decodes (`RAPIDQ_ICONS=dir cargo test -- --ignored`).
+    #[test]
+    #[ignore]
+    fn rapidq_icons() {
+        let dir = std::env::var("RAPIDQ_ICONS").unwrap();
+        let mut n = 0;
+        for e in std::fs::read_dir(dir).unwrap().flatten().filter(|e| e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("ico"))) {
+            let b = std::fs::read(e.path()).unwrap();
+            if let Err(err) = decode_raster(&b) {
+                panic!("{}: {err}", e.path().display());
+            }
+            n += 1;
+        }
+        assert!(n > 0);
+    }
 
     #[test]
     fn base64_round_trip() {
