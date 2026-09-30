@@ -32,7 +32,7 @@ PRINT "Server running. Press Ctrl+C to stop."
 running = 1
 DO WHILE running = 1
     server.poll
-    SLEEP 50
+    SLEEP 0.05
 LOOP
 
 server.stop

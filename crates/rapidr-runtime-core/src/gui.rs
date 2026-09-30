@@ -439,6 +439,13 @@ fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_valu
 /// OnKeyDown / OnKeyUp (Key, Shift) and, for a key that types, OnKeyPress
 /// (Key), to the component and then its form.
 fn key_events(chain: &[String], down: bool, vk: i64, shift: i64, text: &str) {
+    // (a key pressed in the program's windows is INKEY$'s too, as in the
+    // web page; a console program's come from its terminal)
+    if down {
+        if let Some(k) = rapidr_value::console::inkey_of(vk, text) {
+            rapidr_value::console::push_key(k);
+        }
+    }
     // (a list view moves its selection first, as Windows' does)
     if let Some(first) = chain.first().filter(|n| down && rapidr_value::objects::is_listview(n)) {
         listview_key(first, vk, shift);
@@ -2915,21 +2922,49 @@ fn start_timers() {
     }
 }
 
+thread_local! {
+    /// Timers with an FLTK timeout going (never two for one timer).
+    static SCHEDULED_TIMERS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
+
+fn timer_seconds(name: &str) -> f64 {
+    let interval_ms = rp_comp_get(name, "interval").to_i64();
+    if interval_ms > 0 { interval_ms as f64 / 1000.0 } else { 1.0 }
+}
+
+/// Starts timer `name` ticking if it's enabled and isn't already (it
+/// fires while FLTK runs: a modal form, the main loop, DOEVENTS). Each
+/// tick reads its Interval again; a disabled timer stops at its next tick.
 fn schedule_timer(name: &str) {
-    let enabled = rp_comp_get(name, "enabled").to_i64();
-    if enabled == 0 {
+    let name = name.to_lowercase();
+    if rp_comp_get(&name, "enabled").to_i64() == 0 || !SCHEDULED_TIMERS.with(|s| s.borrow_mut().insert(name.clone())) {
         return;
     }
-    let interval_ms = rp_comp_get(name, "interval").to_i64();
-    let secs = if interval_ms > 0 { interval_ms as f64 / 1000.0 } else { 1.0 };
-    let name_owned = name.to_string();
-    app::add_timeout3(secs, move |handle| {
-        let enabled = rp_comp_get(&name_owned, "enabled").to_i64();
-        if enabled != 0 {
-            rp_fire_event(&name_owned, "ontimer");
-            app::repeat_timeout3(secs, handle);
+    app::add_timeout3(timer_seconds(&name), move |handle| {
+        if rp_comp_get(&name, "enabled").to_i64() != 0 {
+            rp_fire_event(&name, "ontimer");
+            app::repeat_timeout3(timer_seconds(&name), handle);
+        } else {
+            SCHEDULED_TIMERS.with(|s| s.borrow_mut().remove(&name));
         }
     });
+}
+
+/// A timer's Enabled or Interval changed: it ticks if it's enabled now.
+pub fn gui_timer_changed(name: &str) {
+    if GUI_APP.with(|a| a.try_borrow().is_ok_and(|a| a.is_some())) {
+        schedule_timer(name);
+    }
+}
+
+/// `DOEVENTS`: the program's windows, timers and events get their turn
+/// (what's pending is handled, then the program goes on).
+pub fn gui_doevents() {
+    if GUI_APP.with(|a| a.try_borrow().map_or(true, |a| a.is_none())) {
+        return;
+    }
+    start_timers();
+    let _ = app::wait_for(0.0);
 }
 
 /// A wait the bytecode VM serves itself (see [`rp_set_cooperative_waits`]).

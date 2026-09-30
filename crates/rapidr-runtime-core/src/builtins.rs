@@ -54,6 +54,7 @@ pub fn rp_input(prompt: &Value) -> Value {
         let _ = io::stdout().flush();
     }
     let mut buf = String::new();
+    crate::terminal::line_mode();
     match io::stdin().read_line(&mut buf) {
         Ok(_) => Value::String(buf.trim_end_matches('\n').trim_end_matches('\r').to_string()),
         Err(_) => Value::String(String::new()),
@@ -180,8 +181,26 @@ pub fn rp_timer() -> Value {
     v_dbl(dur.as_secs_f64())
 }
 
-pub fn rp_sleep(ms: &Value) {
-    std::thread::sleep(std::time::Duration::from_millis(ms.to_i64().max(0) as u64));
+/// `INKEY$`: the next key pressed, or "" (a console program's terminal;
+/// it doesn't wait).
+pub fn rp_inkey() -> Value {
+    crate::terminal::read_keys();
+    rapidr_value::console::inkey()
+}
+
+/// `DOEVENTS`: pending UI events, timers and redraws get their turn
+/// (console programs: nothing to do).
+pub fn rp_doevents() {
+    #[cfg(feature = "gui")]
+    crate::gui::gui_doevents();
+}
+
+/// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).
+pub fn rp_sleep(seconds: &Value) {
+    let s = seconds.to_f64();
+    if s.is_finite() && s > 0.0 {
+        std::thread::sleep(std::time::Duration::from_secs_f64(s.min(86_400.0)));
+    }
 }
 
 pub fn rp_command() -> Value {

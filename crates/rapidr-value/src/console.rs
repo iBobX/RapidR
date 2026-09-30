@@ -130,3 +130,144 @@ mod tests {
         assert_eq!((csrlin(), pos()), (Value::Integer(1), Value::Integer(1)));
     }
 }
+
+// ---------------------------------------------------------------------------
+// INKEY$ (manual chapter 6: a non-blocking keyboard check, as QBasic's)
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    /// Keys pressed and not read yet, as INKEY$ returns them.
+    static KEYS: std::cell::RefCell<std::collections::VecDeque<String>> = const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
+}
+
+/// Most keys kept unread (a program that never reads them can't grow it).
+const MAX_KEYS: usize = 256;
+
+/// A key pressed (as [`inkey_of`] names it) for INKEY$ to return.
+pub fn push_key(key: String) {
+    KEYS.with(|k| {
+        let mut k = k.borrow_mut();
+        if k.len() < MAX_KEYS {
+            k.push_back(key);
+        }
+    });
+}
+
+/// `INKEY$`: the next key pressed, or "" (it doesn't wait).
+pub fn inkey() -> Value {
+    Value::String(KEYS.with(|k| k.borrow_mut().pop_front()).unwrap_or_default())
+}
+
+/// What INKEY$ returns for a key (`vk` its virtual key code, `text` what it
+/// types): the character; Enter CHR$(13), Escape CHR$(27), Backspace
+/// CHR$(8), Tab CHR$(9); the arrows, Home / End / Page Up / Page Down,
+/// Insert / Delete and F1–F12 as CHR$(0) + their scan code (QBasic's: Up is
+/// CHR$(0) + "H"). None for keys that don't count (Shift, Ctrl, …).
+pub fn inkey_of(vk: i64, text: &str) -> Option<String> {
+    let scan = match vk {
+        38 => 72,
+        40 => 80,
+        37 => 75,
+        39 => 77,
+        36 => 71,
+        35 => 79,
+        33 => 73,
+        34 => 81,
+        45 => 82,
+        46 => 83,
+        112..=121 => 59 + (vk - 112),
+        122 => 133,
+        123 => 134,
+        _ => 0,
+    };
+    if scan != 0 {
+        return Some(format!("\0{}", char::from(scan as u8)));
+    }
+    match vk {
+        13 => Some("\r".into()),
+        27 => Some("\x1b".into()),
+        8 => Some("\x08".into()),
+        9 => Some("\t".into()),
+        _ => {
+            let mut chars = text.chars();
+            match (chars.next(), chars.next()) {
+                (Some(c), None) if !c.is_control() || c == ' ' => Some(c.to_string()),
+                _ => None,
+            }
+        }
+    }
+}
+
+/// Keys read from a terminal (its bytes, escape sequences for the arrows
+/// and the like) as INKEY$ returns them.
+pub fn terminal_keys(bytes: &[u8]) -> Vec<String> {
+    let mut keys = Vec::new();
+    let text = String::from_utf8_lossy(bytes);
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' && matches!(chars.peek(), Some('[') | Some('O')) {
+            chars.next();
+            let mut seq = String::new();
+            for p in chars.by_ref() {
+                seq.push(p);
+                if p.is_ascii_alphabetic() || p == '~' {
+                    break;
+                }
+            }
+            let vk = match seq.as_str() {
+                "A" => 38,
+                "B" => 40,
+                "D" => 37,
+                "C" => 39,
+                "H" | "1~" | "7~" => 36,
+                "F" | "4~" | "8~" => 35,
+                "5~" => 33,
+                "6~" => 34,
+                "2~" => 45,
+                "3~" => 46,
+                "P" | "11~" => 112,
+                "Q" | "12~" => 113,
+                "R" | "13~" => 114,
+                "S" | "14~" => 115,
+                "15~" => 116,
+                "17~" => 117,
+                "18~" => 118,
+                "19~" => 119,
+                "20~" => 120,
+                "21~" => 121,
+                "23~" => 122,
+                "24~" => 123,
+                _ => 0,
+            };
+            if let Some(k) = inkey_of(vk, "") {
+                keys.push(k);
+            }
+            continue;
+        }
+        let key = match c {
+            '\n' => "\r".to_string(),
+            '\x7f' => "\x08".to_string(),
+            c => c.to_string(),
+        };
+        keys.push(key);
+    }
+    keys
+}
+
+#[cfg(test)]
+mod inkey_tests {
+    use super::*;
+
+    #[test]
+    fn keys_as_qbasic_names_them() {
+        assert_eq!(inkey_of(65, "a").as_deref(), Some("a"));
+        assert_eq!(inkey_of(38, "").as_deref(), Some("\0H"));
+        assert_eq!(inkey_of(112, "").as_deref(), Some("\0;"));
+        assert_eq!(inkey_of(13, "\r").as_deref(), Some("\r"));
+        assert_eq!(inkey_of(16, ""), None);
+        assert_eq!(terminal_keys(b"x\x1b[A\x1b[D\n\x7f"), vec!["x", "\0H", "\0K", "\r", "\x08"]);
+        push_key("q".into());
+        assert_eq!(inkey().to_string_val(), "q");
+        assert_eq!(inkey().to_string_val(), "");
+    }
+}

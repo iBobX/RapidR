@@ -140,7 +140,8 @@ Next up, in order:
 - [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
 - [x] Web: in-page dialogs with any buttons for MESSAGEBOX/MESSAGEDLG/SHOWMESSAGE/INPUT — the VM suspends and resumes (`VmError::Suspended`, `Vm::resume_with`) (v2.22.0)
 - [x] `INPUT` per the manual: prompt printed, whole line, stored as text/number by DIM type or suffix (both backends) (v2.22.0)
-- [ ] Web: other waits through the same suspension — `SLEEP` (setTimeout), `INKEY$`/`INPUT$(n)` from the page, `DOEVENTS`; the Rust-compiled web build still uses browser dialogs
+- [x] `SLEEP` in seconds (as RapidQ), `DOEVENTS` (the desktop runs FLTK's pending events and timers; the web pauses the program so the browser goes on), `INKEY$` (QBasic's keys: the terminal, the program's windows, the page), timers enabled again ticking again, on native, interpreter and web (v2.80.0)
+- [ ] `INPUT$(n)`; the Rust-compiled web build's waits (it has no suspension: browser dialogs, SLEEP doesn't wait)
 - [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
 - [x] Arrays of components and indexed sub-objects (also inside CREATE), both backends (v2.26.0)
 - [x] Components render their indexed sub-objects: QSTATUSBAR panels and QLISTVIEW columns/items/sub-items (shared model in `rapidr_value::objects::listview`), desktop and web (v2.29.0)
@@ -180,7 +181,7 @@ Next up, in order:
 - [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
 - [ ] Fuzzing in CI
 - [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
-- [ ] Streams: ReadUDT/WriteUDT (LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0, ExtractRes in v2.40.0)
+- [x] Streams: ReadUDT/WriteUDT (v2.56.0; LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0, ExtractRes in v2.40.0)
 - [x] QBITMAP text (`TextOut`, `TextWidth`/`TextHeight`, Font) from built-in Liberation fonts (OFL) on every platform (v2.46.0)
 - [x] QCANVAS drawn by the shared bitmap model (text, fonts, `Pixel`, same pixels on desktop and web); desktop `Rect`/`FillRect` now take corners like RapidQ (v2.47.0)
 - [x] QCANVAS/QFORM `OnPaint`: form built, resize, Repaint/Refresh/Update (v2.48.0)

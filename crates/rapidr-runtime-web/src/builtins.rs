@@ -6,6 +6,7 @@
 
 use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 
 pub use crate::value::builtins::*;
 
@@ -273,6 +274,39 @@ pub fn rp_timer() -> Value {
         }
     }
     v_dbl(0.0)
+}
+
+// ---------------------------------------------------------------------------
+// INKEY$ — the keys pressed in the page (not typed into a field)
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    static KEYS_TRACKED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// `INKEY$`: the next key pressed in the page, or "" — keys typed into the
+/// program's fields and dialogs are theirs, not INKEY$'s.
+pub fn rp_inkey() -> Value {
+    if !KEYS_TRACKED.with(|t| t.replace(true)) {
+        let cb = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(|e: web_sys::KeyboardEvent| {
+            let typing = e.target().and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()).is_some_and(|t| {
+                matches!(t.tag_name().as_str(), "INPUT" | "TEXTAREA" | "SELECT") || t.is_content_editable()
+            });
+            if typing {
+                return;
+            }
+            let Some(vk) = rapidr_value::input::vk_of_key(&e.key(), &e.code()) else { return };
+            let text = if e.key().chars().count() == 1 { e.key() } else { String::new() };
+            if let Some(k) = rapidr_value::console::inkey_of(vk, &text) {
+                rapidr_value::console::push_key(k);
+            }
+        });
+        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+            let _ = doc.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+        }
+        cb.forget();
+    }
+    rapidr_value::console::inkey()
 }
 
 // ---------------------------------------------------------------------------

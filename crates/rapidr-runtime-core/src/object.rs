@@ -766,6 +766,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if (prop_lower == "color" || prop_lower.starts_with("font")) && rapidr_value::objects::is_listview(name) {
         crate::gui::listview_refresh(name);
     }
+    // A timer enabled (again) or given another interval: it ticks.
+    #[cfg(feature = "gui")]
+    if matches!(prop_lower.as_str(), "enabled" | "interval") && rp_comp_type(name) == "RTIMER" {
+        crate::gui::gui_timer_changed(name);
+    }
     // A tree's image lists: its icons shown again.
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(name) {

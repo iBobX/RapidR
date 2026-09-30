@@ -7,6 +7,28 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.80.0] — 2026-09-30
+
+### Added
+- `INKEY$` on native, interpreter and web — the next key pressed, or ""
+  without waiting, as QBasic's: a character, Enter CHR$(13), Escape
+  CHR$(27), and the arrows, Home / End / Page Up / Page Down, Insert /
+  Delete and F1–F12 as CHR$(0) + their scan code. A console program reads
+  its terminal (a key at a time, no echo; INPUT gets line mode back), a GUI
+  program the keys pressed in its windows, the web the keys pressed in the
+  page (not those typed into fields). It was an unknown variable ("").
+- `DOEVENTS` on the desktop lets the program's windows, events and timers
+  run (it did nothing); on the web it pauses the program so the browser
+  goes on — a `DO … DOEVENTS … LOOP` no longer freezes the page.
+
+### Fixed
+- **`SLEEP` counts seconds**, as RapidQ's manual says (`SLEEP 1.5`: one and
+  a half seconds); it took milliseconds and dropped fractions, so `SLEEP 1`
+  hardly paused. On the web it now really waits (the browser goes on).
+- A QTIMER enabled again after being disabled ticks again; its Interval
+  is read at every tick; timers run in a DOEVENTS loop too, not only once
+  a form is shown modally.
+
 ## [2.79.0] — 2026-09-30
 
 ### Added
