@@ -219,6 +219,10 @@ struct RustCodegen {
     /// Names the current SUB/FUNCTION declares itself (parameters, DIM):
     /// they shadow module-level variables of the same name.
     shadowed: HashSet<String>,
+    /// The current routine's parameters and locals that aren't components:
+    /// a global component of that name is hidden there (`b` while a QBITMAP
+    /// `B` exists), as in the VM.
+    plain_locals: HashSet<String>,
     /// Names the main program assigns (`x = …`, `FOR x`, `INPUT x`), and
     /// the current SUB/FUNCTION: variables, never bare builtins.
     assigned_main: HashSet<String>,
@@ -266,6 +270,7 @@ impl RustCodegen {
             array_init_info: HashMap::new(),
             in_sub_or_function: false,
             shadowed: HashSet::new(),
+            plain_locals: HashSet::new(),
             assigned_main: HashSet::new(),
             assigned_routine: HashSet::new(),
             typed_locals: HashMap::new(),
@@ -279,14 +284,15 @@ impl RustCodegen {
 
     /// Check if a variable name (lowercase) is a known component variable.
     fn is_component_var(&self, name: &str) -> bool {
-        self.component_vars.contains_key(&name.to_lowercase())
+        let lower = name.to_lowercase();
+        self.component_vars.contains_key(&lower) && !self.plain_locals.contains(strip_type_suffix(&lower).as_str())
     }
 
     /// Extract the component variable name from an expression, if it's a component identifier.
     fn get_component_name(&self, expr: &Expression) -> Option<String> {
         if let Expression::Identifier(id) = expr {
             let lower = strip_type_suffix(&id.name).to_lowercase();
-            if self.component_vars.contains_key(&lower) {
+            if self.component_vars.contains_key(&lower) && !self.plain_locals.contains(&lower) {
                 return Some(to_snake(&strip_type_suffix(&id.name)));
             }
         }
@@ -858,7 +864,7 @@ impl RustCodegen {
             self.array_vars.remove(&name_lower); // re-insert if has dims
 
             // Component variable → create via registry (skip if a CREATE block handles it)
-            if self.component_vars.contains_key(&name_lower) {
+            if self.component_vars.contains_key(&name_lower) && !self.plain_locals.contains(&name_lower) {
                 if !self.create_declared_names.contains(&name_lower) {
                     let type_name = self.component_vars[&name_lower].clone();
                     self.write_indent();
@@ -1685,6 +1691,7 @@ impl RustCodegen {
 
         self.in_sub_or_function = true;
         self.shadowed = shadowing_names(&s.params, &s.body);
+        self.plain_locals = plain_local_names(&s.params, &s.body);
         self.assigned_routine = assigned_names(&s.body);
         let byref = self.byref_prologue(&s.params, false);
         let body = self.prepare_statics(&s.name, &s.body);
@@ -1700,6 +1707,7 @@ impl RustCodegen {
         self.byref_epilogue(&byref, false);
         self.in_sub_or_function = false;
         self.shadowed.clear();
+        self.plain_locals.clear();
         self.assigned_routine.clear();
         self.typed_locals.clear();
         self.indent -= 1;
@@ -1869,6 +1877,7 @@ impl RustCodegen {
 
         self.in_sub_or_function = true;
         self.shadowed = shadowing_names(&f.params, &f.body);
+        self.plain_locals = plain_local_names(&f.params, &f.body);
         self.assigned_routine = assigned_names(&f.body);
         let byref = self.byref_prologue(&f.params, true);
         let body = self.prepare_statics(&f.name, &f.body);
@@ -1885,6 +1894,7 @@ impl RustCodegen {
         self.current_function = None;
         self.in_sub_or_function = false;
         self.shadowed.clear();
+        self.plain_locals.clear();
         self.assigned_routine.clear();
         self.typed_locals.clear();
 
@@ -2469,7 +2479,7 @@ impl RustCodegen {
                         let name = strip_type_suffix(&id.name);
                         let snake = to_snake(&name);
                         // Component var used as bare expression → emit its name as a string value
-                        if self.component_vars.contains_key(&name.to_lowercase()) {
+                        if self.is_component_var(&name) {
                             return format!("v_str(\"{snake}\")");
                         }
                         // Module-level scalar or array → read from global storage
@@ -2815,6 +2825,25 @@ pub(crate) fn shadowing_names(params: &[Parameter], body: &[Statement]) -> HashS
         &mut |s| {
             if let Statement::Dim(d) = s {
                 if !d.is_static && !d.is_redim {
+                    names.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_lowercase()));
+                }
+            }
+        },
+        &mut |_| {},
+    );
+    names
+}
+
+/// A routine's parameters and locals that aren't components or RapidQ
+/// objects (lowercase, without type suffix).
+pub(crate) fn plain_local_names(params: &[Parameter], body: &[Statement]) -> HashSet<String> {
+    let plain = |t: &str| !is_component_type_name(t) && !rapidr_ast::is_rapidq_object_type(t);
+    let mut names: HashSet<String> = params.iter().filter(|p| plain(&p.type_name)).map(|p| strip_type_suffix(&p.name).to_lowercase()).collect();
+    rapidr_ast::walk(
+        body,
+        &mut |s| {
+            if let Statement::Dim(d) = s {
+                if !d.is_static && !d.is_redim && plain(&d.type_name) {
                     names.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_lowercase()));
                 }
             }

@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.76.0] — 2026-09-30
+
+### Added
+- JPEG pictures wherever a bitmap goes (QBITMAP, QIMAGE, QIMAGELIST,
+  `$RESOURCE`, `Draw`), decoded by the shared model on native,
+  interpreter and web (jpeg-decoder, already part of the build).
+- QIMAGELIST `AddICOFile` / `AddICOHandle` / `InsertICOFile` /
+  `InsertICOHandle` (an icon is scaled whole to the list's size, its
+  see-through parts kept) and `GetICO`; QIMAGE `ICOHandle` / `Icon`.
+
+### Fixed
+- A SUB / FUNCTION parameter or local named like a global component (`b`
+  while a QBITMAP `B` exists; names are case-insensitive) is the variable
+  in its routine, not the component — on both backends.
+
 ## [2.75.0] — 2026-09-30
 
 ### Added

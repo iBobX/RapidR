@@ -532,7 +532,9 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         return Some(Ok(()));
     }
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
-    if matches!(prop.as_str(), "bmp" | "bmphandle") && matches!(with(id, |o| matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
+    // (a QIMAGE's ICOHandle / Icon: an icon is its picture)
+    let icon = matches!(prop.as_str(), "icohandle" | "icon") && matches!(with(id, |o| matches!(o, Object::Bitmap(b) if b.picture)), Some(true));
+    if (icon || matches!(prop.as_str(), "bmp" | "bmphandle")) && matches!(with(id, |o| matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let loaded = load_image(val);
         return Some(loaded.map(|mut src| {
             with(id, |o| {
@@ -780,7 +782,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect(dest, &src, src_rect) });
             Some(Ok(Value::Null))
         }
-        ("imagelist", "addbmpfile" | "addbmphandle" | "insertbmpfile" | "insertbmphandle") => {
+        // (…ICOFile / …ICOHandle: an icon keeps its own see-through parts)
+        ("imagelist", "addbmpfile" | "addbmphandle" | "insertbmpfile" | "insertbmphandle" | "addicofile" | "addicohandle" | "inserticofile" | "inserticohandle") => {
             let insert = method.starts_with("insert");
             let (at, source, mask) = if insert { (arg(0).to_i64(), arg(1), args.get(2)) } else { (i64::MAX, arg(0), args.get(1)) };
             let src = match load_image(&source) {
@@ -788,7 +791,16 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Err(e) => return Some(Err(e)),
             };
             let mask = mask.map(|m| m.to_i64() as u32 & 0xFFFFFF);
-            with(id, |o| if let Object::ImageList(l) = o { l.insert(at.max(0) as usize, &src, mask); });
+            let icon = method.contains("ico");
+            with(id, |o| {
+                if let Object::ImageList(l) = o {
+                    if icon {
+                        l.insert_icon(at.max(0) as usize, &src);
+                    } else {
+                        l.insert(at.max(0) as usize, &src, mask);
+                    }
+                }
+            });
             Some(Ok(Value::Null))
         }
         // SaveToFile / LoadFromFile / …Stream (File$ or S, RowOffset,
@@ -858,7 +870,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             })?;
             Some(write_file(&arg(0).to_string_val(), text.as_bytes()).map(|_| Value::Null))
         }
-        ("imagelist", "getbmp") => {
+        ("imagelist", "getbmp" | "getico") => {
             let i = arg(0).to_i64();
             with(id, |o| match o {
                 Object::ImageList(l) if i >= 0 && (i as usize) < l.images.len() => {

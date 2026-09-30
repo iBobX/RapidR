@@ -8,5 +8,7 @@ description = "Shared dynamic Value type for RapidR runtimes and bytecode VM"
 
 [dependencies]
 resvg = { version = "0.48.1", default-features = false }
+# JPEG pictures (objects/codec.rs); no threads, so it builds for the web too.
+jpeg-decoder = { version = "0.3", default-features = false }
 # Text on bitmaps (objects/text.rs): reads the built-in Liberation fonts.
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }

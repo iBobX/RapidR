@@ -81,8 +81,11 @@ function runCodegen(name, src, input) {
   const rr = join(dir, `${name}.rr`);
   copyFileSync(src, rr);
   // Files cases build in with $RESOURCE, next to the copy as next to the case.
-  const resources = join(CASES, "resource_files");
-  if (existsSync(resources)) cpSync(resources, join(dir, "resource_files"), { recursive: true });
+  // (resource_files: files a case lists; picture_files: pictures it loads)
+  for (const folder of ["resource_files", "picture_files"]) {
+    const resources = join(CASES, folder);
+    if (existsSync(resources)) cpSync(resources, join(dir, folder), { recursive: true });
+  }
   const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target") };
   const c = run(RAPIDR, ["build", rr, join(dir, `${name}_rust`)], { env, timeout: 600_000 });
   const bin = join(dir, name);
