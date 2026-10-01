@@ -61,6 +61,9 @@ pub struct ItemList {
     pub selected: Vec<bool>,
     pub item_index: i64,
     pub sorted: bool,
+    /// QSTRINGLIST `Duplicates` for a sorted list: dupIgnore (0, a string
+    /// already there isn't added), dupAccept (1), dupError (2: not added).
+    pub duplicates: i64,
     pub multi_select: bool,
     /// `ExtendedSelect` (default on): in a MultiSelect list, Shift+click
     /// selects a range and Ctrl+click toggles; off, a click toggles.
@@ -458,6 +461,11 @@ impl ItemList {
         if self.items.len() >= MAX_ITEMS {
             return self.items.len();
         }
+        if self.plain && self.sorted && self.duplicates != 1 {
+            if let Some(i) = self.items.iter().position(|x| x.eq_ignore_ascii_case(&s)) {
+                return i;
+            }
+        }
         let at = if self.sorted { self.items.partition_point(|x| x.to_lowercase() <= s.to_lowercase()) } else { self.items.len() };
         self.insert(at, s);
         at
@@ -525,6 +533,7 @@ impl ItemList {
             "itemindex" | "listindex" => v_int(self.item_index),
             "selcount" => v_int((0..self.items.len()).filter(|&i| self.is_selected(i)).count() as i64),
             "sorted" => flag(self.sorted),
+            "duplicates" => v_int(self.duplicates),
             "multiselect" => flag(self.multi_select),
             "extendedselect" => flag(!self.no_extended_select),
             "tabwidth" => v_int(self.tab_width),
@@ -545,6 +554,7 @@ impl ItemList {
         }
         match prop {
             "itemindex" | "listindex" => self.select(val.to_i64()),
+            "duplicates" => self.duplicates = val.to_i64().clamp(0, 2),
             "sorted" => {
                 self.sorted = val.to_bool();
                 if self.sorted {
@@ -649,6 +659,33 @@ impl ItemList {
                 }
             }
             "sort" => self.sort(),
+            // QSTRINGLIST Parse(Source$, Delim$): the list becomes Source$'s
+            // pieces; how many there are.
+            "parse" => {
+                let (src, delim) = (text(0), text(1));
+                self.clear();
+                if !src.is_empty() {
+                    let pieces: Vec<String> = if delim.is_empty() { vec![src] } else { src.split(delim.as_str()).map(str::to_string).collect() };
+                    for p in pieces {
+                        self.add(p);
+                    }
+                }
+                return Some(v_int(self.items.len() as i64));
+            }
+            // Build(Start%, End%, Delim$): those items joined by Delim$.
+            "build" => {
+                let n = self.items.len() as i64;
+                let (a, b) = (args.first().map_or(0, Value::to_i64).max(0), args.get(1).map_or(n - 1, Value::to_i64).min(n - 1));
+                let joined = if a > b { String::new() } else { self.items[a as usize..=b as usize].join(&text(2)) };
+                return Some(v_str(&joined));
+            }
+            // Exchange(Index1%, Index2%): the two strings swap places.
+            "exchange" => {
+                if let (Some(i), Some(j)) = (index(args.first()).filter(|&i| i < self.items.len()), index(args.get(1)).filter(|&j| j < self.items.len())) {
+                    self.items.swap(i, j);
+                    self.selected.swap(i, j);
+                }
+            }
             // RapidR: Find(s) — the index of the first item equal to s, or -1.
             "find" | "indexof" => {
                 let s = text(0);
