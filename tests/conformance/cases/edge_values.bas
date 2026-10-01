@@ -2,6 +2,7 @@
 ' wraps (MIN \ -1, MIN MOD -1, -MIN), string functions clamp bad
 ' positions/lengths, CHR$ of an out-of-range code, INV of extremes, and
 ' STRING$ with a character code.
+DIM a  ' (a VARIANT: RapidR's 64-bit integers; undeclared it would be a DOUBLE)
 a = -9223372036854775807 - 1
 PRINT a \ -1; " "; a MOD -1; " "; -a
 PRINT MID$("hello", -5, 3); "|"; LEFT$("abc", -2); "|"; RIGHT$("abc", -1); "|"; SPACE$(-3); "|"

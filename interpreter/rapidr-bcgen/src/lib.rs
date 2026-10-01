@@ -75,6 +75,10 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
         }
         bcgen.line_starts = Some(starts);
     }
+    // (RapidQ's compile-time type check; its errors also stop native builds)
+    for (span, message) in rapidr_ast::type_mismatches(&hoisted) {
+        bcgen.error_at(span, message);
+    }
     bcgen.compile_program(program)?;
     Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings })
 }

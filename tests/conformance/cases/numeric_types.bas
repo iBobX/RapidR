@@ -13,8 +13,6 @@ w = 70000: PRINT w
 sh = 40000: PRINT sh
 l = 2147483647: l = l + 1: PRINT l
 dw = -1: PRINT dw
-n = "12": PRINT n + 1
-d = "2.5": PRINT d * 2
 v = 2.5: PRINT v
 
 ' Arrays and TYPE fields

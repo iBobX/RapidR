@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.84.0] — 2026-09-30
+
+### Changed
+- Undeclared variables are DOUBLE, as in RapidQ ("all undeclared variables
+  are assumed to be of type DOUBLE if no suffix is provided"), no longer
+  VARIANT: `n = 7 / 2` is 3.5 as before, but a string can't go into one.
+  `$OPTION DIM VARIANT` brings back the old behavior; `DIM v` without AS is
+  still a VARIANT (RapidQ manual, DIM).
+- RapidQ's compile-time type check: a string stored into a numeric
+  variable (`DIM n AS LONG : n = "12"`, or an undeclared `x = "hi"`) is an
+  error, in RapidQ's words: `Type mismatch, expecting type LONG, but got
+  STRING` (it used to convert silently). VAL converts. None of the 386
+  RapidQ examples trips it. Native, interpreter and web.
+
 ## [2.83.0] — 2026-09-30
 
 ### Added
