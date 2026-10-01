@@ -1,0 +1,6 @@
+5:5
+Property ItemCount of List is read-only.
+9:1
+Property SelCount of List is read-only.
+10:1
+Property Handle of Form is read-only.

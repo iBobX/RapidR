@@ -255,6 +255,7 @@ Next up, in order:
 - [x] Undeclared variables are DOUBLE as RapidQ's; RapidQ's `Type mismatch` error for a string stored into a number (v2.84.0)
 - [x] `$TYPECHECK ON/OFF` and `$OPTION EXPLICIT`: RapidQ's `Undeclared identifier` (v2.85.0)
 - [x] RapidQ's argument-count, duplicate-DIM and RESULT-outside-FUNCTION errors (v2.86.0); its other messages are in `.reference/rapidq-compiler-messages.txt`
+- [x] RapidQ's `Property X of Y is read-only.` for its components' read-only properties (v2.87.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [x] Fix builtins per the manual (v2.55.0, shared `rapidr_value::format` / `builtins`): `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM

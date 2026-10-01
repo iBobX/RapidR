@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.87.0] — 2026-10-01
+
+### Changed
+- A property RapidQ's manual lists as read-only (`Handle`, `ItemCount`,
+  `SelCount`, `ColumnsCount`, `VisibleRowCount`, a stream's `EOF` / `Size`
+  / `LineCount`, …) can't be assigned, in RapidQ's words: `Property
+  ItemCount of List is read-only.` — by name or inside its CREATE (the
+  assignment used to be ignored). None of the 386 RapidQ examples or its
+  include libraries trips it. Native, interpreter and web.
+
 ## [2.86.0] — 2026-09-30
 
 ### Changed
