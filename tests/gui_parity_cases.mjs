@@ -97,6 +97,7 @@ export const cases = [
     webExpect: true },
   { name: "doevents_loop", events: "", dump: "lbl.caption", expect: ["lbl.caption=ticked -1 -1"] },
   { name: "inkey_wait", events: "lbl.__key_65,lbl.__key_38", dump: "lbl.caption", expect: ["lbl.caption=97/1 0/2"] },
+  { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },

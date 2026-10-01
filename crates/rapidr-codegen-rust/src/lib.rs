@@ -2954,6 +2954,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "rnd" => Some(format!("rp_rnd(&{a0})")),
         "timer" => Some("rp_timer()".to_string()),
         "inkey" => Some("rp_inkey()".to_string()),
+        "rapidr__waitkey" => Some("rp_waitkey()".to_string()),
         "isnumeric" => Some(format!("rp_isnumeric(&{a0})")),
         "sleep" => Some(format!("rp_sleep(&{a0})")),
         "command" => Some("rp_command()".to_string()),

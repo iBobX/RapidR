@@ -2967,6 +2967,26 @@ pub fn gui_doevents() {
     let _ = app::wait_for(0.0);
 }
 
+/// INPUT$'s wait in a program with windows: events are served (timers run,
+/// windows repaint) until a key reaches INKEY$'s queue. `None` without a
+/// window shown (the terminal waits instead); `Some(false)` when the last
+/// window closed first.
+pub fn gui_wait_key() -> Option<bool> {
+    if GUI_APP.with(|a| a.try_borrow().map_or(true, |a| a.is_none())) {
+        return None;
+    }
+    if !fltk::app::windows().is_some_and(|w| w.iter().any(|w| w.shown())) {
+        return None;
+    }
+    start_timers();
+    while !rapidr_value::console::key_waiting() {
+        if !app::wait() {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
 /// A wait the bytecode VM serves itself (see [`rp_set_cooperative_waits`]).
 enum Wait {
     /// `Form.ShowModal`: until the form is closed.

@@ -243,6 +243,7 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "time" | "time_func" | "time$" => rp_time(),
         "timer" => rp_timer(),
         "inkey" => rp_inkey(),
+        "rapidr__waitkey" => rp_waitkey(),
         "sleep" => { rp_sleep(&a0); v_null() }
         "command" => rp_command(),
         "environ" => rp_environ(&a0),

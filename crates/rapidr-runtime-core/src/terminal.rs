@@ -64,6 +64,39 @@ mod imp {
         rapidr_value::console::terminal_keys(&bytes)
     }
 
+    /// Sleeps until the terminal has a key (true), or stdin ends (false).
+    /// Not a terminal: one byte read as it comes (a pipe, a file).
+    pub fn wait() -> bool {
+        if !char_mode() {
+            let mut b = [0u8; 1];
+            // SAFETY: a blocking read of one byte into a local buffer.
+            let n = unsafe { libc::read(0, b.as_mut_ptr().cast(), 1) };
+            if n == 1 {
+                rapidr_value::console::push_key(char::from(b[0]).to_string());
+                return true;
+            }
+            return false;
+        }
+        let mut fd = libc::pollfd { fd: 0, events: libc::POLLIN, revents: 0 };
+        // SAFETY: poll on one local pollfd, no timeout: the key wakes it.
+        let r = unsafe { libc::poll(&mut fd, 1, -1) };
+        if r < 0 {
+            return std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted;
+        }
+        if fd.revents & (libc::POLLHUP | libc::POLLERR | libc::POLLNVAL) != 0 && fd.revents & libc::POLLIN == 0 {
+            return false;
+        }
+        let keys = read();
+        if keys.is_empty() && fd.revents & libc::POLLIN != 0 {
+            // (readable but nothing: the end of input)
+            return false;
+        }
+        for k in keys {
+            rapidr_value::console::push_key(k);
+        }
+        true
+    }
+
     pub fn line_mode() {
         let saved = SAVED.lock().unwrap_or_else(|e| e.into_inner()).take();
         if let Some(t) = saved {
@@ -99,6 +132,21 @@ mod imp {
         keys
     }
 
+    /// Sleeps in `_getch` until a key is pressed.
+    pub fn wait() -> bool {
+        // SAFETY: the C runtime's console functions.
+        let key = unsafe {
+            let c = _getch();
+            if c == 0 || c == 0xE0 {
+                format!("\0{}", char::from(_getch() as u8))
+            } else {
+                char::from(c as u8).to_string()
+            }
+        };
+        rapidr_value::console::push_key(key);
+        true
+    }
+
     pub fn line_mode() {}
 }
 
@@ -106,6 +154,9 @@ mod imp {
 mod imp {
     pub fn read() -> Vec<String> {
         Vec::new()
+    }
+    pub fn wait() -> bool {
+        false
     }
     pub fn line_mode() {}
 }
@@ -115,6 +166,12 @@ pub fn read_keys() {
     for k in imp::read() {
         rapidr_value::console::push_key(k);
     }
+}
+
+/// Sleeps until a key is pressed in the terminal (INKEY$ then has it);
+/// false when no key can come (stdin ended).
+pub fn wait_key() -> bool {
+    rapidr_value::console::key_waiting() || imp::wait()
 }
 
 /// The terminal back in line mode (INPUT reads a line; the program ends).

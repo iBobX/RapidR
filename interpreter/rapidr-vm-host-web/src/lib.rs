@@ -232,6 +232,7 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "timer" => rp_timer(),
         // (none yet: the browser gets a turn, so a key can come — a
         // `DO: LOOP UNTIL INKEY$ <> ""` doesn't freeze the page)
+        "rapidr__waitkey" => rp_waitkey(),
         "inkey" => {
             let k = rp_inkey();
             if k.to_string_val().is_empty() {
