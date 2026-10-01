@@ -129,6 +129,26 @@ pub fn rp_set_decimal(c: &Value) -> Value {
     v_null()
 }
 
+/// QFORM's border icons after `AddBorderIcons` / `DelBorderIcons` (RapidQ's
+/// biSystemMenu 0, biMinimize 1, biMaximize 2, biHelp 3), as a bit set:
+/// `current` (a form starts with the first three), the icons named, adding
+/// or removing them.
+pub fn border_icons(current: &Value, icons: &[Value], add: bool) -> Value {
+    let mut bits = match current {
+        Value::Null => 0b0111,
+        v => v.to_i64(),
+    };
+    for i in icons {
+        let b = 1i64 << i.to_i64().clamp(0, 3);
+        if add {
+            bits |= b;
+        } else {
+            bits &= !b;
+        }
+    }
+    Value::Integer(bits)
+}
+
 /// `LPRINT …` (the parser's `__lprint(newline, item, zone, …)`).
 pub fn rp_lprint(args: &[Value]) -> Value {
     crate::lprint::lprint(args)

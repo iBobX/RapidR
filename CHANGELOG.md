@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.93.0] — 2026-10-01
+
+### Added
+- RapidQ's QSOCKET as its manual has it: numbered sockets — `Sock% =
+  S.Connect(Server$, Port%)`, `S.Open(Port%)` (a server), `ConnectionReady`,
+  `Accept`, `IsServerReady` / `IsClientReady` (data waiting, without
+  blocking), `Read` / `Peek` / `ReadByte` / `ReadLine`, `Write` /
+  `WriteByte` / `WriteLine` (CR LF), `Close`, `GetPeerName`, `GetHostName`,
+  `GetHostIP`, `MySocket` and `Transferred`. RapidR's own RSOCKET methods
+  (Host / Port properties) are unchanged: the two are told apart by their
+  arguments. Native and interpreter; a web page can't open TCP sockets, so
+  there the calls fail as RapidQ reports it (-1, nothing ready).
+- QFORM `AddBorderIcons` / `DelBorderIcons` (biSystemMenu, biMinimize,
+  biMaximize, biHelp): the web greys out the title bar's buttons; the
+  desktop keeps the set (its title bar is the system's — RapidQ's manual
+  allows an icon to stay, greyed out).
+
 ## [2.92.0] — 2026-10-01
 
 ### Changed
