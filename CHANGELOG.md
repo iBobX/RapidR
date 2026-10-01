@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.88.0] — 2026-10-01
+
+### Changed
+- INKEY$'s extended keys (arrows, Home/End, Page Up/Down, Insert/Delete,
+  F1–F12) are CHR$(27) + the QBasic scan code, as RapidQ's manual has them
+  (chapter 6.5: "the first byte is an ESC character"), no longer QBasic's
+  CHR$(0) + the scan code. Up is still `RIGHT$(k, 1) = "H"`.
+
+### Added
+- `$OPTION INKEY$ TRAPALL` / `$OPTION INKEY$ DEFAULT`: INKEY$ also returns
+  Shift, Ctrl, Alt, Caps / Num / Scroll Lock and the menu key (CHR$(27) +
+  their scan code: 42, 29, 56, 58, 69, 70, 93), switched on and off
+  anywhere — in the program's windows and the page (a terminal can't tell
+  these keys). Native, interpreter and web.
+
 ## [2.87.0] — 2026-10-01
 
 ### Changed

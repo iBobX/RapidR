@@ -1,6 +1,7 @@
 ' INKEY$: a "press a key" loop (RapidQ's manual: DO: LOOP UNTIL INKEY$ <>
 ' "") — the keys pressed in the program's window (and in a console
-' program's terminal); an arrow is CHR$(0) + its scan code, as QBasic's.
+' program's terminal); an arrow is CHR$(27) + its scan code, as RapidQ's
+' (chapter 6.5).
 CREATE Form AS QFORM
   Caption = "inkey"
   CREATE Ed AS QEDIT

@@ -153,6 +153,16 @@ pub fn push_key(key: String) {
     });
 }
 
+thread_local! {
+    static TRAP_ALL: Cell<bool> = const { Cell::new(false) };
+}
+
+/// `$OPTION INKEY$ TRAPALL` (true) / `$OPTION INKEY$ DEFAULT` (false): whether
+/// INKEY$ also returns Shift, Ctrl, Alt, the lock keys and the menu key.
+pub fn set_inkey_trap_all(on: bool) {
+    TRAP_ALL.with(|t| t.set(on));
+}
+
 /// Whether INKEY$ has a key to return.
 pub fn key_waiting() -> bool {
     KEYS.with(|k| !k.borrow().is_empty())
@@ -166,8 +176,10 @@ pub fn inkey() -> Value {
 /// What INKEY$ returns for a key (`vk` its virtual key code, `text` what it
 /// types): the character; Enter CHR$(13), Escape CHR$(27), Backspace
 /// CHR$(8), Tab CHR$(9); the arrows, Home / End / Page Up / Page Down,
-/// Insert / Delete and F1–F12 as CHR$(0) + their scan code (QBasic's: Up is
-/// CHR$(0) + "H"). None for keys that don't count (Shift, Ctrl, …).
+/// Insert / Delete and F1–F12 as RapidQ's extended keys: CHR$(27) + their
+/// QBasic scan code (Up is CHR$(27) + "H"; RapidQ manual, chapter 6.5).
+/// Shift, Ctrl, Alt, Caps / Num / Scroll Lock and the menu key count only
+/// under `$OPTION INKEY$ TRAPALL` ([`set_inkey_trap_all`]).
 pub fn inkey_of(vk: i64, text: &str) -> Option<String> {
     let scan = match vk {
         38 => 72,
@@ -183,10 +195,19 @@ pub fn inkey_of(vk: i64, text: &str) -> Option<String> {
         112..=121 => 59 + (vk - 112),
         122 => 133,
         123 => 134,
+        16 | 17 | 18 | 20 | 93 | 144 | 145 if TRAP_ALL.with(Cell::get) => match vk {
+            16 => 42,
+            17 => 29,
+            18 => 56,
+            20 => 58,
+            144 => 69,
+            145 => 70,
+            _ => 93,
+        },
         _ => 0,
     };
     if scan != 0 {
-        return Some(format!("\0{}", char::from(scan as u8)));
+        return Some(format!("\x1b{}", char::from(scan as u8)));
     }
     match vk {
         13 => Some("\r".into()),
@@ -264,13 +285,16 @@ mod inkey_tests {
     use super::*;
 
     #[test]
-    fn keys_as_qbasic_names_them() {
+    fn keys_as_rapidq_names_them() {
         assert_eq!(inkey_of(65, "a").as_deref(), Some("a"));
-        assert_eq!(inkey_of(38, "").as_deref(), Some("\0H"));
-        assert_eq!(inkey_of(112, "").as_deref(), Some("\0;"));
+        assert_eq!(inkey_of(38, "").as_deref(), Some("\x1bH"));
+        assert_eq!(inkey_of(112, "").as_deref(), Some("\x1b;"));
         assert_eq!(inkey_of(13, "\r").as_deref(), Some("\r"));
         assert_eq!(inkey_of(16, ""), None);
-        assert_eq!(terminal_keys(b"x\x1b[A\x1b[D\n\x7f"), vec!["x", "\0H", "\0K", "\r", "\x08"]);
+        set_inkey_trap_all(true);
+        assert_eq!(inkey_of(16, "").as_deref(), Some("\x1b*"));
+        set_inkey_trap_all(false);
+        assert_eq!(terminal_keys(b"x\x1b[A\x1b[D\n\x7f"), vec!["x", "\x1bH", "\x1bK", "\r", "\x08"]);
         push_key("q".into());
         assert_eq!(inkey().to_string_val(), "q");
         assert_eq!(inkey().to_string_val(), "");
