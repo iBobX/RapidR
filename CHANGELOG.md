@@ -7,6 +7,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.89.0] — 2026-10-01
+
+### Added
+- RapidQ syntax from its examples (the corpus now compiles 155 of 386):
+  `STRUCT name … END STRUCT`, a user-defined type as TYPE; `""` inside a
+  string is a quote (`"[:"":>"` is `[:":>`); BYTE / WORD / DWORD suffixes
+  on number literals (`0??`); a `_` line continuation inside a string under
+  `$ESCAPECHARS ON` (`"Accept: _` … on the next line).
+
 ## [2.88.0] — 2026-10-01
 
 ### Changed
