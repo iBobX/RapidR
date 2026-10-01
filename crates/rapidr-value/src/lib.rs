@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
+pub mod lprint;
 pub mod strings;
 pub mod numeric;
 pub mod variadic;
@@ -856,6 +857,12 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
             return Some(new_object_array(&arg(0).to_string_val(), &arg(1).to_string_val(), &arg(2).to_string_val(), &bounds));
         }
         _ => {}
+    }
+    if key == "__lprint" {
+        return Some(Ok(lprint::lprint(args)));
+    }
+    if key == "lflush" {
+        return Some(lprint::flush().map(|_| Value::Null));
     }
     if key == "__quicksort" {
         let idx: Vec<i64> = args.get(2..).unwrap_or(&[]).iter().map(Value::to_i64).collect();

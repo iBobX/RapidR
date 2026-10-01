@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::hoist_routines(program)))))))))));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::create_property_reads(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::hoist_routines(program)))), &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n)))))))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -2951,6 +2951,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "get" => Some(format!("rp_get_stdin(&{a0})")),
         "setconsoletitle" => Some(format!("rp_set_console_title(&{a0})")),
         "chdrive" => Some(format!("rp_chdrive(&{a0})")),
+        "__lprint" => Some(format!("rp_lprint(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        "lflush" => Some("rp_lflush()".to_string()),
         "__quicksort" => Some(format!("rp_quicksort(&{a0}, &{a1}, &[{}])", index_list(args.get(2..).unwrap_or(&[])))),
         "acos" => Some(format!("rp_acos(&{a0})")),
         "asin" => Some(format!("rp_asin(&{a0})")),
@@ -3536,7 +3538,8 @@ mod tests {
 
     #[test]
     fn if_generates_correct_structure() {
-        let code = "IF x > 5 THEN\n  PRINT \"big\"\nELSE\n  PRINT \"small\"\nEND IF\n";
+        // (a VARIANT: an undeclared x would be a DOUBLE, compared as one)
+        let code = "DIM x AS VARIANT\nIF x > 5 THEN\n  PRINT \"big\"\nELSE\n  PRINT \"small\"\nEND IF\n";
         let rust = gen(code);
         assert!(rust.contains("if ("));
         assert!(rust.contains(".to_bool()"));

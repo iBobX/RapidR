@@ -807,11 +807,12 @@ pub fn option_dim_type(statements: &[Statement]) -> Option<String> {
 }
 
 /// `$OPTION DIM INTEGER`: a variable the program never declares — `n = 7 / 2`,
-/// `FOR i = …`, `INPUT a` — is of that type, not RapidR's VARIANT (it is
-/// declared at the top, global as undeclared names are). Names with a type
-/// suffix keep theirs; WITH, CREATE and TYPE bodies set properties, not
-/// variables (both backends).
-pub fn option_dim(program: &Program) -> Program {
+/// `FOR i = …`, `INPUT a`, or one only read (`PRINT zz` is 0, not empty) —
+/// is of that type, not RapidR's VARIANT (it is declared at the top, global
+/// as undeclared names are). Names with a type suffix keep theirs; CREATE
+/// and TYPE bodies set properties, not variables; `is_builtin`: names the
+/// runtimes answer themselves (`TIMER`, `PI`). Both backends.
+pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Program {
     // (RapidQ's default: "all undeclared variables are assumed to be of
     // type DOUBLE if no suffix is provided")
     let ty = option_dim_type(&program.statements).unwrap_or_else(|| "DOUBLE".to_string());
@@ -880,9 +881,105 @@ pub fn option_dim(program: &Program) -> Program {
             }
         }
     };
+    // Names only read: every declaration anywhere (nested CREATEs, local
+    // DIMs, parameters) counts, and names used as objects or called don't.
+    let mut everywhere: HashSet<String> = HashSet::new();
+    walk(
+        &program.statements,
+        &mut |s| match s {
+            Statement::Dim(d) => everywhere.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_ascii_lowercase())),
+            Statement::Const(c) => { everywhere.insert(strip_type_suffix(&c.name).to_ascii_lowercase()); }
+            Statement::Create(c) => { everywhere.insert(c.name.to_ascii_lowercase()); }
+            Statement::Subroutine(r) => {
+                everywhere.insert(strip_type_suffix(&r.name).to_ascii_lowercase());
+                everywhere.extend(r.params.iter().map(|p| strip_type_suffix(&p.name).to_ascii_lowercase()));
+            }
+            Statement::Function(f) => {
+                everywhere.insert(strip_type_suffix(&f.name).to_ascii_lowercase());
+                everywhere.extend(f.params.iter().map(|p| strip_type_suffix(&p.name).to_ascii_lowercase()));
+            }
+            Statement::Declare(d) => { everywhere.insert(strip_type_suffix(&d.name).to_ascii_lowercase()); }
+            Statement::Type(t) => { everywhere.insert(t.name.to_ascii_lowercase()); }
+            Statement::Label(l) => { everywhere.insert(l.name.to_ascii_lowercase()); }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    fn reads(stmts: &[Statement], out: &mut Vec<String>, not_vars: &mut HashSet<String>) {
+        for s in stmts {
+            match s {
+                Statement::Type(_) | Statement::Create(_) => {}
+                _ => {
+                    let mut called = Vec::new();
+                    walk(
+                    std::slice::from_ref(s),
+                    &mut |x| {
+                        if let Statement::Call(c) = x {
+                            if let Expression::Identifier(i) = &c.callee {
+                                called.push(i.name.to_ascii_lowercase());
+                            }
+                        }
+                    },
+                    &mut |e| match e {
+                        Expression::MemberAccess(m) => {
+                            if let Expression::Identifier(i) = m.object.as_ref() {
+                                not_vars.insert(i.name.to_ascii_lowercase());
+                            }
+                        }
+                        Expression::FunctionCall(c) => {
+                            if let Expression::Identifier(i) = c.callee.as_ref() {
+                                not_vars.insert(i.name.to_ascii_lowercase());
+                            }
+                        }
+                        Expression::ArrayAccess(a) => {
+                            if let Expression::Identifier(i) = a.array.as_ref() {
+                                not_vars.insert(i.name.to_ascii_lowercase());
+                            }
+                        }
+                        Expression::Identifier(i) => out.push(i.name.clone()),
+                        _ => {}
+                    },
+                    );
+                    not_vars.extend(called);
+                }
+            }
+        }
+    }
+    let mut read_names = Vec::new();
+    let mut not_vars = HashSet::new();
+    reads(&program.statements, &mut read_names, &mut not_vars);
+    // (walk goes into CREATE bodies below other blocks: those reads are the
+    // component's properties — create_property_reads)
+    let mut in_creates = Vec::new();
+    walk(
+        &program.statements,
+        &mut |s| {
+            if let Statement::Create(c) = s {
+                walk(&c.body, &mut |_| {}, &mut |e| {
+                    if let Expression::Identifier(i) = e {
+                        in_creates.push(i.name.to_ascii_lowercase());
+                    }
+                });
+            }
+        },
+        &mut |_| {},
+    );
+    let only_read: Vec<String> = read_names
+        .into_iter()
+        .filter(|n| {
+            let k = strip_type_suffix(n).to_ascii_lowercase();
+            !everywhere.contains(&k)
+                && !not_vars.contains(&n.to_ascii_lowercase())
+                && !in_creates.contains(&n.to_ascii_lowercase())
+                && !is_builtin(&k)
+                && !matches!(k.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "result" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
+                && !is_component_type_name(&canonical_type_name(&k))
+        })
+        .collect();
     let mut top = Vec::new();
     let mut top_locals = HashSet::new();
     targets(&program.statements, &mut top, &mut top_locals);
+    top.extend(only_read);
     add(top, &top_locals, &mut wanted);
     for s in &program.statements {
         let (name, params, body) = match s {
@@ -1689,6 +1786,111 @@ pub fn qualify_create_body(body: &[Statement], obj: &str, type_name: &str, is_kn
             _ => s.clone(),
         })
         .collect()
+}
+
+/// RapidQ reads a component's properties bare inside its CREATE — `Left =
+/// (Screen.Width - Width) \ 2`, `PRINT ItemCount` — as the object's, when
+/// the program has no variable, constant, routine or component of that name
+/// (`Left` is LEFT$'s name too, but a bare `Left` can't be a call). Both
+/// backends; assignment targets are the backends' own property sets.
+pub fn create_property_reads(program: &Program) -> Program {
+    use std::collections::HashSet;
+    fn declared(stmts: &[Statement], into: &mut HashSet<String>) {
+        walk(
+            stmts,
+            &mut |s| match s {
+                Statement::Dim(d) => into.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_ascii_lowercase())),
+                Statement::Const(c) => { into.insert(strip_type_suffix(&c.name).to_ascii_lowercase()); }
+                Statement::Create(c) => { into.insert(c.name.to_ascii_lowercase()); }
+                Statement::Subroutine(r) => { into.insert(strip_type_suffix(&r.name).to_ascii_lowercase()); }
+                Statement::Function(f) => { into.insert(strip_type_suffix(&f.name).to_ascii_lowercase()); }
+                Statement::Declare(d) => { into.insert(strip_type_suffix(&d.name).to_ascii_lowercase()); }
+                _ => {}
+            },
+            &mut |_| {},
+        );
+    }
+    fn rewrite(stmts: &mut [Statement], known: &HashSet<String>) {
+        for s in stmts.iter_mut() {
+            match s {
+                Statement::Subroutine(_) | Statement::Function(_) => {
+                    let (name, params, body) = match s {
+                        Statement::Subroutine(r) => (r.name.clone(), r.params.clone(), &mut r.body),
+                        Statement::Function(f) => (f.name.clone(), f.params.clone(), &mut f.body),
+                        _ => unreachable!(),
+                    };
+                    let mut locals = known.clone();
+                    locals.extend(params.iter().map(|p| strip_type_suffix(&p.name).to_ascii_lowercase()));
+                    locals.insert(strip_type_suffix(&name).to_ascii_lowercase());
+                    declared(body, &mut locals);
+                    rewrite(body, &locals);
+                }
+                Statement::Create(c) => {
+                    let obj = c.name.clone();
+                    let read = &mut |e: &mut Expression| {
+                        if let Expression::Identifier(id) = e {
+                            if !known.contains(&id.name.to_ascii_lowercase()) && is_readable_property(&id.name) {
+                                let owner = Expression::Identifier(Identifier { span: id.span, name: obj.clone() });
+                                *e = Expression::MemberAccess(MemberAccessExpression { span: id.span, object: Box::new(owner), member: id.name.clone() });
+                            }
+                        }
+                    };
+                    for b in c.body.iter_mut() {
+                        match b {
+                            Statement::Create(_) => {}
+                            Statement::Assignment(a) => {
+                                walk_expression_mut(&mut a.value, read);
+                                if !matches!(a.target, Expression::Identifier(_)) {
+                                    walk_expression_mut(&mut a.target, read);
+                                }
+                            }
+                            Statement::Call(call) => {
+                                for arg in &mut call.args {
+                                    walk_expression_mut(arg, read);
+                                }
+                            }
+                            other => walk_expressions_mut(std::slice::from_mut(other), false, read),
+                        }
+                    }
+                    for b in c.body.iter_mut() {
+                        if matches!(b, Statement::Create(_)) {
+                            rewrite(std::slice::from_mut(b), known);
+                        }
+                    }
+                }
+                _ => {
+                    for body in child_bodies_mut(s) {
+                        rewrite(body, known);
+                    }
+                }
+            }
+        }
+    }
+    let mut has_create = false;
+    walk(&program.statements, &mut |x| has_create |= matches!(x, Statement::Create(_)), &mut |_| {});
+    if !has_create {
+        return program.clone();
+    }
+    let mut known = HashSet::new();
+    declared(&program.statements, &mut known);
+    let mut program = program.clone();
+    rewrite(&mut program.statements, &known);
+    program
+}
+
+/// Properties a RapidQ program reads bare inside a component's CREATE
+/// (`Width`, `ItemCount`, …; see [`qualify_create_body`]).
+fn is_readable_property(name: &str) -> bool {
+    const PROPS: &[&str] = &[
+        "left", "top", "width", "height", "caption", "text", "color", "visible", "enabled", "hint", "showhint", "tag",
+        "cursor", "align", "font", "clientwidth", "clientheight", "tabstop", "taborder", "handle", "itemcount",
+        "itemindex", "checked", "position", "max", "min", "rowcount", "colcount", "selcount", "linecount", "selstart",
+        "sellength", "seltext", "interval", "borderstyle", "formstyle", "windowstate", "autosize", "alignment",
+        "readonly", "maxlength", "passwordchar", "sorted", "multiselect", "columns", "row", "col", "fixedrows",
+        "fixedcols", "defaultrowheight", "defaultcolwidth", "pageindex", "tabindex", "value", "transparent", "picture",
+        "bmp", "icon", "wordwrap", "scrollbars", "layout", "flat", "down", "allowallup", "groupindex",
+    ];
+    PROPS.contains(&name.to_ascii_lowercase().as_str())
 }
 
 /// A component's indexed members (`Panel(i).Width` of a QSTATUSBAR,

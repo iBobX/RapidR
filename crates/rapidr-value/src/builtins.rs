@@ -129,6 +129,17 @@ pub fn rp_set_decimal(c: &Value) -> Value {
     v_null()
 }
 
+/// `LPRINT …` (the parser's `__lprint(newline, item, zone, …)`).
+pub fn rp_lprint(args: &[Value]) -> Value {
+    crate::lprint::lprint(args)
+}
+
+/// `LFLUSH`: the LPRINTed text to the printer.
+pub fn rp_lflush() -> Value {
+    let _ = crate::lprint::flush();
+    v_null()
+}
+
 /// `$OPTION INKEY$ TRAPALL` (1) / `DEFAULT` (0) (the parser calls
 /// `__inkey_trapall`).
 pub fn rp_inkey_trap_all(on: &Value) -> Value {

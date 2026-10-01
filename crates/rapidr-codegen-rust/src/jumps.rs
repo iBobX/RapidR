@@ -229,10 +229,33 @@ impl RustCodegen {
             }
             Statement::DoLoop(d) if flatten => self.flat_do(d),
             Statement::SelectCase(c) if flatten => self.flat_select(c),
-            Statement::With(_) | Statement::Create(_) if flatten => {
-                self.line("compile_error!(\"A line label or GOSUB inside WITH or CREATE isn't supported in native builds yet; move it outside, or run the program with the bytecode interpreter.\");");
-            }
+            // (WITH and CREATE bodies are plain statements with a
+            // compile-time context: their states follow one another)
+            Statement::With(w) if flatten => self.flat_body(&rapidr_ast::resolve_with_body(&w.body, &w.object)),
+            Statement::Create(c) if flatten => self.flat_create(c),
             _ => self.emit_statement(stmt),
+        }
+    }
+
+    /// A CREATE holding a label or GOSUB: as `emit_create`, its body in
+    /// states.
+    fn flat_create(&mut self, c: &CreateStatement) {
+        let name = to_snake(&c.name);
+        let type_upper = c.type_name.to_uppercase();
+        self.write_indent();
+        let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_upper}\");");
+        if let Some(parent) = self.create_stack.last().cloned() {
+            self.write_indent();
+            let _ = writeln!(self.output, "rp_comp_set(\"{name}\", \"parent\", v_str(\"{parent}\"));");
+        }
+        self.create_stack.push(name.clone());
+        self.with_component_stack.push(name.clone());
+        self.flat_body(&c.body);
+        self.with_component_stack.pop();
+        self.create_stack.pop();
+        if type_upper == "RTIMER" {
+            self.write_indent();
+            let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
         }
     }
 

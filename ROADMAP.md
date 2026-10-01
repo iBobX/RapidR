@@ -190,7 +190,7 @@ Next up, in order:
 - [x] Owner-drawn QLISTBOX (`Style`, `ItemHeight`, `OnDrawItem`) on desktop and web from the shared list model (v2.50.0); all of RAPIDQ.INC's option constants (v2.50.0)
 - [x] RapidQ syntax gaps found by the example corpus: `Arr()` arguments, multi-dimensional TYPE array fields, `THEN:` blocks, `=>` / `=<`, `&H…&`, `CASE list stmt`, line-numbered `NEXT` / `DATA`, per-file `$ESCAPECHARS` (v2.51.0); 134 of 386 example programs compile, all of them build natively (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples`)
 - [x] Native builds: routines that differ only by a type suffix, `DEFSTR` arrays next to same-named locals, `GOSUB` / labels inside SELECT CASE (v2.54.0)
-- [ ] Native builds: a line label / `GOSUB` inside `WITH` or `CREATE`
+- [x] Native builds: a line label / `GOSUB` inside `WITH` or `CREATE` (v2.91.0)
 - [x] `INPUT #`, `LINE INPUT #`, BASIC file I/O on the web, `CREATE name(dims) AS type`, keywords as names (v2.53.0)
 - [x] `DIM s AS STRING * n` (stores cut to n), `CBOOL`, `ON ERROR …` accepted (ignored), an unclosed `WITH` closed by `END SUB` (v2.54.0)
 - [ ] Real `ON ERROR RESUME NEXT` / `Err` (VB): resuming after a run-time error needs recovery points in the VM and native code; fixed strings also need padding to `n` in `WriteUDT`/`ReadUDT`
@@ -217,7 +217,7 @@ Next up, in order:
 - [x] RapidQ syntax found by the include folder and the example corpus: an object field's own properties (`P.MoverRect.Top`), keywords as a TYPE's field / method names (`Step`, `Open`, `Data`, `FUNCTION Create`), keyword parameters and variables (`select`, `case`, `type = 2`), `END PROPERTY SET`, `STRUCT … END STRUCT`, `ByVal` in calls, `_` stuck to a name as a line continuation, comment lines inside continued statements (v2.68.0)
 - [x] SUBI / FUNCTIONI closed by END SUB / END FUNCTION; a method of any object expression (`This.Names.Item(2)`, `printer.Font.DelStyles(3)`); RUN (and SHELL / SHELLWAIT through `cmd /C` on Windows); INITARRAY (v2.69.0)
 - [x] Dotted TYPE field names (`hdr.hwndFrom AS LONG`, `Table.Name(150) AS STRING`): a record inside the record, on both backends (v2.75.0)
-- [ ] RapidQ's include folder: 79 of 108 libraries compile (`./rapidr build-bc` on each `include/*.inc` from that folder; 76 before dotted fields, 78 before templates — an earlier "85" was counted another way); the rest call the Windows API (SENDMESSAGE, GetDC, …), miss include files, or have typos (`&HFFFF0000???`, `TYPE X<Size>`)
+- [ ] RapidQ's include folder: 81 of 108 libraries compile (`./rapidr build-bc` on each `include/*.inc` from that folder; 76 before dotted fields, 78 before templates — an earlier "85" was counted another way); the rest call the Windows API (SENDMESSAGE, GetDC, …), miss include files, or have typos (`&HFFFF0000???`, `TYPE X<Size>`)
 - [ ] Example corpus: 158 of 386 compile (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples --include ~/Downloads/Rapidq/include`); most of the rest call the Windows API, miss include files, or have typos RapidQ couldn't compile either
 - [x] SVG wherever a bitmap goes — QBITMAP / QIMAGE (`LoadFromFile`, `BMP`, `BMPHandle`), QIMAGELIST (`AddBMPFile`, `AddBMPHandle`), `Canvas.Draw`, `$RESOURCE` — drawn by resvg in the shared model with soft edges (per-pixel alpha, kept through `.BMP`) on native, interpreter and web (v2.67.0)
 - [x] SVG form / application icons (v2.73.0)
@@ -257,6 +257,7 @@ Next up, in order:
 - [x] RapidQ's argument-count, duplicate-DIM and RESULT-outside-FUNCTION errors (v2.86.0); its other messages are in `.reference/rapidq-compiler-messages.txt`
 - [x] RapidQ's `Property X of Y is read-only.` for its components' read-only properties (v2.87.0)
 - [x] INKEY$ extended keys as CHR$(27) + scan code (RapidQ's manual) and `$OPTION INKEY$ TRAPALL/DEFAULT` (v2.88.0)
+- [x] RapidQ built-ins QUICKSORT, TAB, ATAN, GET$, SETCONSOLETITLE, CHDRIVE (v2.90.0); LPRINT / LFLUSH; bare property reads inside CREATE; an undeclared variable only read is 0 (v2.91.0)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [x] Fix builtins per the manual (v2.55.0, shared `rapidr_value::format` / `builtins`): `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
 - [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM

@@ -133,6 +133,9 @@ pub fn close_all() {
     for n in all {
         close_num(n);
     }
+    // (the program ends here on every runtime: LPRINTed text never
+    // LFLUSHed is printed now, as RapidQ does)
+    let _ = crate::lprint::flush();
 }
 
 /// `LINE INPUT #n, s`: the rest of the line, without its line break.

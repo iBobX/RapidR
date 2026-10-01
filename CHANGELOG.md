@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.91.0] — 2026-10-01
+
+### Added
+- `LPRINT` (as PRINT, `;` and `,` included) and `LFLUSH`, as RapidQ: the
+  text goes on printer pages (A4, 10 pt) printed at LFLUSH, or when the
+  program ends — through the same printing as `Printer.EndDoc` (the
+  system's printer on the desktop, the print dialog on the web,
+  `RAPIDR_PRINT_TO` a folder or file). Native, interpreter and web.
+- Native builds: a line label or GOSUB inside WITH or CREATE (it used to be
+  a build error there; the interpreter already had it).
+
+### Fixed
+- Inside a CREATE, a property read bare is the object's, as in RapidQ:
+  `Left = (Screen.Width - Width) \ 2`, `PRINT ItemCount` (they read an
+  empty variable before) — unless the program has a variable, constant,
+  routine or component of that name. Native, interpreter and web.
+- An undeclared variable that is only read is RapidQ's DOUBLE 0 (`PRINT zz`
+  printed nothing). RapidQ's include folder: 81 of 108 libraries compile.
+
 ## [2.90.0] — 2026-10-01
 
 ### Added
