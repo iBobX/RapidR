@@ -1430,6 +1430,50 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
     out
 }
 
+/// RapidQ's `QUICKSORT(A(first), A(last), ASCEND|DESCEND)` (also without
+/// parentheses): `__quicksort(A, descend, first indices…, last indices…)`,
+/// which sorts those elements in place (rapidr_value::builtins). Both ends
+/// must be elements of one array (RapidQ's "span sorting" across arrays
+/// DIMmed side by side relies on its memory layout).
+pub fn quicksort(program: &Program) -> Program {
+    let mut program = program.clone();
+    let element = |e: &Expression| -> Option<(String, Vec<Expression>)> {
+        match e {
+            Expression::FunctionCall(c) => match c.callee.as_ref() {
+                Expression::Identifier(i) => Some((i.name.clone(), c.args.clone())),
+                _ => None,
+            },
+            Expression::ArrayAccess(a) => match a.array.as_ref() {
+                Expression::Identifier(i) => Some((i.name.clone(), a.indices.clone())),
+                _ => None,
+            },
+            _ => None,
+        }
+    };
+    walk_statements_mut(&mut program.statements, &mut |s| {
+        let Statement::Call(c) = s else { return };
+        if !matches!(&c.callee, Expression::Identifier(i) if i.name.eq_ignore_ascii_case("QUICKSORT")) || c.args.len() != 3 {
+            return;
+        }
+        let (Some((a, first)), Some((b, last))) = (element(&c.args[0]), element(&c.args[1])) else { return };
+        if !a.eq_ignore_ascii_case(&b) || first.len() != last.len() {
+            return;
+        }
+        let span = c.span;
+        let descend = match &c.args[2] {
+            Expression::Identifier(i) if i.name.eq_ignore_ascii_case("ASCEND") => Expression::Literal(Literal { span, value: LiteralValue::Integer(0) }),
+            Expression::Identifier(i) if i.name.eq_ignore_ascii_case("DESCEND") => Expression::Literal(Literal { span, value: LiteralValue::Integer(1) }),
+            other => other.clone(),
+        };
+        let mut args = vec![Expression::Identifier(Identifier { span, name: a }), descend];
+        args.extend(first);
+        args.extend(last);
+        c.callee = Expression::Identifier(Identifier { span, name: "__quicksort".to_string() });
+        c.args = args;
+    });
+    program
+}
+
 /// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
 /// `A(LBOUND(A) + 1) = v2`, … — the first elements get the values (both
 /// backends; not when the program has its own routine of that name).

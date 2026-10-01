@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::hoist_routines(program))))))))));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::hoist_routines(program)))))))))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -1426,7 +1426,9 @@ impl RustCodegen {
         }
 
         // Try mapping through builtin_function_call for known builtins used as statements
-        if let Some(result) = builtin_function_call(&callee_lower, &args) {
+        // (not over the program's own SUB of that name)
+        let own_routine = self.defined_functions.contains(&callee_lower) || self.defined_functions.contains(&strip_type_suffix(&callee_lower));
+        if let Some(result) = builtin_function_call(&callee_lower, &args).filter(|_| !own_routine) {
             self.write_indent();
             let _ = writeln!(self.output, "{result};");
             return;
@@ -2569,8 +2571,12 @@ impl RustCodegen {
                         return format!("{base}.rp_get(&[{}])", self.index_list(&fc.args));
                     }
 
-                    if let Some(rust_call) = builtin_function_call(&name_stripped, &args) {
-                        return rust_call;
+                    // (the program's own FUNCTION of a built-in's name wins:
+                    // `FUNCTION Get$`, as in RapidQ and the VM)
+                    if !self.defined_functions.contains(&name_stripped) {
+                        if let Some(rust_call) = builtin_function_call(&name_stripped, &args) {
+                            return rust_call;
+                        }
                     }
                     // Check if it's a known function/sub or declared FFI function
                     if self.defined_functions.contains(&name_stripped) {
@@ -2940,7 +2946,12 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "sin" => Some(format!("rp_sin(&{a0})")),
         "cos" => Some(format!("rp_cos(&{a0})")),
         "tan" => Some(format!("rp_tan(&{a0})")),
-        "atn" => Some(format!("rp_atn(&{a0})")),
+        "atn" | "atan" => Some(format!("rp_atn(&{a0})")),
+        "tab" => Some(format!("rp_tab(&{a0})")),
+        "get" => Some(format!("rp_get_stdin(&{a0})")),
+        "setconsoletitle" => Some(format!("rp_set_console_title(&{a0})")),
+        "chdrive" => Some(format!("rp_chdrive(&{a0})")),
+        "__quicksort" => Some(format!("rp_quicksort(&{a0}, &{a1}, &[{}])", index_list(args.get(2..).unwrap_or(&[])))),
         "acos" => Some(format!("rp_acos(&{a0})")),
         "asin" => Some(format!("rp_asin(&{a0})")),
         "log" => Some(format!("rp_log(&{a0})")),

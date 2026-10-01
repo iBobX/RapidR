@@ -202,6 +202,51 @@ pub fn rp_waitkey() -> Value {
     v_int(crate::terminal::wait_key() as i64)
 }
 
+/// `GET$(n)`: up to n bytes read from standard input as they are (a CGI
+/// program's request body; "" at its end). RapidQ's manual: "a general
+/// purpose read function. It will read the STDIN."
+pub fn rp_get_stdin(n: &Value) -> Value {
+    use std::io::Read;
+    let n = n.to_i64().clamp(0, 1 << 24) as usize;
+    let mut buf = vec![0u8; n];
+    let mut got = 0;
+    let mut stdin = io::stdin().lock();
+    while got < n {
+        match stdin.read(&mut buf[got..]) {
+            Ok(0) | Err(_) => break,
+            Ok(k) => got += k,
+        }
+    }
+    buf.truncate(got);
+    Value::String(buf.iter().map(|&b| char::from(b)).collect())
+}
+
+/// `SETCONSOLETITLE title`: the terminal window's title (the standard
+/// title escape, which Windows' console understands too).
+pub fn rp_set_console_title(title: &Value) -> Value {
+    use std::io::IsTerminal;
+    let t: String = title.to_string_val().chars().filter(|c| !c.is_control()).collect();
+    if io::stdout().is_terminal() {
+        print!("\x1b]0;{t}\x07");
+        let _ = io::stdout().flush();
+    }
+    v_null()
+}
+
+/// `CHDRIVE "d:"`: the current drive (Windows; other systems have none).
+pub fn rp_chdrive(drive: &Value) -> Value {
+    #[cfg(windows)]
+    {
+        let d = drive.to_string_val();
+        if let Some(letter) = d.chars().next().filter(char::is_ascii_alphabetic) {
+            let _ = std::env::set_current_dir(format!("{letter}:"));
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = drive;
+    v_null()
+}
+
 /// `DOEVENTS`: pending UI events, timers and redraws get their turn
 /// (console programs: nothing to do).
 pub fn rp_doevents() {
