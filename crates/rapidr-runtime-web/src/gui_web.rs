@@ -187,7 +187,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RSTATUSBAR" => create_statusbar(&id, name, props),
         "RPROGRESS" | "RPROGRESSBAR" => create_progress(&id, name, props),
         "RSCROLLBOX" => create_scrollbox(&id, name, props),
-        "RTRACKBAR" => create_range(&id, name, props),
+        "RTRACKBAR" => create_trackbar(&id, name, props),
         "RUPDOWN" => create_updown(&id, name, props),
         "RSCROLLBAR" => create_range(&id, name, props),
         "RTOOLBAR" => create_toolbar(&id, name, props),
@@ -3717,6 +3717,92 @@ fn create_range(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     el.set_class_name("rr-widget");
     setup_widget(&el, id, name, props);
+}
+
+/// A QTRACKBAR: drawn from the shared model (rapidr_value::objects::
+/// trackbar) as the desktop's; its keys and mouse change the model.
+fn create_trackbar(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("div");
+    el.set_class_name("rr-widget rr-trackbar");
+    el.set_tab_index(0);
+    let _ = el.style().set_property("outline-offset", "-1px");
+    setup_widget(&el, id, name, props);
+    render_trackbar(name);
+    let uname = name.to_uppercase();
+    let dragging = std::rc::Rc::new(std::cell::Cell::new(false));
+    // (the mouse's place in the control, and the control's size)
+    let at = |el: &web_sys::HtmlElement, e: &web_sys::MouseEvent| {
+        let r = el.get_bounding_client_rect();
+        (e.client_x() as f64 - r.left(), e.client_y() as f64 - r.top(), el.offset_width() as f64, el.offset_height() as f64)
+    };
+    let changed = |name: &str, moved: bool| {
+        if moved {
+            render_trackbar(name);
+            crate::object_web::rp_fire_event(name, "onchange");
+        }
+    };
+    {
+        let (name, el2, dragging) = (uname.clone(), el.clone(), dragging.clone());
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if e.button() != 0 {
+                return;
+            }
+            let _ = el2.focus();
+            let (x, y, w, h) = at(&el2, &e);
+            let (drag, moved) = rapidr_value::objects::with_trackbar_mut(&name, |t| t.mouse_down(x, y, w, h)).unwrap_or_default();
+            dragging.set(drag);
+            changed(&name, moved);
+        });
+        let _ = el.add_event_listener_with_callback("mousedown", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    {
+        let (name, el2, dragging) = (uname.clone(), el.clone(), dragging.clone());
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if dragging.get() {
+                if e.buttons() & 1 == 0 {
+                    dragging.set(false);
+                    return;
+                }
+                let (x, y, w, h) = at(&el2, &e);
+                let moved = rapidr_value::objects::with_trackbar_mut(&name, |t| t.drag(x, y, w, h)).unwrap_or(false);
+                changed(&name, moved);
+            }
+        });
+        let _ = document().add_event_listener_with_callback("mousemove", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    {
+        let dragging = dragging.clone();
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_: web_sys::MouseEvent| dragging.set(false));
+        let _ = document().add_event_listener_with_callback("mouseup", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    {
+        let name = uname.clone();
+        let cb = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+            let Some(vk) = rapidr_value::input::vk_of_key(&e.key(), &e.code()) else { return };
+            if !(33..=40).contains(&vk) {
+                return;
+            }
+            e.prevent_default();
+            let moved = rapidr_value::objects::with_trackbar_mut(&name, |t| t.key(vk)).unwrap_or(false);
+            changed(&name, moved);
+        });
+        let _ = el.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+}
+
+/// A QTRACKBAR drawn again from its model.
+pub fn render_trackbar(name: &str) {
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    let (w, h) = (crate::object_web::rp_comp_get(name, "width").to_f64(), crate::object_web::rp_comp_get(name, "height").to_f64());
+    let enabled = crate::object_web::rp_comp_get_stored(name, "enabled");
+    let enabled = matches!(enabled, Value::Null) || enabled.to_bool();
+    if let Some(svg) = rapidr_value::objects::with_trackbar(name, |t| t.svg(w, h, enabled)) {
+        el.set_inner_html(&svg);
+    }
 }
 
 fn create_updown(id: &str, name: &str, props: &HashMap<String, Value>) {

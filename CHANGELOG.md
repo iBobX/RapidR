@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.98.0] — 2026-10-01
+
+### Added
+- QTRACKBAR as RapidQ's manual has it, from one shared model
+  (rapidr_value::objects::trackbar) that the desktop and the web draw the
+  same way (vector shapes, sharp at any scale): `Frequency`, `LineSize`,
+  `PageSize`, `Orientation` (tbHorizontal / tbVertical), `TickMarks`
+  (tmBottomRight / tmTopLeft / tmBoth, the thumb pointing at them),
+  `TickStyle` (tsNone / tsAuto / tsManual), `SelStart` / `SelEnd` (the
+  selection range shown in the channel) and `SetTick(Pos)`. The arrows move
+  it by LineSize, Page Up / Page Down by PageSize, Home / End to the ends; a
+  click beside the thumb moves it a page toward the click, and the thumb
+  drags. OnChange fires when the user moves it. Native, interpreter and web.
+
+### Fixed
+- QTRACKBAR's defaults are RapidQ's (Max 10, PageSize 2, Frequency 1,
+  150 × 45), not 0–100; Position stays within Min..Max; setting Position
+  from the program now moves the thumb on the desktop.
+
 ## [2.97.0] — 2026-10-01
 
 ### Added

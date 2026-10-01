@@ -112,6 +112,10 @@ export const cases = [
     expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"],
     webCheck: `JSON.stringify([document.querySelector('[data-rr-name="Ed" i]').value, document.querySelector('[data-rr-name="Re" i]').value])`,
     webExpect: '["hEYo","ONE\\n2\\n"]' },
+  { name: "trackbar", events: "tb.__key_39,tb.__key_34,tb.__key_36,tb.__mousedown_190_10,tb.__key_35,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=102111|10|4,6,0,2,10,|4"],
+    webCheck: `["Tb", "Vt"].map(n => document.querySelectorAll('[data-rr-name="' + n + '" i] svg polyline').length).join(",")`,
+    webExpect: "5,6" },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

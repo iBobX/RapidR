@@ -193,6 +193,13 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("max".to_string(), v_int(100));
             props.insert("position".to_string(), v_int(0));
         }
+        // (its range and position: rapidr_value::objects::trackbar)
+        "RTRACKBAR" => {
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+            props.insert("width".to_string(), v_int(150));
+            props.insert("height".to_string(), v_int(45));
+        }
         "RWEBVIEW" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
@@ -579,6 +586,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             gui_web::render_grid(&uname);
         } else if rapidr_value::objects::is_list(name) {
             gui_web::render_list(&uname);
+        } else if rapidr_value::objects::is_trackbar(name) {
+            gui_web::render_trackbar(&uname);
         }
         return;
     }
@@ -716,6 +725,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // `CoolBtn.Down = True`: the others of its group come up.
     if lprop == "down" {
         gui_web::toggle_down_set(&uname);
+    }
+    // A QTRACKBAR's size or Enabled: drawn again.
+    if matches!(lprop.as_str(), "width" | "height" | "enabled") && rapidr_value::objects::is_trackbar(&uname) {
+        gui_web::render_trackbar(&uname);
     }
 }
 
@@ -966,6 +979,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             gui_web::render_grid(&uname);
         } else if rapidr_value::objects::is_list(name) {
             gui_web::render_list(&uname);
+        } else if rapidr_value::objects::is_trackbar(name) {
+            gui_web::render_trackbar(&uname);
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);

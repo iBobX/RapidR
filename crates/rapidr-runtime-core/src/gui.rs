@@ -674,6 +674,8 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             let chain = component_chain(widget());
             let text = rapidr_value::input::text_of_vk(*vk);
             key_events(&chain, true, *vk, 0, &text);
+            // (a track bar moves as its widget's key handler moves it)
+            trackbar_input(&comp_lower, |t, _, _| matches!(*vk, 33..=40) && t.key(*vk));
             key_events(&chain, false, *vk, 0, "");
         } else if let Some((kind, [x, y])) = [("__mousedown_", rapidr_value::input::Mouse::Down), ("__mouseup_", rapidr_value::input::Mouse::Up), ("__mousemove_", rapidr_value::input::Mouse::Move)]
             .iter()
@@ -682,6 +684,12 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             .map(|(k, n)| (*k, *n))
         {
             mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
+            let (fx, fy) = (x as f64, y as f64);
+            match kind {
+                rapidr_value::input::Mouse::Down => trackbar_input(&comp_lower, |t, w, h| t.mouse_down(fx, fy, w, h).1),
+                rapidr_value::input::Mouse::Move => trackbar_input(&comp_lower, |t, w, h| t.drag(fx, fy, w, h)),
+                _ => {}
+            }
         }
         match (event.as_str(), cell) {
             _ if ["__key_", "__mouse", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape"].iter().any(|p| event.starts_with(p)) => {}
@@ -1659,21 +1667,88 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let min = rp_comp_get(name, "min").to_f64();
-            let max = rp_comp_get(name, "max").to_f64();
-            let pos = rp_comp_get(name, "position").to_f64();
-            let mut slider = HorNiceSlider::new(x, y, w, h, None);
-            slider.set_minimum(min);
-            slider.set_maximum(max);
-            slider.set_value(pos);
-            slider.set_step(1.0, 1);
-            let name_for_cb = name.to_lowercase();
-            slider.set_callback(move |s| {
-                rp_comp_set(&name_for_cb, "position", v_int(s.value() as i64));
-                rp_fire_event(&name_for_cb, "onchange");
+            // Drawn from the shared model (rapidr_value::objects::trackbar):
+            // the same shapes as the web's.
+            let mut frm = Frame::new(x, y, w, h, None);
+            frm.set_frame(FrameType::FlatBox);
+            let name_for_draw = name_lower.clone();
+            frm.draw(move |f| {
+                let Some(shapes) = rapidr_value::objects::with_trackbar(&name_for_draw, |t| t.shapes(f.w() as f64, f.h() as f64, f.active_r())) else { return };
+                draw::push_clip(f.x(), f.y(), f.w(), f.h());
+                draw::draw_rect_fill(f.x(), f.y(), f.w(), f.h(), f.color());
+                let (ox, oy) = (f.x() as f64, f.y() as f64);
+                let rgb = |c: u32| Color::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8);
+                for shape in shapes {
+                    if let Some(c) = shape.fill.filter(|_| shape.points.len() > 2) {
+                        draw::set_draw_color(rgb(c));
+                        draw::begin_complex_polygon();
+                        for (px, py) in &shape.points {
+                            draw::vertex(ox + px, oy + py);
+                        }
+                        draw::end_complex_polygon();
+                    }
+                    if let Some(c) = shape.stroke {
+                        draw::set_draw_color(rgb(c));
+                        if shape.points.len() == 2 {
+                            draw::begin_line();
+                        } else {
+                            draw::begin_loop();
+                        }
+                        for (px, py) in &shape.points {
+                            draw::vertex(ox + px, oy + py);
+                        }
+                        if shape.points.len() == 2 {
+                            draw::end_line();
+                        } else {
+                            draw::end_loop();
+                        }
+                    }
+                }
+                if fltk::app::focus().is_some_and(|w| w.as_widget_ptr() == f.as_widget_ptr()) {
+                    draw::set_draw_color(Color::from_rgb(120, 120, 120));
+                    draw::set_line_style(draw::LineStyle::Dot, 1);
+                    draw::draw_rect(f.x(), f.y(), f.w(), f.h());
+                    draw::set_line_style(draw::LineStyle::Solid, 0);
+                }
+                draw::pop_clip();
+            });
+            let name_for_cb = name_lower.clone();
+            let dragging = std::rc::Rc::new(std::cell::Cell::new(false));
+            frm.handle(move |f, ev| {
+                let (mx, my) = ((app::event_x() - f.x()) as f64, (app::event_y() - f.y()) as f64);
+                let (w, h) = (f.w() as f64, f.h() as f64);
+                let changed = match ev {
+                    Event::Focus | Event::Unfocus => {
+                        f.redraw();
+                        return true;
+                    }
+                    Event::Push => {
+                        let _ = f.take_focus();
+                        let (drag, moved) = rapidr_value::objects::with_trackbar_mut(&name_for_cb, |t| t.mouse_down(mx, my, w, h)).unwrap_or_default();
+                        dragging.set(drag);
+                        f.redraw();
+                        moved
+                    }
+                    Event::Drag if dragging.get() => rapidr_value::objects::with_trackbar_mut(&name_for_cb, |t| t.drag(mx, my, w, h)).unwrap_or(false),
+                    Event::Released => {
+                        dragging.set(false);
+                        false
+                    }
+                    Event::KeyDown => {
+                        let vk = fltk_vk(app::event_key().bits());
+                        let Some(changed) = rapidr_value::objects::with_trackbar_mut(&name_for_cb, |t| matches!(vk, 33..=40).then(|| t.key(vk))).flatten() else { return false };
+                        changed
+                    }
+                    _ => return false,
+                };
+                if changed {
+                    f.redraw();
+                    rp_fire_event(&name_for_cb, "onchange");
+                }
+                true
             });
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Slider(slider));
+                gw.borrow_mut().insert(name_lower, GuiWidget::Frame(frm));
             });
         }
         "RCANVAS" | "RHEADER" => {
@@ -5279,6 +5354,17 @@ pub fn gui_set_caption(name: &str, text: &str) {
             }
         }
     });
+}
+
+/// The test hooks' keys and mouse on a QTRACKBAR (as its widget's handler):
+/// `f` changes the model (given the widget's size); OnChange if it moved.
+fn trackbar_input(name: &str, f: impl FnOnce(&mut rapidr_value::objects::trackbar::TrackBar, f64, f64) -> bool) {
+    let Some(mut w) = GUI_WIDGETS.with(|gw| gw.borrow().get(name).map(GuiWidget::base)) else { return };
+    let (ww, wh) = (w.w() as f64, w.h() as f64);
+    if rapidr_value::objects::with_trackbar_mut(name, |t| f(t, ww, wh)) == Some(true) {
+        w.redraw();
+        rp_fire_event(name, "onchange");
+    }
 }
 
 thread_local! {
