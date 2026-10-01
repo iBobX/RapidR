@@ -155,7 +155,6 @@ impl RpComponent {
                 props.insert("top".into(), v_int(0));
                 props.insert("width".into(), v_int(300));
                 props.insert("height".into(), v_int(200));
-                props.insert("tabindex".into(), v_int(0));
             }
             "RDESIGNSURFACE" => {
                 props.insert("width".into(), v_int(640));
@@ -605,6 +604,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) {
             crate::gui::redraw_widget(name);
         }
+        #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_tabcontrol(name) {
+            crate::gui::tab_control_changed(name);
+        }
         // A QFILELISTBOX's directory changed: OnChange.
         if prop_lower == "directory" && rapidr_value::objects::is_file_list(name) {
             rp_fire_event(name, "onchange");
@@ -743,6 +746,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // A QTABCONTROL's colour, font or Enabled: drawn again (its tabs
+    // measured again).
+    #[cfg(feature = "gui")]
+    if rapidr_value::objects::is_tabcontrol(name) && (prop_lower.starts_with("font") || matches!(prop_lower.as_str(), "color" | "enabled")) {
+        crate::gui::tab_control_changed(name);
+    }
     // A parent whose widget exists already: the widget is made now.
     #[cfg(feature = "gui")]
     if prop_lower == "parent" && !crate::layout::is_quiet() {
@@ -1061,6 +1070,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             crate::gui::canvas_redraw(name);
         } else if rapidr_value::objects::is_trackbar(name) {
             crate::gui::redraw_widget(name);
+        } else if rapidr_value::objects::is_tabcontrol(name) {
+            crate::gui::tab_control_changed(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
@@ -1163,7 +1174,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "gui")]
         "RCODEEDITOR" => crate::gui::code_editor_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
-        "RTABCONTROL" => crate::gui::tab_control_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
         "RTREEVIEW" => crate::gui::tree_method(name, &method_lower, args),
         #[cfg(feature = "gui")]

@@ -14,7 +14,7 @@ use fltk::{
     draw,
     enums::{Align, CallbackTrigger, Color, ColorDepth, Event, Font, FrameType, Key},
     frame::Frame,
-    group::{Group, Scroll, Tabs},
+    group::{Group, Scroll},
     image::{RgbImage, SharedImage},
     input::Input,
     menu::{Choice, MenuBar, SysMenuBar},
@@ -53,7 +53,6 @@ enum GuiWidget {
     HoldBrowser(HoldBrowser),
     TextEditor(TextEditor),
     Group(Group),
-    Tabs(Tabs),
     MenuBar(MenuBar),
     SysMenuBar(SysMenuBar),
     Progress(FltkProgress),
@@ -81,7 +80,6 @@ impl GuiWidget {
             GuiWidget::HoldBrowser(v) => v.as_base_widget(),
             GuiWidget::TextEditor(v) => v.as_base_widget(),
             GuiWidget::Group(v) => v.as_base_widget(),
-            GuiWidget::Tabs(v) => v.as_base_widget(),
             GuiWidget::MenuBar(v) => v.as_base_widget(),
             GuiWidget::SysMenuBar(v) => v.as_base_widget(),
             GuiWidget::Progress(v) => v.as_base_widget(),
@@ -109,7 +107,7 @@ pub(crate) fn attach_late(name: &str) {
     }
     let parent = rp_comp_get(&name, "parent").to_string_val().to_lowercase();
     let parent_is_container = GUI_WIDGETS.with(|gw| {
-        matches!(gw.borrow().get(&parent), Some(GuiWidget::Window(_) | GuiWidget::Group(_) | GuiWidget::Tabs(_) | GuiWidget::Scroll(_)))
+        matches!(gw.borrow().get(&parent), Some(GuiWidget::Window(_) | GuiWidget::Group(_) | GuiWidget::Scroll(_)))
     });
     if parent.is_empty() || !parent_is_container {
         return;
@@ -174,7 +172,6 @@ thread_local! {
     static GUI_STYLE_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
     static DESIGN_SURFACES: RefCell<HashMap<String, DesignState>> = RefCell::new(HashMap::new());
     /// Maps tab control names to their child group names (tab_name -> group_widget_key)
-    static TAB_GROUPS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
     /// `$THEME` (see [`look_for`]); "" for the platform's own look
     static THEME_OVERRIDE: RefCell<String> = RefCell::new(String::new());
     /// Active timer names (component names that are RTimer)
@@ -676,6 +673,7 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             key_events(&chain, true, *vk, 0, &text);
             // (a track bar moves as its widget's key handler moves it)
             trackbar_input(&comp_lower, |t, _, _| matches!(*vk, 33..=40) && t.key(*vk));
+            tab_control_input(&comp_lower, |t, w, h, font| matches!(*vk, 37..=40) && t.key(*vk, w, h, font));
             key_events(&chain, false, *vk, 0, "");
         } else if let Some((kind, [x, y])) = [("__mousedown_", rapidr_value::input::Mouse::Down), ("__mouseup_", rapidr_value::input::Mouse::Up), ("__mousemove_", rapidr_value::input::Mouse::Move)]
             .iter()
@@ -686,7 +684,10 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
             let (fx, fy) = (x as f64, y as f64);
             match kind {
-                rapidr_value::input::Mouse::Down => trackbar_input(&comp_lower, |t, w, h| t.mouse_down(fx, fy, w, h).1),
+                rapidr_value::input::Mouse::Down => {
+                    trackbar_input(&comp_lower, |t, w, h| t.mouse_down(fx, fy, w, h).1);
+                    tab_control_input(&comp_lower, |t, w, h, font| t.mouse_down(x as i64, y as i64, w, h, font).is_some_and(|r| r.0));
+                }
                 rapidr_value::input::Mouse::Move => trackbar_input(&comp_lower, |t, w, h| t.drag(fx, fy, w, h)),
                 _ => {}
             }
@@ -1438,32 +1439,18 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let tabs = Tabs::new(x, y, w, h, None);
-
-            // Create tab groups from stored AddTabs data
-            let group_names = TAB_GROUPS.with(|tg| {
-                tg.borrow().get(&name_lower).cloned().unwrap_or_default()
-            });
-            let labels_str = rp_comp_get(name, "_tab_labels").to_string_val();
-            let labels: Vec<&str> = if labels_str.is_empty() {
-                Vec::new()
-            } else {
-                labels_str.lines().collect()
-            };
-
-            for (i, grp_name) in group_names.iter().enumerate() {
-                let label = labels.get(i).copied().unwrap_or("Tab");
-                let mut grp = Group::new(x, y + 25, w, h - 25, None);
-                grp.set_label(label);
-                grp.end();
-                GUI_WIDGETS.with(|gw| {
-                    gw.borrow_mut().insert(grp_name.clone(), GuiWidget::Group(grp));
-                });
-            }
-
-            tabs.end();
+            // A container whose first child draws the tabs from the shared
+            // model (rapidr_value::objects::tabcontrol) and takes their
+            // clicks; the program's components go over it.
+            let grp = Group::new(x, y, w, h, None);
+            let mut back = Frame::new(x, y, w, h, None);
+            let id = name_lower.clone();
+            back.draw(move |f| tab_control_draw(&id, f));
+            let id = name_lower.clone();
+            back.handle(move |f, ev| tab_control_event(&id, f, ev));
+            grp.end();
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower.clone(), GuiWidget::Tabs(tabs));
+                gw.borrow_mut().insert(name_lower, GuiWidget::Group(grp));
             });
         }
         "RGROUPBOX" => {
@@ -2116,7 +2103,6 @@ pub fn gui_apply_font(name: &str) {
             }
             GuiWidget::TextEditor(w) => text!(w),
             GuiWidget::Group(w) => label!(w),
-            GuiWidget::Tabs(w) => label!(w),
             GuiWidget::MenuBar(w) => text!(w),
             GuiWidget::SysMenuBar(w) => text!(w),
             GuiWidget::Progress(w) => label!(w),
@@ -3755,16 +3741,6 @@ fn build_children_recursive(parent_name: &str) {
             }
         });
 
-        // For TabControls, also build children inside each tab group
-        if child_type == "RTABCONTROL" {
-            let tab_grps = TAB_GROUPS.with(|tg| {
-                tg.borrow().get(&child_name.to_lowercase()).cloned().unwrap_or_default()
-            });
-            for grp_name in &tab_grps {
-                build_children_recursive(grp_name);
-            }
-        }
-
         // Recursively build any other children
         build_children_recursive(child_name);
     }
@@ -3780,7 +3756,6 @@ fn begin_widget(name: &str) {
             match widget {
                 GuiWidget::Window(ref mut w) => { w.begin(); }
                 GuiWidget::Group(ref mut g) => { g.begin(); }
-                GuiWidget::Tabs(ref mut t) => { t.begin(); }
                 GuiWidget::Scroll(ref mut s) => { s.begin(); }
                 _ => {}
             }
@@ -3795,7 +3770,6 @@ fn end_widget(name: &str) {
             match widget {
                 GuiWidget::Window(ref mut w) => { w.end(); }
                 GuiWidget::Group(ref mut g) => { g.end(); }
-                GuiWidget::Tabs(ref mut t) => { t.end(); }
                 GuiWidget::Scroll(ref mut s) => { s.end(); }
                 _ => {}
             }
@@ -3812,7 +3786,6 @@ fn get_widget_offset(name: &str) -> (i32, i32) {
             match widget {
                 GuiWidget::Window(_) => (0, 0), // Window children use absolute coords
                 GuiWidget::Group(ref g) => (g.x(), g.y()),
-                GuiWidget::Tabs(ref t) => (t.x(), t.y()),
                 GuiWidget::Scroll(ref s) => (s.x(), s.y()),
                 _ => (0, 0),
             }
@@ -3852,7 +3825,6 @@ fn resize_widget(widget: &mut GuiWidget, x: i32, y: i32, w: i32, h: i32) {
         GuiWidget::HoldBrowser(v) => v.resize(x, y, w, h),
         GuiWidget::TextEditor(v) => v.resize(x, y, w, h),
         GuiWidget::Group(v) => v.resize(x, y, w, h),
-        GuiWidget::Tabs(v) => v.resize(x, y, w, h),
         GuiWidget::MenuBar(v) => v.resize(x, y, w, h),
         GuiWidget::SysMenuBar(v) => v.resize(x, y, w, h),
         GuiWidget::Progress(v) => v.resize(x, y, w, h),
@@ -3881,7 +3853,6 @@ fn redraw_window_of(widget: &GuiWidget) {
         GuiWidget::HoldBrowser(v) => redraw_win!(v),
         GuiWidget::TextEditor(v) => redraw_win!(v),
         GuiWidget::Input(v) => redraw_win!(v),
-        GuiWidget::Tabs(v) => redraw_win!(v),
         GuiWidget::CheckButton(v) => redraw_win!(v),
         GuiWidget::RadioButton(v) => redraw_win!(v),
         GuiWidget::Choice(v) => redraw_win!(v),
@@ -3937,15 +3908,11 @@ pub fn gui_apply_geometry(name: &str) {
     for (child, _) in crate::object::get_children_of(&name) {
         gui_apply_geometry(&child);
     }
-    // A tab control's pages sit below its tabs.
+    // A tab control's tabs (its first child) cover it.
     if comp_type == "RTABCONTROL" {
-        let pages = TAB_GROUPS.with(|tg| tg.borrow().get(&name).cloned().unwrap_or_default());
-        for page in pages {
-            if let Some(mut g) = GUI_WIDGETS.with(|gw| gw.borrow().get(&page).cloned()) {
-                resize_widget(&mut g, rect.0, rect.1 + 25, rect.2, (rect.3 - 25).max(0));
-            }
-            for (child, _) in crate::object::get_children_of(&page) {
-                gui_apply_geometry(&child);
+        if let Some(GuiWidget::Group(g)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
+            if let Some(mut back) = g.child(0) {
+                back.resize(g.x(), g.y(), g.w(), g.h());
             }
         }
     }
@@ -4483,45 +4450,131 @@ pub fn code_editor_method(name: &str, method: &str, args: &[Value]) -> Value {
 // Tab control methods
 // ---------------------------------------------------------------------------
 
-/// Handle method calls on a PTABCONTROL component.
-pub fn tab_control_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
-    match method {
-        "addtabs" => {
-            // Store tab names — actual FLTK Groups are created during gui_create_widget
-            let mut group_names = Vec::new();
-            let mut labels = Vec::new();
-            for (i, arg) in args.iter().enumerate() {
-                let tab_label = arg.to_string_val();
-                let grp_name = format!("{}__tab_{}", name_lower, i);
-                group_names.push(grp_name);
-                labels.push(tab_label);
-            }
-            TAB_GROUPS.with(|tg| {
-                tg.borrow_mut().insert(name_lower.clone(), group_names);
-            });
-            // Store labels for gui_create_widget to use
-            rp_comp_set(name, "_tab_labels", v_str(&labels.join("\n")));
-            v_null()
-        }
-        "tab" => {
-            // Tab(index) — returns a reference name for the group
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(0) as usize;
-            TAB_GROUPS.with(|tg| {
-                let groups = tg.borrow();
-                if let Some(tabs) = groups.get(&name_lower) {
-                    if idx < tabs.len() {
-                        return v_str(&tabs[idx]);
-                    }
+/// A QTABCONTROL's font (its text is measured with it: the shared model
+/// lays tabs out the same on every runtime).
+fn tab_control_font(name: &str) -> rapidr_value::objects::font::Font {
+    rapidr_value::objects::font_from_props(name, &|id, p| rp_comp_get(id, p))
+}
+
+/// The FLTK face for a QFONT's name and style.
+fn fltk_face(font: &rapidr_value::objects::font::Font) -> Font {
+    let face = font.name.to_lowercase();
+    let (bold, italic) = (font.styles & 1 != 0, font.styles & 2 != 0);
+    let has = |words: &[&str]| words.iter().any(|w| face.contains(w));
+    let faces = if has(&["courier", "mono", "consol", "fixed"]) {
+        [Font::Courier, Font::CourierBold, Font::CourierItalic, Font::CourierBoldItalic]
+    } else if has(&["times", "roman", "georgia", "garamond"]) || (face.contains("serif") && !face.contains("sans")) {
+        [Font::Times, Font::TimesBold, Font::TimesItalic, Font::TimesBoldItalic]
+    } else {
+        [Font::Helvetica, Font::HelveticaBold, Font::HelveticaItalic, Font::HelveticaBoldItalic]
+    };
+    faces[usize::from(bold) + 2 * usize::from(italic)]
+}
+
+/// A QFONT's size in pixels (points at 96 dpi; negative: pixels).
+fn font_pixels(font: &rapidr_value::objects::font::Font) -> i32 {
+    if font.size < 0 { (-font.size).min(512) as i32 } else { ((font.size.clamp(1, 384) * 96 + 36) / 72) as i32 }
+}
+
+/// Draws a QTABCONTROL's tabs (its first child, `f`, covers it).
+fn tab_control_draw(name: &str, f: &mut Frame) {
+    use rapidr_value::objects::tabcontrol::Op;
+    let (ox, oy, w, h) = (f.x(), f.y(), f.w(), f.h());
+    let font = tab_control_font(name);
+    let color = rapidr_value::objects::form_color(&rp_comp_get(name, "color"));
+    let focused = app::focus().is_some_and(|w| w.as_widget_ptr() == f.as_widget_ptr());
+    let Some(ops) = rapidr_value::objects::with_tabcontrol(name, |t| t.ops(w as i64, h as i64, &font, color, f.active_r(), focused)) else { return };
+    draw::push_clip(ox, oy, w, h);
+    for op in ops {
+        match op {
+            Op::Fill { rect: (x, y, rw, rh), color } => draw::draw_rect_fill(ox + x as i32, oy + y as i32, rw as i32, rh as i32, Color::from_hex(color)),
+            Op::Text { rect: (x, y, rw, rh), text, angle, font, color } => {
+                draw::set_font(fltk_face(&font), font_pixels(&font));
+                draw::set_draw_color(Color::from_hex(color));
+                let tw = draw::width(&text);
+                let (asc, desc) = (f64::from(draw::height() - draw::descent()), f64::from(draw::descent()));
+                let (cx, cy) = (f64::from(ox) + x as f64 + rw as f64 / 2.0, f64::from(oy) + y as f64 + rh as f64 / 2.0);
+                let mid = (asc - desc) / 2.0;
+                // (text drawn as is: no '@' symbols, no '&' underlines)
+                match angle {
+                    90 => draw::draw_text_angled(90, &text, (cx + mid).round() as i32, (cy + tw / 2.0).round() as i32),
+                    -90 => draw::draw_text_angled(-90, &text, (cx - mid).round() as i32, (cy - tw / 2.0).round() as i32),
+                    _ => draw::draw_text(&text, (cx - tw / 2.0).round() as i32, (cy + mid).round() as i32),
                 }
-                v_str("")
-            })
-        }
-        _ => {
-            eprintln!("[WARN] TabControl.{}() not implemented", method);
-            v_null()
+            }
+            Op::Focus { rect: (x, y, rw, rh) } => {
+                draw::set_draw_color(Color::Black);
+                draw::set_line_style(draw::LineStyle::Dot, 1);
+                draw::draw_rect(ox + x as i32, oy + y as i32, rw as i32, rh as i32);
+                draw::set_line_style(draw::LineStyle::Solid, 0);
+            }
+            Op::Arrow { points, color } => {
+                draw::set_draw_color(Color::from_hex(color));
+                draw::begin_polygon();
+                for (px, py) in points {
+                    draw::vertex(f64::from(ox) + px, f64::from(oy) + py);
+                }
+                draw::end_polygon();
+            }
         }
     }
+    draw::pop_clip();
+}
+
+/// A QTABCONTROL's tabs: a click (or the arrow keys) picks a tab
+/// (OnChange), the scroll buttons scroll them, HotTrack follows the mouse.
+fn tab_control_event(name: &str, f: &mut Frame, ev: Event) -> bool {
+    let (w, h) = (f.w() as i64, f.h() as i64);
+    let (mx, my) = ((app::event_x() - f.x()) as i64, (app::event_y() - f.y()) as i64);
+    let font = tab_control_font(name);
+    // (the whole control drawn again: its components lie over the tabs'
+    // widget, which FLTK doesn't draw again by itself)
+    let redraw = |f: &Frame| match f.parent() {
+        Some(mut p) => p.redraw(),
+        None => f.clone().redraw(),
+    };
+    let changed = match ev {
+        Event::Focus | Event::Unfocus => {
+            redraw(f);
+            return true;
+        }
+        Event::Enter => return true,
+        Event::Move | Event::Leave => {
+            let at = (ev == Event::Move).then_some((mx, my));
+            if rapidr_value::objects::with_tabcontrol_mut(name, |t| t.mouse_move(at, w, h, &font)) == Some(true) {
+                redraw(f);
+            }
+            return ev == Event::Move;
+        }
+        Event::Push => {
+            let Some((changed, focus)) = rapidr_value::objects::with_tabcontrol_mut(name, |t| t.mouse_down(mx, my, w, h, &font)).flatten() else { return false };
+            if focus {
+                let _ = f.take_focus();
+            }
+            redraw(f);
+            changed
+        }
+        Event::KeyDown if app::focus().is_some_and(|w| w.as_widget_ptr() == f.as_widget_ptr()) => {
+            let vk = fltk_vk(app::event_key().bits());
+            if !matches!(vk, 37..=40) {
+                return false;
+            }
+            rapidr_value::objects::with_tabcontrol_mut(name, |t| t.key(vk, w, h, &font)).unwrap_or(false)
+        }
+        _ => return false,
+    };
+    if changed {
+        redraw(f);
+        rp_fire_event(name, "onchange");
+    }
+    true
+}
+
+/// A QTABCONTROL changed by the program: drawn again, its aligned
+/// components laid out in its area again.
+pub fn tab_control_changed(name: &str) {
+    redraw_widget(name);
+    crate::layout::realign(name, None);
 }
 
 /// A QPANEL's BevelOuter / BevelInner frames.
@@ -5322,7 +5375,6 @@ pub fn gui_set_visible(name: &str, visible: bool) {
                 GuiWidget::HoldBrowser(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::TextEditor(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Group(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
-                GuiWidget::Tabs(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::MenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::SysMenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Progress(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
@@ -5363,6 +5415,20 @@ fn trackbar_input(name: &str, f: impl FnOnce(&mut rapidr_value::objects::trackba
     let (ww, wh) = (w.w() as f64, w.h() as f64);
     if rapidr_value::objects::with_trackbar_mut(name, |t| f(t, ww, wh)) == Some(true) {
         w.redraw();
+        rp_fire_event(name, "onchange");
+    }
+}
+
+/// The test hooks' keys and clicks on a QTABCONTROL (as its tabs' handler):
+/// `f` changes the model; OnChange if the selection changed.
+fn tab_control_input(name: &str, f: impl FnOnce(&mut rapidr_value::objects::tabcontrol::TabControl, i64, i64, &rapidr_value::objects::font::Font) -> bool) {
+    if !rapidr_value::objects::is_tabcontrol(name) {
+        return;
+    }
+    let (w, h) = (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64());
+    let font = tab_control_font(name);
+    if rapidr_value::objects::with_tabcontrol_mut(name, |t| f(t, w, h, &font)) == Some(true) {
+        redraw_widget(name);
         rp_fire_event(name, "onchange");
     }
 }
@@ -6862,7 +6928,6 @@ pub fn redraw_widget(name: &str) {
                 GuiWidget::InputChoice(ref mut w) => { w.redraw(); }
                 GuiWidget::HoldBrowser(ref mut w) => { w.redraw(); }
                 GuiWidget::TextEditor(ref mut w) => { w.redraw(); }
-                GuiWidget::Tabs(ref mut w) => { w.redraw(); }
                 GuiWidget::MenuBar(ref mut w) => { w.redraw(); }
                 GuiWidget::SysMenuBar(ref mut w) => { w.redraw(); }
                 GuiWidget::Progress(ref mut w) => { w.redraw(); }

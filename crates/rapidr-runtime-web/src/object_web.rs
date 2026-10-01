@@ -588,6 +588,8 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             gui_web::render_list(&uname);
         } else if rapidr_value::objects::is_trackbar(name) {
             gui_web::render_trackbar(&uname);
+        } else if rapidr_value::objects::is_tabcontrol(name) {
+            gui_web::tab_control_changed(&uname);
         }
         return;
     }
@@ -729,6 +731,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QTRACKBAR's size or Enabled: drawn again.
     if matches!(lprop.as_str(), "width" | "height" | "enabled") && rapidr_value::objects::is_trackbar(&uname) {
         gui_web::render_trackbar(&uname);
+    }
+    // A QTABCONTROL's size, colour, font or Enabled: drawn again.
+    if rapidr_value::objects::is_tabcontrol(&uname)
+        && matches!(lprop.as_str(), "width" | "height" | "enabled" | "color" | "font" | "fontname" | "fontsize" | "fontbold" | "fontitalic" | "fontcolor" | "font.name" | "font.size" | "font.bold" | "font.italic" | "font.color")
+    {
+        gui_web::tab_control_changed(&uname);
     }
 }
 
@@ -981,6 +989,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             gui_web::render_list(&uname);
         } else if rapidr_value::objects::is_trackbar(name) {
             gui_web::render_trackbar(&uname);
+        } else if rapidr_value::objects::is_tabcontrol(name) {
+            gui_web::tab_control_changed(&uname);
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);

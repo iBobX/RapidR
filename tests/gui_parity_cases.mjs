@@ -116,6 +116,10 @@ export const cases = [
     expect: ["lbl.caption=102111|10|4,6,0,2,10,|4"],
     webCheck: `["Tb", "Vt"].map(n => document.querySelectorAll('[data-rr-name="' + n + '" i] svg polyline').length).join(",")`,
     webExpect: "5,6" },
+  { name: "tab_control", events: "tab.__key_39,tab.__key_39,tab.__mousedown_8_10,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=0Tab 2340200|1FirstTab 2|2Tab 2,0First,10|4332196"],
+    webCheck: `[...document.querySelectorAll('[data-rr-name="Tab" i] .rr-tab-back text')].map(t => t.textContent).join(",")`,
+    webExpect: "First,Tab 2,Tab 1" },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

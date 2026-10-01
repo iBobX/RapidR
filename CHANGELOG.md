@@ -7,6 +7,33 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.99.0] — 2026-10-01
+
+### Added
+- QTABCONTROL as RapidQ's (Windows' tab control): a row of tabs over an
+  area the program fills itself (no pages: OnChange shows and hides its
+  components, as the manual's example does), from one shared model
+  (rapidr_value::objects::tabcontrol) that the desktop and the web lay out
+  and draw the same way — the tabs measured with the built-in fonts.
+  `AddTabs`, `InsertTab(Index, Caption)`, `DelTabs(Index…)`, `Tab(i)` (read
+  and set), `TabIndex`, `MultiLine` (rows, the selected one moved next to
+  the area), `ScrollOpposite` (the rows before it moved to the other side),
+  `TabPosition` (bottom / right), `VerticalTabs` (on the left or right,
+  their captions turned), `ButtonStyle`, `FlatButtons`, `FlatSeperators`,
+  `FocusButtons`, `HotTrack`, `TabWidth` / `TabHeight`, `TabInactiveColor`,
+  `TabInactiveFont`, `Color`; a single line too long scrolls with its arrow
+  buttons. Windows' rules: the first tab added is selected, a tab inserted
+  before the selected one keeps it selected, deleting the selected tab
+  selects none (-1); the program setting TabIndex doesn't fire OnChange, a
+  click on a tab or the arrow keys do. ClientWidth / ClientHeight are the
+  whole control; an aligned component fills the area inside the frame
+  (TCM_ADJUSTRECT). Native, interpreter and web.
+
+### Fixed
+- QTABCONTROL's components were put on FLTK pages (one per tab) on the
+  desktop and its tabs were plain buttons on the web; TabIndex, Tab(i),
+  InsertTab, DelTabs and OnChange from the keyboard were missing.
+
 ## [2.98.0] — 2026-10-01
 
 ### Added

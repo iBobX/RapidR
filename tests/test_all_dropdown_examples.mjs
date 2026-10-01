@@ -84,7 +84,9 @@ const EXAMPLES = [
       await page.waitForTimeout(1000);
     } else if (ex.name === "web_datascience") {
       console.log("Interacting with DataScience: Click 'Plot' tab then 'Line Chart'...");
-      await frame.locator(".rr-tab-btn:has-text('Plot')").click();
+      // (the tabs are drawn: a click where the "Plot" caption is)
+      const plot = await frame.locator(".rr-tab-back text", { hasText: "Plot" }).boundingBox();
+      await page.mouse.click(plot.x + plot.width / 2, plot.y + plot.height / 2);
       await page.waitForTimeout(500);
       await frame.locator("button:has-text('Line Chart')").click();
       await page.waitForTimeout(1000);
