@@ -7,6 +7,27 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.92.0] — 2026-10-01
+
+### Changed
+- Arrays as RapidQ has them ("There is no checking for limits on arrays"):
+  an index past one dimension is the next row's element (arrays are stored
+  by the last subscript), and past the whole array a read gives the type's
+  zero and a write is dropped — memory-safe, where RapidQ would touch other
+  memory. Programs from RapidQ's examples that stopped with "Subscript out
+  of range" (3dcube, COLUMNS, dayfunction) run.
+
+### Fixed
+- QSTRINGGRID's OnDrawCell fires when the grid is on screen, as in RapidQ,
+  not while its form is still hidden (it ran before the program created
+  what the handler reads: QStringGridsTwoLinesBitMap). Desktop and web.
+- macOS: a form with a main menu shown after another form closed crashed in
+  FLTK's "Window" menu (msweep.bas); RapidR's menu bar has no Window menu
+  (RapidQ has none).
+- Tests never reach a real printer: `tools/regress.sh` sends documents to
+  PDFs, and the test calling every shared built-in (LFLUSH among them)
+  prints nowhere.
+
 ## [2.91.0] — 2026-10-01
 
 ### Added

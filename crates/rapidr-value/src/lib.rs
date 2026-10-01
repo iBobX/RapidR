@@ -182,6 +182,11 @@ impl BasicArray {
         Ok(Self { bounds, data: vec![fill; len] })
     }
 
+    /// The element's place in the data, as RapidQ lays arrays out ("stored
+    /// serially by the last DIM subscript"): RapidQ doesn't check each
+    /// subscript ("There is no checking for limits on arrays"), so
+    /// `Grid(i, NumX + 1)` is the next row's first element. Only a place
+    /// outside the array is an error here.
     pub(crate) fn offset(&self, indices: &[i64]) -> Result<usize, String> {
         if indices.len() != self.bounds.len() {
             return Err(format!(
@@ -190,23 +195,44 @@ impl BasicArray {
                 indices.len()
             ));
         }
-        let mut offset: usize = 0;
+        let mut flat: i128 = 0;
         for (&i, &(lo, hi)) in indices.iter().zip(&self.bounds) {
-            if i < lo || i > hi {
-                return Err(format!("Subscript out of range: index {i} is outside {lo} TO {hi}"));
-            }
-            offset = offset * (hi - lo + 1) as usize + (i - lo) as usize;
+            flat = flat * (hi - lo + 1) as i128 + (i as i128 - lo as i128);
         }
-        Ok(offset)
+        if flat < 0 || flat >= self.data.len() as i128 {
+            let (i, (lo, hi)) = indices.iter().zip(&self.bounds).find(|(&i, &(lo, hi))| i < lo || i > hi).map(|(&i, &b)| (i, b)).unwrap_or((indices[0], self.bounds[0]));
+            return Err(format!("Subscript out of range: index {i} is outside {lo} TO {hi}"));
+        }
+        Ok(flat as usize)
     }
 
+    /// An element; past the array's end — where RapidQ reads whatever memory
+    /// follows — the element type's zero ("" for strings), so the program
+    /// goes on as it did in RapidQ.
     pub fn get(&self, indices: &[i64]) -> Result<Value, String> {
-        Ok(self.data[self.offset(indices)?].clone())
+        if indices.len() != self.bounds.len() {
+            return self.offset(indices).map(|_| Value::Null);
+        }
+        Ok(match self.offset(indices) {
+            Ok(i) => self.data[i].clone(),
+            Err(_) => match self.data.first() {
+                Some(Value::String(_)) => Value::String(String::new()),
+                Some(Value::Double(_)) => Value::Double(0.0),
+                Some(Value::Integer(_)) => Value::Integer(0),
+                _ => Value::Null,
+            },
+        })
     }
 
+    /// Stores an element; past the array's end (RapidQ would overwrite the
+    /// memory after it) nothing is stored.
     pub fn set(&mut self, indices: &[i64], value: Value) -> Result<(), String> {
-        let i = self.offset(indices)?;
-        self.data[i] = value;
+        if indices.len() != self.bounds.len() {
+            return self.offset(indices).map(|_| ());
+        }
+        if let Ok(i) = self.offset(indices) {
+            self.data[i] = value;
+        }
         Ok(())
     }
 

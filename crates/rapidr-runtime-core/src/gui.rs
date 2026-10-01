@@ -1531,6 +1531,12 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 rp_comp_get(&parent, "width").to_i64() as i32
             };
             let pw = if parent.is_empty() { pw } else { rp_comp_get(&parent, "clientwidth").to_i64() as i32 };
+            // No macOS "Window" menu (RapidQ has none): FLTK's keeps a list
+            // of windows under it and crashes growing that list once the
+            // program's own items have replaced the menu (msweep.bas: a
+            // splash form shown and closed, then the main form).
+            #[cfg(target_os = "macos")]
+            SysMenuBar::set_window_menu_style(fltk::menu::WindowMenuStyle::NoWindowMenu);
             let mut mb = SysMenuBar::new(0, 0, pw, 30, None);
             mb.set_text_size(13);
             GUI_WIDGETS.with(|gw| {
@@ -3070,6 +3076,7 @@ pub fn gui_showmodal(name: &str) {
             rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| f64::from(win.pixels_per_unit())));
         }
     });
+    owner_draw_shown_grids();
 
     // Fire OnShow event after widgets are built and window is shown
     rp_fire_event(name, "onshow");
@@ -3839,6 +3846,7 @@ pub fn gui_show(name: &str) {
                 _ => {}
             }
         });
+        owner_draw_shown_grids();
         return;
     }
 
@@ -3858,6 +3866,7 @@ pub fn gui_show(name: &str) {
         }
     });
 
+    owner_draw_shown_grids();
     // Fire OnShow event after widgets are built and shown
     rp_fire_event(name, "onshow");
 }
@@ -5899,8 +5908,15 @@ fn grid_sync_sizes(name: &str, t: &Table) {
 /// changed (rapidr_value::objects::grid::StringGrid::owner_draw_needed);
 /// what the handler draws is kept per cell and drawn over it
 /// ([`grid_draw_cell`]). Each cell's Rect is a QRECT (a property bag).
+/// Only for a grid on screen, as RapidQ paints (a hidden grid's cells are
+/// drawn when its form shows: [`owner_draw_shown_grids`]) — a program sets
+/// up what its OnDrawCell reads before showing the form.
 fn grid_owner_draw(name: &str) {
     if !crate::object::rp_has_handler(name, "ondrawcell") {
+        return;
+    }
+    let on_screen = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name.to_lowercase()).map(|w| w.base().visible_r())).unwrap_or(false));
+    if !on_screen {
         return;
     }
     if !rapidr_value::objects::with_grid_mut(name, |g| g.owner_draw_needed()).unwrap_or(false) {
@@ -5913,6 +5929,16 @@ fn grid_owner_draw(name: &str) {
             crate::object::rp_comp_set(&rect, prop, v_int(v));
         }
         rp_fire_event_args(name, "ondrawcell", &[v_int(col as i64), v_int(row as i64), v_int(state), v_str(&rect)]);
+    }
+}
+
+/// The grids a form just showed: their OnDrawCell, held back while hidden.
+fn owner_draw_shown_grids() {
+    let grids: Vec<String> = GUI_WIDGETS.with(|gw| {
+        gw.try_borrow().map(|gw| gw.iter().filter(|(_, w)| matches!(w, GuiWidget::Grid(..))).map(|(n, _)| n.clone()).collect()).unwrap_or_default()
+    });
+    for g in grids {
+        grid_owner_draw(&g);
     }
 }
 

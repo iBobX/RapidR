@@ -418,6 +418,11 @@ pub fn is_grid(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Grid(_))).unwrap_or(false)
 }
 
+/// Every QSTRINGGRID's name (lowercase).
+pub fn grid_names() -> Vec<String> {
+    OBJECTS.with(|o| o.borrow().iter().filter(|(_, v)| matches!(v, Object::Grid(_))).map(|(k, _)| k.clone()).collect())
+}
+
 /// Reads a QSTRINGGRID's data (to draw it).
 pub fn with_grid<R>(id: &str, f: impl FnOnce(&StringGrid) -> R) -> Option<R> {
     with(id, |o| match o {

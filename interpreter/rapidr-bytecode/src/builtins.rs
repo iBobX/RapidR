@@ -132,6 +132,8 @@ mod tests {
 
     #[test]
     fn shared_data_builtins_are_handled_and_both_hosts_use_them() {
+        // (LFLUSH among them: never on the machine's real printer)
+        rapidr_value::objects::set_print_hook(|_| Ok(()));
         for name in SHARED_DATA_BUILTINS {
             assert!(BUILTINS.contains(name), "{name} missing from BUILTINS");
             let args = [rapidr_value::Value::String("x".into()), rapidr_value::Value::Integer(0)];
