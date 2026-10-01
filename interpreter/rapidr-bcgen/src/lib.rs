@@ -59,6 +59,8 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
+    // ($TYPECHECK: on the program as written, each SUB where it stands)
+    let typecheck = rapidr_ast::typecheck_errors(program, &|n| builtins::is_builtin(n) || RAPIDQ_BUILTINS.contains(&n));
     let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::hoist_routines(program))))))))));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
@@ -76,7 +78,9 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
         bcgen.line_starts = Some(starts);
     }
     // (RapidQ's compile-time type check; its errors also stop native builds)
-    for (span, message) in rapidr_ast::type_mismatches(&hoisted) {
+    let mut checks = typecheck;
+    checks.extend(rapidr_ast::type_mismatches(&hoisted));
+    for (span, message) in checks {
         bcgen.error_at(span, message);
     }
     bcgen.compile_program(program)?;

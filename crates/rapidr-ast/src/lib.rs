@@ -1063,6 +1063,153 @@ pub fn type_mismatches(program: &Program) -> Vec<(TextSpan, String)> {
     out
 }
 
+/// RapidQ's `$TYPECHECK ON` (and `$OPTION EXPLICIT`, "same as using
+/// TYPECHECK ON"): from there until `$TYPECHECK OFF`, a variable stored
+/// into (`x = …`, `FOR x`, `INPUT x`) must have been declared — DIM,
+/// CONST, a parameter — or it is RapidQ's `Undeclared identifier x`.
+/// Run on the program as written (before [`hoist_routines`]), so each
+/// SUB is checked with the setting where it stands. `is_builtin`: RapidQ's
+/// own names (`NViewLibPresent = 2` sets one).
+pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Vec<(TextSpan, String)> {
+    use std::collections::HashSet;
+    fn switch(s: &Statement, on: &mut bool) {
+        if let Statement::Directive(d) = s {
+            let v = d.value.as_deref().unwrap_or("").trim().to_ascii_uppercase();
+            if d.name.eq_ignore_ascii_case("$TYPECHECK") {
+                *on = v.starts_with("ON");
+            } else if d.name.eq_ignore_ascii_case("$OPTION") && v.starts_with("EXPLICIT") {
+                *on = true;
+            }
+        }
+    }
+    fn declared_in(stmts: &[Statement], into: &mut HashSet<String>) {
+        for s in stmts {
+            match s {
+                Statement::Dim(d) => into.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_ascii_lowercase())),
+                Statement::Const(c) => { into.insert(strip_type_suffix(&c.name).to_ascii_lowercase()); }
+                Statement::If(i) => {
+                    declared_in(&i.then_body, into);
+                    for b in &i.elseif_branches {
+                        declared_in(&b.body, into);
+                    }
+                    declared_in(&i.else_body, into);
+                }
+                Statement::For(f) => declared_in(&f.body, into),
+                Statement::While(w) => declared_in(&w.body, into),
+                Statement::DoLoop(d) => declared_in(&d.body, into),
+                Statement::With(w) => declared_in(&w.body, into),
+                Statement::SelectCase(c) => {
+                    for case in &c.cases {
+                        declared_in(&case.body, into);
+                    }
+                    declared_in(&c.case_else, into);
+                }
+                _ => {}
+            }
+        }
+    }
+    // (`OutVal%` is the `outval` DIM declared)
+    let key = |n: &str| strip_type_suffix(n).to_ascii_lowercase();
+    struct Check<'a> {
+        globals: &'a HashSet<String>,
+        locals: HashSet<String>,
+        reported: HashSet<String>,
+        is_builtin: &'a dyn Fn(&str) -> bool,
+    }
+    impl Check<'_> {
+        fn store(&mut self, name: &str, span: TextSpan, on: bool, out: &mut Vec<(TextSpan, String)>) {
+            let k = strip_type_suffix(name).to_ascii_lowercase();
+            if !on || name.starts_with("__") || name.contains('.') || self.locals.contains(&k) || self.globals.contains(&k) || (self.is_builtin)(&k) {
+                return;
+            }
+            if self.reported.insert(k) {
+                out.push((span, format!("Undeclared identifier {name}")));
+            }
+        }
+        fn walk(&mut self, stmts: &[Statement], on: &mut bool, out: &mut Vec<(TextSpan, String)>) {
+            for s in stmts {
+                switch(s, on);
+                match s {
+                    Statement::Assignment(a) => {
+                        if let Expression::Identifier(i) = &a.target {
+                            self.store(&i.name, a.span, *on, out);
+                        }
+                    }
+                    Statement::Input(i) => {
+                        if let Expression::Identifier(t) = &i.target {
+                            self.store(&t.name, i.span, *on, out);
+                        }
+                    }
+                    Statement::For(f) => {
+                        self.store(&f.variable, f.span, *on, out);
+                        self.walk(&f.body, on, out);
+                    }
+                    Statement::If(i) => {
+                        self.walk(&i.then_body, on, out);
+                        for b in &i.elseif_branches {
+                            self.walk(&b.body, on, out);
+                        }
+                        self.walk(&i.else_body, on, out);
+                    }
+                    Statement::While(w) => self.walk(&w.body, on, out),
+                    Statement::DoLoop(d) => self.walk(&d.body, on, out),
+                    Statement::With(w) => self.walk(&w.body, on, out),
+                    Statement::SelectCase(c) => {
+                        for case in &c.cases {
+                            self.walk(&case.body, on, out);
+                        }
+                        self.walk(&c.case_else, on, out);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    if !program.statements.iter().any(|s| {
+        let mut on = false;
+        switch(s, &mut on);
+        on
+    }) {
+        return Vec::new();
+    }
+    let mut globals: HashSet<String> = HashSet::new();
+    declared_in(&program.statements, &mut globals);
+    for s in &program.statements {
+        match s {
+            Statement::Subroutine(r) => { globals.insert(key(&r.name)); }
+            Statement::Function(f) => { globals.insert(key(&f.name)); }
+            Statement::Declare(d) => { globals.insert(key(&d.name)); }
+            Statement::Create(c) => { globals.insert(key(&c.name)); }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    let mut on = false;
+    let mut main = Check { globals: &globals, locals: HashSet::new(), reported: HashSet::new(), is_builtin };
+    for s in &program.statements {
+        let routine = match s {
+            Statement::Subroutine(r) => Some((&r.name, &r.params, &r.body, false)),
+            Statement::Function(f) => Some((&f.name, &f.params, &f.body, true)),
+            _ => None,
+        };
+        match routine {
+            Some((name, params, body, is_function)) => {
+                let mut locals: HashSet<String> = params.iter().map(|p| key(&p.name)).collect();
+                if is_function {
+                    locals.insert(key(name));
+                    locals.insert("result".to_string());
+                }
+                declared_in(body, &mut locals);
+                let mut c = Check { globals: &globals, locals, reported: HashSet::new(), is_builtin };
+                // (a $TYPECHECK inside the SUB holds on after it)
+                c.walk(body, &mut on, &mut out);
+            }
+            None => main.walk(std::slice::from_ref(s), &mut on, &mut out),
+        }
+    }
+    out
+}
+
 /// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
 /// `A(LBOUND(A) + 1) = v2`, … — the first elements get the values (both
 /// backends; not when the program has its own routine of that name).
