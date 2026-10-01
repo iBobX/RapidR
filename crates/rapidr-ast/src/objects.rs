@@ -1022,7 +1022,7 @@ impl Lowering<'_> {
                     let (typed, rest): (Vec<&Statement>, Vec<&Statement>) =
                         c.body.iter().partition(|x| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some()));
                     let rest: Vec<Statement> = rest.into_iter().cloned().collect();
-                    let body = qualify_create_body(&rest, &c.name, &known);
+                    let body = qualify_create_body(&rest, &c.name, &c.type_name, &known);
                     let mut out = vec![Statement::Create(CreateStatement { body: self.body(&body), ..c.clone() })];
                     for x in typed {
                         let Statement::Create(child) = x else { continue };

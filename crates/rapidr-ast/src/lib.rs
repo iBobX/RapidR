@@ -786,6 +786,134 @@ pub fn dotted_fields(program: &Program) -> Program {
     Program { statements, ..program.clone() }
 }
 
+/// The type RapidQ's `$OPTION DIM BYTE|WORD|…|STRING|VARIANT` gives what
+/// isn't declared (RapidQ manual, chapter 3); `None` without one.
+pub fn option_dim_type(statements: &[Statement]) -> Option<String> {
+    let mut found = None;
+    for s in statements {
+        if let Statement::Directive(d) = s {
+            if d.name.eq_ignore_ascii_case("$OPTION") {
+                let v = d.value.as_deref().unwrap_or("").trim();
+                let mut words = v.split_whitespace();
+                if words.next().is_some_and(|w| w.eq_ignore_ascii_case("DIM")) {
+                    if let Some(t) = words.next() {
+                        found = Some(canonical_type_name(t));
+                    }
+                }
+            }
+        }
+    }
+    found
+}
+
+/// `$OPTION DIM INTEGER`: a variable the program never declares — `n = 7 / 2`,
+/// `FOR i = …`, `INPUT a` — is of that type, not RapidR's VARIANT (it is
+/// declared at the top, global as undeclared names are). Names with a type
+/// suffix keep theirs; WITH, CREATE and TYPE bodies set properties, not
+/// variables (both backends).
+pub fn option_dim(program: &Program) -> Program {
+    let Some(ty) = option_dim_type(&program.statements) else { return program.clone() };
+    if ty == "VARIANT" {
+        return program.clone();
+    }
+    use std::collections::HashSet;
+    let key = |n: &str| n.to_ascii_lowercase();
+    let mut declared: HashSet<String> = HashSet::new();
+    for s in &program.statements {
+        match s {
+            Statement::Dim(d) => declared.extend(d.declarators.iter().map(|v| key(&v.name))),
+            Statement::Const(c) => { declared.insert(key(&c.name)); }
+            Statement::Subroutine(r) => { declared.insert(key(&r.name)); }
+            Statement::Function(f) => { declared.insert(key(&f.name)); }
+            Statement::Declare(d) => { declared.insert(key(&d.name)); }
+            Statement::Create(c) => { declared.insert(key(&c.name)); }
+            Statement::Type(t) => { declared.insert(key(&t.name)); }
+            _ => {}
+        }
+    }
+    fn targets(stmts: &[Statement], out: &mut Vec<String>, locals: &mut HashSet<String>) {
+        for s in stmts {
+            let mut name_of = |e: &Expression, out: &mut Vec<String>| {
+                if let Expression::Identifier(i) = e {
+                    out.push(i.name.clone());
+                }
+            };
+            match s {
+                Statement::Assignment(a) => name_of(&a.target, out),
+                Statement::Input(i) => name_of(&i.target, out),
+                Statement::For(f) => {
+                    out.push(f.variable.clone());
+                    targets(&f.body, out, locals);
+                }
+                Statement::Dim(d) => locals.extend(d.declarators.iter().map(|v| v.name.to_ascii_lowercase())),
+                Statement::If(i) => {
+                    targets(&i.then_body, out, locals);
+                    for b in &i.elseif_branches {
+                        targets(&b.body, out, locals);
+                    }
+                    targets(&i.else_body, out, locals);
+                }
+                Statement::DoLoop(d) => targets(&d.body, out, locals),
+                Statement::While(w) => targets(&w.body, out, locals),
+                Statement::SelectCase(c) => {
+                    for case in &c.cases {
+                        targets(&case.body, out, locals);
+                    }
+                    targets(&c.case_else, out, locals);
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut wanted: Vec<String> = Vec::new();
+    let mut add = |names: Vec<String>, locals: &HashSet<String>, wanted: &mut Vec<String>| {
+        for n in names {
+            let k = n.to_ascii_lowercase();
+            if suffix_type(&n).is_some() || n.contains('.') || declared.contains(&k) || locals.contains(&k) {
+                continue;
+            }
+            if !wanted.iter().any(|w| w.eq_ignore_ascii_case(&n)) {
+                wanted.push(n);
+            }
+        }
+    };
+    let mut top = Vec::new();
+    let mut top_locals = HashSet::new();
+    targets(&program.statements, &mut top, &mut top_locals);
+    add(top, &top_locals, &mut wanted);
+    for s in &program.statements {
+        let (name, params, body) = match s {
+            Statement::Subroutine(r) => (&r.name, &r.params, &r.body),
+            Statement::Function(f) => (&f.name, &f.params, &f.body),
+            _ => continue,
+        };
+        let mut locals: HashSet<String> = params.iter().map(|p| key(&p.name)).collect();
+        locals.insert(key(name));
+        let mut names = Vec::new();
+        targets(body, &mut names, &mut locals);
+        add(names, &locals, &mut wanted);
+    }
+    if wanted.is_empty() {
+        return program.clone();
+    }
+    let span = program.span;
+    let mut statements: Vec<Statement> = wanted
+        .into_iter()
+        .map(|name| {
+            Statement::Dim(DimStatement {
+                span,
+                declarators: vec![VariableDeclarator { span, name, dimensions: Vec::new() }],
+                type_name: ty.clone(),
+                fixed_len: None,
+                is_static: false,
+                is_redim: false,
+            })
+        })
+        .collect();
+    statements.extend(program.statements.iter().cloned());
+    Program { statements, ..program.clone() }
+}
+
 /// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
 /// `A(LBOUND(A) + 1) = v2`, … — the first elements get the values (both
 /// backends; not when the program has its own routine of that name).
@@ -972,12 +1100,15 @@ pub fn stream_read_assignment(c: &CallStatement, is_stream: &dyn Fn(&Expression)
 /// sub-objects. Returns the body with such statements (assignments and calls
 /// whose object is `Name(args)` for a `Name` that `is_known` doesn't claim
 /// as a variable, array or routine) written with `obj` explicitly.
-pub fn qualify_create_body(body: &[Statement], obj: &str, is_known: &dyn Fn(&str) -> bool) -> Vec<Statement> {
+pub fn qualify_create_body(body: &[Statement], obj: &str, type_name: &str, is_known: &dyn Fn(&str) -> bool) -> Vec<Statement> {
+    let own = component_indexed_members(type_name);
     let qualify = |e: &Expression| -> Option<Expression> {
         let Expression::MemberAccess(m) = e else { return None };
         let Expression::FunctionCall(fc) = m.object.as_ref() else { return None };
         let Expression::Identifier(sub) = fc.callee.as_ref() else { return None };
-        if is_known(&sub.name) {
+        // (the component's own `Panel(i)` even when the program has a
+        // `Panel` array of its own: inside the CREATE it's the object's)
+        if is_known(&sub.name) && !own.iter().any(|o| o.eq_ignore_ascii_case(&sub.name)) {
             return None;
         }
         let owner = Expression::Identifier(Identifier { span: sub.span, name: obj.to_string() });
@@ -998,6 +1129,22 @@ pub fn qualify_create_body(body: &[Statement], obj: &str, is_known: &dyn Fn(&str
             _ => s.clone(),
         })
         .collect()
+}
+
+/// A component's indexed members (`Panel(i).Width` of a QSTATUSBAR,
+/// `Column(i).Caption` of a QLISTVIEW, …): inside its CREATE they're the
+/// object's, whatever else the program calls by those names.
+pub fn component_indexed_members(type_name: &str) -> &'static [&'static str] {
+    match canonical_type_name(type_name).to_ascii_uppercase().as_str() {
+        "RSTATUSBAR" => &["panel", "panels"],
+        "RLISTVIEW" => &["item", "column", "subitem", "selected"],
+        "RTREEVIEW" => &["item"],
+        "RHEADER" => &["sections", "section"],
+        "RSTRINGGRID" => &["cell", "colwidths", "rowheights", "columnstyle", "columnlist"],
+        "RLISTBOX" | "RCOMBOBOX" | "RFILELISTBOX" => &["item", "selected"],
+        "RTABCONTROL" => &["tab", "tabs"],
+        _ => &[],
+    }
 }
 
 /// A component RapidR implements, or one of RapidQ's objects it doesn't yet.

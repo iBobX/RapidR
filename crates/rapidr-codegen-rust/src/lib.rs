@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
-    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::hoist_routines(program)))))))));
+    let program = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::hoist_routines(program))))))))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -3066,6 +3066,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
                 "{{ let ptr = ({a2}).clone(); let this = ({a3}).clone(); rp_bind_event_closure(&({a0}).to_string_val(), &({a1}).to_string_val(), std::rc::Rc::new(move |args: &mut Vec<Value>| {{ let mut all = vec![this.clone()]; all.append(args); __callfunc(&ptr, &mut all); args.extend(all.drain(1..)); }})); v_null() }}"
             ))
         }
+        "__decimal" => Some(format!("rp_set_decimal(&{a0})")),
         "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
         "__restore" => Some(if args.is_empty() {
             "data::restore_compiled(None)".to_string()
