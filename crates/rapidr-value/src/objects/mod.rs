@@ -25,6 +25,7 @@ pub mod menu;
 pub mod printer;
 pub mod text;
 pub mod textedit;
+pub mod trackbar;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -65,6 +66,8 @@ enum Object {
     Printer(printer::Printer),
     /// QEDIT's / QRICHEDIT's text and selection; the runtime shows them.
     Text(textedit::TextEdit),
+    /// QTRACKBAR's range, position and ticks; the runtime draws its shapes.
+    TrackBar(trackbar::TrackBar),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -216,6 +219,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
         "REDIT" => Object::Text(textedit::TextEdit::new(false)),
         "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
+        "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -465,6 +469,26 @@ pub fn textedit_clipboard(id: &str, method: &str, clip_get: &dyn Fn() -> String,
 }
 
 /// Reads a QEDIT's / QRICHEDIT's text model (to show it).
+pub fn is_trackbar(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::TrackBar(_))).unwrap_or(false)
+}
+
+/// A QTRACKBAR's model, to read.
+pub fn with_trackbar<R>(id: &str, f: impl FnOnce(&trackbar::TrackBar) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::TrackBar(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
+/// A QTRACKBAR's model, to change (the user's keys and mouse).
+pub fn with_trackbar_mut<R>(id: &str, f: impl FnOnce(&mut trackbar::TrackBar) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::TrackBar(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
 pub fn with_textedit<R>(id: &str, f: impl FnOnce(&textedit::TextEdit) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::Text(t) => Some(f(t)),
@@ -631,6 +655,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Tree(t) => t.get(&prop),
         Object::Printer(p) => p.get(&prop),
         Object::Text(t) => t.get(&prop),
+        Object::TrackBar(t) => t.get(&prop),
     })?
 }
 
@@ -693,6 +718,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Tree(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
         Object::Text(t) => t.set(&prop, val).then_some(Ok(())),
+        Object::TrackBar(t) => t.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -775,6 +801,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Tree(_) => "tree",
         Object::Printer(_) => "printer",
         Object::Text(_) => "text",
+        Object::TrackBar(_) => "trackbar",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1082,6 +1109,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Tree(t) => t.call(method, args),
         Object::Printer(p) => p.call(method, args),
         Object::Text(t) => t.call(method, args),
+        Object::TrackBar(t) => t.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

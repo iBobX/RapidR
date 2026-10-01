@@ -269,10 +269,10 @@ impl RpComponent {
                 props.insert("width".into(), v_int(200));
                 props.insert("height".into(), v_int(200));
             }
+            // (its range and position: rapidr_value::objects::trackbar)
             "RTRACKBAR" => {
-                props.insert("min".into(), v_int(0));
-                props.insert("max".into(), v_int(100));
-                props.insert("position".into(), v_int(0));
+                props.insert("width".into(), v_int(150));
+                props.insert("height".into(), v_int(45));
             }
             "RUPDOWN" => {
                 props.insert("min".into(), v_int(0));
@@ -602,7 +602,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             picture_changed(name);
         }
         #[cfg(feature = "gui")]
-        if rapidr_value::objects::is_canvas(name) {
+        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) {
             crate::gui::redraw_widget(name);
         }
         // A QFILELISTBOX's directory changed: OnChange.
@@ -1059,6 +1059,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) {
             crate::gui::canvas_redraw(name);
+        } else if rapidr_value::objects::is_trackbar(name) {
+            crate::gui::redraw_widget(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
