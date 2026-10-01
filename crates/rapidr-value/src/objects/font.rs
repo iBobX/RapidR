@@ -4,7 +4,7 @@
 
 use crate::{v_int, v_str, Value};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Font {
     pub name: String,
     pub size: i64,

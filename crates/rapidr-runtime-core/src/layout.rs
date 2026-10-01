@@ -79,6 +79,14 @@ fn mark(parent: &str) {
 /// The client area of `parent`, in its children's coordinates: a form's
 /// inside (frame and main menu excluded), any other container's whole size.
 fn client_rect(parent: &str) -> Rect {
+    // A tab control's: the area under its tabs (rapidr_value::objects::tabcontrol).
+    if rapidr_value::objects::is_tabcontrol(parent) {
+        let (w, h) = (rp_comp_get(parent, "width").to_i64(), rp_comp_get(parent, "height").to_i64());
+        let font = rapidr_value::objects::font_from_props(parent, &|id, p| rp_comp_get(id, p));
+        if let Some((x, y, w, h)) = rapidr_value::objects::with_tabcontrol(parent, |t| t.display(w, h, &font)) {
+            return Rect::new(x, y, w, h);
+        }
+    }
     let (w, h) = if rp_comp_type(parent) == "RFORM" {
         crate::object::form_client(parent)
     } else {

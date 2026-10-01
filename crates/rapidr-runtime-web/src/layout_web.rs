@@ -96,6 +96,14 @@ pub fn form_outer(form: &str, client_width: i64, client_height: i64) -> (i64, i6
 /// The client area of `parent` in its children's coordinates: a form's
 /// inside; any other container's whole size.
 pub fn client_rect(parent: &str) -> Rect {
+    // A tab control's: the area under its tabs (rapidr_value::objects::tabcontrol).
+    if rapidr_value::objects::is_tabcontrol(parent) {
+        let n = |p: &str| rp_comp_get_stored(parent, p).to_i64();
+        let font = rapidr_value::objects::font_from_props(parent, &|id, p| crate::object_web::rp_comp_get(id, p));
+        if let Some((x, y, w, h)) = rapidr_value::objects::with_tabcontrol(parent, |t| t.display(n("width"), n("height"), &font)) {
+            return Rect::new(x, y, w, h);
+        }
+    }
     if rp_comp_type(parent) == "RFORM" {
         let (w, h) = form_client(parent);
         return Rect::new(0, 0, w, h);

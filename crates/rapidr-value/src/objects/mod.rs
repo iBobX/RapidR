@@ -24,6 +24,7 @@ pub mod memstream;
 pub mod menu;
 pub mod printer;
 pub mod text;
+pub mod tabcontrol;
 pub mod textedit;
 pub mod trackbar;
 
@@ -68,6 +69,8 @@ enum Object {
     Text(textedit::TextEdit),
     /// QTRACKBAR's range, position and ticks; the runtime draws its shapes.
     TrackBar(trackbar::TrackBar),
+    /// QTABCONTROL's tabs and selection; the runtime draws its ops.
+    TabControl(tabcontrol::TabControl),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -220,6 +223,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "REDIT" => Object::Text(textedit::TextEdit::new(false)),
         "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
         "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
+        "RTABCONTROL" => Object::TabControl(tabcontrol::TabControl::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -469,6 +473,26 @@ pub fn textedit_clipboard(id: &str, method: &str, clip_get: &dyn Fn() -> String,
 }
 
 /// Reads a QEDIT's / QRICHEDIT's text model (to show it).
+pub fn is_tabcontrol(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::TabControl(_))).unwrap_or(false)
+}
+
+/// A QTABCONTROL's model, to read.
+pub fn with_tabcontrol<R>(id: &str, f: impl FnOnce(&tabcontrol::TabControl) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::TabControl(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
+/// A QTABCONTROL's model, to change (the user's clicks and keys).
+pub fn with_tabcontrol_mut<R>(id: &str, f: impl FnOnce(&mut tabcontrol::TabControl) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::TabControl(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
 pub fn is_trackbar(id: &str) -> bool {
     with(id, |o| matches!(o, Object::TrackBar(_))).unwrap_or(false)
 }
@@ -656,6 +680,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Printer(p) => p.get(&prop),
         Object::Text(t) => t.get(&prop),
         Object::TrackBar(t) => t.get(&prop),
+        Object::TabControl(t) => t.get(&prop),
     })?
 }
 
@@ -681,6 +706,19 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             Object::Printer(p) => p.font = font,
             Object::Bitmap(b) => b.font = font,
             _ => {}
+        });
+        return Some(Ok(()));
+    }
+    // `Tab.TabInactiveFont = Font`: the QFONT's settings, for its inactive tabs.
+    if prop == "tabinactivefont" && is_tabcontrol(id) {
+        let font = with(&val.to_string_val(), |o| match o {
+            Object::Font(f) => Some(f.clone()),
+            _ => None,
+        })
+        .flatten()?;
+        with_tabcontrol_mut(id, |t| {
+            t.inactive_font = Some(font);
+            t.revision += 1;
         });
         return Some(Ok(()));
     }
@@ -719,6 +757,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
         Object::Text(t) => t.set(&prop, val).then_some(Ok(())),
         Object::TrackBar(t) => t.set(&prop, val).then_some(Ok(())),
+        Object::TabControl(t) => t.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -802,6 +841,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Printer(_) => "printer",
         Object::Text(_) => "text",
         Object::TrackBar(_) => "trackbar",
+        Object::TabControl(_) => "tabcontrol",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1110,6 +1150,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Printer(p) => p.call(method, args),
         Object::Text(t) => t.call(method, args),
         Object::TrackBar(t) => t.call(method, args),
+        Object::TabControl(t) => t.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

@@ -542,8 +542,8 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             el.set_title(&s);
         }
         "tabindex" => {
-            // For tab controls, don't set DOM tabIndex — the property store handles it
-            if !el.class_list().contains("rr-widget") || el.query_selector(".rr-tab-btn").ok().flatten().is_none() {
+            // (a tab control's TabIndex is its selected tab: its model's)
+            if !el.class_list().contains("rr-tabcontrol") {
                 el.set_tab_index(val.to_i64() as i32);
             }
         }
@@ -1244,15 +1244,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             let parent_name = args[0].to_string_val();
             gui_web_set_parent(name, &parent_name);
             crate::object_web::rp_comp_set(name, "parent", v_str(&parent_name));
-            v_null()
-        }
-        // TabControl methods
-        ("RTABCONTROL", "addtab") if args.len() >= 1 => {
-            tab_add(&id, &args[0].to_string_val());
-            v_null()
-        }
-        ("RTABCONTROL", "removetab") if args.len() >= 1 => {
-            tab_remove(&id, args[0].to_i64() as usize);
             v_null()
         }
         // Web-exclusive: RWebView
@@ -3194,29 +3185,157 @@ fn create_canvas(id: &str, name: &str, props: &HashMap<String, Value>) {
     setup_widget(&el, id, name, props);
 }
 
+/// A QTABCONTROL: a container whose first layer draws the tabs from the
+/// shared model (rapidr_value::objects::tabcontrol), as the desktop's; a
+/// click on the tabs or the arrow keys pick a tab (OnChange), the program's
+/// components go over it.
 fn create_tabcontrol(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
-    el.set_class_name("rr-widget");
-    let _ = el.style().set_property("border", "1px solid #aaa");
-    let _ = el.style().set_property("background", "white");
-
-    // Tab bar
-    let tab_bar = create_el("div");
-    tab_bar.set_id(&format!("{}-tabs", id));
-    let _ = tab_bar.style().set_property("display", "flex");
-    let _ = tab_bar.style().set_property("border-bottom", "1px solid #ccc");
-    let _ = tab_bar.style().set_property("background", "#f0f0f0");
-    let _ = el.append_child(&tab_bar);
-
-    // Tab content area
-    let content = create_el("div");
-    content.set_id(&format!("{}-content", id));
-    let _ = content.style().set_property("position", "relative");
-    let _ = content.style().set_property("width", "100%");
-    let _ = content.style().set_property("height", "calc(100% - 32px)");
-    let _ = el.append_child(&content);
-
+    el.set_class_name("rr-widget rr-tabcontrol");
+    el.set_tab_index(0);
+    let _ = el.style().set_property("outline", "none");
+    let back = create_el("div");
+    back.set_class_name("rr-tab-back");
+    for (k, v) in [("position", "absolute"), ("left", "0"), ("top", "0"), ("width", "100%"), ("height", "100%"), ("pointer-events", "none")] {
+        let _ = back.style().set_property(k, v);
+    }
+    let _ = el.append_child(&back);
     setup_widget(&el, id, name, props);
+    render_tabcontrol(name);
+    let uname = name.to_uppercase();
+    // (only the tabs' own clicks and keys: not its components')
+    let own = |el: &web_sys::HtmlElement, target: Option<web_sys::EventTarget>| target.and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()).is_some_and(|t| &t == el);
+    let size = |name: &str| (crate::object_web::rp_comp_get(name, "width").to_i64(), crate::object_web::rp_comp_get(name, "height").to_i64(), tab_control_font(name));
+    {
+        let (name, el2) = (uname.clone(), el.clone());
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if e.button() != 0 || !own(&el2, e.target()) {
+                return;
+            }
+            let r = el2.get_bounding_client_rect();
+            let (x, y) = ((e.client_x() as f64 - r.left()).floor() as i64, (e.client_y() as f64 - r.top()).floor() as i64);
+            let (w, h, font) = size(&name);
+            let Some((changed, focus)) = rapidr_value::objects::with_tabcontrol_mut(&name, |t| t.mouse_down(x, y, w, h, &font)).flatten() else { return };
+            if focus {
+                let _ = el2.focus();
+            } else {
+                e.prevent_default();
+            }
+            render_tabcontrol(&name);
+            if changed {
+                crate::object_web::rp_fire_event(&name, "onchange");
+            }
+        });
+        let _ = el.add_event_listener_with_callback("mousedown", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    for dom_event in ["mousemove", "mouseleave"] {
+        let (name, el2) = (uname.clone(), el.clone());
+        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let r = el2.get_bounding_client_rect();
+            let at = (dom_event == "mousemove" && own(&el2, e.target())).then(|| ((e.client_x() as f64 - r.left()).floor() as i64, (e.client_y() as f64 - r.top()).floor() as i64));
+            let (w, h, font) = size(&name);
+            if rapidr_value::objects::with_tabcontrol_mut(&name, |t| t.mouse_move(at, w, h, &font)) == Some(true) {
+                render_tabcontrol(&name);
+            }
+        });
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    {
+        let (name, el2) = (uname.clone(), el.clone());
+        let cb = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+            if !own(&el2, e.target()) {
+                return;
+            }
+            let Some(vk) = rapidr_value::input::vk_of_key(&e.key(), &e.code()) else { return };
+            if !(37..=40).contains(&vk) {
+                return;
+            }
+            e.prevent_default();
+            let (w, h, font) = size(&name);
+            if rapidr_value::objects::with_tabcontrol_mut(&name, |t| t.key(vk, w, h, &font)) == Some(true) {
+                render_tabcontrol(&name);
+                crate::object_web::rp_fire_event(&name, "onchange");
+            }
+        });
+        let _ = el.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+    for dom_event in ["focus", "blur"] {
+        let name = uname.clone();
+        let cb = Closure::<dyn FnMut()>::new(move || render_tabcontrol(&name));
+        let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+}
+
+/// A QTABCONTROL's font (the shared model measures its tabs with it).
+fn tab_control_font(name: &str) -> rapidr_value::objects::font::Font {
+    rapidr_value::objects::font_from_props(name, &|id, p| crate::object_web::rp_comp_get(id, p))
+}
+
+/// A QFONT as CSS / SVG: its family, its size in pixels (points at 96
+/// dpi), weight and style.
+fn svg_font(font: &rapidr_value::objects::font::Font) -> String {
+    let px = if font.size < 0 { -font.size } else { (font.size.clamp(1, 384) * 96 + 36) / 72 };
+    let family = font.name.replace(['"', '<', '>', '&', '\''], "");
+    format!(
+        "font-family=\"'{family}', 'Liberation Sans', Arial, sans-serif\" font-size=\"{px}px\"{}{}",
+        if font.styles & 1 != 0 { " font-weight=\"bold\"" } else { "" },
+        if font.styles & 2 != 0 { " font-style=\"italic\"" } else { "" }
+    )
+}
+
+/// A QTABCONTROL drawn again from its model (an SVG under its components).
+pub fn render_tabcontrol(name: &str) {
+    use rapidr_value::objects::tabcontrol::Op;
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    let Some(back) = el.query_selector(":scope > .rr-tab-back").ok().flatten() else { return };
+    let (w, h) = (crate::object_web::rp_comp_get(name, "width").to_i64(), crate::object_web::rp_comp_get(name, "height").to_i64());
+    let font = tab_control_font(name);
+    let color = rapidr_value::objects::form_color(&crate::object_web::rp_comp_get_stored(name, "color"));
+    let enabled = crate::object_web::rp_comp_get_stored(name, "enabled");
+    let enabled = matches!(enabled, Value::Null) || enabled.to_bool();
+    let me: &web_sys::Element = el.as_ref();
+    let focused = document().active_element().is_some_and(|a| &a == me);
+    let Some(ops) = rapidr_value::objects::with_tabcontrol(name, |t| t.ops(w, h, &font, color, enabled, focused)) else { return };
+    let esc = |t: &str| t.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    let mut svg = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"{h}\" viewBox=\"0 0 {w} {h}\" style=\"display:block\">");
+    for op in ops {
+        match op {
+            Op::Fill { rect: (x, y, rw, rh), color } => svg.push_str(&format!("<rect x=\"{x}\" y=\"{y}\" width=\"{rw}\" height=\"{rh}\" fill=\"#{color:06x}\" shape-rendering=\"crispEdges\"/>")),
+            Op::Text { rect: (x, y, rw, rh), text, angle, font, color } => {
+                let (cx, cy) = (x as f64 + rw as f64 / 2.0, y as f64 + rh as f64 / 2.0);
+                svg.push_str(&format!(
+                    "<text x=\"{cx}\" y=\"{cy}\" text-anchor=\"middle\" dominant-baseline=\"central\" fill=\"#{color:06x}\" {} transform=\"rotate({} {cx} {cy})\" style=\"white-space:pre\">{}</text>",
+                    svg_font(&font),
+                    -angle,
+                    esc(&text)
+                ));
+            }
+            Op::Focus { rect: (x, y, rw, rh) } => svg.push_str(&format!(
+                "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"none\" stroke=\"#000\" stroke-width=\"1\" stroke-dasharray=\"1,1\"/>",
+                x as f64 + 0.5,
+                y as f64 + 0.5,
+                (rw - 1).max(0),
+                (rh - 1).max(0)
+            )),
+            Op::Arrow { points, color } => {
+                let pts: Vec<String> = points.iter().map(|(px, py)| format!("{px},{py}")).collect();
+                svg.push_str(&format!("<polygon points=\"{}\" fill=\"#{color:06x}\"/>", pts.join(" ")));
+            }
+        }
+    }
+    svg.push_str("</svg>");
+    back.set_inner_html(&svg);
+}
+
+/// A QTABCONTROL changed by the program: drawn again, its aligned
+/// components laid out in its area again.
+pub fn tab_control_changed(name: &str) {
+    render_tabcontrol(name);
+    crate::layout_web::realign(name, None);
 }
 
 /// A QTREEVIEW (as on the desktop): rows for the shared model's visible
@@ -5000,92 +5119,6 @@ fn create_video(id: &str, name: &str, props: &HashMap<String, Value>) {
 // TabControl helpers
 // ---------------------------------------------------------------------------
 
-fn tab_add(id: &str, title: &str) {
-    let tabs_id = format!("{}-tabs", id);
-    if let Some(tabs) = get_el(&tabs_id) {
-        let idx = tabs.child_element_count();
-        let btn = create_el("button");
-        btn.set_inner_text(title);
-        btn.set_class_name("rr-tab-btn");
-        let _ = btn.set_attribute("data-tab-index", &idx.to_string());
-
-        // Style: active first tab by default
-        if idx == 0 {
-            let _ = btn.style().set_property("background", "white");
-            let _ = btn.style().set_property("border-bottom", "2px solid #4a90d9");
-            let _ = btn.style().set_property("font-weight", "bold");
-        }
-
-        // Attach click handler: switch tab, update visual, fire onchange
-        {
-            let tab_ctrl_id = id.to_string();
-            let tabs_bar_id = tabs_id.clone();
-            let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_e: web_sys::MouseEvent| {
-                tab_switch(&tab_ctrl_id, &tabs_bar_id);
-            });
-            let _ = btn.add_event_listener_with_callback("click", cb.as_ref().unchecked_ref());
-            cb.forget();
-        }
-
-        let _ = tabs.append_child(&btn);
-    }
-}
-
-/// Switch to the tab that was clicked — highlight it, update tabindex, fire onchange.
-fn tab_switch(tab_ctrl_id: &str, tabs_bar_id: &str) {
-    let doc = document();
-    // Find which button was clicked by checking the active element
-    // Instead, we iterate buttons and check the event target —
-    // but since we're in closure context, find the active element.
-    // Actually we read the clicked button's data-tab-index from the FocusEvent.
-    // Simpler: check document.activeElement
-    let active = doc.active_element();
-    let clicked_idx: u32 = active
-        .as_ref()
-        .and_then(|el| el.get_attribute("data-tab-index"))
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-
-    // Update visual: deactivate all, activate clicked
-    if let Some(tabs_bar) = get_el(tabs_bar_id) {
-        let children = tabs_bar.children();
-        for i in 0..children.length() {
-            if let Some(child) = children.item(i) {
-                if let Ok(btn) = child.dyn_into::<web_sys::HtmlElement>() {
-                    if i == clicked_idx {
-                        let _ = btn.style().set_property("background", "white");
-                        let _ = btn.style().set_property("border-bottom", "2px solid #4a90d9");
-                        let _ = btn.style().set_property("font-weight", "bold");
-                    } else {
-                        let _ = btn.style().set_property("background", "#f0f0f0");
-                        let _ = btn.style().set_property("border-bottom", "none");
-                        let _ = btn.style().set_property("font-weight", "normal");
-                    }
-                }
-            }
-        }
-    }
-
-    // Update the tabindex property in the component store
-    let comp_name = tab_ctrl_id
-        .strip_prefix("rr-")
-        .unwrap_or(tab_ctrl_id)
-        .to_uppercase();
-    crate::object_web::rp_comp_set_prop_only(&comp_name, "tabindex", v_int(clicked_idx as i64));
-
-    // Fire the onchange event
-    crate::object_web::rp_fire_event(&comp_name, "onchange");
-}
-
-fn tab_remove(id: &str, index: usize) {
-    let tabs_id = format!("{}-tabs", id);
-    if let Some(tabs) = get_el(&tabs_id) {
-        if let Some(child) = tabs.child_nodes().item(index as u32) {
-            tabs.remove_child(&child).ok();
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // TreeView helpers
 // ---------------------------------------------------------------------------
@@ -5611,9 +5644,6 @@ fn inject_form_styles() {
         crate::RR_BASE_CSS,
         ".rr-form-btn-min:hover,.rr-form-btn-max:hover{background:rgba(255,255,255,0.2)!important}\
          .rr-form-btn-close:hover{background:#e74c3c!important}\
-         .rr-tab-btn{padding:6px 16px;border:none;background:#f0f0f0;cursor:pointer;font-size:13px;\
-         border-bottom:2px solid transparent;transition:background 0.15s}\
-         .rr-tab-btn:hover{background:#e0e0e0}\
          .rr-menu-item-top{position:relative;display:inline-block;padding:6px 12px;cursor:pointer;font-weight:500}\
          .rr-menu-item-top:hover{background:#e0e0e0}\
          .rr-menu-item-top:hover > .rr-dropdown-menu{display:block!important}\
