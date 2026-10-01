@@ -661,6 +661,8 @@ const BUILTIN_FUNCTIONS = [
     // Math functions
     { name: 'ABS', description: 'Returns absolute value', signature: 'ABS(number)', snippet: 'ABS(${1:number})' },
     { name: 'ATN', description: 'Returns arctangent (radians)', signature: 'ATN(number)', snippet: 'ATN(${1:number})' },
+    { name: 'LPRINT', description: 'As PRINT, to the printer (printed at LFLUSH or when the program ends)', signature: 'LPRINT [expressions][;|,]', snippet: 'LPRINT ${1:"text"}' },
+    { name: 'LFLUSH', description: 'Prints what LPRINT wrote so far', signature: 'LFLUSH', snippet: 'LFLUSH' },
     { name: 'ATAN', description: 'Returns arctangent (radians); the same as ATN', signature: 'ATAN(number)', snippet: 'ATAN(${1:number})' },
     { name: 'TAB', description: 'In PRINT: moves to column n (to the next line when already past it)', signature: 'TAB(n)', snippet: 'TAB(${1:n})' },
     { name: 'GET$', description: 'Reads up to n bytes from standard input (a CGI request body)', signature: 'GET$(n)', snippet: 'GET$(${1:n})' },

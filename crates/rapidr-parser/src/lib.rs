@@ -554,6 +554,9 @@ impl<'a> Parser<'a> {
             TokenType::Input => self.parse_input().map(Statement::Input),
             TokenType::Bind => self.parse_bind().map(Statement::Bind),
             TokenType::Declare => self.parse_declare().map(Statement::Declare),
+            // `LPRINT …`: as PRINT, to the printer (`__lprint(newline, item,
+            // zone, …)`; rapidr_value::lprint).
+            TokenType::Identifier if self.peek_identifier_eq("LPRINT") && self.peek_kind_at(1) != Some(TokenType::Eq) => self.parse_lprint(),
             TokenType::RustStart => self.parse_rust_block().map(Statement::RustBlock),
             // A bare `END` ends the program (the END builtin). `END IF`,
             // `END SUB`, … are block terminators and never reach here.
@@ -969,6 +972,25 @@ impl<'a> Parser<'a> {
             zones,
             append_newline,
         })
+    }
+
+    fn parse_lprint(&mut self) -> Option<Statement> {
+        let start = self.pos;
+        let span = self.advance()?.span;
+        let mut args = Vec::new();
+        let mut append_newline = true;
+        while !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
+            args.push(self.parse_expression()?);
+            let comma = self.match_kind(TokenType::Comma);
+            let separated = comma || self.match_kind(TokenType::Semi);
+            args.push(Expression::Literal(Literal { span, value: LiteralValue::Integer(comma as i64) }));
+            append_newline = !separated;
+            if !separated {
+                break;
+            }
+        }
+        args.insert(0, Expression::Literal(Literal { span, value: LiteralValue::Integer(append_newline as i64) }));
+        Some(Statement::Call(CallStatement { span: self.span_from(start), callee: ident(span, "__lprint"), args }))
     }
 
     fn parse_explicit_call(&mut self) -> Option<CallStatement> {

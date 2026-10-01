@@ -99,6 +99,12 @@ pub fn set_print_hook(hook: PrintHook) {
     PRINT_HOOK.with(|h| h.set(hook));
 }
 
+/// Sends a print job to the runtime's print hook (LFLUSH, rapidr_value::lprint).
+pub fn print_job(job: &printer::PrintJob) -> Result<(), String> {
+    let hook = PRINT_HOOK.with(std::cell::Cell::get);
+    hook(job)
+}
+
 /// The printers `Printer.Printers(i)` lists: the system's (CUPS `lpstat`),
 /// read once; the web's hook prints through the browser.
 pub fn printer_names() -> Vec<String> {

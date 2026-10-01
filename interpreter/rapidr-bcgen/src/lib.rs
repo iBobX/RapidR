@@ -62,7 +62,7 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     // ($TYPECHECK: on the program as written, each SUB where it stands)
     let mut typecheck = rapidr_ast::typecheck_errors(program, &|n| builtins::is_builtin(n) || RAPIDQ_BUILTINS.contains(&n));
     typecheck.extend(rapidr_ast::rapidq_checks(program));
-    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::hoist_routines(program)))))))))));
+    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::create_property_reads(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::hoist_routines(program)))), &|n| builtins::is_builtin(n)))))))));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let lowered = rapidr_ast::numeric::lower(lowered);
