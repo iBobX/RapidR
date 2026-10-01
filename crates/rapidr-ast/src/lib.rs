@@ -1210,6 +1210,140 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
     out
 }
 
+/// More of RapidQ's compile-time checks, in its compiler's words (run on
+/// the program as written):
+/// - a SUB/FUNCTION called with more or fewer arguments than it declares:
+///   `Too many actual parameters for S` / `Too few parameters for S`;
+/// - a name DIMmed twice in one scope: `Identifier a already used, try
+///   another name` (`i%` and `i$` are two: RapidQ's examples DIM both);
+/// - `RESULT = …` outside a FUNCTION: `Trying to assign return value while
+///   not in FUNCTION`.
+pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
+    use std::collections::{HashMap, HashSet};
+    let key = |n: &str| strip_type_suffix(n).to_ascii_lowercase();
+    // (a DECLARE SUB without LIB is the routine's signature too: RapidQ's
+    // examples call `DECLARE SUB Check_Window ()` with none though the SUB
+    // takes a Sender)
+    let mut arity: HashMap<String, (String, usize, Vec<usize>)> = HashMap::new();
+    for s in &program.statements {
+        match s {
+            Statement::Subroutine(r) => { arity.entry(key(&r.name)).or_insert((r.name.clone(), r.params.len(), Vec::new())).1 = r.params.len(); }
+            Statement::Function(f) => { arity.entry(key(&f.name)).or_insert((f.name.clone(), f.params.len(), Vec::new())).1 = f.params.len(); }
+            _ => {}
+        }
+    }
+    for s in &program.statements {
+        if let Statement::Declare(d) = s {
+            if d.lib.is_none() {
+                if let Some(a) = arity.get_mut(&key(&d.name)) {
+                    a.2.push(d.params.len());
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    let count = |name_expr: &Expression, argc: usize, span: TextSpan, out: &mut Vec<(TextSpan, String)>| {
+        let Expression::Identifier(i) = name_expr else { return };
+        if let Some((name, n, declared)) = arity.get(&key(&i.name)) {
+            if declared.contains(&argc) {
+            } else if argc > *n {
+                out.push((span, format!("Too many actual parameters for {name}")));
+            } else if argc < *n {
+                out.push((span, format!("Too few parameters for {name}")));
+            }
+        }
+    };
+    // (TYPE bodies call their own methods by bare name: not these routines)
+    let outside_types: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Type(_))).cloned().collect();
+    walk(
+        &outside_types,
+        &mut |s| {
+            if let Statement::Call(c) = s {
+                count(&c.callee, c.args.len(), c.span, &mut out);
+            }
+        },
+        &mut |_| {},
+    );
+    let mut calls: Vec<(Expression, usize, TextSpan)> = Vec::new();
+    walk(
+        &outside_types,
+        &mut |_| {},
+        &mut |e| {
+            if let Expression::FunctionCall(c) = e {
+                calls.push(((*c.callee).clone(), c.args.len(), c.span));
+            }
+        },
+    );
+    for (callee, argc, span) in calls {
+        count(&callee, argc, span, &mut out);
+    }
+    fn dims(stmts: &[Statement], seen: &mut HashSet<String>, out: &mut Vec<(TextSpan, String)>) {
+        for s in stmts {
+            match s {
+                Statement::Dim(d) if !d.is_redim && !d.is_static => {
+                    for v in &d.declarators {
+                        if !seen.insert(v.name.to_ascii_lowercase()) {
+                            out.push((v.span, format!("Identifier {} already used, try another name", v.name)));
+                        }
+                    }
+                }
+                Statement::If(i) => {
+                    dims(&i.then_body, seen, out);
+                    for b in &i.elseif_branches {
+                        dims(&b.body, seen, out);
+                    }
+                    dims(&i.else_body, seen, out);
+                }
+                Statement::For(f) => dims(&f.body, seen, out),
+                Statement::While(w) => dims(&w.body, seen, out),
+                Statement::DoLoop(d) => dims(&d.body, seen, out),
+                Statement::SelectCase(c) => {
+                    for case in &c.cases {
+                        dims(&case.body, seen, out);
+                    }
+                    dims(&c.case_else, seen, out);
+                }
+                _ => {}
+            }
+        }
+    }
+    fn result_outside(stmts: &[Statement], out: &mut Vec<(TextSpan, String)>) {
+        walk(
+            stmts,
+            &mut |s| {
+                if let Statement::Assignment(a) = s {
+                    if matches!(&a.target, Expression::Identifier(i) if i.name.eq_ignore_ascii_case("result")) {
+                        out.push((a.span, "Trying to assign return value while not in FUNCTION".to_string()));
+                    }
+                }
+            },
+            &mut |_| {},
+        );
+    }
+    let mut global_dims = HashSet::new();
+    let main: Vec<Statement> = outside_types.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
+    dims(&main, &mut global_dims, &mut out);
+    let result_declared = global_dims.contains("result");
+    if !result_declared {
+        let plain: Vec<Statement> = main.iter().filter(|s| !matches!(s, Statement::Create(_) | Statement::With(_))).cloned().collect();
+        result_outside(&plain, &mut out);
+    }
+    for s in &program.statements {
+        match s {
+            Statement::Subroutine(r) => {
+                let mut seen = HashSet::new();
+                dims(&r.body, &mut seen, &mut out);
+                if !result_declared && !seen.contains("result") {
+                    result_outside(&r.body, &mut out);
+                }
+            }
+            Statement::Function(f) => dims(&f.body, &mut HashSet::new(), &mut out),
+            _ => {}
+        }
+    }
+    out
+}
+
 /// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
 /// `A(LBOUND(A) + 1) = v2`, … — the first elements get the values (both
 /// backends; not when the program has its own routine of that name).

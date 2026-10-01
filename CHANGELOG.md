@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.86.0] — 2026-09-30
+
+### Changed
+- More of RapidQ's compile-time checks, in its compiler's words (they used
+  to pass silently: extra arguments were dropped, missing ones empty, a
+  second DIM reset the variable):
+  `Too many actual parameters for S`, `Too few parameters for S` (a
+  `DECLARE SUB`'s own signature is accepted too, as RapidQ does),
+  `Identifier a already used, try another name` (`i%` and `i$` are two
+  names), `Trying to assign return value while not in FUNCTION`. None of
+  the 386 RapidQ examples or its include libraries trips them. Native,
+  interpreter and web.
+
 ## [2.85.0] — 2026-09-30
 
 ### Added
