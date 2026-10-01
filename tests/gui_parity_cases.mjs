@@ -108,6 +108,10 @@ export const cases = [
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
+  { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
+    expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"],
+    webCheck: `JSON.stringify([document.querySelector('[data-rr-name="Ed" i]').value, document.querySelector('[data-rr-name="Re" i]').value])`,
+    webExpect: '["hEYo","ONE\\n2\\n"]' },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

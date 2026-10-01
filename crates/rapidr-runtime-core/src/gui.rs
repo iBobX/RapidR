@@ -1144,12 +1144,13 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let text = rp_comp_get(name, "text").to_string_val();
+            let text = rapidr_value::objects::with_textedit(name, |t| t.raw()).unwrap_or_else(|| rp_comp_get(name, "text").to_string_val());
             let mut inp = Input::new(x, y, w, h, None);
             inp.set_value(&text);
             let name_for_cb = name.to_lowercase();
-            inp.set_callback(move |i| {
-                rp_comp_set(&name_for_cb, "text", v_str(&i.value()));
+            inp.set_callback(move |_| {
+                // (what the user typed goes to the text model: Modified)
+                text_pull(&name_for_cb);
                 rp_fire_event(&name_for_cb, "onchange");
             });
             let normal_frame = FrameType::DownBox;
@@ -1367,11 +1368,26 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let text = rp_comp_get(name, "text").to_string_val();
+            let text = rapidr_value::objects::with_textedit(name, |t| t.raw()).unwrap_or_else(|| rp_comp_get(name, "text").to_string_val());
             let mut buf = TextBuffer::default();
             buf.set_text(&text);
             let mut editor = TextEditor::new(x, y, w, h, None);
             editor.set_buffer(buf.clone());
+            // The user's typing: the text model (Modified), then OnChange —
+            // not while the program's own text is being shown (text_push).
+            let name_for_cb = name_lower.clone();
+            buf.add_modify_callback(move |_, _, _, _, _| {
+                if TEXT_PUSHING.with(std::cell::Cell::get) {
+                    return;
+                }
+                let n = name_for_cb.clone();
+                // (after FLTK finished the change: pulling now would read
+                // a half-updated buffer)
+                app::add_timeout3(0.0, move |_| {
+                    text_pull(&n);
+                    rp_fire_event(&n, "onchange");
+                });
+            });
             GUI_TEXT_BUFFERS.with(|tb| {
                 tb.borrow_mut().insert(name_lower.clone(), buf);
             });
@@ -5263,6 +5279,85 @@ pub fn gui_set_caption(name: &str, text: &str) {
             }
         }
     });
+}
+
+thread_local! {
+    /// While the program's text is put in a widget (its own changes aren't
+    /// the user's), and the model revision each widget shows.
+    static TEXT_PUSHING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static TEXT_SHOWN: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+}
+
+fn char_to_byte(s: &str, c: usize) -> i32 {
+    s.char_indices().nth(c).map_or(s.len(), |(b, _)| b) as i32
+}
+
+fn byte_to_char(s: &str, b: i32) -> usize {
+    let b = (b.max(0) as usize).min(s.len());
+    s.char_indices().take_while(|(i, _)| *i < b).count()
+}
+
+/// A QEDIT's / QRICHEDIT's widget text and selection copied to its model
+/// (rapidr_value::objects::textedit), before the program reads them.
+pub fn text_pull(name: &str) {
+    let name = name.to_lowercase();
+    let Some(widget) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name).cloned())) else { return };
+    let (text, start, len) = match widget {
+        GuiWidget::Input(inp) => {
+            let text = inp.value();
+            let (a, b) = (inp.position().min(inp.mark()), inp.position().max(inp.mark()));
+            let (ca, cb) = (byte_to_char(&text, a), byte_to_char(&text, b));
+            (text, ca, cb - ca)
+        }
+        GuiWidget::TextEditor(ed) => {
+            let Some(buf) = GUI_TEXT_BUFFERS.with(|tb| tb.borrow().get(&name).cloned()) else { return };
+            let text = buf.text();
+            let (a, b) = buf.selection_position().unwrap_or((ed.insert_position(), ed.insert_position()));
+            let (ca, cb) = (byte_to_char(&text, a.min(b)), byte_to_char(&text, a.max(b)));
+            (text, ca, cb - ca)
+        }
+        _ => return,
+    };
+    rapidr_value::objects::with_textedit_mut(&name, |t| t.user_edit(&text, start, len));
+}
+
+/// A QEDIT's / QRICHEDIT's model shown in its widget again, if the program
+/// changed it since (text, selection, ReadOnly).
+pub fn text_push(name: &str) {
+    let name = name.to_lowercase();
+    let Some((rev, raw, start, len, read_only)) = rapidr_value::objects::with_textedit(&name, |t| (t.revision, t.raw(), t.sel_start, t.sel_len, t.read_only)) else { return };
+    if TEXT_SHOWN.with(|s| s.borrow().get(&name) == Some(&rev)) {
+        return;
+    }
+    let Some(widget) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name).cloned())) else { return };
+    TEXT_SHOWN.with(|s| s.borrow_mut().insert(name.clone(), rev));
+    let (a, b) = (char_to_byte(&raw, start), char_to_byte(&raw, start + len));
+    TEXT_PUSHING.with(|p| p.set(true));
+    match widget {
+        GuiWidget::Input(mut inp) => {
+            if inp.value() != raw {
+                inp.set_value(&raw);
+            }
+            let _ = inp.set_position(b);
+            let _ = inp.set_mark(a);
+            inp.set_readonly(read_only);
+        }
+        GuiWidget::TextEditor(mut ed) => {
+            if let Some(mut buf) = GUI_TEXT_BUFFERS.with(|tb| tb.borrow().get(&name).cloned()) {
+                if buf.text() != raw {
+                    buf.set_text(&raw);
+                }
+                if a == b {
+                    buf.unselect();
+                } else {
+                    buf.select(a, b);
+                }
+            }
+            ed.set_insert_position(b);
+        }
+        _ => {}
+    }
+    TEXT_PUSHING.with(|p| p.set(false));
 }
 
 /// Update the text content of a TextEditor/TextBuffer.

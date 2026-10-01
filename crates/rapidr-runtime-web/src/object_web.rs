@@ -539,6 +539,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get_stored_dir(name) } else { String::new() };
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
+        if rapidr_value::objects::is_textedit(name) {
+            gui_web::text_push(name);
+        }
         let picture = rapidr_value::objects::is_picture(name);
         match result {
             // `Image.BMP = "photo.png"`: not a BMP; the browser shows it.
@@ -778,6 +781,9 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
     }
+    if rapidr_value::objects::is_textedit(name) {
+        gui_web::text_pull(name);
+    }
     if let Some(v) = rapidr_value::objects::get(name, &lprop) {
         return v;
     }
@@ -913,6 +919,27 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     if rapidr_value::objects::menu::is_menu(name) {
         crate::menu_web::schedule();
+    }
+    // QEDIT / QRICHEDIT: the element's text first; then Copy/Cut/Paste with
+    // the clipboard, Line(i), AddStrings, … on the model, shown again.
+    if rapidr_value::objects::is_textedit(name) {
+        gui_web::text_pull(name);
+        let clip = rapidr_value::objects::textedit_clipboard(
+            name,
+            &lmethod,
+            &|| crate::globals_web::get("clipboard", "text").map(|v| v.to_string_val()).unwrap_or_default(),
+            &|s| {
+                crate::globals_web::set("clipboard", "text", &v_str(s));
+            },
+        );
+        let result = clip.map(Ok).or_else(|| rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)));
+        if let Some(result) = result {
+            gui_web::text_push(name);
+            return result.unwrap_or_else(|e| {
+                object_error(name, method, &e);
+                v_null()
+            });
+        }
     }
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {

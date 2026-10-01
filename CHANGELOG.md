@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.97.0] — 2026-10-01
+
+### Added
+- QEDIT and QRICHEDIT keep their text and selection in one shared model
+  (rapidr_value::objects::textedit), as RapidQ: `SelStart`, `SelLength`,
+  `SelText` (read, and set to replace the selection), `Line(i)` (read and
+  set), `LineCount`, `AddStrings` / `AddLines`, `Modified`, `WhereX` /
+  `WhereY`, `SelectAll`, `ClearSelection`, `CopyToClipboard` /
+  `CutToClipboard` / `PasteFromClipboard`, `ReadOnly`, `CharCase`. A
+  multi-line edit's Text joins its lines with CR LF, as on Windows. What
+  the user typed and selected is read from the widget before the program
+  reads it, and the model is shown again after the program changes it.
+  Native, interpreter and web.
+
+### Fixed
+- A QRICHEDIT read before its form showed (`Text`, `Line(i)`,
+  `LineCount`) was empty.
+
 ## [2.96.0] — 2026-10-01
 
 ### Added
