@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.96.0] — 2026-10-01
+
+### Added
+- QSTRINGLIST as RapidQ's manual has it (its own examples run as shown):
+  `AddList(Other)`, `Parse(Source$, Delim$)` (the list becomes its pieces;
+  returns how many), `Build(Start%, End%, Delim$)`, `Exchange(I%, J%)`, and
+  `Duplicates` for a sorted list (dupIgnore, the default: a string already
+  there isn't added again; dupAccept; dupError). Native, interpreter and
+  web.
+
 ## [2.95.0] — 2026-10-01
 
 ### Added

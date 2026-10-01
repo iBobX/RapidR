@@ -669,6 +669,20 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         return Some(Ok(v));
     }
     let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+    // QSTRINGLIST AddList(Other): the other list's strings appended.
+    if method == "addlist" {
+        let other = with(&arg(0).to_string_val(), |o| match o {
+            Object::List(l) => Some(l.items.clone()),
+            _ => None,
+        })
+        .flatten()?;
+        let args: Vec<Value> = other.into_iter().map(Value::String).collect();
+        return with(id, |o| match o {
+            Object::List(l) => l.call("additems", &args).map(Ok),
+            _ => None,
+        })
+        .flatten();
+    }
     // Methods that need another object or a file, handled outside the
     // object so the registry isn't borrowed twice.
     let kind = with(id, |o| match o {
