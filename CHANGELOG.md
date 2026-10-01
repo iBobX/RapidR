@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.90.0] — 2026-10-01
+
+### Added
+- RapidQ built-ins that were missing (the corpus now compiles 158 of 386): `QUICKSORT(A(first), A(last),
+  ASCEND|DESCEND)` (sorts that range of the array in place, numbers by
+  value, strings by character; with or without parentheses), `PRINT TAB(n)`,
+  `ATAN` (ATN), `GET$(n)` (bytes from standard input, for CGI programs),
+  `SETCONSOLETITLE` (the terminal's title; the page's on the web) and
+  `CHDRIVE` (Windows). Native, interpreter and web.
+
+### Fixed
+- Native builds call the program's own FUNCTION or SUB named like a
+  built-in (`FUNCTION Get$`), as RapidQ and the interpreter do.
+
 ## [2.89.0] — 2026-10-01
 
 ### Added

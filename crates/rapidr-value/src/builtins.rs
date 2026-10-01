@@ -69,6 +69,47 @@ pub fn rp_str(val: &Value) -> Value {
     Value::String(val.to_string_val())
 }
 
+/// `PRINT TAB(n)`: spaces to column n of the console (1 is the first);
+/// past it already, column n of the next line (as QBasic's TAB).
+pub fn rp_tab(n: &Value) -> Value {
+    let n = n.to_i64().clamp(1, 32_767);
+    let col = crate::console::pos().to_i64().max(1);
+    if col <= n {
+        v_str(&" ".repeat((n - col) as usize))
+    } else {
+        v_str(&format!("\n{}", " ".repeat((n - 1) as usize)))
+    }
+}
+
+/// `QUICKSORT(A(first), A(last), ASCEND|DESCEND)` (rapidr_ast::quicksort):
+/// sorts A's elements from `first` to `last` in place — numbers by value,
+/// strings by their characters; `start_end` holds both elements' indices.
+pub fn rp_quicksort(array: &Value, descend: &Value, start_end: &[i64]) -> Value {
+    let Value::Array(a) = array else { return v_null() };
+    let mut a = a.borrow_mut();
+    let n = a.bounds.len();
+    if start_end.len() != 2 * n {
+        return v_null();
+    }
+    let (Ok(mut from), Ok(mut to)) = (a.offset(&start_end[..n]), a.offset(&start_end[n..])) else { return v_null() };
+    if from > to {
+        std::mem::swap(&mut from, &mut to);
+    }
+    let numeric = |v: &Value| matches!(v, Value::Integer(_) | Value::Double(_));
+    let slice = &mut a.data[from..=to];
+    slice.sort_by(|x, y| {
+        if numeric(x) && numeric(y) {
+            x.to_f64().partial_cmp(&y.to_f64()).unwrap_or(std::cmp::Ordering::Equal)
+        } else {
+            x.to_string_val().cmp(&y.to_string_val())
+        }
+    });
+    if descend.to_i64() != 0 {
+        slice.reverse();
+    }
+    v_null()
+}
+
 thread_local! {
     /// `$OPTION DECIMAL ","`: the character VAL takes as the decimal point.
     static DECIMAL: std::cell::Cell<char> = const { std::cell::Cell::new('.') };

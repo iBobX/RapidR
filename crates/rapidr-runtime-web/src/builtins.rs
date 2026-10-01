@@ -291,6 +291,24 @@ pub fn rp_inkey() -> Value {
     rapidr_value::console::inkey()
 }
 
+/// `GET$(n)`: a page has no standard input.
+pub fn rp_get_stdin(_n: &Value) -> Value {
+    v_str("")
+}
+
+/// `SETCONSOLETITLE title`: the page's title.
+pub fn rp_set_console_title(title: &Value) -> Value {
+    if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+        doc.set_title(&title.to_string_val());
+    }
+    v_null()
+}
+
+/// `CHDRIVE`: no drives in a page.
+pub fn rp_chdrive(_drive: &Value) -> Value {
+    v_null()
+}
+
 /// INPUT$(n)'s wait (the parser's RAPIDR__INPUTCHARS): the program sleeps
 /// until a key is pressed in the page. 0 when it can't wait here.
 pub fn rp_waitkey() -> Value {

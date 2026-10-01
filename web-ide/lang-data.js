@@ -661,6 +661,11 @@ const BUILTIN_FUNCTIONS = [
     // Math functions
     { name: 'ABS', description: 'Returns absolute value', signature: 'ABS(number)', snippet: 'ABS(${1:number})' },
     { name: 'ATN', description: 'Returns arctangent (radians)', signature: 'ATN(number)', snippet: 'ATN(${1:number})' },
+    { name: 'ATAN', description: 'Returns arctangent (radians); the same as ATN', signature: 'ATAN(number)', snippet: 'ATAN(${1:number})' },
+    { name: 'TAB', description: 'In PRINT: moves to column n (to the next line when already past it)', signature: 'TAB(n)', snippet: 'TAB(${1:n})' },
+    { name: 'GET$', description: 'Reads up to n bytes from standard input (a CGI request body)', signature: 'GET$(n)', snippet: 'GET$(${1:n})' },
+    { name: 'SETCONSOLETITLE', description: 'Sets the console window title (the page title on the web)', signature: 'SETCONSOLETITLE title', snippet: 'SETCONSOLETITLE ${1:"title"}' },
+    { name: 'CHDRIVE', description: 'Changes the current drive (Windows)', signature: 'CHDRIVE drive', snippet: 'CHDRIVE ${1:"d:"}' },
     { name: 'COS', description: 'Returns cosine', signature: 'COS(angle)', snippet: 'COS(${1:angle})' },
     { name: 'SIN', description: 'Returns sine', signature: 'SIN(angle)', snippet: 'SIN(${1:angle})' },
     { name: 'TAN', description: 'Returns tangent', signature: 'TAN(angle)', snippet: 'TAN(${1:angle})' },
