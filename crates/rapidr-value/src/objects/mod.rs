@@ -24,6 +24,7 @@ pub mod memstream;
 pub mod menu;
 pub mod printer;
 pub mod text;
+pub mod textedit;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -62,6 +63,8 @@ enum Object {
     Tree(tree::TreeView),
     /// The global PRINTER's document.
     Printer(printer::Printer),
+    /// QEDIT's / QRICHEDIT's text and selection; the runtime shows them.
+    Text(textedit::TextEdit),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -211,6 +214,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RDIRTREE" => Object::DirTree(dirtree::DirTree::default()),
         "RTREEVIEW" => Object::Tree(tree::TreeView::default()),
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
+        "REDIT" => Object::Text(textedit::TextEdit::new(false)),
+        "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -427,6 +432,55 @@ pub fn grid_names() -> Vec<String> {
     OBJECTS.with(|o| o.borrow().iter().filter(|(_, v)| matches!(v, Object::Grid(_))).map(|(k, _)| k.clone()).collect())
 }
 
+/// Whether `id` is a QEDIT / QRICHEDIT (its text model is here).
+pub fn is_textedit(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Text(_))).unwrap_or(false)
+}
+
+/// QEDIT / QRICHEDIT CopyToClipboard, CutToClipboard, PasteFromClipboard
+/// (and Copy / Cut / Paste) with the runtime's clipboard; `None` for other
+/// methods.
+pub fn textedit_clipboard(id: &str, method: &str, clip_get: &dyn Fn() -> String, clip_set: &dyn Fn(&str)) -> Option<Value> {
+    let m = method.to_lowercase();
+    if !matches!(m.as_str(), "copytoclipboard" | "copy" | "cuttoclipboard" | "cut" | "pastefromclipboard" | "paste") || !is_textedit(id) {
+        return None;
+    }
+    if m.starts_with("paste") {
+        let text = clip_get();
+        with_textedit_mut(id, |t| {
+            if !t.read_only {
+                t.replace_selection(&text);
+            }
+        });
+    } else {
+        let (sel, read_only) = with_textedit(id, |t| (t.get("seltext").map(|v| v.to_string_val()).unwrap_or_default(), t.read_only)).unwrap_or_default();
+        if !sel.is_empty() {
+            clip_set(&sel);
+        }
+        if m.starts_with("cut") && !read_only {
+            with_textedit_mut(id, |t| t.replace_selection(""));
+        }
+    }
+    Some(Value::Null)
+}
+
+/// Reads a QEDIT's / QRICHEDIT's text model (to show it).
+pub fn with_textedit<R>(id: &str, f: impl FnOnce(&textedit::TextEdit) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Text(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
+/// Changes a QEDIT's / QRICHEDIT's text model from its widget (the user
+/// typed or selected).
+pub fn with_textedit_mut<R>(id: &str, f: impl FnOnce(&mut textedit::TextEdit) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Text(t) => Some(f(t)),
+        _ => None,
+    })?
+}
+
 /// Reads a QSTRINGGRID's data (to draw it).
 pub fn with_grid<R>(id: &str, f: impl FnOnce(&StringGrid) -> R) -> Option<R> {
     with(id, |o| match o {
@@ -576,6 +630,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::DirTree(t) => t.get(&prop),
         Object::Tree(t) => t.get(&prop),
         Object::Printer(p) => p.get(&prop),
+        Object::Text(t) => t.get(&prop),
     })?
 }
 
@@ -637,6 +692,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::DirTree(t) => t.set(&prop, val).map(|_| Ok(())),
         Object::Tree(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
+        Object::Text(t) => t.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -669,6 +725,28 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         return Some(Ok(v));
     }
     let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+    // QRICHEDIT LoadFromFile / SaveToFile: the text, lines ending CR LF.
+    if is_textedit(id) && matches!(method.as_str(), "loadfromfile" | "savetofile") {
+        let path = arg(0).to_string_val();
+        return Some(if method == "loadfromfile" {
+            read_file(&path).map(|bytes| {
+                let text: String = bytes.iter().map(|&b| char::from(b)).collect();
+                with(id, |o| {
+                    if let Object::Text(t) = o {
+                        t.set_text(&text);
+                    }
+                });
+                Value::Null
+            })
+        } else {
+            let text = with(id, |o| match o {
+                Object::Text(t) => t.text(),
+                _ => String::new(),
+            })
+            .unwrap_or_default();
+            write_file(&path, &text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>()).map(|_| Value::Null)
+        });
+    }
     // QSTRINGLIST AddList(Other): the other list's strings appended.
     if method == "addlist" {
         let other = with(&arg(0).to_string_val(), |o| match o {
@@ -696,6 +774,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::DirTree(_) => "dirtree",
         Object::Tree(_) => "tree",
         Object::Printer(_) => "printer",
+        Object::Text(_) => "text",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1002,6 +1081,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::DirTree(t) => t.call(method, args),
         Object::Tree(t) => t.call(method, args),
         Object::Printer(p) => p.call(method, args),
+        Object::Text(t) => t.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

@@ -618,6 +618,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             }
         }
         #[cfg(feature = "gui")]
+        if rapidr_value::objects::is_textedit(name) {
+            crate::gui::text_push(name);
+        }
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tree(name) {
             crate::gui::tree_refresh(name);
         } else if rapidr_value::objects::is_listview(name) {
@@ -858,6 +862,11 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
         return v;
     }
+    // (what the user typed and selected, before the program reads it)
+    #[cfg(feature = "gui")]
+    if rapidr_value::objects::is_textedit(name) {
+        crate::gui::text_pull(name);
+    }
     if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
         return v;
     }
@@ -1011,6 +1020,29 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     #[cfg(feature = "gui")]
     if rapidr_value::objects::menu::is_menu(name) {
         crate::gui::schedule_menu_sync();
+    }
+    // QEDIT / QRICHEDIT: the widget's text first; then Copy/Cut/Paste with
+    // the clipboard, Line(i), AddStrings, … on the model, shown again.
+    if rapidr_value::objects::is_textedit(name) {
+        #[cfg(feature = "gui")]
+        crate::gui::text_pull(name);
+        let clip = rapidr_value::objects::textedit_clipboard(
+            name,
+            &method_lower,
+            &|| crate::globals::get("clipboard", "text").map(|v| v.to_string_val()).unwrap_or_default(),
+            &|s| {
+                crate::globals::set("clipboard", "text", &v_str(s));
+            },
+        );
+        let result = clip.map(Ok).or_else(|| rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)));
+        if let Some(result) = result {
+            #[cfg(feature = "gui")]
+            crate::gui::text_push(name);
+            return result.unwrap_or_else(|e| {
+                eprintln!("[rapidr] {name}.{method}: {e}");
+                v_null()
+            });
+        }
     }
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {

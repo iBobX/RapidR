@@ -2102,6 +2102,7 @@ fn create_edit(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     el.set_class_name("rr-widget");
     setup_widget(&el, id, name, props);
+    text_shown_again(name);
 }
 
 fn create_textarea(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -2113,6 +2114,81 @@ fn create_textarea(id: &str, name: &str, props: &HashMap<String, Value>) {
     }
     el.set_class_name("rr-widget");
     setup_widget(&el, id, name, props);
+    text_shown_again(name);
+}
+
+thread_local! {
+    /// The model revision each QEDIT / QRICHEDIT element shows.
+    static TEXT_SHOWN: std::cell::RefCell<HashMap<String, u64>> = std::cell::RefCell::new(HashMap::new());
+}
+
+/// A text element (just made): the model's text, selection and ReadOnly in it.
+fn text_shown_again(name: &str) {
+    let name = name.to_lowercase();
+    TEXT_SHOWN.with(|s| s.borrow_mut().remove(&name));
+    text_push(&name);
+}
+
+/// A string's UTF-16 offset as a character index, and back (the DOM's
+/// selection counts UTF-16 units).
+fn utf16_to_char(s: &str, u: u32) -> usize {
+    let mut units = 0u32;
+    s.chars().take_while(|c| {
+        units += c.len_utf16() as u32;
+        units <= u
+    }).count()
+}
+
+fn char_to_utf16(s: &str, c: usize) -> u32 {
+    s.chars().take(c).map(|c| c.len_utf16() as u32).sum()
+}
+
+/// The element's text and selection: (text, start, end), as UTF-16 offsets.
+fn text_element(name: &str) -> Option<(String, u32, u32)> {
+    let el = get_el(&comp_id(name))?;
+    if let Ok(i) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+        let (a, b) = (i.selection_start().ok().flatten().unwrap_or(0), i.selection_end().ok().flatten().unwrap_or(0));
+        return Some((i.value(), a, b));
+    }
+    let t = el.dyn_into::<web_sys::HtmlTextAreaElement>().ok()?;
+    let (a, b) = (t.selection_start().ok().flatten().unwrap_or(0), t.selection_end().ok().flatten().unwrap_or(0));
+    Some((t.value(), a, b))
+}
+
+/// A QEDIT's / QRICHEDIT's element text and selection copied to its model
+/// (rapidr_value::objects::textedit), before the program reads them — as
+/// the desktop's.
+pub fn text_pull(name: &str) {
+    let name = name.to_lowercase();
+    let Some((text, a, b)) = text_element(&name) else { return };
+    let (ca, cb) = (utf16_to_char(&text, a.min(b)), utf16_to_char(&text, a.max(b)));
+    rapidr_value::objects::with_textedit_mut(&name, |t| t.user_edit(&text, ca, cb - ca));
+}
+
+/// A QEDIT's / QRICHEDIT's model shown in its element again, if the program
+/// changed it since (text, selection, ReadOnly).
+pub fn text_push(name: &str) {
+    let name = name.to_lowercase();
+    let Some((rev, raw, start, len, read_only)) = rapidr_value::objects::with_textedit(&name, |t| (t.revision, t.raw(), t.sel_start, t.sel_len, t.read_only)) else { return };
+    if TEXT_SHOWN.with(|s| s.borrow().get(&name) == Some(&rev)) {
+        return;
+    }
+    let Some(el) = get_el(&comp_id(&name)) else { return };
+    TEXT_SHOWN.with(|s| s.borrow_mut().insert(name.clone(), rev));
+    let (a, b) = (char_to_utf16(&raw, start), char_to_utf16(&raw, start + len));
+    if let Ok(i) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+        if i.value() != raw {
+            i.set_value(&raw);
+        }
+        let _ = i.set_selection_range(a, b);
+        i.set_read_only(read_only);
+    } else if let Ok(t) = el.dyn_into::<web_sys::HtmlTextAreaElement>() {
+        if t.value() != raw {
+            t.set_value(&raw);
+        }
+        let _ = t.set_selection_range(a, b);
+        t.set_read_only(read_only);
+    }
 }
 
 fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
