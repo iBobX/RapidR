@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.83.0] — 2026-09-30
+
+### Added
+- `INPUT$(n)`: waits for n keys (not echoed) and returns them the moment
+  the n-th is pressed, as RapidQ — no polling: a console program sleeps in
+  the terminal (or reads n characters from a pipe, returning what came if
+  it ends first), a program with windows serves its events (timers,
+  repaints) until the keys come, and the web suspends the program until the
+  page's keydown. Native, interpreter and web.
+
 ## [2.82.0] — 2026-09-30
 
 ### Added

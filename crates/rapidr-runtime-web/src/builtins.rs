@@ -287,6 +287,22 @@ thread_local! {
 /// `INKEY$`: the next key pressed in the page, or "" — keys typed into the
 /// program's fields and dialogs are theirs, not INKEY$'s.
 pub fn rp_inkey() -> Value {
+    track_keys();
+    rapidr_value::console::inkey()
+}
+
+/// INPUT$(n)'s wait (the parser's RAPIDR__INPUTCHARS): the program sleeps
+/// until a key is pressed in the page. 0 when it can't wait here.
+pub fn rp_waitkey() -> Value {
+    track_keys();
+    if rapidr_value::console::key_waiting() {
+        return v_int(1);
+    }
+    v_int(crate::dialog_web::wait_key() as i64)
+}
+
+/// The page's keys go to INKEY$'s queue from the first INKEY$ / INPUT$ on.
+fn track_keys() {
     if !KEYS_TRACKED.with(|t| t.replace(true)) {
         let cb = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(|e: web_sys::KeyboardEvent| {
             let typing = e.target().and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()).is_some_and(|t| {
@@ -299,6 +315,7 @@ pub fn rp_inkey() -> Value {
             let text = if e.key().chars().count() == 1 { e.key() } else { String::new() };
             if let Some(k) = rapidr_value::console::inkey_of(vk, &text) {
                 rapidr_value::console::push_key(k);
+                crate::dialog_web::key_pressed();
             }
         });
         if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
@@ -306,7 +323,6 @@ pub fn rp_inkey() -> Value {
         }
         cb.forget();
     }
-    rapidr_value::console::inkey()
 }
 
 // ---------------------------------------------------------------------------

@@ -153,6 +153,11 @@ pub fn push_key(key: String) {
     });
 }
 
+/// Whether INKEY$ has a key to return.
+pub fn key_waiting() -> bool {
+    KEYS.with(|k| !k.borrow().is_empty())
+}
+
 /// `INKEY$`: the next key pressed, or "" (it doesn't wait).
 pub fn inkey() -> Value {
     Value::String(KEYS.with(|k| k.borrow_mut().pop_front()).unwrap_or_default())

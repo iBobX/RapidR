@@ -715,6 +715,7 @@ const BUILTIN_FUNCTIONS = [
     { name: 'ENVIRON$', description: 'Returns environment variable', signature: 'ENVIRON$(name)', snippet: 'ENVIRON\\$(${1:name})' },
     { name: 'DOEVENTS', description: 'Processes pending GUI events', signature: 'DOEVENTS', snippet: 'DOEVENTS' },
     { name: 'INKEY$', description: 'The next key pressed, or "" (does not wait); arrows and function keys are CHR$(0) + their scan code', signature: 'INKEY$', snippet: 'INKEY$' },
+    { name: 'INPUT$', description: 'Waits for n keys (not echoed) and returns them as soon as the last one is pressed', signature: 'INPUT$(n)', snippet: 'INPUT$(${1:1})' },
     { name: 'END', description: 'Terminates the program', signature: 'END', snippet: 'END' },
 
     // GUI functions

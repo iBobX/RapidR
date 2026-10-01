@@ -833,7 +833,7 @@ pub fn option_dim(program: &Program) -> Program {
     }
     fn targets(stmts: &[Statement], out: &mut Vec<String>, locals: &mut HashSet<String>) {
         for s in stmts {
-            let mut name_of = |e: &Expression, out: &mut Vec<String>| {
+            let name_of = |e: &Expression, out: &mut Vec<String>| {
                 if let Expression::Identifier(i) = e {
                     out.push(i.name.clone());
                 }
@@ -866,7 +866,7 @@ pub fn option_dim(program: &Program) -> Program {
         }
     }
     let mut wanted: Vec<String> = Vec::new();
-    let mut add = |names: Vec<String>, locals: &HashSet<String>, wanted: &mut Vec<String>| {
+    let add = |names: Vec<String>, locals: &HashSet<String>, wanted: &mut Vec<String>| {
         for n in names {
             let k = n.to_ascii_lowercase();
             if suffix_type(&n).is_some() || n.contains('.') || declared.contains(&k) || locals.contains(&k) {

@@ -34,6 +34,8 @@ thread_local! {
     /// The forms the program waits on (`ShowModal`), outermost first, and
     /// whether each has closed yet.
     static MODALS: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
+    /// INPUT$ waits for a key: the page's next keydown continues it.
+    static KEY_WAIT: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Installed by the VM host: how to continue the program after a dialog.
@@ -134,6 +136,30 @@ pub fn pause(ms: f64) -> bool {
         let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(wake.unchecked_ref(), ms.clamp(0.0, 86_400_000.0) as i32);
     }
     true
+}
+
+/// INPUT$'s wait: the program sleeps until a key is pressed in the page
+/// ([`key_pressed`] continues it there and then). `false` where it can't
+/// wait.
+pub fn wait_key() -> bool {
+    if !can_wait() {
+        return false;
+    }
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+    KEY_WAIT.with(|k| k.set(true));
+    true
+}
+
+/// A key reached INKEY$'s queue: a program waiting in INPUT$ continues.
+pub fn key_pressed() {
+    if KEY_WAIT.with(|k| k.replace(false)) {
+        WAITING.with(|w| w.set(false));
+        if let Some(h) = RESUME.with(|r| r.borrow().clone()) {
+            // (what RAPIDR__WAITKEY returns: a key came)
+            h(Value::Integer(1), None);
+        }
+    }
 }
 
 /// The program waits in a ShowModal.

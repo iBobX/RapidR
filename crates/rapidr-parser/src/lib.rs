@@ -299,6 +299,7 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         let mut body = self.parse_body(&[]);
         pack_variadic_calls(&mut body, &self.variadic);
+        input_chars(&mut body);
         if !self.data_items.is_empty() {
             let mut init = data_table_init(&self.data_items, &self.data_labels);
             init.append(&mut body);
@@ -2700,6 +2701,44 @@ fn data_table_init(items: &[Expression], labels: &[(String, usize)]) -> Vec<Stat
 
 /// The hidden parameter of a SUBI/FUNCTIONI holding its packed arguments.
 const VARIADIC_PARAM: &str = "__params";
+
+/// RapidQ's `INPUT$(n)`: waits for n keys and returns them (not echoed) —
+/// a FUNCTION over INKEY$ added to the program. Between keys it sleeps in
+/// RAPIDR__WAITKEY until the next key arrives (a terminal's poll, the
+/// window's event loop, the page's keydown), so it returns the moment the
+/// n-th key is pressed.
+fn input_chars(body: &mut Vec<Statement>) {
+    const NAME: &str = "RAPIDR__INPUTCHARS";
+    const SRC: &str = "FUNCTION RAPIDR__INPUTCHARS(RAPIDR__n AS LONG) AS STRING\n\
+        DIM RAPIDR__s AS STRING, RAPIDR__k AS STRING, RAPIDR__more AS LONG\n\
+        RAPIDR__more = 1\n\
+        WHILE LEN(RAPIDR__s) < RAPIDR__n AND RAPIDR__more\n\
+        RAPIDR__k = INKEY$\n\
+        IF RAPIDR__k = \"\" THEN RAPIDR__more = RAPIDR__WAITKEY() ELSE RAPIDR__s = RAPIDR__s + RAPIDR__k\n\
+        WEND\n\
+        RAPIDR__INPUTCHARS = LEFT$(RAPIDR__s, RAPIDR__n)\n\
+        END FUNCTION\n";
+    let is_input = |e: &Expression| matches!(e, Expression::Identifier(i) if i.name.eq_ignore_ascii_case("INPUT$"));
+    let own = body.iter().any(|s| matches!(s, Statement::Function(f) if f.name.eq_ignore_ascii_case("INPUT$")));
+    let mut used = false;
+    if !own {
+        walk_expressions_mut(body, true, &mut |e| {
+            if let Expression::FunctionCall(c) = e {
+                if c.args.len() == 1 && is_input(&c.callee) {
+                    let span = expression_span(&c.callee);
+                    *c.callee = ident(span, NAME);
+                    used = true;
+                }
+            }
+        });
+    }
+    if used {
+        if let Ok(tokens) = rapidr_lexer::Lexer::new(SRC, None).tokenize() {
+            let mut p = Parser::new(&tokens);
+            body.extend(p.parse_program().statements);
+        }
+    }
+}
 
 fn ident(span: TextSpan, name: &str) -> Expression {
     Expression::Identifier(Identifier { span, name: name.to_string() })

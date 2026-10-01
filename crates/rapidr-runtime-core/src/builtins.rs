@@ -188,6 +188,20 @@ pub fn rp_inkey() -> Value {
     rapidr_value::console::inkey()
 }
 
+/// INPUT$(n)'s wait (the parser's RAPIDR__INPUTCHARS): sleeps until a key
+/// is pressed — in the program's windows when it has any, else in the
+/// terminal — and wakes with it, no polling. 0 when no key can come.
+pub fn rp_waitkey() -> Value {
+    if rapidr_value::console::key_waiting() {
+        return v_int(1);
+    }
+    #[cfg(feature = "gui")]
+    if let Some(waited) = crate::gui::gui_wait_key() {
+        return v_int(waited as i64);
+    }
+    v_int(crate::terminal::wait_key() as i64)
+}
+
 /// `DOEVENTS`: pending UI events, timers and redraws get their turn
 /// (console programs: nothing to do).
 pub fn rp_doevents() {
