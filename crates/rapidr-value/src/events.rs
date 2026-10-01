@@ -261,3 +261,33 @@ mod tests {
         assert_eq!(got.get(), 0);
     }
 }
+
+/// QBUTTON's `Kind` (RapidQ's bkCustom 0 … bkAll 10, Delphi's TBitBtn): the
+/// caption it gets and the ModalResult it closes a modal form with (bkClose
+/// closes the form; bkHelp only gets its caption). None for bkCustom.
+pub fn button_kind(kind: i64) -> Option<(&'static str, i64)> {
+    Some(match kind {
+        1 => ("OK", 1),
+        2 => ("Cancel", 2),
+        3 => ("&Help", 0),
+        4 => ("&Yes", 6),
+        5 => ("&No", 7),
+        6 => ("&Close", 0),
+        7 => ("Abort", 3),
+        8 => ("&Retry", 4),
+        9 => ("&Ignore", 5),
+        10 => ("&All", 8),
+        _ => return None,
+    })
+}
+
+/// What `ShowModal` returns: the form's ModalResult, or mrCancel (2) when it
+/// was closed some other way (its Close, the window's close button).
+pub fn modal_result(stored: i64) -> i64 {
+    if stored == 0 {
+        2
+    } else {
+        stored
+    }
+}
+

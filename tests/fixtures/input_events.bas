@@ -1,6 +1,7 @@
 ' Keyboard and mouse events with RapidQ's arguments: OnKeyDown / OnKeyUp
 ' (Key, Shift) with the virtual-key code, OnKeyPress (Key) with the
-' character typed, to the focused control and then its form; OnMouseDown /
+' character typed, to the focused control — its form gets them first with
+' KeyPreview on (all OnKeyDowns, then the OnKeyPresses); OnMouseDown /
 ' OnMouseUp (Button, X, Y, Shift) and OnMouseMove (X, Y, Shift) in the
 ' component under the mouse.
 DECLARE SUB EdDown (Key AS WORD, Shift AS INTEGER)
@@ -17,6 +18,7 @@ CREATE Form AS QFORM
   Caption = "input events"
   Width = 360
   Height = 260
+  KeyPreview = 1
   OnKeyDown = FormDown
   OnKeyPress = FormPress
   CREATE Ed AS QEDIT

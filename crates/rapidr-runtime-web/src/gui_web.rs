@@ -1171,6 +1171,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         // wasm; we instead dim the page with a backdrop overlay and bring the
         // form to the front. Backdrop is removed when the form is closed/hidden.
         (_, "showmodal") if comp_type == "RFORM" => {
+            crate::object_web::rp_comp_set_prop_only(name, "modalresult", v_int(0));
             crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(true));
             if let Some(el) = get_el(&id) {
                 let _ = el.style().set_property("display", "");
@@ -1803,7 +1804,27 @@ fn create_button(id: &str, name: &str, props: &HashMap<String, Value>) {
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
     el.set_inner_text(&strip_ampersands(&caption));
     el.set_class_name("rr-widget");
+    modal_result_click(&el, name);
     setup_widget(&el, id, name, props);
+}
+
+/// A click on a button without an OnClick still gives its form the
+/// button's ModalResult (after any handler: a timeout, as Delphi's Click
+/// runs OnClick first); with a handler, rp_fire_event does it.
+fn modal_result_click(el: &web_sys::HtmlElement, name: &str) {
+    let name = name.to_string();
+    let cb = Closure::<dyn FnMut()>::new(move || {
+        if crate::object_web::rp_has_handler(&name, "onclick") {
+            return;
+        }
+        let n = name.clone();
+        let later = Closure::once_into_js(move || crate::object_web::button_clicked(&n));
+        if let Some(w) = web_sys::window() {
+            let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
+        }
+    });
+    let _ = el.add_event_listener_with_callback("click", cb.as_ref().unchecked_ref());
+    cb.forget();
 }
 
 fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -1811,6 +1832,7 @@ fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
     el.set_inner_text(&strip_ampersands(&caption));
     el.set_class_name("rr-widget rr-coolbtn");
+    modal_result_click(&el, name);
 
     let flat = props.get("flat").map(|v| v.to_i64() != 0).unwrap_or(false);
     let style = el.style();

@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.95.0] — 2026-10-01
+
+### Added
+- `ShowModal` returns the form's `ModalResult`, as RapidQ: setting it (to
+  mrOk 1 … mrAll 8) closes the modal form; a button's `ModalResult` gives
+  it to its form when clicked; closing the form otherwise gives mrCancel
+  (2). QBUTTON `Kind` (bkOK, bkCancel, bkYes, bkNo, bkAbort, bkRetry,
+  bkIgnore, bkAll, bkHelp, bkClose): its standard caption and ModalResult
+  (bkClose closes the form). Native, interpreter and web.
+
+### Changed
+- Key events as RapidQ (Delphi) sends them: a form hears the keys typed in
+  its controls only with `KeyPreview` on — and then before the control
+  (they used to reach the form after the control, always). Within a key,
+  every OnKeyDown comes before the OnKeyPresses. Desktop and web.
+
 ## [2.94.0] — 2026-10-01
 
 ### Added
