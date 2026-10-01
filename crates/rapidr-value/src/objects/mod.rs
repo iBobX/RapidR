@@ -21,6 +21,7 @@ pub mod imagelist;
 pub mod list;
 pub mod listview;
 pub mod memstream;
+pub mod menu;
 pub mod printer;
 pub mod text;
 
@@ -186,6 +187,9 @@ pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
 
 /// Creates the object if `type_name` is one of [`TYPES`]; `false` otherwise.
 pub fn create(id: &str, type_name: &str) -> bool {
+    if menu::create(id, type_name) {
+        return true;
+    }
     let object = match type_name.to_ascii_uppercase().as_str() {
         "RFONT" => Object::Font(Font::default()),
         "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
@@ -549,6 +553,9 @@ fn ensure_printer(id: &str) {
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    if let Some(v) = menu::get(id, &prop) {
+        return Some(v);
+    }
     // `Mem.Pointer`: the address of its first byte (crate::memory).
     if prop == "pointer" && with(id, |o| matches!(o, Object::Stream(_))) == Some(true) {
         return Some(Value::Integer(crate::memory::stream_pointer(id)));
@@ -577,6 +584,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    if menu::is_menu(id) {
+        return menu::set(id, &prop, val).map(Ok);
+    }
     if with_header(id, |h| h.set(&prop, val)) == Some(true) {
         return Some(Ok(()));
     }
@@ -652,6 +662,9 @@ pub fn rect_of(v: &Value, props: PropReader) -> (i64, i64, i64, i64) {
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
     ensure_printer(id);
     let method = method.to_lowercase();
+    if let Some(v) = menu::call(id, &method, args) {
+        return Some(Ok(v));
+    }
     if let Some(v) = with_header(id, |h| h.call(&method, args)).flatten() {
         return Some(Ok(v));
     }

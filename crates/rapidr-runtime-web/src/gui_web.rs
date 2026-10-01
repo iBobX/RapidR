@@ -90,7 +90,7 @@ pub fn element_shown(name: &str) -> bool {
 }
 
 /// Compute an element ID from the RapidR component name.
-fn comp_id(name: &str) -> String {
+pub fn comp_id(name: &str) -> String {
     format!("rr-{}", name.to_lowercase())
 }
 
@@ -3489,23 +3489,13 @@ fn create_mainmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
     } else {
         let _ = get_parent_client(&parent).append_child(&el);
     }
+    crate::menu_web::schedule();
 }
 
-fn create_menuitem(id: &str, name: &str, props: &HashMap<String, Value>) {
-    let el = create_el("div");
-    let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&strip_ampersands(&caption));
-    let _ = el.set_attribute("data-rr-name", name);
-    let _ = el.set_attribute("data-rr-type", "RMENUITEM");
-    el.set_id(id);
-
-    // Append to body first so it exists in DOM for get_el lookup
-    let _ = document().body().unwrap().append_child(&el);
-
-    let parent = props.get("parent").map(|v| v.to_string_val()).unwrap_or_default();
-    if !parent.is_empty() {
-        gui_web_set_parent(name, &parent);
-    }
+/// A menu item has no element of its own: its menu draws it from the shared
+/// model (menu_web).
+fn create_menuitem(_id: &str, _name: &str, _props: &HashMap<String, Value>) {
+    crate::menu_web::schedule();
 }
 
 fn create_popupmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -3518,10 +3508,13 @@ fn create_popupmenu(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.style().set_property("padding", "4px 0");
     let _ = el.style().set_property("z-index", "50");
     el.set_id(id);
+    el.set_class_name("rr-popup-menu rr-dropdown-menu");
     let _ = el.set_attribute("data-rr-name", name);
     let _ = el.style().set_property("display", "none");
-    let parent = props.get("parent").map(|v| v.to_string_val());
-    let _ = get_parent_client(&parent).append_child(&el);
+    if let Some(body) = document().body() {
+        let _ = body.append_child(&el);
+    }
+    let _ = props;
 }
 
 fn create_groupbox(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -4926,6 +4919,10 @@ pub fn gui_web_show_form(name: &str) {
 
 /// Re-parent a DOM element to a different parent's client area.
 pub fn gui_web_set_parent(name: &str, parent_name: &str) {
+    if rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Item) {
+        crate::menu_web::schedule();
+        return;
+    }
     let id = comp_id(name);
     let el = match get_el(&id) {
         Some(e) => e,
@@ -5439,7 +5436,17 @@ fn inject_form_styles() {
          .rr-dropdown-menu{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #ccc;\
          box-shadow:0 2px 8px rgba(0,0,0,0.15);min-width:150px;z-index:1000;padding:4px 0;border-radius:4px}\
          .rr-menu-item-sub{padding:6px 16px;cursor:pointer;white-space:nowrap;font-size:13px;color:#333;display:block}\
-         .rr-menu-item-sub:hover{background:#007acc;color:#fff!important}"
+         .rr-menu-item-sub:hover{background:#007acc;color:#fff!important}\
+         .rr-menu-item-sub{position:relative;display:flex;align-items:center;padding:5px 12px 5px 4px}\
+         .rr-menu-mark{display:inline-block;width:18px;text-align:center}\
+         .rr-menu-text{flex:1}\
+         .rr-menu-keys{margin-left:28px;opacity:.75}\
+         .rr-menu-sep{border-top:1px solid #ddd;margin:4px 0}\
+         .rr-menu-disabled{color:#999!important;cursor:default}\
+         .rr-menu-disabled:hover{background:transparent!important;color:#999!important}\
+         .rr-menu-item-sub:hover > .rr-dropdown-menu{display:block!important}\
+         .rr-menu-item-sub > .rr-dropdown-menu{top:-5px;left:100%}\
+         .rr-menu-closed .rr-dropdown-menu{display:none!important}"
     );
     style.set_text_content(Some(&full_css));
     if let Ok(Some(head)) = doc.query_selector("head") {

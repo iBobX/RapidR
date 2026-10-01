@@ -423,6 +423,9 @@ fn button_of(b: i64) -> rapidr_value::input::Button {
 
 /// Fires `name`'s mouse event (QIMAGE fires its own: `picture_mouse`).
 fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_value::input::Button, x: i32, y: i32, shift: i64) {
+    if kind == rapidr_value::input::Mouse::Down && button == rapidr_value::input::Button::Right && auto_popup(name) {
+        return;
+    }
     if rp_comp_type(name).eq_ignore_ascii_case("RIMAGE") {
         return;
     }
@@ -1540,77 +1543,12 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let mut mb = SysMenuBar::new(0, 0, pw, 30, None);
             mb.set_text_size(13);
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::SysMenuBar(mb));
+                gw.borrow_mut().insert(name_lower.clone(), GuiWidget::SysMenuBar(mb));
             });
+            schedule_menu_sync();
         }
-        "RMENUITEM" => {
-            // Menu items are added to their parent MenuBar
-            let caption = rp_comp_get(name, "caption").to_string_val();
-            let parent = rp_comp_get(name, "parent").to_string_val();
-
-            // Skip submenu headers (items that have children) — FLTK auto-creates
-            // parent submenus when child items use path separators like "&File/&New".
-            let has_children = !crate::object::get_children_of(name).is_empty();
-            if has_children {
-                // This is a submenu header — let children create the submenu automatically
-                return;
-            }
-
-            if !parent.is_empty() {
-                // Walk up to find the MenuBar ancestor
-                let mut mb_name = parent.to_lowercase();
-                let mut found = false;
-                for _ in 0..5 {
-                    let ptype = rp_comp_type(&mb_name);
-                    if ptype == "RMAINMENU" {
-                        found = true;
-                        break;
-                    }
-                    let pp = rp_comp_get(&mb_name, "parent").to_string_val().to_lowercase();
-                    if pp.is_empty() { break; }
-                    mb_name = pp;
-                }
-                if found {
-                    // Build the full menu path
-                    let path = build_menu_path(name);
-                    let name_for_cb = name.to_lowercase();
-                    GUI_WIDGETS.with(|gw| {
-                        let mut widgets = gw.borrow_mut();
-                        // Try SysMenuBar first (main menus), then MenuBar (popup menus)
-                        if let Some(GuiWidget::SysMenuBar(ref mut mb)) = widgets.get_mut(&mb_name) {
-                            if caption == "-" {
-                                mb.add_choice(&path);
-                            } else {
-                                let cb_name = name_for_cb.clone();
-                                mb.add(
-                                    &path,
-                                    fltk::enums::Shortcut::None,
-                                    fltk::menu::MenuFlag::Normal,
-                                    move |_| {
-                                        rp_fire_event(&cb_name, "onclick");
-                                    },
-                                );
-                            }
-                        } else if let Some(GuiWidget::MenuBar(ref mut mb)) = widgets.get_mut(&mb_name) {
-                            if caption == "-" {
-                                mb.add_choice(&path);
-                            } else {
-                                let cb_name = name_for_cb.clone();
-                                mb.add(
-                                    &path,
-                                    fltk::enums::Shortcut::None,
-                                    fltk::menu::MenuFlag::Normal,
-                                    move |_| {
-                                        rp_fire_event(&cb_name, "onclick");
-                                    },
-                                );
-                            }
-                        }
-                    });
-                }
-            }
-            // MenuItems don't get their own widget entry
-        }
+        // (drawn by their menu from the shared model: menu_rebuild)
+        "RMENUITEM" => {}
         "RDESIGNSURFACE" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
             let y = rp_comp_get(name, "top").to_i64() as i32;
@@ -1968,11 +1906,14 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             });
         }
         "RPOPUPMENU" => {
-            // Popup menu — use MenuBar at y=-30 so it's hidden until popup() is called
-            let mb = MenuBar::new(-1000, -1000, 100, 30, None);
+            // A pop-up menu: its items live in a menu widget that's never
+            // shown itself (Popup(X, Y) pulls them down: gui_menu_popup).
+            let mut mb = MenuBar::new(0, 0, 0, 0, None);
+            mb.hide();
             GUI_WIDGETS.with(|gw| {
                 gw.borrow_mut().insert(name_lower, GuiWidget::MenuBar(mb));
             });
+            schedule_menu_sync();
         }
         "RSCROLLBAR" => {
             let x = rp_comp_get(name, "left").to_i64() as i32;
@@ -2098,33 +2039,201 @@ pub fn gui_apply_font(name: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: build menu path for a PMENUITEM
+// Menus (rapidr_value::objects::menu: the tree and items' state)
 // ---------------------------------------------------------------------------
 
-/// Walk up the parent chain from a PMENUITEM to build the full menu path
-/// e.g. "File/&New" or "File/Save As..."
-fn build_menu_path(name: &str) -> String {
-    use crate::object::rp_comp_type;
-    let mut parts = Vec::new();
-    let my_caption = rp_comp_get(name, "caption").to_string_val();
-    parts.push(my_caption);
+thread_local! {
+    /// The menu revision the widgets show, and whether a rebuild is queued.
+    static MENU_SYNC: std::cell::Cell<(u64, bool)> = const { std::cell::Cell::new((u64::MAX, false)) };
+}
 
-    let mut current = name.to_lowercase();
-    loop {
-        let parent = rp_comp_get(&current, "parent").to_string_val().to_lowercase();
-        if parent.is_empty() { break; }
-        let ptype = rp_comp_type(&parent);
-        if ptype == "RMENUITEM" {
-            let pcap = rp_comp_get(&parent, "caption").to_string_val();
-            parts.push(pcap);
-        } else {
-            // Reached the MenuBar — stop
-            break;
-        }
-        current = parent;
+/// A menu's item, as FLTK takes it: its path with `/` escaped.
+fn menu_path_label(path: &[String], caption: &str) -> String {
+    let esc = |s: &str| s.replace('\\', "\\\\").replace('/', "\\/");
+    path.iter().map(|p| esc(p)).chain(std::iter::once(esc(caption))).collect::<Vec<_>>().join("/")
+}
+
+fn fltk_shortcut(sc: Option<rapidr_value::objects::menu::Shortcut>) -> fltk::enums::Shortcut {
+    use fltk::enums::{Key, Shortcut};
+    let Some(sc) = sc else { return Shortcut::None };
+    let key = match sc.vk {
+        8 => Key::BackSpace,
+        9 => Key::Tab,
+        13 => Key::Enter,
+        27 => Key::Escape,
+        33 => Key::PageUp,
+        34 => Key::PageDown,
+        35 => Key::End,
+        36 => Key::Home,
+        37 => Key::Left,
+        38 => Key::Up,
+        39 => Key::Right,
+        40 => Key::Down,
+        45 => Key::Insert,
+        46 => Key::Delete,
+        112..=123 => Key::from_i32(Key::F1.bits() + (sc.vk - 112) as i32),
+        v => Key::from_char(char::from_u32(v as u32).unwrap_or(' ').to_ascii_lowercase()),
+    };
+    let mut s = Shortcut::None | key;
+    if sc.ctrl {
+        s = s | Shortcut::Ctrl;
     }
-    parts.reverse();
-    parts.join("/")
+    if sc.shift {
+        s = s | Shortcut::Shift;
+    }
+    if sc.alt {
+        s = s | Shortcut::Alt;
+    }
+    s
+}
+
+/// Fills a menu widget with its menu's items (rapidr_value's model).
+fn menu_rebuild<M: MenuExt>(mb: &mut M, root: &str) {
+    use fltk::menu::MenuFlag;
+    mb.clear();
+    for e in rapidr_value::objects::menu::entries(root) {
+        let mut flags = if e.submenu { MenuFlag::Submenu } else { MenuFlag::Normal };
+        if e.checked && !e.submenu {
+            flags |= if e.radio { MenuFlag::Radio | MenuFlag::Value } else { MenuFlag::Toggle | MenuFlag::Value };
+        }
+        if !e.enabled {
+            flags |= MenuFlag::Inactive;
+        }
+        if e.divider_after {
+            flags |= MenuFlag::MenuDivider;
+        }
+        let name = e.name.clone();
+        let label = menu_path_label(&e.path, &e.caption);
+        let shortcut = if e.submenu { fltk::enums::Shortcut::None } else { fltk_shortcut(e.shortcut) };
+        mb.add(&label, shortcut, flags, move |_| {
+            // (the menu is rebuilt after the handler: not while FLTK is
+            // still in this item)
+            rp_fire_event(&name, "onclick");
+            schedule_menu_sync();
+        });
+    }
+}
+
+/// Rebuilds every built menu if the model changed since they were drawn.
+fn menu_sync() {
+    let rev = rapidr_value::objects::menu::revision();
+    if MENU_SYNC.with(|m| m.get().0) == rev {
+        return;
+    }
+    MENU_SYNC.with(|m| m.set((rev, false)));
+    let built: Vec<(String, GuiWidget)> = GUI_WIDGETS.with(|gw| {
+        gw.try_borrow().map(|gw| gw.iter().filter(|(n, _)| rapidr_value::objects::menu::kind(n).is_some_and(|k| k != rapidr_value::objects::menu::Kind::Item)).map(|(n, w)| (n.clone(), w.clone())).collect()).unwrap_or_default()
+    });
+    for (name, w) in built {
+        match w {
+            GuiWidget::SysMenuBar(mut mb) => {
+                menu_rebuild(&mut mb, &name);
+                mb.redraw();
+                dump_menu(&name, &mb);
+            }
+            GuiWidget::MenuBar(mut mb) => {
+                menu_rebuild(&mut mb, &name);
+                dump_menu(&name, &mb);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// `RAPIDR_DUMP_MENUS=1`: what FLTK holds after each rebuild, on stderr
+/// (each item's path, and `*` checked / `!` disabled).
+fn dump_menu<M: MenuExt>(name: &str, mb: &M) {
+    if std::env::var_os("RAPIDR_DUMP_MENUS").is_none() {
+        return;
+    }
+    let mut items = Vec::new();
+    for i in 0..mb.size() {
+        if let Some(it) = mb.at(i) {
+            if let Some(label) = it.label() {
+                let path = mb.item_pathname(Some(&it)).unwrap_or(label);
+                let mut flags = String::new();
+                if it.value() {
+                    flags.push('*');
+                }
+                if !it.active() {
+                    flags.push('!');
+                }
+                items.push(format!("{path}{flags}"));
+            }
+        }
+    }
+    eprintln!("[menu {name}] {}", items.join(" | "));
+}
+
+/// A menu changed (an item's Caption, Checked, …, AddItems): the widgets
+/// are rebuilt once the program's code returns to the event loop.
+pub fn schedule_menu_sync() {
+    if MENU_SYNC.with(|m| m.get().1) {
+        return;
+    }
+    MENU_SYNC.with(|m| {
+        let (rev, _) = m.get();
+        m.set((rev, true));
+    });
+    app::add_timeout3(0.0, |_| {
+        MENU_SYNC.with(|m| {
+            let (rev, _) = m.get();
+            m.set((rev, false));
+        });
+        menu_sync();
+    });
+}
+
+/// `PopupMenu.Popup(X, Y)`: OnPopup, then the menu at that place on the
+/// screen; the item picked fires its OnClick.
+pub fn gui_menu_popup(name: &str, x: i32, y: i32) {
+    let name = name.to_lowercase();
+    rp_fire_event(&name, "onpopup");
+    MENU_SYNC.with(|m| m.set((u64::MAX, m.get().1)));
+    menu_sync();
+    let Some(GuiWidget::MenuBar(mb)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) else { return };
+    let (wx, wy) = mb.top_window().map_or((0, 0), |w| (w.x(), w.y()));
+    let Some(menu) = mb.menu() else { return };
+    let align = rapidr_value::objects::menu::with(&name, |n| n.alignment).unwrap_or(0);
+    let width = {
+        // (paRight / paCenter: the menu's right edge / middle at X)
+        let longest = rapidr_value::objects::menu::entries(&name).iter().filter(|e| e.path.is_empty()).map(|e| e.caption.chars().count()).max().unwrap_or(0);
+        (longest as i32 * 7 + 40).max(60)
+    };
+    let x = match align {
+        1 => x - width,
+        2 => x - width / 2,
+        _ => x,
+    };
+    if let Some(mut item) = menu.pulldown(x - wx, y - wy, 0, 0, None, Some(&mb)) {
+        item.do_callback(&mb);
+    }
+}
+
+/// A pop-up menu's widget, made in the front window if the program DIMmed the
+/// menu (no form of its own) or its form isn't built yet.
+pub fn ensure_menu_widget(name: &str) {
+    let name = name.to_lowercase();
+    if GUI_WIDGETS.with(|gw| gw.borrow().contains_key(&name)) {
+        return;
+    }
+    let Some(mut win) = app::first_window() else { return };
+    let mut mb = MenuBar::new(0, 0, 0, 0, None);
+    mb.hide();
+    win.add(&mb);
+    GUI_WIDGETS.with(|gw| gw.borrow_mut().insert(name, GuiWidget::MenuBar(mb)));
+}
+
+/// A right click on a component whose PopupMenu names a menu with
+/// AutoPopup on: that menu, under the mouse.
+fn auto_popup(name: &str) -> bool {
+    let menu = rp_comp_get(name, "popupmenu").to_string_val();
+    if menu.is_empty() || !rapidr_value::objects::menu::with(&menu, |n| n.kind == rapidr_value::objects::menu::Kind::Popup && n.auto_popup).unwrap_or(false) {
+        return false;
+    }
+    ensure_menu_widget(&menu);
+    gui_menu_popup(&menu, app::event_x_root(), app::event_y_root());
+    true
 }
 
 // ---------------------------------------------------------------------------

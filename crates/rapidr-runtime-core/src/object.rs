@@ -562,6 +562,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
     // with the web runtime).
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get(name, "directory").to_string_val() } else { String::new() };
+    // (a menu's change shows once the program's code returns: gui.rs)
+    #[cfg(feature = "gui")]
+    if rapidr_value::objects::menu::is_menu(name) {
+        crate::gui::schedule_menu_sync();
+    }
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
         let picture = rapidr_value::objects::is_picture(name);
         match result {
@@ -975,6 +980,19 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         rapidr_value::objects::create_form_surface(name, rapidr_value::objects::form_color(&rp_comp_get(name, "color")));
     }
 
+    // `PopupMenu.Popup(X, Y)` (screen coordinates, as RapidQ's).
+    if method_lower == "popup" && rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Popup) {
+        #[cfg(feature = "gui")]
+        {
+            crate::gui::ensure_menu_widget(name);
+            crate::gui::gui_menu_popup(name, args.first().map_or(0, Value::to_i64) as i32, args.get(1).map_or(0, Value::to_i64) as i32);
+        }
+        return v_null();
+    }
+    #[cfg(feature = "gui")]
+    if rapidr_value::objects::menu::is_menu(name) {
+        crate::gui::schedule_menu_sync();
+    }
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {
             // `Image.LoadFromFile "photo.png"`: not a BMP; FLTK shows it.
