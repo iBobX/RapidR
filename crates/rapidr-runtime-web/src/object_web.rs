@@ -516,6 +516,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         return rp_comp_set(name, prop, v_int(v));
     }
 
+    // (a menu's change shows once the program's code returns: menu_web)
+    if rapidr_value::objects::menu::is_menu(name) {
+        crate::menu_web::schedule();
+    }
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get_stored_dir(name) } else { String::new() };
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
@@ -885,6 +889,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         && !rapidr_value::objects::is_form_surface(name)
     {
         rapidr_value::objects::create_form_surface(name, rapidr_value::objects::form_color(&rp_comp_get_stored(name, "color")));
+    }
+    // `PopupMenu.Popup(X, Y)`.
+    if lmethod == "popup" && rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Popup) {
+        crate::menu_web::popup(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64));
+        return v_null();
+    }
+    if rapidr_value::objects::menu::is_menu(name) {
+        crate::menu_web::schedule();
     }
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {
@@ -1795,6 +1807,10 @@ fn bind_dom_event(name: &str, event: &str) {
         return;
     }
 
+    // A menu's items are clicked in its own drawing (menu_web).
+    if rapidr_value::objects::menu::is_menu(name) {
+        return;
+    }
     // A QLISTVIEW's clicks go through its rows and header (gui_web's
     // `create_listview`), which set ItemIndex first.
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {

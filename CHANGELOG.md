@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.94.0] — 2026-10-01
+
+### Added
+- Menus as RapidQ has them, from one model for the desktop and the web
+  (`rapidr_value::objects::menu`): QMENUITEM `ShortCut` ("Ctrl+N", "F2",
+  "Shift+Del", … — the key works and shows in the menu), `Checked`,
+  `RadioItem` (checking one unchecks the others), `Enabled` (greyed),
+  `Visible`, `Hint`, `Command`, `MenuIndex` (setting it moves the item),
+  `Count`; `AddItems` / `Insert` / `DelItems` / `DelIndex` on menus and
+  items; separators ("-"); submenus at any depth. Every change shows at
+  once (the menus used to be built once, without shortcuts or check marks).
+  QPOPUPMENU `Popup(X, Y)` (screen coordinates), `OnPopup`, `Alignment`,
+  and `AutoPopup`: a right click on a component whose `PopupMenu` is that
+  menu. Native, interpreter and web.
+
 ## [2.93.0] — 2026-10-01
 
 ### Added
