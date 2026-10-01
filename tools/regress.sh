@@ -12,6 +12,10 @@ curl -s -o /dev/null localhost:8765/ || { echo "serve the repo on http://localho
 # adds ~35 GB, mostly per-case debug executables and the shared cache).
 W=tests/conformance/.work
 if [ -d "$W/cargo-target" ] && [ "$(du -sk "$W/cargo-target" | cut -f1)" -gt 31457280 ]; then rm -rf "$W/cargo-target"; fi
+# Nothing a test runs may reach a real printer (Printer.EndDoc, LPRINT):
+# documents go to PDFs here instead.
+mkdir -p "$W/prints"
+export RAPIDR_PRINT_TO="$PWD/$W/prints"
 trap 'find "$W/cargo-target/debug" -maxdepth 1 -type f -perm +111 -delete 2>/dev/null; rm -rf "$W/codegen" "$W/native_gui_events"' EXIT
 echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5; echo "(unit done)"
 echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1

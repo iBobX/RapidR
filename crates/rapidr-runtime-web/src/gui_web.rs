@@ -1164,6 +1164,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                     form_bring_to_front(&id);
                 }
             }
+            owner_draw_shown_grids();
             v_null()
         }
         // Pseudo-modal show on web. True blocking is impossible in single-thread
@@ -1186,6 +1187,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             // As on the desktop, ShowModal waits until the form closes (the
             // VM suspends the code that called it); where nothing can wait it
             // returns at once.
+            owner_draw_shown_grids();
             crate::dialog_web::begin_modal(&id);
             v_null()
         }
@@ -4531,8 +4533,13 @@ fn render_grid_now(name: &str) {
 /// OnDrawCell(Col, Row, State, Rect): fired for every cell after the grid
 /// changed, as on the desktop (rapidr_value::objects::grid). Each cell's
 /// Rect is a QRECT (a property bag).
+/// Only for a grid on the page (a hidden form's grid is drawn when the form
+/// shows: [`owner_draw_shown_grids`]), as the desktop and RapidQ paint.
 fn grid_owner_draw(name: &str) {
     if !crate::object_web::rp_has_handler(name, "ondrawcell") {
+        return;
+    }
+    if get_el(&comp_id(name)).and_then(|el| el.offset_parent()).is_none() {
         return;
     }
     if !rapidr_value::objects::with_grid_mut(name, |g| g.owner_draw_needed()).unwrap_or(false) {
@@ -4547,6 +4554,13 @@ fn grid_owner_draw(name: &str) {
             crate::object_web::rp_comp_set(&rect, prop, v_int(v));
         }
         crate::object_web::rp_fire_event_args(name, "ondrawcell", &[v_int(col as i64), v_int(row as i64), v_int(state), crate::value::v_str(&rect)]);
+    }
+}
+
+/// The grids a form just showed: their OnDrawCell, held back while hidden.
+fn owner_draw_shown_grids() {
+    for g in rapidr_value::objects::grid_names() {
+        grid_owner_draw(&g);
     }
 }
 
