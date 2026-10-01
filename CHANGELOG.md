@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.81.0] — 2026-09-30
+
+### Added
+- Templates (manual 10.8) on both backends: `TYPE Holder<DataType, Size>`
+  … `END TYPE` and `DIM A AS Holder<INTEGER, 10>` — a TYPE made for each
+  set of arguments, the parameters replaced in its fields' types and sizes
+  and in its code (parameters and FUNCTIONs taking one too).
+  QStringGridEx.inc compiles now.
+- `Obj.Inherit<Event>` (manual 10.4): a TYPE's own `EVENT OnClick`, after
+  the program gave the object its own handler, runs from that handler
+  (`C.InheritOnClick`).
+
+### Fixed
+- Custom events (manual 10.9): a SUB given to an `AS EVENT(Template)`
+  field is stored as its pointer (`> 0`, fired with CALLFUNC); it was
+  taken for a component's event and the field stayed 0.
+- Web: a component whose event handler was given twice (a TYPE's EVENT,
+  then the program's own) ran it twice per event.
+
 ## [2.80.0] — 2026-09-30
 
 ### Added

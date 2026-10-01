@@ -59,7 +59,7 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
-    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::dotted_fields(&rapidr_ast::hoist_routines(program))))))));
+    let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::hoist_routines(program)))))))));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let lowered = rapidr_ast::numeric::lower(lowered);
