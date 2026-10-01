@@ -118,10 +118,15 @@ impl Types {
 
     /// (defining TYPE, method as written, is FUNCTION).
     fn find_method(&self, t: &str, m: &str) -> Option<(String, String, bool)> {
-        self.chain(t)
-            .iter()
-            .rev()
-            .find_map(|d| d.methods.get(&key(m)).map(|(name, f)| (d.name.clone(), name.clone(), *f)))
+        let own = self.chain(t).iter().rev().find_map(|d| d.methods.get(&key(m)).map(|(name, f)| (d.name.clone(), name.clone(), *f)));
+        // `Obj.InheritOnClick` (manual 10.4): the TYPE's own EVENT OnClick
+        // for this object, after the program gave it another handler.
+        own.or_else(|| {
+            let event = m.get(7..).filter(|_| m.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("inherit")))?;
+            self.chain(t).iter().rev().find_map(|d| {
+                d.events.iter().position(|(e, _)| e.eq_ignore_ascii_case(event)).map(|i| (d.name.clone(), format!("_ev{i}"), false))
+            })
+        })
     }
 
     fn field(&self, t: &str, f: &str) -> Option<&TypeField> {
@@ -628,6 +633,16 @@ impl Lowering<'_> {
                 }
             }
             if let Some(slot) = self.types.slot(t, member) {
+                // A custom event (manual 10.9: `OnReady AS EVENT(Template)`)
+                // given a SUB holds a pointer to it, for CALLFUNC.
+                let value = match &value {
+                    Expression::Identifier(id)
+                        if self.routines.contains(&key(&id.name)) && self.types.field(t, member).is_some_and(|f| f.type_name.eq_ignore_ascii_case("EVENT")) =>
+                    {
+                        call_at(span, "CODEPTR", vec![value.clone()])
+                    }
+                    _ => value,
+                };
                 let value = match self.types.field_conversion(t, member) {
                     Some(conv) if !self.is_array_field(t, member) => crate::numeric::convert_at(span, conv, value),
                     _ => value,
@@ -642,7 +657,10 @@ impl Lowering<'_> {
         let span = a.span;
         // `lbl(i).OnClick = Handler`: bind to the object known at run time.
         if let (Expression::MemberAccess(m), Expression::Identifier(h)) = (&a.target, &a.value) {
-            if m.member.to_ascii_lowercase().starts_with("on")
+            // (a TYPE's own custom event field — `OnReady AS EVENT(…)` — holds
+            // a pointer: stored below, not bound as a component's event)
+            let custom_event = self.object_type(&m.object).is_some_and(|t| self.is_user_type(&t) && self.types.field(&t, &m.member).is_some_and(|f| f.type_name.eq_ignore_ascii_case("EVENT")));
+            if !custom_event && m.member.to_ascii_lowercase().starts_with("on")
                 && self.routines.contains(&key(&h.name))
                 && !matches!(m.object.as_ref(), Expression::Identifier(id) if self.var_type(&id.name).is_none())
                 && self.object_type(&m.object).is_some()
@@ -651,7 +669,11 @@ impl Lowering<'_> {
                 return vec![call_stmt_at(span, "__bind_event", vec![self.expr(&m.object), text_at(span, &m.member), ptr])];
             }
         }
-        let value = self.expr(&a.value);
+        let value = match (&a.target, &a.value) {
+            // (store_member makes a SUB given to a custom event its pointer)
+            (Expression::MemberAccess(_), Expression::Identifier(h)) if self.routines.contains(&key(&h.name)) => a.value.clone(),
+            _ => self.expr(&a.value),
+        };
         match &a.target {
             Expression::MemberAccess(m) if self.component_sub_property(m).is_some() => {
                 let (o, combined) = self.component_sub_property(m).unwrap();

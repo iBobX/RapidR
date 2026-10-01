@@ -270,6 +270,9 @@ pub struct TypeStatement {
     pub constructor: Vec<Statement>,
     /// `EVENT OnClick … END EVENT`: handlers every instance gets bound to.
     pub events: Vec<TypeEvent>,
+    /// A template's parameters (`TYPE NewClass<DataType, Size>`; see
+    /// [`templates`]); empty for an ordinary TYPE.
+    pub template_params: Vec<String>,
 }
 
 /// An EVENT block inside TYPE … EXTENDS: the handler for one event of every
@@ -593,6 +596,125 @@ pub fn inc_dec_assignment(c: &CallStatement, is_user_routine: impl Fn(&str) -> b
     })
 }
 
+/// RapidQ's templates (manual 10.8): `TYPE NewClass<DataType, Size> …
+/// END TYPE` is made anew for each set of arguments a program uses
+/// (`DIM x AS NewClass<INTEGER, 10>` → a TYPE `NewClass__INTEGER_10`), its
+/// parameters replaced in its fields' types and sizes and in its code: a
+/// type name where a type goes, the argument itself (`10`, a CONST) where
+/// a value goes. The template itself is dropped (both backends).
+pub fn templates(program: &Program) -> Program {
+    use std::collections::HashMap;
+    let defs: HashMap<String, TypeStatement> = program
+        .statements
+        .iter()
+        .filter_map(|s| match s {
+            Statement::Type(t) if !t.template_params.is_empty() => Some((t.name.to_ascii_uppercase(), t.clone())),
+            _ => None,
+        })
+        .collect();
+    if defs.is_empty() {
+        return program.clone();
+    }
+    // `Name<A,B>` → (Name, [A, B]) when Name is a template.
+    let split = |t: &str| -> Option<(String, Vec<String>)> {
+        let (base, rest) = t.split_once('<')?;
+        let args: Vec<String> = rest.strip_suffix('>')?.split(',').map(|a| a.trim().to_string()).collect();
+        defs.contains_key(&base.trim().to_ascii_uppercase()).then(|| (base.trim().to_string(), args))
+    };
+    let mangle = |base: &str, args: &[String]| -> String {
+        let parts: Vec<String> = args.iter().map(|a| a.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect()).collect();
+        format!("{base}__{}", parts.join("_"))
+    };
+    // Renames every `Name<A,B>` type in `stmts`, noting the instantiations.
+    let rename = |stmts: &mut Vec<Statement>, wanted: &mut Vec<(String, String, Vec<String>)>| {
+        let mut fix = |t: &mut String| {
+            if let Some((base, args)) = split(t) {
+                let name = mangle(&base, &args);
+                if !wanted.iter().any(|(n, _, _)| n.eq_ignore_ascii_case(&name)) {
+                    wanted.push((name.clone(), base, args));
+                }
+                *t = name;
+            }
+        };
+        walk_statements_mut(stmts, &mut |st| match st {
+            Statement::Dim(d) => fix(&mut d.type_name),
+            Statement::Create(c) => fix(&mut c.type_name),
+            Statement::Subroutine(r) => r.params.iter_mut().for_each(|p| fix(&mut p.type_name)),
+            Statement::Function(r) => r.params.iter_mut().for_each(|p| fix(&mut p.type_name)),
+            Statement::Type(t) => t.fields.iter_mut().for_each(|f| fix(&mut f.type_name)),
+            _ => {}
+        });
+    };
+    let mut statements: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Type(t) if !t.template_params.is_empty())).cloned().collect();
+    let mut wanted = Vec::new();
+    rename(&mut statements, &mut wanted);
+    // Each instantiation (those inside them too), in the order first used.
+    let mut made: Vec<Statement> = Vec::new();
+    let mut done = 0;
+    while done < wanted.len() && made.len() < 256 {
+        let (name, base, args) = wanted[done].clone();
+        done += 1;
+        let Some(def) = defs.get(&base.to_ascii_uppercase()) else { continue };
+        let mut t = TypeStatement { name, template_params: Vec::new(), ..def.clone() };
+        let arg_of = |n: &str| def.template_params.iter().position(|p| p.eq_ignore_ascii_case(n)).and_then(|i| args.get(i).cloned());
+        let as_type = |ty: &mut String| {
+            if let Some(a) = arg_of(ty) {
+                *ty = canonical_type_name(&a);
+            }
+        };
+        let as_value = |e: &mut Expression| {
+            if let Expression::Identifier(id) = e {
+                if let Some(a) = arg_of(&id.name) {
+                    let span = id.span;
+                    *e = if let Ok(n) = a.parse::<i64>() {
+                        Expression::Literal(Literal { span, value: LiteralValue::Integer(n) })
+                    } else if let Ok(x) = a.parse::<f64>() {
+                        Expression::Literal(Literal { span, value: LiteralValue::Float(x) })
+                    } else if let Some(text) = a.strip_prefix('"').and_then(|x| x.strip_suffix('"')) {
+                        Expression::Literal(Literal { span, value: LiteralValue::String(text.to_string()) })
+                    } else {
+                        Expression::Identifier(Identifier { span, name: a })
+                    };
+                }
+            }
+        };
+        for f in &mut t.fields {
+            as_type(&mut f.type_name);
+            for e in [f.array_size.as_mut(), f.array_lower.as_mut()].into_iter().flatten() {
+                walk_expression_mut(e, &mut |x| as_value(x));
+            }
+            for (lo, hi) in &mut f.more_dims {
+                walk_expression_mut(lo, &mut |x| as_value(x));
+                walk_expression_mut(hi, &mut |x| as_value(x));
+            }
+        }
+        let mut wrapped = vec![Statement::Type(t)];
+        walk_statements_mut(&mut wrapped, &mut |st| match st {
+            Statement::Dim(d) => as_type(&mut d.type_name),
+            Statement::Subroutine(r) => r.params.iter_mut().for_each(|p| as_type(&mut p.type_name)),
+            Statement::Function(r) => {
+                r.params.iter_mut().for_each(|p| as_type(&mut p.type_name));
+                if let Some(rt) = r.return_type.as_mut() {
+                    as_type(rt);
+                }
+            }
+            _ => {}
+        });
+        if let Some(Statement::Type(t)) = wrapped.first_mut() {
+            walk_expressions_mut(&mut t.methods, true, &mut |x| as_value(x));
+            walk_expressions_mut(&mut t.constructor, true, &mut |x| as_value(x));
+            for ev in &mut t.events {
+                walk_expressions_mut(&mut ev.body, true, &mut |x| as_value(x));
+            }
+        }
+        rename(&mut wrapped, &mut wanted);
+        made.extend(wrapped);
+    }
+    // (made types first: before the code that DIMs them)
+    made.extend(statements);
+    Program { statements: made, ..program.clone() }
+}
+
 /// RapidQ's dotted TYPE fields — `hdr.hwndFrom AS LONG`, `hdr.code AS
 /// LONG`, `Table.Name(150) AS STRING` — a record inside the record: the
 /// TYPE gets one field `hdr` of a TYPE made for it (`NMHDR2__hdr`, declared
@@ -637,6 +759,7 @@ pub fn dotted_fields(program: &Program) -> Program {
                 methods: Vec::new(),
                 constructor: Vec::new(),
                 events: Vec::new(),
+                template_params: Vec::new(),
             };
             // (its own dotted fields nest further)
             let nested = split(&nested, out);

@@ -1763,6 +1763,11 @@ fn rp_comp_get_stored_dir(name: &str) -> String {
     rapidr_value::objects::get(name, "directory").map(|v| v.to_string_val()).unwrap_or_default()
 }
 
+thread_local! {
+    /// (component, event) pairs with a DOM listener ([`bind_dom_event`]).
+    static DOM_BOUND: RefCell<std::collections::HashSet<(String, String)>> = RefCell::new(std::collections::HashSet::new());
+}
+
 fn bind_dom_event(name: &str, event: &str) {
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
@@ -1849,6 +1854,12 @@ fn bind_dom_event(name: &str, event: &str) {
         "onpermissionchange" => return, // handled differently
         _ => return,
     };
+    // One listener per component and event: a handler given again (a
+    // TYPE's EVENT, then the program's own) must not run twice — the
+    // listener fires whichever handler is current.
+    if !DOM_BOUND.with(|b| b.borrow_mut().insert((name.to_uppercase(), event.to_string()))) {
+        return;
+    }
 
     // Create a JavaScript closure that fires the RapidR event
     let name_for_closure = name_owned.clone();

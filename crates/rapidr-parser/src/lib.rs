@@ -748,7 +748,10 @@ impl<'a> Parser<'a> {
             let explicit_type = fixed_type.is_some() || self.peek_kind() == Some(TokenType::As);
             let type_name = match fixed_type {
                 Some(t) => t.to_string(),
-                None if self.match_kind(TokenType::As) => canonical_type_name(&self.advance()?.lexeme),
+                None if self.match_kind(TokenType::As) => {
+                    let t = canonical_type_name(&self.advance()?.lexeme);
+                    t + &self.template_args()
+                }
                 None => "VARIANT".to_string(),
             };
             // `AS STRING * 20`: a fixed-length string (a STRING cut to 20).
@@ -1648,6 +1651,27 @@ impl<'a> Parser<'a> {
     }
 
     /// Whether the next token is a word (a name or a keyword), not a symbol.
+    /// A template type's arguments after its name (`NewClass<INTEGER, 10>`),
+    /// as the type name's `<INTEGER,10>`; "" when there are none.
+    fn template_args(&mut self) -> String {
+        if self.peek_kind() != Some(TokenType::Lt) {
+            return String::new();
+        }
+        self.advance();
+        let mut args = Vec::new();
+        let mut current = String::new();
+        while !self.at_eol() {
+            let Some(tok) = self.advance() else { break };
+            match tok.kind {
+                TokenType::Gt => break,
+                TokenType::Comma => args.push(std::mem::take(&mut current)),
+                _ => current.push_str(&tok.lexeme),
+            }
+        }
+        args.push(current);
+        format!("<{}>", args.join(","))
+    }
+
     fn peek_is_word(&self) -> bool {
         self.peek_is_word_at(0)
     }
@@ -1720,6 +1744,17 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::Type)?;
         let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // A template (manual 10.8): `TYPE NewClass<DataType, Size> …` —
+        // made for each `DIM x AS NewClass<INTEGER, 10>` (rapidr_ast::templates).
+        let mut template_params = Vec::new();
+        if self.match_kind(TokenType::Lt) {
+            while !self.at_eol() && !self.match_kind(TokenType::Gt) {
+                let tok = self.advance()?;
+                if tok.kind != TokenType::Comma {
+                    template_params.push(tok.lexeme.clone());
+                }
+            }
+        }
         // `TYPE X EXTENDS QFORM` or the manual's `TYPE X AS QFORM`. QOBJECT is
         // RapidQ's empty base object: a plain TYPE with methods.
         let extends = if self.match_kind(TokenType::Extends) || self.match_kind(TokenType::As) {
@@ -1920,7 +1955,7 @@ impl<'a> Parser<'a> {
                     continue;
                 }
                 let Some(type_tok) = self.advance() else { break };
-                let mut ftype = canonical_type_name(&type_tok.lexeme);
+                let mut ftype = canonical_type_name(&type_tok.lexeme) + &self.template_args();
                 // `OnReady AS EVENT(Template)`: a custom event (holds a SUB).
                 if ftype.eq_ignore_ascii_case("EVENT") && self.match_kind(TokenType::LParen) {
                     while !self.at_eol() && !self.match_kind(TokenType::RParen) {
@@ -1998,6 +2033,7 @@ impl<'a> Parser<'a> {
             methods,
             constructor,
             events,
+            template_params,
         })
     }
 
@@ -2099,7 +2135,7 @@ impl<'a> Parser<'a> {
                 self.pos += 2;
             }
             let ptype = if self.match_kind(TokenType::As) {
-                canonical_type_name(&self.advance()?.lexeme)
+                canonical_type_name(&self.advance()?.lexeme) + &self.template_args()
             } else {
                 rapidr_ast::suffix_type(&pname).unwrap_or("VARIANT").to_string()
             };

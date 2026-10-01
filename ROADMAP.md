@@ -247,7 +247,7 @@ Next up, in order:
 - [x] Codegen: OOP TYPEs in the Rust backend (v2.25.0)
 - [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
 - [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
-- [ ] OOP still missing: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields assigned a SUB + CALLFUNC), templates (`TYPE T<DataType>`)
+- [x] OOP: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields given a SUB, fired with CALLFUNC), templates (`TYPE T<DataType, Size>`, one TYPE per set of arguments) on both backends (v2.81.0)
 - [ ] Runtimes: implement the remaining RapidQ objects (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM done in v2.20.0) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
 - [x] `$OPTION ICON "app.ico"` (the program's icon, built in; a missing one leaves the default) and `$OPTION BYREF` on both backends; `$OPTION EXPLICIT` / BYTECODE / GTK / INKEY$ / VBDLL / WEAKTYPE accepted (v2.79.0)
 - [ ] `$OPTION DIM type` (undeclared variables' type) and `$OPTION DECIMAL` (VAL's decimal character)
