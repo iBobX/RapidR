@@ -122,8 +122,8 @@ mod imp {
             while _kbhit() != 0 && keys.len() < 256 {
                 let c = _getch();
                 if c == 0 || c == 0xE0 {
-                    // An extended key: CHR$(0) + its scan code, as QBasic.
-                    keys.push(format!("\0{}", char::from(_getch() as u8)));
+                    // An extended key: CHR$(27) + its scan code, as RapidQ.
+                    keys.push(format!("\x1b{}", char::from(_getch() as u8)));
                 } else {
                     keys.push(char::from(c as u8).to_string());
                 }
@@ -138,7 +138,7 @@ mod imp {
         let key = unsafe {
             let c = _getch();
             if c == 0 || c == 0xE0 {
-                format!("\0{}", char::from(_getch() as u8))
+                format!("\x1b{}", char::from(_getch() as u8))
             } else {
                 char::from(c as u8).to_string()
             }

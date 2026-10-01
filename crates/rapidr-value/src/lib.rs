@@ -857,6 +857,9 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         }
         _ => {}
     }
+    if key == "__inkey_trapall" {
+        return Some(Ok(builtins::rp_inkey_trap_all(args.first().unwrap_or(&Value::Null))));
+    }
     if key == "__decimal" {
         return Some(Ok(builtins::rp_set_decimal(args.first().unwrap_or(&Value::Null))));
     }

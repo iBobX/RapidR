@@ -88,6 +88,13 @@ pub fn rp_set_decimal(c: &Value) -> Value {
     v_null()
 }
 
+/// `$OPTION INKEY$ TRAPALL` (1) / `DEFAULT` (0) (the parser calls
+/// `__inkey_trapall`).
+pub fn rp_inkey_trap_all(on: &Value) -> Value {
+    crate::console::set_inkey_trap_all(on.to_i64() != 0);
+    v_null()
+}
+
 pub fn rp_val(s: &Value) -> Value {
     let mut s = s.to_string_val().trim().to_string();
     let decimal = DECIMAL.with(|d| d.get());

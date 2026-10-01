@@ -115,7 +115,7 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
       }
       if (key) {
         const vk = Number(key);
-        const names = { 8: "Backspace", 9: "Tab", 13: "Enter", 27: "Escape", 32: " ", 37: "ArrowLeft", 38: "ArrowUp", 39: "ArrowRight", 40: "ArrowDown" };
+        const names = { 8: "Backspace", 9: "Tab", 13: "Enter", 16: "Shift", 17: "Control", 18: "Alt", 20: "CapsLock", 27: "Escape", 32: " ", 37: "ArrowLeft", 38: "ArrowUp", 39: "ArrowRight", 40: "ArrowDown" };
         const k = names[vk] ?? String.fromCharCode(vk).toLowerCase();
         for (const type of ["keydown", "keyup"]) el.dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true, cancelable: true }));
         return true;

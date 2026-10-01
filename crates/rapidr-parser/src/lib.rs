@@ -706,6 +706,12 @@ impl<'a> Parser<'a> {
                 if v.starts_with("BYREF") {
                     self.default_by_ref = true;
                 }
+                if let Some(mode) = v.strip_prefix("INKEY$") {
+                    // `$OPTION INKEY$ TRAPALL` / `DEFAULT`: set from here on.
+                    let span = tok.span;
+                    let on = mode.trim().starts_with("TRAPALL") as i64;
+                    self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, "__inkey_trapall"), args: vec![Expression::Literal(Literal { span, value: LiteralValue::Integer(on) })] }));
+                }
                 if let Some(d) = v.strip_prefix("DECIMAL") {
                     // `$OPTION DECIMAL ","` or `$OPTION DECIMAL 44`: set from here on.
                     let d = d.trim();
