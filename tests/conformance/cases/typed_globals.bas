@@ -39,8 +39,6 @@ PRINT "after own "; total
 passed = 41
 Bump passed
 PRINT "passed "; passed
-DIM total AS LONG
-PRINT "reset "; total
 i = 0
 again:
 i = i + 1

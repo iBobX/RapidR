@@ -60,7 +60,8 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     // ($TYPECHECK: on the program as written, each SUB where it stands)
-    let typecheck = rapidr_ast::typecheck_errors(program, &|n| builtins::is_builtin(n) || RAPIDQ_BUILTINS.contains(&n));
+    let mut typecheck = rapidr_ast::typecheck_errors(program, &|n| builtins::is_builtin(n) || RAPIDQ_BUILTINS.contains(&n));
+    typecheck.extend(rapidr_ast::rapidq_checks(program));
     let hoisted = rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::hoist_routines(program))))))))));
     let lowered = rapidr_ast::objects::lower(&hoisted, &|n| builtins::is_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).

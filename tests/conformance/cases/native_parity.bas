@@ -51,11 +51,6 @@ c.Init 41
 c.n = c.n + 1
 PRINT c.n
 
-' Arguments fitted to the parameters: extra ones dropped, missing ones empty.
-FUNCTION Pair$(a, b)
-  Pair$ = "[" + STR$(a) + "|" + STR$(b) + "]"
-END FUNCTION
-PRINT Pair$(1, 2, 3); Pair$(7)
 
 ' A FUNCTION named with a suffix, called without it.
 FUNCTION Greeting$
