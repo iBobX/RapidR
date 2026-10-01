@@ -1191,6 +1191,28 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             crate::dialog_web::begin_modal(&id);
             v_null()
         }
+        // The title bar's minimize / maximize buttons greyed out, all of
+        // them without the system menu (biSystemMenu), as Windows shows.
+        (_, "addbordericons" | "delbordericons") if comp_type == "RFORM" => {
+            let bits = rapidr_value::builtins::border_icons(&crate::object_web::rp_comp_get_stored(name, "bordericons"), args, method == "addbordericons");
+            crate::object_web::rp_comp_set(name, "bordericons", bits.clone());
+            let bits = bits.to_i64();
+            if let Some(el) = get_el(&id) {
+                for (class, on) in [("rr-form-btn-min", bits & 3 == 3), ("rr-form-btn-max", bits & 5 == 5), ("rr-form-btn-close", bits & 1 == 1)] {
+                    if let Ok(Some(b)) = el.query_selector(&format!(".{class}")) {
+                        if on {
+                            let _ = b.remove_attribute("disabled");
+                        } else {
+                            let _ = b.set_attribute("disabled", "");
+                        }
+                        if let Some(b) = b.dyn_ref::<web_sys::HtmlElement>() {
+                            let _ = b.style().set_property("opacity", if on { "" } else { "0.35" });
+                        }
+                    }
+                }
+            }
+            v_null()
+        }
         (_, "center") if comp_type == "RFORM" => {
             if let Some(el) = get_el(&id) {
                 let w = el.offset_width();

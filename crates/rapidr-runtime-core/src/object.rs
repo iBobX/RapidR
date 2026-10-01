@@ -1658,6 +1658,13 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             rp_fire_event(name, "onclick");
             v_null()
         }
+        // (the title bar's own buttons are the system's: the set is kept,
+        // and RapidQ's manual allows an icon to stay, "greyed out")
+        "addbordericons" | "delbordericons" if comp_type == "RFORM" => {
+            let bits = crate::value::builtins::border_icons(&rp_comp_get(name, "bordericons"), args, method == "addbordericons");
+            rp_comp_set(name, "bordericons", bits);
+            v_null()
+        }
         "selectall" => { v_null() }
         "copy" => { v_null() }
         "paste" => { v_null() }

@@ -102,6 +102,29 @@ thread_local! {
 }
 
 pub fn websocket_method(name: &str, method: &str, args: &[Value]) -> Value {
+    // RapidQ's numbered QSOCKET calls (`Connect(Server$, Port%)`, `Open(Port%)`,
+    // `ReadLine(Sock%)`, …): a page can't open TCP sockets, so they fail as
+    // RapidQ reports it — no socket (-1), nothing ready, nothing read.
+    let qsocket = matches!(
+        (method, args.len()),
+        ("connect", 2) | ("open", 1) | ("accept", 1) | ("connectionready", 1) | ("isserverready", 1) | ("isclientready", 2)
+            | ("read" | "peek", 2) | ("readbyte", 1) | ("readline", 1) | ("write", 3) | ("writeline" | "writebyte", 2)
+            | ("close", 1) | ("getpeername", 1) | ("gethostname" | "gethostip", 0)
+    );
+    if qsocket {
+        thread_local! { static WARNED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
+        if !WARNED.with(|w| w.replace(true)) {
+            web_sys::console::warn_1(&JsValue::from_str("[WARN] QSOCKET: a web page can't open TCP sockets (use RSOCKET's WebSocket or RHTTP)"));
+        }
+        return match method {
+            "connect" | "open" | "accept" => crate::value::v_int(-1),
+            "connectionready" | "isserverready" | "isclientready" | "readbyte" | "write" | "writeline" | "writebyte" => crate::value::v_int(0),
+            "gethostname" => crate::value::v_str("localhost"),
+            "gethostip" => crate::value::v_str("127.0.0.1"),
+            "close" => v_null(),
+            _ => crate::value::v_str(""),
+        };
+    }
     match method {
         "connect" | "open" => websocket_connect(name),
         "close" | "disconnect" => websocket_close(name),

@@ -25,6 +25,9 @@ thread_local! {
 
 pub fn socket_method(name: &str, method: &str, args: &[Value]) -> Value {
     let name_lower = name.to_lowercase();
+    if let Some(v) = qsocket::method(&name_lower, method, args) {
+        return v;
+    }
     match method {
         "connect" => socket_connect(&name_lower),
         "close" | "disconnect" => socket_close(&name_lower),
@@ -133,6 +136,227 @@ fn socket_readline(name: &str) -> Value {
             v_str("")
         }
     })
+}
+
+// ---------------------------------------------------------------------------
+// RapidQ's QSOCKET: numbered sockets, as its manual (Appendix A) has them
+// ---------------------------------------------------------------------------
+
+/// RapidQ's QSOCKET API — `Sock% = S.Connect(Server$, Port%)`, `S.Open(Port%)`
+/// for a server, `S.Accept(Sock%)`, `S.ReadLine(Sock%)`, `S.Write(Sock%,
+/// Msg$, n)`, `S.IsServerReady(Sock%)`, … — told from RapidR's own RSOCKET
+/// methods by their arguments (RapidR's take none, or only the data). The
+/// calls block as RapidQ's do; the `…Ready` checks don't.
+mod qsocket {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+
+    use crate::object::rp_comp_set;
+    use crate::value::{v_int, v_str, Value};
+
+    enum Sock {
+        Stream { s: TcpStream, buf: Vec<u8> },
+        Server { l: TcpListener, pending: Vec<TcpStream> },
+    }
+
+    thread_local! {
+        static SOCKS: RefCell<(i64, HashMap<i64, Sock>)> = RefCell::new((3, HashMap::new()));
+    }
+
+    fn add(sock: Sock) -> i64 {
+        SOCKS.with(|s| {
+            let mut s = s.borrow_mut();
+            let n = s.0;
+            s.0 += 1;
+            s.1.insert(n, sock);
+            n
+        })
+    }
+
+    fn with<R>(n: i64, f: impl FnOnce(&mut Sock) -> R) -> Option<R> {
+        SOCKS.with(|s| s.borrow_mut().1.get_mut(&n).map(f))
+    }
+
+    /// Bytes waiting: what's buffered, or what the peer sent (not waiting).
+    fn ready(sock: &mut Sock) -> bool {
+        match sock {
+            Sock::Stream { s, buf } => {
+                if !buf.is_empty() {
+                    return true;
+                }
+                let _ = s.set_nonblocking(true);
+                let mut one = [0u8; 1];
+                let r = s.peek(&mut one);
+                let _ = s.set_nonblocking(false);
+                matches!(r, Ok(n) if n > 0)
+            }
+            Sock::Server { l, pending } => {
+                if pending.is_empty() {
+                    let _ = l.set_nonblocking(true);
+                    if let Ok((c, _)) = l.accept() {
+                        let _ = c.set_nonblocking(false);
+                        pending.push(c);
+                    }
+                    let _ = l.set_nonblocking(false);
+                }
+                !pending.is_empty()
+            }
+        }
+    }
+
+    /// Fills the buffer with what arrives next (blocking); false at the end.
+    fn fill(s: &mut TcpStream, buf: &mut Vec<u8>) -> bool {
+        let mut chunk = [0u8; 4096];
+        match s.read(&mut chunk) {
+            Ok(n) if n > 0 => {
+                buf.extend_from_slice(&chunk[..n]);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn text(bytes: &[u8]) -> Value {
+        v_str(&bytes.iter().map(|&b| char::from(b)).collect::<String>())
+    }
+
+    fn bytes(v: &Value) -> Vec<u8> {
+        v.to_string_val().chars().map(|c| c as u32 as u8).collect()
+    }
+
+    pub fn method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
+        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+        let flag = |b: bool| v_int(b as i64);
+        let transferred = |k: usize| rp_comp_set(name, "transferred", v_int(k as i64));
+        Some(match (method, args.len()) {
+            ("connect", 2) => {
+                let addr = format!("{}:{}", args[0].to_string_val(), n(1));
+                let stream = addr.to_socket_addrs().ok().and_then(|mut a| a.find_map(|a| TcpStream::connect(a).ok()));
+                let id = stream.map_or(-1, |s| add(Sock::Stream { s, buf: Vec::new() }));
+                rp_comp_set(name, "mysocket", v_int(id));
+                v_int(id)
+            }
+            ("open", 1) => {
+                let id = TcpListener::bind(("0.0.0.0", n(0).clamp(0, 65535) as u16)).map_or(-1, |l| add(Sock::Server { l, pending: Vec::new() }));
+                rp_comp_set(name, "mysocket", v_int(id));
+                v_int(id)
+            }
+            ("connectionready", 1) => flag(with(n(0), ready).unwrap_or(false)),
+            ("isserverready", 1) => flag(with(n(0), ready).unwrap_or(false)),
+            ("isclientready", 2) => flag(with(n(1), ready).unwrap_or(false)),
+            ("accept", 1) => {
+                let client = with(n(0), |s| match s {
+                    Sock::Server { l, pending } => {
+                        if pending.is_empty() {
+                            l.accept().ok().map(|(c, _)| c)
+                        } else {
+                            Some(pending.remove(0))
+                        }
+                    }
+                    _ => None,
+                })
+                .flatten();
+                v_int(client.map_or(-1, |s| add(Sock::Stream { s, buf: Vec::new() })))
+            }
+            ("close", 1) => {
+                SOCKS.with(|s| s.borrow_mut().1.remove(&n(0)));
+                Value::Null
+            }
+            ("read" | "peek", 2) => {
+                let want = n(1).clamp(0, 1 << 24) as usize;
+                let peek = method == "peek";
+                let got = with(n(0), |s| match s {
+                    Sock::Stream { s, buf } => {
+                        if buf.is_empty() {
+                            fill(s, buf);
+                        }
+                        let k = want.min(buf.len());
+                        if peek { buf[..k].to_vec() } else { buf.drain(..k).collect() }
+                    }
+                    _ => Vec::new(),
+                })
+                .unwrap_or_default();
+                transferred(got.len());
+                text(&got)
+            }
+            ("readbyte", 1) => {
+                let b = with(n(0), |s| match s {
+                    Sock::Stream { s, buf } => {
+                        if buf.is_empty() {
+                            fill(s, buf);
+                        }
+                        (!buf.is_empty()).then(|| buf.remove(0))
+                    }
+                    _ => None,
+                })
+                .flatten();
+                v_int(b.map_or(0, i64::from))
+            }
+            ("readline", 1) => {
+                let line = with(n(0), |s| match s {
+                    Sock::Stream { s, buf } => loop {
+                        if let Some(i) = buf.iter().position(|&b| b == b'\n') {
+                            let mut l: Vec<u8> = buf.drain(..=i).collect();
+                            l.pop();
+                            if l.last() == Some(&b'\r') {
+                                l.pop();
+                            }
+                            break l;
+                        }
+                        if !fill(s, buf) {
+                            break std::mem::take(buf);
+                        }
+                    },
+                    _ => Vec::new(),
+                })
+                .unwrap_or_default();
+                transferred(line.len());
+                text(&line)
+            }
+            ("write", 3) | ("writeline", 2) | ("writebyte", 2) => {
+                let mut data = match method {
+                    "writebyte" => vec![n(1) as u8],
+                    _ => bytes(&args[1]),
+                };
+                if method == "write" {
+                    data.truncate(n(2).max(0) as usize);
+                }
+                if method == "writeline" {
+                    data.extend_from_slice(b"\r\n");
+                }
+                let sent = with(n(0), |s| match s {
+                    Sock::Stream { s, .. } => s.write_all(&data).map(|_| data.len()).unwrap_or(0),
+                    _ => 0,
+                })
+                .unwrap_or(0);
+                transferred(sent);
+                v_int(sent as i64)
+            }
+            ("getpeername", 1) => v_str(&with(n(0), |s| match s {
+                Sock::Stream { s, .. } => s.peer_addr().map(|a| a.ip().to_string()).unwrap_or_default(),
+                _ => String::new(),
+            })
+            .unwrap_or_default()),
+            ("gethostname", 0) => v_str(&host_name()),
+            ("gethostip", 0) => v_str(&host_ip()),
+            _ => return None,
+        })
+    }
+
+    fn host_name() -> String {
+        std::process::Command::new("hostname").output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()
+    }
+
+    /// The address this machine reaches others from (no packet is sent).
+    fn host_ip() -> String {
+        std::net::UdpSocket::bind("0.0.0.0:0")
+            .and_then(|u| u.connect("8.8.8.8:80").map(|_| u))
+            .and_then(|u| u.local_addr())
+            .map(|a| a.ip().to_string())
+            .unwrap_or_else(|_| "127.0.0.1".to_string())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -458,5 +682,34 @@ fn http_post(name: &str, args: &[Value]) -> Value {
             rp_comp_set(name, "responsetext", v_str(""));
             v_str("")
         }
+    }
+}
+
+#[cfg(test)]
+mod qsocket_tests {
+    use crate::value::{v_int, v_str, Value};
+
+    fn call(m: &str, args: &[Value]) -> Value {
+        super::qsocket::method("s", m, args).expect(m)
+    }
+
+    #[test]
+    fn rapidq_sockets_talk_over_loopback() {
+        let port = 47000 + (std::process::id() % 900) as i64;
+        let srv = call("open", &[v_int(port)]).to_i64();
+        assert!(srv > 0);
+        let c = call("connect", &[v_str("127.0.0.1"), v_int(port)]).to_i64();
+        assert!(c > 0);
+        let a = call("accept", &[v_int(srv)]).to_i64();
+        assert!(a > 0);
+        assert_eq!(call("writeline", &[v_int(c), v_str("hi")]).to_i64(), 4);
+        assert_eq!(call("readline", &[v_int(a)]).to_string_val(), "hi");
+        call("write", &[v_int(a), v_str("pong!xyz"), v_int(5)]);
+        assert_eq!(call("read", &[v_int(c), v_int(10)]).to_string_val(), "pong!");
+        assert_eq!(call("isserverready", &[v_int(c)]).to_i64(), 0);
+        for s in [c, a, srv] {
+            call("close", &[v_int(s)]);
+        }
+        assert_eq!(call("connect", &[v_str("127.0.0.1"), v_int(1)]).to_i64(), -1);
     }
 }
