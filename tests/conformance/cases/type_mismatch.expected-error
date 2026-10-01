@@ -1,0 +1,4 @@
+5:1
+Type mismatch, expecting type INTEGER, but got STRING
+6:1
+Type mismatch, expecting type DOUBLE, but got STRING

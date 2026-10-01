@@ -812,7 +812,9 @@ pub fn option_dim_type(statements: &[Statement]) -> Option<String> {
 /// suffix keep theirs; WITH, CREATE and TYPE bodies set properties, not
 /// variables (both backends).
 pub fn option_dim(program: &Program) -> Program {
-    let Some(ty) = option_dim_type(&program.statements) else { return program.clone() };
+    // (RapidQ's default: "all undeclared variables are assumed to be of
+    // type DOUBLE if no suffix is provided")
+    let ty = option_dim_type(&program.statements).unwrap_or_else(|| "DOUBLE".to_string());
     if ty == "VARIANT" {
         return program.clone();
     }
@@ -869,7 +871,8 @@ pub fn option_dim(program: &Program) -> Program {
     let add = |names: Vec<String>, locals: &HashSet<String>, wanted: &mut Vec<String>| {
         for n in names {
             let k = n.to_ascii_lowercase();
-            if suffix_type(&n).is_some() || n.contains('.') || declared.contains(&k) || locals.contains(&k) {
+            // (`__swap_tmp` and the like: the parser's own temporaries)
+            if n.starts_with("__") || suffix_type(&n).is_some() || n.contains('.') || declared.contains(&k) || locals.contains(&k) {
                 continue;
             }
             if !wanted.iter().any(|w| w.eq_ignore_ascii_case(&n)) {
@@ -889,6 +892,10 @@ pub fn option_dim(program: &Program) -> Program {
         };
         let mut locals: HashSet<String> = params.iter().map(|p| key(&p.name)).collect();
         locals.insert(key(name));
+        if matches!(s, Statement::Function(_)) {
+            // (RapidQ's RESULT = value: the function's return value)
+            locals.insert("result".to_string());
+        }
         let mut names = Vec::new();
         targets(body, &mut names, &mut locals);
         add(names, &locals, &mut wanted);
@@ -912,6 +919,148 @@ pub fn option_dim(program: &Program) -> Program {
         .collect();
     statements.extend(program.statements.iter().cloned());
     Program { statements, ..program.clone() }
+}
+
+/// RapidQ's compile-time type check: a value that is certainly a string —
+/// `"text"`, `a$`, a STRING variable or constant, `MID$(…)`, a FUNCTION AS
+/// STRING, or a sum starting with one — stored into a variable that is
+/// certainly a number (`DIM n AS LONG`, `n%`, undeclared under RapidQ's
+/// default DOUBLE) is an error, in RapidQ's words: `Type mismatch,
+/// expecting type DOUBLE, but got STRING`. Uncertain cases (VARIANTs,
+/// objects, properties) pass. Run after [`option_dim`].
+pub fn type_mismatches(program: &Program) -> Vec<(TextSpan, String)> {
+    use std::collections::HashMap;
+    const NUMERIC: &[&str] = &["BYTE", "WORD", "DWORD", "SHORT", "INTEGER", "LONG", "SINGLE", "DOUBLE"];
+    type Types = HashMap<String, String>;
+    fn scalars(stmts: &[Statement], into: &mut Types) {
+        for s in stmts {
+            match s {
+                Statement::Dim(d) if !d.is_redim => {
+                    for v in &d.declarators {
+                        if v.dimensions.is_empty() {
+                            into.insert(v.name.to_ascii_lowercase(), d.type_name.to_ascii_uppercase());
+                        } else {
+                            into.remove(&v.name.to_ascii_lowercase());
+                        }
+                    }
+                }
+                Statement::Const(c) => {
+                    if matches!(c.value, Expression::Literal(Literal { value: LiteralValue::String(_), .. })) {
+                        into.insert(c.name.to_ascii_lowercase(), "STRING".to_string());
+                    }
+                }
+                Statement::If(i) => {
+                    scalars(&i.then_body, into);
+                    for b in &i.elseif_branches {
+                        scalars(&b.body, into);
+                    }
+                    scalars(&i.else_body, into);
+                }
+                Statement::For(f) => scalars(&f.body, into),
+                Statement::While(w) => scalars(&w.body, into),
+                Statement::DoLoop(d) => scalars(&d.body, into),
+                Statement::SelectCase(c) => {
+                    for case in &c.cases {
+                        scalars(&case.body, into);
+                    }
+                    scalars(&c.case_else, into);
+                }
+                _ => {}
+            }
+        }
+    }
+    struct Ctx<'a> {
+        globals: &'a Types,
+        locals: Types,
+        string_functions: &'a [String],
+    }
+    impl Ctx<'_> {
+        fn type_of(&self, name: &str) -> Option<&str> {
+            if let Some(t) = suffix_type(name) {
+                return Some(t);
+            }
+            let k = name.to_ascii_lowercase();
+            self.locals.get(&k).or_else(|| self.globals.get(&k)).map(String::as_str)
+        }
+        fn is_string(&self, e: &Expression) -> bool {
+            match e {
+                Expression::Literal(Literal { value: LiteralValue::String(_), .. }) => true,
+                Expression::Identifier(i) => self.type_of(&i.name) == Some("STRING"),
+                Expression::FunctionCall(c) => match c.callee.as_ref() {
+                    Expression::Identifier(i) => {
+                        i.name.ends_with('$') || self.string_functions.iter().any(|f| f.eq_ignore_ascii_case(&i.name))
+                    }
+                    _ => false,
+                },
+                Expression::Binary(b) => matches!(b.operator, BinaryOperator::Add | BinaryOperator::Concat) && self.is_string(&b.left),
+                _ => false,
+            }
+        }
+    }
+    fn check(stmts: &[Statement], ctx: &Ctx, out: &mut Vec<(TextSpan, String)>) {
+        for s in stmts {
+            match s {
+                Statement::Assignment(a) => {
+                    if let Expression::Identifier(i) = &a.target {
+                        if let Some(t) = ctx.type_of(&i.name).filter(|t| NUMERIC.contains(t)) {
+                            if ctx.is_string(&a.value) {
+                                out.push((a.span, format!("Type mismatch, expecting type {t}, but got STRING")));
+                            }
+                        }
+                    }
+                }
+                Statement::If(i) => {
+                    check(&i.then_body, ctx, out);
+                    for b in &i.elseif_branches {
+                        check(&b.body, ctx, out);
+                    }
+                    check(&i.else_body, ctx, out);
+                }
+                Statement::For(f) => check(&f.body, ctx, out),
+                Statement::While(w) => check(&w.body, ctx, out),
+                Statement::DoLoop(d) => check(&d.body, ctx, out),
+                Statement::With(w) => check(&w.body, ctx, out),
+                Statement::SelectCase(c) => {
+                    for case in &c.cases {
+                        check(&case.body, ctx, out);
+                    }
+                    check(&c.case_else, ctx, out);
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut globals = Types::new();
+    scalars(&program.statements, &mut globals);
+    let string_functions: Vec<String> = program
+        .statements
+        .iter()
+        .filter_map(|s| match s {
+            Statement::Function(f) if f.return_type.as_deref().is_some_and(|t| t.eq_ignore_ascii_case("STRING")) => Some(f.name.clone()),
+            _ => None,
+        })
+        .collect();
+    let mut out = Vec::new();
+    check(&program.statements, &Ctx { globals: &globals, locals: Types::new(), string_functions: &string_functions }, &mut out);
+    for s in &program.statements {
+        let (name, params, body, is_function) = match s {
+            Statement::Subroutine(r) => (&r.name, &r.params, &r.body, false),
+            Statement::Function(f) => (&f.name, &f.params, &f.body, true),
+            _ => continue,
+        };
+        let mut locals = Types::new();
+        for p in params {
+            locals.insert(p.name.to_ascii_lowercase(), if p.is_array { String::new() } else { p.type_name.to_ascii_uppercase() });
+        }
+        if is_function {
+            // (the function's own name and RESULT hold its return value)
+            locals.insert(name.to_ascii_lowercase(), String::new());
+            locals.insert("result".to_string(), String::new());
+        }
+        scalars(body, &mut locals);
+        check(body, &Ctx { globals: &globals, locals, string_functions: &string_functions }, &mut out);
+    }
+    out
 }
 
 /// RapidQ's `INITARRAY(A, v1, v2, …)`: `A(LBOUND(A)) = v1`,
