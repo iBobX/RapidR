@@ -857,6 +857,9 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         }
         _ => {}
     }
+    if key == "__decimal" {
+        return Some(Ok(builtins::rp_set_decimal(args.first().unwrap_or(&Value::Null))));
+    }
     if key == "__input_value" {
         let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
         return Some(Ok(input_value(&arg(0), &arg(1), &arg(2).to_string_val())));

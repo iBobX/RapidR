@@ -129,13 +129,15 @@ struct Parser<'a> {
     /// `$OPTION BYREF` seen: parameters without BYVAL are passed by
     /// reference from there on (RapidQ's default is BYVAL).
     default_by_ref: bool,
+    /// `$OPTION DIM T`: the type of a DIM without AS.
+    default_dim: Option<String>,
     /// Keywords the program uses as variables (`type = 2`), lowercase.
     keyword_vars: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, default_dim: None }
     }
 
     // --- diagnostics ---
@@ -241,6 +243,11 @@ impl<'a> Parser<'a> {
     /// i.e. at a newline, EOF, or past-the-end.
     fn at_eol(&self) -> bool {
         self.at_end() || self.peek_kind() == Some(TokenType::Newline)
+    }
+
+    /// Whether the token `n` ahead ends the line (or the program).
+    fn at_eol_at(&self, n: usize) -> bool {
+        matches!(self.peek_kind_at(n), None | Some(TokenType::Newline | TokenType::Colon))
     }
 
     fn skip_to_eol(&mut self) {
@@ -698,6 +705,19 @@ impl<'a> Parser<'a> {
                 if v.starts_with("BYREF") {
                     self.default_by_ref = true;
                 }
+                if let Some(d) = v.strip_prefix("DECIMAL") {
+                    // `$OPTION DECIMAL ","` or `$OPTION DECIMAL 44`: set from here on.
+                    let d = d.trim();
+                    let span = tok.span;
+                    let value = match d.strip_prefix('"') {
+                        Some(q) => LiteralValue::String(q.trim_end_matches('"').to_string()),
+                        None => LiteralValue::Integer(d.parse().unwrap_or(46)),
+                    };
+                    self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, "__decimal"), args: vec![Expression::Literal(Literal { span, value })] }));
+                }
+                if let Some(t) = v.strip_prefix("DIM ").and_then(|t| t.split_whitespace().next()) {
+                    self.default_dim = Some(canonical_type_name(t));
+                }
             }
         }
         // Directives consume the rest of the line
@@ -735,6 +755,20 @@ impl<'a> Parser<'a> {
                     }
                 }
                 self.expect(TokenType::RParen)?;
+            } else if fixed_type.is_some()
+                && self.peek_kind() != Some(TokenType::Identifier)
+                && self.peek_kind() != Some(TokenType::As)
+                && self.peek_is_word()
+                && (self.at_eol_at(1) || matches!(self.peek_kind_at(1), Some(TokenType::Comma | TokenType::As | TokenType::LParen | TokenType::Eq)))
+            {
+                // `DEFSTR return` (qcgi.inc): a keyword RapidQ lets name a
+                // variable; from here on it is that variable.
+                let tok = self.advance()?.clone();
+                let name = tok.lexeme.to_ascii_lowercase();
+                if !self.keyword_vars.contains(&name) {
+                    self.keyword_vars.push(name);
+                }
+                names.push(tok);
             } else {
                 names.push(self.expect(TokenType::Identifier)?.clone());
             }
@@ -752,7 +786,7 @@ impl<'a> Parser<'a> {
                     let t = canonical_type_name(&self.advance()?.lexeme);
                     t + &self.template_args()
                 }
-                None => "VARIANT".to_string(),
+                None => self.default_dim.clone().unwrap_or_else(|| "VARIANT".to_string()),
             };
             // `AS STRING * 20`: a fixed-length string (a STRING cut to 20).
             let mut fixed_len = None;
@@ -1924,7 +1958,14 @@ impl<'a> Parser<'a> {
                     fname = format!("{fname}.{part}");
                 }
                 let mut more_dims: Vec<(Expression, Expression)> = Vec::new();
-                let (arr, arr_lower) = if self.match_kind(TokenType::LParen) {
+                let (arr, arr_lower) = if self.peek_kind() == Some(TokenType::LParen) && self.peek_kind_at(1) == Some(TokenType::RParen) {
+                    // `Hint() AS STRING` (QtoolBar.inc): an array field whose
+                    // size the TYPE doesn't give — room for 0 to 255 (REDIM
+                    // makes it another size).
+                    self.advance();
+                    self.advance();
+                    (Some(Expression::Literal(Literal { span: self.span_from(field_start), value: LiteralValue::Integer(255) })), None)
+                } else if self.match_kind(TokenType::LParen) {
                     // An array field: `Names(2)`, `Colors(1 TO 16)`, `vertex(9, 2)`.
                     let dims = self.parse_array_dimensions();
                     self.expect(TokenType::RParen);

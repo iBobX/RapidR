@@ -69,8 +69,31 @@ pub fn rp_str(val: &Value) -> Value {
     Value::String(val.to_string_val())
 }
 
+thread_local! {
+    /// `$OPTION DECIMAL ","`: the character VAL takes as the decimal point.
+    static DECIMAL: std::cell::Cell<char> = const { std::cell::Cell::new('.') };
+}
+
+/// `$OPTION DECIMAL ","` / `$OPTION DECIMAL 44` (the parser calls
+/// `__decimal`): VAL's decimal character from then on (RapidQ manual,
+/// chapter 3).
+pub fn rp_set_decimal(c: &Value) -> Value {
+    let ch = match c {
+        Value::String(_) => c.to_string_val().chars().next(),
+        _ => char::from_u32(c.to_i64().clamp(0, 0x10FFFF) as u32),
+    };
+    if let Some(ch) = ch.filter(|ch| *ch != '\0') {
+        DECIMAL.with(|d| d.set(ch));
+    }
+    v_null()
+}
+
 pub fn rp_val(s: &Value) -> Value {
-    let s = s.to_string_val().trim().to_string();
+    let mut s = s.to_string_val().trim().to_string();
+    let decimal = DECIMAL.with(|d| d.get());
+    if decimal != '.' {
+        s = s.replace('.', "\u{1}").replace(decimal, ".");
+    }
     if let Ok(n) = s.parse::<i64>() {
         v_int(n)
     } else if let Ok(n) = s.parse::<f64>() {

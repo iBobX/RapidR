@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.82.0] — 2026-09-30
+
+### Added
+- RapidQ syntax from the example corpus (now 153 of 386 compile):
+  a keyword as a variable declared by DEFSTR/DEFINT/… (`DEFSTR return`,
+  qcgi.inc; `DIM step` stays an error); an array
+  field without bounds (`Hint() AS STRING`, QtoolBar.inc: room for 0–255,
+  REDIM for another size).
+- `$OPTION DIM type` (BYTE … STRING, VARIANT): variables the program never
+  declares, and a DIM without AS, are of that type; `$OPTION DECIMAL ","`
+  (or a character code) is the decimal character VAL reads from then on.
+  Native, interpreter and web.
+
+### Fixed
+- Inside a component's CREATE, its own indexed members (`Panel(0).Width`
+  of a QSTATUSBAR, a QLISTVIEW's `Column(i)`, …) are the object's even when
+  the program has an array of that name.
+
 ## [2.81.0] — 2026-09-30
 
 ### Added

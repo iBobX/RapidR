@@ -15,7 +15,7 @@ pub const BUILTINS: &[&str] = &[
     // DATA / READ / RESTORE (the parser inserts these calls)
     "__data_add", "__data_label", "__data_reset", "__read", "__restore",
     // REDIM (resize keeping data)
-    "__redim", "__input_value",
+    "__redim", "__input_value", "__decimal",
     // Objects (rapidr_ast::objects; shared in rapidr_value)
     "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null",
     // Memory: VARPTR, MEMCPY, SIZEOF, … (rapidr_ast::memory; rapidr_value::memory)
@@ -50,7 +50,7 @@ pub const BUILTINS: &[&str] = &[
 
 /// Builtins every host hands to `rapidr_value::shared_builtin` before its own
 /// dispatch table (DATA / READ / RESTORE and REDIM share one implementation).
-pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null", "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_fixed", "__varptr_var", "__varptr_elem", "__mem_refresh", "__mem_sync", "__sizeof", "__sizeof_type", "__cstring", "memcpy", "memset", "memcmp"];
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__decimal", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null", "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_fixed", "__varptr_var", "__varptr_elem", "__mem_refresh", "__mem_sync", "__sizeof", "__sizeof_type", "__cstring", "memcpy", "memset", "memcmp"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
