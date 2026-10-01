@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.85.0] — 2026-09-30
+
+### Added
+- `$TYPECHECK ON` / `$TYPECHECK OFF` and `$OPTION EXPLICIT`, as RapidQ: while
+  on, a variable stored into (`x = …`, `FOR x`, `INPUT x`) must be declared
+  first (DIM, CONST, a parameter; `n%` is the DIMmed `n`), or it is RapidQ's
+  `Undeclared identifier x`. It can be switched on and off around parts of
+  a program. None of the 159 RapidQ examples that use it, nor its include
+  libraries, trips it. Native, interpreter and web.
+
 ## [2.84.0] — 2026-09-30
 
 ### Changed
