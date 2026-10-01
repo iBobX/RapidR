@@ -52,10 +52,38 @@ pub fn parse_tokens(tokens: &[Token]) -> Result<Program, ParseError> {
 /// Parses as much as possible and returns the program together with every
 /// diagnostic, for tools (editors) that want a best-effort tree.
 pub fn parse_tokens_recovering(tokens: &[Token]) -> (Program, Vec<Diagnostic>) {
+    let structs = retag_structs(tokens);
+    let tokens = structs.as_deref().unwrap_or(tokens);
     let retagged = retag_routine_names(tokens);
     let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
     let program = parser.parse_program();
     (program, parser.diagnostics)
+}
+
+/// RapidQ's `STRUCT name` … `END STRUCT`: a user-defined type as TYPE is
+/// ("a UDT defined by STRUCT or TYPE", RapidQ's pointer notes): the tokens
+/// become TYPE's. `None` when there is none.
+fn retag_structs(tokens: &[Token]) -> Option<Vec<Token>> {
+    let is_struct = |t: &Token| t.kind == TokenType::Identifier && t.lexeme.eq_ignore_ascii_case("STRUCT");
+    let starts_line = |i: usize| i == 0 || matches!(tokens[i - 1].kind, TokenType::Newline | TokenType::Colon);
+    let at: Vec<usize> = (0..tokens.len())
+        .filter(|&i| {
+            is_struct(&tokens[i])
+                && ((starts_line(i)
+                    && tokens.get(i + 1).is_some_and(|n| n.kind == TokenType::Identifier)
+                    && tokens.get(i + 2).is_none_or(|n| n.kind == TokenType::Newline))
+                    || (i > 0 && tokens[i - 1].lexeme.eq_ignore_ascii_case("END")))
+        })
+        .collect();
+    if at.is_empty() {
+        return None;
+    }
+    let mut out = tokens.to_vec();
+    for i in at {
+        out[i].kind = TokenType::Type;
+        out[i].lexeme = "TYPE".to_string();
+    }
+    Some(out)
 }
 
 /// Statement keywords of QBasic-style file I/O that RapidQ doesn't reserve

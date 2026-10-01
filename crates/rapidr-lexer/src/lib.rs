@@ -662,6 +662,11 @@ impl<'src> Lexer<'src> {
                     break;
                 }
                 '\r' | '\n' => break,
+                // (a `_` continuation joins the next line, as in any string)
+                '_' if self.string_continuation_follows() => {
+                    self.advance_char();
+                    self.try_consume_line_continuation_tail();
+                }
                 '\\' => {
                     self.advance_char();
                     let Some(e) = self.current_char() else { text.push('\\'); break };
@@ -795,6 +800,14 @@ impl<'src> Lexer<'src> {
     fn lex_string_tail(&mut self) -> Result<String, LexError> {
         let content_start = self.index;
         while let Some(ch) = self.current_char() {
+            if ch == '"' && self.peek_char(1) == Some('"') {
+                let mut text = self.source[content_start..self.index].to_string();
+                text.push('"');
+                self.advance_char();
+                self.advance_char();
+                text.push_str(&self.lex_string_tail()?);
+                return Ok(text);
+            }
             if ch == '"' {
                 let text = self.source[content_start..self.index].to_string();
                 self.advance_char();
@@ -889,6 +902,17 @@ impl<'src> Lexer<'src> {
         let content_start = self.index;
 
         while let Some(ch) = self.current_char() {
+            // `""` inside a string is a quote (`"[:"":>"` is `[:":>`, as in
+            // RapidQ's KEYMAP example); a string can't be followed by
+            // another directly anyway.
+            if ch == '"' && self.peek_char(1) == Some('"') {
+                let mut text = self.source[content_start..self.index].to_string();
+                text.push('"');
+                self.advance_char();
+                self.advance_char();
+                text.push_str(&self.lex_string_tail()?);
+                return Ok(Token::new(TokenType::StringLit, text, TextSpan::new(start, self.index), line, column));
+            }
             if ch == '"' {
                 let lexeme = self.source[content_start..self.index].to_string();
                 self.advance_char();
@@ -1029,11 +1053,19 @@ impl<'src> Lexer<'src> {
         }
 
         let end = self.index;
-        // Type suffix on a literal: `0&` (LONG), `1.5!` (SINGLE), `2#`, `7%`.
+        // Type suffix on a literal: `0&` (LONG), `1.5!` (SINGLE), `2#`, `7%`,
+        // and BYTE / WORD / DWORD's `?`, `??`, `???` (`xFinish=0??`).
         if matches!(self.current_char(), Some('&' | '!' | '#' | '%'))
             && !self.peek_char(1).is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
         {
             self.advance_char();
+        } else if self.current_char() == Some('?') {
+            let n = (0..3).take_while(|&k| self.peek_char(k) == Some('?')).count();
+            if !self.peek_char(n).is_some_and(|c| c.is_ascii_alphanumeric() || c == '_' || c == '"') {
+                for _ in 0..n {
+                    self.advance_char();
+                }
+            }
         }
 
         Token::new(
