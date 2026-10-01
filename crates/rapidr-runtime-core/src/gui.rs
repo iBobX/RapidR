@@ -453,14 +453,14 @@ fn key_events(chain: &[String], down: bool, vk: i64, shift: i64, text: &str) {
     if let Some(first) = chain.first().filter(|n| down && rapidr_value::objects::is_listview(n)) {
         listview_key(first, vk, shift);
     }
-    let mut targets: Vec<&String> = chain.first().into_iter().collect();
-    if let Some(form) = chain.last().filter(|f| chain.len() > 1 && Some(*f) != chain.first()) {
-        targets.push(form);
-    }
+    let targets = rapidr_value::input::key_targets(chain, |form| rp_comp_get(form, "keypreview").to_bool());
     let press = if down { rapidr_value::input::press_code(vk, text) } else { None };
-    for name in targets {
+    // (all OnKeyDowns, then the OnKeyPresses, as Windows' WM_KEYDOWN then WM_CHAR)
+    for name in &targets {
         rp_fire_event_2(name, if down { "onkeydown" } else { "onkeyup" }, v_int(vk), v_int(shift));
-        if let Some(key) = press {
+    }
+    if let Some(key) = press {
+        for name in &targets {
             rp_fire_event_1(name, "onkeypress", v_int(key));
         }
     }
@@ -3151,9 +3151,11 @@ pub fn gui_pump_wait() -> Option<Value> {
     // Don't hold a borrow while FLTK runs callbacks.
     if done || !app::wait() {
         let finished = WAITS.with(|w| w.borrow_mut().pop());
-        if matches!(finished, Some(Wait::Form(_))) {
-            // As the blocking ShowModal does when its form closes.
+        if let Some(Wait::Form(form)) = finished {
+            // As the blocking ShowModal does when its form closes: what
+            // ShowModal returns is the form's ModalResult.
             crate::object::rp_stop_all_timers();
+            return Some(v_int(modal_ended(&form)));
         }
         return Some(v_null());
     }
@@ -3162,9 +3164,11 @@ pub fn gui_pump_wait() -> Option<Value> {
 
 /// Show a form as modal (blocking event loop; for the bytecode VM, a wait
 /// it serves — see [`gui_set_cooperative_waits`]).
-pub fn gui_showmodal(name: &str) {
+pub fn gui_showmodal(name: &str) -> i64 {
     ensure_app();
     let name_lower = name.to_lowercase();
+    crate::object::store_prop(&name_lower, "modalresult", v_int(0));
+    MODAL_FORMS.with(|m| m.borrow_mut().push(name_lower.clone()));
 
     // Build all widgets that are children of this form
     build_form_widgets(&name_lower);
@@ -3196,7 +3200,7 @@ pub fn gui_showmodal(name: &str) {
     if COOPERATIVE.with(|c| c.get()) {
         WAITS.with(|w| w.borrow_mut().push(Wait::Form(name_lower)));
         WAIT_STARTED.with(|w| w.set(true));
-        return;
+        return 0;
     }
 
     // Run the FLTK event loop — do NOT hold a borrow on GUI_APP during wait()
@@ -3210,6 +3214,24 @@ pub fn gui_showmodal(name: &str) {
     // The form has closed: disable any timers so their already-queued
     // FLTK timeouts don't fire after we tear down the dispatcher.
     crate::object::rp_stop_all_timers();
+    modal_ended(&name_lower)
+}
+
+thread_local! {
+    /// The forms shown modally now, innermost last.
+    static MODAL_FORMS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Whether `name` is shown modally now (setting its ModalResult closes it).
+pub fn is_modal(name: &str) -> bool {
+    let n = name.to_lowercase();
+    MODAL_FORMS.with(|m| m.borrow().contains(&n))
+}
+
+/// A modal form closed: what its ShowModal returns.
+fn modal_ended(name_lower: &str) -> i64 {
+    MODAL_FORMS.with(|m| m.borrow_mut().retain(|f| f != name_lower));
+    rapidr_value::events::modal_result(rp_comp_get(name_lower, "modalresult").to_i64())
 }
 
 /// Hide a widget (form window or embedded frame): no OnClose.

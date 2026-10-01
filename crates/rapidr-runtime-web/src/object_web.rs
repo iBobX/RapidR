@@ -487,6 +487,22 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // QBUTTON Kind: its caption and ModalResult (rapidr_value::events).
+    if prop.eq_ignore_ascii_case("kind") {
+        if let Some((caption, mr)) = rapidr_value::events::button_kind(val.to_i64()) {
+            let current = rp_comp_get(name, "caption").to_string_val();
+            if current.is_empty() || (1..=10).any(|k| rapidr_value::events::button_kind(k).map(|(c, _)| c) == Some(current.as_str())) {
+                rp_comp_set(name, "caption", crate::value::v_str(caption));
+            }
+            rp_comp_set(name, "modalresult", v_int(mr));
+        }
+    }
+    // A modal form's ModalResult set: the form closes (ShowModal returns it).
+    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && crate::dialog_web::is_modal(&crate::gui_web::comp_id(name)) {
+        rp_comp_set_prop_only(name, "modalresult", val);
+        crate::gui_web::close_form(&name.to_uppercase());
+        return;
+    }
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
@@ -1649,6 +1665,50 @@ fn fire(name: &str, event: &str, args: &[Value]) -> Vec<Value> {
 /// Fire an event with no arguments (handlers get the Sender).
 pub fn rp_fire_event(name: &str, event: &str) {
     let _ = fire(name, event, &[]);
+    if event == "onclick" {
+        button_modal_result(name);
+    }
+}
+
+/// The form a component is on (itself for a form).
+pub fn form_of(name: &str) -> Option<String> {
+    let mut cur = name.to_uppercase();
+    for _ in 0..32 {
+        if rp_comp_type(&cur) == "RFORM" {
+            return Some(cur);
+        }
+        let p = rp_comp_get_stored(&cur, "parent").to_string_val().to_uppercase();
+        if p.is_empty() {
+            return None;
+        }
+        cur = p;
+    }
+    None
+}
+
+/// A button without an OnClick clicked (gui_web): its ModalResult.
+pub fn button_clicked(name: &str) {
+    button_modal_result(name);
+}
+
+/// A button with a ModalResult (or Kind bkClose) clicked: its form gets that
+/// result, which closes it when it's shown modally (as the desktop).
+fn button_modal_result(name: &str) {
+    if rp_comp_type(name) == "RFORM" {
+        return;
+    }
+    let mr = rp_comp_get(name, "modalresult").to_i64();
+    let close = rp_comp_get(name, "kind").to_i64() == 6;
+    if mr == 0 && !close {
+        return;
+    }
+    if let Some(form) = form_of(name) {
+        if mr != 0 {
+            rp_comp_set(&form, "modalresult", v_int(mr));
+        } else {
+            crate::gui_web::close_form(&form);
+        }
+    }
 }
 
 /// Fire an event with 1 argument.
@@ -1780,6 +1840,37 @@ thread_local! {
     static DOM_BOUND: RefCell<std::collections::HashSet<(String, String)>> = RefCell::new(std::collections::HashSet::new());
 }
 
+thread_local! {
+    /// OnKeyPress events of the key going through the page now.
+    static KEY_PRESSES: RefCell<Vec<(String, i64)>> = const { RefCell::new(Vec::new()) };
+    static PRESS_FLUSH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// An OnKeyPress, fired once every OnKeyDown of its key has run: by the
+/// page's own keydown listener (the last to hear the key), or a microtask
+/// if the key stopped before reaching it.
+fn queue_key_press(name: &str, key: i64) {
+    KEY_PRESSES.with(|p| p.borrow_mut().push((name.to_string(), key)));
+    if !PRESS_FLUSH.with(|f| f.replace(true)) {
+        let flush = Closure::<dyn FnMut()>::new(flush_key_presses);
+        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+            let _ = doc.add_event_listener_with_callback("keydown", flush.as_ref().unchecked_ref());
+        }
+        flush.forget();
+    }
+    let later = Closure::once_into_js(flush_key_presses);
+    if let Some(w) = web_sys::window() {
+        w.queue_microtask(later.unchecked_ref());
+    }
+}
+
+fn flush_key_presses() {
+    let presses = KEY_PRESSES.with(|p| std::mem::take(&mut *p.borrow_mut()));
+    for (name, k) in presses {
+        rp_fire_event_1(&name, "onkeypress", v_int(k));
+    }
+}
+
 fn bind_dom_event(name: &str, event: &str) {
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
@@ -1882,11 +1973,23 @@ fn bind_dom_event(name: &str, event: &str) {
     let event_for_closure = event_owned.clone();
 
     // Key events (rapidr_value::input): OnKeyDown / OnKeyUp (Key, Shift)
-    // and OnKeyPress (Key) for a key that types; they bubble from the
-    // focused control to its form, as the desktop gives them to both.
+    // and OnKeyPress (Key) for a key that types, to the focused control. A
+    // form gets its controls' keys only with KeyPreview on, and then first
+    // (it listens in the capture phase), as RapidQ (input::key_targets).
     if dom_event_name == "keydown" || dom_event_name == "keyup" {
+        let is_form = rp_comp_type(&name_owned) == "RFORM";
         let closure = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
             use rapidr_value::input;
+            if is_form {
+                let from_control = e
+                    .target()
+                    .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+                    .and_then(|t| t.closest(".rr-widget, .rr-form").ok().flatten())
+                    .is_some_and(|c| !c.class_list().contains("rr-form"));
+                if from_control && !rp_comp_get(&name_for_closure, "keypreview").to_bool() {
+                    return;
+                }
+            }
             let key = e.key();
             let vk = match e.key_code() {
                 0 => input::vk_of_key(&key, &e.code()).unwrap_or(0),
@@ -1894,14 +1997,16 @@ fn bind_dom_event(name: &str, event: &str) {
             };
             let shift = input::shift_state(e.shift_key(), e.ctrl_key(), e.alt_key());
             if event_for_closure == "onkeypress" {
+                // (after every OnKeyDown of this key, as the desktop: a
+                // microtask runs once the key's listeners are done)
                 if let Some(k) = input::press_code(vk, &key) {
-                    rp_fire_event_1(&name_for_closure, "onkeypress", v_int(k));
+                    queue_key_press(&name_for_closure, k);
                 }
             } else {
                 rp_fire_event_2(&name_for_closure, &event_for_closure, v_int(vk), v_int(shift));
             }
         });
-        let _ = el.add_event_listener_with_callback(dom_event_name, closure.as_ref().unchecked_ref());
+        let _ = el.add_event_listener_with_callback_and_bool(dom_event_name, closure.as_ref().unchecked_ref(), is_form);
         closure.forget();
         return;
     }

@@ -75,6 +75,11 @@ pub fn begin_modal(form_id: &str) -> bool {
     true
 }
 
+/// Whether the program waits on form `form_id` now (ShowModal).
+pub fn is_modal(form_id: &str) -> bool {
+    MODALS.with(|m| m.borrow().iter().any(|(id, closed)| id == form_id && !*closed))
+}
+
 /// The form `form_id` closed (or hid): if the program waits on it, it
 /// continues — now, or, inside the VM, once the VM is idle again
 /// ([`resume_after_modal`]).
@@ -97,19 +102,19 @@ pub fn resume_after_modal() -> bool {
     let due = MODALS.with(|m| {
         let mut m = m.borrow_mut();
         if m.last().is_some_and(|(_, closed)| *closed) {
-            m.pop();
-            true
+            m.pop().map(|(id, _)| id)
         } else {
-            false
+            None
         }
     });
-    if !due {
-        return false;
-    }
+    let Some(form_id) = due else { return false };
+    // (what ShowModal returns: the form's ModalResult, as the desktop's)
+    let form = form_id.strip_prefix("rr-").unwrap_or(&form_id).to_uppercase();
+    let result = rapidr_value::events::modal_result(crate::object_web::rp_comp_get_stored(&form, "modalresult").to_i64());
     let handler = RESUME.with(|r| r.borrow().clone());
     match handler {
         Some(h) => {
-            h(Value::Null, None);
+            h(Value::Integer(result), None);
             true
         }
         None => false,

@@ -529,6 +529,25 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // QBUTTON Kind: its caption and ModalResult (rapidr_value::events).
+    if prop.eq_ignore_ascii_case("kind") {
+        if let Some((caption, mr)) = rapidr_value::events::button_kind(val.to_i64()) {
+            if rp_comp_get(name, "caption").to_string_val().is_empty() || (1..=10).any(|k| rapidr_value::events::button_kind(k).map(|(c, _)| c) == Some(rp_comp_get(name, "caption").to_string_val().as_str())) {
+                rp_comp_set(name, "caption", v_str(caption));
+            }
+            rp_comp_set(name, "modalresult", v_int(mr));
+        }
+    }
+    // A modal form's ModalResult set: the form closes (ShowModal returns it).
+    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" {
+        #[cfg(feature = "gui")]
+        if crate::gui::is_modal(name) {
+            let (n, v) = (name.to_string(), val.clone());
+            store_prop(&n, "modalresult", v);
+            crate::gui::gui_close(&n);
+            return;
+        }
+    }
     let prop_lower = prop.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if crate::globals::set(name, &prop_lower, &val) {
@@ -1203,6 +1222,46 @@ fn fire(name: &str, event: &str, args: &[Value]) -> Vec<Value> {
 /// Fire an event with no arguments (handlers get the Sender).
 pub fn rp_fire_event(name: &str, event: &str) {
     let _ = fire(name, event, &[]);
+    if event == "onclick" {
+        button_modal_result(name);
+    }
+}
+
+/// The form a component is on (itself for a form).
+pub fn form_of(name: &str) -> Option<String> {
+    let mut cur = name.to_lowercase();
+    for _ in 0..32 {
+        if rp_comp_type(&cur) == "RFORM" {
+            return Some(cur);
+        }
+        let p = rp_comp_get(&cur, "parent").to_string_val().to_lowercase();
+        if p.is_empty() {
+            return None;
+        }
+        cur = p;
+    }
+    None
+}
+
+/// A button with a ModalResult (or Kind bkClose) clicked: its form gets that
+/// result, which closes it when it's shown modally (RapidQ / Delphi).
+fn button_modal_result(name: &str) {
+    if rp_comp_type(name) == "RFORM" {
+        return;
+    }
+    let mr = rp_comp_get(name, "modalresult").to_i64();
+    let close = rp_comp_get(name, "kind").to_i64() == 6;
+    if mr == 0 && !close {
+        return;
+    }
+    if let Some(form) = form_of(name) {
+        if mr != 0 {
+            rp_comp_set(&form, "modalresult", v_int(mr));
+        } else {
+            #[cfg(feature = "gui")]
+            crate::gui::gui_close(&form);
+        }
+    }
 }
 
 /// Fire an event with 1 argument.
@@ -1552,8 +1611,9 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         "showmodal" => {
             #[cfg(feature = "gui")]
             {
-                crate::gui::gui_showmodal(name);
-                return v_null();
+                // (the form's ModalResult; the interpreter's comes when
+                // its wait ends: gui_pump_wait)
+                return v_int(crate::gui::gui_showmodal(name));
             }
             #[cfg(not(feature = "gui"))]
             {
