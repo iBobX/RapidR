@@ -1210,6 +1210,45 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
     out
 }
 
+/// The properties RapidQ's manual lists as read-only (R) for its own
+/// components (Appendix A); assigning one is RapidQ's `Property X of Y is
+/// read-only.`
+pub fn is_read_only_property(type_name: &str, property: &str) -> bool {
+    const TABLE: &[(&str, &[&str])] = &[
+        ("QBUTTON", &["Handle"]),
+        ("QCHECKBOX", &["Handle"]),
+        ("QCOMBOBOX", &["Handle", "ItemCount"]),
+        ("QCOMPORT", &["BytesNotRead", "BytesNotWritten", "Connected", "Handle"]),
+        ("QEDIT", &["Handle", "IsMasked"]),
+        ("QFILELISTBOX", &["ItemCount", "SelCount"]),
+        ("QFILESTREAM", &["EOF", "Handle", "LineCount", "Size"]),
+        ("QFORM", &["Handle"]),
+        ("QGROUPBOX", &["Handle"]),
+        ("QHEADER", &["SectionsCount"]),
+        ("QIMAGELIST", &["Count"]),
+        ("QLABEL", &["Handle"]),
+        ("QLISTBOX", &["Handle", "ItemCount", "SelCount"]),
+        ("QLISTVIEW", &["ColumnsCount", "Handle"]),
+        ("QMAINMENU", &["Handle"]),
+        ("QMEMORYSTREAM", &["LineCount"]),
+        ("QMENUITEM", &["Count", "Handle"]),
+        ("QOUTLINE", &["Handle"]),
+        ("QPOPUPMENU", &["Handle"]),
+        ("QRADIOBUTTON", &["Handle"]),
+        ("QRICHEDIT", &["Handle", "WhereX", "WhereY"]),
+        ("QSCROLLBAR", &["Handle"]),
+        ("QSCROLLBOX", &["Handle"]),
+        ("QSTATUSBAR", &["Handle"]),
+        ("QSTRINGGRID", &["Handle", "VisibleColCount", "VisibleRowCount"]),
+        ("QSTRINGLIST", &["ItemCount"]),
+        ("QTRACKBAR", &["Handle"]),
+    ];
+    TABLE.iter().any(|(t, props)| {
+        (t.eq_ignore_ascii_case(type_name) || canonical_type_name(t).eq_ignore_ascii_case(type_name))
+            && props.iter().any(|p| p.eq_ignore_ascii_case(property))
+    })
+}
+
 /// More of RapidQ's compile-time checks, in its compiler's words (run on
 /// the program as written):
 /// - a SUB/FUNCTION called with more or fewer arguments than it declares:
@@ -1217,7 +1256,9 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
 /// - a name DIMmed twice in one scope: `Identifier a already used, try
 ///   another name` (`i%` and `i$` are two: RapidQ's examples DIM both);
 /// - `RESULT = …` outside a FUNCTION: `Trying to assign return value while
-///   not in FUNCTION`.
+///   not in FUNCTION`;
+/// - a read-only property assigned (`List.ItemCount = 3`, or `Handle = …`
+///   in its CREATE): `Property ItemCount of List is read-only.`
 pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
     use std::collections::{HashMap, HashSet};
     let key = |n: &str| strip_type_suffix(n).to_ascii_lowercase();
@@ -1320,6 +1361,51 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
             &mut |_| {},
         );
     }
+    // Read-only properties: the components the program names (CREATE, DIM
+    // AS Q…) and the bare properties inside each CREATE.
+    let mut component_types: HashMap<String, String> = HashMap::new();
+    walk(
+        &outside_types,
+        &mut |s| match s {
+            Statement::Create(c) => {
+                component_types.insert(c.name.to_ascii_lowercase(), c.type_name.clone());
+            }
+            Statement::Dim(d) if is_rapidq_object_type(&d.type_name) || is_component_type_name(&d.type_name) => {
+                for v in &d.declarators {
+                    component_types.insert(v.name.to_ascii_lowercase(), d.type_name.clone());
+                }
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    walk(
+        &outside_types,
+        &mut |s| match s {
+            Statement::Assignment(a) => {
+                if let Expression::MemberAccess(m) = &a.target {
+                    if let Expression::Identifier(o) = m.object.as_ref() {
+                        if component_types.get(&o.name.to_ascii_lowercase()).is_some_and(|t| is_read_only_property(t, &m.member)) {
+                            out.push((a.span, format!("Property {} of {} is read-only.", m.member, o.name)));
+                        }
+                    }
+                }
+            }
+            Statement::Create(c) => {
+                for b in &c.body {
+                    if let Statement::Assignment(a) = b {
+                        if let Expression::Identifier(p) = &a.target {
+                            if is_read_only_property(&c.type_name, &p.name) {
+                                out.push((a.span, format!("Property {} of {} is read-only.", p.name, c.name)));
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
     let mut global_dims = HashSet::new();
     let main: Vec<Statement> = outside_types.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
     dims(&main, &mut global_dims, &mut out);
