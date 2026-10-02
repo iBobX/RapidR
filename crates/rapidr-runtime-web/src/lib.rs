@@ -22,6 +22,7 @@ pub mod mdi_web;
 pub mod menu_web;
 pub mod network_web;
 pub mod object_web;
+pub mod scroll_web;
 pub mod storage_web;
 pub use rapidr_value as value;
 pub use rapidr_rrcss::RR_BASE_CSS;

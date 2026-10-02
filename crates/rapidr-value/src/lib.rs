@@ -25,6 +25,7 @@ pub mod format;
 pub mod toggle_group;
 pub mod objects;
 pub mod layout;
+pub mod scrollbars;
 pub mod resources;
 
 #[derive(Debug, Clone)]

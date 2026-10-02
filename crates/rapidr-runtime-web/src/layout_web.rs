@@ -74,6 +74,11 @@ fn has_menu(form: &str) -> bool {
 
 /// A form's ClientWidth / ClientHeight: its size less its frame and menu.
 pub fn form_client(form: &str) -> (i64, i64) {
+    crate::scroll_web::client(form)
+}
+
+/// A form's inside: its frame and menu excluded (its scroll bars not).
+pub fn form_area(form: &str) -> (i64, i64) {
     let n = |p: &str| rp_comp_get_stored(form, p);
     let border_style = match n("borderstyle") {
         Value::Null => 2,
@@ -96,6 +101,13 @@ pub fn form_outer(form: &str, client_width: i64, client_height: i64) -> (i64, i6
 /// The client area of `parent` in its children's coordinates: a form's
 /// inside; any other container's whole size.
 pub fn client_rect(parent: &str) -> Rect {
+    // A form's / scroll box's: Delphi's (AdjustClientRect) — the scrolled
+    // area, as large as the ranges.
+    if crate::scroll_web::scrolls(parent) {
+        let (cw, ch) = crate::scroll_web::client(parent);
+        let (hp, vp, hr, vr) = rapidr_value::scrollbars::with(parent, |s| (s.horz.position, s.vert.position, s.horz.range, s.vert.range)).unwrap_or_default();
+        return Rect::new(-hp, -vp, cw.max(hr), ch.max(vr));
+    }
     // A tab control's: the area under its tabs (rapidr_value::objects::tabcontrol).
     if rapidr_value::objects::is_tabcontrol(parent) {
         let n = |p: &str| rp_comp_get_stored(parent, p).to_i64();
@@ -131,9 +143,12 @@ pub fn after_set(name: &str, prop: &str) {
             }
             if matches!(prop, "width" | "height") {
                 realign(name, None);
+                crate::scroll_web::update(name);
             }
         }
         "borderstyle" if rp_comp_type(name) == "RFORM" => realign(name, None),
+        // (a QSCROLLBOX's edge: its inside changed)
+        "borderstyle" => crate::scroll_web::update(name),
         "parent" => {
             let parent = parent_of(name);
             if align_of(name) != Align::None {
@@ -144,6 +159,10 @@ pub fn after_set(name: &str, prop: &str) {
             }
         }
         _ => {}
+    }
+    // A scrolling parent's bars follow its components (scroll_web.rs).
+    if matches!(prop, "align" | "left" | "top" | "width" | "height" | "visible" | "parent") {
+        crate::scroll_web::update(&parent_of(name));
     }
 }
 

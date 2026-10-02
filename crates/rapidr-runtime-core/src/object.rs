@@ -552,6 +552,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if crate::globals::set(name, &prop_lower, &val) {
         return;
     }
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
+    if crate::scroll::set(name, &prop_lower, &val) {
+        return;
+    }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
         return;
@@ -825,8 +829,14 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 }
 
-/// A form's ClientWidth / ClientHeight (rapidr_value::layout).
+/// A form's ClientWidth / ClientHeight (rapidr_value::layout), less the
+/// scroll bars it shows (scroll.rs).
 pub fn form_client(name: &str) -> (i64, i64) {
+    crate::scroll::client(name)
+}
+
+/// A form's inside: its frame and main menu excluded (its scroll bars not).
+pub fn form_area(name: &str) -> (i64, i64) {
     rapidr_value::layout::form_client_size(
         rp_comp_get(name, "width").to_i64(),
         rp_comp_get(name, "height").to_i64(),
@@ -856,8 +866,8 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A form's inside (its frame and main menu excluded); other
     // components have no frame inside their size.
     if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
-        let (w, h) = if rp_comp_type(name) == "RFORM" {
-            form_client(name)
+        let (w, h) = if matches!(rp_comp_type(name).as_str(), "RFORM" | "RSCROLLBOX") {
+            crate::scroll::client(name)
         } else {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
         };
@@ -869,6 +879,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
+        return v;
+    }
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
+    if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
     }
     // (what the user typed and selected, before the program reads it)

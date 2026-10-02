@@ -19,7 +19,7 @@ pub fn document() -> web_sys::Document {
         .expect("no document")
 }
 
-fn get_el(id: &str) -> Option<web_sys::HtmlElement> {
+pub fn get_el(id: &str) -> Option<web_sys::HtmlElement> {
     document()
         .get_element_by_id(id)?
         .dyn_into::<web_sys::HtmlElement>()
@@ -1712,7 +1712,8 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = c_style.set_property("top", "29px");
     let _ = c_style.set_property("width", "100%");
     let _ = c_style.set_property("height", "calc(100% - 29px)");
-    let _ = c_style.set_property("overflow", "auto");
+    // (its scroll bars are RapidR's: scroll_web.rs)
+    let _ = c_style.set_property("overflow", "hidden");
     let _ = el.append_child(&client);
 
     // Hidden initially — shown via gui_web_finalize()
@@ -3816,13 +3817,17 @@ fn create_progress(id: &str, name: &str, props: &HashMap<String, Value>) {
     setup_widget(&el, id, name, props);
 }
 
+/// A QSCROLLBOX: its components inside its sunken edge (bsSingle), its
+/// scroll bars RapidR's (scroll_web.rs), as the desktop's.
 fn create_scrollbox(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
-    el.set_class_name("rr-widget");
-    let _ = el.style().set_property("border", "1px solid #aaa");
-    let _ = el.style().set_property("background", "white");
-    let _ = el.style().set_property("overflow", "auto");
+    el.set_class_name("rr-widget rr-scrollbox");
+    let edge = if props.get("borderstyle").is_none_or(|v| v.to_i64() != 0) { 2 } else { 0 };
+    for (k, v) in [("border-style", "solid".to_string()), ("border-width", format!("{edge}px")), ("border-color", "#808080 #ffffff #ffffff #808080".to_string()), ("box-sizing", "border-box".to_string()), ("overflow", "hidden".to_string())] {
+        let _ = el.style().set_property(k, &v);
+    }
     setup_widget(&el, id, name, props);
+    crate::scroll_web::update(name);
 }
 
 fn create_range(id: &str, name: &str, props: &HashMap<String, Value>) {
@@ -5132,6 +5137,7 @@ pub fn gui_web_show_form(name: &str) {
     if let Some(el) = get_el(&id) {
         let _ = el.style().set_property("display", "block");
     }
+    crate::scroll_web::shown(name);
 }
 
 /// Re-parent a DOM element to a different parent's client area.
@@ -5213,6 +5219,19 @@ pub fn gui_web_set_parent(name: &str, parent_name: &str) {
 /// form, then show all top-level forms and fire `onload` for each form.
 pub fn gui_web_finalize() {
     let doc = document();
+    // (the forms' scroll bars, once they're all in the page)
+    let later = Closure::once_into_js(|| {
+        if let Ok(forms) = document().query_selector_all(".rr-form[data-rr-name]") {
+            for i in 0..forms.length() {
+                if let Some(name) = forms.item(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()).and_then(|e| e.get_attribute("data-rr-name")) {
+                    crate::scroll_web::shown(&name);
+                }
+            }
+        }
+    });
+    if let Some(w) = web_sys::window() {
+        let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
+    }
 
     // Find the first TOP-LEVEL form (not nested inside another form).
     // Top-level forms are direct body children OR carry no data-rr-parent.
@@ -5505,6 +5524,7 @@ fn form_resized(form_id: &str, left: i32, top: i32, width: i32, height: i32) {
     crate::object_web::rp_comp_set_prop_only(&name, "width", v_int(width as i64));
     crate::object_web::rp_comp_set_prop_only(&name, "height", v_int(height as i64));
     crate::layout_web::realign(&name, None);
+    crate::scroll_web::update(&name);
     crate::object_web::rp_fire_event(&name, "onresize");
 }
 

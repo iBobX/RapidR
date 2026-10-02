@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.100.0] — 2026-10-01
+
+### Added
+- QFORM and QSCROLLBOX scroll as RapidQ's (Delphi's TScrollingWinControl),
+  from one shared model (rapidr_value::scrollbars) that the desktop and the
+  web draw and drive the same way: `AutoScroll` (on by default: a bar shows
+  when the components reach past the client area), `HorzRange` /
+  `VertRange`, `HorzPosition` / `VertPosition`, `HorzIncrement` /
+  `VertIncrement` (8), `HorzMargin` / `VertMargin`, `HorzTracking` /
+  `VertTracking`, `HorzVisible` / `VertVisible`. Scrolling moves the
+  components (their Left / Top change, as Delphi's ScrollBy); a shown bar
+  takes 17 pixels from ClientWidth / ClientHeight; an aligned component
+  fills the scrolled area. The arrows move Increment pixels and repeat while
+  held, a click in the track a page, the thumb drags (the components follow
+  it with Tracking, else when it's let go), the mouse wheel scrolls; a click
+  on a bar fires no OnMouseDown. A QSCROLLBOX has its sunken edge
+  (bsSingle) with its components inside it. A QFORMMDI doesn't scroll its
+  own components (its children's MDI area is Windows' own). Native,
+  interpreter and web.
+
+### Fixed
+- Native builds named components after Rust keywords differently from the
+  interpreter (`Box` was `box_`), so anything naming them (test hooks, a
+  component found by name) missed them.
+- The web showed the browser's own scroll bars on a form whose components
+  didn't fit (the desktop none), and a QSCROLLBOX scrolled with the
+  browser's / FLTK's bars without HorzPosition, VertPosition or the ranges.
+
 ## [2.99.0] — 2026-10-01
 
 ### Added

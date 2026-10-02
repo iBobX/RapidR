@@ -14,7 +14,7 @@ use fltk::{
     draw,
     enums::{Align, CallbackTrigger, Color, ColorDepth, Event, Font, FrameType, Key},
     frame::Frame,
-    group::{Group, Scroll},
+    group::Group,
     image::{RgbImage, SharedImage},
     input::Input,
     menu::{Choice, MenuBar, SysMenuBar},
@@ -56,7 +56,6 @@ enum GuiWidget {
     MenuBar(MenuBar),
     SysMenuBar(SysMenuBar),
     Progress(FltkProgress),
-    Scroll(Scroll),
     Tree(Tree),
     Slider(HorNiceSlider),
     /// QSTRINGGRID: a table drawn from rapidr_value::objects::grid, with the
@@ -83,7 +82,6 @@ impl GuiWidget {
             GuiWidget::MenuBar(v) => v.as_base_widget(),
             GuiWidget::SysMenuBar(v) => v.as_base_widget(),
             GuiWidget::Progress(v) => v.as_base_widget(),
-            GuiWidget::Scroll(v) => v.as_base_widget(),
             GuiWidget::Tree(v) => v.as_base_widget(),
             GuiWidget::Slider(v) => v.as_base_widget(),
             GuiWidget::Grid(v, _) => v.as_base_widget(),
@@ -107,7 +105,7 @@ pub(crate) fn attach_late(name: &str) {
     }
     let parent = rp_comp_get(&name, "parent").to_string_val().to_lowercase();
     let parent_is_container = GUI_WIDGETS.with(|gw| {
-        matches!(gw.borrow().get(&parent), Some(GuiWidget::Window(_) | GuiWidget::Group(_) | GuiWidget::Scroll(_)))
+        matches!(gw.borrow().get(&parent), Some(GuiWidget::Window(_) | GuiWidget::Group(_)))
     });
     if parent.is_empty() || !parent_is_container {
         return;
@@ -328,8 +326,17 @@ fn install_input_dispatch() {
             let vk = fltk_vk(app::event_key().bits());
             key_events(&chain, ev == Event::KeyDown, vk, mouse_shift(), &app::event_text());
         }
+        // A form's / scroll box's scroll bars take their clicks first.
+        if let Some(handled) = scroll_bars_event(ev, win) {
+            return handled;
+        }
         // SAFETY: `win` is the window FLTK passed in for this event.
         let handled = unsafe { app::handle_raw(ev, win) };
+        // The wheel no component used scrolls the form / scroll box under
+        // the mouse.
+        if ev == Event::MouseWheel && !handled && scroll_wheel(win) {
+            return true;
+        }
         let kind = match ev {
             Event::Push => Some(rapidr_value::input::Mouse::Down),
             Event::Released => Some(rapidr_value::input::Mouse::Up),
@@ -681,7 +688,11 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             .as_ref()
             .map(|(k, n)| (*k, *n))
         {
-            mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
+            // (a scroll box's / form's bars take the mouse first, as the
+            // real input's dispatch: no OnMouseDown for them)
+            if !scroll_bars_hook(&comp_lower, kind, x, y) {
+                mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
+            }
             let (fx, fy) = (x as f64, y as f64);
             match kind {
                 rapidr_value::input::Mouse::Down => {
@@ -836,6 +847,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 close_button(&mut win, &name_lower);
+                let form = name_lower.clone();
+                win.draw(move |w| scroll_bars_draw(&form, 0, menu_offset(&form), w.w(), w.h()));
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -854,6 +867,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 close_button(&mut win, &name_lower);
+                let form = name_lower.clone();
+                win.draw(move |w| scroll_bars_draw(&form, 0, menu_offset(&form), w.w(), w.h()));
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -1874,11 +1889,19 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let mut scroll = Scroll::new(x, y, w, h, None);
-            scroll.set_frame(FrameType::DownBox);
-            scroll.end();
+            // Its components inside its edge, clipped to it; its scroll bars
+            // (scroll.rs, rapidr_value::scrollbars) drawn over them.
+            let mut grp = Group::new(x, y, w, h, None);
+            grp.set_frame(if crate::scroll::border(name) > 0 { FrameType::DownBox } else { FrameType::FlatBox });
+            grp.set_clip_children(true);
+            grp.end();
+            let id = name_lower.clone();
+            grp.draw(move |g| {
+                let b = crate::scroll::border(&id) as i32;
+                scroll_bars_draw(&id, g.x() + b, g.y() + b, g.w(), g.h());
+            });
             GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower, GuiWidget::Scroll(scroll));
+                gw.borrow_mut().insert(name_lower, GuiWidget::Group(grp));
             });
         }
         "RLISTVIEW" => {
@@ -2106,7 +2129,6 @@ pub fn gui_apply_font(name: &str) {
             GuiWidget::MenuBar(w) => text!(w),
             GuiWidget::SysMenuBar(w) => text!(w),
             GuiWidget::Progress(w) => label!(w),
-            GuiWidget::Scroll(w) => label!(w),
             GuiWidget::Grid(w, _) => label!(w),
             GuiWidget::Tree(w) => label!(w),
             GuiWidget::Slider(w) => label!(w),
@@ -3756,7 +3778,6 @@ fn begin_widget(name: &str) {
             match widget {
                 GuiWidget::Window(ref mut w) => { w.begin(); }
                 GuiWidget::Group(ref mut g) => { g.begin(); }
-                GuiWidget::Scroll(ref mut s) => { s.begin(); }
                 _ => {}
             }
         }
@@ -3770,7 +3791,6 @@ fn end_widget(name: &str) {
             match widget {
                 GuiWidget::Window(ref mut w) => { w.end(); }
                 GuiWidget::Group(ref mut g) => { g.end(); }
-                GuiWidget::Scroll(ref mut s) => { s.end(); }
                 _ => {}
             }
         }
@@ -3785,8 +3805,11 @@ fn get_widget_offset(name: &str) -> (i32, i32) {
         if let Some(widget) = widgets.get(name) {
             match widget {
                 GuiWidget::Window(_) => (0, 0), // Window children use absolute coords
-                GuiWidget::Group(ref g) => (g.x(), g.y()),
-                GuiWidget::Scroll(ref s) => (s.x(), s.y()),
+                // (a scroll box's components sit inside its edge)
+                GuiWidget::Group(ref g) => {
+                    let b = crate::scroll::border(name) as i32;
+                    (g.x() + b, g.y() + b)
+                }
                 _ => (0, 0),
             }
         } else {
@@ -3828,7 +3851,6 @@ fn resize_widget(widget: &mut GuiWidget, x: i32, y: i32, w: i32, h: i32) {
         GuiWidget::MenuBar(v) => v.resize(x, y, w, h),
         GuiWidget::SysMenuBar(v) => v.resize(x, y, w, h),
         GuiWidget::Progress(v) => v.resize(x, y, w, h),
-        GuiWidget::Scroll(v) => v.resize(x, y, w, h),
         GuiWidget::Tree(v) => v.resize(x, y, w, h),
         GuiWidget::Slider(v) => v.resize(x, y, w, h),
         GuiWidget::Grid(v, _) => v.resize(x, y, w, h),
@@ -3848,7 +3870,6 @@ fn redraw_window_of(widget: &GuiWidget) {
         GuiWidget::Button(v) => redraw_win!(v),
         GuiWidget::Frame(v) | GuiWidget::ImageFrame(v) => redraw_win!(v),
         GuiWidget::Group(v) => redraw_win!(v),
-        GuiWidget::Scroll(v) => redraw_win!(v),
         GuiWidget::Grid(v, _) => redraw_win!(v),
         GuiWidget::HoldBrowser(v) => redraw_win!(v),
         GuiWidget::TextEditor(v) => redraw_win!(v),
@@ -4008,6 +4029,7 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
         rp_comp_set(form, "height", v_int(h));
     });
     crate::layout::realign(form, None);
+    crate::scroll::update(form);
     gui_apply_geometry(form);
     rp_fire_event(form, "onresize");
     rp_fire_event(form, "onpaint");
@@ -5378,7 +5400,6 @@ pub fn gui_set_visible(name: &str, visible: bool) {
                 GuiWidget::MenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::SysMenuBar(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Progress(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
-                GuiWidget::Scroll(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Grid(ref mut w, _) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Tree(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
                 GuiWidget::Slider(ref mut w) => { if visible { w.show(); } else { w.hide(); } }
@@ -5406,6 +5427,165 @@ pub fn gui_set_caption(name: &str, text: &str) {
             }
         }
     });
+}
+
+thread_local! {
+    /// The scroll bars held down: their container, its client origin in
+    /// the window, the mouse's last place there.
+    static SCROLL_CAPTURE: RefCell<Option<(String, i32, i32, i64, i64)>> = const { RefCell::new(None) };
+}
+
+/// Draws `name`'s scroll bars (rapidr_value::scrollbars) with its client
+/// area at (ox, oy): after its components, so they're always on top.
+fn scroll_bars_draw(name: &str, ox: i32, oy: i32, _w: i32, _h: i32) {
+    let (w, h) = crate::scroll::area(name);
+    let Some(ops) = rapidr_value::scrollbars::with(name, |s| (s.vert.shown || s.horz.shown).then(|| s.ops(w, h))).flatten() else { return };
+    draw_fill_ops(&ops, ox, oy);
+}
+
+/// Fills and arrows (rapidr_value's drawing ops) at (ox, oy).
+fn draw_fill_ops(ops: &[rapidr_value::objects::tabcontrol::Op], ox: i32, oy: i32) {
+    use rapidr_value::objects::tabcontrol::Op;
+    for op in ops {
+        match op {
+            Op::Fill { rect: (x, y, rw, rh), color } => draw::draw_rect_fill(ox + *x as i32, oy + *y as i32, *rw as i32, *rh as i32, Color::from_hex(*color)),
+            Op::Arrow { points, color } => {
+                draw::set_draw_color(Color::from_hex(*color));
+                draw::begin_polygon();
+                for (px, py) in points {
+                    draw::vertex(f64::from(ox) + px, f64::from(oy) + py);
+                }
+                draw::end_polygon();
+            }
+            _ => {}
+        }
+    }
+}
+
+/// The scrolling containers in window `win` with their client area's
+/// origin there, innermost (smallest) first.
+fn scrollers_in(win: app::WindowPtr) -> Vec<(String, i32, i32)> {
+    let mut found: Vec<(i64, String, i32, i32)> = Vec::new();
+    if let Some(form) = window_component(win) {
+        found.push((i64::MAX, form.clone(), 0, menu_offset(&form)));
+    }
+    GUI_WIDGETS.with(|gw| {
+        let Ok(gw) = gw.try_borrow() else { return };
+        for (name, widget) in gw.iter() {
+            let GuiWidget::Group(g) = widget else { continue };
+            if !g.visible_r() || rp_comp_type(name) != "RSCROLLBOX" || !g.window().is_some_and(|w| w.as_widget_ptr() as usize == win as usize) {
+                continue;
+            }
+            let b = crate::scroll::border(name) as i32;
+            found.push((i64::from(g.w()) * i64::from(g.h()), name.clone(), g.x() + b, g.y() + b));
+        }
+    });
+    found.sort_by_key(|f| f.0);
+    found.into_iter().map(|(_, n, x, y)| (n, x, y)).collect()
+}
+
+/// A press, drag or release on a form's / scroll box's bars: `Some` when
+/// the bars took it.
+fn scroll_bars_event(ev: Event, win: app::WindowPtr) -> Option<bool> {
+    match ev {
+        Event::Push => {
+            for (name, ox, oy) in scrollers_in(win) {
+                let (w, h) = crate::scroll::area(&name);
+                let (x, y) = ((app::event_x() - ox) as i64, (app::event_y() - oy) as i64);
+                let Some(shift) = rapidr_value::scrollbars::with(&name, |s| s.on_bars(x, y, w, h))
+                    .filter(|on| *on)
+                    .and_then(|_| rapidr_value::scrollbars::with_mut(&name, |s| s.mouse_down(x, y, w, h)))
+                else {
+                    continue;
+                };
+                crate::scroll::user_scrolled(&name, shift);
+                SCROLL_CAPTURE.with(|c| *c.borrow_mut() = Some((name.clone(), ox, oy, x, y)));
+                // (an arrow or the track held down repeats, as Windows')
+                app::add_timeout3(0.4, move |handle| {
+                    let Some((held, _, _, mx, my)) = SCROLL_CAPTURE.with(|c| c.borrow().clone()) else { return };
+                    if held != name {
+                        return;
+                    }
+                    let (w, h) = crate::scroll::area(&name);
+                    let shift = rapidr_value::scrollbars::with_mut(&name, |s| s.repeat(mx, my, w, h));
+                    crate::scroll::user_scrolled(&name, shift);
+                    app::repeat_timeout3(0.05, handle);
+                });
+                return Some(true);
+            }
+            None
+        }
+        Event::Drag => {
+            let (name, ox, oy, _, _) = SCROLL_CAPTURE.with(|c| c.borrow().clone())?;
+            let (x, y) = ((app::event_x() - ox) as i64, (app::event_y() - oy) as i64);
+            SCROLL_CAPTURE.with(|c| *c.borrow_mut() = Some((name.clone(), ox, oy, x, y)));
+            let (w, h) = crate::scroll::area(&name);
+            let shift = rapidr_value::scrollbars::with_mut(&name, |s| s.mouse_drag(x, y, w, h));
+            crate::scroll::user_scrolled(&name, shift);
+            Some(true)
+        }
+        Event::Released => {
+            let (name, ..) = SCROLL_CAPTURE.with(|c| c.borrow_mut().take())?;
+            let (w, h) = crate::scroll::area(&name);
+            let shift = rapidr_value::scrollbars::with_mut(&name, |s| s.mouse_up(w, h));
+            crate::scroll::user_scrolled(&name, shift);
+            Some(true)
+        }
+        _ => None,
+    }
+}
+
+/// The test hooks' mouse on a form's / scroll box's bars (`x`, `y` in its
+/// widget, as the web's): whether the bars took it.
+fn scroll_bars_hook(name: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64) -> bool {
+    use rapidr_value::input::Mouse;
+    if !crate::scroll::scrolls(name) {
+        return false;
+    }
+    let b = crate::scroll::border(name);
+    let (x, y) = (x - b, y - b);
+    let (w, h) = crate::scroll::area(name);
+    let held = SCROLL_CAPTURE.with(|c| c.borrow().as_ref().is_some_and(|(n, ..)| n == name));
+    let shift = match kind {
+        Mouse::Down => {
+            let Some(shift) = rapidr_value::scrollbars::with_mut(name, |s| s.mouse_down(x, y, w, h)) else { return false };
+            SCROLL_CAPTURE.with(|c| *c.borrow_mut() = Some((name.to_string(), 0, 0, x, y)));
+            shift
+        }
+        Mouse::Move if held => rapidr_value::scrollbars::with_mut(name, |s| s.mouse_drag(x, y, w, h)),
+        Mouse::Up if held => {
+            SCROLL_CAPTURE.with(|c| c.borrow_mut().take());
+            rapidr_value::scrollbars::with_mut(name, |s| s.mouse_up(w, h))
+        }
+        _ => return false,
+    };
+    crate::scroll::user_scrolled(name, shift);
+    true
+}
+
+/// The wheel over a form / scroll box with a bar: it scrolls.
+fn scroll_wheel(win: app::WindowPtr) -> bool {
+    let (vertical, notches) = match (app::event_dy(), app::event_dx()) {
+        (app::MouseWheel::Up, _) => (true, -1),
+        (app::MouseWheel::Down, _) => (true, 1),
+        (_, app::MouseWheel::Left) => (false, -1),
+        (_, app::MouseWheel::Right) => (false, 1),
+        _ => return false,
+    };
+    let horizontal = !vertical || app::event_state().contains(fltk::enums::Shortcut::Shift);
+    for (name, ox, oy) in scrollers_in(win) {
+        let (w, h) = crate::scroll::area(&name);
+        let (x, y) = ((app::event_x() - ox) as i64, (app::event_y() - oy) as i64);
+        if x < 0 || y < 0 || x >= w || y >= h {
+            continue;
+        }
+        let shift = rapidr_value::scrollbars::with_mut(&name, |s| s.wheel(notches, horizontal, w, h));
+        if shift != (0, 0) {
+            crate::scroll::user_scrolled(&name, shift);
+            return true;
+        }
+    }
+    false
 }
 
 /// The test hooks' keys and mouse on a QTRACKBAR (as its widget's handler):
@@ -6916,7 +7096,6 @@ pub fn redraw_widget(name: &str) {
             match widget {
                 GuiWidget::Window(ref mut w) => { w.redraw(); }
                 GuiWidget::Group(ref mut w) => { w.redraw(); }
-                GuiWidget::Scroll(ref mut w) => { w.redraw(); }
                 GuiWidget::Grid(ref mut w, _) => { w.redraw(); }
                 GuiWidget::Frame(ref mut w) => { w.redraw(); }
                 GuiWidget::ImageFrame(ref mut w) => { w.redraw(); }

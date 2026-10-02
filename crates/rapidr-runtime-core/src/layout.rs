@@ -46,15 +46,15 @@ fn busy() -> bool {
     BUSY.with(Cell::get) > 0
 }
 
-fn align_of(name: &str) -> Align {
+pub(crate) fn align_of(name: &str) -> Align {
     Align::from_value(rp_comp_get(name, "align").to_i64())
 }
 
-fn parent_of(name: &str) -> String {
+pub(crate) fn parent_of(name: &str) -> String {
     rp_comp_get(name, "parent").to_string_val().to_lowercase()
 }
 
-fn visible(name: &str) -> bool {
+pub(crate) fn visible(name: &str) -> bool {
     match rp_comp_get(name, "visible") {
         Value::Null => true,
         v => v.to_bool(),
@@ -87,11 +87,14 @@ fn client_rect(parent: &str) -> Rect {
             return Rect::new(x, y, w, h);
         }
     }
-    let (w, h) = if rp_comp_type(parent) == "RFORM" {
-        crate::object::form_client(parent)
-    } else {
-        (rp_comp_get(parent, "width").to_i64(), rp_comp_get(parent, "height").to_i64())
-    };
+    // A form's / scroll box's: Delphi's (AdjustClientRect) — the scrolled
+    // area, as large as the ranges.
+    if crate::scroll::scrolls(parent) {
+        let (cw, ch) = crate::scroll::client(parent);
+        let (hp, vp, hr, vr) = rapidr_value::scrollbars::with(parent, |s| (s.horz.position, s.vert.position, s.horz.range, s.vert.range)).unwrap_or_default();
+        return Rect::new(-hp, -vp, cw.max(hr), ch.max(vr));
+    }
+    let (w, h) = (rp_comp_get(parent, "width").to_i64(), rp_comp_get(parent, "height").to_i64());
     Rect::new(0, 0, w, h)
 }
 
@@ -118,6 +121,7 @@ pub(crate) fn after_set(name: &str, prop: &str) {
             }
             if matches!(prop, "width" | "height") {
                 realign(name, None);
+                crate::scroll::update(name);
             }
         }
         "parent" => {
@@ -129,7 +133,13 @@ pub(crate) fn after_set(name: &str, prop: &str) {
                 realign(&parent, None);
             }
         }
+        // (a QSCROLLBOX's edge: its inside changed)
+        "borderstyle" => crate::scroll::update(name),
         _ => {}
+    }
+    // A scrolling parent's bars follow its components (scroll.rs).
+    if matches!(prop, "align" | "left" | "top" | "width" | "height" | "visible" | "parent") {
+        crate::scroll::update(&parent_of(name));
     }
 }
 
