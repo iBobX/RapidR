@@ -1,0 +1,15 @@
+Count-42 Label hello reg
+4:60 3:50 2:40 1:30 0:20 -1:10
+Ratio 0.500000000
+types1340
+sizes1046-1
+values4 Count 10
+path RapidRProbe open-1
+closed0 []
+sub RapidRProbe\Shell1 Open1
+keys2 Edit,Open
+move101
+default [app.exe %1]
+renamed [app.exe %1]0
+deleted10
+root00

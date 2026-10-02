@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.101.0] — 2026-10-01
+
+### Added
+- QREGISTRY as RapidQ's manual has it (its own example runs as shown):
+  `RootKey` (HKEY_CURRENT_USER by default), `OpenKey(Key, CanCreate)`,
+  `CloseKey`, `CreateKey`, `DeleteKey` (with its sub-keys), `KeyExists`,
+  `ValueExists`, `DeleteValue`, `RenameValue`, `MoveKey(Old, New, Delete)`,
+  `KeyItem(i)` / `ValueItem(i)`, `KeyItemCount`, `ValueItemCount`,
+  `HasSubKeys`, `CurrentKey`, `CurrentPath`, `GetDataType` / `GetDataSize`,
+  `ReadString` / `ReadInteger` / `ReadFloat` / `ReadBinary` and their
+  `Write…` twins. Paths are relative to the open key (`\` first: from the
+  root), names ignore case, ReadBinary keeps RapidQ's index-from-−1 bug. The
+  keys live in a per-user store, the same on every platform and nothing
+  outside it touched: a Regedit-format text file in the user's settings
+  folder (`RAPIDR_REGISTRY` names another), the page's local storage on the
+  web. Native, interpreter and web.
+- RapidQ's "Array of QREGISTRY is not supported!" (and the same for its other
+  objects with no arrays: QMainMenu, QFileStream, QSOCKET, QRECT, …).
+
 ## [2.100.0] — 2026-10-01
 
 ### Added

@@ -372,8 +372,22 @@ pub fn rp_create_component(name: &str, type_name: &str) {
 /// How shared objects print on the web (`Printer.EndDoc`, [`web_print`]).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
+    // QREGISTRY's keys: the page's local storage.
+    rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
     rapidr_value::builtins::set_entropy(|| (js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
+}
+
+/// QREGISTRY's store in the page's local storage (`None`: nothing yet, or
+/// no local storage — the keys then last while the page does).
+fn registry_load() -> Option<String> {
+    web_sys::window()?.local_storage().ok()??.get_item("rapidr.registry").ok()?
+}
+
+fn registry_save(text: &str) {
+    if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let _ = storage.set_item("rapidr.registry", text);
+    }
 }
 
 /// `Printer.EndDoc` on the web: the document (a PDF) opens in a new tab,
@@ -2227,6 +2241,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RFILESTREAM"
             | "RJSON"
             | "RSTRINGLIST"
+            | "RREGISTRY"
             | "RTOOLBAR"
             | "RSCROLLBAR"
             | "RDATETIMEPICKER"

@@ -16,6 +16,8 @@ if [ -d "$W/cargo-target" ] && [ "$(du -sk "$W/cargo-target" | cut -f1)" -gt 314
 # documents go to PDFs here instead.
 mkdir -p "$W/prints"
 export RAPIDR_PRINT_TO="$PWD/$W/prints"
+# …nor the user's QREGISTRY store: a scratch one.
+export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
 trap 'find "$W/cargo-target/debug" -maxdepth 1 -type f -perm +111 -delete 2>/dev/null; rm -rf "$W/codegen" "$W/native_gui_events"' EXIT
 echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5; echo "(unit done)"
 echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1

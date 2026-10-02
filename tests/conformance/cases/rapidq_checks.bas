@@ -1,6 +1,7 @@
 ' RapidQ's compile-time checks, in its compiler's words: argument counts,
 ' a name DIMmed twice in one scope (i% and i$ are two names), RESULT
-' outside a FUNCTION. A DECLARE SUB's own signature is accepted too.
+' outside a FUNCTION, an array of an object RapidQ has none of. A DECLARE
+' SUB's own signature is accepted too.
 DECLARE SUB Tick ()
 SUB Tick (Sender AS LONG)
 END SUB
@@ -16,3 +17,4 @@ PRINT Pair$(7)
 SUB Show
   Result = 1
 END SUB
+DIM Keys(3) AS QREGISTRY

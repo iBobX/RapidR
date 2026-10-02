@@ -1,8 +1,10 @@
-12:5
+13:5
 Identifier total already used, try another name
-14:7
-Too many actual parameters for Pair$
 15:7
+Too many actual parameters for Pair$
+16:7
 Too few parameters for Pair$
-17:3
+18:3
 Trying to assign return value while not in FUNCTION
+20:5
+Array of QREGISTRY is not supported!

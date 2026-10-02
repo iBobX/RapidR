@@ -22,7 +22,7 @@
 // Env: RAPIDR_BIN (default ./rapidr), CONFORMANCE_WORK (scratch dir).
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync, cpSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync, cpSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -56,8 +56,13 @@ const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd())
 const PRINTS = join(WORK, "prints");
 mkdirSync(PRINTS, { recursive: true });
 
+// Each run's QREGISTRY keys in a fresh store of their own (never the
+// user's).
+let runs = 0;
 function run(cmd, cmdArgs, opts = {}) {
-  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS } };
+  const registry = join(WORK, `registry-${process.pid}-${runs++}.reg`);
+  rmSync(registry, { force: true });
+  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: registry } };
   const r = spawnSync(cmd, cmdArgs, { encoding: "utf8", timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT, ...opts });
   let err = r.stderr || "";
   if (r.error?.code === "ENOBUFS") err += `\noutput exceeded ${MAX_OUTPUT} bytes (runaway loop?)`;
