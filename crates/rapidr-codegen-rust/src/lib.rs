@@ -293,7 +293,7 @@ impl RustCodegen {
         if let Expression::Identifier(id) = expr {
             let lower = strip_type_suffix(&id.name).to_lowercase();
             if self.component_vars.contains_key(&lower) && !self.plain_locals.contains(&lower) {
-                return Some(to_snake(&strip_type_suffix(&id.name)));
+                return Some(comp_id(&id.name));
             }
         }
         None
@@ -872,6 +872,7 @@ impl RustCodegen {
             if self.component_vars.contains_key(&name_lower) && !self.plain_locals.contains(&name_lower) {
                 if !self.create_declared_names.contains(&name_lower) {
                     let type_name = self.component_vars[&name_lower].clone();
+                    let name = comp_id(&decl.name);
                     self.write_indent();
                     let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_name}\");");
                     if type_name == "RTIMER" {
@@ -2058,7 +2059,7 @@ impl RustCodegen {
     }
 
     fn emit_create(&mut self, c: &CreateStatement) {
-        let name = to_snake(&c.name);
+        let name = comp_id(&c.name);
         let type_upper = c.type_name.to_uppercase();
         self.write_indent();
         let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_upper}\");");
@@ -2775,6 +2776,13 @@ impl RustCodegen {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// A component's id in the runtime — its name as the VM has it (lowercase,
+/// no type suffix): a string, so a Rust keyword (`Box`) or a leading digit
+/// needs no escaping, unlike [`to_snake`]'s identifiers.
+pub(crate) fn comp_id(name: &str) -> String {
+    strip_type_suffix(name).to_lowercase()
+}
 
 pub(crate) fn to_snake(name: &str) -> String {
     // Strip type suffixes first

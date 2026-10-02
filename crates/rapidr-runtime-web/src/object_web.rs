@@ -516,6 +516,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if crate::globals_web::set(name, &lprop, &val) {
         return;
     }
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs).
+    if crate::scroll_web::set(name, &lprop, &val) {
+        return;
+    }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
         return;
@@ -787,8 +791,8 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A form's inside (its frame and main menu excluded); other components
     // have no frame inside their size.
     if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
-        let (w, h) = if rp_comp_type(&uname) == "RFORM" {
-            crate::layout_web::form_client(&uname)
+        let (w, h) = if matches!(rp_comp_type(&uname).as_str(), "RFORM" | "RSCROLLBOX") {
+            crate::scroll_web::client(&uname)
         } else {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
         };
@@ -800,6 +804,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
+        return v;
+    }
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs).
+    if let Some(v) = crate::scroll_web::get(name, &lprop) {
         return v;
     }
     if rapidr_value::objects::is_textedit(name) {

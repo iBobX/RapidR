@@ -120,6 +120,8 @@ export const cases = [
     expect: ["lbl.caption=0Tab 2340200|1FirstTab 2|2Tab 2,0First,10|4332196"],
     webCheck: `[...document.querySelectorAll('[data-rr-name="Tab" i] .rr-tab-back text')].map(t => t.textContent).join(",")`,
     webExpect: "First,Tab 2,Tab 1" },
+  { name: "autoscroll", events: "box.__mousedown_140_90,box.__mouseup_140_90,box.__mousedown_102_90,box.__mouseup_102_90,box.__mousedown_50_30,box.__mouseup_50_30,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=301209425290-1|14679300|216184-96|881121|020096"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

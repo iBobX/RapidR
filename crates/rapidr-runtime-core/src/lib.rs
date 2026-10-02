@@ -9,6 +9,7 @@ mod builtins;
 mod file_io;
 pub mod object;
 pub mod layout;
+pub mod scroll;
 pub mod mdi;
 pub mod globals;
 mod sound;
