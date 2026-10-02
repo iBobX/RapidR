@@ -259,7 +259,8 @@ Next up, in order:
 - [x] INKEY$ extended keys as CHR$(27) + scan code (RapidQ's manual) and `$OPTION INKEY$ TRAPALL/DEFAULT` (v2.88.0)
 - [x] RapidQ built-ins QUICKSORT, TAB, ATAN, GET$, SETCONSOLETITLE, CHDRIVE (v2.90.0); LPRINT / LFLUSH; bare property reads inside CREATE; an undeclared variable only read is 0 (v2.91.0)
 - [x] QSOCKET's numbered-socket API, QFORM Add/DelBorderIcons (v2.93.0); menus from a shared model: ShortCut, Checked, RadioItem, Enabled, MenuIndex, AddItems/Insert/DelItems/DelIndex, QPOPUPMENU Popup / AutoPopup (v2.94.0)
-- [ ] RapidQ API audit (manual vs runtimes, `scratch` script): QREGISTRY (per-user store)
+- [x] RapidQ API audit (manual vs runtimes, `scratch` script): QEDIT / QRICHEDIT (v2.97.0), QTRACKBAR (v2.98.0), QTABCONTROL (v2.99.0), QFORM / QSCROLLBOX AutoScroll (v2.100.0), QREGISTRY (v2.101.0)
+- [ ] QREGISTRY on Windows' own registry in native Windows builds (the per-user store elsewhere): needs a Windows machine to verify
 - [ ] First public release once RapidQ compatibility and the MDI IDE are done: release notes saying RapidR targets full RapidQ compatibility on all three runtimes (native compiler, interpreter, web), extends it (data-science stack, AI stack, …), and is not a clone of RapidQ or Delphi — an original implementation written from the ground up in pure Rust
 - [ ] Default component sizes as RapidQ's, the same on every runtime (the desktop's QBUTTON is 80 × 25, the web's 100 × 30; `tools/RQInclude.bi` lists RapidQ's: QBUTTON 75 × 25, QEDIT 120 × 25, QPANEL 150 × 100, …)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)

@@ -71,6 +71,8 @@ enum Object {
     TrackBar(trackbar::TrackBar),
     /// QTABCONTROL's tabs and selection; the runtime draws its ops.
     TabControl(tabcontrol::TabControl),
+    /// QREGISTRY: its root and open key (the keys: crate::registry's store).
+    Registry(crate::registry::Registry),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -224,6 +226,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
         "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
         "RTABCONTROL" => Object::TabControl(tabcontrol::TabControl::default()),
+        "RREGISTRY" => Object::Registry(crate::registry::Registry::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -681,6 +684,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Text(t) => t.get(&prop),
         Object::TrackBar(t) => t.get(&prop),
         Object::TabControl(t) => t.get(&prop),
+        Object::Registry(r) => r.get(&prop),
     })?
 }
 
@@ -758,6 +762,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Text(t) => t.set(&prop, val).then_some(Ok(())),
         Object::TrackBar(t) => t.set(&prop, val).then_some(Ok(())),
         Object::TabControl(t) => t.set(&prop, val).then_some(Ok(())),
+        Object::Registry(r) => r.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -842,6 +847,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Text(_) => "text",
         Object::TrackBar(_) => "trackbar",
         Object::TabControl(_) => "tabcontrol",
+        Object::Registry(_) => "registry",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1151,6 +1157,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Text(t) => t.call(method, args),
         Object::TrackBar(t) => t.call(method, args),
         Object::TabControl(t) => t.call(method, args),
+        Object::Registry(r) => r.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

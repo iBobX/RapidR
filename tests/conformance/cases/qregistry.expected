@@ -1,0 +1,25 @@
+MyInteger=1234567890
+ Mystring=1234567890
+MyBinary(-1)=1
+MyBinary(0)=2
+MyBinary(1)=3
+MyBinary(2)=4
+MyBinary(3)=5
+MyBinary(4)=6
+MyBinary(5)=7
+MyBinary(6)=8
+MyBinary(7)=9
+MyBinary(8)=0
+MyFloat=3.25
+types1340
+sizes11410-1
+values4 MyInteger 10
+path TestToDelete open-1
+closed0 []
+sub TestToDelete\Shell1 Open1
+keys2 Edit,Open
+move101
+default [app.exe %1]
+renamed [app.exe %1]0
+deleted10
+root-10

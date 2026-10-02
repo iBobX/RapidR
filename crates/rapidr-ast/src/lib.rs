@@ -1458,6 +1458,24 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
             &mut |_| {},
         );
     }
+    // Objects RapidQ has no arrays of (its compiler's own message, its names).
+    walk(
+        &program.statements,
+        &mut |s| {
+            if let Statement::Dim(d) = s {
+                // (the parser keeps RapidR's name of the type: QREGISTRY's RREGISTRY)
+                const NAMES: [&str; 17] = [
+                    "QMainMenu", "QFileStream", "QSOCKET", "QDIRTREE", "QDXSCREEN", "QOBJECT", "QCOMPORT", "QRECT", "QNOTIFYICONDATA", "QREGISTRY",
+                    "QDXTIMER", "QDXIMAGELIST", "QDXJOYSTICK", "QD3DMESH", "QD3DTEXTURE", "QD3DWRAP", "QD3DVISUAL",
+                ];
+                let Some(name) = NAMES.iter().find(|n| canonical_type_name(n).eq_ignore_ascii_case(&d.type_name) || n.eq_ignore_ascii_case(&d.type_name)) else { return };
+                for v in d.declarators.iter().filter(|v| !v.dimensions.is_empty()) {
+                    out.push((v.span, format!("Array of {name} is not supported!")));
+                }
+            }
+        },
+        &mut |_| {},
+    );
     // Read-only properties: the components the program names (CREATE, DIM
     // AS Q…) and the bare properties inside each CREATE.
     let mut component_types: HashMap<String, String> = HashMap::new();
@@ -1669,7 +1687,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
     "RTOOLBAR", "RSTATUSBAR", "RPROGRESS", "RRICHEDIT", "RMEMO",
     "RSCROLLBAR", "RUPDOWN", "RDATETIMEPICKER",
-    "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER",
+    "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER", "RREGISTRY",
     "RSPLITTER", "RSCROLLBOX",
     "RSQLITE", "RMYSQL",
     "RSOCKET", "RSERVERSOCKET", "RHTTP",
