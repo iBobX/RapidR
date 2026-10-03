@@ -325,7 +325,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 
 **One UI kernel (principle 7)**
 - [ ] Move the remaining components to shared models: button / check box / radio button / label / panel / group box / combo box / status bar / tool bar / progress / up-down / date picker
-- [ ] Then decide (after the IDE): keep FLTK only as the window, input and text-entry host and draw everything else from the ops, or move the desktop to a vector GPU renderer (vello / tiny-skia, permissive) shared with mobile
+- [ ] **New desktop host (decided direction 2026-10-03, after a prototype):** replace FLTK with RapidR's own UI kernel on permissive Rust crates — `winit` (windows and input; Windows / macOS / Linux / iOS / Android), `wgpu` + `vello` (GPU vector drawing; `tiny-skia` CPU fallback; wgpu is also the DirectX objects' layer), `AccessKit` (screen readers), `parley` / `cosmic-text` (text shaping, editing, IME), native where users notice: macOS menu bar (`muda`), file / colour / font dialogs (`rfd`), clipboard (`arboard`). Not native widgets (wxWidgets & co.): they look and measure differently per OS and don't exist on the web, against "the same everywhere". Steps: prototype host next to FLTK running a few fixtures → port component by component (text editing and QRICHEDIT last) → switch when the whole regression passes → FLTK removed. Timing: after the corpus push, before the IDE (the IDE is built on it). Themes: Windows-classic for old programs, a modern one for new
 
 ## Phase 2 — Debugger (~6 weeks)
 
