@@ -1,7 +1,11 @@
 # RapidR Roadmap
 
 > Goal: the best RapidQ / VB-style compiler, interpreter, debugger and IDE ever —
-> compatible, secure by default, AI-native, and open source.
+> compatible, secure by default, AI-native, and open source. A modern RapidQ:
+> old programs keep working; new ones get high-DPI, accessible, responsive
+> interfaces, the data-science and AI stacks, and the same behaviour on the
+> desktop (native and interpreted), the web and, later, mobile. Target: 2027
+> the year of the best BASIC language and IDE (see "Timeline" at the end).
 >
 > Created 2026-09-24 from a codebase review at v2.8.1 (`development` @ `d458126`).
 > Keep this file current: tick boxes as work lands, add findings as they are discovered.
@@ -15,6 +19,9 @@
 3. **One source of truth.** A single language registry (components, properties, methods, events, builtins, signatures, docs) generates the IDE completion data, the VS Code extension data, the manual, and the AI system prompt. Today `web-ide/lang-data.js` and `utilities/vscodeext/rapidr/src/languageData.js` are maintained separately.
 4. **Secure by default.** Untrusted code, imported projects, and AI output never get more privilege than they asked for.
 5. **Measured compatibility.** A public "% of real RapidQ/VB corpus that compiles and runs" number, tracked over time.
+6. **Logical pixels, device rendering.** A program's coordinates are RapidQ's pixels (1/96 inch, Windows at 100 %) on every platform, so old layouts stay as they were; everything is *drawn* at the screen's real resolution (text, lines, shapes, SVG), so it's sharp on high-DPI screens. Nothing old code reads changes; what's new (the scale, SVG, @2x images) is additive.
+7. **One UI kernel.** Each component is a shared model (`rapidr_value::objects`) that lays itself out, draws itself as vector ops, hit-tests, and describes itself (accessibility and AI); the runtimes only render the ops and pass input. Already the case for menus, text edits, list / tree / grid / list views, tab controls, track bars and scroll bars — every component moves there. It's what makes the desktop, the web and mobile identical, high-DPI, accessible and inspectable by AI from one place.
+8. **Accessible by default.** Every program is usable by keyboard and by screen readers without the author doing anything; the accessibility tree comes from the same shared models.
 
 Status: open source (MIT). Monetization is explicitly deferred. Possible future direction: build our own apps with RapidR (also the best dogfooding).
 
@@ -282,6 +289,33 @@ Next up, in order:
 - [ ] Corpus: raise the compile rate; then run programs, not just compile them (golden outputs for console examples)
 - [ ] **Needs from user:** real RapidQ programs and any RapidQ IDE project-file samples (format not yet confirmed)
 
+## Phase 1B — Modern foundations (high-DPI, accessibility, responsive)
+
+Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's are high-DPI and vector. Compatible *and* modern, transparently.
+
+**High-DPI (principle 6)**
+- [ ] Audit every runtime path against principle 6 at 1×, 1.5×, 2×, 3× (the web parity suite already runs at 2×; add the desktop at 2× via `RAPIDR_SCALE`, and screenshots compared per scale)
+- [ ] What programs read stays logical: Left / Top / Width / Height, ClientWidth, `Screen.Width` / `Height` (logical, as browsers' CSS pixels and macOS points), and `Screen.PixelsPerInch` stays 96 (Delphi programs that scale by `PixelsPerInch / 96` would otherwise scale twice)
+- [ ] New, additive: `Screen.Scale` / `Form.Scale` (device pixels per logical pixel), `OnScaleChanged` (a form moved to a screen with another scale)
+- [ ] Drawing surfaces (QCANVAS, a form's own, QBITMAP): the pixel API stays logical (`Pixel`, `PSET`, BMP in and out), vector drawing (Line, Circle, Rectangle, TextOut, fills) is drawn at device resolution — finish what `bitmap.rs`'s HiRes layer started, for every drawing method
+- [ ] Images: bitmaps drawn at their logical size, smoothly scaled; SVG accepted everywhere a picture is (QIMAGE, icons, QIMAGELIST, buttons' glyphs, `$RESOURCE`); `name@2x.png` / `@3x` picked automatically when present
+- [ ] `$OPTION SCALING LEGACY`: a program that needs exact pixels (pixel art, screen grabbing) draws at 1× and is enlarged as a whole, crisp (nearest neighbour)
+- [ ] Optional: follow the system text size (`Application.FollowSystemTextSize`, off by default: it changes layouts)
+
+**Accessibility (principle 8)**
+- [ ] Shared models describe themselves: role, name (Caption / Text / Hint), value, state, actions — one accessibility tree per form
+- [ ] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree; keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
+- [ ] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme
+- [ ] FLTK's own widgets are weak here: each one replaced by its shared model (principle 7) gains it — track which remain
+
+**Responsive layout (additive to Align)**
+- [ ] `Anchors` (Delphi's akLeft / akTop / akRight / akBottom) and `Constraints` (MinWidth …) on every component, in `rapidr_value::layout`
+- [ ] Flow and grid containers (Delphi's TFlowPanel / TGridPanel) for layouts that reflow on small screens — the base for mobile
+
+**One UI kernel (principle 7)**
+- [ ] Move the remaining components to shared models: button / check box / radio button / label / panel / group box / combo box / status bar / tool bar / progress / up-down / date picker
+- [ ] Then decide (after the IDE): keep FLTK only as the window, input and text-entry host and draw everything else from the ops, or move the desktop to a vector GPU renderer (vello / tiny-skia, permissive) shared with mobile
+
 ## Phase 2 — Debugger (~6 weeks)
 
 - [ ] Immediate window: evaluate expressions/statements in the paused frame (compile snippet against frame symbols)
@@ -301,7 +335,8 @@ Next up, in order:
 - [ ] MDI workspace: form designers, code editors, the property inspector, the project tree and the running program as child windows inside one main window (cascade / tile, window menu), built on the same child-window model as QFORMMDI (`rapidr_value::mdi`); the running program's forms as windows in the workspace instead of the web preview iframe
 - [ ] Desktop IDE rebuilt on it (the current IDE modified), the web IDE the same workspace in the browser
 - [ ] Split `web-ide/host.js` into modules
-- [ ] Compiler-backed language service: go-to-definition, references, rename, outline, typed completion (replace regex `resolveVariableType`)
+- [ ] Compiler-backed language service: go-to-definition, references, rename, outline, typed completion (replace regex `resolveVariableType`) — one Rust crate, built native for the desktop IDE and wasm for the web IDE, so both have the same IntelliSense: completion of components / properties / methods / events from the language registry, signature help, hover docs, diagnostics as you type (RapidQ's compiler wording), quick fixes, formatting; also served as an LSP server for VS Code and other editors
+- [ ] Debugging the same way in both IDEs: the interpreter (VM) runs debug sessions; release builds native; DAP (Phase 2) for other editors
 - [ ] VB-style events tab (double-click → handler stub), menu editor, tab-order editor, code/designer toggle
 - [ ] IndexedDB autosave; File System Access API open/save
 - [ ] Tauri desktop shell: same IDE + native `.exe`/`.app` builds via FLTK backend
@@ -313,6 +348,7 @@ Next up, in order:
 - [ ] System prompt generated from the language registry + examples; `lookup_docs` for details; prompt caching
 - [ ] Agent loop: plan → edit → compile → fix → run → verify; checkpoints + undo
 - [ ] `rapidr mcp` (stdio) + Tauri MCP server for external agents
+- [ ] The IDE's own MCP server, desktop (local socket / stdio) and web (a bridge from the page), so Claude, OpenAI, DeepSeek or any MCP client can drive the IDE: create forms and components, set properties, write handlers, build, run, debug, read diagnostics, take screenshots — with the same permission tiers as the built-in assistant
 - [ ] "Fix with AI" quick-fix, inline completions, screenshot → form, "Explain this crash"
 - [ ] Security model: keys only in IDE origin (requires SEC-02), optional WebCrypto passphrase, never in `.rrproj`/bundles/logs; permission tiers (read auto / edit auto+checkpoint / run sandboxed, network off by default / external = ask); imported content treated as data
 
@@ -337,6 +373,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] AI-written code tools behind `AllowCodeTools = True`, run in `SandboxHost` (capability-filtering `Host` wrapper: no file/net/DB/FFI/RJavaScript unless granted; fuel + memory limits)
 - [ ] Compiler warning on literal keys (`sk-`, `sk-ant-`, …); `Endpoint` proxy mode; open-source reference proxy (small Rust binary); CSP auto-allows provider host
 - [ ] `RAIChat` drop-in chat widget
+- [ ] **AI that uses the running app.** The UI kernel's description of a form (the accessibility tree, principle 7) as JSON: each component's type, role, name, text / value, state, bounds and the actions it allows. RAI gets tools on it — read, set text, click, pick, invoke a method, wait for an event — so a model can operate the program the user built (fill a form, edit a document, research on the web and put the result in a grid). The developer decides what's exposed (new `AIVisible` / `AIActions` properties; read-only by default; anything destructive asks through `OnToolCall` or the user)
+- [ ] The same as an opt-in, local-only MCP server of a running program (token-authenticated), so external agents can operate RapidR apps too
 
 ## Phase 6 — Security audit (continuous + formal pre-3.0)
 
@@ -346,6 +384,29 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] IDE: strict CSP + Trusted Types; self-host fonts
 - [ ] `SECURITY.md` + private disclosure process; Dependabot; release checksums + SBOM
 - [ ] Community security review call before 3.0
+
+## Phase 7 — Mobile (after both IDEs are complete)
+
+- [ ] Step 1: the web runtime in a native shell (Tauri 2's mobile targets, MIT / Apache) for iOS and Android — the same behaviour as the web from day one
+- [ ] Touch: tap = click, long press = right click, drag / pinch / swipe events (additive), safe areas, the on-screen keyboard
+- [ ] Device components (additive): camera, location, sensors, notifications, share, biometrics, files
+- [ ] Responsive layouts (Phase 1B) as the way forms fit phones; a phone / tablet preview in both IDEs' designers
+- [ ] Building, signing and running on devices from the IDE (iOS needs macOS and Xcode; Android its SDK)
+- [ ] Step 2, if needed for speed: the UI kernel's own renderer natively on mobile
+
+---
+
+## Timeline (planned 2026-10-03; adjust as work lands)
+
+| When | Milestone |
+|------|-----------|
+| Q4 2026 | RapidQ compatibility complete (portable corpus programs compile and run alike on all three runtimes); Phase 1B foundations under way (high-DPI audit, accessibility tree, Anchors) |
+| Q1 2027 | Language service, debugger, MDI IDE on the desktop and the web → **first public release** (see the release item in Phase 1) |
+| Q2 2027 | AI in the IDE, the IDE's MCP server, RAI with tool-calling and AI that uses the running app |
+| Q3 2027 | Mobile step 1; data-science / database / AI stacks polished (high-DPI charts, more databases) |
+| Q4 2027 | Security audit (Phase 6), documentation, examples, community |
+
+Risks to watch: the corpus' long tail (programs built on Win32 calls need a "portable corpus" definition, since there's no Win32 emulation); desktop accessibility while FLTK widgets remain; the size of the IDE work; app-store tooling for mobile.
 
 ---
 
