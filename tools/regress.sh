@@ -8,17 +8,18 @@
 # http://localhost:8765 for the browser tests (Playwright). Run one at a time.
 cd "$(dirname "$0")/.."
 curl -s -o /dev/null localhost:8765/ || { echo "serve the repo on http://localhost:8765 first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }
-# The suites build into tests/conformance/.work; keep it bounded (a run
-# adds ~35 GB, mostly per-case debug executables and the shared cache).
+# The suites build into tests/conformance/.work and the unit tests into
+# target/debug (together ~90 GB a run): both go when the run ends, however
+# it ends, so the disk never fills (the next run builds them again — a few
+# minutes more).
 W=tests/conformance/.work
-if [ -d "$W/cargo-target" ] && [ "$(du -sk "$W/cargo-target" | cut -f1)" -gt 31457280 ]; then rm -rf "$W/cargo-target"; fi
 # Nothing a test runs may reach a real printer (Printer.EndDoc, LPRINT):
 # documents go to PDFs here instead.
 mkdir -p "$W/prints"
 export RAPIDR_PRINT_TO="$PWD/$W/prints"
 # …nor the user's QREGISTRY store: a scratch one.
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
-trap 'find "$W/cargo-target/debug" -maxdepth 1 -type f -perm +111 -delete 2>/dev/null; rm -rf "$W/codegen" "$W/native_gui_events"' EXIT
+trap 'rm -rf "$W" target/debug' EXIT
 echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5; echo "(unit done)"
 echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
 echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1

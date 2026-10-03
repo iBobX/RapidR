@@ -64,6 +64,7 @@ function run(cmd, cmdArgs, opts = {}) {
   rmSync(registry, { force: true });
   opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: registry } };
   const r = spawnSync(cmd, cmdArgs, { encoding: "utf8", timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT, ...opts });
+  rmSync(registry, { force: true });
   let err = r.stderr || "";
   if (r.error?.code === "ENOBUFS") err += `\noutput exceeded ${MAX_OUTPUT} bytes (runaway loop?)`;
   else if (r.error?.code === "ETIMEDOUT") err += `\ntimed out after ${opts.timeout || TIMEOUT_MS} ms`;
