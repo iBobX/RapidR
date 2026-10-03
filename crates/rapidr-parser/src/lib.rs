@@ -402,7 +402,7 @@ impl<'a> Parser<'a> {
             }
             if !self.at_eol() {
                 let tok = &self.tokens[self.pos];
-                let message = format!("Unexpected '{}' after the end of the statement", tok.lexeme);
+                let message = format!("Expected end-of-line but got {}", tok.lexeme); // (RapidQ's compiler's words)
                 self.error_at(self.pos, message);
                 self.skip_to_eol();
             }
@@ -997,7 +997,8 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::Call)?;
         let callee = self.parse_postfix_expression()?;
-        let args = if self.at_eol() {
+        // (`IF x THEN CALL S(1, 2): x = 0` — the call ends at the `:` or ELSE too)
+        let args = if self.at_eol() || matches!(self.peek_kind(), Some(TokenType::Colon | TokenType::Else)) {
             extract_existing_call_args(&callee).unwrap_or_default()
         } else {
             self.parse_argument_list_without_parens()?
@@ -2256,7 +2257,101 @@ impl<'a> Parser<'a> {
     // -----------------------------------------------------------------------
 
     fn parse_expression(&mut self) -> Option<Expression> {
+        if let Some(e) = self.try_postfix() {
+            return Some(e);
+        }
         self.parse_logical_or()
+    }
+
+    /// RapidQ's POSTFIX (RPN) expressions (manual, Appendix C): every operand
+    /// and operator in its own parentheses — `(4) (7) (*) (4) (1) (-) (6)
+    /// (^) (+)` is `4 * 7 + (4 - 1) ^ 6`. Parenthesised groups side by side
+    /// are never an infix expression, so nothing else reads this way.
+    fn try_postfix(&mut self) -> Option<Expression> {
+        if self.peek_kind() != Some(TokenType::LParen) {
+            return None;
+        }
+        let start = self.pos;
+        // The groups, as (index of `(`, index of its `)`).
+        let mut groups = Vec::new();
+        let mut i = start;
+        while self.tokens.get(i).map(|t| t.kind) == Some(TokenType::LParen) {
+            let mut depth = 0usize;
+            let mut j = i;
+            loop {
+                match self.tokens.get(j)?.kind {
+                    TokenType::LParen => depth += 1,
+                    TokenType::RParen => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    TokenType::Newline => return None,
+                    _ => {}
+                }
+                j += 1;
+            }
+            groups.push((i, j));
+            i = j + 1;
+        }
+        // (a group of one operator is an operator)
+        let ops: Vec<Option<BinaryOperator>> = groups
+            .iter()
+            .map(|&(a, b)| {
+                if b != a + 2 {
+                    return None;
+                }
+                Some(match self.tokens[a + 1].kind {
+                    TokenType::Plus => BinaryOperator::Add,
+                    TokenType::Minus => BinaryOperator::Subtract,
+                    TokenType::Star => BinaryOperator::Multiply,
+                    TokenType::Slash => BinaryOperator::Divide,
+                    TokenType::Backslash => BinaryOperator::IntegerDivide,
+                    TokenType::Caret => BinaryOperator::Power,
+                    TokenType::Ampersand => BinaryOperator::Concat,
+                    TokenType::Mod => BinaryOperator::Modulo,
+                    TokenType::And => BinaryOperator::And,
+                    TokenType::Or => BinaryOperator::Or,
+                    TokenType::Xor => BinaryOperator::Xor,
+                    _ => return None,
+                })
+            })
+            .collect();
+        if groups.len() < 3 || ops.iter().all(Option::is_none) {
+            return None;
+        }
+        let end = groups.last()?.1 + 1;
+        let mut stack: Vec<Expression> = Vec::new();
+        let mut ok = true;
+        for (&(a, b), op) in groups.iter().zip(ops) {
+            match op {
+                Some(op) => match (stack.pop(), stack.pop()) {
+                    (Some(r), Some(l)) => stack.push(binary(l, op, r)),
+                    _ => {
+                        ok = false;
+                        break;
+                    }
+                },
+                None => {
+                    // (what's inside the group: `(4) (7)` mustn't read as an index)
+                    self.pos = a + 1;
+                    match self.parse_logical_or() {
+                        Some(e) if self.pos == b => stack.push(e),
+                        _ => {
+                            ok = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if !ok || stack.len() != 1 {
+            self.pos = start;
+            return None;
+        }
+        self.pos = end;
+        stack.pop()
     }
 
     fn parse_logical_or(&mut self) -> Option<Expression> {
@@ -2321,6 +2416,12 @@ impl<'a> Parser<'a> {
     fn parse_comparison(&mut self) -> Option<Expression> {
         let mut expr = self.parse_term()?;
         loop {
+            // `a NOT > b`: RapidQ's NOT binds looser than a comparison
+            // (manual, Appendix C), so it's `NOT (a > b)` — as `a NOT= b`.
+            let negate = self.peek_kind() == Some(TokenType::Not) && matches!(self.peek_kind_at(1), Some(TokenType::Lt | TokenType::Lte | TokenType::Gt | TokenType::Gte));
+            if negate {
+                self.advance();
+            }
             let op = match (self.peek_kind(), self.peek_kind_at(1)) {
                 // `a < = b` / `a > = b` / `a < > b`, written with a space
                 (Some(TokenType::Lt), Some(TokenType::Eq)) => {
@@ -2344,6 +2445,9 @@ impl<'a> Parser<'a> {
             self.advance();
             let right = self.parse_term()?;
             expr = binary(expr, op, right);
+            if negate {
+                expr = Expression::Unary(UnaryExpression { span: expression_span(&expr), operator: UnaryOperator::Not, operand: Box::new(expr) });
+            }
         }
         Some(expr)
     }
@@ -2499,9 +2603,10 @@ impl<'a> Parser<'a> {
     }
 
     /// One argument, which RapidQ lets you leave out: `INSTR(, a, b)`,
-    /// `COLOR , 1`, `LOCATE , 5` (the callee then uses its default).
+    /// `COLOR , 1`, `LOCATE , 5`, a last one after a trailing comma
+    /// (`AddItems " ",`) — the callee then uses its default.
     fn parse_argument(&mut self) -> Option<Expression> {
-        if matches!(self.peek_kind(), Some(TokenType::Comma | TokenType::RParen)) {
+        if self.at_eol() || matches!(self.peek_kind(), Some(TokenType::Comma | TokenType::RParen | TokenType::Colon | TokenType::Else)) {
             let span = self.peek().map(|t| t.span).unwrap_or_default();
             return Some(Expression::Identifier(Identifier { span, name: OMITTED_ARGUMENT.to_string() }));
         }
@@ -2995,7 +3100,7 @@ mod tests {
         let errs = errors("x = 1 y = 2\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert_eq!((errs[0].0, errs[0].1), (1, 7));
-        assert!(errs[0].2.contains("Unexpected 'y'"), "{errs:?}");
+        assert!(errs[0].2.contains("Expected end-of-line but got y"), "{errs:?}");
     }
 
     #[test]
