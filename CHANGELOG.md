@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.104.0] — 2026-10-03
+
+### Fixed
+Found by running RapidQ's portable example programs on the native build and
+the interpreter side by side (`tools/corpus_compare.mjs`):
+- `REPLACE$(source, replacement, index)` is RapidQ's: it writes over the
+  string at a position (`REPLACE$("Hello", "J", 1)` is "Jello"); it was
+  Visual Basic's find-and-replace (that's REPLACESUBSTR$). RapidQ's PRINT
+  USING formatter example and the Blocks game depend on it.
+- Variables whose names differ only by type suffix are different variables,
+  as in RapidQ (`i%` and `i$` side by side); a variable spelled like a
+  function with another suffix (`day&` in `FUNCTION Day`) is not the
+  function's result.
+- A FOR loop's undeclared variable inside a SUB or FUNCTION is the
+  routine's own on native builds too, as it was in the interpreter: two
+  SUBs looping on `i` no longer move each other's counters (the Blocks game
+  hung natively).
+- A form's first OnPaint comes once its window shows (after OnShow, as
+  Windows' WM_PAINT), when the screen's scale is known: what it draws is
+  sharp on a high-DPI screen and the same on native and interpreted builds
+  (text and lines drawn before were enlarged from 1×).
+- `tools/corpus_compare.mjs` counts programs that wait with SLEEP as
+  clock-dependent, and never touches the user's QREGISTRY store.
+
+Portable corpus, native vs interpreted: 95 behave identically, 0 differ
+otherwise; the rest depend on random numbers or the clock (12) or use the
+network (16, not run).
+
 ## [2.103.0] — 2026-10-03
 
 ### Added

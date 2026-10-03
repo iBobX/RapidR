@@ -4,6 +4,8 @@ pub mod numeric;
 pub mod objects;
 pub mod array_refs;
 pub mod suffix_routines;
+pub mod suffix_vars;
+pub mod for_locals;
 pub mod memory;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).

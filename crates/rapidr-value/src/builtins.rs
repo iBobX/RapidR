@@ -61,8 +61,24 @@ pub fn rp_asc(s: &Value) -> Value {
     crate::strings::asc(s)
 }
 
-pub fn rp_replace(s: &Value, old: &Value, new: &Value) -> Value {
-    Value::String(s.to_string_val().replace(&old.to_string_val(), &new.to_string_val()))
+/// `REPLACE$(source, replacement, index)`: RapidQ's — `replacement` written
+/// over `source` from character `index` (1 the first): `REPLACE$("Hello",
+/// "J", 1)` is "Jello". Past the end it carries on (the string grows); an
+/// index before the start counts from the first character, one beyond the
+/// end leaves the string as it was. (Find and replace is REPLACESUBSTR$.)
+pub fn rp_replace(s: &Value, replacement: &Value, index: &Value) -> Value {
+    let mut chars: Vec<char> = s.to_string_val().chars().collect();
+    let at = usize::try_from(index.to_i64().max(1) - 1).unwrap_or(0);
+    if at > chars.len() {
+        return Value::String(chars.into_iter().collect());
+    }
+    for (k, c) in replacement.to_string_val().chars().enumerate() {
+        match chars.get_mut(at + k) {
+            Some(slot) => *slot = c,
+            None => chars.push(c),
+        }
+    }
+    Value::String(chars.into_iter().collect())
 }
 
 pub fn rp_str(val: &Value) -> Value {

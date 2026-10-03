@@ -146,7 +146,8 @@ DirectX 12, Vulkan, Metal and WebGPU, so the same 3D program runs on the
 desktop and the web. OLE / COM stays last (Windows-only builds).
 
 - [x] Portable corpus classified by `tools/rapidq_corpus.py` (v2.103.0): of RapidQ's 386 examples, 123 use only the shared API — **all 123 compile** (169 call DLLs, 32 DirectX, 15 OLE, 7 DOS-era port I/O, 17 miss an include / resource the corpus doesn't have, 23 aren't RapidQ: other BASICs' code or typos, each listed with its reason in the tool)
-- [ ] The portable corpus *running* alike on all three runtimes (`tools/corpus_compare.mjs` native vs interpreted, plus the web), to 100 %
+- [x] The portable corpus *running* alike native vs interpreted (`tools/corpus_compare.mjs`, v2.104.0): every program that doesn't depend on random numbers / the clock / the network behaves identically (8 differences found and fixed)
+- [ ] The same comparison against the web runtime (a browser runner for the corpus)
 - [ ] DirectX objects on wgpu (desktop and web): QDXSCREEN (2D surface, sprites, blits), QDXIMAGELIST, QDXTIMER, QDXJOYSTICK (gamepads: `gilrs`), QD3D* (meshes, textures, frames, lights, camera) as a retained-mode scene drawn by wgpu
 
 Next up, in order:

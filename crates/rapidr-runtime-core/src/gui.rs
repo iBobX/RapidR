@@ -3283,15 +3283,13 @@ pub fn gui_showmodal(name: &str) -> i64 {
                 win.set_pos(x, y);
             }
             win.show();
-            // (what's drawn from now on is kept at the screen's scale)
-            let forced = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok());
-            rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| f64::from(win.pixels_per_unit())));
         }
     });
     owner_draw_shown_grids();
 
     // Fire OnShow event after widgets are built and window is shown
     rp_fire_event(name, "onshow");
+    after_show(name);
 
     // Start all registered timers
     start_timers();
@@ -3705,10 +3703,31 @@ fn build_form_widgets(form_name: &str) {
 
     // Fire OnLoad once, after the entire form tree is materialized.
     rp_fire_event(form_name, "onload");
-    // Then the first OnPaint of the form and its canvases (RapidQ programs
-    // draw there); the surfaces keep what's drawn, so later ones are only
-    // asked for (Repaint) or follow a resize.
-    fire_first_paint(form_name);
+    // Then, once the window is shown (`after_show`), the first OnPaint of
+    // the form and its canvases (RapidQ programs draw there); the surfaces
+    // keep what's drawn, so later ones are only asked for (Repaint) or
+    // follow a resize.
+    FIRST_PAINT.with(|f| f.borrow_mut().insert(form_name.to_lowercase()));
+}
+
+thread_local! {
+    /// Forms built whose first OnPaint waits for their window to show.
+    static FIRST_PAINT: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
+
+/// A form's window shown: what's drawn from now on is kept at its screen's
+/// scale, then (the first time) its OnPaint — as Windows' WM_PAINT comes
+/// once a window shows, after OnShow — so the program draws on the
+/// high-DPI surface from the start, whatever order events arrive in.
+fn after_show(name: &str) {
+    let name = name.to_lowercase();
+    if let Some(GuiWidget::Window(win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
+        let forced = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok());
+        rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| f64::from(win.pixels_per_unit())));
+    }
+    if FIRST_PAINT.with(|f| f.borrow_mut().remove(&name)) {
+        fire_first_paint(&name);
+    }
 }
 
 fn fire_first_paint(parent: &str) {
@@ -4080,6 +4099,7 @@ pub fn gui_show(name: &str) {
     owner_draw_shown_grids();
     // Fire OnShow event after widgets are built and shown
     rp_fire_event(name, "onshow");
+    after_show(name);
 }
 
 // ---------------------------------------------------------------------------
@@ -5407,6 +5427,10 @@ pub fn gui_set_visible(name: &str, visible: bool) {
             }
         }
     });
+    // (a form shown this way: its scale, its first OnPaint)
+    if visible {
+        after_show(&name_lower);
+    }
 }
 
 /// Update the widget caption or text.

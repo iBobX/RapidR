@@ -36,14 +36,15 @@ const CURSOR_PIXELS = 4;
 const NETWORK = /\b(qsocket|qclientsocket|qserversocket|qmysql|qhttp|qftp|qsmtp|qpop3|qwebbrowser|inet)\b/i;
 // Programs whose output depends on random numbers or the clock: their
 // differences are listed but counted apart.
-const VARIES = /\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount|now)\b/i;
+const VARIES = /\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount|now|sleep)\b/i;
 
 // No incremental build caches: every program is its own crate, so they'd
 // add up to tens of GB over the corpus.
 // Printer.EndDoc saves PDFs here instead of printing on paper.
 const PRINTS = join(ROOT, "tests/conformance/.work/corpus-prints");
 mkdirSync(PRINTS, { recursive: true });
-const env = { ...process.env, RAPIDR_INCLUDE_PATH: INCLUDE, CARGO_TARGET_DIR: CARGO_TARGET, CARGO_INCREMENTAL: "0", RAPIDR_PRINT_TO: PRINTS };
+// …and QREGISTRY writes a scratch store, never the user's.
+const env = { ...process.env, RAPIDR_INCLUDE_PATH: INCLUDE, CARGO_TARGET_DIR: CARGO_TARGET, CARGO_INCREMENTAL: "0", RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: join(ROOT, "tests/conformance/.work/corpus-registry.reg") };
 
 // The package name `rapidr build` gives a program (rapidr_codegen_rust::crate_name).
 function crateName(stem) {
