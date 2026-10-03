@@ -7,6 +7,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.103.0] — 2026-10-03
+
+### Added
+- RapidQ's POSTFIX (RPN) expressions from its manual (Appendix C): every
+  operand and operator in its own parentheses, `(4) (7) (*) (4) (1) (-) (6)
+  (^) (+)` = 757.
+- `a NOT > b` (and `NOT <`, `NOT >=`, `NOT <=`) as RapidQ reads it — NOT
+  binds looser than a comparison, so it's `NOT (a > b)` — as `a NOT= b`
+  already was.
+- A trailing comma leaves the last argument out (`AddItems " ",`); an
+  argument left out adds no item to a list.
+- `tools/rapidq_corpus.py` sorts RapidQ's examples by what they need
+  (portable / Windows DLLs / DirectX / OLE / hardware ports / incomplete /
+  not RapidQ): every portable one compiles.
+
+### Changed
+- Text after the end of a statement is reported in RapidQ's words:
+  "Expected end-of-line but got …".
+
+### Fixed
+- `IF x THEN CALL Sub(1, 2): x = 0` and `… THEN CALL A ELSE CALL B`: a CALL's
+  arguments end at `:` and ELSE.
+
 ## [2.102.0] — 2026-10-03
 
 ### Changed

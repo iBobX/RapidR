@@ -612,7 +612,8 @@ impl ItemList {
         };
         match method {
             "additems" | "additem" | "addstring" => {
-                for a in args {
+                // (an argument left out — `AddItems " ",` — adds nothing)
+                for a in args.iter().filter(|a| !matches!(a, Value::Null)) {
                     self.add(a.to_string_val());
                 }
             }
