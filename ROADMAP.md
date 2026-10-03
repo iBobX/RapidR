@@ -137,6 +137,17 @@ add must be open source with a permissive license (`deny.toml`) and be
 credited: `THIRD_PARTY_NOTICES.md` (generated, checked in CI), README and
 the IDE's About dialog.
 
+**Refined (2026-10-03):** RapidQ had a Linux version too — everything the
+Windows and Linux RapidQ shared (its standard API) gets 100 % support, and
+that's the "portable corpus" we measure. RapidQ's DirectX objects (QDXSCREEN,
+QD3D*, QDXTIMER, QDXIMAGELIST, QDXJOYSTICK, …) are translated, not emulated,
+onto **wgpu** (MIT / Apache: commercial programs allowed), which maps to
+DirectX 12, Vulkan, Metal and WebGPU, so the same 3D program runs on the
+desktop and the web. OLE / COM stays last (Windows-only builds).
+
+- [ ] Portable corpus: classify the 386 examples + includes (shared API / Windows DLL calls / DirectX / OLE), publish the shared-API compile-and-run percentage, drive it to 100 %
+- [ ] DirectX objects on wgpu (desktop and web): QDXSCREEN (2D surface, sprites, blits), QDXIMAGELIST, QDXTIMER, QDXJOYSTICK (gamepads: `gilrs`), QD3D* (meshes, textures, frames, lights, camera) as a retained-mode scene drawn by wgpu
+
 Next up, in order:
 - [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)
 - [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0)
