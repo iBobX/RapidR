@@ -102,56 +102,40 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(100));
             props.insert("top".to_string(), v_int(100));
-            props.insert("width".to_string(), v_int(640));
-            props.insert("height".to_string(), v_int(480));
             props.insert("visible".to_string(), v_bool(true));
         }
         "RBUTTON" => {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(100));
-            props.insert("height".to_string(), v_int(30));
         }
         "RLABEL" => {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(100));
-            props.insert("height".to_string(), v_int(20));
         }
         "REDIT" => {
             props.insert("text".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(120));
-            props.insert("height".to_string(), v_int(25));
         }
         "RMEMO" | "RRICHEDIT" => {
             props.insert("text".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(200));
-            props.insert("height".to_string(), v_int(150));
         }
         "RPANEL" | "RDESIGNSURFACE" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(200));
-            props.insert("height".to_string(), v_int(150));
         }
         "RCHECKBOX" | "RRADIOBUTTON" => {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(120));
-            props.insert("height".to_string(), v_int(25));
         }
         "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(150));
-            props.insert("height".to_string(), v_int(25));
         }
         // QTIMER: Enabled is True by default (manual).
         "RTIMER" => {
@@ -161,34 +145,24 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RIMAGE" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(100));
-            props.insert("height".to_string(), v_int(100));
         }
         "RCANVAS" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(400));
-            props.insert("height".to_string(), v_int(300));
         }
         "RHEADER" => {
             // Sections: rapidr_value::objects::header; a canvas to draw on.
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(200));
-            props.insert("height".to_string(), v_int(20));
             props.insert("color".to_string(), v_int(0xF0F0F0));
         }
         "RSTRINGGRID" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(300));
-            props.insert("height".to_string(), v_int(200));
         }
         "RPROGRESS" | "RPROGRESSBAR" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(200));
-            props.insert("height".to_string(), v_int(25));
             props.insert("min".to_string(), v_int(0));
             props.insert("max".to_string(), v_int(100));
             props.insert("position".to_string(), v_int(0));
@@ -197,14 +171,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RTRACKBAR" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(150));
-            props.insert("height".to_string(), v_int(45));
         }
         "RWEBVIEW" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(400));
-            props.insert("height".to_string(), v_int(300));
         }
         "RWEBAUDIO" | "RWEBVIDEO" => {
             props.insert("src".to_string(), v_str(""));
@@ -227,8 +197,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RPLOT" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(600));
-            props.insert("height".to_string(), v_int(400));
         }
         "RSQLITE" => {
             props.insert("connected".to_string(), v_int(0));
@@ -241,8 +209,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(80));
-            props.insert("height".to_string(), v_int(30));
             props.insert("flat".to_string(), v_bool(false));
             props.insert("groupindex".to_string(), v_int(0));
             props.insert("down".to_string(), v_bool(false));
@@ -253,8 +219,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
-            props.insert("width".to_string(), v_int(60));
-            props.insert("height".to_string(), v_int(60));
             props.insert("color".to_string(), v_int(0xDCDCDC));
             props.insert("colorhighlight".to_string(), v_int(0xFFFFFF));
             props.insert("colorshadow".to_string(), v_int(0x808080));
@@ -314,14 +278,12 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if align != rapidr_value::layout::Align::None {
         props.insert("align".to_string(), v_int(align.value()));
     }
-    // Their sizes, as on the desktop.
-    let sizes: &[(&str, i64)] = match utype.as_str() {
-        "RSTATUSBAR" => &[("left", 0), ("top", 0), ("width", 200), ("height", 24)],
-        "RSPLITTER" => &[("left", 0), ("top", 0), ("width", 5), ("height", 200)],
-        _ => &[],
-    };
-    for &(p, v) in sizes {
-        props.insert(p.to_string(), v_int(v));
+    // Its size: RapidQ's, the same on every runtime (rapidr_value::layout).
+    if let Some((w, h)) = rapidr_value::layout::default_size(&utype) {
+        props.insert("left".to_string(), props.get("left").cloned().unwrap_or(v_int(0)));
+        props.insert("top".to_string(), props.get("top").cloned().unwrap_or(v_int(0)));
+        props.insert("width".to_string(), v_int(w));
+        props.insert("height".to_string(), v_int(h));
     }
 
     // Create the DOM element (skip for non-visual components)

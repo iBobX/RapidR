@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.102.0] — 2026-10-03
+
+### Changed
+- Components start with RapidQ's sizes, the same on every runtime (one
+  table, `rapidr_value::layout::default_size`): QFORM 320 × 240, QBUTTON
+  and QLABEL 75 × 25, QEDIT 120 × 25, QCOMBOBOX 145 × 25, QPANEL /
+  QTABCONTROL / QGROUPBOX / QSCROLLBOX / QSTRINGGRID / QLISTVIEW 150 × 100,
+  QCHECKBOX / QRADIOBUTTON 100 × 20, QCANVAS / QIMAGE 100 × 100,
+  QPROGRESSBAR 250 × 25, … The desktop and the web had their own (a button
+  was 80 × 25 on one, 100 × 30 on the other; a form 640 × 480).
+
 ## [2.101.0] — 2026-10-01
 
 ### Added
