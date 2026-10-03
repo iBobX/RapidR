@@ -29,8 +29,6 @@ impl RpComponent {
         match tn.as_str() {
             "RFORM" => {
                 props.insert("caption".into(), v_str(""));
-                props.insert("width".into(), v_int(640));
-                props.insert("height".into(), v_int(480));
                 props.insert("left".into(), v_int(100));
                 props.insert("top".into(), v_int(100));
                 props.insert("visible".into(), v_bool(true));
@@ -41,8 +39,6 @@ impl RpComponent {
                 props.insert("caption".into(), v_str(""));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(80));
-                props.insert("height".into(), v_int(25));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("visible".into(), v_bool(true));
             }
@@ -50,8 +46,6 @@ impl RpComponent {
                 props.insert("caption".into(), v_str(""));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(100));
-                props.insert("height".into(), v_int(20));
                 props.insert("visible".into(), v_bool(true));
                 props.insert("alignment".into(), v_int(0));
                 props.insert("color".into(), v_int(0xFFFFFF));
@@ -62,8 +56,6 @@ impl RpComponent {
                 props.insert("text".into(), v_str(""));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(120));
-                props.insert("height".into(), v_int(25));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("visible".into(), v_bool(true));
                 props.insert("readonly".into(), v_bool(false));
@@ -73,8 +65,6 @@ impl RpComponent {
                 props.insert("caption".into(), v_str(""));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(100));
                 props.insert("visible".into(), v_bool(true));
                 props.insert("color".into(), v_int(0xFFFFFF));
             }
@@ -83,8 +73,6 @@ impl RpComponent {
                 props.insert("checked".into(), v_int(0));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(100));
-                props.insert("height".into(), v_int(25));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("visible".into(), v_bool(true));
             }
@@ -93,22 +81,16 @@ impl RpComponent {
                 props.insert("checked".into(), v_int(0));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(100));
-                props.insert("height".into(), v_int(25));
             }
             "RCOMBOBOX" => {
                 // Items, selection and Text: rapidr_value::objects::list.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(120));
-                props.insert("height".into(), v_int(25));
             }
             "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" => {
                 // Items and selection: rapidr_value::objects::list.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(120));
-                props.insert("height".into(), v_int(100));
             }
             // QTIMER: Enabled is True by default (manual).
             "RTIMER" => {
@@ -118,15 +100,11 @@ impl RpComponent {
             "RIMAGE" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(100));
-                props.insert("height".into(), v_int(100));
                 props.insert("stretch".into(), v_bool(false));
             }
             "RCANVAS" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(400));
-                props.insert("height".into(), v_int(300));
                 props.insert("color".into(), v_int(0xFFFFFF));
                 props.insert("pencolor".into(), v_int(0));
                 props.insert("penwidth".into(), v_int(1));
@@ -139,26 +117,18 @@ impl RpComponent {
                 // Sections: rapidr_value::objects::header; a canvas to draw on.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(20));
                 props.insert("color".into(), v_int(0xF0F0F0));
             }
             "RSTRINGGRID" => {
                 // Cells, sizes and selection: rapidr_value::objects::grid.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(300));
-                props.insert("height".into(), v_int(200));
             }
             "RTABCONTROL" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(300));
-                props.insert("height".into(), v_int(200));
             }
             "RDESIGNSURFACE" => {
-                props.insert("width".into(), v_int(640));
-                props.insert("height".into(), v_int(480));
                 props.insert("formcaption".into(), v_str("Form1"));
                 props.insert("compcount".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
@@ -166,8 +136,6 @@ impl RpComponent {
             "RCODEEDITOR" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(400));
-                props.insert("height".into(), v_int(300));
                 props.insert("text".into(), v_str(""));
                 props.insert("visible".into(), v_bool(true));
             }
@@ -175,8 +143,6 @@ impl RpComponent {
                 props.insert("caption".into(), v_str(""));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(100));
                 props.insert("visible".into(), v_bool(true));
             }
             "RMAINMENU" | "RPOPUPMENU" => {
@@ -210,8 +176,6 @@ impl RpComponent {
                 // Docked at the bottom (Align = alBottom) once it has a parent.
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(24));
                 props.insert("simpletext".into(), v_str(""));
                 props.insert("simplepanel".into(), v_bool(false));
                 props.insert("panelcount".into(), v_int(0));
@@ -222,15 +186,11 @@ impl RpComponent {
                 props.insert("position".into(), v_int(0));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(25));
             }
             "RRICHEDIT" | "RMEMO" => {
                 props.insert("text".into(), v_str(""));
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(100));
                 props.insert("readonly".into(), v_bool(false));
             }
             "RFILESTREAM" => {
@@ -265,13 +225,6 @@ impl RpComponent {
             "RTREEVIEW" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(200));
-            }
-            // (its range and position: rapidr_value::objects::trackbar)
-            "RTRACKBAR" => {
-                props.insert("width".into(), v_int(150));
-                props.insert("height".into(), v_int(45));
             }
             "RUPDOWN" => {
                 props.insert("min".into(), v_int(0));
@@ -327,23 +280,17 @@ impl RpComponent {
             "RSPLITTER" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(5));
-                props.insert("height".into(), v_int(200));
                 props.insert("minsize".into(), v_int(30));
                 props.insert("visible".into(), v_bool(true));
             }
             "RSCROLLBOX" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(200));
                 props.insert("visible".into(), v_bool(true));
             }
             "RLISTVIEW" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(300));
-                props.insert("height".into(), v_int(200));
                 props.insert("itemindex".into(), v_int(-1));
                 props.insert("items".into(), v_str(""));
                 props.insert("count".into(), v_int(0));
@@ -352,8 +299,6 @@ impl RpComponent {
             "RPROGRESSBAR" => {
                 props.insert("left".into(), v_int(0));
                 props.insert("top".into(), v_int(0));
-                props.insert("width".into(), v_int(200));
-                props.insert("height".into(), v_int(25));
                 props.insert("min".into(), v_int(0));
                 props.insert("max".into(), v_int(100));
                 props.insert("position".into(), v_int(0));
@@ -362,6 +307,11 @@ impl RpComponent {
             _ => {
                 // Unknown component type — just empty properties
             }
+        }
+        // Its size: RapidQ's, the same on every runtime (rapidr_value::layout).
+        if let Some((w, h)) = rapidr_value::layout::default_size(&tn) {
+            props.insert("width".into(), v_int(w));
+            props.insert("height".into(), v_int(h));
         }
         // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout.rs).
         let align = rapidr_value::layout::default_align(&tn);

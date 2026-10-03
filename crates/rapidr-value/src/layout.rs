@@ -57,6 +57,39 @@ pub fn default_align(type_name: &str) -> Align {
     }
 }
 
+/// The Width × Height a component starts with, the same on every runtime
+/// (RapidR's type names). RapidQ's components get RapidQ's sizes (as the
+/// RapidQ library reimplementation in RapidQ's `tools/RQInclude.bi` lists
+/// them; a QCOMBOBOX is the height of its edit box, its list not counted);
+/// RapidR's own components, theirs.
+pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
+    Some(match type_name.to_ascii_uppercase().as_str() {
+        "RFORM" => (320, 240),
+        "RBUTTON" | "RLABEL" => (75, 25),
+        "REDIT" => (120, 25),
+        "RRICHEDIT" | "RMEMO" => (200, 100),
+        "RCOOLBTN" => (25, 25),
+        "ROVALBTN" => (75, 40),
+        "RCHECKBOX" | "RRADIOBUTTON" | "RSCROLLBAR" => (100, 20),
+        "RPANEL" | "RTABCONTROL" | "RGROUPBOX" | "RSCROLLBOX" | "RSTRINGGRID" | "RLISTVIEW" => (150, 100),
+        "RCOMBOBOX" => (145, 25),
+        "RLISTBOX" | "RTREEVIEW" => (120, 100),
+        "RDIRTREE" | "RFILELISTBOX" => (150, 150),
+        "RTRACKBAR" => (150, 45),
+        "RCANVAS" | "RIMAGE" => (100, 100),
+        "RPROGRESSBAR" => (250, 25),
+        // RapidR's own
+        "RPROGRESS" => (200, 25),
+        "RHEADER" => (200, 20),
+        "RSTATUSBAR" => (200, 24),
+        "RSPLITTER" => (5, 200),
+        "RCODEEDITOR" | "RWEBVIEW" => (400, 300),
+        "RDESIGNSURFACE" => (640, 480),
+        "RPLOT" => (600, 400),
+        _ => return None,
+    })
+}
+
 /// A form's frame, the same in both runtimes. As in RapidQ (Delphi),
 /// `Width` / `Height` are the whole window — caption and borders included —
 /// and `ClientWidth` / `ClientHeight` the area inside, below the main menu:
