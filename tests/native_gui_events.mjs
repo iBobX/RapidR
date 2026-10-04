@@ -45,6 +45,7 @@
 //   * tests/fixtures/file_dialogs.bas — QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG answers (RAPIDR_TEST_FILE_DIALOG).
 //   * tests/fixtures/message_dialogs.bas — under the hooks SHOWMESSAGE prints and goes on, MESSAGEDLG waits (captured open).
 //   * tests/fixtures/message_icons.bas — MESSAGEBOX's MB_ICONQUESTION: the icon left of the text (the web's page dialog read).
+//   * tests/fixtures/color_dialog.bas — QCOLORDIALOG's Color, Style, Colors(i), OK / Cancel (RAPIDR_TEST_COLOR_DIALOG).
 //   * tests/fixtures/header.bas — QHEADER: sections clicked and resized, an owner-drawn section.
 //   * tests/fixtures/outline.bas — QOUTLINE (a tree view): AddLines by indent, AddChild(Index, S), Item(i), Row.
 //   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
@@ -96,6 +97,13 @@ function build(name, interp) {
   return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
 }
 
+// (`colorDialog` / `fontDialog`: what the colour / font dialogs answer in
+// turn, `;`-separated)
+const dialogAnswers = (c) => ({
+  ...(c.colorDialog === undefined ? {} : { RAPIDR_TEST_COLOR_DIALOG: c.colorDialog }),
+  ...(c.fontDialog === undefined ? {} : { RAPIDR_TEST_FONT_DIALOG: c.fontDialog }),
+});
+
 function run(bin, events, dump, resize = "", split = "", fileDialog = undefined, extra = {}) {
   // (`fileDialog`: what the file dialogs answer, `a;b`)
   const answer = fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: fileDialog };
@@ -120,7 +128,7 @@ function runMatrix(c) {
     if (TRY && !kernelReady) {
       let out;
       try {
-        out = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog, { RAPIDR_HOST: "kernel" });
+        out = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog, { RAPIDR_HOST: "kernel", ...dialogAnswers(c) });
       } catch (e) {
         out = `(failed: ${String(e.message).split("\n")[0]})`;
       }
@@ -128,7 +136,7 @@ function runMatrix(c) {
     }
     for (const host of hosts) {
       const a11y = join(WORK, `${c.name}-${kind}-${host}.a11y.json`);
-      const extra = { RAPIDR_HOST: host, ...(host === "kernel" ? { RAPIDR_TEST_A11Y: a11y } : {}) };
+      const extra = { RAPIDR_HOST: host, ...dialogAnswers(c), ...(host === "kernel" ? { RAPIDR_TEST_A11Y: a11y } : {}) };
       let out;
       try {
         out = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog, extra);
@@ -163,7 +171,7 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     const kind = interp ? "interpreted" : "native";
     const bin = build(c.name, interp);
     ok(existsSync(bin), `${c.name}: ${kind} executable built`);
-    results[kind] = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog);
+    results[kind] = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog, dialogAnswers(c));
     for (const line of c.expect) ok(results[kind].includes(line), `${c.name} (${kind}): ${line}` + (results[kind].includes(line) ? "" : `\n    got: ${results[kind].trim().split("\n").join(" / ")}`));
   }
   ok(results.native === results.interpreted, `${c.name}: native and interpreted builds agree`);

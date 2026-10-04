@@ -49,6 +49,8 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
   const frame = page.frames().find((f) => f.url().includes("preview.html"));
   if (!frame) { ok(false, `${c.name}: preview frame`); continue; }
   const idOf = (name) => "rr-" + name.toLowerCase();
+  // (how many of the case's dialog answers were given)
+  let colorAnswers = 0;
   // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,
   // then resizes the frontmost form — before the events, as the desktop
   // test's hooks do.
@@ -142,6 +144,22 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
     }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]], dbl: dbl && [dbl[1], dbl[2]], item: item?.[1], edit });
     if (!fired) ok(false, `${c.name}: ${target} exists`);
     await page.waitForTimeout(300);
+    // A colour dialog the event opened: the case's next answer's swatch
+    // pressed, then OK (an empty answer: Cancel).
+    if (c.colorDialog !== undefined) {
+      const answers = c.colorDialog.split(";");
+      const n = colorAnswers++;
+      const answered = await frame.evaluate((answer) => {
+        const dlg = document.querySelector(".rr-color-dialog");
+        if (!dlg) return false;
+        const swatch = answer ? dlg.querySelector(`.rr-color-swatch[data-color="${answer}"]`) : null;
+        if (swatch) swatch.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        dlg.querySelector(swatch ? ".rr-color-ok" : ".rr-color-cancel").click();
+        return true;
+      }, answers[n] ?? "");
+      if (!answered) colorAnswers--;
+      await page.waitForTimeout(300);
+    }
     // A file dialog the event opened: the case's answer typed in, then Open / Save.
     if (c.fileDialog !== undefined) {
       await frame.evaluate((answer) => {

@@ -5,8 +5,10 @@
 
 pub mod select;
 pub mod testhooks;
-// (the dialogs lane's: Open / Save dialogs for every host)
+// (the dialogs lane's: Open / Save dialogs for every host; colour and font
+// dialogs too)
 pub mod file_dialog;
+pub mod choose_dialogs;
 
 #[cfg(feature = "gui")]
 mod fltk_platform;

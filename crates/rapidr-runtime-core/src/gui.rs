@@ -807,6 +807,38 @@ fn capture_windows(prefix: &str) {
     std::process::exit(0);
 }
 
+/// QCOLORDIALOG on FLTK: its colour chooser (hue / saturation wheel,
+/// value, RGB boxes) titled `title`, starting at `bgr` (&HBBGGRR), with OK
+/// and Cancel; the colour chosen, `None` for Cancel or the close box.
+fn fltk_color_dialog(title: &str, bgr: i64) -> Option<i64> {
+    use fltk::group::ColorChooser;
+    use std::rc::Rc;
+    ensure_app();
+    let mut win = Window::default().with_size(240, 230).with_label(title);
+    win.make_modal(true);
+    let mut chooser = ColorChooser::new(8, 8, 224, 180, None);
+    let _ = chooser.set_rgb((bgr & 0xFF) as u8, (bgr >> 8 & 0xFF) as u8, (bgr >> 16 & 0xFF) as u8);
+    let chosen = Rc::new(std::cell::Cell::new(false));
+    let mut ok = fltk::button::ReturnButton::new(82, 198, 72, 23, "OK");
+    let mut cancel = Button::new(160, 198, 72, 23, "Cancel");
+    let (c, mut w) = (chosen.clone(), win.clone());
+    ok.set_callback(move |_| {
+        c.set(true);
+        w.hide();
+    });
+    let mut w = win.clone();
+    cancel.set_callback(move |_| w.hide());
+    win.end();
+    win.show();
+    while win.shown() {
+        if !app::wait() {
+            break;
+        }
+    }
+    let (r, g, b) = chooser.rgb_color();
+    chosen.get().then(|| i64::from(b) << 16 | i64::from(g) << 8 | i64::from(r))
+}
+
 /// Shared shapes (`trackbar::Shape`: a message box's icon) drawn with their
 /// (0, 0) at (`x`, `y`): fills, then outlines, as the trackbar's are.
 fn draw_shapes(shapes: &[rapidr_value::objects::trackbar::Shape], x: i32, y: i32) {
@@ -3209,16 +3241,10 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
             Some((save, multi)) => file_dialog(name, save, multi),
             None => v_int(0),
         },
-        "RCOLORDIALOG" => {
-            // Show FLTK color chooser dialog
-            if let Some((r, g, b)) = dialog::color_chooser("Choose Color", dialog::ColorMode::Rgb) {
-                // (Color is RapidQ's LONG, &HBBGGRR, as on the web and the kernel)
-                rp_comp_set(name, "color", v_int(i64::from(b) << 16 | i64::from(g) << 8 | i64::from(r)));
-                v_int(1)
-            } else {
-                v_int(0)
-            }
-        }
+        // (the dialogs lane's: Caption, the Color it starts with and the
+        // answers as on every host — ui::choose_dialogs; FLTK's chooser has
+        // no basic or custom swatches, so Colors(i) come back as they were)
+        "RCOLORDIALOG" => crate::ui::choose_dialogs::color_execute(name, |title, state| (fltk_color_dialog(title, state.color), state.custom)),
         "RFONTDIALOG" => {
             // Full font picker with list, size, bold/italic, and live preview
             use std::rc::Rc;

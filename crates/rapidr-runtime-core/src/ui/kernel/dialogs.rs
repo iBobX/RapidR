@@ -56,11 +56,25 @@ pub(in crate::ui) fn with_store<R>(id: &str, f: impl FnOnce(&dyn Store) -> R) ->
 /// An event of dialog form `form`'s (from `dispatch_pending`): its answer
 /// kept once it closes; what it changed drawn again.
 pub(super) fn event(form: &str, ev: KernelEvent) {
-    let answer = OPEN.with(|o| o.borrow_mut().iter_mut().find(|d| d.id == form).and_then(|d| d.event(&ev)));
+    let (answer, size) = OPEN.with(|o| {
+        let mut o = o.borrow_mut();
+        let Some(d) = o.iter_mut().find(|d| d.id == form) else { return (None, None) };
+        let before = d.size;
+        let answer = d.event(&ev);
+        (answer, (d.size != before).then_some(d.size))
+    });
     if let Some(a) = answer {
         ANSWERS.with(|m| {
             m.borrow_mut().entry(form.to_string()).or_insert(a);
         });
+    }
+    // (it grew: a colour dialog's editor opened — new parts, a wider window)
+    if let Some((w, h)) = size {
+        with_kern(|k| {
+            k.desk.resized(form, w, h);
+            k.desk.cmds.push(HostCmd::Size(form.to_string()));
+        });
+        super::restructure();
     }
     invalidate();
 }
@@ -143,17 +157,15 @@ pub(super) fn execute(name: &str, comp_type: &str) -> Value {
     }
     let caption = |default: &str| Some(rp_comp_get(name, "caption").to_string_val()).filter(|c| !c.is_empty()).unwrap_or_else(|| default.to_string());
     match comp_type {
-        "RCOLORDIALOG" => {
-            // (Color is &HBBGGRR, RapidQ's LONG)
-            let current = rp_comp_get(name, "color").to_i64();
-            match run(Dialog::color(next_id(), &caption("Color"), current, &[])) {
-                Answer::Color(Some(c)) => {
-                    rp_comp_set(name, "color", v_int(c));
-                    v_int(1)
-                }
-                _ => v_int(0),
+        // (Color is &HBBGGRR, RapidQ's LONG; the custom colours come back
+        // either way)
+        "RCOLORDIALOG" => crate::ui::choose_dialogs::color_execute(name, |title, state| {
+            let custom = state.custom;
+            match run(Dialog::color(next_id(), title, state)) {
+                Answer::Color(c, custom) => (c, custom),
+                _ => (None, custom),
             }
-        }
+        }),
         "RFONTDIALOG" => {
             let font_name = rp_comp_get(name, "fontname").to_string_val();
             let size = rp_comp_get(name, "fontsize").to_i64();

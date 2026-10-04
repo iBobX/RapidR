@@ -170,7 +170,16 @@ impl RpComponent {
                     props.insert("warnifoverwrite".into(), v_bool(true));
                 }
             }
-            "RCOLORDIALOG" | "RFONTDIALOG" => {
+            // (the dialogs lane's: RAPIDQ2.INC's QColorDialog — Color 0,
+            // Style cdNoFullOpen, its constructor's Colors(1 TO 16))
+            "RCOLORDIALOG" => {
+                props.insert("color".into(), v_int(0));
+                props.insert("style".into(), v_int(rapidr_value::color_dialog::CD_NO_FULL_OPEN));
+                for (i, c) in rapidr_value::color_dialog::DEFAULT_CUSTOM.iter().enumerate() {
+                    props.insert(format!("colors({})", i + 1), v_int(*c));
+                }
+            }
+            "RFONTDIALOG" => {
                 props.insert("color".into(), v_int(0));
             }
             "RSTATUSBAR" => {
@@ -1042,6 +1051,19 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         let i = args.first().map_or(0, Value::to_i64);
         let v = rp_comp_get(name, &format!("files({i})"));
         return if matches!(v, Value::Null) { v_str("") } else { v };
+    }
+    // (the dialogs lane's) A QCOLORDIALOG's Colors(i), 1 to 16: read, or
+    // `Colors(i) = c` (its second argument).
+    if method_lower == "colors" && comp_type == "RCOLORDIALOG" {
+        let key = format!("colors({})", args.first().map_or(0, Value::to_i64));
+        if let Some(c) = args.get(1) {
+            rp_comp_set(name, &key, v_int(c.to_i64() & 0xFF_FFFF));
+            return v_null();
+        }
+        return match rp_comp_get(name, &key) {
+            Value::Null => v_int(0),
+            v => v,
+        };
     }
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {

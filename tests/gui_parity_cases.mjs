@@ -88,6 +88,12 @@ export const cases = [
     expect: ["lbl.caption=48 1 D4FF FFFFFF"] },
   { name: "outline", kernel: true, events: "outline.__toggle_3,outline.__node_4,btn.onclick", dump: "lbl.caption,outline.row",
     expect: ["lbl.caption=6 First Child of Parent 2 2", "outline.row=4"] },
+  // (`colorDialog`: what each colour dialog answers in turn, `;`-separated
+  // — a colour (decimal, one of the basic swatches for the browser) for
+  // OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG on the desktop, the page
+  // dialog clicked in the browser)
+  { name: "color_dialog", kernel: true, events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", colorDialog: "255;",
+    expect: ["lbl.caption=0|2|80|FF00FF", "lbl2.caption=ok FF 123456|cancel FF"] },
   { name: "file_dialogs", kernel: true, events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
   { name: "header", kernel: true, events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",

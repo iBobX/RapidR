@@ -256,8 +256,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
                 props.insert("warnifoverwrite".to_string(), v_bool(true));
             }
         }
+        // (the dialogs lane's: RAPIDQ2.INC's QColorDialog — Color 0, Style
+        // cdNoFullOpen, its constructor's Colors(1 TO 16), as on the desktop)
         "RCOLORDIALOG" => {
-            props.insert("color".to_string(), v_int(0xFFFFFF));
+            props.insert("color".to_string(), v_int(0));
+            props.insert("style".to_string(), v_int(rapidr_value::color_dialog::CD_NO_FULL_OPEN));
+            for (i, c) in rapidr_value::color_dialog::DEFAULT_CUSTOM.iter().enumerate() {
+                props.insert(format!("colors({})", i + 1), v_int(*c));
+            }
         }
         "RFONTDIALOG" => {
             props.insert("fontname".to_string(), v_str("Segoe UI"));
@@ -1595,10 +1601,22 @@ fn web_file_dialog(name: &str, save: bool, multi: bool) -> Value {
 }
 
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
+    // (the dialogs lane's) A QCOLORDIALOG's Colors(i), 1 to 16: read, or
+    // `Colors(i) = c` (its second argument), as on the desktop.
+    if method == "colors" && comp_type == "RCOLORDIALOG" {
+        let key = format!("colors({})", args.first().map_or(0, Value::to_i64));
+        if let Some(c) = args.get(1) {
+            rp_comp_set_prop_only(name, &key, v_int(c.to_i64() & 0xFF_FFFF));
+            return v_null();
+        }
+        return match rp_comp_get_stored(name, &key) {
+            Value::Null => v_int(0),
+            v => v,
+        };
+    }
     if method != "execute" {
         return v_null();
     }
-    let _ = args;
     match comp_type {
         "ROPENDIALOG" => web_file_dialog(name, false, false),
         "RSAVEDIALOG" => web_file_dialog(name, true, false),
@@ -1606,6 +1624,37 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             let save = rp_comp_get_stored(name, "mode").to_i64() == 1;
             web_file_dialog(name, save, !save && rp_comp_get_stored(name, "multiselect").to_bool())
         }
+        // The page's own colour dialog, the desktop's (dialog_web::
+        // open_color; rapidr_value::color_dialog): the program waits for it.
+        "RCOLORDIALOG" if crate::dialog_web::can_wait() => {
+            use rapidr_value::color_dialog as cd;
+            let get = |p: &str| rp_comp_get_stored(name, p);
+            let style = match get("style") {
+                Value::Null => cd::CD_NO_FULL_OPEN,
+                v => v.to_i64(),
+            };
+            let custom = cd::custom_colors(|i| match get(&format!("colors({i})")) {
+                Value::Null => None,
+                v => Some(v.to_i64()),
+            });
+            let state = cd::State::new(get("color").to_i64(), custom, style);
+            let title = Some(get("caption").to_string_val()).filter(|c| !c.is_empty()).unwrap_or_else(|| "Color".into());
+            let owner = name.to_string();
+            crate::dialog_web::open_color(crate::dialog_web::ColorRequest {
+                title,
+                state,
+                done: std::rc::Rc::new(move |color: Option<i64>, custom: [i64; 16]| {
+                    for (i, c) in custom.iter().enumerate() {
+                        rp_comp_set_prop_only(&owner, &format!("colors({})", i + 1), v_int(*c));
+                    }
+                    if let Some(c) = color {
+                        rp_comp_set_prop_only(&owner, "color", v_int(c));
+                    }
+                }),
+            });
+            v_null()
+        }
+        // (a Rust-built page can't wait: the browser's colour input)
         "RCOLORDIALOG" => {
             let cur = COMPONENTS
                 .with(|c| {

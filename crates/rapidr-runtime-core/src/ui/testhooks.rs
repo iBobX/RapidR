@@ -13,6 +13,8 @@
 //! - `RAPIDR_TEST_SPLIT=splitter:delta`: a QSPLITTER dragged by `delta`.
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
+//! - `RAPIDR_TEST_COLOR_DIALOG=255;` / `RAPIDR_TEST_FONT_DIALOG=…`: what
+//!   each colour / font dialog answers in turn (empty: Cancel).
 
 use rapidr_value::input::Mouse;
 
@@ -215,6 +217,32 @@ pub fn file_dialog_answer(multi: bool) -> Option<Vec<String>> {
 
 pub fn file_dialog_paths(answer: &str, multi: bool) -> Vec<String> {
     answer.split(';').filter(|p| !p.is_empty()).take(if multi { usize::MAX } else { 1 }).map(str::to_string).collect()
+}
+
+// (the dialogs lane's)
+thread_local! {
+    /// How many answers each answering hook has given.
+    static ANSWERED: std::cell::RefCell<std::collections::HashMap<&'static str, usize>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Hook `var`'s next answer, `;`-separated, one per dialog in turn
+/// (`None`: the hook isn't set; past its last: an empty answer, Cancel).
+fn next_answer(var: &'static str) -> Option<String> {
+    let list = std::env::var(var).ok()?;
+    let n = ANSWERED.with(|a| {
+        let mut a = a.borrow_mut();
+        let n = a.entry(var).or_insert(0);
+        *n += 1;
+        *n - 1
+    });
+    Some(list.split(';').nth(n).unwrap_or("").trim().to_string())
+}
+
+/// `RAPIDR_TEST_COLOR_DIALOG=255;&HFF00;`: what each QCOLORDIALOG.Execute
+/// answers in turn — a colour for OK, empty for Cancel (`None`: ask the
+/// user). The custom colours stay.
+pub fn color_dialog_answer() -> Option<Option<i64>> {
+    next_answer("RAPIDR_TEST_COLOR_DIALOG").map(|a| rapidr_value::color_dialog::parse_color(&a))
 }
 
 #[cfg(test)]

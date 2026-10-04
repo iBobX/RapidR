@@ -607,3 +607,374 @@ pub fn open_files(req: FileRequest) {
     WAITING.with(|w| w.set(true));
     SUSPEND.with(|s| s.set(true));
 }
+
+// ------------------------------------------------- colour and font dialogs --
+//
+// (the dialogs lane's) QCOLORDIALOG and QFONTDIALOG in the page, laid out
+// and behaving as the desktop kernel's (the shared models:
+// `rapidr_value::color_dialog`, `rapidr_value::font_dialog`): their parts
+// placed at the same logical pixels, Windows' classic look.
+
+/// A rectangle (x, y, width, height), logical pixels.
+type Rect = (i64, i64, i64, i64);
+
+/// An element of `tag` with class `class`, placed at `rect` in its parent.
+fn placed(tag: &str, class: &str, (x, y, w, h): Rect, style: &str) -> web_sys::HtmlElement {
+    let el = create_el(tag);
+    el.set_class_name(class);
+    let _ = el.set_attribute("style", &format!("position:absolute;left:{x}px;top:{y}px;width:{w}px;height:{h}px;box-sizing:border-box;{style}"));
+    el
+}
+
+/// A caption with its `&` mnemonic as Windows shows it: the letter
+/// underlined.
+fn set_caption(el: &web_sys::HtmlElement, caption: &str) {
+    let (shown, mark) = rapidr_value::objects::a11y::mnemonic(caption);
+    el.set_text_content(None);
+    match mark {
+        Some((at, key)) => {
+            let before: String = shown.chars().take(at).collect();
+            let letter: String = shown.chars().skip(at).take(1).collect();
+            let after: String = shown.chars().skip(at + 1).collect();
+            let u = create_el("u");
+            u.set_text_content(Some(&letter));
+            let _ = el.append_with_str_1(&before);
+            let _ = el.append_with_node_1(&u);
+            let _ = el.append_with_str_1(&after);
+            let _ = el.set_attribute("accesskey", &key.to_string());
+        }
+        None => el.set_text_content(Some(&shown)),
+    }
+}
+
+/// A classic push button at `rect` (the default one with its dark frame).
+fn push_button(class: &str, caption: &str, rect: Rect, default: bool) -> web_sys::HtmlElement {
+    let frame = if default { "outline:1px solid #000;" } else { "" };
+    let b = placed("button", class, rect, &format!("padding:0 4px;font:inherit;color:#000;cursor:pointer;background:#f0f0f0;border:2px outset #f0f0f0;{frame}"));
+    let _ = b.set_attribute("type", "button");
+    set_caption(&b, caption);
+    b
+}
+
+/// Draws RGBA pixels (`w` × `h`) into `canvas`.
+fn paint_rgba(canvas: &web_sys::HtmlCanvasElement, w: usize, h: usize, rgba: &[u8]) {
+    canvas.set_width(w as u32);
+    canvas.set_height(h as u32);
+    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    if let Ok(data) = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(rgba), w as u32, h as u32) {
+        let _ = ctx.put_image_data(&data, 0.0, 0.0);
+    }
+}
+
+/// A sunken frame (Windows' 3D edge around a picture or a swatch).
+const SUNKEN: &str = "border:1px solid;border-color:#808080 #fff #fff #808080;";
+
+/// An &HBBGGRR colour as CSS.
+fn css_color(bgr: i64) -> String {
+    format!("#{:06x}", rapidr_value::color_dialog::swap_rb(bgr))
+}
+
+/// Adds a mouse listener that lives as long as the page.
+fn on_mouse(el: &web_sys::HtmlElement, event: &str, f: Box<dyn FnMut(web_sys::MouseEvent)>) {
+    let c = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(f);
+    let _ = el.add_event_listener_with_callback(event, c.as_ref().unchecked_ref());
+    c.forget();
+}
+
+/// The panel, its title and its inside of a colour or font dialog.
+fn dialog_panel(class: &str, title: &str) -> (web_sys::HtmlElement, web_sys::HtmlElement, web_sys::HtmlElement) {
+    let backdrop = create_el("div");
+    backdrop.set_class_name("rr-dialog-backdrop");
+    let _ = backdrop.set_attribute("style", BACKDROP);
+    let panel = create_el("div");
+    panel.set_class_name(&format!("rr-dialog {class}"));
+    let _ = panel.set_attribute("style", "background:#f0f0f0;color:#000;border:1px solid #888;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);overflow:hidden;");
+    let _ = panel.set_attribute("role", "dialog");
+    let _ = panel.set_attribute("aria-modal", "true");
+    let _ = panel.set_attribute("aria-label", title);
+    let head = create_el("div");
+    head.set_class_name("rr-dialog-title");
+    let _ = head.set_attribute("style", TITLE);
+    head.set_text_content(Some(title));
+    let _ = panel.append_child(&head);
+    let area = create_el("div");
+    let _ = area.set_attribute("style", "position:relative;");
+    let _ = panel.append_child(&area);
+    let _ = backdrop.append_child(&panel);
+    (backdrop, panel, area)
+}
+
+/// Escape cancels, Enter (but on a button) is OK: `finish(ok)`.
+fn ok_cancel_keys(backdrop: &web_sys::HtmlElement, finish: Rc<dyn Fn(bool)>) {
+    let keys = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| match e.key().as_str() {
+        "Escape" => {
+            e.prevent_default();
+            finish(false);
+        }
+        "Enter" if !e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).is_some_and(|t| t.tag_name() == "BUTTON") => {
+            e.prevent_default();
+            finish(true);
+        }
+        _ => {}
+    });
+    let _ = backdrop.add_event_listener_with_callback("keydown", keys.as_ref().unchecked_ref());
+    keys.forget();
+}
+
+/// What a colour dialog asks for (QCOLORDIALOG).
+pub struct ColorRequest {
+    pub title: String,
+    pub state: rapidr_value::color_dialog::State,
+    /// Gets the colour chosen (`None`: Cancel) and the custom colours
+    /// (kept either way) before the program goes on.
+    pub done: Rc<dyn Fn(Option<i64>, [i64; 16])>,
+}
+
+/// The colour dialog in the page, as the desktop's: the basic and custom
+/// swatches (the chosen one framed), "Define Custom Colors >>", and with
+/// the editor the hue / saturation field, the luminance bar, the colour,
+/// the Hue … Blue boxes and "Add to Custom Colors"; OK and Cancel. The
+/// program waits for it and gets 1 / 0 from Execute. Only call when
+/// [`can_wait`] is true.
+pub fn open_color(req: ColorRequest) {
+    use rapidr_value::color_dialog::{self as cd, layout as cl};
+    let Some(body) = document().body() else { return };
+    let state = Rc::new(RefCell::new(req.state));
+    let (backdrop, _panel, area) = dialog_panel("rr-color-dialog", &req.title);
+    let add = |el: &web_sys::HtmlElement| {
+        let _ = area.append_child(el);
+    };
+    let label = |caption: &str, rect: Rect| {
+        let l = placed("div", "rr-color-label", rect, "white-space:nowrap;");
+        set_caption(&l, caption);
+        l
+    };
+    add(&label("&Basic colors:", cl::BASIC_LABEL));
+    // (the chosen swatch's frame, under the swatches)
+    let sel = placed("div", "rr-color-sel", (0, 0, 0, 0), "background:#000;");
+    add(&sel);
+    let swatch = |class: &str, rect: Rect, attr: &str, i: usize| {
+        let s = placed("div", class, rect, &format!("{SUNKEN}cursor:default;"));
+        let _ = s.set_attribute(attr, &i.to_string());
+        s
+    };
+    let mut basics = Vec::new();
+    for (i, rgb) in cd::BASIC_COLORS.iter().enumerate() {
+        let s = swatch("rr-color-swatch", cl::basic(i), "data-basic", i);
+        let bgr = cd::swap_rb(i64::from(*rgb));
+        let _ = s.style().set_property("background", &css_color(bgr));
+        let _ = s.set_attribute("data-color", &bgr.to_string());
+        add(&s);
+        basics.push(s);
+    }
+    add(&label("&Custom colors:", cl::CUSTOM_LABEL));
+    let customs: Vec<_> = (0..16).map(|i| swatch("rr-color-swatch rr-color-custom", cl::custom(i), "data-custom", i)).collect();
+    for c in &customs {
+        add(c);
+    }
+    let define = push_button("rr-color-define", "&Define Custom Colors >>", cl::DEFINE, false);
+    add(&define);
+    let ok = push_button("rr-color-ok", "OK", cl::OK, true);
+    add(&ok);
+    let cancel = push_button("rr-color-cancel", "Cancel", cl::CANCEL, false);
+    add(&cancel);
+
+    // (the editor: shown once the dialog is full open; its pictures lie
+    // inside a sunken edge, as the kernel paints them)
+    let editor = placed("div", "rr-color-editor", (0, 0, cl::FULL.0, cl::FULL.1), "pointer-events:none;");
+    let inner = |r: Rect| (r.0 + 1, r.1 + 1, r.2 - 2, r.3 - 2);
+    let field_box = inner(cl::SPECTRUM);
+    let spectrum_wrap = placed("div", "rr-color-spectrum-box", cl::SPECTRUM, &format!("{SUNKEN}overflow:hidden;pointer-events:auto;"));
+    let spectrum = create_el("canvas").unchecked_into::<web_sys::HtmlCanvasElement>();
+    spectrum.set_class_name("rr-color-spectrum");
+    let _ = spectrum.set_attribute("style", &format!("display:block;width:{}px;height:{}px;cursor:crosshair;", field_box.2, field_box.3));
+    let _ = spectrum_wrap.append_child(&spectrum);
+    let cross = placed("div", "rr-color-cross", (0, 0, 17, 17), "pointer-events:none;");
+    for r in [(0, 7, 5, 3), (12, 7, 5, 3), (7, 0, 3, 5), (7, 12, 3, 5)] {
+        let _ = cross.append_child(&placed("div", "", r, "background:#000;"));
+    }
+    let _ = spectrum_wrap.append_child(&cross);
+    let _ = editor.append_child(&spectrum_wrap);
+    let bar = (1, 4, cl::LUM_BAR_W - 2, cl::SPECTRUM.3 - 2);
+    let lum_box = placed("div", "rr-color-lum-box", cl::LUM, "pointer-events:auto;cursor:default;");
+    let lum_edge = placed("div", "", (bar.0 - 1, bar.1 - 1, bar.2 + 2, bar.3 + 2), SUNKEN);
+    let lum = create_el("canvas").unchecked_into::<web_sys::HtmlCanvasElement>();
+    lum.set_class_name("rr-color-lum");
+    let _ = lum.set_attribute("style", &format!("display:block;width:{}px;height:{}px;", bar.2, bar.3));
+    let _ = lum_edge.append_child(&lum);
+    let _ = lum_box.append_child(&lum_edge);
+    let arrow = placed("div", "rr-color-arrow", (cl::LUM_BAR_W + 2, 0, 0, 0), "border-top:6px solid transparent;border-bottom:6px solid transparent;border-right:7px solid #000;");
+    let _ = lum_box.append_child(&arrow);
+    let _ = editor.append_child(&lum_box);
+    let preview = placed("div", "rr-color-preview", cl::PREVIEW, SUNKEN);
+    let _ = editor.append_child(&preview);
+    let lpreview = placed("div", "rr-color-label", cl::PREVIEW_LABEL, "text-align:center;white-space:nowrap;");
+    set_caption(&lpreview, "Color|S&olid");
+    let _ = editor.append_child(&lpreview);
+    let mut fields = Vec::new();
+    for (i, caption) in cd::FIELDS.iter().enumerate() {
+        let (lrect, frect) = cl::field(i);
+        let l = placed("div", "rr-color-label", lrect, "white-space:nowrap;");
+        set_caption(&l, caption);
+        let _ = editor.append_child(&l);
+        let f = placed("input", "rr-color-field", frect, "padding:0 2px;font:inherit;border:2px inset #f0f0f0;background:#fff;color:#000;pointer-events:auto;").unchecked_into::<web_sys::HtmlInputElement>();
+        let _ = f.set_attribute("data-field", &i.to_string());
+        let _ = f.set_attribute("maxlength", "3");
+        let _ = f.set_attribute("aria-label", &rapidr_value::objects::a11y::mnemonic(caption).0);
+        let _ = editor.append_child(&f);
+        fields.push(f);
+    }
+    let addb = push_button("rr-color-add", "&Add to Custom Colors", cl::ADD, false);
+    let _ = addb.style().set_property("pointer-events", "auto");
+    let _ = editor.append_child(&addb);
+    add(&editor);
+
+    // What it shows, from the state (box `typing` left as typed); the
+    // pictures at the screen's resolution.
+    let dpr = web_sys::window().map_or(1.0, |w| w.device_pixel_ratio()).max(1.0);
+    let dev = move |v: i64| ((v as f64 * dpr).round() as usize).max(1);
+    let refresh: Rc<dyn Fn(Option<usize>)> = {
+        let (state, sel, define, editor, area, fields, preview, cross, arrow, lum, spectrum) =
+            (state.clone(), sel.clone(), define.clone(), editor.clone(), area.clone(), fields.clone(), preview.clone(), cross.clone(), arrow.clone(), lum.clone(), spectrum.clone());
+        let (spectrum_drawn, lum_key) = (Cell::new(false), Cell::new(None::<(i64, i64)>));
+        Rc::new(move |typing: Option<usize>| {
+            let s = state.borrow();
+            for (i, el) in customs.iter().enumerate() {
+                let _ = el.style().set_property("background", &css_color(s.custom[i]));
+                let _ = el.set_attribute("data-color", &s.custom[i].to_string());
+            }
+            let frame = s.marked().map(|(custom, i)| cl::frame(if custom { cl::custom(i) } else { cl::basic(i) }));
+            let (x, y, w, h) = frame.unwrap_or((0, 0, 0, 0));
+            for (p, v) in [("left", x), ("top", y), ("width", w), ("height", h)] {
+                let _ = sel.style().set_property(p, &format!("{v}px"));
+            }
+            let disabled = s.mode != cd::Mode::Compact;
+            define.unchecked_ref::<web_sys::HtmlButtonElement>().set_disabled(disabled);
+            let _ = define.style().set_property("color", if disabled { "#808080" } else { "#000" });
+            let (w, h) = if s.full() { cl::FULL } else { cl::COMPACT };
+            let _ = area.style().set_property("width", &format!("{w}px"));
+            let _ = area.style().set_property("height", &format!("{h}px"));
+            let _ = editor.style().set_property("display", if s.full() { "block" } else { "none" });
+            if !s.full() {
+                return;
+            }
+            if !spectrum_drawn.replace(true) {
+                let (pw, ph) = (dev(field_box.2), dev(field_box.3));
+                paint_rgba(&spectrum, pw, ph, &cd::spectrum_rgba(pw, ph));
+            }
+            let (hue, l, sat) = s.hls;
+            if lum_key.get() != Some((hue, sat)) {
+                lum_key.set(Some((hue, sat)));
+                let (pw, ph) = (dev(bar.2), dev(bar.3));
+                paint_rgba(&lum, pw, ph, &cd::lum_rgba(pw, ph, hue, sat));
+            }
+            let _ = cross.style().set_property("left", &format!("{}px", hue * (field_box.2 - 1) / 239 - 8));
+            let _ = cross.style().set_property("top", &format!("{}px", (240 - sat) * (field_box.3 - 1) / 240 - 8));
+            let _ = arrow.style().set_property("top", &format!("{}px", bar.1 + (240 - l) * (bar.3 - 1) / 240 - 6));
+            let _ = preview.style().set_property("background", &css_color(s.color));
+            for (i, v) in s.fields().iter().enumerate() {
+                if typing != Some(i) {
+                    fields[i].set_value(&v.to_string());
+                }
+            }
+        })
+    };
+
+    // The answer, once: OK / Enter (the colour), Cancel / Escape (none).
+    let done = Rc::new(Cell::new(false));
+    let finish: Rc<dyn Fn(bool)> = {
+        let (done, backdrop, state, answer) = (done.clone(), backdrop.clone(), state.clone(), req.done.clone());
+        Rc::new(move |ok: bool| {
+            if done.replace(true) {
+                return;
+            }
+            backdrop.remove();
+            let s = state.borrow().clone();
+            answer(ok.then_some(s.color), s.custom);
+            resume(Value::Integer(i64::from(ok)), None);
+        })
+    };
+    // (a swatch picks its colour as the mouse goes down, as Windows')
+    for (i, s) in basics.iter().enumerate() {
+        let (state, refresh) = (state.clone(), refresh.clone());
+        on_mouse(s, "mousedown", Box::new(move |_| {
+            state.borrow_mut().pick_basic(i);
+            refresh(None);
+        }));
+    }
+    for i in 0..16 {
+        let Some(el) = area.query_selector(&format!("[data-custom=\"{i}\"]")).ok().flatten() else { continue };
+        let (state, refresh) = (state.clone(), refresh.clone());
+        on_mouse(el.unchecked_ref(), "mousedown", Box::new(move |_| {
+            state.borrow_mut().pick_custom(i);
+            refresh(None);
+        }));
+    }
+    // (the field and the bar follow the mouse while it's held)
+    let drag = Rc::new(Cell::new(None::<&'static str>));
+    let pick: Rc<dyn Fn(&str, &web_sys::MouseEvent)> = {
+        let (state, refresh, spectrum, lum) = (state.clone(), refresh.clone(), spectrum.clone(), lum.clone());
+        Rc::new(move |which: &str, e: &web_sys::MouseEvent| {
+            if which == "spectrum" {
+                let r = spectrum.get_bounding_client_rect();
+                let (w, h) = (field_box.2 as f64, field_box.3 as f64);
+                let (x, y) = ((f64::from(e.client_x()) - r.left()).clamp(0.0, w - 1.0), (f64::from(e.client_y()) - r.top()).clamp(0.0, h - 1.0));
+                state.borrow_mut().pick_spectrum(x, y, w, h);
+            } else {
+                let r = lum.get_bounding_client_rect();
+                let h = bar.3 as f64;
+                state.borrow_mut().pick_lum((f64::from(e.client_y()) - r.top()).clamp(0.0, h - 1.0), h);
+            }
+            refresh(None);
+        })
+    };
+    for (el, which) in [(spectrum.clone().unchecked_into::<web_sys::HtmlElement>(), "spectrum"), (lum_box.clone(), "lum")] {
+        let (drag, pick) = (drag.clone(), pick.clone());
+        on_mouse(&el, "mousedown", Box::new(move |e: web_sys::MouseEvent| {
+            e.prevent_default();
+            drag.set(Some(which));
+            pick(which, &e);
+        }));
+    }
+    {
+        let (held, pick) = (drag.clone(), pick.clone());
+        on_mouse(&backdrop, "mousemove", Box::new(move |e: web_sys::MouseEvent| {
+            if let Some(which) = held.get() {
+                pick(which, &e);
+            }
+        }));
+        on_mouse(&backdrop, "mouseup", Box::new(move |_| drag.set(None)));
+    }
+    for (i, f) in fields.iter().enumerate() {
+        let (state, refresh, field) = (state.clone(), refresh.clone(), f.clone());
+        let typed = Closure::<dyn FnMut()>::new(move || {
+            if let Ok(v) = field.value().trim().parse::<i64>() {
+                state.borrow_mut().set_field(i, v);
+                refresh(Some(i));
+            }
+        });
+        let _ = f.add_event_listener_with_callback("input", typed.as_ref().unchecked_ref());
+        typed.forget();
+    }
+    for (el, action) in [(define.clone(), "define"), (addb.clone(), "add"), (ok.clone(), "ok"), (cancel.clone(), "cancel")] {
+        let (state, refresh, finish) = (state.clone(), refresh.clone(), finish.clone());
+        on_mouse(&el, "click", Box::new(move |_| match action {
+            "define" => {
+                if state.borrow_mut().define() {
+                    refresh(None);
+                }
+            }
+            "add" => {
+                state.borrow_mut().add_custom();
+                refresh(None);
+            }
+            a => finish(a == "ok"),
+        }));
+    }
+    ok_cancel_keys(&backdrop, finish);
+    refresh(None);
+    let _ = body.append_child(&backdrop);
+    let _ = ok.focus();
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+}
