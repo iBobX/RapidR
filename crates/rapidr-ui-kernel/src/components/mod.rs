@@ -25,6 +25,15 @@ pub mod radio;
 pub mod tabcontrol;
 pub mod trackbar;
 pub mod updown;
+// (the lists lane's)
+pub mod combo;
+pub mod dirtree;
+pub mod filelist;
+pub mod grid;
+pub mod header;
+pub mod list;
+pub mod listview;
+pub mod tree;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -58,6 +67,14 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RPROGRESSBAR", &progress::Progress),
     ("RPROGRESS", &progress::Progress),
     ("RUPDOWN", &updown::UpDown),
+    ("RLISTBOX", &list::ListBox),
+    ("RFILELISTBOX", &filelist::FileListBox),
+    ("RCOMBOBOX", &combo::ComboBox),
+    ("RLISTVIEW", &listview::ListViewBox),
+    ("RSTRINGGRID", &grid::Grid),
+    ("RHEADER", &header::HeaderBar),
+    ("RTREEVIEW", &tree::Tree),
+    ("RDIRTREE", &dirtree::DirTreeBox),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

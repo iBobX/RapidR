@@ -1,7 +1,7 @@
 //! vello on wgpu: a display list as a vello scene, rendered into a
 //! window's surface.
 
-use rapidr_ui_kernel::display::DisplayList;
+use rapidr_ui_kernel::display::{DisplayList, Picture};
 use rapidr_ui_kernel::{FormUi, TextSystem};
 use vello::kurbo::{Affine, BezPath, Diagonal2, Rect as KRect, Stroke};
 use vello::peniko::Fill;
@@ -40,6 +40,17 @@ impl Canvas for Scene {
             draw = draw.font_embolden(FontEmbolden::new(Diagonal2::new(a, a)));
         }
         draw.draw(Fill::NonZero, glyphs.iter().map(|&(id, x, y)| Glyph { id, x, y }));
+    }
+    fn image(&mut self, rect: &KRect, picture: &Picture) {
+        use vello::peniko::{Blob, ImageAlphaType, ImageBrush, ImageData, ImageFormat, ImageQuality};
+        let (w, h) = (picture.width, picture.height);
+        if w == 0 || h == 0 || picture.rgba.len() != w * h * 4 {
+            return;
+        }
+        let data = ImageData { data: Blob::new(std::sync::Arc::new(picture.rgba.clone())), format: ImageFormat::Rgba8, alpha_type: ImageAlphaType::Alpha, width: w as u32, height: h as u32 };
+        let crisp = (rect.width() - w as f64).abs() < 0.5 && (rect.height() - h as f64).abs() < 0.5;
+        let brush = ImageBrush::new(data).with_quality(if crisp { ImageQuality::Low } else { ImageQuality::Medium });
+        self.draw_image(&brush, Affine::translate((rect.x0, rect.y0)) * Affine::scale_non_uniform(rect.width() / w as f64, rect.height() / h as f64));
     }
 }
 

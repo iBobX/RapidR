@@ -4,7 +4,7 @@
 //! needed: the headless host); a window shows its frames through softbuffer
 //! where wgpu finds no GPU, or with `RAPIDR_RENDERER=cpu`.
 
-use rapidr_ui_kernel::display::DisplayList;
+use rapidr_ui_kernel::display::{DisplayList, Picture};
 use rapidr_ui_kernel::{FormUi, TextSystem};
 use rapidr_value::objects::codec::Pixels;
 use vello::kurbo::{Affine, BezPath, Rect as KRect, Stroke};
@@ -53,6 +53,30 @@ impl Canvas for CpuCanvas<'_> {
             b = b.font_embolden(glifo::FontEmbolden::new(vello::kurbo::Diagonal2::new(a, a)));
         }
         b.fill_glyphs(glyphs.iter().map(|&(id, x, y)| vello_cpu::Glyph { id, x, y })).ok();
+    }
+    fn image(&mut self, rect: &KRect, picture: &Picture) {
+        let (w, h) = (picture.width, picture.height);
+        if w == 0 || h == 0 || w > usize::from(u16::MAX) || h > usize::from(u16::MAX) || picture.rgba.len() != w * h * 4 {
+            return;
+        }
+        let meta = vello_cpu::PixelMetadata { may_have_transparency: true, alpha_type: vello_cpu::peniko::ImageAlphaType::Alpha };
+        let pixmap = Pixmap::from_parts(picture.rgba.clone(), w as u16, h as u16, meta);
+        let sampler = vello_cpu::peniko::ImageSampler::new().with_quality(image_quality(rect, w, h));
+        let image = vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(std::sync::Arc::new(pixmap)), sampler };
+        self.ctx.set_transform(Affine::translate((rect.x0, rect.y0)) * Affine::scale_non_uniform(rect.width() / w as f64, rect.height() / h as f64));
+        self.ctx.set_paint_transform(Affine::IDENTITY);
+        self.ctx.set_paint(image);
+        self.ctx.fill_rect(&KRect::new(0.0, 0.0, w as f64, h as f64));
+    }
+}
+
+/// Pixel for pixel when the picture is drawn at its own size (crisp), else
+/// smoothed.
+pub(crate) fn image_quality(rect: &KRect, w: usize, h: usize) -> vello_cpu::peniko::ImageQuality {
+    if (rect.width() - w as f64).abs() < 0.5 && (rect.height() - h as f64).abs() < 0.5 {
+        vello_cpu::peniko::ImageQuality::Low
+    } else {
+        vello_cpu::peniko::ImageQuality::Medium
     }
 }
 

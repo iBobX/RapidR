@@ -216,6 +216,17 @@ impl Desktop {
         self.route(id, src, |f, _, _| f.close_box());
     }
 
+    /// A test hook's component step (`__item_i`, `__node_i` …; the lists
+    /// lane's `FormUi::test_action`): whether component `comp` took it.
+    pub fn test_action(&mut self, store: &dyn Store, id: &str, comp: &str, action: &str) -> bool {
+        let mut done = false;
+        self.route(id, Source::Script, |f, ts, _| {
+            f.sync(store);
+            done = f.test_action(store, ts, comp, action);
+        });
+        done
+    }
+
     /// A screen reader's request (as the user's input would be).
     pub fn access_action(&mut self, store: &dyn Store, id: &str, target: u64, action: Action, value: Option<rapidr_ui_kernel::AccessValue>) -> bool {
         let mut done = false;

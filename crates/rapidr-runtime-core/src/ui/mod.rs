@@ -15,6 +15,8 @@ use crate::gui;
 pub mod kernel;
 #[cfg(feature = "kernel")]
 pub mod kernel_store;
+#[cfg(feature = "kernel")]
+pub mod kernel_lists;
 
 use crate::value::Value;
 use select::Backend;

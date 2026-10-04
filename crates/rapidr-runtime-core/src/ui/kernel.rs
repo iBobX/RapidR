@@ -283,6 +283,8 @@ fn pump(timeout: Option<Duration>) {
 pub fn step(max_wait: Option<Duration>) {
     ensure_host();
     show_pending();
+    // (the lists lane's owner-draw events, before the windows are drawn)
+    super::kernel_lists::pre_paint(&st(|s| s.shown.iter().cloned().collect::<Vec<_>>()));
     let now = Instant::now();
     let mut t = max_wait;
     let mut at_most = |d: Duration| t = Some(t.map_or(d, |t| t.min(d)));
@@ -356,6 +358,7 @@ fn dispatch(ev: KernelEvent) {
             rp_comp_set(&id, &prop, v_int(value));
             invalidate();
         }
+        KernelEvent::List(id, action) => super::kernel_lists::dispatch(&id, action),
         KernelEvent::Container(c) => container_event(c),
     }
 }
@@ -616,6 +619,16 @@ fn any_shown() -> bool {
     st(|s| !s.shown.is_empty())
 }
 
+/// Something drawn changed (the lists lane's runtime side).
+pub(super) fn invalidate_all() {
+    invalidate();
+}
+
+/// Whether form `name` shows now (the lists lane's runtime side).
+pub(super) fn is_shown_form(name: &str) -> bool {
+    form_shown(name)
+}
+
 /// Something drawn changed: painted again at the next pump.
 fn invalidate() {
     NOTIFY.with(|n| n.set((true, n.get().1)));
@@ -652,7 +665,8 @@ pub fn listview_refresh(_name: &str) {
 pub fn grid_refresh(_name: &str) {
     invalidate();
 }
-pub fn tree_refresh(_name: &str) {
+pub fn tree_refresh(name: &str) {
+    super::kernel_lists::tree_refresh(name);
     invalidate();
 }
 pub fn header_refresh(_name: &str) {
@@ -1105,9 +1119,9 @@ pub fn image_method(_name: &str, method: &str, _args: &[Value]) -> Value {
 }
 
 /// A QTREEVIEW's methods that need the drawn tree: the lists lane's.
-pub fn tree_method(name: &str, method: &str, _args: &[Value]) -> Value {
+pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
-        "getitemat" => return v_int(-1),
+        "getitemat" => return v_int(super::kernel_lists::tree_item_at(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64))),
         "show" => gui_show(name),
         "hide" => gui_hide(name),
         _ => eprintln!("[WARN] TreeView.{method}() not implemented"),
@@ -1290,8 +1304,20 @@ fn run_test_event(e: TestEvent) {
         Action::Mouse(kind, x, y) => test_mouse(&comp, kind, x, y),
         Action::Close => gui_close(&e.comp),
         Action::Ignored => {}
+        // (the lists lane's: the component synthesizes the input)
         Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
-            pending("the list / tree / grid test actions (__item_, __node_, __cell_ …)");
+            let step = match e.action {
+                Action::Item(i) => format!("__item_{i}"),
+                Action::Node(i) => format!("__node_{i}"),
+                Action::Toggle(i) => format!("__toggle_{i}"),
+                Action::Cell(c, r) => format!("__cell_{c}_{r}"),
+                Action::Edit => "__edit".into(),
+                Action::Enter => "__enter".into(),
+                _ => "__escape".into(),
+            };
+            if let Some(form) = form_of(&comp) {
+                with_kern(|k| k.desk.test_action(&RtStore, &form, &comp, &step));
+            }
         }
     }
 }

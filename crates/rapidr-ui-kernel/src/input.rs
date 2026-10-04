@@ -103,6 +103,9 @@ pub enum KernelEvent {
     /// cool button's Down): runtime-core stores it before the events after
     /// it (its OnClick).
     Set { id: String, prop: String, value: i64 },
+    /// What the user did to a list, tree, grid, list view or header that
+    /// the program answers (the lists lane's; `components::list`).
+    List(String, crate::components::list::ListAction),
 }
 
 impl FormUi {
@@ -156,6 +159,10 @@ impl FormUi {
         if self.menu_mouse_down(store, x, y) {
             return;
         }
+        // (an open drop-down list, over everything but menus)
+        if crate::components::combo::popup_mouse_down(self, store, x, y) {
+            return;
+        }
         // (scroll bars take the mouse next, over the components)
         if button == Button::Left && crate::components::scrollbox::bars_down(self, store, x, y) {
             return;
@@ -178,6 +185,7 @@ impl FormUi {
         }
         self.caret_on = true;
         self.mouse_event(target, Mouse::Down, button, x, y, mods);
+        crate::components::combo::after_input(self, store);
     }
 
     /// The mouse moved to (x, y) of the client area.
@@ -185,6 +193,7 @@ impl FormUi {
         if self.menu_mouse_move(store, x, y) {
             return;
         }
+        crate::components::combo::popup_mouse_move(self, store, x, y);
         if crate::components::scrollbox::bars_drag(self, store, x, y) {
             return;
         }
@@ -297,6 +306,7 @@ impl FormUi {
                 self.events.push(KernelEvent::KeyPress { chain, key });
             }
         }
+        crate::components::combo::after_input(self, store);
     }
 
     pub fn key_up(&mut self, vk: i64, mods: Mods) {
@@ -361,6 +371,21 @@ impl FormUi {
     pub fn ime_area(&mut self, store: &dyn Store, ts: &mut TextSystem) -> Option<Rect> {
         let f = self.focus?;
         self.with_cx(store, ts, f, |k, cx| k.ime_area(cx)).flatten()
+    }
+
+    /// A test hook's component step (`__item_i`, `__node_i`, `__toggle_i`,
+    /// `__cell_c_r`, `__edit`, `__enter`, `__escape`): component `id`
+    /// focused (when it can be), then its kind synthesizes the input (a
+    /// click at the row, a key). Whether its kind understood it.
+    pub fn test_action(&mut self, store: &dyn Store, ts: &mut TextSystem, id: &str, action: &str) -> bool {
+        self.dirty = true;
+        let Some(i) = self.index_of(id) else { return false };
+        if self.can_focus(store, i) {
+            self.set_focus(Some(i));
+        }
+        let done = self.with_cx(store, ts, i, |k, cx| k.test_action(cx, action)).unwrap_or(false);
+        crate::components::combo::after_input(self, store);
+        done
     }
 
     /// The window's close box clicked.

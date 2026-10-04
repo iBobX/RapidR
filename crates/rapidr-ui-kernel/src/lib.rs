@@ -45,7 +45,7 @@ mod tests;
 
 pub use a11y::AccessValue;
 pub use components::{kind_of, ComponentKind, Cx};
-pub use display::{DisplayList, Item, TextItem};
+pub use display::{DisplayList, Item, Picture, TextItem};
 pub use input::{Clipboard, KernelEvent, MemClipboard, Mods};
 pub use rapidr_value::objects::ops::{Op, Place, Rect};
 pub use store::{MemStore, Store};

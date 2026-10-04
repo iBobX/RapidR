@@ -103,6 +103,16 @@ impl<'a> Painter<'a> {
         self.op(Op::ClipPop);
     }
 
+    /// A picture drawn into `rect`: `source` names it in the display list
+    /// (unique per picture; `revision` changes when its pixels do).
+    pub fn picture(&mut self, source: &str, revision: u64, picture: crate::display::Picture, rect: Rect) {
+        if rect.2 <= 0 || rect.3 <= 0 || picture.width == 0 || picture.height == 0 {
+            return;
+        }
+        self.list.images.insert(source.to_string(), std::sync::Arc::new(picture));
+        self.op(Op::Image { source: source.to_string(), revision, rect });
+    }
+
     /// An editor's layout (device pixels).
     pub fn editor(&mut self, item: TextItem) {
         self.list.items.push(Item::Text(item));
@@ -153,7 +163,7 @@ impl FormUi {
         self.sync(store);
         self.scale = scale;
         let (w, h) = self.client;
-        let mut list = DisplayList { size: (w, h + self.menu_offset), scale, items: Vec::new() };
+        let mut list = DisplayList { size: (w, h + self.menu_offset), scale, ..Default::default() };
         let mut p = Painter::new(&mut list);
         if self.menu_offset > 0 {
             // (the in-window menu bar: components/menubar.rs)
@@ -168,6 +178,8 @@ impl FormUi {
         }
         // (the form's scroll bars, over its components)
         crate::components::scrollbox::paint_form_bars(&self.form, (w, h), &mut p, self.menu_offset);
+        // (an open drop-down list, over them)
+        crate::components::combo::paint_popup(self, store, ts, &mut p);
         // (open menus over everything)
         self.paint_menus(store, &mut p);
         self.dirty = false;

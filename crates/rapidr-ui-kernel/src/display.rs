@@ -6,6 +6,9 @@
 //! client area, below nothing: an in-window menu bar is inside the list);
 //! editor items are in device pixels, as their layouts are.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use rapidr_value::objects::ops::{Op, Place, Rect};
 
 /// A rectangle in device pixels (x0, y0, x1, y1), relative to its
@@ -39,6 +42,17 @@ pub enum Item {
     Text(TextItem),
 }
 
+/// A picture a component made while painting (a list view's rows, an
+/// owner-drawn item's bitmap, a tree's icons): straight-alpha RGBA,
+/// `width` × `height` pixels. An [`Op::Image`] whose `source` names it
+/// draws it scaled into the op's rectangle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Picture {
+    pub width: usize,
+    pub height: usize,
+    pub rgba: Vec<u8>,
+}
+
 /// A form's client area, drawn: `size` logical pixels (with an in-window
 /// main menu's height), for a screen of `scale` device pixels per logical
 /// pixel (editor layouts are made for it).
@@ -47,6 +61,9 @@ pub struct DisplayList {
     pub size: (i64, i64),
     pub scale: f64,
     pub items: Vec<Item>,
+    /// The pictures [`Op::Image`]s draw, by `source` (those not here are
+    /// the program's bitmaps, which the host finds by object id).
+    pub images: HashMap<String, Arc<Picture>>,
 }
 
 impl DisplayList {

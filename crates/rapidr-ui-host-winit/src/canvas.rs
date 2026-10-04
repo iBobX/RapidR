@@ -8,8 +8,11 @@
 //! vello_cpu's context in `cpu.rs`), so a form paints the same calls into
 //! either.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use parley::{Layout, PositionedLayoutItem};
-use rapidr_ui_kernel::display::{DisplayList, Item, TextItem};
+use rapidr_ui_kernel::display::{DisplayList, Item, Picture, TextItem};
 use rapidr_ui_kernel::{FormUi, Ink, TextSystem};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{edge_fills, focus_dots, Op, Place, Rect};
@@ -27,6 +30,8 @@ pub trait Canvas {
     fn push_clip(&mut self, transform: Affine, rect: &KRect);
     fn pop_clip(&mut self);
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]);
+    /// A picture scaled into `rect` (device pixels), smoothly.
+    fn image(&mut self, rect: &KRect, picture: &Picture);
 }
 
 /// A run of glyphs of one font, size and colour.
@@ -58,11 +63,13 @@ pub struct Painter<'a> {
     pub text: &'a mut TextSystem,
     pub scale: f64,
     origin: (i64, i64),
+    /// The display list's pictures (what its `Op::Image`s name).
+    pub images: Option<&'a HashMap<String, Arc<Picture>>>,
 }
 
 impl<'a> Painter<'a> {
     pub fn new(canvas: &'a mut dyn Canvas, text: &'a mut TextSystem, scale: f64) -> Self {
-        Painter { canvas, text, scale, origin: (0, 0) }
+        Painter { canvas, text, scale, origin: (0, 0), images: None }
     }
 
     /// A logical coordinate on the device's pixel grid.
@@ -188,8 +195,14 @@ impl<'a> Painter<'a> {
                 }
             }
             Op::Arrow { points, color } => self.polygon(points, *color),
-            // (bitmaps: the surfaces lane's, Stage 6)
-            Op::Image { .. } => {}
+            // (a picture the display list carries; the program's bitmaps by
+            // object id are the surfaces lane's, Stage 6)
+            Op::Image { source, rect, .. } => {
+                if let Some(pic) = self.images.and_then(|m| m.get(source)) {
+                    let r = self.device_rect(*rect);
+                    self.canvas.image(&r, pic);
+                }
+            }
             Op::ClipPush { rect } => {
                 let r = self.device_rect(*rect);
                 self.canvas.push_clip(Affine::IDENTITY, &r);
@@ -267,6 +280,7 @@ fn editor(canvas: &mut dyn Canvas, t: &TextItem, layout: &Layout<Ink>) {
 /// Draws `list` (form `form`'s, for its editors' layouts) into `canvas`.
 pub fn draw_list(canvas: &mut dyn Canvas, text: &mut TextSystem, list: &DisplayList, form: &FormUi) {
     let mut p = Painter::new(canvas, text, list.scale);
+    p.images = Some(&list.images);
     for item in &list.items {
         match item {
             Item::Op { origin, op } => {
