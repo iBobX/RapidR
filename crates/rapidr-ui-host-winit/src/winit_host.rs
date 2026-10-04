@@ -404,6 +404,9 @@ impl Shim<'_> {
                 let frame = match surface.surface.get_current_texture() {
                     wgpu::CurrentSurfaceTexture::Success(f) | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,
                     other => {
+                        if std::env::var_os("RAPIDR_HOST_LOG").is_some() {
+                            eprintln!("[rapidr] {f}: no frame from the GPU surface ({other:?})");
+                        }
                         // (occluded / timed out: skip the frame, without asking
                         // for another; outdated / lost: configure and ask again)
                         if !matches!(other, wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout) {
