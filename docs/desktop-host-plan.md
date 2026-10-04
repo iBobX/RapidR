@@ -387,3 +387,12 @@ Open for Stage 3:
 - `TextItem`: the host reads the layout with `FormUi::editor_layout` while rendering (callback-safe: no program code).
 - `ComponentKind::test_action` is declared, not implemented; the test-hook driver synthesizes input through the routing for the slice's fixtures.
 - A multi-form `Kernel` (modal list, stacking, `HostEvent`s) and the shared `TextSystem` live in Stage 3's `src/ui/kernel.rs` / host.
+
+## Stage 1 results (2026-10-04) — the `ui` facade
+
+- **The facade.** `crates/rapidr-runtime-core/src/ui/` has 63 forwarded functions (the plan counted 64; a recount gives 63), plus `set_theme` / `gui_register_timer` in the prelude and `screen_size`, `work_area`, `mouse`, `monitors`, `minimize`, `message_box` (`ui/fltk_platform.rs`).
+- **Features.** `desktop-ui`, `gui = desktop-ui + FLTK`, and `kernel = desktop-ui` (no dependencies yet). `kernel` isn't in rapidr-vm-host-native's `full` yet; it goes there in Stage 3.
+- **Host choice.** `ui/select.rs` is a constant when only one host is built, else reads `RAPIDR_HOST` once (default `fltk`).
+- **Safety net.** `object.rs` has `IN_HOST_CALLBACK` and `DEFERRED`, drained after `gui_doevents` and `gui_pump_wait`. It logs in debug builds rather than asserting. 5 unit tests.
+- **Test hooks.** `ui/testhooks.rs` parses the hooks with every old quirk kept; 6 unit tests. FLTK's hooks use it.
+- **Clipboard.** arboard is still tied to `gui`; the `kernel` feature gets it in Stage 3.

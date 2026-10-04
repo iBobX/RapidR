@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.109.0] — 2026-10-04
+
+### Added
+- Desktop host Stage 1: the runtime reaches the desktop GUI only through
+  `rapidr-runtime-core`'s `ui` facade (63 functions + the platform's), with
+  a host switch (`RAPIDR_HOST=fltk|kernel` once both are built), a safety
+  net that queues program handlers fired inside a window callback, and the
+  test hooks' parsing shared by both hosts — FLTK's behaviour unchanged.
+- Desktop host Stage 2: `crates/rapidr-ui-kernel`, the GUI-free UI kernel
+  (forms built from the component store, focus with TabOrder / TabStop,
+  input routing to events in RapidQ's order, display lists, parley text at
+  RapidQ's sizes without kerning, label / button / track bar / tab control /
+  single-line edit with IME, an accessibility tree); it builds for the web
+  too. Shared drawing ops (`rapidr_value::objects::ops`) and accessibility
+  nodes (`objects::a11y`) for every runtime.
+
 ## [2.108.0] — 2026-10-04
 
 ### Changed
