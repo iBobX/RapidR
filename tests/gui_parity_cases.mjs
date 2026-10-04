@@ -184,4 +184,10 @@ export const cases = [
     why: "the browser's forms aren't resized by the user (no frame drag, so no size grip)" },
   // (its accessibility tree and keys: tests/web_a11y.mjs)
   { name: "a11y_form", events: "", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
+  // (timers during native menu tracking: `__hold_600`, a menu held open
+  // 600 ms on the headless host — the timer ticks through the tracking
+  // tick; what needs the pump inside it answers as the plan says)
+  { name: "menu_hold_timers", events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
+    expect: ["lbl.caption=de;pop;modal2;ask7;|-1", "dlg.__shown=0"],
+    web: false, why: "a page's menus never hold its loop: the hold and its tracking tick are the desktop host's" },
 ];
