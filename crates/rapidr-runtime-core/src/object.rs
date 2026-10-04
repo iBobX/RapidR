@@ -35,6 +35,8 @@ impl RpComponent {
                 props.insert("visible".into(), v_bool(false));
                 props.insert("color".into(), v_int(0xFFFFFF));
                 props.insert("borderstyle".into(), v_int(2));
+                // (the WindowState lane's: wsNormal)
+                props.insert("windowstate".into(), v_int(rapidr_value::window_state::WS_NORMAL));
             }
             "RBUTTON" => {
                 props.insert("caption".into(), v_str(""));
@@ -534,6 +536,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get(name, &prop_lower).to_i64());
+    // (the WindowState lane's) A form's WindowState before (its window
+    // follows: maximized, minimized, restored); kept as wsNormal …
+    // wsMaximized.
+    let state_before = (prop_lower == "windowstate" && rp_comp_type(name) == "RFORM").then(|| rp_comp_get(name, "windowstate").to_i64());
+    let val = if state_before.is_some() { v_int(rapidr_value::window_state::of(val.to_i64())) } else { val };
     // A canvas's size before (it paints again only when it changes: a
     // library setting its size in its own OnPaint mustn't loop).
     let canvas_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name)).then(|| rp_comp_get(name, &prop_lower).to_i64());
@@ -816,6 +823,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::ui::gui_move_form(name);
     }
+    #[cfg(feature = "desktop-ui")]
+    if let Some(from) = state_before {
+        crate::ui::gui_set_window_state(name, from);
+    }
+    #[cfg(not(feature = "desktop-ui"))]
+    let _ = state_before;
     // A list view drawn in its color and font again.
     #[cfg(feature = "desktop-ui")]
     if (prop_lower == "color" || prop_lower.starts_with("font")) && rapidr_value::objects::is_listview(name) {

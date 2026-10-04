@@ -29,6 +29,14 @@ impl Host for HeadlessHost {
                 HostCmd::Show(f) => {
                     if let Some(form) = desk.form(&f) {
                         form.scale = self.scale;
+                        form.state = form.spec.state;
+                    }
+                }
+                // (the WindowState lane's: there's no window to maximize —
+                // runtime-core moves the form itself, as the work area)
+                HostCmd::State(f) => {
+                    if let Some(form) = desk.form(&f) {
+                        form.state = form.spec.state;
                     }
                 }
                 // (the input lane's: a size grip's drag resizes at once, as

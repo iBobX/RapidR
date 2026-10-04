@@ -59,6 +59,10 @@ pub enum HostCmd {
     /// the headless host resizes at once; either way the resize comes back
     /// as the user's ([`Desktop::resized`]: OnResize, Width / Height).
     Resize { form: String, w: i64, h: i64 },
+    // (the dialogs and WindowState lane's)
+    /// [`WindowSpec::state`] again: the window maximized, minimized or
+    /// restored (QFORM.WindowState).
+    State(String),
 }
 
 /// A window's picture (RGBA, straight).
@@ -82,6 +86,9 @@ pub struct WindowSpec {
     pub icon: Option<Icon>,
     /// Resizing and the title bar's buttons (BorderStyle, BorderIcons).
     pub frame: crate::platform::Frame,
+    /// (the WindowState lane's) wsNormal 0, wsMinimized 1, wsMaximized 2:
+    /// how the program asked it to show.
+    pub state: i64,
 }
 
 pub struct Form {
@@ -92,6 +99,10 @@ pub struct Form {
     pub z: u64,
     /// The scale its window shows at (device pixels per logical pixel).
     pub scale: f64,
+    /// (the WindowState lane's) What its window is now (wsNormal …): the
+    /// program's state once the host made it so, or the user's own
+    /// maximize / minimize ([`Desktop::window_state`]).
+    pub state: i64,
 }
 
 /// Where input comes from: the OS (dropped under a test, or for a window
@@ -132,7 +143,7 @@ impl Desktop {
         self.forms.entry(key.clone()).or_insert_with(|| {
             let mut ui = FormUi::build(store, &key, menu_in_window);
             ui.blinks = blinks;
-            Form { ui, spec, shown: false, z: 0, scale: 1.0 }
+            Form { ui, spec, shown: false, z: 0, scale: 1.0, state: 0 }
         })
     }
 
@@ -323,6 +334,20 @@ impl Desktop {
             }
         }
         self.collect(id);
+    }
+
+    /// (the WindowState lane's) Form `id`'s window is now `state` (the
+    /// system's word: the user maximized, restored or minimized it, or the
+    /// host made the program's state so): kept, and when it changed the
+    /// program hears it as the form's WindowState set.
+    pub fn window_state(&mut self, id: &str, state: i64) {
+        let key = id.to_lowercase();
+        let Some(f) = self.forms.get_mut(&key) else { return };
+        if f.state != state {
+            f.state = state;
+            f.spec.state = state;
+            self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::Set { id: key, prop: "windowstate".into(), value: state }));
+        }
     }
 
     pub fn scale_changed(&mut self, id: &str, scale: f64) {

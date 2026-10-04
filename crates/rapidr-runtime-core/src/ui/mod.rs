@@ -82,6 +82,8 @@ forward! { gui:
     fn gui_set_form_border(name: &str);
     fn gui_apply_icon(name: &str);
     fn gui_apply_icons();
+    // (the WindowState lane's: Form.WindowState set; it was `from`)
+    fn gui_set_window_state(name: &str, from: i64);
     fn gui_menu_popup(name: &str, x: i32, y: i32);
 
     // Text between the store and the host's editors.

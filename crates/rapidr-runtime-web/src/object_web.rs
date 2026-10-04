@@ -104,6 +104,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("top".to_string(), v_int(100));
             // (hidden until shown, as in RapidQ)
             props.insert("visible".to_string(), v_bool(false));
+            // (the WindowState lane's: wsNormal)
+            props.insert("windowstate".to_string(), v_int(rapidr_value::window_state::WS_NORMAL));
         }
         "RBUTTON" => {
             props.insert("caption".to_string(), v_str(""));

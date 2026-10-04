@@ -70,6 +70,9 @@ enum WinOp {
     Minimize(String),
     /// A pop-up menu shown by the host (form, menu, x, y in its inside).
     Popup(String, String, i64, i64),
+    // (the WindowState lane's)
+    /// The window maximized, minimized or restored (wsNormal …).
+    State(String, i64),
 }
 
 /// A wait the bytecode VM serves itself ([`gui_set_cooperative_waits`]).
@@ -117,6 +120,9 @@ struct State {
     wait_started: bool,
     script: Option<Script>,
     theme: String,
+    /// (the WindowState lane's) The bounds a maximized form goes back to
+    /// (the headless host's maximize: `simulate_state`).
+    normal_bounds: HashMap<String, rapidr_value::window_state::Bounds>,
 }
 
 thread_local! {
@@ -255,6 +261,12 @@ fn sync_desk(k: &mut Kern) {
             }
             WinOp::Minimize(f) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Minimize(f)),
             WinOp::Popup(form, menu, x, y) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Popup { form, menu, x, y }),
+            WinOp::State(f, state) => {
+                if let Some(w) = desk.form(&f) {
+                    w.spec.state = state;
+                    desk.cmds.push(rapidr_ui_host_winit::HostCmd::State(f));
+                }
+            }
         }
     }
     platform::sync(desk);
@@ -568,6 +580,8 @@ fn spec_of(name: &str) -> WindowSpec {
         border: rp_comp_get(name, "borderstyle").to_i64() != 0,
         icon: icon_of(name),
         frame: platform::frame(name),
+        // (the WindowState lane's)
+        state: rapidr_value::window_state::of(rp_comp_get(name, "windowstate").to_i64()),
     }
 }
 
@@ -588,9 +602,75 @@ fn show_window(name: &str) {
     let name = lower(name);
     st(|s| {
         s.shown.insert(name.clone());
-        s.ops.push(WinOp::Show(name));
+        s.ops.push(WinOp::Show(name.clone()));
     });
     pump(Some(Duration::ZERO));
+    // (the WindowState lane's: shown maximized as asked — the system did it
+    // with the window; the headless host's form takes the work area now)
+    let state = rapidr_value::window_state::of(rp_comp_get(&name, "windowstate").to_i64());
+    if state == rapidr_value::window_state::WS_MAXIMIZED && headless() && !st(|s| s.normal_bounds.contains_key(&name)) {
+        simulate_state(&name, rapidr_value::window_state::WS_NORMAL, state);
+    }
+}
+
+/// The host has no system to ask (the headless host of the GUI tests).
+fn headless() -> bool {
+    with_kern(|k| k.host.headless()).unwrap_or(true)
+}
+
+/// (the WindowState lane's) `Form.WindowState` set (it was `from`): its
+/// window maximized, minimized or restored by the system, whose word comes
+/// back as Resized / Moved (Left … Height follow, OnResize) and the window's
+/// state (`Desktop::window_state`). On the headless host there's no system:
+/// the form takes the work area itself (`simulate_state`). A form not shown
+/// yet takes its state when it shows.
+pub fn gui_set_window_state(name: &str, from: i64) {
+    let name = lower(name);
+    if !is_form(&name) || !form_shown(&name) {
+        return;
+    }
+    let to = rapidr_value::window_state::of(rp_comp_get(&name, "windowstate").to_i64());
+    st(|s| s.ops.push(WinOp::State(name.clone(), to)));
+    if headless() {
+        pump(Some(Duration::ZERO));
+        simulate_state(&name, from, to);
+    } else {
+        // (the system's answer, as soon as it comes)
+        pump(Some(Duration::ZERO));
+        dispatch_pending();
+    }
+}
+
+/// The headless host's maximize and restore (`rapidr_value::window_state::
+/// change`): the form moved to the work area (its bounds kept to come back
+/// to) or back, as a user's drag would — Left / Top / Width / Height follow,
+/// its layout, OnResize.
+fn simulate_state(name: &str, from: i64, to: i64) {
+    let get = |p: &str| rp_comp_get(name, p).to_i64();
+    let current = (get("left"), get("top"), get("width"), get("height"));
+    let (ww, wh) = work_area();
+    let saved = st(|s| s.normal_bounds.get(name).copied());
+    let (bounds, keep) = rapidr_value::window_state::change(from, to, current, saved, (0, 0, ww, wh));
+    st(|s| match keep {
+        Some(b) => {
+            s.normal_bounds.insert(name.to_string(), b);
+        }
+        None => {
+            s.normal_bounds.remove(name);
+        }
+    });
+    let Some((left, top, w, h)) = bounds else { return };
+    let (fw, fh) = rapidr_value::layout::form_frame(get("borderstyle"));
+    let (iw, ih) = ((w - fw).max(1), (h - fh).max(1));
+    with_kern(|k| {
+        if let Some(f) = k.desk.forms.get_mut(name) {
+            f.ui.sync(&RtStore);
+        }
+        k.desk.resized(name, iw, ih);
+        k.desk.moved(name, left, top);
+    });
+    st(|s| s.ops.push(WinOp::Size(name.to_string(), (iw, ih))));
+    dispatch_pending();
 }
 
 fn hide_window(name: &str) {

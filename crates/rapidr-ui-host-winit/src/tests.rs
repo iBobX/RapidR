@@ -72,6 +72,29 @@ fn a_headless_pump_runs_the_commands_and_sleeps() {
 }
 
 #[test]
+fn window_states() {
+    let s = store();
+    let mut d = desk(&s);
+    let mut h = HeadlessHost::new(1.0);
+    // the program's state: the headless host takes it as it is told
+    d.form("frm").unwrap().spec.state = 2;
+    d.show("frm");
+    h.pump(Some(Duration::ZERO), &mut d, &s);
+    assert_eq!(d.forms["frm"].state, 2);
+    d.form("frm").unwrap().spec.state = 1;
+    d.cmds.push(HostCmd::State("frm".into()));
+    h.pump(Some(Duration::ZERO), &mut d, &s);
+    assert_eq!(d.forms["frm"].state, 1);
+    assert!(d.events.is_empty());
+    // the system's word (the user restored it): the program hears it as
+    // its WindowState set, once
+    d.window_state("frm", 0);
+    d.window_state("frm", 0);
+    assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::Set { id: "frm".into(), prop: "windowstate".into(), value: 0 })]);
+    assert_eq!(d.forms["frm"].spec.state, 0);
+}
+
+#[test]
 fn captures_are_device_pixels_on_the_cpu() {
     let s = store();
     let mut d = desk(&s);

@@ -354,6 +354,15 @@ impl Shim<'_> {
                         let _ = w.window.request_inner_size(self.inner_size(lw, lh, scale));
                     }
                 }
+                // (the WindowState lane's: the system maximizes, minimizes
+                // or restores it; what it became comes back through
+                // `note_state`)
+                HostCmd::State(f) => {
+                    if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get_mut(&f)) {
+                        apply_state(&w.window, k.spec.state);
+                        k.state = k.spec.state;
+                    }
+                }
                 HostCmd::Forget(f) => {
                     if let Some(w) = self.s.wins.remove(&f) {
                         self.s.ids.remove(&w.window.id());
@@ -401,7 +410,9 @@ impl Shim<'_> {
             .with_resizable(spec.frame.resizable)
             .with_enabled_buttons(spec.frame.buttons())
             .with_inner_size(self.inner_size(spec.size.0, spec.size.1, 1.0))
-            .with_window_icon(icon(spec.icon.as_ref()));
+            .with_window_icon(icon(spec.icon.as_ref()))
+            // (the WindowState lane's: a form shown maximized)
+            .with_maximized(spec.state == 2);
         if let Some((x, y)) = spec.position {
             attrs = attrs.with_position(LogicalPosition::new(x as f64, y as f64));
         }
@@ -419,10 +430,15 @@ impl Shim<'_> {
         let size = window.inner_size();
         let surface = self.surface(&window, size);
         self.s.ids.insert(window.id(), f.to_string());
+        // (the WindowState lane's: shown minimized)
+        if spec.state == 1 {
+            window.set_minimized(true);
+        }
         let scale = self.s.forced.unwrap_or_else(|| window.scale_factor());
         if let Some(k) = self.desk.forms.get_mut(f) {
             k.scale = scale;
             k.ui.dirty = true;
+            k.state = spec.state;
         }
         window.request_redraw();
         self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false });
@@ -552,11 +568,42 @@ impl Shim<'_> {
         }
     }
 
+    /// (the WindowState lane's) What form `f`'s window is now — minimized,
+    /// maximized or neither — told to the program when it changed (the
+    /// user's own maximize, restore or minimize).
+    fn note_state(&mut self, f: &str) {
+        let Some(w) = self.s.wins.get(f) else { return };
+        let now = if w.window.is_minimized() == Some(true) {
+            1
+        } else if w.window.is_maximized() {
+            2
+        } else {
+            0
+        };
+        self.desk.window_state(f, now);
+    }
+
     fn after_input(&mut self, f: &str) {
         if self.desk.forms.get(f).is_some_and(|k| k.ui.dirty) {
             if let Some(w) = self.s.wins.get(f) {
                 w.window.request_redraw();
             }
+        }
+    }
+}
+
+/// (the WindowState lane's) wsNormal 0 / wsMinimized 1 / wsMaximized 2 as
+/// the system's own: restored, minimized, maximized.
+fn apply_state(window: &Window, state: i64) {
+    match state {
+        1 => window.set_minimized(true),
+        2 => {
+            window.set_minimized(false);
+            window.set_maximized(true);
+        }
+        _ => {
+            window.set_minimized(false);
+            window.set_maximized(false);
         }
     }
 }
@@ -638,17 +685,23 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                         w.window.request_redraw();
                     }
                 }
+                self.note_state(&f);
             }
             WindowEvent::Moved(p) => {
                 if let Some(w) = self.s.wins.get(&f) {
                     let pos = p.to_logical::<f64>(w.window.scale_factor());
                     self.desk.moved(&f, pos.x.round() as i64, pos.y.round() as i64);
                 }
+                self.note_state(&f);
             }
-            WindowEvent::Occluded(false) => {
-                if let Some(w) = self.s.wins.get(&f) {
-                    w.window.request_redraw();
+            WindowEvent::Occluded(occluded) => {
+                if !occluded {
+                    if let Some(w) = self.s.wins.get(&f) {
+                        w.window.request_redraw();
+                    }
                 }
+                // (minimized or back: the WindowState lane's)
+                self.note_state(&f);
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 if self.s.forced.is_none() {
@@ -669,6 +722,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             }
             WindowEvent::Focused(true) => {
                 self.s.key_form = Some(f.clone());
+                self.note_state(&f);
                 // A modal form keeps the focus (macOS has no owned windows).
                 if let Some(m) = self.desk.modal.last() {
                     if *m != f {

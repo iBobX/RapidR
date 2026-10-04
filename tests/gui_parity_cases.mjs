@@ -97,6 +97,10 @@ export const cases = [
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
   { name: "font_dialog", kernel: true, events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
     expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 FF|cancel Courier New"] },
+  // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
+  // later click)
+  { name: "window_state", kernel: true, events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
+    expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 -1|0 300", "lbl3.caption=1;2;2;"] },
   { name: "file_dialogs", kernel: true, events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
   { name: "header", kernel: true, events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",

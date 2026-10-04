@@ -1156,6 +1156,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 close_button(&mut win, &name_lower);
+                // (the WindowState lane's: iconized and restored by the user)
+                window_state_handle(&mut win, &name_lower);
                 let form = name_lower.clone();
                 win.draw(move |w| {
                     scale_check(&form, w.pixels_per_unit());
@@ -1179,6 +1181,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.resize_callback(move |_, x, y, w, h| form_resized(&form, x, y, w, h));
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 close_button(&mut win, &name_lower);
+                // (the WindowState lane's: iconized and restored by the user)
+                window_state_handle(&mut win, &name_lower);
                 let form = name_lower.clone();
                 win.draw(move |w| {
                     scale_check(&form, w.pixels_per_unit());
@@ -3262,6 +3266,8 @@ pub fn gui_showmodal(name: &str) -> i64 {
         }
     });
     owner_draw_shown_grids();
+    // (the WindowState lane's: shown maximized or minimized as asked)
+    apply_shown_state(name);
 
     // Fire OnShow event after widgets are built and window is shown
     rp_fire_event(name, "onshow");
@@ -3840,6 +3846,117 @@ pub fn gui_move_form(name: &str) {
     }
 }
 
+// ------------------------------------------- the WindowState lane's --
+
+thread_local! {
+    /// The bounds a maximized form goes back to, under a test's hooks
+    /// (`gui_set_window_state`).
+    static NORMAL_BOUNDS: RefCell<HashMap<String, rapidr_value::window_state::Bounds>> = RefCell::new(HashMap::new());
+}
+
+/// `Form.WindowState` set (it was `from`): the window maximized (FLTK's
+/// maximize), minimized (iconized) or restored — its resize comes back
+/// through `form_resized` (Left … Height follow, OnResize). Under a test's
+/// hooks the window isn't the system's to maximize (a locked screen, an
+/// animated zoom): the form takes the work area itself, as the kernel's
+/// headless host does (`rapidr_value::window_state::change`), and
+/// minimizing changes nothing to see. A form not shown yet takes its state
+/// when it shows.
+pub fn gui_set_window_state(name: &str, from: i64) {
+    use rapidr_value::window_state as ws;
+    let name = name.to_lowercase();
+    let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|w| w.get(&name).cloned())) else { return };
+    if !win.shown() {
+        return;
+    }
+    let to = ws::of(rp_comp_get(&name, "windowstate").to_i64());
+    if crate::ui::testhooks::under_test() {
+        let get = |p: &str| rp_comp_get(&name, p).to_i64();
+        let current = (get("left"), get("top"), get("width"), get("height"));
+        let (x, y, w, h) = app::screen_work_area(0);
+        let saved = NORMAL_BOUNDS.with(|n| n.borrow().get(&name).copied());
+        let (bounds, keep) = ws::change(from, to, current, saved, (i64::from(x), i64::from(y), i64::from(w), i64::from(h)));
+        NORMAL_BOUNDS.with(|n| match keep {
+            Some(b) => n.borrow_mut().insert(name.clone(), b),
+            None => n.borrow_mut().remove(&name),
+        });
+        if let Some((left, top, w, h)) = bounds {
+            // (as a user's drag: form_resized follows)
+            let (fw, fh) = rapidr_value::layout::form_frame(get("borderstyle"));
+            let px = |v: i64| v.clamp(-100_000, 100_000) as i32;
+            win.resize(px(left), px(top), px((w - fw).max(1)), px((h - fh).max(1)));
+        }
+        return;
+    }
+    match to {
+        ws::WS_MAXIMIZED => {
+            if from == ws::WS_MINIMIZED {
+                win.show();
+            }
+            win.maximize();
+        }
+        ws::WS_MINIMIZED => win.iconize(),
+        _ => {
+            if from == ws::WS_MINIMIZED {
+                win.show();
+            }
+            if win.maximize_active() {
+                win.un_maximize();
+            }
+        }
+    }
+}
+
+/// A form shown with a WindowState asked for before (maximized,
+/// minimized): so now — once (a form already maximized under a test's hooks
+/// stays as it is).
+fn apply_shown_state(name: &str) {
+    use rapidr_value::window_state as ws;
+    let name = name.to_lowercase();
+    let state = ws::of(rp_comp_get(&name, "windowstate").to_i64());
+    if state != ws::WS_NORMAL && !NORMAL_BOUNDS.with(|n| n.borrow().contains_key(&name)) {
+        gui_set_window_state(&name, ws::WS_NORMAL);
+    }
+}
+
+/// What form `form`'s window is now — iconized, maximized or neither — into
+/// its WindowState when the user changed it (not under a test's hooks,
+/// whose windows the system doesn't maximize).
+fn note_window_state(form: &str) {
+    use rapidr_value::window_state as ws;
+    if crate::ui::testhooks::under_test() {
+        return;
+    }
+    let Some(GuiWidget::Window(win)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|w| w.get(&form.to_lowercase()).cloned())) else { return };
+    if !win.shown() {
+        return;
+    }
+    let now = if !win.visible() {
+        ws::WS_MINIMIZED
+    } else if win.maximize_active() {
+        ws::WS_MAXIMIZED
+    } else {
+        ws::WS_NORMAL
+    };
+    if rp_comp_get(form, "windowstate").to_i64() != now {
+        crate::object::store_prop(form, "windowstate", v_int(now));
+    }
+}
+
+/// A form's window tells its iconizing and restoring (FLTK's hide / show
+/// while it's shown).
+fn window_state_handle(win: &mut Window, name: &str) {
+    let name = name.to_string();
+    win.handle(move |_, ev| {
+        if matches!(ev, Event::Hide | Event::Show) {
+            let name = name.clone();
+            // (after FLTK has updated the window)
+            app::add_timeout3(0.0, move |_| note_window_state(&name));
+        }
+        false
+    });
+}
+
 /// The user moved or resized a form: its Left / Top / Width / Height
 /// follow, its aligned children are laid out again (the others keep their
 /// places, as in RapidQ — FLTK's proportional scaling is undone) and
@@ -3856,6 +3973,8 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
         app::add_timeout3(0.0, move |_| form_resized(&form, x, y, w, h));
         return;
     }
+    // (the WindowState lane's: the user maximized or restored it)
+    note_window_state(form);
     APPLYING.with(|a| a.set(a.get() + 1));
     crate::layout::quietly(|| {
         rp_comp_set(form, "left", v_int(x as i64));
@@ -3971,6 +4090,8 @@ pub fn gui_show(name: &str) {
     });
 
     owner_draw_shown_grids();
+    // (the WindowState lane's: shown maximized or minimized as asked)
+    apply_shown_state(name);
     // Fire OnShow event after widgets are built and shown
     rp_fire_event(name, "onshow");
     after_show(name);

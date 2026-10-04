@@ -300,6 +300,11 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
         apply_form_icon(name);
         return;
     }
+    // (the WindowState lane's) A form maximized, minimized or restored.
+    if prop == "windowstate" && el.class_list().contains("rr-form") {
+        set_form_state(&id, rapidr_value::window_state::of(val.to_i64()));
+        return;
+    }
     // A QFORMMDI child's frame draws its own caption (mdi_frame_update).
     if el.class_list().contains("rr-mdichild") && matches!(prop, "caption" | "text") {
         return;
@@ -829,8 +834,10 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
         "width" => v_int(el.offset_width() as i64),
         "height" => v_int(el.offset_height() as i64),
         "visible" => {
+            // (a minimized form stays Visible, as on the desktop: the
+            // WindowState lane's)
             let display = style.get_property_value("display").unwrap_or_default();
-            Value::Boolean(display != "none")
+            Value::Boolean(display != "none" || el.has_attribute("data-rr-minimized"))
         }
         "enabled" => {
             if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
@@ -1191,6 +1198,8 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 let _ = el.style().set_property("left", &format!("{}px", ((vw - w) / 2).max(0)));
                 let _ = el.style().set_property("top", &format!("{}px", ((vh - h) / 2).max(0)));
             }
+            // (the WindowState lane's: shown maximized as asked)
+            apply_shown_state(name);
             // As on the desktop, ShowModal waits until the form closes (the
             // VM suspends the code that called it); where nothing can wait it
             // returns at once.
@@ -5224,6 +5233,16 @@ pub fn gui_web_show_form(name: &str) {
         let _ = el.style().set_property("display", "block");
     }
     crate::scroll_web::shown(name);
+    apply_shown_state(name);
+}
+
+/// (the WindowState lane's) A form shown with a WindowState asked for
+/// before (maximized, minimized): so now.
+fn apply_shown_state(name: &str) {
+    let state = rapidr_value::window_state::of(crate::object_web::rp_comp_get_stored(name, "windowstate").to_i64());
+    if state != rapidr_value::window_state::WS_NORMAL {
+        set_form_state(&comp_id(name), state);
+    }
 }
 
 /// Re-parent a DOM element to a different parent's client area.
@@ -5408,6 +5427,10 @@ thread_local! {
     /// Stores (left, top, width, height) before maximize for each form id
     static FORM_SAVED_GEOMETRY: std::cell::RefCell<HashMap<String, (i32, i32, i32, i32)>> =
         std::cell::RefCell::new(HashMap::new());
+    /// (the WindowState lane's) A maximized form's Left / Top as the
+    /// program read them before (restoring brings them back).
+    static FORM_SAVED_POSITION: std::cell::RefCell<HashMap<String, (i32, i32)>> =
+        std::cell::RefCell::new(HashMap::new());
 }
 
 fn form_bring_to_front(form_id: &str) {
@@ -5421,11 +5444,77 @@ fn form_bring_to_front(form_id: &str) {
     }
 }
 
+/// (the WindowState lane's) Form `form_id`'s WindowState as the program
+/// reads it, after the user's (or the program's) maximize, minimize or
+/// restore.
+fn note_form_state(form_id: &str, state: i64) {
+    let name = form_id.strip_prefix("rr-").unwrap_or(form_id).to_uppercase();
+    crate::object_web::rp_comp_set_prop_only(&name, "windowstate", v_int(state));
+}
+
+/// (the WindowState lane's) `Form.WindowState` on the web: wsMaximized fills
+/// the page's viewport (as the title bar's □ does), wsMinimized hides it to
+/// the page's task bar (as _ does: still Visible, its button restores it),
+/// wsNormal brings back its own bounds.
+fn set_form_state(form_id: &str, to: i64) {
+    use rapidr_value::window_state as ws;
+    let Some(el) = get_el(form_id) else { return };
+    let minimized = el.has_attribute("data-rr-minimized");
+    let maximized = FORM_SAVED_GEOMETRY.with(|sg| sg.borrow().contains_key(form_id));
+    match to {
+        ws::WS_MAXIMIZED => {
+            if minimized {
+                form_restore(form_id);
+            }
+            if !maximized {
+                form_maximize(form_id);
+            }
+        }
+        ws::WS_MINIMIZED => {
+            if !minimized {
+                form_minimize(form_id);
+            }
+        }
+        _ => {
+            if minimized {
+                form_restore(form_id);
+            }
+            if maximized {
+                form_maximize(form_id);
+            }
+        }
+    }
+    note_form_state(form_id, to);
+}
+
+/// A minimized form back from the page's task bar (maximized, if it was).
+fn form_restore(form_id: &str) {
+    if let Some(el) = get_el(form_id) {
+        let _ = el.style().set_property("display", "block");
+        let _ = el.remove_attribute("data-rr-minimized");
+    }
+    form_bring_to_front(form_id);
+    if let Some(rb) = document().get_element_by_id(&format!("{form_id}-restore")) {
+        rb.remove();
+    }
+    // (an empty task bar goes)
+    if let Some(tb) = document().get_element_by_id("rr-taskbar") {
+        if tb.child_element_count() == 0 {
+            tb.remove();
+        }
+    }
+    let maximized = FORM_SAVED_GEOMETRY.with(|sg| sg.borrow().contains_key(form_id));
+    note_form_state(form_id, if maximized { rapidr_value::window_state::WS_MAXIMIZED } else { rapidr_value::window_state::WS_NORMAL });
+}
+
 fn form_minimize(form_id: &str) {
     // Minimize: create a small taskbar-like button at the bottom of the viewport
     if let Some(el) = get_el(form_id) {
         let _ = el.style().set_property("display", "none");
+        // (still Visible: the WindowState lane's)
+        let _ = el.set_attribute("data-rr-minimized", "");
     }
+    note_form_state(form_id, rapidr_value::window_state::WS_MINIMIZED);
     // Create or update a restore button in the taskbar
     let doc = document();
     let taskbar_id = "rr-taskbar";
@@ -5478,24 +5567,8 @@ fn form_minimize(form_id: &str) {
     let _ = btn.style().set_property("white-space", "nowrap");
     {
         let fid = form_id.to_string();
-        let rid = restore_id.clone();
-        let cb = Closure::<dyn FnMut()>::new(move || {
-            // Restore the form
-            if let Some(el) = get_el(&fid) {
-                let _ = el.style().set_property("display", "block");
-            }
-            form_bring_to_front(&fid);
-            // Remove the restore button
-            if let Some(rb) = document().get_element_by_id(&rid) {
-                rb.remove();
-            }
-            // If taskbar empty, hide it
-            if let Some(tb) = document().get_element_by_id("rr-taskbar") {
-                if tb.child_element_count() == 0 {
-                    tb.remove();
-                }
-            }
-        });
+        // (the form back, its button gone: form_restore)
+        let cb = Closure::<dyn FnMut()>::new(move || form_restore(&fid));
         let _ = btn.add_event_listener_with_callback("click", cb.as_ref().unchecked_ref());
         cb.forget();
     }
@@ -5516,7 +5589,12 @@ fn form_maximize(form_id: &str) {
         let _ = style.set_property("width", &format!("{}px", w));
         let _ = style.set_property("height", &format!("{}px", h));
         let _ = style.set_property("border-radius", "6px");
-        form_resized(form_id, l, t, w, h);
+        note_form_state(form_id, rapidr_value::window_state::WS_NORMAL);
+        // (the Left / Top the program read before: they come back, as on
+        // the desktop — the element's place may differ, a ShowModal centres
+        // it in the page)
+        let (pl, pt) = FORM_SAVED_POSITION.with(|sp| sp.borrow_mut().remove(form_id)).unwrap_or((l, t));
+        form_resized(form_id, pl, pt, w, h);
     } else {
         // Save current geometry and maximize
         let l = el.offset_left();
@@ -5524,6 +5602,9 @@ fn form_maximize(form_id: &str) {
         let w = el.offset_width();
         let h = el.offset_height();
         FORM_SAVED_GEOMETRY.with(|sg| sg.borrow_mut().insert(form_id.to_string(), (l, t, w, h)));
+        let name = form_id.strip_prefix("rr-").unwrap_or(form_id).to_uppercase();
+        let stored = |p: &str| crate::object_web::rp_comp_get_stored(&name, p).to_i64() as i32;
+        FORM_SAVED_POSITION.with(|sp| sp.borrow_mut().insert(form_id.to_string(), (stored("left"), stored("top"))));
         let _ = style.set_property("left", "0");
         let _ = style.set_property("top", "0");
         let _ = style.set_property("width", "100vw");
@@ -5532,6 +5613,7 @@ fn form_maximize(form_id: &str) {
         let (vw, vh) = web_sys::window()
             .map(|w| (w.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(0.0), w.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(0.0)))
             .unwrap_or((0.0, 0.0));
+        note_form_state(form_id, rapidr_value::window_state::WS_MAXIMIZED);
         form_resized(form_id, 0, 0, vw as i32, vh as i32);
     }
 }

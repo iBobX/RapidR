@@ -114,6 +114,7 @@ fn run(d: Dialog) -> Answer {
         border: true,
         icon: app_icon(),
         frame: Frame { resizable: false, close: true, minimize: false, maximize: false },
+        state: 0,
     };
     OPEN.with(|o| o.borrow_mut().push(d));
     with_kern(|k| {
