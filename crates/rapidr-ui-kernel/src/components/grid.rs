@@ -28,10 +28,11 @@ use rapidr_value::objects::ops::{lift, Op, Place, Rect};
 use rapidr_value::objects::{with_grid, with_grid_mut};
 use rapidr_value::scrollbars::{Child, Scroller};
 
-use super::list::{act, begin_edit, edit_key, editing, end_edit, fire, paint_edit, replay, set_edit_text, sunken, InPlace, ListAction};
-use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
+use super::list::{act, begin_edit, begin_edit_typed, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, replay, set_edit_text, sunken, InPlace, ListAction};
+use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
+use crate::store::Store;
 use crate::paint::{Painter, DARK, FACE, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
 use crate::text::bgr_to_rgb;
 
@@ -169,23 +170,37 @@ fn scroll_to_cell(g: &mut StringGrid, c: i64, r: i64, l: &Layout) {
 }
 
 impl Grid {
-    /// Starts editing the selected cell (with `initial` text, or its own).
+    /// Starts editing the selected cell (with `initial` text, typed — the
+    /// caret after it — or its own, all selected).
     fn start_edit(cx: &mut Cx, initial: Option<String>) {
         let Some((c, r, text, editable)) = with_grid(cx.id, |g| (g.col, g.row, g.cell(g.col.max(0) as usize, g.row.max(0) as usize).to_string(), g.editable())) else { return };
         if !editable || c < 0 || r < 0 {
             return;
         }
-        begin_edit(cx.id, InPlace { target: (c as usize, r as usize), text: initial.unwrap_or(text), rect: None });
+        let target = (c as usize, r as usize);
+        match initial {
+            Some(typed) => begin_edit_typed(cx.id, InPlace { target, text: typed, rect: None }),
+            None => begin_edit(cx.id, InPlace { target, text, rect: None }),
+        }
     }
 
     /// An edit going on ends: kept, the cell gets it (OnSetEditText,
     /// OnChange: runtime-core).
     fn finish_edit(cx: &mut Cx, keep: bool) {
         if let Some(ed) = end_edit(cx.id) {
+            cx.ui.edit = None;
             if keep {
                 act(cx, ListAction::GridStore(ed.text));
             }
         }
+    }
+
+    /// (the input lane's) The edit's box (the cell's, in the component),
+    /// while one goes on and its cell shows.
+    fn edit_rect(cx: &Cx) -> Option<Rect> {
+        let (c, r) = editing(cx.id)?.target;
+        let g = with_grid(cx.id, |g| g.clone())?;
+        cell_rect(&layout(cx.id, &g, cx.width(), cx.height()), c, r)
     }
 }
 
@@ -195,6 +210,7 @@ impl ComponentKind for Grid {
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
+        drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
         sunken(p, w, h, 0xFFFFFF);
         // (VisibleRowCount / VisibleColCount: the inside, as FLTK's table)
@@ -214,7 +230,6 @@ impl ComponentKind for Grid {
         let l = layout(cx.id, &g, w, h);
         let font = cx.font.clone();
         let text_color = bgr_to_rgb(font.color);
-        let edit = editing(cx.id);
         let (fc, fr) = (g.fixed_cols(), g.fixed_rows());
         p.at((2, 2), |p| {
             p.clipped((0, 0, l.inner.0, l.inner.1), |p| {
@@ -270,14 +285,15 @@ impl ComponentKind for Grid {
                                 p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
                             }
                         });
-                        if let Some(ed) = edit.as_ref().filter(|e| e.target == (c, r)) {
-                            paint_edit(p, rect, &ed.text, &font, cx.state.caret_on);
-                        }
                     }
                 }
             });
             p.ops(l.bars.clone());
         });
+        // (the cell's editor over it, in the cells' area)
+        if let Some(r) = editing(cx.id).and_then(|ed| cell_rect(&l, ed.target.0, ed.target.1)) {
+            p.clipped((2, 2, l.inner.0, l.inner.1), |p| paint_editor(cx, p, r));
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
@@ -323,6 +339,12 @@ impl ComponentKind for Grid {
         });
         if on_bars {
             return MouseOut::default();
+        }
+        // (the edit's box: its editor's)
+        if let Some(r) = editing(cx.id).and_then(|ed| cell_rect(&l, ed.target.0, ed.target.1)) {
+            if editor_mouse(cx, m, r) {
+                return MouseOut::default();
+            }
         }
         let id = cx.id.to_string();
         match m.kind {
@@ -409,12 +431,17 @@ impl ComponentKind for Grid {
         MouseOut::default()
     }
 
-    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
-        if let Some(end) = edit_key(cx.id, k) {
-            if let Some(keep) = end {
-                Self::finish_edit(cx, keep);
+    fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        // (while editing, the keys are the editor's — its cell scrolled away
+        // or not)
+        if editing(cx.id).is_some() {
+            let r = Self::edit_rect(cx).unwrap_or((2, 2, 64, 24));
+            if let Some(end) = edit_key(cx, k, clip, r) {
+                if let Some(keep) = end {
+                    Self::finish_edit(cx, keep);
+                }
+                return true;
             }
-            return true;
         }
         if k.mods.alt || k.mods.command {
             return false;
@@ -470,6 +497,23 @@ impl ComponentKind for Grid {
 
     fn access(&self, _cx: &mut Cx, _action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {
         false
+    }
+
+    // (the input lane's: the edit's input methods and context menu)
+    fn ime(&self, cx: &mut Cx, ime: &Ime) -> bool {
+        Self::edit_rect(cx).is_some_and(|r| editor_ime(cx, ime, r))
+    }
+
+    fn ime_area(&self, cx: &mut Cx) -> Option<Rect> {
+        editor_ime_area(cx, Self::edit_rect(cx)?)
+    }
+
+    fn wants_ime(&self, _store: &dyn Store, id: &str) -> bool {
+        editing(id).is_some()
+    }
+
+    fn context_menu(&self, cx: &mut Cx) -> Option<super::edit::MenuState> {
+        editor_menu(cx, Self::edit_rect(cx)?)
     }
 
     /// `__cell_c_r`: cell (c, r) selected as FLTK's hook does (OnSelectCell,

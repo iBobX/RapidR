@@ -71,6 +71,12 @@ impl FormUi {
     pub fn set_focus(&mut self, i: Option<usize>) {
         if self.focus != i {
             self.dirty = true;
+            // (the input lane's: an in-place edit ends, kept, when its
+            // component loses the focus — components/list.rs)
+            if let Some(old) = self.focus {
+                let (id, t) = (self.nodes[old].id.clone(), self.nodes[old].type_name.clone());
+                crate::components::list::focus_left(&id, &t, &mut self.events);
+            }
         }
         self.focus = i;
         self.reset_caret();

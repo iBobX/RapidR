@@ -49,6 +49,10 @@ pub enum Source {
     Text,
     /// A QCOMBOBOX's `ItemList::text` (its editable box).
     Combo,
+    /// (the input lane's) A tree's node, a list view's caption or a grid's
+    /// cell being edited in place (`list::InPlace`): not the program's text
+    /// until Enter keeps it, so typing fires no OnChange.
+    InPlace,
 }
 
 /// The model as an edit shows it.
@@ -72,6 +76,10 @@ fn read_model(src: Source, id: &str) -> Option<Model> {
             let mut h = std::collections::hash_map::DefaultHasher::new();
             l.text.hash(&mut h);
             Model { revision: h.finish(), text: l.text.clone(), sel: None, read_only: false, max_length: 0, char_case: 0, reveal: 0 }
+        }),
+        Source::InPlace => super::list::editing(id).map(|ed| {
+            let (revision, sel) = super::list::edit_shown(id);
+            Model { revision, text: ed.text, sel: Some(sel), read_only: false, max_length: 0, char_case: 0 }
         }),
     }
 }
@@ -256,6 +264,10 @@ impl EditUi {
                 // (the model's text is the editor's: not the program's change)
                 self.shown = read_model(self.src, id).map(|m| m.revision);
                 changed
+            }
+            Source::InPlace => {
+                super::list::set_typed_text(id, &text);
+                false
             }
         }
     }
@@ -758,7 +770,12 @@ pub(crate) struct Spec {
 impl Spec {
     /// A single-line box's (QEDIT, a combo's) with text area `area`.
     pub fn line(cx: &Cx, area: Rect, src: Source) -> Spec {
-        Spec { look: look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false), width: area.2 as f64, multi: false, src }
+        // (an in-place editor: plain text in the component's font)
+        let look = match src {
+            Source::InPlace => Look { font: cx.font.clone(), color: bgr_to_rgb(cx.font.color), mask: None, align: Align::Left, wrap: false },
+            _ => look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false),
+        };
+        Spec { look, width: area.2 as f64, multi: false, src }
     }
 
     /// Node `ui`'s editor made for it, showing the model.

@@ -19,12 +19,12 @@ use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::tree::{Hit, Row, BUTTON, ROW_HEIGHT};
 use rapidr_value::objects::with_tree;
 
-use super::list::{act, background, begin_edit, edit_key, editing, end_edit, fire, paint_edit, picture_of, set_edit_text, sunken, vscroll_at, vscroll_mouse, vscroll_state, InPlace, ListAction};
-use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
+use super::list::{act, background, begin_edit, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, set_edit_text, sunken, vscroll_at, vscroll_mouse, vscroll_state, InPlace, ListAction};
+use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
 use crate::paint::{Painter, FACE, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, SHADOW};
-use crate::store;
+use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
 
 /// The lines' grey (Windows draws them dotted, every other pixel).
@@ -87,10 +87,23 @@ impl Tree {
     /// An edit going on ends (a click elsewhere keeps it, as Windows does).
     fn finish_edit(cx: &mut Cx, keep: bool) {
         if let Some(ed) = end_edit(cx.id) {
+            cx.ui.edit = None;
             if keep {
                 act(cx, ListAction::TreeEdited(ed.target.0, ed.text));
             }
         }
+    }
+
+    /// (the input lane's) The edit's box in the component — over the node's
+    /// text (its icon's right), to the rows' right edge (at least 40 wide)
+    /// — while one goes on and its row shows.
+    fn edit_rect(cx: &Cx) -> Option<Rect> {
+        let ed = editing(cx.id)?;
+        let (row, (_, y, _, rh)) = Self::row_rect(cx, ed.target.0)?;
+        let x = text_left(cx, &row);
+        let (_, bar, _) = vscroll_state(cx.id);
+        let cw = cx.width() - 4 - if bar { rapidr_value::scrollbars::BAR } else { 0 };
+        Some((x, y, (cw - (x - 2) - 3).max(40), rh))
     }
 
     /// A press on node `n` (not on its button): asks to select it, then
@@ -122,6 +135,7 @@ impl ComponentKind for Tree {
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
+        drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
         sunken(p, w, h, background(cx));
         let Some((count, top_row, hide)) = with_tree(cx.id, |t| {
@@ -137,7 +151,6 @@ impl ComponentKind for Tree {
         let font = cx.font.clone();
         let focused = cx.state.focused;
         let enabled = cx.state.enabled;
-        let edit = editing(cx.id);
         let (show_lines, rows_all) = (with_tree(cx.id, |t| t.show_lines).unwrap_or(true), rows.clone());
         p.at((2, 2), |p| {
             p.clipped((0, 0, cw, h - 4), |p| {
@@ -190,14 +203,14 @@ impl ComponentKind for Tree {
                     if shown && focused {
                         p.focus(tr);
                     }
-                    if let Some(ed) = edit.as_ref().filter(|e| e.target.0 == row.node) {
-                        let r = (x, row.top, (cw - x - 3).max(40), row.height);
-                        paint_edit(p, r, &ed.text, &font, cx.state.caret_on);
-                    }
                 }
             });
             p.ops(bar);
         });
+        // (the node's editor over its row, in the rows' area)
+        if let Some(r) = Self::edit_rect(cx) {
+            p.clipped((2, 2, cw, h - 4), |p| paint_editor(cx, p, r));
+        }
     }
 
     fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
@@ -228,6 +241,12 @@ impl ComponentKind for Tree {
             });
             return MouseOut::default();
         }
+        // (the edit's box: its editor's)
+        if let Some(r) = Self::edit_rect(cx) {
+            if editor_mouse(cx, m, r) {
+                return MouseOut::default();
+            }
+        }
         if m.kind != MouseKind::Down {
             return MouseOut::default();
         }
@@ -246,12 +265,17 @@ impl ComponentKind for Tree {
         MouseOut::default()
     }
 
-    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
-        if let Some(end) = edit_key(cx.id, k) {
-            if let Some(keep) = end {
-                Self::finish_edit(cx, keep);
+    fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        // (while editing, the keys are the editor's — its row scrolled away
+        // or not)
+        if editing(cx.id).is_some() {
+            let r = Self::edit_rect(cx).unwrap_or((2, 2, cx.width() - 4, ROW_HEIGHT));
+            if let Some(end) = edit_key(cx, k, clip, r) {
+                if let Some(keep) = end {
+                    Self::finish_edit(cx, keep);
+                }
+                return true;
             }
-            return true;
         }
         if k.mods.alt || k.mods.command {
             return false;
@@ -336,6 +360,23 @@ impl ComponentKind for Tree {
             _ => return false,
         }
         true
+    }
+
+    // (the input lane's: the edit's input methods and context menu)
+    fn ime(&self, cx: &mut Cx, ime: &Ime) -> bool {
+        Self::edit_rect(cx).is_some_and(|r| editor_ime(cx, ime, r))
+    }
+
+    fn ime_area(&self, cx: &mut Cx) -> Option<Rect> {
+        editor_ime_area(cx, Self::edit_rect(cx)?)
+    }
+
+    fn wants_ime(&self, _store: &dyn Store, id: &str) -> bool {
+        editing(id).is_some()
+    }
+
+    fn context_menu(&self, cx: &mut Cx) -> Option<super::edit::MenuState> {
+        editor_menu(cx, Self::edit_rect(cx)?)
     }
 
     /// `__node_i` (a click on node i's text), `__toggle_i` (on its

@@ -15,7 +15,8 @@
 //!
 //! Also here, what the lists lane's components share: [`ListAction`]
 //! (what the user did that the program answers, done by runtime-core),
-//! the in-place editors of trees, list views and grids, the vertical
+//! the in-place editors of trees, list views and grids (the text lane's
+//! editor over the edit's text), the vertical
 //! scroll bar (the shared `scrollbars::Scroller`), the sunken frame and
 //! the replay of what an owner-draw handler drew ([`replay`]).
 
@@ -32,6 +33,7 @@ use rapidr_value::objects::{with_list, with_list_mut};
 use rapidr_value::scrollbars::{Child, Scroller};
 use rapidr_value::Value;
 
+use super::edit::Source;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::display::Picture;
@@ -88,7 +90,10 @@ pub fn fire(cx: &mut Cx, event: &str, args: Vec<Value>) {
 
 /// A text being edited over a tree's node, a list view's caption or a
 /// grid's cell (Windows' in-place edit control): what it edits and the
-/// text so far. Enter keeps it, Escape drops it.
+/// text so far. (the input lane's) The text lane's editor shows and edits
+/// it — caret, selection, the mouse, the clipboard, input methods, the
+/// context menu; Enter keeps it, Escape drops it, the focus leaving the
+/// component keeps it (as Windows' and FLTK's editors).
 #[derive(Clone, Debug, PartialEq)]
 pub struct InPlace {
     /// The node, item or (col, row) cell.
@@ -101,12 +106,36 @@ pub struct InPlace {
 thread_local! {
     static EDITING: RefCell<HashMap<String, InPlace>> = RefCell::new(HashMap::new());
     static SCROLLS: RefCell<HashMap<String, Scroller>> = RefCell::new(HashMap::new());
+    /// (the input lane's) What each editor is to show: the text's revision
+    /// (a new edit, a test's text) and the selection then, in characters.
+    static SHOWN: RefCell<HashMap<String, (u64, (usize, usize))>> = RefCell::new(HashMap::new());
+    static REVISION: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// The editor of `id` shows its text again, with `sel` selected.
+fn show(id: &str, sel: (usize, usize)) {
+    let rev = REVISION.with(|r| {
+        r.set(r.get() + 1);
+        r.get()
+    });
+    SHOWN.with(|s| s.borrow_mut().insert(id.to_lowercase(), (rev, sel)));
 }
 
 /// Starts editing in component `id` (runtime-core, once OnEditing allowed
-/// it; the component itself for a list view).
+/// it; the component itself for a list view), the text all selected (as
+/// Windows' label edits and Delphi's grid editor start).
 pub fn begin_edit(id: &str, edit: InPlace) {
+    let n = edit.text.chars().count();
     EDITING.with(|e| e.borrow_mut().insert(id.to_lowercase(), edit));
+    show(id, (0, n));
+}
+
+/// (the input lane's) Starts editing with the caret after the text (a
+/// grid's edit that a typed character started).
+pub fn begin_edit_typed(id: &str, edit: InPlace) {
+    let n = edit.text.chars().count();
+    EDITING.with(|e| e.borrow_mut().insert(id.to_lowercase(), edit));
+    show(id, (n, 0));
 }
 
 pub fn editing(id: &str) -> Option<InPlace> {
@@ -118,8 +147,22 @@ pub fn end_edit(id: &str) -> Option<InPlace> {
     EDITING.with(|e| e.borrow_mut().remove(&id.to_lowercase()))
 }
 
-/// The edit's text replaced (a test's `__enter` types "Renamed").
+/// The edit's text replaced (a test's `__enter` types "Renamed"), the
+/// caret after it.
 pub fn set_edit_text(id: &str, text: &str) {
+    let found = EDITING.with(|e| {
+        e.borrow_mut().get_mut(&id.to_lowercase()).map(|ed| {
+            ed.text = text.to_string();
+        })
+    });
+    if found.is_some() {
+        show(id, (text.chars().count(), 0));
+    }
+}
+
+/// (the input lane's) What the user typed into `id`'s editor (its text,
+/// not shown again).
+pub(crate) fn set_typed_text(id: &str, text: &str) {
     EDITING.with(|e| {
         if let Some(ed) = e.borrow_mut().get_mut(&id.to_lowercase()) {
             ed.text = text.to_string();
@@ -127,39 +170,110 @@ pub fn set_edit_text(id: &str, text: &str) {
     });
 }
 
-/// What a key does to component `id`'s edit: `Some(Some(keep))` when it
-/// ends (Enter keeps, Escape drops), `Some(None)` when the edit took it,
-/// `None` without an edit.
-pub fn edit_key(id: &str, k: &KeyIn) -> Option<Option<bool>> {
-    let mut ed = editing(id)?;
-    match k.vk {
-        13 => return Some(Some(true)),
-        27 => return Some(Some(false)),
-        8 => {
-            ed.text.pop();
-        }
-        _ if !k.text.is_empty() && !k.mods.command && !k.mods.ctrl && !k.mods.alt && k.text.chars().all(|c| !c.is_control()) => ed.text.push_str(k.text),
-        _ => return Some(None),
-    }
-    begin_edit(id, ed);
-    Some(None)
+/// (the input lane's) The revision and selection `id`'s editor is to show.
+pub(crate) fn edit_shown(id: &str) -> (u64, (usize, usize)) {
+    SHOWN.with(|s| s.borrow().get(&id.to_lowercase()).copied()).unwrap_or((0, (0, 0)))
 }
 
-/// Draws an edit box over `rect` (a white box, a black frame, the text and
-/// its caret at the end).
-pub fn paint_edit(p: &mut Painter, rect: Rect, text: &str, font: &Font, caret_on: bool) {
-    let (x, y, w, h) = rect;
+/// Where an in-place editor's text goes in its box `rect` (a 1-pixel frame,
+/// a 2-pixel margin).
+pub fn editor_area((x, y, w, h): Rect) -> Rect {
+    (x + 3, y + 1, (w - 6).max(0), (h - 2).max(0))
+}
+
+/// What a key does to component `cx`'s edit, its box at `rect` (in the
+/// component): `Some(Some(keep))` when it ends (Enter keeps, Escape
+/// drops), `Some(None)` when the editor took it — typing, the caret's and
+/// selection's moves, deletes, Ctrl+C / X / V / Z / A, the menu key —
+/// `None` without an edit.
+pub fn edit_key(cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard, rect: Rect) -> Option<Option<bool>> {
+    editing(cx.id)?;
+    match k.vk {
+        13 => Some(Some(true)),
+        27 => Some(Some(false)),
+        _ => {
+            super::edit::key_line(cx, k, clip, editor_area(rect), Source::InPlace);
+            Some(None)
+        }
+    }
+}
+
+/// Draws component `cx`'s edit in its box `rect` (in the component): a
+/// white box in a black frame with the editor in it.
+pub fn paint_editor(cx: &mut Cx, p: &mut Painter, rect: Rect) {
     p.fill(rect, 0xFFFFFF);
     p.edge(rect, &[0x000000], &[0x000000]);
-    let inner = (x + 3, y + 1, (w - 6).max(0), (h - 2).max(0));
-    p.clipped(inner, |p| {
-        p.text(inner, text, font, bgr_to_rgb(font.color), Place::Left);
-        if caret_on {
-            let tw = rapidr_value::objects::text::text_size(text, font).0;
-            let th = font.pixel_size().min(h - 2).max(1);
-            p.fill((inner.0 + tw, y + (h - th) / 2, 1, th), 0x000000);
+    super::edit::paint_line(cx, p, editor_area(rect), Source::InPlace);
+}
+
+/// The mouse on component `cx` while it edits, the edit's box at `rect`:
+/// whether the editor took it — a press in the box (the caret, a word, all
+/// of it), a drag from there (the selection); a press elsewhere is the
+/// component's, which ends the edit.
+pub fn editor_mouse(cx: &mut Cx, m: &MouseIn, rect: Rect) -> bool {
+    if editing(cx.id).is_none() {
+        return false;
+    }
+    let (x, y, w, h) = rect;
+    let inside = m.x >= x as f64 && m.y >= y as f64 && m.x < (x + w) as f64 && m.y < (y + h) as f64;
+    match m.kind {
+        MouseKind::Down if inside => {
+            super::edit::mouse_line(cx, m, editor_area(rect), Source::InPlace);
+            true
         }
-    });
+        MouseKind::Move | MouseKind::Up if m.captured => {
+            super::edit::mouse_line(cx, m, editor_area(rect), Source::InPlace);
+            true
+        }
+        _ => false,
+    }
+}
+
+/// The editor goes with the edit (no caret blinking on).
+pub fn drop_editor(cx: &mut Cx) {
+    if editing(cx.id).is_none() {
+        cx.ui.edit = None;
+    }
+}
+
+/// The edit's input method, context menu, IME window (its box at `rect`):
+/// what a component that edits in place answers while it does.
+pub fn editor_ime(cx: &mut Cx, ime: &super::Ime, rect: Rect) -> bool {
+    if editing(cx.id).is_none() {
+        return false;
+    }
+    let area = editor_area(rect);
+    let spec = super::edit::Spec::line(cx, area, Source::InPlace);
+    let s = cx.scale;
+    super::edit::ime_box(cx, &spec, ime, |_| ((area.2 as f64 * s).max(1.0), (area.3 as f64 * s).max(1.0)));
+    true
+}
+
+pub fn editor_ime_area(cx: &mut Cx, rect: Rect) -> Option<Rect> {
+    editing(cx.id)?;
+    Some(super::edit::ime_area_line(cx, editor_area(rect), Source::InPlace))
+}
+
+pub fn editor_menu(cx: &mut Cx, rect: Rect) -> Option<super::edit::MenuState> {
+    editing(cx.id)?;
+    Some(super::edit::menu_line(cx, editor_area(rect), Source::InPlace))
+}
+
+/// (the input lane's) The focus left component `id` (a `type_name`) while
+/// it edited in place: the edit ends, kept — the events for the program
+/// (OnEdited, OnSetEditText …) into `events`.
+pub(crate) fn focus_left(id: &str, type_name: &str, events: &mut Vec<KernelEvent>) {
+    if editing(id).is_none() {
+        return;
+    }
+    let Some(ed) = end_edit(id) else { return };
+    let id = id.to_lowercase();
+    match type_name {
+        "RTREEVIEW" => events.push(KernelEvent::List(id, ListAction::TreeEdited(ed.target.0, ed.text))),
+        "RSTRINGGRID" => events.push(KernelEvent::List(id, ListAction::GridStore(ed.text))),
+        "RLISTVIEW" => events.extend(super::listview::edited(&id, ed)),
+        _ => {}
+    }
 }
 
 // ------------------------------------------------------- scrolling --
@@ -711,5 +825,116 @@ mod tests {
         rapidr_value::objects::call("g", "fillrect", &[v_int(140), v_int(30), v_int(150), v_int(40), v_int(0xFF)], &reader);
         let list = f.paint(&s, &mut ts, 1.0);
         assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: Op::Fill { color: 0xFF0000, rect: (10, 5, 10, 10) }, .. })));
+    }
+
+    // ------------------------------------------- in-place editors --
+    // (the input lane's: the text lane's editor over the edit's text)
+
+    /// Typed: each character's key (Windows' VK) with its text.
+    fn type_text(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, text: &str, clip: &mut crate::MemClipboard) {
+        for c in text.chars() {
+            let vk = rapidr_value::input::vk_of_char(c).unwrap_or(0);
+            f.key_down(s, ts, vk, &c.to_string(), Mods::NONE, clip);
+        }
+    }
+
+    fn key(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, vk: i64, mods: Mods, clip: &mut crate::MemClipboard) {
+        f.key_down(s, ts, vk, "", mods, clip);
+    }
+
+    fn lists(events: Vec<KernelEvent>) -> Vec<KernelEvent> {
+        events.into_iter().filter(|e| matches!(e, KernelEvent::List(..) | KernelEvent::Change(_) | KernelEvent::Click(_))).collect()
+    }
+
+    fn tree_form() -> (MemStore, FormUi, TextSystem) {
+        let (s, mut f, ts) = form(|s| {
+            s.add("tv", "RTREEVIEW", Some("f")).set("tv", "width", v_int(200)).set("tv", "height", v_int(200));
+            s.call("tv", "additems", &[v_str("one"), v_str("two words")]);
+            s.add("b", "RBUTTON", Some("f")).set("b", "left", v_int(250));
+        });
+        f.focus_id(&s, "tv");
+        (s, f, ts)
+    }
+
+    #[test]
+    fn a_tree_nodes_editor_is_the_text_editor() {
+        let (s, mut f, mut ts) = tree_form();
+        let mut clip = crate::MemClipboard::default();
+        // (the editor opens with the text all selected: typing replaces it,
+        // and fires no OnChange — the text isn't the program's yet)
+        super::super::tree::open_editor("tv", 0, "one");
+        drop(f.paint(&s, &mut ts, 1.0));
+        type_text(&mut f, &s, &mut ts, "Pear", &mut clip);
+        assert_eq!(super::editing("tv").unwrap().text, "Pear");
+        // (the caret and selection move; the clipboard; Backspace)
+        const SHIFT_END: Mods = Mods::SHIFT;
+        key(&mut f, &s, &mut ts, 36, Mods::NONE, &mut clip);
+        key(&mut f, &s, &mut ts, 35, SHIFT_END, &mut clip);
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some("Pear"));
+        key(&mut f, &s, &mut ts, 35, Mods::NONE, &mut clip);
+        key(&mut f, &s, &mut ts, 8, Mods::NONE, &mut clip);
+        assert!(f.wants_ime(&s), "an edit going on takes input methods");
+        // (drawn by the editor: a text item over the node's row)
+        let list = f.paint(&s, &mut ts, 1.0);
+        assert!(list.items.iter().any(|i| matches!(i, Item::Text(t) if t.node == "tv")));
+        // (Enter keeps it: OnEdited's question)
+        key(&mut f, &s, &mut ts, 13, Mods::NONE, &mut clip);
+        assert_eq!(lists(f.take_events()), vec![KernelEvent::List("tv".into(), ListAction::TreeEdited(0, "Pea".into()))]);
+        assert!(super::editing("tv").is_none());
+        drop(f.paint(&s, &mut ts, 1.0));
+        assert!(!f.wants_ime(&s), "no edit, no input methods");
+        // (Escape drops another)
+        super::super::tree::open_editor("tv", 1, "two words");
+        type_text(&mut f, &s, &mut ts, "x", &mut clip);
+        key(&mut f, &s, &mut ts, 27, Mods::NONE, &mut clip);
+        assert!(lists(f.take_events()).is_empty());
+        assert!(super::editing("tv").is_none());
+    }
+
+    #[test]
+    fn a_tree_edit_takes_the_mouse_and_ends_when_the_focus_leaves() {
+        let (s, mut f, mut ts) = tree_form();
+        let mut clip = crate::MemClipboard::default();
+        super::super::tree::open_editor("tv", 1, "two words");
+        drop(f.paint(&s, &mut ts, 1.0));
+        // (a double click on "words" in the box selects the word: typing
+        // replaces it; the edit goes on)
+        let (x, y) = (2.0 + 22.0 + 50.0, 2.0 + 18.0 + 9.0);
+        for _ in 0..2 {
+            f.mouse_down(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+            f.mouse_up(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        }
+        type_text(&mut f, &s, &mut ts, "x", &mut clip);
+        assert_eq!(super::editing("tv").unwrap().text, "two x");
+        f.take_events();
+        // (Tab: the focus leaves the tree, the edit is kept)
+        key(&mut f, &s, &mut ts, 9, Mods::NONE, &mut clip);
+        assert_eq!(f.focused(), Some("b"));
+        assert_eq!(lists(f.take_events()), vec![KernelEvent::List("tv".into(), ListAction::TreeEdited(1, "two x".into()))]);
+        assert!(super::editing("tv").is_none());
+    }
+
+    #[test]
+    fn a_grid_cells_editor_starts_from_a_typed_key_or_all_selected() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("g", "RSTRINGGRID", Some("f")).set("g", "width", v_int(340)).set("g", "height", v_int(140));
+        });
+        let mut s = s;
+        s.call("g", "addoptions", &[v_int(rapidr_value::objects::grid::GO_EDITING as i64)]);
+        rapidr_value::objects::with_grid_mut("g", |g| g.set_cell(1, 1, "ab".into()));
+        f.focus_id(&s, "g");
+        let mut clip = crate::MemClipboard::default();
+        // (a key typed starts it with that character, the caret after it)
+        type_text(&mut f, &s, &mut ts, "75", &mut clip);
+        key(&mut f, &s, &mut ts, 13, Mods::NONE, &mut clip);
+        assert_eq!(lists(f.take_events()), vec![KernelEvent::List("g".into(), ListAction::GridStore("75".into()))]);
+        // (F2: the cell's text, all selected — typing replaces it)
+        key(&mut f, &s, &mut ts, 113, Mods::NONE, &mut clip);
+        drop(f.paint(&s, &mut ts, 1.0));
+        type_text(&mut f, &s, &mut ts, "z", &mut clip);
+        assert_eq!(super::editing("g").unwrap().text, "z");
+        key(&mut f, &s, &mut ts, 27, Mods::NONE, &mut clip);
+        assert!(super::editing("g").is_none());
     }
 }
