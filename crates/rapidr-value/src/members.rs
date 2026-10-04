@@ -14,10 +14,10 @@ const ANY: &[&str] = &[
     "execute",
 ];
 
-/// QSQLITE / QMYSQL.
+/// QSQLITE / QMYSQL (and RapidR's `DB.ClearParams`).
 const DATABASE: &[&str] = &[
     "connect", "disconnect", "query", "fetchrow", "fetchfield", "fieldseek", "rowseek", "row", "rowblob",
-    "escapestring", "selectdb", "createdb", "dropdb",
+    "escapestring", "selectdb", "createdb", "dropdb", "clearparams",
 ];
 
 /// QSOCKET, QSERVERSOCKET, RHTTP.
@@ -146,6 +146,7 @@ mod tests {
         // (RapidQ's idioms)
         assert!(is_value_method("RMYSQL", "fetchrow"));
         assert!(is_value_method("QSQLITE", "fetchrow"));
+        assert!(is_value_method("RSQLITE", "clearparams"));
         assert!(is_value_method("QFILESTREAM", "readline"));
         assert!(is_value_method("RFILESTREAM", "eof"));
         assert!(is_value_method("RFORM", "showmodal"));

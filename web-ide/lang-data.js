@@ -276,15 +276,30 @@ const COMPONENT_REGISTRY = {
                 'colcount', 'fieldcount', 'fieldname', 'row', 'dbcount', 'db', 'tablecount',
                 'table', 'escapestring', 'tag'],
         methods: ['connect', 'open', 'close', 'query', 'fetchrow', 'fetchfield', 'use',
-                  'selectdb', 'rowseek', 'fieldseek', 'createdb', 'dropdb'],
-        events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone']
+                  'selectdb', 'rowseek', 'fieldseek', 'createdb', 'dropdb', 'addparam', 'clearparams'],
+        events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone'],
+        methodSignatures: {
+            'query': { sig: 'Query(sql [, value, …])', desc: 'Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message).' },
+            'addparam': { sig: 'AddParam value [, value …]', desc: 'Queues a value for the next Query\'s ? placeholders (before the values given to Query itself).' },
+            'clearparams': { sig: 'ClearParams', desc: 'Drops the values queued with AddParam.' }
+        }
     },
     'RSQLITE': {
         props: ['database', 'db', 'connected', 'rowcount', 'colcount', 'fieldcount',
                 'fieldname', 'row', 'tablecount', 'table', 'dbcount', 'tag'],
-        methods: ['connect', 'close', 'query', 'exec', 'fetchrow', 'fetchfield', 'rowseek', 'fieldseek',
-                  'escapestring'],
-        events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone']
+        methods: ['connect', 'close', 'query', 'exec', 'queryscalar', 'fetchrow', 'fetchfield', 'rowseek', 'fieldseek',
+                  'escapestring', 'addparam', 'clearparams'],
+        events: ['onconnect', 'ondisconnect', 'onerror', 'onquerydone'],
+        methodSignatures: {
+            'connect': { sig: 'Connect(file)', desc: 'Opens (or creates) the database file; ":memory:" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page\'s session (a project\'s .db file is read in first).' },
+            'query': { sig: 'Query(sql [, value, …])', desc: 'Runs the SQL\'s statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message).' },
+            'queryscalar': { sig: 'QueryScalar(sql [, value, …])', desc: 'The first column of the first row the query gives ("" if none); the rows of the last Query stay.' },
+            'addparam': { sig: 'AddParam value [, value …]', desc: 'Queues a value for the next query\'s ? placeholders (before the values given to Query itself).' },
+            'clearparams': { sig: 'ClearParams', desc: 'Drops the values queued with AddParam.' },
+            'fetchrow': { sig: 'FetchRow', desc: 'Moves to the next row of the last query\'s rows: 1, or 0 past the last.' },
+            'rowseek': { sig: 'RowSeek(row)', desc: 'The next FetchRow fetches row `row` (from 0).' },
+            'escapestring': { sig: 'EscapeString(text)', desc: 'The text with its single quotes doubled, to put between quotes in SQL (binding with ? is safer).' }
+        }
     },
     'RSOCKET': {
         props: ['host', 'port', 'connected', 'timeout', 'tag'],
