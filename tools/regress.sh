@@ -40,6 +40,9 @@ if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
   echo "== web gui parity"; node tests/web_gui_parity.mjs 2>&1 | tail -1
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 node tests/web_gui_parity.mjs 2>&1 | tail -1
+  # (the browser's accessibility tree against the UI kernel's: it makes the
+  # kernel's trees it needs — the gui stage's 2× run cleared the matrix's)
+  echo "== web accessibility (ARIA = the UI kernel's tree; the keys)"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Web accessibility"
   echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done

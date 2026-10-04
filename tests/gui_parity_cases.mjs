@@ -185,4 +185,6 @@ export const cases = [
   { name: "size_grip", kernel: true, events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
     expect: ["lbl.caption=w318 g-1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"], web: false,
     why: "the browser's forms aren't resized by the user (no frame drag, so no size grip)" },
+  // (its accessibility tree and keys: tests/web_a11y.mjs)
+  { name: "a11y_form", kernel: true, events: "", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
 ];
