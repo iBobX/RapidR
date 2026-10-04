@@ -37,8 +37,15 @@ Ann[]
 -- the desktop's SQLite settings
 1
 R163
--- errors
+-- errors, worded as SQLite words them
+OnError: no such table: nope
 0
+OnError: near "SELEC": syntax error in SELEC 1 at offset 0
+0
+OnError: no such function: nofunc in SELECT nofunc(1) at offset 7
+0
+OnError: UNIQUE constraint failed: people.id
 0
 it''s
+OnError: not connected: Connect first
 connected0 fetch0 query0

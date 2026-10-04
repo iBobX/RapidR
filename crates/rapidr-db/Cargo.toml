@@ -17,9 +17,11 @@ mysql = { version = "28", optional = true, default-features = false, features = 
 # `serialize` opens a project's .db file on the web from its bytes;
 # `backup` copies them into the page's session file; `column_metadata`
 # tells which table a result column came from (the web's bound widgets
-# write their edits back).
+# write their edits back); `modern_sqlite` (which `bundled` implies) words
+# errors the same on the web: `no such function: f in SELECT f(1) at
+# offset 7`.
 [target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
-rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "serialize", "backup", "column_metadata"] }
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "modern_sqlite", "serialize", "backup", "column_metadata"] }
 
 [target.'cfg(not(all(target_family = "wasm", target_os = "unknown")))'.dependencies]
 rusqlite = { version = "0.40", optional = true, default-features = false, features = ["bundled", "serialize", "backup", "column_metadata"] }

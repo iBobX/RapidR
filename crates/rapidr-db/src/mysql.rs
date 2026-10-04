@@ -124,7 +124,7 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let (sql, values) = sql_and_params(key, args);
     let outcome = DBS.with(|d| {
         let mut dbs = d.borrow_mut();
-        let db = dbs.get_mut(key).ok_or_else(|| format!("not connected: {name}"))?;
+        let db = dbs.get_mut(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
         let text = |e: mysql::Error| e.to_string();
         let table = if values.is_empty() {
             let mut result = db.conn.query_iter(&sql).map_err(text)?;

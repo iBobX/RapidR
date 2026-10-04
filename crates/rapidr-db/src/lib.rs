@@ -32,6 +32,9 @@ pub mod sqlite;
 pub use params::{flatten, wrong_count};
 pub use results::ResultSet;
 
+/// A query on a component that isn't connected (OnError gets it).
+pub const NOT_CONNECTED: &str = "not connected: Connect first";
+
 /// What a runtime gives the database components.
 pub trait Host {
     /// Sets one of the component's properties (`connected`, `db`,

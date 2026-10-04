@@ -161,7 +161,7 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let (sql, values) = sql_and_params(key, args);
     let outcome = DBS.with(|d| {
         let mut dbs = d.borrow_mut();
-        let db = dbs.get_mut(key).ok_or_else(|| format!("not connected: {name}"))?;
+        let db = dbs.get_mut(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
         let table = run(&db.conn, &sql, &values)?;
         Ok::<_, String>(table.map(|t| {
             db.results = ResultSet::new(t.columns, t.rows);
@@ -192,7 +192,7 @@ fn query_scalar(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value
     let (sql, values) = sql_and_params(key, args);
     let outcome = DBS.with(|d| {
         let dbs = d.borrow();
-        let db = dbs.get(key).ok_or_else(|| format!("not connected: {name}"))?;
+        let db = dbs.get(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
         run(&db.conn, &sql, &values)
     });
     match outcome {

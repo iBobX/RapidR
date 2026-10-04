@@ -17,6 +17,10 @@ SUB ShowRows
   WEND
 END SUB
 
+SUB Failed(Msg AS STRING)
+  PRINT "OnError: "; Msg
+END SUB
+
 r = DB.Connect(":memory:")
 PRINT "connect"; r; " connected"; DB.Connected
 r = DB.Query("CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT, note TEXT, score REAL, n INTEGER)")
@@ -92,9 +96,13 @@ ShowRows
 DB.Query("SELECT soundex('Robert')")
 ShowRows
 
-PRINT "-- errors"
+PRINT "-- errors, worded as SQLite words them"
+DB.OnError = Failed
 PRINT DB.Query("SELECT * FROM nope")
 PRINT DB.Query("SELEC 1")
+PRINT DB.Query("SELECT nofunc(1)")
+PRINT DB.Query("INSERT INTO people (id, name) VALUES (1, 'again')")
 PRINT DB.EscapeString("it's")
 DB.Close
-PRINT "connected"; DB.Connected; " fetch"; DB.FetchRow; " query"; DB.Query("SELECT 1")
+r = DB.Query("SELECT 1")
+PRINT "connected"; DB.Connected; " fetch"; DB.FetchRow; " query"; r
