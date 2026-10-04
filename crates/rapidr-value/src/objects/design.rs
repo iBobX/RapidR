@@ -459,11 +459,18 @@ impl Draw {
         self.ops.push(Op::Shape(Shape { points, fill: Some(color), stroke: Some(color) }));
     }
 
-    /// An ellipse's outline from `from` to `to` degrees (fl_arc).
+    /// An ellipse's outline from `from` to `to` degrees (fl_arc): a closed
+    /// shape for the whole turn, else its segments (a shape of more than
+    /// two points is closed) — on the device's pixels, smooth at 2×.
     fn arc(&mut self, rect: Rect, from: f64, to: f64, color: u32) {
-        let points = Self::ellipse(rect, from, to);
+        let mut points = Self::ellipse(rect, from, to);
+        if (to - from).abs() >= 360.0 {
+            points.pop();
+            self.ops.push(Op::Shape(Shape { points, fill: None, stroke: Some(color) }));
+            return;
+        }
         for pair in points.windows(2) {
-            self.ops.push(Op::Line { from: pair[0], to: pair[1], color });
+            self.ops.push(Op::Shape(Shape { points: pair.to_vec(), fill: None, stroke: Some(color) }));
         }
     }
 
