@@ -104,6 +104,14 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     }
     let Some(f) = desk.forms.get(form) else { return Cursor::Default };
     let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
+    // (the input lane's: a status bar's size grip is the window's sizing
+    // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)
+    let grip = rapidr_value::layout::STATUS_GRIP;
+    if let Some(n) = node.filter(|n| n.type_name == "RSTATUSBAR" && x >= (n.abs.0 + n.abs.2 - grip) as f64 && y >= (n.abs.1 + n.abs.3 - grip) as f64) {
+        if rapidr_ui_kernel::components::statusbar::has_grip(store, &n.id) {
+            return Cursor::SizeNWSE;
+        }
+    }
     let id = node.map_or(f.ui.form.as_str(), |n| n.id.as_str());
     let code = store::int(store, id, "cursor", 0);
     if code != 0 {

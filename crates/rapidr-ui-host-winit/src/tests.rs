@@ -40,6 +40,12 @@ fn a_size_grips_drag_resizes_the_window_as_the_user() {
     d.show("frm");
     let mut h = HeadlessHost::new(1.0);
     h.pump(Some(Duration::ZERO), &mut d, &s);
+    // (over it, the sizing arrow; elsewhere on the bar, its own)
+    d.mouse_move(&s, "frm", 195.0, 96.0, Mods::NONE, Source::Script);
+    assert_eq!(crate::platform::cursor_at(&d, &s, "frm", (195.0, 96.0)), rapidr_value::input::Cursor::SizeNWSE);
+    d.mouse_move(&s, "frm", 100.0, 90.0, Mods::NONE, Source::Script);
+    assert_eq!(crate::platform::cursor_at(&d, &s, "frm", (100.0, 90.0)), rapidr_value::input::Cursor::Default);
+    d.events.clear();
     d.mouse_down(&s, "frm", (195.0, 96.0), Button::Left, Mods::NONE, Source::Script);
     d.mouse_move(&s, "frm", 225.0, 116.0, Mods::NONE, Source::Script);
     assert_eq!(d.cmds, vec![HostCmd::Resize { form: "frm".into(), w: 230, h: 120 }]);
