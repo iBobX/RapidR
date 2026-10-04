@@ -24,6 +24,9 @@ pub type DevRect = (f64, f64, f64, f64);
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextItem {
     pub node: String,
+    /// Which paragraph's layout of the node's editor (a memo has one per
+    /// paragraph; [`crate::FormUi::editor_layout_at`]).
+    pub para: usize,
     /// Where the layout's (0, 0) is, in device pixels in the window.
     pub origin: (f64, f64),
     pub selection: Vec<DevRect>,
@@ -74,8 +77,9 @@ impl DisplayList {
             let line = match item {
                 Item::Op { origin: (ox, oy), op } => format!("{} @{ox},{oy}", op_line(op)),
                 Item::Text(t) => format!(
-                    "editor {} @{:.1},{:.1} sel {} caret {}",
+                    "editor {}#{} @{:.1},{:.1} sel {} caret {}",
                     t.node,
+                    t.para,
                     t.origin.0,
                     t.origin.1,
                     t.selection.len(),

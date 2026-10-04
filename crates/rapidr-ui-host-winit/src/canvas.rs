@@ -289,7 +289,7 @@ pub fn draw_list(canvas: &mut dyn Canvas, text: &mut TextSystem, list: &DisplayL
                 p.op(op);
             }
             Item::Text(t) => {
-                if let Some(layout) = form.editor_layout(&t.node) {
+                if let Some(layout) = form.editor_layout_at(&t.node, t.para) {
                     editor(p.canvas, t, layout);
                 }
             }

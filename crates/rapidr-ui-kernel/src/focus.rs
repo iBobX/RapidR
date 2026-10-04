@@ -73,7 +73,7 @@ impl FormUi {
             self.dirty = true;
         }
         self.focus = i;
-        self.caret_on = true;
+        self.reset_caret();
     }
 
     /// The focused component's id.

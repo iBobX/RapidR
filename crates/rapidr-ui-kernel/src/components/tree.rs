@@ -199,6 +199,20 @@ impl ComponentKind for Tree {
         });
     }
 
+    fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
+        if !super::list::vscroll_wheel(cx.id, dy, cx.width() - 4, cx.height() - 4) {
+            return false;
+        }
+        // (TopIndex follows the bar, a row at a time)
+        let (pos, _, _) = vscroll_state(cx.id);
+        with_tree(cx.id, |t| {
+            if let Some(&r) = t.visible_rows().get((pos / ROW_HEIGHT) as usize) {
+                t.top_index = r as i64;
+            }
+        });
+        true
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };
@@ -328,7 +342,7 @@ impl ComponentKind for Tree {
     /// `__escape` (the edit dropped).
     fn test_action(&self, cx: &mut Cx, action: &str) -> bool {
         let click_at = |cx: &mut Cx, this: &Tree, x: i64, y: i64| {
-            let at = MouseIn { kind: MouseKind::Down, x: x as f64 + 0.5, y: y as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true };
+            let at = MouseIn { kind: MouseKind::Down, x: x as f64 + 0.5, y: y as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true, clicks: 1 };
             this.mouse(cx, &at);
             this.mouse(cx, &MouseIn { kind: MouseKind::Up, ..at });
         };

@@ -99,6 +99,8 @@ struct Held {
     form: String,
     name: String,
     origin: (i64, i64),
+    /// Where the mouse is (an arrow held repeats while it's on it).
+    at: (i64, i64),
 }
 
 thread_local! {
@@ -144,8 +146,10 @@ pub(crate) fn bars_down(f: &mut FormUi, store: &dyn Store, x: f64, y: f64) -> bo
             continue;
         }
         let shift = scrollbars::with_mut(&name, |s| s.mouse_down(lx, ly, w, h)).unwrap_or((0, 0));
-        HELD.with(|h| *h.borrow_mut() = Some(Held { form: f.form.clone(), name: name.clone(), origin }));
+        HELD.with(|h| *h.borrow_mut() = Some(Held { form: f.form.clone(), name: name.clone(), origin, at: (lx, ly) }));
         scrolled(f, &name, shift);
+        // (an arrow or the track held repeats: Windows' 400 ms, then 50 ms)
+        f.wakes.bars = Some(crate::tick::now() + crate::tick::REPEAT_DELAY);
         return true;
     }
     false
@@ -162,6 +166,11 @@ fn held(f: &FormUi, store: &dyn Store) -> Option<(String, (i64, i64), (i64, i64)
 pub(crate) fn bars_drag(f: &mut FormUi, store: &dyn Store, x: f64, y: f64) -> bool {
     let Some((name, origin, (w, h))) = held(f, store) else { return false };
     let (lx, ly) = local(origin, x, y);
+    HELD.with(|h| {
+        if let Some(h) = h.borrow_mut().as_mut() {
+            h.at = (lx, ly);
+        }
+    });
     let shift = scrollbars::with_mut(&name, |s| s.mouse_drag(lx, ly, w, h));
     scrolled(f, &name, shift);
     true
@@ -172,7 +181,35 @@ pub(crate) fn bars_drag(f: &mut FormUi, store: &dyn Store, x: f64, y: f64) -> bo
 pub(crate) fn bars_up(f: &mut FormUi, store: &dyn Store) -> bool {
     let Some((name, _, (w, h))) = held(f, store) else { return false };
     HELD.with(|h| h.borrow_mut().take());
+    f.wakes.bars = None;
     let shift = scrollbars::with_mut(&name, |s| s.mouse_up(w, h));
     scrolled(f, &name, shift);
     true
+}
+
+/// A held arrow or track's repeat came (tick.rs): it steps again while the
+/// mouse stays on it, then again every 50 ms.
+pub(crate) fn bars_repeat(f: &mut FormUi, store: &dyn Store) {
+    let Some((name, _, (w, h))) = held(f, store) else { return };
+    let at = HELD.with(|h| h.borrow().as_ref().map_or((0, 0), |h| h.at));
+    let shift = scrollbars::with_mut(&name, |s| s.repeat(at.0, at.1, w, h));
+    scrolled(f, &name, shift);
+    f.wakes.bars = Some(crate::tick::now() + crate::tick::REPEAT);
+}
+
+/// The wheel at (x, y) of form `f`'s client area, `notches` whole notches:
+/// the innermost scroll box (or the form) under it whose bars show
+/// scrolls; whether one did.
+pub(crate) fn bars_wheel(f: &mut FormUi, store: &dyn Store, x: f64, y: f64, notches: i64, horizontal: bool) -> bool {
+    for (name, origin, (w, h)) in scrollers(f, store) {
+        let (lx, ly) = local(origin, x, y);
+        let over = lx >= 0 && ly >= 0 && lx < w && ly < h;
+        if !over || !scrollbars::with(&name, |s| s.vert.shown || s.horz.shown).unwrap_or(false) {
+            continue;
+        }
+        let shift = scrollbars::with_mut(&name, |s| s.wheel(notches, horizontal, w, h));
+        scrolled(f, &name, shift);
+        return true;
+    }
+    false
 }

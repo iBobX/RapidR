@@ -232,6 +232,37 @@ pub fn vscroll_mouse(id: &str, m: &MouseIn, w: i64, h: i64) -> bool {
     })
 }
 
+thread_local! {
+    /// The wheel's turn not yet a whole notch, per component.
+    static WHEEL_REST: RefCell<HashMap<String, f64>> = RefCell::new(HashMap::new());
+}
+
+/// The mouse wheel on component `id` (its bars' area `w` × `h`): `dy`
+/// notches (fractions add up), three rows each, down the vertical bar (or
+/// across a Columns list's horizontal one); whether it has a bar to
+/// scroll. (The text lane's wheel routing.)
+pub fn vscroll_wheel(id: &str, dy: f64, w: i64, h: i64) -> bool {
+    let key = id.to_lowercase();
+    let notches = WHEEL_REST.with(|r| {
+        let mut r = r.borrow_mut();
+        let total = r.get(&key).copied().unwrap_or(0.0) + dy;
+        let whole = total.trunc();
+        r.insert(key.clone(), total - whole);
+        whole as i64
+    });
+    SCROLLS.with(|s| {
+        let mut s = s.borrow_mut();
+        let Some(sc) = s.get_mut(&key) else { return false };
+        if !(sc.vert.shown || sc.horz.shown) {
+            return false;
+        }
+        if notches != 0 {
+            sc.wheel(notches, false, w, h);
+        }
+        true
+    })
+}
+
 /// Scrolls component `id` so that `top .. bottom` (content pixels) shows in
 /// a view `view` pixels tall.
 pub fn scroll_into_view(id: &str, top: i64, bottom: i64, view: i64) {
@@ -484,6 +515,10 @@ impl ComponentKind for ListBox {
         });
     }
 
+    fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
+        vscroll_wheel(cx.id, dy, cx.width() - 4, cx.height() - 4)
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };
@@ -575,7 +610,7 @@ impl ComponentKind for ListBox {
         let mid = |r: &Rect| r.0 + r.2.min(w - 20) / 2;
         match item_rect(cx.id, i, w, h).filter(|r| r.1 >= 2 && r.1 + r.3 <= h - 2 && mid(r) >= 2 && mid(r) < w - 2) {
             Some(r @ (_, y, _, ih)) => {
-                let at = MouseIn { kind: MouseKind::Down, x: mid(&r) as f64 + 0.5, y: (y + ih / 2) as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true };
+                let at = MouseIn { kind: MouseKind::Down, x: mid(&r) as f64 + 0.5, y: (y + ih / 2) as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true, clicks: 1 };
                 // (a test's click is never a double click)
                 CLICKS.with(|c| c.borrow_mut().remove(cx.id));
                 self.mouse(cx, &at);
@@ -641,8 +676,13 @@ mod tests {
             s.add("cb", "RCOMBOBOX", Some("f")).set("cb", "left", v_int(10)).set("cb", "top", v_int(10));
             s.call("cb", "additems", &[v_str("red"), v_str("green"), v_str("blue")]);
         });
-        // (a click on the box drops the list under it; a click on a row picks)
+        // (csDropDown, the default: a click on the text places the caret —
+        // the text lane's editor; a click on the button drops the list
+        // under it; a click on a row picks)
         click(&mut f, &s, &mut ts, 20.0, 20.0);
+        assert!(!super::super::combo::is_dropped("cb"));
+        let (x, _, w, _) = f.node("cb").unwrap().abs;
+        click(&mut f, &s, &mut ts, (x + w - 8) as f64, 20.0);
         assert!(super::super::combo::is_dropped("cb"));
         let events = click(&mut f, &s, &mut ts, 30.0, 35.0 + 16.0 + 8.0);
         assert!(!super::super::combo::is_dropped("cb"));

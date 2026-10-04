@@ -184,6 +184,9 @@ fn ensure_host() {
     let headless = capture.is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none();
     let host = rapidr_ui_host_winit::new_host(headless, forced_scale());
     let mut desk = Desktop::new(Box::new(RtClipboard));
+    // (the text lane's: carets blink, but not under a test — captures must
+    // be steady)
+    desk.blinks = capture.is_none();
     if let Some(c) = capture {
         // (only the test's own events drive it)
         desk.ignore_user = true;
@@ -280,6 +283,8 @@ fn pump(timeout: Option<Duration>) {
         let Ok(mut k) = k.try_borrow_mut() else { return };
         sync_desk(&mut k);
         let Kern { host, desk } = &mut *k;
+        // (the kernel's deadlines due: tick.rs)
+        desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
         host.pump(timeout, desk, &RtStore);
     });
 }
@@ -301,6 +306,10 @@ pub fn step(max_wait: Option<Duration>) {
     }
     if with_kern(|k| !k.desk.events.is_empty()).unwrap_or(false) {
         at_most(Duration::ZERO);
+    }
+    // (the kernel's deadlines: a caret's blink, a held scroll bar's repeat)
+    if let Some(at) = with_kern(|k| k.desk.next_wake()).flatten() {
+        at_most(at.saturating_duration_since(now));
     }
     pump(t);
     crate::object::rp_run_deferred();

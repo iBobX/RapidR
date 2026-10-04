@@ -23,6 +23,10 @@ use parley::fontique::{Blob, GenericFamily};
 use parley::{FontContext, FontFamily, FontFamilyName, FontFeatures, FontStyle, FontWeight, Layout, LayoutContext, LineHeight, StyleProperty};
 use rapidr_value::objects::font::Font;
 
+pub mod editor;
+
+pub use editor::{Align, Look, Pos, TextEditor};
+
 /// Text colour carried through a layout: 0xRRGGBB.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Ink(pub u32);

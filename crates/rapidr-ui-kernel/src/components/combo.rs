@@ -126,6 +126,26 @@ fn layout(f: &FormUi, d: &Dropped, store: &dyn Store) -> Option<(Rect, Rows)> {
     Some(((x, top, w, lh), rows))
 }
 
+/// The wheel while form `f`'s drop-down is open: it scrolls (three rows a
+/// notch); whether it took it. (The text lane's wheel routing.)
+pub fn popup_wheel(f: &mut FormUi, store: &dyn Store, _x: f64, _y: f64, dy: f64) -> bool {
+    let Some(d) = dropped().filter(|d| d.form == f.form) else { return false };
+    let count = match &d.items {
+        Some(items) => items.len(),
+        None => row_heights(&d.id, store.font(&d.id).pixel_size()).len(),
+    };
+    let rows = (dy * 3.0).round() as i64;
+    let max = count.saturating_sub(DROP_ROWS) as i64;
+    let top = (d.top as i64 + rows).clamp(0, max.max(0)) as usize;
+    DROPPED.with(|dd| {
+        if let Some(dd) = dd.borrow_mut().as_mut() {
+            dd.top = top;
+        }
+    });
+    f.dirty = true;
+    true
+}
+
 /// Draws the open drop-down over everything (FormUi::paint's last step).
 pub fn paint_popup(f: &FormUi, store: &dyn Store, _ts: &mut TextSystem, p: &mut Painter) {
     let Some(d) = dropped().filter(|d| d.form == f.form) else { return };
@@ -231,6 +251,18 @@ fn pick(f: &mut FormUi, id: &str, i: usize) {
 
 pub struct ComboBox;
 
+/// Whether combo `id`'s box is an edit (Style csDropDown 0 / csSimple 1,
+/// not owner-drawn): the text lane's editor shows and edits its Text.
+fn editable(store: &dyn Store, id: &str) -> bool {
+    with_list(id, |l| !l.owner_drawn()).unwrap_or(false) && store.get(id, "style").to_i64() < 2
+}
+
+/// An editable box's text area (inside the frame, left of the button).
+fn text_area(w: i64, h: i64) -> Rect {
+    let (bx, _, _, _) = button_rect(w, h);
+    (4, 2, (bx - 5).max(0), (h - 4).max(0))
+}
+
 impl ComboBox {
     /// Picks item `i` (the keys, a screen reader): ItemIndex, OnChange.
     fn choose(cx: &mut Cx, i: i64) {
@@ -271,8 +303,11 @@ impl ComponentKind for ComboBox {
                     p.clipped(area, |p| p.picture(&format!("{}#box", cx.id), 0, picture_of(shown), (2, 2 + (area.3 - ih) / 2, area.2, ih)));
                 }
             }
+        } else if editable {
+            // (the text lane's editor over the list's Text)
+            super::edit::paint_line(cx, p, text_area(w, h), super::edit::Source::Combo);
         } else {
-            let text = if editable || l.item_index < 0 { l.text.clone() } else { l.items.get(l.item_index as usize).cloned().unwrap_or_default() };
+            let text = if l.item_index < 0 { l.text.clone() } else { l.items.get(l.item_index as usize).cloned().unwrap_or_default() };
             // (a list-only combo with the focus shows its text selected)
             let selected = s.focused && !editable;
             if selected {
@@ -302,13 +337,64 @@ impl ComponentKind for ComboBox {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
+        let (w, h) = (cx.width(), cx.height());
+        if editable(cx.store, cx.id) {
+            // (an editable box: a press on the text places the caret; only
+            // the button drops the list)
+            let on_text = m.x < button_rect(w, h).0 as f64;
+            let held_text = cx.ui.edit.as_ref().is_some_and(|_| m.kind != MouseKind::Down && m.captured && !is_dropped(cx.id));
+            if (m.kind == MouseKind::Down && on_text) || held_text {
+                super::edit::mouse_line(cx, m, text_area(w, h), super::edit::Source::Combo);
+                return MouseOut::default();
+            }
+        }
         if m.kind == MouseKind::Down && m.button == Button::Left {
             DROP_REQUEST.with(|r| *r.borrow_mut() = Some(cx.id.to_string()));
         }
         MouseOut::default()
     }
 
-    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
+    fn ime(&self, cx: &mut Cx, ime: &super::Ime) -> bool {
+        if !editable(cx.store, cx.id) {
+            return false;
+        }
+        let (w, h) = (cx.width(), cx.height());
+        let area = text_area(w, h);
+        let spec = super::edit::Spec::line(cx, area, super::edit::Source::Combo);
+        super::edit::ime_box(cx, &spec, ime, |e| {
+            let s = f64::from(e.ed.scale());
+            ((area.2 as f64 * s).max(1.0), (area.3 as f64 * s).max(1.0))
+        });
+        true
+    }
+
+    fn ime_area(&self, cx: &mut Cx) -> Option<Rect> {
+        if !editable(cx.store, cx.id) {
+            return None;
+        }
+        let (w, h) = (cx.width(), cx.height());
+        Some(super::edit::ime_area_line(cx, text_area(w, h), super::edit::Source::Combo))
+    }
+
+    fn wants_ime(&self, store: &dyn Store, id: &str) -> bool {
+        editable(store, id)
+    }
+
+    fn context_menu(&self, cx: &mut Cx) -> Option<super::edit::MenuState> {
+        if !editable(cx.store, cx.id) {
+            return None;
+        }
+        let (w, h) = (cx.width(), cx.height());
+        Some(super::edit::menu_line(cx, text_area(w, h), super::edit::Source::Combo))
+    }
+
+    fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        // (an editable box: what isn't the list's goes to the editor)
+        let list_key = matches!(k.vk, 38 | 40 | 115) || (is_dropped(cx.id) && matches!(k.vk, 13 | 27));
+        if editable(cx.store, cx.id) && !list_key {
+            let (w, h) = (cx.width(), cx.height());
+            return super::edit::key_line(cx, k, clip, text_area(w, h), super::edit::Source::Combo);
+        }
         if k.mods.command {
             return false;
         }

@@ -109,18 +109,45 @@ pub struct Desktop {
     pub clipboard: Box<dyn Clipboard>,
     /// Screen.Cursor (0: each component's own; platform.rs).
     pub screen_cursor: i64,
+    /// Carets blink (off under a test, so captures are steady).
+    pub blinks: bool,
     next_z: u64,
 }
 
 impl Desktop {
     pub fn new(clipboard: Box<dyn Clipboard>) -> Desktop {
-        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, screen_cursor: 0, next_z: 1 }
+        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, screen_cursor: 0, blinks: true, next_z: 1 }
     }
 
     /// Form `id`'s kernel side, made from the store the first time.
     pub fn ensure_form(&mut self, store: &dyn Store, id: &str, menu_in_window: bool, spec: WindowSpec) -> &mut Form {
         let key = id.to_lowercase();
-        self.forms.entry(key.clone()).or_insert_with(|| Form { ui: FormUi::build(store, &key, menu_in_window), spec, shown: false, z: 0, scale: 1.0 })
+        let blinks = self.blinks;
+        self.forms.entry(key.clone()).or_insert_with(|| {
+            let mut ui = FormUi::build(store, &key, menu_in_window);
+            ui.blinks = blinks;
+            Form { ui, spec, shown: false, z: 0, scale: 1.0 }
+        })
+    }
+
+    /// When the shown forms' next deadline is (a caret's blink, a held
+    /// scroll bar's repeat, a component's tick): the step loop pumps no
+    /// longer than that.
+    pub fn next_wake(&self) -> Option<std::time::Instant> {
+        self.forms.values().filter(|f| f.shown).filter_map(|f| f.ui.next_wake()).min()
+    }
+
+    /// Runs the shown forms' deadlines due at `now` (what they change is
+    /// drawn again; their events queued).
+    pub fn tick(&mut self, store: &dyn Store, now: std::time::Instant) {
+        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && f.ui.next_wake().is_some_and(|at| at <= now)).map(|(k, _)| k.clone()).collect();
+        for id in due {
+            let Desktop { forms, text, .. } = self;
+            if let Some(f) = forms.get_mut(&id) {
+                f.ui.tick(store, text, now);
+            }
+            self.collect(&id);
+        }
     }
 
     pub fn form(&mut self, id: &str) -> Option<&mut Form> {
@@ -207,7 +234,17 @@ impl Desktop {
     }
 
     pub fn mouse_up(&mut self, store: &dyn Store, id: &str, (x, y): (f64, f64), button: Button, mods: Mods, src: Source) {
-        self.route(id, src, |f, ts, _| f.mouse_up(store, ts, x, y, button, mods));
+        self.route(id, src, |f, ts, clip| {
+            f.mouse_up(store, ts, x, y, button, mods);
+            // (an edit's context menu picked: Cut, Copy, Paste …)
+            f.edit_commands(store, ts, clip);
+        });
+    }
+
+    /// The mouse wheel turned `dx`, `dy` notches (positive: right, down)
+    /// with the mouse at (x, y) of the window's inside.
+    pub fn mouse_wheel(&mut self, store: &dyn Store, id: &str, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods, src: Source) {
+        self.route(id, src, |f, ts, _| f.mouse_wheel(store, ts, (x, y), (dx, dy), mods));
     }
 
     pub fn mouse_leave(&mut self, store: &dyn Store, id: &str, src: Source) {

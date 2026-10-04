@@ -28,6 +28,8 @@ pub struct NodeUi {
     /// (the surfaces lane's) What its bitmap shows, as last converted (a
     /// QCANVAS's surface, a QIMAGE's picture, a speed button's glyph).
     pub surface: Option<crate::components::canvas::Shown>,
+    /// When its kind's `tick` runs next (tick.rs).
+    pub wake: Option<std::time::Instant>,
 }
 
 pub struct Node {
@@ -87,6 +89,15 @@ pub struct FormUi {
     /// (the surfaces lane's) What the form's own drawing surface shows, as
     /// last converted.
     pub(crate) surface: Option<crate::components::canvas::Shown>,
+    /// Its deadlines (the caret's blink, held scroll bars): tick.rs.
+    pub wakes: crate::tick::Wakes,
+    /// The caret blinks (the host turns it off for captures: a headless
+    /// host draws it steadily on).
+    pub blinks: bool,
+    /// The last press: when, on what, where, and how many clicks it made.
+    pub(crate) last_click: Option<(std::time::Instant, Option<usize>, f64, f64, u8)>,
+    /// The wheel's turn not yet a whole notch (form scroll bars, lists).
+    pub(crate) wheel_rest: (f64, f64),
 }
 
 /// Visible / Enabled as the runtimes keep them (-1, True, "0" …).
@@ -130,6 +141,10 @@ impl FormUi {
             menu_in_window,
             events: Vec::new(),
             surface: None,
+            wakes: Default::default(),
+            blinks: true,
+            last_click: None,
+            wheel_rest: (0.0, 0.0),
         };
         f.rebuild(store);
         f.focus = f.tab_order(store).first().copied();
@@ -266,20 +281,16 @@ impl FormUi {
         })
     }
 
-    /// The caret blinks: whether to paint again (an edit has the focus).
-    pub fn blink(&mut self) -> bool {
-        let edit = self.focus.is_some_and(|f| self.nodes[f].ui.edit.is_some());
-        if edit {
-            self.caret_on = !self.caret_on;
-            self.dirty = true;
-        }
-        edit
-    }
-
     /// The parley layout of node `id`'s editor (what a display list's
     /// [`crate::TextItem`] draws).
     pub fn editor_layout(&self, id: &str) -> Option<&parley::Layout<crate::text::Ink>> {
-        self.node(id)?.ui.edit.as_ref()?.layout()
+        self.editor_layout_at(id, 0)
+    }
+
+    /// Paragraph `para`'s layout of node `id`'s editor (a memo has one per
+    /// paragraph).
+    pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
+        self.node(id)?.ui.edit.as_ref()?.para_layout(para)
     }
 }
 

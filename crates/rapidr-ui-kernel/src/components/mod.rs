@@ -13,6 +13,8 @@ pub mod form;
 pub mod groupbox;
 pub mod label;
 pub mod mdi;
+pub mod memo;
+pub mod richedit;
 pub mod panel;
 pub mod scrollbox;
 pub mod splitter;
@@ -80,6 +82,9 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDIRTREE", &dirtree::DirTreeBox),
     ("RCANVAS", &canvas::Canvas),
     ("RIMAGE", &image::Image),
+    // (the text lane's)
+    ("RMEMO", &memo::Memo),
+    ("RRICHEDIT", &richedit::RichEdit),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only
@@ -172,6 +177,9 @@ pub struct MouseIn {
     pub inside: bool,
     /// It has the mouse captured (pressed on it, not released yet).
     pub captured: bool,
+    /// A press's click count: 1, 2 for a double click, 3 … (Windows'
+    /// double-click time and distance, on the same component).
+    pub clicks: u8,
 }
 
 /// What a component did with the mouse.
@@ -277,5 +285,28 @@ pub trait ComponentKind: Sync {
     /// screen reader's click): a check box's Checked turns over first.
     fn activate(&self, cx: &mut Cx) {
         cx.click();
+    }
+
+    /// The mouse wheel over it turned `dx`, `dy` notches (positive: right,
+    /// down; fractions from touchpads): whether it scrolled (else the
+    /// wheel goes to its parent, then the form's scroll bars).
+    fn wheel(&self, _cx: &mut Cx, _dx: f64, _dy: f64, _mods: Mods) -> bool {
+        false
+    }
+
+    /// Its deadline came (it set `NodeUi::wake`; tick.rs).
+    fn tick(&self, _cx: &mut Cx) {}
+
+    /// A right click let go on it (or the menu key): an edit's context
+    /// menu — Undo, Cut, Copy, Paste, Delete, Select All, which of them
+    /// apply now — that the kernel shows there; `None`: it has none.
+    fn context_menu(&self, _cx: &mut Cx) -> Option<edit::MenuState> {
+        None
+    }
+
+    /// Takes text from input methods while it has the focus (the host
+    /// allows IME only then).
+    fn wants_ime(&self, _store: &dyn Store, _id: &str) -> bool {
+        false
     }
 }

@@ -172,9 +172,10 @@ impl FormUi {
             return;
         }
         self.capture = Some(target);
+        let clicks = self.count_click(target, x, y, button);
         if let Some(i) = target {
             if button == Button::Left {
-                let out = self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true });
+                let out = self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true, clicks });
                 if out.press {
                     self.pressed = Some(i);
                 }
@@ -183,9 +184,30 @@ impl FormUi {
                 }
             }
         }
-        self.caret_on = true;
+        self.reset_caret();
         self.mouse_event(target, Mouse::Down, button, x, y, mods);
         crate::components::combo::after_input(self, store);
+    }
+
+    /// A press's click count (Windows: within the double-click time and
+    /// distance of the last press, on the same component, the same button
+    /// — the left one).
+    fn count_click(&mut self, target: Option<usize>, x: f64, y: f64, button: Button) -> u8 {
+        let now = crate::tick::now();
+        let n = match self.last_click {
+            Some((at, t, px, py, n))
+                if button == Button::Left
+                    && t == target
+                    && now.saturating_duration_since(at) <= crate::tick::DOUBLE_CLICK
+                    && (x - px).abs() <= crate::tick::DOUBLE_CLICK_DISTANCE
+                    && (y - py).abs() <= crate::tick::DOUBLE_CLICK_DISTANCE =>
+            {
+                n.saturating_add(1)
+            }
+            _ => 1,
+        };
+        self.last_click = (button == Button::Left).then_some((now, target, x, y, n));
+        n
     }
 
     /// The mouse moved to (x, y) of the client area.
@@ -200,7 +222,7 @@ impl FormUi {
         let hit = self.hit(x, y);
         if hit != self.hover {
             if let Some(old) = self.hover {
-                self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x, y, button: Button::Left, mods, inside: false, captured: false });
+                self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x, y, button: Button::Left, mods, inside: false, captured: false, clicks: 0 });
             }
             self.hover = hit;
             self.dirty = true;
@@ -214,7 +236,7 @@ impl FormUi {
         }
         if let Some(i) = target {
             let captured = self.capture.is_some();
-            self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Move, x, y, button: Button::Left, mods, inside: hit == Some(i), captured });
+            self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Move, x, y, button: Button::Left, mods, inside: hit == Some(i), captured, clicks: 0 });
             if captured {
                 self.dirty = true;
             }
@@ -244,19 +266,55 @@ impl FormUi {
             return;
         }
         if let (Some(i), Button::Left) = (target, button) {
-            self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Up, x, y, button, mods, inside: hit == Some(i), captured: true });
+            self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Up, x, y, button, mods, inside: hit == Some(i), captured: true, clicks: 0 });
         }
         if button == Button::Left {
             self.pressed = None;
         }
         self.mouse_event(target, Mouse::Up, button, x, y, mods);
+        // (a right click let go on an edit: its context menu, unless the
+        // program gave it a PopupMenu — components/edit.rs)
+        if let (Some(i), Button::Right) = (target, button) {
+            if hit == Some(i) {
+                self.open_edit_menu(store, ts, i, x, y);
+            }
+        }
     }
 
     /// The mouse left the window.
     pub fn mouse_leave(&mut self, store: &dyn Store, ts: &mut TextSystem) {
         if let Some(old) = self.hover.take() {
-            self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x: -1.0, y: -1.0, button: Button::Left, mods: Mods::NONE, inside: false, captured: false });
+            self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x: -1.0, y: -1.0, button: Button::Left, mods: Mods::NONE, inside: false, captured: false, clicks: 0 });
             self.dirty = true;
+        }
+    }
+
+    /// The mouse wheel turned `dx`, `dy` notches (positive: right, down;
+    /// fractions from touchpads) with the mouse at (x, y): the component
+    /// under the mouse scrolls (a memo, a list), else the one it's in,
+    /// else the scroll box or form whose bars it's over — Windows 10's
+    /// "scroll inactive windows" rule, not the focused control's.
+    pub fn mouse_wheel(&mut self, store: &dyn Store, ts: &mut TextSystem, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods) {
+        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) {
+            return;
+        }
+        let chain = self.hit(x, y).map(|i| self.ancestry(i)).unwrap_or_default();
+        for i in chain {
+            if !self.nodes[i].enabled {
+                continue;
+            }
+            if self.with_cx(store, ts, i, |k, cx| k.wheel(cx, dx, dy, mods)).unwrap_or(false) {
+                self.dirty = true;
+                return;
+            }
+        }
+        // (the containers' bars take whole notches)
+        let (rx, ry) = (self.wheel_rest.0 + dx, self.wheel_rest.1 + dy);
+        let (nx, ny) = (rx.trunc(), ry.trunc());
+        self.wheel_rest = (rx - nx, ry - ny);
+        let (notches, horizontal) = if ny != 0.0 { (ny as i64, mods.shift) } else { (nx as i64, true) };
+        if notches != 0 {
+            crate::components::scrollbox::bars_wheel(self, store, x, y, notches, horizontal);
         }
     }
 
@@ -271,10 +329,12 @@ impl FormUi {
     /// types (empty: nothing).
     pub fn key_down(&mut self, store: &dyn Store, ts: &mut TextSystem, vk: i64, text: &str, mods: Mods, clip: &mut dyn Clipboard) {
         self.dirty = true;
-        self.caret_on = true;
+        self.reset_caret();
         // (an open menu takes the keys; a main menu's ShortCut is picked
         // before the key reaches anything: components/menubar.rs)
         if self.menu_key(store, vk, mods) {
+            // (an edit's context menu's pick, done now)
+            self.edit_commands(store, ts, clip);
             return;
         }
         let chain = self.key_chain();
@@ -307,6 +367,8 @@ impl FormUi {
             }
         }
         crate::components::combo::after_input(self, store);
+        // (the menu key / Shift+F10 on an edit: its context menu)
+        self.edit_commands(store, ts, clip);
     }
 
     pub fn key_up(&mut self, vk: i64, mods: Mods) {
@@ -347,7 +409,7 @@ impl FormUi {
     pub fn ime_commit(&mut self, store: &dyn Store, ts: &mut TextSystem, text: &str) {
         let Some(f) = self.focus else { return };
         self.dirty = true;
-        self.caret_on = true;
+        self.reset_caret();
         let took = self.with_cx(store, ts, f, |k, cx| k.ime(cx, &Ime::Commit(text.to_string()))).unwrap_or(false);
         if took {
             let chain = self.key_chain();
@@ -362,8 +424,8 @@ impl FormUi {
     /// Whether the focused component takes text from input methods (the
     /// host allows IME only then, so other components' keys aren't
     /// swallowed).
-    pub fn wants_ime(&self) -> bool {
-        self.focus.is_some_and(|f| self.nodes[f].type_name == "REDIT")
+    pub fn wants_ime(&self, store: &dyn Store) -> bool {
+        self.focus.is_some_and(|f| self.nodes[f].kind.is_some_and(|k| k.wants_ime(store, &self.nodes[f].id)))
     }
 
     /// Where the input method's window goes: the focused editor's caret

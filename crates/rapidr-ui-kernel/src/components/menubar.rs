@@ -325,6 +325,11 @@ impl FormUi {
     fn pick(&mut self, id: &str) {
         self.close_menus();
         self.menus.hot_top = None;
+        // (the kernel's own edit menu: the text lane's, done on the edit)
+        if super::edit::is_menu_item(id) {
+            super::edit::queue_pick(id);
+            return;
+        }
         self.events.push(KernelEvent::MenuPick(id.to_string()));
     }
 

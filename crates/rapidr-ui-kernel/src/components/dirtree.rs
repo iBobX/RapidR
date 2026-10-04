@@ -143,6 +143,10 @@ impl ComponentKind for DirTreeBox {
         });
     }
 
+    fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
+        super::list::vscroll_wheel(cx.id, dy, cx.width() - 4, cx.height() - 4)
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };

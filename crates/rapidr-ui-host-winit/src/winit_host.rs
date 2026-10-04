@@ -21,7 +21,7 @@ use vello::util::{RenderContext, RenderSurface};
 use vello::wgpu;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalPosition, LogicalSize, PhysicalSize};
-use winit::event::{ElementState, Ime, MouseButton, WindowEvent};
+use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
 use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
@@ -67,6 +67,8 @@ struct Win {
     cursor: (f64, f64),
     /// The pointer shown over it (platform.rs; set only when it changes).
     pointer: Option<rapidr_value::input::Cursor>,
+    /// Input methods allowed (an edit has the focus).
+    ime: bool,
 }
 
 struct State {
@@ -415,7 +417,7 @@ impl Shim<'_> {
             k.ui.dirty = true;
         }
         window.request_redraw();
-        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None });
+        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false });
     }
 
     /// The window's surface: the GPU's unless it has none (or the CPU was
@@ -502,6 +504,18 @@ impl Shim<'_> {
                 if let Err(e) = buf.present() {
                     eprintln!("[rapidr] softbuffer present failed: {e}");
                 }
+            }
+        }
+        // (input methods only while an edit has the focus, so other
+        // components' keys aren't swallowed; their window at the caret)
+        let wants = k.ui.wants_ime(self.store);
+        if wants != w.ime {
+            w.window.set_ime_allowed(wants);
+            w.ime = wants;
+        }
+        if wants {
+            if let Some((x, y, cw, ch)) = k.ui.ime_area(self.store, text) {
+                w.window.set_ime_cursor_area(LogicalPosition::new(x as f64, y as f64), LogicalSize::new(cw.max(1) as f64, ch.max(1) as f64));
             }
         }
         // (a screen reader listening: the nodes that changed)
@@ -683,6 +697,22 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                     ElementState::Pressed => self.desk.mouse_down(store, &f, (x, y), b, m, Source::User),
                     ElementState::Released => self.desk.mouse_up(store, &f, (x, y), b, m, Source::User),
                 }
+                self.after_input(&f);
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                // (winit: positive moves the content right / down, i.e. the
+                // view up; RapidR's notches are positive down. A touchpad's
+                // pixels: 48 logical a notch, three lines)
+                let (dx, dy) = match delta {
+                    MouseScrollDelta::LineDelta(x, y) => (-f64::from(x), -f64::from(y)),
+                    MouseScrollDelta::PixelDelta(p) => {
+                        let p = p.to_logical::<f64>(scale);
+                        (-p.x / 48.0, -p.y / 48.0)
+                    }
+                };
+                let at = self.s.wins.get(&f).map_or((0.0, 0.0), |w| w.cursor);
+                let m = self.mods();
+                self.desk.mouse_wheel(store, &f, at, (dx, dy), m, Source::User);
                 self.after_input(&f);
             }
             WindowEvent::KeyboardInput { event, .. } => {

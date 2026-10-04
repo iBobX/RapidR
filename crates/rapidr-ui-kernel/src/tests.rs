@@ -388,7 +388,7 @@ fn the_program_changing_the_model_shows_in_the_edit() {
 fn input_method_composition_is_not_the_programs_text_until_committed() {
     let (s, mut f, mut ts) = setup();
     key(&mut f, &s, &mut ts, 35, "", NONE);
-    assert!(f.wants_ime());
+    assert!(f.wants_ime(&s));
     f.ime_preedit(&s, &mut ts, "ka", Some((2, 2)));
     assert!(f.take_events().is_empty());
     assert_eq!(edit_model("edname").0, "Grüße, ñandú ✓");
@@ -409,7 +409,7 @@ fn input_method_composition_is_not_the_programs_text_until_committed() {
     assert_eq!(f.node("edName").unwrap().ui.edit.as_ref().unwrap().text(), "Grüße, ñandú ✓か");
     // not for other components
     f.focus_id(&s, "btnOK");
-    assert!(!f.wants_ime());
+    assert!(!f.wants_ime(&s));
 }
 
 #[test]
