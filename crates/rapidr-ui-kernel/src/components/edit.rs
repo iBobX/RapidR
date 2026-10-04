@@ -81,7 +81,7 @@ fn read_model(src: Source, id: &str) -> Option<Model> {
         }),
         Source::InPlace => super::list::editing(id).map(|ed| {
             let (revision, sel) = super::list::edit_shown(id);
-            Model { revision, text: ed.text, sel: Some(sel), read_only: false, max_length: 0, char_case: 0 }
+            Model { revision, text: ed.text, sel: Some(sel), read_only: false, max_length: 0, char_case: 0, reveal: 0 }
         }),
     }
 }
@@ -901,7 +901,7 @@ impl Spec {
     pub fn line(cx: &Cx, area: Rect, src: Source) -> Spec {
         // (an in-place editor: plain text in the component's font)
         let look = match src {
-            Source::InPlace => Look { font: cx.font.clone(), color: bgr_to_rgb(cx.font.color), mask: None, align: Align::Left, wrap: false },
+            Source::InPlace => Look { font: cx.font.clone(), color: bgr_to_rgb(cx.font.color), mask: None, align: Align::Left, wrap: false, syntax: rapidr_value::objects::code::Syntax::None },
             _ => look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false),
         };
         Spec { look, width: area.2 as f64, multi: false, src }
