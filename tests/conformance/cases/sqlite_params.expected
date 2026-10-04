@@ -1,0 +1,42 @@
+-- values after the SQL
+1
+1|O'Neil, "Bob" = x AND y|42|2.5
+-- each value's SQL type
+integer|real|text|real|text|null
+1|-1
+5|10x|3
+-- AddParam and ClearParams
+2
+30
+2
+-- an array gives its elements
+O'Neil, "Bob" = x AND y
+Ann
+-- an injection attempt is only a value
+0
+2
+0 rows
+2
+-- QueryScalar
+Ann
+[]
+-- wrong counts
+OnError: wrong number of parameters: the SQL has 1 placeholder (?) and 0 values were given
+0
+OnError: wrong number of parameters: the SQL has 1 placeholder (?) and 2 values were given
+0
+OnError: wrong number of parameters: the SQL has 2 placeholders (?) and 1 value was given
+0
+OnError: wrong number of parameters: the SQL has 0 placeholders (?) and 1 value was given
+0
+2
+-- events
+OnConnect
+connect0
+OnQueryDone
+query1
+OnError: no such table: nope
+OnQueryDone
+query0
+OnDisconnect
+closed

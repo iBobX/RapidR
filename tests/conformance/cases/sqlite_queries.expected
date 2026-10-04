@@ -1,0 +1,44 @@
+connect0 connected1
+create1
+-- all
+4 rows,5 columns,5 fields
+1|Ann|a=b|2.5|10
+2|Bob|x AND y|3|
+3|O'Neil|it's, a list|0.1|-7
+4|Eve||100000000000000000000|123456789012
+-- quoted values holding = AND ' ,
+Ann
+Bob
+O'Neil|-7
+Ann
+O'Neil
+-- integers and reals as text
+real|integer|5|2|3.5|2|3
+-- WITH, RETURNING, EXPLAIN
+Eve
+Bob
+Ann
+1 returned
+5|Zed|4.25
+explain gives rows
+-- several statements, the last rows
+1
+2
+-- a statement without rows keeps the last ones
+Ann
+5
+Bob
+-- RowSeek, FetchField, Row out of range
+O'Neil
+Ann[]
+3 fields
+10
+0
+-- the desktop's SQLite settings
+1
+R163
+-- errors
+0
+0
+it''s
+connected0 fetch0 query0
