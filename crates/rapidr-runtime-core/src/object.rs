@@ -734,6 +734,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if font_prop {
             comp.properties.insert("__fontset".into(), v_bool(true));
         }
+        // (and a Color: a host paints it, even the creation default white)
+        if prop_lower == "color" {
+            comp.properties.insert("__colorset".into(), v_bool(true));
+        }
         comp.properties.insert(prop_lower.clone(), val);
         #[cfg(feature = "desktop-ui")]
         if font_prop {

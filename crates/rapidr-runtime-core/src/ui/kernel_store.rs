@@ -19,13 +19,18 @@ pub struct RtStore;
 
 /// The Color the registry gives a new QLABEL, QFORM and QPANEL
 /// (`RpComponent::new`), which FLTK doesn't paint: read as unset (a label
-/// has no background; a form and a panel are the button face).
+/// has no background; a form and a panel are the button face) — unless the
+/// program set it (`__colorset`, object.rs), white included.
 const LABEL_DEFAULT_COLOR: i64 = 0xFFFFFF;
 
 impl Store for RtStore {
     fn get(&self, id: &str, prop: &str) -> Value {
         let v = rp_comp_get(id, prop);
-        if prop.eq_ignore_ascii_case("color") && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR)) && matches!(rp_comp_type(id).as_str(), "RLABEL" | "RFORM" | "RPANEL") {
+        if prop.eq_ignore_ascii_case("color")
+            && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR))
+            && matches!(rp_comp_type(id).as_str(), "RLABEL" | "RFORM" | "RPANEL")
+            && !rp_comp_get(id, "__colorset").to_bool()
+        {
             return Value::Null;
         }
         v
