@@ -597,7 +597,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             picture_changed(name);
         }
         #[cfg(feature = "desktop-ui")]
-        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) {
+        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
         }
         #[cfg(feature = "desktop-ui")]
@@ -667,14 +667,6 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     #[cfg(feature = "desktop-ui")]
     {
         let comp_type = rp_comp_type(name);
-        match comp_type.as_str() {
-            "RDESIGNSURFACE" => {
-                if crate::ui::design_surface_set(name, &prop_lower, &val) {
-                    // Also store in registry
-                }
-            }
-            _ => {}
-        }
         // Update visible widgets when "visible" changes
         if prop_lower == "visible" {
             let v = match &val {
@@ -922,12 +914,9 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     {
         let comp_type = rp_comp_type(name);
         match comp_type.as_str() {
-            "RDESIGNSURFACE" => {
-                if let Some(v) = crate::ui::design_surface_get(name, &prop_lower) {
-                    return v;
-                }
-            }
-            "RCODEEDITOR" | "RRICHEDIT" | "RMEMO" => {
+            // (RDESIGNSURFACE's CompCount and FormCaption, RCODEEDITOR's
+            // Text: the shared models' — objects::design, objects::textedit)
+            "RRICHEDIT" | "RMEMO" => {
                 if prop_lower == "text" {
                     return v_str(&crate::ui::gui_get_text(name));
                 }
@@ -1119,7 +1108,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "desktop-ui")]
         if rapidr_value::objects::is_canvas(name) {
             crate::ui::canvas_redraw(name);
-        } else if rapidr_value::objects::is_trackbar(name) {
+        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
@@ -1221,10 +1210,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         // Specialized GUI component method dispatch
         #[cfg(feature = "desktop-ui")]
         "RDESIGNSURFACE" => crate::ui::design_surface_method(name, &method_lower, args),
-        #[cfg(feature = "desktop-ui")]
-        #[cfg(feature = "desktop-ui")]
-        "RCODEEDITOR" => crate::ui::code_editor_method(name, &method_lower, args),
-        #[cfg(feature = "desktop-ui")]
+        // (RCODEEDITOR's GetSubList, GotoSub, GotoLine: its text model's,
+        // above; the rest as any component's)
         #[cfg(feature = "desktop-ui")]
         "RTREEVIEW" => crate::ui::tree_method(name, &method_lower, args),
         #[cfg(feature = "desktop-ui")]

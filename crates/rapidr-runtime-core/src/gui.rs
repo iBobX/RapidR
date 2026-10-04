@@ -29,8 +29,9 @@ use fltk::{
 
 use fltk_theme::{ThemeType, WidgetTheme};
 
-use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5, rp_fire_event_args, rp_fire_event_then};
+use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_args, rp_fire_event_then};
 use crate::value::{v_int, v_null, v_str, Value};
+use rapidr_value::objects::code;
 
 // ---------------------------------------------------------------------------
 // Widget handle registry
@@ -136,39 +137,11 @@ pub(crate) fn attach_late(name: &str) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Design surface component tracking
-// ---------------------------------------------------------------------------
-
-#[derive(Clone, Debug)]
-struct DesignComp {
-    name: String,
-    type_name: String,
-    x: i32,
-    y: i32,
-    w: i32,
-    h: i32,
-    props: HashMap<String, String>,
-}
-
-#[derive(Clone, Debug)]
-struct DesignState {
-    components: Vec<DesignComp>,
-    selected: i32,
-    form_w: i32,
-    form_h: i32,
-    form_caption: String,
-    drag_mode: i32,      // 0=move, 1=resize-right, 2=resize-bottom, 3=resize-BR
-    drag_offset_x: i32,  // mouse offset from component origin
-    drag_offset_y: i32,
-}
-
 thread_local! {
     static GUI_WIDGETS: RefCell<HashMap<String, GuiWidget>> = RefCell::new(HashMap::new());
     static GUI_APP: RefCell<Option<app::App>> = RefCell::new(None);
     static GUI_TEXT_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
     static GUI_STYLE_BUFFERS: RefCell<HashMap<String, TextBuffer>> = RefCell::new(HashMap::new());
-    static DESIGN_SURFACES: RefCell<HashMap<String, DesignState>> = RefCell::new(HashMap::new());
     /// Maps tab control names to their child group names (tab_name -> group_widget_key)
     /// `$THEME` (see [`look_for`]); "" for the platform's own look
     static THEME_OVERRIDE: RefCell<String> = RefCell::new(String::new());
@@ -668,6 +641,8 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
             tab_control_input(&comp_lower, |t, w, h, font| matches!(vk, 37..=40) && t.key(vk, w, h, font));
             key_events(&chain, false, vk, 0, "");
         }
+        // (the design surface's own handler: the shared model's events)
+        Action::Mouse(kind, x, y) if rapidr_value::objects::is_design(&comp_lower) => design_test_mouse(&comp_lower, kind, x, y),
         Action::Mouse(kind, x, y) => {
             // (a scroll box's / form's bars take the mouse first, as the
             // real input's dispatch: no OnMouseDown for them)
@@ -694,6 +669,42 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
         Action::Fire(ref event) => crate::object::rp_fire_event(comp, event),
     }
     app::add_timeout3(0.05, move |_| fire_test_events(queue.clone(), prefix.clone()));
+}
+
+thread_local! {
+    /// The test hook's last press on a design surface: when, on which,
+    /// where, and its click count (a double click as Windows times one).
+    static DESIGN_PRESS: RefCell<Option<(std::time::Instant, String, i64, i64, u32)>> = const { RefCell::new(None) };
+}
+
+/// `ds.__mousedown_x_y` … on a design surface: what its handler does with
+/// the mouse (design_surface_event); a second press within Windows'
+/// double-click time and distance is a double click (as the kernel counts).
+fn design_test_mouse(ds: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64) {
+    use rapidr_value::input::Mouse;
+    let heard = match kind {
+        Mouse::Down => {
+            let now = std::time::Instant::now();
+            let clicks = DESIGN_PRESS.with(|p| {
+                let n = match p.borrow().as_ref() {
+                    Some((at, on, px, py, n)) if on == ds && now.duration_since(*at) <= std::time::Duration::from_millis(500) && (x - px).abs() <= 4 && (y - py).abs() <= 4 => n + 1,
+                    _ => 1,
+                };
+                *p.borrow_mut() = Some((now, ds.to_string(), x, y, n));
+                n
+            });
+            rapidr_value::objects::with_design_mut(ds, |d| d.mouse_down(x, y, clicks >= 2))
+        }
+        Mouse::Move => rapidr_value::objects::with_design_mut(ds, |d| d.mouse_drag(x, y)),
+        Mouse::Up => rapidr_value::objects::with_design_mut(ds, |d| {
+            d.mouse_up();
+            None
+        }),
+    };
+    redraw_widget(ds);
+    if let Some(e) = heard.flatten() {
+        fire_design_event(ds, &e);
+    }
 }
 
 fn capture_windows(prefix: &str) {
@@ -1464,23 +1475,25 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let y = rp_comp_get(name, "top").to_i64() as i32;
             let w = rp_comp_get(name, "width").to_i64() as i32;
             let h = rp_comp_get(name, "height").to_i64() as i32;
-            let text = rp_comp_get(name, "text").to_string_val();
+            // (its text model's: what the program set before it was shown)
+            let text = rapidr_value::objects::with_textedit(name, |t| t.raw()).unwrap_or_else(|| rp_comp_get(name, "text").to_string_val());
             let mut buf = TextBuffer::default();
             buf.set_text(&text);
 
-            // Create style buffer for syntax highlighting
+            // The style buffer: a token letter per byte (A keyword, B string,
+            // C comment, D number, E the rest: rapidr_value::objects::code).
             let mut style_buf = TextBuffer::default();
-            let style_text = basic_syntax_highlight(&text);
-            style_buf.set_text(&style_text);
-
-            // Style table: A=keyword(blue), B=string(burgundy), C=comment(green), D=number(maroon), E=normal
-            let styles = vec![
-                StyleTableEntry { color: Color::from_rgb(0, 0, 180), font: Font::CourierBold, size: 13 },    // A - keywords
-                StyleTableEntry { color: Color::from_rgb(163, 21, 21), font: Font::Courier, size: 13 },       // B - strings
-                StyleTableEntry { color: Color::from_rgb(0, 128, 0), font: Font::CourierItalic, size: 13 },   // C - comments
-                StyleTableEntry { color: Color::from_rgb(128, 0, 0), font: Font::Courier, size: 13 },         // D - numbers
-                StyleTableEntry { color: Color::Black, font: Font::Courier, size: 13 },                       // E - normal
-            ];
+            style_buf.set_text(&code::style_bytes(&text));
+            let entry = |t: code::Token| {
+                let st = t.style();
+                let font = match (st.bold, st.italic) {
+                    (true, _) => Font::CourierBold,
+                    (_, true) => Font::CourierItalic,
+                    _ => Font::Courier,
+                };
+                StyleTableEntry { color: Color::from_hex(st.color), font, size: 13 }
+            };
+            let styles = [code::Token::Keyword, code::Token::String, code::Token::Comment, code::Token::Number, code::Token::Normal].map(entry).to_vec();
 
             let mut editor = TextEditor::new(x, y, w, h, None);
             editor.set_buffer(buf.clone());
@@ -1494,17 +1507,22 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 sb.borrow_mut().insert(name_lower.clone(), style_buf);
             });
 
-            // Re-highlight syntax on every text modification (typing, paste, etc.)
+            // Every change of the text (typing, paste, the program's text)
+            // coloured again; the user's typing goes to the text model,
+            // then OnChange (as a QMEMO's). A selection changing alone is
+            // neither.
             {
                 let nl = name_lower.clone();
-                buf.add_modify_callback(move |_pos, _ins, _del, _restyled, _deleted_text| {
+                buf.add_modify_callback(move |_pos, ins, del, _restyled, _deleted_text| {
+                    if ins == 0 && del == 0 {
+                        return;
+                    }
                     // Use try_borrow to avoid panicking if we're inside gui_set_text
                     // which may still hold a borrow on GUI_TEXT_BUFFERS.
                     GUI_TEXT_BUFFERS.with(|tb| {
                         if let Ok(bufs) = tb.try_borrow() {
                             if let Some(text_buf) = bufs.get(&nl) {
-                                let text = text_buf.text();
-                                let new_styles = basic_syntax_highlight(&text);
+                                let new_styles = code::style_bytes(&text_buf.text());
                                 GUI_STYLE_BUFFERS.with(|sb| {
                                     if let Ok(mut styles) = sb.try_borrow_mut() {
                                         if let Some(style_buf) = styles.get_mut(&nl) {
@@ -1514,6 +1532,14 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                                 });
                             }
                         }
+                    });
+                    if TEXT_PUSHING.with(std::cell::Cell::get) {
+                        return;
+                    }
+                    let n = nl.clone();
+                    app::add_timeout3(0.0, move |_| {
+                        text_pull(&n);
+                        rp_fire_event(&n, "onchange");
                     });
                 });
             }
@@ -1573,6 +1599,8 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             let parent = rp_comp_get(name, "parent").to_string_val();
             let embedded = !parent.is_empty();
 
+            // (its components, selection and drags: the shared model,
+            // rapidr_value::objects::design)
             if embedded {
                 // Embedded design surface: use a Frame with custom draw/handle
                 let mut frm = Frame::new(x, y, w, h, None);
@@ -1586,51 +1614,37 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 // (RapidR's handler first: it returns true for what it handles alone)
                 frm.super_handle_first(false);
                 frm.handle(move |wid, ev| {
-                    handle_design_surface_frame_event(&ds_name2, wid, ev)
-                });
-                DESIGN_SURFACES.with(|ds| {
-                    ds.borrow_mut().insert(name_lower.clone(), DesignState {
-                        components: Vec::new(),
-                        selected: -1,
-                        form_w: w,
-                        form_h: h,
-                        form_caption: cap,
-                        drag_mode: 0,
-                        drag_offset_x: 0,
-                        drag_offset_y: 0,
-                    });
+                    let (mx, my) = (app::event_x() - wid.x(), app::event_y() - wid.y());
+                    let handled = design_surface_event(&ds_name2, ev, mx, my);
+                    if handled {
+                        wid.redraw();
+                    }
+                    handled
                 });
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Frame(frm));
                 });
             } else {
-                // Standalone design surface: use a Window
+                // Standalone design surface: use a Window (drawn and
+                // handled in its own coordinates)
                 let mut win = Window::new(200, 200, w, h, None);
                 win.set_label(&cap);
                 win.set_color(Color::White);
                 let ds_name = name_lower.clone();
                 win.draw(move |wid| {
-                    draw_design_surface(&ds_name, wid.x(), wid.y(), wid.w(), wid.h());
+                    draw_design_surface(&ds_name, 0, 0, wid.w(), wid.h());
                 });
                 let ds_name2 = name_lower.clone();
                 // (RapidR's handler first: it returns true for what it handles alone)
                 win.super_handle_first(false);
                 win.handle(move |wid, ev| {
-                    handle_design_surface_event(&ds_name2, wid, ev)
+                    let handled = design_surface_event(&ds_name2, ev, app::event_x(), app::event_y());
+                    if handled {
+                        wid.redraw();
+                    }
+                    handled
                 });
                 win.end();
-                DESIGN_SURFACES.with(|ds| {
-                    ds.borrow_mut().insert(name_lower.clone(), DesignState {
-                        components: Vec::new(),
-                        selected: -1,
-                        form_w: w,
-                        form_h: h,
-                        form_caption: cap,
-                        drag_mode: 0,
-                        drag_offset_x: 0,
-                        drag_offset_y: 0,
-                    });
-                });
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -2322,124 +2336,25 @@ fn auto_popup(name: &str) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// BASIC syntax highlighting for code editor
-// ---------------------------------------------------------------------------
-
-/// Generate a style string for BASIC syntax highlighting.
-/// A=keyword, B=string, C=comment, D=number, E=normal
-fn basic_syntax_highlight(source: &str) -> String {
-    static KEYWORDS: &[&str] = &[
-        "SUB", "END", "FUNCTION", "DIM", "AS", "IF", "THEN", "ELSE", "ELSEIF",
-        "FOR", "TO", "STEP", "NEXT", "WHILE", "WEND", "DO", "LOOP", "UNTIL",
-        "SELECT", "CASE", "EXIT", "CREATE", "INTEGER", "STRING", "DOUBLE", "BOOLEAN",
-        "AND", "OR", "NOT", "MOD", "TRUE", "FALSE", "CONST", "RETURN",
-        "PRINT", "MSGBOX", "SHELL", "SHELLWAIT", "CALL",
-        "RFORM", "RBUTTON", "RLABEL", "REDIT", "RCHECKBOX", "RRADIOBUTTON",
-        "RCOMBOBOX", "RLISTBOX", "RPANEL", "RGROUPBOX", "RDESIGNSURFACE",
-        "RCODEEDITOR", "RSTRINGGRID", "RTREEVIEW", "RCANVAS", "RTIMER",
-        "RIMAGE", "RRICHEDIT", "RPROGRESSBAR", "RTRACKBAR", "RSCROLLBAR",
-        "RSPLITTER", "RMAINMENU", "RMENUITEM", "RMYSQL", "RSQLITE",
-        "RCOOLBTN", "ROVALBTN",
-        "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
-        "RFILESTREAM", "RJSON", "RHTTP", "RSOCKET", "$THEME",
-        "LEFT", "RIGHT", "MID", "LEN", "INSTR", "UCASE", "LCASE",
-        "VAL", "STR", "CHR", "ASC", "TRIM",
-    ];
-
-    let chars: Vec<char> = source.chars().collect();
-    let len = chars.len();
-    let mut styles = vec![b'E'; len];
-    let mut i = 0;
-
-    while i < len {
-        let ch = chars[i];
-
-        // Comment: ' to end of line
-        if ch == '\'' {
-            let start = i;
-            while i < len && chars[i] != '\n' {
-                i += 1;
-            }
-            for j in start..i {
-                styles[j] = b'C';
-            }
-            continue;
-        }
-
-        // String literal: "..."
-        if ch == '"' {
-            let start = i;
-            i += 1;
-            while i < len && chars[i] != '"' && chars[i] != '\n' {
-                i += 1;
-            }
-            if i < len && chars[i] == '"' {
-                i += 1;
-            }
-            for j in start..i {
-                styles[j] = b'B';
-            }
-            continue;
-        }
-
-        // Number
-        if ch.is_ascii_digit() || (ch == '.' && i + 1 < len && chars[i + 1].is_ascii_digit()) {
-            let start = i;
-            while i < len && (chars[i].is_ascii_digit() || chars[i] == '.') {
-                i += 1;
-            }
-            for j in start..i {
-                styles[j] = b'D';
-            }
-            continue;
-        }
-
-        // Word (identifier or keyword)
-        if ch.is_ascii_alphabetic() || ch == '_' || ch == '$' {
-            let start = i;
-            while i < len && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
-                i += 1;
-            }
-            let word: String = chars[start..i].iter().collect();
-            let upper = word.to_uppercase();
-            if KEYWORDS.contains(&upper.as_str()) {
-                for j in start..i {
-                    styles[j] = b'A';
-                }
-            }
-            continue;
-        }
-
-        i += 1;
-    }
-
-    String::from_utf8(styles).unwrap_or_default()
-}
-
-// ---------------------------------------------------------------------------
 // Design surface rendering
 // ---------------------------------------------------------------------------
 
-/// Parse a color string (hex like "#RRGGBB" or "rgb(r,g,b)") into an FLTK Color.
+/// A designed component's colour property ("#RRGGBB", "rgb(r,g,b)", or a
+/// RapidQ &HBBGGRR / QCOLORDIALOG number: objects::design::parse_color).
 fn parse_color_prop(s: &str) -> Option<Color> {
-    let s = s.trim();
-    if s.starts_with('#') && s.len() >= 7 {
-        let r = u8::from_str_radix(&s[1..3], 16).ok()?;
-        let g = u8::from_str_radix(&s[3..5], 16).ok()?;
-        let b = u8::from_str_radix(&s[5..7], 16).ok()?;
-        return Some(Color::from_rgb(r, g, b));
-    }
-    if s.starts_with("rgb(") && s.ends_with(')') {
-        let inner = &s[4..s.len()-1];
-        let parts: Vec<&str> = inner.split(',').collect();
-        if parts.len() == 3 {
-            let r = parts[0].trim().parse::<u8>().ok()?;
-            let g = parts[1].trim().parse::<u8>().ok()?;
-            let b = parts[2].trim().parse::<u8>().ok()?;
-            return Some(Color::from_rgb(r, g, b));
-        }
-    }
-    None
+    rapidr_value::objects::design::parse_color(s).map(Color::from_hex)
+}
+
+/// A designed component in FLTK's coordinates (the shared model's, copied
+/// for drawing).
+struct Placed {
+    name: String,
+    type_name: String,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    props: std::collections::BTreeMap<String, String>,
 }
 
 fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
@@ -2460,10 +2375,17 @@ fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
     }
 
     // Draw placed components with realistic widget appearances
-    DESIGN_SURFACES.with(|ds| {
-        let surfaces = ds.borrow();
-        if let Some(state) = surfaces.get(ds_name) {
-            for (i, comp) in state.components.iter().enumerate() {
+    let model = rapidr_value::objects::with_design(ds_name, |d| {
+        let placed: Vec<Placed> = d
+            .components
+            .iter()
+            .map(|c| Placed { name: c.name.clone(), type_name: c.type_name.clone(), x: c.x as i32, y: c.y as i32, w: c.w as i32, h: c.h as i32, props: c.props.clone() })
+            .collect();
+        (placed, d.selection())
+    });
+    {
+        if let Some((components, selected)) = model {
+            for (i, comp) in components.iter().enumerate() {
                 let cx = x + comp.x;
                 let cy = y + comp.y;
                 let label = comp.props.get("caption").unwrap_or(&comp.name);
@@ -2784,14 +2706,14 @@ fn draw_design_surface(ds_name: &str, x: i32, y: i32, w: i32, h: i32) {
                 }
 
                 // Selection border (blue highlight over everything)
-                if i as i32 == state.selected {
+                if selected == Some(i) {
                     draw::set_draw_color(Color::from_rgb(0, 120, 215));
                     draw::draw_rect(cx, cy, comp.w, comp.h);
                     draw_selection_handles(cx, cy, comp.w, comp.h);
                 }
             }
         }
-    });
+    }
 }
 
 fn draw_selection_handles(x: i32, y: i32, w: i32, h: i32) {
@@ -2813,294 +2735,31 @@ fn draw_selection_handles(x: i32, y: i32, w: i32, h: i32) {
 // Design surface mouse event handling
 // ---------------------------------------------------------------------------
 
-fn handle_design_surface_event(ds_name: &str, wid: &mut Window, ev: Event) -> bool {
-    match ev {
-        Event::Push => {
-            let mx = app::event_x() - wid.x();
-            let my = app::event_y() - wid.y();
-            let clicks = app::event_clicks();
-
-            // Check if clicking on a resize handle of the selected component first
-            let handle_hit = DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(ds_name) {
-                    let idx = state.selected;
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        let c = &state.components[idx as usize];
-                        let hsz = 5;
-                        // Bottom-right handle
-                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
-                            return Some(3); // resize BR
-                        }
-                        // Right-middle handle
-                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h / 2)).abs() <= hsz {
-                            return Some(1); // resize right
-                        }
-                        // Bottom-middle handle
-                        if (mx - (c.x + c.w / 2)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
-                            return Some(2); // resize bottom
-                        }
-                    }
-                }
-                None
-            });
-
-            if let Some(mode) = handle_hit {
-                // Start resize drag
-                DESIGN_SURFACES.with(|ds| {
-                    let mut surfaces = ds.borrow_mut();
-                    if let Some(state) = surfaces.get_mut(ds_name) {
-                        state.drag_mode = mode;
-                    }
-                });
-                return true;
-            }
-
-            // Check if clicking on an existing component
-            let hit = DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(ds_name) {
-                    for i in (0..state.components.len()).rev() {
-                        let c = &state.components[i];
-                        if mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h {
-                            return Some((i as i32, mx - c.x, my - c.y));
-                        }
-                    }
-                }
-                None
-            });
-
-            if let Some((idx, off_x, off_y)) = hit {
-                DESIGN_SURFACES.with(|ds| {
-                    let mut surfaces = ds.borrow_mut();
-                    if let Some(state) = surfaces.get_mut(ds_name) {
-                        state.selected = idx;
-                        state.drag_mode = 0; // move
-                        state.drag_offset_x = off_x;
-                        state.drag_offset_y = off_y;
-                    }
-                });
-                wid.redraw();
-
-                if clicks {
-                    rp_fire_event_1(ds_name, "ondblclick", v_int(idx as i64));
-                } else {
-                    rp_fire_event_1(ds_name, "onselect", v_int(idx as i64));
-                }
-            } else {
-                DESIGN_SURFACES.with(|ds| {
-                    let mut surfaces = ds.borrow_mut();
-                    if let Some(state) = surfaces.get_mut(ds_name) {
-                        state.selected = -1;
-                        state.drag_mode = 0;
-                    }
-                });
-                wid.redraw();
-                rp_fire_event_2(ds_name, "onbgclick", v_int(mx as i64), v_int(my as i64));
-            }
-            true
-        }
-        Event::Drag => {
-            let mx = app::event_x() - wid.x();
-            let my = app::event_y() - wid.y();
-
-            let result = DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(ds_name) {
-                    let idx = state.selected;
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        let mode = state.drag_mode;
-                        let c = &mut state.components[idx as usize];
-                        match mode {
-                            1 => {
-                                // Resize right edge
-                                let new_w = ((mx - c.x + 4) / 8) * 8;
-                                c.w = new_w.max(16);
-                            }
-                            2 => {
-                                // Resize bottom edge
-                                let new_h = ((my - c.y + 4) / 8) * 8;
-                                c.h = new_h.max(16);
-                            }
-                            3 => {
-                                // Resize bottom-right corner
-                                let new_w = ((mx - c.x + 4) / 8) * 8;
-                                let new_h = ((my - c.y + 4) / 8) * 8;
-                                c.w = new_w.max(16);
-                                c.h = new_h.max(16);
-                            }
-                            _ => {
-                                // Move, using offset from Push
-                                let new_x = ((mx - state.drag_offset_x + 4) / 8) * 8;
-                                let new_y = ((my - state.drag_offset_y + 4) / 8) * 8;
-                                c.x = new_x.max(0);
-                                c.y = new_y.max(0);
-                            }
-                        }
-                        return Some((idx, c.x, c.y, c.w, c.h));
-                    }
-                }
-                None
-            });
-            if let Some((idx, cx, cy, cw, ch)) = result {
-                wid.redraw();
-                rp_fire_event_5(ds_name, "onmove",
-                    v_int(idx as i64), v_int(cx as i64), v_int(cy as i64),
-                    v_int(cw as i64), v_int(ch as i64));
-            }
-            true
-        }
-        Event::Released => {
-            // Reset drag mode
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(ds_name) {
-                    state.drag_mode = 0;
-                }
-            });
-            true
-        }
-        _ => false,
+/// The mouse on design surface `ds_name` at (mx, my) of it, through the
+/// shared model (rapidr_value::objects::design): a press selects (OnSelect,
+/// OnDblClick on a double click) or clears (OnBgClick), a drag moves or
+/// resizes (OnMove), a release ends it. Whether it was the surface's.
+fn design_surface_event(ds_name: &str, ev: Event, mx: i32, my: i32) -> bool {
+    let (mx, my) = (i64::from(mx), i64::from(my));
+    let heard = match ev {
+        Event::Push => rapidr_value::objects::with_design_mut(ds_name, |d| d.mouse_down(mx, my, app::event_clicks())),
+        Event::Drag => rapidr_value::objects::with_design_mut(ds_name, |d| d.mouse_drag(mx, my)),
+        Event::Released => rapidr_value::objects::with_design_mut(ds_name, |d| {
+            d.mouse_up();
+            None
+        }),
+        _ => return false,
+    };
+    if let Some(e) = heard.flatten() {
+        fire_design_event(ds_name, &e);
     }
+    true
 }
 
-fn handle_design_surface_frame_event(ds_name: &str, wid: &mut Frame, ev: Event) -> bool {
-    match ev {
-        Event::Push => {
-            let mx = app::event_x() - wid.x();
-            let my = app::event_y() - wid.y();
-            let clicks = app::event_clicks();
-
-            let handle_hit = DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(ds_name) {
-                    let idx = state.selected;
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        let c = &state.components[idx as usize];
-                        let hsz = 5;
-                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
-                            return Some(3);
-                        }
-                        if (mx - (c.x + c.w)).abs() <= hsz && (my - (c.y + c.h / 2)).abs() <= hsz {
-                            return Some(1);
-                        }
-                        if (mx - (c.x + c.w / 2)).abs() <= hsz && (my - (c.y + c.h)).abs() <= hsz {
-                            return Some(2);
-                        }
-                    }
-                }
-                None
-            });
-
-            if let Some(mode) = handle_hit {
-                DESIGN_SURFACES.with(|ds| {
-                    let mut surfaces = ds.borrow_mut();
-                    if let Some(state) = surfaces.get_mut(ds_name) {
-                        state.drag_mode = mode;
-                    }
-                });
-                return true;
-            }
-
-            let hit = DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(ds_name) {
-                    for i in (0..state.components.len()).rev() {
-                        let c = &state.components[i];
-                        if mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h {
-                            return Some((i as i32, mx - c.x, my - c.y));
-                        }
-                    }
-                }
-                None
-            });
-
-            if let Some((idx, off_x, off_y)) = hit {
-                DESIGN_SURFACES.with(|ds| {
-                    let mut surfaces = ds.borrow_mut();
-                    if let Some(state) = surfaces.get_mut(ds_name) {
-                        state.selected = idx;
-                        state.drag_mode = 0;
-                        state.drag_offset_x = off_x;
-                        state.drag_offset_y = off_y;
-                    }
-                });
-                wid.redraw();
-                if clicks {
-                    rp_fire_event_1(ds_name, "ondblclick", v_int(idx as i64));
-                } else {
-                    rp_fire_event_1(ds_name, "onselect", v_int(idx as i64));
-                }
-            } else {
-                DESIGN_SURFACES.with(|ds| {
-                    let mut surfaces = ds.borrow_mut();
-                    if let Some(state) = surfaces.get_mut(ds_name) {
-                        state.selected = -1;
-                        state.drag_mode = 0;
-                    }
-                });
-                wid.redraw();
-                rp_fire_event_2(ds_name, "onbgclick", v_int(mx as i64), v_int(my as i64));
-            }
-            true
-        }
-        Event::Drag => {
-            let mx = app::event_x() - wid.x();
-            let my = app::event_y() - wid.y();
-
-            let result = DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(ds_name) {
-                    let idx = state.selected;
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        let mode = state.drag_mode;
-                        let c = &mut state.components[idx as usize];
-                        match mode {
-                            1 => {
-                                let new_w = ((mx - c.x + 4) / 8) * 8;
-                                c.w = new_w.max(16);
-                            }
-                            2 => {
-                                let new_h = ((my - c.y + 4) / 8) * 8;
-                                c.h = new_h.max(16);
-                            }
-                            3 => {
-                                let new_w = ((mx - c.x + 4) / 8) * 8;
-                                let new_h = ((my - c.y + 4) / 8) * 8;
-                                c.w = new_w.max(16);
-                                c.h = new_h.max(16);
-                            }
-                            _ => {
-                                let new_x = ((mx - state.drag_offset_x + 4) / 8) * 8;
-                                let new_y = ((my - state.drag_offset_y + 4) / 8) * 8;
-                                c.x = new_x.max(0);
-                                c.y = new_y.max(0);
-                            }
-                        }
-                        return Some((idx, c.x, c.y, c.w, c.h));
-                    }
-                }
-                None
-            });
-            if let Some((idx, cx, cy, cw, ch)) = result {
-                wid.redraw();
-                rp_fire_event_5(ds_name, "onmove",
-                    v_int(idx as i64), v_int(cx as i64), v_int(cy as i64),
-                    v_int(cw as i64), v_int(ch as i64));
-            }
-            true
-        }
-        Event::Released => {
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(ds_name) {
-                    state.drag_mode = 0;
-                }
-            });
-            true
-        }
-        _ => false,
-    }
+/// A design surface's event, fired with its arguments.
+fn fire_design_event(ds_name: &str, e: &rapidr_value::objects::design::DesignEvent) {
+    let args: Vec<Value> = e.args().into_iter().map(v_int).collect();
+    crate::object::rp_fire_event_args(ds_name, e.event(), &args);
 }
 
 /// Register a timer component name so ShowModal can start it.
@@ -4187,387 +3846,20 @@ pub fn gui_show(name: &str) {
 // Design surface methods
 // ---------------------------------------------------------------------------
 
-/// Handle method calls on a PDESIGNSURFACE component.
-pub fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
+/// An RDESIGNSURFACE's methods the shared model leaves to the host (its
+/// AddComponent, GetProp, SelectComp …: rapidr_value::objects::design).
+pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value {
     match method {
-        "addcomponent" => {
-            // AddComponent(type, name, x, y, w, h)
-            let type_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let comp_name = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-            let x = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y = args.get(3).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let w = args.get(4).map(|v| v.to_i64()).unwrap_or(80) as i32;
-            let h = args.get(5).map(|v| v.to_i64()).unwrap_or(25) as i32;
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    let mut props = HashMap::new();
-                    props.insert("caption".to_string(), comp_name.clone());
-                    state.components.push(DesignComp {
-                        name: comp_name,
-                        type_name,
-                        x, y, w, h,
-                        props,
-                    });
-                    state.selected = (state.components.len() - 1) as i32;
-                }
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "getname" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        return v_str(&state.components[idx as usize].name);
-                    }
-                }
-                v_str("")
-            })
-        }
-        "gettype" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        return v_str(&state.components[idx as usize].type_name);
-                    }
-                }
-                v_str("")
-            })
-        }
-        "getcompx" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        return v_int(state.components[idx as usize].x as i64);
-                    }
-                }
-                v_int(0)
-            })
-        }
-        "getcompy" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        return v_int(state.components[idx as usize].y as i64);
-                    }
-                }
-                v_int(0)
-            })
-        }
-        "getcompw" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        return v_int(state.components[idx as usize].w as i64);
-                    }
-                }
-                v_int(0)
-            })
-        }
-        "getcomph" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        return v_int(state.components[idx as usize].h as i64);
-                    }
-                }
-                v_int(0)
-            })
-        }
-        "setprop" => {
-            // SetProp(index, propname, value)
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            let prop = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-            let val = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        state.components[idx as usize].props.insert(prop.to_lowercase(), val);
-                    }
-                }
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "getprop" => {
-            // GetProp(index, propname)
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            let prop = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        if let Some(val) = state.components[idx as usize].props.get(&prop.to_lowercase()) {
-                            return v_str(val);
-                        }
-                    }
-                }
-                v_str("")
-            })
-        }
-        "setcompbounds" => {
-            // SetCompBounds(index, x, y, w, h)
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            let x = args.get(1).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let y = args.get(2).map(|v| v.to_i64()).unwrap_or(0) as i32;
-            let w = args.get(3).map(|v| v.to_i64()).unwrap_or(80) as i32;
-            let h = args.get(4).map(|v| v.to_i64()).unwrap_or(25) as i32;
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        let c = &mut state.components[idx as usize];
-                        c.x = x; c.y = y; c.w = w; c.h = h;
-                    }
-                }
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "setname" => {
-            // SetName(index, newname)
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            let new_name = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        state.components[idx as usize].name = new_name;
-                    }
-                }
-            });
-            v_null()
-        }
-        "selectcomp" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    state.selected = idx as i32;
-                }
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "removecomponent" => {
-            let idx = args.first().map(|v| v.to_i64()).unwrap_or(-1);
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    if idx >= 0 && (idx as usize) < state.components.len() {
-                        state.components.remove(idx as usize);
-                        state.selected = -1;
-                    }
-                }
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "clearall" => {
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    state.components.clear();
-                    state.selected = -1;
-                }
-            });
-            redraw_widget(&name_lower);
-            v_null()
-        }
-        "show" => {
-            gui_show(name);
-            v_null()
-        }
-        "hide" => {
-            gui_hide(name);
-            v_null()
-        }
-        "count" => {
-            DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    v_int(state.components.len() as i64)
-                } else {
-                    v_int(0)
-                }
-            })
-        }
-        _ => {
-            eprintln!("[WARN] DesignSurface.{}() not implemented", method);
-            v_null()
-        }
+        "show" => gui_show(name),
+        "hide" => gui_hide(name),
+        _ => eprintln!("[WARN] DesignSurface.{}() not implemented", method),
     }
-}
-
-/// Get a design surface property
-pub fn design_surface_get(name: &str, prop: &str) -> Option<Value> {
-    let name_lower = name.to_lowercase();
-    let prop_lower = prop.to_lowercase();
-    match prop_lower.as_str() {
-        "compcount" | "count" => {
-            Some(DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    v_int(state.components.len() as i64)
-                } else {
-                    v_int(0)
-                }
-            }))
-        }
-        "formcaption" => {
-            Some(DESIGN_SURFACES.with(|ds| {
-                let surfaces = ds.borrow();
-                if let Some(state) = surfaces.get(&name_lower) {
-                    v_str(&state.form_caption)
-                } else {
-                    v_str("")
-                }
-            }))
-        }
-        _ => None,
-    }
-}
-
-/// Set a design surface property
-pub fn design_surface_set(name: &str, prop: &str, val: &Value) -> bool {
-    let name_lower = name.to_lowercase();
-    let prop_lower = prop.to_lowercase();
-    match prop_lower.as_str() {
-        "formcaption" => {
-            let cap = val.to_string_val();
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    state.form_caption = cap;
-                }
-            });
-            true
-        }
-        "width" | "height" => {
-            let v = val.to_i64() as i32;
-            DESIGN_SURFACES.with(|ds| {
-                let mut surfaces = ds.borrow_mut();
-                if let Some(state) = surfaces.get_mut(&name_lower) {
-                    if prop_lower == "width" { state.form_w = v; }
-                    if prop_lower == "height" { state.form_h = v; }
-                }
-            });
-            true
-        }
-        _ => false,
-    }
+    v_null()
 }
 
 // ---------------------------------------------------------------------------
 // String grid methods
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Code editor methods
-// ---------------------------------------------------------------------------
-
-/// Handle method calls on a PCODEEDITOR component.
-pub fn code_editor_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let name_lower = name.to_lowercase();
-    match method {
-        "getsublist" => {
-            // Return a newline-separated list of SUB/FUNCTION names from the code
-            let text = GUI_TEXT_BUFFERS.with(|tb| {
-                let bufs = tb.borrow();
-                bufs.get(&name_lower).map(|b| b.text()).unwrap_or_default()
-            });
-            let mut subs = Vec::new();
-            for line in text.lines() {
-                let trimmed = line.trim().to_uppercase();
-                if trimmed.starts_with("SUB ") || trimmed.starts_with("FUNCTION ") {
-                    // Extract the name
-                    let parts: Vec<&str> = line.trim().split('(').collect();
-                    let decl = parts[0];
-                    let sub_name = decl.split_whitespace().nth(1).unwrap_or("");
-                    if !sub_name.is_empty() {
-                        subs.push(sub_name.to_string());
-                    }
-                }
-            }
-            v_str(&subs.join("\n"))
-        }
-        "gotosub" => {
-            let sub_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let text = GUI_TEXT_BUFFERS.with(|tb| {
-                let bufs = tb.borrow();
-                bufs.get(&name_lower).map(|b| b.text()).unwrap_or_default()
-            });
-            let target = sub_name.to_uppercase();
-            for (i, line) in text.lines().enumerate() {
-                let upper = line.trim().to_uppercase();
-                if (upper.starts_with("SUB ") || upper.starts_with("FUNCTION "))
-                    && upper.contains(&target) {
-                    // Scroll to this line
-                    GUI_WIDGETS.with(|gw| {
-                        let mut widgets = gw.borrow_mut();
-                        if let Some(GuiWidget::TextEditor(ref mut ed)) = widgets.get_mut(&name_lower) {
-                            // Position to line
-                            GUI_TEXT_BUFFERS.with(|tb| {
-                                let bufs = tb.borrow();
-                                if let Some(_buf) = bufs.get(&name_lower) {
-                                    // Calculate byte offset for line i
-                                    let mut offset = 0;
-                                    for (j, ln) in text.lines().enumerate() {
-                                        if j == i { break; }
-                                        offset += ln.len() + 1; // +1 for newline
-                                    }
-                                    ed.set_insert_position(offset as i32);
-                                    ed.show_insert_position();
-                                }
-                            });
-                        }
-                    });
-                    break;
-                }
-            }
-            v_null()
-        }
-        "gotoline" => {
-            let line_num = args.first().map(|v| v.to_i64()).unwrap_or(0);
-            let text = GUI_TEXT_BUFFERS.with(|tb| {
-                let bufs = tb.borrow();
-                bufs.get(&name_lower).map(|b| b.text()).unwrap_or_default()
-            });
-            let mut offset = 0;
-            for (i, ln) in text.lines().enumerate() {
-                if i as i64 >= line_num { break; }
-                offset += ln.len() + 1;
-            }
-            GUI_WIDGETS.with(|gw| {
-                let mut widgets = gw.borrow_mut();
-                if let Some(GuiWidget::TextEditor(ref mut ed)) = widgets.get_mut(&name_lower) {
-                    ed.set_insert_position(offset as i32);
-                    ed.show_insert_position();
-                }
-            });
-            v_null()
-        }
-        _ => {
-            eprintln!("[WARN] CodeEditor.{}() not implemented", method);
-            v_null()
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Tab control methods
@@ -5723,6 +5015,8 @@ thread_local! {
     /// the user's), and the model revision each widget shows.
     static TEXT_PUSHING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static TEXT_SHOWN: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+    /// The GotoLine / GotoSub each code editor scrolled to last.
+    static TEXT_REVEALED: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
 }
 
 fn char_to_byte(s: &str, c: usize) -> i32 {
@@ -5762,11 +5056,13 @@ pub fn text_pull(name: &str) {
 /// changed it since (text, selection, ReadOnly).
 pub fn text_push(name: &str) {
     let name = name.to_lowercase();
-    let Some((rev, raw, start, len, read_only)) = rapidr_value::objects::with_textedit(&name, |t| (t.revision, t.raw(), t.sel_start, t.sel_len, t.read_only)) else { return };
+    let Some((rev, raw, start, len, read_only, reveal)) = rapidr_value::objects::with_textedit(&name, |t| (t.revision, t.raw(), t.sel_start, t.sel_len, t.read_only, t.reveal)) else { return };
     if TEXT_SHOWN.with(|s| s.borrow().get(&name) == Some(&rev)) {
         return;
     }
     let Some(widget) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&name).cloned())) else { return };
+    // (an RCODEEDITOR's GotoLine / GotoSub: the caret scrolled into view)
+    let revealed = TEXT_REVEALED.with(|r| r.borrow_mut().insert(name.clone(), reveal)).unwrap_or(0) != reveal;
     TEXT_SHOWN.with(|s| s.borrow_mut().insert(name.clone(), rev));
     let (a, b) = (char_to_byte(&raw, start), char_to_byte(&raw, start + len));
     TEXT_PUSHING.with(|p| p.set(true));
@@ -5791,6 +5087,9 @@ pub fn text_push(name: &str) {
                 }
             }
             ed.set_insert_position(b);
+            if revealed {
+                ed.show_insert_position();
+            }
         }
         _ => {}
     }

@@ -399,6 +399,11 @@ fn container_event(c: rapidr_ui_kernel::components::form::Container) {
 /// kernel draws it and routes its mouse like any component's, where FLTK's
 /// image widget fired its own).
 fn mouse_event(name: &str, kind: Mouse, button: Button, x: i64, y: i64, shift: i64) {
+    // (Stage 10: a design surface's mouse is its own events — OnSelect,
+    // OnMove …, components/design.rs — as FLTK's handler took it whole)
+    if rapidr_value::objects::is_design(name) {
+        return;
+    }
     if kind == Mouse::Down && button == Button::Right && menus::auto_popup(name, x, y) {
         return;
     }
@@ -1186,19 +1191,18 @@ pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
 }
 
 // ---------------------------------------------- the IDE's components --
+//
+// (Stage 10) RDESIGNSURFACE and RCODEEDITOR keep their state in the shared
+// models (rapidr_value::objects::design, a TextEdit in code mode), which the
+// kernel's components draw and drive (components/design.rs, codeedit.rs):
+// only a design surface's Show / Hide is left here.
 
-pub fn design_surface_get(_name: &str, _prop: &str) -> Option<Value> {
-    None
-}
-pub fn design_surface_set(_name: &str, _prop: &str, _val: &Value) -> bool {
-    false
-}
-pub fn design_surface_method(_name: &str, _method: &str, _args: &[Value]) -> Value {
-    pending("RDESIGNSURFACE");
-    v_null()
-}
-pub fn code_editor_method(_name: &str, _method: &str, _args: &[Value]) -> Value {
-    pending("RCODEEDITOR");
+pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value {
+    match method {
+        "show" => gui_show(name),
+        "hide" => gui_hide(name),
+        _ => eprintln!("[WARN] DesignSurface.{method}() not implemented"),
+    }
     v_null()
 }
 

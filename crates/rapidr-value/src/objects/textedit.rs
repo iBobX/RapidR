@@ -9,6 +9,10 @@
 //! A multi-line control's Text has its lines joined by CR LF, as RapidQ's on
 //! Windows; positions (SelStart, SelLength) count a line break as one
 //! character, as a rich edit does.
+//!
+//! RapidR's RCODEEDITOR is a multi-line one in code mode ([`TextEdit::code`]):
+//! its Text keeps '\n' line breaks (as FLTK's code editor gave it), and it
+//! has GetSubList, GotoSub and GotoLine (`objects::code`).
 
 use crate::{v_int, v_str, Value};
 
@@ -30,11 +34,26 @@ pub struct TextEdit {
     /// Goes up when the program changes the text or the selection (the
     /// widget shows the model again).
     pub revision: u64,
+    /// An RCODEEDITOR's (see the module's doc).
+    pub code: bool,
+    /// Goes up when the program asks for the caret to be scrolled into
+    /// view (GotoLine, GotoSub).
+    pub reveal: u64,
 }
 
 impl TextEdit {
     pub fn new(multi: bool) -> Self {
         TextEdit { multi, ..Default::default() }
+    }
+
+    /// An RCODEEDITOR's: multi-line, its Text with '\n' line breaks.
+    pub fn code() -> Self {
+        TextEdit { multi: true, code: true, ..Default::default() }
+    }
+
+    /// The line break the program reads (CR LF; a code editor's '\n').
+    fn line_break(&self) -> &'static str {
+        if self.multi && !self.code { "\r\n" } else { "\n" }
     }
 
     /// The text as the widget holds it (lines separated by '\n').
@@ -45,7 +64,7 @@ impl TextEdit {
     /// Text as the program reads it.
     pub fn text(&self) -> String {
         let s = self.raw();
-        if self.multi { s.replace('\n', "\r\n") } else { s }
+        if self.line_break() != "\n" { s.replace('\n', self.line_break()) } else { s }
     }
 
     fn normalize(&self, s: &str) -> Vec<char> {
@@ -125,6 +144,15 @@ impl TextEdit {
         self.changed();
     }
 
+    /// The caret at line `n`'s start (from 0; past the last, the end),
+    /// scrolled into view.
+    fn goto_line(&mut self, n: usize) {
+        self.sel_start = super::code::line_start(&self.raw(), n);
+        self.sel_len = 0;
+        self.reveal += 1;
+        self.changed();
+    }
+
     /// The caret's line and column (WhereY, WhereX), from 0.
     fn caret(&self) -> (usize, usize) {
         let before = &self.chars[..self.sel_start.min(self.chars.len())];
@@ -137,7 +165,7 @@ impl TextEdit {
         let flag = |b: bool| v_int(if b { -1 } else { 0 });
         Some(match prop {
             "text" => v_str(&self.text()),
-            "seltext" => v_str(&self.selected().replace('\n', if self.multi { "\r\n" } else { "\n" })),
+            "seltext" => v_str(&self.selected().replace('\n', self.line_break())),
             "selstart" => v_int(self.sel_start as i64),
             "sellength" => v_int(self.sel_len as i64),
             "modified" => flag(self.modified),
@@ -147,6 +175,8 @@ impl TextEdit {
             "linecount" if self.multi => v_int(self.lines().len() as i64),
             "wherex" if self.multi => v_int(self.caret().1 as i64),
             "wherey" if self.multi => v_int(self.caret().0 as i64),
+            // (a function read without parentheses: `S$ = Ed.GetSubList`)
+            "getsublist" if self.code => v_str(&super::code::sub_list(&self.raw()).join("\n")),
             _ => return None,
         })
     }
@@ -217,6 +247,17 @@ impl TextEdit {
                 self.sel_len = self.chars.len();
                 self.changed();
             }
+            // (an RCODEEDITOR's: objects::code)
+            "getsublist" if self.code => return Some(v_str(&super::code::sub_list(&self.raw()).join("\n"))),
+            "gotosub" if self.code => {
+                if let Some(line) = super::code::sub_line(&self.raw(), &arg(0)) {
+                    self.goto_line(line);
+                }
+            }
+            "gotoline" if self.code => {
+                let line = args.first().map_or(0, Value::to_i64).max(0) as usize;
+                self.goto_line(line);
+            }
             "clearselection" => {
                 if !self.read_only {
                     self.replace_selection("");
@@ -252,6 +293,22 @@ mod tests {
         r.user_edit("ab\nc", 1, 1);
         assert_eq!(r.get("seltext").unwrap().to_string_val(), "b");
         assert_eq!(r.get("modified").unwrap().to_i64(), -1);
+
+        // a code editor: '\n' line breaks, its SUBs, GotoLine / GotoSub
+        let mut c = TextEdit::code();
+        c.set("text", &v_str("DIM a\r\nSUB Foo\r\nEND SUB\r\nFUNCTION Bar(x)"));
+        assert_eq!(c.get("text").unwrap().to_string_val(), "DIM a\nSUB Foo\nEND SUB\nFUNCTION Bar(x)");
+        assert_eq!(c.call("getsublist", &[]).unwrap().to_string_val(), "Foo\nBar");
+        assert_eq!(c.get("getsublist"), c.call("getsublist", &[]));
+        let rev = c.revision;
+        c.call("gotosub", &[v_str("bar")]);
+        assert_eq!((c.sel_start, c.sel_len, c.reveal), (22, 0, 1));
+        assert!(c.revision > rev && !c.modified);
+        c.call("gotoline", &[v_int(1)]);
+        assert_eq!((c.get("wherey").unwrap().to_i64(), c.sel_start), (1, 6));
+        c.set("sellength", &v_int(9));
+        assert_eq!(c.get("seltext").unwrap().to_string_val(), "SUB Foo\nE");
+        assert!(r.call("gotoline", &[v_int(1)]).is_none(), "a memo has none");
 
         let mut e = TextEdit::new(false);
         e.set("charcase", &v_int(1));

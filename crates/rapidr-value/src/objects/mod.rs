@@ -11,7 +11,9 @@
 pub mod a11y;
 pub mod bevel;
 pub mod bitmap;
+pub mod code;
 pub mod codec;
+pub mod design;
 pub mod dirtree;
 pub mod tree;
 pub mod font;
@@ -75,6 +77,9 @@ enum Object {
     TabControl(tabcontrol::TabControl),
     /// QREGISTRY: its root and open key (the keys: crate::registry's store).
     Registry(crate::registry::Registry),
+    /// RDESIGNSURFACE's designed components and selection; the runtime
+    /// draws its ops and passes it the mouse.
+    Design(design::DesignSurface),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -232,9 +237,11 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
         "REDIT" => Object::Text(textedit::TextEdit::new(false)),
         "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
+        "RCODEEDITOR" => Object::Text(textedit::TextEdit::code()),
         "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
         "RTABCONTROL" => Object::TabControl(tabcontrol::TabControl::default()),
         "RREGISTRY" => Object::Registry(crate::registry::Registry::default()),
+        "RDESIGNSURFACE" => Object::Design(design::DesignSurface::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -540,6 +547,28 @@ pub fn with_textedit_mut<R>(id: &str, f: impl FnOnce(&mut textedit::TextEdit) ->
     })?
 }
 
+/// Whether `id` is an RDESIGNSURFACE (its control is drawn again after a
+/// change).
+pub fn is_design(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Design(_))).unwrap_or(false)
+}
+
+/// Reads an RDESIGNSURFACE (to draw it).
+pub fn with_design<R>(id: &str, f: impl FnOnce(&design::DesignSurface) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Design(d) => Some(f(d)),
+        _ => None,
+    })?
+}
+
+/// Changes an RDESIGNSURFACE from its control (the mouse on it).
+pub fn with_design_mut<R>(id: &str, f: impl FnOnce(&mut design::DesignSurface) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Design(d) => Some(f(d)),
+        _ => None,
+    })?
+}
+
 /// Reads a QSTRINGGRID's data (to draw it).
 pub fn with_grid<R>(id: &str, f: impl FnOnce(&StringGrid) -> R) -> Option<R> {
     with(id, |o| match o {
@@ -699,6 +728,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::TrackBar(t) => t.get(&prop),
         Object::TabControl(t) => t.get(&prop),
         Object::Registry(r) => r.get(&prop),
+        Object::Design(d) => d.get(&prop),
     })?
 }
 
@@ -778,6 +808,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::TrackBar(t) => t.set(&prop, val).then_some(Ok(())),
         Object::TabControl(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Registry(r) => r.set(&prop, val).then_some(Ok(())),
+        Object::Design(d) => d.set(&prop, val).then_some(Ok(())),
     })?
 }
 
@@ -863,6 +894,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::TrackBar(_) => "trackbar",
         Object::TabControl(_) => "tabcontrol",
         Object::Registry(_) => "registry",
+        Object::Design(_) => "design",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1173,6 +1205,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::TrackBar(t) => t.call(method, args),
         Object::TabControl(t) => t.call(method, args),
         Object::Registry(r) => r.call(method, args),
+        Object::Design(d) => d.call(method, args),
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

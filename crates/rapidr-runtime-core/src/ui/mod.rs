@@ -113,11 +113,9 @@ forward! { gui:
     fn image_method(name: &str, method: &str, args: &[Value]) -> Value;
     fn tree_method(name: &str, method: &str, args: &[Value]) -> Value;
 
-    // The IDE's components.
-    fn design_surface_get(name: &str, prop: &str) -> Option<Value>;
-    fn design_surface_set(name: &str, prop: &str, val: &Value) -> bool;
+    // The IDE's components: RDESIGNSURFACE's Show / Hide (its model,
+    // and RCODEEDITOR's, are rapidr_value::objects' design and textedit).
     fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value;
-    fn code_editor_method(name: &str, method: &str, args: &[Value]) -> Value;
 
     /// `$THEME name` (generated programs call it through the prelude).
     fn set_theme(theme: &str);

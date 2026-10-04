@@ -5087,6 +5087,9 @@ fn create_codeeditor(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.style().set_property("border", "1px solid #444");
     let _ = el.style().set_property("tab-size", "4");
     setup_widget(&el, id, name, props);
+    // (Stage 10: its text is the shared model's — a TextEdit in code mode,
+    // as on the desktop — so its Text, Lines, GetSubList … answer the same)
+    text_shown_again(name);
 }
 
 // ---------------------------------------------------------------------------
