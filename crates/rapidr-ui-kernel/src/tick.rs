@@ -10,7 +10,18 @@
 //! clock is [`now`] (a test can set it: [`set_test_now`]).
 
 use std::cell::Cell;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+/// The kernel's instants: std's everywhere but in a browser
+/// (wasm32-unknown-unknown has no OS clock: std's `Instant::now` panics
+/// there), where `web_time`'s reads `performance.now()` — the web host's
+/// (docs/web-host-plan.md). On every other target it *is*
+/// `std::time::Instant`, so the desktop host and runtime-core are
+/// unchanged.
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use web_time::Instant;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use std::time::Instant;
 
 use crate::store::Store;
 use crate::text::TextSystem;

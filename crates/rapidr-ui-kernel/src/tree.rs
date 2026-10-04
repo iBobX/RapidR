@@ -29,7 +29,7 @@ pub struct NodeUi {
     /// QCANVAS's surface, a QIMAGE's picture, a speed button's glyph).
     pub surface: Option<crate::components::canvas::Shown>,
     /// When its kind's `tick` runs next (tick.rs).
-    pub wake: Option<std::time::Instant>,
+    pub wake: Option<crate::tick::Instant>,
 }
 
 pub struct Node {
@@ -95,7 +95,7 @@ pub struct FormUi {
     /// host draws it steadily on).
     pub blinks: bool,
     /// The last press: when, on what, where, and how many clicks it made.
-    pub(crate) last_click: Option<(std::time::Instant, Option<usize>, f64, f64, u8)>,
+    pub(crate) last_click: Option<(crate::tick::Instant, Option<usize>, f64, f64, u8)>,
     /// The wheel's turn not yet a whole notch (form scroll bars, lists).
     pub(crate) wheel_rest: (f64, f64),
 }

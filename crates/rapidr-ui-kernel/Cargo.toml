@@ -17,6 +17,13 @@ rapidr-value = { workspace = true }
 # target-gated, so it builds for wasm32 too.
 parley = { version = "0.11", default-features = false, features = ["std"] }
 
+# A clock in the browser (the web host, docs/web-host-plan.md): std's
+# `Instant::now` panics on wasm32-unknown-unknown; web-time's reads
+# `performance.now()` (MIT OR Apache-2.0; already in the lock through
+# winit). Not a GUI dependency; other targets keep std's clock.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+web-time = "1.1"
+
 [features]
 default = ["system-fonts"]
 system-fonts = ["parley/system"]
