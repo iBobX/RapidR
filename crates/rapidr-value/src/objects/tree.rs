@@ -498,6 +498,133 @@ impl TreeView {
     }
 }
 
+// ------------------------------------------------------------- drawing --
+//
+// The tree as Windows' tree view lays it out, for a runtime that draws it
+// itself (RapidR's UI kernel; the web can follow): a row per shown node,
+// from TopIndex, each `row_height` tall; a node's level is a column
+// `Indent` wide (one more with ShowRoot, whose top-level nodes have
+// buttons and lines too); its button (ShowButtons, a node with children)
+// and the lines to its siblings (ShowLines) are centred in the column
+// before its own; its icons (state image, image) and text follow.
+
+/// A tree's rows' height (GetItemAt's rows, the kernel's drawing).
+pub const ROW_HEIGHT: i64 = 18;
+/// A button's box (9 × 9, centred on its column's middle).
+pub const BUTTON: i64 = 9;
+
+/// A shown node's row, as drawn.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Row {
+    pub node: usize,
+    /// Its top in the tree's area (TopIndex's row at 0).
+    pub top: i64,
+    pub height: i64,
+    /// Where its icons, then its text, start.
+    pub left: i64,
+    /// The middle of the column its button and lines are in (`None`: a
+    /// top-level node without ShowRoot has none).
+    pub center: Option<i64>,
+    /// Its button: `Some(expanded)` with ShowButtons when it has children.
+    pub button: Option<bool>,
+    /// A sibling follows it (its line goes on down).
+    pub more: bool,
+    /// For each column left of its own, whether a line passes through
+    /// (that level's ancestor has a sibling after it), with the column's
+    /// middle.
+    pub through: Vec<i64>,
+    pub selected: bool,
+}
+
+/// What's at a point of the tree.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Hit {
+    /// Node `n`'s button (expands / collapses it).
+    Button(usize),
+    /// Node `n`'s row elsewhere (selects it).
+    Row(usize),
+}
+
+impl TreeView {
+    /// The width of a level's column.
+    pub fn column_width(&self) -> i64 {
+        self.indent.clamp(8, 1_000)
+    }
+
+    /// Node `i`'s column (0: the leftmost; ShowRoot moves every node one
+    /// to the right, for the top level's buttons and lines).
+    fn column(&self, i: usize) -> i64 {
+        self.nodes[i].level as i64 + i64::from(self.show_root)
+    }
+
+    /// Whether a sibling follows node `i`.
+    fn has_next_sibling(&self, i: usize) -> bool {
+        let end = self.subtree_end(i);
+        self.nodes.get(end).is_some_and(|n| n.level == self.nodes[i].level)
+    }
+
+    /// The rows shown from TopIndex, `row_height` tall, up to `height`
+    /// pixels of them (a row cut at the bottom included).
+    pub fn rows(&self, row_height: i64, height: i64) -> Vec<Row> {
+        let rh = row_height.max(1);
+        let cw = self.column_width();
+        let rows = self.visible_rows();
+        let first = rows.iter().position(|&r| r as i64 >= self.top_index).unwrap_or(0);
+        let mut out = Vec::new();
+        for (k, &i) in rows.iter().enumerate().skip(first) {
+            let top = (k - first) as i64 * rh;
+            if top >= height.max(rh) {
+                break;
+            }
+            let col = self.column(i);
+            let center = (col > 0).then(|| (col - 1) * cw + cw / 2);
+            // (the ancestors' columns a line passes through)
+            let mut through = Vec::new();
+            let mut a = self.parent(i);
+            while let Some(p) = a {
+                let pc = self.column(p);
+                if pc > 0 && self.has_next_sibling(p) {
+                    through.push((pc - 1) * cw + cw / 2);
+                }
+                a = self.parent(p);
+            }
+            through.reverse();
+            out.push(Row {
+                node: i,
+                top,
+                height: rh,
+                left: col * cw + 2,
+                center,
+                button: (self.show_buttons && center.is_some() && self.has_children(i)).then(|| self.nodes[i].expanded),
+                more: self.has_next_sibling(i),
+                through,
+                selected: self.item_index == i as i64,
+            });
+        }
+        out
+    }
+
+    /// What is at (x, y) of the tree's area, rows `row_height` tall.
+    pub fn hit(&self, x: i64, y: i64, row_height: i64) -> Option<Hit> {
+        if y < 0 {
+            return None;
+        }
+        let rh = row_height.max(1);
+        let row = self.rows(rh, y + rh).into_iter().find(|r| y >= r.top && y < r.top + r.height)?;
+        if let (Some(c), Some(_)) = (row.center, row.button) {
+            if (x - c).abs() <= BUTTON / 2 + 1 {
+                return Some(Hit::Button(row.node));
+            }
+        }
+        Some(Hit::Row(row.node))
+    }
+
+    /// Where node `i`'s row is (top, and its button's middle), if shown.
+    pub fn row_of(&self, i: usize, row_height: i64, height: i64) -> Option<Row> {
+        self.rows(row_height, height).into_iter().find(|r| r.node == i)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -596,5 +723,30 @@ mod tests {
         assert_eq!(texts(&t), ["Project1", ".Form1 (Form)", "..Button1"]);
         t.set("itemindex", &v_int(2));
         assert_eq!(t.get("selecteditem").unwrap().to_string_val(), "Button1");
+    }
+
+    #[test]
+    fn rows_as_drawn() {
+        let mut t = TreeView::default();
+        t.call("additems", &[s("1"), s("2")]);
+        t.call("addchilditems", &[v_int(0), s("a"), s("b")]);
+        // (collapsed: two rows; ShowRoot gives the top level a column)
+        let rows = t.rows(ROW_HEIGHT, 200);
+        assert_eq!(rows.iter().map(|r| r.node).collect::<Vec<_>>(), [0, 3]);
+        assert_eq!((rows[0].center, rows[0].button, rows[0].left, rows[0].more), (Some(9), Some(false), 21, true));
+        assert_eq!((rows[1].button, rows[1].more), (None, false));
+        assert_eq!(t.hit(9, 5, ROW_HEIGHT), Some(Hit::Button(0)));
+        assert_eq!(t.hit(40, 5, ROW_HEIGHT), Some(Hit::Row(0)));
+        assert_eq!(t.hit(40, 20, ROW_HEIGHT), Some(Hit::Row(3)));
+        assert_eq!(t.hit(40, 40, ROW_HEIGHT), None);
+        t.set_expanded(0, true, false);
+        let rows = t.rows(ROW_HEIGHT, 200);
+        assert_eq!(rows.iter().map(|r| (r.node, r.top)).collect::<Vec<_>>(), [(0, 0), (1, 18), (2, 36), (3, 54)]);
+        // (a child: its column's middle, the root's line passing through)
+        assert_eq!((rows[1].center, rows[1].left, rows[1].through.clone(), rows[2].more), (Some(28), 40, vec![9], false));
+        // (cut at the height)
+        assert_eq!(t.rows(ROW_HEIGHT, 30).len(), 2);
+        t.show_root = false;
+        assert_eq!((t.rows(ROW_HEIGHT, 200)[0].center, t.rows(ROW_HEIGHT, 200)[0].button), (None, None));
     }
 }
