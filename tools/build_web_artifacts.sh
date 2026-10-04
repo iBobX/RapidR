@@ -13,6 +13,10 @@ if ! command -v wasm-pack >/dev/null; then
     exit 1
 fi
 
+# SQLite's C sources go into the wasm (RSQLITE): archived by llvm-ar, or
+# without one by the system's ar (tools/wasm-ar.sh).
+export AR_wasm32_unknown_unknown="${AR_wasm32_unknown_unknown:-$ROOT/tools/wasm-ar.sh}"
+
 echo "Building combined wasm (rapidr-vm-host-web → rapidrintr) …"
 wasm-pack build interpreter/rapidr-vm-host-web \
     --target web \

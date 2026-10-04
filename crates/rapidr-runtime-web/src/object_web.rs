@@ -426,6 +426,16 @@ pub fn web_file_exists(path: &str) -> bool {
     !path.trim().is_empty() && (saved_name(path).is_some() || asset_bytes(path).is_some())
 }
 
+/// A file the program saved this session or one of its project's files —
+/// never fetched (RSQLITE's `Connect(file)`: a name that's neither is a
+/// new database, not a request to the server).
+pub fn web_project_file(path: &str) -> Option<Vec<u8>> {
+    if path.trim().is_empty() {
+        return None;
+    }
+    saved_name(path).and_then(|n| SAVED_FILES.with(|f| f.borrow().get(&n).cloned())).or_else(|| asset_bytes(path))
+}
+
 /// Reads a file for an object (`Bitmap.LoadFromFile`, `ImageList.AddBMPFile`):
 /// one saved earlier this session, one of the project's files, or one
 /// shipped with the page (fetched synchronously, as the program expects the

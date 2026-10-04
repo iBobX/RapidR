@@ -423,10 +423,23 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     if release {
         cargo_args.push("--release");
     }
-    let status = process::Command::new("cargo")
-        .args(&cargo_args)
-        .current_dir(out_dir)
-        .status();
+    let mut cargo = process::Command::new("cargo");
+    cargo.args(&cargo_args).current_dir(out_dir);
+    // SQLite's C sources go into the wasm (RSQLITE), compiled as the
+    // workspace compiles them (its .cargo/config.toml, wherever the program
+    // is), archived by llvm-ar or without one by the system's ar
+    // (tools/wasm-ar.sh).
+    if let Some(root) = find_workspace_root() {
+        let config = root.join(".cargo/config.toml");
+        if config.exists() {
+            cargo.arg("--config").arg(config);
+        }
+        let ar = root.join("tools/wasm-ar.sh");
+        if cfg!(unix) && ar.exists() && env::var_os("AR_wasm32_unknown_unknown").is_none() {
+            cargo.env("AR_wasm32_unknown_unknown", ar);
+        }
+    }
+    let status = cargo.status();
 
     match status {
         Ok(s) if !s.success() => {

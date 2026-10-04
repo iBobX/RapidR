@@ -1,0 +1,32 @@
+[package]
+name = "rapidr-db"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RSQLITE and RMYSQL as every RapidR runtime has them: one SQLite (native builds, the interpreter, the web), parameter binding"
+
+[dependencies]
+rapidr-value = { workspace = true }
+# (no derive: it pulled the unmaintained proc-macro-error2; no TLS: RapidR
+# never asks for it; flate2 in pure Rust: no system zlib)
+mysql = { version = "28", optional = true, default-features = false, features = ["minimal-rust", "buffer-pool"] }
+
+# One SQLite everywhere: compiled from its C sources into native builds and
+# the interpreter (`bundled`), and into the web's wasm (sqlite-wasm-rs).
+# `serialize` opens a project's .db file on the web from its bytes;
+# `backup` copies them into the page's session file; `column_metadata`
+# tells which table a result column came from (the web's bound widgets
+# write their edits back).
+[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "serialize", "backup", "column_metadata"] }
+
+[target.'cfg(not(all(target_family = "wasm", target_os = "unknown")))'.dependencies]
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["bundled", "serialize", "backup", "column_metadata"] }
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+# RMYSQL (native builds and the interpreter: a browser can't open the TCP
+# connection MySQL's protocol needs).
+mysql = ["dep:mysql"]

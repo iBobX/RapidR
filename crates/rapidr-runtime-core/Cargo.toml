@@ -8,11 +8,9 @@ license.workspace = true
 [dependencies]
 rapidr-value = { workspace = true }
 serde_json = "1"
-rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+# RSQLITE and RMYSQL (shared with the web runtime: one SQLite everywhere)
+rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
 ureq = { version = "2", optional = true }
-# (no derive: it pulled the unmaintained proc-macro-error2; no TLS: RapidR
-# never asks for it; flate2 in pure Rust: no system zlib)
-mysql = { version = "28", optional = true, default-features = false, features = ["minimal-rust", "buffer-pool"] }
 ndarray = { version = "0.16", optional = true }
 polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log"] }
 plotters = { version = "0.3", optional = true }
@@ -30,7 +28,7 @@ libc = "0.2"
 
 [features]
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
-database = ["dep:rusqlite", "dep:mysql"]
+database = ["dep:rapidr-db"]
 network = ["dep:ureq"]
 # The desktop host: the UI kernel and its winit host
 # (docs/desktop-host-plan.md), reached through `src/ui`; the system

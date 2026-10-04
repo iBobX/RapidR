@@ -1,0 +1,10 @@
+[env]
+# The web runtime's SQLite (sqlite-wasm-rs, built from SQLite's C sources)
+# compiled as the desktop runtime's is (libsqlite3-sys `bundled`), so a
+# program's SQL means the same on every runtime: foreign keys enforced,
+# FTS3 and FTS5, STAT4, soundex(), SQLite's default page and cache sizes,
+# the deprecated pragmas; none of the extras that crate adds (the math
+# functions, bytecode(), sqlite_dbpage, the session extension …). -Os:
+# SQLite is a good part of the page's wasm. (`rapidr build --web` builds
+# with this file too.)
+CFLAGS_wasm32_unknown_unknown = "-Os -DSQLITE_DEFAULT_FOREIGN_KEYS=1 -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_STAT4 -DSQLITE_SOUNDEX -USQLITE_DEFAULT_PAGE_SIZE -USQLITE_DEFAULT_CACHE_SIZE -USQLITE_OMIT_DEPRECATED -USQLITE_ENABLE_MATH_FUNCTIONS -USQLITE_ENABLE_BYTECODE_VTAB -USQLITE_ENABLE_DBPAGE_VTAB -USQLITE_ENABLE_STMTVTAB -USQLITE_ENABLE_OFFSET_SQL_FUNC -USQLITE_ENABLE_UNKNOWN_SQL_FUNCTION -USQLITE_ENABLE_PREUPDATE_HOOK -USQLITE_ENABLE_SESSION"
