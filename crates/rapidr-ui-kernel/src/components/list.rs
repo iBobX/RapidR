@@ -68,6 +68,10 @@ pub enum ListAction {
     /// A grid's selected cell edited (or picked from its drop-down list):
     /// stored, OnSetEditText (Col, Row, Value), OnChange.
     GridStore(String),
+    /// A gcsList column's drop-down button on cell (Col, Row), at `Rect`
+    /// (absolute): OnListDropDown (Col, Row, S) may change the items; then
+    /// the list drops (`combo::open_list`).
+    GridListDrop(i64, i64, Rect),
 }
 
 /// Queues `action` for the program (after the pump).
@@ -580,5 +584,113 @@ impl ComponentKind for ListBox {
             None => Self::pick(cx, i, false, false, false),
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! The lists lane's components headless: a form in a [`MemStore`],
+    //! input in, events and display lists out.
+
+    use rapidr_value::input::Button;
+    use rapidr_value::objects::{with_list, with_tree};
+    use rapidr_value::{v_int, v_str};
+
+    use super::ListAction;
+    use crate::display::Item;
+    use crate::{FormUi, KernelEvent, MemStore, Mods, Op, TextSystem};
+
+    fn form(build: impl FnOnce(&mut MemStore)) -> (MemStore, FormUi, TextSystem) {
+        let mut s = MemStore::new();
+        s.add("f", "RFORM", None);
+        build(&mut s);
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "f", false);
+        drop(f.paint(&s, &mut ts, 1.0));
+        (s, f, ts)
+    }
+
+    fn click(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, x: f64, y: f64) -> Vec<KernelEvent> {
+        f.mouse_down(s, ts, x, y, Button::Left, Mods::NONE);
+        f.mouse_up(s, ts, x, y, Button::Left, Mods::NONE);
+        f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. })).collect()
+    }
+
+    #[test]
+    fn list_box_click_keys_and_test_item() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("lst", "RLISTBOX", Some("f")).set("lst", "left", v_int(10)).set("lst", "top", v_int(10));
+            s.call("lst", "additems", &[v_str("a"), v_str("b"), v_str("c")]);
+        });
+        // (row 1 is 16 pixels down, inside the 2-pixel frame)
+        assert_eq!(click(&mut f, &s, &mut ts, 30.0, 12.0 + 16.0 + 4.0), vec![KernelEvent::Click("lst".into())]);
+        assert_eq!(with_list("lst", |l| l.item_index), Some(1));
+        f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut crate::MemClipboard::default());
+        assert_eq!(with_list("lst", |l| l.item_index), Some(2));
+        assert!(f.take_events().contains(&KernelEvent::Click("lst".into())));
+        assert!(f.test_action(&s, &mut ts, "lst", "__item_0"));
+        assert_eq!(with_list("lst", |l| l.item_index), Some(0));
+        // (the selected row white on blue)
+        let list = f.paint(&s, &mut ts, 1.0);
+        assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: Op::Fill { color: crate::paint::HIGHLIGHT, .. }, .. })));
+    }
+
+    #[test]
+    fn combo_drops_its_list_and_picks() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("cb", "RCOMBOBOX", Some("f")).set("cb", "left", v_int(10)).set("cb", "top", v_int(10));
+            s.call("cb", "additems", &[v_str("red"), v_str("green"), v_str("blue")]);
+        });
+        // (a click on the box drops the list under it; a click on a row picks)
+        click(&mut f, &s, &mut ts, 20.0, 20.0);
+        assert!(super::super::combo::is_dropped("cb"));
+        let events = click(&mut f, &s, &mut ts, 30.0, 35.0 + 16.0 + 8.0);
+        assert!(!super::super::combo::is_dropped("cb"));
+        assert_eq!(events, vec![KernelEvent::Change("cb".into())]);
+        assert_eq!(with_list("cb", |l| (l.item_index, l.text.clone())), Some((1, "green".into())));
+        assert!(f.test_action(&s, &mut ts, "cb", "__item_2"));
+        assert_eq!(f.take_events(), vec![KernelEvent::Change("cb".into())]);
+        assert_eq!(with_list("cb", |l| l.item_index), Some(2));
+    }
+
+    #[test]
+    fn tree_clicks_ask_the_program() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("tv", "RTREEVIEW", Some("f")).set("tv", "width", v_int(200)).set("tv", "height", v_int(200));
+            s.call("tv", "additems", &[v_str("1"), v_str("2")]);
+            s.call("tv", "addchilditems", &[v_int(0), v_str("a")]);
+        });
+        // (node 0's button: OnClick, then OnExpanding's question)
+        let events = click(&mut f, &s, &mut ts, 2.0 + 9.0, 2.0 + 9.0);
+        assert_eq!(events, vec![KernelEvent::Click("tv".into()), KernelEvent::List("tv".into(), ListAction::TreeToggle(0, true))]);
+        // (a node's text: OnChanging's question, then OnClick)
+        let events = click(&mut f, &s, &mut ts, 2.0 + 30.0, 2.0 + 18.0 + 9.0);
+        assert_eq!(events, vec![KernelEvent::List("tv".into(), ListAction::TreeSelect(2)), KernelEvent::Click("tv".into())]);
+        // (F2 asks OnEditing for the selected node)
+        with_tree("tv", |t| t.select(2));
+        f.test_action(&s, &mut ts, "tv", "__edit");
+        assert_eq!(f.take_events(), vec![KernelEvent::List("tv".into(), ListAction::TreeEdit(2))]);
+        // (the editor, once allowed: "Renamed" and Enter ask OnEdited)
+        super::super::tree::open_editor("tv", 2, "2");
+        f.test_action(&s, &mut ts, "tv", "__enter");
+        assert_eq!(f.take_events(), vec![KernelEvent::List("tv".into(), ListAction::TreeEdited(2, "Renamed".into()))]);
+        assert!(super::editing("tv").is_none());
+    }
+
+    #[test]
+    fn grid_cells_and_owner_drawing() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("g", "RSTRINGGRID", Some("f")).set("g", "width", v_int(340)).set("g", "height", v_int(140));
+        });
+        // (cell (2, 1): 2 + 64 + 1 + 64 + 1 across, 2 + 24 + 1 down)
+        let events = click(&mut f, &s, &mut ts, 2.0 + 130.0 + 10.0, 2.0 + 25.0 + 10.0);
+        assert_eq!(events, vec![KernelEvent::List("g".into(), ListAction::GridSelect(2, 1, false)), KernelEvent::Click("g".into())]);
+        assert!(f.test_action(&s, &mut ts, "g", "__cell_3_2"));
+        assert_eq!(f.take_events(), vec![KernelEvent::List("g".into(), ListAction::GridSelect(3, 2, false))]);
+        // (what OnDrawCell drew, replayed over the cell)
+        let reader = |_: &str, _: &str| rapidr_value::Value::Null;
+        rapidr_value::objects::call("g", "fillrect", &[v_int(140), v_int(30), v_int(150), v_int(40), v_int(0xFF)], &reader);
+        let list = f.paint(&s, &mut ts, 1.0);
+        assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: Op::Fill { color: 0xFF0000, rect: (10, 5, 10, 10) }, .. })));
     }
 }

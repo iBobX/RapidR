@@ -39,6 +39,10 @@ struct Dropped {
     hot: Option<usize>,
     /// The first row shown (scrolled with the wheel or the keys).
     top: usize,
+    /// Another component's list (a grid's gcsList column): its items and
+    /// the cell it drops from (absolute); `None`: the combo's own.
+    items: Option<Vec<String>>,
+    anchor: Option<Rect>,
 }
 
 thread_local! {
@@ -61,7 +65,17 @@ pub fn is_dropped(id: &str) -> bool {
 
 fn open(form: &str, id: &str) {
     let top = with_list(id, |l| usize::try_from(l.item_index).unwrap_or(0).saturating_sub(DROP_ROWS - 1)).unwrap_or(0);
-    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top }));
+    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top, items: None, anchor: None }));
+}
+
+/// Drops a list of `items` from `anchor` (a cell, absolute in form `form`'s
+/// client area) for component `id`: a pick is `ListAction::GridStore` (a
+/// grid's gcsList column, once OnListDropDown answered its items).
+pub fn open_list(form: &str, id: &str, items: Vec<String>, anchor: Rect) {
+    if items.is_empty() {
+        return;
+    }
+    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top: 0, items: Some(items), anchor: Some(anchor) }));
 }
 
 /// The drop-down's button: as wide as a scroll bar, inside the frame.
@@ -82,11 +96,19 @@ fn row_heights(id: &str, font_h: i64) -> Vec<i64> {
 
 /// Where the open list is in the client area (the combo at `abs`) and its
 /// rows (index, top within it, height).
-fn layout(f: &FormUi, d: &Dropped, store: &dyn Store) -> Option<(Rect, Vec<(usize, i64, i64)>)> {
-    let n = f.node(&d.id)?;
-    let (x, y, w, h) = n.abs;
+/// The rows of an open list: (index, top within it, height).
+type Rows = Vec<(usize, i64, i64)>;
+
+fn layout(f: &FormUi, d: &Dropped, store: &dyn Store) -> Option<(Rect, Rows)> {
+    let (x, y, w, h) = match d.anchor {
+        Some(a) => a,
+        None => f.node(&d.id)?.abs,
+    };
     let font = store.font(&d.id);
-    let heights = row_heights(&d.id, font.pixel_size());
+    let heights = match &d.items {
+        Some(items) => vec![font.pixel_size() + 3; items.len()],
+        None => row_heights(&d.id, font.pixel_size()),
+    };
     if heights.is_empty() {
         return None;
     }
@@ -109,7 +131,17 @@ pub fn paint_popup(f: &FormUi, store: &dyn Store, _ts: &mut TextSystem, p: &mut 
     let Some(d) = dropped().filter(|d| d.form == f.form) else { return };
     let Some(((x, y, w, h), rows)) = layout(f, &d, store) else { return };
     let font = store.font(&d.id);
-    let Some(l) = with_list(&d.id, |l| l.clone()) else { return };
+    let l = match &d.items {
+        Some(items) => {
+            let mut l = rapidr_value::objects::list::ItemList::new(true);
+            l.items = items.clone();
+            l
+        }
+        None => match with_list(&d.id, |l| l.clone()) {
+            Some(l) => l,
+            None => return,
+        },
+    };
     p.at((x, y), |p| {
         p.fill((0, 0, w, h), 0xFFFFFF);
         p.edge((0, 0, w, h), &[0x000000], &[0x000000]);
@@ -158,7 +190,10 @@ pub fn popup_mouse_down(f: &mut FormUi, store: &dyn Store, x: f64, y: f64) -> bo
     f.dirty = true;
     match row_at(f, &d, store, x, y) {
         Some(Some(i)) => {
-            pick(f, &d.id, i);
+            match d.items.as_ref().and_then(|items| items.get(i)) {
+                Some(item) => f.events.push(crate::input::KernelEvent::List(d.id.clone(), super::list::ListAction::GridStore(item.clone()))),
+                None => pick(f, &d.id, i),
+            }
             true
         }
         Some(None) => true,

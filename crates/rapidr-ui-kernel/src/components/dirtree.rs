@@ -51,7 +51,7 @@ fn rows(id: &str) -> (Vec<Row>, Option<usize>) {
 fn row_at(id: &str, y: f64, count: usize) -> Option<usize> {
     let (pos, _, _) = vscroll_state(id);
     let y = y.floor() as i64 - 2 + pos;
-    (y >= 0).then(|| (y / ROW) as usize).filter(|&i| i < count)
+    (y >= 0).then_some((y / ROW) as usize).filter(|&i| i < count)
 }
 
 impl DirTreeBox {

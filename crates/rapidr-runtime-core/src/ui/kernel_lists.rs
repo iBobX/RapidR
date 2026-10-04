@@ -40,6 +40,7 @@ pub fn dispatch(id: &str, action: ListAction) {
             grid_user_select(id, c, r, extend);
         }
         ListAction::GridStore(value) => grid_store(id, value),
+        ListAction::GridListDrop(c, r, anchor) => grid_list_drop(id, c, r, anchor),
     }
     invalidate_all();
 }
@@ -139,6 +140,20 @@ fn grid_store(name: &str, value: String) {
         rp_fire_event_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
         rp_fire_event(name, "onchange");
     }
+}
+
+/// A gcsList column's drop-down: OnListDropDown (Col, Row, S) may change
+/// the items (its S comes back); then the kernel drops them under the
+/// cell, and a pick is stored like an edit (gui.rs's `grid_drop_down`).
+fn grid_list_drop(name: &str, c: i64, r: i64, anchor: rapidr_value::objects::ops::Rect) {
+    let Some(list) = rapidr_value::objects::with_grid(name, |g| g.list_text(c as usize, r as usize)).flatten() else { return };
+    let Some(form) = crate::object::form_of(name) else { return };
+    let grid = name.to_string();
+    rp_fire_event_then(name, "onlistdropdown", &[v_int(c), v_int(r), v_str(&list)], move |a| {
+        let items = rapidr_value::objects::grid::list_lines(&a[2].to_string_val());
+        rapidr_ui_kernel::components::combo::open_list(&form, &grid, items, anchor);
+        invalidate_all();
+    });
 }
 
 // --------------------------------------------------- tree's own calls --

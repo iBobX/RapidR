@@ -330,7 +330,7 @@ impl ComponentKind for Grid {
                 if editing(&id).is_some() {
                     Self::finish_edit(cx, true);
                 }
-                let Some(((c, r), (rx, _ry, rw, rh))) = cell_at(&l, x, y) else { return MouseOut::default() };
+                let Some(((c, r), (rx, ry, rw, rh))) = cell_at(&l, x, y) else { return MouseOut::default() };
                 let (fc, fr) = (g.fixed_cols(), g.fixed_rows());
                 // (a fixed row's cell border: the column sized)
                 if r < fr && g.has_option(GO_COL_SIZING) {
@@ -350,6 +350,12 @@ impl ComponentKind for Grid {
                     return MouseOut::default();
                 }
                 if r < fr || c < fc {
+                    return MouseOut::default();
+                }
+                // (the focused gcsList cell's drop-down button)
+                if (g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some() && x >= rx + rw - rh.min(rw) {
+                    let (ax, ay) = (cx.rect.0 + rx, cx.rect.1 + ry);
+                    act(cx, ListAction::GridListDrop(c as i64, r as i64, (ax, ay, rw, rh)));
                     return MouseOut::default();
                 }
                 let on_button = has_ellipsis(&g, c, r) && x >= rx + rw - rh.min(rw);
