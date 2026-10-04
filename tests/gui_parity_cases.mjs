@@ -64,7 +64,7 @@ export const cases = [
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
   { name: "dotted_paint", kernel: "pending: QCANVAS isn't drawn by the kernel yet (surfaces lane); OnPaint already matches", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=painted 255"] },
-  { name: "event_answers", kernel: "pending: QSTRINGGRID cells (__cell_) and OnMeasureItem (lists lane); OnClose's Action already matches", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",
+  { name: "event_answers", kernel: true, events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",
     dump: "lbl.caption,lbl2.caption,dlg.__shown,dlg2.__shown,grid.col,grid.row",
     expect: ["lbl.caption=keep1 let1lets close cell22 cell31 keep1 code |2,2|2,1,1", "lbl2.caption=0-16 16-40 40-72 ", "dlg.__shown=1", "dlg2.__shown=0", "grid.col=2", "grid.row=2"] },
   { name: "input_events", kernel: "pending: QCANVAS / QPANEL aren't drawn by the kernel yet (surfaces / containers lanes); the key and mouse events already match", events: "ed.__key_65,ed.__key_13,ed.__key_38,cv.__mousedown_10_20,cv.__mousemove_11_21,cv.__mouseup_12_22,pn.__mousedown_3_4",
