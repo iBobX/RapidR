@@ -490,8 +490,16 @@ impl Shim<'_> {
                 return;
             }
         };
-        // (AccessKit's adapter must exist before the window shows)
-        let access = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.s.proxy.clone());
+        // (AccessKit's adapter must exist before the window shows. A screen
+        // reader's first question is answered at once, with the form as it
+        // is now — the full tree follows with the next pump, as it did alone)
+        let scale = self.s.forced.unwrap_or_else(|| window.scale_factor());
+        let first = {
+            let Desktop { forms, text, .. } = &mut *self.desk;
+            forms.get_mut(f).and_then(|k| a11y::update(&k.ui.access_tree(self.store, text), scale, &mut a11y::Sent::default(), true))
+        };
+        let initial = a11y::FirstTree::new(first, window.id(), self.s.proxy.clone());
+        let access = accesskit_winit::Adapter::with_mixed_handlers(el, &window, initial, self.s.proxy.clone());
         window.set_visible(true);
         window.focus_window();
         let size = window.inner_size();

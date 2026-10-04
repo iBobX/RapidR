@@ -162,6 +162,32 @@ pub fn update(tree: &AccessNode, scale: f64, sent: &mut Sent, full: bool) -> Opt
     Some(TreeUpdate { nodes: changed, tree: first.then(|| TreeInfo::new(root)), tree_id: TreeId::ROOT, focus })
 }
 
+/// A window's answer to a screen reader's first question (AccessKit's
+/// activation handler, called from the platform's accessibility query, on
+/// whatever thread the platform asks it): the form's tree as it was when
+/// its window was made, at once — rather than an empty placeholder until
+/// the next pump — and a request through the event loop for the tree as
+/// it is now (`InitialTreeRequested`: a full update, as before).
+pub struct FirstTree {
+    tree: Option<TreeUpdate>,
+    window: winit::window::WindowId,
+    proxy: winit::event_loop::EventLoopProxy<crate::winit_host::UserEvent>,
+}
+
+impl FirstTree {
+    pub fn new(tree: Option<TreeUpdate>, window: winit::window::WindowId, proxy: winit::event_loop::EventLoopProxy<crate::winit_host::UserEvent>) -> Self {
+        FirstTree { tree, window, proxy }
+    }
+}
+
+impl accesskit::ActivationHandler for FirstTree {
+    fn request_initial_tree(&mut self) -> Option<TreeUpdate> {
+        let asked = accesskit_winit::Event { window_id: self.window, window_event: accesskit_winit::WindowEvent::InitialTreeRequested };
+        self.proxy.send_event(asked.into()).ok();
+        self.tree.take()
+    }
+}
+
 /// An update changing nothing (what a window sends when asked and nothing
 /// changed).
 pub fn unchanged(sent: &Sent) -> TreeUpdate {
