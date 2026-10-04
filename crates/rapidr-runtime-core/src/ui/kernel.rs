@@ -633,8 +633,45 @@ pub fn dirtree_refresh(_name: &str) {
 pub fn gui_apply_font(_name: &str) {
     invalidate();
 }
-pub fn toggle_down_set(_name: &str) {
+/// The program set a QCOOLBTN's / QOVALBTN's Down: the others of its
+/// group come up (gui.rs's, host-neutral: rapidr_value::toggle_group).
+pub fn toggle_down_set(name: &str) {
+    if !is_toggle_button(name) {
+        return;
+    }
+    let name = lower(name);
+    let down = rp_comp_get(&name, "down").to_bool();
+    let mut changes = rapidr_value::toggle_group::set_down(&name, down, &toggle_members(&name));
+    changes.push((name, down));
+    toggle_apply(changes);
+}
+
+fn is_toggle_button(name: &str) -> bool {
+    matches!(rp_comp_type(name).as_str(), "RCOOLBTN" | "ROVALBTN")
+}
+
+/// The toggle buttons sharing `name`'s parent.
+fn toggle_members(name: &str) -> Vec<rapidr_value::toggle_group::Member> {
+    let parent = rp_comp_get(name, "parent").to_string_val();
+    get_children_of(&parent)
+        .into_iter()
+        .filter(|(_, t)| matches!(t.as_str(), "RCOOLBTN" | "ROVALBTN"))
+        .map(|(n, _)| rapidr_value::toggle_group::Member { group: rp_comp_get(&n, "groupindex").to_i64(), down: rp_comp_get(&n, "down").to_bool(), name: n })
+        .collect()
+}
+
+/// The new Down values, stored (and drawn).
+fn toggle_apply(changes: Vec<(String, bool)>) {
+    for (n, down) in changes {
+        store_prop(&n, "down", v_int(if down { -1 } else { 0 }));
+    }
     invalidate();
+}
+
+/// The user pressed a QCOOLBTN / QOVALBTN (its group decides what's down).
+fn toggle_press(name: &str) {
+    let allow_all_up = rp_comp_get(name, "allowallup").to_bool();
+    toggle_apply(rapidr_value::toggle_group::press(name, allow_all_up, &toggle_members(name)));
 }
 pub fn schedule_menu_sync() {
     invalidate();
@@ -1015,13 +1052,35 @@ pub fn mouse_in_form() -> (i64, i64) {
 
 // --------------------------------------- the facade: drawn by the host --
 
-pub fn canvas_method(_name: &str, _method: &str, _args: &[Value]) -> Value {
+/// A QCANVAS's methods that aren't drawing (the shared model draws): its
+/// Repaint (OnPaint), Show, Hide.
+pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
+    match method {
+        "paint" | "refresh" | "update" | "repaint" => {
+            invalidate();
+            rp_fire_event(name, "onpaint");
+        }
+        "show" => gui_show(name),
+        "hide" => gui_hide(name),
+        _ => eprintln!("[WARN] Canvas.{method}() not implemented"),
+    }
     v_null()
 }
-pub fn image_method(_name: &str, _method: &str, _args: &[Value]) -> Value {
+
+/// A QIMAGE's pictures from files and plots: the surfaces lane's (Stage 6).
+pub fn image_method(_name: &str, method: &str, _args: &[Value]) -> Value {
+    pending(&format!("QIMAGE.{method} (pictures from files)"));
     v_null()
 }
-pub fn tree_method(_name: &str, _method: &str, _args: &[Value]) -> Value {
+
+/// A QTREEVIEW's methods that need the drawn tree: the lists lane's.
+pub fn tree_method(name: &str, method: &str, _args: &[Value]) -> Value {
+    match method {
+        "getitemat" => return v_int(-1),
+        "show" => gui_show(name),
+        "hide" => gui_hide(name),
+        _ => eprintln!("[WARN] TreeView.{method}() not implemented"),
+    }
     v_null()
 }
 
@@ -1189,7 +1248,13 @@ fn test_resize(w: i64, h: i64) {
 fn run_test_event(e: TestEvent) {
     let comp = e.comp_lower();
     match e.action {
-        Action::Fire(ref event) => rp_fire_event(&e.comp, event),
+        Action::Fire(ref event) => {
+            // (a toggle button's click goes through its group, as its press does)
+            if event == "onclick" && is_toggle_button(&comp) {
+                toggle_press(&comp);
+            }
+            rp_fire_event(&e.comp, event)
+        }
         Action::Key(vk) => test_key(&comp, vk),
         Action::Mouse(kind, x, y) => test_mouse(&comp, kind, x, y),
         Action::Close => gui_close(&e.comp),
