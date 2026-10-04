@@ -532,6 +532,46 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         };
         return rp_comp_set(name, prop, v_int(v));
     }
+    // Constraints (RapidR, from Delphi; rapidr_value::layout): MinWidth …
+    // MaxHeight — `Constraints.MinWidth` is MinWidth — bound every size the
+    // component takes; setting one brings its size within them.
+    if let Some(flat) = rapidr_value::layout::constraint_alias(&prop_lower) {
+        return rp_comp_set(name, flat, val);
+    }
+    let real = || !matches!(rp_comp_type(name).as_str(), "" | "RUDT");
+    let val = match val {
+        v if matches!(prop_lower.as_str(), "width" | "height") && real() => {
+            let k = crate::layout::constraints_of(name);
+            if k.is_none() {
+                v
+            } else {
+                v_int(if prop_lower == "width" { k.width(v.to_i64()) } else { k.height(v.to_i64()) })
+            }
+        }
+        v => v,
+    };
+    if rapidr_value::layout::CONSTRAINT_PROPERTIES.contains(&prop_lower.as_str()) && real() {
+        if let Some(k) = crate::layout::constraints_of(name).with(&prop_lower, val.to_i64()) {
+            for (p, v) in k.properties() {
+                store_prop(name, p, v_int(v));
+            }
+            for p in ["width", "height"] {
+                let size = rp_comp_get(name, p);
+                if !matches!(size, Value::Null) {
+                    let bounded = if p == "width" { k.width(size.to_i64()) } else { k.height(size.to_i64()) };
+                    if bounded != size.to_i64() {
+                        rp_comp_set(name, p, v_int(bounded));
+                    }
+                }
+            }
+            // (a form: the user can't drag it outside them)
+            #[cfg(feature = "gui")]
+            if rp_comp_type(name) == "RFORM" {
+                crate::gui::gui_apply_geometry(name);
+            }
+            return;
+        }
+    }
 
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
     // with the web runtime).
@@ -783,7 +823,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if prop_lower == "borderstyle" && rp_comp_type(name) == "RFORM" {
         #[cfg(feature = "gui")]
         crate::gui::gui_set_form_border(name);
-        crate::layout::realign(name, None);
+        crate::layout::client_changed(name);
     }
 }
 
@@ -851,6 +891,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A component's Handle (rapidr_value::handles).
     if prop_lower == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&name.to_lowercase())) {
         return v_int(rapidr_value::handles::handle_of(name));
+    }
+    // `Constraints.MinWidth` is MinWidth (rapidr_value::layout).
+    if let Some(flat) = rapidr_value::layout::constraint_alias(&prop_lower) {
+        return rp_comp_get(name, flat);
     }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
@@ -924,6 +968,8 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             // (a QRECT's fields, and positions, are 0 until set; a panel's
             // bevels RapidQ's defaults)
             .or_else(|| (comp_is_panel(name)).then(|| rapidr_value::objects::bevel::default(&prop_lower).map(v_int)).flatten())
+            // (Anchors and Constraints: akLeft + akTop, none)
+            .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(name), &prop_lower).map(v_int))
             .unwrap_or_else(|| if matches!(prop_lower.as_str(), "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
     })
 }
@@ -1833,7 +1879,18 @@ pub fn is_component_type(type_name: &str) -> bool {
     )
 }
 
+/// A stored property, without any of `rp_comp_get`'s lookups.
+pub(crate) fn stored(name: &str, prop: &str) -> Option<Value> {
+    COMPONENTS.with(|c| c.borrow().get(&name.to_lowercase()).and_then(|comp| comp.properties.get(prop).cloned()))
+}
+
+/// A stored property as an integer (0 when unset).
+pub(crate) fn stored_int(name: &str, prop: &str) -> i64 {
+    stored(name, prop).map_or(0, |v| v.to_i64())
+}
+
 /// Get all child components whose "parent" property matches the given form name.
+
 /// Stores a property without any of `rp_comp_set`'s effects.
 pub(crate) fn store_prop(name: &str, prop: &str, val: Value) {
     COMPONENTS.with(|c| {

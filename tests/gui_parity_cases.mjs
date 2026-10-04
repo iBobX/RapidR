@@ -6,8 +6,10 @@
 //   events: "b1.onclick,b1.onclick,…"   fired in order (a click on the component)
 //   dump:   "b1.caption,lbl.caption"    properties read afterwards
 //   expect: ["b1.caption=Clicked 2", …] exact `name.property=value` lines
-//   resize / split: desktop test hooks (a form resized by the user, a
-//                   splitter dragged) with no browser counterpart
+//   resize / split: test hooks (the frontmost form resized by the user to
+//                   "w,h", a splitter dragged "name:delta"), before the
+//                   events — RAPIDR_TEST_RESIZE / RAPIDR_TEST_SPLIT on the
+//                   desktop, rapidr_test_resize in the browser
 //   web:    false + why — the case can't be compared in a browser
 //   webClick: { comp: "css selector" } — where a browser click lands for a
 //             component whose clicks go through its rows / cells (the
@@ -128,6 +130,9 @@ export const cases = [
     expect: ["lbl.caption=start 0-10;-1-1-110;-1-1-111;"] },
   { name: "screen_scale", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=96 -1 -1"] },
+  { name: "anchors", events: "ok.onclick", dump: "a.caption,b.caption,c.caption", resize: "250,180",
+    expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
+      "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

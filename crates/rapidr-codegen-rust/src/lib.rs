@@ -374,6 +374,8 @@ impl RustCodegen {
                     && !matches!(n, "true" | "false" | "vttrue" | "vtfalse" | "_with_" | "result")
                     && (n != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(n, &[]).is_none() || assigned.contains(n))
+                    // (RapidR's own constants, unless the program assigns them)
+                    && (rapidr_ast::rapidr_constant(n).is_none() || assigned.contains(n))
                     && n.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
                     && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
             })
@@ -711,6 +713,7 @@ impl RustCodegen {
                     // (`pi` is the constant unless the program assigns it)
                     && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
+                    && (rapidr_ast::rapidr_constant(name).is_none() || assigned.contains(name.as_str()))
             })
             .cloned()
             .collect();
@@ -1933,6 +1936,7 @@ impl RustCodegen {
                     && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
                     && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
+                    && (rapidr_ast::rapidr_constant(name).is_none() || assigned.contains(name.as_str()))
             })
             .cloned()
             .collect();
@@ -2478,6 +2482,10 @@ impl RustCodegen {
                 };
                 if let Some(call) = bare_builtin {
                     return call.to_string();
+                }
+                // RapidR's own constants (akLeft …), as in the VM.
+                if let (false, Some(n)) = (variable, rapidr_ast::rapidr_constant(&name_lower)) {
+                    return format!("v_int({n})");
                 }
                 match name_lower.as_str() {
                     "true" | "vttrue" => "v_bool(true)".to_string(),

@@ -561,6 +561,42 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         };
         return rp_comp_set(name, prop, v_int(v));
     }
+    // Constraints (RapidR, from Delphi; rapidr_value::layout): MinWidth …
+    // MaxHeight — `Constraints.MinWidth` is MinWidth — bound every size the
+    // component takes; setting one brings its size within them (as on the
+    // desktop).
+    if let Some(flat) = rapidr_value::layout::constraint_alias(&lprop) {
+        return rp_comp_set(name, flat, val);
+    }
+    let real = || !matches!(rp_comp_type(&uname).as_str(), "" | "RUDT");
+    let val = match val {
+        v if matches!(lprop.as_str(), "width" | "height") && real() => {
+            let k = crate::layout_web::constraints_of(&uname);
+            if k.is_none() {
+                v
+            } else {
+                v_int(if lprop == "width" { k.width(v.to_i64()) } else { k.height(v.to_i64()) })
+            }
+        }
+        v => v,
+    };
+    if rapidr_value::layout::CONSTRAINT_PROPERTIES.contains(&lprop.as_str()) && real() {
+        if let Some(k) = crate::layout_web::constraints_of(&uname).with(&lprop, val.to_i64()) {
+            for (p, v) in k.properties() {
+                rp_comp_set_prop_only(&uname, p, v_int(v));
+            }
+            for p in ["width", "height"] {
+                let size = rp_comp_get_stored(&uname, p);
+                if !matches!(size, Value::Null) {
+                    let bounded = if p == "width" { k.width(size.to_i64()) } else { k.height(size.to_i64()) };
+                    if bounded != size.to_i64() {
+                        rp_comp_set(&uname, p, v_int(bounded));
+                    }
+                }
+            }
+            return;
+        }
+    }
 
     // (a menu's change shows once the program's code returns: menu_web)
     if rapidr_value::objects::menu::is_menu(name) {
@@ -842,6 +878,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if lprop == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&uname)) {
         return v_int(rapidr_value::handles::handle_of(name));
     }
+    // `Constraints.MinWidth` is MinWidth (rapidr_value::layout).
+    if let Some(flat) = rapidr_value::layout::constraint_alias(&lprop) {
+        return rp_comp_get(name, flat);
+    }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
@@ -928,9 +968,11 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                 live => live,
             }
         }
-        // (a panel's bevels: RapidQ's defaults until set)
+        // (a panel's bevels: RapidQ's defaults until set; Anchors and
+        // Constraints: akLeft + akTop, none)
         _ => stored
             .or_else(|| (rp_comp_type(&uname) == "RPANEL").then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
+            .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(&uname), &lprop).map(v_int))
             .unwrap_or_else(v_null),
     }
 }

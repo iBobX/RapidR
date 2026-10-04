@@ -587,6 +587,12 @@ const COMPONENT_REGISTRY = {
         }
     }
 };
+// RapidR's layout extensions (rapidr_value::layout), on every visual
+// component: Anchors (akLeft 1 + akTop 2 + akRight 4 + akBottom 8) and
+// Constraints (MinWidth … MaxHeight; Constraints.MinWidth is MinWidth).
+for (const c of Object.values(COMPONENT_REGISTRY)) {
+    if (c.props.includes('left')) c.props.push('anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight');
+}
 
 const BUILTIN_FUNCTIONS = [
     // String functions

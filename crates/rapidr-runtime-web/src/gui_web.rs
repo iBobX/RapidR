@@ -3405,7 +3405,7 @@ pub fn render_tabcontrol(name: &str) {
 /// components laid out in its area again.
 pub fn tab_control_changed(name: &str) {
     render_tabcontrol(name);
-    crate::layout_web::realign(name, None);
+    crate::layout_web::client_changed(name);
 }
 
 /// A QTREEVIEW (as on the desktop): rows for the shared model's visible
@@ -5547,19 +5547,29 @@ fn place_form_chrome(form: &web_sys::HtmlElement, border_style: i64, has_menu: b
 }
 
 /// A form was moved / resized by the user (maximize, restore, drag): its
-/// Left / Top / Width / Height follow, its aligned children are laid out
-/// again and OnResize fires (as on the desktop).
+/// Left / Top / Width / Height follow — within its Constraints, the
+/// element going back to them when dragged outside —, its aligned and
+/// anchored children are laid out again and OnResize fires (as on the
+/// desktop).
 fn form_resized(form_id: &str, left: i32, top: i32, width: i32, height: i32) {
     let name = form_id.strip_prefix("rr-").unwrap_or(form_id).to_uppercase();
     crate::object_web::rp_comp_set_prop_only(&name, "left", v_int(left as i64));
     crate::object_web::rp_comp_set_prop_only(&name, "top", v_int(top as i64));
+    let asked = (width as i64, height as i64);
+    let (width, height) = crate::layout_web::constraints_of(&name).size(asked.0, asked.1);
+    if (width, height) != asked {
+        if let Some(el) = get_el(form_id) {
+            let _ = el.style().set_property("width", &format!("{width}px"));
+            let _ = el.style().set_property("height", &format!("{height}px"));
+        }
+    }
     let stored = |p: &str| crate::object_web::rp_comp_get_stored(&name, p).to_i64();
-    if (stored("width"), stored("height")) == (width as i64, height as i64) {
+    if (stored("width"), stored("height")) == (width, height) {
         return;
     }
-    crate::object_web::rp_comp_set_prop_only(&name, "width", v_int(width as i64));
-    crate::object_web::rp_comp_set_prop_only(&name, "height", v_int(height as i64));
-    crate::layout_web::realign(&name, None);
+    crate::object_web::rp_comp_set_prop_only(&name, "width", v_int(width));
+    crate::object_web::rp_comp_set_prop_only(&name, "height", v_int(height));
+    crate::layout_web::client_changed(&name);
     crate::scroll_web::update(&name);
     crate::object_web::rp_fire_event(&name, "onresize");
 }

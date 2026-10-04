@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.107.0] — 2026-10-04
+
+### Added
+- `docs/desktop-host-plan.md`: the staged plan for moving the desktop from
+  FLTK to RapidR's own UI kernel (winit + vello + parley + AccessKit).
+- `Anchors` and `Constraints` on every visual component (RapidR's, as in
+  Delphi; RapidQ had Align only): `Anchors = akLeft + akRight` keeps a
+  control's distances to its parent's edges as the parent resizes
+  (stretching with both, keeping its centre with neither); `MinWidth` /
+  `MinHeight` / `MaxWidth` / `MaxHeight` (also as `Constraints.MinWidth`)
+  bound every size it takes — set by the program, by Align, by Anchors, or
+  by the user (a form can't be dragged smaller). One model in
+  `rapidr_value::layout`, the same on every runtime; `akLeft` … `akBottom`
+  need no include, and a program's own names win.
+
+### Fixed
+- Web: a text box narrower than 8 pixels keeps the width the program gives
+  it.
+
 ## [2.106.0] — 2026-10-04
 
 ### Added

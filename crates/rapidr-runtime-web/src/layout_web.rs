@@ -6,12 +6,13 @@
 //! A container is laid out again when an aligned child's Align, position,
 //! size or visibility changes, when the container is resized (by the
 //! program, or by maximizing / restoring a form), and when a form gets its
-//! main menu.
+//! main menu. Anchored children follow their parent's client area at the
+//! same moments (as on the desktop: [`client_changed`]).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 
-use rapidr_value::layout::{align_controls, splitter_drag, Align, Control, Rect, SplitterDrag};
+use rapidr_value::layout::{align_controls, anchor_controls, anchor_record, anchor_rules, splitter_drag, Align, Constraints, Control, Rect, SplitterDrag, DEFAULT_ANCHORS};
 
 use crate::object_web::{get_children_of, rp_comp_get_stored, rp_comp_set, rp_comp_type};
 use crate::value::{v_int, Value};
@@ -23,6 +24,8 @@ pub const MENU_HEIGHT: i64 = rapidr_value::layout::MAIN_MENU_HEIGHT;
 thread_local! {
     static BUSY: Cell<u32> = const { Cell::new(0) };
     static ALIGNED_PARENTS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+    /// Containers with at least one anchored child (Anchors not the default).
+    static ANCHORED_PARENTS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
 }
 
 /// Runs `f` without its geometry stores laying anything out.
@@ -56,6 +59,90 @@ fn visible(name: &str) -> bool {
 fn rect_of(name: &str) -> Rect {
     let n = |p: &str| rp_comp_get_stored(name, p).to_i64();
     Rect::new(n("left"), n("top"), n("width"), n("height"))
+}
+
+/// A component's Anchors (akLeft + akTop until set).
+fn anchors_of(name: &str) -> i64 {
+    match rp_comp_get_stored(name, "anchors") {
+        Value::Null => DEFAULT_ANCHORS,
+        v => v.to_i64(),
+    }
+}
+
+/// A component's MinWidth … MaxHeight.
+pub fn constraints_of(name: &str) -> Constraints {
+    Constraints::of(|p| rp_comp_get_stored(name, p).to_i64())
+}
+
+/// The client area `parent`'s anchored children follow (as on the
+/// desktop): a form's or scroll box's inside (its scroll bars not
+/// excluded), a tab control's page, any other container's whole size.
+fn anchor_parent_size(parent: &str) -> (i64, i64) {
+    if rp_comp_type(parent) == "RFORM" || crate::scroll_web::scrolls(parent) {
+        return crate::scroll_web::area(parent);
+    }
+    let r = client_rect(parent);
+    (r.width, r.height)
+}
+
+/// Records where `name` is for its Anchors (they changed, or the program
+/// placed it): from now on it follows its parent.
+fn anchor_here(name: &str) {
+    let anchors = anchors_of(name);
+    if anchors == DEFAULT_ANCHORS && anchor_rules(name).is_none() {
+        return;
+    }
+    let parent = parent_of(name);
+    let size = if parent.is_empty() { (0, 0) } else { anchor_parent_size(&parent) };
+    anchor_record(name, anchors, rect_of(name), size);
+    if anchors != DEFAULT_ANCHORS && !parent.is_empty() {
+        ANCHORED_PARENTS.with(|a| a.borrow_mut().insert(parent));
+    }
+}
+
+/// `parent`'s client area changed size: its aligned children are laid out
+/// again and its anchored ones follow.
+pub fn client_changed(parent: &str) {
+    realign(parent, None);
+    reanchor(parent);
+}
+
+/// Moves `parent`'s anchored children to follow its client area
+/// (`rapidr_value::layout::anchor_controls`).
+pub fn reanchor(parent: &str) {
+    let parent = parent.to_uppercase();
+    if parent.is_empty() || !ANCHORED_PARENTS.with(|a| a.borrow().contains(&parent)) {
+        return;
+    }
+    let children = get_children_of(&parent);
+    let list: Vec<_> = children
+        .iter()
+        .map(|(n, _)| {
+            let rules = anchor_rules(n).filter(|r| r.anchors() == anchors_of(n));
+            (rules, rect_of(n), align_of(n), constraints_of(n))
+        })
+        .collect();
+    let moves = anchor_controls(anchor_parent_size(&parent), &list);
+    if moves.is_empty() {
+        return;
+    }
+    quietly(|| {
+        for (i, r) in &moves {
+            let name = &children[*i].0;
+            rp_comp_set(name, "left", v_int(r.left));
+            rp_comp_set(name, "top", v_int(r.top));
+            rp_comp_set(name, "width", v_int(r.width));
+            rp_comp_set(name, "height", v_int(r.height));
+        }
+    });
+    for (i, r) in moves {
+        let name = &children[i].0;
+        if (r.width, r.height) != (list[i].1.width, list[i].1.height) {
+            client_changed(name);
+            crate::scroll_web::update(name);
+        }
+    }
+    crate::scroll_web::update(&parent);
 }
 
 fn has_aligned_children(name: &str) -> bool {
@@ -137,25 +224,33 @@ pub fn after_set(name: &str, prop: &str) {
             }
             realign(&parent, Some(name));
         }
+        "anchors" => anchor_here(name),
         "left" | "top" | "width" | "height" | "visible" => {
+            if prop != "visible" {
+                anchor_here(name);
+            }
             if align_of(name) != Align::None {
                 realign(&parent_of(name), Some(name));
             }
             if matches!(prop, "width" | "height") {
-                realign(name, None);
+                client_changed(name);
                 crate::scroll_web::update(name);
             }
         }
-        "borderstyle" if rp_comp_type(name) == "RFORM" => realign(name, None),
+        "borderstyle" if rp_comp_type(name) == "RFORM" => client_changed(name),
         // (a QSCROLLBOX's edge: its inside changed)
-        "borderstyle" => crate::scroll_web::update(name),
+        "borderstyle" => {
+            crate::scroll_web::update(name);
+            reanchor(name);
+        }
         "parent" => {
             let parent = parent_of(name);
+            anchor_here(name);
             if align_of(name) != Align::None {
                 mark(&parent);
                 realign(&parent, Some(name));
             } else if rp_comp_type(name) == "RMAINMENU" {
-                realign(&parent, None);
+                client_changed(&parent);
             }
         }
         _ => {}
@@ -168,7 +263,7 @@ pub fn after_set(name: &str, prop: &str) {
 
 fn controls_of(parent: &str) -> (Vec<(String, String)>, Vec<Control>) {
     let children = get_children_of(parent);
-    let controls = children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n) }).collect();
+    let controls = children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n), constraints: constraints_of(n) }).collect();
     (children, controls)
 }
 
@@ -238,7 +333,7 @@ pub fn realign(parent: &str, changed: Option<&str>) {
     });
     for (name, _, resized) in moves {
         if resized {
-            realign(&name, None);
+            client_changed(&name);
         }
     }
 }

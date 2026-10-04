@@ -975,6 +975,8 @@ pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Progr
                 && !not_vars.contains(&n.to_ascii_lowercase())
                 && !in_creates.contains(&n.to_ascii_lowercase())
                 && !is_builtin(&k)
+                // (RapidR's own constants, `akLeft` …)
+                && rapidr_constant(&k).is_none()
                 && !matches!(k.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "result" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
                 && !is_component_type_name(&canonical_type_name(&k))
         })
@@ -1715,6 +1717,18 @@ pub const COMPONENT_TYPES: &[&str] = &[
 /// `IF Form.ShowModal THEN`, `IF OpenDialog.Execute THEN` — so that in an
 /// expression `Obj.Member` is a call, not a property read (both backends).
 pub const VALUE_METHODS: &[&str] = &["showmodal", "execute"];
+
+/// RapidR's own constants, for its extensions (RapidQ's are RAPIDQ.INC's,
+/// which `rapidr_preprocessor` supplies): there without an include, and a
+/// program's own variable or constant of the same name wins (both
+/// backends). Anchors' akLeft … akBottom (`rapidr_value::layout::AK_LEFT`
+/// …).
+pub const RAPIDR_CONSTANTS: &[(&str, i64)] = &[("akleft", 1), ("aktop", 2), ("akright", 4), ("akbottom", 8)];
+
+/// The value of RapidR constant `name` (any case), if it is one.
+pub fn rapidr_constant(name: &str) -> Option<i64> {
+    RAPIDR_CONSTANTS.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| *v)
+}
 
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",

@@ -17,7 +17,7 @@ body { margin: 0; padding: 0; background: #e8e8e8; font-family: 'Segoe UI', Taho
 button.rr-widget { background: linear-gradient(to bottom, #4a90d9, #3a7bc8); color: white; border: 1px solid #2d6db5; border-radius: 4px; padding: 0; overflow: hidden; white-space: nowrap; font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
 button.rr-widget:hover { background: linear-gradient(to bottom, #5a9ee9, #4a8bd8); }
 button.rr-widget:active { background: linear-gradient(to bottom, #2d6db5, #3a7bc8); }
-input[type="text"].rr-widget, input[type="password"].rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 0 3px; font-size: 13px; font-family: inherit; outline: none; background: white; }
+input[type="text"].rr-widget, input[type="password"].rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 0 1px; font-size: 13px; font-family: inherit; outline: none; background: white; }
 input[type="text"].rr-widget:focus, input[type="password"].rr-widget:focus { border-color: #4a90d9; box-shadow: 0 0 3px rgba(74,144,217,0.4); }
 textarea.rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 2px 3px; font-size: 13px; font-family: inherit; outline: none; resize: none; background: white; }
 textarea.rr-widget:focus { border-color: #4a90d9; box-shadow: 0 0 3px rgba(74,144,217,0.4); }

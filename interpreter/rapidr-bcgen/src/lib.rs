@@ -2096,6 +2096,12 @@ impl Bcgen {
                     let c = self.module.add_const(Const::Bool(name_lower.ends_with("true")));
                     emit(code, Op::LoadConst);
                     push_u32(code, c);
+                } else if let (false, Some(n)) = (self.is_known_global(&id.name), rapidr_ast::rapidr_constant(&id.name)) {
+                    // RapidR's own constants (akLeft …), unless the program
+                    // has its own.
+                    let c = self.module.add_const(Const::Int(n));
+                    emit(code, Op::LoadConst);
+                    push_u32(code, c);
                 } else if let (Some(&fi), Some(true), false) = (
                     self.fn_indices.get(&id.name),
                     self.fn_is_func.get(&id.name).copied(),

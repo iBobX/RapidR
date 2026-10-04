@@ -4007,6 +4007,10 @@ pub fn gui_apply_geometry(name: &str) {
         APPLYING.with(|a| a.set(a.get() - 1));
         redraw_window_of(&widget);
     }
+    // A form's Constraints: the user can't drag it outside them.
+    if let GuiWidget::Window(win) = &mut widget {
+        form_size_range(&name, win);
+    }
     // A form's main menu spans its width.
     if let GuiWidget::Window(_) = widget {
         for (child, t) in crate::object::get_children_of(&name) {
@@ -4030,6 +4034,21 @@ pub fn gui_apply_geometry(name: &str) {
             }
         }
     }
+}
+
+/// A form's MinWidth … MaxHeight as its window's size range (the window
+/// is Width / Height less the frame); left alone while it has none.
+fn form_size_range(name: &str, win: &mut Window) {
+    let k = crate::layout::constraints_of(name);
+    let had = rp_comp_get(name, "__sizerange").to_bool();
+    if k.is_none() && !had {
+        return;
+    }
+    crate::object::store_prop(name, "__sizerange", crate::value::v_bool(!k.is_none()));
+    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(name, "borderstyle").to_i64());
+    let inside = |v: i64, frame: i64| if v > 0 { (v - frame).clamp(1, 100_000) as i32 } else { 0 };
+    let (min_w, min_h) = (inside(k.min_width, fw).max(1), inside(k.min_height, fh).max(1));
+    win.size_range(min_w, min_h, inside(k.max_width, fw), inside(k.max_height, fh));
 }
 
 /// The FLTK window of a form: its inside plus the in-window main menu
@@ -4110,18 +4129,24 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
         rp_comp_set(form, "top", v_int(y as i64));
     });
     APPLYING.with(|a| a.set(a.get() - 1));
-    // The window is the inside: Width / Height add the frame.
+    // The window is the inside: Width / Height add the frame — within the
+    // form's Constraints.
     let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(form, "borderstyle").to_i64());
-    let (w, h) = (w as i64 + fw, h as i64 + fh);
+    let asked = (w as i64 + fw, h as i64 + fh);
+    let (w, h) = crate::layout::constraints_of(form).size(asked.0, asked.1);
     let same = rp_comp_get(form, "width").to_i64() == w && rp_comp_get(form, "height").to_i64() == h;
     if same {
+        // (dragged outside them: the window goes back)
+        if (w, h) != asked {
+            gui_apply_geometry(form);
+        }
         return;
     }
     crate::layout::quietly(|| {
         rp_comp_set(form, "width", v_int(w));
         rp_comp_set(form, "height", v_int(h));
     });
-    crate::layout::realign(form, None);
+    crate::layout::client_changed(form);
     crate::scroll::update(form);
     gui_apply_geometry(form);
     rp_fire_event(form, "onresize");
@@ -4732,7 +4757,7 @@ fn tab_control_event(name: &str, f: &mut Frame, ev: Event) -> bool {
 /// components laid out in its area again.
 pub fn tab_control_changed(name: &str) {
     redraw_widget(name);
-    crate::layout::realign(name, None);
+    crate::layout::client_changed(name);
 }
 
 /// A QPANEL's BevelOuter / BevelInner frames.
