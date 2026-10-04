@@ -10,7 +10,7 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**651 libraries** under 26 license expressions.
+**647 libraries** under 26 license expressions.
 
 ## Apache-2.0 OR MIT (364)
 
@@ -381,7 +381,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (163)
+## MIT (159)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -412,9 +412,6 @@ which also carries their full license texts.
 | endi | 1.1.1 | <https://github.com/zeenix/endi> |
 | float-cmp | 0.10.0 | <https://github.com/mikedilger/float-cmp> |
 | float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |
-| fltk | 1.5.22 | <https://github.com/fltk-rs/fltk-rs> |
-| fltk-sys | 1.5.22 | <https://github.com/fltk-rs/fltk-rs> |
-| fltk-theme | 0.7.9 | <https://github.com/fltk-rs/fltk-theme> |
 | freetype-sys | 0.20.1 | <https://github.com/PistonDevelopers/freetype-sys.git> |
 | generic-array | 0.14.7 | <https://github.com/fizyk20/generic-array.git> |
 | harfrust | 0.12.0 | <https://github.com/harfbuzz/harfrust> |
@@ -433,7 +430,6 @@ which also carries their full license texts.
 | lz4-sys | 1.11.1+lz4-1.10.0 | <https://github.com/10xGenomics/lz4-rs> |
 | memoffset | 0.9.1 | <https://github.com/Gilnaa/memoffset> |
 | mime_guess | 2.0.5 | <https://github.com/abonander/mime_guess> |
-| minipaste | 0.1.0 | <https://github.com/MoAlyousef/minipaste> |
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
 | now | 0.1.3 | <https://github.com/Kilerd/now> |

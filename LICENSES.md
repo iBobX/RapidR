@@ -117,14 +117,14 @@ cannot see, so it is credited here.
 
 | Library | Via | License | Upstream |
 |---|---|---|---|
-| FLTK (GUI toolkit of the desktop runtime) | `fltk-sys` (built from source, statically linked) | FLTK License: LGPL-2.0 with exceptions that allow static linking without releasing the application's source | <https://www.fltk.org/COPYING.php> |
 | FreeType (font rendering for charts) | `freetype-sys` via `plotters` → `font-kit` | FreeType License (FTL) — see the notice below | <https://freetype.org> |
 | Zstandard (zstd) | `zstd-sys` (Polars / Parquet) | BSD-3-Clause (dual GPL-2.0; used under BSD) | <https://github.com/facebook/zstd> |
 | LZ4 | `lz4-sys` (Polars) | BSD-2-Clause | <https://github.com/lz4/lz4> |
 | zlib | `libz-sys` | zlib License | <https://zlib.net> |
 | SQLite | `libsqlite3-sys` | Public Domain (section 5) | <https://sqlite.org> |
 | OpenSSL | `openssl-sys` (TLS for RHttp/sockets, linked from the system) | Apache-2.0 (OpenSSL 3) | <https://www.openssl.org> |
-| Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
+| Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system; the charts' and the desktop UI's system fonts) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
+| X11, Wayland, xkbcommon (Linux) | `x11-dl`, `wayland-sys`, `xkbcommon-dl` (the desktop UI's windows and keys: loaded from the system when a window opens) | MIT / MIT-style | <https://www.x.org>, <https://wayland.freedesktop.org>, <https://xkbcommon.org> |
 | ALSA (Linux), Core Audio (macOS) | `alsa-sys`, `coreaudio-sys` (system audio, linked) | LGPL-2.1 (alsa-lib, dynamically linked) / Apple system framework | — |
 
 FreeType notice, as its license requires:

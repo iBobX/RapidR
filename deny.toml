@@ -16,9 +16,11 @@ ignore = [
     # proc-macro-error2: compile-time only, pulled in by mysql-common-derive
     # (mysql 25). Never runs in shipped apps. Revisit on the next mysql upgrade.
     { id = "RUSTSEC-2026-0173", reason = "build-time proc-macro via mysql-common-derive; not in shipped code" },
-    # ttf-parser 0.25: optional dependency of fltk 1.5 (feature not enabled,
-    # so it is not compiled). Revisit when upgrading fltk.
-    { id = "RUSTSEC-2026-0192", reason = "optional fltk dependency, feature not enabled" },
+    # ttf-parser 0.25 is unmaintained (informational, no vulnerability):
+    # rapidr-value reads the built-in Liberation fonts with it
+    # (objects/text.rs), winit's Wayland title bars through ab_glyph.
+    # skrifa, already in the tree through parley and vello, is the way off.
+    { id = "RUSTSEC-2026-0192", reason = "unmaintained, no known vulnerability; rapidr-value's font reader (objects/text.rs)" },
 ]
 
 [licenses]
@@ -47,7 +49,7 @@ expression = "Apache-2.0"
 license-files = []
 
 [bans]
-# Duplicate versions are common in a tree this size (polars, fltk, wasm-bindgen);
+# Duplicate versions are common in a tree this size (polars, wgpu, wasm-bindgen);
 # report them without failing. Wildcard version requirements are denied.
 multiple-versions = "warn"
 wildcards = "deny"
