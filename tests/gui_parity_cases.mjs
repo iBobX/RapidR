@@ -165,7 +165,7 @@ export const cases = [
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
   // (Stage 10: the IDE's components)
   { name: "design_surface", kernel: true,
-    events: "ds.__mousedown_30_30,ds.__mousemove_43_36,ds.__mouseup_43_36,ds.__mousedown_113_47,ds.__mousemove_130_60,ds.__mouseup_130_60,ds.__mousedown_250_100,ds.__mouseup_250_100,ds.__mousedown_150_20,ds.__mouseup_150_20,ds.__mousedown_150_20,ds.__mouseup_150_20,btn.onclick",
+    events: "ds.__mousedown_30_30,ds.__mousemove_43_36,ds.__mouseup_43_36,ds.__mousedown_113_47,ds.__mousemove_130_60,ds.__mouseup_130_60,ds.__mousedown_250_100,ds.__mouseup_250_100,ds.__dblclick_150_20,btn.onclick",
     dump: "lbl.caption,log.caption",
     expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"],
     web: false, why: "the web draws RDESIGNSURFACE as a plain panel: no designer drawing or mouse there yet (its model answers)" },

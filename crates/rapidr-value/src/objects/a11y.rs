@@ -432,11 +432,12 @@ pub fn role_of(type_name: &str) -> Role {
         "RFORM" | "RMDICHILD" => Role::Window,
         "RBUTTON" | "RCOOLBTN" | "ROVALBTN" => Role::Button,
         "RLABEL" => Role::Label,
-        "REDIT" | "RMEMO" | "RRICHEDIT" => Role::TextInput,
+        "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" => Role::TextInput,
         "RCHECKBOX" => Role::CheckBox,
         "RRADIOBUTTON" => Role::RadioButton,
         "RCOMBOBOX" => Role::ComboBox,
-        "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" => Role::ListBox,
+        // (the IDE's designer: its designed components as options)
+        "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RDESIGNSURFACE" => Role::ListBox,
         "RTREEVIEW" | "RDIRTREE" => Role::Tree,
         "RSTRINGGRID" => Role::Grid,
         "RTABCONTROL" => Role::TabList,
@@ -446,7 +447,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RGROUPBOX" | "RHEADER" => Role::Group,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
-        "RIMAGE" => Role::Image,
+        // (and a kernel-drawn message box's icon)
+        "RIMAGE" | "RDLGPART" => Role::Image,
         "RCANVAS" => Role::Canvas,
         "RMAINMENU" => Role::MenuBar,
         // (QPANEL, QSCROLLBOX and what the hosts only place)
@@ -460,7 +462,7 @@ pub fn role_of(type_name: &str) -> Role {
 pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
-        "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
+        "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
     )
 }
 
@@ -550,7 +552,7 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         }
         "RLABEL" | "RGROUPBOX" | "RPANEL" => own_caption(&mut n, false),
         // (its text: a PasswordChar's characters for a password)
-        "REDIT" | "RMEMO" | "RRICHEDIT" => {
+        "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" => {
             let multi = t != "REDIT";
             let (value, read_only) = super::with_textedit(id, |e| (e.text(), e.read_only)).unwrap_or_default();
             n.value = Some(match text(get, "passwordchar").chars().next() {

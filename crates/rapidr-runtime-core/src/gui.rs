@@ -685,7 +685,7 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
             key_events(&chain, false, vk, 0, "");
         }
         // (the design surface's own handler: the shared model's events)
-        Action::Mouse(kind, x, y) if rapidr_value::objects::is_design(&comp_lower) => design_test_mouse(&comp_lower, kind, x, y),
+        Action::Mouse(kind, x, y) if rapidr_value::objects::is_design(&comp_lower) => design_test_mouse(&comp_lower, kind, x, y, false),
         Action::Mouse(kind, x, y) => {
             hook_mouse(&comp_lower, kind, x, y, false);
             let (fx, fy) = (x as f64, y as f64);
@@ -703,7 +703,11 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
         Action::DblClick(x, y) => {
             use rapidr_value::input::Mouse;
             for (kind, double) in [(Mouse::Down, false), (Mouse::Up, false), (Mouse::Down, true), (Mouse::Up, true)] {
-                hook_mouse(&comp_lower, kind, x, y, double);
+                if rapidr_value::objects::is_design(&comp_lower) {
+                    design_test_mouse(&comp_lower, kind, x, y, double);
+                } else {
+                    hook_mouse(&comp_lower, kind, x, y, double);
+                }
             }
         }
         Action::Ignored => {}
@@ -718,30 +722,14 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
     app::add_timeout3(0.05, move |_| fire_test_events(queue.clone(), prefix.clone()));
 }
 
-thread_local! {
-    /// The test hook's last press on a design surface: when, on which,
-    /// where, and its click count (a double click as Windows times one).
-    static DESIGN_PRESS: RefCell<Option<(std::time::Instant, String, i64, i64, u32)>> = const { RefCell::new(None) };
-}
-
 /// `ds.__mousedown_x_y` … on a design surface: what its handler does with
-/// the mouse (design_surface_event); a second press within Windows'
-/// double-click time and distance is a double click (as the kernel counts).
-fn design_test_mouse(ds: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64) {
+/// the mouse (design_surface_event). As on the kernel, a scripted press is a
+/// single click; `ds.__dblclick_x_y`'s second press (`double`) is a double
+/// click.
+fn design_test_mouse(ds: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, double: bool) {
     use rapidr_value::input::Mouse;
     let heard = match kind {
-        Mouse::Down => {
-            let now = std::time::Instant::now();
-            let clicks = DESIGN_PRESS.with(|p| {
-                let n = match p.borrow().as_ref() {
-                    Some((at, on, px, py, n)) if on == ds && now.duration_since(*at) <= std::time::Duration::from_millis(500) && (x - px).abs() <= 4 && (y - py).abs() <= 4 => n + 1,
-                    _ => 1,
-                };
-                *p.borrow_mut() = Some((now, ds.to_string(), x, y, n));
-                n
-            });
-            rapidr_value::objects::with_design_mut(ds, |d| d.mouse_down(x, y, clicks >= 2))
-        }
+        Mouse::Down => rapidr_value::objects::with_design_mut(ds, |d| d.mouse_down(x, y, double)),
         Mouse::Move => rapidr_value::objects::with_design_mut(ds, |d| d.mouse_drag(x, y)),
         Mouse::Up => rapidr_value::objects::with_design_mut(ds, |d| {
             d.mouse_up();
