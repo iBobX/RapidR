@@ -18,7 +18,7 @@ Three flavours of the same announcement. Pick whichever matches the venue.
 > What's in 1.0:
 >
 > - **Native + Web from one source.** Compile a `.rr` file to a fast
->   native binary (FLTK), or to WebAssembly that runs in a browser tab.
+>   native binary, or to WebAssembly that runs in a browser tab.
 > - **52+ GUI components** plus 9 web-exclusive ones (`RWebView`,
 >   `RWebStorage`, `RDOM`, `RJavaScript`, …), 100+ built-ins, MySQL +
 >   SQLite, networking, JSON, and a small data-science stack
@@ -51,7 +51,7 @@ Three flavours of the same announcement. Pick whichever matches the venue.
 > browser IDE**
 >
 > RapidR compiles a RapidQ-flavoured BASIC dialect (`.rr` files) to
-> standalone Rust projects, then to native binaries (FLTK GUI) or to
+> standalone Rust projects, then to native binaries (their own GUI) or to
 > WebAssembly that runs in the browser. 1.0 ships a self-hosted Web
 > IDE — plain HTML/JS, no backend — that drives the same wasm module
 > exporting both the compiler and a small bytecode interpreter, so
@@ -74,7 +74,7 @@ Three flavours of the same announcement. Pick whichever matches the venue.
 >
 > **Highlights**
 >
-> - **Compiler pipeline.** `.rr` → AST → Rust → native binary (FLTK)
+> - **Compiler pipeline.** `.rr` → AST → Rust → native binary
 >   *or* `.rr` → bytecode (`.rrbc`) → wasm interpreter `rapidrintr`.
 > - **Self-hosted Web IDE (`web-ide/`).** Multi-form designer, 22
 >   components in 3 groups, type-aware property grid (color/font live

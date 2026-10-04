@@ -119,7 +119,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 
 **Rest of Phase 0**
 - [x] Upgrade `mysql` crate to drop `proc-macro-error2` (v2.113.0: mysql 28 without derive / TLS / system zlib) (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
-- [ ] Confirm first CI run on GitHub (Linux FLTK/ALSA system packages untested)
+- [ ] Confirm first CI run on GitHub (Linux system packages for the UI kernel host and ALSA untested)
 - [x] `SECURITY.md` → GitHub private vulnerability reporting (repo setting must be enabled by owner)
 - [x] Track all of `tests/` in git (generated outputs ignored)
 - [ ] Run the web IDE Playwright suites in CI (wasm-pack build + static server + Playwright)
@@ -160,10 +160,10 @@ Next up, in order:
 - [x] Web bundles: an on-page console for programs that PRINT (`web-ide/bundle_console.js` + `ansi_screen.js`, CLI and IDE bundles) (v2.21.0)
 - [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
 - [x] `REDIM` keeping data (resized in place; creates the array without a DIM; `REDIM PRESERVE`), `INV` (v2.18.0)
-- [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (FLTK dialogs on desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
+- [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (dialogs the UI kernel draws on the desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
 - [x] Web: in-page dialogs with any buttons for MESSAGEBOX/MESSAGEDLG/SHOWMESSAGE/INPUT — the VM suspends and resumes (`VmError::Suspended`, `Vm::resume_with`) (v2.22.0)
 - [x] `INPUT` per the manual: prompt printed, whole line, stored as text/number by DIM type or suffix (both backends) (v2.22.0)
-- [x] `SLEEP` in seconds (as RapidQ), `DOEVENTS` (the desktop runs FLTK's pending events and timers; the web pauses the program so the browser goes on), `INKEY$` (QBasic's keys: the terminal, the program's windows, the page), timers enabled again ticking again, on native, interpreter and web (v2.80.0)
+- [x] `SLEEP` in seconds (as RapidQ), `DOEVENTS` (the desktop runs its pending events and timers; the web pauses the program so the browser goes on), `INKEY$` (QBasic's keys: the terminal, the program's windows, the page), timers enabled again ticking again, on native, interpreter and web (v2.80.0)
 - [x] `INPUT$(n)`: returns on the n-th key, no polling (terminal poll, window event loop, page keydown) (v2.83.0)
 - [ ] The Rust-compiled web build's waits (it has no suspension: browser dialogs, SLEEP doesn't wait)
 - [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
@@ -188,7 +188,7 @@ Next up, in order:
 - [x] Web: a `ShowModal` in the main program waits (the IDE shows the startup form after the program's own statements, as RapidQ's designer does); the program ends when its main body finishes with no form open (timers stop); `Form.Repaint`; web parity checks for them and for a resized form with a dragged splitter (`align_layout`) (v2.61.0)
 - [x] Resources: ICOHandle / Icon (forms v2.73.0, QIMAGE v2.76.0); ICO, PNG and JPEG resources and files wherever a bitmap goes, in the shared model (v2.73.0 / v2.76.0) (PLAYWAV of files and resources: v2.45.0)
 - [x] Mouse event arguments in RapidQ's order everywhere (v2.59.0)
-- [x] QSTRINGGRID runtime: one model for desktop (FLTK table) and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
+- [x] QSTRINGGRID runtime: one model for desktop and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
 - [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)
 - [x] QSTRINGGRID goRangeSelect, gcsList drop-downs, goColSizing / goRowSizing on desktop and web (v2.43.0)
 - [x] QSTRINGGRID extras: row / column moving by the mouse (goRowMoving / goColMoving: a header cell dragged), VisibleRowCount / VisibleColCount, RapidR's MoveCol / MoveRow, on native, interpreter and web (v2.78.0); a selected range read by the program: RapidQ has no property for it (goRangeSelect's range stays the user's)
@@ -224,9 +224,9 @@ Next up, in order:
 - [x] Components given a parent after their form is shown get their widget then (desktop; the web did) (v2.57.0); `Handle` for components (v2.57.0)
 - [x] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`: OnDrawItem, OnMeasureItem) and QLISTBOX `Columns` on desktop and web from the shared list model (v2.60.0)
 - [x] QLISTBOX `TabWidth`, `ExtendedSelect` (v2.63.0)
-- [ ] Grid `OnDrawCell` text from the shared fonts (the grid draws it with FLTK / the browser); `ExtendedSelect` for plain (not drawn) multi-select lists on the desktop (FLTK's own browser)
-- [x] Desktop look: `$THEME` / `RAPIDR_THEME` name any fltk-theme theme or scheme or FLTK scheme; the interpreter honors `$THEME` too; Linux defaults to a light look (was Dark); fltk 1.5 / fltk-theme 0.7.9 are current (v2.62.0)
-- [ ] Modern platform looks by default (fltk-theme's Aqua on macOS, Fluent on Windows): RapidR's buttons, grids and lists need styling for those schemes first (default-colored buttons vanish, Fluent draws grid headers wrong); fltk-theme's `crystal` scheme panics (upstream)
+- [ ] Grid `OnDrawCell` text from the shared fonts in the browser too (the desktop's UI kernel draws it with them; `ExtendedSelect` for plain multi-select lists came with the shared list model the kernel draws)
+- [x] Desktop look: `$THEME` honored by native and interpreted programs (v2.62.0); since FLTK's removal (Stage 11) the UI kernel draws Windows' classic look (RapidQ's) and says once when a program names another
+- [ ] Kernel themes beside the classic look: a modern one for new programs and a high-contrast one, drawn from the same models (`$THEME` picks; old programs keep classic)
 - [x] QIMAGELIST AddICOFile / AddICOHandle / InsertICO… / GetICO (an icon scaled whole to the list's size) and `ImageList.Draw` onto a canvas (v2.76.0)
 - [ ] `Rotate (xOrigin, yOrigin, Angle)` on QBITMAP / QCANVAS / QIMAGE: the manual doesn't say the direction or what fills the uncovered area — needs a real RapidQ to compare
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
@@ -246,7 +246,7 @@ Next up, in order:
 - [x] SVG form / application icons (v2.73.0)
 - [x] QOUTLINE (a tree view: AddLines by indentation, AddChild(Index, S), Insert, Item(i), Row, LineCount); QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG from a shared model (RapidQ filters, FilterIndex, InitialDir, DefaultExt, MultiSelect, Files(), SelCount, FileTitle; an in-page dialog on the web with Upload) on native, interpreter and web (v2.71.0)
 - [x] QHEADER from a shared model: AddSections, Clear, `Sections(i)` Caption / Width / MinWidth / MaxWidth / Alignment / AllowClick / Style, drawn on like a canvas; sections clicked and resized with the mouse (resize cursor on an edge), OnSectionClick / OnSectionTrack (begin, move, end) / OnSectionResize, owner-drawn sections through OnDrawSection (Index, Pressed, Rect) on native, interpreter and web (v2.72.0)
-- [x] High-DPI: canvases, form surfaces, QIMAGE pictures, owner-drawn list / combo items, grid images and tree icons shown at the screen's scale (FLTK `pixels_per_unit` on Retina, the browser's `devicePixelRatio`): each bitmap keeps what the screen shows next to the pixels programs read (`Pixel`, `.BMP`, flood fills — unchanged, checked by the GUI suites at 2×); text, lines and ellipses drawn finer, SVGs drawn at the scale (v2.70.0)
+- [x] High-DPI: canvases, form surfaces, QIMAGE pictures, owner-drawn list / combo items, grid images and tree icons shown at the screen's scale (the window's scale factor on Retina, the browser's `devicePixelRatio`): each bitmap keeps what the screen shows next to the pixels programs read (`Pixel`, `.BMP`, flood fills — unchanged, checked by the GUI suites at 2×); text, lines and ellipses drawn finer, SVGs drawn at the scale (v2.70.0)
 - [x] High-DPI: grid cells' own drawing on the web at the screen's scale (v2.75.0)
 - [ ] High-DPI leftover: RapidR's own IDE icons as vectors
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
@@ -322,7 +322,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] Shared models describe themselves: role, name (Caption / Text / Hint), value, state, actions — one accessibility tree per form
 - [x] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree (v2.113.0); keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
 - [ ] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme
-- [ ] FLTK's own widgets are weak here: each one replaced by its shared model (principle 7) gains it — track which remain
+- [ ] No toolkit widgets are left on the desktop (FLTK removed): every component is the kernel's and gains accessibility through its model's description — track the ones whose description is still generic
 
 **Responsive layout (additive to Align)**
 - [x] `Anchors` (Delphi's akLeft / akTop / akRight / akBottom) and `Constraints` (MinWidth …) on every component, in `rapidr_value::layout` (v2.107.0)
@@ -330,7 +330,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 
 **One UI kernel (principle 7)**
 - [ ] Move the remaining components to shared models: button / check box / radio button / label / panel / group box / combo box / status bar / tool bar / progress / up-down / date picker
-- [ ] **New desktop host (decided direction 2026-10-03, after a prototype):** replace FLTK with RapidR's own UI kernel on permissive Rust crates — `winit` (windows and input; Windows / macOS / Linux / iOS / Android), `wgpu` + `vello` (GPU vector drawing; `tiny-skia` CPU fallback; wgpu is also the DirectX objects' layer), `AccessKit` (screen readers), `parley` / `cosmic-text` (text shaping, editing, IME), native where users notice: macOS menu bar (`muda`), file / colour / font dialogs (`rfd`), clipboard (`arboard`). Not native widgets (wxWidgets & co.): they look and measure differently per OS and don't exist on the web, against "the same everywhere". Steps: prototype host next to FLTK running a few fixtures → port component by component (text editing and QRICHEDIT last) → switch when the whole regression passes → FLTK removed. Timing: after the corpus push, before the IDE (the IDE is built on it). Themes: Windows-classic for old programs, a modern one for new
+- [x] **New desktop host (decided direction 2026-10-03, after a prototype):** replace FLTK with RapidR's own UI kernel on permissive Rust crates — `winit` (windows and input; Windows / macOS / Linux / iOS / Android), `wgpu` + `vello` (GPU vector drawing; `tiny-skia` CPU fallback; wgpu is also the DirectX objects' layer), `AccessKit` (screen readers), `parley` / `cosmic-text` (text shaping, editing, IME), native where users notice: macOS menu bar (`muda`), file / colour / font dialogs (`rfd`), clipboard (`arboard`). Not native widgets (wxWidgets & co.): they look and measure differently per OS and don't exist on the web, against "the same everywhere". Steps: prototype host next to FLTK running a few fixtures → port component by component (text editing and QRICHEDIT last) → switch when the whole regression passes → FLTK removed. Timing: after the corpus push, before the IDE (the IDE is built on it). Themes: Windows-classic for old programs, a modern one for new
   - [x] Prototype (`crates/rapidr-ui-proto`, its own lockfile; v2.105.0): a QFORM with QLABEL, QBUTTON, QEDIT (parley editing, IME commits, clipboard), QTRACKBAR and QTABCONTROL drawn by vello from the shared models' ops, logical pixels at the screen's scale (`RAPIDR_SCALE`), Tab focus, AccessKit tree (VoiceOver reads and presses it), muda menu bar, rfd dialog, offscreen `--capture`; 13 MB release binary, ~0.9 ms per frame. All 170 dependencies permissive
   - [x] Stage 0 of the integration (v2.108.0): pump-driven event loop with nested modals, timers and live resize; CPU renderer (vello_cpu) within tolerance of the GPU one; headless host with byte-identical captures; wasm-bindgen aligned at 0.2.129 across the workspace; one font size rule (Windows' rounding) — results in the plan
   - [x] Stage 1 (facade, host switch, deferred-handler safety net, shared test-hook parsing) and Stage 2 (`rapidr-ui-kernel`) (v2.109.0)
@@ -338,7 +338,8 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
   - [x] Stage 5 lanes — containers, buttons & menus, lists: 43 of 54 GUI fixtures identical on both hosts (v2.111.0) — next: surfaces, text, dialogs, platform
   - [x] Stages 6–9 (surfaces, text, dialogs, platform): every GUI fixture identical on both hosts — 0 pending (v2.112.0). Before the switch (Stage 11): a hands-on check on an unlocked screen (GPU windows, a real drag, a held menu, IME, a real file sheet), then RDESIGNSURFACE / RCODEEDITOR (Stage 10)
   - [x] Stage 10 (RDESIGNSURFACE / RCODEEDITOR as shared models; the IDE in RapidR runs on the kernel), Stage 12 (web ARIA from the same accessibility rules, `tests/web_a11y.mjs`), and the lanes' follow-ups: double clicks in the VCL's order, real in-place editors, edit after a pause, F10 / Alt menus, size grip, message box icons, colour / font dialog options, QFORM.WindowState (v2.113.0). Left before the switch (Stage 11): the hands-on check on an unlocked screen
-  - [ ] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
+  - [x] Stage 11: FLTK removed — the UI kernel is RapidR's only desktop host, with no fallback (`gui.rs`, the `fltk` / `fltk-theme` dependencies and `RAPIDR_HOST` gone; `rapidr build --host kernel` only notes it's no longer needed; the GUI suite runs every fixture native and interpreted on the one host, 1× and 2×); sizes and build times before / after in the plan
+  - [x] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
 
 ## Phase 2 — Debugger (~6 weeks)
 
@@ -363,7 +364,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] Debugging the same way in both IDEs: the interpreter (VM) runs debug sessions; release builds native; DAP (Phase 2) for other editors
 - [ ] VB-style events tab (double-click → handler stub), menu editor, tab-order editor, code/designer toggle
 - [ ] IndexedDB autosave; File System Access API open/save
-- [ ] Tauri desktop shell: same IDE + native `.exe`/`.app` builds via FLTK backend
+- [ ] Tauri desktop shell: same IDE + native `.exe`/`.app` builds via the UI kernel host
 
 ## Phase 4 — AI in the IDE (~6 weeks)
 
@@ -430,7 +431,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 | Q3 2027 | Mobile step 1; data-science / database / AI stacks polished (high-DPI charts, more databases) |
 | Q4 2027 | Security audit (Phase 6), documentation, examples, community |
 
-Risks to watch: the corpus' long tail (programs built on Win32 calls need a "portable corpus" definition, since there's no Win32 emulation); desktop accessibility while FLTK widgets remain; the size of the IDE work; app-store tooling for mobile.
+Risks to watch: the corpus' long tail (programs built on Win32 calls need a "portable corpus" definition, since there's no Win32 emulation); desktop accessibility of components whose models still describe themselves generically; the size of the IDE work; app-store tooling for mobile.
 
 ---
 

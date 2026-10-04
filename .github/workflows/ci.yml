@@ -34,13 +34,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install native GUI/audio build dependencies (FLTK, ALSA)
+      # (fontconfig and FreeType: the UI kernel's system fonts and the
+      # charts; ALSA: sound. winit loads X11 / Wayland / xkbcommon when a
+      # window opens and wgpu its GPU driver — the headless tests need
+      # neither, real windows do)
+      - name: Install native GUI/audio build dependencies (UI kernel host, ALSA)
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libx11-dev libxext-dev libxft-dev \
-            libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev \
-            libfontconfig1-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev \
-            libasound2-dev
+          sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype-dev \
+            libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev \
+            libxrandr-dev libasound2-dev
       - run: cargo test --workspace
       # Conformance: the same BASIC programs on the bytecode VM and the Rust
       # codegen backend, compared against expected output (tests/conformance).

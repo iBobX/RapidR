@@ -4,7 +4,7 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **52+ GUI components** (R-prefixed: `RForm`, `RButton`, `RCoolBtn`, `ROvalBtn`, `RJson`, `RStringGrid`, …), **9 web-exclusive components** (`RWebView`, `RDOM`, `RJavaScript`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, JSON processing, data science components, and a self-hosted **Visual IDE** — all compiled to native code via FLTK or to **WebAssembly** for browser deployment.
+**RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **52+ GUI components** (R-prefixed: `RForm`, `RButton`, `RCoolBtn`, `ROvalBtn`, `RJson`, `RStringGrid`, …), **9 web-exclusive components** (`RWebView`, `RDOM`, `RJavaScript`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, JSON processing, data science components, and a self-hosted **Visual IDE** — all compiled to native code (the GUI drawn by RapidR's own UI kernel) or to **WebAssembly** for browser deployment.
 
 > **Note:** RapidR is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidR extends the language with data science components (RNum, RPlot, RDataFrame), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
 
@@ -42,7 +42,7 @@ The Rust workspace under `crates/` provides a full transpilation pipeline that g
 
 1. **Compiler Frontend (`crates/rapidr-{lexer,parser,preprocessor,ast,diagnostics}/`)** — Lexes, preprocesses, and parses BASIC syntax into an AST.
 2. **Code Generator (`crates/rapidr-codegen-rust/`)** — Walks the AST and emits Rust source code targeting either the native or web runtime.
-3. **Native Runtime (`crates/rapidr-runtime-core/`)** — FLTK-based GUI, built-in functions, database (MySQL + SQLite), networking, data science, and file I/O.
+3. **Native Runtime (`crates/rapidr-runtime-core/`)** — GUI on RapidR's own UI kernel (`crates/rapidr-ui-kernel`, drawn with winit + vello, screen readers through AccessKit), built-in functions, database (MySQL + SQLite), networking, data science, and file I/O.
 4. **Web Runtime (`crates/rapidr-runtime-web/`)** — Browser-based GUI via DOM/Canvas, web-exclusive components, WASM-compatible built-ins, and `wasm-bindgen` interop.
 5. **CLI (`crates/rapidr-cli/`)** — Command-line interface with `codegen` and `--web` commands.
 
@@ -74,7 +74,9 @@ the supporting crates:
 | `rapidr-parser` | `crates/` | Recursive-descent parser → AST |
 | `rapidr-rrcss` | `crates/` | Tiny CSS subset used by the web runtime for style props |
 | `rapidr-codegen-rust` | `crates/` | AST → Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
-| `rapidr-runtime-core` | `crates/` | Native runtime — FLTK GUI, builtins, MySQL/SQLite, networking, data science, file I/O |
+| `rapidr-runtime-core` | `crates/` | Native runtime — the desktop GUI (through the UI kernel), builtins, MySQL/SQLite, networking, data science, file I/O |
+| `rapidr-ui-kernel` | `crates/` | The UI kernel: forms as retained trees over the component store, focus, input routing, display lists, text editing, accessibility trees (GUI-free; builds for wasm too) |
+| `rapidr-ui-host-winit` | `crates/` | The desktop host for the kernel: winit windows, vello on the GPU (vello_cpu without one), AccessKit, system menus and file dialogs, a headless host for tests |
 | `rapidr-runtime-web` | `crates/` | Web runtime — DOM/Canvas GUI, web-exclusive components, in-memory SQLite, RSocket-over-WebSocket |
 | `rapidr-buildserver` | `crates/` | (Legacy) axum HTTP build service used by `examples/web_ide.rr`. Superseded by the self-contained [`web-ide/`](web-ide/). |
 | `rapidr-bytecode`     | `interpreter/` | `.rrbc` format: `RRBC` magic + ~50 stack opcodes |
@@ -87,16 +89,16 @@ the supporting crates:
 | `rapidr-runner-stub`  | `interpreter/` | Host-stub binary used as the prefix for `--interp` self-contained executables |
 ### Key Capabilities
 
-- **Native GUI via FLTK** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, splitters, scroll boxes, and more
+- **Native GUI on RapidR's own UI kernel** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, splitters, scroll boxes, and more
 - **Web GUI via WASM** — Same component API compiled to WebAssembly for browser deployment, plus 9 web-exclusive components (RWebView, RDOM, RJavaScript, RWebStorage, RWebAudio, RWebVideo, RWebNotification, RWebGeolocation, RRouter)
-- **FLTK Themes** — `$THEME` directive supports: Classic, Aero, Metro, AquaClassic, Greybird, Blue, Dark, HighContrast; also `$THEME AUTO` for OS-based selection
+- **Classic look, high-DPI, accessible** — Desktop forms are drawn in Windows' classic look (RapidQ's) at the screen's scale, with screen-reader trees (AccessKit) and keyboard navigation; `$THEME` is accepted (other looks are planned)
 - **Global variable mechanism** — Module-level `DIM` variables use thread-local storage (`gv()`/`gs()` accessors), correctly shared across all SUBs/FUNCTIONs
 - **User-Defined Types** — `TYPE...END TYPE` with fields, inheritance, constructors, and methods
 - **Database** — MySQL (via `mysql` crate) and SQLite (via `rusqlite`) with property-based API
 - **Networking** — TCP sockets, server sockets, HTTP client
 - **JSON** — `RJson` component for parsing, generating, dot-path access, and file I/O (cross-platform: desktop + web)
 - **100+ built-in functions** — String, math, file I/O, system operations
-- **Self-hosted IDE (native)** — The visual form designer (`examples/ide.rr`) compiles to a native FLTK application
+- **Self-hosted IDE (native)** — The visual form designer (`examples/ide.rr`) compiles to a native desktop application
 - **Self-hosted IDE (web)** — [`web-ide/`](web-ide/) is a fully self-contained browser IDE: visual designer + Run + Build (downloadable static `.zip`), all backed by a single combined wasm that holds **both** the compiler and the bytecode interpreter — no build server, no network calls
 - **Multi-form apps** — Multiple top-level `RFORM` windows behave like ordinary OS windows; `Parent="Form1"` nests one form inside another. `OnLoad`/`OnClose` lifecycle events fire on both runtimes; `ShowModal` works on web via a dimmed backdrop overlay
 - **Data science** — RNum (ndarray), RDataFrame (polars), RPlot (plotters) components for array math, dataframes, and plotting
@@ -183,14 +185,10 @@ prefer `web-ide/` for any new work.
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   source $HOME/.cargo/env
   ```
-- **C/C++ compiler** (needed to build the FLTK GUI library):
+- **C compiler** (a few bundled C libraries: SQLite, zstd, …) and, on Linux, the system's font, window and sound libraries:
   - **macOS:** `xcode-select --install`
-  - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake libx11-dev libxext-dev libxft-dev libxinerama-dev libfontconfig1-dev libpango1.0-dev`
+  - **Linux (Debian/Ubuntu):** `sudo apt install build-essential pkg-config libfontconfig1-dev libfreetype-dev libasound2-dev` (windows also need `libxkbcommon`, X11 or Wayland and a GPU driver or Mesa, which a desktop already has; without a GPU RapidR draws on the CPU)
   - **Windows:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (MSVC)
-- **CMake** (FLTK build dependency):
-  - **macOS:** `brew install cmake`
-  - **Linux:** `sudo apt install cmake`
-  - **Windows:** Bundled with Visual Studio Build Tools
 - **(Optional) Node.js + npm** — needed only if you want to build the VS Code extension:
   - Install from [nodejs.org](https://nodejs.org/) or via your package manager
   - Install the VS Code Extension packaging tool: `npm install -g @vscode/vsce`
@@ -344,7 +342,7 @@ is needed to ship to the web.
 | Bytecode format | `rapidr-bytecode` | `RRBC` magic + ~50 stack opcodes, hand-rolled little-endian (de)serialisation |
 | Bytecode generator | `rapidr-bcgen` | Lowers AST → bytecode (mirrors `rapidr-codegen-rust`) |
 | Stack VM | `rapidr-vm` | `Vm<Host>` interpreter with frames, globals, and a small `Host` trait |
-| Native host | `rapidr-vm-host-native` | `Host` impl backed by `rapidr-runtime-core` (FLTK, sockets, SQLite, FFI) |
+| Native host | `rapidr-vm-host-native` | `Host` impl backed by `rapidr-runtime-core` (the UI kernel, sockets, SQLite, FFI) |
 | Web host | `rapidr-vm-host-web` | `Host` impl backed by `rapidr-runtime-web` (DOM, canvas) — `wasm-bindgen` cdylib |
 | In-browser compiler | `rapidr-compiler-wasm` | `wasm-bindgen` wrapper exposing `compile(source) -> Vec<u8>` |
 | Web bundler | `rapidr-webbundle` | Builds a static `.zip` containing `index.html`, `loader.js`, `rapidrintr.{wasm,js}`, `<project>.rrbc` |
@@ -392,9 +390,9 @@ The bundle is fully static: unzip and serve from any HTTP host
 | `$APPTYPE` | Set application type (`GUI`, `CONSOLE`, or `WEB`) | `$APPTYPE WEB` |
 | `$OPTIMIZE` | Optimization hint (pass-through) | `$OPTIMIZE ON` |
 | `$ESCAPECHARS` | Enable escape character processing | `$ESCAPECHARS ON` |
-| `$THEME` | Set FLTK theme (Rust only) | `$THEME AquaClassic` or `$THEME AUTO` |
+| `$THEME` | The desktop look (native and interpreted) | `$THEME Classic` |
 
-**Available themes (Rust / FLTK):** `Classic`, `Aero`, `Metro`, `AquaClassic`, `Greybird`, `Blue`, `Dark`, `HighContrast`, `AUTO` (selects by OS: AquaClassic on macOS, Aero on Windows, Greybird on Linux).
+**Themes:** the desktop draws Windows' classic look (RapidQ's): `Classic` (also `System`, `Light`, `Windows`, `Win95`, `Win98`, `Win2K`). Any other name is accepted and says once that the classic look is drawn; modern and high-contrast looks are planned.
 
 ---
 
@@ -404,7 +402,7 @@ The runtime (`crates/rapidr-runtime-core/`) provides all the R-prefixed componen
 
 ### GUI Components
 
-Powered by **FLTK** (via the `fltk` crate), the runtime provides **51+ component classes**.
+Drawn by RapidR's own UI kernel (`crates/rapidr-ui-kernel`, on winit + vello), the runtime provides **51+ component classes**.
 
 #### Forms & Containers
 
@@ -820,7 +818,7 @@ df.togrid "Grid1"          ' Populate RStringGrid with DataFrame
 DIM plt AS RPlot
 DIM img AS RImage
 plt.plot x, y, "red", "Data"
-img.loadfromplot plt    ' Renders to PNG bytes in memory, loads directly into FLTK widget
+img.loadfromplot plt    ' Renders to PNG bytes in memory, loads directly into the picture
 ```
 
 ---
@@ -958,7 +956,7 @@ END SUB
 
 Most standard GUI components work in both native and web targets:
 
-| Component | Native (FLTK) | Web (WASM) | Notes |
+| Component | Native | Web (WASM) | Notes |
 |-----------|:---:|:---:|-------|
 | RForm | ✅ | ✅ | Rendered as a `<div>` with titlebar, minimize/maximize/close, drag-to-move, z-index stacking |
 | RButton | ✅ | ✅ | HTML `<button>` element |
@@ -1027,7 +1025,7 @@ cd examples/web_calculator_web && python3 -m http.server 8080
 The project ships with its own experimental and WIP **Visual Form Designer & Code Editor** (`ide.rr`).
 
 - **Self-hosting**: Written purely in RapidR BASIC, serving as the ultimate benchmark of the transpiler's completeness.
-- **Native compilation**: Compiles to a native FLTK GUI application.
+- **Native compilation**: Compiles to a native desktop GUI application.
 - **Component Palette**: Drag-and-drop components onto a visual `RCanvas` design surface — includes all GUI components plus data science components (RNum, RDataFrame, RPlot).
 - **8-Handle Resize**: Full directional drag-and-resize with hit-testing mathematics.
 - **Property Grid**: Double-editable spreadsheet for properties like `Caption`, `Color` (with popup pickers), `Font`, `CsvFile`, `DataSource`, `Title`, `XLabel`, `YLabel`, `Grid`.
@@ -1045,7 +1043,7 @@ The project ships with its own experimental and WIP **Visual Form Designer & Cod
 
 ### Self-Hosted Web IDE — `web-ide/` (v2.8.0)
 
-In addition to the native FLTK IDE above, RapidR ships a **fully self-contained
+In addition to the native IDE above, RapidR ships a **fully self-contained
 browser IDE** under [`web-ide/`](web-ide/). It is **not** a `.rr` program — it
 is plain HTML/JS that drives the same combined wasm module
 (`rapidrintr.wasm`) used to ship `bundle-bc` apps. That module exposes
@@ -1382,14 +1380,14 @@ python3 -m http.server 8765 &
 - **Roberto Berrospe** ([@iBobX](https://github.com/iBobX)) — Creator, architect, and lead developer
 - **VS Code Copilot/Claude + Antigravity/Gemini** — AI pair-programming assistant for feature implementation, testing, and documentation
 
-RapidR stands on the shoulders of open-source software: FLTK (via fltk-rs),
-wasm-bindgen, the Monaco editor, Polars, SQLite and hundreds of Rust crates.
-The full list, with licenses and links, is in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (generated from the
-dependency graph) and [LICENSES.md](LICENSES.md) (vendored JavaScript and
-license texts). New dependencies must be open source under a permissive
-license accepted by `deny.toml`. Every web bundle RapidR builds ships these
-notices.
+RapidR stands on the shoulders of open-source software: winit, wgpu, vello,
+parley and AccessKit (the desktop UI), wasm-bindgen, the Monaco editor,
+Polars, SQLite and hundreds of Rust crates. The full list, with licenses
+and links, is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+(generated from the dependency graph) and [LICENSES.md](LICENSES.md)
+(vendored JavaScript and license texts). New dependencies must be open
+source under a permissive license accepted by `deny.toml`. Every web bundle
+RapidR builds ships these notices.
 
 ---
 

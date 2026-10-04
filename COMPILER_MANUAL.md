@@ -40,7 +40,7 @@
   - [5.8 Component Registry](#58-component-registry)
 - [6. Runtime Library](#6-runtime-library)
   - [6.1 Builtins (builtins.rs)](#61-builtins-builtinsrs)
-  - [6.2 GUI (gui.rs)](#62-gui-guirs)
+  - [6.2 GUI (ui/, the UI kernel)](#62-gui-ui-the-ui-kernel)
   - [6.3 Database (database.rs)](#63-database-databasers)
   - [6.4 Network (network.rs)](#64-network-networkrs)
   - [6.5 Data Science (datascience.rs)](#65-data-science-datasciencers)
@@ -86,19 +86,21 @@ The Rust migration has reached **functional transpiler status** with a complete 
 | `rapidr-lexer` | — | Lexer covering keywords, literals, directives, operators, suffixes, line continuations |
 | `rapidr-parser` | — | Recursive-descent parser producing typed AST |
 | `rapidr-codegen-rust` | ~2,100 | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
-| `rapidr-runtime-core` | ~5,700 | **Native runtime** — FLTK GUI (~2,200 lines), builtins, database (MySQL/SQLite), networking, file I/O |
+| `rapidr-runtime-core` | ~5,700 | **Native runtime** — the desktop GUI (through the UI kernel), builtins, database (MySQL/SQLite), networking, file I/O |
+| `rapidr-ui-kernel` | — | **UI kernel** — GUI-free: forms as retained trees over the component store, focus, input routing, display lists, parley text and editors, accessibility trees; builds for wasm too |
+| `rapidr-ui-host-winit` | — | **Desktop host** — winit windows pumped from the program's loop, vello on the GPU (vello_cpu without one), AccessKit, muda menus, rfd file dialogs, a headless host for tests |
 | `rapidr-runtime-web` | ~5,600 | **Web runtime** — DOM/Canvas GUI, web builtins, in-memory SQLite, data science, wasm-bindgen interop |
 
 **Key architecture decisions:**
 - Generated code uses `thread_local!` storage for module-level variables (`gv()`/`gs()` scalar accessors, `ga_get()`/`ga_set()` array accessors), correctly sharing state across SUBs/FUNCTIONs
-- GUI components use FLTK via the `fltk` crate with `fltk-theme` for theming
+- GUI components are drawn by RapidR's own UI kernel (`rapidr-ui-kernel` + `rapidr-ui-host-winit`) from the shared models in `rapidr-value` — the same models the web runtime draws
 - Component properties/methods are dispatched through a centralized `rp_comp_get`/`rp_comp_set`/`rp_comp_method` API backed by thread-local `GUI_COMPONENTS` storage
 - UDT variables remain as native Rust structs (not stored in the global variable HashMap)
 
 **Current validation:**
 - All Rust unit tests pass across all crates
 - All 29 example programs generate, compile, and run
-- The self-hosted IDE (`examples/ide.rr`) compiles to a native FLTK application with working properties, events, code view, and design surface, still WIP but demonstrates the full pipeline.
+- The self-hosted IDE (`examples/ide.rr`) compiles to a native desktop application with working properties, events, code view, and design surface, still WIP but demonstrates the full pipeline.
 
 ```bash
 cargo test                  # Run all tests
@@ -567,7 +569,7 @@ Handled in `compiler/preprocessor.py` before lexing.
 | `$TYPECHECK ON\|OFF` | Enable/disable strict type checking | Enables undeclared variable/function errors |
 | `$OPTION EXPLICIT` | Same as `$TYPECHECK ON` | |
 | `$OPTION DIM <TYPE>` | Default DIM type | Changes default from `DOUBLE` |
-| `$THEME <name>` | Set FLTK theme (Rust only) | Applied at program start; available themes: `Classic`, `Aero`, `Metro`, `AquaClassic`, `Greybird`, `Blue`, `Dark`, `HighContrast`, `AUTO` |
+| `$THEME <name>` | The desktop look | Applied at program start (native and interpreted). The UI kernel draws Windows' classic look (`Classic`, `System`, `Light`, `Windows`, `Win95`, `Win98`, `Win2K`); any other name says once that it draws classic |
 
 **Line preservation:** The preprocessor replaces consumed directive lines with empty strings to preserve line numbers for error reporting.
 
@@ -695,7 +697,7 @@ Key features:
 - Recursive `$INCLUDE` with circular-include detection
 - Nested `$IFDEF`/`$IFNDEF` with skip stack
 - `$MACRO` with optional parameters
-- `$THEME` for FLTK theming
+- `$THEME` for the desktop look
 - Line-number preservation
 
 ### 5.6 Diagnostics (`rapidr-diagnostics`)
@@ -709,7 +711,7 @@ The codegen maintains symbol information collected during pre-passes. Global var
 ### 5.8 Component Registry
 
 The component registry is distributed across:
-- `crates/rapidr-runtime-core/src/gui.rs` — widget creation (`gui_create_widget`)
+- `crates/rapidr-ui-kernel/src/components/mod.rs` — what each type draws and how it takes input (`KINDS`)
 - `crates/rapidr-runtime-core/src/object.rs` — property get/set/method dispatch
 - `crates/rapidr-codegen-rust/src/lib.rs` — `is_component_type_name()` and `is_component_method_name()`
 
@@ -725,7 +727,7 @@ The Rust runtime is in `crates/rapidr-runtime-core/src/` with modules:
 |--------|-------|-------------|
 | `value.rs` | ~300 | `Value` enum (Int, Dbl, Str, Null) with arithmetic and comparison operators |
 | `builtins.rs` | ~450 | 100+ built-in BASIC functions (string, math, I/O, system) |
-| `gui.rs` | ~3,600 | FLTK-based GUI — 49+ component types, event system, design surface |
+| `ui/` | ~3,000 | The desktop UI facade (`ui/mod.rs`) and the UI kernel's glue (`ui/kernel.rs`: windows, waits, timers, events; `kernel_store.rs`, `kernel_lists.rs`, `kernel/{menus,dialogs,platform}.rs`), file / colour / font dialogs, GUI test hooks (`testhooks.rs`) |
 | `object.rs` | ~1,200 | Component property get/set/method dispatch via `rp_comp_*` API |
 | `database.rs` | ~350 | MySQL (`mysql` crate) and SQLite (`rusqlite` crate) components |
 | `network.rs` | ~400 | TCP socket, server socket, HTTP client components |
@@ -743,19 +745,28 @@ Implements 100+ BASIC functions as Rust functions operating on the `Value` type:
 - **System functions:** `rp_shell`, `rp_sleep`, `rp_timer`, `rp_date`, `rp_time`, `rp_environ`, `rp_command`
 - **GUI functions:** `rp_showmessage`, `rp_messagebox`, `rp_rgb`
 
-### 6.2 GUI (`gui.rs`)
+### 6.2 GUI (`ui/`, the UI kernel)
 
-The largest runtime module (~3,600 lines). Implements 49+ FLTK-based GUI components.
+The runtime reaches the window system through the facade in `ui/mod.rs`,
+implemented by `ui/kernel.rs` over two crates: `rapidr-ui-kernel` (GUI-free
+components that draw display lists from the shared models in
+`rapidr_value::objects`, the same models the web runtime draws, plus focus,
+input routing, text editing and accessibility trees) and
+`rapidr-ui-host-winit` (winit windows, vello on the GPU or vello_cpu,
+AccessKit, muda menus on macOS / Windows, rfd's Open / Save dialogs, and a
+headless host for tests). See [docs/desktop-host-plan.md](docs/desktop-host-plan.md).
 
 **Component lifecycle:**
-1. `rp_comp_create(name, type)` — registers component in `GUI_COMPONENTS` thread-local
-2. `gui_create_widget(name, type)` — creates FLTK widget, stores in `GUI_WIDGETS`
-3. `rp_comp_set(name, prop, value)` — sets properties (before or after widget creation)
-4. `gui_showmodal(form_name)` — starts FLTK event loop
+1. `rp_create_component(name, type)` — registers the component in the store (`object.rs`)
+2. `rp_comp_set(name, prop, value)` — sets properties; the store is the only source of truth, which the kernel reads (`ui/kernel_store.rs`) when it builds a form's tree and paints
+3. `Form.Show` / `Form.ShowModal` — the kernel builds the form's tree and the host opens its window; `ShowModal` steps the host until the form closes (natively), or the VM serves the wait a step at a time
+4. Program code runs only between pumps (`ui/kernel.rs::step`): the host routes input into the kernel, and the runtime fires OnClick, OnKeyDown … after the pump
+
+**Environment:** `RAPIDR_SCALE=2` (a scale for the headless host and tests), `RAPIDR_RENDERER=cpu|gpu`, `RAPIDR_MENU=window` (a QMAINMENU inside its form on macOS too), and the GUI test hooks in `ui/testhooks.rs` (`RAPIDR_CAPTURE`, `RAPIDR_TEST_EVENTS`, `RAPIDR_TEST_DUMP`, `RAPIDR_TEST_A11Y` …, headless unless `RAPIDR_CAPTURE_WINDOWS`; `tests/native_gui_events.mjs`).
 
 **Key component types:**
-- `RFORM` — FLTK `Window` with menu bar, status bar, timer support
-- `RBUTTON` — Push button with hover/press color feedback
+- `RFORM` — A window with its menu bar (macOS: the system menu bar), status bar, timers
+- `RBUTTON` — Push button
 - `RLABEL`, `REDIT`, `RRICHEDIT` — Text display/input
 - `RCANVAS` — Drawing surface with pset/line/circle/fillrect/textout methods
 - `RSTRINGGRID` — Editable grid with column/row management
@@ -982,8 +993,8 @@ pub trait Host {
 ```
 
 Event re-entry uses an indirect-dispatch hook
-(`EventHandler::Indirect(u32)` + a thread-local closure) so DOM/FLTK
-callbacks invoke `Vm::invoke_function` on the parked VM instance.
+(`EventHandler::Indirect(u32)` + a thread-local closure) so DOM / desktop
+host events invoke `Vm::invoke_function` on the parked VM instance.
 
 ### Web IDE Interactive Debugger
 
@@ -1356,6 +1367,8 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 
 ## Changelog (April 2026)
 
+(History: until Stage 11 of docs/desktop-host-plan.md the desktop host was FLTK, `gui.rs`; the entries below describe it as it was then.)
+
 ### Parser Fixes
 - **Dot-member access after keywords**: `parse_postfix_expression` and `parse_primary` (WITH-dot case) now accept ANY token after `.`, not just `Identifier`. This fixes `Form1.Close`, `Form1.Show`, `ListBox1.Clear`, etc., where the member name is also a keyword.
 
@@ -1482,7 +1495,7 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 3. **String suffix stripping** — `LEFT$()` becomes `left`, `STR$()` becomes `str_func`.
 
 ### Runtime Gotchas (Rust)
-1. **FLTK event loop.** `gui_showmodal()` runs `app.run()` which blocks. The first form shown should be the main form.
+1. **Event loop.** `ShowModal` in the main program steps the UI kernel's host until the form closes; the program's handlers run between pumps, never inside a host callback (docs/desktop-host-plan.md §1.5).
 2. **Thread-local storage.** All global variables and component state use `thread_local!`. Cross-thread GUI access is not supported.
 3. **RStringGrid.AddRow** — takes variable positional string args. Column count must be set first.
 
@@ -1491,12 +1504,13 @@ Global variables are accessed via `gv()`/`gs()` — no `global` declarations nee
 ## 9. How to Add New Features
 
 ### Adding a New GUI Component (Rust)
-1. **`crates/rapidr-runtime-core/src/gui.rs`** — Add widget creation in `gui_create_widget()` match arm
-2. **`crates/rapidr-runtime-core/src/object.rs`** — Add default properties in `rp_comp_create()` match arm
-3. **`crates/rapidr-codegen-rust/src/lib.rs`** — Add to `is_component_type_name()` and `is_component_method_name()`
-4. **`crates/rapidr-runtime-web/src/gui_web.rs`** — Add DOM element creation for the web target
-5. **`crates/rapidr-runtime-web/src/object_web.rs`** — Add default properties and method dispatch for web
-6. **Add tests** in the appropriate crate
+1. **`crates/rapidr-value/src/objects/`** — The component's model, when it has state the runtimes share (drawing ops, hit-testing, keys, `describe()` for accessibility)
+2. **`crates/rapidr-ui-kernel/src/components/`** — Its `ComponentKind` (paint, hit, mouse, keys, accessibility), registered in `KINDS` (`components/mod.rs`)
+3. **`crates/rapidr-runtime-core/src/object.rs`** — Add default properties in `rp_comp_create()` match arm
+4. **`crates/rapidr-codegen-rust/src/lib.rs`** — Add to `is_component_type_name()` and `is_component_method_name()`
+5. **`crates/rapidr-runtime-web/src/gui_web.rs`** — Add DOM element creation for the web target
+6. **`crates/rapidr-runtime-web/src/object_web.rs`** — Add default properties and method dispatch for web
+7. **Add tests** in the appropriate crate (a GUI fixture in `tests/gui_parity_cases.mjs` runs on the desktop and in the browser)
 
 ### Adding a New Builtin Function (Rust)
 1. **`crates/rapidr-runtime-core/src/builtins.rs`** — Implement the function

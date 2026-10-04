@@ -1,5 +1,7 @@
 # RapidR desktop host: from FLTK to the UI kernel (winit + vello + parley + AccessKit)
 
+> **Done.** FLTK was removed at Stage 11 (see the last section): the UI kernel is RapidR's only desktop host. The plan and the stage results below are kept as written, as the migration's history.
+
 ## 0. Key findings that shape the plan
 
 - **The seam already exists.** Outside `gui.rs`, the runtime calls FLTK through 64 `crate::gui::*` functions. They are used from `object.rs`, `layout.rs`, `scroll.rs`, `mdi.rs`, `builtins.rs` and `globals.rs`. Beyond those there are 7 direct `fltk::` uses (in `builtins.rs` and `globals.rs`) and 2 prelude re-exports (`set_theme`, `gui_register_timer`) that generated code calls. Nothing outside `rapidr-runtime-core` touches `gui`.
@@ -669,3 +671,37 @@ Open:
 - Not compared: focus (the hooks focus differently), bounds (the web's layout is its own), actions (ARIA has none; native activation and the keys stand for them).
 - Coolbuttons / oval buttons don't take the focus on either host but are `<button>`s on the web: Tab skips them, a click still focuses them.
 - RAI's JSON (Phase 5) can serialize the same `describe` output; nothing there yet.
+
+## Stage 11 — FLTK removed (2026-10-04)
+
+The decision: no release with `RAPIDR_HOST=fltk` as a fallback — FLTK goes entirely, and the UI kernel host is RapidR's only desktop host. Nothing a program sees changed: every GUI fixture already gave the same dumps on both hosts, and the kernel's runs are now the only runs.
+
+What went:
+
+- **runtime-core.** `gui.rs` (6,955 lines), `ui/select.rs` (the host switch and `RAPIDR_HOST`), `ui/fltk_platform.rs`. The features `desktop-ui` and `kernel` are folded into one, `gui` = `rapidr-ui-kernel` + `rapidr-ui-host-winit` + arboard (still a default feature), and every `cfg` says `gui`. The facade (`ui/mod.rs`, 182 → 72 lines) re-exports the kernel's functions under the names the runtime calls — no `forward!` macro, no `Backend` — and keeps `gui_doevents` / `gui_pump_wait`, which run the deferred handlers after the kernel's step. `RAPIDR_HOST` is no longer read: a program or test that sets it gets the kernel. `RAPIDR_THEME` (FLTK's) went with `gui.rs`; `$THEME` stays the kernel's (classic, said once for any other name).
+- **Builds.** `fltk` and `fltk-theme` out of runtime-core, and with them `fltk-sys`, `cmake`, `cmk` and `minipaste` out of `Cargo.lock` (CMake is no longer a prerequisite). `rapidr-vm-host-native`'s `kernel` feature is gone (`full` = gui, network, database, ffi, datascience); the runner stub asks for `gui`. Generated native projects depend on runtime-core's default features — the kernel host — and always get the workspace's `Cargo.lock`, so wgpu, vello and winit are the tested versions (`generate_cargo_toml_for_host` is gone). `rapidr build --host kernel` still builds and notes that the flag is no longer needed (scripts keep working); `--host fltk` is an error naming the one host.
+- **Shims.** `rapidr_value::file_dialog::fltk_filter` (FLTK's chooser filter) and `objects::code::{style_bytes, Token::letter}` (FLTK's style buffer). Comments across rapidr-value, the kernel, the host and runtime-core describe the behaviour on its own terms — or against the web runtime, Windows and RapidQ — instead of as FLTK's.
+- **Tests and tools.** `tests/native_gui_events.mjs` has no hosts matrix (`RAPIDR_HOSTS`, `RAPIDR_KERNEL_TRY`): each case is built native and interpreted, runs once each on the headless kernel host, must contain its expectations, the two dumps must be identical, and both write their accessibility trees (`<case>-native.a11y.json`, `<case>-interpreted.a11y.json`), which must be JSON — `tests/web_a11y.mjs` reads those names. `gui_parity_cases.mjs` lost its `kernel:` field (all 65 cases were `true`). `tools/regress.sh`'s gui stage is the suite at 1× and `RAPIDR_SCALE=2`. `tests/web_ide_bugfixes.mjs` checks the credits for LICENSES.md by its Liberation fonts entry (it looked for FLTK). `tools/real_input.py` needed no change for the kernel's windows — checked on `oop_events` (interpreted, a real window): clicks, Tab / Space / Return on the focused button, a drag and the window's screenshots; its header now says to run the program without the test hooks (a test drops user input) and to give it the program's own PID.
+- **Docs and supply chain.** README (prerequisites, crates, `$THEME`), COMPILER_MANUAL (§6.2 is the `ui` facade and the kernel; the April 2026 changelog is marked as FLTK-era history), LICENSES.md (FLTK's LGPL-with-exceptions row gone; X11 / Wayland / xkbcommon, loaded when a window opens, credited), THIRD_PARTY_NOTICES.md regenerated (651 → 647 libraries), `cargo deny check licenses` ok. deny.toml's ttf-parser advisory said it was FLTK's optional dependency; it is rapidr-value's own font reader (and winit's Wayland title bars), so the ignore stays with the right reason. CI's Linux packages: pkg-config, fontconfig, FreeType, xkbcommon, Wayland, X11 (Xcursor, Xi, Xrandr) and ALSA instead of FLTK's X / Pango / GL set (CI still runs only by hand; untested).
+
+Measured on this Mac (16 cores, shared with other agents' builds, so the build times are ±several seconds):
+
+| | Before (FLTK + kernel) | After (kernel only) |
+|---|---|---|
+| `rapidr` CLI, release | 85,916,736 B (81.9 MiB) | 83,152,288 B (79.3 MiB), −2.6 MiB |
+| Interpreter runner (`runner` profile: every `--interp` executable is it plus the bytecode) | 59,290,064 B (56.5 MiB) | 57,194,496 B (54.5 MiB), −2.0 MiB |
+| runtime-core's dependencies with `gui` alone (`cargo tree -e normal,build`, unique) | 60 (FLTK) / 189 (FLTK + kernel) | 181 |
+| runtime-core with its default features (what a generated program builds) | 295 (FLTK) / 374 (`--host kernel`) | 369 |
+| `rapidr-cli`'s dependencies / `Cargo.lock` packages | 388 / 697 | 383 / 691 |
+| A native GUI fixture (`trackbar.bas`), debug, clean target dir (median of three; range) | 30 s (FLTK, the old default; 29–33) / 37 s (both, `--host kernel`; 32–41) | 31 s (30–34) |
+| Its debug executable | 304 MB (FLTK) / 359 MB (both) | 353 MB |
+
+A default `rapidr build` used to give an FLTK program; now every native program carries the kernel host instead — three times FLTK's crate count (pure Rust, no CMake step), and a clean build takes about as long as FLTK's did, 6 s less than with both hosts. The CLI and the runner, which carried both hosts, lose 2–2.6 MiB (an interpreted `oop_events` is 57,212,258 B).
+
+Tests (this worktree, after the removal): `cargo test --workspace` (406 passed, 1 ignored); `cargo check -p rapidr-ui-kernel --target wasm32-unknown-unknown`; `cargo clippy --workspace` — the same warnings as before less `gui.rs`'s 23; `node tests/native_gui_events.mjs` at 1× and `RAPIDR_SCALE=2` (65 cases, 549 checks each, all passed); `node tests/conformance/run.mjs` (224 passed); `tools/native_examples.sh` (44 / 44); web conformance (98 passed, 2 xfail), web GUI parity (117 passed, 4 skipped), `tests/web_a11y.mjs` on the desktop run's trees (72 passed, 4 skipped), `tests/web_ide_bugfixes.mjs` (19 passed); `python3 tools/third_party_notices.py --check`; `cargo deny check licenses` and, offline, advisories / bans / sources.
+
+Open:
+
+- Kernel themes beside the classic look (a modern one, high contrast): ROADMAP, Phase 1, next to the `$THEME` item.
+- `crates/rapidr-ui-proto` (outside the workspace, its own lockfile) has been absorbed by the kernel and host crates and can be deleted.
+- Linux and Windows builds of the kernel host haven't been run on real machines since the switch (CI is manual).
