@@ -3,7 +3,7 @@
 //! on it (a drag), the keys (arrows, Page Up / Down, Home / End) — as the
 //! FLTK and web runtimes route it; OnChange when the user moved it.
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Action};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::{with_trackbar, with_trackbar_mut};
 use rapidr_value::v_int;
 
@@ -62,11 +62,7 @@ impl ComponentKind for Trackbar {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let (w, h) = (cx.width(), cx.height());
-        let mut n = with_trackbar(cx.id, |t| t.describe(node_id(cx.id), w, h)).unwrap_or_else(|| AccessNode::new(node_id(cx.id), rapidr_value::objects::a11y::Role::Slider));
-        n.actions.push(Action::Focus);
-        n.offset(cx.rect.0, cx.rect.1);
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn access(&self, cx: &mut Cx, action: Action, _part: Option<usize>, value: Option<&AccessValue>) -> bool {

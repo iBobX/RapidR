@@ -37,6 +37,9 @@ fn role(r: Role) -> ARole {
         Role::MenuItem => ARole::MenuItem,
         Role::Image => ARole::Image,
         Role::Canvas => ARole::Canvas,
+        Role::SpinButton => ARole::SpinButton,
+        Role::Splitter => ARole::Splitter,
+        Role::Status => ARole::Status,
         Role::Unknown => ARole::Unknown,
     }
 }
@@ -59,7 +62,8 @@ fn bounds((x, y, w, h): (i64, i64, i64, i64)) -> ARect {
 }
 
 fn node(n: &AccessNode) -> Node {
-    let mut a = Node::new(role(n.role));
+    // (a multi-line text box is its own role in AccessKit)
+    let mut a = Node::new(if n.role == Role::TextInput && n.states.multiline { ARole::MultilineTextInput } else { role(n.role) });
     if !n.name.is_empty() {
         a.set_label(n.name.as_str());
     }
@@ -84,6 +88,9 @@ fn node(n: &AccessNode) -> Node {
     }
     if let Some(l) = n.labelled_by {
         a.push_labelled_by(NodeId(l));
+    }
+    if let Some(l) = n.level {
+        a.set_level(l);
     }
     let s = &n.states;
     if s.disabled {

@@ -8,7 +8,7 @@
 
 use std::cell::Cell;
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Orientation, Role};
+use rapidr_value::objects::a11y::AccessNode;
 
 use super::form::Container;
 use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
@@ -68,9 +68,6 @@ impl ComponentKind for Splitter {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Unknown);
-        n.orientation = Some(if vertical(cx.store, cx.id) { Orientation::Vertical } else { Orientation::Horizontal });
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }

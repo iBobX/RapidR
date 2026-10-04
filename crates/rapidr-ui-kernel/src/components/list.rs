@@ -23,7 +23,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::grid::CellDraw;
 use rapidr_value::objects::list::ItemList;
@@ -723,20 +723,12 @@ impl ComponentKind for ListBox {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::ListBox);
-        n.actions = vec![Action::Focus];
-        n.bounds = cx.rect;
+        let mut n = super::shared_describe(cx, "RLISTBOX");
         let (w, h) = (cx.width(), cx.height());
-        let items = with_list(cx.id, |l| l.items.iter().enumerate().map(|(i, t)| (i, t.clone(), l.is_selected(i))).collect::<Vec<_>>()).unwrap_or_default();
-        for (i, text, selected) in items.into_iter().take(1_000) {
-            let mut o = AccessNode::new(part_id(cx.id, 1, i), Role::ListBoxOption);
-            o.name = text;
-            o.states.selected = Some(selected);
-            o.actions = vec![Action::Click];
+        for (i, o) in n.children.iter_mut().enumerate() {
             if let Some((x, y, iw, ih)) = item_rect(cx.id, i, w, h) {
                 o.bounds = (cx.rect.0 + x, cx.rect.1 + y, iw, ih);
             }
-            n.children.push(o);
         }
         n
     }

@@ -8,7 +8,7 @@
 //! on: OnSectionClick (Index), OnSectionTrack (Index, Width, State),
 //! OnSectionResize (Index).
 
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::header::{Action as HeaderAction, TS_END};
 use rapidr_value::objects::{with_canvas, with_header};
 use rapidr_value::v_int;
@@ -70,17 +70,7 @@ impl ComponentKind for HeaderBar {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Group);
-        n.bounds = cx.rect;
-        let sections = with_header(cx.id, |h| h.sections.iter().map(|s| s.caption.clone()).zip(h.spans()).collect::<Vec<_>>()).unwrap_or_default();
-        for (i, (caption, (l, r))) in sections.into_iter().enumerate() {
-            let mut b = AccessNode::new(part_id(cx.id, 1, i), Role::Button);
-            b.name = caption;
-            b.actions = vec![Action::Click];
-            b.bounds = (cx.rect.0 + l, cx.rect.1, r - l, cx.rect.3);
-            n.children.push(b);
-        }
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {

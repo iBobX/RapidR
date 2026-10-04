@@ -7,7 +7,7 @@
 //! store through [`KernelEvent::Set`](crate::KernelEvent::Set), so the
 //! handler reads the new value.
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::text::text_size;
 
@@ -106,14 +106,7 @@ impl ComponentKind for CheckBox {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::CheckBox);
-        let (shown, mark) = mnemonic(&store::string(cx.store, cx.id, "caption"));
-        n.name = shown;
-        n.shortcut = mark.map(|m| m.1);
-        n.states.checked = Some(checked(cx.store, cx.id));
-        n.actions = vec![Action::Click, Action::Focus];
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn access(&self, cx: &mut Cx, action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {

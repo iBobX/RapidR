@@ -6,7 +6,7 @@
 //! taLeftJustify 0 / taRightJustify 1 / taCenter 2), under its
 //! components. A container: its components are the tree's children.
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode};
 use rapidr_value::objects::bevel;
 use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::text::text_size;
@@ -74,9 +74,6 @@ impl ComponentKind for Panel {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Pane);
-        n.name = mnemonic(&store::string(cx.store, cx.id, "caption")).0;
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }

@@ -4,7 +4,7 @@
 //! demo form, now built from a store.
 
 use rapidr_value::input::{Button, Mouse};
-use rapidr_value::objects::a11y::{node_id, part_id, Action, Role, PART_TAB};
+use rapidr_value::objects::a11y::{node_id, part_id, Action, Role, PART_ITEM, PART_TAB};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::text::text_size;
 use rapidr_value::objects::{with_tabcontrol, with_textedit, with_textedit_mut, with_trackbar};
@@ -555,6 +555,44 @@ fn screen_reader_requests_are_user_input() {
     assert_eq!(focused(&f), "btnok");
     assert!(!f.access_action(&s, &mut ts, 12345, Action::Click, None));
     assert!(!f.access_action(&s, &mut ts, node_id("lblname"), Action::Focus, None));
+}
+
+#[test]
+fn screen_readers_reach_list_rows_and_tree_items() {
+    let mut s = MemStore::new();
+    s.add("lform", "RFORM", None);
+    s.add("lbox", "RLISTBOX", Some("lform")).set("lbox", "width", v_int(120)).set("lbox", "height", v_int(80));
+    s.call("lbox", "additems", &[v_str("Red"), v_str("Green")]);
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "lform", false);
+    drop(f.paint(&s, &mut ts, 1.0));
+    // a row's click: the row picked, OnClick
+    assert!(f.access_action(&s, &mut ts, part_id("lbox", PART_ITEM, 1), Action::Click, None));
+    assert_eq!(rapidr_value::objects::with_list("lbox", |l| l.item_index), Some(1));
+    assert!(f.take_events().contains(&KernelEvent::Click("lbox".into())));
+}
+
+/// The kinds answer what the shared tables say (the web reads the tables).
+#[test]
+fn kinds_agree_with_the_shared_rules() {
+    use rapidr_value::objects::a11y::{mnemonic_clicks, mnemonic_of, role_of, takes_focus};
+    let mut s = MemStore::new();
+    s.add("kform", "RFORM", None);
+    for (k, (name, kind)) in crate::components::KINDS.iter().enumerate() {
+        let id = format!("k{}", name.to_lowercase());
+        s.add(&id, name, Some("kform")).set(&id, "caption", v_str("&Go")).set(&id, "top", v_int(k as i64 * 30));
+        assert_eq!(kind.focusable(&s, &id), takes_focus(name), "{name}: focusable");
+        assert_eq!(kind.mnemonic_clicks(), mnemonic_clicks(name), "{name}: mnemonic_clicks");
+        assert_eq!(kind.mnemonic(&s, &id), mnemonic_of(name, &|p| crate::Store::get(&s, &id, p)), "{name}: mnemonic");
+    }
+    // and each describes itself with its shared role
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "kform", false);
+    let tree = f.access_tree(&s, &mut ts);
+    for (name, _) in crate::components::KINDS {
+        let n = tree.find(node_id(&format!("k{}", name.to_lowercase()))).unwrap_or_else(|| panic!("{name}"));
+        assert_eq!(n.role, role_of(name), "{name}: role");
+    }
 }
 
 // --------------------------------------------------------------- text --

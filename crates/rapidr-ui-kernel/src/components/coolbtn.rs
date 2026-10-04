@@ -11,7 +11,7 @@
 //! Its BMP glyph (`BMP` / `BMPHandle`, `NumBMPs`, `Layout`, `Spacing`) is
 //! drawn beside the caption by `image::paint_glyph` (the surfaces lane's).
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::ops::Place;
 use rapidr_value::toggle_group::{self, Member};
 
@@ -55,16 +55,7 @@ pub fn press(cx: &mut Cx) {
 
 /// A toggle button for screen readers: a button, pressed or not (checked).
 pub fn describe_toggle(cx: &Cx) -> AccessNode {
-    let mut n = AccessNode::new(node_id(cx.id), Role::Button);
-    let (shown, mark) = mnemonic(&store::string(cx.store, cx.id, "caption"));
-    n.name = shown;
-    n.shortcut = mark.map(|m| m.1);
-    if store::int(cx.store, cx.id, "groupindex", 0) != 0 {
-        n.states.checked = Some(down(cx.store, cx.id));
-    }
-    n.actions = vec![Action::Click];
-    n.bounds = cx.rect;
-    n
+    super::shared_describe(cx, &cx.store.type_of(cx.id))
 }
 
 /// A press and a release on a toggle button.

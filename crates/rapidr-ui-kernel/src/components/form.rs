@@ -123,7 +123,8 @@ mod tests {
         assert!(dump.contains("edge 101,2 182x21 #808080 #ffffff @0,140"), "{dump}");
         let tree = f.access_tree(&s, &mut ts);
         let roles: Vec<(Role, String)> = tree.children.iter().map(|n| (n.role, n.name.clone())).collect();
-        assert_eq!(roles, vec![(Role::Pane, "Hi".into()), (Role::Group, "Group".into()), (Role::Group, String::new())]);
+        // (the status bar: a polite live region, as the web's role=status)
+        assert_eq!(roles, vec![(Role::Pane, "Hi".into()), (Role::Group, "Group".into()), (Role::Status, String::new())]);
         assert_eq!(tree.children[2].children.iter().map(|n| n.name.as_str()).collect::<Vec<_>>(), ["Ready", "INS"]);
         assert!(f.focused().is_none(), "containers don't take the focus");
     }

@@ -4,7 +4,7 @@
 //! runtimes route it. Its components are ordinary children of the
 //! control: they are placed and drawn by the kernel's tree, over it.
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Action};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::lift;
 use rapidr_value::objects::{form_color, with_tabcontrol, with_tabcontrol_mut};
 use rapidr_value::v_int;
@@ -67,11 +67,7 @@ impl ComponentKind for Tabs {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let (w, h) = (cx.width(), cx.height());
-        let mut n = with_tabcontrol(cx.id, |t| t.describe(cx.id, w, h, &cx.font)).unwrap_or_else(|| AccessNode::new(node_id(cx.id), rapidr_value::objects::a11y::Role::TabList));
-        n.actions.push(Action::Focus);
-        n.offset(cx.rect.0, cx.rect.1);
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {

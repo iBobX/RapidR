@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use rapidr_value::layout::{self, STATUS_GRIP};
-use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::ops::{Place, Rect};
 
 use super::form::Container;
@@ -151,14 +151,11 @@ impl ComponentKind for StatusBar {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Group);
-        n.bounds = cx.rect;
+        let mut n = super::shared_describe(cx, self.name());
+        // (each panel where it's drawn)
         let (x0, y0, w, h) = cx.rect;
-        for (k, ((x, y, bw, bh), text)) in panels(cx.store, cx.id, w, h).into_iter().enumerate() {
-            let mut l = AccessNode::new(node_id(&format!("{}.panel({k})", cx.id)), Role::Label);
-            l.name = text;
+        for (l, ((x, y, bw, bh), _)) in n.children.iter_mut().zip(panels(cx.store, cx.id, w, h)) {
             l.bounds = (x0 + x, y0 + y, bw, bh);
-            n.children.push(l);
         }
         n
     }

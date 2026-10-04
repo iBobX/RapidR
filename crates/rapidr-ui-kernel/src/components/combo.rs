@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 
 use rapidr_value::input::Button;
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::{with_list, with_list_mut};
 
@@ -441,19 +441,8 @@ impl ComponentKind for ComboBox {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::ComboBox);
-        let (text, items, index) = with_list(cx.id, |l| (l.text.clone(), l.items.clone(), l.item_index)).unwrap_or_default();
-        n.value = Some(text);
+        let mut n = super::shared_describe(cx, "RCOMBOBOX");
         n.states.expanded = Some(is_dropped(cx.id));
-        n.actions = vec![Action::Focus, Action::Expand, Action::Collapse];
-        n.bounds = cx.rect;
-        for (i, item) in items.into_iter().enumerate().take(1_000) {
-            let mut o = AccessNode::new(part_id(cx.id, 1, i), Role::ListBoxOption);
-            o.name = item;
-            o.states.selected = Some(index == i as i64);
-            o.actions = vec![Action::Click];
-            n.children.push(o);
-        }
         n
     }
 

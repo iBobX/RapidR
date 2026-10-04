@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode};
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
 use rapidr_value::Value;
@@ -61,10 +61,7 @@ impl ComponentKind for Image {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Image);
-        n.name = store::string(cx.store, cx.id, "hint");
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }
 

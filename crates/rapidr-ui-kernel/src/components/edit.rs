@@ -29,7 +29,7 @@
 
 use std::cell::RefCell;
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Rect;
 use rapidr_value::objects::{with_list, with_list_mut, with_textedit, with_textedit_mut};
@@ -1066,17 +1066,7 @@ pub(crate) fn ime_in(e: &mut EditUi, ts: &mut TextSystem, id: &str, ime: &Ime) -
 /// A text box's accessibility node: its text (a PasswordChar's characters
 /// for a password), ReadOnly, multi-line.
 pub(crate) fn describe_text(cx: &mut Cx, multi: bool) -> AccessNode {
-    let mut n = AccessNode::new(node_id(cx.id), Role::TextInput);
-    let (text, read_only) = with_textedit(cx.id, |t| (t.text(), t.read_only)).unwrap_or_default();
-    n.value = Some(match store::string(cx.store, cx.id, "passwordchar").chars().next() {
-        Some(m) if !multi => std::iter::repeat_n(m, text.chars().count()).collect(),
-        _ => text,
-    });
-    n.states.read_only = read_only;
-    n.states.multiline = multi;
-    n.actions = vec![Action::SetValue, Action::Focus];
-    n.bounds = cx.rect;
-    n
+    super::shared_describe(cx, if multi { "RMEMO" } else { "REDIT" })
 }
 
 /// A screen reader setting a text box's value (as typing would: Modified,

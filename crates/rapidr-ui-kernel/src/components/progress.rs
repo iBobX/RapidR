@@ -11,7 +11,7 @@
 //!
 //! Neither takes the focus or the mouse.
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Numeric, Role};
+use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::ops::{Op, Place};
 
 use super::radio::oval;
@@ -140,12 +140,7 @@ impl ComponentKind for Progress {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::ProgressIndicator);
-        let (min, max, pos) = range(cx.store, cx.id);
-        n.numeric = Some(Numeric { value: pos as f64, min: min as f64, max: max as f64, step: 1.0, jump: 10.0 });
-        n.value = Some(format!("{}%", percent(cx.store, cx.id)));
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }
 

@@ -22,7 +22,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::grid::{StringGrid, GCS_ELLIPSIS, GO_ALWAYS_SHOW_EDITOR, GO_COL_MOVING, GO_COL_SIZING, GO_FIXED_HORZ_LINE, GO_FIXED_VERT_LINE, GO_HORZ_LINE, GO_ROW_MOVING, GO_ROW_SIZING, GO_VERT_LINE};
 use rapidr_value::objects::ops::{lift, Op, Place, Rect};
 use rapidr_value::objects::{with_grid, with_grid_mut};
@@ -495,24 +495,16 @@ impl ComponentKind for Grid {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Grid);
-        n.actions = vec![Action::Focus];
-        n.bounds = cx.rect;
+        let mut n = super::shared_describe(cx, "RSTRINGGRID");
         let (w, h) = (cx.width(), cx.height());
         let Some(g) = with_grid(cx.id, |g| g.clone()) else { return n };
         let l = layout(cx.id, &g, w, h);
-        for &(r, _, _) in &l.rows {
-            let mut row = AccessNode::new(part_id(cx.id, 1, r), Role::Row);
-            for &(c, _, _) in &l.cols {
-                let mut cell = AccessNode::new(part_id(cx.id, 2, r * 10_000 + c), Role::Cell);
-                cell.value = Some(g.cell(c, r).to_string());
-                cell.states.selected = Some(g.is_selected(c, r));
+        for (r, row) in n.children.iter_mut().enumerate() {
+            for (c, cell) in row.children.iter_mut().enumerate() {
                 if let Some((x, y, cw, ch)) = cell_rect(&l, c, r) {
                     cell.bounds = (cx.rect.0 + x, cx.rect.1 + y, cw, ch);
                 }
-                row.children.push(cell);
             }
-            n.children.push(row);
         }
         n
     }

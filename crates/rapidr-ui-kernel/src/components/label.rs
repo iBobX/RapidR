@@ -3,7 +3,7 @@
 //! Windows' static control; a Color fills it when the program set one;
 //! `&` marks a mnemonic that focuses the next component.
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode};
 use rapidr_value::objects::ops::Place;
 use rapidr_value::Value;
 
@@ -48,11 +48,7 @@ impl ComponentKind for Label {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Label);
-        let (shown, _) = mnemonic(&store::string(cx.store, cx.id, "caption"));
-        n.name = shown;
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn mnemonic(&self, store: &dyn Store, id: &str) -> Option<char> {

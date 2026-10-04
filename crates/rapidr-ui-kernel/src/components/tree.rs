@@ -18,7 +18,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{part_id, AccessNode, Action, PART_ITEM};
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::tree::{Hit, Row, BUTTON, ROW_HEIGHT};
 use rapidr_value::objects::with_tree;
@@ -368,24 +368,12 @@ impl ComponentKind for Tree {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Tree);
-        n.actions = vec![Action::Focus];
-        n.bounds = cx.rect;
+        let mut n = super::shared_describe(cx, "RTREEVIEW");
         let (x0, y0) = (cx.rect.0, cx.rect.1);
-        let rows = rows(cx);
-        for row in rows {
-            let Some((text, level, expanded, has)) = with_tree(cx.id, |t| t.nodes.get(row.node).map(|x| (x.text.clone(), x.level, x.expanded, t.has_children(row.node)))).flatten() else { continue };
-            let mut item = AccessNode::new(part_id(cx.id, 1, row.node), Role::TreeItem);
-            item.name = text;
-            item.description = format!("level {}", level + 1);
-            item.states.selected = Some(row.selected);
-            item.states.expanded = has.then_some(expanded);
-            item.actions = vec![Action::Click];
-            if has {
-                item.actions.push(if expanded { Action::Collapse } else { Action::Expand });
+        for row in rows(cx) {
+            if let Some(item) = n.children.iter_mut().find(|c| c.id == part_id(cx.id, PART_ITEM, row.node)) {
+                item.bounds = (x0 + 2, y0 + 2 + row.top, cx.rect.2 - 4, row.height);
             }
-            item.bounds = (x0 + 2, y0 + 2 + row.top, cx.rect.2 - 4, row.height);
-            n.children.push(item);
         }
         n
     }

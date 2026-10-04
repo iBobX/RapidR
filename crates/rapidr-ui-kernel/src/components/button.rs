@@ -10,7 +10,7 @@
 //! ([`ButtonData`]): the kernel only emits `Click`; runtime-core's OnClick
 //! dispatch applies ModalResult / bkClose to the form, as today.
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::ops::Place;
 
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
@@ -110,14 +110,7 @@ impl ComponentKind for PushButton {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let data = ButtonData::of(cx.store, cx.id);
-        let mut n = AccessNode::new(node_id(cx.id), Role::Button);
-        let (shown, mark) = mnemonic(&data.caption);
-        n.name = shown;
-        n.shortcut = mark.map(|m| m.1);
-        n.actions = vec![Action::Click, Action::Focus];
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn access(&self, cx: &mut Cx, action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {

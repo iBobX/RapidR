@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 
 use rapidr_value::mdi::{self, Action, BORDER, TITLE_HEIGHT};
-use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Place;
 
@@ -175,10 +175,6 @@ impl ComponentKind for ChildFrame {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Window);
-        n.name = store::string(cx.store, cx.id, "caption");
-        n.states.focused = store::flag(cx.store, cx.id, "active", false);
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }

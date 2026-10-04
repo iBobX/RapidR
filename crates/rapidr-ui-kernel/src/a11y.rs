@@ -9,11 +9,13 @@
 //! 4. the nearest QLABEL starting to its left on the same parent, else the
 //!    nearest above it that doesn't already name a control to its right.
 //!
-//! AccessibleDescription (RapidR's) is its description. A screen reader's
-//! request comes back through [`FormUi::access_action`] as the same input
-//! a user's would be, so OnClick and OnChange fire identically.
+//! AccessibleDescription (RapidR's) is its description. The rules are
+//! `rapidr_value::objects::a11y`'s, which the web runtime applies too
+//! (`apply_name_rule`, `label_for`). A screen reader's request comes back
+//! through [`FormUi::access_action`] as the same input a user's would be, so
+//! OnClick and OnChange fire identically.
 
-use rapidr_value::objects::a11y::{label_above, label_left_of, node_id, AccessNode, Action, Role, PART_TAB};
+use rapidr_value::objects::a11y::{apply_name_rule, label_for, node_id, AccessNode, Action, Role};
 
 use crate::store::{self, Store};
 use crate::text::TextSystem;
@@ -65,21 +67,10 @@ impl FormUi {
         if self.can_focus(store, i) && !n.actions.contains(&Action::Focus) {
             n.actions.push(Action::Focus);
         }
-        let given = store::string(store, &id, "accessiblename");
-        if !given.is_empty() {
-            n.name = given;
-        }
-        if n.name.is_empty() {
-            n.name = store::string(store, &id, "hint");
-        }
-        if n.name.is_empty() && !matches!(n.role, Role::Label | Role::Pane) {
-            if let Some(l) = self.label_for(i) {
-                n.labelled_by = Some(node_id(&self.nodes[l].id));
-                let caption = store::string(store, &self.nodes[l].id, "caption");
-                n.name = rapidr_value::objects::a11y::mnemonic(&caption).0;
-            }
-        }
-        n.description = store::string(store, &id, "accessibledescription");
+        apply_name_rule(&mut n, &|p| store.get(&id, p), || {
+            let l = self.label_for(i)?;
+            Some((node_id(&self.nodes[l].id), store::string(store, &self.nodes[l].id, "caption")))
+        });
         for c in self.children(i) {
             if let Some(child) = self.describe(store, ts, c) {
                 n.children.push(child);
@@ -88,37 +79,36 @@ impl FormUi {
         Some(n)
     }
 
-    /// The shown QLABEL on the same parent nearest to node `i`'s left, else
-    /// the nearest above it that doesn't already name a control to its
-    /// right.
+    /// The shown QLABEL on the same parent naming node `i` (`label_for`'s
+    /// rule).
     fn label_for(&self, i: usize) -> Option<usize> {
         let parent = self.nodes[i].parent;
-        let labels: Vec<usize> = (0..self.nodes.len()).filter(|&l| l != i && self.nodes[l].parent == parent && self.nodes[l].shown && self.nodes[l].type_name == "RLABEL").collect();
-        let rects: Vec<_> = labels.iter().map(|&l| self.nodes[l].abs).collect();
-        if let Some(k) = label_left_of(self.nodes[i].abs, &rects) {
-            return Some(labels[k]);
-        }
-        let others: Vec<usize> = (0..self.nodes.len()).filter(|&o| o != i && self.nodes[o].parent == parent && self.nodes[o].shown && self.nodes[o].type_name != "RLABEL").collect();
-        let claimed: Vec<usize> = others.iter().filter_map(|&o| label_left_of(self.nodes[o].abs, &rects)).collect();
-        let free: Vec<usize> = (0..labels.len()).filter(|k| !claimed.contains(k)).collect();
-        let free_rects: Vec<_> = free.iter().map(|&k| rects[k]).collect();
-        label_above(self.nodes[i].abs, &free_rects).map(|k| labels[free[k]])
+        let siblings: Vec<usize> = (0..self.nodes.len()).filter(|&o| self.nodes[o].parent == parent && self.nodes[o].shown).collect();
+        let at = siblings.iter().position(|&o| o == i)?;
+        let rects: Vec<_> = siblings.iter().map(|&o| (self.nodes[o].abs, self.nodes[o].type_name == "RLABEL")).collect();
+        label_for(at, &rects).map(|k| siblings[k])
     }
 
-    /// The node (component index, part) an accessibility id names.
-    fn access_target(&self, store: &dyn Store, target: u64) -> Option<(usize, Option<usize>)> {
+    /// The node (component index, part) an accessibility id names: a
+    /// component, or a part of one (a tab, a list's row, a tree's item: the
+    /// index its id mixes in, `a11y::part_id`).
+    fn access_target(&mut self, store: &dyn Store, ts: &mut TextSystem, target: u64) -> Option<(usize, Option<usize>)> {
         if let Some(i) = (0..self.nodes.len()).find(|&i| node_id(&self.nodes[i].id) == target) {
             return Some((i, None));
         }
-        let kind = target >> 56;
-        if kind != PART_TAB {
-            return None;
-        }
+        let index = |id: &str| ((target & 0x00FF_FFFF_FFFF_FFFF) ^ node_id(id)) as usize;
+        // (the component whose description has the part)
+        let has = |n: &AccessNode| {
+            let mut found = false;
+            n.walk(&mut |c| found |= c.id == target);
+            found
+        };
         (0..self.nodes.len()).find_map(|i| {
-            let id = &self.nodes[i].id;
-            let index = ((target & 0x00FF_FFFF_FFFF_FFFF) ^ node_id(id)) as usize;
-            let tabs = rapidr_value::objects::with_tabcontrol(id, |t| t.tabs.len()).unwrap_or(0);
-            (index < tabs && rapidr_value::objects::a11y::part_id(id, kind, index) == target && store.type_of(id).eq_ignore_ascii_case("RTABCONTROL")).then_some((i, Some(index)))
+            if !self.nodes[i].shown || index(&self.nodes[i].id) >= 100_000_000 {
+                return None;
+            }
+            let n = self.with_cx(store, ts, i, |k, cx| k.describe(cx))?;
+            has(&n).then(|| (i, Some(index(&self.nodes[i].id))))
         })
     }
 
@@ -129,7 +119,7 @@ impl FormUi {
         if let Some(done) = self.menu_access(store, target, action) {
             return done;
         }
-        let Some((i, part)) = self.access_target(store, target) else { return false };
+        let Some((i, part)) = self.access_target(store, ts, target) else { return false };
         if !self.nodes[i].shown || !self.nodes[i].enabled {
             return false;
         }

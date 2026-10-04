@@ -5,7 +5,7 @@
 //! between Min and Max (round with Wrap); the new Position goes to the
 //! store ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnClick.
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Action, Numeric, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::{Op, Rect};
 
 use super::progress::range;
@@ -113,12 +113,7 @@ impl ComponentKind for UpDown {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Slider);
-        let (min, max, pos) = range(cx.store, cx.id);
-        n.numeric = Some(Numeric { value: pos as f64, min: min as f64, max: max as f64, step: store::int(cx.store, cx.id, "increment", 1).max(1) as f64, jump: 10.0 });
-        n.actions = vec![Action::Increment, Action::Decrement, Action::Focus];
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 
     fn access(&self, cx: &mut Cx, action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {

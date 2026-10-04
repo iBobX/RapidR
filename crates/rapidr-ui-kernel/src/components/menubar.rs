@@ -659,16 +659,13 @@ impl FormUi {
         }
         let mut n = AccessNode::new(node_id(&main), Role::MenuBar);
         n.bounds = (0, 0, self.client.0, self.menu_offset);
-        for (k, (item, r)) in bar.into_iter().enumerate() {
-            let mut c = AccessNode::new(part_id(&main, PART_MENU, k), Role::MenuItem);
-            let (shown, mark) = mnemonic(&item.caption);
-            c.name = shown;
-            c.shortcut = mark.map(|m| m.1);
-            c.states.disabled = !item.enabled;
-            c.states.expanded = item.submenu.then_some(self.menus.open_top == Some(k) && self.menu_open());
-            c.actions = vec![Action::Click];
+        // (the shared items, each where it's drawn, a submenu open or not)
+        n.children = rapidr_value::objects::a11y::menu_bar(&main);
+        for (k, (c, (_, r))) in n.children.iter_mut().zip(bar).enumerate() {
             c.bounds = r;
-            n.children.push(c);
+            if c.states.expanded.is_some() {
+                c.states.expanded = Some(self.menus.open_top == Some(k) && self.menu_open());
+            }
         }
         Some(n)
     }

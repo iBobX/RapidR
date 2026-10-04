@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::bitmap::{display_scale, Bitmap};
 use rapidr_value::objects::ops::Rect;
 
@@ -127,10 +127,7 @@ impl ComponentKind for Canvas {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Canvas);
-        n.name = crate::store::string(cx.store, cx.id, "hint");
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }
 

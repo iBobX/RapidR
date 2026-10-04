@@ -12,7 +12,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::listview::Event;
 use rapidr_value::objects::{listview_paint, listview_setup, with_listview, with_listview_mut};
 use rapidr_value::{v_int, Value};
@@ -187,18 +187,7 @@ impl ComponentKind for ListViewBox {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::ListBox);
-        n.actions = vec![Action::Focus];
-        n.bounds = cx.rect;
-        let items = with_listview(cx.id, |lv| lv.items.iter().map(|it| it.caption.clone()).collect::<Vec<_>>()).unwrap_or_default();
-        let index = cx.store.get(cx.id, "itemindex").to_i64();
-        for (i, caption) in items.into_iter().enumerate().take(1_000) {
-            let mut o = AccessNode::new(part_id(cx.id, 1, i), Role::ListBoxOption);
-            o.name = caption;
-            o.states.selected = Some(index == i as i64);
-            n.children.push(o);
-        }
-        n
+        super::shared_describe(cx, "RLISTVIEW")
     }
 
     fn access(&self, _cx: &mut Cx, _action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {

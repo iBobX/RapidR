@@ -14,7 +14,7 @@
 
 use std::cell::RefCell;
 
-use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
+use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::ops::{lift, Rect};
 use rapidr_value::scrollbars::{self, BAR};
 use rapidr_value::Value;
@@ -92,9 +92,7 @@ impl ComponentKind for ScrollBox {
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
-        let mut n = AccessNode::new(node_id(cx.id), Role::Pane);
-        n.bounds = cx.rect;
-        n
+        super::shared_describe(cx, self.name())
     }
 }
 

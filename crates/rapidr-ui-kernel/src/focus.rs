@@ -7,6 +7,35 @@
 use crate::store::{self, Store};
 use crate::tree::FormUi;
 
+/// A form's nodes as Tab walks them.
+struct Walk<'a> {
+    ui: &'a FormUi,
+    store: &'a dyn Store,
+}
+
+impl rapidr_value::objects::a11y::TabTree for Walk<'_> {
+    type Id = usize;
+
+    fn children(&self, parent: Option<&usize>) -> Vec<usize> {
+        parent.map_or_else(|| self.ui.roots(), |&i| self.ui.children(i))
+    }
+
+    fn tab_order_of(&self, &i: &usize) -> Option<i64> {
+        match self.store.get(&self.ui.nodes[i].id, "taborder") {
+            rapidr_value::Value::Null => None,
+            v => Some(v.to_i64()),
+        }
+    }
+
+    fn active(&self, &i: &usize) -> bool {
+        self.ui.nodes[i].shown && self.ui.nodes[i].enabled
+    }
+
+    fn stops(&self, &i: &usize) -> bool {
+        self.ui.tab_stop(self.store, i)
+    }
+}
+
 impl FormUi {
     /// Whether node `i` can have the focus (shown, enabled, a kind that
     /// takes it).
@@ -20,36 +49,10 @@ impl FormUi {
         self.can_focus(store, i) && store::flag(store, &self.nodes[i].id, "tabstop", true)
     }
 
-    /// The nodes Tab visits, in order.
+    /// The nodes Tab visits, in order (the shared walk, the web's too:
+    /// `rapidr_value::objects::a11y::tab_order`).
     pub fn tab_order(&self, store: &dyn Store) -> Vec<usize> {
-        let mut out = Vec::new();
-        self.walk_tab(store, &self.roots(), &mut out);
-        out
-    }
-
-    fn walk_tab(&self, store: &dyn Store, siblings: &[usize], out: &mut Vec<usize>) {
-        let mut sorted: Vec<(i64, usize)> = siblings
-            .iter()
-            .enumerate()
-            .map(|(k, &i)| {
-                let order = match store.get(&self.nodes[i].id, "taborder") {
-                    rapidr_value::Value::Null => k as i64,
-                    v => v.to_i64(),
-                };
-                (order, i)
-            })
-            .collect();
-        // (stable: equal TabOrders keep creation order)
-        sorted.sort_by_key(|(o, _)| *o);
-        for (_, i) in sorted {
-            if !self.nodes[i].shown || !self.nodes[i].enabled {
-                continue;
-            }
-            if self.tab_stop(store, i) {
-                out.push(i);
-            }
-            self.walk_tab(store, &self.children(i), out);
-        }
+        rapidr_value::objects::a11y::tab_order(&Walk { ui: self, store })
     }
 
     /// Tab / Shift+Tab: the next (previous) component in Tab order.

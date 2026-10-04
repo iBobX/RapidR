@@ -101,6 +101,25 @@ pub fn kind_of(type_name: &str) -> Option<&'static dyn ComponentKind> {
     KINDS.iter().find(|(t, _)| t.eq_ignore_ascii_case(type_name)).map(|(_, k)| *k)
 }
 
+/// A component's node as the shared rules describe it (the web's too:
+/// `rapidr_value::objects::a11y::describe`), placed where it is: it and the
+/// parts whose place the model knows (tabs, header sections) moved to its
+/// rectangle; the kind places the others.
+pub fn shared_describe(cx: &Cx, type_name: &str) -> AccessNode {
+    fn place(n: &mut AccessNode, dx: i64, dy: i64) {
+        if n.bounds.2 > 0 || n.bounds.3 > 0 {
+            n.bounds.0 += dx;
+            n.bounds.1 += dy;
+        }
+        for c in &mut n.children {
+            place(c, dx, dy);
+        }
+    }
+    let mut n = rapidr_value::objects::a11y::describe(cx.id, type_name, &|p| cx.store.get(cx.id, p), (cx.width(), cx.height()), &cx.font);
+    place(&mut n, cx.rect.0, cx.rect.1);
+    n
+}
+
 /// How a component is shown now.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {
