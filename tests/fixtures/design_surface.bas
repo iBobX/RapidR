@@ -6,7 +6,8 @@
 ' press selects (OnSelect), a drag moves on the 8-pixel grid (OnMove), the
 ' selected one's corner handle resizes it, the background clears the
 ' selection (OnBgClick), a second press soon after is a double click
-' (OnDblClick). No OnMouseDown / OnClick for it, as FLTK's.
+' (OnDblClick). No OnMouseDown / OnClick for it: the designer takes the
+' mouse whole.
 DECLARE SUB Sel(Index AS INTEGER)
 DECLARE SUB Moved(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)
 DECLARE SUB Dbl(Index AS INTEGER)

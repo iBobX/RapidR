@@ -164,7 +164,7 @@ ok(creditsBtn, "About dialog has an Open-source credits button");
 await page.evaluate(() => [...document.querySelectorAll(".ide-modal button")].find((b) => /Open-source credits/.test(b.textContent))?.click());
 await page.waitForFunction(() => /Third-Party Notices/.test(document.querySelector(".ide-modal-body")?.textContent || ""), null, { timeout: 5000 }).catch(() => {});
 const creditsTxt = await page.evaluate(() => document.querySelector(".ide-modal-body")?.textContent || "");
-ok(/Third-Party Notices/.test(creditsTxt) && /wasm-bindgen/.test(creditsTxt) && /FLTK/.test(creditsTxt), "credits dialog lists the notices and LICENSES.md");
+ok(/Third-Party Notices/.test(creditsTxt) && /wasm-bindgen/.test(creditsTxt) && /Liberation/.test(creditsTxt), "credits dialog lists the notices and LICENSES.md");
 await page.evaluate(() => document.querySelector(".ide-modal button")?.click());
 // Close it
 await page.evaluate(() => document.querySelector(".ide-modal-overlay")?.remove());

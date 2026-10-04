@@ -13,7 +13,8 @@ set -u
 cd "$(dirname "$0")/.."
 
 # Share a single cargo target dir across every per-example *_rust crate
-# so FLTK + friends compile once instead of N times. Caller can override.
+# so the runtime and its UI host compile once instead of N times. Caller
+# can override.
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$(pwd)/target/matrix-shared}"
 mkdir -p "$CARGO_TARGET_DIR"
 

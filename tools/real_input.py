@@ -1,6 +1,9 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
 # python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
+# The UI kernel's windows take it as a user's input; run the program without
+# RAPIDR_CAPTURE / RAPIDR_TEST_EVENTS (under a test the kernel drops user input).
+# PID is the program's own process (pgrep -x name), not a shell around it.
 # act.py PID action... : actions "c:x,y" (click), "k:code" (key), "s:file" (screenshot of the window)
 import Quartz,time,sys,subprocess
 pid=int(sys.argv[1])

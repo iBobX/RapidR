@@ -34,14 +34,14 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   cargo check -q -p rapidr-ui-kernel --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10; echo "(unit done)"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi
 if want examples; then echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1; fi
-if want gui; then echo "== gui events (both desktop hosts: FLTK, and the UI kernel for its cases)"; RAPIDR_HOSTS=fltk,kernel node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events|pending"
+if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
   echo "== web gui parity"; node tests/web_gui_parity.mjs 2>&1 | tail -1
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 node tests/web_gui_parity.mjs 2>&1 | tail -1
   # (the browser's accessibility tree against the UI kernel's: it makes the
-  # kernel's trees it needs — the gui stage's 2× run cleared the matrix's)
+  # kernel's trees it needs — the gui stage's 2× run cleared the 1× run's)
   echo "== web accessibility (ARIA = the UI kernel's tree; the keys)"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Web accessibility"
   echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }

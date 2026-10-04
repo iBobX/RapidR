@@ -1,15 +1,15 @@
 // Accessibility in the browser from the same model as the desktop
 // (docs/desktop-host-plan.md §6, Stage 12). Each GUI fixture that runs in
-// the browser and on the UI kernel (tests/gui_parity_cases.mjs: `web` not
-// false, `kernel: true`) runs in the web IDE's preview with its events, as
-// tests/web_gui_parity.mjs runs it (tests/web_gui_run.mjs). Chrome's
+// the browser (tests/gui_parity_cases.mjs: `web` not false) runs in the
+// web IDE's preview with its events, as tests/web_gui_parity.mjs runs it
+// (tests/web_gui_run.mjs). Chrome's
 // accessibility tree (CDP Accessibility.getFullAXTree: roles, names, values,
 // states) is then compared with the UI kernel's for the same fixture after
 // the same events (RAPIDR_TEST_A11Y's JSON) — the tree a screen reader
 // gets, not the attributes that make it.
 //
-// The kernel's trees: <dir>/<case>.a11y.json, or the desktop matrix's
-// <case>-interpreted-kernel.a11y.json, in RAPIDR_A11Y_DIR (else
+// The kernel's trees: <dir>/<case>.a11y.json, or the desktop run's
+// <case>-interpreted.a11y.json, in RAPIDR_A11Y_DIR (else
 // tests/conformance/.work/native_gui_events); a case without one is built
 // interpreted (./rapidr) and run on the kernel here, into
 // tests/conformance/.work/web_a11y.
@@ -41,7 +41,7 @@ import { openIde, runCase } from "./web_gui_run.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/web_a11y");
-const MATRIX = process.env.RAPIDR_A11Y_DIR || join(ROOT, "tests/conformance/.work/native_gui_events");
+const DESKTOP = process.env.RAPIDR_A11Y_DIR || join(ROOT, "tests/conformance/.work/native_gui_events");
 const filters = process.argv.slice(2);
 let failed = 0, passed = 0, skipped = 0, compared = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); cond ? passed++ : failed++; };
@@ -86,15 +86,15 @@ const ENV = {
   RAPIDR_REGISTRY: process.env.RAPIDR_REGISTRY || join(WORK, "registry.reg"),
 };
 
-/// Case `c`'s kernel tree: the matrix's, else made here.
+/// Case `c`'s kernel tree: the desktop run's, else made here.
 async function kernelTree(c) {
-  for (const f of [join(MATRIX, `${c.name}.a11y.json`), join(MATRIX, `${c.name}-interpreted-kernel.a11y.json`), join(MATRIX, `${c.name}-native-kernel.a11y.json`), join(WORK, `${c.name}.a11y.json`)]) {
+  for (const f of [join(DESKTOP, `${c.name}.a11y.json`), join(DESKTOP, `${c.name}-interpreted.a11y.json`), join(DESKTOP, `${c.name}-native.a11y.json`), join(WORK, `${c.name}.a11y.json`)]) {
     if (existsSync(f)) return f;
   }
   const out = join(WORK, `${c.name}-interp`);
   const file = join(WORK, `${c.name}.a11y.json`);
   await run(join(ROOT, "rapidr"), ["build", join(ROOT, `tests/fixtures/${c.name}.bas`), out, "--interp"], { cwd: ROOT, env: ENV });
-  // (the dialogs' answers, as the desktop matrix gives them)
+  // (the dialogs' answers, as the desktop run gives them)
   const answer = {
     ...(c.fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: c.fileDialog }),
     ...(c.colorDialog === undefined ? {} : { RAPIDR_TEST_COLOR_DIALOG: c.colorDialog }),
@@ -102,7 +102,7 @@ async function kernelTree(c) {
   };
   await run(join(out, c.name), [], {
     cwd: ROOT,
-    env: { ...ENV, ...answer, RAPIDR_HOST: "kernel", RAPIDR_TEST_A11Y: file, RAPIDR_CAPTURE: join(WORK, `${c.name}-window`), RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump, RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "" },
+    env: { ...ENV, ...answer, RAPIDR_TEST_A11Y: file, RAPIDR_CAPTURE: join(WORK, `${c.name}-window`), RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump, RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "" },
     timeout: 60_000,
   });
   return file;
@@ -351,7 +351,7 @@ function runtimeDialog(tree, k, say) {
 rmSync(WORK, { recursive: true, force: true });
 mkdirSync(WORK, { recursive: true });
 const chosen = cases.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)));
-const runnable = chosen.filter((c) => c.web !== false && c.kernel === true);
+const runnable = chosen.filter((c) => c.web !== false);
 for (const c of chosen.filter((c) => !runnable.includes(c))) {
   skipped++;
   console.log(`- ${c.name}: skipped (${c.web === false ? c.why || "no browser counterpart" : "not on the kernel yet"})`);
