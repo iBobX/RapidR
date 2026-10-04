@@ -27,6 +27,7 @@ pub mod dialogs;
 pub mod headless;
 pub mod menu;
 pub mod platform;
+pub mod tracking;
 pub mod winit_host;
 
 use std::task::Waker;
@@ -79,6 +80,15 @@ pub trait Host {
     fn file_dialog(&mut self, _id: u64) -> Option<Vec<String>> {
         Some(Vec::new())
     }
+    /// (timers during native menu tracking) What runs while the system
+    /// holds a pump (a native menu tracked, Windows' size / move loop):
+    /// runtime-core's due timers, the program's changes into the kernel
+    /// ([`tracking`]). A host whose pumps are never held ignores it.
+    fn set_tracking_hook(&mut self, _hook: tracking::Hook) {}
+    /// (a GUI test's `__hold_ms`) The next pump held for `hold`, as a native
+    /// menu the user keeps open would hold it: the headless host pretends
+    /// ([`tracking::simulate_hold`]); a real one has its user.
+    fn hold(&mut self, _hold: Duration) {}
 }
 
 /// Which renderer windows use.

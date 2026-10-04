@@ -7,7 +7,8 @@
 //! menubar` / `popupmenu`); the winit host shows macOS' menu bar and
 //! macOS' / Windows' context menus (`rapidr_ui_host_winit::menu`). Either
 //! way a pick comes back as `KernelEvent::MenuPick` after the pump — menu
-//! tracking holds the pump, and no program code runs inside it.
+//! tracking holds the pump; only the program's timers run inside it, in the
+//! host's tracking ticks (`tracking_tick`).
 
 use std::cell::RefCell;
 use std::collections::BTreeSet;
@@ -53,15 +54,33 @@ pub(super) fn popup(name: &str, x: i32, y: i32) {
     // (the screen → the window's inside, its in-window bar included)
     let (left, top) = (rp_comp_get(&form, "left").to_i64(), rp_comp_get(&form, "top").to_i64());
     let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(&form, "borderstyle").to_i64());
-    open_at(&form, &name, i64::from(x) - left - fw / 2, i64::from(y) - top - (fh - fw / 2));
+    open_at(&form, &name, i64::from(x) - left - fw / 2, i64::from(y) - top - (fh - fw / 2), true);
 }
 
-/// Pop-up menu `name` open at (x, y) of `form`'s window's inside.
-fn open_at(form: &str, name: &str, x: i64, y: i64) {
+/// Pop-up menu `name` open at (x, y) of `form`'s window's inside
+/// (`program`: the program's Popup, not an AutoPopup).
+fn open_at(form: &str, name: &str, x: i64, y: i64, program: bool) {
     super::ensure_host();
+    // (timers during native menu tracking: a tracking tick's handler — the
+    // system's loop holds the pump; this menu shows once it's over)
+    if super::held() {
+        let (form, name) = (form.to_string(), name.to_string());
+        super::after_held(Box::new(move || open_at(&form, &name, x, y, false)));
+        return;
+    }
     // (under a test's script nobody can pick from the system's menu, which
     // would hold the pump: the kernel draws it)
     let native = with_kern(|k| k.host.native_menus() && !k.desk.ignore_user).unwrap_or(false);
+    // (the interpreter's Popup is a wait it serves itself, between
+    // instructions: then the menu's tracking ticks can run its handlers)
+    if native && program && st(|s| s.cooperative) {
+        st(|s| {
+            s.ops.push(WinOp::Popup(form.to_string(), name.to_string(), x, y));
+            s.waits.push(super::Wait::Popup);
+            s.wait_started = true;
+        });
+        return;
+    }
     if native {
         // (the host's context menu, inside the next pump; its pick comes
         // back as an event)
@@ -97,7 +116,7 @@ pub(super) fn auto_popup(comp: &str, x: i64, y: i64) -> bool {
     }
     let Some((form, (ox, oy))) = super::place_of(comp) else { return false };
     rp_fire_event(&menu_name, "onpopup");
-    open_at(&form, &menu_name, ox + x, oy + y);
+    open_at(&form, &menu_name, ox + x, oy + y, false);
     true
 }
 

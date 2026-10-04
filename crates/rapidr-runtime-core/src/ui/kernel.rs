@@ -22,6 +22,12 @@
 //! protocol: `ShowModal` starts a wait the VM serves with [`gui_pump_wait`],
 //! one step each, and its handlers run after the pump returns.
 //!
+//! While the system holds a pump (a native menu tracked, Windows' size /
+//! move loop), the host's tracking tick gives the program a turn from inside
+//! it ([`tracking_tick`]): the due timers fire and what they change is
+//! drawn, as RapidQ's WM_TIMERs during a menu. Nothing waits in there
+//! ([`held`]).
+//!
 //! What the host needs from the program goes into queues the next pump
 //! takes (window commands, "something changed"); what the facade is asked
 //! (Visible, Scale, Handle …) is answered from state kept here, never from
@@ -81,6 +87,14 @@ enum Wait {
     Form(String),
     /// The program's main event loop: until no window is left.
     App,
+    // (timers during native menu tracking: the VM waits between
+    // instructions, so it can lend itself to a tracking tick — rather than
+    // inside a builtin, where its handlers could only queue)
+    /// `PopupMenu.Popup` with the host's context menu: one turn, the menu
+    /// shown (and tracked) inside it, its pick dispatched.
+    Popup,
+    /// `DOEVENTS`: one turn.
+    Once,
 }
 
 /// A GUI test's run (`RAPIDR_CAPTURE`; ui::testhooks).
@@ -123,6 +137,18 @@ struct State {
     /// (the WindowState lane's) The bounds a maximized form goes back to
     /// (the headless host's maximize: `simulate_state`).
     normal_bounds: HashMap<String, rapidr_value::window_state::Bounds>,
+    // (timers during native menu tracking)
+    /// The screen, the work area and the monitors as the host last said
+    /// (answered while the host pumps: a tracking tick's handlers).
+    screen: Option<(i64, i64)>,
+    work_area: Option<(i64, i64)>,
+    monitors: Option<i64>,
+    /// What tracking ticks couldn't do inside the system's loop, said once
+    /// each.
+    held_warned: HashSet<&'static str>,
+    /// A tick queued something for after the held loop (a message box):
+    /// the host is asked to end it.
+    end_loop: bool,
 }
 
 thread_local! {
@@ -136,6 +162,9 @@ thread_local! {
     /// Inside a window change the runtime makes (Left / Top following a
     /// move): not the program's.
     static APPLYING: Cell<u32> = const { Cell::new(0) };
+    /// (timers during native menu tracking) Inside a tracking tick: the
+    /// system holds the pump, nothing may wait.
+    static HELD: Cell<bool> = const { Cell::new(false) };
 }
 
 fn st<R>(f: impl FnOnce(&mut State) -> R) -> R {
@@ -188,7 +217,10 @@ fn ensure_host() {
     }
     let capture = Capture::from_env();
     let headless = capture.is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none();
-    let host = rapidr_ui_host_winit::new_host(headless, forced_scale());
+    let mut host = rapidr_ui_host_winit::new_host(headless, forced_scale());
+    // (timers during native menu tracking: the program's turn inside a held
+    // pump)
+    host.set_tracking_hook(Box::new(|desk, _store| tracking_tick(desk)));
     let mut desk = Desktop::new(Box::new(RtClipboard));
     // (the text lane's: carets blink, but not under a test — captures must
     // be steady)
@@ -211,13 +243,12 @@ fn started() -> bool {
 
 /// What the program changed, into the kernel's forms: window commands,
 /// new forms' kernel sides, trees rebuilt, layouts read again.
-fn sync_desk(k: &mut Kern) {
+fn sync_desk(desk: &mut Desktop) {
     menus::dump_if_changed();
     let store = RtStore;
     let (paint, structure) = NOTIFY.with(|n| n.replace((false, false)));
     let ops = st(|s| std::mem::take(&mut s.ops));
     let modal = st(|s| s.modal.clone());
-    let desk = &mut k.desk;
     for op in ops {
         match op {
             WinOp::Show(f) => {
@@ -285,6 +316,10 @@ fn sync_desk(k: &mut Kern) {
 /// The host's turn: up to `timeout` (`None`: until something happens).
 /// Program code fired meanwhile waits ([`crate::object::rp_in_host_callback`]).
 fn pump(timeout: Option<Duration>) {
+    // (a tracking tick's handler: the host pumps already, held by the system)
+    if held() {
+        return;
+    }
     let Some(k) = kern() else {
         if let Some(t) = timeout {
             std::thread::sleep(t);
@@ -293,7 +328,7 @@ fn pump(timeout: Option<Duration>) {
     };
     crate::object::rp_in_host_callback(|| {
         let Ok(mut k) = k.try_borrow_mut() else { return };
-        sync_desk(&mut k);
+        sync_desk(&mut k.desk);
         let Kern { host, desk } = &mut *k;
         // (the kernel's deadlines due: tick.rs)
         desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
@@ -303,6 +338,10 @@ fn pump(timeout: Option<Duration>) {
 
 /// One step of the innermost wait (see the module's doc).
 pub fn step(max_wait: Option<Duration>) {
+    // (inside the system's loop nothing waits: see `tracking_tick`)
+    if held() {
+        return;
+    }
     ensure_host();
     show_pending();
     // (the lists lane's owner-draw events, before the windows are drawn)
@@ -517,6 +556,12 @@ pub fn gui_timer_changed(name: &str) {
 /// The timers due, each fired then armed again from now with its Interval
 /// as it is then; one disabled meanwhile stops.
 fn fire_due_timers() {
+    fire_due_timers_then(|| ());
+}
+
+/// [`fire_due_timers`], `then` run after each one's handler was fired (a
+/// tracking tick: the VM's handler run before the next timer's).
+fn fire_due_timers_then(then: impl Fn()) {
     loop {
         let now = Instant::now();
         let due = st(|s| match s.heap.peek() {
@@ -529,6 +574,7 @@ fn fire_due_timers() {
             continue;
         }
         rp_fire_event(&name, "ontimer");
+        then();
         let at = Instant::now() + timer_interval(&name);
         st(|s| {
             s.timer_gen += 1;
@@ -536,6 +582,76 @@ fn fire_due_timers() {
             s.heap.push(Reverse((at, g, name)));
         });
     }
+}
+
+// ------------------------------------------ timers during menu tracking --
+//
+// (docs/desktop-host-plan.md, "Timers during native menu tracking") While
+// the system holds a pump — a native menu tracked (macOS' menu bar, the
+// host's context menu), Windows' size / move loop — the host's tracking
+// timer gives the program turns from inside it (`rapidr_ui_host_winit::
+// tracking`), as Windows' modal loops dispatch RapidQ's WM_TIMERs. A turn
+// runs only what can finish in there:
+//
+// - The due timers fire. Their handlers run as from a step: native ones
+//   directly (the host callback flag lifted: `rp_program_turn`), the VM's by
+//   the wait it's in, which lent itself (`rp_serve_program`), each before
+//   the next timer. Owner-draw events follow, then what they all changed
+//   goes into the kernel's forms and the host draws them.
+// - Nothing waits ([`held`]): a nested pump can't run inside the system's
+//   loop. DOEVENTS returns at once (this is the program's turn). Popup's
+//   menu, SHOWMESSAGE / MSGBOX and a one-button MESSAGEBOX / MESSAGEDLG show
+//   once the held loop ends (the menu is closed for a box, as Windows
+//   closes a menu when a dialog takes the focus); the handler goes on at
+//   once (a one-button box answers its button). ShowModal, a MESSAGEBOX /
+//   MESSAGEDLG with a choice, the Open / Save / colour / font dialogs and
+//   INPUT$'s wait need the user's answer now and can't have it: they answer
+//   as dismissed at once (mrCancel, the Escape answer, Cancel, a closed
+//   window), and say so once on stderr.
+// - Clicks and keys queued before the loop took the mouse, and the
+//   handlers the safety net deferred, wait for the pump (they may need it).
+
+/// Inside a tracking tick: the system holds the pump, so nothing may wait.
+pub(super) fn held() -> bool {
+    HELD.with(Cell::get)
+}
+
+/// A wait a tracking tick's handler asked for and can't have: said once.
+pub(super) fn held_cannot(what: &'static str) {
+    if st(|s| s.held_warned.insert(what)) {
+        eprintln!("[rapidr] {what} while a menu holds the window system: answered as dismissed (nothing can wait for the user there)");
+    }
+}
+
+/// Something shows once the held loop is over (`job`, after the pump): the
+/// host is asked to end the loop (the menu closes).
+pub(super) fn after_held(job: Box<dyn FnOnce()>) {
+    crate::object::rp_defer_job(job);
+    st(|s| s.end_loop = true);
+}
+
+/// The host's tracking tick (`set_tracking_hook`): the program's turn while
+/// the system holds the pump — the due timers' handlers, the owner-draw
+/// events after them, what they changed into the kernel's forms. Answers
+/// when the next one is due.
+fn tracking_tick(desk: &mut Desktop) -> rapidr_ui_host_winit::tracking::Turn {
+    struct Held(bool);
+    impl Drop for Held {
+        fn drop(&mut self) {
+            HELD.with(|h| h.set(self.0));
+        }
+    }
+    let _held = Held(HELD.with(|h| h.replace(true)));
+    crate::object::rp_program_turn(|| {
+        fire_due_timers_then(crate::object::rp_serve_program);
+        super::kernel_lists::pre_paint(&st(|s| s.shown.iter().cloned().collect::<Vec<_>>()));
+        crate::object::rp_serve_program();
+    });
+    sync_desk(desk);
+    desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
+    let timer = st(|s| s.heap.peek().map(|Reverse((at, _, _))| *at));
+    let next = [timer, desk.next_wake()].into_iter().flatten().min();
+    rapidr_ui_host_winit::tracking::Turn { next, end_loop: st(|s| std::mem::take(&mut s.end_loop)) }
 }
 
 // ---------------------------------------------------------------- forms --
@@ -614,7 +730,8 @@ fn show_window(name: &str) {
 
 /// The host has no system to ask (the headless host of the GUI tests).
 fn headless() -> bool {
-    with_kern(|k| k.host.headless()).unwrap_or(true)
+    // (while the host pumps — a tracking tick's handler — the one started)
+    with_kern(|k| k.host.headless()).unwrap_or_else(|| !started() || headless_known())
 }
 
 /// (the WindowState lane's) `Form.WindowState` set (it was `from`): its
@@ -944,7 +1061,14 @@ fn screen() -> (i64, i64) {
     if with_kern(|k| k.host.headless()) == Some(false) && !st(|s| !s.built.is_empty()) {
         pump(Some(Duration::ZERO));
     }
-    with_kern(|k| k.host.screen()).unwrap_or(rapidr_ui_host_winit::HEADLESS_SCREEN)
+    // (while the host pumps — a tracking tick's handler — as it last said)
+    match with_kern(|k| k.host.screen()) {
+        Some(s) => {
+            st(|st| st.screen = Some(s));
+            s
+        }
+        None => st(|s| s.screen).unwrap_or(rapidr_ui_host_winit::HEADLESS_SCREEN),
+    }
 }
 
 /// A form's position centred on the screen.
@@ -1039,6 +1163,12 @@ pub fn gui_get_input_value(_name: &str) -> Option<String> {
 pub fn gui_showmodal(name: &str) -> i64 {
     ensure_host();
     let name = lower(name);
+    // (a tracking tick's handler: nothing waits inside the system's loop —
+    // closed at once, as by its close box)
+    if held() {
+        held_cannot("ShowModal");
+        return rapidr_value::events::modal_result(0);
+    }
     store_prop(&name, "modalresult", v_int(0));
     st(|s| s.modal.push(name.clone()));
     build_form(&name);
@@ -1082,13 +1212,23 @@ fn modal_ended(name: &str) -> i64 {
     rapidr_value::events::modal_result(rp_comp_get(name, "modalresult").to_i64())
 }
 
-/// `DOEVENTS`: pending events, timers and redraws get their turn.
+/// `DOEVENTS`: pending events, timers and redraws get their turn. (The
+/// interpreter's is a wait it serves itself, so a tracking tick in that
+/// turn can run its handlers.)
 pub fn gui_doevents() {
-    if !started() {
+    // (a tracking tick's handler: this is the program's turn already)
+    if !started() || held() {
         return;
     }
     start_timers();
     show_pending();
+    if st(|s| s.cooperative) {
+        st(|s| {
+            s.waits.push(Wait::Once);
+            s.wait_started = true;
+        });
+        return;
+    }
     step(Some(Duration::ZERO));
 }
 
@@ -1098,6 +1238,12 @@ pub fn gui_doevents() {
 pub fn gui_wait_key() -> Option<bool> {
     if !started() || !any_shown() {
         return None;
+    }
+    // (a tracking tick's handler: no key can come inside the system's loop
+    // — as if the windows had closed)
+    if held() && !rapidr_value::console::key_waiting() {
+        held_cannot("INPUT$");
+        return Some(false);
     }
     start_timers();
     while !rapidr_value::console::key_waiting() {
@@ -1130,11 +1276,29 @@ pub fn gui_begin_app_wait() {
 /// One step of the innermost wait: `None` while it goes on, `Some` when
 /// it's over (a ShowModal's: its ModalResult).
 pub fn gui_pump_wait() -> Option<Value> {
+    // (a tracking tick never starts a wait: see `tracking_tick`)
+    if held() {
+        return Some(v_null());
+    }
     show_pending();
+    // (one turn each: DOEVENTS's, Popup's — its menu shown and tracked in
+    // these pumps, its pick dispatched before Popup returns)
+    if st(|s| matches!(s.waits.last(), Some(Wait::Popup | Wait::Once))) {
+        let popup = st(|s| matches!(s.waits.pop(), Some(Wait::Popup)));
+        if popup {
+            pump(Some(Duration::ZERO));
+            pump(Some(Duration::ZERO));
+            dispatch_pending();
+        } else {
+            step(Some(Duration::ZERO));
+        }
+        return Some(v_null());
+    }
     let done = st(|s| match s.waits.last() {
         None => true,
         Some(Wait::Form(name)) => !s.shown.contains(name),
         Some(Wait::App) => s.shown.is_empty(),
+        Some(Wait::Popup | Wait::Once) => true,
     });
     if done {
         let finished = st(|s| s.waits.pop());
@@ -1150,6 +1314,9 @@ pub fn gui_pump_wait() -> Option<Value> {
 
 /// The program's windows until none is left.
 pub fn run_gui_event_loop() {
+    if held() {
+        return;
+    }
     // (the host starts with the first window: see gui_begin_app_wait)
     show_pending();
     while any_shown() {
@@ -1314,16 +1481,38 @@ pub fn screen_size() -> (i64, i64) {
 
 pub fn work_area() -> (i64, i64) {
     ensure_host();
-    with_kern(|k| k.host.work_area()).unwrap_or(rapidr_ui_host_winit::HEADLESS_SCREEN)
+    // (while the host pumps — a tracking tick's handler — as it last said)
+    match with_kern(|k| k.host.work_area()) {
+        Some(a) => {
+            st(|s| s.work_area = Some(a));
+            a
+        }
+        None => st(|s| s.work_area).unwrap_or(rapidr_ui_host_winit::HEADLESS_SCREEN),
+    }
 }
 
 pub fn mouse() -> (i64, i64) {
-    with_kern(|k| k.host.mouse()).unwrap_or((0, 0))
+    // (while the host pumps — a tracking tick's handler — the platform's
+    // answer, which needs no host)
+    with_kern(|k| k.host.mouse())
+        .or_else(|| (held() && !headless_known()).then(rapidr_ui_host_winit::platform::global_mouse).flatten().map(|(x, y)| (x.round() as i64, y.round() as i64)))
+        .unwrap_or((0, 0))
+}
+
+/// The host is the headless one (whose mouse stays at (0, 0)).
+fn headless_known() -> bool {
+    Capture::from_env().is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
 }
 
 pub fn monitors() -> i64 {
     ensure_host();
-    with_kern(|k| k.host.monitors()).unwrap_or(1)
+    match with_kern(|k| k.host.monitors()) {
+        Some(m) => {
+            st(|s| s.monitors = Some(m));
+            m
+        }
+        None => st(|s| s.monitors).unwrap_or(1),
+    }
 }
 
 /// `Application.Minimize`: every shown window.
@@ -1474,6 +1663,11 @@ fn run_test_event(e: TestEvent) {
         Action::DblClick(x, y) => test_double_click(&comp, x, y),
         Action::Close => gui_close(&e.comp),
         Action::Ignored => {}
+        // (timers during native menu tracking: the next pump held, as a menu
+        // the user keeps open would hold it)
+        Action::Hold(ms) => {
+            with_kern(|k| k.host.hold(Duration::from_millis(ms.max(0) as u64)));
+        }
         // (the lists lane's: the component synthesizes the input)
         Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
             let step = match e.action {
@@ -1559,7 +1753,7 @@ fn capture_and_end() -> ! {
     let prefix = st(|s| s.script.as_ref().map(|sc| sc.capture.prefix.clone())).unwrap_or_default();
     let a11y = std::env::var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
     let shots = with_kern(|k| {
-        sync_desk(k);
+        sync_desk(&mut k.desk);
         let Kern { desk, .. } = k;
         let order = desk.stacking();
         let mut trees = Vec::new();

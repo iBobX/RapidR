@@ -72,6 +72,16 @@ pub trait Host {
     fn pump(&mut self) -> Option<Value> {
         Some(Value::Null)
     }
+    /// [`Host::pump`] for a host whose wait can give the program turns from
+    /// inside the window system's own loop (a native menu held open: the
+    /// program's timers keep firing there, as RapidQ's do): a function — it
+    /// borrows no host, so the VM can lend itself as `serve`, which runs
+    /// the events queued so far whenever the host's wait calls it. `None`
+    /// (the default): the VM calls [`Host::pump`].
+    #[allow(clippy::type_complexity)]
+    fn pump_serving(&self) -> Option<fn(&mut dyn FnMut()) -> Option<Value>> {
+        None
+    }
 }
 
 /// A test/no-op [`Host`].

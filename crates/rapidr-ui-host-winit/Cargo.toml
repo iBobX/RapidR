@@ -39,7 +39,11 @@ rfd = "0.17"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSThread"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSScreen", "NSGraphics"] }
+# (timers during native menu tracking, tracking.rs: NSApplication's stop and
+# its menu's cancelTracking; a run-loop timer in the common modes through
+# core-foundation-sys — MIT OR Apache-2.0, already in the lock through winit)
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSScreen", "NSGraphics", "NSApplication", "NSResponder", "NSMenu", "NSGraphicsContext"] }
+core-foundation-sys = "0.8"
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Diagnostics_Debug"] }
 [target.'cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))'.dependencies]

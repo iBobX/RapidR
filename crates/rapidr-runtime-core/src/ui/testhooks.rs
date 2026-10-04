@@ -107,6 +107,11 @@ pub enum Action {
     Escape,
     /// `__close`: the window's close button.
     Close,
+    /// (timers during native menu tracking) `__hold_ms`: the next pump held
+    /// by the system for ms milliseconds, as a native menu the user keeps
+    /// open holds it — the kernel's headless host pretends, ticking the
+    /// program's timers through its tracking tick (any component names it).
+    Hold(i64),
     /// A synthetic event malformed (`__key_`, `__mouse…`, `__dblclick…`, `__item_`,
     /// `__node_`, `__toggle_`, `__edit…`, `__enter…`, `__escape…` without
     /// the right numbers): nothing happens.
@@ -147,7 +152,9 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Mouse(kind, x, y)
     } else if let Some([x, y]) = double {
         Action::DblClick(x, y)
-    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape"].iter().any(|p| event.starts_with(p)) {
+    } else if let Some(ms) = one("__hold_") {
+        Action::Hold(ms)
+    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {
         Action::Close
@@ -278,6 +285,8 @@ mod tests {
         assert_eq!(act("c.__mouseup_1_2"), Action::Mouse(Mouse::Up, 1, 2));
         assert_eq!(act("c.__mousemove_-3_4"), Action::Mouse(Mouse::Move, -3, 4));
         assert_eq!(act("p.__dblclick_3_4"), Action::DblClick(3, 4));
+        assert_eq!(act("form.__hold_600"), Action::Hold(600));
+        assert_eq!(act("form.__hold_"), Action::Ignored);
         assert_eq!(act("l.__item_2"), Action::Item(2));
         assert_eq!(act("t.__node_0"), Action::Node(0));
         assert_eq!(act("t.__toggle_1"), Action::Toggle(1));

@@ -141,6 +141,14 @@ pub struct Frame {
     pub nested: bool,
 }
 
+/// One turn of a host's wait ([`Vm::pump_wait`]).
+enum WaitTurn {
+    /// [`Host::pump`]'s answer: `None` while the wait goes on.
+    Pumped(Option<Value>),
+    /// A handler run during the turn ENDed the program.
+    Ended,
+}
+
 /// How a returning frame leaves the VM.
 #[derive(PartialEq, Eq)]
 enum Returned {
@@ -758,7 +766,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             if !waiting {
                 return Ok(true);
             }
-            if let Some(result) = self.host.pump() {
+            let turn = match self.pump_wait(module, ip)? {
+                WaitTurn::Pumped(turn) => turn,
+                WaitTurn::Ended => return Ok(false),
+            };
+            if let Some(result) = turn {
                 if has_result {
                     self.pop()?;
                     self.stack.push(result);
@@ -766,6 +778,40 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 // Once more for the events the last pump queued.
                 waiting = false;
             }
+        }
+    }
+
+    /// One turn of the host's wait ([`Host::pump`]): `None` while it goes
+    /// on, `Some` with its result when it's over. A host that can serve the
+    /// program from inside the window system's own loop
+    /// ([`Host::pump_serving`]) gets the VM lent for it: the events queued
+    /// meanwhile run there as they would after the turn, on top of the
+    /// current frame (`ip` saved, as [`Self::run_events`] does). A handler
+    /// that ENDs the program or fails there stops the VM once the turn is
+    /// over.
+    fn pump_wait(&mut self, module: &Module, ip: usize) -> Result<WaitTurn, VmError> {
+        let Some(pump) = self.host.pump_serving() else { return Ok(WaitTurn::Pumped(self.host.pump())) };
+        let mut stop: Option<Result<(), VmError>> = None;
+        let result = pump(&mut || {
+            if stop.is_some() {
+                return;
+            }
+            loop {
+                let events = self.host.take_events();
+                if events.is_empty() {
+                    return;
+                }
+                match self.run_events(module, ip, events) {
+                    Ok(true) => {}
+                    Ok(false) => return stop = Some(Ok(())),
+                    Err(e) => return stop = Some(Err(e)),
+                }
+            }
+        });
+        match stop {
+            Some(Ok(())) => Ok(WaitTurn::Ended),
+            Some(Err(e)) => Err(e),
+            None => Ok(WaitTurn::Pumped(result)),
         }
     }
 

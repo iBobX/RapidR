@@ -1508,6 +1508,93 @@ fn defer(name: &str, event: &str, job: Box<dyn FnOnce()>) {
     DEFERRED.with(|d| d.borrow_mut().push_back(job));
 }
 
+// ---------------------------------------------------------------------------
+// The program's turn inside the system's own loop (docs/desktop-host-plan.md,
+// "Timers during native menu tracking")
+// ---------------------------------------------------------------------------
+//
+// While a native menu is tracked, the system holds the pump: the host's
+// tracking tick gives the program a turn from inside it — its due timers
+// fire, and their handlers run as they would after the pump (native ones
+// directly, inside [`rp_program_turn`]; the VM's by the wait it's in, which
+// lent itself with [`rp_pump_wait_serving`]). What can't run in there (a
+// wait of its own) is queued with [`rp_defer_job`] for after the pump.
+
+type Server = *mut (dyn FnMut() + 'static);
+
+thread_local! {
+    /// The bytecode VM's waits that lent themselves, innermost last: each
+    /// runs the handlers the VM has queued (taken out while it runs).
+    static SERVERS: RefCell<Vec<Option<Server>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// [`rp_pump_wait`], with `serve` lent for its duration: when the system
+/// holds the pump (a native menu tracked), the host's tracking tick fires
+/// the program's due timers and `serve` runs the handlers they queued for
+/// the VM — which waits in this call, between instructions, so it can lend
+/// itself (its `Host::pump_serving`).
+pub fn rp_pump_wait_serving(serve: &mut dyn FnMut()) -> Option<Value> {
+    let p: *mut (dyn FnMut() + '_) = serve;
+    // SAFETY: only the lifetime is erased. The entry is popped before this
+    // returns (`Pop`, unwinding too), so the pointer never outlives `serve`'s
+    // borrow, and `rp_serve_program` takes it out while it calls it (never
+    // two `&mut` at once).
+    let p: Server = unsafe { std::mem::transmute::<*mut (dyn FnMut() + '_), Server>(p) };
+    SERVERS.with(|s| s.borrow_mut().push(Some(p)));
+    struct Pop;
+    impl Drop for Pop {
+        fn drop(&mut self) {
+            SERVERS.with(|s| s.borrow_mut().pop());
+        }
+    }
+    let _pop = Pop;
+    rp_pump_wait()
+}
+
+/// The handlers queued for the VM run now, by the innermost wait that lent
+/// itself ([`rp_pump_wait_serving`]); without one (a native build, whose
+/// handlers ran as they were fired) nothing happens.
+pub fn rp_serve_program() {
+    let Some(p) = SERVERS.with(|s| s.borrow_mut().last_mut().and_then(Option::take)) else { return };
+    struct Back(Server);
+    impl Drop for Back {
+        fn drop(&mut self) {
+            SERVERS.with(|s| {
+                if let Some(top) = s.borrow_mut().last_mut() {
+                    *top = Some(self.0);
+                }
+            });
+        }
+    }
+    let _back = Back(p);
+    // SAFETY: lent by an `rp_pump_wait_serving` still running below (its
+    // entry is the innermost: anything pushed since was popped); taken out
+    // of the list while it runs, so it isn't called inside itself.
+    unsafe { (*p)() }
+}
+
+/// Runs `f` as the program's turn, inside a host callback too: the handlers
+/// it fires run now, as between pumps (the host's tracking tick: the system
+/// holds the pump, so after it would be too late). The flag comes back
+/// however `f` ends.
+pub fn rp_program_turn<R>(f: impl FnOnce() -> R) -> R {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            IN_HOST_CALLBACK.with(|c| c.set(self.0));
+        }
+    }
+    let _restore = Restore(IN_HOST_CALLBACK.with(|c| c.replace(false)));
+    f()
+}
+
+/// Runs `job` after the pump: with the handlers the host callbacks
+/// deferred, in order ([`rp_run_deferred`]) — what a tracking tick can't do
+/// inside the system's loop (a message box waits for the menu to close).
+pub fn rp_defer_job(job: Box<dyn FnOnce()>) {
+    DEFERRED.with(|d| d.borrow_mut().push_back(job));
+}
+
 /// Bind a bytecode EVENT handler to one instance (see [`EventHandler::IndirectThis`]).
 pub fn rp_bind_event_indirect_this(name: &str, event: &str, handler_id: u32, this: Value) {
     bind_handler(name, event, EventHandler::IndirectThis(handler_id, this));
@@ -2216,6 +2303,60 @@ mod deferred_tests {
         assert_eq!(logged(), ["vm 7"]);
         assert_eq!(rp_run_deferred(), 0);
         rp_clear_event_dispatcher();
+    }
+
+    // (timers during native menu tracking)
+    #[test]
+    fn a_tracking_ticks_turn_runs_native_handlers_inside_a_callback() {
+        rp_bind_event("t5", "ontimer", on_a);
+        rp_in_host_callback(|| {
+            rp_program_turn(|| {
+                assert!(!rp_host_callback_active());
+                rp_fire_event("t5", "ontimer");
+                // (what can't run inside the system's loop waits for the pump)
+                rp_defer_job(Box::new(|| log("after")));
+                // (nothing deferred runs here: only after the pump)
+            });
+            assert!(rp_host_callback_active(), "the callback's flag comes back");
+            assert_eq!(rp_run_deferred(), 0);
+        });
+        assert_eq!(logged(), ["a"]);
+        assert_eq!(rp_run_deferred(), 1);
+        assert_eq!(logged(), ["after"]);
+        let r = std::panic::catch_unwind(|| rp_in_host_callback(|| rp_program_turn(|| panic!("in a turn"))));
+        assert!(r.is_err());
+        assert!(!rp_host_callback_active());
+    }
+
+    #[test]
+    fn the_vms_handlers_run_by_the_innermost_wait_that_lent_itself() {
+        // (no wait lent: nothing to serve — a native build)
+        rp_serve_program();
+        let served = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let outer = served.clone();
+        // (the serving functions, as the VM's waits lend them; the pump wait
+        // itself isn't run here, so they're registered by hand)
+        let mut serve_outer = move || {
+            outer.borrow_mut().push("outer");
+            // (inside itself it isn't called again)
+            rp_serve_program();
+        };
+        let p: *mut (dyn FnMut() + '_) = &mut serve_outer;
+        let p: Server = unsafe { std::mem::transmute::<*mut (dyn FnMut() + '_), Server>(p) };
+        SERVERS.with(|s| s.borrow_mut().push(Some(p)));
+        rp_serve_program();
+        let inner = served.clone();
+        let mut serve_inner = move || inner.borrow_mut().push("inner");
+        let q: *mut (dyn FnMut() + '_) = &mut serve_inner;
+        let q: Server = unsafe { std::mem::transmute::<*mut (dyn FnMut() + '_), Server>(q) };
+        SERVERS.with(|s| s.borrow_mut().push(Some(q)));
+        rp_serve_program();
+        SERVERS.with(|s| s.borrow_mut().pop());
+        rp_serve_program();
+        SERVERS.with(|s| s.borrow_mut().pop());
+        rp_serve_program();
+        assert_eq!(*served.borrow(), ["outer", "inner", "outer"]);
+        assert!(SERVERS.with(|s| s.borrow().is_empty()));
     }
 
     #[test]

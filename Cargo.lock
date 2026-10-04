@@ -4546,6 +4546,7 @@ version = "2.113.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
+ "core-foundation-sys",
  "muda",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",

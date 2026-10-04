@@ -35,6 +35,9 @@ use crate::{a11y, Desktop, Host, HostCmd, HostEvent, RendererKind, Source};
 pub enum UserEvent {
     AccessKit(accesskit_winit::Event),
     Wake,
+    /// (timers during native menu tracking) The system holds the pump: a
+    /// tick is due (tracking.rs).
+    Tick,
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -94,6 +97,9 @@ struct State {
     /// wakes the pump with.
     dialogs: crate::dialogs::Dialogs,
     waker: Waker,
+    /// (timers during native menu tracking) runtime-core's turn while the
+    /// system holds a pump.
+    hook: Option<crate::tracking::Hook>,
 }
 
 pub struct WinitHost {
@@ -109,6 +115,12 @@ impl WinitHost {
         let proxy = event_loop.create_proxy();
         let menus = NativeMenus::new(proxy.clone());
         let waker = Waker::from(Arc::new(ProxyWaker(Mutex::new(proxy.clone()))));
+        // (a held pump's tick, outside the host's context menu: delivered by
+        // winit as soon as no callback runs — tracking.rs)
+        let ticker = proxy.clone();
+        crate::tracking::set_waker(Box::new(move || {
+            ticker.send_event(UserEvent::Tick).ok();
+        }));
         Ok(WinitHost {
             event_loop,
             state: State {
@@ -126,6 +138,7 @@ impl WinitHost {
                 key_form: None,
                 dialogs: crate::dialogs::Dialogs::default(),
                 waker,
+                hook: None,
             },
         })
     }
@@ -143,7 +156,19 @@ impl Host for WinitHost {
                 w.window.request_redraw();
             }
         }
-        let status = self.event_loop.pump_app_events(timeout, &mut Shim { s: &mut self.state, desk, store });
+        // (timers during native menu tracking: if the pump overstays its
+        // deadline, the system holds it, and the program's timers tick from
+        // the tracking timer — tracking.rs)
+        let held = crate::tracking::begin_pump(timeout.map(|t| std::time::Instant::now() + t));
+        // (macOS: the tracking timer is the pump's alarm clock — winit waits
+        // for anything, the timer's firing wakes the loop and the pump comes
+        // back; winit's own timer would spin inside a tracked menu)
+        let winit_timeout = if crate::tracking::OWN_DEADLINE { timeout.filter(Duration::is_zero) } else { timeout };
+        let status = self.event_loop.pump_app_events(winit_timeout, &mut Shim { s: &mut self.state, desk, store });
+        drop(held);
+        if let Some(panic) = crate::tracking::take_panic() {
+            std::panic::resume_unwind(panic);
+        }
         if let PumpStatus::Exit(code) = status {
             // (never asked for: the program ends by ending the process)
             eprintln!("[rapidr] winit host: the event loop exited ({code})");
@@ -188,6 +213,10 @@ impl Host for WinitHost {
     fn file_dialog(&mut self, id: u64) -> Option<Vec<String>> {
         let State { dialogs, waker, .. } = &mut self.state;
         dialogs.take(id, waker)
+    }
+
+    fn set_tracking_hook(&mut self, hook: crate::tracking::Hook) {
+        self.state.hook = Some(hook);
     }
 
     fn name(&self) -> &'static str {
@@ -286,8 +315,15 @@ impl Shim<'_> {
     /// Runs the program's window commands.
     fn apply(&mut self, el: &ActiveEventLoop) {
         self.note_monitor(el);
+        // (timers during native menu tracking: while the system holds the
+        // pump — macOS' menu bar tracked, winit's observers calling in — no
+        // second loop of the system's starts inside it; a context menu or a
+        // sheet waits for the next pump)
+        let held = crate::tracking::held();
+        let mut later = Vec::new();
         for cmd in std::mem::take(&mut self.desk.cmds) {
             match cmd {
+                cmd @ (HostCmd::Popup { .. } | HostCmd::FileDialog { .. }) if held => later.push(cmd),
                 HostCmd::Show(f) => self.show(el, &f),
                 HostCmd::Hide(f) => {
                     if let Some(w) = self.s.wins.get(&f) {
@@ -337,7 +373,13 @@ impl Shim<'_> {
                 HostCmd::Popup { form, menu, x, y } => {
                     if let Some(w) = self.s.wins.get(&form) {
                         let window = w.window.clone();
-                        self.s.menus.popup(&window, &form, &menu, x, y);
+                        // (the menu holds the pump until the user lets go:
+                        // its own tick runs the program's timers meanwhile —
+                        // this callback's state lent to it, the menus taken
+                        // out for the call)
+                        let mut menus = std::mem::take(&mut self.s.menus);
+                        crate::tracking::with_popup_tick(&mut || self.tracking_tick(), || menus.popup(&window, &form, &menu, x, y));
+                        self.s.menus = menus;
                     }
                 }
                 // (the dialogs lane's: made here, inside the pump — a sheet on
@@ -379,10 +421,33 @@ impl Shim<'_> {
                 }
             }
         }
-        // (menus: macOS' bar for the key form; picks made meanwhile)
-        let key = self.s.key_form.clone();
-        self.s.menus.sync(self.desk, self.store, key.as_deref());
+        if !later.is_empty() {
+            later.append(&mut self.desk.cmds);
+            self.desk.cmds = later;
+        }
+        // (menus: macOS' bar for the key form — not built again under the
+        // user's mouse; picks made meanwhile)
+        if !held {
+            let key = self.s.key_form.clone();
+            self.s.menus.sync(self.desk, self.store, key.as_deref());
+        }
         crate::menu::take_picks(self.desk);
+    }
+
+    /// (timers during native menu tracking) A tick while the system holds
+    /// the pump: runtime-core's turn — the due timers' handlers, what they
+    /// changed into the kernel — then the forms whose display changed drawn
+    /// now (the menu is over them, the next pump far off). Window commands
+    /// wait for the next `apply`.
+    fn tracking_tick(&mut self) {
+        let Some(mut hook) = self.s.hook.take() else { return };
+        let turn = hook(self.desk, self.store);
+        self.s.hook = Some(hook);
+        let dirty: Vec<String> = self.s.wins.keys().filter(|f| self.desk.forms.get(*f).is_some_and(|k| k.shown && k.ui.dirty)).cloned().collect();
+        for f in dirty {
+            self.redraw(&f);
+        }
+        crate::tracking::after_tick(turn);
     }
 
     /// A window's inside for a logical size: at the forced scale in device
@@ -662,6 +727,13 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 }
             }
             UserEvent::Wake => self.desk.events.push(HostEvent::Wake),
+            // (timers during native menu tracking: a held pump's tick, no
+            // other callback on the stack)
+            UserEvent::Tick => {
+                if crate::tracking::woken() {
+                    crate::tracking::run_tick(|| self.tracking_tick());
+                }
+            }
         }
     }
 

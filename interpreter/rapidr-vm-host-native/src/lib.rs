@@ -108,6 +108,13 @@ impl Host for NativeHost {
         obj::rp_pump_wait()
     }
 
+    // (timers during native menu tracking: while a native menu holds the
+    // window system, the runtime's tracking ticks fire the due timers and
+    // the VM, lent to the wait, runs their handlers)
+    fn pump_serving(&self) -> Option<fn(&mut dyn FnMut()) -> Option<Value>> {
+        Some(obj::rp_pump_wait_serving)
+    }
+
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
         obj::rp_bind_event_indirect(id, event, handler_fn_index);
         self.events.push((id.to_string(), event.to_string(), handler_fn_index));
@@ -406,22 +413,28 @@ pub fn run_event_loop<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
 fn serve_app<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
     obj::rp_begin_app_wait();
     loop {
-        // Each handler runs to completion before the next UI event (and
-        // what they queue, continuations included, before it too).
-        loop {
-            let events = vm.host_mut().take_events();
-            if events.is_empty() {
-                break;
-            }
-            for event in events {
-                let fn_index = event.handler;
-                if let Err(e) = vm.invoke_event(module, event) {
-                    eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
-                }
-            }
-        }
-        if obj::rp_pump_wait().is_some() {
+        run_queued(module, vm);
+        // (the VM lent to the wait: a native menu held open, the runtime's
+        // tracking ticks fire the due timers and their handlers run here)
+        if obj::rp_pump_wait_serving(&mut || run_queued(module, vm)).is_some() {
             return;
+        }
+    }
+}
+
+/// The handlers queued so far, each to completion before the next (and
+/// what they queue, continuations included, before it too).
+fn run_queued<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
+    loop {
+        let events = vm.host_mut().take_events();
+        if events.is_empty() {
+            break;
+        }
+        for event in events {
+            let fn_index = event.handler;
+            if let Err(e) = vm.invoke_event(module, event) {
+                eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
+            }
         }
     }
 }

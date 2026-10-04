@@ -148,6 +148,22 @@ fn run(d: Dialog) -> Answer {
 /// the icon's sound as it shows (Windows' MessageBox; never under a test,
 /// nor on the headless host).
 pub(super) fn choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool) -> Option<usize> {
+    // (timers during native menu tracking: a tracking tick's handler can't
+    // wait inside the system's loop. A box with one button answers it now
+    // and shows once the menu has closed; a choice is answered dismissed)
+    if super::held() {
+        if labels.len() > 1 {
+            super::held_cannot("a MESSAGEBOX / MESSAGEDLG with a choice");
+            return None;
+        }
+        let answer = (!labels.is_empty()).then_some(0);
+        let (title, text, labels) = (title.to_string(), text.to_string(), labels.iter().map(|l| l.to_string()).collect::<Vec<_>>());
+        super::after_held(Box::new(move || {
+            let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
+            choice(&title, &text, &labels, icon, beep);
+        }));
+        return answer;
+    }
     let d = Dialog::message(next_id(), title, text, labels, icon);
     ensure_host();
     if beep && !crate::ui::testhooks::under_test() && with_kern(|k| k.host.headless()) == Some(false) {
@@ -161,6 +177,12 @@ pub(super) fn choice(title: &str, text: &str, labels: &[&str], icon: Option<rapi
 
 /// `Dialog.Execute` for the file, colour and font dialogs.
 pub(super) fn execute(name: &str, comp_type: &str) -> Value {
+    // (timers during native menu tracking: a tracking tick's handler can't
+    // wait inside the system's loop — Cancel)
+    if super::held() {
+        super::held_cannot("a file, colour or font dialog");
+        return v_int(0);
+    }
     if let Some((save, multi)) = crate::ui::file_dialog::kind(name, comp_type) {
         return crate::ui::file_dialog::execute(name, save, multi, pick_files);
     }

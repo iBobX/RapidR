@@ -14,16 +14,21 @@ use crate::{Desktop, Host, HostCmd, HEADLESS_SCREEN};
 
 pub struct HeadlessHost {
     scale: f64,
+    // (timers during native menu tracking)
+    /// runtime-core's tick, and a GUI test's pretend hold of the next pump
+    /// (`__hold_ms`: a native menu the user keeps open).
+    hook: Option<crate::tracking::Hook>,
+    hold: Option<Duration>,
 }
 
 impl HeadlessHost {
     pub fn new(scale: f64) -> Self {
-        HeadlessHost { scale }
+        HeadlessHost { scale, hook: None, hold: None }
     }
 }
 
 impl Host for HeadlessHost {
-    fn pump(&mut self, timeout: Option<Duration>, desk: &mut Desktop, _store: &dyn Store) {
+    fn pump(&mut self, timeout: Option<Duration>, desk: &mut Desktop, store: &dyn Store) {
         for cmd in std::mem::take(&mut desk.cmds) {
             match cmd {
                 HostCmd::Show(f) => {
@@ -46,6 +51,14 @@ impl Host for HeadlessHost {
             }
         }
         if !desk.events.is_empty() {
+            return;
+        }
+        // (a pretend hold: the pump comes back once it's over, the program's
+        // timers ticking meanwhile as on a real host's held pump)
+        if let Some(hold) = self.hold.take() {
+            let first = timeout.map(|t| std::time::Instant::now() + t);
+            let hook = &mut self.hook;
+            crate::tracking::simulate_hold(hold, first, || hook.as_mut().map_or_else(Default::default, |h| h(desk, store)));
             return;
         }
         match timeout {
@@ -76,5 +89,13 @@ impl Host for HeadlessHost {
 
     fn name(&self) -> &'static str {
         "headless"
+    }
+
+    fn set_tracking_hook(&mut self, hook: crate::tracking::Hook) {
+        self.hook = Some(hook);
+    }
+
+    fn hold(&mut self, hold: Duration) {
+        self.hold = Some(hold);
     }
 }

@@ -8,8 +8,8 @@
 //!   model changes or another form becomes key. ShortCuts are its key
 //!   equivalents (the kernel leaves them alone: `MenuUi::system_bar`).
 //! - **Context menus** for `QPOPUPMENU.Popup` on macOS and Windows (a
-//!   `HostCmd::Popup`, inside a pump: menu tracking holds the pump, and no
-//!   program code runs inside it).
+//!   `HostCmd::Popup`, inside a pump: menu tracking holds the pump; only the
+//!   program's timers run inside it, through the menu's tick — tracking.rs).
 //!
 //! muda calls its handler from inside AppKit's / Win32's menu handling:
 //! the pick is queued here (and the pump woken through the event loop
@@ -53,7 +53,9 @@ pub fn take_picks(desk: &mut Desktop) {
     }
 }
 
-/// The system's menus this process shows.
+/// The system's menus this process shows. (`Default`: none yet — what the
+/// host's state holds while its menus are lent to a context menu's call.)
+#[derive(Default)]
 pub struct NativeMenus {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     imp: imp::Menus,
@@ -245,7 +247,11 @@ mod imp {
                 #[cfg(target_os = "macos")]
                 // SAFETY: the view is the live window's, on the main thread.
                 RawWindowHandle::AppKit(h) => unsafe {
+                    // (its NSMenu while it's tracked: a tick may close it,
+                    // tracking.rs)
+                    crate::tracking::set_popup_menu(muda::ContextMenu::ns_menu(&m));
                     m.show_context_menu_for_nsview(h.ns_view.as_ptr(), at);
+                    crate::tracking::set_popup_menu(std::ptr::null_mut());
                 },
                 #[cfg(target_os = "windows")]
                 // SAFETY: the handle is the live window's, on its thread.
