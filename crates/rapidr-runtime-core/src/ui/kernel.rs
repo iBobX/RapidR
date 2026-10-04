@@ -378,12 +378,11 @@ fn container_event(c: rapidr_ui_kernel::components::form::Container) {
     }
 }
 
-/// `name`'s mouse event (gui.rs's `mouse_event`: QIMAGE fires its own).
+/// `name`'s mouse event (gui.rs's `mouse_event`; a QIMAGE's too — the
+/// kernel draws it and routes its mouse like any component's, where FLTK's
+/// image widget fired its own).
 fn mouse_event(name: &str, kind: Mouse, button: Button, x: i64, y: i64, shift: i64) {
     if kind == Mouse::Down && button == Button::Right && menus::auto_popup(name, x, y) {
-        return;
-    }
-    if rp_comp_type(name).eq_ignore_ascii_case("RIMAGE") {
         return;
     }
     rp_fire_event_args(name, kind.event(), &kind.args(button, x, y, shift));
@@ -1112,9 +1111,51 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
     v_null()
 }
 
-/// A QIMAGE's pictures from files and plots: the surfaces lane's (Stage 6).
-pub fn image_method(_name: &str, method: &str, _args: &[Value]) -> Value {
-    pending(&format!("QIMAGE.{method} (pictures from files)"));
+/// A QIMAGE's methods the shared model leaves to the runtime (the
+/// surfaces lane's): a plot's picture (LoadFromPlot), Clear, and a file
+/// the model couldn't read (it reads BMP, PNG, JPEG, ICO and SVG; FLTK
+/// read a few more formats).
+pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
+    match method {
+        "loadfromfile" | "load" => {
+            let file = args.first().map(Value::to_string_val).unwrap_or_default();
+            eprintln!("[WARN] RImage: could not load '{file}'");
+        }
+        "loadfromplot" => {
+            #[cfg(feature = "datascience")]
+            {
+                let plot = args.first().map(Value::to_string_val).unwrap_or_default();
+                let png = crate::datascience::plot_render_to_bytes(&plot);
+                if !png.is_empty() {
+                    let loaded = rapidr_value::objects::with_picture(name, |b| b.load_bmp_bytes(&png));
+                    if let Some(Err(e)) = loaded {
+                        eprintln!("[rapidr] {name}.LoadFromPlot: {e}");
+                    }
+                    if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
+                        if let Some((w, h)) = rapidr_value::objects::with_picture(name, |b| (b.img.width as i64, b.img.height as i64)) {
+                            rp_comp_set(name, "width", v_int(w));
+                            rp_comp_set(name, "height", v_int(h));
+                        }
+                    }
+                }
+            }
+            #[cfg(not(feature = "datascience"))]
+            {
+                let _ = args;
+                eprintln!("[WARN] datascience not compiled — loadfromplot unavailable");
+            }
+        }
+        // (the picture goes: nothing shows)
+        "clear" | "cls" => {
+            rapidr_value::objects::with_picture(name, |b| {
+                b.resize(0, 0);
+                b.alpha = None;
+                b.invalidate_display();
+            });
+        }
+        _ => eprintln!("[WARN] RImage.{method}() not implemented"),
+    }
+    invalidate();
     v_null()
 }
 

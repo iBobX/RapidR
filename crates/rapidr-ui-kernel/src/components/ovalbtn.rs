@@ -56,11 +56,13 @@ impl ComponentKind for OvalBtn {
         p.shape(oval(ox, oy, (rx - 2.0).max(0.0), (ry - 2.0).max(0.0), 0.0, 360.0, face));
         let d = i64::from(sunk);
         let text = store::string(cx.store, cx.id, "caption");
+        // (its BMP glyph, the caption beside it: image.rs)
+        let ((cx0, cy0, cw, ch), place) = super::image::paint_glyph(cx, p, (d, d, w, h), s.enabled, s.pressed, down(cx.store, cx.id)).unwrap_or(((d, d, w, h), Place::Center));
         if s.enabled {
-            caption(p, (d, d, w, h), &text, &cx.font, bgr_to_rgb(cx.font.color), Place::Center);
+            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, bgr_to_rgb(cx.font.color), place);
         } else {
-            caption(p, (d + 1, d + 1, w, h), &text, &cx.font, LIGHT, Place::Center);
-            caption(p, (d, d, w, h), &text, &cx.font, GRAY_TEXT, Place::Center);
+            caption(p, (cx0 + 1, cy0 + 1, cw, ch), &text, &cx.font, LIGHT, place);
+            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, GRAY_TEXT, place);
         }
     }
 

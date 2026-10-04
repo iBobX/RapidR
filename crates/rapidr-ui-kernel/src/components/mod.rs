@@ -34,6 +34,9 @@ pub mod header;
 pub mod list;
 pub mod listview;
 pub mod tree;
+// (the surfaces lane's)
+pub mod canvas;
+pub mod image;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -75,6 +78,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RHEADER", &header::HeaderBar),
     ("RTREEVIEW", &tree::Tree),
     ("RDIRTREE", &dirtree::DirTreeBox),
+    ("RCANVAS", &canvas::Canvas),
+    ("RIMAGE", &image::Image),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

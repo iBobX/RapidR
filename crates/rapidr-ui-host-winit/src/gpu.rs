@@ -41,15 +41,12 @@ impl Canvas for Scene {
         }
         draw.draw(Fill::NonZero, glyphs.iter().map(|&(id, x, y)| Glyph { id, x, y }));
     }
-    fn image(&mut self, rect: &KRect, picture: &Picture) {
-        use vello::peniko::{Blob, ImageAlphaType, ImageBrush, ImageData, ImageFormat, ImageQuality};
+    fn image(&mut self, rect: &KRect, source: &str, revision: u64, picture: &std::sync::Arc<Picture>) {
+        use vello::peniko::ImageBrush;
         let (w, h) = (picture.width, picture.height);
-        if w == 0 || h == 0 || picture.rgba.len() != w * h * 4 {
-            return;
-        }
-        let data = ImageData { data: Blob::new(std::sync::Arc::new(picture.rgba.clone())), format: ImageFormat::Rgba8, alpha_type: ImageAlphaType::Alpha, width: w as u32, height: h as u32 };
-        let crisp = (rect.width() - w as f64).abs() < 0.5 && (rect.height() - h as f64).abs() < 0.5;
-        let brush = ImageBrush::new(data).with_quality(if crisp { ImageQuality::Low } else { ImageQuality::Medium });
+        // (kept between frames while its revision stays: images.rs)
+        let Some(data) = crate::images::gpu_image(source, revision, picture) else { return };
+        let brush = ImageBrush::new(data).with_quality(crate::images::quality(rect, w, h));
         self.draw_image(&brush, Affine::translate((rect.x0, rect.y0)) * Affine::scale_non_uniform(rect.width() / w as f64, rect.height() / h as f64));
     }
 }

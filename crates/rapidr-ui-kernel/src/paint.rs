@@ -105,11 +105,12 @@ impl<'a> Painter<'a> {
 
     /// A picture drawn into `rect`: `source` names it in the display list
     /// (unique per picture; `revision` changes when its pixels do).
-    pub fn picture(&mut self, source: &str, revision: u64, picture: crate::display::Picture, rect: Rect) {
+    pub fn picture(&mut self, source: &str, revision: u64, picture: impl Into<std::sync::Arc<crate::display::Picture>>, rect: Rect) {
+        let picture = picture.into();
         if rect.2 <= 0 || rect.3 <= 0 || picture.width == 0 || picture.height == 0 {
             return;
         }
-        self.list.images.insert(source.to_string(), std::sync::Arc::new(picture));
+        self.list.images.insert(source.to_string(), picture);
         self.op(Op::Image { source: source.to_string(), revision, rect });
     }
 
@@ -171,6 +172,8 @@ impl FormUi {
         }
         let color = rapidr_value::objects::form_color(&store.get(&self.form, "color"));
         p.fill((0, self.menu_offset, w, h), bgr_to_rgb(color));
+        // (the form's own drawing surface, under its components)
+        crate::components::canvas::paint_form_surface(self, &mut p);
         let default = self.default_button(store);
         let focused_is_button = self.focus.is_some_and(|f| self.nodes[f].type_name == "RBUTTON");
         for root in self.roots() {

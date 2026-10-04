@@ -25,6 +25,9 @@ pub struct NodeUi {
     pub dragging: bool,
     /// The part pressed (an up-down's arrow: 0 up, 1 down).
     pub part: Option<usize>,
+    /// (the surfaces lane's) What its bitmap shows, as last converted (a
+    /// QCANVAS's surface, a QIMAGE's picture, a speed button's glyph).
+    pub surface: Option<crate::components::canvas::Shown>,
 }
 
 pub struct Node {
@@ -81,6 +84,9 @@ pub struct FormUi {
     pub menus: crate::components::menubar::MenuUi,
     pub(crate) menu_in_window: bool,
     pub(crate) events: Vec<KernelEvent>,
+    /// (the surfaces lane's) What the form's own drawing surface shows, as
+    /// last converted.
+    pub(crate) surface: Option<crate::components::canvas::Shown>,
 }
 
 /// Visible / Enabled as the runtimes keep them (-1, True, "0" …).
@@ -123,6 +129,7 @@ impl FormUi {
             menus: Default::default(),
             menu_in_window,
             events: Vec::new(),
+            surface: None,
         };
         f.rebuild(store);
         f.focus = f.tab_order(store).first().copied();

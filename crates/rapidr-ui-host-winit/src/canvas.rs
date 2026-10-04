@@ -30,8 +30,9 @@ pub trait Canvas {
     fn push_clip(&mut self, transform: Affine, rect: &KRect);
     fn pop_clip(&mut self);
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]);
-    /// A picture scaled into `rect` (device pixels), smoothly.
-    fn image(&mut self, rect: &KRect, picture: &Picture);
+    /// A picture scaled into `rect` (device pixels), smoothly; `source` and
+    /// `revision` name it in the host's cache (`images.rs`).
+    fn image(&mut self, rect: &KRect, source: &str, revision: u64, picture: &Arc<Picture>);
 }
 
 /// A run of glyphs of one font, size and colour.
@@ -195,12 +196,12 @@ impl<'a> Painter<'a> {
                 }
             }
             Op::Arrow { points, color } => self.polygon(points, *color),
-            // (a picture the display list carries; the program's bitmaps by
-            // object id are the surfaces lane's, Stage 6)
-            Op::Image { source, rect, .. } => {
+            // (a picture the display list carries: a component's own, or a
+            // program's bitmap by object id with its drawing revision)
+            Op::Image { source, revision, rect } => {
                 if let Some(pic) = self.images.and_then(|m| m.get(source)) {
                     let r = self.device_rect(*rect);
-                    self.canvas.image(&r, pic);
+                    self.canvas.image(&r, source, *revision, pic);
                 }
             }
             Op::ClipPush { rect } => {
@@ -294,6 +295,7 @@ pub fn draw_list(canvas: &mut dyn Canvas, text: &mut TextSystem, list: &DisplayL
             }
         }
     }
+    crate::images::end_frame();
 }
 
 /// A display list's size in device pixels.

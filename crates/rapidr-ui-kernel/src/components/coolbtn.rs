@@ -8,8 +8,8 @@
 //! GroupIndex 0 never stays down. The new Down values go to the store
 //! ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnClick.
 //!
-//! BMP glyphs (`BMP`, `NumBMPs`) wait for the hosts' images (`Op::Image`,
-//! the surfaces lane); the caption is drawn meanwhile.
+//! Its BMP glyph (`BMP` / `BMPHandle`, `NumBMPs`, `Layout`, `Spacing`) is
+//! drawn beside the caption by `image::paint_glyph` (the surfaces lane's).
 
 use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Action, Role};
 use rapidr_value::objects::ops::Place;
@@ -108,11 +108,13 @@ impl ComponentKind for CoolBtn {
         }
         let d = i64::from(sunk);
         let text = store::string(cx.store, cx.id, "caption");
+        // (its BMP glyph, the caption beside it: image.rs)
+        let ((cx0, cy0, cw, ch), place) = super::image::paint_glyph(cx, p, (d, d, w, h), s.enabled, s.pressed, down(cx.store, cx.id)).unwrap_or(((d, d, w, h), Place::Center));
         if s.enabled {
-            caption(p, (d, d, w, h), &text, &cx.font, bgr_to_rgb(cx.font.color), Place::Center);
+            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, bgr_to_rgb(cx.font.color), place);
         } else {
-            caption(p, (d + 1, d + 1, w, h), &text, &cx.font, LIGHT, Place::Center);
-            caption(p, (d, d, w, h), &text, &cx.font, GRAY_TEXT, Place::Center);
+            caption(p, (cx0 + 1, cy0 + 1, cw, ch), &text, &cx.font, LIGHT, place);
+            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, GRAY_TEXT, place);
         }
     }
 

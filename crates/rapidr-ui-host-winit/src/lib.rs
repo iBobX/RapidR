@@ -25,6 +25,7 @@ pub mod cpu;
 pub mod desktop;
 pub mod gpu;
 pub mod headless;
+pub mod images;
 pub mod menu;
 pub mod winit_host;
 
