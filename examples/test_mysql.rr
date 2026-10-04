@@ -3,7 +3,7 @@ $TYPECHECK ON
 DIM MySQL AS RMYSQL
 
 PRINT "Attempting to Connect to Localhost MySQL..."
-IF MySQL.Connect("localhost", "rqdevtest", "DeV%Tes1T$", "rapidpdevtestdb") THEN
+IF MySQL.Connect("localhost", "rqdevtest", "DeV%Tes1T$", "rapidqdevtestdb") THEN
     PRINT "Connected Successfully! Showing DBs:"
     DIM I AS INTEGER
     FOR I = 0 TO MySQL.DBCount - 1

@@ -983,6 +983,18 @@ fn comp_is_panel(name: &str) -> bool {
 }
 
 /// Get the type name of a registered component.
+/// `Obj.Member` read without parentheses in a program: the method when the
+/// object's type has one by that name (`WHILE MySQL.FetchRow`), else the
+/// property (`UpDown.Max`) — rapidr_value::members, the same rule for native
+/// builds, the interpreter and the web.
+pub fn rp_comp_value(name: &str, member: &str) -> Value {
+    let lower = member.to_ascii_lowercase();
+    if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
+        return rp_comp_method(name, &lower, &[]);
+    }
+    rp_comp_get(name, member)
+}
+
 pub fn rp_comp_type(name: &str) -> String {
     COMPONENTS.with(|c| {
         c.borrow()

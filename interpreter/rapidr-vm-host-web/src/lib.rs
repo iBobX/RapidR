@@ -93,7 +93,8 @@ impl Host for WebHost {
         if let Some(v) = module_constant(id, name) {
             return Ok(v);
         }
-        Ok(rp_comp_get(id, name))
+        // (`WHILE DB.FetchRow`: a method of the object's type is called)
+        Ok(rp_comp_value(id, name))
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {

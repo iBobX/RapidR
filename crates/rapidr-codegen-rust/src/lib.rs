@@ -2671,10 +2671,9 @@ impl RustCodegen {
                 // Component property/method access
                 if let Some(comp_name) = self.get_component_name(&ma.object) {
                     let member_lower = ma.member.to_lowercase();
-                    if is_component_method_name(&member_lower) && !is_also_property(&member_lower) {
-                        return format!("rp_comp_method(\"{comp_name}\", \"{member_lower}\", &[])");
-                    }
-                    return format!("rp_comp_get(\"{comp_name}\", \"{member_lower}\")");
+                    // (a method of its type, or a property: decided when the
+                    // program runs, as in the VM — rapidr_value::members)
+                    return format!("rp_comp_value(\"{comp_name}\", \"{member_lower}\")");
                 }
 
                 // Nested component member: comp.Sub.Prop → rp_comp_get("comp", "sub.prop")
@@ -2691,10 +2690,7 @@ impl RustCodegen {
                     if id.name == "_with_" {
                         if let Some(with_comp) = self.with_component_stack.last() {
                             let member_lower = ma.member.to_lowercase();
-                            if is_component_method_name(&member_lower) && !is_also_property(&member_lower) {
-                                return format!("rp_comp_method(\"{with_comp}\", \"{member_lower}\", &[])");
-                            }
-                            return format!("rp_comp_get(\"{with_comp}\", \"{member_lower}\")");
+                            return format!("rp_comp_value(\"{with_comp}\", \"{member_lower}\")");
                         }
                     }
                 }
@@ -2735,7 +2731,7 @@ impl RustCodegen {
                 if rapidr_ast::VALUE_METHODS.contains(&member_lower.as_str()) {
                     return format!("rp_comp_method({}, \"{member_lower}\", &[])", self.receiver(&ma.object));
                 }
-                format!("rp_comp_get({}, \"{member_lower}\")", self.receiver(&ma.object))
+                format!("rp_comp_value({}, \"{member_lower}\")", self.receiver(&ma.object))
             }
             Expression::MethodCall(mc) => {
                 // Component method call: comp.Method(args)
@@ -3243,107 +3239,6 @@ wasm-bindgen = "=0.2.129"
 /// Check if a type name is a known RapidP component type.
 fn is_component_type_name(type_name: &str) -> bool {
     rapidr_ast::is_component_type_name(type_name)
-}
-
-/// A method that is also a property, read as the property (`Img.Center`:
-/// QIMAGE's Center setting; `Form.Center` as a statement centers the form).
-fn is_also_property(member: &str) -> bool {
-    member == "center"
-}
-
-/// Check if a member name is a known component method (not a property).
-fn is_component_method_name(member: &str) -> bool {
-    matches!(
-        member,
-        // Form/Widget methods
-        "showmodal" | "close" | "show" | "hide" | "refresh" | "center"
-        // Collection methods
-        | "clear" | "additems" | "additem" | "deleteitems" | "deleteitem" | "removeitem"
-        | "addrow" | "sort" | "find"
-        // Focus/input methods
-        | "setfocus" | "focus" | "click" | "selectall" | "copy" | "paste" | "cut"
-        // Dialog methods
-        | "execute"
-        // Database methods
-        | "connect" | "disconnect" | "query" | "fetchrow" | "fetchfield"
-        | "fieldseek" | "rowseek" | "row" | "rowblob" | "escapestring"
-        | "selectdb" | "createdb" | "dropdb"
-        // Network methods
-        | "write" | "writeline" | "read" | "readline"
-        | "bind" | "listen" | "accept"
-        | "start" | "stop" | "broadcast"
-        | "get" | "post"
-        // FileStream methods
-        | "open" | "readall" | "eof"
-        // JSON methods
-        | "parse" | "stringify" | "prettify" | "has" | "remove" | "keys"
-        | "loadfile" | "savefile"
-        // StringList methods
-        | "loadfromfile" | "savetofile" | "add" | "delete"
-        // Canvas methods
-        | "line" | "rect" | "fillrect" | "circle" | "ellipse"
-        | "setpixel" | "getpixel" | "drawtext" | "loadimage" | "saveimage"
-        // TreeView methods
-        | "addroot" | "addchild" | "expand" | "collapse"
-        // FormMDI methods
-        | "closechild" | "closeallchild" | "cascadechild"
-        | "sethorzchild" | "setvertchild" | "iconarrangechild"
-        // NumPy/RNum methods
-        | "array" | "zeros" | "ones" | "full" | "arange" | "linspace" | "reshape"
-        | "fromlist" | "from_list"
-        | "sum" | "mean" | "min" | "max" | "std" | "var" | "variance" | "median"
-        | "argmin" | "argmax" | "count" | "ptp" | "dot" | "norm" | "normalize"
-        | "sin" | "cos" | "tan" | "asin" | "arcsin" | "acos" | "arccos" | "atan" | "arctan"
-        | "sqrt" | "abs" | "exp" | "log" | "ln" | "log2" | "log10"
-        | "floor" | "ceil" | "round" | "sign" | "reciprocal" | "square" | "negative" | "neg"
-        | "subtract" | "sub" | "multiply" | "mul" | "divide" | "div"
-        | "power" | "pow" | "mod" | "fmod" | "clip" | "clamp"
-        | "reverse" | "flip" | "unique" | "shuffle" | "append" | "concatenate" | "slice"
-        | "cumsum" | "cumprod" | "diff" | "any" | "all" | "nonzero" | "searchsorted"
-        | "rand" | "random" | "randn" | "random_normal" | "normal"
-        | "uniform" | "random_uniform" | "randint" | "choice"
-        | "tolist" | "tostring" | "print"
-        // RDataFrame methods
-        | "readcsv" | "read_csv" | "loadfromcsv"
-        | "savetocsv" | "to_csv" | "writecsv"
-        | "loadfromjson" | "read_json" | "savetojson" | "to_json"
-        | "head" | "tail" | "describe" | "columns" | "info" | "dtypes" | "shape"
-        | "cellbyname" | "at" | "setcell" | "iloc" | "select"
-        | "sort_values" | "filter"
-        | "groupby" | "group_by" | "value_counts" | "nunique" | "corr" | "correlation"
-        | "drop" | "drop_column" | "rename" | "rename_column"
-        | "addcolumn" | "add_column" | "set_column"
-        | "fillna" | "fill_null" | "dropna" | "drop_nulls"
-        | "sample" | "nlargest" | "nsmallest"
-        | "merge" | "join" | "concat"
-        | "transpose" | "apply" | "replace"
-        | "togrid" | "to_grid" | "display"
-        // RPlot methods
-        | "plot" | "bar" | "barh" | "scatter" | "step" | "area" | "fill_between"
-        | "hist" | "histogram" | "pie"
-        | "hline" | "axhline" | "vline" | "axvline" | "annotate"
-        | "legend" | "savefig" | "save" | "figsize" | "xlim" | "ylim" | "xscale" | "yscale"
-        // Design surface methods
-        | "addcomponent" | "getname" | "gettype"
-        | "getcompx" | "getcompy" | "getcompw" | "getcomph"
-        | "setprop" | "getprop" | "setcompbounds" | "setname"
-        | "selectcomp" | "removecomponent" | "clearall"
-        // StringGrid methods
-        | "cell" | "cells" | "setsuggestions"
-        // CodeEditor methods
-        | "getsublist" | "gotosub" | "gotoline"
-        // TabControl methods
-        | "addtabs" | "tab"
-        // Web-exclusive methods
-        | "sethtml" | "navigate" | "appendto" | "setattribute" | "getattribute"
-        | "addclass" | "removeclass" | "toggleclass" | "queryselector" | "queryselectorall"
-        | "eval" | "call" | "set" | "haskey"
-        | "play" | "pause" | "seek" | "fullscreen"
-        | "requestpermission" | "getposition" | "watchposition" | "clearwatch"
-        | "addroute" | "back" | "forward"
-        // Web file-bridge methods (RFILESTREAM)
-        | "pickfile" | "download" | "loadfromurl"
-    )
 }
 
 /// Recursively collect CREATE targets from nested CREATE body statements.
