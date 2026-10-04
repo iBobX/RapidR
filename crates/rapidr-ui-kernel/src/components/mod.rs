@@ -7,7 +7,14 @@
 
 pub mod button;
 pub mod edit;
+pub mod form;
+pub mod groupbox;
 pub mod label;
+pub mod mdi;
+pub mod panel;
+pub mod scrollbox;
+pub mod splitter;
+pub mod statusbar;
 pub mod tabcontrol;
 pub mod trackbar;
 
@@ -30,6 +37,12 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("REDIT", &edit::Edit),
     ("RTRACKBAR", &trackbar::Trackbar),
     ("RTABCONTROL", &tabcontrol::Tabs),
+    ("RPANEL", &panel::Panel),
+    ("RGROUPBOX", &groupbox::GroupBox),
+    ("RSCROLLBOX", &scrollbox::ScrollBox),
+    ("RSPLITTER", &splitter::Splitter),
+    ("RSTATUSBAR", &statusbar::StatusBar),
+    ("RMDICHILD", &mdi::ChildFrame),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only
@@ -199,6 +212,17 @@ pub trait ComponentKind: Sync {
     fn mnemonic_clicks(&self) -> bool {
         false
     }
+
+    /// Where its components go and what shows them, in its own pixels
+    /// (Left / Top of a child count from this rectangle's corner; children
+    /// are clipped to it): all of it, but a QSCROLLBOX's inside its edge.
+    fn client_area(&self, _store: &dyn Store, _id: &str, w: i64, h: i64) -> Rect {
+        (0, 0, w, h)
+    }
+
+    /// Draws over its components (a QSCROLLBOX's scroll bars), with (0, 0)
+    /// its top left, unclipped (it clips what it draws).
+    fn paint_over(&self, _store: &dyn Store, _id: &str, _w: i64, _h: i64, _p: &mut Painter) {}
 
     /// A test hook's component-specific step (`__item_i`, `__cell_c_r` …):
     /// whether it was understood. Stage 3's driver.

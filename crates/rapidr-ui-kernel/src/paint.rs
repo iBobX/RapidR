@@ -166,6 +166,8 @@ impl FormUi {
         for root in self.roots() {
             self.paint_node(root, store, ts, &mut p, default, focused_is_button);
         }
+        // (the form's scroll bars, over its components)
+        crate::components::scrollbox::paint_form_bars(&self.form, (w, h), &mut p, self.menu_offset);
         self.dirty = false;
         list
     }
@@ -197,14 +199,20 @@ impl FormUi {
                 }
             });
         });
-        if children.is_empty() {
-            return;
+        let kind = self.nodes[i].kind;
+        let id = self.nodes[i].id.clone();
+        if !children.is_empty() {
+            // (children inside their parent's client area only)
+            let area = kind.map_or((0, 0, w, h), |k| k.client_area(store, &id, w, h));
+            p.at((x, y), |p| p.op(Op::ClipPush { rect: area }));
+            for c in children {
+                self.paint_node(c, store, ts, p, default, focused_is_button);
+            }
+            p.at((x, y), |p| p.op(Op::ClipPop));
         }
-        // (children inside their parent's rectangle only)
-        p.at((x, y), |p| p.op(Op::ClipPush { rect: (0, 0, w, h) }));
-        for c in children {
-            self.paint_node(c, store, ts, p, default, focused_is_button);
+        if let Some(k) = kind {
+            // (what it draws over them: a scroll box's bars)
+            p.at((x, y), |p| k.paint_over(store, &id, w, h, p));
         }
-        p.at((x, y), |p| p.op(Op::ClipPop));
     }
 }

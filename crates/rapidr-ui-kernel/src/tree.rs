@@ -147,7 +147,8 @@ impl FormUi {
     }
 
     fn add_children(&mut self, store: &dyn Store, parent_id: &str, parent: Option<usize>, old: &mut Vec<(String, NodeUi)>) {
-        for (id, type_name) in store.children(parent_id) {
+        // (a QFORMMDI's child frames in their stacking order)
+        for (id, type_name) in components::mdi::stacked(parent_id, store.children(parent_id)) {
             let type_name = type_name.to_ascii_uppercase();
             if !placed(&type_name) {
                 continue;
@@ -173,7 +174,9 @@ impl FormUi {
             let (origin, shown, enabled) = match self.nodes[i].parent {
                 Some(p) => {
                     let pn = &self.nodes[p];
-                    ((pn.abs.0, pn.abs.1), pn.shown, pn.enabled)
+                    // (its client area: a scroll box's inside its edge)
+                    let (cx, cy, _, _) = pn.kind.map_or((0, 0, 0, 0), |k| k.client_area(store, &pn.id, pn.abs.2, pn.abs.3));
+                    ((pn.abs.0 + cx, pn.abs.1 + cy), pn.shown, pn.enabled)
                 }
                 None => ((0, self.menu_offset), true, on(store, &self.form, "enabled")),
             };
@@ -267,14 +270,17 @@ impl FormUi {
     }
 }
 
-/// A form's client area: ClientWidth × ClientHeight when the store knows
-/// them, else its Width × Height less the frame (BorderStyle, default
+/// A form's client area: ClientWidth × ClientHeight (and its scroll bars)
+/// when the store knows them, else its Width × Height less the frame (BorderStyle, default
 /// bsSizeable) and the menu.
 pub fn client_size(store: &dyn Store, form: &str, menu: i64) -> (i64, i64) {
     let cw = store.get(form, "clientwidth");
     let ch = store.get(form, "clientheight");
     if !matches!(cw, rapidr_value::Value::Null) && !matches!(ch, rapidr_value::Value::Null) {
-        return (cw.to_i64().max(0), ch.to_i64().max(0));
+        // (ClientWidth / ClientHeight leave out the scroll bars shown; the
+        // window's inside has them)
+        let (bw, bh) = components::scrollbox::bars_taken(form);
+        return (cw.to_i64().max(0) + bw, ch.to_i64().max(0) + bh);
     }
     let (dw, dh) = rapidr_value::layout::default_size("RFORM").unwrap_or((320, 240));
     let (w, h) = (store::int(store, form, "width", dw), store::int(store, form, "height", dh));

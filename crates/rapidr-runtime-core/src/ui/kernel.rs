@@ -344,6 +344,22 @@ fn dispatch(ev: KernelEvent) {
         }
         KernelEvent::ScaleChanged(f, scale) => scale_changed(&f, scale),
         KernelEvent::MenuPick(_) => {}
+        KernelEvent::Container(c) => container_event(c),
+    }
+}
+
+/// A container's action (containers lane): what gui.rs's scroll bars,
+/// splitter and MDI frame handlers do.
+fn container_event(c: rapidr_ui_kernel::components::form::Container) {
+    use rapidr_ui_kernel::components::form::Container;
+    match c {
+        Container::Scrolled { id, dx, dy } => crate::scroll::user_scrolled(&id, (dx, dy)),
+        Container::SplitBegin(id) => {
+            crate::layout::splitter_begin(&id);
+        }
+        Container::SplitMove(delta) => crate::layout::splitter_move(delta),
+        Container::SplitEnd => crate::layout::splitter_end(),
+        Container::Mdi { form, component, action } => crate::mdi::user(&form, &component, action),
     }
 }
 

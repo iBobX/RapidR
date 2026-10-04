@@ -17,13 +17,15 @@ use crate::object::{get_children_of, rp_comp_get, rp_comp_type};
 /// The runtime's components, as the kernel reads them.
 pub struct RtStore;
 
-/// The Color the registry gives a new QLABEL (`RpComponent::new`).
+/// The Color the registry gives a new QLABEL, QFORM and QPANEL
+/// (`RpComponent::new`), which FLTK doesn't paint: read as unset (a label
+/// has no background; a form and a panel are the button face).
 const LABEL_DEFAULT_COLOR: i64 = 0xFFFFFF;
 
 impl Store for RtStore {
     fn get(&self, id: &str, prop: &str) -> Value {
         let v = rp_comp_get(id, prop);
-        if prop.eq_ignore_ascii_case("color") && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR)) && rp_comp_type(id) == "RLABEL" {
+        if prop.eq_ignore_ascii_case("color") && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR)) && matches!(rp_comp_type(id).as_str(), "RLABEL" | "RFORM" | "RPANEL") {
             return Value::Null;
         }
         v

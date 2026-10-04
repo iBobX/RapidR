@@ -96,6 +96,9 @@ pub enum KernelEvent {
     ScaleChanged(String, f64),
     /// A menu item picked (by id).
     MenuPick(String),
+    /// A container's action runtime-core carries out (components scrolled,
+    /// a splitter dragged, an MDI child's frame used).
+    Container(crate::components::form::Container),
 }
 
 impl FormUi {
@@ -145,6 +148,10 @@ impl FormUi {
     /// A mouse button pressed at (x, y) of the client area.
     pub fn mouse_down(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
+        // (scroll bars take the mouse first, over the components)
+        if button == Button::Left && crate::components::scrollbox::bars_down(self, store, x, y) {
+            return;
+        }
         if y < self.menu_offset as f64 {
             // (the in-window menu bar: the menu lane's)
             return;
@@ -171,6 +178,9 @@ impl FormUi {
 
     /// The mouse moved to (x, y) of the client area.
     pub fn mouse_move(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, mods: Mods) {
+        if crate::components::scrollbox::bars_drag(self, store, x, y) {
+            return;
+        }
         let hit = self.hit(x, y);
         if hit != self.hover {
             if let Some(old) = self.hover {
@@ -201,6 +211,9 @@ impl FormUi {
     /// A mouse button released at (x, y) of the client area.
     pub fn mouse_up(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
+        if button == Button::Left && crate::components::scrollbox::bars_up(self, store) {
+            return;
+        }
         let hit = self.hit(x, y);
         let target = match self.capture.take() {
             Some(c) => c,
