@@ -277,6 +277,8 @@ pub fn rp_environ(name: &Value) -> Value {
 pub fn rp_end() {
     // What the program wrote to files it never closed is kept.
     crate::file_io::rp_close_all();
+    #[cfg(feature = "desktop-ui")]
+    crate::ui::before_exit();
     std::process::exit(0);
 }
 

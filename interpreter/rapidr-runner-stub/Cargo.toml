@@ -11,4 +11,5 @@ name = "rapidrintr-runner"
 path = "src/main.rs"
 
 [dependencies]
-rapidr-vm-host-native.workspace = true
+# (both desktop hosts: RAPIDR_HOST=kernel picks the UI kernel)
+rapidr-vm-host-native = { workspace = true, features = ["kernel"] }

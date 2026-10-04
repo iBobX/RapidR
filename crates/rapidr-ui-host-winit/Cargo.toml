@@ -1,0 +1,33 @@
+[package]
+name = "rapidr-ui-host-winit"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's desktop host for the UI kernel: winit windows pumped from an ordinary loop, vello on the GPU or vello_cpu, AccessKit, a headless host for tests"
+
+# Desktop only, and never runtime-core: the host's callbacks can't call
+# program code because nothing here can reach it (docs/desktop-host-plan.md
+# §1.1). It only routes input into the kernel and returns HostEvents.
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-ui-kernel = { workspace = true }
+# Text layouts the kernel makes (MIT OR Apache-2.0): the kernel's parley,
+# its fonts shared with vello through linebender_resource_handle.
+parley = { version = "0.11", default-features = false, features = ["std"] }
+# Windows and input (Apache-2.0). 0.30: what accesskit_winit 0.34 supports.
+winit = "0.30"
+# GPU vector drawing on wgpu 30 (MIT OR Apache-2.0); re-exports wgpu and
+# peniko / kurbo, so their versions follow vello's.
+vello = "0.11"
+# The CPU renderer (captures, and where wgpu finds no GPU): vello's
+# sparse-strips rasterizer on the same peniko / kurbo / skrifa (Apache-2.0
+# OR MIT); its frames shown in a window by softbuffer (MIT OR Apache-2.0).
+vello_cpu = "0.3"
+# (its glyph crate, for FontEmbolden, which vello_cpu doesn't re-export)
+glifo = "0.4"
+softbuffer = "0.4"
+# Screen readers (MIT OR Apache-2.0; the winit adapter Apache-2.0).
+accesskit = "0.25"
+accesskit_winit = "0.34"
+pollster = "0.4"

@@ -10,30 +10,55 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**529 libraries** under 25 license expressions.
+**701 libraries** under 26 license expressions.
 
-## Apache-2.0 OR MIT (301)
+## Apache-2.0 OR MIT (388)
 
 | Library | Version | Upstream |
 |---|---|---|
+| accesskit | 0.25.1 | <https://github.com/AccessKit/accesskit> |
+| accesskit_atspi_common | 0.21.0 | <https://github.com/AccessKit/accesskit> |
+| accesskit_consumer | 0.39.1 | <https://github.com/AccessKit/accesskit> |
+| accesskit_ios | 0.2.1 | <https://github.com/AccessKit/accesskit> |
+| accesskit_macos | 0.27.1 | <https://github.com/AccessKit/accesskit> |
+| accesskit_unix | 0.24.0 | <https://github.com/AccessKit/accesskit> |
+| accesskit_windows | 0.35.1 | <https://github.com/AccessKit/accesskit> |
 | ahash | 0.7.8 | <https://github.com/tkaitchuck/ahash> |
 | ahash | 0.8.12 | <https://github.com/tkaitchuck/ahash> |
 | allocator-api2 | 0.2.21 | <https://github.com/zakarumych/allocator-api2> |
 | alsa | 0.9.1 | <https://github.com/diwic/alsa-rs> |
+| android-activity | 0.6.1 | <https://github.com/rust-mobile/android-activity> |
 | android_system_properties | 0.1.5 | <https://github.com/nical/android_system_properties> |
 | anyhow | 1.0.102 | <https://github.com/dtolnay/anyhow> |
 | arboard | 3.6.1 | <https://github.com/1Password/arboard> |
 | array-init-cursor | 0.2.1 | <https://github.com/planus-org/planus> |
 | arrayvec | 0.7.6 | <https://github.com/bluss/arrayvec> |
+| as-raw-xcb-connection | 1.0.1 | <https://github.com/psychon/as-raw-xcb-connection> |
+| ash | 0.38.0+1.3.281 | <https://github.com/ash-rs/ash> |
+| async-broadcast | 0.7.2 | <https://github.com/smol-rs/async-broadcast> |
+| async-channel | 2.5.0 | <https://github.com/smol-rs/async-channel> |
+| async-executor | 1.14.0 | <https://github.com/smol-rs/async-executor> |
+| async-io | 2.6.0 | <https://github.com/smol-rs/async-io> |
+| async-lock | 3.4.2 | <https://github.com/smol-rs/async-lock> |
+| async-process | 2.5.0 | <https://github.com/smol-rs/async-process> |
+| async-recursion | 1.2.0 | <https://github.com/dcchut/async-recursion> |
+| async-signal | 0.2.14 | <https://github.com/smol-rs/async-signal> |
+| async-task | 4.7.1 | <https://github.com/smol-rs/async-task> |
 | async-trait | 0.1.89 | <https://github.com/dtolnay/async-trait> |
 | atoi_simd | 0.16.1 | <https://github.com/RoDmitry/atoi_simd> |
 | atomic-waker | 1.1.2 | <https://github.com/smol-rs/atomic-waker> |
+| atspi | 0.29.0 | <https://github.com/odilia-app/atspi> |
+| atspi-common | 0.13.0 | <https://github.com/odilia-app/atspi> |
+| atspi-proxies | 0.13.0 | <https://github.com/odilia-app/atspi> |
 | base64 | 0.21.7 | <https://github.com/marshallpierce/rust-base64> |
 | base64 | 0.22.1 | <https://github.com/marshallpierce/rust-base64> |
 | bigdecimal | 0.4.10 | <https://github.com/akubera/bigdecimal-rs> |
+| bit-set | 0.10.0 | <https://github.com/contain-rs/bit-set> |
+| bit-vec | 0.9.1 | <https://github.com/contain-rs/bit-vec> |
 | bitflags | 1.3.2 | <https://github.com/bitflags/bitflags> |
 | bitflags | 2.11.0 | <https://github.com/bitflags/bitflags> |
 | block-buffer | 0.10.4 | <https://github.com/RustCrypto/utils> |
+| blocking | 1.7.0 | <https://github.com/smol-rs/blocking> |
 | borsh | 1.6.1 | <https://github.com/near/borsh-rs> |
 | btoi | 0.4.3 | <https://github.com/niklasf/rust-btoi> |
 | bufstream | 0.1.4 | <https://github.com/alexcrichton/bufstream> |
@@ -42,6 +67,8 @@ which also carries their full license texts.
 | cfg-if | 1.0.4 | <https://github.com/rust-lang/cfg-if> |
 | chrono | 0.4.44 | <https://github.com/chronotope/chrono> |
 | chrono-tz | 0.10.4 | <https://github.com/chronotope/chrono-tz> |
+| color | 0.3.3 | <https://github.com/linebender/color> |
+| concurrent-queue | 2.5.0 | <https://github.com/smol-rs/concurrent-queue> |
 | core-foundation | 0.10.1 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation | 0.9.4 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | <https://github.com/servo/core-foundation-rs> |
@@ -58,6 +85,7 @@ which also carries their full license texts.
 | crossbeam-queue | 0.3.12 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-utils | 0.8.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crypto-common | 0.1.7 | <https://github.com/RustCrypto/traits> |
+| ctor | 0.10.1 | <https://github.com/mmastrac/rust-ctor> |
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
 | data-url | 0.3.2 | <https://github.com/servo/rust-url> |
 | debug_unsafe | 0.1.4 | <https://github.com/RoDmitry/debug_unsafe> |
@@ -67,18 +95,26 @@ which also carries their full license texts.
 | dirs | 6.0.0 | <https://github.com/soc/dirs-rs> |
 | dirs-sys | 0.5.0 | <https://github.com/dirs-dev/dirs-sys-rs> |
 | displaydoc | 0.2.5 | <https://github.com/yaahc/displaydoc> |
+| document-features | 0.2.12 | <https://github.com/slint-ui/document-features> |
+| downcast-rs | 1.2.1 | <https://github.com/marcianx/downcast-rs> |
+| dtor | 0.8.1 | <https://github.com/mmastrac/rust-ctor> |
 | dyn-clone | 1.0.20 | <https://github.com/dtolnay/dyn-clone> |
 | either | 1.15.0 | <https://github.com/rayon-rs/either> |
 | enum_dispatch | 0.3.13 | <https://gitlab.com/antonok/enum_dispatch> |
+| enumflags2 | 0.7.12 | <https://github.com/meithecatte/enumflags2> |
+| enumflags2_derive | 0.7.12 | <https://github.com/meithecatte/enumflags2> |
 | equivalent | 1.0.2 | <https://github.com/indexmap-rs/equivalent> |
 | errno | 0.3.14 | <https://github.com/lambda-fairy/rust-errno> |
 | ethnum | 1.5.3 | <https://github.com/nlordell/ethnum-rs> |
 | euclid | 0.22.14 | <https://github.com/servo/euclid> |
+| event-listener | 5.4.2 | <https://github.com/smol-rs/event-listener> |
+| event-listener-strategy | 0.5.4 | <https://github.com/smol-rs/event-listener-strategy> |
 | fallible-iterator | 0.3.0 | <https://github.com/sfackler/rust-fallible-iterator> |
 | fallible-streaming-iterator | 0.1.9 | <https://github.com/sfackler/fallible-streaming-iterator> |
 | fast-float2 | 0.2.3 | <https://github.com/Alexhuszagh/fast-float-rust> |
 | fastrand | 2.3.0 | <https://github.com/smol-rs/fastrand> |
 | fdeflate | 0.3.7 | <https://github.com/image-rs/fdeflate> |
+| fearless_simd | 0.7.0 | <https://github.com/linebender/fearless_simd> |
 | flate2 | 1.1.9 | <https://github.com/rust-lang/flate2-rs> |
 | float-ord | 0.3.2 | <https://github.com/notriddle/rust-float-ord> |
 | fnv | 1.0.7 | <https://github.com/servo/rust-fnv> |
@@ -95,7 +131,9 @@ which also carries their full license texts.
 | futures-channel | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
 | futures-core | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
 | futures-executor | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
+| futures-intrusive | 0.5.0 | <https://github.com/Matthias247/futures-intrusive> |
 | futures-io | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
+| futures-lite | 2.6.1 | <https://github.com/smol-rs/futures-lite> |
 | futures-macro | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
 | futures-sink | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
 | futures-task | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
@@ -104,7 +142,11 @@ which also carries their full license texts.
 | getrandom | 0.3.4 | <https://github.com/rust-random/getrandom> |
 | getrandom | 0.4.2 | <https://github.com/rust-random/getrandom> |
 | gif | 0.12.0 | <https://github.com/image-rs/image-gif> |
+| glifo | 0.4.0 | <https://github.com/linebender/vello> |
 | glob | 0.3.3 | <https://github.com/rust-lang/glob> |
+| gpu-allocator | 0.28.0 | <https://github.com/Traverse-Research/gpu-allocator> |
+| guillotiere | 0.7.0 | <https://github.com/nical/guillotiere> |
+| half | 2.7.1 | <https://github.com/VoidStarKat/half-rs> |
 | halfbrown | 0.2.5 | <https://github.com/Licenser/halfbrown> |
 | hashbrown | 0.12.3 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.14.5 | <https://github.com/rust-lang/hashbrown> |
@@ -113,6 +155,7 @@ which also carries their full license texts.
 | hashbrown | 0.17.1 | <https://github.com/rust-lang/hashbrown> |
 | hashlink | 0.9.1 | <https://github.com/kyren/hashlink> |
 | heck | 0.5.0 | <https://github.com/withoutboats/heck> |
+| hermit-abi | 0.5.3 | <https://github.com/hermit-os/hermit-rs> |
 | hex | 0.4.3 | <https://github.com/KokaKiwi/rust-hex> |
 | home | 0.5.12 | <https://github.com/rust-lang/cargo> |
 | http | 1.4.0 | <https://github.com/hyperium/http> |
@@ -129,11 +172,14 @@ which also carries their full license texts.
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
 | jni | 0.21.1 | <https://github.com/jni-rs/jni-rs> |
+| jni | 0.22.4 | <https://github.com/jni-rs/jni-rs> |
+| jni-macros | 0.22.4 | <https://github.com/jni-rs/jni-rs> |
 | jni-sys | 0.3.1 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys-macros | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jpeg-decoder | 0.3.2 | <https://github.com/image-rs/jpeg-decoder> |
 | js-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys> |
+| khronos-egl | 6.0.0 | <https://github.com/timothee-haudebourg/khronos-egl> |
 | kurbo | 0.13.1 | <https://github.com/linebender/kurbo> |
 | lazy_static | 1.5.0 | <https://github.com/rust-lang-nursery/lazy-static.rs> |
 | leb128fmt | 0.1.0 | <https://github.com/bluk/leb128fmt> |
@@ -141,6 +187,7 @@ which also carries their full license texts.
 | libc | 0.2.183 | <https://github.com/rust-lang/libc> |
 | libz-sys | 1.1.25 | <https://github.com/rust-lang/libz-sys> |
 | linebender_resource_handle | 0.1.1 | <https://github.com/linebender/raw_resource_handle> |
+| litrs | 1.0.0 | <https://github.com/LukasKalbertodt/litrs> |
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
 | matrixmultiply | 0.3.10 | <https://github.com/bluss/matrixmultiply/> |
@@ -149,12 +196,16 @@ which also carries their full license texts.
 | mysql | 25.0.1 | <https://github.com/blackbeam/rust-mysql-simple> |
 | mysql-common-derive | 0.31.2 | <https://github.com/blackbeam/rust_mysql_common> |
 | mysql_common | 0.32.4 | <https://github.com/blackbeam/rust_mysql_common> |
+| naga | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| naga-types | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | named_pipe | 0.4.1 | <https://github.com/blackbeam/named_pipe> |
 | native-tls | 0.2.18 | <https://github.com/rust-native-tls/rust-native-tls> |
 | ndarray | 0.16.1 | <https://github.com/rust-ndarray/ndarray> |
 | ndk | 0.8.0 | <https://github.com/rust-mobile/ndk> |
+| ndk | 0.9.0 | <https://github.com/rust-mobile/ndk> |
 | ndk-context | 0.1.1 | <https://github.com/rust-windowing/android-ndk-rs> |
 | ndk-sys | 0.5.0+25.2.9519653 | <https://github.com/rust-mobile/ndk> |
+| ndk-sys | 0.6.0+11769913 | <https://github.com/rust-mobile/ndk> |
 | ntapi | 0.4.3 | <https://github.com/MSxDOS/ntapi> |
 | num-bigint | 0.4.6 | <https://github.com/rust-num/num-bigint> |
 | num-complex | 0.4.6 | <https://github.com/rust-num/num-complex> |
@@ -165,6 +216,8 @@ which also carries their full license texts.
 | once_cell | 1.21.4 | <https://github.com/matklad/once_cell> |
 | openssl-macros | 0.1.1 | <https://crates.io/crates/openssl-macros> |
 | openssl-probe | 0.2.1 | <https://github.com/rustls/openssl-probe> |
+| ordered-stream | 0.2.0 | <https://github.com/danieldg/ordered-stream> |
+| parking | 2.2.1 | <https://github.com/smol-rs/parking> |
 | parking_lot | 0.12.5 | <https://github.com/Amanieu/parking_lot> |
 | parking_lot_core | 0.9.12 | <https://github.com/Amanieu/parking_lot> |
 | parlance | 0.1.0 | <https://github.com/linebender/parley> |
@@ -172,27 +225,38 @@ which also carries their full license texts.
 | parley_data | 0.11.1 | <https://github.com/linebender/parley> |
 | pathfinder_geometry | 0.5.1 | <https://github.com/servo/pathfinder> |
 | pathfinder_simd | 0.5.5 | <https://github.com/servo/pathfinder> |
+| peniko | 0.6.1 | <https://github.com/linebender/peniko> |
 | percent-encoding | 2.3.2 | <https://github.com/servo/rust-url/> |
+| pin-project | 1.1.13 | <https://github.com/taiki-e/pin-project> |
+| pin-project-internal | 1.1.13 | <https://github.com/taiki-e/pin-project> |
 | pin-project-lite | 0.2.17 | <https://github.com/taiki-e/pin-project-lite> |
+| piper | 0.2.5 | <https://github.com/smol-rs/piper> |
+| plain | 0.2.3 | <https://github.com/randomites/plain> |
 | planus | 0.3.1 | <https://github.com/planus-org/planus> |
 | png | 0.17.16 | <https://github.com/image-rs/image-png> |
 | png | 0.18.1 | <https://github.com/image-rs/image-png> |
+| polling | 3.11.0 | <https://github.com/smol-rs/polling> |
+| pollster | 0.4.0 | <https://github.com/zesterer/pollster> |
 | polycool | 0.4.0 | <https://github.com/linebender/kurbo> |
 | portable-atomic | 1.13.1 | <https://github.com/taiki-e/portable-atomic> |
 | portable-atomic-util | 0.2.6 | <https://github.com/taiki-e/portable-atomic-util> |
 | powerfmt | 0.2.0 | <https://github.com/jhpratt/powerfmt> |
 | ppv-lite86 | 0.2.21 | <https://github.com/cryptocorrosion/cryptocorrosion> |
+| presser | 0.3.1 | <https://github.com/EmbarkStudios/presser> |
 | prettyplease | 0.2.37 | <https://github.com/dtolnay/prettyplease> |
 | proc-macro-crate | 3.5.0 | <https://github.com/bkchr/proc-macro-crate> |
 | proc-macro-error-attr2 | 2.0.0 | <https://github.com/GnomedDev/proc-macro-error-2> |
 | proc-macro-error2 | 2.0.1 | <https://github.com/GnomedDev/proc-macro-error-2> |
 | proc-macro2 | 1.0.106 | <https://github.com/dtolnay/proc-macro2> |
+| profiling | 1.0.18 | <https://github.com/aclysma/profiling> |
 | psm | 0.1.30 | <https://github.com/rust-lang/stacker/> |
 | quote | 1.0.45 | <https://github.com/dtolnay/quote> |
 | rand | 0.8.5 | <https://github.com/rust-random/rand> |
 | rand_chacha | 0.3.1 | <https://github.com/rust-random/rand> |
 | rand_core | 0.6.4 | <https://github.com/rust-random/rand> |
 | rand_distr | 0.4.3 | <https://github.com/rust-random/rand> |
+| range-alloc | 0.1.5 | <https://github.com/gfx-rs/range-alloc> |
+| raw-window-metal | 1.1.0 | <https://github.com/rust-windowing/raw-window-metal> |
 | rawpointer | 0.2.1 | <https://github.com/bluss/rawpointer/> |
 | rayon | 1.11.0 | <https://github.com/rayon-rs/rayon> |
 | rayon-core | 1.13.0 | <https://github.com/rayon-rs/rayon> |
@@ -202,11 +266,14 @@ which also carries their full license texts.
 | regex | 1.12.3 | <https://github.com/rust-lang/regex> |
 | regex-automata | 0.4.14 | <https://github.com/rust-lang/regex> |
 | regex-syntax | 0.8.10 | <https://github.com/rust-lang/regex> |
+| renderdoc-sys | 1.1.0 | <https://github.com/ebkalderon/renderdoc-rs> |
 | resvg | 0.48.1 | <https://github.com/linebender/resvg> |
 | rodio | 0.19.0 | <https://github.com/RustAudio/rodio> |
 | roxmltree | 0.21.1 | <https://github.com/RazrFalcon/roxmltree> |
+| rustc-hash | 1.1.0 | <https://github.com/rust-lang-nursery/rustc-hash> |
 | rustls-pki-types | 1.14.0 | <https://github.com/rustls/pki-types> |
 | rustversion | 1.0.22 | <https://github.com/dtolnay/rustversion> |
+| scoped-tls | 1.0.1 | <https://github.com/alexcrichton/scoped-tls> |
 | scopeguard | 1.2.0 | <https://github.com/bluss/scopeguard> |
 | security-framework | 3.7.0 | <https://github.com/kornelski/rust-security-framework> |
 | security-framework-sys | 2.17.0 | <https://github.com/kornelski/rust-security-framework> |
@@ -216,23 +283,28 @@ which also carries their full license texts.
 | serde_derive | 1.0.228 | <https://github.com/serde-rs/serde> |
 | serde_json | 1.0.149 | <https://github.com/serde-rs/json> |
 | serde_path_to_error | 0.1.20 | <https://github.com/dtolnay/path-to-error> |
+| serde_repr | 0.1.21 | <https://github.com/dtolnay/serde-repr> |
 | serde_urlencoded | 0.7.1 | <https://github.com/nox/serde_urlencoded> |
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
 | signal-hook-registry | 1.4.8 | <https://github.com/vorner/signal-hook> |
 | simd-json | 0.14.3 | <https://github.com/simd-lite/simd-json> |
+| simd_cesu8 | 1.2.0 | <https://github.com/seancroach/simd_cesu8> |
 | simdutf8 | 0.1.5 | <https://github.com/rusticstuff/simdutf8> |
 | simplecss | 0.2.2 | <https://github.com/linebender/simplecss> |
 | siphasher | 1.0.2 | <https://github.com/jedisct1/rust-siphash> |
 | skrifa | 0.44.0 | <https://github.com/googlefonts/fontations> |
 | smallvec | 1.15.1 | <https://github.com/servo/rust-smallvec> |
+| smol_str | 0.2.2 | <https://github.com/rust-analyzer/smol_str> |
 | socket2 | 0.5.10 | <https://github.com/rust-lang/socket2> |
 | socket2 | 0.6.3 | <https://github.com/rust-lang/socket2> |
+| softbuffer | 0.4.8 | <https://github.com/rust-windowing/softbuffer> |
 | stable_deref_trait | 1.2.1 | <https://github.com/storyyeller/stable_deref_trait> |
 | stacker | 0.1.23 | <https://github.com/rust-lang/stacker> |
 | static_assertions | 1.1.0 | <https://github.com/nvzqz/static-assertions-rs> |
 | streaming-iterator | 0.1.9 | <https://github.com/sfackler/streaming-iterator> |
 | strength_reduce | 0.2.4 | <http://github.com/ejmahler/strength_reduce> |
+| svg_fmt | 0.4.5 | <https://github.com/nical/rust_debug> |
 | svgtypes | 0.16.1 | <https://github.com/linebender/svgtypes> |
 | syn | 1.0.109 | <https://github.com/dtolnay/syn> |
 | syn | 2.0.117 | <https://github.com/dtolnay/syn> |
@@ -255,6 +327,7 @@ which also carries their full license texts.
 | unicode-normalization | 0.1.25 | <https://github.com/unicode-rs/unicode-normalization> |
 | unicode-reverse | 1.0.9 | <https://github.com/mbrubeck/unicode-reverse> |
 | unicode-segmentation | 1.13.2 | <https://github.com/unicode-rs/unicode-segmentation> |
+| unicode-width | 0.2.2 | <https://github.com/unicode-rs/unicode-width> |
 | unicode-xid | 0.2.6 | <https://github.com/unicode-rs/unicode-xid> |
 | ureq | 2.12.1 | <https://github.com/algesten/ureq> |
 | url | 2.5.8 | <https://github.com/servo/rust-url> |
@@ -262,13 +335,27 @@ which also carries their full license texts.
 | utf8_iter | 1.0.4 | <https://github.com/hsivonen/utf8_iter> |
 | uuid | 1.23.0 | <https://github.com/uuid-rs/uuid> |
 | value-trait | 0.10.1 | <https://github.com/simd-lite/value-trait> |
+| vello | 0.11.0 | <https://github.com/linebender/vello> |
+| vello_common | 0.3.0 | <https://github.com/linebender/vello> |
+| vello_cpu | 0.3.0 | <https://github.com/linebender/vello> |
+| vello_encoding | 0.11.0 | <https://github.com/linebender/vello> |
+| vello_shaders | 0.11.0 | <https://github.com/linebender/vello> |
 | wasm-bindgen | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen> |
 | wasm-bindgen-futures | 0.4.79 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/futures> |
 | wasm-bindgen-macro | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro> |
 | wasm-bindgen-macro-support | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/main/crates/macro-support> |
 | wasm-bindgen-shared | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared> |
 | web-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/web-sys> |
+| web-time | 1.1.0 | <https://github.com/daxpedda/web-time> |
 | weezl | 0.1.12 | <https://github.com/image-rs/weezl> |
+| wgpu | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-core | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-core-deps-apple | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-core-deps-emscripten | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-core-deps-windows-linux-android | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-hal | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-naga-bridge | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-types | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | winapi | 0.3.9 | <https://github.com/retep998/winapi-rs> |
 | winapi-i686-pc-windows-gnu | 0.4.0 | <https://github.com/retep998/winapi-rs> |
 | winapi-x86_64-pc-windows-gnu | 0.4.0 | <https://github.com/retep998/winapi-rs> |
@@ -318,29 +405,41 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (123)
+## MIT (187)
 
 | Library | Version | Upstream |
 |---|---|---|
 | alsa-sys | 0.3.1 | <https://github.com/diwic/alsa-sys> |
+| android-properties | 0.2.2 | <https://github.com/miklelappo/android-properties> |
 | argminmax | 0.6.3 | <https://github.com/jvdd/argminmax> |
 | async-stream | 0.3.6 | <https://github.com/tokio-rs/async-stream> |
 | async-stream-impl | 0.3.6 | <https://github.com/tokio-rs/async-stream> |
 | axum | 0.7.9 | <https://github.com/tokio-rs/axum> |
 | axum-core | 0.4.5 | <https://github.com/tokio-rs/axum> |
 | bitvec | 1.0.1 | <https://github.com/bitvecto-rs/bitvec> |
+| block2 | 0.5.1 | <https://github.com/madsmtm/objc2> |
+| block2 | 0.6.2 | <https://github.com/madsmtm/objc2> |
 | bytecheck | 0.6.12 | <https://github.com/djkoloski/bytecheck> |
 | bytecheck_derive | 0.6.12 | <https://github.com/djkoloski/bytecheck> |
 | bytes | 1.11.1 | <https://github.com/tokio-rs/bytes> |
+| calloop | 0.13.0 | <https://github.com/Smithay/calloop> |
+| calloop-wayland-source | 0.3.0 | <https://github.com/smithay/calloop-wayland-source> |
 | castaway | 0.2.4 | <https://github.com/sagebind/castaway> |
 | color_quant | 1.1.0 | <https://github.com/image-rs/color_quant.git> |
 | combine | 4.6.7 | <https://github.com/Marwes/combine> |
 | compact_str | 0.8.1 | <https://github.com/ParkMyCar/compact_str> |
 | coreaudio-sys | 0.2.17 | <https://github.com/RustAudio/coreaudio-sys.git> |
+| crunchy | 0.2.4 | <https://github.com/eira-fransham/crunchy> |
 | darling | 0.20.11 | <https://github.com/TedDriggs/darling> |
 | darling_core | 0.20.11 | <https://github.com/TedDriggs/darling> |
 | darling_macro | 0.20.11 | <https://github.com/TedDriggs/darling> |
+| dispatch | 0.2.0 | <http://github.com/SSheldon/rust-dispatch> |
 | dlib | 0.5.3 | <https://github.com/elinorbgr/dlib> |
+| drm | 0.14.1 | <https://github.com/Smithay/drm-rs> |
+| drm-ffi | 0.9.1 | <https://github.com/Smithay/drm-rs> |
+| drm-fourcc | 2.2.0 | <https://github.com/danielzfranklin/drm-fourcc-rs> |
+| drm-sys | 0.8.1 | <https://github.com/Smithay/drm-rs> |
+| endi | 1.1.1 | <https://github.com/zeenix/endi> |
 | float-cmp | 0.10.0 | <https://github.com/mikedilger/float-cmp> |
 | float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |
 | fltk | 1.5.22 | <https://github.com/fltk-rs/fltk-rs> |
@@ -368,18 +467,41 @@ which also carries their full license texts.
 | lru | 0.12.5 | <https://github.com/jeromefroe/lru-rs.git> |
 | lz4 | 1.28.1 | <https://github.com/10xGenomics/lz4-rs> |
 | lz4-sys | 1.11.1+lz4-1.10.0 | <https://github.com/10xGenomics/lz4-rs> |
+| memoffset | 0.9.1 | <https://github.com/Gilnaa/memoffset> |
 | mime_guess | 2.0.5 | <https://github.com/abonander/mime_guess> |
 | minipaste | 0.1.0 | <https://github.com/MoAlyousef/minipaste> |
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
 | now | 0.1.3 | <https://github.com/Kilerd/now> |
+| objc-sys | 0.3.5 | <https://github.com/madsmtm/objc2> |
+| objc2 | 0.5.2 | <https://github.com/madsmtm/objc2> |
 | objc2 | 0.6.4 | <https://github.com/madsmtm/objc2> |
+| objc2-app-kit | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-cloud-kit | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-contacts | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-data | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-image | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-location | 0.2.2 | <https://github.com/madsmtm/objc2> |
 | objc2-encode | 4.1.0 | <https://github.com/madsmtm/objc2> |
+| objc2-foundation | 0.2.2 | <https://github.com/madsmtm/objc2> |
 | objc2-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-link-presentation | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-metal | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-quartz-core | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-symbols | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-ui-kit | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-uniform-type-identifiers | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| objc2-user-notifications | 0.2.2 | <https://github.com/madsmtm/objc2> |
 | openssl-sys | 0.9.112 | <https://github.com/rust-openssl/rust-openssl> |
+| orbclient | 0.3.55 | <https://gitlab.redox-os.org/redox-os/orbclient> |
+| ordered-float | 5.5.0 | <https://github.com/reem/rust-ordered-float> |
 | pem | 3.0.6 | <https://github.com/jcreekmore/pem-rs.git> |
 | phf | 0.12.1 | <https://github.com/rust-phf/rust-phf> |
+| phf | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
+| phf_generator | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
+| phf_macros | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | phf_shared | 0.12.1 | <https://github.com/rust-phf/rust-phf> |
+| phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
 | plotters | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | plotters-backend | 0.3.7 | <https://github.com/plotters-rs/plotters> |
@@ -405,11 +527,14 @@ which also carries their full license texts.
 | polars-utils | 0.46.0 | <https://github.com/pola-rs/polars> |
 | ptr_meta | 0.1.4 | <https://github.com/djkoloski/ptr_meta> |
 | ptr_meta_derive | 0.1.4 | <https://github.com/djkoloski/ptr_meta> |
+| quick-xml | 0.41.0 | <https://github.com/tafia/quick-xml> |
 | radium | 0.7.0 | <https://github.com/bitvecto-rs/radium> |
 | raw-cpuid | 11.6.0 | <https://github.com/gz/rust-cpuid> |
 | recursive | 0.1.1 | <https://github.com/orlp/recursive> |
 | recursive-proc-macro-impl | 0.1.1 | <https://github.com/orlp/recursive> |
+| redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |
+| redox_syscall | 0.7.5 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_users | 0.5.2 | <https://gitlab.redox-os.org/redox-os/users> |
 | rend | 0.4.2 | <https://github.com/djkoloski/rend> |
 | rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
@@ -419,9 +544,11 @@ which also carries their full license texts.
 | rust_decimal | 1.41.0 | <https://github.com/paupino/rust-decimal> |
 | saturating | 0.1.0 | <https://github.com/breeswish/saturating-rs> |
 | schannel | 0.1.29 | <https://github.com/steffengy/schannel-rs> |
+| sctk-adwaita | 0.10.1 | <https://github.com/PolyMeilex/sctk-adwaita> |
 | seahash | 4.1.0 | <https://gitlab.redox-os.org/redox-os/seahash> |
 | simd-adler32 | 0.3.9 | <https://github.com/mcountryman/simd-adler32> |
 | slab | 0.4.12 | <https://github.com/tokio-rs/slab> |
+| smithay-client-toolkit | 0.19.2 | <https://github.com/smithay/client-toolkit> |
 | spin | 0.9.9 | <https://github.com/mvdnes/spin-rs.git> |
 | strict-num | 0.1.1 | <https://github.com/RazrFalcon/strict-num> |
 | strsim | 0.11.1 | <https://github.com/rapidfuzz/strsim-rs> |
@@ -437,14 +564,38 @@ which also carries their full license texts.
 | tower-layer | 0.3.3 | <https://github.com/tower-rs/tower> |
 | tower-service | 0.3.3 | <https://github.com/tower-rs/tower> |
 | tracing | 0.1.44 | <https://github.com/tokio-rs/tracing> |
+| tracing-attributes | 0.1.31 | <https://github.com/tokio-rs/tracing> |
 | tracing-core | 0.1.36 | <https://github.com/tokio-rs/tracing> |
 | twox-hash | 1.6.3 | <https://github.com/shepmaster/twox-hash> |
+| uds_windows | 1.2.1 | <https://github.com/haraldh/rust_uds_windows> |
+| wayland-backend | 0.3.17 | <https://github.com/smithay/wayland-rs> |
+| wayland-client | 0.31.15 | <https://github.com/smithay/wayland-rs> |
+| wayland-csd-frame | 0.3.0 | <https://github.com/rust-windowing/wayland-csd-frame> |
+| wayland-cursor | 0.31.14 | <https://github.com/smithay/wayland-rs> |
+| wayland-protocols | 0.32.13 | <https://github.com/smithay/wayland-rs> |
+| wayland-protocols-plasma | 0.3.12 | <https://github.com/smithay/wayland-rs> |
+| wayland-protocols-wlr | 0.3.12 | <https://github.com/smithay/wayland-rs> |
+| wayland-scanner | 0.31.11 | <https://github.com/smithay/wayland-rs> |
+| wayland-sys | 0.31.11 | <https://github.com/smithay/wayland-rs> |
 | winnow | 1.0.0 | <https://github.com/winnow-rs/winnow> |
 | wyz | 0.5.1 | <https://github.com/myrrlyn/wyz> |
+| x11-dl | 2.21.0 | <https://github.com/AltF02/x11-rs.git> |
+| xcursor | 0.3.11 | <https://github.com/esposm03/xcursor-rs> |
+| xkbcommon-dl | 0.4.2 | <https://github.com/rust-windowing/xkbcommon-dl> |
 | yeslogic-fontconfig-sys | 6.0.0 | <https://github.com/yeslogic/fontconfig-rs> |
+| zbus | 5.19.0 | <https://github.com/z-galaxy/zbus/> |
+| zbus-lockstep | 0.5.2 | <https://github.com/luukvanderduim/zbus-lockstep> |
+| zbus-lockstep-macros | 0.5.2 | <https://github.com/luukvanderduim/zbus-lockstep> |
+| zbus_macros | 5.19.0 | <https://github.com/z-galaxy/zbus/> |
+| zbus_names | 4.3.4 | <https://github.com/z-galaxy/zbus/> |
+| zbus_xml | 5.2.1 | <https://github.com/z-galaxy/zbus/> |
+| zcheapstr | 1.1.0 | <https://github.com/z-galaxy/zcheapstr/> |
 | zip | 0.6.6 | <https://github.com/zip-rs/zip.git> |
 | zmij | 1.0.21 | <https://github.com/dtolnay/zmij> |
 | zstd | 0.13.3 | <https://github.com/gyscos/zstd-rs> |
+| zvariant | 5.15.0 | <https://github.com/z-galaxy/zbus/> |
+| zvariant_derive | 5.15.0 | <https://github.com/z-galaxy/zbus/> |
+| zvariant_utils | 4.2.0 | <https://github.com/z-galaxy/zbus/> |
 
 ## Unicode-3.0 (22)
 
@@ -473,11 +624,62 @@ which also carries their full license texts.
 | zerovec | 0.11.5 | <https://github.com/unicode-org/icu4x> |
 | zerovec-derive | 0.11.2 | <https://github.com/unicode-org/icu4x> |
 
-## Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (14)
+## Apache-2.0 (20)
+
+| Library | Version | Upstream |
+|---|---|---|
+| ab_glyph | 0.2.32 | <https://github.com/alexheretic/ab-glyph> |
+| ab_glyph_rasterizer | 0.1.10 | <https://github.com/alexheretic/ab-glyph> |
+| accesskit_winit | 0.34.1 | <https://github.com/AccessKit/accesskit> |
+| borsh-derive | 1.6.1 | <https://github.com/near/borsh-rs> |
+| claxon | 0.4.3 | <https://github.com/ruuda/claxon> |
+| codespan-reporting | 0.13.1 | <https://github.com/brendanzab/codespan> |
+| cpal | 0.15.3 | <https://github.com/rustaudio/cpal> |
+| gethostname | 1.1.0 | <https://codeberg.org/swsnr/gethostname.rs.git> |
+| glutin_wgl_sys | 0.6.1 | <https://github.com/rust-windowing/glutin> |
+| hound | 3.5.1 | <https://github.com/ruuda/hound> |
+| oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
+| oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
+| openssl | 0.10.76 | <https://github.com/rust-openssl/rust-openssl> |
+| owned_ttf_parser | 0.25.1 | <https://github.com/alexheretic/owned-ttf-parser> |
+| polars-arrow-format | 0.1.0 | <https://github.com/pola-rs/arrow-format> |
+| spirv | 0.4.0+sdk-1.4.341.0 | <https://github.com/gfx-rs/rspirv> |
+| sqlparser | 0.53.0 | <https://github.com/apache/datafusion-sqlparser-rs> |
+| streaming-decompression | 0.1.2 | <https://github.com/jorgecarleitao/streaming-decompressor> |
+| sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
+| winit | 0.30.13 | <https://github.com/rust-windowing/winit> |
+
+## Apache-2.0 OR MIT OR Zlib (18)
+
+| Library | Version | Upstream |
+|---|---|---|
+| bytemuck | 1.25.0 | <https://github.com/Lokathor/bytemuck> |
+| bytemuck_derive | 1.10.2 | <https://github.com/Lokathor/bytemuck> |
+| cursor-icon | 1.2.0 | <https://github.com/rust-windowing/cursor-icon> |
+| dispatch2 | 0.3.1 | <https://github.com/madsmtm/objc2> |
+| glow | 0.17.0 | <https://github.com/grovesNL/glow> |
+| miniz_oxide | 0.8.9 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
+| objc2-app-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-text | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-metal | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-quartz-core | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| raw-window-handle | 0.6.2 | <https://github.com/rust-windowing/raw-window-handle> |
+| tiny-xlib | 0.2.5 | <https://github.com/rust-windowing/tiny-xlib> |
+| tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
+| tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
+| xkeysym | 0.2.1 | <https://github.com/notgull/xkeysym> |
+
+## Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (17)
 
 | Library | Version | Upstream |
 |---|---|---|
 | linux-raw-sys | 0.12.1 | <https://github.com/sunfishcode/linux-raw-sys> |
+| linux-raw-sys | 0.4.15 | <https://github.com/sunfishcode/linux-raw-sys> |
+| linux-raw-sys | 0.9.4 | <https://github.com/sunfishcode/linux-raw-sys> |
+| rustix | 0.38.44 | <https://github.com/bytecodealliance/rustix> |
 | rustix | 1.1.4 | <https://github.com/bytecodealliance/rustix> |
 | wasi | 0.11.1+wasi-snapshot-preview1 | <https://github.com/bytecodealliance/wasi> |
 | wasip2 | 1.0.2+wasi-0.2.9 | <https://github.com/bytecodealliance/wasi-rs> |
@@ -492,39 +694,6 @@ which also carries their full license texts.
 | wit-component | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component> |
 | wit-parser | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser> |
 
-## Apache-2.0 (12)
-
-| Library | Version | Upstream |
-|---|---|---|
-| borsh-derive | 1.6.1 | <https://github.com/near/borsh-rs> |
-| claxon | 0.4.3 | <https://github.com/ruuda/claxon> |
-| cpal | 0.15.3 | <https://github.com/rustaudio/cpal> |
-| gethostname | 1.1.0 | <https://codeberg.org/swsnr/gethostname.rs.git> |
-| hound | 3.5.1 | <https://github.com/ruuda/hound> |
-| oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
-| oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
-| openssl | 0.10.76 | <https://github.com/rust-openssl/rust-openssl> |
-| polars-arrow-format | 0.1.0 | <https://github.com/pola-rs/arrow-format> |
-| sqlparser | 0.53.0 | <https://github.com/apache/datafusion-sqlparser-rs> |
-| streaming-decompression | 0.1.2 | <https://github.com/jorgecarleitao/streaming-decompressor> |
-| sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
-
-## Apache-2.0 OR MIT OR Zlib (11)
-
-| Library | Version | Upstream |
-|---|---|---|
-| bytemuck | 1.25.0 | <https://github.com/Lokathor/bytemuck> |
-| bytemuck_derive | 1.10.2 | <https://github.com/Lokathor/bytemuck> |
-| dispatch2 | 0.3.1 | <https://github.com/madsmtm/objc2> |
-| miniz_oxide | 0.8.9 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
-| objc2-app-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-core-text | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
-| tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
-
 ## MIT OR Unlicense (7)
 
 | Library | Version | Upstream |
@@ -537,6 +706,17 @@ which also carries their full license texts.
 | walkdir | 2.5.0 | <https://github.com/BurntSushi/walkdir> |
 | winapi-util | 0.1.11 | <https://github.com/BurntSushi/winapi-util> |
 
+## BSD-3-Clause (6)
+
+| Library | Version | Upstream |
+|---|---|---|
+| ogg | 0.8.0 | <https://github.com/RustAudio/ogg> |
+| subtle | 2.6.1 | <https://github.com/dalek-cryptography/subtle> |
+| tiny-skia | 0.11.4 | <https://github.com/RazrFalcon/tiny-skia> |
+| tiny-skia | 0.12.0 | <https://github.com/linebender/tiny-skia> |
+| tiny-skia-path | 0.11.4 | <https://github.com/RazrFalcon/tiny-skia/tree/master/path> |
+| tiny-skia-path | 0.12.0 | <https://github.com/linebender/tiny-skia/tree/master/path> |
+
 ## MPL-2.0 (6)
 
 | Library | Version | Upstream |
@@ -547,15 +727,6 @@ which also carries their full license texts.
 | symphonia-bundle-mp3 | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-core | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-metadata | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
-
-## BSD-3-Clause (4)
-
-| Library | Version | Upstream |
-|---|---|---|
-| ogg | 0.8.0 | <https://github.com/RustAudio/ogg> |
-| subtle | 2.6.1 | <https://github.com/dalek-cryptography/subtle> |
-| tiny-skia | 0.12.0 | <https://github.com/linebender/tiny-skia> |
-| tiny-skia-path | 0.12.0 | <https://github.com/linebender/tiny-skia/tree/master/path> |
 
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 
@@ -641,6 +812,12 @@ which also carries their full license texts.
 | Library | Version | Upstream |
 |---|---|---|
 | ring | 0.17.14 | <https://github.com/briansmith/ring> |
+
+## Apache-2.0 AND MIT (1)
+
+| Library | Version | Upstream |
+|---|---|---|
+| dpi | 0.1.2 | <https://github.com/rust-windowing/winit> |
 
 ## Apache-2.0 OR BSL-1.0 (1)
 

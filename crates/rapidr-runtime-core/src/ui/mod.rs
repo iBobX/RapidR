@@ -1,10 +1,7 @@
 //! The desktop UI facade: everything the runtime asks of the window system
-//! goes through here, to the host [`select`] chose — FLTK (`gui.rs`) or,
-//! later, the UI kernel (docs/desktop-host-plan.md). The functions keep
+//! goes through here, to the host [`select`] chose — FLTK (`gui.rs`) or the
+//! UI kernel (`kernel.rs`, docs/desktop-host-plan.md). The functions keep
 //! `gui.rs`'s names and meaning.
-//!
-//! Until the kernel host lands, a build with only `kernel` answers as a
-//! program without windows would (and says so once).
 
 pub mod select;
 pub mod testhooks;
@@ -14,49 +11,28 @@ mod fltk_platform;
 #[cfg(feature = "gui")]
 use crate::gui;
 
+#[cfg(feature = "kernel")]
+pub mod kernel;
+#[cfg(feature = "kernel")]
+pub mod kernel_store;
+
 use crate::value::Value;
 use select::Backend;
 
-/// The kernel's answer until it has one: `Default`, or what the function
-/// gives after `=`.
-#[cfg(feature = "kernel")]
-macro_rules! or_default {
-    () => {
-        Default::default()
-    };
-    ($e:expr) => {
-        $e
-    };
-}
-
-/// One facade function per host function: `fn name(args) -> Ret = kernel
-/// default;` forwards to `host::name`.
+/// One facade function per host function: `fn name(args) -> Ret;` forwards
+/// to `host::name` (FLTK) or `kernel::name`.
 macro_rules! forward {
-    ($host:ident: $( $(#[$m:meta])* fn $name:ident($($arg:ident: $ty:ty),*) $(-> $ret:ty)? $(= $def:expr)?; )*) => { $(
+    ($host:ident: $( $(#[$m:meta])* fn $name:ident($($arg:ident: $ty:ty),*) $(-> $ret:ty)?; )*) => { $(
         $(#[$m])*
         pub fn $name($($arg: $ty),*) $(-> $ret)? {
             match select::backend() {
                 #[cfg(feature = "gui")]
                 Backend::Fltk => $host::$name($($arg),*),
                 #[cfg(feature = "kernel")]
-                Backend::Kernel => {
-                    let _ = ($($arg,)*);
-                    pending(stringify!($name));
-                    or_default!($($def)?)
-                }
+                Backend::Kernel => kernel::$name($($arg),*),
             }
         }
     )* };
-}
-
-/// A facade function the kernel host doesn't serve yet (warned once).
-#[cfg(feature = "kernel")]
-fn pending(name: &str) {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    static WARNED: AtomicBool = AtomicBool::new(false);
-    if !WARNED.swap(true, Ordering::Relaxed) {
-        eprintln!("[rapidr] the UI kernel host isn't built yet ({name}): no windows");
-    }
 }
 
 forward! { gui:
@@ -118,26 +94,26 @@ forward! { gui:
     fn gui_set_cooperative_waits(on: bool);
     fn run_gui_event_loop();
     fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize>;
-    fn gui_dialog_execute(name: &str, comp_type: &str) -> Value = crate::value::v_int(0);
+    fn gui_dialog_execute(name: &str, comp_type: &str) -> Value;
 
     // What only the host knows.
     fn window_shown(name: &str) -> Option<bool>;
     fn form_window_exists(name: &str) -> bool;
-    fn form_scale(name: &str) -> f64 = 1.0;
+    fn form_scale(name: &str) -> f64;
     fn menu_offset(form: &str) -> i32;
     fn is_modal(name: &str) -> bool;
     fn mouse_in_form() -> (i64, i64);
 
     // Methods drawn by the host.
-    fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value = crate::value::v_null();
-    fn image_method(name: &str, method: &str, args: &[Value]) -> Value = crate::value::v_null();
-    fn tree_method(name: &str, method: &str, args: &[Value]) -> Value = crate::value::v_null();
+    fn canvas_method(name: &str, method: &str, args: &[Value]) -> Value;
+    fn image_method(name: &str, method: &str, args: &[Value]) -> Value;
+    fn tree_method(name: &str, method: &str, args: &[Value]) -> Value;
 
     // The IDE's components.
     fn design_surface_get(name: &str, prop: &str) -> Option<Value>;
     fn design_surface_set(name: &str, prop: &str, val: &Value) -> bool;
-    fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value = crate::value::v_null();
-    fn code_editor_method(name: &str, method: &str, args: &[Value]) -> Value = crate::value::v_null();
+    fn design_surface_method(name: &str, method: &str, args: &[Value]) -> Value;
+    fn code_editor_method(name: &str, method: &str, args: &[Value]) -> Value;
 
     /// `$THEME name` (generated programs call it through the prelude).
     fn set_theme(theme: &str);
@@ -153,7 +129,7 @@ forward! { fltk_platform:
     fn work_area() -> (i64, i64);
     /// The mouse on the screen.
     fn mouse() -> (i64, i64);
-    fn monitors() -> i64 = 1;
+    fn monitors() -> i64;
     /// `Application.Minimize`: every window.
     fn minimize();
     /// MSGBOX: the text and OK.
@@ -167,7 +143,7 @@ pub fn gui_doevents() {
         #[cfg(feature = "gui")]
         Backend::Fltk => gui::gui_doevents(),
         #[cfg(feature = "kernel")]
-        Backend::Kernel => pending("gui_doevents"),
+        Backend::Kernel => kernel::gui_doevents(),
     }
     crate::object::rp_run_deferred();
 }
@@ -180,11 +156,19 @@ pub fn gui_pump_wait() -> Option<Value> {
         #[cfg(feature = "gui")]
         Backend::Fltk => gui::gui_pump_wait(),
         #[cfg(feature = "kernel")]
-        Backend::Kernel => {
-            pending("gui_pump_wait");
-            Some(crate::value::v_null())
-        }
+        Backend::Kernel => kernel::gui_pump_wait(),
     };
     crate::object::rp_run_deferred();
     step
+}
+
+/// The program ends (END, Application.Terminate): the host's last turn
+/// (the kernel's windows' pending commands; FLTK needs none).
+pub fn before_exit() {
+    match select::backend() {
+        #[cfg(feature = "gui")]
+        Backend::Fltk => {}
+        #[cfg(feature = "kernel")]
+        Backend::Kernel => kernel::before_exit(),
+    }
 }

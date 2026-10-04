@@ -77,8 +77,9 @@ pub enum KernelEvent {
     /// OnChange: a track bar's position, a tab control's tab, an edit's
     /// text changed by the user.
     Change(String),
-    /// OnKeyDown along `chain` (the focused component up to its form).
-    KeyDown { chain: Vec<String>, vk: i64, shift: i64 },
+    /// OnKeyDown along `chain` (the focused component up to its form);
+    /// `text` is what the key types (INKEY$ reads it).
+    KeyDown { chain: Vec<String>, vk: i64, shift: i64, text: String },
     /// OnKeyPress: the character typed (`input::press_code`).
     KeyPress { chain: Vec<String>, key: i64 },
     KeyUp { chain: Vec<String>, vk: i64, shift: i64 },
@@ -240,7 +241,7 @@ impl FormUi {
         self.dirty = true;
         self.caret_on = true;
         let chain = self.key_chain();
-        self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state() });
+        self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state(), text: text.to_string() });
         let shortcut = mods.command || mods.ctrl;
         let mut handled = false;
         if vk == 9 && !shortcut && !mods.alt {

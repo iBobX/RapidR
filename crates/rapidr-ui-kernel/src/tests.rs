@@ -192,14 +192,14 @@ fn key_events_come_in_rapidq_order() {
     let chain = vec!["edname".to_string(), "form".to_string()];
     assert_eq!(
         key(&mut f, &s, &mut ts, 65, "a", NONE),
-        vec![KernelEvent::KeyDown { chain: chain.clone(), vk: 65, shift: 0 }, change("edname"), KernelEvent::KeyPress { chain: chain.clone(), key: 97 }]
+        vec![KernelEvent::KeyDown { chain: chain.clone(), vk: 65, shift: 0, text: "a".into() }, change("edname"), KernelEvent::KeyPress { chain: chain.clone(), key: 97 }]
     );
     f.key_up(65, NONE);
     assert_eq!(f.take_events(), vec![KernelEvent::KeyUp { chain, vk: 65, shift: 0 }]);
     // a key that types nothing: no OnKeyPress; Shift in RapidQ's terms
     f.focus_id(&s, "tbLevel");
     let chain = vec!["tblevel".to_string(), "form".to_string()];
-    assert_eq!(key(&mut f, &s, &mut ts, 39, "", SHIFT), vec![KernelEvent::KeyDown { chain, vk: 39, shift: 256 }, change("tblevel")]);
+    assert_eq!(key(&mut f, &s, &mut ts, 39, "", SHIFT), vec![KernelEvent::KeyDown { chain, vk: 39, shift: 256, text: String::new() }, change("tblevel")]);
     // a component inside a tab control: its chain goes through it
     let mut s2 = demo_store();
     s2.add("edPage", "REDIT", Some("tcPages")).set("edPage", "top", v_int(40));
@@ -211,7 +211,7 @@ fn key_events_come_in_rapidq_order() {
     empty.add("lonely", "RFORM", None);
     let mut h = FormUi::build(&empty, "lonely", false);
     assert_eq!(key(&mut h, &empty, &mut ts, 13, "\r", NONE), vec![
-        KernelEvent::KeyDown { chain: vec!["lonely".into()], vk: 13, shift: 0 },
+        KernelEvent::KeyDown { chain: vec!["lonely".into()], vk: 13, shift: 0, text: "\r".into() },
         KernelEvent::KeyPress { chain: vec!["lonely".into()], key: 13 }
     ]);
 }

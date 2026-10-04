@@ -20,6 +20,9 @@ image = { version = "0.24", optional = true, default-features = false, features 
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
+# The UI kernel and its winit / headless host (`kernel`).
+rapidr-ui-kernel = { workspace = true, optional = true }
+rapidr-ui-host-winit = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
 # INKEY$: the terminal read a key at a time (terminal.rs).
@@ -29,11 +32,12 @@ libc = "0.2"
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rusqlite", "dep:mysql"]
 network = ["dep:ureq"]
-# A desktop host: FLTK (`gui`) or the UI kernel (`kernel`, being built:
+# A desktop host: FLTK (`gui`) or the UI kernel (`kernel`:
 # docs/desktop-host-plan.md); the runtime reaches either through `src/ui`.
+# With both, RAPIDR_HOST=kernel|fltk picks one (default fltk).
 desktop-ui = []
 gui = ["desktop-ui", "dep:fltk", "dep:fltk-theme", "dep:arboard"]
-kernel = ["desktop-ui"]
+kernel = ["desktop-ui", "dep:rapidr-ui-kernel", "dep:rapidr-ui-host-winit", "dep:arboard"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
 ffi = ["dep:libloading"]

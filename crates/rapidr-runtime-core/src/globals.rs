@@ -11,7 +11,7 @@ struct Desktop;
 thread_local! {
     /// The system clipboard, kept open (on X11 the text lives as long as
     /// its owner); without one, the program's own clipboard.
-    #[cfg(feature = "gui")]
+    #[cfg(any(feature = "gui", feature = "kernel"))]
     /// (`RAPIDR_TEST_CLIPBOARD`: tests leave the user's clipboard alone)
     static SYSTEM: RefCell<Option<arboard::Clipboard>> =
         RefCell::new(std::env::var_os("RAPIDR_TEST_CLIPBOARD").is_none().then(|| arboard::Clipboard::new().ok()).flatten());
@@ -55,7 +55,7 @@ impl Platform for Desktop {
     }
 
     fn clipboard_text(&self) -> String {
-        #[cfg(feature = "gui")]
+        #[cfg(any(feature = "gui", feature = "kernel"))]
         if let Some(text) = SYSTEM.with(|s| s.borrow_mut().as_mut().map(|c| c.get_text().unwrap_or_default())) {
             return text;
         }
@@ -63,7 +63,7 @@ impl Platform for Desktop {
     }
 
     fn set_clipboard_text(&self, text: &str) {
-        #[cfg(feature = "gui")]
+        #[cfg(any(feature = "gui", feature = "kernel"))]
         if SYSTEM.with(|s| {
             s.borrow_mut().as_mut().map(|c| if text.is_empty() { c.clear().is_ok() } else { c.set_text(text).is_ok() })
         }) == Some(true)
@@ -89,6 +89,15 @@ impl Platform for Desktop {
     fn set_cursor(&self, cursor: i64) {
         CURSOR.with(|c| c.set(cursor));
     }
+}
+
+/// The clipboard's text (the system's, or the program's own under a test).
+pub fn clipboard_text() -> String {
+    Desktop.clipboard_text()
+}
+
+pub fn set_clipboard_text(text: &str) {
+    Desktop.set_clipboard_text(text);
 }
 
 /// Screen.Cursor: the pointer over every form, or 0 (crDefault).
