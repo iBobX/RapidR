@@ -1,10 +1,12 @@
 //! (feature `gpu`) vello on the browser's WebGPU: the same display list,
-//! drawn by the desktop host's GPU path (`gpu.rs`: the scene, area
-//! anti-aliasing) through wgpu's WebGPU backend into a `<canvas>`'s
-//! context. Where the browser has no WebGPU, [`SpikeGpu::create`] fails and
-//! the page keeps the CPU renderer — which also stays what captures and
-//! the pixel comparison read (as on the desktop).
+//! drawn by the GPU path the desktop host uses too
+//! (`rapidr_ui_render::gpu`: the scene, area anti-aliasing) through
+//! wgpu's WebGPU backend into a `<canvas>`'s context. Where the browser
+//! has no WebGPU, [`SpikeGpu::create`] fails and the page keeps the CPU
+//! renderer — which also stays what captures and the pixel comparison
+//! read (as on the desktop).
 
+use rapidr_ui_render::{canvas, gpu};
 use vello::util::{RenderContext, RenderSurface};
 use vello::wgpu;
 use wasm_bindgen::prelude::*;
@@ -26,7 +28,7 @@ impl SpikeGpu {
     pub async fn create(canvas: HtmlCanvasElement, width: u32, height: u32) -> Result<SpikeGpu, JsValue> {
         let mut cx = RenderContext::new();
         let surface = cx.create_surface(wgpu::SurfaceTarget::Canvas(canvas), width.max(1), height.max(1), wgpu::PresentMode::AutoVsync).await.map_err(|e| JsValue::from_str(&format!("no WebGPU surface: {e}")))?;
-        let renderer = crate::gpu::renderer(&cx.devices[surface.dev_id].device).map_err(|e| JsValue::from_str(&format!("vello can't run here: {e}")))?;
+        let renderer = gpu::renderer(&cx.devices[surface.dev_id].device).map_err(|e| JsValue::from_str(&format!("vello can't run here: {e}")))?;
         Ok(SpikeGpu { cx, surface, renderer })
     }
 
@@ -42,13 +44,13 @@ impl SpikeGpu {
         let t0 = now_ms();
         let list = form.display_list();
         let t1 = now_ms();
-        let (w, h) = crate::canvas::device_size(&list);
+        let (w, h) = canvas::device_size(&list);
         if (w, h) != (self.surface.config.width, self.surface.config.height) {
             self.cx.resize_surface(&mut self.surface, w, h);
         }
-        let scene = with_text(|ts| crate::gpu::scene(&list, ts, form.ui()));
+        let scene = with_text(|ts| gpu::scene(&list, ts, form.ui()));
         let handle = &self.cx.devices[self.surface.dev_id];
-        self.renderer.render_to_texture(&handle.device, &handle.queue, &scene, &self.surface.target_view, &crate::gpu::params(w, h)).map_err(|e| JsValue::from_str(&format!("vello: {e}")))?;
+        self.renderer.render_to_texture(&handle.device, &handle.queue, &scene, &self.surface.target_view, &gpu::params(w, h)).map_err(|e| JsValue::from_str(&format!("vello: {e}")))?;
         let frame = match self.surface.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(f) | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,
             other => return Err(JsValue::from_str(&format!("no frame: {other:?}"))),

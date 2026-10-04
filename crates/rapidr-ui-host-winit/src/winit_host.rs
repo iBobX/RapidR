@@ -16,6 +16,8 @@ use std::task::{Wake, Waker};
 use std::time::Duration;
 
 use rapidr_ui_kernel::{Mods, Store};
+use rapidr_ui_render::cpu::CpuRenderer;
+use rapidr_ui_render::gpu;
 use rapidr_value::input::Button;
 use vello::util::{RenderContext, RenderSurface};
 use vello::wgpu;
@@ -27,9 +29,8 @@ use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
 use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
 use winit::window::{Window, WindowId};
 
-use crate::cpu::CpuRenderer;
 use crate::menu::NativeMenus;
-use crate::{a11y, gpu, Desktop, Host, HostCmd, HostEvent, RendererKind, Source};
+use crate::{a11y, Desktop, Host, HostCmd, HostEvent, RendererKind, Source};
 
 pub enum UserEvent {
     AccessKit(accesskit_winit::Event),

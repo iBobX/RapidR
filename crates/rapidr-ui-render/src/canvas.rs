@@ -6,7 +6,9 @@
 //!
 //! The renderers implement [`Canvas`] (vello's GPU `Scene` in `gpu.rs`,
 //! vello_cpu's context in `cpu.rs`), so a form paints the same calls into
-//! either.
+//! either, on the desktop and in the browser. (The geometry and paint types
+//! are kurbo's and peniko's as vello_cpu re-exports them: the very crates
+//! vello uses.)
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,8 +19,8 @@ use rapidr_ui_kernel::{FormUi, Ink, TextSystem};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{edge_fills, focus_dots, Op, Place, Rect};
 use rapidr_value::objects::trackbar::Shape;
-use vello::kurbo::{Affine, BezPath, Rect as KRect};
-use vello::peniko::{Color, FontData};
+use vello_cpu::kurbo::{Affine, BezPath, Rect as KRect};
+use vello_cpu::peniko::{Color, FontData};
 
 /// What a renderer draws into: the few primitives a display list needs
 /// (device pixels; non-zero fill).
@@ -31,7 +33,7 @@ pub trait Canvas {
     fn pop_clip(&mut self);
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]);
     /// A picture scaled into `rect` (device pixels), smoothly; `source` and
-    /// `revision` name it in the host's cache (`images.rs`).
+    /// `revision` name it in the picture cache (`images.rs`).
     fn image(&mut self, rect: &KRect, source: &str, revision: u64, picture: &Arc<Picture>);
 }
 

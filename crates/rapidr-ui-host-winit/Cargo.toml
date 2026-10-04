@@ -12,20 +12,16 @@ description = "RapidR's desktop host for the UI kernel: winit windows pumped fro
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-ui-kernel = { workspace = true }
-# Text layouts the kernel makes (MIT OR Apache-2.0): the kernel's parley,
-# its fonts shared with vello through linebender_resource_handle.
-parley = { version = "0.11", default-features = false, features = ["std"] }
+# The drawing, shared with the web host: vello on the GPU, vello_cpu for
+# captures and where wgpu finds no GPU, with the PNG decoder for colour
+# bitmap glyphs among the system's fonts.
+rapidr-ui-render = { workspace = true, features = ["gpu", "png"] }
 # Windows and input (Apache-2.0). 0.30: what accesskit_winit 0.34 supports.
 winit = "0.30"
-# GPU vector drawing on wgpu 30 (MIT OR Apache-2.0); re-exports wgpu and
-# peniko / kurbo, so their versions follow vello's.
+# The windows' GPU surfaces and devices (vello's util, its wgpu 30; MIT OR
+# Apache-2.0): rapidr-ui-render's vello, so the versions are the same.
 vello = "0.11"
-# The CPU renderer (captures, and where wgpu finds no GPU): vello's
-# sparse-strips rasterizer on the same peniko / kurbo / skrifa (Apache-2.0
-# OR MIT); its frames shown in a window by softbuffer (MIT OR Apache-2.0).
-vello_cpu = "0.3"
-# (its glyph crate, for FontEmbolden, which vello_cpu doesn't re-export)
-glifo = "0.4"
+# The CPU renderer's frames shown in a window (MIT OR Apache-2.0).
 softbuffer = "0.4"
 # Screen readers (MIT OR Apache-2.0; the winit adapter Apache-2.0).
 accesskit = "0.25"

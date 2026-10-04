@@ -17,16 +17,14 @@
 //! ([`Desktop`]), render, and run the program's [`HostCmd`]s; what the
 //! program must hear about is queued as [`HostEvent`]s, which runtime-core
 //! dispatches after the pump returns. Captures always use the CPU renderer
-//! ([`capture`]).
+//! ([`capture`]). The drawing itself — display lists to vello scenes and
+//! vello_cpu pixmaps — is `rapidr-ui-render`'s, which the web host uses
+//! too.
 
 pub mod a11y;
-pub mod canvas;
-pub mod cpu;
 pub mod desktop;
 pub mod dialogs;
-pub mod gpu;
 pub mod headless;
-pub mod images;
 pub mod menu;
 pub mod platform;
 pub mod winit_host;
@@ -120,7 +118,7 @@ pub fn capture(desk: &mut Desktop, store: &dyn Store, id: &str) -> Option<Pixels
     let Desktop { forms, text, .. } = desk;
     let f = forms.get_mut(&id.to_lowercase())?;
     let list = f.ui.paint(store, text, f.scale);
-    Some(cpu::capture(&list, text, &f.ui))
+    Some(rapidr_ui_render::cpu::capture(&list, text, &f.ui))
 }
 
 #[cfg(test)]

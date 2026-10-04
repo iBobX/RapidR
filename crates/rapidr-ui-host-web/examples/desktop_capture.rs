@@ -1,8 +1,9 @@
 //! The desktop's pixels of the spike's forms, for the pixel comparison
 //! (`tests/web_host_spike.mjs`): each form of `forms::FORMS` built as the
 //! browser builds it, painted by the kernel and rasterized by the desktop
-//! host's own CPU path (`rapidr_ui_host_winit::cpu::capture`, what the
-//! headless host's `RAPIDR_CAPTURE` saves) at 1× and 2×.
+//! host's CPU path (`rapidr_ui_render::cpu::capture`, what the headless
+//! host's `RAPIDR_CAPTURE` saves, built with the desktop host's features)
+//! at 1× and 2×.
 //!
 //! Twice: with the system's fonts as fallbacks (`<dir>/desktop`, what the
 //! desktop shows: CJK and symbols the built-in Liberation fonts lack come
@@ -50,7 +51,7 @@ fn main() {
                 ui.blinks = false;
                 let t0 = std::time::Instant::now();
                 let list = ui.paint(&store, &mut ts, scale);
-                let px = rapidr_ui_host_winit::cpu::capture(&list, &mut ts, &ui);
+                let px = rapidr_ui_render::cpu::capture(&list, &mut ts, &ui);
                 let ms = t0.elapsed().as_secs_f64() * 1000.0;
                 let mut out = Vec::with_capacity(8 + px.pixels.len() * 4);
                 out.extend_from_slice(&(px.width as u32).to_le_bytes());
@@ -63,8 +64,8 @@ fn main() {
                 std::fs::write(&file, out).expect("write the capture");
                 // The desktop's per-frame cost, as the browser's is measured
                 // (60 frames: the kernel's paint, then vello_cpu).
-                let (w, h) = rapidr_ui_host_winit::canvas::device_size(&list);
-                let mut r = rapidr_ui_host_winit::cpu::CpuRenderer::new(w, h);
+                let (w, h) = rapidr_ui_render::canvas::device_size(&list);
+                let mut r = rapidr_ui_render::cpu::CpuRenderer::new(w, h);
                 let (mut paint, mut raster) = (0.0, 0.0);
                 for _ in 0..60 {
                     let t = std::time::Instant::now();

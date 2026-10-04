@@ -4529,14 +4529,12 @@ dependencies = [
 name = "rapidr-ui-host-web"
 version = "2.113.0"
 dependencies = [
- "glifo",
  "js-sys",
  "parley",
- "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
  "vello",
- "vello_cpu",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -4548,19 +4546,17 @@ version = "2.113.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
- "glifo",
  "muda",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
- "parley",
  "pollster",
  "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
  "rfd",
  "softbuffer",
  "vello",
- "vello_cpu",
  "windows-sys 0.52.0",
  "winit",
  "x11-dl",
@@ -4573,6 +4569,18 @@ dependencies = [
  "parley",
  "rapidr-value",
  "web-time",
+]
+
+[[package]]
+name = "rapidr-ui-render"
+version = "2.113.0"
+dependencies = [
+ "glifo",
+ "parley",
+ "rapidr-ui-kernel",
+ "rapidr-value",
+ "vello",
+ "vello_cpu",
 ]
 
 [[package]]

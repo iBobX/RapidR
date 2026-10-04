@@ -1,5 +1,6 @@
-//! vello on wgpu: a display list as a vello scene, rendered into a
-//! window's surface.
+//! (feature `gpu`) vello on wgpu: a display list as a vello scene,
+//! rendered into a window's surface (the desktop) or a canvas's WebGPU
+//! context (the browser).
 
 use rapidr_ui_kernel::display::{DisplayList, Picture};
 use rapidr_ui_kernel::{FormUi, TextSystem};

@@ -4,13 +4,13 @@
 //! same pixels on the web as on the desktop, instead of a second
 //! implementation in DOM elements (`rapidr-runtime-web`'s `gui_web.rs`).
 //!
-//! - **Drawing.** The kernel paints a [`DisplayList`]; the desktop host's
-//!   own drawing code (`canvas.rs`, `cpu.rs`, `images.rs`, compiled here
-//!   unchanged by `#[path]` — Stage 1 of the plan moves them into a crate
-//!   both hosts share) rasterizes it with vello_cpu at the page's
+//! - **Drawing.** The kernel paints a [`DisplayList`]; the drawing code
+//!   the desktop host uses too (`rapidr-ui-render`: `canvas`, `cpu`,
+//!   `images`) rasterizes it with vello_cpu at the page's
 //!   `devicePixelRatio`, and the pixels go to a `<canvas>` with
 //!   `putImageData`. With feature `gpu`, vello on WebGPU draws the same
-//!   list where the browser has it (`gpu_web.rs`).
+//!   list where the browser has it (`gpu_web.rs`, through the same
+//!   crate's `gpu`).
 //! - **Input.** The page passes pointer, wheel and key events (logical =
 //!   CSS pixels, Windows' virtual keys through
 //!   `rapidr_value::input::vk_of_key`) to the kernel's input API
@@ -35,22 +35,8 @@
 // wasm boundary)
 #![allow(clippy::too_many_arguments)]
 
-// The desktop host's drawing code names its renderer crate `vello`; without
-// the GPU it's vello_cpu, which re-exports the same peniko and kurbo.
-#[cfg(not(feature = "gpu"))]
-extern crate vello_cpu as vello;
-
-#[path = "../../rapidr-ui-host-winit/src/canvas.rs"]
-pub mod canvas;
-#[path = "../../rapidr-ui-host-winit/src/cpu.rs"]
-pub mod cpu;
-#[cfg(feature = "gpu")]
-#[path = "../../rapidr-ui-host-winit/src/gpu.rs"]
-pub mod gpu;
 #[cfg(feature = "gpu")]
 pub mod gpu_web;
-#[path = "../../rapidr-ui-host-winit/src/images.rs"]
-pub mod images;
 
 pub mod aria;
 pub mod forms;
@@ -58,6 +44,7 @@ pub mod forms;
 use std::cell::RefCell;
 
 use rapidr_ui_kernel::{FormUi, KernelEvent, MemClipboard, MemStore, Mods, TextSystem};
+use rapidr_ui_render::{canvas, cpu};
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::Action;
 use wasm_bindgen::prelude::*;

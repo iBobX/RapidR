@@ -1,0 +1,36 @@
+[package]
+name = "rapidr-ui-render"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's UI kernel drawn: a form's display list rasterized by vello_cpu, or as a vello scene for wgpu — the drawing the desktop and the web host share"
+
+# No window system and no DOM (docs/web-host-plan.md §3.1): what the
+# kernel paints, as pixels or as a GPU scene; the hosts make the surfaces
+# and put the frames on them. The CPU path builds for
+# wasm32-unknown-unknown, with and without wasm SIMD.
+[features]
+default = []
+# vello on wgpu (gpu.rs): the desktop's windows, WebGPU in a browser.
+gpu = ["dep:vello"]
+# vello_cpu's PNG decoder: colour bitmap glyphs (emoji fonts' sbix / CBDT
+# tables) among the system's fallback fonts — the desktop's; a browser has
+# no system fonts to take them from.
+png = ["vello_cpu/png"]
+
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-ui-kernel = { workspace = true }
+# Text layouts the kernel makes (MIT OR Apache-2.0): the kernel's parley,
+# its fonts shared with vello through linebender_resource_handle.
+parley = { version = "0.11", default-features = false, features = ["std"] }
+# The CPU renderer (captures, the web, and where wgpu finds no GPU): vello's
+# sparse-strips rasterizer on the same peniko / kurbo / skrifa as the GPU
+# one (Apache-2.0 OR MIT), whose re-exports of peniko and kurbo every file
+# here uses.
+vello_cpu = { version = "0.3", default-features = false, features = ["std", "text", "u8_pipeline"] }
+# (its glyph crate, for FontEmbolden, which vello_cpu doesn't re-export)
+glifo = { version = "0.4", default-features = false, features = ["std"] }
+# (feature gpu) GPU vector drawing on wgpu 30 (MIT OR Apache-2.0).
+vello = { version = "0.11", optional = true }

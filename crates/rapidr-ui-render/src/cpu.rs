@@ -1,13 +1,14 @@
 //! The CPU renderer: display lists rasterized by vello_cpu (vello's
 //! sparse-strips CPU renderer, on the same peniko / kurbo / skrifa as the
 //! GPU one). Captures always use it (deterministic; no GPU or window server
-//! needed: the headless host); a window shows its frames through softbuffer
-//! where wgpu finds no GPU, or with `RAPIDR_RENDERER=cpu`.
+//! needed: the headless host); a desktop window shows its frames through
+//! softbuffer where wgpu finds no GPU, or with `RAPIDR_RENDERER=cpu`; the
+//! web host puts every frame on its canvas with `putImageData`.
 
 use rapidr_ui_kernel::display::{DisplayList, Picture};
 use rapidr_ui_kernel::{FormUi, TextSystem};
 use rapidr_value::objects::codec::Pixels;
-use vello::kurbo::{Affine, BezPath, Rect as KRect, Stroke};
+use vello_cpu::kurbo::{Affine, BezPath, Rect as KRect, Stroke};
 use vello_cpu::{Pixmap, RenderContext, RenderMode, Resources};
 
 use crate::canvas::{color, draw_list, Canvas, GlyphRun, BACKGROUND};
@@ -53,7 +54,7 @@ impl Canvas for CpuCanvas<'_> {
             b = b.glyph_transform(Affine::FLIP_Y * t * Affine::FLIP_Y);
         }
         if let Some(a) = run.embolden {
-            b = b.font_embolden(glifo::FontEmbolden::new(vello::kurbo::Diagonal2::new(a, a)));
+            b = b.font_embolden(glifo::FontEmbolden::new(vello_cpu::kurbo::Diagonal2::new(a, a)));
         }
         b.fill_glyphs(glyphs.iter().map(|&(id, x, y)| vello_cpu::Glyph { id, x, y })).ok();
     }

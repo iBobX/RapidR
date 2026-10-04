@@ -1,5 +1,5 @@
-//! The host's pictures, kept between frames (docs/desktop-host-plan.md §5):
-//! an `Op::Image` names its picture (`source`: a bitmap's object id, or a
+//! The renderers' pictures, kept between frames
+//! (docs/desktop-host-plan.md §5): an `Op::Image` names its picture (`source`: a bitmap's object id, or a
 //! component's own picture) and the bitmap's drawing revision; what the
 //! renderers made of it (vello's `ImageData`, whose blob vello keeps on the
 //! GPU while it stays the same; vello_cpu's pixmap) is reused while the
@@ -13,8 +13,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rapidr_ui_kernel::display::Picture;
-use vello::kurbo::Rect as KRect;
-use vello::peniko::{Blob, ImageAlphaType, ImageData, ImageFormat, ImageQuality};
+use vello_cpu::kurbo::Rect as KRect;
+use vello_cpu::peniko::{Blob, ImageAlphaType, ImageData, ImageFormat, ImageQuality};
 use vello_cpu::Pixmap;
 
 /// Frames (display lists drawn) a picture is kept without being drawn.
