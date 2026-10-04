@@ -325,22 +325,65 @@ pub fn hscroll(id: &str, w: i64, h: i64, content: i64, step: i64) -> (i64, i64, 
 /// whether the bar took it.
 pub fn vscroll_mouse(id: &str, m: &MouseIn, w: i64, h: i64) -> bool {
     let (x, y) = (m.x.floor() as i64, m.y.floor() as i64);
+    let key = id.to_lowercase();
     SCROLLS.with(|s| {
         let mut s = s.borrow_mut();
-        let Some(sc) = s.get_mut(&id.to_lowercase()) else { return false };
+        let Some(sc) = s.get_mut(&key) else { return false };
         match m.kind {
-            MouseKind::Down => sc.mouse_down(x, y, w, h).is_some(),
+            MouseKind::Down => {
+                let took = sc.mouse_down(x, y, w, h).is_some();
+                // (the input lane's: where it's held, for the repeat)
+                if took {
+                    HELD.with(|held| held.borrow_mut().insert(key.clone(), (x, y, w, h)));
+                }
+                took
+            }
             MouseKind::Move if sc.pressed.is_some() => {
                 sc.mouse_drag(x, y, w, h);
+                HELD.with(|held| held.borrow_mut().insert(key.clone(), (x, y, w, h)));
                 true
             }
             MouseKind::Up if sc.pressed.is_some() => {
                 sc.mouse_up(w, h);
+                HELD.with(|held| held.borrow_mut().remove(&key));
                 true
             }
             _ => false,
         }
     })
+}
+
+thread_local! {
+    /// (the input lane's) Where each component's bar is held (in the bar's
+    /// area `w` × `h`): a held arrow or track repeats.
+    static HELD: RefCell<HashMap<String, (i64, i64, i64, i64)>> = RefCell::new(HashMap::new());
+}
+
+/// (the input lane's) [`vscroll_mouse`] for component `cx`: a press on an
+/// arrow or the track repeats after Windows' delay while held, as the
+/// form's bars (its `tick` calls [`bar_tick`]).
+pub fn bar_mouse(cx: &mut Cx, m: &MouseIn, w: i64, h: i64) -> bool {
+    let took = vscroll_mouse(cx.id, m, w, h);
+    match m.kind {
+        MouseKind::Down if took => cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT_DELAY),
+        MouseKind::Up if took => cx.ui.wake = None,
+        _ => {}
+    }
+    took
+}
+
+/// (the input lane's) A held bar's repeat due: it steps again (if the
+/// mouse is still on the part pressed) and goes on. Whether one is held.
+pub fn bar_tick(cx: &mut Cx) -> bool {
+    let key = cx.id.to_lowercase();
+    let Some((x, y, w, h)) = HELD.with(|held| held.borrow().get(&key).copied()) else { return false };
+    SCROLLS.with(|s| {
+        if let Some(sc) = s.borrow_mut().get_mut(&key) {
+            sc.repeat(x, y, w, h);
+        }
+    });
+    cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
+    true
 }
 
 thread_local! {
@@ -354,13 +397,7 @@ thread_local! {
 /// scroll. (The text lane's wheel routing.)
 pub fn vscroll_wheel(id: &str, dy: f64, w: i64, h: i64) -> bool {
     let key = id.to_lowercase();
-    let notches = WHEEL_REST.with(|r| {
-        let mut r = r.borrow_mut();
-        let total = r.get(&key).copied().unwrap_or(0.0) + dy;
-        let whole = total.trunc();
-        r.insert(key.clone(), total - whole);
-        whole as i64
-    });
+    let notches = whole_notches(&key, dy);
     SCROLLS.with(|s| {
         let mut s = s.borrow_mut();
         let Some(sc) = s.get_mut(&key) else { return false };
@@ -371,6 +408,19 @@ pub fn vscroll_wheel(id: &str, dy: f64, w: i64, h: i64) -> bool {
             sc.wheel(notches, false, w, h);
         }
         true
+    })
+}
+
+/// The wheel's whole notches for component `id` so far (a touchpad's
+/// fractions add up; the rest waits).
+pub fn whole_notches(id: &str, d: f64) -> i64 {
+    WHEEL_REST.with(|r| {
+        let mut r = r.borrow_mut();
+        let key = id.to_lowercase();
+        let total = r.get(&key).copied().unwrap_or(0.0) + d;
+        let whole = total.trunc();
+        r.insert(key, total - whole);
+        whole as i64
     })
 }
 
@@ -613,10 +663,15 @@ impl ComponentKind for ListBox {
         vscroll_wheel(cx.id, dy, cx.width() - 4, cx.height() - 4)
     }
 
+    /// (the input lane's) A held bar's repeat.
+    fn tick(&self, cx: &mut Cx) {
+        bar_tick(cx);
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };
-        if vscroll_mouse(cx.id, &inner, w - 4, h - 4) {
+        if bar_mouse(cx, &inner, w - 4, h - 4) {
             return MouseOut::default();
         }
         if m.kind == MouseKind::Down {
@@ -994,5 +1049,58 @@ mod tests {
         f.tick(&s, &mut ts, due);
         assert_eq!(super::editing("lv").map(|e| (e.target, e.text)), Some(((0, 0), "one".to_string())));
         crate::tick::set_test_now(None);
+    }
+
+    // ------------------------------- held bars and the wheel --
+    // (the input lane's)
+
+    #[test]
+    fn a_lists_held_bar_arrow_repeats() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("hl", "RLISTBOX", Some("f")).set("hl", "left", v_int(10)).set("hl", "top", v_int(10)).set("hl", "height", v_int(100));
+            let items: Vec<_> = (0..40).map(|i| v_str(&format!("item {i}"))).collect();
+            s.call("hl", "additems", &items);
+        });
+        drop(f.paint(&s, &mut ts, 1.0));
+        let t0 = std::time::Instant::now();
+        crate::tick::set_test_now(Some(t0));
+        // (the down arrow: the bar's bottom 16 pixels, inside the frame)
+        let (x, y, w, h) = f.node("hl").unwrap().abs;
+        let at = ((x + w - 2 - 8) as f64, (y + h - 2 - 8) as f64);
+        f.mouse_down(&s, &mut ts, at.0, at.1, Button::Left, Mods::NONE);
+        let once = super::vscroll_state("hl").0;
+        assert!(once > 0, "a press steps once");
+        // (Windows' delay, then every 50 ms while held)
+        assert_eq!(f.next_wake(), Some(t0 + crate::tick::REPEAT_DELAY));
+        f.tick(&s, &mut ts, t0 + crate::tick::REPEAT_DELAY);
+        let twice = super::vscroll_state("hl").0;
+        assert!(twice > once);
+        assert_eq!(f.next_wake(), Some(t0 + crate::tick::REPEAT));
+        f.mouse_up(&s, &mut ts, at.0, at.1, Button::Left, Mods::NONE);
+        assert!(f.next_wake().is_none(), "let go: no more");
+        crate::tick::set_test_now(None);
+    }
+
+    #[test]
+    fn the_wheel_scrolls_grids_and_list_views() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("wg", "RSTRINGGRID", Some("f")).set("wg", "width", v_int(200)).set("wg", "height", v_int(120)).set("wg", "rowcount", v_int(30));
+            s.add("wl", "RLISTVIEW", Some("f")).set("wl", "left", v_int(220)).set("wl", "width", v_int(150)).set("wl", "height", v_int(100)).set("wl", "viewstyle", v_int(1));
+            let items: Vec<_> = (0..40).map(|i| v_str(&format!("row {i}"))).collect();
+            s.call("wl", "additems", &items);
+        });
+        drop(f.paint(&s, &mut ts, 1.0));
+        // (a notch: three rows down; the selection stays)
+        let row = rapidr_value::objects::with_grid("wg", |g| g.row);
+        f.mouse_wheel(&s, &mut ts, (50.0, 50.0), (0.0, 1.0), Mods::NONE);
+        assert_eq!(rapidr_value::objects::with_grid("wg", |g| (g.top_row, g.row)), Some((4, row.unwrap())));
+        // (half a notch waits for the other half)
+        f.mouse_wheel(&s, &mut ts, (50.0, 50.0), (0.0, 0.5), Mods::NONE);
+        assert_eq!(rapidr_value::objects::with_grid("wg", |g| g.top_row), Some(4));
+        f.mouse_wheel(&s, &mut ts, (50.0, 50.0), (0.0, 0.5), Mods::NONE);
+        assert_eq!(rapidr_value::objects::with_grid("wg", |g| g.top_row), Some(7));
+        // (a list view's model scrolls)
+        f.mouse_wheel(&s, &mut ts, (260.0, 50.0), (0.0, 1.0), Mods::NONE);
+        assert!(rapidr_value::objects::with_listview("wl", |lv| lv.scroll.1).unwrap() > 0);
     }
 }

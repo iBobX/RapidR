@@ -57,6 +57,28 @@ thread_local! {
     /// The selected cell each grid last showed (a new one is scrolled
     /// into view).
     static SHOWN: RefCell<HashMap<String, (i64, i64)>> = RefCell::new(HashMap::new());
+    /// (the input lane's) Where a grid's bar is held (in the bars' area): a
+    /// held arrow or track repeats.
+    static HELD: RefCell<HashMap<String, (i64, i64)>> = RefCell::new(HashMap::new());
+}
+
+/// TopRow / LeftCol follow grid `id`'s bars, a row / column at a time.
+fn follow_bars(id: &str, sc: &Scroller) {
+    let (vp, hp) = (sc.vert.position, sc.horz.position);
+    with_grid_mut(id, |g| {
+        let pick = |sizes: &[i64], fixed: usize, pos: i64| {
+            let mut at = 0;
+            for (i, s) in sizes.iter().enumerate().skip(fixed) {
+                if at + (*s).clamp(0, 10_000) / 2 >= pos {
+                    return i as i64;
+                }
+                at += (*s).clamp(0, 10_000) + 1;
+            }
+            sizes.len().saturating_sub(1) as i64
+        };
+        g.top_row = pick(&g.row_heights, g.fixed_rows(), vp);
+        g.left_col = pick(&g.col_widths, g.fixed_cols(), hp);
+    });
 }
 
 pub struct Grid;
@@ -319,25 +341,25 @@ impl ComponentKind for Grid {
                 _ => false,
             };
             if took {
-                let (vp, hp) = (sc.vert.position, sc.horz.position);
-                with_grid_mut(cx.id, |g| {
-                    let pick = |sizes: &[i64], fixed: usize, pos: i64| {
-                        let mut at = 0;
-                        for (i, s) in sizes.iter().enumerate().skip(fixed) {
-                            if at + (*s).clamp(0, 10_000) / 2 >= pos {
-                                return i as i64;
-                            }
-                            at += (*s).clamp(0, 10_000) + 1;
-                        }
-                        sizes.len().saturating_sub(1) as i64
-                    };
-                    g.top_row = pick(&g.row_heights, g.fixed_rows(), vp);
-                    g.left_col = pick(&g.col_widths, g.fixed_cols(), hp);
+                follow_bars(cx.id, sc);
+                // (the input lane's: where it's held, for the repeat)
+                HELD.with(|held| {
+                    let mut held = held.borrow_mut();
+                    if m.kind == MouseKind::Up {
+                        held.remove(cx.id);
+                    } else {
+                        held.insert(cx.id.to_string(), (bx, by));
+                    }
                 });
             }
             took
         });
         if on_bars {
+            match m.kind {
+                MouseKind::Down => cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT_DELAY),
+                MouseKind::Up => cx.ui.wake = None,
+                _ => {}
+            }
             return MouseOut::default();
         }
         // (the edit's box: its editor's)
@@ -497,6 +519,40 @@ impl ComponentKind for Grid {
 
     fn access(&self, _cx: &mut Cx, _action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {
         false
+    }
+
+    /// (the input lane's) A held bar's repeat.
+    fn tick(&self, cx: &mut Cx) {
+        let Some((x, y)) = HELD.with(|held| held.borrow().get(cx.id).copied()) else { return };
+        let (w, h) = (cx.width(), cx.height());
+        SCROLLERS.with(|s| {
+            if let Some(sc) = s.borrow_mut().get_mut(cx.id) {
+                sc.repeat(x, y, w - 4, h - 4);
+                follow_bars(cx.id, sc);
+            }
+        });
+        cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
+    }
+
+    /// (the input lane's) The wheel scrolls the cells under the fixed ones,
+    /// three rows a notch (across with Shift, or a horizontal wheel), as
+    /// FLTK's table and the web's grid; the selection stays.
+    fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
+        let (w, h) = (cx.width(), cx.height());
+        let horizontal = dy == 0.0 || mods.shift;
+        let notches = super::list::whole_notches(cx.id, if dy == 0.0 { dx } else { dy });
+        SCROLLERS.with(|s| {
+            let mut s = s.borrow_mut();
+            let Some(sc) = s.get_mut(cx.id) else { return false };
+            if !(sc.vert.shown || sc.horz.shown) {
+                return false;
+            }
+            if notches != 0 {
+                sc.wheel(notches, horizontal, w - 4, h - 4);
+                follow_bars(cx.id, sc);
+            }
+            true
+        })
     }
 
     // (the input lane's: the edit's input methods and context menu)

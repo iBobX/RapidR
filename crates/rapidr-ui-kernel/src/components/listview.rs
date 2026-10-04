@@ -205,6 +205,17 @@ impl ComponentKind for ListViewBox {
         false
     }
 
+    /// (the input lane's) The wheel scrolls the items (the model's: three
+    /// rows a notch, a column across in vsList), as FLTK's and the web's.
+    fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
+        setup(cx);
+        let notches = super::list::whole_notches(cx.id, dy);
+        if notches != 0 {
+            with_listview_mut(cx.id, |lv| lv.wheel(notches));
+        }
+        true
+    }
+
     /// (the input lane's) The double-click time is up after a click on the
     /// selected item: its caption edited, unless the model was pressed
     /// since.

@@ -16,7 +16,7 @@ use rapidr_value::objects::dirtree::Row;
 use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::with_dirtree;
 
-use super::list::{background, scroll_into_view, sunken, vscroll, vscroll_mouse, vscroll_state};
+use super::list::{background, bar_mouse, bar_tick, scroll_into_view, sunken, vscroll, vscroll_state};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -147,10 +147,15 @@ impl ComponentKind for DirTreeBox {
         super::list::vscroll_wheel(cx.id, dy, cx.width() - 4, cx.height() - 4)
     }
 
+    /// (the input lane's) A held bar's repeat.
+    fn tick(&self, cx: &mut Cx) {
+        bar_tick(cx);
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };
-        if vscroll_mouse(cx.id, &inner, w - 4, h - 4) || m.kind != MouseKind::Down {
+        if bar_mouse(cx, &inner, w - 4, h - 4) || m.kind != MouseKind::Down {
             return MouseOut::default();
         }
         let (rows, _) = rows(cx.id);

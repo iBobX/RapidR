@@ -23,7 +23,7 @@ use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::tree::{Hit, Row, BUTTON, ROW_HEIGHT};
 use rapidr_value::objects::with_tree;
 
-use super::list::{act, background, begin_edit, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, set_edit_text, sunken, vscroll_at, vscroll_mouse, vscroll_state, InPlace, ListAction};
+use super::list::{act, background, bar_mouse, bar_tick, begin_edit, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, set_edit_text, sunken, vscroll_at, vscroll_state, InPlace, ListAction};
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -111,6 +111,17 @@ impl Tree {
                 act(cx, ListAction::TreeEdited(ed.target.0, ed.text));
             }
         }
+    }
+
+    /// The bar moved: TopIndex follows, a row at a time.
+    fn follow_bar(cx: &Cx) {
+        let (pos, _, _) = vscroll_state(cx.id);
+        with_tree(cx.id, |t| {
+            let rows = t.visible_rows();
+            if let Some(&r) = rows.get((pos / ROW_HEIGHT) as usize) {
+                t.top_index = r as i64;
+            }
+        });
     }
 
     /// (the input lane's) The edit's box in the component — over the node's
@@ -249,15 +260,12 @@ impl ComponentKind for Tree {
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };
-        if vscroll_mouse(cx.id, &inner, w - 4, h - 4) {
-            // (the bar moved: TopIndex follows, a row at a time)
-            let (pos, _, _) = vscroll_state(cx.id);
-            with_tree(cx.id, |t| {
-                let rows = t.visible_rows();
-                if let Some(&r) = rows.get((pos / ROW_HEIGHT) as usize) {
-                    t.top_index = r as i64;
-                }
-            });
+        // (the input lane's: any press forgets a pending edit)
+        if m.kind == MouseKind::Down {
+            cancel_edit_soon(cx);
+        }
+        if bar_mouse(cx, &inner, w - 4, h - 4) {
+            Self::follow_bar(cx);
             return MouseOut::default();
         }
         // (the edit's box: its editor's)
@@ -395,10 +403,14 @@ impl ComponentKind for Tree {
         true
     }
 
-    /// (the input lane's) The double-click time is up after a click on the
-    /// selected node: its edit asked for (OnEditing), if it's still the
-    /// selected one.
+    /// (the input lane's) A held bar's repeat; or the double-click time is
+    /// up after a click on the selected node: its edit asked for
+    /// (OnEditing), if it's still the selected one.
     fn tick(&self, cx: &mut Cx) {
+        if bar_tick(cx) {
+            Self::follow_bar(cx);
+            return;
+        }
         let Some(n) = EDIT_SOON.with(|e| e.borrow_mut().remove(cx.id)) else { return };
         if with_tree(cx.id, |t| t.item_index == n as i64).unwrap_or(false) && editing(cx.id).is_none() {
             act(cx, ListAction::TreeEdit(n));

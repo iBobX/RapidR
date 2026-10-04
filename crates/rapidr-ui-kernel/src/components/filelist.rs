@@ -27,6 +27,9 @@ impl ComponentKind for FileListBox {
     fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
         ListBox.wheel(cx, dx, dy, mods)
     }
+    fn tick(&self, cx: &mut Cx) {
+        ListBox.tick(cx)
+    }
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
         ListBox.key(cx, k, clip)
     }
