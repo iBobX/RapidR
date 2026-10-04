@@ -3184,7 +3184,15 @@ pub fn crate_name(stem: &str) -> String {
 
 /// Generate a Cargo.toml for the output project that depends on the runtime.
 pub fn generate_cargo_toml(project_name: &str, runtime_path: &str) -> String {
+    generate_cargo_toml_for_host(project_name, runtime_path, false)
+}
+
+/// [`generate_cargo_toml`], with the UI kernel host compiled in beside
+/// FLTK when `kernel` (`rapidr build --host kernel`; RAPIDR_HOST=kernel
+/// picks it when the program runs).
+pub fn generate_cargo_toml_for_host(project_name: &str, runtime_path: &str, kernel: bool) -> String {
     let project_name = crate_name(project_name);
+    let features = if kernel { ", features = [\"kernel\"]" } else { "" };
     format!(
         r#"[package]
 name = "{project_name}"
@@ -3202,7 +3210,7 @@ debug = "line-tables-only"
 debug = false
 
 [dependencies]
-rapidr-runtime-core = {{ path = "{runtime_path}" }}
+rapidr-runtime-core = {{ path = "{runtime_path}"{features} }}
 "#
     )
 }

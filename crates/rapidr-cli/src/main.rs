@@ -4,6 +4,10 @@ use std::path::{Path, PathBuf};
 use std::process::{self, ExitCode};
 
 use rapidr_codegen_rust::AppTarget;
+
+/// `rapidr build --host kernel`: native programs carry the UI kernel host
+/// beside FLTK (RAPIDR_HOST=kernel picks it when they run).
+static KERNEL_HOST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 use rapidr_lexer::lex_file as lexer_lex_file;
 use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
@@ -64,12 +68,24 @@ fn main() -> ExitCode {
             let mut release = None;
             let mut web = false;
             let mut interp = false;
-            for arg in &rest {
+            let mut iter = rest.iter();
+            while let Some(arg) = iter.next() {
                 match arg.as_str() {
                     "--release" | "-r" => release = Some(true),
                     "--debug" | "-d" => release = Some(false),
                     "--web" | "-w" => web = true,
                     "--interp" | "-i" => interp = true,
+                    "--host" | "--host=kernel" | "--host=fltk" => {
+                        let host = arg.strip_prefix("--host=").map(str::to_string).or_else(|| iter.next().cloned()).unwrap_or_default();
+                        match host.as_str() {
+                            "kernel" => KERNEL_HOST.store(true, std::sync::atomic::Ordering::Relaxed),
+                            "fltk" => {}
+                            other => {
+                                eprintln!("--host {other}: the desktop hosts are fltk and kernel");
+                                return ExitCode::from(2);
+                            }
+                        }
+                    }
                     _ => output_dir = Some(arg.clone()),
                 }
             }
@@ -112,7 +128,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
-            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i]");
+            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--host kernel]");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
             eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
@@ -250,8 +266,19 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     let cargo_toml = if target == AppTarget::Web {
         rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy())
     } else {
-        rapidr_codegen_rust::generate_cargo_toml(stem, &runtime_path.to_string_lossy())
+        rapidr_codegen_rust::generate_cargo_toml_for_host(stem, &runtime_path.to_string_lossy(), KERNEL_HOST.load(std::sync::atomic::Ordering::Relaxed))
     };
+    // (with the kernel host: the workspace's lockfile, so wgpu, vello and
+    // winit are the versions RapidR is tested with, not whatever is newest)
+    if target != AppTarget::Web && KERNEL_HOST.load(std::sync::atomic::Ordering::Relaxed) {
+        if let Some(lock) = workspace_root.as_ref().map(|r| r.join("Cargo.lock")).filter(|l| l.exists()) {
+            if fs::create_dir_all(&out_dir).is_ok() {
+                if let Err(e) = fs::copy(&lock, out_dir.join("Cargo.lock")) {
+                    eprintln!("Warning: could not copy {}: {e}", lock.display());
+                }
+            }
+        }
+    }
 
     // Write output
     if let Err(e) = fs::create_dir_all(&src_dir) {
