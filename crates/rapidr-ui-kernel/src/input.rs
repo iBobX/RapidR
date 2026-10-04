@@ -341,7 +341,8 @@ impl FormUi {
         self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state(), text: text.to_string() });
         let shortcut = mods.command || mods.ctrl;
         let mut handled = false;
-        if vk == 9 && !shortcut && !mods.alt {
+        // (a memo with WantTabs takes a plain Tab: components/memo.rs)
+        if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) {
             self.move_focus(store, mods.shift);
             handled = true;
         } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) {

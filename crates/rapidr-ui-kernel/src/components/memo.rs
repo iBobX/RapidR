@@ -13,6 +13,8 @@
 //!   shown when the text doesn't fit (HideScrollBars); a held arrow
 //!   repeats (the kernel's tick). Without bars the view still follows the
 //!   caret, and the wheel scrolls it.
+//! - **WantTabs** (False by default): Tab types a tab instead of moving the
+//!   focus on (Ctrl+Tab still does).
 //! - **Alignment**, **ReadOnly**, **MaxLength**, **HideSelection**, the
 //!   keys (Enter breaks the line; Up / Down / PageUp / PageDown by lines,
 //!   Ctrl+Home / End to the text's ends), the clipboard, Ctrl+Z, the
@@ -31,6 +33,15 @@ use crate::store::{self, Store};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 
 pub struct Memo;
+
+/// Whether form `f`'s focused component takes a plain Tab (a QMEMO /
+/// QRICHEDIT with WantTabs, not ReadOnly) instead of the focus moving on.
+pub fn takes_tab(f: &crate::tree::FormUi, store: &dyn Store) -> bool {
+    f.focus.is_some_and(|i| {
+        let n = &f.nodes[i];
+        matches!(n.type_name.as_str(), "RMEMO" | "RRICHEDIT") && store::flag(store, &n.id, "wanttabs", false) && !with_textedit(&n.id, |t| t.read_only).unwrap_or(true)
+    })
+}
 
 /// Where a memo's parts are (its own pixels): the bars' area inside the
 /// edge, and the text's view.

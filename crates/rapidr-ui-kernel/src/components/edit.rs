@@ -272,7 +272,7 @@ impl EditUi {
     /// apply, as Windows' edit control's): whether there was text to type.
     fn insert(&mut self, ts: &mut TextSystem, id: &str, s: &str, typing: bool) -> bool {
         let multi = self.ed.multi();
-        let s: String = s.chars().filter(|c| !c.is_control() || (multi && *c == '\n')).collect();
+        let s: String = s.chars().filter(|c| !c.is_control() || (multi && matches!(c, '\n' | '\t'))).collect();
         if s.is_empty() {
             return false;
         }
@@ -372,6 +372,13 @@ impl EditUi {
             // (a memo's Enter breaks the line; a QEDIT's goes to the form)
             return multi && {
                 self.insert(ts, id, "\n", true);
+                true
+            };
+        }
+        if vk == 9 {
+            // (only a memo with WantTabs gets here: it types the tab)
+            return multi && !m.shift && {
+                self.insert(ts, id, "\t", true);
                 true
             };
         }

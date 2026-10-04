@@ -261,6 +261,16 @@ fn a_memo_types_lines_and_the_model_counts_them() {
         assert!(f.editor_layout_at("tm", 2).is_some());
         let tree = f.access_tree(&s, &mut ts);
         assert!(tree.children.iter().any(|n| n.states.multiline), "multi-line text input");
+        // Tab moves the focus on, unless WantTabs
+        f.focus_id(&s, "tm");
+        key(&mut f, &s, &mut ts, &mut clip, 9, "", NONE);
+        assert_eq!(f.focused(), Some("tb"));
+        let mut s = s;
+        s.set("tm", "wanttabs", v_int(-1));
+        f.focus_id(&s, "tm");
+        key(&mut f, &s, &mut ts, &mut clip, 36, "", CTRL);
+        key(&mut f, &s, &mut ts, &mut clip, 9, "", NONE);
+        assert_eq!((f.focused(), model("tm").0), (Some("tm"), "\t1\r\n2\r\n3".to_string()));
     }
 }
 
