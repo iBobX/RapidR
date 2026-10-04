@@ -1481,10 +1481,12 @@ pub fn rp_host_callback_active() -> bool {
 
 /// Runs the handlers host callbacks deferred, in the order they were fired
 /// (and any they fire, directly); returns how many. Nothing inside a host
-/// callback.
+/// callback, nor in a tracking tick's turn ([`rp_program_turn`]: what was
+/// put off waits for the pump — run there, a message box put off for after
+/// a held menu would only put itself off again).
 pub fn rp_run_deferred() -> usize {
     let mut ran = 0;
-    while !rp_host_callback_active() {
+    while !rp_host_callback_active() && !IN_TURN.with(std::cell::Cell::get) {
         let Some(job) = DEFERRED.with(|d| d.borrow_mut().pop_front()) else { break };
         job();
         ran += 1;
@@ -1526,6 +1528,8 @@ thread_local! {
     /// The bytecode VM's waits that lent themselves, innermost last: each
     /// runs the handlers the VM has queued (taken out while it runs).
     static SERVERS: RefCell<Vec<Option<Server>>> = const { RefCell::new(Vec::new()) };
+    /// Inside a tracking tick's turn ([`rp_program_turn`]).
+    static IN_TURN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// [`rp_pump_wait`], with `serve` lent for its duration: when the system
@@ -1578,13 +1582,14 @@ pub fn rp_serve_program() {
 /// holds the pump, so after it would be too late). The flag comes back
 /// however `f` ends.
 pub fn rp_program_turn<R>(f: impl FnOnce() -> R) -> R {
-    struct Restore(bool);
+    struct Restore(bool, bool);
     impl Drop for Restore {
         fn drop(&mut self) {
             IN_HOST_CALLBACK.with(|c| c.set(self.0));
+            IN_TURN.with(|c| c.set(self.1));
         }
     }
-    let _restore = Restore(IN_HOST_CALLBACK.with(|c| c.replace(false)));
+    let _restore = Restore(IN_HOST_CALLBACK.with(|c| c.replace(false)), IN_TURN.with(|c| c.replace(true)));
     f()
 }
 
@@ -2315,7 +2320,9 @@ mod deferred_tests {
                 rp_fire_event("t5", "ontimer");
                 // (what can't run inside the system's loop waits for the pump)
                 rp_defer_job(Box::new(|| log("after")));
-                // (nothing deferred runs here: only after the pump)
+                // (nothing deferred runs here — DOEVENTS asks — only after
+                // the pump)
+                assert_eq!(rp_run_deferred(), 0);
             });
             assert!(rp_host_callback_active(), "the callback's flag comes back");
             assert_eq!(rp_run_deferred(), 0);

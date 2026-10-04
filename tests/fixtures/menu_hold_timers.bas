@@ -40,10 +40,11 @@ SUB Tick
   N = N + 1
   ' (the fifth tick after Before: inside the hold)
   IF N0 > 0 AND N = N0 + 5 THEN
-    DOEVENTS
-    Log = Log + "de;"
     Pop.Popup(Form.Left + 20, Form.Top + 40)
     Log = Log + "pop;"
+    ' (the menu waits for after the hold: DOEVENTS doesn't run it here)
+    DOEVENTS
+    Log = Log + "de;"
     Log = Log + "modal" + STR$(Dlg.ShowModal) + ";"
     Log = Log + "ask" + STR$(MESSAGEDLG("Sure?", 3, 1 OR 2, 0)) + ";"
   END IF
