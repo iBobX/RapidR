@@ -115,13 +115,19 @@ pub fn rp_flush_output() {
 
 /// Flush a partial line once the current synchronous work (the program's
 /// main, or an event handler) has finished.
-fn schedule_output_flush() {
-    if FLUSH_SCHEDULED.with(|f| f.replace(true)) {
+///
+/// A partial line stays buffered while the program merely yields (the VM's
+/// time slices: dialog_web): it isn't over, and the line isn't either; the
+/// VM host calls this again once the program stops or waits.
+pub fn schedule_output_flush() {
+    if LINE_BUF.with(|b| b.borrow().is_empty()) || FLUSH_SCHEDULED.with(|f| f.replace(true)) {
         return;
     }
     let flush = Closure::once_into_js(|| {
         FLUSH_SCHEDULED.with(|f| f.set(false));
-        rp_flush_output();
+        if !crate::dialog_web::is_yielded() {
+            rp_flush_output();
+        }
     });
     if let Some(window) = web_sys::window() {
         let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(flush.unchecked_ref(), 0);

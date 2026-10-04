@@ -43,6 +43,9 @@ const RUN_SECONDS = 20;
 const SETTLE_SECONDS = 2;
 const NETWORK = /\b(qsocket|qclientsocket|qserversocket|qmysql|qhttp|qftp|qsmtp|qpop3|qwebbrowser|inet)\b/i;
 const VARIES = /\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount|now|sleep)\b/i;
+// Programs showing where they run (the program's file name, the current
+// folder): the page and the desktop differ there by nature.
+const MACHINE = /application\.exename|\bcurdir\$/i;
 // Assets larger than this stay out of the browser project.
 const ASSET_LIMIT = 8 << 20;
 
@@ -165,7 +168,8 @@ async function web(source, dir, comps) {
     // program goes on — so here, OK.
     if (frame) {
       const message = await bounded(frame.evaluate(() => {
-        const dialog = document.querySelector(".rr-dialog");
+        // (not a file dialog: the desktop's capture shows that as a window)
+        const dialog = document.querySelector(".rr-dialog:not(.rr-file-dialog)");
         if (!dialog) return null;
         const text = dialog.querySelector(".rr-dialog-input") ? null : dialog.querySelector(".rr-dialog-text")?.textContent ?? "";
         dialog.querySelector(".rr-dialog-button")?.click();
@@ -262,7 +266,7 @@ for (const rel of programs) {
   const runtimeErrors = w.errors.filter((e) => !/^\s*$/.test(e));
   entry.checked = checked;
   entry.forms = [...comps].filter(([n, t]) => t === "QFORM" && desk.dump[n]?.__shown === "1").length;
-  entry.result = !diffs.length ? (runtimeErrors.length ? "same (web errors)" : "same") : VARIES.test(text) ? "differs (random / clock)" : "differs";
+  entry.result = !diffs.length ? (runtimeErrors.length ? "same (web errors)" : "same") : VARIES.test(text) ? "differs (random / clock)" : MACHINE.test(text) ? "differs (machine)" : "differs";
   if (diffs.length || runtimeErrors.length) {
     entry.diffs = diffs;
     entry.webErrors = runtimeErrors.slice(0, 5);
@@ -276,5 +280,5 @@ await browser.close();
 
 writeFileSync(join(WORK, "report.json"), JSON.stringify(report, null, 1));
 const count = (r) => report.filter((e) => e.result === r).length;
-console.log(`\nsame=${count("same") + count("same (web errors)") + count("same (never ends)")} (with web errors ${count("same (web errors)")}, never ending ${count("same (never ends)")}) differs=${count("differs")} varies=${count("differs (random / clock)")} skipped=${report.filter((e) => e.result.startsWith("skipped")).length} failures=${report.filter((e) => /fails|hangs/.test(e.result)).length} of ${report.length}`);
+console.log(`\nsame=${count("same") + count("same (web errors)") + count("same (never ends)")} (with web errors ${count("same (web errors)")}, never ending ${count("same (never ends)")}) differs=${count("differs")} varies=${count("differs (random / clock)")} machine=${count("differs (machine)")} skipped=${report.filter((e) => e.result.startsWith("skipped")).length} failures=${report.filter((e) => /fails|hangs/.test(e.result)).length} of ${report.length}`);
 console.log(`report: ${join(WORK, "report.json")}`);

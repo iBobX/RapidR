@@ -28,6 +28,7 @@ use std::cell::Cell;
 
 thread_local! {
     static DISPLAY_SCALE: Cell<usize> = const { Cell::new(1) };
+    static EXACT_SCALE: Cell<f64> = const { Cell::new(1.0) };
 }
 
 /// The screen's scale (device pixels per pixel, e.g. 2 on a Retina
@@ -35,6 +36,15 @@ thread_local! {
 pub fn set_display_scale(scale: f64) {
     let s = if scale.is_finite() { scale.ceil().clamp(1.0, 3.0) as usize } else { 1 };
     DISPLAY_SCALE.with(|d| d.set(s));
+    if scale.is_finite() && scale > 0.0 {
+        EXACT_SCALE.with(|d| d.set(scale));
+    }
+}
+
+/// The screen's scale as noted, not rounded (1.5 on a 150 % screen): what
+/// `Screen.Scale` reads on the desktop.
+pub fn exact_scale() -> f64 {
+    EXACT_SCALE.with(Cell::get)
 }
 
 pub fn display_scale() -> usize {

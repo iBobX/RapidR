@@ -7,6 +7,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.106.0] — 2026-10-04
+
+### Added
+- Web: the VM runs in time slices (~10 ms): a busy loop — `cpuhog: GOTO
+  cpuhog`, a game loop without DoEvents, a long computation — no longer
+  freezes the page, what it draws and prints shows as it runs, and the
+  IDE's Stop always works; events still run only when the program waits
+  (DoEvents, ShowModal, a dialog, the end of its main code), as on the
+  desktop. DoEvents and an empty INKEY$ no longer cost 4 ms each. The
+  desktop interpreter is unchanged (the check is compiled out there).
+- `tools/regress.sh` runs the desktop GUI events at 2× too (`RAPIDR_SCALE=2`).
+- `Screen.Scale` and `Form.Scale` (RapidR's): device pixels per pixel (2 on
+  a Retina screen, 1.5 at 150 %) — programs keep RapidQ's pixels, this
+  tells them how fine the screen is; `Screen.PixelsPerInch` reads RapidQ's
+  96. `OnScaleChanged` (RapidR's): a form moved to a screen with another
+  scale is told, then drawn again (OnPaint).
+
+### Fixed
+- A QFORM's Visible is RapidQ's: False until the form shows, then whether
+  it shows (it read True from the start); `Form.Visible = True` shows the
+  form with its OnShow on the desktop too (it did nothing for a form not
+  shown yet) — inside the form's own CREATE as well, where the form shows
+  once the program waits (Splitter.bas' "required" `Visible = 1`), as in
+  the browser.
+
 ## [2.105.0] — 2026-10-03
 
 ### Added

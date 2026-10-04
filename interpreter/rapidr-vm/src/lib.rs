@@ -57,6 +57,10 @@ pub enum VmError {
     /// The host asked to wait (an in-page dialog on the web): the VM kept
     /// its state; continue with [`Vm::resume_with`] and the host's answer.
     Suspended,
+    /// The program has had its time slice ([`Host::yield_now`]): the VM
+    /// kept its state; continue with [`Vm::resume`] once the host has had a
+    /// turn (the web page repaints, takes clicks).
+    Yielded,
     /// An error, and the source line it happened at: the file and line
     /// (`Module::source_map`) or just the compiled line.
     At { error: Box<VmError>, file: Option<String>, line: u32 },
@@ -80,6 +84,7 @@ impl std::fmt::Display for VmError {
             VmError::Halted => write!(f, "halted"),
             VmError::Paused => write!(f, "paused"),
             VmError::Suspended => write!(f, "suspended"),
+            VmError::Yielded => write!(f, "yielded"),
         }
     }
 }
@@ -92,6 +97,10 @@ pub const MAX_CALL_DEPTH: usize = 100_000;
 
 /// Most dimensions an array access may have.
 const MAX_DIMS: usize = 8;
+
+/// Jumps and calls between two [`Host::yield_now`] questions (hosts that
+/// yield only).
+const YIELD_CHECK_EVERY: u32 = 256;
 
 /// Width of a PRINT zone (`PRINT a, b`), as in QBasic and VB.
 pub const PRINT_ZONE_WIDTH: usize = 14;
@@ -126,6 +135,10 @@ pub struct Frame {
     /// An event handler's entry frame: what the runtime does once it has
     /// run (`rapidr_value::events`), handed to the host when it returns.
     pub then: Vec<u32>,
+    /// An event handler's entry frame run right after a host operation
+    /// ([`Vm::after_host`]): the frame below was running, and continues
+    /// once the handler has returned.
+    pub nested: bool,
 }
 
 /// How a returning frame leaves the VM.
@@ -167,6 +180,15 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// instruction a run-time error stopped at (also in the error:
     /// [`VmError::At`]).
     pub error_line: Option<u32>,
+    /// Jumps and calls left before the next [`Host::yield_now`].
+    ticks: u32,
+    /// Whether the event handler that last returned ran right after a host
+    /// operation (its frame's `nested`).
+    returned_nested: bool,
+    /// Events queued behind a handler that yielded, by the depth of the
+    /// frame it interrupted: they run once it returns (then that frame
+    /// continues), as they would have without the yield.
+    yield_rest: Vec<(usize, Vec<QueuedEvent>)>,
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -185,6 +207,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             spare_locals: Vec::new(),
             fault_ip: 0,
             error_line: None,
+            ticks: YIELD_CHECK_EVERY,
+            returned_nested: false,
+            yield_rest: Vec::new(),
         }
     }
 
@@ -229,7 +254,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
-        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false, then: Vec::new() });
+        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false, then: Vec::new(), nested: false });
         let _ = ret_ip;
         Ok(())
     }
@@ -241,7 +266,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// records its line in [`Self::error_line`].
     fn exec(&mut self, module: &Module) -> Result<(), VmError> {
         match self.exec_loop(module) {
-            Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::At { .. }) => {
+            Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded | VmError::At { .. }) => {
+                self.yield_rest.clear();
                 self.error_line = self
                     .frames
                     .last()
@@ -270,6 +296,24 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         macro_rules! refresh {
             () => {
                 code = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
+            };
+        }
+        // Where a loop or a recursion can run on (a jump, a call): a host
+        // that yields ([`Host::YIELDS`], compiled out elsewhere) is asked
+        // every so often whether the program has had its time slice; then
+        // the VM stops here, ready to continue at `ip`.
+        macro_rules! tick {
+            () => {
+                if H::YIELDS {
+                    self.ticks -= 1;
+                    if self.ticks == 0 {
+                        self.ticks = YIELD_CHECK_EVERY;
+                        if self.host.yield_now() {
+                            self.frames.last_mut().unwrap().ip = ip;
+                            return Err(VmError::Yielded);
+                        }
+                    }
+                }
             };
         }
         // After a host operation: run the events it queued (and serve a
@@ -327,6 +371,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Halt => {
                     self.frames.clear();
                     self.stack.clear();
+                    self.yield_rest.clear();
                     return Ok(());
                 }
 
@@ -411,16 +456,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Shr  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a.wrapping_shr(b as u32))); }
 
                 // ----- control flow -----
-                Op::Jump => { let t = read_u32(code, &mut ip)?; ip = t as usize; }
+                Op::Jump => { let t = read_u32(code, &mut ip)?; ip = t as usize; tick!(); }
                 Op::JumpIf => {
                     let t = read_u32(code, &mut ip)?;
                     let v = self.pop()?;
-                    if v.to_bool() { ip = t as usize; }
+                    if v.to_bool() { ip = t as usize; tick!(); }
                 }
                 Op::JumpIfNot => {
                     let t = read_u32(code, &mut ip)?;
                     let v = self.pop()?;
-                    if !v.to_bool() { ip = t as usize; }
+                    if !v.to_bool() { ip = t as usize; tick!(); }
                 }
 
                 // ----- calls -----
@@ -432,6 +477,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.call(module, fi, argc, false)?;
                     ip = 0;
                     refresh!();
+                    tick!();
                 }
                 Op::CallFunc => {
                     let fi = read_u32(code, &mut ip)?;
@@ -441,6 +487,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.call(module, fi, argc, true)?;
                     ip = 0;
                     refresh!();
+                    tick!();
                 }
                 Op::Ret => {
                     if self.return_frame(module, false)? == Returned::Stop { return Ok(()); }
@@ -456,6 +503,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let target = read_u32(code, &mut ip)? as usize;
                     self.frames.last_mut().unwrap().gosub.push(ip);
                     ip = target;
+                    tick!();
                 }
                 Op::GosubRet => {
                     if let Some(back) = self.frames.last_mut().unwrap().gosub.pop() {
@@ -582,6 +630,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.call(module, fi, argc, true)?;
                     ip = 0;
                     refresh!();
+                    tick!();
                 }
                 Op::CallMethodDyn => {
                     let m_i = read_u32(code, &mut ip)?;
@@ -723,16 +772,22 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Runs `events` one after the other, each to completion, on top of the
     /// current frame (whose `ip` is saved first, so a handler that suspends
     /// leaves this code ready to continue; the events after it go back to
-    /// the host). Returns false if a handler ENDed the program.
+    /// the host — or, when it yields, stay here and run once it returns:
+    /// [`Self::continue_run`]). Returns false if a handler ENDed the program.
     fn run_events(&mut self, module: &Module, ip: usize, events: Vec<QueuedEvent>) -> Result<bool, VmError> {
         let mut events = events.into_iter();
         while let Some(event) = events.next() {
             if let Some(top) = self.frames.last_mut() {
                 top.ip = ip;
             }
-            if let Err(e) = self.invoke_event(module, event) {
+            let depth = self.frames.len();
+            if let Err(e) = self.invoke(module, event, true) {
                 let rest: Vec<_> = events.collect();
-                if !rest.is_empty() {
+                if matches!(e, VmError::Yielded) {
+                    if !rest.is_empty() {
+                        self.yield_rest.push((depth, rest));
+                    }
+                } else if !rest.is_empty() {
                     self.host.defer_events(rest);
                 }
                 return Err(e);
@@ -763,6 +818,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             self.spare_locals.push(spare);
         }
         if frame.stop {
+            self.returned_nested = frame.nested;
             if frame.wants_value {
                 self.stack.push(ret);
             }
@@ -836,6 +892,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Runs a queued event's handler; its continuations go to the host when
     /// it returns (or fails).
     pub fn invoke_event(&mut self, module: &Module, event: QueuedEvent) -> Result<Value, VmError> {
+        self.invoke(module, event, false)
+    }
+
+    /// [`Self::invoke_event`]; `nested`: run right after a host operation
+    /// of the code below (see [`Frame::nested`]).
+    fn invoke(&mut self, module: &Module, event: QueuedEvent, nested: bool) -> Result<Value, VmError> {
         let QueuedEvent { handler: fn_index, args, then } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         let argc = u8::try_from(args.len()).map_err(|_| VmError::Runtime("too many event arguments".into()))?;
@@ -848,11 +910,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         let top = self.frames.last_mut().unwrap();
         top.stop = true;
         top.then = then;
+        top.nested = nested;
         match self.exec(module) {
             // The handler returned (its value is on top), or ENDed.
             Ok(()) if self.frames.len() == base_frames => Ok(self.stack.pop().unwrap_or(Value::Null)),
             Ok(()) => Ok(Value::Null),
-            Err(e @ (VmError::Suspended | VmError::Paused)) => Err(e),
+            Err(e @ (VmError::Suspended | VmError::Paused | VmError::Yielded)) => Err(e),
             Err(e) => {
                 // A failed handler leaves nothing behind (its continuations run).
                 if let Some(f) = self.frames.get_mut(base_frames) {
@@ -866,19 +929,39 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
     }
 
-    /// Continues after a pause or suspension until the program ends, waits
-    /// again, or pauses/suspends. A finished event handler's value is
-    /// dropped (whoever ran it is gone) and the code it interrupted
-    /// continues, unless that code itself waits for a dialog.
+    /// Continues after a pause, suspension or yield until the program
+    /// ends, waits again, or pauses/suspends/yields. A finished event
+    /// handler's value is dropped (whoever ran it is gone); if it ran right
+    /// after a host operation, the events queued behind it run and then
+    /// the code it interrupted continues. (A handler the host ran on top of
+    /// waiting or paused code just ends.)
     fn continue_run(&mut self, module: &Module) -> Result<(), VmError> {
         loop {
             self.exec(module)?;
-            let Some(top) = self.frames.last() else { return Ok(()) };
-            let waiting = top.waiting;
+            let Some(top) = self.frames.last() else {
+                // (the value of a handler that ran with nothing below)
+                self.stack.clear();
+                return Ok(());
+            };
+            let (waiting, ip) = (top.waiting, top.ip);
             // exec stopped at an event handler's frame: drop its value.
             self.stack.pop();
-            if waiting {
+            if waiting || !self.returned_nested {
                 return Ok(());
+            }
+            // As `after_host` would have gone on: the rest of the events it
+            // took, then those queued since.
+            if H::YIELDS {
+                let depth = self.frames.len();
+                if let Some(i) = self.yield_rest.iter().position(|(d, _)| *d == depth) {
+                    let (_, rest) = self.yield_rest.remove(i);
+                    if !self.run_events(module, ip, rest)? {
+                        return Ok(());
+                    }
+                }
+                if !self.after_host(module, ip, false)? {
+                    return Ok(());
+                }
             }
         }
     }
@@ -1352,6 +1435,144 @@ mod tests {
         assert!(vm.frames.is_empty() && vm.stack.is_empty());
         assert!(vm.invoke_function(&m, 99, vec![v_int(1)]).is_err());
         assert!(vm.stack.is_empty());
+    }
+
+    /// [`QueueHost`] that yields at every question (each
+    /// [`YIELD_CHECK_EVERY`] jumps and calls).
+    #[derive(Default)]
+    struct YieldHost {
+        q: QueueHost,
+        yields: usize,
+    }
+
+    impl Host for YieldHost {
+        const YIELDS: bool = true;
+        fn yield_now(&mut self) -> bool {
+            self.yields += 1;
+            true
+        }
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> { self.q.call_builtin(name, args) }
+        fn suspend_requested(&mut self) -> bool { self.q.suspend_requested() }
+        fn take_events(&mut self) -> Vec<QueuedEvent> { self.q.take_events() }
+        fn create_comp(&mut self, k: &str, id: &str) -> Result<Value, String> { self.q.create_comp(k, id) }
+        fn set_prop(&mut self, id: &str, n: &str, v: Value) -> Result<(), String> { self.q.set_prop(id, n, v) }
+        fn get_prop(&mut self, id: &str, n: &str) -> Result<Value, String> { self.q.get_prop(id, n) }
+        fn call_method(&mut self, id: &str, m: &str, a: &[Value]) -> Result<Value, String> { self.q.call_method(id, m, a) }
+        fn register_event(&mut self, id: &str, e: &str, f: u32) -> Result<(), String> { self.q.register_event(id, e, f) }
+        fn print(&mut self, s: &str) -> Result<(), String> { self.q.print(s) }
+        fn input(&mut self) -> Result<String, String> { self.q.input() }
+    }
+
+    /// A loop counting local `slot` down from `n` (a backward JumpIf).
+    fn emit_spin(f: &mut Function, m: &mut Module, slot: u16, n: i64) {
+        let (cn, one) = (m.add_const(Const::Int(n)), m.add_const(Const::Int(1)));
+        f.n_locals = f.n_locals.max(u32::from(slot) + 1);
+        f.code.push(Op::LoadConst as u8); f.code.extend_from_slice(&cn.to_le_bytes());
+        f.code.push(Op::StoreLocal as u8); f.code.extend_from_slice(&slot.to_le_bytes());
+        let top = f.code.len() as u32;
+        f.code.push(Op::LoadLocal as u8); f.code.extend_from_slice(&slot.to_le_bytes());
+        f.code.push(Op::LoadConst as u8); f.code.extend_from_slice(&one.to_le_bytes());
+        f.code.push(Op::Sub as u8);
+        f.code.push(Op::StoreLocal as u8); f.code.extend_from_slice(&slot.to_le_bytes());
+        f.code.push(Op::LoadLocal as u8); f.code.extend_from_slice(&slot.to_le_bytes());
+        f.code.push(Op::JumpIf as u8); f.code.extend_from_slice(&top.to_le_bytes());
+    }
+
+    /// Runs (or continues) until the VM stops for something else than a
+    /// yield; the number of yields.
+    fn run_through_yields(vm: &mut Vm<'_, YieldHost>, m: &Module, mut result: Result<(), VmError>) -> (Result<(), VmError>, usize) {
+        let mut n = 0;
+        while matches!(result, Err(VmError::Yielded)) {
+            n += 1;
+            result = vm.resume(m);
+        }
+        (result, n)
+    }
+
+    #[test]
+    fn a_busy_main_yields_and_continues_where_it_was() {
+        // main: PRINT "a" ; spin 5000 ; PRINT f() * 2 where f spins and returns 21
+        let mut m = Module::new();
+        let c21 = m.add_const(Const::Int(21));
+        let two = m.add_const(Const::Int(2));
+        let mut f = Function::default();
+        f.name = "f".into();
+        emit_spin(&mut f, &mut m, 0, 3000);
+        f.code.push(Op::LoadConst as u8); f.code.extend_from_slice(&c21.to_le_bytes());
+        f.code.push(Op::RetVal as u8);
+        let fi = m.add_function(f);
+        let mut main = Function::default();
+        main.name = "__main".into();
+        emit_print(&mut main, &mut m, "a");
+        emit_spin(&mut main, &mut m, 0, 5000);
+        main.code.push(Op::CallFunc as u8); main.code.extend_from_slice(&fi.to_le_bytes()); main.code.push(0);
+        main.code.push(Op::LoadConst as u8); main.code.extend_from_slice(&two.to_le_bytes());
+        main.code.push(Op::Mul as u8);
+        main.code.push(Op::PrintLn as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = YieldHost::default();
+        let mut vm = Vm::new(&mut h);
+        let first = vm.run(&m);
+        let (result, n) = run_through_yields(&mut vm, &m, first);
+        result.unwrap();
+        assert!(n >= 20, "yielded {n} times");
+        assert!(vm.frames.is_empty() && vm.stack.is_empty());
+        assert_eq!(h.q.inner.output, "a\n42\n");
+    }
+
+    #[test]
+    fn a_handler_that_yields_finishes_then_the_events_behind_it_then_the_code_it_interrupted() {
+        // Handler A: a1, spin, a2; B: b. main: m1, NOP (runs A then B), m2.
+        let (mut m, mut main) = event_module(false, false);
+        let mut a = std::mem::take(&mut m.functions[0]);
+        let a2 = a.code.split_off(a.code.len() - 7); // LoadConst "a2", PrintLn, Ret
+        emit_spin(&mut a, &mut m, 1, 2000);
+        a.code.extend(a2);
+        m.functions[0] = a;
+        emit_print(&mut main, &mut m, "m1");
+        emit_builtin(&mut main, &mut m, "NOP", None);
+        main.code.push(Op::Pop as u8);
+        emit_print(&mut main, &mut m, "m2");
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = YieldHost::default();
+        h.q.queue.push_back(QueuedEvent::new(0, vec![v_str("s")]));
+        h.q.queue.push_back(QueuedEvent::new(1, vec![]));
+        let mut vm = Vm::new(&mut h);
+        let first = vm.run(&m);
+        let (result, n) = run_through_yields(&mut vm, &m, first);
+        result.unwrap();
+        assert!(n > 0);
+        assert!(vm.frames.is_empty() && vm.stack.is_empty() && vm.yield_rest.is_empty());
+        assert_eq!(h.q.inner.output, "m1\na1\na2\nb\nm2\n");
+    }
+
+    #[test]
+    fn a_handler_run_on_top_of_waiting_code_yields_and_the_waiting_code_still_waits() {
+        // main: PRINT ASK ; handler A (spins) runs while main waits.
+        let (mut m, mut main) = event_module(false, false);
+        let mut a = std::mem::take(&mut m.functions[0]);
+        a.code.pop(); // Ret
+        emit_spin(&mut a, &mut m, 1, 2000);
+        a.code.push(Op::Ret as u8);
+        m.functions[0] = a;
+        emit_builtin(&mut main, &mut m, "ASK", None);
+        main.code.push(Op::PrintLn as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        let mut h = YieldHost::default();
+        let mut vm = Vm::new(&mut h);
+        assert!(matches!(vm.run(&m), Err(VmError::Suspended)));
+        let first = vm.invoke_function(&m, 0, vec![v_str("s")]).map(drop);
+        let (result, n) = run_through_yields(&mut vm, &m, first);
+        result.unwrap();
+        assert!(n > 0);
+        assert!(vm.is_waiting());
+        assert_eq!(vm.stack.len(), 0);
+        vm.resume_with(&m, v_str("done")).unwrap();
+        assert!(vm.frames.is_empty());
+        assert_eq!(h.q.inner.output, "a1\na2\ndone\n");
     }
 
     #[test]

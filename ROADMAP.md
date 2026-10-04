@@ -148,9 +148,9 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
 - [x] Portable corpus classified by `tools/rapidq_corpus.py` (v2.103.0): of RapidQ's 386 examples, 123 use only the shared API — **all 123 compile** (169 call DLLs, 32 DirectX, 15 OLE, 7 DOS-era port I/O, 17 miss an include / resource the corpus doesn't have, 23 aren't RapidQ: other BASICs' code or typos, each listed with its reason in the tool)
 - [x] The portable corpus *running* alike native vs interpreted (`tools/corpus_compare.mjs`, v2.104.0): every program that doesn't depend on random numbers / the clock / the network behaves identically (8 differences found and fixed)
 - [x] The same comparison against the web runtime (`tests/corpus_web_compare.mjs`, v2.105.0): output plus every form's and component's properties as the program reads them, browser vs desktop interpreter — every program that doesn't depend on random numbers / the clock / the network / the machine (`Application.ExeName`, `CURDIR$`) behaves identically; 12 differences found and fixed (forms shown unasked, OnShow missing on the web, files and `$RESOURCE`s in any case, unparented components, button padding, menu height, fractional geometry, `Parent = QFORM`, desktop SHOWMESSAGE)
-- [ ] Desktop: `Form.Visible = True` shows the form and fires OnShow, as Show does (RapidQ/Delphi; it does nothing for a form not shown yet) — including `Visible = 1` inside the form's CREATE (Splitter.bas: "required"); then OnShow from `Visible = True` on the web too
-- [ ] QFORM's Visible reads False until the form is shown (RapidQ's default; both runtimes read True)
-- [ ] Web: the VM yields to the page every few milliseconds, so a busy loop (`cpuhog: GOTO cpuhog`, a game loop without DoEvents) doesn't freeze the tab — the IDE's Stop must always work
+- [x] Desktop: `Form.Visible = True` shows the form and fires OnShow, as Show does (RapidQ/Delphi; it did nothing for a form not shown yet) — `Visible = 1` inside the form's CREATE shows it once the program waits; OnShow from `Visible = True` on the web too (v2.106.0)
+- [x] QFORM's Visible reads False until the form is shown (RapidQ's default; both runtimes read True) (v2.106.0)
+- [x] Web: the VM yields to the page every few milliseconds, so a busy loop (`cpuhog: GOTO cpuhog`, a game loop without DoEvents) doesn't freeze the tab — the IDE's Stop always works (v2.106.0, `tests/web_vm_yield.mjs`)
 - [ ] DirectX objects on wgpu (desktop and web): QDXSCREEN (2D surface, sprites, blits), QDXIMAGELIST, QDXTIMER, QDXJOYSTICK (gamepads: `gilrs`), QD3D* (meshes, textures, frames, lights, camera) as a retained-mode scene drawn by wgpu
 
 Next up, in order:
@@ -310,9 +310,9 @@ Next up, in order:
 Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's are high-DPI and vector. Compatible *and* modern, transparently.
 
 **High-DPI (principle 6)**
-- [ ] Audit every runtime path against principle 6 at 1×, 1.5×, 2×, 3× (the web parity suite already runs at 2×; add the desktop at 2× via `RAPIDR_SCALE`, and screenshots compared per scale)
+- [ ] Audit every runtime path against principle 6 at 1×, 1.5×, 2×, 3× (the web parity suite and, since v2.106.0, the desktop GUI events run at 2× in `tools/regress.sh`; next: screenshots compared per scale, 1.5× and 3×)
 - [ ] What programs read stays logical: Left / Top / Width / Height, ClientWidth, `Screen.Width` / `Height` (logical, as browsers' CSS pixels and macOS points), and `Screen.PixelsPerInch` stays 96 (Delphi programs that scale by `PixelsPerInch / 96` would otherwise scale twice)
-- [ ] New, additive: `Screen.Scale` / `Form.Scale` (device pixels per logical pixel), `OnScaleChanged` (a form moved to a screen with another scale)
+- [x] New, additive: `Screen.Scale` / `Form.Scale` (device pixels per logical pixel), `OnScaleChanged` (a form moved to a screen with another scale) (v2.106.0; OnScaleChanged not yet tried on a real two-screen setup)
 - [ ] Drawing surfaces (QCANVAS, a form's own, QBITMAP): the pixel API stays logical (`Pixel`, `PSET`, BMP in and out), vector drawing (Line, Circle, Rectangle, TextOut, fills) is drawn at device resolution — finish what `bitmap.rs`'s HiRes layer started, for every drawing method
 - [ ] Images: bitmaps drawn at their logical size, smoothly scaled; SVG accepted everywhere a picture is (QIMAGE, icons, QIMAGELIST, buttons' glyphs, `$RESOURCE`); `name@2x.png` / `@3x` picked automatically when present
 - [ ] `$OPTION SCALING LEGACY`: a program that needs exact pixels (pixel art, screen grabbing) draws at 1× and is enlarged as a whole, crisp (nearest neighbour)

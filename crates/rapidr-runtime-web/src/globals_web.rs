@@ -40,6 +40,14 @@ fn screen_prop(prop: &str) -> i64 {
 }
 
 impl Platform for Web {
+    /// The page's devicePixelRatio (a page's `RAPIDR_SCALE` forces it,
+    /// for tests).
+    fn scale(&self) -> f64 {
+        let Some(window) = web_sys::window() else { return 1.0 };
+        let forced = js_sys::Reflect::get(&window, &"RAPIDR_SCALE".into()).ok().and_then(|v| v.as_f64());
+        forced.unwrap_or_else(|| window.device_pixel_ratio())
+    }
+
     fn screen_size(&self) -> (i64, i64) {
         (screen_prop("width"), screen_prop("height"))
     }

@@ -12,8 +12,17 @@
 //! Elsewhere (a handler fired synchronously from inside another VM call, the
 //! Rust-compiled web build) `can_wait` is false and callers fall back to the
 //! browser's dialogs.
+//!
+//! The page has one thread, so a program that never waits would freeze it:
+//! the VM runs in time slices ([`should_yield`]) and, between two, *yields*
+//! (`rapidr_vm::VmError::Yielded`) — the browser repaints and takes input,
+//! then the host continues the program where it was. Meanwhile nothing else
+//! of the program runs: its events wait until it waits, and an answer that
+//! comes then (a dialog's, a SLEEP's end) is given once the yield is over
+//! ([`resume_pending`]).
 
 use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
@@ -36,6 +45,22 @@ thread_local! {
     static MODALS: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
     /// INPUT$ waits for a key: the page's next keydown continues it.
     static KEY_WAIT: Cell<bool> = const { Cell::new(false) };
+    /// The VM yielded and goes on in a moment (see the module docs).
+    static YIELDED: Cell<bool> = const { Cell::new(false) };
+    /// Answers that came during a yield, oldest first.
+    static PENDING: RefCell<VecDeque<(Value, Option<String>)>> = const { RefCell::new(VecDeque::new()) };
+    /// When the current time slice ends (ms, `performance.now()`).
+    static SLICE_END: Cell<f64> = const { Cell::new(0.0) };
+    static PERFORMANCE: Option<web_sys::Performance> = web_sys::window().and_then(|w| w.performance());
+}
+
+/// How long the program runs before the page gets a turn: short enough to
+/// keep it responsive (a frame is ~16 ms), long enough that a busy program
+/// loses little time.
+const SLICE_MS: f64 = 10.0;
+
+fn now() -> f64 {
+    PERFORMANCE.with(|p| p.as_ref().map_or_else(js_sys::Date::now, web_sys::Performance::now))
 }
 
 /// Installed by the VM host: how to continue the program after a dialog.
@@ -43,9 +68,15 @@ pub fn set_resume_handler(handler: ResumeHandler) {
     RESUME.with(|r| *r.borrow_mut() = Some(handler));
 }
 
-/// The VM host brackets every entry into the VM with these.
+/// The VM host brackets every entry into the VM with these. An entry
+/// starts a time slice.
 pub fn enter_vm() {
-    VM_DEPTH.with(|d| d.set(d.get() + 1));
+    VM_DEPTH.with(|d| {
+        if d.get() == 0 {
+            SLICE_END.with(|e| e.set(now() + SLICE_MS));
+        }
+        d.set(d.get() + 1);
+    });
 }
 
 pub fn leave_vm() {
@@ -60,6 +91,53 @@ pub fn can_wait() -> bool {
 /// A dialog is open and the program is waiting for it.
 pub fn is_waiting() -> bool {
     WAITING.with(Cell::get)
+}
+
+/// The program has had the page for its time slice.
+pub fn slice_over() -> bool {
+    now() >= SLICE_END.with(Cell::get)
+}
+
+/// Asked by the VM every so often: should it yield now? Only when the
+/// slice is over and the VM can be continued later on its own (it's the
+/// only thing on the JavaScript call stack, as for [`can_wait`]).
+pub fn should_yield() -> bool {
+    VM_DEPTH.with(Cell::get) == 1 && RESUME.with(|r| r.borrow().is_some()) && slice_over()
+}
+
+/// The VM host marks a yield (`true`) and its end, right before it
+/// continues the program.
+pub fn set_yielded(yielded: bool) {
+    YIELDED.with(|y| y.set(yielded));
+}
+
+/// The program yielded and hasn't continued yet.
+pub fn is_yielded() -> bool {
+    YIELDED.with(Cell::get)
+}
+
+/// Continues the waiting program with `value` — or, during a yield, once
+/// it's over ([`resume_pending`]; the program keeps waiting till then).
+fn resume(value: Value, echo: Option<String>) {
+    if is_yielded() {
+        PENDING.with(|p| p.borrow_mut().push_back((value, echo)));
+        return;
+    }
+    WAITING.with(|w| w.set(false));
+    if let Some(h) = RESUME.with(|r| r.borrow().clone()) {
+        h(value, echo);
+    }
+}
+
+/// Gives the oldest answer that came during a yield, now that the VM is
+/// idle. `true` if there was one.
+pub fn resume_pending() -> bool {
+    if VM_DEPTH.with(Cell::get) != 0 || is_yielded() {
+        return false;
+    }
+    let Some((value, echo)) = PENDING.with(|p| p.borrow_mut().pop_front()) else { return false };
+    resume(value, echo);
+    true
 }
 
 /// `Form.ShowModal`: asks the VM to suspend the program until the form
@@ -96,7 +174,7 @@ pub fn modal_closed(form_id: &str) {
 /// wait resumes when its form has closed and no message dialog is open (the
 /// dialog's answer goes to the code above it first). `true` if it did.
 pub fn resume_after_modal() -> bool {
-    if VM_DEPTH.with(Cell::get) != 0 || is_waiting() {
+    if VM_DEPTH.with(Cell::get) != 0 || is_waiting() || is_yielded() {
         return false;
     }
     let due = MODALS.with(|m| {
@@ -131,12 +209,7 @@ pub fn pause(ms: f64) -> bool {
     }
     WAITING.with(|w| w.set(true));
     SUSPEND.with(|s| s.set(true));
-    let wake = Closure::once_into_js(move || {
-        WAITING.with(|w| w.set(false));
-        if let Some(h) = RESUME.with(|r| r.borrow().clone()) {
-            h(Value::Null, None);
-        }
-    });
+    let wake = Closure::once_into_js(move || resume(Value::Null, None));
     if let Some(window) = web_sys::window() {
         let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(wake.unchecked_ref(), ms.clamp(0.0, 86_400_000.0) as i32);
     }
@@ -159,11 +232,8 @@ pub fn wait_key() -> bool {
 /// A key reached INKEY$'s queue: a program waiting in INPUT$ continues.
 pub fn key_pressed() {
     if KEY_WAIT.with(|k| k.replace(false)) {
-        WAITING.with(|w| w.set(false));
-        if let Some(h) = RESUME.with(|r| r.borrow().clone()) {
-            // (what RAPIDR__WAITKEY returns: a key came)
-            h(Value::Integer(1), None);
-        }
+        // (what RAPIDR__WAITKEY returns: a key came)
+        resume(Value::Integer(1), None);
     }
 }
 
@@ -172,9 +242,11 @@ pub fn modal_waiting() -> bool {
     MODALS.with(|m| !m.borrow().is_empty())
 }
 
-/// Forgets the waits of a program that was replaced.
+/// Forgets the waits (and a yield) of a program that was replaced.
 pub fn clear_modals() {
     MODALS.with(|m| m.borrow_mut().clear());
+    YIELDED.with(|y| y.set(false));
+    PENDING.with(|p| p.borrow_mut().clear());
 }
 
 /// Asked by the VM host after each builtin: did it open a dialog?
@@ -258,7 +330,6 @@ pub fn open(d: Dialog<'_>) {
                 return;
             }
             backdrop.remove();
-            WAITING.with(|w| w.set(false));
             let (value, echoed) = match &field {
                 Some(f) => {
                     let text = f.value();
@@ -266,9 +337,7 @@ pub fn open(d: Dialog<'_>) {
                 }
                 None => (Value::Integer(choice.unwrap_or(dismissed)), None),
             };
-            if let Some(resume) = RESUME.with(|r| r.borrow().clone()) {
-                resume(value, echoed);
-            }
+            resume(value, echoed);
         })
     };
 
@@ -417,12 +486,9 @@ pub fn open_files(req: FileRequest) {
                 names.truncate(1);
             }
             backdrop.remove();
-            WAITING.with(|w| w.set(false));
             let picked = !names.is_empty();
             answer(names);
-            if let Some(resume) = RESUME.with(|r| r.borrow().clone()) {
-                resume(Value::Integer(if picked { -1 } else { 0 }), None);
-            }
+            resume(Value::Integer(if picked { -1 } else { 0 }), None);
         })
     };
 

@@ -1156,7 +1156,6 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         (_, "show") => {
-            let was_shown = comp_type == "RFORM" && crate::object_web::rp_comp_get_stored(name, crate::object_web::SHOWN_BY_PROGRAM).to_bool();
             crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(true));
             if let Some(el) = get_el(&id) {
                 let _ = el.style().set_property("display", "");
@@ -1166,9 +1165,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 }
             }
             owner_draw_shown_grids();
-            // OnShow: a hidden form shown (as the desktop's gui_show).
-            if comp_type == "RFORM" && !was_shown {
-                crate::object_web::rp_fire_event(name, "onshow");
+            // OnShow: a hidden window shown (as the desktop's gui_show).
+            if comp_type == "RFORM" {
+                crate::object_web::take_onshow(name);
             }
             v_null()
         }
@@ -1196,6 +1195,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             owner_draw_shown_grids();
             // OnShow, as the desktop fires it on each ShowModal (before the
             // wait).
+            crate::object_web::drop_onshow(name);
             crate::object_web::rp_fire_event(name, "onshow");
             crate::dialog_web::begin_modal(&id);
             v_null()
@@ -2645,6 +2645,46 @@ fn note_display_scale() {
     let Some(window) = web_sys::window() else { return };
     let forced = js_sys::Reflect::get(&window, &"RAPIDR_SCALE".into()).ok().and_then(|v| v.as_f64());
     rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| window.device_pixel_ratio()));
+}
+
+thread_local! {
+    static WATCHING_SCALE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The page's scale changing (the window moved to another screen, the page
+/// zoomed): each shown form is told (OnScaleChanged, RapidR's) and drawn
+/// again (OnPaint, its canvases'), as on the desktop.
+fn watch_scale() {
+    if WATCHING_SCALE.with(|w| w.replace(true)) {
+        return;
+    }
+    listen_scale();
+}
+
+fn listen_scale() {
+    let Some(window) = web_sys::window() else { return };
+    let query = format!("(resolution: {}dppx)", window.device_pixel_ratio());
+    let Ok(Some(list)) = window.match_media(&query) else { return };
+    let changed = Closure::once_into_js(move || {
+        note_display_scale();
+        let shown = crate::object_web::shown_forms();
+        for form in &shown {
+            crate::object_web::rp_fire_event(form, "onscalechanged");
+        }
+        for form in &shown {
+            crate::object_web::rp_fire_event(form, "onpaint");
+            for (child, t) in crate::object_web::get_children_of(form) {
+                if t == "RCANVAS" {
+                    crate::object_web::rp_fire_event(&child, "onpaint");
+                }
+            }
+        }
+        // (the next change is another resolution)
+        listen_scale();
+    });
+    let options = web_sys::AddEventListenerOptions::new();
+    options.set_once(true);
+    let _ = list.add_event_listener_with_callback_and_add_event_listener_options("change", changed.unchecked_ref(), &options);
 }
 
 /// Puts what a bitmap shows (`display_rgba`: w × h device pixels, `scale`
@@ -5328,6 +5368,7 @@ pub fn gui_web_finalize() {
             }
         }
     }
+    watch_scale();
     // Then the first OnPaint of each form and canvas (RapidQ programs draw
     // there); the surfaces keep what's drawn.
     if let Ok(all) = doc.query_selector_all(".rr-form, [data-rr-type=\"RCANVAS\"]") {

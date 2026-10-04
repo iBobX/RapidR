@@ -124,6 +124,10 @@ export const cases = [
     expect: ["lbl.caption=301209425290-1|14679300|216184-96|881121|020096"] },
   { name: "onshow_scroll", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=show;333x283"] },
+  { name: "form_visible", events: "btn.onclick,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=start 0-10;-1-1-110;-1-1-111;"] },
+  { name: "screen_scale", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=96 -1 -1"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

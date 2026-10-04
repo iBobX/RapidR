@@ -35,6 +35,12 @@ pub trait Platform {
     fn set_cursor(&self, _cursor: i64) {}
     /// Application.Title: the program's name (task bar / tab).
     fn set_title(&self, _title: &str) {}
+    /// Screen.Scale: device pixels per pixel (2 on a Retina screen, 1.5 at
+    /// 150 %) — programs keep RapidQ's pixels; this tells them how fine the
+    /// screen is.
+    fn scale(&self) -> f64 {
+        crate::objects::bitmap::exact_scale()
+    }
     /// `Application.Icon` / `IcoHandle` changed: forms without their own
     /// icon take it ([`application_icon`]).
     fn set_icon(&self) {}
@@ -89,6 +95,10 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         ("screen", "mousex") | ("mouse", "x") => v_int(p.mouse().0),
         ("screen", "mousey") | ("mouse", "y") => v_int(p.mouse().1),
         ("screen", "monitors") => v_int(p.monitors()),
+        // (RapidR's: RapidQ's pixels stay 96 to the inch — a program that
+        // scales by PixelsPerInch / 96 would otherwise scale twice)
+        ("screen", "scale") => Value::Double(p.scale()),
+        ("screen", "pixelsperinch") => v_int(96),
         ("screen", "consolex") => stored(object, prop).unwrap_or(v_int(80)),
         ("screen", "consoley") => stored(object, prop).unwrap_or(v_int(25)),
         ("screen", "cursor") => stored(object, prop).unwrap_or(v_int(0)),
@@ -128,7 +138,7 @@ pub fn set(p: &dyn Platform, name: &str, prop: &str, value: &Value) -> bool {
             p.set_icon();
         }
         // (read-only: what the platform answers)
-        ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors") => {}
+        ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors" | "scale" | "pixelsperinch") => {}
         _ => store(object, prop, value.clone()),
     }
     true

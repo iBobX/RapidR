@@ -14,6 +14,17 @@ use rapidr_value::{v_null, v_str, Value};
 /// Methods return `Result<_, String>`; a `String` error message is wrapped
 /// in `VmError::HostError` by the VM dispatch loop.
 pub trait Host {
+    /// Whether the VM asks [`Host::yield_now`] as it runs (the web host:
+    /// the page has a single thread). `false` compiles the question out of
+    /// the VM's loop.
+    const YIELDS: bool = false;
+    /// Asked every so often at a jump or a call (only if [`Host::YIELDS`]):
+    /// `true` makes the VM stop with [`crate::VmError::Yielded`], ready to
+    /// continue with [`crate::Vm::resume`] — the host gives the page a turn
+    /// meanwhile and runs nothing else of the program.
+    fn yield_now(&mut self) -> bool {
+        false
+    }
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String>;
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String>;
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String>;

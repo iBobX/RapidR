@@ -18,6 +18,8 @@ features = [
     # Core DOM
     "Window",
     "Document",
+    # A form moved to a screen with another scale (OnScaleChanged)
+    "MediaQueryList",
     # Caret placement when a grid cell is edited
     "Selection",
     "Range",

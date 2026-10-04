@@ -3,7 +3,9 @@
 //! Routes builtins / component / DOM ops to `rapidr-runtime-web`. The
 //! program lives in a `RefCell` session; DOM events queue their bytecode
 //! handlers, which run when the VM is idle or at its next safe point —
-//! never by re-entering a running VM.
+//! never by re-entering a running VM. The VM runs in time slices: a program
+//! that never waits gives the page a turn every few milliseconds and then
+//! goes on (see `continue_slice`).
 //!
 //! Designed to be wrapped in a `wasm-bindgen` shim by a thin
 //! application crate (`rapidrintr.wasm`) that loads a `.rrbc` module
@@ -31,6 +33,12 @@ pub struct WebHost {
 }
 
 impl Host for WebHost {
+    const YIELDS: bool = true;
+
+    fn yield_now(&mut self) -> bool {
+        rapidr_runtime_web::dialog_web::should_yield()
+    }
+
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
         // Unknown names are an error, never a silent no-op. The compiler
         // rejects them up front; this guards bytecode from other sources.
@@ -234,12 +242,13 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "date" | "date_func" | "date$" => rp_date(),
         "time" | "time_func" | "time$" => rp_time(),
         "timer" => rp_timer(),
-        // (none yet: the browser gets a turn, so a key can come — a
-        // `DO: LOOP UNTIL INKEY$ <> ""` doesn't freeze the page)
+        // (none yet, and the time slice is over: the browser gets a turn,
+        // so a key can come — a `DO: LOOP UNTIL INKEY$ <> ""` doesn't
+        // freeze the page)
         "rapidr__waitkey" => rp_waitkey(),
         "inkey" => {
             let k = rp_inkey();
-            if k.to_string_val().is_empty() {
+            if k.to_string_val().is_empty() && rapidr_runtime_web::dialog_web::slice_over() {
                 rapidr_runtime_web::dialog_web::pause(0.0);
             }
             k
@@ -253,9 +262,17 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         }
         "command" => rp_command(),
         "environ" => rp_environ(&a0),
+        // The events waiting for the program run (right after this:
+        // Host::take_events). Once its time slice is over, the program
+        // pauses too, and the browser goes on (painting, new events).
         "doevents" => {
-            if !rapidr_runtime_web::dialog_web::pause(0.0) {
-                rp_doevents();
+            if rapidr_runtime_web::dialog_web::slice_over() {
+                if !rapidr_runtime_web::dialog_web::pause(0.0) {
+                    rp_doevents();
+                }
+            } else {
+                let waiting: Vec<Event> = DEFERRED.with(|q| q.borrow_mut().drain(..).collect());
+                EVENTS.with(|q| waiting.into_iter().rev().for_each(|e| q.borrow_mut().push_front(e)));
             }
             v_null()
         }
@@ -364,6 +381,13 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
 // operation that fired them (see `Host::take_events`); events that arrive
 // while it's idle run from `run_idle_events`, which every entry point calls
 // once it has released the session. No raw pointers, no aliasing.
+//
+// When the VM yields (its time slice is over: `VmError::Yielded`), the
+// session keeps what it was doing (`Slice`) and a message to the page's own
+// MessageChannel continues it (`continue_slice`) after the browser's turn.
+// Until then nothing else runs the VM: DOM events wait in `DEFERRED` (they
+// run when the program waits — DoEvents, a dialog, ShowModal, the end of
+// main — as on the desktop), and a dialog's answer waits in dialog_web.
 
 /// One program run (or debugging session) in the page.
 struct Session {
@@ -373,6 +397,21 @@ struct Session {
     main_waiting: bool,
     /// Tells a `DebugSession` whether the session is still its own.
     generation: u64,
+    /// The VM yielded while doing this; it goes on with `continue_slice`.
+    slice: Option<Slice>,
+}
+
+/// What the VM was running when it yielded: what to do once it stops.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Slice {
+    /// `__main`, from its start (`rapidr_run_bc`).
+    Main,
+    /// Code continued after a dialog (or ShowModal, SLEEP, DOEVENTS).
+    Resumed,
+    /// Event handlers run while the VM was idle (`run_idle_events`).
+    Idle,
+    /// A debugger command (`DebugSession`).
+    Debug,
 }
 
 impl Session {
@@ -387,7 +426,7 @@ impl Session {
             g.set(n);
             n
         });
-        Session { module, vm, main_waiting: false, generation }
+        Session { module, vm, main_waiting: false, generation, slice: None }
     }
 }
 
@@ -406,6 +445,10 @@ thread_local! {
     /// The forms were shown already (see [`finalize_forms`]).
     static FINALIZED: Cell<bool> = const { Cell::new(false) };
     static NEXT_GENERATION: Cell<u64> = const { Cell::new(0) };
+    /// The page's channel for continuing a yielded VM (receiving and
+    /// sending port): a message is a task of its own, without
+    /// `setTimeout`'s minimum delay.
+    static WAKE: RefCell<Option<(web_sys::MessagePort, web_sys::MessagePort)>> = const { RefCell::new(None) };
 }
 
 /// Shows the program's forms, once (a program that waits in ShowModal shows
@@ -436,19 +479,26 @@ fn start_session(session: Session) {
     let _ = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
         // (with the continuation of an event fired with rp_fire_event_then)
         let event = Event { then: rapidr_value::events::take_armed(), ..Event::new(fn_index, args.to_vec()) };
+        // Between two time slices the program is busy: the event waits
+        // until it waits.
+        if dialog::is_yielded() {
+            DEFERRED.with(|q| q.borrow_mut().push_back(event));
+            return;
+        }
         EVENTS.with(|q| q.borrow_mut().push_back(event));
         run_idle_events();
     }));
     install_resume_handler();
 }
 
-/// Tells the IDE's debugger that the VM paused (if it's listening).
-fn report_paused() {
+/// Tells the IDE's debugger where the VM stopped ("paused", "waiting",
+/// "halted"), if it's listening.
+fn report_debug(status: &str) {
     if let Some(window) = web_sys::window() {
         if let Ok(func_val) = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_handle_debug_result")) {
             if func_val.is_function() {
                 let func: js_sys::Function = func_val.into();
-                let _ = func.call1(&JsValue::NULL, &JsValue::from_str("paused"));
+                let _ = func.call1(&JsValue::NULL, &JsValue::from_str(status));
             }
         }
     }
@@ -458,9 +508,156 @@ fn report_paused() {
 /// IDE may call back into the debugger synchronously).
 fn report(result: Result<(), VmError>, what: &str) {
     match result {
-        Ok(()) | Err(VmError::Suspended) => {}
-        Err(VmError::Paused) => report_paused(),
+        Ok(()) | Err(VmError::Suspended | VmError::Yielded) => {}
+        Err(VmError::Paused) => report_debug("paused"),
         Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[rapidr] {what}: {e}"))),
+    }
+}
+
+/// Runs `step` on the session's VM as one entry (a time slice). If it
+/// yields, the session keeps `kind` and continues later; main stopping for
+/// a dialog is noted. Returns the result and whether the main program has
+/// now finished after waiting (then the forms' turn: [`settle`]).
+fn run_step(
+    session: &mut Session,
+    kind: Slice,
+    step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>,
+) -> (Result<(), VmError>, bool) {
+    dialog::enter_vm();
+    let result = step(&mut session.vm, &session.module);
+    dialog::leave_vm();
+    match &result {
+        Err(VmError::Yielded) => {
+            session.slice = Some(kind);
+            dialog::set_yielded(true);
+            schedule_continue(session.generation);
+        }
+        Err(VmError::Suspended) if kind == Slice::Main => session.main_waiting = true,
+        _ => {}
+    }
+    let main_done = kind == Slice::Resumed && result.is_ok() && session.main_waiting && session.vm.frames.is_empty();
+    if main_done {
+        session.main_waiting = false;
+    }
+    (result, main_done)
+}
+
+/// What the debugger is told when the VM stops ("paused", "waiting" —
+/// the program's forms are up — or "halted"), or the error.
+fn debug_status(result: Result<(), VmError>) -> Result<&'static str, String> {
+    Ok(match result {
+        Err(VmError::Yielded) => "waiting",
+        Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
+            finalize_forms();
+            "waiting"
+        }
+        Ok(()) => "halted",
+        Err(VmError::Paused) => "paused",
+        Err(VmError::Suspended) => {
+            if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
+                finalize_forms();
+            }
+            "waiting"
+        }
+        Err(e) => return Err(format!("vm error: {e}")),
+    })
+}
+
+/// Once the session is released, what follows a VM entry that didn't
+/// yield (see [`Slice`]): main's forms, the debugger's status, errors to
+/// the console; then a partial line printed, and the events that waited.
+fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
+    if matches!(result, Err(VmError::Yielded)) {
+        return;
+    }
+    match kind {
+        Slice::Main => match result {
+            // Mirror compiled-mode codegen: after `__main` returns, finalize
+            // the DOM tree (parents form windows, applies title-bars, shows
+            // the entry form). Without this nothing is visible.
+            Ok(()) => {
+                if HAS_COMPONENTS.with(Cell::get) {
+                    finalize_forms();
+                }
+            }
+            // Waiting for a dialog: the forms appear when `__main` finishes;
+            // waiting in ShowModal, now (the form is what it waits for).
+            Err(VmError::Suspended) => {
+                if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
+                    finalize_forms();
+                }
+            }
+            // (as the IDE's preview reports an error `rapidr_run_bc` returns)
+            Err(VmError::Paused) => report_debug("paused"),
+            Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[run error] vm error: {e}"))),
+        },
+        Slice::Resumed => {
+            if main_done && HAS_COMPONENTS.with(Cell::get) {
+                finalize_forms();
+                // The main program went on after its ShowModal and finished
+                // with no form open: it's over, as on the desktop (which
+                // exits) — its timers stop and no event reaches it any more.
+                if result.is_ok() && !rapidr_runtime_web::gui_web::any_form_shown() {
+                    rapidr_runtime_web::object_web::end_program();
+                }
+            }
+            report(result, "vm error");
+        }
+        Slice::Idle => report(result, "event handler failed"),
+        Slice::Debug => match debug_status(result) {
+            Ok(status) => report_debug(status),
+            Err(e) => {
+                web_sys::console::error_1(&JsValue::from_str(&format!("[debug cmd error] {e}")));
+                report_debug("halted");
+            }
+        },
+    }
+    schedule_output_flush();
+    run_idle_events();
+}
+
+/// Continues the VM that yielded, in a task of its own (the browser has had
+/// its turn), if the session is still the one that yielded.
+fn schedule_continue(generation: u64) {
+    let posted = WAKE.with(|wake| {
+        let mut wake = wake.borrow_mut();
+        if wake.is_none() {
+            let channel = web_sys::MessageChannel::new().ok()?;
+            let on_message = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(|e: web_sys::MessageEvent| {
+                if let Some(generation) = e.data().as_f64() {
+                    continue_slice(generation as u64);
+                }
+            });
+            channel.port1().set_onmessage(Some(on_message.as_ref().unchecked_ref()));
+            on_message.forget();
+            *wake = Some((channel.port1(), channel.port2()));
+        }
+        wake.as_ref()?.1.post_message(&JsValue::from_f64(generation as f64)).ok()
+    });
+    if posted.is_none() {
+        let later = Closure::once_into_js(move || continue_slice(generation));
+        if let Some(window) = web_sys::window() {
+            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
+        }
+    }
+}
+
+/// The next time slice of the VM that yielded. A program replaced meanwhile
+/// (a new run, the debugger gone) isn't continued.
+fn continue_slice(generation: u64) {
+    let outcome = SESSION.with(|s| {
+        let Ok(mut guard) = s.try_borrow_mut() else { return Err(()) };
+        let Some(session) = guard.as_mut().filter(|s| s.generation == generation) else { return Ok(None) };
+        let Some(kind) = session.slice.take() else { return Ok(None) };
+        dialog::set_yielded(false);
+        let (result, main_done) = run_step(session, kind, |vm, module| vm.resume(module));
+        Ok(Some((kind, result, main_done)))
+    });
+    match outcome {
+        // (the VM is busy — it never is between tasks — so: a bit later)
+        Err(()) => schedule_continue(generation),
+        Ok(Some((kind, result, main_done))) => settle(kind, result, main_done),
+        Ok(None) => {}
     }
 }
 
@@ -469,8 +666,13 @@ fn report(result: Result<(), VmError>, what: &str) {
 /// borrowed) this does nothing: the VM runs them at its next safe point.
 fn run_idle_events() {
     loop {
-        // The forms the program waits on that have closed: it goes on.
-        while dialog::resume_after_modal() {}
+        // The answers that came during a yield, and the forms the program
+        // waits on that have closed: it goes on.
+        while dialog::resume_pending() || dialog::resume_after_modal() {}
+        // (busy between two time slices: later)
+        if dialog::is_yielded() {
+            return;
+        }
         let outcome = SESSION.with(|s| {
             let Ok(mut guard) = s.try_borrow_mut() else { return None };
             let session = guard.as_mut()?;
@@ -480,21 +682,16 @@ fn run_idle_events() {
                 return None;
             }
             let mut batch = batch.into_iter();
-            let mut result = Ok(());
-            dialog::enter_vm();
-            for event in batch.by_ref() {
-                if let Err(e) = session.vm.invoke_event(&session.module, event) {
-                    result = Err(e);
-                    break;
-                }
-            }
-            dialog::leave_vm();
-            // A handler waits for a dialog (or failed): the rest run later.
+            let (result, _) = run_step(session, Slice::Idle, |vm, module| {
+                batch.by_ref().try_for_each(|event| vm.invoke_event(module, event).map(drop))
+            });
+            // A handler waits for a dialog, yielded (or failed): the rest
+            // run later.
             DEFERRED.with(|q| q.borrow_mut().extend(batch));
             Some(result)
         });
         match outcome {
-            None => return,
+            None | Some(Err(VmError::Yielded)) => return,
             Some(Err(e @ (VmError::Suspended | VmError::Paused))) => {
                 report(Err(e), "event handler");
                 return;
@@ -516,27 +713,10 @@ fn install_resume_handler() {
                 let _ = session.vm.host_mut().print(&format!("{line}\n"));
                 session.vm.print_col = 0;
             }
-            dialog::enter_vm();
-            let result = session.vm.resume_with(&session.module, value);
-            dialog::leave_vm();
-            let main_done = result.is_ok() && session.main_waiting && session.vm.frames.is_empty();
-            if main_done {
-                session.main_waiting = false;
-            }
-            Some((result, main_done))
+            Some(run_step(session, Slice::Resumed, |vm, module| vm.resume_with(module, value)))
         });
         let Some((result, main_done)) = outcome else { return };
-        if main_done && HAS_COMPONENTS.with(Cell::get) {
-            finalize_forms();
-            // The main program went on after its ShowModal and finished with
-            // no form open: it's over, as on the desktop (which exits) —
-            // its timers stop and no event reaches it any more.
-            if result.is_ok() && !rapidr_runtime_web::gui_web::any_form_shown() {
-                rapidr_runtime_web::object_web::end_program();
-            }
-        }
-        report(result, "vm error");
-        run_idle_events();
+        settle(Slice::Resumed, result, main_done);
     }));
 }
 
@@ -560,33 +740,15 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     let result = SESSION.with(|s| {
         let mut guard = s.try_borrow_mut().map_err(|_| JsValue::from_str("the VM is busy"))?;
         let session = guard.as_mut().ok_or_else(|| JsValue::from_str("no program"))?;
-        dialog::enter_vm();
-        let result = session.vm.run(&session.module);
-        dialog::leave_vm();
-        if matches!(result, Err(VmError::Suspended)) {
-            session.main_waiting = true;
-        }
-        Ok::<_, JsValue>(result)
+        Ok::<_, JsValue>(run_step(session, Slice::Main, |vm, module| vm.run(module)).0)
     })?;
-    match result {
-        Ok(()) => {
-            // Mirror compiled-mode codegen: after `__main` returns, finalize
-            // the DOM tree (parents form windows, applies title-bars, shows
-            // the entry form). Without this nothing is visible.
-            if HAS_COMPONENTS.with(Cell::get) {
-                finalize_forms();
-            }
+    if let Err(e) = &result {
+        if !matches!(e, VmError::Suspended | VmError::Yielded | VmError::Paused) {
+            return Err(JsValue::from_str(&format!("vm error: {e}")));
         }
-        // Waiting for a dialog: the forms appear when `__main` finishes;
-        // waiting in ShowModal, now (the form is what it waits for).
-        Err(VmError::Suspended) => {
-            if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
-                finalize_forms();
-            }
-        }
-        Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
     }
-    run_idle_events();
+    // (yielded: `__main` goes on in a moment, and this follows when it stops)
+    settle(Slice::Main, result, false);
     Ok(())
 }
 
@@ -610,11 +772,16 @@ pub fn rapidr_get_prop(name: &str, prop: &str) -> String {
 
 /// Whether the program's main code has run to its end (or END ran): what a
 /// desktop console program's exit is, for tests and tools that compare the
-/// browser with the desktop. (Waiting in a dialog or a ShowModal isn't.)
+/// browser with the desktop. (Waiting in a dialog or a ShowModal isn't, nor
+/// running between two time slices.)
 #[wasm_bindgen]
 pub fn rapidr_main_done() -> bool {
     rapidr_runtime_web::object_web::program_ended()
-        || SESSION.with(|s| s.try_borrow().ok().is_some_and(|g| g.as_ref().is_some_and(|session| !session.main_waiting)))
+        || SESSION.with(|s| {
+            s.try_borrow().ok().is_some_and(|g| {
+                g.as_ref().is_some_and(|session| !session.main_waiting && session.slice != Some(Slice::Main))
+            })
+        })
 }
 
 /// For tests (as the desktop's `RAPIDR_TEST_RESIZE` / `RAPIDR_TEST_SPLIT`):
@@ -727,33 +894,17 @@ impl DebugSession {
     }
 
     /// Runs the VM with `step` and says where it stopped: "paused",
-    /// "waiting" (the program's forms are up) or "halted".
+    /// "waiting" (the program's forms are up, or it runs on between two
+    /// time slices: the status then comes through
+    /// `__rapidr_handle_debug_result`) or "halted". While the program runs
+    /// on, a step does nothing.
     fn drive(&mut self, step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>) -> Result<String, JsValue> {
-        let result = self
-            .with(|session| {
-                dialog::enter_vm();
-                let result = step(&mut session.vm, &session.module);
-                dialog::leave_vm();
-                result
-            })
+        let outcome = self
+            .with(|session| session.slice.is_none().then(|| run_step(session, Slice::Debug, step).0))
             .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?;
-        let status = match result {
-            Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
-                finalize_forms();
-                "waiting"
-            }
-            Ok(()) => {
-                "halted"
-            }
-            Err(VmError::Paused) => "paused",
-            Err(VmError::Suspended) => {
-                if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
-                    finalize_forms();
-                }
-                "waiting"
-            }
-            Err(e) => return Err(JsValue::from_str(&format!("vm error: {e}"))),
-        };
+        let Some(result) = outcome else { return Ok("waiting".to_string()) };
+        let status = debug_status(result).map_err(|e| JsValue::from_str(&e))?;
+        schedule_output_flush();
         run_idle_events();
         Ok(status.to_string())
     }
@@ -864,6 +1015,8 @@ impl Drop for DebugSession {
             if let Ok(mut slot) = s.try_borrow_mut() {
                 if slot.as_ref().is_some_and(|session| session.generation == self.generation) {
                     *slot = None;
+                    // (a yield of it isn't continued)
+                    dialog::set_yielded(false);
                 }
             }
         });

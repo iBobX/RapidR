@@ -31,7 +31,8 @@ impl RpComponent {
                 props.insert("caption".into(), v_str(""));
                 props.insert("left".into(), v_int(100));
                 props.insert("top".into(), v_int(100));
-                props.insert("visible".into(), v_bool(true));
+                // (hidden until shown, as in RapidQ)
+                props.insert("visible".into(), v_bool(false));
                 props.insert("color".into(), v_int(0xFFFFFF));
                 props.insert("borderstyle".into(), v_int(2));
             }
@@ -641,7 +642,13 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
                 Value::Integer(i) => *i != 0,
                 _ => true,
             };
-            crate::gui::gui_set_visible(name, v);
+            // A window's `Visible = True` is its Show (OnShow included); a
+            // form inside another (an MDI child's) is only drawn or not.
+            if v && is_window(name) {
+                crate::gui::gui_show_visible(name);
+            } else {
+                crate::gui::gui_set_visible(name, v);
+            }
         }
         // A status bar redraws its panels / simple text.
         if comp_type == "RSTATUSBAR" && (prop_lower.starts_with("panel") || prop_lower.starts_with("simple")) {
@@ -808,8 +815,25 @@ fn menu_height(name: &str) -> i64 {
 }
 
 /// Get a property from a registered component.
+/// A form of its own (a window): a QFORM without a parent.
+pub fn is_window(name: &str) -> bool {
+    rp_comp_type(name) == "RFORM" && rp_comp_get(name, "parent").to_string_val().is_empty()
+}
+
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
+    // Form.Scale (RapidR's): its screen's device pixels per pixel.
+    #[cfg(feature = "gui")]
+    if prop_lower == "scale" && rp_comp_type(name) == "RFORM" {
+        return Value::Double(crate::gui::form_scale(name));
+    }
+    // A window's Visible: whether it shows (Show, ShowModal, Visible = True
+    // until Hide / Close or the user closes it).
+    #[cfg(feature = "gui")]
+    if prop_lower == "visible" && is_window(name) {
+        let stored = || COMPONENTS.with(|c| c.borrow().get(&name.to_lowercase()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
+        return v_bool(crate::gui::window_shown(name).unwrap_or_else(stored));
+    }
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if let Some(v) = crate::globals::get(name, &prop_lower) {
         return v;

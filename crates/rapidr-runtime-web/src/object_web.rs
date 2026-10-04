@@ -102,7 +102,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(100));
             props.insert("top".to_string(), v_int(100));
-            props.insert("visible".to_string(), v_bool(true));
+            // (hidden until shown, as in RapidQ)
+            props.insert("visible".to_string(), v_bool(false));
         }
         "RBUTTON" => {
             props.insert("caption".to_string(), v_str(""));
@@ -682,7 +683,19 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A form the program shows (Show, ShowModal, Visible = True) — the only
     // ones its window appears for, as on the desktop: a form starts hidden.
     if comp_type == "RFORM" && lprop == "visible" {
+        let was = rp_comp_get_stored(&uname, SHOWN_BY_PROGRAM).to_bool();
         rp_comp_set_prop_only(&uname, SHOWN_BY_PROGRAM, v_bool(val.to_bool()));
+        // A window shown: its OnShow — at once for Show / ShowModal
+        // (gui_web), else (`Visible = True`, maybe inside its own CREATE)
+        // once the program waits, as on the desktop.
+        if val.to_bool() && !was && rp_comp_get_stored(&uname, "parent").to_string_val().is_empty() {
+            rp_comp_set_prop_only(&uname, ONSHOW_PENDING, v_bool(true));
+            let form = uname.clone();
+            let later = Closure::once_into_js(move || take_onshow(&form));
+            if let Some(w) = web_sys::window() {
+                let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
+            }
+        }
     }
     match comp_type.as_str() {
         "RNUM" => {
@@ -810,6 +823,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::get(name, &lprop) {
         return v;
+    }
+    // Form.Scale (RapidR's): the page's scale.
+    if lprop == "scale" && rp_comp_type(&uname) == "RFORM" {
+        return crate::globals_web::get("screen", "scale").unwrap_or(Value::Double(1.0));
     }
     // A form's inside (its frame and main menu excluded); other components
     // have no frame inside their size.
@@ -1730,6 +1747,29 @@ pub fn end_program() {
 
 /// The property recording that the program showed a form (see rp_comp_set).
 pub const SHOWN_BY_PROGRAM: &str = "__showreq";
+/// A shown window's OnShow not fired yet.
+const ONSHOW_PENDING: &str = "__onshowpending";
+
+/// The forms the program showed (and hasn't hidden).
+pub fn shown_forms() -> Vec<String> {
+    COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name.eq_ignore_ascii_case("RFORM") && comp.properties.get(SHOWN_BY_PROGRAM).is_some_and(|v| v.to_bool())).map(|(n, _)| n.clone()).collect())
+}
+
+/// Fires a shown window's pending OnShow (once; not if it was hidden again).
+pub fn take_onshow(form: &str) {
+    if !rp_comp_get_stored(form, ONSHOW_PENDING).to_bool() {
+        return;
+    }
+    rp_comp_set_prop_only(form, ONSHOW_PENDING, v_bool(false));
+    if rp_comp_get_stored(form, SHOWN_BY_PROGRAM).to_bool() {
+        rp_fire_event(form, "onshow");
+    }
+}
+
+/// A window's OnShow no longer pending (ShowModal fires its own).
+pub fn drop_onshow(form: &str) {
+    rp_comp_set_prop_only(form, ONSHOW_PENDING, v_bool(false));
+}
 
 /// Whether the program ran END.
 pub fn program_ended() -> bool {

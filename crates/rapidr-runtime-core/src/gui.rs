@@ -848,7 +848,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 close_button(&mut win, &name_lower);
                 let form = name_lower.clone();
-                win.draw(move |w| scroll_bars_draw(&form, 0, menu_offset(&form), w.w(), w.h()));
+                win.draw(move |w| {
+                    scale_check(&form, w.pixels_per_unit());
+                    scroll_bars_draw(&form, 0, menu_offset(&form), w.w(), w.h())
+                });
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -868,7 +871,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
                 win.set_border(rp_comp_get(name, "borderstyle").to_i64() != 0);
                 close_button(&mut win, &name_lower);
                 let form = name_lower.clone();
-                win.draw(move |w| scroll_bars_draw(&form, 0, menu_offset(&form), w.w(), w.h()));
+                win.draw(move |w| {
+                    scale_check(&form, w.pixels_per_unit());
+                    scroll_bars_draw(&form, 0, menu_offset(&form), w.w(), w.h())
+                });
                 GUI_WIDGETS.with(|gw| {
                     gw.borrow_mut().insert(name_lower, GuiWidget::Window(win));
                 });
@@ -3188,6 +3194,7 @@ pub fn gui_doevents() {
         return;
     }
     start_timers();
+    show_pending();
     let _ = app::wait_for(0.0);
 }
 
@@ -3204,6 +3211,7 @@ pub fn gui_wait_key() -> Option<bool> {
     }
     start_timers();
     while !rapidr_value::console::key_waiting() {
+        show_pending();
         if !app::wait() {
             return Some(false);
         }
@@ -3252,6 +3260,7 @@ fn form_shown(name_lower: &str) -> bool {
 /// One step of the innermost wait: `None` while it goes on (after handling
 /// pending UI events once), `Some(Null)` when it's over.
 pub fn gui_pump_wait() -> Option<Value> {
+    show_pending();
     let done = WAITS.with(|w| match w.borrow().last() {
         None => true,
         Some(Wait::Form(name)) => !form_shown(name),
@@ -3312,7 +3321,9 @@ pub fn gui_showmodal(name: &str) -> i64 {
 
     // Run the FLTK event loop — do NOT hold a borrow on GUI_APP during wait()
     // because callbacks may call ensure_app() which needs borrow_mut.
+    show_pending();
     while app::wait() {
+        show_pending();
         if !form_shown(&name_lower) {
             break;
         }
@@ -3687,8 +3698,12 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
 /// Start the GUI event loop (standalone, not attached to a form).
 pub fn run_gui_event_loop() {
     ensure_app();
-    // Don't hold a borrow on GUI_APP during the event loop
-    app::run().ok();
+    // Don't hold a borrow on GUI_APP during the event loop (app::run, with
+    // the windows made visible showing as it waits)
+    show_pending();
+    while app::wait() {
+        show_pending();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -3732,11 +3747,50 @@ thread_local! {
 fn after_show(name: &str) {
     let name = name.to_lowercase();
     if let Some(GuiWidget::Window(win)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&name).cloned()) {
-        let forced = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok());
-        rapidr_value::objects::bitmap::set_display_scale(forced.unwrap_or_else(|| f64::from(win.pixels_per_unit())));
+        let scale = forced_scale().unwrap_or_else(|| f64::from(win.pixels_per_unit()));
+        rapidr_value::objects::bitmap::set_display_scale(scale);
+        FORM_SCALES.with(|f| f.borrow_mut().insert(name.clone(), scale));
     }
     if FIRST_PAINT.with(|f| f.borrow_mut().remove(&name)) {
         fire_first_paint(&name);
+    }
+}
+
+/// `RAPIDR_SCALE`: the screen's scale for tests.
+fn forced_scale() -> Option<f64> {
+    std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok()).filter(|s| *s > 0.0)
+}
+
+thread_local! {
+    /// Each shown form's screen scale (Form.Scale), for OnScaleChanged.
+    static FORM_SCALES: RefCell<HashMap<String, f64>> = RefCell::new(HashMap::new());
+}
+
+/// Form.Scale: the scale of the screen the form shows on (Screen.Scale
+/// before it shows).
+pub fn form_scale(name: &str) -> f64 {
+    FORM_SCALES.with(|f| f.borrow().get(&name.to_lowercase()).copied()).unwrap_or_else(|| forced_scale().unwrap_or_else(rapidr_value::objects::bitmap::exact_scale))
+}
+
+/// A form drawn: moved to a screen with another scale, it's told
+/// (OnScaleChanged, RapidR's) and drawn again at it (OnPaint, its canvases').
+fn scale_check(form: &str, pixels_per_unit: f32) {
+    if forced_scale().is_some() {
+        return;
+    }
+    let scale = f64::from(pixels_per_unit);
+    let changed = FORM_SCALES.with(|f| match f.borrow_mut().insert(form.to_string(), scale) {
+        Some(old) => (old - scale).abs() > f64::EPSILON,
+        None => false,
+    });
+    if changed {
+        rapidr_value::objects::bitmap::set_display_scale(scale);
+        let form = form.to_string();
+        // (not inside the draw: what the handlers draw is drawn next)
+        app::add_timeout3(0.0, move |_| {
+            rp_fire_event(&form, "onscalechanged");
+            fire_first_paint(&form);
+        });
     }
 }
 
@@ -4072,6 +4126,41 @@ fn form_resized(form: &str, x: i32, y: i32, w: i32, h: i32) {
     gui_apply_geometry(form);
     rp_fire_event(form, "onresize");
     rp_fire_event(form, "onpaint");
+}
+
+/// Whether a form's window shows (`None` before it's built).
+pub fn window_shown(name: &str) -> Option<bool> {
+    GUI_WIDGETS.with(|gw| match gw.borrow().get(&name.to_lowercase()) {
+        Some(GuiWidget::Window(win)) => Some(win.shown()),
+        _ => None,
+    })
+}
+
+/// `Form.Visible = True`: the form's Show. A form not built yet (its
+/// `Visible = 1` inside its own CREATE, before its components exist) shows
+/// as soon as the program waits — DoEvents, ShowModal, its event loop.
+pub fn gui_show_visible(name: &str) {
+    if window_shown(name).is_some() {
+        gui_show(name);
+        return;
+    }
+    ensure_app();
+    PENDING_SHOWS.with(|p| p.borrow_mut().push(name.to_string()));
+}
+
+thread_local! {
+    /// Windows a `Visible = True` shows once the program waits.
+    static PENDING_SHOWS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The program waits (its event loop, ShowModal, DoEvents): the windows it
+/// made visible show (unless it hid them again meanwhile).
+fn show_pending() {
+    for name in PENDING_SHOWS.with(|p| std::mem::take(&mut *p.borrow_mut())) {
+        if window_shown(&name) != Some(true) && crate::object::rp_comp_get(&name, "visible").to_bool() {
+            gui_show(&name);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
