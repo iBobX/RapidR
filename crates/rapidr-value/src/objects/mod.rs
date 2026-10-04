@@ -758,6 +758,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
                     if b.alpha.is_none() {
                         b.auto_transparent_color();
                     }
+                    b.touch();
                 }
             });
         }));

@@ -51,6 +51,13 @@ pub fn display_scale() -> usize {
     DISPLAY_SCALE.with(Cell::get)
 }
 
+/// The next drawing revision: unique across every bitmap of the process,
+/// so a bitmap made again under the same id never repeats an old one.
+fn next_revision() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 /// What a bitmap shows on a high-DPI screen: its pixels `scale` times
 /// finer (with each one's opacity, for soft-edged images).
 #[derive(Debug, Clone)]
@@ -228,6 +235,10 @@ pub struct Bitmap {
     /// The SVG these pixels were drawn from, until something draws on them:
     /// what's shown is drawn from it again at a new screen scale.
     pub(crate) svg: Option<std::rc::Rc<Vec<u8>>>,
+    /// Changes whenever what the bitmap shows may have changed (every
+    /// drawing method, a load, a new size, `invalidate_display`): a host
+    /// keeps the picture it uploaded until it does ([`Bitmap::revision`]).
+    pub(crate) revision: u64,
 }
 
 /// `img` cut or padded (transparent) to w × h.
@@ -269,6 +280,7 @@ impl Default for Bitmap {
             alpha: None,
             hi: None,
             svg: None,
+            revision: next_revision(),
         }
     }
 }
@@ -276,6 +288,25 @@ impl Default for Bitmap {
 impl Bitmap {
     pub fn from_pixels(img: Pixels) -> Self {
         Self { img, ..Self::default() }
+    }
+
+    /// What the bitmap shows, as a number that changes whenever it may
+    /// have changed (unique across bitmaps): a host's picture cache key.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// What it shows changed some way the bitmap didn't see (its public
+    /// fields set directly).
+    pub fn touch(&mut self) {
+        self.revision = next_revision();
+    }
+
+    /// What the screen shows made current (at the display scale), and its
+    /// revision: equal revisions show the same `display_rgba`.
+    pub fn display_revision(&mut self) -> u64 {
+        self.hi_mut();
+        self.revision
     }
 
     /// A QCANVAS's surface.
@@ -310,6 +341,7 @@ impl Bitmap {
         }
         if (w, h) != (self.img.width, self.img.height) {
             self.svg = None;
+            self.touch();
         }
         let mut pixels = vec![self.background; w * h];
         for y in 0..h.min(self.img.height) {
@@ -341,7 +373,9 @@ impl Bitmap {
     fn hi_mut(&mut self) -> Option<&mut HiRes> {
         let s = display_scale();
         if s <= 1 {
-            self.hi = None;
+            if self.hi.take().is_some() {
+                self.touch();
+            }
             return None;
         }
         let fits = self.hi.as_ref().is_some_and(|h| h.scale == s && h.img.width == self.img.width * s && h.img.height == self.img.height * s);
@@ -349,25 +383,32 @@ impl Bitmap {
             // An SVG's pixels: drawn again at this scale; others: enlarged.
             let (w, h) = (self.img.width * s, self.img.height * s);
             let from_svg = self.svg.as_ref().and_then(|svg| decode_svg(svg, s as f32).ok()).map(|(fine, a)| fit_hi(fine, a, w, h, s));
+            let had = self.hi.is_some();
             self.hi = from_svg.or_else(|| HiRes::upscaled(&self.img, self.alpha_channel(), s)).map(Box::new);
+            if had || self.hi.is_some() {
+                self.touch();
+            }
         }
         self.hi.as_deref_mut()
     }
 
     /// What the screen shows, for drawing on it (text.rs); `None` at 1×.
     pub(crate) fn display_mut(&mut self) -> Option<&mut HiRes> {
+        self.touch();
         self.hi_mut()
     }
 
     /// Drops what the screen shows (the pixels changed some other way).
     pub fn invalidate_display(&mut self) {
         self.hi = None;
+        self.touch();
     }
 
     /// Takes `src`'s high-DPI pixels along with its pixels (`BMP = …`).
     pub fn take_display(&mut self, src: &mut Bitmap) {
         self.hi = src.hi.take();
         self.svg = src.svg.take();
+        self.touch();
     }
 
     /// Whether these pixels are an SVG's, not drawn on since.
@@ -399,6 +440,7 @@ impl Bitmap {
     /// Sets one of the pixels (only: what the screen shows is the caller's).
     pub(crate) fn lo_pset(&mut self, x: i64, y: i64, c: u32) {
         self.svg = None;
+        self.touch();
         if x >= 0 && y >= 0 && (x as usize) < self.img.width && (y as usize) < self.img.height {
             let i = y as usize * self.img.width + x as usize;
             self.img.pixels[i] = c;
@@ -436,6 +478,7 @@ impl Bitmap {
 
     pub fn fill_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
         self.svg = None;
+        self.touch();
         let (l, t, r, b) = self.clip(x1, y1, x2, y2);
         for y in t..b {
             for x in l..r {
@@ -476,6 +519,7 @@ impl Bitmap {
     /// pixels that aren't the border's color.
     pub fn flood_fill(&mut self, x: i64, y: i64, c: u32, border: u32) {
         self.svg = None;
+        self.touch();
         let mut stack = vec![(x, y)];
         let mut seen = vec![false; self.img.pixels.len()];
         let mut filled = Vec::new();
@@ -643,6 +687,8 @@ impl Bitmap {
         if self.surface() && matches!(prop, "width" | "height" | "transparentcolor") {
             return None;
         }
+        // (Transparent, a color …: shown differently)
+        self.touch();
         // A form's properties are the form's (the runtime keeps them); only
         // its color matters here: the surface shows it through.
         if self.form {
@@ -776,6 +822,7 @@ impl Bitmap {
             }
             "clear" | "cls" => {
                 self.svg = None;
+                self.touch();
                 let bg = self.background;
                 self.img.pixels.iter_mut().for_each(|p| *p = bg);
                 if let Some(hi) = self.hi_mut() {
@@ -810,6 +857,7 @@ impl Bitmap {
     /// Pixels of color `old` (the background showing) become `new`.
     fn recolor(&mut self, old: u32, new: u32) {
         self.svg = None;
+        self.touch();
         self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = new);
         if let Some(hi) = self.hi.as_mut() {
             hi.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = new);
@@ -861,6 +909,7 @@ impl Bitmap {
     /// Loads a BMP — or an SVG, drawn at its size (with its soft edges).
     pub fn load_bmp_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
         self.hi = None;
+        self.touch();
         self.svg = None;
         if is_svg(bytes) {
             let (img, alpha) = decode_svg(bytes, 1.0)?;
@@ -888,6 +937,7 @@ impl Bitmap {
         if self.picture && self.img.height > 0 {
             if let Some(c) = self.pixel(0, self.img.height as i64 - 1) {
                 self.transparent_color = c;
+                self.touch();
             }
         }
     }
@@ -918,6 +968,40 @@ mod tests {
         assert_eq!(b.pixel(-1, 0), None);
         b.resize(12, 3);
         assert_eq!((b.pixel(0, 0), b.pixel(11, 2)), (Some(0xFF), Some(0xFFFFFF)));
+    }
+
+    /// The drawing revision a host keeps its picture by: new after any
+    /// drawing, load, resize or a new screen scale; the same while nothing
+    /// changes (reading pixels, showing it again); never repeated by
+    /// another bitmap.
+    #[test]
+    fn revision() {
+        set_display_scale(2.0);
+        let mut b = bmp(10, 10);
+        let r = b.display_revision();
+        let _ = b.display_rgba();
+        assert_eq!((b.display_revision(), b.pixel(1, 1)), (r, Some(0xFFFFFF)));
+        let steps: [&dyn Fn(&mut Bitmap); 6] = [
+            &|b| b.pset(1, 1, 0),
+            &|b| b.fill_rect(0, 0, 2, 2, 0xFF),
+            &|b| b.flood_fill(5, 5, 0xAA, 0xFF),
+            &|b| b.resize(12, 12),
+            &|b| b.invalidate_display(),
+            &|b| {
+                b.set("transparent", &v_int(1));
+            },
+        ];
+        let mut last = b.display_revision();
+        for step in steps {
+            step(&mut b);
+            let now = b.display_revision();
+            assert_ne!(now, last);
+            last = now;
+        }
+        // (a new screen scale: shown again at it)
+        set_display_scale(1.0);
+        assert_ne!(b.display_revision(), last);
+        assert_ne!(bmp(10, 10).revision(), bmp(10, 10).revision());
     }
 
     /// Every kind of drawing, on a bitmap at the current display scale.
