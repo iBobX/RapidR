@@ -94,7 +94,12 @@ async function kernelTree(c) {
   const out = join(WORK, `${c.name}-interp`);
   const file = join(WORK, `${c.name}.a11y.json`);
   await run(join(ROOT, "rapidr"), ["build", join(ROOT, `tests/fixtures/${c.name}.bas`), out, "--interp"], { cwd: ROOT, env: ENV });
-  const answer = c.fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: c.fileDialog };
+  // (the dialogs' answers, as the desktop matrix gives them)
+  const answer = {
+    ...(c.fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: c.fileDialog }),
+    ...(c.colorDialog === undefined ? {} : { RAPIDR_TEST_COLOR_DIALOG: c.colorDialog }),
+    ...(c.fontDialog === undefined ? {} : { RAPIDR_TEST_FONT_DIALOG: c.fontDialog }),
+  };
   await run(join(out, c.name), [], {
     cwd: ROOT,
     env: { ...ENV, ...answer, RAPIDR_HOST: "kernel", RAPIDR_TEST_A11Y: file, RAPIDR_CAPTURE: join(WORK, `${c.name}-window`), RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump, RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "" },
@@ -307,8 +312,38 @@ function compareTree(tree, k, typed = false) {
     for (const c of k.children || []) if (tree.names.has(c.id)) component(c);
     return true;
   };
-  if (!component(k)) diffs.push(`${k.role} "${k.name}": no form of that name in the page`);
+  if (!component(k) && !runtimeDialog(tree, k, say)) diffs.push(`${k.role} "${k.name}": no form of that name in the page`);
   return diffs;
+}
+
+/// A dialog of the runtime's own (MESSAGEDLG's, a colour dialog's …): no
+/// component of the program's, so it's matched by its role and name, then
+/// its icon, texts and buttons by theirs, in order.
+function runtimeDialog(tree, k, say) {
+  if (k.role !== "dialog" || !(k.states || []).includes("modal")) return false;
+  const d = tree.order.find((n) => roleOf(n) === "dialog" && squash(n.name?.value) === squash(k.name));
+  if (!d) return false;
+  const under = [];
+  const visit = (n) => {
+    for (const c of n?.childIds || []) {
+      const m = tree.byId.get(c);
+      if (!m) continue;
+      under.push(m);
+      visit(m);
+    }
+  };
+  visit(d);
+  const of = (roles) => under.filter((n) => roles.includes(roleOf(n)));
+  const want = (k.children || []);
+  const texts = squash(of(["StaticText"]).map((t) => t.name?.value ?? "").join(" "));
+  const list = [];
+  const buttons = of(ROLES.button || ["button"]).map((b) => squash(b.name?.value));
+  const kButtons = want.filter((c) => c.role === "button").map((c) => squash(c.name));
+  if (buttons.join("|") !== kButtons.join("|")) list.push(`buttons [${buttons.join(", ")}] ≠ [${kButtons.join(", ")}]`);
+  for (const c of want.filter((c) => c.role === "label")) if (!texts.includes(squash(c.name))) list.push(`text "${c.name}" missing`);
+  for (const c of want.filter((c) => c.role === "img")) if (!of(["image", "img"]).some((n) => squash(n.name?.value) === squash(c.name))) list.push(`icon "${c.name}" missing`);
+  say(`dialog "${k.name}"`, list);
+  return true;
 }
 
 // ------------------------------------------------------------ the run --
