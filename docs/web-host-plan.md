@@ -196,7 +196,7 @@ A session is one focused agent session ending in a green commit.
 | W8 | File dialogs on the web through `file_dialog.rs`; `dialog_web.rs` retired | 1–2 | Parallel after W4 |
 | W9 | Performance: damage rectangles, the size levers (§7), WebGPU decided by measurement | 2–3 | Parallel after W3 |
 | W10 | The web IDE on the kernel (Phase 3's MDI IDE in the page) | in Phase 3's budget | |
-| W11 | Switch: the kernel host the web default, one release with `?host=dom`; then delete the DOM runtime (§5) | 2 | Single owner |
+| W11 | Switch: once W5's parity holds, the kernel host becomes the only web host and the DOM runtime is deleted in the same step — no release with a `?host=dom` fallback (the user's rule, 2026-10-04; §5) | 2 | Single owner |
 
 Total about 22–31 sessions besides W10. W1–W4 are on the critical path, in order; W5–W9 run in parallel lanes after W3 / W4.
 
@@ -214,7 +214,7 @@ Total about 22–31 sessions besides W10. W1–W4 are on the critical path, in o
 
 ## 5. Migration end state (the user's rule: one implementation, no long-term fallback)
 
-After W11's release with `?host=dom` as the escape hatch, delete: `gui_web.rs`, `dialog_web.rs`, `menu_web.rs`, `a11y_web.rs`, `layout_web.rs`, `scroll_web.rs`, `mdi_web.rs`, the DOM half of `object_web.rs` (the registry stays, shared since W2), `rapidr-rrcss` (unless RDOM wants a base stylesheet), the DOM IDE after W10, and the DOM-specific parts of the web tests. The web runtime keeps what isn't GUI (builtins, files, storage, network, database, data science, the VM host) and the web-only components' overlays. Every component then has one implementation (the kernel's), one look, one accessibility tree and one input path, on the desktop, the web and, later, mobile.
+At W11, once parity holds (no release keeps `?host=dom` as an escape hatch), delete: `gui_web.rs`, `dialog_web.rs`, `menu_web.rs`, `a11y_web.rs`, `layout_web.rs`, `scroll_web.rs`, `mdi_web.rs`, the DOM half of `object_web.rs` (the registry stays, shared since W2), `rapidr-rrcss` (unless RDOM wants a base stylesheet), the DOM IDE after W10, and the DOM-specific parts of the web tests. The web runtime keeps what isn't GUI (builtins, files, storage, network, database, data science, the VM host) and the web-only components' overlays. Every component then has one implementation (the kernel's), one look, one accessibility tree and one input path, on the desktop, the web and, later, mobile.
 
 ---
 
