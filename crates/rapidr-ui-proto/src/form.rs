@@ -354,20 +354,20 @@ impl Edit {
         p.clipped((ix, iy, iw, ih), |p| {
             for (b, _) in &selection {
                 let r = vello::kurbo::Rect::new(b.x0, b.y0, b.x1, b.y1);
-                p.scene.fill(vello::peniko::Fill::NonZero, to_device, crate::paint::color(HIGHLIGHT), None, &r);
+                p.canvas.fill_rect(to_device, HIGHLIGHT, &r);
             }
             p.layout(layout, to_device);
             // The selected text again, white, inside the highlight.
             for (b, _) in &selection {
                 let r = vello::kurbo::Rect::new(b.x0, b.y0, b.x1, b.y1);
-                p.scene.push_clip_layer(vello::peniko::Fill::NonZero, to_device, &r);
+                p.canvas.push_clip(to_device, &r);
                 p.layout_in(layout, to_device, HIGHLIGHT_TEXT);
-                p.scene.pop_layer();
+                p.canvas.pop_clip();
             }
             if focused && caret_on && selection.is_empty() {
                 if let Some(c) = caret {
                     let r = vello::kurbo::Rect::new(c.x0.round(), c.y0.round(), c.x0.round() + (s.round().max(1.0)), c.y1.round());
-                    p.scene.fill(vello::peniko::Fill::NonZero, to_device, crate::paint::color(0x000000), None, &r);
+                    p.canvas.fill_rect(to_device, 0x000000, &r);
                 }
             }
         });

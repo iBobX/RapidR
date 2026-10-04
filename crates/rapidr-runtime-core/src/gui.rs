@@ -4656,7 +4656,7 @@ fn fltk_face(font: &rapidr_value::objects::font::Font) -> Font {
 
 /// A QFONT's size in pixels (points at 96 dpi; negative: pixels).
 fn font_pixels(font: &rapidr_value::objects::font::Font) -> i32 {
-    if font.size < 0 { (-font.size).min(512) as i32 } else { ((font.size.clamp(1, 384) * 96 + 36) / 72) as i32 }
+    font.pixel_size().min(512) as i32
 }
 
 /// Draws a QTABCONTROL's tabs (its first child, `f`, covers it).
@@ -6368,7 +6368,7 @@ fn listview_begin_edit(name: &str, i: usize) {
         if let Some((editor, editing)) = e.borrow_mut().get_mut(&name) {
             *editing = Some(i);
             editor.resize(f.x() + l as i32, f.y() + t as i32, (r - l) as i32, (b - t) as i32);
-            editor.set_text_size(((font.size.max(1) * 96 / 72) as i32).clamp(8, 72));
+            editor.set_text_size((font.pixel_size() as i32).clamp(8, 72));
             editor.set_value(&text);
             editor.show();
             let _ = editor.take_focus();

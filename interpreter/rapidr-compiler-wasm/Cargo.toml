@@ -15,4 +15,4 @@ rapidr-parser = { workspace = true }
 rapidr-preprocessor = { workspace = true }
 rapidr-bcgen = { workspace = true }
 rapidr-bytecode = { workspace = true }
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.129"

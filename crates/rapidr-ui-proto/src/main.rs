@@ -1,106 +1,139 @@
 //! Prototype of RapidR's own desktop host (ROADMAP Phase 1B, "new desktop
-//! host"): a RapidQ QFORM drawn by RapidR's UI kernel instead of FLTK, on
+//! host"): RapidQ QFORMs drawn by RapidR's UI kernel instead of FLTK, on
 //!
-//! - `winit` — the window, mouse, keyboard and input methods;
+//! - `winit` — the windows, mouse, keyboard and input methods, driven by
+//!   `pump_app_events` from the program's own loop (`ui::step`), never by
+//!   `run_app`: generated native code is ordinary blocking Rust;
 //! - `vello` on `wgpu` — every pixel, as GPU vector drawing at the
-//!   screen's resolution (logical pixels laid out, device pixels drawn);
+//!   screen's resolution; or `vello_cpu` + `softbuffer` on the CPU
+//!   (`RAPIDR_RENDERER=cpu`, and every capture);
 //! - `parley` — text shaping, layout and editing, from RapidR's built-in
 //!   Liberation fonts (the metrics `TextWidth` reports);
 //! - `AccessKit` — the accessibility tree screen readers read and operate;
 //! - `muda` / `rfd` / `arboard` — the native menu bar, file dialogs and
 //!   clipboard, where users notice native.
 //!
-//! The components are the shared models FLTK and the web runtime already
-//! draw (`rapidr_value::objects`): this host renders their ops and routes
-//! input to them. It sits next to the FLTK runtime and changes nothing in it.
+//! Usage:
 //!
-//! `rapidr-ui-proto [--capture out.bmp] [--bench]` — `RAPIDR_SCALE` forces
-//! the scale (device pixels per logical pixel, as the runtime's), and
-//! `RAPIDR_CAPTURE=out.bmp` is `--capture`: one frame rendered offscreen
-//! and written as a BMP, then exit. `--bench` prints the time from start
-//! to the first frame and the average frame over 200 redraws.
+//! - `rapidr-ui-proto [--script | --script-file F] [--shots PREFIX]` — the
+//!   spike program (`program.rs`): Form1 shown, Form2 shown modally, a
+//!   modal inside a handler, a 50 ms timer, an async file dialog, a menu.
+//!   `--script` drives it with the built-in script.
+//! - `RAPIDR_CAPTURE=PREFIX` (without `RAPIDR_CAPTURE_WINDOWS`): the same
+//!   program on the headless host — no OS window, no event loop;
+//!   `capture` script steps write `PREFIX-<n>.bmp` with the CPU renderer.
+//! - `--capture out.bmp [--script] [--bench]` — the demo form rendered
+//!   offscreen on the GPU once (and timed), then exit.
+//! - `--compare PREFIX` — the demo form, GPU vs CPU renderer, 1x and 2x.
+//!
+//! `RAPIDR_SCALE` forces the scale (device pixels per logical pixel),
+//! `RAPIDR_TEST_FILE_DIALOG=path` answers file dialogs without UI,
+//! `RAPIDR_HOST_TRACE=1` prints winit's own warnings.
 
 mod a11y;
+mod compare;
+mod cpu;
 mod demo;
 mod form;
+mod host;
+mod kernel;
+#[cfg(target_os = "macos")]
+mod macos_probe;
 mod menu;
 mod paint;
+mod program;
 mod render;
+mod script;
 #[cfg(test)]
 mod tests;
 mod text;
+mod ui;
 
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use vello::util::{RenderContext, RenderSurface};
-use vello::wgpu;
-use vello::Renderer;
-use winit::application::ApplicationHandler;
-use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::{ElementState, Ime, MouseButton, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use winit::window::{Window, WindowId};
-
-use form::{Clipboard, Event, Form, Key, Mods};
 use text::TextSystem;
 
-/// Windows' caret blink time (GetCaretBlinkTime).
-const BLINK: Duration = Duration::from_millis(530);
 /// Redraws `--bench` times.
 const BENCH_FRAMES: usize = 200;
 
-struct Options {
-    capture: Option<PathBuf>,
-    bench: bool,
-    /// `--script`: scripted input before the capture.
-    script: bool,
-    /// RAPIDR_SCALE: the scale, whatever the screen's.
-    scale: Option<f64>,
-}
-
-fn options() -> Options {
-    let mut capture = std::env::var_os("RAPIDR_CAPTURE").map(PathBuf::from);
-    let (mut bench, mut script) = (false, false);
-    let mut args = std::env::args().skip(1);
-    while let Some(a) = args.next() {
-        match a.as_str() {
-            "--capture" => capture = args.next().map(PathBuf::from),
-            "--bench" => bench = true,
-            "--script" => script = true,
-            _ => {
-                eprintln!("usage: rapidr-ui-proto [--capture out.bmp [--script]] [--bench]");
-                std::process::exit(2);
-            }
-        }
-    }
-    let scale = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok()).filter(|s| *s > 0.0 && *s <= 8.0);
-    Options { capture, bench, script, scale }
+fn usage() -> ! {
+    eprintln!("usage: rapidr-ui-proto [--script | --script-file F] [--shots PREFIX] | --capture out.bmp [--script] [--bench] | --compare PREFIX");
+    std::process::exit(2);
 }
 
 fn main() {
     let start = Instant::now();
-    let opts = options();
-    if let Some(path) = &opts.capture {
-        if let Err(e) = capture(path, opts.scale.unwrap_or(1.0), &opts, start) {
+    if std::env::var_os("RAPIDR_HOST_TRACE").is_some() {
+        tracing_subscriber::fmt().with_max_level(tracing_subscriber::filter::LevelFilter::DEBUG).with_writer(std::io::stderr).init();
+    }
+    let mut capture: Option<PathBuf> = None;
+    let (mut bench, mut script, mut script_file, mut shots) = (false, false, None::<String>, None::<String>);
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        match a.as_str() {
+            "--capture" => capture = Some(args.next().map(PathBuf::from).unwrap_or_else(|| usage())),
+            "--bench" => bench = true,
+            "--script" => script = true,
+            "--script-file" => script_file = Some(args.next().unwrap_or_else(|| usage())),
+            "--shots" => shots = Some(args.next().unwrap_or_else(|| usage())),
+            "--diff" => {
+                let (a, b) = (args.next().unwrap_or_else(|| usage()), args.next().unwrap_or_else(|| usage()));
+                match compare::files(&a, &b) {
+                    Ok(same) => std::process::exit(if same { 0 } else { 1 }),
+                    Err(e) => {
+                        eprintln!("rapidr-ui-proto: {e}");
+                        std::process::exit(2);
+                    }
+                }
+            }
+            "--compare" => {
+                let prefix = args.next().unwrap_or_else(|| "compare".into());
+                if let Err(e) = compare::run(&prefix) {
+                    eprintln!("rapidr-ui-proto: {e}");
+                    std::process::exit(1);
+                }
+                return;
+            }
+            _ => usage(),
+        }
+    }
+    let scale = std::env::var("RAPIDR_SCALE").ok().and_then(|s| s.parse::<f64>().ok()).filter(|s| *s > 0.0 && *s <= 8.0);
+    if let Some(path) = &capture {
+        if let Err(e) = offscreen(path, scale.unwrap_or(1.0), script, bench, start) {
             eprintln!("rapidr-ui-proto: {e}");
             std::process::exit(1);
         }
         return;
     }
-    let event_loop = EventLoop::<UserEvent>::with_user_event().build().expect("event loop");
-    let mut app = App::new(opts, start, event_loop.create_proxy());
-    event_loop.run_app(&mut app).expect("event loop");
+
+    let script = match (script_file, script) {
+        (Some(f), _) => Some(std::fs::read_to_string(&f).unwrap_or_else(|e| panic!("{f}: {e}"))),
+        (None, true) => Some(program::SCRIPT.to_string()),
+        _ => None,
+    }
+    .map(|s| script::Script::parse(&s).unwrap_or_else(|e| panic!("{e}")));
+    let env_capture = std::env::var("RAPIDR_CAPTURE").ok().filter(|s| !s.is_empty());
+    let headless = env_capture.is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none();
+    let host: Box<dyn host::Host> = if headless {
+        Box::new(host::HeadlessHost::new(scale.unwrap_or(1.0)))
+    } else {
+        let kind = match std::env::var("RAPIDR_RENDERER").as_deref() {
+            Ok("cpu") => host::RendererKind::Cpu,
+            _ => host::RendererKind::Gpu,
+        };
+        Box::new(host::WinitHost::new(kind, scale))
+    };
+    eprintln!("[host] {} (startup {:.0} ms)", host.name(), start.elapsed().as_secs_f64() * 1e3);
+    ui::init(host, script, shots.or(env_capture));
+    program::main();
 }
 
-/// `--capture`: one frame offscreen, written as a BMP.
-fn capture(path: &PathBuf, scale: f64, opts: &Options, start: Instant) -> Result<(), String> {
-    let bench = opts.bench;
+/// `--capture`: one frame of the demo form offscreen on the GPU, as a BMP.
+fn offscreen(path: &PathBuf, scale: f64, script: bool, bench: bool, start: Instant) -> Result<(), String> {
     let mut text = TextSystem::new();
     let mut form = demo::form();
-    if opts.script {
+    if script {
         // (laid out at the capture's scale first, as a shown window is)
         drop(render::scene(&mut form, &mut text, scale));
         demo::script(&mut form, &mut text, &mut 0);
@@ -125,330 +158,4 @@ fn capture(path: &PathBuf, scale: f64, opts: &Options, start: Instant) -> Result
 
 fn ms(d: Duration) -> f64 {
     d.as_secs_f64() * 1e3
-}
-
-/// What reaches the event loop from other threads.
-enum UserEvent {
-    AccessKit(accesskit_winit::Event),
-    Menu(muda::MenuEvent),
-}
-
-impl From<accesskit_winit::Event> for UserEvent {
-    fn from(e: accesskit_winit::Event) -> Self {
-        UserEvent::AccessKit(e)
-    }
-}
-
-/// The OS clipboard through arboard.
-struct OsClipboard(Option<arboard::Clipboard>);
-
-impl Clipboard for OsClipboard {
-    fn get_text(&mut self) -> Option<String> {
-        self.0.as_mut()?.get_text().ok()
-    }
-    fn set_text(&mut self, text: &str) {
-        if let Some(c) = self.0.as_mut() {
-            c.set_text(text).ok();
-        }
-    }
-}
-
-struct Shown {
-    window: Arc<Window>,
-    surface: RenderSurface<'static>,
-    access: accesskit_winit::Adapter,
-    _menu: menu::AppMenu,
-}
-
-#[derive(Default)]
-struct Bench {
-    frames: usize,
-    total: Duration,
-    scene: Duration,
-    worst: Duration,
-}
-
-struct App {
-    opts: Options,
-    start: Instant,
-    proxy: EventLoopProxy<UserEvent>,
-    ctx: RenderContext,
-    /// One renderer per device (by the device's index in `ctx`).
-    renderers: Vec<Option<Renderer>>,
-    shown: Option<Shown>,
-    form: Form,
-    text: TextSystem,
-    clipboard: OsClipboard,
-    clicks: u32,
-    mods: ModifiersState,
-    cursor: (f64, f64),
-    next_blink: Instant,
-    first_frame: bool,
-    bench: Option<Bench>,
-}
-
-impl App {
-    fn new(opts: Options, start: Instant, proxy: EventLoopProxy<UserEvent>) -> Self {
-        let bench = opts.bench.then(Bench::default);
-        App {
-            opts,
-            start,
-            proxy,
-            ctx: RenderContext::new(),
-            renderers: Vec::new(),
-            shown: None,
-            form: demo::form(),
-            text: TextSystem::new(),
-            clipboard: OsClipboard(arboard::Clipboard::new().ok()),
-            clicks: 0,
-            mods: ModifiersState::empty(),
-            cursor: (0.0, 0.0),
-            next_blink: Instant::now() + BLINK,
-            first_frame: true,
-            bench,
-        }
-    }
-
-    /// Device pixels per logical pixel: RAPIDR_SCALE, else the screen's.
-    fn scale(&self) -> f64 {
-        self.opts.scale.or_else(|| self.shown.as_ref().map(|s| s.window.scale_factor())).unwrap_or(1.0)
-    }
-
-    fn mods(&self) -> Mods {
-        let m = self.mods;
-        if cfg!(target_os = "macos") {
-            Mods { shift: m.shift_key(), command: m.super_key(), word: m.alt_key() }
-        } else {
-            Mods { shift: m.shift_key(), command: m.control_key(), word: m.control_key() }
-        }
-    }
-
-    /// The program's handlers ran; the screen and the accessibility tree
-    /// follow.
-    fn after(&mut self, events: Vec<Event>, redraw: bool) {
-        if !events.is_empty() {
-            demo::handle(&mut self.form, &events, &mut self.clicks);
-        }
-        if redraw || !events.is_empty() {
-            self.next_blink = Instant::now() + BLINK;
-            self.update_access();
-            if let Some(s) = &self.shown {
-                s.window.request_redraw();
-            }
-        }
-    }
-
-    fn update_access(&mut self) {
-        let scale = self.scale();
-        let form = &self.form;
-        if let Some(s) = &mut self.shown {
-            s.access.update_if_active(|| a11y::tree(form, scale));
-        }
-    }
-
-    fn redraw(&mut self) {
-        let frame_start = Instant::now();
-        let scale = self.scale();
-        let t = Instant::now();
-        let scene = render::scene(&mut self.form, &mut self.text, scale);
-        let scene_time = t.elapsed();
-        let Some(s) = &mut self.shown else { return };
-        let dev = s.surface.dev_id;
-        let handle = &self.ctx.devices[dev];
-        let Some(renderer) = self.renderers.get_mut(dev).and_then(Option::as_mut) else { return };
-        let (w, h) = (s.surface.config.width, s.surface.config.height);
-        if renderer.render_to_texture(&handle.device, &handle.queue, &scene, &s.surface.target_view, &render::params(w, h)).is_err() {
-            return;
-        }
-        let frame = match s.surface.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(f) | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,
-            _ => {
-                self.ctx.configure_surface(&s.surface);
-                s.window.request_redraw();
-                return;
-            }
-        };
-        let mut encoder = handle.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        let target = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        s.surface.blitter.copy(&handle.device, &mut encoder, &s.surface.target_view, &target);
-        handle.queue.submit([encoder.finish()]);
-        handle.queue.present(frame);
-        if let Some(b) = &mut self.bench {
-            // (the GPU's work counted too)
-            handle.device.poll(wgpu::PollType::wait_indefinitely()).ok();
-            if self.first_frame {
-                println!("startup to first frame (window): {:.1} ms", ms(self.start.elapsed()));
-            } else {
-                let d = frame_start.elapsed();
-                b.frames += 1;
-                b.total += d;
-                b.scene += scene_time;
-                b.worst = b.worst.max(d);
-            }
-            s.window.request_redraw();
-        }
-        self.first_frame = false;
-    }
-}
-
-/// The kernel's key for winit's.
-fn key(k: &WKey) -> Key {
-    match k {
-        WKey::Named(n) => match n {
-            NamedKey::Tab => Key::Tab,
-            NamedKey::Enter => Key::Enter,
-            NamedKey::Space => Key::Space,
-            NamedKey::Escape => Key::Escape,
-            NamedKey::ArrowLeft => Key::Left,
-            NamedKey::ArrowRight => Key::Right,
-            NamedKey::ArrowUp => Key::Up,
-            NamedKey::ArrowDown => Key::Down,
-            NamedKey::Home => Key::Home,
-            NamedKey::End => Key::End,
-            NamedKey::PageUp => Key::PageUp,
-            NamedKey::PageDown => Key::PageDown,
-            NamedKey::Backspace => Key::Backspace,
-            NamedKey::Delete => Key::Delete,
-            _ => Key::Other,
-        },
-        WKey::Character(s) => match s.chars().next() {
-            Some(' ') => Key::Space,
-            Some(c) => Key::Char(c.to_lowercase().next().unwrap_or(c)),
-            None => Key::Other,
-        },
-        _ => Key::Other,
-    }
-}
-
-impl ApplicationHandler<UserEvent> for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.shown.is_some() {
-            return;
-        }
-        let (w, h) = (self.form.width as f64, self.form.height as f64);
-        let mut attrs = Window::default_attributes().with_title(self.form.caption.as_str()).with_visible(false);
-        attrs = match self.opts.scale {
-            Some(s) => attrs.with_inner_size(PhysicalSize::new((w * s).round() as u32, (h * s).round() as u32)),
-            None => attrs.with_inner_size(LogicalSize::new(w, h)),
-        };
-        let window = Arc::new(event_loop.create_window(attrs).expect("window"));
-        // (AccessKit's adapter must exist before the window shows)
-        let access = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, &window, self.proxy.clone());
-        let proxy = self.proxy.clone();
-        let menu = menu::install(move |e| drop(proxy.send_event(UserEvent::Menu(e))), &window);
-        window.set_ime_allowed(true);
-        window.set_visible(true);
-        let size = window.inner_size();
-        let present = if self.opts.bench { wgpu::PresentMode::AutoNoVsync } else { wgpu::PresentMode::AutoVsync };
-        let surface = pollster::block_on(self.ctx.create_surface(window.clone(), size.width.max(1), size.height.max(1), present)).expect("surface");
-        let dev = surface.dev_id;
-        self.renderers.resize_with(self.ctx.devices.len(), || None);
-        if self.renderers[dev].is_none() {
-            self.renderers[dev] = Some(render::renderer(&self.ctx.devices[dev].device).expect("vello renderer"));
-        }
-        self.shown = Some(Shown { window: window.clone(), surface, access, _menu: menu });
-        window.request_redraw();
-    }
-
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
-        match event {
-            UserEvent::AccessKit(e) => match e.window_event {
-                accesskit_winit::WindowEvent::InitialTreeRequested => self.update_access(),
-                accesskit_winit::WindowEvent::ActionRequested(req) => {
-                    let events = a11y::request(&self.form, &req).map(|r| a11y::apply(&mut self.form, r)).unwrap_or_default();
-                    self.after(events, true);
-                }
-                accesskit_winit::WindowEvent::AccessibilityDeactivated => {}
-            },
-            UserEvent::Menu(e) => {
-                if e.id == menu::EXIT {
-                    event_loop.exit();
-                } else if e.id == menu::OPEN {
-                    let picked = rfd::FileDialog::new().set_title("Open").add_filter("RapidQ source", &["bas", "inc"]).pick_file();
-                    let msg = picked.map_or("Open: cancelled".to_string(), |p| format!("Open: {}", p.display()));
-                    demo::log(&mut self.form, &msg);
-                    self.after(Vec::new(), true);
-                }
-            }
-        }
-    }
-
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        if let Some(s) = &mut self.shown {
-            s.access.process_event(&s.window, &event);
-        }
-        let scale = self.scale();
-        match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => {
-                if let Some(s) = &mut self.shown {
-                    if size.width > 0 && size.height > 0 {
-                        self.ctx.resize_surface(&mut s.surface, size.width, size.height);
-                        // (a sizeable form: its client area follows the window)
-                        self.form.width = (f64::from(size.width) / scale).round() as i64;
-                        self.form.height = (f64::from(size.height) / scale).round() as i64;
-                    }
-                }
-                self.after(Vec::new(), true);
-            }
-            WindowEvent::ScaleFactorChanged { .. } => self.after(Vec::new(), true),
-            WindowEvent::RedrawRequested => self.redraw(),
-            WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
-            WindowEvent::CursorMoved { position, .. } => {
-                self.cursor = (position.x / scale, position.y / scale);
-                let (redraw, events) = self.form.mouse_move(self.cursor.0, self.cursor.1, &mut self.text);
-                self.after(events, redraw);
-            }
-            WindowEvent::CursorLeft { .. } => {
-                self.form.mouse_leave();
-                self.after(Vec::new(), true);
-            }
-            WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
-                let (x, y) = self.cursor;
-                let events = match state {
-                    ElementState::Pressed => self.form.mouse_down(x, y, self.mods(), &mut self.text),
-                    ElementState::Released => self.form.mouse_up(x, y),
-                };
-                self.after(events, true);
-            }
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                let k = key(&event.logical_key);
-                let events = self.form.key(k, self.mods(), event.text.as_deref(), &mut self.text, &mut self.clipboard);
-                self.after(events, true);
-            }
-            WindowEvent::Ime(Ime::Commit(s)) => {
-                let events = self.form.commit_text(&s, &mut self.text);
-                self.after(events, true);
-            }
-            _ => {}
-        }
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if let Some(b) = self.bench.take_if(|b| b.frames >= BENCH_FRAMES) {
-            let n = b.frames as u32;
-            let (w, h) = self.shown.as_ref().map_or((0, 0), |s| (s.surface.config.width, s.surface.config.height));
-            println!("{} frames in the window at {w}x{h} (no vsync requested): average {:.2} ms (scene {:.2} ms), slowest {:.2} ms", b.frames, ms(b.total / n), ms(b.scene / n), ms(b.worst));
-            event_loop.exit();
-            return;
-        }
-        if self.bench.is_some() {
-            event_loop.set_control_flow(ControlFlow::Poll);
-            return;
-        }
-        // The caret blinks while an edit has the focus.
-        let editing = self.form.focus.is_some_and(|i| matches!(self.form.components[i].kind, form::Kind::Edit(_)));
-        if !editing {
-            event_loop.set_control_flow(ControlFlow::Wait);
-            return;
-        }
-        if Instant::now() >= self.next_blink {
-            self.form.caret_on = !self.form.caret_on;
-            self.next_blink = Instant::now() + BLINK;
-            if let Some(s) = &self.shown {
-                s.window.request_redraw();
-            }
-        }
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_blink));
-    }
 }

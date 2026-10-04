@@ -3223,7 +3223,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rapidr-runtime-web = {{ path = "{runtime_web_path}" }}
-wasm-bindgen = "=0.2.118"
+wasm-bindgen = "=0.2.129"
 "#
     )
 }

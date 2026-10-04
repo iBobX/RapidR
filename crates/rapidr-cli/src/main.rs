@@ -454,7 +454,7 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
         }
         Err(e) => {
             eprintln!("Failed to run wasm-bindgen: {e}");
-            eprintln!("  Install with: cargo install wasm-bindgen-cli");
+            eprintln!("  Install with: cargo install wasm-bindgen-cli --version 0.2.129");
             return ExitCode::from(1);
         }
         _ => {}

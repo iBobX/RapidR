@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**507 libraries** under 25 license expressions.
+**508 libraries** under 25 license expressions.
 
-## Apache-2.0 OR MIT (286)
+## Apache-2.0 OR MIT (287)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -130,7 +130,7 @@ which also carries their full license texts.
 | jni-sys | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys-macros | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jpeg-decoder | 0.3.2 | <https://github.com/image-rs/jpeg-decoder> |
-| js-sys | 0.3.92 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys> |
+| js-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys> |
 | kurbo | 0.13.1 | <https://github.com/linebender/kurbo> |
 | lazy_static | 1.5.0 | <https://github.com/rust-lang-nursery/lazy-static.rs> |
 | leb128fmt | 0.1.0 | <https://github.com/bluk/leb128fmt> |
@@ -227,6 +227,7 @@ which also carries their full license texts.
 | svgtypes | 0.16.1 | <https://github.com/linebender/svgtypes> |
 | syn | 1.0.109 | <https://github.com/dtolnay/syn> |
 | syn | 2.0.117 | <https://github.com/dtolnay/syn> |
+| syn | 3.0.6 | <https://github.com/dtolnay/syn> |
 | tempfile | 3.27.0 | <https://github.com/Stebalien/tempfile> |
 | thiserror | 1.0.69 | <https://github.com/dtolnay/thiserror> |
 | thiserror | 2.0.18 | <https://github.com/dtolnay/thiserror> |
@@ -252,12 +253,12 @@ which also carries their full license texts.
 | utf8_iter | 1.0.4 | <https://github.com/hsivonen/utf8_iter> |
 | uuid | 1.23.0 | <https://github.com/uuid-rs/uuid> |
 | value-trait | 0.10.1 | <https://github.com/simd-lite/value-trait> |
-| wasm-bindgen | 0.2.115 | <https://github.com/wasm-bindgen/wasm-bindgen> |
-| wasm-bindgen-futures | 0.4.65 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/futures> |
-| wasm-bindgen-macro | 0.2.115 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro> |
-| wasm-bindgen-macro-support | 0.2.115 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro-support> |
-| wasm-bindgen-shared | 0.2.115 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared> |
-| web-sys | 0.3.92 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/web-sys> |
+| wasm-bindgen | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen> |
+| wasm-bindgen-futures | 0.4.79 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/futures> |
+| wasm-bindgen-macro | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro> |
+| wasm-bindgen-macro-support | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/main/crates/macro-support> |
+| wasm-bindgen-shared | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared> |
+| web-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/web-sys> |
 | weezl | 0.1.12 | <https://github.com/image-rs/weezl> |
 | winapi | 0.3.9 | <https://github.com/retep998/winapi-rs> |
 | winapi-i686-pc-windows-gnu | 0.4.0 | <https://github.com/retep998/winapi-rs> |

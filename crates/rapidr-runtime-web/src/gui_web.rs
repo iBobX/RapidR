@@ -399,8 +399,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
         "fontname" => {
             let _ = style.set_property("font-family", &s);
         }
+        // (points, as on the desktop: 12 is 16 pixels — Font::pixel_size)
         "fontsize" => {
-            let _ = style.set_property("font-size", &format!("{}px", val.to_i64()));
+            let px = rapidr_value::objects::font::Font { size: val.to_i64(), ..Default::default() }.pixel_size();
+            let _ = style.set_property("font-size", &format!("{px}px"));
         }
         "fontbold" => {
             let _ = style.set_property(
@@ -3348,7 +3350,7 @@ fn tab_control_font(name: &str) -> rapidr_value::objects::font::Font {
 /// A QFONT as CSS / SVG: its family, its size in pixels (points at 96
 /// dpi), weight and style.
 fn svg_font(font: &rapidr_value::objects::font::Font) -> String {
-    let px = if font.size < 0 { -font.size } else { (font.size.clamp(1, 384) * 96 + 36) / 72 };
+    let px = font.pixel_size();
     let family = font.name.replace(['"', '<', '>', '&', '\''], "");
     format!(
         "font-family=\"'{family}', 'Liberation Sans', Arial, sans-serif\" font-size=\"{px}px\"{}{}",
@@ -4253,7 +4255,7 @@ fn listview_begin_edit(name: &str, i: usize) {
         canvas.offset_top() as i64 + t,
         r - l,
         b - t,
-        (font.size.max(1) * 96 / 72).clamp(8, 72)
+        font.pixel_size().clamp(8, 72)
     );
     let _ = input.set_attribute("style", &css);
     let Some(parent) = canvas.parent_node() else { return };

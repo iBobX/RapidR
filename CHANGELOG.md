@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.108.0] — 2026-10-04
+
+### Changed
+- wasm-bindgen 0.2.129 (js-sys / web-sys 0.3.106) across the workspace and
+  in generated web projects — install the matching CLI with
+  `cargo install -f wasm-bindgen-cli --version 0.2.129`. It's what the new
+  desktop host's wgpu needs, so both can share one workspace.
+- `crates/rapidr-ui-proto`: the desktop host's Stage 0 — a program's loop
+  driving winit (`pump_app_events`) with nested modals, timers and live
+  resize; a CPU renderer (vello_cpu) and a headless host for tests.
+
+### Fixed
+- Web: a component's FontSize is points, as on the desktop and in RapidQ
+  (12 is 16 pixels; it was 12 pixels). Font sizes become whole pixels the
+  way Windows rounds them (10 pt is 13 pixels) everywhere text is drawn or
+  measured — TextWidth / TextHeight measured at 13.33 pixels while text was
+  drawn at 13.
+
 ## [2.107.0] — 2026-10-04
 
 ### Added

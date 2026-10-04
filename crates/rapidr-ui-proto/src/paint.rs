@@ -13,11 +13,38 @@ use parley::{Layout, PositionedLayoutItem};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::tabcontrol::{Op, Rect};
 use rapidr_value::objects::trackbar::Shape;
-use vello::kurbo::{Affine, BezPath, Diagonal2, Rect as KRect, Stroke};
-use vello::peniko::{Color, Fill};
-use vello::{FontEmbolden, Glyph, Scene};
+use vello::kurbo::{Affine, BezPath, Rect as KRect};
+use vello::peniko::{Color, FontData};
 
 use crate::text::{Ink, TextSystem};
+
+/// What a renderer draws into: the few primitives the kernel's painting
+/// needs (device pixels; non-zero fill). vello's GPU `Scene`
+/// (`render.rs`) and vello_cpu's `RenderContext` (`cpu.rs`) both
+/// implement it, so a form paints the same calls into either.
+pub trait Canvas {
+    fn fill_rect(&mut self, transform: Affine, rgb: u32, rect: &KRect);
+    fn fill_path(&mut self, transform: Affine, rgb: u32, path: &BezPath);
+    /// An outline `width` device pixels wide.
+    fn stroke_path(&mut self, width: f64, rgb: u32, path: &BezPath);
+    fn push_clip(&mut self, transform: Affine, rect: &KRect);
+    fn pop_clip(&mut self);
+    fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]);
+}
+
+/// A run of glyphs of one font, size and colour.
+pub struct GlyphRun<'a> {
+    pub font: &'a FontData,
+    pub size: f32,
+    pub rgb: u32,
+    pub hint: bool,
+    pub transform: Affine,
+    /// Synthetic italic (a horizontal skew).
+    pub glyph_transform: Option<Affine>,
+    pub coords: &'a [i16],
+    /// Synthetic bold: how far outlines grow (device pixels).
+    pub embolden: Option<f64>,
+}
 
 /// 0xRRGGBB as a vello colour.
 pub fn color(rgb: u32) -> Color {
@@ -36,15 +63,15 @@ pub enum Place {
 /// Draws into a vello scene in logical pixels, from an origin (the
 /// component being drawn), at `scale` device pixels per logical pixel.
 pub struct Painter<'a> {
-    pub scene: &'a mut Scene,
+    pub canvas: &'a mut dyn Canvas,
     pub text: &'a mut TextSystem,
     pub scale: f64,
     origin: (i64, i64),
 }
 
 impl<'a> Painter<'a> {
-    pub fn new(scene: &'a mut Scene, text: &'a mut TextSystem, scale: f64) -> Self {
-        Painter { scene, text, scale, origin: (0, 0) }
+    pub fn new(canvas: &'a mut dyn Canvas, text: &'a mut TextSystem, scale: f64) -> Self {
+        Painter { canvas, text, scale, origin: (0, 0) }
     }
 
     /// Draws what `f` draws with (0, 0) at `origin` (a component's Left / Top).
@@ -72,7 +99,7 @@ impl<'a> Painter<'a> {
             return;
         }
         let rect = self.device_rect(r);
-        self.scene.fill(Fill::NonZero, Affine::IDENTITY, color(rgb), None, &rect);
+        self.canvas.fill_rect(Affine::IDENTITY, rgb, &rect);
     }
 
     /// A 3D frame: lines from the outside in, top / left in `light`,
@@ -122,11 +149,11 @@ impl<'a> Painter<'a> {
         if shape.points.len() > 2 {
             path.close_path();
             if let Some(f) = shape.fill {
-                self.scene.fill(Fill::NonZero, Affine::IDENTITY, color(f), None, &path);
+                self.canvas.fill_path(Affine::IDENTITY, f, &path);
             }
         }
         if let Some(s) = shape.stroke {
-            self.scene.stroke(&Stroke::new(lw), Affine::IDENTITY, color(s), None, &path);
+            self.canvas.stroke_path(lw, s, &path);
         }
     }
 
@@ -139,7 +166,7 @@ impl<'a> Painter<'a> {
             if i == 0 { path.move_to(p) } else { path.line_to(p) }
         }
         path.close_path();
-        self.scene.fill(Fill::NonZero, Affine::IDENTITY, color(rgb), None, &path);
+        self.canvas.fill_path(Affine::IDENTITY, rgb, &path);
     }
 
     /// `text` in `font` and `rgb` in a logical rectangle, turned `angle`
@@ -189,20 +216,20 @@ impl<'a> Painter<'a> {
                 let style = glyph_run.style();
                 let synthesis = run.synthesis();
                 let size = run.font_size();
-                let mut draw = self
-                    .scene
-                    .draw_glyphs(run.font())
-                    .brush(color(ink.unwrap_or(style.brush.0)))
-                    .hint(upright)
-                    .transform(transform)
-                    .glyph_transform(synthesis.skew().map(|a| Affine::skew(f64::from(a).to_radians().tan(), 0.0)))
-                    .font_size(size)
-                    .normalized_coords(run.normalized_coords());
-                if synthesis.embolden() {
-                    let amount = f64::from(size) / 48.0;
-                    draw = draw.font_embolden(FontEmbolden::new(Diagonal2::new(amount, amount)));
-                }
-                draw.draw(Fill::NonZero, glyph_run.positioned_glyphs().map(|g| Glyph { id: g.id, x: g.x, y: g.y }));
+                let glyphs: Vec<(u32, f32, f32)> = glyph_run.positioned_glyphs().map(|g| (g.id, g.x, g.y)).collect();
+                self.canvas.glyphs(
+                    &GlyphRun {
+                        font: run.font(),
+                        size,
+                        rgb: ink.unwrap_or(style.brush.0),
+                        hint: upright,
+                        transform,
+                        glyph_transform: synthesis.skew().map(|a| Affine::skew(f64::from(a).to_radians().tan(), 0.0)),
+                        coords: run.normalized_coords(),
+                        embolden: synthesis.embolden().then(|| f64::from(size) / 48.0),
+                    },
+                    &glyphs,
+                );
                 // Underline / StrikeOut: a line from the run's metrics.
                 let metrics = run.metrics();
                 let x0 = f64::from(glyph_run.offset());
@@ -215,7 +242,7 @@ impl<'a> Painter<'a> {
                     if let Some(d) = deco {
                         let t = f64::from(d.size.unwrap_or(thickness)).max(1.0);
                         let y = base - f64::from(d.offset.unwrap_or(offset));
-                        self.scene.fill(Fill::NonZero, transform, color(ink.unwrap_or(d.brush.0)), None, &KRect::new(x0, y, x1, y + t));
+                        self.canvas.fill_rect(transform, ink.unwrap_or(d.brush.0), &KRect::new(x0, y, x1, y + t));
                     }
                 }
             }
@@ -237,9 +264,9 @@ impl<'a> Painter<'a> {
     /// Clips what `f` draws to a logical rectangle.
     pub fn clipped(&mut self, r: Rect, f: impl FnOnce(&mut Painter)) {
         let rect = self.device_rect(r);
-        self.scene.push_clip_layer(Fill::NonZero, Affine::IDENTITY, &rect);
+        self.canvas.push_clip(Affine::IDENTITY, &rect);
         f(self);
-        self.scene.pop_layer();
+        self.canvas.pop_clip();
     }
 
     /// The device position of a logical point (for layouts drawn directly).

@@ -77,7 +77,8 @@ const got = await frame.evaluate(() => {
   };
 });
 ok(!got.missing, "label and canvas rendered");
-ok(/Courier New/.test(got.font) && got.size === "20px" && Number(got.weight) >= 700,
+// (20 points: 27 pixels, as Windows and the desktop make them)
+ok(/Courier New/.test(got.font) && got.size === "27px" && Number(got.weight) >= 700,
   `Label.Font = Font applied name, size and bold (${got.font}, ${got.size}, ${got.weight})`);
 ok(/underline/.test(got.deco) && /line-through/.test(got.deco), `underline and strike-out together (${got.deco})`);
 ok(got.center === "0,0,255", `bitmap's blue circle drawn on the canvas (${got.center})`);

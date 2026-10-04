@@ -218,6 +218,8 @@ Cargo resolves **one lockfile per workspace for all targets**. Target-gated depe
 
 **Option A (recommended): bring the host into the workspace and align wasm-bindgen in the same commit (Stage 0).**
 
+*Status:* the alignment (steps 1–3 and the one-version check of step 5) is done: the workspace is on wasm-bindgen 0.2.129, js-sys / web-sys 0.3.106 and wasm-bindgen-futures 0.4.79 with no API changes needed, generated web projects pin `=0.2.129`, and the web suites pass. Steps 4 and 5's kernel checks wait for the crates.
+
 1. Bump `wasm-bindgen` in `crates/rapidr-runtime-web/Cargo.toml`, `interpreter/rapidr-vm-host-web/Cargo.toml` and `interpreter/rapidr-compiler-wasm/Cargo.toml` to the prototype's resolved 0.2.129 (≥ 0.2.127 for wgpu 30), together with js-sys / web-sys 0.3.106 and the matching wasm-bindgen-futures.
 2. In `generate_cargo_toml_web`, change `=0.2.118` to `=0.2.129`. Update the README's `cargo install wasm-bindgen-cli --version 0.2.129` and the buildserver's environment.
 3. Run `tools/build_web_artifacts.sh` (wasm-pack fetches the matching CLI itself), then regress.sh's web stages: web_conformance, web_gui_parity at 1× and 2×, web_ide_*, web_bundle_*, web_vm_yield, web_end_timer.
@@ -234,7 +236,7 @@ This is low risk. The pin exists only to match the installed CLI, and generated 
 
 ## 4. Text
 
-- **One size rule.** Add `Font::pixel_size()` in `crates/rapidr-value/src/objects/font.rs` and use it in `text::text_size`, the kernel, and `gui.rs::font_pixels`. Decide between Windows' rounded MulDiv (RapidQ-faithful; 10 pt = 13 px) and the current unrounded value. Changing `text_size` changes `TextWidth`, which fixtures read (`canvas_onpaint` `|36`, `form_draw`), so the decision, the web runtime and the fixture expectations change in one commit.
+- **One size rule. Decided (v2.108.0): Windows' rounded MulDiv** — `Font::pixel_size()` in `rapidr_value::objects::font` is used by `text::text_size`, the FLTK host, the web runtime (which also stopped treating FontSize as pixels) and must be used by the kernel; no fixture expectation changed. Original note: Add `Font::pixel_size()` in `crates/rapidr-value/src/objects/font.rs` and use it in `text::text_size`, the kernel, and `gui.rs::font_pixels`. Decide between Windows' rounded MulDiv (RapidQ-faithful; 10 pt = 13 px) and the current unrounded value. Changing `text_size` changes `TextWidth`, which fixtures read (`canvas_onpaint` `|36`, `form_draw`), so the decision, the web runtime and the fixture expectations change in one commit.
 - **No kerning.** GDI's TextOut doesn't kern, and `text_size` sums advances. The kernel sets parley's font features to `kern=0`, so a caption is drawn exactly as wide as `TextWidth`, and as tab widths in `tabcontrol.rs` measure. Glyphs are hinted when upright, as in the prototype's `draw_layout`.
 - **Fonts.** Keep the built-in Liberation Sans, Serif and Mono (`crates/rapidr-value/fonts`), registered in fontique (prototype `TextSystem::new`), with `family()` matching `text.rs::face_data`. System fallback covers CJK and emoji. Known gap: `text_size` measures missing glyphs with `?`'s advance. A later fix is a measuring hook in `rapidr_value::objects::text` so the desktop measures with parley.
 - **QEDIT** uses the prototype's `Edit` (a `PlainEditor` over the `TextEdit` model, with `revision` refresh and `user_edit` sync). Still to add:
@@ -335,3 +337,32 @@ Total: about 55–75 sessions. Stages 0–4 (12–18 sessions) are on the critic
 - /Users/roanbema/Programming/rust/RapidR/crates/rapidr-ui-proto/src/form.rs (and `paint.rs`, `text.rs`, `a11y.rs`, `main.rs`: the code that seeds `rapidr-ui-kernel` and `rapidr-ui-host-winit`)
 - /Users/roanbema/Programming/rust/RapidR/interpreter/rapidr-vm-host-native/src/lib.rs (`serve_app`, `install_event_queue`, `Host::pump`; with `/Users/roanbema/Programming/rust/RapidR/interpreter/rapidr-vm/src/lib.rs` `Vm::after_host`)
 - /Users/roanbema/Programming/rust/RapidR/tests/native_gui_events.mjs (with `/Users/roanbema/Programming/rust/RapidR/tests/gui_parity_cases.mjs`: the four-way matrix)
+
+---
+
+## Stage 0 results (2026-10-04) — all three spikes GO
+
+Code: `crates/rapidr-ui-proto` (`host.rs` pump / CPU / headless hosts, `kernel.rs`, `ui.rs` step layer with timers, nested modals and the script driver, `cpu.rs`, `compare.rs`, `macos_probe.rs`, `scripts/macos-probes.script`). These amend the plan above:
+
+1. **§1.5 rule 2, live resize.** On macOS 27, live resize does *not* hold the pump: each drag step returns with `Resized` (inLiveResize), so OnResize and timers run during the drag (92 resizes, 48 ticks, worst 8 ms late, in a 1.5 s drag). Keep layout-in-callback for loops that do hold the pump: menu tracking, and Windows' modal size/move loop (unverified).
+2. **§1.5 rule 1, program end.** Pump once with a zero timeout so pending Hides run, then `mem::forget` the host before `process::exit`. Dropping winit windows during main-thread TLS teardown aborts (a panic in `WindowDelegate::window_will_close`).
+3. **§1.5 rule 4, file dialogs.** rfd async dialogs are created by a `HostCmd` *inside* a pump. rfd makes a sheet only while `NSApp.isRunning`, which is false between pumps; otherwise it silently falls back to a blocking `runModal`. The dialog is polled after each step, and its waker sends an EventLoopProxy user event.
+4. **Waits table, Open/Save.** As in 3. The sheet is window-modal, so the kernel pushes the parent onto the modal list for RapidQ's app-modal behaviour. The sheet animation blocks about 0.25–0.7 s.
+5. **§5 CPU fallback.** vello_cpu 0.3.0 + glifo 0.4 work on peniko 0.6.1 / kurbo 0.13.
+   - Accuracy: within §2.4(c)'s tolerance, ≤0.33 % of pixels differing by >8, only at glyph edges.
+   - Speed: 0.16–0.24 ms per frame on the CPU vs 0.8–1.2 ms on the GPU; the GPU's cold start takes 521 ms (18 ms warm).
+   - On `Occluded` or `Timeout`, skip the frame without re-requesting one, and redraw on `Occluded(false)`.
+   - Consider the CPU renderer for first frames and small forms.
+6. **Risk 1, measured.**
+   - Menu tracking holds the pump with nothing running, not even GCD main-queue blocks.
+   - A blocking rfd dialog between pumps drops winit events and is cancelled by any redraw.
+   - A blocking rfd dialog inside a callback stalls timers.
+   - **Rule: never block on a native dialog.**
+   - Open divergence: on Windows, RapidQ's timers keep firing while a menu is open. Here they stall.
+7. **§1.5 headless host, verified.** No EventLoop, `NSApp` nil, no LaunchServices entry, no windows, and captures byte-identical to the windowed hosts' (GPU and CPU).
+
+Still to verify once on an unlocked screen:
+- a real hand drag of a window edge;
+- a real menu-bar click, held open;
+- `scripts/macos-probes.script` re-run;
+- GPU windows painting.

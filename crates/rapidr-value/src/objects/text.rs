@@ -65,15 +65,9 @@ fn face_data(name: &str) -> &'static [u8] {
     }
 }
 
-/// The font's size in pixels (points at 96 dpi); a negative size is
-/// already pixels, as Windows fonts' heights can be.
+/// The font's size in pixels (Font::pixel_size: whole pixels, as GDI's).
 fn pixel_size(font: &Font) -> f32 {
-    let size = font.size.clamp(-1_000, 1_000);
-    if size < 0 {
-        -size as f32
-    } else {
-        (size.max(1) as f32) * 96.0 / 72.0
-    }
+    font.pixel_size() as f32
 }
 
 /// A face and its scale for a font.

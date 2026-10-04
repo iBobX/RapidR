@@ -197,7 +197,7 @@ prefer `web-ide/` for any new work.
 - **(Optional) wasm-pack** — needed only for WebAssembly compilation:
   ```bash
   rustup target add wasm32-unknown-unknown
-  cargo install wasm-bindgen-cli
+  cargo install wasm-bindgen-cli --version 0.2.129
   ```
 
 ### Step-by-Step: Build the Compiler
@@ -891,7 +891,7 @@ Web forms (`RForm`) behave like desktop windows:
 rustup target add wasm32-unknown-unknown
 
 # Install wasm-bindgen CLI
-cargo install wasm-bindgen-cli
+cargo install wasm-bindgen-cli --version 0.2.129
 ```
 
 ### Usage

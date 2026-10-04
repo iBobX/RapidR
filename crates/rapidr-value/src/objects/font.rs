@@ -13,6 +13,20 @@ pub struct Font {
     pub styles: u8,
 }
 
+impl Font {
+    /// Its height in pixels, as Windows makes it (RapidQ's fonts are GDI's):
+    /// points at 96 dpi rounded as MulDiv rounds (10 pt → 13, 12 → 16); a
+    /// negative size is pixels already. What text is drawn and measured at
+    /// (TextWidth) on every runtime.
+    pub fn pixel_size(&self) -> i64 {
+        if self.size < 0 {
+            (-self.size).min(1_000)
+        } else {
+            (self.size.clamp(1, 1_000) * 96 + 36) / 72
+        }
+    }
+}
+
 impl Default for Font {
     fn default() -> Self {
         Self { name: "Arial".into(), size: 10, color: 0, styles: 0 }

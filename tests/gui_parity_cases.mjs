@@ -133,6 +133,10 @@ export const cases = [
   { name: "anchors", events: "ok.onclick", dump: "a.caption,b.caption,c.caption", resize: "250,180",
     expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
       "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
+  { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=36x18 30x15"],
+    // (web: a 12-point label's text is 16 pixels, as on the desktop)
+    webCheck: `getComputedStyle(document.getElementById("rr-l")).fontSize`, webExpect: "16px" },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
 ];

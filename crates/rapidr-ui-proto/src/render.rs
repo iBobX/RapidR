@@ -11,8 +11,45 @@ use vello::wgpu;
 use vello::{AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene};
 
 use crate::form::{Form, FACE};
-use crate::paint::{color, Painter};
+use crate::paint::{color, Canvas, GlyphRun, Painter};
 use crate::text::TextSystem;
+
+use vello::kurbo::{Affine, BezPath, Diagonal2, Rect as KRect, Stroke};
+use vello::peniko::Fill;
+use vello::{FontEmbolden, Glyph};
+
+/// The GPU renderer's canvas: a vello scene.
+impl Canvas for Scene {
+    fn fill_rect(&mut self, transform: Affine, rgb: u32, rect: &KRect) {
+        self.fill(Fill::NonZero, transform, color(rgb), None, rect);
+    }
+    fn fill_path(&mut self, transform: Affine, rgb: u32, path: &BezPath) {
+        self.fill(Fill::NonZero, transform, color(rgb), None, path);
+    }
+    fn stroke_path(&mut self, width: f64, rgb: u32, path: &BezPath) {
+        self.stroke(&Stroke::new(width), Affine::IDENTITY, color(rgb), None, path);
+    }
+    fn push_clip(&mut self, transform: Affine, rect: &KRect) {
+        self.push_clip_layer(Fill::NonZero, transform, rect);
+    }
+    fn pop_clip(&mut self) {
+        self.pop_layer();
+    }
+    fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]) {
+        let mut draw = self
+            .draw_glyphs(run.font)
+            .brush(color(run.rgb))
+            .hint(run.hint)
+            .transform(run.transform)
+            .glyph_transform(run.glyph_transform)
+            .font_size(run.size)
+            .normalized_coords(run.coords);
+        if let Some(a) = run.embolden {
+            draw = draw.font_embolden(FontEmbolden::new(Diagonal2::new(a, a)));
+        }
+        draw.draw(Fill::NonZero, glyphs.iter().map(|&(id, x, y)| Glyph { id, x, y }));
+    }
+}
 
 /// A renderer for a device: only area anti-aliasing is compiled (the
 /// others' shaders cost startup time and the kernel doesn't use them).

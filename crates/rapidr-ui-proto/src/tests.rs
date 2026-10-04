@@ -110,3 +110,65 @@ fn accessibility_tree_describes_and_operates_the_form() {
     let ok = f.find("btnOK").unwrap();
     assert_eq!(a11y::apply(&mut f, a11y::Request::Click(ok)), vec![Event::Click(ok)]);
 }
+
+/// Spike A on the headless host (spike C): a ShowModal whose button
+/// handler shows another form modally; the nested ShowModal returns its
+/// ModalResult to the handler, the outer one to "main"; a timer ticks
+/// while the nested modal is up; a click on a form under a modal is
+/// dropped. All through `ui::step`, with no window and no event loop.
+#[test]
+fn nested_show_modal_and_timer_on_the_headless_host() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+    use std::time::Duration;
+
+    use crate::form::Component;
+    use crate::{host, script, ui};
+
+    let s = script::Script::parse("wait 100\nclick f1 btn\nclick f2 btnNested\nwait 100\nclick f3 btnOK\nwait 20\nclick f2 btnDone\n").unwrap();
+    ui::init(Box::new(host::HeadlessHost::new(1.0)), Some(s), None);
+    let mk = |caption: &str, buttons: &[&str]| {
+        let mut f = Form::new(caption);
+        for (k, b) in buttons.iter().enumerate() {
+            f.add(Component::new(b, "RBUTTON", 8 + 80 * k as i64, 8, Kind::Button { caption: b.to_string() }));
+        }
+        f
+    };
+    let f1 = ui::create_form("f1", mk("one", &["btn"]));
+    let f2 = ui::create_form("f2", mk("two", &["btnNested", "btnDone"]));
+    let f3 = ui::create_form("f3", mk("three", &["btnOK"]));
+    ui::set_button_result(f2, "btnDone", 1);
+    ui::set_button_result(f3, "btnOK", 7);
+    let ticks = Rc::new(Cell::new(0));
+    let t = ticks.clone();
+    ui::add_timer(Duration::from_millis(10), move || t.set(t.get() + 1));
+    let f1_clicks = Rc::new(Cell::new(0));
+    let c = f1_clicks.clone();
+    ui::on(f1, "btn", "click", move || c.set(c.get() + 1));
+    let nested = Rc::new(Cell::new((0, 0)));
+    let (n, t) = (nested.clone(), ticks.clone());
+    ui::on(f2, "btnNested", "click", move || {
+        let before = t.get();
+        let r = ui::show_modal(f3);
+        n.set((r, t.get() - before));
+    });
+    ui::show(f1);
+    assert_eq!(ui::show_modal(f2), 1);
+    let (r3, during) = nested.get();
+    assert_eq!(r3, 7, "the nested ShowModal's result reaches its handler");
+    assert!(during > 0, "the timer ticks while the nested modal is up");
+    assert_eq!(f1_clicks.get(), 0, "input to a form under a modal one is dropped");
+    assert!(!ui::shown(f2) && !ui::shown(f3) && ui::shown(f1));
+}
+
+/// Spike B: the CPU renderer is deterministic and sized like the GPU one.
+#[test]
+fn cpu_capture_is_deterministic() {
+    let (mut f, mut ts) = setup();
+    let a = crate::cpu::capture(&mut f, &mut ts, 2.0);
+    let b = crate::cpu::capture(&mut f, &mut ts, 2.0);
+    let (w, h) = render::device_size(&f, 2.0);
+    assert_eq!((a.width, a.height), (w as usize, h as usize));
+    assert_eq!(a.pixels, b.pixels);
+    assert!(a.pixels.iter().any(|&p| p != a.pixels[0]), "something was drawn");
+}

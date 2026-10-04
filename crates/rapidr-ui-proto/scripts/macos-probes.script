@@ -1,0 +1,42 @@
+# Stage 0 spike A probes (macOS, real windows; works with the screen locked):
+#   RAPIDR_HOST_TRACE=1 cargo run --release --manifest-path crates/rapidr-ui-proto/Cargo.toml -- --script-file crates/rapidr-ui-proto/scripts/macos-probes.script
+# Step 7 (menutrack) never returned with the screen locked: neither the
+# main-queue cancelTracking nor a posted Escape reached the tracking loop.
+wait 600
+print --- 1. live resize: form2's right edge dragged 160 pt over 1.5 s (form2 modal, its 50 ms timer ticking)
+liveresize form2 160 1500
+wait 2500
+print --- 2. menu key equivalent Cmd+P through AppKit + muda
+cmdkey form2 p 35
+wait 500
+expect form2 lblResult menu: file.ping
+print --- 3. async rfd (sheet created inside a pump), cancelled after 1.5 s
+cancelpanels 1500
+menu file.open
+wait 2500
+expect form2 lblResult file:
+print --- 4a. blocking rfd between pumps (program code), nothing else
+cancelpanels 1500
+menu file.blocking
+wait 2500
+print --- 4b. blocking rfd between pumps, form1 resized by AppKit during it
+cancelpanels 1500
+poke form1 600
+menu file.blocking
+wait 2500
+print --- 5. rfd async created between pumps (program code)
+cancelpanels 1500
+menu file.open_between
+wait 2500
+print --- 6. blocking rfd inside a winit callback, form1 poked during it
+cancelpanels 1500
+poke form1 600
+menu file.blocking_cb
+wait 2500
+print --- 7. a pop-up menu tracking for 1.5 s (as a user holding a menu open)
+menutrack form2 1500
+wait 2500
+print --- 8. done
+click form2 btnDoneRight
+wait 300
+close form1

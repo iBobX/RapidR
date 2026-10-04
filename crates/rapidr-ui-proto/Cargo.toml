@@ -25,6 +25,23 @@ muda = "0.21"
 rfd = "0.17"
 arboard = { version = "3.6", default-features = false }
 pollster = "0.4"
+# CPU renderer (Stage 0 spike B): vello's sparse-strips CPU rasterizer on the
+# same peniko 0.6 / kurbo 0.13 / skrifa 0.44 as vello 0.11 (Apache-2.0 OR
+# MIT), its frames shown in a window with softbuffer (MIT OR Apache-2.0).
+vello_cpu = "0.3"
+# (its glyph crate, for FontEmbolden, which vello_cpu does not re-export)
+glifo = "0.4"
+softbuffer = "0.4"
+# (spike: winit's own diagnostics, RAPIDR_HOST_TRACE=1; MIT)
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
+
+# Spike A probes on macOS: synthetic NSEvents (live resize, key equivalents)
+# and dialog cancels, posted the way AppKit delivers real ones (MIT; already
+# in the lock through winit, muda and rfd).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+dispatch2 = "0.3"
 
 # Its own workspace and lockfile, outside RapidR's (the root Cargo.toml
 # excludes it): wgpu 30 needs a newer wasm-bindgen than the web runtime's

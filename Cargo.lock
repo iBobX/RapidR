@@ -1828,13 +1828,12 @@ checksum = "00810f1d8b74be64b13dbf3db89ac67740615d6c891f0e7b6179326533011a07"
 
 [[package]]
 name = "js-sys"
-version = "0.3.92"
+version = "0.3.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc4c90f45aa2e6eacbe8645f77fdea542ac97a494bcd117a67df9ff4d611f995"
+checksum = "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5"
 dependencies = [
  "cfg-if",
  "futures-util",
- "once_cell",
  "wasm-bindgen",
 ]
 
@@ -3416,14 +3415,14 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ast"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-bcgen"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bytecode",
@@ -3436,7 +3435,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-buildserver"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "axum",
  "serde",
@@ -3451,14 +3450,14 @@ dependencies = [
 
 [[package]]
 name = "rapidr-bytecode"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-value",
 ]
 
 [[package]]
 name = "rapidr-cli"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "base64 0.22.1",
  "rapidr-bcgen",
@@ -3475,7 +3474,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-codegen-rust"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -3485,7 +3484,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-compiler-wasm"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
@@ -3497,11 +3496,11 @@ dependencies = [
 
 [[package]]
 name = "rapidr-diagnostics"
-version = "2.107.0"
+version = "2.108.0"
 
 [[package]]
 name = "rapidr-lexer"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-diagnostics",
  "rapidr-preprocessor",
@@ -3509,7 +3508,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-parser"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -3518,25 +3517,25 @@ dependencies = [
 
 [[package]]
 name = "rapidr-preprocessor"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-rrcss"
-version = "2.107.0"
+version = "2.108.0"
 
 [[package]]
 name = "rapidr-runner-stub"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-vm-host-native",
 ]
 
 [[package]]
 name = "rapidr-runtime-core"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "arboard",
  "fltk",
@@ -3557,7 +3556,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-runtime-web"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "js-sys",
  "rapidr-rrcss",
@@ -3569,7 +3568,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-value"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "jpeg-decoder",
  "resvg",
@@ -3578,7 +3577,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-value",
@@ -3586,7 +3585,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm-host-native"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-runtime-core",
@@ -3596,7 +3595,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm-host-web"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "js-sys",
  "rapidr-bcgen",
@@ -3613,7 +3612,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-webbundle"
-version = "2.107.0"
+version = "2.108.0"
 dependencies = [
  "rapidr-rrcss",
  "zip",
@@ -4390,6 +4389,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "sync_wrapper"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4912,9 +4922,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.115"
+version = "0.2.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6523d69017b7633e396a89c5efab138161ed5aafcbc8d3e5c5a42ae38f50495a"
+checksum = "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -4926,19 +4936,20 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.65"
+version = "0.4.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d1faf851e778dfa54db7cd438b70758eba9755cb47403f3496edd7c8fc212f0"
+checksum = "3cbab34de2d982e9b48e18d216d04c4a6f641066ff19ffb699980f591ee3610e"
 dependencies = [
  "js-sys",
+ "tokio",
  "wasm-bindgen",
 ]
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.115"
+version = "0.2.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e3a6c758eb2f701ed3d052ff5737f5bfe6614326ea7f3bbac7156192dc32e67"
+checksum = "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -4946,22 +4957,22 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.115"
+version = "0.2.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "921de2737904886b52bcbb237301552d05969a6f9c40d261eb0533c8b055fedf"
+checksum = "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7"
 dependencies = [
  "bumpalo",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.6",
  "wasm-bindgen-shared",
 ]
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.115"
+version = "0.2.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a93e946af942b58934c604527337bad9ae33ba1d5c6900bbb41c2c07c2364a93"
+checksum = "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6"
 dependencies = [
  "unicode-ident",
 ]
@@ -5002,9 +5013,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.92"
+version = "0.3.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84cde8507f4d7cfcb1185b8cb5890c494ffea65edbe1ba82cfd63661c805ed94"
+checksum = "88261b9deccee56594c11a3460c462c41f58d148598fe70ad77070126a68aba4"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
