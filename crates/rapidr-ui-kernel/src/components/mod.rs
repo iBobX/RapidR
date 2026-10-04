@@ -195,7 +195,7 @@ impl MouseIn {
     /// pair — a third starts over as a single press, a fourth is a double
     /// again. On a release: let go of such a press.
     pub fn double(&self) -> bool {
-        self.clicks >= 2 && self.clicks % 2 == 0
+        self.clicks >= 2 && self.clicks.is_multiple_of(2)
     }
 }
 

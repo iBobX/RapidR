@@ -194,7 +194,7 @@ impl FormUi {
                     self.set_focus(Some(i));
                 }
             }
-        } else if button == Button::Left && clicks >= 2 && clicks % 2 == 0 {
+        } else if button == Button::Left && clicks >= 2 && clicks.is_multiple_of(2) {
             // (the input lane's: the form's open area double-clicked)
             self.events.push(KernelEvent::DblClick(self.form.clone()));
         }

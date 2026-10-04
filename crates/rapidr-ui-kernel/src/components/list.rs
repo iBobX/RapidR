@@ -108,9 +108,13 @@ thread_local! {
     static SCROLLS: RefCell<HashMap<String, Scroller>> = RefCell::new(HashMap::new());
     /// (the input lane's) What each editor is to show: the text's revision
     /// (a new edit, a test's text) and the selection then, in characters.
-    static SHOWN: RefCell<HashMap<String, (u64, (usize, usize))>> = RefCell::new(HashMap::new());
+    static SHOWN: RefCell<HashMap<String, Shown>> = RefCell::new(HashMap::new());
     static REVISION: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
+
+/// An in-place editor's text revision and the selection (start, length)
+/// to show with it.
+type Shown = (u64, (usize, usize));
 
 /// The editor of `id` shows its text again, with `sel` selected.
 fn show(id: &str, sel: (usize, usize)) {

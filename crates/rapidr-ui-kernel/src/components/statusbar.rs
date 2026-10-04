@@ -80,9 +80,9 @@ fn paint_grip(p: &mut Painter, w: i64, h: i64) {
 }
 
 thread_local! {
-    /// (the input lane's) A size grip held, per form: its status bar, and
-    /// the mouse's offset from the window's inside's bottom-right.
-    static GRIP: RefCell<HashMap<String, (usize, (f64, f64))>> = RefCell::new(HashMap::new());
+    /// (the input lane's) A size grip held, per form: the mouse's offset
+    /// from the window's inside's bottom-right.
+    static GRIP: RefCell<HashMap<String, (f64, f64)>> = RefCell::new(HashMap::new());
 }
 
 /// (the input lane's) A press at (x, y) of form `f`'s inside on a status
@@ -105,14 +105,14 @@ pub(crate) fn grip_down(f: &mut FormUi, store: &dyn Store, x: f64, y: f64) -> bo
     // (the bar is docked at the bottom, its full width: its bottom-right is
     // the window's inside's)
     let (bx, by, bw, bh) = f.nodes[i].abs;
-    GRIP.with(|g| g.borrow_mut().insert(f.form.clone(), (i, ((bx + bw) as f64 - x, (by + bh) as f64 - y))));
+    GRIP.with(|g| g.borrow_mut().insert(f.form.clone(), ((bx + bw) as f64 - x, (by + bh) as f64 - y)));
     true
 }
 
 /// (the input lane's) The mouse moved to (x, y) with a grip held: the
 /// window's inside asked to grow or shrink with it. Whether a grip is held.
 pub(crate) fn grip_drag(f: &mut FormUi, x: f64, y: f64) -> bool {
-    let Some((_, (ox, oy))) = GRIP.with(|g| g.borrow().get(&f.form).copied()) else { return false };
+    let Some((ox, oy)) = GRIP.with(|g| g.borrow().get(&f.form).copied()) else { return false };
     let (w, h) = ((x + ox).round() as i64, (y + oy).round() as i64);
     f.events.push(KernelEvent::Container(Container::Resize { form: f.form.clone(), w: w.max(1), h: h.max(1) }));
     true
