@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.110.0] — 2026-10-04
+
+### Added
+- Desktop host Stage 3: `crates/rapidr-ui-host-winit` — RapidR's own
+  desktop host, next to FLTK (`RAPIDR_HOST=kernel`; FLTK stays the
+  default): winit driven by the program's own loop, vello on the GPU or
+  vello_cpu on the CPU (`RAPIDR_RENDERER=cpu|gpu`, falling back to the CPU
+  by itself), a screen-reader tree per window (AccessKit), a headless host
+  for tests. ShowModal (nested, native and interpreted), DoEvents, timers,
+  OnShow / OnLoad / first OnPaint / OnClose / OnResize, the test hooks, and
+  `RAPIDR_TEST_A11Y` (each form's accessibility tree as JSON).
+  `rapidr build --host kernel` builds a native program with both hosts.
+  16 GUI test programs already run on it, natively and interpreted, with
+  the same results as on FLTK (`tools/regress.sh` runs the hosts matrix).
+
 ## [2.109.0] — 2026-10-04
 
 ### Added
