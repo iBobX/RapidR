@@ -156,4 +156,9 @@ export const cases = [
   // press, release)
   { name: "dbl_clicks", kernel: true, events: "pn.__dblclick_5_5,lb.__dblclick_3_3,gb.__dblclick_10_30,img.__dblclick_2_2,cv.__dblclick_4_4,form.__dblclick_300_250", dump: "lbl.caption",
     expect: ["lbl.caption=pd5pcpu pDpd5pu ldlclu lDldlu gdgcgu gDgdgu idiciu iDidiu cdcccu cdcccu fdfcfu fDfdfu "] },
+  // (a click on the selected node / item, then the double-click time —
+  // a dozen events of nothing, 50 ms each — then "Renamed" and Enter;
+  // a double click instead: no edit)
+  { name: "pause_edit", kernel: true, events: "tv.__node_1,tv.__node_1,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,tv.__enter,lv.__mousedown_10_31,lv.__mouseup_10_31,lv.__mousedown_10_31,lv.__mouseup_10_31,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,lv.__mousedown_10_48,lv.__mouseup_10_48,lv.__dblclick_10_48,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=ing1 ed1:Renamed c0:2 c0:0 c0:2 c1:2 dbl |Renamed Renamed two"] },
 ];

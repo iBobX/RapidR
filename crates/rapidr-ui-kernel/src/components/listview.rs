@@ -5,7 +5,12 @@
 //! FLTK's frame and the web's canvas do). What the user did comes back as
 //! the model's events: OnClick, OnDblClick, OnColumnClick (Column),
 //! OnChange (Index, Change), and F2 / a click on the selected item edit
-//! its caption in place (Enter keeps it: OnChange (Index, ctText)).
+//! its caption in place (Enter keeps it: OnChange (Index, ctText)) — the
+//! click's edit after Windows' double-click time, unless another press
+//! comes first (a double click).
+
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
 use rapidr_value::objects::listview::Event;
@@ -22,6 +27,14 @@ use crate::paint::Painter;
 use crate::store::Store;
 
 pub struct ListViewBox;
+
+thread_local! {
+    /// (the input lane's) A click on the selected item: the item whose
+    /// caption is edited when the double-click time is up (`tick`), and the
+    /// model's press count then — a press since (a double click) cancels
+    /// it, as FLTK's and the web's timers.
+    static EDIT_SOON: RefCell<HashMap<String, (usize, u64)>> = RefCell::new(HashMap::new());
+}
 
 /// A list view's Color as &HBBGGRR (white unless the program says).
 fn background(cx: &Cx) -> u32 {
@@ -42,10 +55,13 @@ fn setup(cx: &Cx) {
 fn events(cx: &mut Cx, events: Vec<Event>) {
     for e in events {
         match e {
-            // (a click on the selected item: Windows edits it after a pause
-            // unless a double click comes; the kernel's timers are the
-            // runtime's, so it waits for F2 — the text lane's follow-up)
-            Event::EditSoon(_) => {}
+            // (a click on the selected item: Windows edits it after the
+            // double-click time unless a double click comes — `tick`)
+            Event::EditSoon(i) => {
+                let clicks = with_listview(cx.id, |lv| lv.clicks).unwrap_or(0);
+                EDIT_SOON.with(|e| e.borrow_mut().insert(cx.id.to_string(), (i, clicks)));
+                cx.ui.wake = Some(crate::tick::now() + crate::tick::DOUBLE_CLICK);
+            }
             Event::Edit(i) => start_edit(cx.id, i),
             e => cx.events.extend(kernel_event(cx.id, e)),
         }
@@ -148,6 +164,10 @@ impl ComponentKind for ListViewBox {
     }
 
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        // (the input lane's: a key forgets a pending edit)
+        if EDIT_SOON.with(|e| e.borrow_mut().remove(cx.id)).is_some() {
+            cx.ui.wake = None;
+        }
         if let Some(r) = edit_rect(cx.id) {
             if let Some(end) = edit_key(cx, k, clip, r) {
                 if let Some(keep) = end {
@@ -183,6 +203,16 @@ impl ComponentKind for ListViewBox {
 
     fn access(&self, _cx: &mut Cx, _action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {
         false
+    }
+
+    /// (the input lane's) The double-click time is up after a click on the
+    /// selected item: its caption edited, unless the model was pressed
+    /// since.
+    fn tick(&self, cx: &mut Cx) {
+        let Some((i, clicks)) = EDIT_SOON.with(|e| e.borrow_mut().remove(cx.id)) else { return };
+        if with_listview(cx.id, |lv| lv.clicks) == Some(clicks) && editing(cx.id).is_none() {
+            start_edit(cx.id, i);
+        }
     }
 
     // (the input lane's: the edit's input methods and context menu)

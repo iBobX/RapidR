@@ -937,4 +937,62 @@ mod tests {
         key(&mut f, &s, &mut ts, 27, Mods::NONE, &mut clip);
         assert!(super::editing("g").is_none());
     }
+
+    // ------------------------------------- the edit after a pause --
+    // (the input lane's)
+
+    #[test]
+    fn a_click_on_the_selected_node_edits_it_after_the_double_click_time() {
+        let (s, mut f, mut ts) = tree_form();
+        let t0 = std::time::Instant::now();
+        crate::tick::set_test_now(Some(t0));
+        with_tree("tv", |t| t.select(1));
+        let row1 = (2.0 + 30.0, 2.0 + 18.0 + 9.0);
+        // (a click on it: OnClick now, the edit when the double-click time is up)
+        assert_eq!(click(&mut f, &s, &mut ts, row1.0, row1.1), vec![KernelEvent::Click("tv".into())]);
+        assert_eq!(f.next_wake(), Some(t0 + crate::tick::DOUBLE_CLICK));
+        f.tick(&s, &mut ts, t0 + crate::tick::DOUBLE_CLICK);
+        assert_eq!(f.take_events(), vec![KernelEvent::List("tv".into(), ListAction::TreeEdit(1))]);
+        // (a double click instead: OnDblClick, no edit)
+        f.forget_clicks();
+        crate::tick::set_test_now(Some(t0 + std::time::Duration::from_secs(5)));
+        click(&mut f, &s, &mut ts, row1.0, row1.1);
+        let events = click(&mut f, &s, &mut ts, row1.0, row1.1);
+        assert_eq!(events, vec![KernelEvent::Click("tv".into()), KernelEvent::List("tv".into(), ListAction::Fire("ondblclick".into(), Vec::new()))]);
+        assert!(f.next_wake().is_none(), "the double click's press forgot the edit");
+        // (a key in between: none either)
+        crate::tick::set_test_now(Some(t0 + std::time::Duration::from_secs(10)));
+        click(&mut f, &s, &mut ts, row1.0, row1.1);
+        key(&mut f, &s, &mut ts, 16, Mods::NONE, &mut crate::MemClipboard::default());
+        assert!(f.next_wake().is_none());
+        // (a tree without the focus: the click only focuses it, as Windows')
+        f.set_focus(f.index_of("b"));
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, row1.0, row1.1);
+        assert!(f.next_wake().is_none());
+        crate::tick::set_test_now(None);
+    }
+
+    #[test]
+    fn a_click_on_the_selected_list_view_item_edits_its_caption_after_a_pause() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("lv", "RLISTVIEW", Some("f")).set("lv", "width", v_int(200)).set("lv", "height", v_int(150)).set("lv", "viewstyle", v_int(1));
+            s.call("lv", "additems", &[v_str("one"), v_str("two")]);
+        });
+        f.focus_id(&s, "lv");
+        drop(f.paint(&s, &mut ts, 1.0));
+        let t0 = std::time::Instant::now();
+        crate::tick::set_test_now(Some(t0));
+        // (an item's caption: pick it, then click it again)
+        let at = rapidr_value::objects::with_listview_mut("lv", |lv| lv.editor_rect(0)).flatten().map(|(l, t, _, b)| ((l + 4) as f64, ((t + b) / 2) as f64)).expect("item 0 shown");
+        click(&mut f, &s, &mut ts, at.0, at.1);
+        f.forget_clicks();
+        crate::tick::set_test_now(Some(t0 + std::time::Duration::from_secs(1)));
+        click(&mut f, &s, &mut ts, at.0, at.1);
+        assert!(super::editing("lv").is_none());
+        let due = f.next_wake().expect("an edit pending");
+        f.tick(&s, &mut ts, due);
+        assert_eq!(super::editing("lv").map(|e| (e.target, e.text)), Some(((0, 0), "one".to_string())));
+        crate::tick::set_test_now(None);
+    }
 }

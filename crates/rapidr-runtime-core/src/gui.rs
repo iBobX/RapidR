@@ -620,9 +620,16 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
     let widget = || GUI_WIDGETS.with(|gw| gw.borrow().get(&comp_lower).map(GuiWidget::base));
     // (as a click: the pick, then OnClick; OnClick before a toggle)
     match e.action {
+        // (the input lane's: a click on the node already selected is the
+        // widget's callback's — an edit after a pause)
         Action::Node(i) => {
-            tree_user_select(&comp_lower, i as usize);
-            rp_fire_event(&comp_lower, "onclick");
+            TREE_CLICKS.with(|c| c.set(c.get() + 1));
+            if rapidr_value::objects::with_tree(&comp_lower, |m| m.item_index) == Some(i) {
+                tree_reselected(&comp_lower, i as usize, false);
+            } else {
+                tree_user_select(&comp_lower, i as usize);
+                rp_fire_event(&comp_lower, "onclick");
+            }
         }
         // (a list view: F2 on it)
         Action::Edit if rapidr_value::objects::is_listview(&comp_lower) => listview_key(&comp_lower, 113, 0),
@@ -750,6 +757,12 @@ fn hook_mouse(comp: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, doub
     use rapidr_value::input::Button;
     if scroll_bars_hook(comp, kind, x, y) {
         return;
+    }
+    // (a list view takes the focus at a press, as its widget's handler)
+    if kind == rapidr_value::input::Mouse::Down && rapidr_value::objects::is_listview(comp) {
+        if let Some(mut w) = GUI_WIDGETS.with(|gw| gw.borrow().get(comp).map(GuiWidget::base)) {
+            let _ = w.take_focus();
+        }
     }
     if rp_comp_type(comp).eq_ignore_ascii_case("RIMAGE") {
         vcl_clicks(comp, kind, Button::Left, (double, true), || rp_fire_event_args(comp, kind.event(), &kind.args(Button::Left, x, y, 0)));
@@ -4196,20 +4209,7 @@ fn tree_callback(name: &str, t: &mut Tree) {
     match t.callback_reason() {
         // A click on the node already selected: an edit, unless it is
         // (or becomes) a double click.
-        TreeReason::Reselected if clicked => {
-            rp_fire_event(name, "onclick");
-            if app::event_clicks() {
-                rp_fire_event(name, "ondblclick");
-                return;
-            }
-            let click = TREE_CLICKS.with(Cell::get);
-            let tree = name.to_string();
-            app::add_timeout3(0.5, move |_| {
-                if TREE_CLICKS.with(Cell::get) == click {
-                    tree_begin_edit(&tree, i);
-                }
-            });
-        }
+        TreeReason::Reselected if clicked => tree_reselected(name, i, fltk_double()),
         TreeReason::Selected | TreeReason::Reselected => {
             tree_user_select(name, i);
             if clicked {
@@ -4229,6 +4229,24 @@ fn tree_callback(name: &str, t: &mut Tree) {
         TreeReason::Deselected => tree_refresh(name),
         _ => {}
     }
+}
+
+/// A click on node `i`, the one selected: OnClick, then OnDblClick for a
+/// double click — else its edit after a pause (Windows' double-click time),
+/// unless another click comes first.
+fn tree_reselected(name: &str, i: usize, double: bool) {
+    rp_fire_event(name, "onclick");
+    if double {
+        rp_fire_event(name, "ondblclick");
+        return;
+    }
+    let click = TREE_CLICKS.with(Cell::get);
+    let tree = name.to_string();
+    app::add_timeout3(0.5, move |_| {
+        if TREE_CLICKS.with(Cell::get) == click {
+            tree_begin_edit(&tree, i);
+        }
+    });
 }
 
 /// The user picked node `i` (FLTK shows it picked already): OnChanging may

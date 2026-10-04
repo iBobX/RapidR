@@ -11,8 +11,12 @@
 //! [`ListAction`] that runtime-core carries out after the pump, as gui.rs
 //! does for FLTK's tree: a click on a node asks to select it, then fires
 //! OnClick; on its button OnClick, then asks to expand or collapse it; F2
-//! asks to edit the selected node's text, and its editor's Enter asks
-//! OnEdited.
+//! — or a click on the selected node, after Windows' double-click time
+//! unless a double click comes — asks to edit the selected node's text,
+//! and its editor's Enter asks OnEdited.
+
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role};
 use rapidr_value::objects::ops::{Place, Rect};
@@ -29,6 +33,21 @@ use crate::text::bgr_to_rgb;
 
 /// The lines' grey (Windows draws them dotted, every other pixel).
 const LINES: u32 = 0xA0A0A0;
+
+thread_local! {
+    /// (the input lane's) A click on the selected node of a focused tree:
+    /// its edit asked for when the double-click time is up (its `tick`),
+    /// unless a press or a key comes first — Windows' tree view, FLTK's
+    /// 0.5 s timer.
+    static EDIT_SOON: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+}
+
+/// (the input lane's) A pending edit-after-a-pause forgotten.
+fn cancel_edit_soon(cx: &mut Cx) {
+    if EDIT_SOON.with(|e| e.borrow_mut().remove(cx.id)).is_some() {
+        cx.ui.wake = None;
+    }
+}
 
 pub struct Tree;
 
@@ -250,6 +269,9 @@ impl ComponentKind for Tree {
         if m.kind != MouseKind::Down {
             return MouseOut::default();
         }
+        // (the input lane's: a press forgets a pending edit — a double
+        // click's second press too)
+        cancel_edit_soon(cx);
         let (x, y) = (m.x.floor() as i64 - 2, m.y.floor() as i64 - 2);
         let hit = with_tree(cx.id, |t| t.hit(x, y, ROW_HEIGHT)).flatten();
         // (a press elsewhere ends an edit, keeping it)
@@ -258,7 +280,16 @@ impl ComponentKind for Tree {
         }
         match hit {
             Some(Hit::Button(n)) => Self::toggle(cx, n),
-            Some(Hit::Row(n)) => Self::press(cx, n, m.double()),
+            Some(Hit::Row(n)) => {
+                // (the selected node of a focused tree clicked: its edit
+                // after a pause)
+                let selected = with_tree(cx.id, |t| t.item_index == n as i64 && !t.read_only).unwrap_or(false);
+                Self::press(cx, n, m.double());
+                if selected && cx.state.focused && !m.double() {
+                    EDIT_SOON.with(|e| e.borrow_mut().insert(cx.id.to_string(), n));
+                    cx.ui.wake = Some(crate::tick::now() + crate::tick::DOUBLE_CLICK);
+                }
+            }
             // (no node: the selection stays, as Windows')
             None => {}
         }
@@ -277,6 +308,8 @@ impl ComponentKind for Tree {
                 return true;
             }
         }
+        // (the input lane's: a key forgets a pending edit)
+        cancel_edit_soon(cx);
         if k.mods.alt || k.mods.command {
             return false;
         }
@@ -360,6 +393,16 @@ impl ComponentKind for Tree {
             _ => return false,
         }
         true
+    }
+
+    /// (the input lane's) The double-click time is up after a click on the
+    /// selected node: its edit asked for (OnEditing), if it's still the
+    /// selected one.
+    fn tick(&self, cx: &mut Cx) {
+        let Some(n) = EDIT_SOON.with(|e| e.borrow_mut().remove(cx.id)) else { return };
+        if with_tree(cx.id, |t| t.item_index == n as i64).unwrap_or(false) && editing(cx.id).is_none() {
+            act(cx, ListAction::TreeEdit(n));
+        }
     }
 
     // (the input lane's: the edit's input methods and context menu)

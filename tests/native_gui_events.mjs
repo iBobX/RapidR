@@ -49,6 +49,7 @@
 //   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
 //   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.
 //   * tests/fixtures/dbl_clicks.bas — double clicks in the VCL's order (`__dblclick_x_y`).
+//   * tests/fixtures/pause_edit.bas — a click on the selected tree node / list view item edits it after a pause.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
