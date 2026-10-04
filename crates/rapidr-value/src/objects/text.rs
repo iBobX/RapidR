@@ -66,6 +66,9 @@ pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
     if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
         "Liberation Mono"
+    } else if n.contains("sans") {
+        // ("MS Sans Serif", "Microsoft Sans Serif": sans, though they say serif)
+        "Liberation Sans"
     } else if n.contains("times") || n.contains("serif") || n.contains("roman") || n.contains("georgia") {
         "Liberation Serif"
     } else {
@@ -306,6 +309,14 @@ pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sans_serif_names_are_sans() {
+        assert_eq!(super::family_name("MS Sans Serif"), "Liberation Sans");
+        assert_eq!(super::family_name("Microsoft Sans Serif"), "Liberation Sans");
+        assert_eq!(super::family_name("Times New Roman"), "Liberation Serif");
+        assert_eq!(super::family_name("Courier New"), "Liberation Mono");
+    }
+
     use super::*;
 
     fn font(name: &str, size: i64) -> Font {
