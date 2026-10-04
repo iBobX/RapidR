@@ -260,9 +260,16 @@ impl ComponentKind for Memo {
                 let v = Self::view(e, geo);
                 e.scroll_to_caret_in(v);
                 Self::fit_scroll(e, geo);
+                // (the input lane's: a drag out of the view scrolls on — `tick`)
+                if e.drag_outside(geo.text) {
+                    wake = Some(crate::tick::now() + crate::tick::REPEAT);
+                }
                 (changed, false)
             }
         };
+        if wake.is_some() && !on_bars && cx.ui.wake.is_none() {
+            cx.ui.wake = wake;
+        }
         if on_bars {
             cx.ui.wake = if m.kind == MouseKind::Up { None } else { wake.or(cx.ui.wake) };
             // (a press on the bars doesn't take the focus, as Windows')
@@ -275,8 +282,18 @@ impl ComponentKind for Memo {
     }
 
     fn tick(&self, cx: &mut Cx) {
+        let id = cx.id.to_string();
         let (e, geo, _) = Self::setup(cx);
-        let Some((x, y)) = e.held_at() else { return };
+        let Some((x, y)) = e.held_at() else {
+            // (the input lane's: a drag out of the view, a line on)
+            let v = Self::view(e, geo);
+            if e.auto_scroll(geo.text, 0.0, v) {
+                e.sync_model(&id);
+                Self::fit_scroll(e, geo);
+                cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
+            }
+            return;
+        };
         let (_, _, bw, bh) = geo.bars;
         e.bars.repeat(x, y, bw, bh);
         Self::from_bars(e, geo);

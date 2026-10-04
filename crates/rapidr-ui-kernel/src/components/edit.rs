@@ -14,7 +14,9 @@
 //!   MaxLength, CharCase, PasswordChar (the layout shows its character, the
 //!   model keeps the text; no copying it out), Alignment, HideSelection
 //!   (True: the selection shows only while focused), a double click selects
-//!   a word and a triple click everything (a memo: the paragraph), Ctrl+Z
+//!   a word and a triple click everything (a memo: the paragraph) — a drag
+//!   from there selects by words (paragraphs), and a drag out of a QEDIT's
+//!   or memo's view scrolls it on (a deadline repeat) — Ctrl+Z
 //!   undoes the last edit (and undoes the undo), Ctrl / Shift + Insert /
 //!   Delete, and the right-click menu — Undo, Cut, Copy, Paste, Delete,
 //!   Select All — drawn by the kernel (`menubar.rs`'s panels), unless the
@@ -39,7 +41,7 @@ use crate::display::TextItem;
 use crate::input::{Clipboard, Mods};
 use crate::paint::{Painter, DARK, FACE, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
 use crate::store::{self, Store};
-use crate::text::{bgr_to_rgb, Align, Ink, Look, TextEditor, TextSystem};
+use crate::text::{bgr_to_rgb, Align, Ink, Look, Pos, TextEditor, TextSystem};
 use crate::tree::{FormUi, NodeUi};
 
 /// Where a text box's text lives.
@@ -92,6 +94,33 @@ struct Undo {
     sel: (usize, usize),
 }
 
+/// (the input lane's) What a drag from a press selects by: characters (a
+/// click), words (a double click), paragraphs (a memo's triple click) or
+/// everything (a single-line box's).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Unit {
+    Char,
+    Word,
+    Para,
+    All,
+}
+
+/// (the input lane's) A selection being dragged: its unit, what the press
+/// selected (the selection always keeps it), where the mouse is (logical,
+/// in the component) and whether the box scrolls on while it's outside.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Drag {
+    unit: Unit,
+    anchor: (Pos, Pos),
+    at: (f64, f64),
+    scrolls: bool,
+}
+
+/// `a` before `b` in the text.
+fn before(a: Pos, b: Pos) -> bool {
+    (a.para, a.index) < (b.para, b.index)
+}
+
 /// A text box's editor and how it shows the model.
 pub struct EditUi {
     pub ed: TextEditor,
@@ -111,6 +140,8 @@ pub struct EditUi {
     /// The model's last scroll-into-view request seen, and whether it waits
     /// for the view (`memo.rs` scrolls when it knows its size).
     reveal: (u64, bool),
+    /// (the input lane's) A selection the mouse is dragging.
+    drag: Option<Drag>,
 }
 
 /// What an edit's context menu offers now (`ComponentKind::context_menu`).
@@ -136,7 +167,7 @@ impl EditUi {
         bars.auto = false;
         bars.horz.visible = false;
         bars.vert.visible = false;
-        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, reveal: (0, false) }
+        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, reveal: (0, false), drag: None }
     }
 
     /// The text as the editor holds it (a composition included).
@@ -184,7 +215,7 @@ impl EditUi {
     }
 
     pub(crate) fn mouse_text(&mut self, m: &MouseIn, area: Rect, dy: f64, multi: bool) -> bool {
-        self.mouse(m, area, dy, multi)
+        self.mouse(m, area, dy, multi, true)
     }
 
     pub(crate) fn sync_model(&mut self, id: &str) -> bool {
@@ -523,20 +554,118 @@ impl EditUi {
         ((x - area.0 as f64) * s + self.scroll.0, (y - area.1 as f64) * s - dy + self.scroll.1)
     }
 
-    /// The mouse in the text (`area` its view, the first line `dy` down).
-    fn mouse(&mut self, m: &MouseIn, area: Rect, dy: f64, multi: bool) -> bool {
+    /// The mouse in the text (`area` its view, the first line `dy` down;
+    /// `scrolls`: a drag out of the view stops at its edge and the box
+    /// scrolls on — [`EditUi::auto_scroll`] — else the selection follows
+    /// the mouse past it).
+    fn mouse(&mut self, m: &MouseIn, area: Rect, dy: f64, multi: bool, scrolls: bool) -> bool {
         let (px, py) = self.text_point(m.x, m.y, area, dy);
         match m.kind {
-            MouseKind::Down => match m.clicks {
-                0 | 1 => self.ed.click(px, py, m.mods.shift),
-                2 => self.ed.select_word_at(px, py),
-                _ if multi => self.ed.select_para_at(px, py),
-                _ => self.ed.select_all(),
-            },
-            MouseKind::Move if m.captured => self.ed.click(px, py, true),
+            MouseKind::Down => {
+                let unit = match m.clicks {
+                    0 | 1 => Unit::Char,
+                    2 => Unit::Word,
+                    _ if multi => Unit::Para,
+                    _ => Unit::All,
+                };
+                match unit {
+                    Unit::Char => self.ed.click(px, py, m.mods.shift),
+                    Unit::Word => self.ed.select_word_at(px, py),
+                    Unit::Para => self.ed.select_para_at(px, py),
+                    Unit::All => self.ed.select_all(),
+                }
+                // (a click's drag keeps the selection's anchor; a double or
+                // triple click's keeps what it selected)
+                let anchor = if unit == Unit::Char { (self.ed.anchor(), self.ed.anchor()) } else { self.ed.ordered() };
+                self.drag = Some(Drag { unit, anchor, at: (m.x, m.y), scrolls });
+            }
+            MouseKind::Move if m.captured => {
+                let Some(d) = self.drag.as_mut() else {
+                    self.ed.click(px, py, true);
+                    self.typing = false;
+                    return true;
+                };
+                d.at = (m.x, m.y);
+                let (x, y) = if d.scrolls { Self::clamp_to(area, m.x, m.y) } else { (m.x, m.y) };
+                let (px, py) = self.text_point(x, y, area, dy);
+                self.drag_to(px, py);
+            }
+            MouseKind::Up => {
+                self.drag = None;
+                return false;
+            }
             _ => return false,
         }
         self.typing = false;
+        true
+    }
+
+    /// A point of the component kept inside `area` (by half a pixel).
+    fn clamp_to((ax, ay, aw, ah): Rect, x: f64, y: f64) -> (f64, f64) {
+        (x.clamp(ax as f64, (ax + aw.max(1)) as f64 - 0.5), y.clamp(ay as f64, (ay + ah.max(1)) as f64 - 0.5))
+    }
+
+    /// (the input lane's) The unit (a word, a paragraph) at (px, py) of the
+    /// text, in text order.
+    fn unit_at(&mut self, unit: Unit, px: f64, py: f64) -> (Pos, Pos) {
+        let (a, f) = (self.ed.anchor(), self.ed.focus());
+        match unit {
+            Unit::Word => self.ed.select_word_at(px, py),
+            Unit::Para => self.ed.select_para_at(px, py),
+            Unit::All => self.ed.select_all(),
+            Unit::Char => self.ed.click(px, py, false),
+        }
+        let r = self.ed.ordered();
+        self.ed.select(a, f);
+        r
+    }
+
+    /// (the input lane's) The drag at (px, py) of the text: the selection
+    /// from what the press selected to there, by the press's unit (Windows'
+    /// edits extend a double click's selection a word at a time).
+    fn drag_to(&mut self, px: f64, py: f64) {
+        let Some(d) = self.drag else { return };
+        if d.unit == Unit::Char {
+            self.ed.click(px, py, true);
+            return;
+        }
+        let (s, e) = self.unit_at(d.unit, px, py);
+        let (a0, a1) = d.anchor;
+        if before(s, a0) {
+            self.ed.select(a1, s);
+        } else {
+            self.ed.select(a0, if before(a1, e) { e } else { a1 });
+        }
+    }
+
+    /// (the input lane's) Whether a drag that scrolls its box is out of
+    /// `area` (its view): the box's tick scrolls on.
+    pub(crate) fn drag_outside(&self, (ax, ay, aw, ah): Rect) -> bool {
+        self.drag.is_some_and(|d| d.scrolls && (d.at.0 < ax as f64 || d.at.1 < ay as f64 || d.at.0 >= (ax + aw) as f64 || d.at.1 >= (ay + ah) as f64))
+    }
+
+    /// (the input lane's) A drag out of `area` (the view; the first line
+    /// `dy` down; `view` its size in device pixels): the text scrolls a
+    /// step toward the mouse — a line down or up, a few pixels across —
+    /// and the selection follows to the view's edge, as Windows' edits'
+    /// timer does. Whether to go on (the mouse still out).
+    pub(crate) fn auto_scroll(&mut self, area: Rect, dy: f64, view: (f64, f64)) -> bool {
+        if !self.drag_outside(area) {
+            return false;
+        }
+        let Some(d) = self.drag else { return false };
+        let (ax, ay, aw, ah) = area;
+        let (x, y) = d.at;
+        let lh = self.ed.line_height();
+        let step_x = (lh / 2.0).round().max(1.0);
+        let dir = |v: f64, lo: i64, len: i64| if v < lo as f64 { -1.0 } else if v >= (lo + len) as f64 { 1.0 } else { 0.0 };
+        let (dx, dyl) = (dir(x, ax, aw), if self.ed.multi() { dir(y, ay, ah) } else { 0.0 });
+        let (sx, sy) = self.scroll;
+        let (tw, th) = self.ed.content_size();
+        self.set_scroll((sx + dx * step_x, sy + dyl * lh), view, (tw + 1.0, th));
+        let (cx, cy) = Self::clamp_to(area, x, y);
+        let (px, py) = self.text_point(cx, cy, area, dy);
+        self.drag_to(px, py);
         true
     }
 
@@ -837,21 +966,39 @@ impl ComponentKind for Edit {
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let id = cx.id.to_string();
-        let changed = {
+        let (changed, outside) = {
             let e = Self::editor(cx);
             let dy = Self::line_dy(e, h);
-            if !e.mouse(m, inner(w, h), dy, false) {
+            if !e.mouse(m, inner(w, h), dy, false, true) {
                 return MouseOut::default();
             }
             let changed = e.sync(&id);
             let v = Self::view(e, w, h);
             e.scroll_to_caret(v);
-            changed
+            (changed, e.drag_outside(inner(w, h)))
         };
+        // (the input lane's: a drag out of the view scrolls on — `tick`)
+        if outside && cx.ui.wake.is_none() {
+            cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
+        }
         if changed {
             cx.change();
         }
         MouseOut::default()
+    }
+
+    /// (the input lane's) A drag out of the view: a step on, again while
+    /// the mouse stays out.
+    fn tick(&self, cx: &mut Cx) {
+        let (w, h) = (cx.width(), cx.height());
+        let id = cx.id.to_string();
+        let e = Self::editor(cx);
+        let dy = Self::line_dy(e, h);
+        let v = Self::view(e, w, h);
+        if e.auto_scroll(inner(w, h), dy, v) {
+            e.sync(&id);
+            cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
+        }
     }
 
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
@@ -958,7 +1105,7 @@ pub(crate) fn mouse_line(cx: &mut Cx, m: &MouseIn, area: Rect, src: Source) -> b
     let e = spec.editor(&mut *cx.ui, &mut *cx.text, id, cx.scale);
     let s = f64::from(e.ed.scale());
     let dy = ((area.3 as f64 * s - e.ed.content_size().1) / 2.0).round();
-    if !e.mouse(m, area, dy, false) {
+    if !e.mouse(m, area, dy, false, false) {
         return false;
     }
     let changed = e.sync(id);

@@ -364,3 +364,111 @@ fn the_wheel_scrolls_the_list_under_the_mouse() {
     f.mouse_wheel(&s, &mut ts, (30.0, 30.0), (0.0, 0.5), NONE);
     assert!(crate::components::list::vscroll_state("tl").0 > pos);
 }
+
+// ------------------------------------------------ dragging a selection --
+// (the input lane's)
+
+/// Where `prefix` ends in a QEDIT's text at (10, 10) (its text 3 in).
+fn edit_x(prefix: &str) -> f64 {
+    13.0 + rapidr_value::objects::text::text_size(prefix, &rapidr_value::objects::font::Font::default()).0 as f64
+}
+
+#[test]
+fn a_double_click_drags_by_words_a_triple_click_by_everything() {
+    let (s, mut f, mut ts) = edit_form("one two three four");
+    set_test_now(Some(Instant::now()));
+    let y = 20.0;
+    // (a double click in "two", dragged into "three": "two three")
+    click_at(&mut f, &s, &mut ts, edit_x("one tw"), y, Button::Left);
+    f.mouse_down(&s, &mut ts, edit_x("one tw") + 1.0, y, Button::Left, NONE);
+    f.mouse_move(&s, &mut ts, edit_x("one two thr"), y, NONE);
+    assert_eq!(model("te").1..model("te").1 + model("te").2, 4..13);
+    // (back over "one": "one two" — the double-clicked word stays selected)
+    f.mouse_move(&s, &mut ts, edit_x("o"), y, NONE);
+    assert_eq!((model("te").1, model("te").2), (0, 7));
+    f.mouse_up(&s, &mut ts, edit_x("o"), y, Button::Left, NONE);
+    // (a plain drag: by characters)
+    set_test_now(Some(Instant::now() + Duration::from_secs(5)));
+    f.mouse_down(&s, &mut ts, edit_x("one t"), y, Button::Left, NONE);
+    f.mouse_move(&s, &mut ts, edit_x("one two th"), y, NONE);
+    f.mouse_up(&s, &mut ts, edit_x("one two th"), y, Button::Left, NONE);
+    assert_eq!((model("te").1, model("te").2), (5, 5));
+    // (a triple click: everything, whatever the drag)
+    set_test_now(Some(Instant::now() + Duration::from_secs(10)));
+    click_at(&mut f, &s, &mut ts, edit_x("one t"), y, Button::Left);
+    click_at(&mut f, &s, &mut ts, edit_x("one t"), y, Button::Left);
+    f.mouse_down(&s, &mut ts, edit_x("one t"), y, Button::Left, NONE);
+    f.mouse_move(&s, &mut ts, edit_x("o"), y, NONE);
+    assert_eq!((model("te").1, model("te").2), (0, 18));
+    f.mouse_up(&s, &mut ts, edit_x("o"), y, Button::Left, NONE);
+    set_test_now(None);
+}
+
+#[test]
+fn a_memos_triple_click_drags_by_paragraphs() {
+    let (s, mut f, mut ts) = memo_form("RMEMO");
+    with_textedit_mut("tm", |t| t.set("text", &v_str("a1 x\r\nb2 y\r\nc3 z")));
+    drop(f.paint(&s, &mut ts, 1.0));
+    set_test_now(Some(Instant::now()));
+    // (the text from (16, 15); a line about 15 pixels)
+    for _ in 0..2 {
+        click_at(&mut f, &s, &mut ts, 30.0, 21.0, Button::Left);
+    }
+    f.mouse_down(&s, &mut ts, 30.0, 21.0, Button::Left, NONE);
+    assert_eq!((model("tm").1, model("tm").2), (0, 4), "the first paragraph");
+    f.mouse_move(&s, &mut ts, 18.0, 51.0, NONE);
+    assert_eq!((model("tm").1, model("tm").2), (0, 14), "down to the third, whole");
+    f.mouse_up(&s, &mut ts, 18.0, 51.0, Button::Left, NONE);
+    set_test_now(None);
+}
+
+#[test]
+fn a_drag_out_of_an_edit_scrolls_it_on() {
+    let (s, mut f, mut ts) = edit_form("0123456789 0123456789 0123456789 0123456789 0123456789");
+    let t0 = Instant::now();
+    set_test_now(Some(t0));
+    let y = 20.0;
+    f.mouse_down(&s, &mut ts, edit_x("0"), y, Button::Left, NONE);
+    // (out past its right edge: the selection stops at the view's edge…)
+    f.mouse_move(&s, &mut ts, 220.0, y, NONE);
+    let first = model("te").2;
+    assert!(first > 0 && first < 40, "{first}");
+    // (…and the deadline scrolls on, the selection following)
+    let due = f.next_wake().expect("scrolling on");
+    f.tick(&s, &mut ts, due);
+    let second = model("te").2;
+    assert!(second > first, "{second} after {first}");
+    for _ in 0..40 {
+        let Some(due) = f.next_wake() else { break };
+        f.tick(&s, &mut ts, due);
+    }
+    assert_eq!(model("te").2, 53, "to the text's end");
+    // (back inside: it stops; the release ends it)
+    f.mouse_move(&s, &mut ts, 100.0, y, NONE);
+    f.mouse_up(&s, &mut ts, 100.0, y, Button::Left, NONE);
+    let due = f.next_wake();
+    if let Some(due) = due {
+        f.tick(&s, &mut ts, due);
+    }
+    assert!(f.next_wake().is_none() || f.next_wake() > due, "no more steps");
+    set_test_now(None);
+}
+
+#[test]
+fn a_drag_below_a_memo_scrolls_it_down_a_line_at_a_time() {
+    let (s, mut f, mut ts) = memo_form("RMEMO");
+    let lines: Vec<String> = (0..20).map(|i| format!("line {i}")).collect();
+    with_textedit_mut("tm", |t| t.set("text", &v_str(&lines.join("\r\n"))));
+    drop(f.paint(&s, &mut ts, 1.0));
+    set_test_now(Some(Instant::now()));
+    f.mouse_down(&s, &mut ts, 18.0, 18.0, Button::Left, NONE);
+    f.mouse_move(&s, &mut ts, 40.0, 150.0, NONE);
+    let before = model("tm").2;
+    let due = f.next_wake().expect("scrolling on");
+    f.tick(&s, &mut ts, due);
+    let after = model("tm").2;
+    // (one more line: "line N" and its break)
+    assert!(after > before && after - before <= 8, "{before} -> {after}");
+    f.mouse_up(&s, &mut ts, 40.0, 150.0, Button::Left, NONE);
+    set_test_now(None);
+}
