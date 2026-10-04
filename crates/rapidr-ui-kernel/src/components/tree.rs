@@ -8,12 +8,12 @@
 //!
 //! What the user does is the program's to allow (OnChanging, OnExpanding /
 //! OnCollapsing, OnEditing, OnEdited answer back), so a click queues a
-//! [`ListAction`] that runtime-core carries out after the pump, as gui.rs
-//! does for FLTK's tree: a click on a node asks to select it, then fires
-//! OnClick; on its button OnClick, then asks to expand or collapse it; F2
-//! — or a click on the selected node, after Windows' double-click time
-//! unless a double click comes — asks to edit the selected node's text,
-//! and its editor's Enter asks OnEdited.
+//! [`ListAction`] that runtime-core carries out after the pump: a click on
+//! a node asks to select it, then fires OnClick; on its button OnClick,
+//! then asks to expand or collapse it; F2 — or a click on the selected
+//! node, after Windows' double-click time unless a double click comes —
+//! asks to edit the selected node's text, and its editor's Enter asks
+//! OnEdited.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -37,7 +37,7 @@ const LINES: u32 = 0xA0A0A0;
 thread_local! {
     /// (the input lane's) A click on the selected node of a focused tree:
     /// its edit asked for when the double-click time is up (its `tick`),
-    /// unless a press or a key comes first — Windows' tree view, FLTK's
+    /// unless a press or a key comes first — Windows' tree view, the web's
     /// 0.5 s timer.
     static EDIT_SOON: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
@@ -137,8 +137,8 @@ impl Tree {
     }
 
     /// A press on node `n` (not on its button): asks to select it, then
-    /// OnClick (a double click's second press: OnDblClick too, as FLTK's
-    /// and the web's trees fire them).
+    /// OnClick (a double click's second press: OnDblClick too, as the
+    /// web's tree fires them).
     fn press(cx: &mut Cx, n: usize, double: bool) {
         let selected = with_tree(cx.id, |t| t.item_index == n as i64).unwrap_or(false);
         if !selected {

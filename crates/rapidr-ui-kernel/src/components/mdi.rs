@@ -35,7 +35,7 @@ const GRIP: i64 = 12;
 
 /// `parent`'s children for the tree: a QFORMMDI's child frames and their
 /// components over its other components, in the model's z-order (the last
-/// on top), as runtime-core's `stack_widgets` stacks FLTK's widgets.
+/// on top).
 pub fn stacked(parent: &str, children: Vec<(String, String)>) -> Vec<(String, String)> {
     if !mdi::is_mdi(parent) {
         return children;
@@ -148,7 +148,7 @@ impl ComponentKind for ChildFrame {
                     return MouseOut { press: false, focus: Some(false) };
                 }
                 // (the input lane's: a double click on the title bar maximizes
-                // or restores it, as Windows' and FLTK's frame)
+                // or restores it, as Windows' frame)
                 if y < BORDER + TITLE_HEIGHT && m.double() {
                     act(cx, Action::ToggleMaximize);
                     return MouseOut { press: false, focus: Some(false) };

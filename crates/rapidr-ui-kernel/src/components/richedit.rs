@@ -1,5 +1,5 @@
 //! QRICHEDIT, step 1 (plan §4): a plain multi-line edit, the same as QMEMO
-//! (`memo.rs`) — as FLTK's RRICHEDIT is today, and as `text_edits.bas`
+//! (`memo.rs`) — as the web's RRICHEDIT is today, and as `text_edits.bas`
 //! needs (its text and selection). Step 2, if wanted, is a style-run model
 //! (SelAttributes, Paragraph, RTF) drawn with parley's ranged styles.
 

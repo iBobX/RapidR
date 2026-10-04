@@ -3,7 +3,7 @@
 //! and while Down, its caption a pixel down and right then. It never takes
 //! the focus (a graphic control, as Delphi's TSpeedButton). Buttons
 //! sharing a parent and a non-zero GroupIndex are a group
-//! (`rapidr_value::toggle_group`, as FLTK's and the web's): a click puts
+//! (`rapidr_value::toggle_group`, as the web's): a click puts
 //! one down and the others up; the one down comes up only with AllowAllUp;
 //! GroupIndex 0 never stays down. The new Down values go to the store
 //! ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnClick.

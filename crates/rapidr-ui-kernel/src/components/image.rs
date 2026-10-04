@@ -1,6 +1,6 @@
 //! QIMAGE: its picture (a bitmap in the shared model — BMPHandle from a
 //! `$RESOURCE`, a BMP / SVG / icon file, or what the program drew on it),
-//! as FLTK's `picture_refresh` and the web show it: at the top left, in
+//! as the web shows it: at the top left, in
 //! the middle (Center) or scaled to the control (Stretch); with
 //! Transparent (or an image with soft edges) what's behind shows through
 //! — like Delphi's TImage, a graphic control, it paints no background of

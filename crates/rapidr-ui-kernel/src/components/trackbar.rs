@@ -1,7 +1,7 @@
 //! QTRACKBAR: the shared model (`rapidr_value::objects::trackbar`) does
 //! everything — its shapes, a press beside the thumb (a page toward it) or
 //! on it (a drag), the keys (arrows, Page Up / Down, Home / End) — as the
-//! FLTK and web runtimes route it; OnChange when the user moved it.
+//! web runtime routes it; OnChange when the user moved it.
 
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::{with_trackbar, with_trackbar_mut};

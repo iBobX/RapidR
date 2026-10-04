@@ -4,7 +4,7 @@
 //! box, the fixed rows and columns as raised grey cells, the 1-pixel lines
 //! between cells, the selected cells white on blue, a gcsList column's
 //! selected cell with its drop-down button, an ellipsis column's "…"
-//! button — with what OnDrawCell drew replayed over each cell (as FLTK's
+//! button — with what OnDrawCell drew replayed over each cell (as the web's
 //! `grid_replay`); scrolled by TopRow / LeftCol under the fixed ones.
 //!
 //! What the user does: a click selects a cell (OnSelectCell (Col, Row,
@@ -17,7 +17,7 @@
 //! it (OnSetEditText, OnChange).
 //!
 //! VisibleRowCount / VisibleColCount count what fits the control's inside
-//! (`StringGrid::view`, set here as FLTK's table sets it).
+//! (`StringGrid::view`, set here as the web's grid sets it).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -235,7 +235,7 @@ impl ComponentKind for Grid {
         drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
         sunken(p, w, h, 0xFFFFFF);
-        // (VisibleRowCount / VisibleColCount: the inside, as FLTK's table)
+        // (VisibleRowCount / VisibleColCount: the inside, as the web's grid)
         let fresh = with_grid_mut(cx.id, |g| {
             g.view = (w - 4, h - 4);
             let sel = (g.col, g.row);
@@ -528,7 +528,7 @@ impl ComponentKind for Grid {
 
     /// (the input lane's) The wheel scrolls the cells under the fixed ones,
     /// three rows a notch (across with Shift, or a horizontal wheel), as
-    /// FLTK's table and the web's grid; the selection stays.
+    /// the web's grid; the selection stays.
     fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
         let (w, h) = (cx.width(), cx.height());
         let horizontal = dy == 0.0 || mods.shift;
@@ -564,8 +564,8 @@ impl ComponentKind for Grid {
         editor_menu(cx, Self::edit_rect(cx)?)
     }
 
-    /// `__cell_c_r`: cell (c, r) selected as FLTK's hook does (OnSelectCell,
-    /// no click); `__edit` (F2), `__enter` ("Renamed", Enter), `__escape`.
+    /// `__cell_c_r`: cell (c, r) selected (OnSelectCell, no click);
+    /// `__edit` (F2), `__enter` ("Renamed", Enter), `__escape`.
     fn test_action(&self, cx: &mut Cx, action: &str) -> bool {
         if let Some(rest) = action.strip_prefix("__cell_") {
             let mut it = rest.split('_').map(|s| s.parse::<i64>().ok());

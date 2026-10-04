@@ -1,7 +1,8 @@
 //! RapidQ's global objects — `Screen`, `Application`, `Clipboard`, `Mouse`
 //! — the same on every runtime: what they answer comes from the runtime's
-//! [`Platform`] (FLTK and the system clipboard on the desktop, the browser
-//! on the web); what the program sets and reads back is kept here.
+//! [`Platform`] (the UI kernel's host and the system clipboard, arboard, on
+//! the desktop; the browser on the web); what the program sets and reads
+//! back is kept here.
 
 use crate::{v_bool, v_int, v_null, v_str, Value};
 use std::cell::RefCell;

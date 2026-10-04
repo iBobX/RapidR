@@ -2,16 +2,15 @@
 //! shared model (`rapidr_value::objects::list::ItemList`) holds the items
 //! and the selection; this draws them in Windows' classic list box (a
 //! sunken white box, the selected item white on blue, the focused one
-//! dotted) and takes the mouse and the keys as the FLTK and web runtimes
-//! route them — a click selects (MultiSelect: Shift extends, Ctrl
+//! dotted) and takes the mouse and the keys as the web runtime routes
+//! them — a click selects (MultiSelect: Shift extends, Ctrl
 //! toggles) and fires OnClick, the arrows, Page Up / Down, Home and End
 //! move the selection (OnClick too).
 //!
 //! An owner-drawn list box (Style lbOwnerDrawFixed / lbOwnerDrawVariable)
 //! or one in Columns shows each item as the model renders it
 //! (`ItemList::render_item`: what OnDrawItem drew, kept per item; runtime-
-//! core fires OnMeasureItem / OnDrawItem before the pump, as FLTK's
-//! `list_owner_draw` does).
+//! core fires OnMeasureItem / OnDrawItem before the pump).
 //!
 //! Also here, what the lists lane's components share: [`ListAction`]
 //! (what the user did that the program answers, done by runtime-core),
@@ -45,9 +44,8 @@ use crate::text::bgr_to_rgb;
 
 /// What the user did to a list, tree, grid, list view or header that the
 /// program hears about with arguments or answers back: runtime-core does
-/// it after the pump (`ui/kernel_lists.rs`), as gui.rs does for FLTK's
-/// widgets — asking first (OnChanging …) and changing the model if the
-/// answer allows.
+/// it after the pump (`ui/kernel_lists.rs`) — asking first (OnChanging …)
+/// and changing the model if the answer allows.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ListAction {
     /// `event` fired with `args` (OnColumnClick (Column), OnSectionTrack
@@ -93,7 +91,7 @@ pub fn fire(cx: &mut Cx, event: &str, args: Vec<Value>) {
 /// text so far. (the input lane's) The text lane's editor shows and edits
 /// it — caret, selection, the mouse, the clipboard, input methods, the
 /// context menu; Enter keeps it, Escape drops it, the focus leaving the
-/// component keeps it (as Windows' and FLTK's editors).
+/// component keeps it (as Windows' editors).
 #[derive(Clone, Debug, PartialEq)]
 pub struct InPlace {
     /// The node, item or (col, row) cell.
@@ -470,7 +468,7 @@ pub fn picture_of((w, h, rgba, _scale): (usize, usize, Vec<u8>, usize)) -> Pictu
 
 /// What an owner-draw handler drew on a cell (OnDrawCell's ops, kept
 /// relative to the cell's top left), drawn as ops from the current origin:
-/// as FLTK's `grid_replay` draws them. `key` names the cell's pictures.
+/// as the web's `grid_replay` draws them. `key` names the cell's pictures.
 pub fn replay(p: &mut Painter, ops: &[CellDraw], font: &Font, key: &str) {
     let c = |v: u32| bgr_to_rgb(i64::from(v));
     let box_of = |x1: i64, y1: i64, x2: i64, y2: i64| (x1.min(x2), y1.min(y2), (x2 - x1).abs(), (y2 - y1).abs());
@@ -513,7 +511,7 @@ pub fn replay(p: &mut Painter, ops: &[CellDraw], font: &Font, key: &str) {
 // ------------------------------------------------------------ QLISTBOX --
 
 /// Where a list box's items show: inside the frame, less the scroll bar
-/// (the area FLTK's table gives them, which OnDrawItem's rects follow:
+/// (the area the web gives them too, which OnDrawItem's rects follow:
 /// a vertical bar's room in one column, a horizontal one's in Columns).
 pub fn view_size(l: &ItemList, w: i64, h: i64) -> (i64, i64) {
     if l.combo {

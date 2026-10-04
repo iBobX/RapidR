@@ -1,5 +1,5 @@
 //! RapidR's desktop host for the UI kernel (`docs/desktop-host-plan.md`
-//! §1.5): the program's forms as windows, without FLTK.
+//! §1.5): the program's forms as windows the kernel draws.
 //!
 //! - [`WinitHost`](winit_host::WinitHost): winit driven by
 //!   `pump_app_events` from an ordinary loop — never `run_app`, never

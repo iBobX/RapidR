@@ -78,8 +78,7 @@ impl ComponentKind for DirTreeBox {
         let (w, h) = (cx.width(), cx.height());
         sunken(p, w, h, background(cx));
         let (rows, sel) = rows(cx.id);
-        // (a newly selected directory scrolled into the middle, as FLTK's
-        // browser's middle_line)
+        // (a newly selected directory scrolled into the middle)
         let dir = with_dirtree(cx.id, |t| t.directory.clone());
         let fresh = SHOWN.with(|s| {
             let mut s = s.borrow_mut();

@@ -22,7 +22,7 @@
 //!   are the edit's (`edit.rs`).
 //!
 //! RapidR's **RCODEEDITOR** (Stage 10, `codeedit.rs`) is a memo of another
-//! [`Flavor`]: FLTK's code editor's 13-pixel Courier New, black, no word
+//! [`Flavor`]: the code editor's 13-pixel Courier New, black, no word
 //! wrap, both bars as needed, Tab typing a tab, BASIC's colours (the
 //! editor's styled runs, from `rapidr_value::objects::code`) and a 40-pixel
 //! line-number gutter at the left.
@@ -64,7 +64,7 @@ pub fn takes_tab(f: &crate::tree::FormUi, store: &dyn Store) -> bool {
 pub(crate) struct Flavor {
     /// The line-number gutter's width (0: none).
     pub gutter: i64,
-    /// FLTK's code editor's font, colours and bars (RCODEEDITOR).
+    /// The code editor's font, colours and bars (RCODEEDITOR).
     pub code: bool,
 }
 
@@ -76,8 +76,8 @@ impl Flavor {
         if store.type_of(id).eq_ignore_ascii_case("RCODEEDITOR") { Flavor::CODE } else { Flavor::MEMO }
     }
 
-    /// The code editor's look: Courier New at 13 pixels (FLTK's Courier
-    /// 13), black (grey when disabled), no word wrap, BASIC's colours.
+    /// The code editor's look: Courier New at 13 pixels, black (grey when
+    /// disabled), no word wrap, BASIC's colours.
     fn code_look(enabled: bool) -> Look {
         let font = Font { name: "Courier New".into(), size: -13, ..Font::default() };
         Look { font, color: if enabled { 0 } else { GRAY_TEXT }, syntax: Syntax::Basic, ..Look::default() }
@@ -109,7 +109,7 @@ impl Memo {
         let bars = (2, 2, (w - 4).max(0), (h - 4).max(0));
         let flavor = Flavor::of(cx.store, cx.id);
         let (look, sb) = match flavor.code {
-            // (FLTK's code editor: its own font, both bars as needed)
+            // (the code editor: its own font, both bars as needed)
             true => (Flavor::code_look(cx.state.enabled), 3),
             false => (look_of(cx.store, cx.id, &cx.font, cx.state.enabled, true), store::int(cx.store, cx.id, "scrollbars", 0)),
         };

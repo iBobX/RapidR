@@ -1,9 +1,9 @@
 //! Where the kernel reads components from: the program's property store.
-//! The kernel never copies properties into widgets (as FLTK's runtime
-//! does); it reads them through [`Store`] when it builds a form's tree,
-//! paints and routes input. runtime-core implements it over its component
-//! registry (`rp_comp_get`, `rp_comp_type`, `get_children_of`); kernel-drawn
-//! dialogs and tests use [`MemStore`].
+//! The kernel never copies properties into widgets; it reads them through
+//! [`Store`] when it builds a form's tree, paints and routes input.
+//! runtime-core implements it over its component registry (`rp_comp_get`,
+//! `rp_comp_type`, `get_children_of`); kernel-drawn dialogs and tests use
+//! [`MemStore`].
 //!
 //! Property names are lowercase, ids are compared without case, type names
 //! are RapidR's (`RBUTTON` for RapidQ's QBUTTON). The shared models

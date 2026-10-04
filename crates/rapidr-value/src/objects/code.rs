@@ -1,8 +1,8 @@
 //! RCODEEDITOR, RapidR's code editor (the IDE's): what it adds to the
 //! shared text model (`textedit::TextEdit` in code mode) — BASIC's syntax
 //! colours, and the SUBs and FUNCTIONs it finds (GetSubList, GotoSub) —
-//! the same on every runtime. RapidQ has no code editor; FLTK's runtime
-//! was the first, so its rules are the reference.
+//! the same on every runtime. RapidQ has no code editor, so these rules
+//! are RapidR's own.
 //!
 //! Highlighting is per line: no token runs past a line break (a comment
 //! ends with its line, and so does a string left open), so an edit only
@@ -32,7 +32,7 @@ pub struct Style {
 }
 
 impl Token {
-    /// FLTK's style table: keywords dark blue and bold, strings red,
+    /// The editor's style table: keywords dark blue and bold, strings red,
     /// comments green and italic, numbers maroon, the rest black.
     pub fn style(self) -> Style {
         let (color, bold, italic) = match self {
@@ -43,17 +43,6 @@ impl Token {
             Token::Normal => (0x000000, false, false),
         };
         Style { color, bold, italic }
-    }
-
-    /// Its letter in FLTK's style buffer (A keyword … E normal).
-    pub fn letter(self) -> u8 {
-        match self {
-            Token::Keyword => b'A',
-            Token::String => b'B',
-            Token::Comment => b'C',
-            Token::Number => b'D',
-            Token::Normal => b'E',
-        }
     }
 }
 
@@ -138,19 +127,6 @@ pub fn spans(syntax: Syntax, line: &str, state: u32) -> (Vec<(Range<usize>, Toke
     }
 }
 
-/// FLTK's style buffer for `source`: a token letter per byte.
-pub fn style_bytes(source: &str) -> String {
-    let mut out = vec![Token::Normal.letter(); source.len()];
-    let mut at = 0;
-    for line in source.split('\n') {
-        for (r, t) in line_tokens(line) {
-            out[at + r.start..at + r.end].fill(t.letter());
-        }
-        at += line.len() + 1;
-    }
-    String::from_utf8(out).unwrap_or_default()
-}
-
 /// The SUB or FUNCTION a line declares (its name), if it does.
 fn declared(line: &str) -> Option<&str> {
     let t = line.trim();
@@ -191,7 +167,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tokens_are_fltks_with_bytes_for_letters() {
+    fn basic_tokens_and_their_styles() {
         let line = "IF x1 = 10 THEN PRINT \"hi\" ' done";
         let t: Vec<(&str, Token)> = line_tokens(line).into_iter().map(|(r, t)| (&line[r], t)).collect();
         assert_eq!(t, [("IF", Token::Keyword), ("10", Token::Number), ("THEN", Token::Keyword), ("PRINT", Token::Keyword), ("\"hi\"", Token::String), ("' done", Token::Comment)]);
@@ -201,7 +177,6 @@ mod tests {
         assert_eq!(line_tokens("s = \"open").last().map(|(r, t)| (r.clone(), *t)), Some((4..9, Token::String)));
         assert_eq!(line_tokens("x=.5")[0], (2..4, Token::Number));
         assert_eq!(line_tokens("dim é AS integer").iter().map(|(_, t)| *t).collect::<Vec<_>>(), [Token::Keyword, Token::Keyword, Token::Keyword]);
-        assert_eq!(style_bytes("é 1\nREM"), "EEEDEEEE", "a letter per byte, across lines");
         assert_eq!(spans(Syntax::Basic, "' x", 0).1, 0);
         assert!(spans(Syntax::None, "SUB", 0).0.is_empty());
         assert_eq!(Token::Comment.style(), Style { color: 0x008000, bold: false, italic: true });

@@ -1,8 +1,8 @@
 //! QPANEL as RapidQ (Delphi's TPanel) draws it: its Color, its bevels
 //! from the shared model (`rapidr_value::objects::bevel`: BevelOuter,
 //! BorderWidth, BevelInner, each BevelWidth one-pixel frames; a raised
-//! outer bevel by default) — the same frames the FLTK and web runtimes
-//! draw — and its Caption on one line inside them, centred (Alignment
+//! outer bevel by default) — the same frames the web runtime draws — and
+//! its Caption on one line inside them, centred (Alignment
 //! taLeftJustify 0 / taRightJustify 1 / taCenter 2), under its
 //! components. A container: its components are the tree's children.
 

@@ -1,7 +1,7 @@
 //! RDESIGNSURFACE (Stage 10): RapidR's form designer — the shared model
 //! (`rapidr_value::objects::design`: the designed components, the
 //! selection, the grid-snapped moves and resizes) drawn and driven by the
-//! kernel, as FLTK's runtime draws and drives it:
+//! kernel:
 //!
 //! - **The look** is the model's ops: white with grey dots on the 8-pixel
 //!   grid, each designed component as a placeholder of its type (a raised
@@ -13,9 +13,9 @@
 //!   (OnSelect; OnDblClick for a double click's second press), or clears
 //!   the selection (OnBgClick with the point); a drag moves or resizes on
 //!   the grid (OnMove at each step); the release ends it.
-//! - It takes **no focus and no keys** (FLTK's took neither), fires no
-//!   OnClick, and the program hears no OnMouseDown / Move / Up of it:
-//!   runtime-core drops those (FLTK's handler took the mouse whole).
+//! - It takes **no focus and no keys**, fires no OnClick, and the program
+//!   hears no OnMouseDown / Move / Up of it: runtime-core drops those (the
+//!   designer takes the mouse whole).
 //!
 //! A screen reader sees a list box whose options are the designed
 //! components ("Button1 (RBUTTON)"), the selected one selected; clicking

@@ -470,7 +470,7 @@ fn shared_models_draw_their_own_ops() {
     let (s, mut f, mut ts) = setup();
     let list = f.paint(&s, &mut ts, 1.0);
     let at = |origin: (i64, i64)| list.items.iter().filter(move |i| matches!(i, Item::Op { origin: o, .. } if *o == origin)).collect::<Vec<_>>();
-    // the track bar: the model's shapes, as the FLTK and web runtimes draw them
+    // the track bar: the model's shapes, as the web runtime draws them
     let shapes = with_trackbar("tblevel", |t| t.shapes(150.0, 45.0, true)).unwrap();
     let drawn: Vec<_> = at((8, 44)).into_iter().filter_map(|i| if let Item::Op { op: Op::Shape(s), .. } = i { Some(s.clone()) } else { None }).collect();
     assert_eq!(drawn, shapes);

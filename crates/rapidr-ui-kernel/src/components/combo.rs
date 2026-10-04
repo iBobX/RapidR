@@ -8,7 +8,7 @@
 //! it when there's no room below), on top of every component, and takes
 //! the mouse first while open (plan §1.5 "Popups": an in-window overlay; a
 //! borderless top-level window is the host's later refinement). A pick sets
-//! ItemIndex and Text and fires OnChange, as FLTK's Choice and the owner-
+//! ItemIndex and Text and fires OnChange, as the web's select and owner-
 //! drawn combo do; Up / Down pick the item before / after; Alt+Down, F4 or
 //! a click on the box open the list, Escape closes it.
 

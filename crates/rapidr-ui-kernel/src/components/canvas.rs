@@ -64,7 +64,7 @@ pub fn draw_shown(p: &mut Painter, id: &str, s: &Shown, rect: Rect) {
 }
 
 /// A QCANVAS's surface at the control's size (`with_canvas` gives it that
-/// size, as FLTK's and the web's drawing do), as shown.
+/// size, as the web's drawing does), as shown.
 fn canvas_shown(cache: &mut Option<Shown>, id: &str, w: i64, h: i64) -> Option<(Shown, u32)> {
     rapidr_value::objects::with_canvas(id, w, h, |b| shown(cache, b).map(|s| (s, b.background))).flatten()
 }

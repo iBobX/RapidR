@@ -2,7 +2,7 @@
 //! everything — its four views, the header, check boxes, image lists,
 //! selection, the mouse, the keys and the wheel — and paints the control
 //! as a bitmap (`listview_paint`), which the kernel shows as a picture (as
-//! FLTK's frame and the web's canvas do). What the user did comes back as
+//! the web's canvas does). What the user did comes back as
 //! the model's events: OnClick, OnDblClick, OnColumnClick (Column),
 //! OnChange (Index, Change), and F2 / a click on the selected item edit
 //! its caption in place (Enter keeps it: OnChange (Index, ctText)) — the
@@ -32,7 +32,7 @@ thread_local! {
     /// (the input lane's) A click on the selected item: the item whose
     /// caption is edited when the double-click time is up (`tick`), and the
     /// model's press count then — a press since (a double click) cancels
-    /// it, as FLTK's and the web's timers.
+    /// it, as the web's timer does.
     static EDIT_SOON: RefCell<HashMap<String, (usize, u64)>> = RefCell::new(HashMap::new());
 }
 
@@ -195,7 +195,7 @@ impl ComponentKind for ListViewBox {
     }
 
     /// (the input lane's) The wheel scrolls the items (the model's: three
-    /// rows a notch, a column across in vsList), as FLTK's and the web's.
+    /// rows a notch, a column across in vsList), as the web's.
     fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
         setup(cx);
         let notches = super::list::whole_notches(cx.id, dy);

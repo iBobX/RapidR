@@ -6,8 +6,7 @@
 //! pump — scrolling moves them (their Left / Top, as Delphi's ScrollBy), a
 //! splitter resizes its neighbour (`layout::splitter_*`), an MDI child's
 //! frame is moved, raised or closed (`mdi::Runtime`), with the program's
-//! events (OnMoved, OnChildActive …) where FLTK's and the web's runtimes
-//! fire them.
+//! events (OnMoved, OnChildActive …) where the web runtime fires them.
 
 use rapidr_value::mdi::Action;
 

@@ -3,8 +3,8 @@
 //! its right edge); its faces are painted on the header's own drawing
 //! surface (a canvas bitmap: what OnDrawSection draws on, what `Pixel`
 //! reads) by runtime-core before the pump, which also fires OnDrawSection
-//! for the owner-drawn sections (`objects::paint_header`, as FLTK's
-//! `header_refresh`). The kernel shows that surface and passes the mouse
+//! for the owner-drawn sections (`objects::paint_header`, as the web's
+//! header does). The kernel shows that surface and passes the mouse
 //! on: OnSectionClick (Index), OnSectionTrack (Index, Width, State),
 //! OnSectionResize (Index).
 

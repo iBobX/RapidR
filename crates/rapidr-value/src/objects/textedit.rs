@@ -11,8 +11,8 @@
 //! character, as a rich edit does.
 //!
 //! RapidR's RCODEEDITOR is a multi-line one in code mode ([`TextEdit::code`]):
-//! its Text keeps '\n' line breaks (as FLTK's code editor gave it), and it
-//! has GetSubList, GotoSub and GotoLine (`objects::code`).
+//! its Text keeps '\n' line breaks, and it has GetSubList, GotoSub and
+//! GotoLine (`objects::code`).
 
 use crate::{v_int, v_str, Value};
 

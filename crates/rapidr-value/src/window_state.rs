@@ -13,8 +13,8 @@
 //!   stays Visible.
 //!
 //! Where the system does the maximizing (a real window) the runtimes ask it;
-//! where it can't be asked (the kernel's headless host, a test's FLTK
-//! window, the web) they move the form themselves with [`change`].
+//! where it can't be asked (the kernel's headless host, the web) they move
+//! the form themselves with [`change`].
 
 pub const WS_NORMAL: i64 = 0;
 pub const WS_MINIMIZED: i64 = 1;

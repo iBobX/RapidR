@@ -1,5 +1,5 @@
 //! RapidR's UI kernel (ROADMAP Phase 1B, `docs/desktop-host-plan.md` §1):
-//! RapidQ's forms as RapidR draws them itself instead of through FLTK —
+//! RapidQ's forms as RapidR draws them itself, with no GUI toolkit under it —
 //! without a window, a GPU or an OS. Everything here is data in, data out:
 //!
 //! - **The property store is the only source of truth.** The kernel reads

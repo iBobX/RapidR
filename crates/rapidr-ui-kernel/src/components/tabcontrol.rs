@@ -1,8 +1,8 @@
 //! QTABCONTROL: the shared model (`rapidr_value::objects::tabcontrol`)
 //! lays its tabs out, draws them as ops, picks a tab under a click or the
-//! arrow keys and follows the mouse (HotTrack), as the FLTK and web
-//! runtimes route it. Its components are ordinary children of the
-//! control: they are placed and drawn by the kernel's tree, over it.
+//! arrow keys and follows the mouse (HotTrack), as the web runtime
+//! routes it. Its components are ordinary children of the control: they
+//! are placed and drawn by the kernel's tree, over it.
 
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::lift;

@@ -1,8 +1,8 @@
 //! QFONTDIALOG (RapidQ manual, Appendix A: Delphi's TFontDialog over
 //! Windows' ChooseFont) — the same on every runtime: its properties and
 //! methods, the request a dialog shows and the answer it stores, its
-//! layout. The kernel draws it from this, the web builds its page dialog
-//! from it, FLTK shows its own window and answers the same properties.
+//! layout. The kernel draws it from this and the web builds its page
+//! dialog from it.
 //!
 //! - `Name`, `Size`, `Color` and the styles AddStyles / DelStyles set
 //!   (fsBold 0, fsItalic 1, fsUnderline 2, fsStrikeOut 3) are the font

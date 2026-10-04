@@ -17,8 +17,7 @@ use crate::paint::{caption, Painter, FACE, GRAY_TEXT, LIGHT, SHADOW};
 use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
 
-/// A colour property (0xBBGGRR) as RGB, `default` when unset or 0 (as
-/// FLTK's runtime reads them).
+/// A colour property (0xBBGGRR) as RGB, `default` when unset or 0.
 fn color(store: &dyn Store, id: &str, prop: &str, default: u32) -> u32 {
     match store::int(store, id, prop, 0) {
         0 => default,

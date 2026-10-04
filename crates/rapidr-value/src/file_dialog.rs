@@ -24,26 +24,6 @@ pub fn parse_filter(text: &str) -> Vec<Filter> {
         .collect()
 }
 
-/// FLTK's native chooser filter: "Name\tPattern" lines, several patterns
-/// as `*.{bmp,ico}`, `*.*` as `*`.
-pub fn fltk_filter(filters: &[Filter]) -> String {
-    filters
-        .iter()
-        .map(|f| {
-            let pats: Vec<&str> = f.patterns.iter().map(String::as_str).collect();
-            let pattern = if pats.iter().any(|p| *p == "*.*" || *p == "*") {
-                "*".to_string()
-            } else if pats.len() > 1 && pats.iter().all(|p| p.starts_with("*.")) {
-                format!("*.{{{}}}", pats.iter().map(|p| &p[2..]).collect::<Vec<_>>().join(","))
-            } else {
-                pats.first().map_or("*".to_string(), |p| p.to_string())
-            };
-            format!("{}\t{}", f.name, pattern)
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 /// The browser's `accept` for a file input: the patterns' extensions
 /// (`.bmp,.ico`), or "" for any file.
 pub fn html_accept(filters: &[Filter], index: usize) -> String {
@@ -110,10 +90,8 @@ mod tests {
         let f = parse_filter("Picture files|*.BMP;*.ICO|All Files|*.*");
         assert_eq!(f.len(), 2);
         assert_eq!(f[0].patterns, vec!["*.BMP", "*.ICO"]);
-        assert_eq!(fltk_filter(&f), "Picture files\t*.{BMP,ICO}\nAll Files\t*");
         assert_eq!(html_accept(&f, 0), ".BMP,.ICO");
         assert_eq!(html_accept(&f, 1), "");
-        assert_eq!(fltk_filter(&parse_filter("Text|*.txt")), "Text\t*.txt");
         assert!(parse_filter("").is_empty());
         assert!(fits(&f, 0, "a.ico") && !fits(&f, 0, "a.txt") && fits(&f, 1, "a.txt") && fits(&[], 0, "x"));
     }

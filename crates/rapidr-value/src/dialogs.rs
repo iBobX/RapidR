@@ -1,7 +1,7 @@
 //! The buttons of RapidQ's MESSAGEBOX and MESSAGEDLG (manual), shared by the
-//! desktop runtime (FLTK dialogs) and the web runtime (browser dialogs) —
-//! and what every runtime's message box shows: its caption, its icon
-//! ([`icon_shapes`]) and its layout ([`message_layout`]).
+//! desktop runtime (the dialogs the UI kernel draws) and the web runtime
+//! (browser dialogs) — and what every runtime's message box shows: its
+//! caption, its icon ([`icon_shapes`]) and its layout ([`message_layout`]).
 
 use crate::objects::trackbar::Shape;
 
@@ -156,9 +156,9 @@ pub fn message_dlg_icon(msg_type: i64) -> Option<MsgIcon> {
 pub const ICON_SIZE: i64 = 32;
 
 /// A message box's icon as vector shapes in its 32 × 32 box: what the
-/// kernel draws (`Op::Shape`), and, as [`icon_svg`], the FLTK and web
-/// runtimes. Drawn after Windows' classic icons (no artwork copied): a
-/// soft shadow, the shape, its glyph.
+/// kernel draws (`Op::Shape`), and, as [`icon_svg`], the web runtime.
+/// Drawn after Windows' classic icons (no artwork copied): a soft shadow,
+/// the shape, its glyph.
 pub fn icon_shapes(icon: MsgIcon) -> Vec<Shape> {
     const SHADOW: u32 = 0xA8A8A8;
     let shadowed = |points: Vec<(f64, f64)>, fill: u32, stroke: u32| {
@@ -250,8 +250,8 @@ fn balloon() -> Vec<(f64, f64)> {
     out
 }
 
-/// An icon as an SVG picture of `size` pixels (the FLTK and web runtimes
-/// draw [`icon_shapes`] so).
+/// An icon as an SVG picture of `size` pixels (the web runtime draws
+/// [`icon_shapes`] so).
 pub fn icon_svg(icon: MsgIcon, size: i64) -> String {
     let mut svg = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 32 32">"#);
     for s in icon_shapes(icon) {

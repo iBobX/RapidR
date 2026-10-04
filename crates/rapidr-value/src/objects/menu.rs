@@ -1,6 +1,6 @@
 //! QMAINMENU / QPOPUPMENU / QMENUITEM (RapidQ manual, Appendix A): the menu
 //! tree and its items' state, shared by the desktop and web runtimes, which
-//! draw it (FLTK's menu bar / pop-up, the page's menus) again whenever
+//! draw it (the kernel's menu bar / pop-up, the page's menus) again whenever
 //! [`revision`] changes.
 //!
 //! Items hang under a menu or another item by CREATE nesting (`Parent`),

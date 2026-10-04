@@ -6,13 +6,13 @@
 //! the program hears comes back as [`DesignEvent`]s: OnSelect (Index),
 //! OnDblClick (Index), OnBgClick (X, Y), OnMove (Index, X, Y, W, H).
 //!
-//! RapidQ has no designer; FLTK's runtime was the first to draw one, so
-//! its look is the reference: [`DesignSurface::ops`] is that drawing in the
-//! shared op vocabulary (white with grid dots, each designed component as a
-//! placeholder of its type, the selection's frame and handles) for the
-//! hosts that draw ops. The designed form's caption and size are the
-//! program's (FormCaption, the surface's Width / Height): the surface *is*
-//! the designed form's inside.
+//! RapidQ has no designer, so the look is RapidR's own:
+//! [`DesignSurface::ops`] is that drawing in the shared op vocabulary
+//! (white with grid dots, each designed component as a placeholder of its
+//! type, the selection's frame and handles) for the hosts that draw ops.
+//! The designed form's caption and size are the program's (FormCaption,
+//! the surface's Width / Height): the surface *is* the designed form's
+//! inside.
 
 use std::collections::BTreeMap;
 
@@ -366,10 +366,11 @@ impl DesignSurface {
 
     // -------------------------------------------------------- drawing --
 
-    /// The surface drawn at `w` × `h` (its own pixels) as FLTK's runtime
-    /// draws it: white with grey dots on the grid, each component as a
+    /// The surface drawn at `w` × `h` (its own pixels), the designer's
+    /// look: white with grey dots on the grid, each component as a
     /// placeholder of its type (its Caption, Color, FontColor, Font where
-    /// FLTK shows them), the selected one framed in blue with its handles.
+    /// its placeholder shows them), the selected one framed in blue with
+    /// its handles.
     pub fn ops(&self, w: i64, h: i64) -> Vec<Op> {
         let mut d = Draw::default();
         d.fill((0, 0, w, h), WHITE);
@@ -392,7 +393,8 @@ impl DesignSurface {
 const WHITE: u32 = 0xFFFFFF;
 const BLACK: u32 = 0x000000;
 
-/// FLTK's Helvetica at `px` pixels (Arial's metrics: Liberation Sans).
+/// The placeholders' sans serif at `px` pixels (Arial's metrics:
+/// Liberation Sans).
 fn sans(px: i64) -> Font {
     Font { name: "Arial".into(), size: -px, ..Font::default() }
 }
@@ -407,7 +409,7 @@ fn shade(c: u32, d: i32) -> u32 {
     ch(16) | ch(8) | ch(0)
 }
 
-/// Ops as FLTK's drawing calls make them.
+/// The designer's drawing calls, made as ops.
 #[derive(Default)]
 struct Draw {
     ops: Vec<Op>,
@@ -420,15 +422,14 @@ impl Draw {
         }
     }
 
-    /// A one-pixel outline inside `rect` (fl_rect).
+    /// A one-pixel outline inside `rect`.
     fn rect(&mut self, rect: Rect, color: u32) {
         if rect.2 > 0 && rect.3 > 0 {
             self.ops.push(Op::Edge { rect, light: vec![color], dark: vec![color] });
         }
     }
 
-    /// A line through the pixels from (x0, y0) to (x1, y1), both included
-    /// (fl_line).
+    /// A line through the pixels from (x0, y0) to (x1, y1), both included.
     fn line(&mut self, (x0, y0): (i64, i64), (x1, y1): (i64, i64), color: u32) {
         self.ops.push(Op::Line { from: (x0 as f64 + 0.5, y0 as f64 + 0.5), to: (x1 as f64 + 0.5, y1 as f64 + 0.5), color });
     }
@@ -440,7 +441,7 @@ impl Draw {
     }
 
     /// The points of an ellipse inscribed in `rect`, from `from` to `to`
-    /// degrees (counter-clockwise from 3 o'clock, as fl_pie / fl_arc).
+    /// degrees (counter-clockwise from 3 o'clock).
     fn ellipse((x, y, w, h): Rect, from: f64, to: f64) -> Vec<(f64, f64)> {
         let (cx, cy, rx, ry) = (x as f64 + w as f64 / 2.0, y as f64 + h as f64 / 2.0, w as f64 / 2.0, h as f64 / 2.0);
         let steps = ((rx.max(ry) * 4.0).ceil() as usize).clamp(12, 96);
@@ -452,14 +453,14 @@ impl Draw {
             .collect()
     }
 
-    /// A filled ellipse (fl_pie, the whole turn).
+    /// A filled ellipse (the whole turn).
     fn pie(&mut self, rect: Rect, color: u32) {
         let mut points = Self::ellipse(rect, 0.0, 360.0);
         points.pop();
         self.ops.push(Op::Shape(Shape { points, fill: Some(color), stroke: Some(color) }));
     }
 
-    /// An ellipse's outline from `from` to `to` degrees (fl_arc): a closed
+    /// An ellipse's outline from `from` to `to` degrees: a closed
     /// shape for the whole turn, else its segments (a shape of more than
     /// two points is closed) — on the device's pixels, smooth at 2×.
     fn arc(&mut self, rect: Rect, from: f64, to: f64, color: u32) {
@@ -728,7 +729,7 @@ mod tests {
     }
 
     #[test]
-    fn the_drawing_is_fltks_placeholders_with_the_selection_on_top() {
+    fn the_drawing_is_placeholders_with_the_selection_on_top() {
         let mut d = surface();
         d.call("addcomponent", &[v_str("RQUUX"), v_str("Odd1"), v_int(100), v_int(100), v_int(60), v_int(40)]);
         let ops = d.ops(64, 40);

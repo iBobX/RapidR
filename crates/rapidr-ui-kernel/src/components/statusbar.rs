@@ -2,8 +2,8 @@
 //! runtime-core's layout): its panels left to right, each `Panel(i).Width`
 //! pixels (100 by default; the last one takes the rest), each a thin
 //! sunken box with its Caption on one line — or its SimpleText in one box
-//! when SimplePanel is set or it has no panels; as the FLTK and web
-//! runtimes lay it out.
+//! when SimplePanel is set or it has no panels; as the web runtime
+//! lays it out.
 //!
 //! (the input lane's) Its **size grip** (Delphi's TStatusBar.SizeGrip,
 //! RapidQ's SizeGrip, True by default): on a sizeable form, docked at its

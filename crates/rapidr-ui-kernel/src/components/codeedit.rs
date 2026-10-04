@@ -1,7 +1,7 @@
 //! RCODEEDITOR (Stage 10): RapidR's code editor (the IDE's) — the memo
-//! (`memo.rs`) of its code [`Flavor`](super::memo): FLTK's code editor's
-//! Courier New at 13 pixels, black on white, no word wrap, both scroll bars
-//! as needed, Tab typing a tab, a 40-pixel line-number gutter, and BASIC's
+//! (`memo.rs`) of its code [`Flavor`](super::memo): Courier New at 13
+//! pixels, black on white, no word wrap, both scroll bars as needed, Tab
+//! typing a tab, a 40-pixel line-number gutter, and BASIC's
 //! colours as the editor's styled runs (keywords dark blue and bold,
 //! strings red, comments green and italic, numbers maroon:
 //! `rapidr_value::objects::code`), coloured again only for the paragraphs

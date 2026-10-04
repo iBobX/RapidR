@@ -1,9 +1,8 @@
 //! QCOLORDIALOG — RAPIDQ2.INC's QColorDialog over Windows' ChooseColor (the
 //! built-in RapidQ has none) — the same on every runtime: its properties,
 //! the dialog's state and how the user changes it, its layout and the
-//! pictures it shows. The kernel draws it from this, the web builds its
-//! page dialog from it; FLTK shows its own chooser and answers the same
-//! properties.
+//! pictures it shows. The kernel draws it from this and the web builds its
+//! page dialog from it.
 //!
 //! - `Color` (&HBBGGRR, 0 at first) is the colour chosen; `Execute` returns
 //!   1 when the user picked one (OK), else 0.

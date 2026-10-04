@@ -1,6 +1,6 @@
 //! QSCROLLBOX, and the scroll bars of a form and of a scroll box: the
-//! shared model (`rapidr_value::scrollbars`, which the FLTK and web
-//! runtimes draw and route too) works out the bars and draws them as ops;
+//! shared model (`rapidr_value::scrollbars`, which the web runtime
+//! draws and routes too) works out the bars and draws them as ops;
 //! the kernel draws them over the components and gives them the mouse
 //! first — a press on a bar never reaches the component under it, nor
 //! OnMouseDown. Scrolling moves the components (their Left / Top, as

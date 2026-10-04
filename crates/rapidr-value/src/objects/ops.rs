@@ -1,7 +1,7 @@
 //! What a component draws, as data: one op vocabulary for every host that
-//! draws the shared models — the FLTK and web runtimes, and RapidR's own
-//! UI kernel (`rapidr-ui-kernel`), whose hosts render [`Op`]s with vello on
-//! the GPU or the CPU. Coordinates are RapidQ's logical pixels (1/96 inch)
+//! draws the shared models — RapidR's own UI kernel (`rapidr-ui-kernel`),
+//! whose hosts render [`Op`]s with vello on the GPU or the CPU, and the web
+//! runtime. Coordinates are RapidQ's logical pixels (1/96 inch)
 //! in the component's own space; a host puts every edge on the device's
 //! pixels (a 1-pixel bevel line is `scale` device pixels wide).
 //!
