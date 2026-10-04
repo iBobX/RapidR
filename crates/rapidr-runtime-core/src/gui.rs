@@ -333,7 +333,10 @@ fn install_input_dispatch() {
             }
             if let Some(name) = target.filter(|_| !repeated) {
                 let (x, y) = widget_origin(&name, win);
-                mouse_event(&name, kind, button_of(mouse_button()), app::event_x() - x, app::event_y() - y, mouse_shift());
+                // (the input lane's: a double click's second press, and a
+                // release over what was pressed — OnClick / OnDblClick)
+                let inside = ev != Event::Released || component_under_mouse(win).as_deref() == Some(name.as_str());
+                mouse_event(&name, kind, button_of(mouse_button()), (app::event_x() - x, app::event_y() - y), mouse_shift(), (fltk_double(), inside));
             }
         }
         handled
@@ -398,8 +401,10 @@ fn button_of(b: i64) -> rapidr_value::input::Button {
     }
 }
 
-/// Fires `name`'s mouse event (QIMAGE fires its own: `picture_mouse`).
-fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_value::input::Button, x: i32, y: i32, shift: i64) {
+/// Fires `name`'s mouse event (QIMAGE fires its own: `picture_mouse`);
+/// `double`: a double click's second press (or its release), `inside`: a
+/// release over the component pressed.
+fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_value::input::Button, (x, y): (i32, i32), shift: i64, (double, inside): (bool, bool)) {
     if kind == rapidr_value::input::Mouse::Down && button == rapidr_value::input::Button::Right && auto_popup(name) {
         return;
     }
@@ -410,9 +415,35 @@ fn mouse_event(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_valu
         header_mouse(name, kind, x as i64);
     }
     if rapidr_value::objects::is_listview(name) && (button == rapidr_value::input::Button::Left || kind == rapidr_value::input::Mouse::Move) {
-        listview_mouse(name, kind, x as i64, y as i64, shift);
+        listview_mouse(name, kind, x as i64, y as i64, shift, double);
     }
-    rp_fire_event_args(name, kind.event(), &kind.args(button, x as i64, y as i64, shift));
+    vcl_clicks(name, kind, button, (double, inside), || rp_fire_event_args(name, kind.event(), &kind.args(button, x as i64, y as i64, shift)));
+}
+
+/// (the input lane's) Windows' double click: the second press of a pair
+/// (FLTK counts on — a third press is a single one again).
+fn fltk_double() -> bool {
+    app::event_clicks_num() % 2 == 1
+}
+
+/// (the input lane's) A mouse event `fire` of a VCL control with
+/// csClickEvents and csDoubleClicks — QFORM, QPANEL, QLABEL, QGROUPBOX,
+/// QSCROLLBOX, QIMAGE: a double click's second press is OnDblClick before
+/// its OnMouseDown (WM_LBUTTONDBLCLK), and a single click let go over it
+/// OnClick before its OnMouseUp. QCANVAS (no OnDblClick in RapidQ) clicks
+/// at every release. As the kernel host does (`components::canvas`).
+fn vcl_clicks(name: &str, kind: rapidr_value::input::Mouse, button: rapidr_value::input::Button, (double, inside): (bool, bool), fire: impl FnOnce()) {
+    use rapidr_value::input::{Button, Mouse};
+    let t = rp_comp_type(name).to_ascii_uppercase();
+    let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RIMAGE");
+    if (doubles || t == "RCANVAS") && button == Button::Left {
+        match kind {
+            Mouse::Down if doubles && double => rp_fire_event(name, "ondblclick"),
+            Mouse::Up if inside && !(doubles && double) => rp_fire_event(name, "onclick"),
+            _ => {}
+        }
+    }
+    fire();
 }
 
 /// Key events for `chain` (the focused component first, its form last):
@@ -644,11 +675,7 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
         // (the design surface's own handler: the shared model's events)
         Action::Mouse(kind, x, y) if rapidr_value::objects::is_design(&comp_lower) => design_test_mouse(&comp_lower, kind, x, y),
         Action::Mouse(kind, x, y) => {
-            // (a scroll box's / form's bars take the mouse first, as the
-            // real input's dispatch: no OnMouseDown for them)
-            if !scroll_bars_hook(&comp_lower, kind, x, y) {
-                mouse_event(&comp_lower, kind, rapidr_value::input::Button::Left, x as i32, y as i32, 0);
-            }
+            hook_mouse(&comp_lower, kind, x, y, false);
             let (fx, fy) = (x as f64, y as f64);
             match kind {
                 rapidr_value::input::Mouse::Down => {
@@ -657,6 +684,14 @@ fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: Str
                 }
                 rapidr_value::input::Mouse::Move => trackbar_input(&comp_lower, |t, w, h| t.drag(fx, fy, w, h)),
                 _ => {}
+            }
+        }
+        // (the input lane's) `pn.__dblclick_3_4`: press, release, then the
+        // double click's press and release.
+        Action::DblClick(x, y) => {
+            use rapidr_value::input::Mouse;
+            for (kind, double) in [(Mouse::Down, false), (Mouse::Up, false), (Mouse::Down, true), (Mouse::Up, true)] {
+                hook_mouse(&comp_lower, kind, x, y, double);
             }
         }
         Action::Ignored => {}
@@ -704,6 +739,22 @@ fn design_test_mouse(ds: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64)
     redraw_widget(ds);
     if let Some(e) = heard.flatten() {
         fire_design_event(ds, &e);
+    }
+}
+
+/// A test's mouse event at (x, y) in `comp` (`double`: a double click's
+/// second press or its release), as the real input's dispatch fires it: a
+/// scroll box's / form's bars take it first (no OnMouseDown for them); a
+/// QIMAGE as its widget's handler.
+fn hook_mouse(comp: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, double: bool) {
+    use rapidr_value::input::Button;
+    if scroll_bars_hook(comp, kind, x, y) {
+        return;
+    }
+    if rp_comp_type(comp).eq_ignore_ascii_case("RIMAGE") {
+        vcl_clicks(comp, kind, Button::Left, (double, true), || rp_fire_event_args(comp, kind.event(), &kind.args(Button::Left, x, y, 0)));
+    } else {
+        mouse_event(comp, kind, Button::Left, (x as i32, y as i32), 0, (double, true));
     }
 }
 
@@ -1786,10 +1837,10 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             frm.super_handle_first(false);
             frm.handle(move |_, ev| {
                 match ev {
-                    // (Its mouse events: `install_input_dispatch`.)
+                    // (Its mouse events, OnClick at the release:
+                    // `install_input_dispatch`.)
                     Event::Push => {
                         press_begin(&name_for_cb);
-                        rp_fire_event(&name_for_cb, "onclick");
                         true
                     }
                     Event::Released => {
@@ -4500,17 +4551,20 @@ fn picture_mouse(name: &str) -> impl FnMut(&mut Frame, Event) -> bool {
     move |f, ev| {
         let (x, y) = (v_int((app::event_x() - f.x()) as i64), v_int((app::event_y() - f.y()) as i64));
         match ev {
+            // (the input lane's: OnDblClick before a double click's second
+            // OnMouseDown, OnClick before a single click's OnMouseUp)
             Event::Push => {
                 press_begin(&name);
-                crate::object::rp_fire_event_args(&name, "onmousedown", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
+                vcl_clicks(&name, rapidr_value::input::Mouse::Down, button_of(mouse_button()), (fltk_double(), true), || {
+                    crate::object::rp_fire_event_args(&name, "onmousedown", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
+                });
                 true
             }
             Event::Released => {
                 if press_end(&name) {
-                    crate::object::rp_fire_event_args(&name, "onmouseup", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
-                    if app::event_inside_widget(f) {
-                        rp_fire_event(&name, if app::event_clicks() { "ondblclick" } else { "onclick" });
-                    }
+                    vcl_clicks(&name, rapidr_value::input::Mouse::Up, button_of(mouse_button()), (fltk_double(), app::event_inside_widget(f)), || {
+                        crate::object::rp_fire_event_args(&name, "onmouseup", &[v_int(mouse_button()), x, y, v_int(mouse_shift())]);
+                    });
                 }
                 true
             }
@@ -5692,13 +5746,13 @@ fn listview_fire(name: &str, events: Vec<rapidr_value::objects::listview::Event>
 }
 
 /// The mouse on a QLISTVIEW (x, y in it; `shift`: RapidQ's Shift).
-fn listview_mouse(name: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, shift: i64) {
+fn listview_mouse(name: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, shift: i64, double: bool) {
     use rapidr_value::input::Mouse;
     listview_prepare(name);
     // (⌘ on macOS picks as Ctrl does on Windows)
     let ctrl = shift & 16 != 0 || app::event_state().contains(fltk::enums::Shortcut::Meta);
     let (events, changed) = match kind {
-        Mouse::Down => (rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_down(x, y, shift & 256 != 0, ctrl, app::event_clicks())).unwrap_or_default(), true),
+        Mouse::Down => (rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_down(x, y, shift & 256 != 0, ctrl, double)).unwrap_or_default(), true),
         Mouse::Up => (rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_up(x, y)).unwrap_or_default(), true),
         Mouse::Move => (Vec::new(), rapidr_value::objects::with_listview_mut(name, |lv| lv.mouse_move(x, y)).unwrap_or(false)),
     };

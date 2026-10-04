@@ -594,3 +594,130 @@ fn text_measurement_matches_text_width() {
     // and the font size is Windows' MulDiv: 10 pt = 13 px
     assert_eq!(crate::text::font_pixels(&font), 13.0);
 }
+
+// ------------------------------------------------- double clicks --
+// (the input lane's)
+
+/// A form with a panel, a label, an image, a canvas and a list box in a
+/// row, painted once.
+fn clicks_form() -> (MemStore, FormUi, TextSystem) {
+    let mut s = MemStore::new();
+    s.add("f", "RFORM", None).set("f", "width", v_int(500)).set("f", "height", v_int(300));
+    for (k, (id, t)) in [("pn", "RPANEL"), ("lb", "RLABEL"), ("img", "RIMAGE"), ("cv", "RCANVAS"), ("lst", "RLISTBOX")].into_iter().enumerate() {
+        s.add(id, t, Some("f")).set(id, "left", v_int(10 + 80 * k as i64)).set(id, "top", v_int(10)).set(id, "width", v_int(70)).set(id, "height", v_int(60));
+    }
+    s.call("lst", "additems", &[v_str("a"), v_str("b")]);
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "f", false);
+    drop(f.paint(&s, &mut ts, 1.0));
+    (s, f, ts)
+}
+
+/// Presses and releases at (x, y), `n` times, a fresh click count first:
+/// the events as `down:id`, `click:id`, `up:id`, `dbl:id`, `<event>:id`.
+fn press_times(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, (x, y): (f64, f64), n: usize) -> Vec<String> {
+    f.forget_clicks();
+    for _ in 0..n {
+        f.mouse_down(s, ts, x, y, Button::Left, NONE);
+        f.mouse_up(s, ts, x, y, Button::Left, NONE);
+    }
+    f.take_events()
+        .into_iter()
+        .filter_map(|e| match e {
+            KernelEvent::Click(id) => Some(format!("click:{id}")),
+            KernelEvent::DblClick(id) => Some(format!("dbl:{id}")),
+            KernelEvent::Mouse { id, kind: Mouse::Down, .. } => Some(format!("down:{id}")),
+            KernelEvent::Mouse { id, kind: Mouse::Up, .. } => Some(format!("up:{id}")),
+            KernelEvent::List(id, crate::components::list::ListAction::Fire(ev, _)) => Some(format!("{ev}:{id}")),
+            _ => None,
+        })
+        .collect()
+}
+
+fn named(id: &str, events: &[&str]) -> Vec<String> {
+    events.iter().map(|e| format!("{e}:{id}")).collect()
+}
+
+#[test]
+fn double_clicks_come_in_the_vcl_order() {
+    let (s, mut f, mut ts) = clicks_form();
+    // (WM_LBUTTONDOWN: OnMouseDown; up: OnClick, OnMouseUp; the double
+    // click's press: OnDblClick, OnMouseDown; its release: OnMouseUp)
+    let vcl = ["down", "click", "up", "dbl", "down", "up"];
+    assert_eq!(press_times(&mut f, &s, &mut ts, (20.0, 20.0), 2), named("pn", &vcl));
+    assert_eq!(press_times(&mut f, &s, &mut ts, (100.0, 20.0), 2), named("lb", &vcl));
+    assert_eq!(press_times(&mut f, &s, &mut ts, (180.0, 20.0), 2), named("img", &vcl));
+    // (the form's open area too)
+    assert_eq!(press_times(&mut f, &s, &mut ts, (200.0, 200.0), 2), named("f", &vcl));
+    // (QCANVAS: no OnDblClick in RapidQ — every click is a click)
+    assert_eq!(press_times(&mut f, &s, &mut ts, (260.0, 20.0), 2), named("cv", &["down", "click", "up", "down", "click", "up"]));
+    // (a third press starts over as a single click, a fourth is a double)
+    assert_eq!(press_times(&mut f, &s, &mut ts, (20.0, 20.0), 4), named("pn", &[&vcl[..], &vcl[..]].concat()));
+    // (a list box: OnClick, then OnDblClick in its second's place)
+    assert_eq!(press_times(&mut f, &s, &mut ts, (340.0, 14.0), 2), named("lst", &["click", "down", "up", "ondblclick", "down", "up"]));
+}
+
+#[test]
+fn a_double_click_needs_windows_time_and_distance() {
+    let (s, mut f, mut ts) = clicks_form();
+    let t0 = std::time::Instant::now();
+    crate::tick::set_test_now(Some(t0));
+    assert_eq!(press_times_keep(&mut f, &s, &mut ts, (20.0, 20.0)), named("pn", &["down", "click", "up"]));
+    // (more than 500 ms later: a click again, not a double)
+    crate::tick::set_test_now(Some(t0 + crate::tick::DOUBLE_CLICK + std::time::Duration::from_millis(1)));
+    assert_eq!(press_times_keep(&mut f, &s, &mut ts, (20.0, 20.0)), named("pn", &["down", "click", "up"]));
+    // (5 pixels off: a click again)
+    assert_eq!(press_times_keep(&mut f, &s, &mut ts, (25.0, 20.0)), named("pn", &["down", "click", "up"]));
+    // (on the same spot soon after: the double)
+    assert_eq!(press_times_keep(&mut f, &s, &mut ts, (24.0, 21.0)), named("pn", &["dbl", "down", "up"]));
+    // (a release off what was pressed: no click; a release without a press: none)
+    f.forget_clicks();
+    f.mouse_down(&s, &mut ts, 20.0, 20.0, Button::Left, NONE);
+    f.mouse_up(&s, &mut ts, 100.0, 200.0, Button::Left, NONE);
+    f.mouse_up(&s, &mut ts, 20.0, 20.0, Button::Left, NONE);
+    assert!(!f.take_events().iter().any(|e| matches!(e, KernelEvent::Click(_))));
+    crate::tick::set_test_now(None);
+}
+
+/// One press and release at (x, y), the click count going on.
+fn press_times_keep(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, (x, y): (f64, f64)) -> Vec<String> {
+    f.mouse_down(s, ts, x, y, Button::Left, NONE);
+    f.mouse_up(s, ts, x, y, Button::Left, NONE);
+    f.take_events()
+        .into_iter()
+        .filter_map(|e| match e {
+            KernelEvent::Click(id) => Some(format!("click:{id}")),
+            KernelEvent::DblClick(id) => Some(format!("dbl:{id}")),
+            KernelEvent::Mouse { id, kind: Mouse::Down, .. } => Some(format!("down:{id}")),
+            KernelEvent::Mouse { id, kind: Mouse::Up, .. } => Some(format!("up:{id}")),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_double_click_on_an_mdi_childs_title_bar_maximizes_it() {
+    use crate::components::form::Container;
+    let mut s = MemStore::new();
+    s.add("f", "RFORM", None).set("f", "width", v_int(500)).set("f", "height", v_int(300));
+    s.add("frame", "RMDICHILD", Some("f")).set("frame", "width", v_int(200)).set("frame", "height", v_int(120));
+    s.set("frame", "__form", v_str("f")).set("frame", "__component", v_str("ed"));
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "f", false);
+    drop(f.paint(&s, &mut ts, 1.0));
+    let actions = |f: &mut FormUi| -> Vec<rapidr_value::mdi::Action> {
+        f.take_events().into_iter().filter_map(|e| if let KernelEvent::Container(Container::Mdi { action, .. }) = e { Some(action) } else { None }).collect()
+    };
+    for _ in 0..2 {
+        f.mouse_down(&s, &mut ts, 30.0, 10.0, Button::Left, NONE);
+        f.mouse_up(&s, &mut ts, 30.0, 10.0, Button::Left, NONE);
+    }
+    assert_eq!(actions(&mut f), vec![rapidr_value::mdi::Action::Activate, rapidr_value::mdi::Action::ToggleMaximize]);
+    // (inside the frame, below the title bar: no)
+    f.forget_clicks();
+    for _ in 0..2 {
+        f.mouse_down(&s, &mut ts, 30.0, 60.0, Button::Left, NONE);
+        f.mouse_up(&s, &mut ts, 30.0, 60.0, Button::Left, NONE);
+    }
+    assert_eq!(actions(&mut f), vec![rapidr_value::mdi::Action::Activate; 2]);
+}

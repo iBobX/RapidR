@@ -21,7 +21,7 @@ use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
 use rapidr_value::Value;
 
-use super::canvas::{click_on_release, draw_shown, shown};
+use super::canvas::{draw_shown, shown};
 use super::{ComponentKind, Cx, MouseIn, MouseOut};
 use crate::display::Picture;
 use crate::paint::Painter;
@@ -56,7 +56,8 @@ impl ComponentKind for Image {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        click_on_release(cx, m)
+        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        super::canvas::click_or_double(cx, m)
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {

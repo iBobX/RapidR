@@ -11,7 +11,8 @@
 //!   component takes its keys), then OnKeyPress for a key that types;
 //! - a press: the model (a track bar's page, a tab picked; the focus), then
 //!   OnMouseDown; a release: OnClick for a button let go on, then
-//!   OnMouseUp.
+//!   OnMouseUp; a double click's second press: OnDblClick, then
+//!   OnMouseDown, and its release only OnMouseUp (the VCL's order).
 //!
 //! Nothing here calls program code: runtime-core dispatches the events
 //! after the host's pump returns (`KeyPreview` through
@@ -74,6 +75,10 @@ pub enum KernelEvent {
     /// the Default button, Escape for the Cancel one, its mnemonic, a
     /// screen reader). runtime-core applies its ModalResult / Kind after.
     Click(String),
+    /// OnDblClick: a double click's second press on a panel, a label, a
+    /// group box, a scroll box, an image or the form's open area (before
+    /// that press's OnMouseDown, as the VCL's WM_LBUTTONDBLCLK).
+    DblClick(String),
     /// OnChange: a track bar's position, a tab control's tab, an edit's
     /// text changed by the user.
     Change(String),
@@ -183,6 +188,9 @@ impl FormUi {
                     self.set_focus(Some(i));
                 }
             }
+        } else if button == Button::Left && clicks >= 2 && clicks % 2 == 0 {
+            // (the input lane's: the form's open area double-clicked)
+            self.events.push(KernelEvent::DblClick(self.form.clone()));
         }
         self.reset_caret();
         self.mouse_event(target, Mouse::Down, button, x, y, mods);
@@ -208,6 +216,18 @@ impl FormUi {
         };
         self.last_click = (button == Button::Left).then_some((now, target, x, y, n));
         n
+    }
+
+    /// (the input lane's) The click count of the left press on `target`
+    /// now being let go (1 if there's none).
+    fn press_clicks(&self, target: Option<usize>) -> u8 {
+        self.last_click.filter(|c| c.1 == target).map_or(1, |c| c.4)
+    }
+
+    /// (the input lane's) The next press starts a click count over (a
+    /// test's script: its presses are single clicks unless it double-clicks).
+    pub fn forget_clicks(&mut self) {
+        self.last_click = None;
     }
 
     /// The mouse moved to (x, y) of the client area.
@@ -256,7 +276,8 @@ impl FormUi {
             return;
         }
         let hit = self.hit(x, y);
-        let target = match self.capture.take() {
+        let captured = self.capture.take();
+        let target = match captured {
             Some(c) => c,
             None if y < self.menu_offset as f64 => return,
             None => hit,
@@ -265,8 +286,17 @@ impl FormUi {
             self.pressed = None;
             return;
         }
+        // (the input lane's: a release is its press's — a single click or a
+        // double click's second)
+        let clicks = if button == Button::Left { self.press_clicks(target) } else { 0 };
         if let (Some(i), Button::Left) = (target, button) {
-            self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Up, x, y, button, mods, inside: hit == Some(i), captured: true, clicks: 0 });
+            self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Up, x, y, button, mods, inside: hit == Some(i), captured: captured.is_some(), clicks });
+        }
+        // (the form's open area pressed and let go on: OnClick for a single
+        // click)
+        let on_form = hit.is_none() && x >= 0.0 && x < self.client.0 as f64 && y >= self.menu_offset as f64 && y < (self.menu_offset + self.client.1) as f64;
+        if captured == Some(None) && button == Button::Left && on_form && clicks % 2 == 1 {
+            self.events.push(KernelEvent::Click(self.form.clone()));
         }
         if button == Button::Left {
             self.pressed = None;

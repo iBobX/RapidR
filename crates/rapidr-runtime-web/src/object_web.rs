@@ -2050,6 +2050,90 @@ fn flush_key_presses() {
     }
 }
 
+thread_local! {
+    /// (the input lane's) The element id of the component the left button
+    /// last went down on (`note_presses`).
+    static PRESSED_ON: RefCell<Option<String>> = const { RefCell::new(None) };
+    static NOTING_PRESSES: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// (the input lane's) Notes, once, which component each left press lands
+/// on (the innermost: a click needs its release over the one pressed, as
+/// the VCL's csClicked).
+pub(crate) fn note_presses() {
+    if NOTING_PRESSES.with(|n| n.replace(true)) {
+        return;
+    }
+    let Some(doc) = web_sys::window().and_then(|w| w.document()) else { return };
+    let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        if e.button() != 0 {
+            return;
+        }
+        let comp = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).and_then(|t| t.closest(".rr-widget, .rr-form").ok().flatten());
+        PRESSED_ON.with(|p| *p.borrow_mut() = comp.map(|c| c.id()));
+    });
+    let _ = doc.add_event_listener_with_callback_and_bool("mousedown", cb.as_ref().unchecked_ref(), true);
+    cb.forget();
+}
+
+/// (the input lane's) Whether the left button went down on `el`.
+pub(crate) fn pressed_on(el: &web_sys::Element) -> bool {
+    PRESSED_ON.with(|p| p.borrow().as_deref() == Some(el.id().as_str()))
+}
+
+/// (the input lane's) A press or release in the browser as Windows counts
+/// it: `detail` is the click count (0 for a script's: a single one).
+pub(crate) fn clicks_of(e: &web_sys::MouseEvent) -> i32 {
+    e.detail().max(1)
+}
+
+/// (the input lane's) OnClick (`click`) or OnDblClick of component `name`
+/// (element `el`) in the VCL's order: a double click's second press is
+/// OnDblClick before its OnMouseDown, a single click let go over the
+/// component pressed is OnClick before its OnMouseUp — capture-phase
+/// listeners on `el`, which run before its own; only for presses on it,
+/// not on its components, a form's title bar or its menu bar. A click
+/// without a mouse (a script's, `detail` 0) is OnClick too. `doubles`:
+/// false for a QCANVAS (each of its clicks is one).
+fn bind_vcl_clicks(el: &web_sys::Element, name: &str, click: bool, doubles: bool) {
+    note_presses();
+    let own = |e: &web_sys::Event, el: &web_sys::Element| -> bool {
+        let Some(t) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return false };
+        if t.closest(".rr-form-titlebar, [data-rr-type=\"RMAINMENU\"]").ok().flatten().is_some() {
+            return false;
+        }
+        t.closest(".rr-widget, .rr-form").ok().flatten().is_some_and(|i| &i == el)
+    };
+    let name = name.to_string();
+    let target = el.clone();
+    if click {
+        let (n1, t1) = (name.clone(), target.clone());
+        let up = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            let single = !doubles || clicks_of(&e) % 2 == 1;
+            if e.button() == 0 && single && own(&e, &t1) && pressed_on(&t1) {
+                rp_fire_event(&n1, "onclick");
+            }
+        });
+        let _ = el.add_event_listener_with_callback_and_bool("mouseup", up.as_ref().unchecked_ref(), true);
+        up.forget();
+        let scripted = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if e.detail() == 0 && own(&e, &target) {
+                rp_fire_event(&name, "onclick");
+            }
+        });
+        let _ = el.add_event_listener_with_callback("click", scripted.as_ref().unchecked_ref());
+        scripted.forget();
+    } else {
+        let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+            if e.button() == 0 && clicks_of(&e) % 2 == 0 && own(&e, &target) {
+                rp_fire_event(&name, "ondblclick");
+            }
+        });
+        let _ = el.add_event_listener_with_callback_and_bool("mousedown", down.as_ref().unchecked_ref(), true);
+        down.forget();
+    }
+}
+
 fn bind_dom_event(name: &str, event: &str) {
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
@@ -2188,6 +2272,18 @@ fn bind_dom_event(name: &str, event: &str) {
         let _ = el.add_event_listener_with_callback_and_bool(dom_event_name, closure.as_ref().unchecked_ref(), is_form);
         closure.forget();
         return;
+    }
+
+    // (the input lane's) A VCL control's clicks in Windows' order, as on the
+    // desktop (`gui.rs`'s `vcl_clicks`): QFORM, QPANEL, QLABEL, QGROUPBOX,
+    // QSCROLLBOX double-click (QCANVAS doesn't: RapidQ's has no OnDblClick).
+    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick") {
+        let t = rp_comp_type(&name_owned).to_ascii_uppercase();
+        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX");
+        if doubles || (t == "RCANVAS" && event == "onclick") {
+            bind_vcl_clicks(&el, &name_owned, event == "onclick", doubles);
+            return;
+        }
     }
 
     // Mouse events (rapidr_value::input): (Button, X, Y, Shift), OnMouseMove

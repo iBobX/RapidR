@@ -335,6 +335,8 @@ fn dispatch_pending() {
 fn dispatch(ev: KernelEvent) {
     match ev {
         KernelEvent::Click(id) => rp_fire_event(&id, "onclick"),
+        // (the input lane's)
+        KernelEvent::DblClick(id) => rp_fire_event(&id, "ondblclick"),
         KernelEvent::Change(id) => rp_fire_event(&id, "onchange"),
         KernelEvent::KeyDown { chain, vk, shift, text } => {
             // (a key pressed in the program's windows is INKEY$'s too)
@@ -1325,14 +1327,35 @@ fn test_key(comp: &str, vk: i64) {
 }
 
 /// `comp.__mousedown_x_y` …: the mouse at (x, y) in the component, through
-/// the kernel's routing (hit test, capture), as the user's would be.
+/// the kernel's routing (hit test, capture), as the user's would be. A
+/// press is a single click (as FLTK's hook's), however soon after another.
 fn test_mouse(comp: &str, kind: Mouse, x: i64, y: i64) {
     let Some((form, (ox, oy))) = place_of(comp) else { return };
     let (x, y) = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
     with_kern(|k| match kind {
-        Mouse::Down => k.desk.mouse_down(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script),
+        Mouse::Down => {
+            // (the input lane's)
+            if let Some(f) = k.desk.form(&form) {
+                f.ui.forget_clicks();
+            }
+            k.desk.mouse_down(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script)
+        }
         Mouse::Move => k.desk.mouse_move(&RtStore, &form, x, y, Mods::NONE, Source::Script),
         Mouse::Up => k.desk.mouse_up(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script),
+    });
+}
+
+/// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y) in
+/// the component — press, release, press, release, the second press
+/// within Windows' double-click time and distance of the first.
+fn test_double_click(comp: &str, x: i64, y: i64) {
+    test_mouse(comp, Mouse::Down, x, y);
+    test_mouse(comp, Mouse::Up, x, y);
+    let Some((form, (ox, oy))) = place_of(comp) else { return };
+    let (x, y) = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
+    with_kern(|k| {
+        k.desk.mouse_down(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script);
+        k.desk.mouse_up(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script);
     });
 }
 
@@ -1363,6 +1386,7 @@ fn run_test_event(e: TestEvent) {
         }
         Action::Key(vk) => test_key(&comp, vk),
         Action::Mouse(kind, x, y) => test_mouse(&comp, kind, x, y),
+        Action::DblClick(x, y) => test_double_click(&comp, x, y),
         Action::Close => gui_close(&e.comp),
         Action::Ignored => {}
         // (the lists lane's: the component synthesizes the input)

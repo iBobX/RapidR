@@ -28,7 +28,7 @@ use rapidr_value::objects::ops::{lift, Op, Place, Rect};
 use rapidr_value::objects::{with_grid, with_grid_mut};
 use rapidr_value::scrollbars::{Child, Scroller};
 
-use super::list::{act, begin_edit, double_click, edit_key, editing, end_edit, fire, paint_edit, replay, set_edit_text, sunken, InPlace, ListAction};
+use super::list::{act, begin_edit, edit_key, editing, end_edit, fire, paint_edit, replay, set_edit_text, sunken, InPlace, ListAction};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -371,7 +371,7 @@ impl ComponentKind for Grid {
                     return MouseOut::default();
                 }
                 cx.click();
-                if double_click(&id, c * 100_000 + r) {
+                if m.double() {
                     fire(cx, "ondblclick", Vec::new());
                     Self::start_edit_at(cx, c, r);
                 } else if g.has_option(GO_ALWAYS_SHOW_EDITOR) {

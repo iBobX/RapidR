@@ -147,6 +147,12 @@ impl ComponentKind for ChildFrame {
                     act(cx, action);
                     return MouseOut { press: false, focus: Some(false) };
                 }
+                // (the input lane's: a double click on the title bar maximizes
+                // or restores it, as Windows' and FLTK's frame)
+                if y < BORDER + TITLE_HEIGHT && m.double() {
+                    act(cx, Action::ToggleMaximize);
+                    return MouseOut { press: false, focus: Some(false) };
+                }
                 act(cx, Action::Activate);
                 let corner = x >= w - GRIP && y >= h - GRIP;
                 if corner || y < BORDER + TITLE_HEIGHT {

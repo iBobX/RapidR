@@ -101,9 +101,6 @@ pub struct InPlace {
 thread_local! {
     static EDITING: RefCell<HashMap<String, InPlace>> = RefCell::new(HashMap::new());
     static SCROLLS: RefCell<HashMap<String, Scroller>> = RefCell::new(HashMap::new());
-    /// Each component's last click (item, when): a second one soon after on
-    /// the same item is a double click.
-    static CLICKS: RefCell<HashMap<String, (usize, std::time::Instant)>> = RefCell::new(HashMap::new());
 }
 
 /// Starts editing in component `id` (runtime-core, once OnEditing allowed
@@ -281,23 +278,6 @@ pub fn scroll_into_view(id: &str, top: i64, bottom: i64, view: i64) {
     });
 }
 
-/// A second click on item `item` of `id` soon after the first: a double
-/// click (Windows' 500 ms).
-pub fn double_click(id: &str, item: usize) -> bool {
-    let now = std::time::Instant::now();
-    CLICKS.with(|c| {
-        let mut c = c.borrow_mut();
-        let key = id.to_lowercase();
-        let dbl = c.get(&key).is_some_and(|&(i, t)| i == item && now.duration_since(t).as_millis() < 500);
-        if dbl {
-            c.remove(&key);
-        } else {
-            c.insert(key, (item, now));
-        }
-        dbl
-    })
-}
-
 // ----------------------------------------------------------- drawing --
 
 /// Windows' sunken client edge around a white box `w` × `h` (a list box,
@@ -432,11 +412,11 @@ pub fn item_rect(id: &str, i: usize, w: i64, h: i64) -> Option<Rect> {
 
 impl ListBox {
     /// The user picked item `i` (with Shift / Ctrl): selected as a click
-    /// does, OnClick (a second click soon after: OnDblClick).
-    fn pick(cx: &mut Cx, i: usize, shift: bool, ctrl: bool, mouse: bool) {
+    /// does, OnClick (a double click's second press: OnDblClick, Windows'
+    /// LBN_DBLCLK).
+    fn pick(cx: &mut Cx, i: usize, shift: bool, ctrl: bool, double: bool) {
         with_list_mut(cx.id, |l| l.click(i as i64, shift, ctrl));
-        let dbl = mouse && double_click(cx.id, i);
-        if dbl {
+        if double {
             fire(cx, "ondblclick", Vec::new());
         } else {
             cx.click();
@@ -527,7 +507,7 @@ impl ComponentKind for ListBox {
         }
         if m.kind == MouseKind::Down {
             if let Some(i) = item_at(cx.id, m.x, m.y, w, h) {
-                Self::pick(cx, i, m.mods.shift, m.mods.ctrl || m.mods.command, true);
+                Self::pick(cx, i, m.mods.shift, m.mods.ctrl || m.mods.command, m.double());
             }
         }
         MouseOut::default()
@@ -610,9 +590,8 @@ impl ComponentKind for ListBox {
         let mid = |r: &Rect| r.0 + r.2.min(w - 20) / 2;
         match item_rect(cx.id, i, w, h).filter(|r| r.1 >= 2 && r.1 + r.3 <= h - 2 && mid(r) >= 2 && mid(r) < w - 2) {
             Some(r @ (_, y, _, ih)) => {
-                let at = MouseIn { kind: MouseKind::Down, x: mid(&r) as f64 + 0.5, y: (y + ih / 2) as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true, clicks: 1 };
                 // (a test's click is never a double click)
-                CLICKS.with(|c| c.borrow_mut().remove(cx.id));
+                let at = MouseIn { kind: MouseKind::Down, x: mid(&r) as f64 + 0.5, y: (y + ih / 2) as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true, clicks: 1 };
                 self.mouse(cx, &at);
                 self.mouse(cx, &MouseIn { kind: MouseKind::Up, ..at });
             }

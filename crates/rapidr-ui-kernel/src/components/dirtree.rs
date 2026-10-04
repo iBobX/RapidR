@@ -16,7 +16,7 @@ use rapidr_value::objects::dirtree::Row;
 use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::with_dirtree;
 
-use super::list::{background, double_click, scroll_into_view, sunken, vscroll, vscroll_mouse, vscroll_state};
+use super::list::{background, scroll_into_view, sunken, vscroll, vscroll_mouse, vscroll_state};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -160,7 +160,8 @@ impl ComponentKind for DirTreeBox {
             Self::toggle(cx, i);
             return MouseOut::default();
         }
-        let dbl = double_click(cx.id, i);
+        // (a double click's second press opens or closes it)
+        let dbl = m.double();
         if dbl {
             Self::toggle(cx, i);
         }

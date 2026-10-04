@@ -2940,9 +2940,12 @@ fn create_image(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// A QIMAGE's mouse events (manual), as on the desktop: OnMouseDown /
 /// OnMouseUp (Button, X, Y, Shift), OnMouseMove (X, Y, Shift), OnClick,
 /// OnDblClick; X and Y are in the image. (`object_web::bind_dom_event`
-/// leaves images to this.)
+/// leaves images to this.) (the input lane's) In the VCL's order: a double
+/// click's second press is OnDblClick, then OnMouseDown; a single click let
+/// go over it OnClick, then OnMouseUp; a script's click (`detail` 0) OnClick.
 fn picture_mouse(el: &web_sys::HtmlElement, name: &str) {
-    for dom_event in ["mousedown", "mouseup", "mousemove", "click", "dblclick"] {
+    crate::object_web::note_presses();
+    for dom_event in ["mousedown", "mouseup", "mousemove", "click"] {
         let owner = name.to_uppercase();
         let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
             let Some(target) = e.current_target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
@@ -2956,14 +2959,23 @@ fn picture_mouse(el: &web_sys::HtmlElement, name: &str) {
                 2 => 1,
                 _ => 0,
             });
+            let (left, n) = (e.button() == 0, crate::object_web::clicks_of(&e));
             match dom_event {
-                "mousedown" | "mouseup" => {
-                    let event = if dom_event == "mousedown" { "onmousedown" } else { "onmouseup" };
-                    crate::object_web::rp_fire_event_args(&owner, event, &[button, x, y, shift]);
+                "mousedown" => {
+                    if left && n % 2 == 0 {
+                        crate::object_web::rp_fire_event(&owner, "ondblclick");
+                    }
+                    crate::object_web::rp_fire_event_args(&owner, "onmousedown", &[button, x, y, shift]);
+                }
+                "mouseup" => {
+                    if left && n % 2 == 1 && crate::object_web::pressed_on(&target) {
+                        crate::object_web::rp_fire_event(&owner, "onclick");
+                    }
+                    crate::object_web::rp_fire_event_args(&owner, "onmouseup", &[button, x, y, shift]);
                 }
                 "mousemove" => crate::object_web::rp_fire_event_args(&owner, "onmousemove", &[x, y, shift]),
-                "click" => crate::object_web::rp_fire_event(&owner, "onclick"),
-                _ => crate::object_web::rp_fire_event(&owner, "ondblclick"),
+                _ if e.detail() == 0 => crate::object_web::rp_fire_event(&owner, "onclick"),
+                _ => {}
             }
         });
         let _ = el.add_event_listener_with_callback(dom_event, cb.as_ref().unchecked_ref());

@@ -12,7 +12,7 @@ use rapidr_value::objects::listview::Event;
 use rapidr_value::objects::{listview_paint, listview_setup, with_listview, with_listview_mut};
 use rapidr_value::{v_int, Value};
 
-use super::list::{begin_edit, double_click, edit_key, editing, end_edit, fire, paint_edit, picture_of, set_edit_text, InPlace};
+use super::list::{begin_edit, edit_key, editing, end_edit, fire, paint_edit, picture_of, set_edit_text, InPlace};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -94,8 +94,8 @@ impl ComponentKind for ListViewBox {
                 if editing(cx.id).is_some() {
                     finish_edit(cx, true);
                 }
-                // (a second press near the first, soon after: a double click)
-                let dbl = double_click(cx.id, ((x / 4) * 100_000 + y / 4) as usize);
+                // (a double click's second press: Windows' click count)
+                let dbl = m.double();
                 with_listview_mut(cx.id, |lv| lv.mouse_down(x, y, shift, ctrl, dbl)).unwrap_or_default()
             }
             MouseKind::Up => with_listview_mut(cx.id, |lv| lv.mouse_up(x, y)).unwrap_or_default(),

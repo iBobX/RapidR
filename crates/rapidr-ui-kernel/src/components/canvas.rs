@@ -135,10 +135,26 @@ impl ComponentKind for Canvas {
 }
 
 /// A graphic control's click: the left button pressed on it and released
-/// over it.
+/// over it. Every click is one — RapidQ's QCANVAS has no OnDblClick ("does
+/// not work", its manual says), so a double click is two clicks.
 pub fn click_on_release(cx: &mut Cx, m: &MouseIn) -> MouseOut {
     if m.kind == MouseKind::Up && m.button == rapidr_value::input::Button::Left && m.inside && m.captured {
         cx.click();
+    }
+    MouseOut { press: false, focus: Some(false) }
+}
+
+/// (the input lane's) A VCL control's clicks (csClickEvents and
+/// csDoubleClicks: QPANEL, QLABEL, QGROUPBOX, QSCROLLBOX, QIMAGE): a double
+/// click's second press is OnDblClick, before its OnMouseDown (Windows'
+/// WM_LBUTTONDBLCLK), and its release no click; a single click let go over
+/// it is OnClick, before OnMouseUp.
+pub fn click_or_double(cx: &mut Cx, m: &MouseIn) -> MouseOut {
+    let left = m.button == rapidr_value::input::Button::Left;
+    match m.kind {
+        MouseKind::Down if left && m.double() => cx.events.push(crate::input::KernelEvent::DblClick(cx.id.to_string())),
+        MouseKind::Up if left && m.inside && m.captured && !m.double() => cx.click(),
+        _ => {}
     }
     MouseOut { press: false, focus: Some(false) }
 }

@@ -184,8 +184,19 @@ pub struct MouseIn {
     /// It has the mouse captured (pressed on it, not released yet).
     pub captured: bool,
     /// A press's click count: 1, 2 for a double click, 3 … (Windows'
-    /// double-click time and distance, on the same component).
+    /// double-click time and distance, on the same component); a
+    /// release's is its press's.
     pub clicks: u8,
+}
+
+// (the input lane's)
+impl MouseIn {
+    /// Windows' double click (WM_LBUTTONDBLCLK): the second press of a
+    /// pair — a third starts over as a single press, a fourth is a double
+    /// again. On a release: let go of such a press.
+    pub fn double(&self) -> bool {
+        self.clicks >= 2 && self.clicks % 2 == 0
+    }
 }
 
 /// What a component did with the mouse.

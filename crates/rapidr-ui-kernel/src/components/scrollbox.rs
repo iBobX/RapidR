@@ -20,7 +20,7 @@ use rapidr_value::scrollbars::{self, BAR};
 use rapidr_value::Value;
 
 use super::form::Container;
-use super::{ComponentKind, Cx};
+use super::{ComponentKind, Cx, MouseIn, MouseOut};
 use crate::input::KernelEvent;
 use crate::paint::{Painter, DARK, FACE, LIGHT, SHADOW};
 use crate::store::Store;
@@ -64,6 +64,11 @@ impl ComponentKind for ScrollBox {
 
     fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
         false
+    }
+
+    fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
+        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        super::canvas::click_or_double(cx, m)
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {

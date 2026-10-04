@@ -152,4 +152,8 @@ export const cases = [
     web: false, why: "the web draws RDESIGNSURFACE as a plain panel: no designer drawing or mouse there yet (its model answers)" },
   { name: "code_editor", kernel: true, events: "btn.onclick", dump: "lbl.caption",
     expect: ['lbl.caption=7|SUB Hello(x AS INTEGER)|118|0|Hello/Twice|4,70|  PRINT|  BEEP "hi" \' greet|37|33|0'] },
+  // (`comp.__dblclick_x_y`: a double click at (x, y) in it — press, release,
+  // press, release)
+  { name: "dbl_clicks", kernel: true, events: "pn.__dblclick_5_5,lb.__dblclick_3_3,gb.__dblclick_10_30,img.__dblclick_2_2,cv.__dblclick_4_4,form.__dblclick_300_250", dump: "lbl.caption",
+    expect: ["lbl.caption=pd5pcpu pDpd5pu ldlclu lDldlu gdgcgu gDgdgu idiciu iDidiu cdcccu cdcccu fdfcfu fDfdfu "] },
 ];

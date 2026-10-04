@@ -77,8 +77,11 @@ pub enum Action {
     /// focused.
     Key(i64),
     /// `__mousedown_x_y`, `__mouseup_x_y`, `__mousemove_x_y`: the mouse at
-    /// (x, y) in the component.
+    /// (x, y) in the component (a press is a single click).
     Mouse(Mouse, i64, i64),
+    /// (the input lane's) `__dblclick_x_y`: a double click at (x, y) in the
+    /// component — press, release, press (the double), release.
+    DblClick(i64, i64),
     /// `__item_i`: a list's (or combo box's) item i picked, then OnClick.
     Item(i64),
     /// `__node_i`: a tree's node i picked, then OnClick.
@@ -95,7 +98,7 @@ pub enum Action {
     Escape,
     /// `__close`: the window's close button.
     Close,
-    /// A synthetic event malformed (`__key_`, `__mouse…`, `__item_`,
+    /// A synthetic event malformed (`__key_`, `__mouse…`, `__dblclick…`, `__item_`,
     /// `__node_`, `__toggle_`, `__edit…`, `__enter…`, `__escape…` without
     /// the right numbers): nothing happens.
     Ignored,
@@ -116,6 +119,7 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
     let mouse = [("__mousedown_", Mouse::Down), ("__mouseup_", Mouse::Up), ("__mousemove_", Mouse::Move)]
         .into_iter()
         .find_map(|(p, kind)| nums(p).and_then(|n| <[i64; 2]>::try_from(n).ok()).map(|[x, y]| (kind, x, y)));
+    let double = nums("__dblclick_").and_then(|n| <[i64; 2]>::try_from(n).ok());
     let action = if let Some(i) = one("__node_") {
         Action::Node(i)
     } else if event == "__edit" {
@@ -132,7 +136,9 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Key(vk)
     } else if let Some((kind, x, y)) = mouse {
         Action::Mouse(kind, x, y)
-    } else if ["__key_", "__mouse", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape"].iter().any(|p| event.starts_with(p)) {
+    } else if let Some([x, y]) = double {
+        Action::DblClick(x, y)
+    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {
         Action::Close
@@ -229,6 +235,7 @@ mod tests {
         assert_eq!(act("c.__mousedown_190_10"), Action::Mouse(Mouse::Down, 190, 10));
         assert_eq!(act("c.__mouseup_1_2"), Action::Mouse(Mouse::Up, 1, 2));
         assert_eq!(act("c.__mousemove_-3_4"), Action::Mouse(Mouse::Move, -3, 4));
+        assert_eq!(act("p.__dblclick_3_4"), Action::DblClick(3, 4));
         assert_eq!(act("l.__item_2"), Action::Item(2));
         assert_eq!(act("t.__node_0"), Action::Node(0));
         assert_eq!(act("t.__toggle_1"), Action::Toggle(1));
@@ -246,6 +253,7 @@ mod tests {
         assert_eq!(act("e.__key_"), Action::Ignored);
         assert_eq!(act("c.__mousedown_5"), Action::Ignored);
         assert_eq!(act("c.__mousewheel_1_2"), Action::Ignored);
+        assert_eq!(act("p.__dblclick_3"), Action::Ignored);
         assert_eq!(act("t.__editing"), Action::Ignored);
         assert_eq!(act("t.__node_a"), Action::Ignored);
         // A cell needs both numbers; otherwise it's an event of that name.

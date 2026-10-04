@@ -94,14 +94,15 @@ impl Tree {
     }
 
     /// A press on node `n` (not on its button): asks to select it, then
-    /// OnClick (a second press soon after: OnDblClick).
-    fn press(cx: &mut Cx, n: usize) {
+    /// OnClick (a double click's second press: OnDblClick too, as FLTK's
+    /// and the web's trees fire them).
+    fn press(cx: &mut Cx, n: usize, double: bool) {
         let selected = with_tree(cx.id, |t| t.item_index == n as i64).unwrap_or(false);
         if !selected {
             act(cx, ListAction::TreeSelect(n));
         }
         cx.click();
-        if super::list::double_click(cx.id, n) {
+        if double {
             fire(cx, "ondblclick", Vec::new());
         }
     }
@@ -238,7 +239,7 @@ impl ComponentKind for Tree {
         }
         match hit {
             Some(Hit::Button(n)) => Self::toggle(cx, n),
-            Some(Hit::Row(n)) => Self::press(cx, n),
+            Some(Hit::Row(n)) => Self::press(cx, n, m.double()),
             // (no node: the selection stays, as Windows')
             None => {}
         }
@@ -327,7 +328,7 @@ impl ComponentKind for Tree {
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {
         let Some(i) = part else { return false };
         match action {
-            Action::Click => Self::press(cx, i),
+            Action::Click => Self::press(cx, i, false),
             Action::Expand | Action::Collapse => {
                 cx.click();
                 act(cx, ListAction::TreeToggle(i, action == Action::Expand));
@@ -347,14 +348,13 @@ impl ComponentKind for Tree {
             this.mouse(cx, &MouseIn { kind: MouseKind::Up, ..at });
         };
         if let Some(n) = action.strip_prefix("__node_").and_then(|s| s.parse::<usize>().ok()) {
-            // (a test's click is never a double click)
-            super::list::double_click(cx.id, usize::MAX);
+            // (a test's click is never a double click: `click_at`'s count is 1)
             match Self::row_rect(cx, n) {
                 Some((row, (_, y, _, rh))) => {
                     let x = text_left(cx, &row) + 4;
                     click_at(cx, self, x, y + rh / 2);
                 }
-                None => Self::press(cx, n),
+                None => Self::press(cx, n, false),
             }
             return true;
         }

@@ -7,7 +7,7 @@ use rapidr_value::objects::a11y::{mnemonic, node_id, AccessNode, Role};
 use rapidr_value::objects::ops::Place;
 use rapidr_value::Value;
 
-use super::{ComponentKind, Cx};
+use super::{ComponentKind, Cx, MouseIn, MouseOut};
 use crate::paint::{caption, Painter, GRAY_TEXT};
 use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
@@ -30,6 +30,11 @@ impl ComponentKind for Label {
 
     fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
         false
+    }
+
+    fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
+        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        super::canvas::click_or_double(cx, m)
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
