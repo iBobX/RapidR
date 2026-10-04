@@ -7,6 +7,7 @@ pub mod suffix_routines;
 pub mod suffix_vars;
 pub mod for_locals;
 pub mod memory;
+pub mod type_values;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
 pub fn strip_type_suffix(name: &str) -> &str {
@@ -2297,6 +2298,18 @@ pub fn walk_expressions_mut(stmts: &mut [Statement], into_with_bodies: bool, on_
 }
 
 fn walk_statement_mut(stmt: &mut Statement, into_with: bool, f: &mut dyn FnMut(&mut Expression)) {
+    let (exprs, bodies) = statement_parts_mut(stmt, into_with);
+    for e in exprs {
+        walk_expression_mut(e, f);
+    }
+    for body in bodies {
+        walk_expressions_mut(body, into_with, f);
+    }
+}
+
+/// A statement's own expressions and its nested blocks (a WITH's body only
+/// when `into_with`).
+pub(crate) fn statement_parts_mut(stmt: &mut Statement, into_with: bool) -> (Vec<&mut Expression>, Vec<&mut Vec<Statement>>) {
     let mut exprs: Vec<&mut Expression> = Vec::new();
     let mut bodies: Vec<&mut Vec<Statement>> = Vec::new();
     match stmt {
@@ -2387,12 +2400,7 @@ fn walk_statement_mut(stmt: &mut Statement, into_with: bool, f: &mut dyn FnMut(&
         }
         _ => {}
     }
-    for e in exprs {
-        walk_expression_mut(e, f);
-    }
-    for body in bodies {
-        walk_expressions_mut(body, into_with, f);
-    }
+    (exprs, bodies)
 }
 
 fn walk_expression_mut(expr: &mut Expression, f: &mut dyn FnMut(&mut Expression)) {

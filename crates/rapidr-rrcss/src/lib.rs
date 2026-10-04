@@ -4,21 +4,24 @@
 //! `generate_html_shell`), interpreted-mode (`rapidr-webbundle`'s
 //! `render_index_html`), and the runtime-web crate.
 
-/// Base stylesheet for `.rr-form` / `.rr-widget` elements.
+/// Base stylesheet for `.rr-form` / `.rr-widget` elements. Paddings stay
+/// small: a component is exactly the Width × Height the program gives it
+/// (border-box), and a padding wider than that would grow it (a 23-pixel
+/// `...` QCOOLBTN).
 pub const RR_BASE_CSS: &str = r#"
 * { box-sizing: border-box; }
 body { margin: 0; padding: 0; background: #e8e8e8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; overflow: auto; }
 .rr-form { position: absolute; background: #f0f0f0; border: 1px solid #888; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); overflow: hidden; }
 .rr-form-titlebar { background: linear-gradient(135deg, #4a90d9, #357abd); color: white; padding: 7px 12px; font-weight: 600; font-size: 13px; user-select: none; cursor: default; letter-spacing: 0.3px; }
 .rr-widget { position: absolute; box-sizing: border-box; }
-button.rr-widget { background: linear-gradient(to bottom, #4a90d9, #3a7bc8); color: white; border: 1px solid #2d6db5; border-radius: 4px; padding: 4px 14px; font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+button.rr-widget { background: linear-gradient(to bottom, #4a90d9, #3a7bc8); color: white; border: 1px solid #2d6db5; border-radius: 4px; padding: 0; overflow: hidden; white-space: nowrap; font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
 button.rr-widget:hover { background: linear-gradient(to bottom, #5a9ee9, #4a8bd8); }
 button.rr-widget:active { background: linear-gradient(to bottom, #2d6db5, #3a7bc8); }
-input[type="text"].rr-widget, input[type="password"].rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 4px 8px; font-size: 13px; font-family: inherit; outline: none; background: white; }
+input[type="text"].rr-widget, input[type="password"].rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 0 3px; font-size: 13px; font-family: inherit; outline: none; background: white; }
 input[type="text"].rr-widget:focus, input[type="password"].rr-widget:focus { border-color: #4a90d9; box-shadow: 0 0 3px rgba(74,144,217,0.4); }
-textarea.rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 6px 8px; font-size: 13px; font-family: inherit; outline: none; resize: none; background: white; }
+textarea.rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 2px 3px; font-size: 13px; font-family: inherit; outline: none; resize: none; background: white; }
 textarea.rr-widget:focus { border-color: #4a90d9; box-shadow: 0 0 3px rgba(74,144,217,0.4); }
-select.rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 4px 8px; font-size: 13px; font-family: inherit; background: white; cursor: pointer; }
+select.rr-widget { border: 1px solid #aaa; border-radius: 3px; padding: 0 2px; font-size: 13px; font-family: inherit; background: white; cursor: pointer; }
 progress.rr-widget { border: none; border-radius: 3px; height: 22px; appearance: none; -webkit-appearance: none; }
 progress.rr-widget::-webkit-progress-bar { background: #ddd; border-radius: 3px; }
 progress.rr-widget::-webkit-progress-value { background: linear-gradient(to right, #4caf50, #45a049); border-radius: 3px; }

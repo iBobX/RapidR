@@ -18,7 +18,7 @@ use crate::value::{v_int, Value};
 
 /// A web form's main menu, above its client area (gui_web's
 /// `create_mainmenu`); the frame is `rapidr_value::layout::form_frame`.
-pub const MENU_HEIGHT: i64 = 28;
+pub const MENU_HEIGHT: i64 = rapidr_value::layout::MAIN_MENU_HEIGHT;
 
 thread_local! {
     static BUSY: Cell<u32> = const { Cell::new(0) };

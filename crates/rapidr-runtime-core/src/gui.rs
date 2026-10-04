@@ -1564,13 +1564,23 @@ pub fn gui_create_widget(name: &str, comp_type: &str) {
             // of windows under it and crashes growing that list once the
             // program's own items have replaced the menu (msweep.bas: a
             // splash form shown and closed, then the main form).
-            #[cfg(target_os = "macos")]
-            SysMenuBar::set_window_menu_style(fltk::menu::WindowMenuStyle::NoWindowMenu);
-            let mut mb = SysMenuBar::new(0, 0, pw, 30, None);
-            mb.set_text_size(13);
-            GUI_WIDGETS.with(|gw| {
-                gw.borrow_mut().insert(name_lower.clone(), GuiWidget::SysMenuBar(mb));
-            });
+            let h = rapidr_value::layout::MAIN_MENU_HEIGHT as i32;
+            if cfg!(target_os = "macos") && menu_in_window() {
+                // (a macOS SysMenuBar is always the system's: a plain bar)
+                let mut mb = MenuBar::new(0, 0, pw, h, None);
+                mb.set_text_size(13);
+                GUI_WIDGETS.with(|gw| {
+                    gw.borrow_mut().insert(name_lower.clone(), GuiWidget::MenuBar(mb));
+                });
+            } else {
+                #[cfg(target_os = "macos")]
+                SysMenuBar::set_window_menu_style(fltk::menu::WindowMenuStyle::NoWindowMenu);
+                let mut mb = SysMenuBar::new(0, 0, pw, h, None);
+                mb.set_text_size(13);
+                GUI_WIDGETS.with(|gw| {
+                    gw.borrow_mut().insert(name_lower.clone(), GuiWidget::SysMenuBar(mb));
+                });
+            }
             schedule_menu_sync();
         }
         // (drawn by their menu from the shared model: menu_rebuild)
@@ -3851,7 +3861,15 @@ thread_local! {
 /// without one, and on macOS, where the menu is the system menu bar.
 pub fn menu_offset(form: &str) -> i32 {
     let has_menu = crate::object::get_children_of(form).iter().any(|(_, t)| t == "RMAINMENU");
-    if has_menu && !cfg!(target_os = "macos") { 30 } else { 0 }
+    if has_menu && menu_in_window() { rapidr_value::layout::MAIN_MENU_HEIGHT as i32 } else { 0 }
+}
+
+/// Whether a QMAINMENU is a bar inside its form's window, as on Windows and
+/// in the browser: everywhere but macOS, where it's the system menu bar —
+/// unless `RAPIDR_MENU=window` asks for the in-window bar there too (the
+/// same ClientHeight on every platform).
+pub fn menu_in_window() -> bool {
+    !cfg!(target_os = "macos") || std::env::var("RAPIDR_MENU").is_ok_and(|v| v.eq_ignore_ascii_case("window"))
 }
 
 fn resize_widget(widget: &mut GuiWidget, x: i32, y: i32, w: i32, h: i32) {
@@ -3939,8 +3957,10 @@ pub fn gui_apply_geometry(name: &str) {
     if let GuiWidget::Window(_) = widget {
         for (child, t) in crate::object::get_children_of(&name) {
             if t == "RMAINMENU" {
-                if let Some(GuiWidget::SysMenuBar(mut mb)) = GUI_WIDGETS.with(|gw| gw.borrow().get(&child).cloned()) {
-                    mb.resize(0, 0, rect.2, mb.h());
+                match GUI_WIDGETS.with(|gw| gw.borrow().get(&child).cloned()) {
+                    Some(GuiWidget::SysMenuBar(mut mb)) => mb.resize(0, 0, rect.2, mb.h()),
+                    Some(GuiWidget::MenuBar(mut mb)) => mb.resize(0, 0, rect.2, mb.h()),
+                    _ => {}
                 }
             }
         }
@@ -4068,6 +4088,9 @@ pub fn gui_show(name: &str) {
     // Check if widget already exists — if so, just show it
     let already_exists = GUI_WIDGETS.with(|gw| gw.borrow().contains_key(&name_lower));
     if already_exists {
+        // (a form shown again after Hide / Close gets OnShow again, as in
+        // Delphi; one already showing doesn't)
+        let was_hidden = GUI_WIDGETS.with(|gw| matches!(gw.borrow().get(&name_lower), Some(GuiWidget::Window(win)) if !win.shown()));
         GUI_WIDGETS.with(|gw| {
             let mut widgets = gw.borrow_mut();
             match widgets.get_mut(&name_lower) {
@@ -4077,6 +4100,10 @@ pub fn gui_show(name: &str) {
             }
         });
         owner_draw_shown_grids();
+        if was_hidden {
+            rp_fire_event(name, "onshow");
+            after_show(name);
+        }
         return;
     }
 

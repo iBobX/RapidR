@@ -7,6 +7,60 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.105.0] — 2026-10-03
+
+### Added
+- `crates/rapidr-ui-proto`: a prototype of RapidR's own desktop host on
+  winit + wgpu/vello + parley + AccessKit, with muda / rfd / arboard for the
+  menu bar, dialogs and clipboard — a QFORM with QLABEL, QBUTTON, QEDIT,
+  QTRACKBAR and QTABCONTROL drawn from the shared models at the screen's
+  scale, keyboard focus, a screen-reader tree, an offscreen capture. Its own
+  lockfile, outside the workspace (wgpu needs a newer wasm-bindgen than the
+  web build's); every dependency permissive (MIT / Apache-2.0 / BSD / Zlib).
+- `tests/corpus_web_compare.mjs`: RapidQ's portable example programs run in
+  the browser (the web IDE's compiler and VM) and on the desktop
+  interpreter side by side; what they print and every form's and
+  component's properties, as the program reads them, are compared. The
+  browser gets the desktop's screen size, and a program that never yields
+  to the page is reported, not waited for.
+- `RAPIDR_MENU=window`: a QMAINMENU is a bar inside its form on macOS too,
+  as on Windows, Linux and in the browser (the same ClientHeight
+  everywhere); without it, macOS keeps the system menu bar.
+
+- A component type's name used as a value is the newest object of that
+  type, as in RapidQ: `Parent = QFORM` in a toolbar or main-menu include puts
+  it on the form created last (RapidQ's ToolTest example), and in a TYPE's
+  constructor `Parent = QFORM` is the newest form.
+
+### Fixed
+Found by running the portable corpus in the browser against the desktop:
+- Web: OnShow fires — on each ShowModal and when Show shows a hidden form,
+  as on the desktop (it never fired in the browser); the desktop now fires
+  it too when a form is shown again after Hide / Close.
+- Desktop: SHOWMESSAGE is RapidQ's message box with an OK button, titled
+  with Application.Title (it only printed the message); under a test's
+  hooks it still prints and goes on.
+- Web: `$RESOURCE` files are found in any case (`BACK1.BMP` for back1.bmp),
+  as on Windows.
+- Web: only the forms a program shows appear (Show, ShowModal,
+  Visible = True), as on the desktop and in RapidQ, where a form starts
+  hidden; a dialog form created at start no longer shows over the main one.
+- Web: FILEEXISTS finds the program's files (the project's assets and the
+  files it saved), and files are read from the project's assets, with
+  Windows' rules (any case, `\` or `/`) — a program loading its
+  bitmaps or data files works in the browser (the VECTOR font demo, the
+  file splitter's tiled background).
+- Web: a component without a Parent isn't shown (it went into the first
+  form), as on the desktop.
+- Web: a button, edit or combo box is exactly the size the program gives it:
+  the theme's padding no longer widens narrow ones (a 23-pixel `...`
+  button was 30).
+- The main menu bar is the same height (28) in the browser and on the
+  desktop (it was 30 on Windows and Linux).
+- A component's Left / Top / Width / Height are integers, as in RapidQ:
+  `Height = ClientHeight / 2 + 20` stores 304, rounded half to even (the
+  desktop kept 304.5).
+
 ## [2.104.0] — 2026-10-03
 
 ### Fixed

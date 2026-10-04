@@ -198,6 +198,12 @@ pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
 
 /// Creates the object if `type_name` is one of [`TYPES`]; `false` otherwise.
 pub fn create(id: &str, type_name: &str) -> bool {
+    // (the newest of its type: what `QFORM` as a value is; a QFORMMDI is
+    // created as a QFORM, and is the newest QFORMMDI too)
+    crate::note_made(type_name, crate::Made::Component(id.to_string()));
+    if type_name.eq_ignore_ascii_case("RFORM") && crate::mdi::is_mdi(id) {
+        crate::note_made("RFORMMDI", crate::Made::Component(id.to_string()));
+    }
     if menu::create(id, type_name) {
         return true;
     }

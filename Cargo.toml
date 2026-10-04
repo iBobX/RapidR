@@ -23,9 +23,12 @@ members = [
     "interpreter/rapidr-runner-stub",
 ]
 
+# The desktop host prototype keeps its own lockfile (see its Cargo.toml).
+exclude = ["crates/rapidr-ui-proto"]
+
 [workspace.package]
 edition = "2021"
-version = "2.104.0"
+version = "2.105.0"
 license = "MIT"
 
 [workspace.dependencies]

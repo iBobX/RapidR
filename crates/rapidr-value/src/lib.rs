@@ -82,7 +82,9 @@ impl Instance {
                 .clone()
         });
         let fields = RefCell::new(vec![Value::Null; names.len()]);
-        Rc::new(Self { id: id.to_string(), type_name: type_name.to_string(), names, fields })
+        let instance = Rc::new(Self { id: id.to_string(), type_name: type_name.to_string(), names, fields });
+        note_made(type_name, Made::Instance(Rc::downgrade(&instance)));
+        instance
     }
 
     pub fn get(&self, slot: usize) -> Value {
@@ -94,6 +96,48 @@ impl Instance {
             *f = value;
         }
     }
+}
+
+/// The newest object of a type, for [`rp_last_of_type`].
+pub enum Made {
+    /// A component (by id).
+    Component(String),
+    /// An instance of a TYPE (one EXTENDS a component *is* that component).
+    Instance(std::rc::Weak<Instance>),
+}
+
+thread_local! {
+    /// Type (uppercase) → the object of that type created last.
+    static LAST_MADE: RefCell<Vec<(String, Made)>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Records `made` as the newest object of `type_name`: the runtimes call it
+/// for every component they create (`objects::create`), and every TYPE
+/// instance does.
+pub fn note_made(type_name: &str, made: Made) {
+    LAST_MADE.with(|l| {
+        let mut l = l.borrow_mut();
+        match l.iter_mut().find(|(t, _)| t.eq_ignore_ascii_case(type_name)) {
+            Some(entry) => entry.1 = made,
+            None => l.push((type_name.to_ascii_uppercase(), made)),
+        }
+    });
+}
+
+/// `__lastoftype(type)` (rapidr_ast::type_values): a component type's name
+/// used as a value is, as in RapidQ, the object of that type created last
+/// (`Parent = QFORM` → the newest form) — a component's id (lowercase, the
+/// same whichever backend created it), a TYPE's instance — and "" while
+/// there's none.
+pub fn rp_last_of_type(type_name: &Value) -> Value {
+    let t = type_name.to_string_val();
+    LAST_MADE.with(|l| {
+        l.borrow().iter().find(|(k, _)| k.eq_ignore_ascii_case(&t)).and_then(|(_, made)| match made {
+            Made::Component(id) => Some(v_str(&id.to_lowercase())),
+            Made::Instance(w) => w.upgrade().map(Value::Object),
+        })
+    })
+    .unwrap_or_else(|| v_str(""))
 }
 
 /// `__newobject(id, type, names)` in compiled code: a new instance.
@@ -856,6 +900,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
             }));
         }
         "__null" => return Some(Ok(Value::Null)),
+        "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
         "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),
         // Stores into declared numeric types (`numeric`, rapidr_ast::numeric).
         _ if key.starts_with("__to_") => {

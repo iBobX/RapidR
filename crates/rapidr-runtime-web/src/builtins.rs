@@ -522,15 +522,18 @@ pub fn rp_playwav(source: &Value, options: &Value) {
 }
 
 // ---------------------------------------------------------------------------
-// File system stubs — NOT SUPPORTED on web
+// Directories — none on web
 // ---------------------------------------------------------------------------
 
 pub fn rp_direxists(_path: &Value) -> Value {
     v_int(0) // directories don't exist on web
 }
 
-pub fn rp_fileexists(_path: &Value) -> Value {
-    v_int(0) // files don't exist on web
+/// FILEEXISTS: a file the program saved this session or one of its
+/// project's files (object_web::web_file_exists).
+pub fn rp_fileexists(path: &Value) -> Value {
+    crate::object_web::install_file_hooks();
+    v_int(if crate::object_web::web_file_exists(&path.to_string_val()) { -1 } else { 0 })
 }
 
 

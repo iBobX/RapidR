@@ -280,8 +280,19 @@ pub fn rp_end() {
     std::process::exit(0);
 }
 
+/// `SHOWMESSAGE text`: RapidQ's modal message box with an OK button,
+/// titled with Application.Title. Under a test's hooks (RAPIDR_CAPTURE,
+/// RAPIDR_TEST_EVENTS), and without a GUI, the message is printed instead and
+/// the program goes on, as if OK was pressed.
 pub fn rp_showmessage(msg: &Value) {
-    println!("[SHOWMESSAGE] {}", msg.to_string_val());
+    let text = msg.to_string_val();
+    #[cfg(feature = "gui")]
+    if std::env::var_os("RAPIDR_CAPTURE").is_none() && std::env::var_os("RAPIDR_TEST_EVENTS").is_none() {
+        let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
+        crate::gui::gui_choice(&title, &text, &["OK"]);
+        return;
+    }
+    println!("[SHOWMESSAGE] {text}");
 }
 
 pub fn rp_msgbox(msg: &Value) -> Value {

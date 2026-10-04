@@ -1,0 +1,33 @@
+[package]
+name = "rapidr-ui-proto"
+edition = "2021"
+version = "0.1.0"
+publish = false
+license = "MIT"
+description = "Prototype of RapidR's own desktop host: winit + wgpu/vello + parley + AccessKit + muda/rfd/arboard"
+
+[dependencies]
+rapidr-value = { path = "../rapidr-value" }
+# Windows and input (Apache-2.0). 0.30: what accesskit_winit 0.34 supports.
+winit = "0.30"
+# GPU vector drawing on wgpu 30 (MIT OR Apache-2.0); re-exports wgpu and
+# peniko/kurbo, so their versions follow vello's.
+vello = "0.11"
+# Text shaping, layout and editing (MIT OR Apache-2.0); shares its font type
+# with vello through linebender_resource_handle.
+parley = "0.11"
+# Screen readers (MIT OR Apache-2.0; the winit adapter Apache-2.0).
+accesskit = "0.25"
+accesskit_winit = "0.34"
+# Native menu bar, file dialogs, clipboard (MIT OR Apache-2.0); only text
+# is put on the clipboard, so arboard goes without its image support.
+muda = "0.21"
+rfd = "0.17"
+arboard = { version = "3.6", default-features = false }
+pollster = "0.4"
+
+# Its own workspace and lockfile, outside RapidR's (the root Cargo.toml
+# excludes it): wgpu 30 needs a newer wasm-bindgen than the web runtime's
+# pinned toolchain, and the prototype mustn't move the web build's lock.
+# Build here: `cargo run --manifest-path crates/rapidr-ui-proto/Cargo.toml`.
+[workspace]

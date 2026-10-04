@@ -608,6 +608,15 @@ pub fn rapidr_get_prop(name: &str, prop: &str) -> String {
     rapidr_runtime_web::object_web::rp_comp_get(name, prop).to_string_val()
 }
 
+/// Whether the program's main code has run to its end (or END ran): what a
+/// desktop console program's exit is, for tests and tools that compare the
+/// browser with the desktop. (Waiting in a dialog or a ShowModal isn't.)
+#[wasm_bindgen]
+pub fn rapidr_main_done() -> bool {
+    rapidr_runtime_web::object_web::program_ended()
+        || SESSION.with(|s| s.try_borrow().ok().is_some_and(|g| g.as_ref().is_some_and(|session| !session.main_waiting)))
+}
+
 /// For tests (as the desktop's `RAPIDR_TEST_RESIZE` / `RAPIDR_TEST_SPLIT`):
 /// the user drags QSPLITTER `splitter` (if not empty) by `delta` pixels,
 /// then resizes form `form` to `width` × `height`.
@@ -653,7 +662,15 @@ fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
             return rapidr_runtime_web::database_web::decode_base64(&url);
         }
     }
-    None
+    // Names in any case, as RapidQ on Windows finds them (`BACK1.BMP` for
+    // back1.bmp).
+    let names = js_sys::Object::keys(assets.dyn_ref::<js_sys::Object>()?);
+    let found = names.iter().filter_map(|n| n.as_string()).find(|n| {
+        let n = n.strip_prefix("assets/").unwrap_or(n);
+        n.eq_ignore_ascii_case(&written) || n.rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))
+    })?;
+    let url = js_sys::Reflect::get(assets, &JsValue::from_str(&found)).ok()?.as_string()?;
+    rapidr_runtime_web::database_web::decode_base64(&url)
 }
 
 fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {

@@ -113,16 +113,17 @@ const restored = await page.evaluate(() => ({
 ok(restored.forms.join(",") === "Form1,Form2", "restored Form1,Form2 in tree");
 ok(restored.tabs.length === 2, "restored 2 tabs");
 
-// 7) Run and confirm both forms render
+// 7) Run: both forms exist; the startup form shows (Form1.ShowModal), Form2
+// waits until the program shows it — as on the desktop and in RapidQ.
 await page.evaluate(() => document.querySelector('[data-cmd="run.start"]').click());
 await page.waitForTimeout(2500);
 // The preview is cross-origin to the IDE (SEC-02); use Playwright's frame API.
 const previewFrame = page.frames().find(f => f.url().includes("preview.html"));
-const runtimeText = previewFrame
-  ? await previewFrame.evaluate(() => document.body?.innerText || "")
-  : "";
-ok(runtimeText.includes("Button1") && runtimeText.includes("Label1"),
-   "runtime renders Button1 (Form1) and Label1 (Form2)");
+const runtime = previewFrame
+  ? await previewFrame.evaluate(() => ({ text: document.body?.innerText || "", form2: !!document.getElementById("rr-form2"), label1: !!document.getElementById("rr-label1") }))
+  : { text: "", form2: false, label1: false };
+ok(runtime.text.includes("Button1") && !runtime.text.includes("Label1") && runtime.form2 && runtime.label1,
+   "runtime shows Form1 (Button1); Form2 (Label1) created, hidden until shown");
 await page.evaluate(() => document.querySelector('[data-cmd="run.stop"]').click());
 
 ok(errors.length === 0, `no page errors (got ${errors.length})`);

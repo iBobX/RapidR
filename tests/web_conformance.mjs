@@ -51,7 +51,8 @@ for (const name of names) {
   const tag = `@@${name}@@`;
   await page.evaluate(({ src, tag }) => {
     window.RapidR.runCommand("run.stop");
-    window.RapidR.state.project.forms[0].code = { handlers: {}, source: `PRINT "${tag}B"\n${src}\nPRINT "${tag}E"` };
+    // (the program as written: no designer form around it)
+    window.RapidR.state.project.rawSource = `PRINT "${tag}B"\n${src}\nPRINT "${tag}E"\n`;
     window.RapidR.runCommand("run.start");
   }, { src: source, tag });
   let text = "";

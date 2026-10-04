@@ -29,3 +29,4 @@ ide
 *.zip
 tests/conformance/.work
 .reference/
+crates/rapidr-ui-proto/target

@@ -47,6 +47,19 @@ impl Align {
     }
 }
 
+/// A component's geometry, as stored: its Left / Top / Width / Height
+/// (and a form's ClientWidth / ClientHeight) are integers, as in RapidQ
+/// (Delphi's Integer properties), so `Height = ClientHeight / 2 + 20` keeps
+/// an integer — rounded half to even, as the FPU stores it (304.5 → 304).
+pub fn property_value(prop: &str, val: crate::Value) -> crate::Value {
+    match val {
+        crate::Value::Double(f) if matches!(prop.to_ascii_lowercase().as_str(), "left" | "top" | "width" | "height" | "clientwidth" | "clientheight") => {
+            crate::Value::Integer(crate::numeric::round_to_int(f))
+        }
+        v => v,
+    }
+}
+
 /// The Align a component type starts with (QSTATUSBAR docks at the bottom,
 /// QSPLITTER at the left, as in RapidQ), for RapidR's type names.
 pub fn default_align(type_name: &str) -> Align {
@@ -99,6 +112,10 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
 /// the size it has in the browser.
 pub const FORM_CAPTION: i64 = 29;
 pub const FORM_BORDER: i64 = 1;
+/// A form's main menu bar inside its window, above the client area (the
+/// web's, and the desktop's off macOS — or on it with `RAPIDR_MENU=window`;
+/// a macOS menu is otherwise the system's, at the top of the screen).
+pub const MAIN_MENU_HEIGHT: i64 = 28;
 
 /// The frame around a form's inside: (left + right, caption + top +
 /// bottom), for its BorderStyle.

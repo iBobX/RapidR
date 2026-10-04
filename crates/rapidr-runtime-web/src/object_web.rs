@@ -379,11 +379,48 @@ thread_local! {
     static SAVED_FILES: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new());
 }
 
+/// A path as RapidQ on Windows compares them: `\\` and `/` alike, no
+/// leading `./`, any case.
+fn file_key(path: &str) -> String {
+    let p = path.trim().replace('\\', "/");
+    p.trim_start_matches("./").to_lowercase()
+}
+
+/// The name a file saved this session is kept under, if one matches `path`.
+fn saved_name(path: &str) -> Option<String> {
+    let key = file_key(path);
+    SAVED_FILES.with(|f| f.borrow().keys().find(|n| file_key(n) == key).cloned())
+}
+
+/// A file of the program's project (the IDE's assets, a bundle's files):
+/// `window.__rapidr_assets` maps names to data URLs.
+fn asset_bytes(path: &str) -> Option<Vec<u8>> {
+    let key = file_key(path);
+    let data = crate::database_web::get_rapidr_asset(&path.replace('\\', "/")).or_else(|| {
+        let window: JsValue = web_sys::window()?.into();
+        let assets = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_assets")).ok()?;
+        let names = js_sys::Object::keys(assets.dyn_ref::<js_sys::Object>()?);
+        let name = names.iter().filter_map(|n| n.as_string()).find(|n| file_key(n) == key || file_key(n.strip_prefix("assets/").unwrap_or(n)) == key)?;
+        js_sys::Reflect::get(&assets, &JsValue::from_str(&name)).ok()?.as_string()
+    })?;
+    crate::database_web::decode_base64(&data)
+}
+
+/// Whether the program can open `path`: a file saved this session or one of
+/// its project's files (FILEEXISTS).
+pub fn web_file_exists(path: &str) -> bool {
+    !path.trim().is_empty() && (saved_name(path).is_some() || asset_bytes(path).is_some())
+}
+
 /// Reads a file for an object (`Bitmap.LoadFromFile`, `ImageList.AddBMPFile`):
-/// one saved earlier this session, or one shipped with the page (fetched
-/// synchronously, as the program expects the data on the next line).
+/// one saved earlier this session, one of the project's files, or one
+/// shipped with the page (fetched synchronously, as the program expects the
+/// data on the next line). Names match as on Windows (any case, `\\`).
 fn web_read_file(path: &str) -> Result<Vec<u8>, String> {
-    if let Some(bytes) = SAVED_FILES.with(|f| f.borrow().get(path).cloned()) {
+    if let Some(bytes) = saved_name(path).and_then(|n| SAVED_FILES.with(|f| f.borrow().get(&n).cloned())) {
+        return Ok(bytes);
+    }
+    if let Some(bytes) = asset_bytes(path) {
         return Ok(bytes);
     }
     let fail = |_| format!("can't read {path}");
@@ -413,11 +450,15 @@ pub fn web_file_len(path: &str) -> i64 {
 
 /// `KILL`: the page's saved copy of the file goes.
 pub fn web_remove_file(path: &str) {
-    SAVED_FILES.with(|f| f.borrow_mut().remove(path));
+    if let Some(name) = saved_name(path) {
+        SAVED_FILES.with(|f| f.borrow_mut().remove(&name));
+    }
 }
 
 fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
-    SAVED_FILES.with(|f| f.borrow_mut().insert(path.to_string(), bytes.to_vec()));
+    // (over a file of the same name in another case, as on Windows)
+    let name = saved_name(path).unwrap_or_else(|| path.to_string());
+    SAVED_FILES.with(|f| f.borrow_mut().insert(name, bytes.to_vec()));
     Ok(())
 }
 
@@ -470,6 +511,7 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    let val = rapidr_value::layout::property_value(prop, val);
     // QBUTTON Kind: its caption and ModalResult (rapidr_value::events).
     if prop.eq_ignore_ascii_case("kind") {
         if let Some((caption, mr)) = rapidr_value::events::button_kind(val.to_i64()) {
@@ -637,6 +679,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
 
     // Handle data-science / database component property sets
     let comp_type = rp_comp_type(&uname);
+    // A form the program shows (Show, ShowModal, Visible = True) — the only
+    // ones its window appears for, as on the desktop: a form starts hidden.
+    if comp_type == "RFORM" && lprop == "visible" {
+        rp_comp_set_prop_only(&uname, SHOWN_BY_PROGRAM, v_bool(val.to_bool()));
+    }
     match comp_type.as_str() {
         "RNUM" => {
             crate::datascience_web::num_set_prop(&uname, &lprop, &val);
@@ -1680,6 +1727,9 @@ pub fn end_program() {
     }
     web_sys::console::log_1(&JsValue::from_str("[RapidR] Program ended."));
 }
+
+/// The property recording that the program showed a form (see rp_comp_set).
+pub const SHOWN_BY_PROGRAM: &str = "__showreq";
 
 /// Whether the program ran END.
 pub fn program_ended() -> bool {

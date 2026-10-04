@@ -667,7 +667,7 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                             parent_val
                         };
                         let parent_str = if matches!(parent, Value::Null) { None } else { Some(parent.to_string_val()) };
-                        let parent_el = get_parent_client(&parent_str);
+                        let parent_el = dom_parent(&parent_str);
                         let _ = parent_el.append_child(&new_el);
 
                         if let Some(parent) = el.parent_node() {
@@ -1156,6 +1156,7 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         (_, "show") => {
+            let was_shown = comp_type == "RFORM" && crate::object_web::rp_comp_get_stored(name, crate::object_web::SHOWN_BY_PROGRAM).to_bool();
             crate::object_web::rp_comp_set(name, "visible", crate::value::v_bool(true));
             if let Some(el) = get_el(&id) {
                 let _ = el.style().set_property("display", "");
@@ -1165,6 +1166,10 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 }
             }
             owner_draw_shown_grids();
+            // OnShow: a hidden form shown (as the desktop's gui_show).
+            if comp_type == "RFORM" && !was_shown {
+                crate::object_web::rp_fire_event(name, "onshow");
+            }
             v_null()
         }
         // Pseudo-modal show on web. True blocking is impossible in single-thread
@@ -1189,6 +1194,9 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             // VM suspends the code that called it); where nothing can wait it
             // returns at once.
             owner_draw_shown_grids();
+            // OnShow, as the desktop fires it on each ShowModal (before the
+            // wait).
+            crate::object_web::rp_fire_event(name, "onshow");
             crate::dialog_web::begin_modal(&id);
             v_null()
         }
@@ -1737,7 +1745,7 @@ fn create_form(id: &str, name: &str, props: &HashMap<String, Value>) {
     // If a parent form is specified, nest inside its client area;
     // otherwise the form is top-level under <body>.
     let parent_name = props.get("parent").map(|v| v.to_string_val()).filter(|s| !s.is_empty());
-    let host = get_parent_client(&parent_name);
+    let host = if parent_name.is_some() { get_parent_client(&parent_name) } else { dom_parent(&None) };
     let _ = host.append_child(&el);
     apply_form_icon(name);
 }
@@ -1753,12 +1761,33 @@ fn get_parent_client(parent_name: &Option<String>) -> web_sys::HtmlElement {
             return parent_el;
         }
     }
-    // Fallback: append to body (gui_web_finalize will reparent into the form)
-    document()
-        .body()
-        .unwrap()
-        .dyn_into::<web_sys::HtmlElement>()
-        .unwrap()
+    unparented()
+}
+
+/// An RDOM element's or a form's parent: the page itself without one
+/// (RDOM is the web's own, the page's HTML; a form is a window).
+fn dom_parent(parent_name: &Option<String>) -> web_sys::HtmlElement {
+    match parent_name.as_deref().map(str::trim) {
+        Some(p) if !p.is_empty() => get_parent_client(parent_name),
+        _ => document().body().unwrap().dyn_into::<web_sys::HtmlElement>().unwrap(),
+    }
+}
+
+/// Where a component without a Parent lives: out of sight, as on the
+/// desktop (and in RapidQ, where a control without a parent window isn't
+/// shown) until the program gives it one.
+fn unparented() -> web_sys::HtmlElement {
+    let doc = document();
+    if let Some(el) = doc.get_element_by_id("rr-unparented").and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok()) {
+        return el;
+    }
+    let el = create_el("div");
+    el.set_id("rr-unparented");
+    let _ = el.style().set_property("display", "none");
+    if let Some(body) = doc.body() {
+        let _ = body.append_child(&el);
+    }
+    el
 }
 
 fn apply_geometry(el: &web_sys::HtmlElement, props: &HashMap<String, Value>, dl: i64, dt: i64, dw: i64, dh: i64) {
@@ -3573,8 +3602,6 @@ fn tree_toggle(name: &str, i: usize) {
     });
 }
 
-/// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
-/// program deleted).
 thread_local! {
     /// Trees asking their program for icons (OnGetImageIndex): what that
     /// changes shows without asking again.
@@ -3611,6 +3638,8 @@ fn tree_ask_images(name: &str) {
     }
 }
 
+/// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
+/// program deleted).
 pub fn render_tree(name: &str) {
     note_display_scale();
     tree_ask_images(name);
@@ -5072,7 +5101,7 @@ fn create_dom_element(id: &str, name: &str, props: &HashMap<String, Value>) {
 
         // Append to parent if specified, otherwise to body
         let parent = props.get("parentid").or_else(|| props.get("parent")).map(|v| v.to_string_val());
-        let parent_el = get_parent_client(&parent);
+        let parent_el = dom_parent(&parent);
         let _ = parent_el.append_child(&el);
     } else {
         if let Ok(Some(head)) = document().query_selector("head") {
@@ -5233,43 +5262,9 @@ pub fn gui_web_finalize() {
         let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
     }
 
-    // Find the first TOP-LEVEL form (not nested inside another form).
-    // Top-level forms are direct body children OR carry no data-rr-parent.
-    let first_top_form = match doc.query_selector(".rr-form:not([data-rr-parent])") {
-        Ok(Some(el)) => Some(el),
-        _ => doc.query_selector(".rr-form").ok().flatten(),
-    };
-
-    // Move orphan widgets from body into the first top-level form's client area.
-    // Skip elements that are themselves forms (`.rr-form`).
-    if let Some(form_el) = first_top_form.as_ref() {
-        let form_id = form_el.get_attribute("id").unwrap_or_default();
-        let client_id = format!("{}-client", form_id);
-        let client = doc.get_element_by_id(&client_id).unwrap_or_else(|| form_el.clone());
-
-        let selector = "body > [data-rr-name], body > .rr-widget, body > .rr-plot-container";
-        if let Ok(orphans) = doc.query_selector_all(selector) {
-            let mut elems: Vec<web_sys::Element> = Vec::new();
-            for i in 0..orphans.length() {
-                if let Some(node) = orphans.item(i) {
-                    if let Some(el) = node.dyn_ref::<web_sys::Element>() {
-                        // Skip forms — they manage their own placement.
-                        if el.class_list().contains("rr-form") {
-                            continue;
-                        }
-                        elems.push(el.clone());
-                    }
-                }
-            }
-            for el in &elems {
-                let _ = client.append_child(el);
-            }
-        }
-    }
-
-    // Show top-level forms whose `visible` prop is true (default), assigning a
-    // stacking z-index. Forms whose visible was set false (e.g. by `.Hide()`
-    // before the runtime started) stay hidden.
+    // Show the top-level forms the program showed (Show, ShowModal,
+    // Visible = True: object_web::SHOWN_BY_PROGRAM), assigning a stacking
+    // z-index; the others stay hidden, as on the desktop.
     if let Ok(top_forms) = doc.query_selector_all(".rr-form:not([data-rr-parent])") {
         for i in 0..top_forms.length() {
             if let Some(node) = top_forms.item(i) {
@@ -5277,7 +5272,7 @@ pub fn gui_web_finalize() {
                     .dyn_ref::<web_sys::Element>()
                     .and_then(|e| e.get_attribute("data-rr-name"))
                     .unwrap_or_default();
-                let visible = crate::object_web::rp_comp_get_stored(&comp_name, "visible").to_bool();
+                let visible = crate::object_web::rp_comp_get_stored(&comp_name, crate::object_web::SHOWN_BY_PROGRAM).to_bool();
                 let id_attr = node
                     .dyn_ref::<web_sys::Element>()
                     .and_then(|e| e.get_attribute("id"))
@@ -5299,7 +5294,7 @@ pub fn gui_web_finalize() {
             }
         }
     }
-    // Nested forms: honor their visible prop too.
+    // Nested forms too.
     if let Ok(nested) = doc.query_selector_all(".rr-form[data-rr-parent]") {
         for i in 0..nested.length() {
             if let Some(node) = nested.item(i) {
@@ -5307,7 +5302,7 @@ pub fn gui_web_finalize() {
                     .dyn_ref::<web_sys::Element>()
                     .and_then(|e| e.get_attribute("data-rr-name"))
                     .unwrap_or_default();
-                let visible = crate::object_web::rp_comp_get_stored(&comp_name, "visible").to_bool();
+                let visible = crate::object_web::rp_comp_get_stored(&comp_name, crate::object_web::SHOWN_BY_PROGRAM).to_bool();
                 if let Ok(html) = node.dyn_into::<web_sys::HtmlElement>() {
                     let _ = html.style().set_property(
                         "display",
