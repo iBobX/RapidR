@@ -118,7 +118,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] `tests/web_ide_bugfixes.mjs` and `tests/web_ide_phaseF.mjs` pass; every `tests/web_ide_*.mjs` runs in `tools/regress.sh` (local; CI is manual-only) (v2.71.0)
 
 **Rest of Phase 0**
-- [ ] Upgrade `mysql` crate to drop `proc-macro-error2` (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
+- [x] Upgrade `mysql` crate to drop `proc-macro-error2` (v2.113.0: mysql 28 without derive / TLS / system zlib) (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
 - [ ] Confirm first CI run on GitHub (Linux FLTK/ALSA system packages untested)
 - [x] `SECURITY.md` → GitHub private vulnerability reporting (repo setting must be enabled by owner)
 - [x] Track all of `tests/` in git (generated outputs ignored)
@@ -320,7 +320,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 
 **Accessibility (principle 8)**
 - [ ] Shared models describe themselves: role, name (Caption / Text / Hint), value, state, actions — one accessibility tree per form
-- [ ] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree; keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
+- [x] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree (v2.113.0); keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
 - [ ] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme
 - [ ] FLTK's own widgets are weak here: each one replaced by its shared model (principle 7) gains it — track which remain
 
@@ -337,6 +337,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
   - [x] Stage 3: `rapidr-ui-host-winit` + the kernel glue; 16 of 54 GUI fixtures identical on FLTK and the kernel (native and interpreted, 1× and 2×); the hosts matrix in `tools/regress.sh` (v2.110.0) — next: the component lanes (Stage 5), surfaces, text, dialogs, platform
   - [x] Stage 5 lanes — containers, buttons & menus, lists: 43 of 54 GUI fixtures identical on both hosts (v2.111.0) — next: surfaces, text, dialogs, platform
   - [x] Stages 6–9 (surfaces, text, dialogs, platform): every GUI fixture identical on both hosts — 0 pending (v2.112.0). Before the switch (Stage 11): a hands-on check on an unlocked screen (GPU windows, a real drag, a held menu, IME, a real file sheet), then RDESIGNSURFACE / RCODEEDITOR (Stage 10)
+  - [x] Stage 10 (RDESIGNSURFACE / RCODEEDITOR as shared models; the IDE in RapidR runs on the kernel), Stage 12 (web ARIA from the same accessibility rules, `tests/web_a11y.mjs`), and the lanes' follow-ups: double clicks in the VCL's order, real in-place editors, edit after a pause, F10 / Alt menus, size grip, message box icons, colour / font dialog options, QFORM.WindowState (v2.113.0). Left before the switch (Stage 11): the hands-on check on an unlocked screen
   - [ ] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
 
 ## Phase 2 — Debugger (~6 weeks)

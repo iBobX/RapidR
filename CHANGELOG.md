@@ -7,6 +7,51 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.113.0] — 2026-10-04
+
+### Added
+- The IDE written in RapidR (`examples/ide.rr`) runs on the UI kernel host:
+  RDESIGNSURFACE and RCODEEDITOR are shared models (FLTK, the kernel and the
+  web answer from them), the code editor is the kernel's editor with BASIC
+  colours and a line-number gutter, and the editor can carry styled runs
+  (colour, bold, italic, underline, font) for QRICHEDIT's next step.
+- Screen readers on the web: ARIA roles, names, values and states from the
+  same accessibility rules as the desktop kernel (lists, trees, grids, tabs,
+  menus, status bar panels), a polite live status bar, Tab order by
+  TabOrder / TabStop, Alt + `&` letters, Enter → Default, Escape → Cancel.
+  `tests/web_a11y.mjs` compares the browser's tree with the kernel's for
+  every fixture.
+- MESSAGEBOX / MESSAGEDLG show their type icons (warning, error,
+  information, question) with Delphi's layout and captions on FLTK, the
+  kernel and the web; MESSAGEBOX beeps on the desktop.
+- QCOLORDIALOG: Style, `Colors(1 TO 16)` and the custom colour editor.
+  QFONTDIALOG: Name / Size / Color, styles and effects, Min / MaxFontSize,
+  options, OnApply, GetFont / SetFont.
+- QFORM.WindowState (normal, minimized, maximized) on all three runtimes.
+- Kernel host: double clicks in the VCL's order (also fixed on FLTK and the
+  web), the real editor for tree / list view / grid in-place edits, edit
+  after a pause on the selected item, F10 / Alt for the menu bar, drag
+  selection by words and paragraphs with auto-scroll, QSTATUSBAR's size
+  grip (also on FLTK), the wheel on grids and list views.
+
+### Fixed
+- `Obj.Member` without parentheses: the interpreter and the web read a
+  property where RapidQ calls a method (`WHILE MySQL.FetchRow` never looped),
+  and native builds called a method where it's a property (`UpDown.Max`,
+  `ProgressBar.Max`, `ScrollBar.Min / Max`, `ListBox.Columns` read nothing).
+  Which one it is now depends on the object's type, the same everywhere.
+- Web: Checked reaches check boxes and radio buttons; ReadOnly edits are
+  read-only; controls in a disabled panel are disabled; a group box's
+  caption set later keeps its components.
+- FLTK: OnClick / OnDblClick for panels, labels, group boxes, scroll boxes
+  and forms; a designed component's colour from a QCOLORDIALOG; code editor
+  colours after non-ASCII text.
+- The CPU renderer's synthetic italics lean forward.
+
+### Changed
+- MySQL client 28 without derive, TLS or system zlib (drops the
+  unmaintained proc-macro-error2).
+
 ## [2.112.0] — 2026-10-04
 
 ### Added
