@@ -53,6 +53,8 @@ export async function runCase(page, c) {
   if (!frame) return { frame: null, missing: [] };
   const missing = [];
   const idOf = (name) => "rr-" + name.toLowerCase();
+  // (how many of the case's dialog answers were given)
+  let colorAnswers = 0, fontAnswers = 0;
   // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,
   // then resizes the frontmost form — before the events, as the desktop
   // test's hooks do.
@@ -81,12 +83,15 @@ export async function runCase(page, c) {
     // (…up, …move): the mouse at (10, 20) in it.
     const key = /^__key_(\d+)$/i.exec(action || "");
     const mouse = /^__mouse(down|up|move)_(\d+)_(\d+)$/i.exec(action || "");
+    // `pn.__dblclick_5_5`: a double click there (the browser's events, each
+    // with its click count)
+    const dbl = /^__dblclick_(\d+)_(\d+)$/i.exec(action || "");
     // `list.__item_4`: item 4 clicked (an owner-drawn combo box's picked).
     const item = /^__item_(\d+)$/i.exec(action || "");
     // `tree.__edit`: F2 on it; `__enter` / `__escape`: "Renamed" typed in
     // its node editor, then Enter / Escape.
     const edit = /^__(edit|enter|escape)$/i.exec(action || "")?.[1].toLowerCase();
-    const fired = await frame.evaluate(({ id, selector, key, mouse, item, edit }) => {
+    const fired = await frame.evaluate(({ id, selector, key, mouse, dbl, item, edit }) => {
       const host = document.getElementById(id);
       const el = selector ? host?.querySelector(selector) : host;
       if (!el) return false;
@@ -124,6 +129,14 @@ export async function runCase(page, c) {
         for (const type of ["keydown", "keyup"]) el.dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true, cancelable: true }));
         return true;
       }
+      if (dbl) {
+        const r = el.getBoundingClientRect();
+        const at = { clientX: r.left + Number(dbl[0]), clientY: r.top + Number(dbl[1]), button: 0, bubbles: true, cancelable: true };
+        for (const [type, detail] of [["mousedown", 1], ["mouseup", 1], ["click", 1], ["mousedown", 2], ["mouseup", 2], ["click", 2], ["dblclick", 2]]) {
+          el.dispatchEvent(new MouseEvent(type, { ...at, detail }));
+        }
+        return true;
+      }
       if (mouse) {
         const r = el.getBoundingClientRect();
         el.dispatchEvent(new MouseEvent("mouse" + mouse[0], { clientX: r.left + Number(mouse[1]), clientY: r.top + Number(mouse[2]), button: 0, bubbles: true, cancelable: true }));
@@ -132,9 +145,50 @@ export async function runCase(page, c) {
       // (a list box answers a pick with `change`, anything else a click)
       el.dispatchEvent(host.tagName === "SELECT" ? new Event("change", { bubbles: true }) : new MouseEvent("click", { bubbles: true, cancelable: true }));
       return true;
-    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]], item: item?.[1], edit });
+    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]], dbl: dbl && [dbl[1], dbl[2]], item: item?.[1], edit });
     if (!fired) missing.push(target);
     await page.waitForTimeout(300);
+    // A colour dialog the event opened: the case's next answer's swatch
+    // pressed, then OK (an empty answer: Cancel).
+    if (c.colorDialog !== undefined) {
+      const answers = c.colorDialog.split(";");
+      const n = colorAnswers++;
+      const answered = await frame.evaluate((answer) => {
+        const dlg = document.querySelector(".rr-color-dialog");
+        if (!dlg) return false;
+        const swatch = answer ? dlg.querySelector(`.rr-color-swatch[data-color="${answer}"]`) : null;
+        if (swatch) swatch.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        dlg.querySelector(swatch ? ".rr-color-ok" : ".rr-color-cancel").click();
+        return true;
+      }, answers[n] ?? "");
+      if (!answered) colorAnswers--;
+      await page.waitForTimeout(300);
+    }
+    // A font dialog: the case's next answer (`Name,Size,styles,colour`) set
+    // in its lists, check boxes and colour, then OK (empty: Cancel).
+    if (c.fontDialog !== undefined) {
+      const answers = c.fontDialog.split(";");
+      const n = fontAnswers++;
+      const answered = await frame.evaluate((answer) => {
+        const dlg = document.querySelector(".rr-font-dialog");
+        if (!dlg) return false;
+        if (!answer) { dlg.querySelector(".rr-font-cancel").click(); return true; }
+        const [name, size, styles = "", color = ""] = answer.split(",").map((s) => s.trim());
+        const set = (sel, value) => { const el = dlg.querySelector(sel); if (!el) return; el.value = value; el.dispatchEvent(new Event("change", { bubbles: true })); };
+        const check = (sel, on) => { const el = dlg.querySelector(sel); if (!el) return; el.checked = on; el.dispatchEvent(new Event("change", { bubbles: true })); };
+        set(".rr-font-name", name);
+        set(".rr-font-size", size);
+        // (the style list: Regular, Italic, Bold, Bold Italic)
+        set(".rr-font-style", ["Regular", "Italic", "Bold", "Bold Italic"][(styles.includes("i") ? 1 : 0) + (styles.includes("b") ? 2 : 0)]);
+        check(".rr-font-under", styles.includes("u"));
+        check(".rr-font-strike", styles.includes("s"));
+        if (color) set(".rr-font-color", color);
+        dlg.querySelector(".rr-font-ok").click();
+        return true;
+      }, answers[n] ?? "");
+      if (!answered) fontAnswers--;
+      await page.waitForTimeout(300);
+    }
     // A file dialog the event opened: the case's answer typed in, then Open / Save.
     if (c.fileDialog !== undefined) {
       await frame.evaluate((answer) => {
