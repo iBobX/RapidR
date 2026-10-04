@@ -572,6 +572,16 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.after_input(&f);
             }
             WindowEvent::RedrawRequested => self.redraw(&f),
+            WindowEvent::Focused(false) => {
+                // (a kernel-drawn menu closes when its window loses the
+                // keyboard, as Windows' menus do)
+                if let Some(k) = self.desk.forms.get_mut(&f) {
+                    if k.ui.menu_open() {
+                        k.ui.close_menus();
+                    }
+                }
+                self.after_input(&f);
+            }
             WindowEvent::Focused(true) => {
                 self.s.key_form = Some(f.clone());
                 // A modal form keeps the focus (macOS has no owned windows).
