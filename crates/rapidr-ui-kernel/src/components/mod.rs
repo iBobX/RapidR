@@ -39,6 +39,8 @@ pub mod tree;
 // (the surfaces lane's)
 pub mod canvas;
 pub mod image;
+// (Stage 10: the IDE's)
+pub mod codeedit;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -85,6 +87,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     // (the text lane's)
     ("RMEMO", &memo::Memo),
     ("RRICHEDIT", &richedit::RichEdit),
+    // (Stage 10: the IDE's)
+    ("RCODEEDITOR", &codeedit::CodeEditor),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only
