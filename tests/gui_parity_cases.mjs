@@ -109,6 +109,12 @@ export const cases = [
     webExpect: "false,true,false" },
   { name: "message_dialogs", kernel: true, events: "", dump: "lbl.caption", expect: ["lbl.caption=shown"],
     web: false, why: "the browser's alert / confirm dialogs block the page the test reads" },
+  // (the page's own dialog: its caption, the icon left of the text, the
+  // buttons with their mnemonics)
+  { name: "message_icons", kernel: true, events: "", dump: "lbl.caption", expect: ["lbl.caption=asked"],
+    webCheck: `[...document.querySelectorAll(".rr-dialog")].map((d) => [d.querySelector(".rr-dialog-title")?.textContent, d.querySelector(".rr-dialog-icon")?.dataset.icon,
+      d.querySelector(".rr-dialog-icon svg polygon") ? "svg" : "-", [...d.querySelectorAll(".rr-dialog-button")].map((b) => b.textContent + (b.querySelector("u")?.textContent || "")).join(",")].join("|")).join(";")`,
+    webExpect: "Files|Question|svg|YesY,NoN" },
   { name: "menus", kernel: true, events: "expert.onclick,newitem.onclick", dump: "lbl.caption,beg.checked,expert.checked", expect: ["lbl.caption=new0154Ctrl+N", "beg.checked=0", "expert.checked=1"],
     webCheck: `[...document.querySelectorAll('nav[data-rr-type="RMAINMENU"] .rr-menu-item-sub')].map(e => e.querySelector('.rr-menu-mark').textContent + e.querySelector('.rr-menu-text').textContent + e.querySelector('.rr-menu-keys').textContent + (e.classList.contains('rr-menu-disabled') ? '!' : '')).join('|') + ' ' + document.querySelectorAll('nav .rr-menu-sep').length`,
     webExpect: "NewCtrl+N|Beginner|●Expert|Exit! 1" },

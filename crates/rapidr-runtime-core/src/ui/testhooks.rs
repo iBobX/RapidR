@@ -16,6 +16,13 @@
 
 use rapidr_value::input::Mouse;
 
+/// A GUI test drives the program (`RAPIDR_CAPTURE` or `RAPIDR_TEST_EVENTS`):
+/// it makes no sound (a message box's beep) and asks nothing of the system
+/// it doesn't need.
+pub fn under_test() -> bool {
+    std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some()
+}
+
 /// A GUI test's run (`RAPIDR_CAPTURE` set).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Capture {

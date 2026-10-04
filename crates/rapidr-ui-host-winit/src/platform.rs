@@ -143,10 +143,22 @@ pub fn work_area() -> Option<(i64, i64)> {
     imp::work_area()
 }
 
+// (the dialogs lane's)
+/// A message box's sound, as Windows' MessageBeep plays it for its icon
+/// (`None`: the default beep): Windows' system sounds, macOS' alert sound
+/// (NSBeep, one for all), X11's bell. Wayland has none.
+pub fn beep(icon: Option<rapidr_value::dialogs::MsgIcon>) {
+    imp::beep(icon);
+}
+
 #[cfg(target_os = "macos")]
 mod imp {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSEvent, NSScreen};
+
+    pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {
+        objc2_app_kit::NSBeep();
+    }
 
     /// The primary screen (the menu bar's: the origin of screen coordinates).
     fn primary(mtm: MainThreadMarker) -> Option<objc2::rc::Retained<NSScreen>> {
@@ -177,6 +189,20 @@ mod imp {
     /// aware: these calls answer in device pixels).
     fn scale() -> f64 {
         crate::platform::primary_scale()
+    }
+
+    pub fn beep(icon: Option<rapidr_value::dialogs::MsgIcon>) {
+        use rapidr_value::dialogs::MsgIcon;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MB_ICONASTERISK, MB_ICONEXCLAMATION, MB_ICONHAND, MB_ICONQUESTION, MB_OK};
+        let kind = match icon {
+            Some(MsgIcon::Error) => MB_ICONHAND,
+            Some(MsgIcon::Question) => MB_ICONQUESTION,
+            Some(MsgIcon::Warning) => MB_ICONEXCLAMATION,
+            Some(MsgIcon::Information) => MB_ICONASTERISK,
+            None => MB_OK,
+        };
+        // SAFETY: MessageBeep takes a sound type; it only queues a sound.
+        unsafe { windows_sys::Win32::System::Diagnostics::Debug::MessageBeep(kind) };
     }
 
     pub fn global_mouse() -> Option<(f64, f64)> {
@@ -246,6 +272,19 @@ mod imp {
     pub fn work_area() -> Option<(i64, i64)> {
         None
     }
+
+    pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {
+        if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            return;
+        }
+        if let Some(x) = x() {
+            // SAFETY: a display opened above; XBell at the base volume.
+            unsafe {
+                (x.lib.XBell)(x.display, 0);
+                (x.lib.XFlush)(x.display);
+            }
+        }
+    }
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows", all(unix, not(target_os = "android")))))]
@@ -256,6 +295,7 @@ mod imp {
     pub fn work_area() -> Option<(i64, i64)> {
         None
     }
+    pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {}
 }
 
 thread_local! {

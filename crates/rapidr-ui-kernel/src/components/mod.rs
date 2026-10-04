@@ -91,6 +91,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     // (Stage 10: the IDE's)
     ("RDESIGNSURFACE", &design::Design),
     ("RCODEEDITOR", &codeedit::CodeEditor),
+    // (the dialogs lane's: what only a kernel-drawn dialog draws)
+    ("RDLGPART", &crate::dialogs::Part),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

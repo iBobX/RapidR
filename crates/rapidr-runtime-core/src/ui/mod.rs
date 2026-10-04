@@ -97,7 +97,9 @@ forward! { gui:
     fn gui_take_wait_started() -> bool;
     fn gui_set_cooperative_waits(on: bool);
     fn run_gui_event_loop();
-    fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize>;
+    // (the dialogs lane's: the box's icon, and whether it beeps as
+    // Windows' MessageBox does — MESSAGEBOX; Delphi's MessageDlg doesn't)
+    fn gui_choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool) -> Option<usize>;
     fn gui_dialog_execute(name: &str, comp_type: &str) -> Value;
 
     // What only the host knows.

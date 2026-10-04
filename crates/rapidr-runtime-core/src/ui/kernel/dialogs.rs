@@ -120,10 +120,17 @@ fn run(d: Dialog) -> Answer {
 }
 
 /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE / MSGBOX: `text` and `labels`'
-/// buttons (the first the default), titled `title`; the button chosen, or
-/// `None` (Escape, the close box).
-pub(super) fn choice(title: &str, text: &str, labels: &[&str]) -> Option<usize> {
-    match run(Dialog::message(next_id(), title, text, labels)) {
+/// buttons (the first the default), `icon` left of the text, titled
+/// `title`; the button chosen, or `None` (Escape, the close box). `beep`:
+/// the icon's sound as it shows (Windows' MessageBox; never under a test,
+/// nor on the headless host).
+pub(super) fn choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool) -> Option<usize> {
+    let d = Dialog::message(next_id(), title, text, labels, icon);
+    ensure_host();
+    if beep && !crate::ui::testhooks::under_test() && with_kern(|k| k.host.headless()) == Some(false) {
+        rapidr_ui_host_winit::platform::beep(icon);
+    }
+    match run(d) {
         Answer::Button(b) => b,
         _ => None,
     }

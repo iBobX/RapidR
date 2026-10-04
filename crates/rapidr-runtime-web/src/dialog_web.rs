@@ -266,21 +266,30 @@ pub struct Dialog<'a> {
     /// (INPUT); `echo` then shows the line in the program's output.
     pub input: Option<&'a str>,
     pub echo: bool,
+    /// The message box's icon, left of the text (MB_ICONxxx, mtWarning …).
+    pub icon: Option<rapidr_value::dialogs::MsgIcon>,
 }
 
+// (the dialogs lane's: laid out as the desktop's message boxes are —
+// `rapidr_value::dialogs::message_layout`'s margins, the icon's 32 + 15,
+// Windows' 75 × 23 buttons centred six apart — in the desktop's default
+// font, Arial 10 points)
 const BACKDROP: &str = "position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;\
-background:rgba(0,0,0,0.25);font:13px system-ui,-apple-system,'Segoe UI',sans-serif;";
-const BOX: &str = "min-width:280px;max-width:min(560px,90vw);background:#f0f0f0;color:#000;border:1px solid #888;\
+background:rgba(0,0,0,0.25);font:13px Arial,'Liberation Sans',Helvetica,sans-serif;";
+const BOX: &str = "min-width:120px;max-width:min(560px,90vw);background:#f0f0f0;color:#000;border:1px solid #888;\
 border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);overflow:hidden;";
-const TITLE: &str = "background:linear-gradient(135deg,#4a90d9,#357abd);color:#fff;padding:7px 12px;font-weight:600;";
-const MESSAGE: &str = "padding:16px 16px 8px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:60vh;overflow:auto;";
-const FIELD: &str = "display:block;box-sizing:border-box;width:calc(100% - 32px);margin:4px 16px 8px;padding:4px 6px;\
-font:inherit;border:1px solid #999;border-radius:3px;background:#fff;color:#000;";
-const BUTTONS: &str = "display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 14px;";
-const BUTTON: &str = "min-width:78px;padding:4px 12px;font:inherit;border:1px solid #999;border-radius:4px;\
-background:#e1e1e1;color:#000;cursor:pointer;";
-const DEFAULT_BUTTON: &str = "min-width:78px;padding:4px 12px;font:inherit;border:1px solid #2f6db3;border-radius:4px;\
-background:#4a90d9;color:#fff;cursor:pointer;";
+const TITLE: &str = "background:linear-gradient(to bottom,#4a90d9,#357abd);color:#fff;padding:0 10px;height:29px;line-height:29px;\
+font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+const BODY: &str = "display:flex;align-items:flex-start;gap:15px;padding:13px 12px 0;";
+const ICON: &str = "flex:none;width:32px;height:32px;";
+const MESSAGE: &str = "white-space:pre-wrap;overflow-wrap:anywhere;max-width:420px;max-height:60vh;overflow:auto;line-height:15px;";
+const FIELD: &str = "display:block;box-sizing:border-box;width:calc(100% - 24px);margin:8px 12px 0;padding:2px 4px;\
+font:inherit;border:2px inset #f0f0f0;background:#fff;color:#000;";
+const BUTTONS: &str = "display:flex;justify-content:center;gap:6px;padding:16px 12px 13px;";
+const BUTTON: &str = "box-sizing:border-box;width:75px;height:23px;padding:0 4px;font:inherit;color:#000;cursor:pointer;\
+background:#f0f0f0;border:2px outset #f0f0f0;";
+const DEFAULT_BUTTON: &str = "box-sizing:border-box;width:75px;height:23px;padding:0 4px;font:inherit;color:#000;cursor:pointer;\
+background:#f0f0f0;border:2px outset #f0f0f0;outline:1px solid #000;";
 
 /// Opens the dialog and asks the VM to suspend; the answer resumes it.
 /// Only call when [`can_wait`] is true.
@@ -303,11 +312,26 @@ pub fn open(d: Dialog<'_>) {
         let _ = panel.append_child(&title);
         let _ = panel.set_attribute("aria-label", d.title);
     }
+    // (the icon at the top left, the text right of it)
+    let content = create_el("div");
+    content.set_class_name("rr-dialog-body");
+    let _ = content.set_attribute("style", BODY);
+    if let Some(icon) = d.icon {
+        let pic = create_el("div");
+        pic.set_class_name("rr-dialog-icon");
+        let _ = pic.set_attribute("style", ICON);
+        let _ = pic.set_attribute("role", "img");
+        let _ = pic.set_attribute("aria-label", icon.name());
+        let _ = pic.set_attribute("data-icon", icon.name());
+        pic.set_inner_html(&rapidr_value::dialogs::icon_svg(icon, rapidr_value::dialogs::ICON_SIZE));
+        let _ = content.append_child(&pic);
+    }
     let message = create_el("div");
     message.set_class_name("rr-dialog-text");
     let _ = message.set_attribute("style", MESSAGE);
     message.set_text_content(Some(d.text));
-    let _ = panel.append_child(&message);
+    let _ = content.append_child(&message);
+    let _ = panel.append_child(&content);
 
     let field = d.input.map(|initial| {
         let input = doc.create_element("input").unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
@@ -350,7 +374,23 @@ pub fn open(d: Dialog<'_>) {
         button.set_class_name("rr-dialog-button");
         let _ = button.set_attribute("type", "button");
         let _ = button.set_attribute("style", if i == 0 { DEFAULT_BUTTON } else { BUTTON });
-        button.set_text_content(Some(label));
+        // (Windows' `&Yes`: the letter underlined, Alt + it a click)
+        let caption = rapidr_value::dialogs::button_caption(label);
+        let (shown, mark) = rapidr_value::objects::a11y::mnemonic(&caption);
+        match mark {
+            Some((at, key)) => {
+                let before: String = shown.chars().take(at).collect();
+                let letter: String = shown.chars().skip(at).take(1).collect();
+                let after: String = shown.chars().skip(at + 1).collect();
+                let u = create_el("u");
+                u.set_text_content(Some(&letter));
+                let _ = button.append_with_str_1(&before);
+                let _ = button.append_with_node_1(&u);
+                let _ = button.append_with_str_1(&after);
+                let _ = button.set_attribute("accesskey", &key.to_string());
+            }
+            None => button.set_text_content(Some(label)),
+        }
         let (finish, result) = (finish.clone(), *result);
         let click = Closure::<dyn FnMut()>::new(move || finish(Some(result)));
         let _ = button.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());

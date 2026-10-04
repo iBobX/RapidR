@@ -175,6 +175,7 @@ fn open_input(prompt: &str, echo: bool) {
         dismissed: 0,
         input: Some(""),
         echo,
+        icon: None,
     });
 }
 
@@ -408,13 +409,16 @@ fn swallow_end_unwind() {
 
 pub fn rp_showmessage(msg: &Value) {
     if crate::dialog_web::can_wait() {
+        // (titled with Application.Title, as on the desktop)
+        let title = app_title();
         crate::dialog_web::open(crate::dialog_web::Dialog {
-            title: "",
+            title: &title,
             text: &msg.to_string_val(),
             buttons: vec![("OK".into(), 0)],
             dismissed: 0,
             input: None,
             echo: false,
+            icon: None,
         });
         return;
     }
@@ -617,25 +621,35 @@ pub const IDYES: i64 = 6;
 pub const IDNO: i64 = 7;
 
 /// `MESSAGEBOX(text, title, flags)` (RapidQ): a dialog with the buttons the
-/// MB_* flags ask for; returns IDOK/IDYES/… for the one chosen.
+/// MB_* flags ask for and their MB_ICONxxx icon; returns IDOK/IDYES/… for
+/// the one chosen.
 pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
-    let buttons = crate::value::dialogs::message_box_buttons(flags.to_i64());
-    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons)
+    use crate::value::dialogs as d;
+    let buttons = d::message_box_buttons(flags.to_i64());
+    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()))
 }
 
-/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): returns mr*.
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): Delphi's
+/// MessageDlg — the type's caption ("Warning" …; mtCustom's is
+/// Application.Title) and icon; returns mr*.
 pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
-    let title = crate::value::dialogs::message_dlg_title(msg_type.to_i64());
-    let buttons = crate::value::dialogs::message_dlg_buttons(buttons.to_i64());
-    show_choice(&text.to_string_val(), title, &buttons)
+    use crate::value::dialogs as d;
+    let title = d::message_dlg_caption(msg_type.to_i64(), &app_title());
+    let buttons = d::message_dlg_buttons(buttons.to_i64());
+    show_choice(&text.to_string_val(), &title, &buttons, d::message_dlg_icon(msg_type.to_i64()))
+}
+
+/// Application.Title (a SHOWMESSAGE's caption, mtCustom's).
+fn app_title() -> String {
+    crate::globals_web::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default()
 }
 
 /// Browser dialogs block, which the interpreter needs; they offer OK (alert)
 /// or OK/Cancel (confirm), so a third button (Yes/No/Cancel's Cancel,
 /// Abort/Retry/Ignore's Ignore) can't be offered on the web.
-fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button]) -> Value {
-    // Run by the bytecode VM: an in-page dialog with every button; the
-    // program waits for the answer (crate::dialog_web).
+fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>) -> Value {
+    // Run by the bytecode VM: an in-page dialog with every button and the
+    // icon; the program waits for the answer (crate::dialog_web).
     if crate::dialog_web::can_wait() {
         crate::dialog_web::open(crate::dialog_web::Dialog {
             title,
@@ -644,6 +658,7 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
             dismissed: crate::value::dialogs::dismissed(buttons),
             input: None,
             echo: false,
+            icon,
         });
         return v_null();
     }

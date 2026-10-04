@@ -807,42 +807,93 @@ fn capture_windows(prefix: &str) {
     std::process::exit(0);
 }
 
-/// A modal message with buttons in the given order, the first being the
-/// default (Return) and Escape/closing meaning "none"; returns the index of
-/// the button chosen. RapidQ's MESSAGEBOX/MESSAGEDLG default to the first
-/// button, which FLTK's stock dialogs can't do with three buttons.
-pub fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize> {
+/// Shared shapes (`trackbar::Shape`: a message box's icon) drawn with their
+/// (0, 0) at (`x`, `y`): fills, then outlines, as the trackbar's are.
+fn draw_shapes(shapes: &[rapidr_value::objects::trackbar::Shape], x: i32, y: i32) {
+    let (ox, oy) = (f64::from(x), f64::from(y));
+    let rgb = |c: u32| Color::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8);
+    for shape in shapes {
+        if let Some(c) = shape.fill.filter(|_| shape.points.len() > 2) {
+            draw::set_draw_color(rgb(c));
+            draw::begin_complex_polygon();
+            for (px, py) in &shape.points {
+                draw::vertex(ox + px, oy + py);
+            }
+            draw::end_complex_polygon();
+        }
+        if let Some(c) = shape.stroke {
+            draw::set_draw_color(rgb(c));
+            draw::begin_loop();
+            for (px, py) in &shape.points {
+                draw::vertex(ox + px, oy + py);
+            }
+            draw::end_loop();
+        }
+    }
+}
+
+/// A modal message laid out as every runtime lays it out (the dialogs
+/// lane's; `rapidr_value::dialogs::message_layout`, Delphi's MessageDlg):
+/// `icon` at the top left (the shared shapes), the text right of it in the
+/// lines `dialogs::wrap` breaks it into, the buttons (Windows' 75 × 23)
+/// centred under both in the given order, the first the default (Return);
+/// Escape and the close box mean "none". Returns the index of the button
+/// chosen. `beep`: the icon's sound as it shows (Windows' MessageBox), never
+/// under a test.
+pub fn gui_choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool) -> Option<usize> {
     use fltk::button::ReturnButton;
+    use rapidr_value::dialogs::{self as d, MsgIcon};
     use std::rc::Rc;
     ensure_app();
-    let (bw, bh, gap, pad) = (90, 28, 10, 16);
-    draw::set_font(Font::Helvetica, app::font_size());
-    let (tw, th) = draw::measure(text, true);
-    let buttons_w = labels.len() as i32 * (bw + gap) - gap;
-    let w = (tw + 2 * pad).max(buttons_w + 2 * pad).clamp(260, 900);
-    let h = th.max(20) + 3 * pad + bh;
-    let mut win = Window::default().with_size(w, h).with_label(title);
+    let font = rapidr_value::objects::font::Font::default();
+    let lines = d::wrap(text, &font, d::WRAP);
+    let measure = |s: &str| rapidr_value::objects::text::text_size(s, &font);
+    let line_h = measure("Ag").1.max(1);
+    let text_w = lines.iter().map(|l| measure(l).0).max().unwrap_or(0);
+    let layout = d::message_layout(text_w, lines.len() as i64 * line_h, labels.len(), icon.is_some());
+    let px = |v: i64| v.clamp(-100_000, 100_000) as i32;
+    let mut win = Window::default().with_size(px(layout.size.0), px(layout.size.1)).with_label(title);
     win.make_modal(true);
-    let mut msg = Frame::new(pad, pad, w - 2 * pad, th.max(20), None);
-    msg.set_label(text);
-    msg.set_align(Align::Left | Align::Top | Align::Inside | Align::Wrap);
+    if let (Some(icon), Some((x, y, w, h))) = (icon, layout.icon) {
+        let mut pic = Frame::new(px(x), px(y), px(w), px(h), None);
+        pic.draw(move |f| draw_shapes(&d::icon_shapes(icon), f.x(), f.y()));
+    }
+    let (tx, ty, _, _) = layout.text;
+    for (i, line) in lines.iter().enumerate() {
+        let mut msg = Frame::new(px(tx), px(ty + i as i64 * line_h), px(text_w + 2), px(line_h), None);
+        // (FLTK draws `@…` as a symbol: shown as typed)
+        msg.set_label(&line.replace('@', "@@"));
+        msg.set_label_font(fltk_face(&font));
+        msg.set_label_size(font_pixels(&font));
+        msg.set_align(Align::Left | Align::Top | Align::Inside);
+    }
     let chosen = Rc::new(std::cell::Cell::new(None));
-    let mut x = w - pad - buttons_w;
-    for (i, label) in labels.iter().enumerate() {
-        let (y, chosen) = (h - pad - bh, chosen.clone());
+    for (i, (label, &(x, y, w, h))) in labels.iter().zip(&layout.buttons).enumerate() {
+        let chosen = chosen.clone();
         let mut win_ref = win.clone();
         let mut pick = move || {
             chosen.set(Some(i));
             win_ref.hide();
         };
+        let caption = d::button_caption(label);
         if i == 0 {
-            ReturnButton::new(x, y, bw, bh, None).with_label(label).set_callback(move |_| pick());
+            ReturnButton::new(px(x), px(y), px(w), px(h), None).with_label(&caption).set_callback(move |_| pick());
         } else {
-            Button::new(x, y, bw, bh, None).with_label(label).set_callback(move |_| pick());
+            Button::new(px(x), px(y), px(w), px(h), None).with_label(&caption).set_callback(move |_| pick());
         }
-        x += bw + gap;
     }
     win.end();
+    if beep && !crate::ui::testhooks::under_test() {
+        // (Windows' sounds as FLTK's beep names them: its "password" one is
+        // MB_ICONWARNING's)
+        dialog::beep(match icon {
+            Some(MsgIcon::Error) => dialog::BeepType::Error,
+            Some(MsgIcon::Question) => dialog::BeepType::Question,
+            Some(MsgIcon::Warning) => dialog::BeepType::Password,
+            Some(MsgIcon::Information) => dialog::BeepType::Message,
+            None => dialog::BeepType::Default,
+        });
+    }
     win.show();
     while win.shown() {
         if !app::wait() {

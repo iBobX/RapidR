@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn a_kernel_dialogs_window_goes_for_good() {
         use crate::{Desktop, HostCmd, WindowSpec};
-        let d = rapidr_ui_kernel::dialogs::Dialog::message(1, "Title", "Text", &["OK"]);
+        let d = rapidr_ui_kernel::dialogs::Dialog::message(1, "Title", "Text", &["OK"], None);
         let mut desk = Desktop::new(Box::new(rapidr_ui_kernel::MemClipboard::default()));
         desk.ensure_form(&d.store, &d.id, false, WindowSpec::default());
         desk.show(&d.id);

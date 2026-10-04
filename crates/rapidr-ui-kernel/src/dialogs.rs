@@ -10,12 +10,17 @@
 //! screen readers) and queues its [`KernelEvent`]s; runtime-core hands them
 //! to [`Dialog::event`] instead of the program, and steps until it answers.
 //! Its components' ids start with [`PREFIX`], which no BASIC name can.
+//! What only a dialog draws (a message's icon …) is a [`Part`]
+//! (`RDLGPART`, a type no program can make).
 
-use rapidr_value::objects::font::Font;
+use rapidr_value::dialogs::{icon_shapes, message_layout, MsgIcon};
+use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
 use rapidr_value::objects::text::text_size;
 use rapidr_value::Value;
 
+use crate::components::{ComponentKind, Cx};
 use crate::input::KernelEvent;
+use crate::paint::Painter;
 use crate::store::{self, MemStore, Store};
 
 /// What every kernel dialog's ids start with (`:` can't be in a BASIC name).
@@ -64,44 +69,16 @@ pub struct Dialog {
 }
 
 // Windows' dialog metrics (logical pixels).
-const MARGIN: i64 = 12;
 const BUTTON: (i64, i64) = (75, 23);
-const GAP: i64 = 6;
-/// A message's lines are wrapped at this width.
-const WRAP: i64 = 420;
 
 /// A caption shown as is (`&` isn't a mnemonic in a message).
 fn literal(text: &str) -> String {
     text.replace('&', "&&")
 }
 
-/// `text`'s lines (CR LF, LF or CR), each wrapped at word breaks to fit
-/// `width` in `font`.
-pub fn wrap(text: &str, font: &Font, width: i64) -> Vec<String> {
-    let mut out = Vec::new();
-    for para in text.replace("\r\n", "\n").replace('\r', "\n").split('\n') {
-        let mut line = String::new();
-        for word in para.split(' ') {
-            let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
-            if !line.is_empty() && text_size(&candidate, font).0 > width {
-                out.push(std::mem::take(&mut line));
-                line = word.to_string();
-            } else {
-                line = candidate;
-            }
-        }
-        out.push(line);
-    }
-    out
-}
-
-/// The mnemonic Windows gives a message box's button.
-fn button_caption(label: &str) -> String {
-    match label {
-        "Yes" | "No" | "Retry" | "Abort" | "Ignore" | "All" => format!("&{label}"),
-        _ => label.to_string(),
-    }
-}
+// (a message's lines and its buttons' captions: what every runtime shows)
+pub use rapidr_value::dialogs::wrap;
+use rapidr_value::dialogs::{button_caption, WRAP};
 
 impl Dialog {
     fn new(n: u64, title: &str, kind: Kind) -> Dialog {
@@ -139,31 +116,36 @@ impl Dialog {
         self.set(&id, "caption", Value::String(self.title.clone()));
     }
 
-    /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: `text` over `labels`' buttons
-    /// (centred, the first the default: Enter), titled `title`.
-    pub fn message(n: u64, title: &str, text: &str, labels: &[&str]) -> Dialog {
+    /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: `icon` (if any) at the top
+    /// left, `text` right of it, `labels`' buttons centred under both (the
+    /// first the default: Enter), titled `title` — Delphi's MessageDlg
+    /// layout (`rapidr_value::dialogs::message_layout`), as every runtime
+    /// lays it out.
+    pub fn message(n: u64, title: &str, text: &str, labels: &[&str], icon: Option<MsgIcon>) -> Dialog {
         let mut d = Dialog::new(n, title, Kind::Message);
         let font = d.store.font(&d.id);
         let lines = wrap(text, &font, WRAP);
         let line_h = text_size("Ag", &font).1.max(1);
         let text_w = lines.iter().map(|l| text_size(l, &font).0).max().unwrap_or(0);
-        let buttons_w = labels.len() as i64 * (BUTTON.0 + GAP) - GAP;
-        let w = (text_w + 2 * MARGIN).max(buttons_w + 2 * MARGIN).max(120);
+        let layout = message_layout(text_w, lines.len() as i64 * line_h, labels.len(), icon.is_some());
+        if let (Some(icon), Some(rect)) = (icon, layout.icon) {
+            let id = d.put("icon", "RDLGPART", rect);
+            d.set(&id, "part", Value::String("icon".into()));
+            d.set(&id, "icon", Value::Integer(icon.code()));
+        }
+        let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
-            let id = d.put(&format!("t{i}"), "RLABEL", (MARGIN, MARGIN + i as i64 * line_h, text_w.max(1) + 2, line_h));
+            let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w.max(1) + 2, line_h));
             d.set(&id, "caption", Value::String(literal(line)));
         }
-        let top = MARGIN + lines.len() as i64 * line_h + 18;
-        let mut x = (w - buttons_w) / 2;
-        for (i, label) in labels.iter().enumerate() {
-            let id = d.put(&format!("b{i}"), "RBUTTON", (x, top, BUTTON.0, BUTTON.1));
+        for (i, (label, rect)) in labels.iter().zip(&layout.buttons).enumerate() {
+            let id = d.put(&format!("b{i}"), "RBUTTON", *rect);
             d.set(&id, "caption", Value::String(button_caption(label)));
             if i == 0 {
                 d.set(&id, "default", Value::Integer(-1));
             }
-            x += BUTTON.0 + GAP;
         }
-        d.finish(w, top + BUTTON.1 + MARGIN);
+        d.finish(layout.size.0, layout.size.1);
         d
     }
 
@@ -371,6 +353,40 @@ impl Dialog {
     }
 }
 
+/// What only a dialog draws (`RDLGPART`, its `part` property): a message
+/// box's `icon` (`rapidr_value::dialogs::icon_shapes`, its `icon` the
+/// [`MsgIcon`]'s code).
+pub struct Part;
+
+impl ComponentKind for Part {
+    fn name(&self) -> &'static str {
+        "RDLGPART"
+    }
+
+    fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
+        false
+    }
+
+    fn paint(&self, cx: &mut Cx, p: &mut Painter) {
+        if store::string(cx.store, cx.id, "part") == "icon" {
+            if let Some(icon) = MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)) {
+                for shape in icon_shapes(icon) {
+                    p.shape(shape);
+                }
+            }
+        }
+    }
+
+    fn describe(&self, cx: &mut Cx) -> AccessNode {
+        let mut n = AccessNode::new(node_id(cx.id), Role::Image);
+        if let Some(icon) = MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)) {
+            n.name = icon.name().to_string();
+        }
+        n.bounds = cx.rect;
+        n
+    }
+}
+
 /// QFONTDIALOG's styles (the index: italic 1 + bold 2).
 const STYLES: [&str; 4] = ["Regular", "Italic", "Bold", "Bold Italic"];
 /// QFONTDIALOG's sizes (points).
@@ -400,6 +416,7 @@ const BASIC_COLORS: [u32; 48] = [
 mod tests {
     use super::*;
     use crate::input::{Clipboard, MemClipboard, Mods};
+    use rapidr_value::objects::font::Font;
     use crate::text::TextSystem;
     use crate::tree::FormUi;
     use rapidr_value::input::Button;
@@ -432,12 +449,13 @@ mod tests {
     #[test]
     fn message_box_buttons_enter_escape_and_close() {
         let mut ts = TextSystem::new();
-        let mut d = Dialog::message(1, "Question", "Save the changes\nbefore closing?", &["Yes", "No", "Cancel"]);
+        let mut d = Dialog::message(1, "Question", "Save the changes\nbefore closing?", &["Yes", "No", "Cancel"], None);
         assert!(is_dialog(&d.id) && is_dialog("RAPIDR:dlg1:b0") && !is_dialog("form"));
         // (two lines, three buttons centred under them)
         assert!(d.store.ids().contains(&"rapidr:dlg1:t1".to_string()));
         let (w, h) = d.size;
         assert!(w >= 3 * 75 + 2 * 6 + 24 && h > 23 + 24, "{w}x{h}");
+        assert!(!d.store.ids().contains(&"rapidr:dlg1:icon".to_string()));
         let mut f = ui(&d);
         assert_eq!(click(&mut d, &mut f, &mut ts, "b1"), Some(Answer::Button(Some(1))));
         // Enter: the focused (first, default) button; Escape: none
@@ -447,10 +465,29 @@ mod tests {
         f.close_box();
         assert_eq!(answer(&mut d, &mut f), Some(Answer::Button(None)));
         // (a message's & is shown, not a mnemonic)
-        let d2 = Dialog::message(2, "", "R&D", &["OK"]);
+        let d2 = Dialog::message(2, "", "R&D", &["OK"], None);
         assert_eq!(store::string(&d2.store, "rapidr:dlg2:t0", "caption"), "R&&D");
         d.close();
         assert!(d.store.ids().is_empty());
+    }
+
+    #[test]
+    fn message_box_icon_left_of_the_text() {
+        let mut ts = TextSystem::new();
+        let d = Dialog::message(6, "Warning", "Disk full", &["OK"], Some(MsgIcon::Warning));
+        let int = |id: &str, p: &str| store::int(&d.store, id, p, -1);
+        // the icon at Delphi's margins, the text 15 right of it, the button
+        // under the icon (the text is shorter than it)
+        assert_eq!((int("rapidr:dlg6:icon", "left"), int("rapidr:dlg6:icon", "top"), int("rapidr:dlg6:icon", "width")), (12, 13, 32));
+        assert_eq!(int("rapidr:dlg6:t0", "left"), 12 + 32 + 15);
+        assert_eq!(int("rapidr:dlg6:b0", "top"), 13 + 32 + 16);
+        // drawn as the shared shapes; a screen reader hears its name
+        let mut f = ui(&d);
+        let list = f.paint(&d.store, &mut ts, 1.0);
+        let shapes = list.items.iter().filter(|i| matches!(i, crate::display::Item::Op { op: rapidr_value::objects::ops::Op::Shape(_), origin: (12, 13) })).count();
+        assert_eq!(shapes, icon_shapes(MsgIcon::Warning).len());
+        let tree = f.access_tree(&d.store, &mut ts).to_json();
+        assert!(tree.contains(r#""role":"img","name":"Warning""#), "{tree}");
     }
 
     #[test]

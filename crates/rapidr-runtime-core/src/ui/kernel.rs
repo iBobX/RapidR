@@ -1078,9 +1078,10 @@ pub fn run_gui_event_loop() {
 }
 
 /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: a kernel-drawn modal dialog
-/// (dialogs.rs); the button chosen, `None` for Escape or the close box.
-pub fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize> {
-    dialogs::choice(title, text, labels)
+/// (dialogs.rs) with its icon, beeping when asked; the button chosen,
+/// `None` for Escape or the close box.
+pub fn gui_choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool) -> Option<usize> {
+    dialogs::choice(title, text, labels, icon, beep)
 }
 
 /// Open / Save (rfd, async), colour and font (kernel-drawn) dialogs.
@@ -1258,7 +1259,7 @@ pub fn minimize() {
 
 /// MSGBOX: the text and OK.
 pub fn message_box(text: &str) {
-    gui_choice("", text, &["OK"]);
+    gui_choice("", text, &["OK"], None, false);
 }
 
 /// The program ends: the windows' pending commands run (closed forms'

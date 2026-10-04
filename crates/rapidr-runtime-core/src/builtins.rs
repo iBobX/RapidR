@@ -291,7 +291,7 @@ pub fn rp_showmessage(msg: &Value) {
     #[cfg(feature = "desktop-ui")]
     if std::env::var_os("RAPIDR_CAPTURE").is_none() && std::env::var_os("RAPIDR_TEST_EVENTS").is_none() {
         let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
-        crate::ui::gui_choice(&title, &text, &["OK"]);
+        crate::ui::gui_choice(&title, &text, &["OK"], None, false);
         return;
     }
     println!("[SHOWMESSAGE] {text}");
@@ -652,24 +652,30 @@ mod tests {
 }
 
 /// `MESSAGEBOX(text, title, flags)` (RapidQ): a dialog with the buttons the
-/// MB_* flags ask for; returns IDOK/IDYES/… for the one chosen.
+/// MB_* flags ask for and their MB_ICONxxx icon, which beeps as Windows'
+/// MessageBox does; returns IDOK/IDYES/… for the one chosen.
 pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
-    let buttons = crate::value::dialogs::message_box_buttons(flags.to_i64());
-    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons)
+    use crate::value::dialogs as d;
+    let buttons = d::message_box_buttons(flags.to_i64());
+    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()), true)
 }
 
-/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): returns mr*.
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): Delphi's
+/// MessageDlg — the type's caption ("Warning" …; mtCustom's is
+/// Application.Title) and icon; returns mr*.
 pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
-    let title = crate::value::dialogs::message_dlg_title(msg_type.to_i64());
-    let buttons = crate::value::dialogs::message_dlg_buttons(buttons.to_i64());
-    show_choice(&text.to_string_val(), title, &buttons)
+    use crate::value::dialogs as d;
+    let app_title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
+    let title = d::message_dlg_caption(msg_type.to_i64(), &app_title);
+    let buttons = d::message_dlg_buttons(buttons.to_i64());
+    show_choice(&text.to_string_val(), &title, &buttons, d::message_dlg_icon(msg_type.to_i64()), false)
 }
 
-fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button]) -> Value {
+fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
     #[cfg(feature = "desktop-ui")]
     {
         let labels: Vec<&str> = buttons.iter().map(|b| b.label).collect();
-        let result = match crate::ui::gui_choice(title, text, &labels) {
+        let result = match crate::ui::gui_choice(title, text, &labels, icon, beep) {
             Some(i) => buttons[i].result,
             None => crate::value::dialogs::dismissed(buttons),
         };
@@ -677,6 +683,7 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
     }
     #[cfg(not(feature = "desktop-ui"))]
     {
+        let _ = (icon, beep);
         // No GUI: show the message and take the first (affirmative) button.
         println!("[{title}] {text}");
         v_int(buttons.first().map_or(1, |b| b.result))

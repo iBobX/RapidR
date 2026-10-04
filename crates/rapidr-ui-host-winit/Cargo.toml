@@ -37,15 +37,15 @@ pollster = "0.4"
 rfd = "0.17"
 
 # Platform answers winit has no API for (platform.rs): the mouse anywhere
-# on the screen and the work area. Already in the lock through muda, rfd,
-# softbuffer (objc2 0.6: MIT), winit (windows-sys 0.52, x11-dl: MIT OR
-# Apache-2.0 / MIT).
+# on the screen and the work area, a message box's beep. Already in the
+# lock through muda, rfd, softbuffer (objc2 0.6: MIT), winit (windows-sys
+# 0.52, x11-dl: MIT OR Apache-2.0 / MIT).
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSThread"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSScreen"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSScreen", "NSGraphics"] }
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Diagnostics_Debug"] }
 [target.'cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))'.dependencies]
 x11-dl = "2.21"
 
