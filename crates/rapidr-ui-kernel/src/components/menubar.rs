@@ -75,6 +75,14 @@ pub struct MenuUi {
     /// The press that opened or closed a menu: its release is the menu's
     /// too.
     pub swallow_up: bool,
+    /// (the input lane's) The bar selected from the keyboard — F10, or Alt
+    /// pressed and released alone (Windows' menu mode): `hot_top` is its
+    /// chosen item; Left / Right move it, Down / Up / Enter open it, a
+    /// letter picks by mnemonic, Escape, Alt or F10 leave.
+    pub keyboard: bool,
+    /// (the input lane's) Alt went down and nothing else since: its release
+    /// selects the bar.
+    pub alt_alone: bool,
 }
 
 /// One item as a panel shows it.
@@ -244,6 +252,63 @@ impl FormUi {
         m.open_top = None;
         m.pressed_top = None;
         m.popup = None;
+        // (the input lane's: and the bar's keyboard selection)
+        if std::mem::take(&mut m.keyboard) {
+            m.hot_top = None;
+            self.dirty = true;
+        }
+    }
+
+    /// (the input lane's) F10 or a lone Alt: the in-window bar's first item
+    /// selected from the keyboard (not with the system's menu bar, nor
+    /// while a pop-up menu is open). Whether it was.
+    pub(crate) fn select_bar(&mut self, store: &dyn Store) -> bool {
+        if self.menus.system_bar || self.menu_open() || self.bar_items(store).is_empty() {
+            return false;
+        }
+        self.menus.keyboard = true;
+        self.menus.hot_top = Some(0);
+        self.dirty = true;
+        true
+    }
+
+    /// (the input lane's) A key while the bar is selected from the keyboard
+    /// (every key is the menus' then, as in Windows' menu mode).
+    fn bar_key(&mut self, store: &dyn Store, vk: i64) {
+        let bar = self.bar_items(store);
+        let at = self.menus.hot_top.unwrap_or(0).min(bar.len().saturating_sub(1));
+        let n = bar.len();
+        if n == 0 {
+            self.close_menus();
+            return;
+        }
+        // (an item chosen: its menu drops with its first item lit, or one
+        // without items is picked)
+        let choose = |f: &mut FormUi, i: usize, by_enter: bool| {
+            f.menus.keyboard = false;
+            if bar[i].0.submenu {
+                f.open_top(store, i, true);
+            } else if by_enter && bar[i].0.enabled {
+                let id = bar[i].0.id.clone();
+                f.pick(&id);
+            } else {
+                f.menus.keyboard = true;
+            }
+        };
+        match vk {
+            37 => self.menus.hot_top = Some((at + n - 1) % n),
+            39 => self.menus.hot_top = Some((at + 1) % n),
+            38 | 40 => choose(self, at, false),
+            13 => choose(self, at, true),
+            27 | 18 | 121 => self.close_menus(),
+            65..=90 | 48..=57 => {
+                let letter = (vk as u8 as char).to_ascii_lowercase();
+                if let Some(i) = bar.iter().position(|(item, _)| mnemonic(&item.caption).1.map(|m| m.1) == Some(letter)) {
+                    choose(self, i, true);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// The window's inside, the bar included (where panels must fit).
@@ -336,6 +401,10 @@ impl FormUi {
     /// A press while a menu is open, or on the bar: whether it was the
     /// menus'.
     pub(crate) fn menu_mouse_down(&mut self, store: &dyn Store, x: f64, y: f64) -> bool {
+        // (the input lane's: a press leaves the bar's keyboard selection)
+        if self.menus.keyboard && !self.menu_open() {
+            self.close_menus();
+        }
         if self.menu_open() {
             self.menus.swallow_up = true;
             self.dirty = true;
@@ -377,6 +446,10 @@ impl FormUi {
     pub(crate) fn menu_mouse_move(&mut self, store: &dyn Store, x: f64, y: f64) -> bool {
         if !self.menu_open() {
             let hot = if y < self.menu_offset as f64 { self.bar_item_at(store, x, y) } else { None };
+            // (the bar selected from the keyboard keeps its item off the bar)
+            if self.menus.keyboard && hot.is_none() {
+                return self.menus.pressed_top.is_some();
+            }
             if hot != self.menus.hot_top {
                 self.menus.hot_top = hot;
                 self.dirty = true;
@@ -443,6 +516,12 @@ impl FormUi {
             self.menu_open_key(store, vk);
             return true;
         }
+        // (the input lane's: the bar selected from the keyboard)
+        if self.menus.keyboard {
+            self.dirty = true;
+            self.bar_key(store, vk);
+            return true;
+        }
         if self.menus.system_bar || (16..=18).contains(&vk) {
             return false;
         }
@@ -472,7 +551,14 @@ impl FormUi {
                 if last > 0 {
                     self.menus.panels.pop();
                 } else {
+                    // (the input lane's: the bar's menu closes, its item stays
+                    // selected — a second Escape leaves, as Windows')
+                    let top = self.menus.open_top.filter(|_| bar);
                     self.close_menus();
+                    if top.is_some() && !self.menus.system_bar {
+                        self.menus.keyboard = true;
+                        self.menus.hot_top = top;
+                    }
                 }
             }
             38 | 40 => self.menus.panels[last].hot = step(hot, vk == 38),
@@ -730,15 +816,73 @@ mod tests {
         assert_eq!(f.menus.panels[0].hot, Some(2));
         f.key_down(&s, &mut ts, 69, "e", Mods::NONE, &mut clip);
         assert_eq!(picks(&mut f), vec!["mb2exp".to_string()]);
-        // Escape closes; no key event reached the form meanwhile.
+        // Escape closes the menu, File stays selected; a second Escape
+        // leaves (Windows'); no key event reached the form meanwhile.
         f.key_down(&s, &mut ts, 70, "", ALT, &mut clip);
         f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
         assert!(!f.menu_open());
+        assert!(f.menus.keyboard && f.menus.hot_top == Some(0));
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        assert!(!f.menus.keyboard);
         assert!(f.take_events().iter().all(|e| !matches!(e, KernelEvent::KeyPress { .. })));
         // Ctrl+N is New's ShortCut: picked, and nothing else hears the key.
         f.key_down(&s, &mut ts, 78, "", CTRL, &mut clip);
         let events = f.take_events();
         assert_eq!(events, vec![KernelEvent::MenuPick("mb2new".into())]);
+    }
+
+    // (the input lane's)
+    #[test]
+    fn f10_and_a_lone_alt_select_the_bar() {
+        let (s, mut f, mut ts) = setup("mb4");
+        let mut clip = MemClipboard::default();
+        // F10: its OnKeyDown, then File selected (no menu yet)
+        f.key_down(&s, &mut ts, 121, "", Mods::NONE, &mut clip);
+        assert!(matches!(f.take_events()[..], [KernelEvent::KeyDown { vk: 121, .. }]));
+        assert!(f.menus.keyboard && f.menus.hot_top == Some(0) && !f.menu_open());
+        // Right selects Edit; keys reach nothing else meanwhile
+        f.key_down(&s, &mut ts, 39, "", Mods::NONE, &mut clip);
+        assert_eq!(f.menus.hot_top, Some(1));
+        assert!(f.take_events().is_empty());
+        // Down drops Edit's menu, its first item lit; Enter on Sub opens it
+        f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut clip);
+        assert_eq!((f.menus.open_top, f.menus.panels[0].hot, f.menus.keyboard), (Some(1), Some(0), false));
+        // Escape: back to the selected bar; Left; a letter opens by mnemonic
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        f.key_down(&s, &mut ts, 37, "", Mods::NONE, &mut clip);
+        assert_eq!(f.menus.hot_top, Some(0));
+        f.key_down(&s, &mut ts, 69, "e", Mods::NONE, &mut clip);
+        assert_eq!(f.menus.open_top, Some(1));
+        f.key_down(&s, &mut ts, 18, "", ALT, &mut clip);
+        assert!(!f.menu_open() && !f.menus.keyboard, "Alt closes the menus");
+        f.key_up(18, Mods::NONE);
+        assert!(!f.menus.keyboard, "that Alt wasn't a lone one");
+        f.take_events();
+        // a lone Alt, pressed and let go: File selected; Alt again leaves
+        f.key_down(&s, &mut ts, 18, "", ALT, &mut clip);
+        f.key_up(18, Mods::NONE);
+        assert!(f.menus.keyboard && f.menus.hot_top == Some(0));
+        let list = f.paint(&s, &mut ts, 1.0).dump();
+        assert!(list.contains("edge"), "the selected item is drawn raised: {list}");
+        f.key_down(&s, &mut ts, 18, "", ALT, &mut clip);
+        f.key_up(18, Mods::NONE);
+        assert!(!f.menus.keyboard);
+        // Alt + a letter isn't a lone Alt: its release selects nothing
+        f.key_down(&s, &mut ts, 18, "", ALT, &mut clip);
+        f.key_down(&s, &mut ts, 70, "", ALT, &mut clip);
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        f.key_up(70, ALT);
+        f.key_up(18, Mods::NONE);
+        assert!(!f.menus.keyboard && !f.menu_open());
+        // a press leaves the selection
+        f.key_down(&s, &mut ts, 121, "", Mods::NONE, &mut clip);
+        click(&mut f, &s, &mut ts, 250.0, 150.0);
+        assert!(!f.menus.keyboard);
+        // with the system's menu bar (macOS), F10 is an ordinary key
+        f.menus.system_bar = true;
+        f.key_down(&s, &mut ts, 121, "", Mods::NONE, &mut clip);
+        assert!(!f.menus.keyboard);
     }
 
     #[test]

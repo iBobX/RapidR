@@ -178,6 +178,8 @@ impl FormUi {
         }
         self.capture = Some(target);
         let clicks = self.count_click(target, x, y, button);
+        // (the input lane's: Alt isn't pressed alone any more — menubar.rs)
+        self.menus.alt_alone = false;
         if let Some(i) = target {
             if button == Button::Left {
                 let out = self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true, clicks });
@@ -360,6 +362,9 @@ impl FormUi {
     pub fn key_down(&mut self, store: &dyn Store, ts: &mut TextSystem, vk: i64, text: &str, mods: Mods, clip: &mut dyn Clipboard) {
         self.dirty = true;
         self.reset_caret();
+        // (the input lane's: Alt pressed alone selects the menu bar when it's
+        // let go — unless a menu or the bar's selection takes this Alt)
+        self.menus.alt_alone = vk == 18 && !mods.ctrl && !mods.shift && !self.menus.keyboard && !self.menu_open();
         // (an open menu takes the keys; a main menu's ShortCut is picked
         // before the key reaches anything: components/menubar.rs)
         if self.menu_key(store, vk, mods) {
@@ -369,6 +374,11 @@ impl FormUi {
         }
         let chain = self.key_chain();
         self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state(), text: text.to_string() });
+        // (the input lane's: F10 selects the in-window menu bar, after its
+        // OnKeyDown — components/menubar.rs)
+        if vk == 121 && !mods.shift && !mods.ctrl && !mods.alt && self.select_bar(store) {
+            return;
+        }
         let shortcut = mods.command || mods.ctrl;
         let mut handled = false;
         // (a memo with WantTabs takes a plain Tab: components/memo.rs)
@@ -405,6 +415,13 @@ impl FormUi {
     pub fn key_up(&mut self, vk: i64, mods: Mods) {
         let chain = self.key_chain();
         self.events.push(KernelEvent::KeyUp { chain, vk, shift: mods.shift_state() });
+        // (the input lane's: a lone Alt let go selects the in-window bar's
+        // first item — not with the system's menu bar)
+        if vk == 18 && std::mem::take(&mut self.menus.alt_alone) && self.menu_offset > 0 && !self.menus.system_bar && !self.menu_open() {
+            self.menus.keyboard = true;
+            self.menus.hot_top = Some(0);
+            self.dirty = true;
+        }
     }
 
     /// Alt + `letter`: the button whose caption marks it clicked, or the
