@@ -1,7 +1,8 @@
 //! A QFORM's and a QSCROLLBOX's scroll bars in this runtime: the shared
 //! model (rapidr_value::scrollbars) works out the ranges and the bars from
 //! the components; scrolling moves the components (their Left / Top), as
-//! Delphi's ScrollBy; gui.rs draws the bars and passes them the mouse.
+//! Delphi's ScrollBy; the UI kernel draws the bars and passes them the
+//! mouse.
 
 use std::cell::Cell;
 
@@ -93,7 +94,7 @@ pub fn update(name: &str) {
         crate::layout::realign(name, None);
     }
     UPDATING.with(|u| u.set(false));
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::redraw_widget(name);
 }
 
@@ -113,7 +114,7 @@ pub fn move_children(name: &str, (dx, dy): Shift) {
             }
         }
     });
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     for (c, _) in &kids {
         crate::ui::gui_apply_geometry(c);
     }
@@ -123,7 +124,7 @@ pub fn move_children(name: &str, (dx, dy): Shift) {
 /// bars are drawn again.
 pub fn user_scrolled(name: &str, shift: Shift) {
     move_children(name, shift);
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::redraw_widget(name);
 }
 

@@ -1,6 +1,6 @@
 //! Menus on the kernel host (the buttons and menus lane): a picked item's
 //! OnClick, `QPOPUPMENU.Popup(X, Y)` and AutoPopup, and
-//! `RAPIDR_DUMP_MENUS` (gui.rs's, the same lines).
+//! `RAPIDR_DUMP_MENUS`.
 //!
 //! The kernel draws the in-window bar and its menus and the pop-up menus
 //! where the host has no native ones (`rapidr_ui_kernel::components::
@@ -39,8 +39,8 @@ fn popup_form(name: &str) -> Option<String> {
 }
 
 /// `PopupMenu.Popup(X, Y)` (screen coordinates): OnPopup, then the menu
-/// there; the item picked fires its OnClick before Popup returns, as on
-/// FLTK. A kernel-drawn menu blocks until it closes on a real screen; the
+/// there; the item picked fires its OnClick before Popup returns. A
+/// kernel-drawn menu blocks until it closes on a real screen; the
 /// headless host leaves it open (a test's script works it, a capture
 /// shows it).
 pub(super) fn popup(name: &str, x: i32, y: i32) {
@@ -89,8 +89,7 @@ fn open_at(form: &str, name: &str, x: i64, y: i64) {
 }
 
 /// A right press on `comp` at (x, y) in it: the pop-up menu its PopupMenu
-/// names, when that menu's AutoPopup is on — instead of OnMouseDown
-/// (gui.rs's `auto_popup`).
+/// names, when that menu's AutoPopup is on — instead of OnMouseDown.
 pub(super) fn auto_popup(comp: &str, x: i64, y: i64) -> bool {
     let menu_name = rp_comp_get(comp, "popupmenu").to_string_val().to_lowercase();
     if menu_name.is_empty() || !menu::with(&menu_name, |n| n.kind == Kind::Popup && n.auto_popup).unwrap_or(false) {
@@ -116,7 +115,7 @@ fn shown_menus() -> BTreeSet<String> {
     out
 }
 
-/// A menu's items as FLTK's `item_pathname` spells them: a submenu by its
+/// A menu's items as the dump spells them: a submenu by its
 /// path ("&File", "&File/&Sub"), an item by its menu's path and "/" its
 /// caption ("&File/&New", a pop-up's "/One"); `*` checked, `!` disabled.
 pub fn dump_line(root: &str) -> String {
@@ -145,7 +144,7 @@ pub fn dump_line(root: &str) -> String {
 }
 
 /// `RAPIDR_DUMP_MENUS=1`: the menus shown, on stderr, each time the model
-/// (or which menus show) changed — as FLTK prints them after each rebuild.
+/// (or which menus show) changed.
 pub(super) fn dump_if_changed() {
     if std::env::var_os("RAPIDR_DUMP_MENUS").is_none() {
         return;

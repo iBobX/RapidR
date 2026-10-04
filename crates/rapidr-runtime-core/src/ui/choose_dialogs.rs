@@ -1,10 +1,9 @@
-//! QCOLORDIALOG and QFONTDIALOG for every desktop host, as
-//! `file_dialog.rs` is for Open / Save: what the program asked for read
-//! from the component, the host's dialog shown through a `pick` closure
-//! (the kernel's drawn dialogs, FLTK's), and the answer stored the same way
-//! (`rapidr_value::color_dialog`, `rapidr_value::font_dialog`). Under a
-//! test, `RAPIDR_TEST_COLOR_DIALOG` / `RAPIDR_TEST_FONT_DIALOG` answer and
-//! nothing is shown.
+//! QCOLORDIALOG and QFONTDIALOG, as `file_dialog.rs` is for Open / Save:
+//! what the program asked for read from the component, the host's dialog
+//! shown through a `pick` closure (the kernel's drawn dialogs), and the
+//! answer stored the same way (`rapidr_value::color_dialog`,
+//! `rapidr_value::font_dialog`). Under a test, `RAPIDR_TEST_COLOR_DIALOG` /
+//! `RAPIDR_TEST_FONT_DIALOG` answer and nothing is shown.
 
 use rapidr_value::color_dialog as cd;
 use rapidr_value::font_dialog as fd;

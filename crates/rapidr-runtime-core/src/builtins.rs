@@ -195,7 +195,7 @@ pub fn rp_waitkey() -> Value {
     if rapidr_value::console::key_waiting() {
         return v_int(1);
     }
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if let Some(waited) = crate::ui::gui_wait_key() {
         return v_int(waited as i64);
     }
@@ -250,7 +250,7 @@ pub fn rp_chdrive(drive: &Value) -> Value {
 /// `DOEVENTS`: pending UI events, timers and redraws get their turn
 /// (console programs: nothing to do).
 pub fn rp_doevents() {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::gui_doevents();
 }
 
@@ -277,7 +277,7 @@ pub fn rp_environ(name: &Value) -> Value {
 pub fn rp_end() {
     // What the program wrote to files it never closed is kept.
     crate::file_io::rp_close_all();
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::before_exit();
     std::process::exit(0);
 }
@@ -288,7 +288,7 @@ pub fn rp_end() {
 /// the program goes on, as if OK was pressed.
 pub fn rp_showmessage(msg: &Value) {
     let text = msg.to_string_val();
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if std::env::var_os("RAPIDR_CAPTURE").is_none() && std::env::var_os("RAPIDR_TEST_EVENTS").is_none() {
         let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
         crate::ui::gui_choice(&title, &text, &["OK"], None, false);
@@ -299,9 +299,9 @@ pub fn rp_showmessage(msg: &Value) {
 
 pub fn rp_msgbox(msg: &Value) -> Value {
     let text = msg.to_string_val();
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::message_box(&text);
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     {
         println!("[MSGBOX] {}", text);
     }
@@ -672,7 +672,7 @@ pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Va
 }
 
 fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     {
         let labels: Vec<&str> = buttons.iter().map(|b| b.label).collect();
         let result = match crate::ui::gui_choice(title, text, &labels, icon, beep) {
@@ -681,7 +681,7 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
         };
         v_int(result)
     }
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     {
         let _ = (icon, beep);
         // No GUI: show the message and take the first (affirmative) button.
@@ -693,15 +693,15 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
 /// `MOUSEX` / `MOUSEY`: the mouse pointer relative to the active form's
 /// client area.
 pub fn rp_mousex() -> Value {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     return v_int(crate::ui::mouse_in_form().0);
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     v_int(0)
 }
 
 pub fn rp_mousey() -> Value {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     return v_int(crate::ui::mouse_in_form().1);
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     v_int(0)
 }

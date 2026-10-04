@@ -1,12 +1,11 @@
 //! Open / Save dialogs (QOPENDIALOG, QSAVEDIALOG, RAPIDQ2.INC's
-//! QFILEDIALOG) for every desktop host: what the program asked for read
-//! from the component ([`Request`]: Caption or Title, Filter / FilterIndex,
-//! InitialDir, a FileName preset, WarnIfOverWrite), the host's dialog shown
-//! through a `pick` closure (FLTK's `NativeFileChooser`, the kernel's rfd
-//! sheet), and the answer stored the same way: FileName, FileTitle,
-//! Files(…), SelCount, DefaultExt added to a saved name
-//! (`rapidr_value::file_dialog`). Under a test, `RAPIDR_TEST_FILE_DIALOG`
-//! answers and nothing is shown.
+//! QFILEDIALOG): what the program asked for read from the component
+//! ([`Request`]: Caption or Title, Filter / FilterIndex, InitialDir, a
+//! FileName preset, WarnIfOverWrite), the host's dialog shown through a
+//! `pick` closure (the kernel's rfd sheet), and the answer stored:
+//! FileName, FileTitle, Files(…), SelCount, DefaultExt added to a saved
+//! name (`rapidr_value::file_dialog`). Under a test,
+//! `RAPIDR_TEST_FILE_DIALOG` answers and nothing is shown.
 
 use rapidr_value::file_dialog as fd;
 

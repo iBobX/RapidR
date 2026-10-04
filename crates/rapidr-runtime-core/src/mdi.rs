@@ -32,9 +32,9 @@ impl Runtime for Desktop {
         get_children_of(name)
     }
     fn stack(self, names: &[String]) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::stack_widgets(names);
-        #[cfg(not(feature = "desktop-ui"))]
+        #[cfg(not(feature = "gui"))]
         let _ = names;
     }
     fn client(self, form: &str) -> (i64, i64) {

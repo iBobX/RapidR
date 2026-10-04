@@ -39,8 +39,8 @@ pub(super) fn sync(desk: &mut Desktop) {
     desk.cmds.extend(changed.into_iter().map(HostCmd::Border));
 }
 
-/// `$THEME name`: the kernel draws Windows' classic look (RapidQ's); the
-/// FLTK host's other looks (fltk-theme's) have no kernel counterpart yet.
+/// `$THEME name`: the kernel draws Windows' classic look (RapidQ's); other
+/// looks (modern, high contrast) are still to come.
 pub(super) fn theme(name: &str) {
     let n = name.trim().to_lowercase();
     if !matches!(n.as_str(), "" | "classic" | "system" | "light" | "windows" | "win95" | "win98" | "win2k") {

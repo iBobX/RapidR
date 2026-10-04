@@ -151,7 +151,7 @@ pub fn reanchor(parent: &str) {
     });
     for (i, r) in moves {
         let name = &children[i].0;
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::gui_apply_geometry(name);
         if (r.width, r.height) != (list[i].1.width, list[i].1.height) {
             client_changed(name);
@@ -208,7 +208,7 @@ pub(crate) fn after_set(name: &str, prop: &str) {
         }
         "anchors" => anchor_here(name),
         "left" | "top" | "width" | "height" | "visible" => {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             if prop != "visible" {
                 crate::ui::gui_apply_geometry(name);
             }
@@ -319,7 +319,7 @@ pub fn realign(parent: &str, changed: Option<&str>) {
         }
     });
     for (name, _, resized) in moves {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::gui_apply_geometry(&name);
         if resized {
             client_changed(&name);

@@ -1,6 +1,6 @@
 //! RapidQ's global objects on the desktop (rapidr_value::globals): the
 //! desktop host (`ui`) answers for the screen and the mouse, the system
-//! clipboard (arboard, with FLTK) for the clipboard.
+//! clipboard (arboard, with the desktop host) for the clipboard.
 
 use rapidr_value::globals::Platform;
 use rapidr_value::Value;
@@ -11,7 +11,7 @@ struct Desktop;
 thread_local! {
     /// The system clipboard, kept open (on X11 the text lives as long as
     /// its owner); without one, the program's own clipboard.
-    #[cfg(any(feature = "gui", feature = "kernel"))]
+    #[cfg(feature = "gui")]
     /// (`RAPIDR_TEST_CLIPBOARD`: tests leave the user's clipboard alone)
     static SYSTEM: RefCell<Option<arboard::Clipboard>> =
         RefCell::new(std::env::var_os("RAPIDR_TEST_CLIPBOARD").is_none().then(|| arboard::Clipboard::new().ok()).flatten());
@@ -22,40 +22,40 @@ thread_local! {
 
 impl Platform for Desktop {
     fn set_icon(&self) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::gui_apply_icons();
     }
 
     fn screen_size(&self) -> (i64, i64) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         return crate::ui::screen_size();
-        #[cfg(not(feature = "desktop-ui"))]
+        #[cfg(not(feature = "gui"))]
         (0, 0)
     }
 
     fn work_area(&self) -> (i64, i64) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         return crate::ui::work_area();
-        #[cfg(not(feature = "desktop-ui"))]
+        #[cfg(not(feature = "gui"))]
         (0, 0)
     }
 
     fn mouse(&self) -> (i64, i64) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         return crate::ui::mouse();
-        #[cfg(not(feature = "desktop-ui"))]
+        #[cfg(not(feature = "gui"))]
         (0, 0)
     }
 
     fn monitors(&self) -> i64 {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         return crate::ui::monitors();
-        #[cfg(not(feature = "desktop-ui"))]
+        #[cfg(not(feature = "gui"))]
         1
     }
 
     fn clipboard_text(&self) -> String {
-        #[cfg(any(feature = "gui", feature = "kernel"))]
+        #[cfg(feature = "gui")]
         if let Some(text) = SYSTEM.with(|s| s.borrow_mut().as_mut().map(|c| c.get_text().unwrap_or_default())) {
             return text;
         }
@@ -63,7 +63,7 @@ impl Platform for Desktop {
     }
 
     fn set_clipboard_text(&self, text: &str) {
-        #[cfg(any(feature = "gui", feature = "kernel"))]
+        #[cfg(feature = "gui")]
         if SYSTEM.with(|s| {
             s.borrow_mut().as_mut().map(|c| if text.is_empty() { c.clear().is_ok() } else { c.set_text(text).is_ok() })
         }) == Some(true)
@@ -82,7 +82,7 @@ impl Platform for Desktop {
     }
 
     fn minimize(&self) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::minimize();
     }
 

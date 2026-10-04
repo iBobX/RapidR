@@ -1060,7 +1060,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
         // --- Populate RStringGrid ---
         "togrid" | "to_grid" | "display" => {
             // Send DataFrame contents to a RStringGrid component
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 let grid_name = args.first().map(|v| v.to_string_val()).unwrap_or_default();
                 if !grid_name.is_empty() {
@@ -1079,7 +1079,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
 }
 
 /// Populate a RStringGrid from a DataFrame.
-#[cfg(feature = "desktop-ui")]
+#[cfg(feature = "gui")]
 fn populate_grid_from_df(grid_name: &str, df: &DataFrame) {
     use crate::object::{rp_comp_set, rp_comp_method};
     // Set column count

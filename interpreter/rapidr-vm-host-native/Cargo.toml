@@ -7,15 +7,13 @@ license.workspace = true
 
 [features]
 default = []
+# The desktop host: the UI kernel (docs/desktop-host-plan.md).
 gui = ["rapidr-runtime-core/gui"]
-# The UI kernel host beside FLTK (RAPIDR_HOST=kernel picks it:
-# docs/desktop-host-plan.md §1.2).
-kernel = ["rapidr-runtime-core/kernel"]
 network = ["rapidr-runtime-core/network"]
 database = ["rapidr-runtime-core/database"]
 ffi = ["rapidr-runtime-core/ffi"]
 datascience = ["rapidr-runtime-core/datascience"]
-full = ["gui", "kernel", "network", "database", "ffi", "datascience"]
+full = ["gui", "network", "database", "ffi", "datascience"]
 
 [dependencies]
 rapidr-value = { workspace = true }

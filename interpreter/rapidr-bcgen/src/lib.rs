@@ -1271,7 +1271,7 @@ impl Bcgen {
             }
         }
         // Top-level (outside CREATE) `Obj.OnEvent = Handler` — emit
-        // RegisterEvent so DOM/FLTK callbacks reach the bytecode SUB.
+        // RegisterEvent so DOM / desktop host events reach the bytecode SUB.
         if let (Expression::MemberAccess(m), Expression::Identifier(rhs_id)) =
             (&a.target, &a.value)
         {

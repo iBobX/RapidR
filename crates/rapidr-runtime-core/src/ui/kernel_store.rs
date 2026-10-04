@@ -6,7 +6,7 @@
 //! A property the program never set reads as `Null` where the kernel needs
 //! to tell (it then uses RapidQ's default): a QLABEL's Color is the one
 //! the registry fills in at creation (white), which the kernel would paint
-//! as a background FLTK's labels never have, so it reads as `Null` there.
+//! as a background a label never has, so it reads as `Null` there.
 
 use rapidr_ui_kernel::Store;
 use rapidr_value::objects::font::Font;
@@ -18,7 +18,7 @@ use crate::object::{get_children_of, rp_comp_get, rp_comp_type};
 pub struct RtStore;
 
 /// The Color the registry gives a new QLABEL, QFORM and QPANEL
-/// (`RpComponent::new`), which FLTK doesn't paint: read as unset (a label
+/// (`RpComponent::new`), which isn't painted: read as unset (a label
 /// has no background; a form and a panel are the button face) — unless the
 /// program set it (`__colorset`, object.rs), white included.
 const LABEL_DEFAULT_COLOR: i64 = 0xFFFFFF;

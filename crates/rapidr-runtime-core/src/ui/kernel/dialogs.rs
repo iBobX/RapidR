@@ -1,7 +1,7 @@
 //! Dialogs on the kernel host (the dialogs lane, plan Stage 8). **Never
 //! block on a native dialog**: each one is waited for by stepping (the
 //! windows paint, timers tick — native handlers run, the VM's wait until
-//! the builtin returns, as on FLTK).
+//! the builtin returns).
 //!
 //! - MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE / MSGBOX ([`choice`]),
 //!   QCOLORDIALOG and QFONTDIALOG: kernel-drawn modal forms

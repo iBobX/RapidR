@@ -1,5 +1,5 @@
 //! The [`Host`] trait — abstraction layer between the VM and the runtime
-//! environment (desktop FLTK runtime, web/DOM runtime, or a test stub).
+//! environment (desktop UI kernel runtime, web/DOM runtime, or a test stub).
 //!
 //! All side-effecting operations the VM can perform — printing, reading
 //! input, calling builtins, creating GUI components, accessing properties,

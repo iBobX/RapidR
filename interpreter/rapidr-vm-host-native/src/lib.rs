@@ -448,8 +448,8 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
         serve_app(&module, &mut vm);
     }
 
-    // Stop timers first so FLTK timeouts queued before the loop ended
-    // don't fire into a finished program.
+    // Stop timers first so ticks due before the loop ended don't fire
+    // into a finished program.
     obj::rp_stop_all_timers();
     obj::rp_mark_shutting_down();
     remove_event_queue(prev);

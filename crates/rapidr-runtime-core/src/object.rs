@@ -363,8 +363,8 @@ thread_local! {
 }
 
 /// Install a thread-local indirect event dispatcher. Used by the
-/// bytecode VM's NativeHost so that FLTK callbacks can re-enter the VM
-/// and invoke a bytecode function by index.
+/// bytecode VM's NativeHost so that the desktop host's events can reach
+/// the VM and invoke a bytecode function by index.
 ///
 /// Returns the previously-installed dispatcher, if any.
 pub fn rp_set_event_dispatcher(d: IndirectDispatcher) -> Option<IndirectDispatcher> {
@@ -404,8 +404,8 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
             d(handler_id, args);
         } else if !SHUTTING_DOWN.with(|s| s.get()) {
             // After `rp_run_app` returns and timers/widgets are torn
-            // down FLTK may drain a few queued callbacks. Suppress the
-            // noisy warning during shutdown — it is harmless.
+            // down the host may still deliver a few queued events.
+            // Suppress the noisy warning during shutdown — it is harmless.
             eprintln!(
                 "[rapidr] event handler #{handler_id} fired but no indirect dispatcher is registered"
             );
@@ -417,16 +417,16 @@ thread_local! {
     static SHUTTING_DOWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// Mark the runtime as shutting down so that late-firing FLTK timer
-/// callbacks (which can be queued after the dispatcher has been
-/// uninstalled) don't print a noisy "no dispatcher" warning.
+/// Mark the runtime as shutting down so that late-firing timer ticks
+/// (which can be queued after the dispatcher has been uninstalled) don't
+/// print a noisy "no dispatcher" warning.
 pub fn rp_mark_shutting_down() {
     SHUTTING_DOWN.with(|s| s.set(true));
 }
 
 /// Disable all RTimer components and clear their indirect handlers so
-/// that no further FLTK timeout ticks attempt to dispatch into a torn
-/// down VM. Called during ShowModal shutdown and from
+/// that no further timer ticks attempt to dispatch into a torn down
+/// VM. Called during ShowModal shutdown and from
 /// `rp_set_event_dispatcher(None)` so the runtime stays well-behaved.
 pub fn rp_stop_all_timers() {
     let timers: Vec<String> = COMPONENTS.with(|c| {
@@ -442,8 +442,8 @@ pub fn rp_stop_all_timers() {
             .collect()
     });
     for name in timers {
-        // Setting enabled=0 makes the existing FLTK timeout closure skip
-        // both `rp_fire_event` and `repeat_timeout3` — the timer
+        // Setting enabled=0 makes the host's timer skip `rp_fire_event`
+        // and not re-arm (Enabled is read again at each tick) — the timer
         // self-cancels on its next scheduled tick.
         rp_comp_set(&name, "enabled", v_int(0));
     }
@@ -508,7 +508,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A modal form's ModalResult set: the form closes (ShowModal returns it).
     if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if crate::ui::is_modal(name) {
             let (n, v) = (name.to_string(), val.clone());
             store_prop(&n, "modalresult", v);
@@ -592,7 +592,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
                 }
             }
             // (a form: the user can't drag it outside them)
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             if rp_comp_type(name) == "RFORM" {
                 crate::ui::gui_apply_geometry(name);
             }
@@ -603,18 +603,18 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST, QLISTVIEW's data (shared
     // with the web runtime).
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get(name, "directory").to_string_val() } else { String::new() };
-    // (a menu's change shows once the program's code returns: gui.rs)
-    #[cfg(feature = "desktop-ui")]
+    // (a menu's change shows once the program's code returns)
+    #[cfg(feature = "gui")]
     if rapidr_value::objects::menu::is_menu(name) {
         crate::ui::schedule_menu_sync();
     }
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
         let picture = rapidr_value::objects::is_picture(name);
         match result {
-            // `Image.BMP = "photo.png"`: not a BMP; FLTK shows it.
+            // `Image.BMP = "photo.png"`: not a BMP; the host loads it.
             Err(_) if picture && prop_lower == "bmp" => {
                 rp_comp_set(name, "__imagefile", val.clone());
-                #[cfg(feature = "desktop-ui")]
+                #[cfg(feature = "gui")]
                 crate::ui::image_method(name, "loadfromfile", std::slice::from_ref(&val));
             }
             Err(e) => eprintln!("[rapidr] {name}.{prop}: {e}"),
@@ -623,11 +623,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if picture {
             picture_changed(name);
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
         }
@@ -637,17 +637,17 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         // A QDIRTREE: shown again; its directory changed: OnChange.
         if rapidr_value::objects::is_dirtree(name) {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             crate::ui::dirtree_refresh(name);
             if matches!(prop_lower.as_str(), "directory" | "initialdir") && before_dir != rp_comp_get(name, "directory").to_string_val() {
                 rp_fire_event(name, "onchange");
             }
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_textedit(name) {
             crate::ui::text_push(name);
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tree(name) {
             crate::ui::tree_refresh(name);
         } else if rapidr_value::objects::is_listview(name) {
@@ -691,7 +691,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 
     // Handle runtime GUI property updates
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     {
         let comp_type = rp_comp_type(name);
         // Update visible widgets when "visible" changes
@@ -758,14 +758,14 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             comp.properties.insert("__colorset".into(), v_bool(true));
         }
         comp.properties.insert(prop_lower.clone(), val);
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if font_prop {
             drop(comps);
             crate::ui::gui_apply_font(name);
         }
     });
     // A panel's bevels drawn again.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if rapidr_value::objects::bevel::default(&prop_lower).is_some() {
         crate::ui::redraw_widget(name);
     }
@@ -773,22 +773,22 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     crate::layout::after_set(name, &prop_lower);
     // A QTABCONTROL's colour, font or Enabled: drawn again (its tabs
     // measured again).
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if rapidr_value::objects::is_tabcontrol(name) && (prop_lower.starts_with("font") || matches!(prop_lower.as_str(), "color" | "enabled")) {
         crate::ui::tab_control_changed(name);
     }
     // A parent whose widget exists already: the widget is made now.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if prop_lower == "parent" && !crate::layout::is_quiet() {
         crate::ui::attach_late(name);
     }
     // `CoolBtn.Down = True`: the others of its group come up.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if prop_lower == "down" {
         crate::ui::toggle_down_set(name);
     }
     // A QCANVAS's new size shows more or less of its surface.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_header(name) {
         crate::ui::redraw_widget(name);
     } else if matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name) {
@@ -815,42 +815,42 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if prop_lower == "autosize" {
             picture_changed(name);
         } else {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             crate::ui::picture_refresh(name);
         }
     }
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "left" | "top") && rp_comp_type(name) == "RFORM" {
         crate::ui::gui_move_form(name);
     }
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if let Some(from) = state_before {
         crate::ui::gui_set_window_state(name, from);
     }
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     let _ = state_before;
     // A list view drawn in its color and font again.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if (prop_lower == "color" || prop_lower.starts_with("font")) && rapidr_value::objects::is_listview(name) {
         crate::ui::listview_refresh(name);
     }
     // A timer enabled (again) or given another interval: it ticks.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "enabled" | "interval") && rp_comp_type(name) == "RTIMER" {
         crate::ui::gui_timer_changed(name);
     }
     // A tree's image lists: its icons shown again.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(name) {
         crate::ui::tree_refresh(name);
     }
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "icon" | "icohandle") && matches!(rp_comp_type(name).as_str(), "RFORM" | "RFORMMDI") {
         crate::ui::gui_apply_icon(name);
     }
     // A form with / without its frame (bsNone): the window and its inside.
     if prop_lower == "borderstyle" && rp_comp_type(name) == "RFORM" {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::gui_set_form_border(name);
         crate::layout::client_changed(name);
     }
@@ -874,9 +874,9 @@ pub fn form_area(name: &str) -> (i64, i64) {
 
 /// The height of a form's in-window main menu (0 on macOS or without one).
 fn menu_height(name: &str) -> i64 {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     return crate::ui::menu_offset(name) as i64;
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     {
         let _ = name;
         0
@@ -892,13 +892,13 @@ pub fn is_window(name: &str) -> bool {
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let prop_lower = prop.to_lowercase();
     // Form.Scale (RapidR's): its screen's device pixels per pixel.
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if prop_lower == "scale" && rp_comp_type(name) == "RFORM" {
         return Value::Double(crate::ui::form_scale(name));
     }
     // A window's Visible: whether it shows (Show, ShowModal, Visible = True
     // until Hide / Close or the user closes it).
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if prop_lower == "visible" && is_window(name) {
         let stored = || COMPONENTS.with(|c| c.borrow().get(&name.to_lowercase()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
         return v_bool(crate::ui::window_shown(name).unwrap_or_else(stored));
@@ -934,7 +934,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         return v;
     }
     // (what the user typed and selected, before the program reads it)
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if rapidr_value::objects::is_textedit(name) {
         crate::ui::text_pull(name);
     }
@@ -943,7 +943,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
 
     // Check GUI state overrides first
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     {
         let comp_type = rp_comp_type(name);
         match comp_type.as_str() {
@@ -1043,16 +1043,16 @@ fn picture_changed(name: &str) {
             }
         }
     }
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::picture_refresh(name);
 }
 
 /// Whether form `name`'s window exists (a size set while the form is being
 /// declared paints nothing).
 fn form_is_built(name: &str) -> bool {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     return crate::ui::form_window_exists(name);
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     {
         let _ = name;
         false
@@ -1114,21 +1114,21 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
 
     // `PopupMenu.Popup(X, Y)` (screen coordinates, as RapidQ's).
     if method_lower == "popup" && rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Popup) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         {
             crate::ui::ensure_menu_widget(name);
             crate::ui::gui_menu_popup(name, args.first().map_or(0, Value::to_i64) as i32, args.get(1).map_or(0, Value::to_i64) as i32);
         }
         return v_null();
     }
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     if rapidr_value::objects::menu::is_menu(name) {
         crate::ui::schedule_menu_sync();
     }
     // QEDIT / QRICHEDIT: the widget's text first; then Copy/Cut/Paste with
     // the clipboard, Line(i), AddStrings, … on the model, shown again.
     if rapidr_value::objects::is_textedit(name) {
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         crate::ui::text_pull(name);
         let clip = rapidr_value::objects::textedit_clipboard(
             name,
@@ -1140,7 +1140,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         );
         let result = clip.map(Ok).or_else(|| rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)));
         if let Some(result) = result {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             crate::ui::text_push(name);
             return result.unwrap_or_else(|e| {
                 eprintln!("[rapidr] {name}.{method}: {e}");
@@ -1150,17 +1150,17 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     if let Some(result) = rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {
-            // `Image.LoadFromFile "photo.png"`: not a BMP; FLTK shows it.
+            // `Image.LoadFromFile "photo.png"`: not a BMP; the host loads it.
             if result.is_err() && matches!(method_lower.as_str(), "loadfromfile" | "load") {
                 if let Some(file) = args.first() {
                     rp_comp_set(name, "__imagefile", file.clone());
                 }
-                #[cfg(feature = "desktop-ui")]
+                #[cfg(feature = "gui")]
                 return crate::ui::image_method(name, &method_lower, args);
             }
             picture_changed(name);
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) {
             crate::ui::canvas_redraw(name);
         } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
@@ -1168,16 +1168,16 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
             crate::ui::dirtree_refresh(name);
         }
         // A QHEADER's sections changed (not a drawing on it): painted again.
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_header(name) && rapidr_value::objects::header::changes_sections(&method_lower) {
             crate::ui::header_refresh(name);
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tree(name) {
             crate::ui::tree_refresh(name);
         } else if rapidr_value::objects::is_listview(name) {
@@ -1263,20 +1263,20 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         "RJSON" => json_method(name, &method_lower, args),
         // Specialized GUI component method dispatch
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         "RDESIGNSURFACE" => crate::ui::design_surface_method(name, &method_lower, args),
         // (RCODEEDITOR's GetSubList, GotoSub, GotoLine: its text model's,
         // above; the rest as any component's)
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         "RTREEVIEW" => crate::ui::tree_method(name, &method_lower, args),
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         "RCANVAS" => crate::ui::canvas_method(name, &method_lower, args),
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         "RHEADER" if matches!(method_lower.as_str(), "repaint" | "refresh" | "update" | "paint") => {
             crate::ui::header_refresh(name);
             v_null()
         }
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         "RHEADER" => crate::ui::canvas_method(name, &method_lower, args),
         // Data science component methods
         #[cfg(feature = "datascience")]
@@ -1286,7 +1286,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "datascience")]
         "RPLOT" => crate::datascience::plot_method(name, &method_lower, args),
         // RImage methods
-        #[cfg(feature = "desktop-ui")]
+        #[cfg(feature = "gui")]
         "RIMAGE" => crate::ui::image_method(name, &method_lower, args),
         // GUI component methods — generic dispatch
         _ => gui_generic_method(name, &comp_type, &method_lower, args),
@@ -1404,7 +1404,7 @@ fn button_modal_result(name: &str) {
         if mr != 0 {
             rp_comp_set(&form, "modalresult", v_int(mr));
         } else {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             crate::ui::gui_close(&form);
         }
     }
@@ -1453,8 +1453,7 @@ pub fn rp_fire_event_then(name: &str, event: &str, args: &[Value], then: impl Fn
 thread_local! {
     /// Set while a desktop host's callback is on the stack. A winit pump
     /// can't be re-entered, so program code (which may ShowModal or
-    /// DOEVENTS) mustn't run there. FLTK's callbacks may be re-entered and
-    /// never set it.
+    /// DOEVENTS) mustn't run there.
     static IN_HOST_CALLBACK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Native handlers fired meanwhile, with what follows them (a button's
     /// ModalResult, an [`rp_fire_event_then`] continuation), oldest first.
@@ -1538,41 +1537,41 @@ fn bind_handler(name: &str, event: &str, handler: EventHandler) {
 /// For the bytecode VM: `ShowModal` leaves its wait to the VM (see
 /// `ui::gui_set_cooperative_waits`), which serves it with [`rp_pump_wait`].
 pub fn rp_set_cooperative_waits(on: bool) {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::gui_set_cooperative_waits(on);
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     let _ = on;
 }
 
 /// Whether the last operation started a wait (asked once per operation).
 pub fn rp_take_wait_started() -> bool {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     return crate::ui::gui_take_wait_started();
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     false
 }
 
 /// Starts waiting for the program's windows (the main event loop).
 pub fn rp_begin_app_wait() {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     crate::ui::gui_begin_app_wait();
 }
 
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
 pub fn rp_pump_wait() -> Option<Value> {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     return crate::ui::gui_pump_wait();
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     Some(v_null())
 }
 
 /// Start the GUI event loop (or no-op without GUI feature).
 pub fn rp_run_app() {
-    #[cfg(feature = "desktop-ui")]
+    #[cfg(feature = "gui")]
     {
         crate::ui::run_gui_event_loop();
     }
-    #[cfg(not(feature = "desktop-ui"))]
+    #[cfg(not(feature = "gui"))]
     {
         println!("[GUI] ShowModal called — GUI not compiled, returning immediately.");
     }
@@ -1822,32 +1821,32 @@ fn value_to_json(val: &Value) -> serde_json::Value {
 fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "showmodal" => {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 // (the form's ModalResult; the interpreter's comes when
                 // its wait ends: gui_pump_wait)
                 return v_int(crate::ui::gui_showmodal(name));
             }
-            #[cfg(not(feature = "desktop-ui"))]
+            #[cfg(not(feature = "gui"))]
             {
                 println!("[GUI] {}.ShowModal() — GUI not compiled.", name);
                 v_null()
             }
         }
         "show" => {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 crate::ui::gui_show(name);
                 return v_null();
             }
-            #[cfg(not(feature = "desktop-ui"))]
+            #[cfg(not(feature = "gui"))]
             {
                 println!("[GUI] {}.Show() — GUI not compiled.", name);
                 v_null()
             }
         }
         "close" | "hide" => {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 if method == "close" {
                     crate::ui::gui_close(name);
@@ -1856,7 +1855,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 }
                 return v_null();
             }
-            #[cfg(not(feature = "desktop-ui"))]
+            #[cfg(not(feature = "gui"))]
             {
                 println!("[GUI] {}.Close()", name);
                 v_null()
@@ -1864,18 +1863,18 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // `Form.Repaint` (Refresh, Update, Paint): drawn again, OnPaint.
         "repaint" | "refresh" | "update" | "paint" => {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             crate::ui::canvas_redraw(name);
             rp_fire_event(name, "onpaint");
             v_null()
         }
         "center" => {
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 crate::ui::gui_center(name);
                 return v_null();
             }
-            #[cfg(not(feature = "desktop-ui"))]
+            #[cfg(not(feature = "gui"))]
             {
                 println!("[GUI] {}.Center()", name);
                 v_null()
@@ -1883,12 +1882,12 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         "setparent" => {
             let parent = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 crate::ui::gui_set_parent(name, &parent);
                 return v_null();
             }
-            #[cfg(not(feature = "desktop-ui"))]
+            #[cfg(not(feature = "gui"))]
             {
                 rp_comp_set(name, "parent", v_str(&parent));
                 v_null()
@@ -1896,7 +1895,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         "clear" => {
             // For ListBox, ComboBox, StringGrid, etc.
-            #[cfg(feature = "desktop-ui")]
+            #[cfg(feature = "gui")]
             {
                 crate::ui::gui_widget_clear(name);
             }
@@ -1916,7 +1915,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                     format!("{}\n{}", current, item)
                 };
                 rp_comp_set(name, "items", v_str(&new_items));
-                #[cfg(feature = "desktop-ui")]
+                #[cfg(feature = "gui")]
                 {
                     crate::ui::gui_widget_add_items(name, &item);
                 }
@@ -1965,11 +1964,11 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             match comp_type {
                 "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => {
                     // In non-GUI mode, return false
-                    #[cfg(feature = "desktop-ui")]
+                    #[cfg(feature = "gui")]
                     {
                         return crate::ui::gui_dialog_execute(name, comp_type);
                     }
-                    #[cfg(not(feature = "desktop-ui"))]
+                    #[cfg(not(feature = "gui"))]
                     {
                         println!("[GUI] {}.Execute() — dialog stub", name);
                         v_int(0)

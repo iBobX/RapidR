@@ -1,4 +1,4 @@
-//! The GUI tests' environment, parsed once for every desktop host:
+//! The GUI tests' environment, parsed once for the desktop host:
 //!
 //! - `RAPIDR_CAPTURE=<prefix>`: after `RAPIDR_CAPTURE_DELAY` seconds (default
 //!   1.5) the host fires the test's events, prints the dump, saves every
@@ -289,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn numbers_that_dont_parse_are_skipped_as_the_fltk_hook_did() {
+    fn numbers_that_dont_parse_are_skipped() {
         assert_eq!(act("e.__key_65_x"), Action::Key(65));
         assert_eq!(act("e.__key_1_2"), Action::Ignored);
         assert_eq!(act("e.__key_"), Action::Ignored);

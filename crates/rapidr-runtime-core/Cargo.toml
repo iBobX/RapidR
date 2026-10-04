@@ -10,8 +10,6 @@ rapidr-value = { workspace = true }
 serde_json = "1"
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 ureq = { version = "2", optional = true }
-fltk = { version = "1.4", optional = true }
-fltk-theme = { version = "0.7", optional = true }
 # (no derive: it pulled the unmaintained proc-macro-error2; no TLS: RapidR
 # never asks for it; flate2 in pure Rust: no system zlib)
 mysql = { version = "28", optional = true, default-features = false, features = ["minimal-rust", "buffer-pool"] }
@@ -22,7 +20,7 @@ image = { version = "0.24", optional = true, default-features = false, features 
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
-# The UI kernel and its winit / headless host (`kernel`).
+# The UI kernel and its winit / headless host (`gui`).
 rapidr-ui-kernel = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
 
@@ -34,12 +32,10 @@ libc = "0.2"
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rusqlite", "dep:mysql"]
 network = ["dep:ureq"]
-# A desktop host: FLTK (`gui`) or the UI kernel (`kernel`:
-# docs/desktop-host-plan.md); the runtime reaches either through `src/ui`.
-# With both, RAPIDR_HOST=kernel|fltk picks one (default fltk).
-desktop-ui = []
-gui = ["desktop-ui", "dep:fltk", "dep:fltk-theme", "dep:arboard"]
-kernel = ["desktop-ui", "dep:rapidr-ui-kernel", "dep:rapidr-ui-host-winit", "dep:arboard"]
+# The desktop host: the UI kernel and its winit host
+# (docs/desktop-host-plan.md), reached through `src/ui`; the system
+# clipboard.
+gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-host-winit", "dep:arboard"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
 ffi = ["dep:libloading"]

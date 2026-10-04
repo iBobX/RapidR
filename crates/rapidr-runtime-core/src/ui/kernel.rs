@@ -1,4 +1,4 @@
-//! The UI kernel as the runtime's desktop host (`RAPIDR_HOST=kernel`;
+//! The UI kernel as the runtime's desktop host (the only one;
 //! docs/desktop-host-plan.md §1.3–§1.5): the facade's functions for the
 //! kernel (`rapidr_ui_kernel`) and its winit or headless host
 //! (`rapidr_ui_host_winit`).
@@ -343,7 +343,7 @@ fn dispatch_pending() {
     }
 }
 
-/// A kernel event, as FLTK's callbacks fire it (gui.rs).
+/// A kernel event, fired as the program's event (OnClick, OnKeyDown …).
 fn dispatch(ev: KernelEvent) {
     match ev {
         KernelEvent::Click(id) => rp_fire_event(&id, "onclick"),
@@ -394,8 +394,8 @@ fn dispatch(ev: KernelEvent) {
     }
 }
 
-/// A container's action (containers lane): what gui.rs's scroll bars,
-/// splitter and MDI frame handlers do.
+/// A container's action (containers lane): a scroll bar, a splitter or an
+/// MDI frame the user moved, into the shared layout models.
 fn container_event(c: rapidr_ui_kernel::components::form::Container) {
     use rapidr_ui_kernel::components::form::Container;
     match c {
@@ -411,12 +411,11 @@ fn container_event(c: rapidr_ui_kernel::components::form::Container) {
     }
 }
 
-/// `name`'s mouse event (gui.rs's `mouse_event`; a QIMAGE's too — the
-/// kernel draws it and routes its mouse like any component's, where FLTK's
-/// image widget fired its own).
+/// `name`'s mouse event (a QIMAGE's too: the kernel draws it and routes
+/// its mouse like any component's).
 fn mouse_event(name: &str, kind: Mouse, button: Button, x: i64, y: i64, shift: i64) {
     // (Stage 10: a design surface's mouse is its own events — OnSelect,
-    // OnMove …, components/design.rs — as FLTK's handler took it whole)
+    // OnMove …, components/design.rs — it takes the mouse whole)
     if rapidr_value::objects::is_design(name) {
         return;
     }
@@ -429,7 +428,7 @@ fn mouse_event(name: &str, kind: Mouse, button: Button, x: i64, y: i64, shift: i
 /// The user resized a form's window to `w` × `h` (its inside, the
 /// in-window menu included): its Width / Height follow (within its
 /// Constraints), its aligned and anchored children are laid out again,
-/// OnResize and OnPaint fire (gui.rs's `form_resized`).
+/// OnResize and OnPaint fire.
 fn form_resized(form: &str, w: i64, h: i64) {
     let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(form, "borderstyle").to_i64());
     let asked = (w + fw, h + fh);
@@ -542,7 +541,7 @@ fn fire_due_timers() {
 // ---------------------------------------------------------------- forms --
 
 /// Whether a QMAINMENU is a bar inside its form's window: everywhere but
-/// macOS (its system menu bar), unless `RAPIDR_MENU=window` (gui.rs's).
+/// macOS (its system menu bar), unless `RAPIDR_MENU=window`.
 fn menu_in_window() -> bool {
     !cfg!(target_os = "macos") || std::env::var("RAPIDR_MENU").is_ok_and(|v| v.eq_ignore_ascii_case("window"))
 }
@@ -684,7 +683,7 @@ fn hide_window(name: &str) {
 
 /// A form's window shown: drawn at its screen's scale from now on, then
 /// (the first time) its OnPaint — as Windows' WM_PAINT comes once a window
-/// shows, after OnShow (gui.rs's `after_show`).
+/// shows, after OnShow.
 fn after_show(name: &str) {
     let name = lower(name);
     let host_scale = with_kern(|k| k.desk.forms.get(&name).map(|f| f.scale).unwrap_or_else(|| k.host.default_scale()));
@@ -785,7 +784,7 @@ pub fn gui_apply_font(_name: &str) {
     invalidate();
 }
 /// The program set a QCOOLBTN's / QOVALBTN's Down: the others of its
-/// group come up (gui.rs's, host-neutral: rapidr_value::toggle_group).
+/// group come up (host-neutral: rapidr_value::toggle_group).
 pub fn toggle_down_set(name: &str) {
     if !is_toggle_button(name) {
         return;
@@ -857,8 +856,8 @@ pub fn ensure_menu_widget(_name: &str) {
     restructure();
 }
 
-/// `Visible`: a built form's window shows or hides (no OnShow, as FLTK's
-/// `show()`); a component is read from the store when painted.
+/// `Visible`: a built form's window shows or hides (no OnShow: Show fires
+/// that); a component is read from the store when painted.
 pub fn gui_set_visible(name: &str, visible: bool) {
     if is_form(name) && window_shown(name).is_some() {
         if visible {
@@ -1067,7 +1066,7 @@ pub fn gui_showmodal(name: &str) -> i64 {
     while form_shown(&name) {
         step(None);
     }
-    // (as FLTK's: the timers stop with the modal form)
+    // (the timers stop with the modal form)
     crate::object::rp_stop_all_timers();
     modal_ended(&name)
 }
@@ -1218,8 +1217,7 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
 
 /// A QIMAGE's methods the shared model leaves to the runtime (the
 /// surfaces lane's): a plot's picture (LoadFromPlot), Clear, and a file
-/// the model couldn't read (it reads BMP, PNG, JPEG, ICO and SVG; FLTK
-/// read a few more formats).
+/// the model couldn't read (it reads BMP, PNG, JPEG, ICO and SVG).
 pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "loadfromfile" | "load" => {
@@ -1340,7 +1338,7 @@ pub fn minimize() {
 /// MSGBOX: the text and OK.
 pub fn message_box(text: &str) {
     // (the dialogs lane's: SHOWMESSAGE's box, titled Application.Title, as
-    // FLTK's and the web's)
+    // the web's)
     let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
     gui_choice(&title, text, &["OK"], None, false);
 }
@@ -1414,7 +1412,7 @@ fn test_key(comp: &str, vk: i64) {
 
 /// `comp.__mousedown_x_y` …: the mouse at (x, y) in the component, through
 /// the kernel's routing (hit test, capture), as the user's would be. A
-/// press is a single click (as FLTK's hook's), however soon after another.
+/// press is a single click, however soon after another.
 fn test_mouse(comp: &str, kind: Mouse, x: i64, y: i64) {
     let Some((form, (ox, oy))) = place_of(comp) else { return };
     let (x, y) = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
@@ -1508,7 +1506,7 @@ fn script_step() {
         capture_and_end();
     }
     // (busy until this step's handlers have run: a handler's ShowModal steps
-    // again, and the next event waits for it, as FLTK's hook's timeout does)
+    // again, and the next event waits for it)
     st(|s| {
         if let Some(sc) = s.script.as_mut() {
             sc.next = now + Duration::from_secs(86_400);

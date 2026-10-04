@@ -1,7 +1,7 @@
 //! The lists lane's runtime side of the kernel host (docs/desktop-host-
 //! plan.md §2.2 group 3): what the program does for QLISTBOX, QCOMBOBOX,
 //! QLISTVIEW, QSTRINGGRID, QHEADER, QTREEVIEW / QOUTLINE and QDIRTREE /
-//! QFILELISTBOX, host-neutrally, as gui.rs does it for FLTK's widgets.
+//! QFILELISTBOX, host-neutrally.
 //!
 //! - [`dispatch`]: what the user did that the program answers
 //!   (`ListAction`, queued by the kernel's components): OnChanging,
@@ -28,7 +28,7 @@ use super::kernel::{invalidate_all, is_shown_form};
 // ------------------------------------------------------------ dispatch --
 
 /// What the user did to component `id` (after the pump, each to
-/// completion), as gui.rs's callbacks do it.
+/// completion).
 pub fn dispatch(id: &str, action: ListAction) {
     match action {
         ListAction::Fire(event, args) => rp_fire_event_args(id, &event, &args),
@@ -46,7 +46,7 @@ pub fn dispatch(id: &str, action: ListAction) {
 }
 
 /// The user picked node `i`: OnChanging (Index, AllowChange) may refuse;
-/// then the selection and OnChange (Index). (gui.rs's `tree_user_select`.)
+/// then the selection and OnChange (Index).
 fn tree_user_select(name: &str, i: usize) {
     if rapidr_value::objects::with_tree(name, |m| m.item_index) == Some(i as i64) {
         return;
@@ -144,7 +144,7 @@ fn grid_store(name: &str, value: String) {
 
 /// A gcsList column's drop-down: OnListDropDown (Col, Row, S) may change
 /// the items (its S comes back); then the kernel drops them under the
-/// cell, and a pick is stored like an edit (gui.rs's `grid_drop_down`).
+/// cell, and a pick is stored like an edit.
 fn grid_list_drop(name: &str, c: i64, r: i64, anchor: rapidr_value::objects::ops::Rect) {
     let Some(list) = rapidr_value::objects::with_grid(name, |g| g.list_text(c as usize, r as usize)).flatten() else { return };
     let Some(form) = crate::object::form_of(name) else { return };
@@ -158,8 +158,8 @@ fn grid_list_drop(name: &str, c: i64, r: i64, anchor: rapidr_value::objects::ops
 
 // --------------------------------------------------- tree's own calls --
 
-/// QTREEVIEW changed: OnDeletion (Index) for the nodes the program deleted
-/// (as FLTK's `tree_refresh`).
+/// QTREEVIEW changed: OnDeletion (Index) for the nodes the program
+/// deleted.
 pub fn tree_refresh(name: &str) {
     let name = name.to_lowercase();
     for i in rapidr_value::objects::with_tree(&name, |m| m.take_deleted()).unwrap_or_default() {
@@ -236,8 +236,8 @@ pub fn pre_paint(forms: &[String]) {
         match t.as_str() {
             "RLISTBOX" | "RCOMBOBOX" if shown(&id) => list_pre_paint(&id, &t),
             "RSTRINGGRID" if shown(&id) => {
-                // (VisibleRowCount / VisibleColCount: its inside, as FLTK's
-                // table sets it; the kernel paints only when a window does)
+                // (VisibleRowCount / VisibleColCount: its inside — set here,
+                // since the kernel paints only when a window does)
                 let (w, h) = size_of(&id, &t);
                 rapidr_value::objects::with_grid_mut(&id, |g| g.view = (w - 4, h - 4));
                 grid_owner_draw(&id);
@@ -251,8 +251,7 @@ pub fn pre_paint(forms: &[String]) {
 
 /// An owner-drawn or multi-column list: its view's size, OnMeasureItem's
 /// heights (lbOwnerDrawVariable), then OnDrawItem for every item after a
-/// change (gui.rs's `list_refresh` for its table, `list_measure`,
-/// `list_owner_draw`).
+/// change.
 fn list_pre_paint(name: &str, type_name: &str) {
     if !rapidr_value::objects::with_list(name, |l| l.custom_drawn() || (l.combo && l.owner_drawn())).unwrap_or(false) {
         return;
@@ -306,7 +305,7 @@ fn list_owner_draw(name: &str) {
 }
 
 /// OnDrawCell (Col, Row, State, Rect) for every cell after a shown grid
-/// changed (gui.rs's `grid_owner_draw`).
+/// changed.
 fn grid_owner_draw(name: &str) {
     if !rp_has_handler(name, "ondrawcell") {
         return;
@@ -327,7 +326,7 @@ fn grid_owner_draw(name: &str) {
 
 /// A shown QHEADER's faces painted on its surface again when its size or
 /// sections changed (or one is pressed), and OnDrawSection (Index,
-/// Pressed, Rect) for its owner-drawn ones (gui.rs's `header_refresh`).
+/// Pressed, Rect) for its owner-drawn ones.
 fn header_paint(name: &str) {
     let (w, h) = size_of(name, "RHEADER");
     let Some(state) = rapidr_value::objects::with_header(name, |hd| format!("{w}x{h} {:?} {:?}", hd.pressed, hd.sections)) else { return };
@@ -346,8 +345,7 @@ fn header_paint(name: &str) {
 }
 
 /// OnGetImageIndex (Index) for each shown node, OnGetSelectedIndex (Index)
-/// for the selected one, when what the tree shows changed (gui.rs's
-/// `tree_ask_images`).
+/// for the selected one, when what the tree shows changed.
 fn tree_ask_images(name: &str) {
     let ask = |e: &str| rp_has_handler(name, e);
     let key = name.to_lowercase();
