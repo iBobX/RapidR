@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**508 libraries** under 25 license expressions.
+**529 libraries** under 25 license expressions.
 
-## Apache-2.0 OR MIT (287)
+## Apache-2.0 OR MIT (301)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -83,6 +83,8 @@ which also carries their full license texts.
 | float-ord | 0.3.2 | <https://github.com/notriddle/rust-float-ord> |
 | fnv | 1.0.7 | <https://github.com/servo/rust-fnv> |
 | font-kit | 0.14.3 | <https://github.com/servo/font-kit> |
+| font-types | 0.12.6 | <https://github.com/googlefonts/fontations> |
+| fontique | 0.11.1 | <https://github.com/linebender/parley> |
 | foreign-types | 0.3.2 | <https://github.com/sfackler/foreign-types> |
 | foreign-types | 0.5.0 | <https://github.com/sfackler/foreign-types> |
 | foreign-types-macros | 0.2.3 | <https://github.com/sfackler/foreign-types> |
@@ -108,6 +110,7 @@ which also carries their full license texts.
 | hashbrown | 0.14.5 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.15.5 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.16.1 | <https://github.com/rust-lang/hashbrown> |
+| hashbrown | 0.17.1 | <https://github.com/rust-lang/hashbrown> |
 | hashlink | 0.9.1 | <https://github.com/kyren/hashlink> |
 | heck | 0.5.0 | <https://github.com/withoutboats/heck> |
 | hex | 0.4.3 | <https://github.com/KokaKiwi/rust-hex> |
@@ -137,6 +140,7 @@ which also carries their full license texts.
 | lewton | 0.10.2 | <https://github.com/RustAudio/lewton> |
 | libc | 0.2.183 | <https://github.com/rust-lang/libc> |
 | libz-sys | 1.1.25 | <https://github.com/rust-lang/libz-sys> |
+| linebender_resource_handle | 0.1.1 | <https://github.com/linebender/raw_resource_handle> |
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
 | matrixmultiply | 0.3.10 | <https://github.com/bluss/matrixmultiply/> |
@@ -163,6 +167,9 @@ which also carries their full license texts.
 | openssl-probe | 0.2.1 | <https://github.com/rustls/openssl-probe> |
 | parking_lot | 0.12.5 | <https://github.com/Amanieu/parking_lot> |
 | parking_lot_core | 0.9.12 | <https://github.com/Amanieu/parking_lot> |
+| parlance | 0.1.0 | <https://github.com/linebender/parley> |
+| parley | 0.11.1 | <https://github.com/linebender/parley> |
+| parley_data | 0.11.1 | <https://github.com/linebender/parley> |
 | pathfinder_geometry | 0.5.1 | <https://github.com/servo/pathfinder> |
 | pathfinder_simd | 0.5.5 | <https://github.com/servo/pathfinder> |
 | percent-encoding | 2.3.2 | <https://github.com/servo/rust-url/> |
@@ -189,6 +196,7 @@ which also carries their full license texts.
 | rawpointer | 0.2.1 | <https://github.com/bluss/rawpointer/> |
 | rayon | 1.11.0 | <https://github.com/rayon-rs/rayon> |
 | rayon-core | 1.13.0 | <https://github.com/rayon-rs/rayon> |
+| read-fonts | 0.41.0 | <https://github.com/googlefonts/fontations> |
 | ref-cast | 1.0.25 | <https://github.com/dtolnay/ref-cast> |
 | ref-cast-impl | 1.0.25 | <https://github.com/dtolnay/ref-cast> |
 | regex | 1.12.3 | <https://github.com/rust-lang/regex> |
@@ -216,6 +224,7 @@ which also carries their full license texts.
 | simdutf8 | 0.1.5 | <https://github.com/rusticstuff/simdutf8> |
 | simplecss | 0.2.2 | <https://github.com/linebender/simplecss> |
 | siphasher | 1.0.2 | <https://github.com/jedisct1/rust-siphash> |
+| skrifa | 0.44.0 | <https://github.com/googlefonts/fontations> |
 | smallvec | 1.15.1 | <https://github.com/servo/rust-smallvec> |
 | socket2 | 0.5.10 | <https://github.com/rust-lang/socket2> |
 | socket2 | 0.6.3 | <https://github.com/rust-lang/socket2> |
@@ -265,14 +274,18 @@ which also carries their full license texts.
 | winapi-x86_64-pc-windows-gnu | 0.4.0 | <https://github.com/retep998/winapi-rs> |
 | windows | 0.54.0 | <https://github.com/microsoft/windows-rs> |
 | windows | 0.57.0 | <https://github.com/microsoft/windows-rs> |
+| windows | 0.62.2 | <https://github.com/microsoft/windows-rs> |
+| windows-collections | 0.3.2 | <https://github.com/microsoft/windows-rs> |
 | windows-core | 0.54.0 | <https://github.com/microsoft/windows-rs> |
 | windows-core | 0.57.0 | <https://github.com/microsoft/windows-rs> |
 | windows-core | 0.62.2 | <https://github.com/microsoft/windows-rs> |
+| windows-future | 0.3.2 | <https://github.com/microsoft/windows-rs> |
 | windows-implement | 0.57.0 | <https://github.com/microsoft/windows-rs> |
 | windows-implement | 0.60.2 | <https://github.com/microsoft/windows-rs> |
 | windows-interface | 0.57.0 | <https://github.com/microsoft/windows-rs> |
 | windows-interface | 0.59.3 | <https://github.com/microsoft/windows-rs> |
 | windows-link | 0.2.1 | <https://github.com/microsoft/windows-rs> |
+| windows-numerics | 0.3.1 | <https://github.com/microsoft/windows-rs> |
 | windows-result | 0.1.2 | <https://github.com/microsoft/windows-rs> |
 | windows-result | 0.4.1 | <https://github.com/microsoft/windows-rs> |
 | windows-strings | 0.5.1 | <https://github.com/microsoft/windows-rs> |
@@ -282,6 +295,7 @@ which also carries their full license texts.
 | windows-sys | 0.61.2 | <https://github.com/microsoft/windows-rs> |
 | windows-targets | 0.42.2 | <https://github.com/microsoft/windows-rs> |
 | windows-targets | 0.52.6 | <https://github.com/microsoft/windows-rs> |
+| windows-threading | 0.2.1 | <https://github.com/microsoft/windows-rs> |
 | windows_aarch64_gnullvm | 0.42.2 | <https://github.com/microsoft/windows-rs> |
 | windows_aarch64_gnullvm | 0.52.6 | <https://github.com/microsoft/windows-rs> |
 | windows_aarch64_msvc | 0.42.2 | <https://github.com/microsoft/windows-rs> |
@@ -304,7 +318,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (122)
+## MIT (123)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -340,6 +354,7 @@ which also carries their full license texts.
 | frunk_proc_macros | 0.1.4 | <https://github.com/lloydmeta/frunk> |
 | funty | 2.0.0 | <https://github.com/myrrlyn/funty> |
 | generic-array | 0.14.7 | <https://github.com/fizyk20/generic-array.git> |
+| harfrust | 0.12.0 | <https://github.com/harfbuzz/harfrust> |
 | http-body | 1.0.1 | <https://github.com/hyperium/http-body> |
 | http-body-util | 0.1.3 | <https://github.com/hyperium/http-body> |
 | http-range-header | 0.4.2 | <https://github.com/MarcusGrass/parse-range-headers> |
@@ -431,17 +446,21 @@ which also carries their full license texts.
 | zmij | 1.0.21 | <https://github.com/dtolnay/zmij> |
 | zstd | 0.13.3 | <https://github.com/gyscos/zstd-rs> |
 
-## Unicode-3.0 (18)
+## Unicode-3.0 (22)
 
 | Library | Version | Upstream |
 |---|---|---|
 | icu_collections | 2.1.1 | <https://github.com/unicode-org/icu4x> |
+| icu_locale | 2.1.1 | <https://github.com/unicode-org/icu4x> |
 | icu_locale_core | 2.1.1 | <https://github.com/unicode-org/icu4x> |
+| icu_locale_data | 2.1.2 | <https://github.com/unicode-org/icu4x> |
 | icu_normalizer | 2.1.1 | <https://github.com/unicode-org/icu4x> |
 | icu_normalizer_data | 2.1.1 | <https://github.com/unicode-org/icu4x> |
 | icu_properties | 2.1.2 | <https://github.com/unicode-org/icu4x> |
 | icu_properties_data | 2.1.2 | <https://github.com/unicode-org/icu4x> |
 | icu_provider | 2.1.1 | <https://github.com/unicode-org/icu4x> |
+| icu_segmenter | 2.1.2 | <https://github.com/unicode-org/icu4x> |
+| icu_segmenter_data | 2.1.1 | <https://github.com/unicode-org/icu4x> |
 | litemap | 0.8.1 | <https://github.com/unicode-org/icu4x> |
 | potential_utf | 0.1.4 | <https://github.com/unicode-org/icu4x> |
 | tinystr | 0.8.2 | <https://github.com/unicode-org/icu4x> |
@@ -490,7 +509,7 @@ which also carries their full license texts.
 | streaming-decompression | 0.1.2 | <https://github.com/jorgecarleitao/streaming-decompressor> |
 | sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
 
-## Apache-2.0 OR MIT OR Zlib (10)
+## Apache-2.0 OR MIT OR Zlib (11)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -501,6 +520,7 @@ which also carries their full license texts.
 | objc2-app-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-text | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
 | tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
@@ -569,6 +589,14 @@ which also carries their full license texts.
 | polars-parquet | 0.46.0 | <https://github.com/pola-rs/polars> |
 | polars-parquet-format | 0.1.0 | <https://github.com/pola-rs/parquet-format> |
 
+## Zlib (3)
+
+| Library | Version | Upstream |
+|---|---|---|
+| foldhash | 0.1.5 | <https://github.com/orlp/foldhash> |
+| foldhash | 0.2.0 | <https://github.com/orlp/foldhash> |
+| slotmap | 1.1.1 | <https://github.com/orlp/slotmap> |
+
 ## Apache-2.0 OR BSD-3-Clause OR MIT (2)
 
 | Library | Version | Upstream |
@@ -589,13 +617,6 @@ which also carries their full license texts.
 |---|---|---|
 | webpki-roots | 0.26.11 | <https://github.com/rustls/webpki-roots> |
 | webpki-roots | 1.0.6 | <https://github.com/rustls/webpki-roots> |
-
-## Zlib (2)
-
-| Library | Version | Upstream |
-|---|---|---|
-| foldhash | 0.1.5 | <https://github.com/orlp/foldhash> |
-| slotmap | 1.1.1 | <https://github.com/orlp/slotmap> |
 
 ## (Apache-2.0 OR MIT) AND BSD-3-Clause (1)
 

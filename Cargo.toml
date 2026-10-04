@@ -13,6 +13,7 @@ members = [
     "crates/rapidr-codegen-rust",
     "crates/rapidr-buildserver",
     "crates/rapidr-value",
+    "crates/rapidr-ui-kernel",
     "interpreter/rapidr-bytecode",
     "interpreter/rapidr-vm",
     "interpreter/rapidr-bcgen",
@@ -42,6 +43,7 @@ rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
 rapidr-rrcss = { path = "crates/rapidr-rrcss" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
+rapidr-ui-kernel = { path = "crates/rapidr-ui-kernel" }
 rapidr-bytecode = { path = "interpreter/rapidr-bytecode" }
 rapidr-vm = { path = "interpreter/rapidr-vm" }
 rapidr-bcgen = { path = "interpreter/rapidr-bcgen" }

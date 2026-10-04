@@ -97,21 +97,10 @@ impl Default for TabControl {
     }
 }
 
-/// A rectangle (x, y, width, height).
-pub type Rect = (i64, i64, i64, i64);
-
-/// What to draw, in the control's pixels.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Op {
-    Fill { rect: Rect, color: u32 },
-    /// `text` centred in `rect`, turned `angle` degrees (90: reading upward,
-    /// -90: downward), in `font`, `color` (0xRRGGBB).
-    Text { rect: Rect, text: String, angle: i32, font: Font, color: u32 },
-    /// A dotted focus rectangle.
-    Focus { rect: Rect },
-    /// A filled triangle (a scroll button's arrow).
-    Arrow { points: [(f64, f64); 3], color: u32 },
-}
+/// A rectangle (x, y, width, height); what to draw, in the control's
+/// pixels: the shared op vocabulary's model subset (`super::ops`), which
+/// converts into the UI kernel's `ops::Op` unchanged.
+pub use super::ops::{ModelOp as Op, Rect};
 
 /// Which side of the area a tab hangs on (canonical: tabs along the top
 /// hang on the area's top edge; ScrollOpposite's other rows on its bottom).
@@ -321,6 +310,17 @@ impl TabControl {
     pub fn display(&self, w: i64, h: i64, font: &Font) -> Rect {
         let l = self.layout(w, h, font);
         self.map(&l, l.display)
+    }
+
+    /// Tab `i`'s rectangle in a `w` × `h` control, in the control's pixels
+    /// (the selected tab as it's drawn, grown over its neighbours): what a
+    /// screen reader is told its bounds are. `None`: no such tab, or one
+    /// scrolled out of view.
+    pub fn tab_rect(&self, i: usize, w: i64, h: i64, font: &Font) -> Option<Rect> {
+        let l = self.layout(w, h, font);
+        let it = l.items.iter().find(|it| it.index == i && it.shown)?;
+        let r = if self.index == i as i64 && !self.button_style { Self::selected_rect(it) } else { it.rect };
+        Some(self.map(&l, r))
     }
 
     /// The selected tab's rectangle grown by SELECTED on its sides and
@@ -836,6 +836,24 @@ mod tests {
         let (vx, vy, _, _) = t.display(300, 200, &font);
         assert_eq!((vx, vy), (2 + fh + 5 + 4, 4));
         assert!(t.ops(300, 200, &font, 0xF0F0F0, true, true).iter().any(|o| matches!(o, Op::Text { angle: 90, .. })));
+    }
+
+    #[test]
+    fn tab_rects_are_where_clicks_select() {
+        let font = Font::default();
+        let mut t = tc(&["One", "Two", "Three"]);
+        let fh = text_size("Ag", &font).1;
+        // the selected tab grown by 2 each side and up, 1 into the frame
+        assert_eq!(t.tab_rect(0, 300, 200, &font), Some((0, 0, text_size("One", &font).0 + 12 + 4, fh + 5 + 3)));
+        let two = t.tab_rect(1, 300, 200, &font).unwrap();
+        assert_eq!(two.1, 2, "unselected tabs sit 2 lower");
+        assert_eq!(t.mouse_down(two.0 + two.2 / 2, two.1 + two.3 / 2, 300, 200, &font), Some((true, true)));
+        assert_eq!(t.index, 1);
+        assert_eq!(t.tab_rect(3, 300, 200, &font), None);
+        // turned with the tabs
+        t.set("verticaltabs", &v_int(1));
+        let (x, y, w, h) = t.tab_rect(1, 300, 200, &font).unwrap();
+        assert!(h > w && x == 0 && y > 0);
     }
 
     #[test]

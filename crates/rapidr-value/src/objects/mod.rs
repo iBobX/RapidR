@@ -8,6 +8,7 @@
 //! `Bitmap.Draw(0, 0, Sprite)`) arrives as that id; an image can also be a
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
+pub mod a11y;
 pub mod bevel;
 pub mod bitmap;
 pub mod codec;
@@ -22,6 +23,7 @@ pub mod list;
 pub mod listview;
 pub mod memstream;
 pub mod menu;
+pub mod ops;
 pub mod printer;
 pub mod text;
 pub mod tabcontrol;
@@ -645,6 +647,12 @@ pub fn with_canvas<R>(id: &str, width: i64, height: i64, f: impl FnOnce(&mut Bit
 
 pub fn exists(id: &str) -> bool {
     OBJECTS.with(|o| o.borrow().contains_key(&id.to_lowercase()))
+}
+
+/// Forgets object `id` (a kernel-drawn dialog's components once it
+/// closes; a test's store starting again); whether there was one.
+pub fn remove(id: &str) -> bool {
+    OBJECTS.with(|o| o.borrow_mut().remove(&id.to_lowercase()).is_some())
 }
 
 fn with<R>(id: &str, f: impl FnOnce(&mut Object) -> R) -> Option<R> {

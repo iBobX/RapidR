@@ -1,0 +1,22 @@
+[package]
+name = "rapidr-ui-kernel"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's GUI-free UI kernel: forms as retained trees over the property store, focus, input routing, display lists, parley text and editors, accessibility trees"
+
+# GUI-free on purpose: no winit, wgpu, vello or accesskit (the desktop host,
+# rapidr-ui-host-winit, brings those). It must keep building for
+# wasm32-unknown-unknown (tools/regress.sh's unit stage checks it).
+[dependencies]
+rapidr-value = { workspace = true }
+# Text shaping, layout and editing (MIT OR Apache-2.0; pure Rust). Its
+# "system" feature adds the platform's fonts as fallbacks (CJK, emoji) for
+# what the built-in Liberation fonts lack; its platform crates are
+# target-gated, so it builds for wasm32 too.
+parley = { version = "0.11", default-features = false, features = ["std"] }
+
+[features]
+default = ["system-fonts"]
+system-fonts = ["parley/system"]

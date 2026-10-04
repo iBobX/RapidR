@@ -54,14 +54,30 @@ const MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
 
-fn face_data(name: &str) -> &'static [u8] {
+/// The built-in faces' files (Liberation Sans, Serif, Mono): what the UI
+/// kernel registers with its text shaper, so its captions are drawn from
+/// the very fonts `TextWidth` measures.
+pub const BUILTIN_FONTS: [&[u8]; 3] = [SANS, SERIF, MONO];
+
+/// The built-in face standing for a QFONT's name, by its family name:
+/// Courier / mono: "Liberation Mono"; Times / serif / Roman: "Liberation
+/// Serif"; anything else: "Liberation Sans".
+pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
     if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
-        MONO
+        "Liberation Mono"
     } else if n.contains("times") || n.contains("serif") || n.contains("roman") || n.contains("georgia") {
-        SERIF
+        "Liberation Serif"
     } else {
-        SANS
+        "Liberation Sans"
+    }
+}
+
+fn face_data(name: &str) -> &'static [u8] {
+    match family_name(name) {
+        "Liberation Mono" => MONO,
+        "Liberation Serif" => SERIF,
+        _ => SANS,
     }
 }
 

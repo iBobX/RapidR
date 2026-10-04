@@ -366,3 +366,24 @@ Still to verify once on an unlocked screen:
 - a real menu-bar click, held open;
 - `scripts/macos-probes.script` re-run;
 - GPU windows painting.
+
+---
+
+## Stage 2 results (2026-10-04) — `crates/rapidr-ui-kernel`
+
+A workspace member, GUI-free (deps: `rapidr-value`, `parley` 0.11 with its `system` fallback fonts behind the default feature `system-fonts`); `cargo check -p rapidr-ui-kernel --target wasm32-unknown-unknown` is in regress.sh's unit stage. Layout: `store.rs` (`Store`, `MemStore`), `tree.rs` (`FormUi`, `Node`, `NodeUi`: build / rebuild / sync / hit), `focus.rs`, `input.rs` (`Mods`, `Clipboard`, `KernelEvent`, the routing), `paint.rs` (`Painter`, `FormUi::paint`), `display.rs` (`DisplayList`, `Item`, `TextItem`), `text.rs` (`TextSystem`), `a11y.rs` (`FormUi::access_tree` / `access_action`), `components/{label,button,edit,trackbar,tabcontrol}.rs` behind the `KINDS` table, `tests.rs` (20 headless tests, the prototype's five included). In `rapidr-value`: `objects::ops` (`Op`, `ModelOp`, `Place`, `lift`, `edge_fills`, `focus_dots`), `objects::a11y` (`AccessNode`, `Role`, `States`, `Action`, `node_id` / `part_id`, the label rules, `mnemonic`, `to_json`; `TrackBar::describe`, `TabControl::describe`), `TabControl::tab_rect`, `objects::remove`, `text::{BUILTIN_FONTS, family_name}`.
+
+Amendments to the plan above:
+
+1. **§1.1 one op vocabulary.** `tabcontrol::Op` is `ops::ModelOp` (the four ops the models emit) re-exported, not an alias of the superset `ops::Op`: `gui.rs` and `gui_web.rs` match it exhaustively (and `Text` gained `place`), and runtime-core is frozen during Stage 1. `impl From<ModelOp> for Op` (`ops::lift`) converts unchanged. The models can keep emitting `ModelOp`.
+2. **§1.4 kernel output.** Keys are three events, `KeyDown{chain, vk, shift}`, `KeyPress{chain, key}`, `KeyUp{…}`, so the queue holds the FLTK order: OnKeyDown, the model's `Change`, OnKeyPress. `chain` is raw (focused component … form); runtime-core applies `key_targets` / KeyPreview and INKEY$. An IME commit is `Change` then one `KeyPress` per character. Alt + a letter (mnemonics) and Cmd shortcuts type nothing.
+3. **Mouse.** The model first, then OnMouseDown; on release OnClick before OnMouseUp (as the real FLTK dispatch). A **disabled** component gets no mouse events (Windows); FLTK fires OnMouseDown for one — the Stage 4 matrix will tell. Input in the in-window menu bar's strip is ignored until the menu lane draws it.
+4. **§6 names.** "Nearest label" is the label *starting* to the left on the same line (a QLABEL's box is 75 wide by default and overlaps its control), else one starting above that doesn't already name a control to its right.
+5. **§4 text, measured.** With `kern`, `liga` and `clig` off and `Font::pixel_size()`, parley's width is within 0.5 px of `text_size` for regular and italic Arial / Times / Courier / MS Sans Serif at several sizes (test `text_measurement_matches_text_width`). Bold differs by exactly 1 px: parley's synthetic bold keeps the advances, `text_size` adds GDI's overhang.
+
+Open for Stage 3:
+- Bold captions: give the host's text drawing a 1-px advance for synthetic bold, or accept the difference.
+- runtime-core's `Store`: what `rp_comp_get` returns for unset props (a label's `color` must stay Null for "no background"; `visible`, `enabled`, `taborder`, `tabstop`, `default`, `cancel` read with defaults when Null).
+- `TextItem`: the host reads the layout with `FormUi::editor_layout` while rendering (callback-safe: no program code).
+- `ComponentKind::test_action` is declared, not implemented; the test-hook driver synthesizes input through the routing for the slice's fixtures.
+- A multi-form `Kernel` (modal list, stacking, `HostEvent`s) and the shared `TextSystem` live in Stage 3's `src/ui/kernel.rs` / host.
