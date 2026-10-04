@@ -23,7 +23,7 @@ fn store() -> MemStore {
 fn desk(s: &MemStore) -> Desktop {
     let mut d = Desktop::new(Box::new(MemClipboard::default()));
     for f in ["frm", "dlg"] {
-        d.ensure_form(s, f, false, WindowSpec { title: f.into(), size: (200, 100), position: None, border: true, icon: None });
+        d.ensure_form(s, f, false, WindowSpec { title: f.into(), size: (200, 100), position: None, border: true, icon: None, ..Default::default() });
     }
     d
 }

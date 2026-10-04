@@ -65,6 +65,8 @@ struct Win {
     sent: a11y::Sent,
     /// The mouse in the window's inside (logical).
     cursor: (f64, f64),
+    /// The pointer shown over it (platform.rs; set only when it changes).
+    pointer: Option<rapidr_value::input::Cursor>,
 }
 
 struct State {
@@ -85,6 +87,10 @@ struct State {
     /// keyboard (macOS' menu bar shows its main menu).
     menus: NativeMenus,
     key_form: Option<String>,
+    /// Open / Save dialogs (dialogs.rs) and the waker their completion
+    /// wakes the pump with.
+    dialogs: crate::dialogs::Dialogs,
+    waker: Waker,
 }
 
 pub struct WinitHost {
@@ -98,6 +104,7 @@ impl WinitHost {
         let event_loop = EventLoop::<UserEvent>::with_user_event().build().expect("winit event loop (on the main thread)");
         let proxy = event_loop.create_proxy();
         let menus = NativeMenus::new(proxy.clone());
+        let waker = Waker::from(Arc::new(ProxyWaker(Mutex::new(proxy.clone()))));
         WinitHost {
             event_loop,
             state: State {
@@ -113,6 +120,8 @@ impl WinitHost {
                 mouse: (0, 0),
                 menus,
                 key_form: None,
+                dialogs: crate::dialogs::Dialogs::default(),
+                waker,
             },
         }
     }
@@ -146,8 +155,14 @@ impl Host for WinitHost {
         self.monitor().2
     }
 
+    fn work_area(&self) -> (i64, i64) {
+        crate::platform::work_area().unwrap_or_else(|| self.monitor().0)
+    }
+
+    /// The mouse anywhere on the screen (platform.rs); where the platform
+    /// can't say (Wayland), as last seen over the program's windows.
     fn mouse(&self) -> (i64, i64) {
-        self.state.mouse
+        crate::platform::global_mouse().map_or(self.state.mouse, |(x, y)| (x.round() as i64, y.round() as i64))
     }
 
     fn default_scale(&self) -> f64 {
@@ -164,6 +179,11 @@ impl Host for WinitHost {
 
     fn native_menus(&self) -> bool {
         crate::menu::native_popups()
+    }
+
+    fn file_dialog(&mut self, id: u64) -> Option<Vec<String>> {
+        let State { dialogs, waker, .. } = &mut self.state;
+        dialogs.take(id, waker)
     }
 
     fn name(&self) -> &'static str {
@@ -255,6 +275,7 @@ impl Shim<'_> {
             let f = m.scale_factor();
             let size = m.size().to_logical::<f64>(f);
             self.s.screen = Some(((size.width.round() as i64, size.height.round() as i64), f, count));
+            crate::platform::set_primary_scale(f);
         }
     }
 
@@ -295,6 +316,8 @@ impl Shim<'_> {
                 HostCmd::Border(f) => {
                     if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get(&f)) {
                         w.window.set_decorations(k.spec.border);
+                        w.window.set_resizable(k.spec.frame.resizable);
+                        w.window.set_enabled_buttons(k.spec.frame.buttons());
                     }
                 }
                 HostCmd::Icon(f) => {
@@ -311,6 +334,26 @@ impl Shim<'_> {
                     if let Some(w) = self.s.wins.get(&form) {
                         let window = w.window.clone();
                         self.s.menus.popup(&window, &form, &menu, x, y);
+                    }
+                }
+                // (the dialogs lane's: made here, inside the pump — a sheet on
+                // macOS; the program asks for the answer after each step)
+                HostCmd::FileDialog { id, form, req } => {
+                    let parent = form.and_then(|f| self.s.wins.get(&f)).map(|w| w.window.clone());
+                    let State { dialogs, waker, .. } = &mut *self.s;
+                    dialogs.open(id, &req, parent.as_deref(), waker);
+                    self.desk.events.push(HostEvent::Wake);
+                }
+                HostCmd::Forget(f) => {
+                    if let Some(w) = self.s.wins.remove(&f) {
+                        self.s.ids.remove(&w.window.id());
+                        w.window.set_visible(false);
+                    }
+                    if self.s.key_form.as_deref() == Some(f.as_str()) {
+                        self.s.key_form = None;
+                    }
+                    if let Some(w) = self.desk.modal.last().and_then(|m| self.s.wins.get(m)) {
+                        w.window.focus_window();
                     }
                 }
             }
@@ -345,6 +388,8 @@ impl Shim<'_> {
             .with_title(spec.title.as_str())
             .with_visible(false)
             .with_decorations(spec.border)
+            .with_resizable(spec.frame.resizable)
+            .with_enabled_buttons(spec.frame.buttons())
             .with_inner_size(self.inner_size(spec.size.0, spec.size.1, 1.0))
             .with_window_icon(icon(spec.icon.as_ref()));
         if let Some((x, y)) = spec.position {
@@ -370,7 +415,7 @@ impl Shim<'_> {
             k.ui.dirty = true;
         }
         window.request_redraw();
-        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0) });
+        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None });
     }
 
     /// The window's surface: the GPU's unless it has none (or the CPU was
@@ -465,6 +510,24 @@ impl Shim<'_> {
             let tree = ui.access_tree(store, text);
             a11y::update(&tree, scale, sent, false).unwrap_or_else(|| a11y::unchanged(sent))
         });
+    }
+
+    /// The pointer over form `f`'s window at `at` (platform.rs), set when
+    /// it changes.
+    fn pointer(&mut self, f: &str, at: (f64, f64)) {
+        let c = crate::platform::cursor_at(self.desk, self.store, f, at);
+        if let Some(w) = self.s.wins.get_mut(f) {
+            if w.pointer != Some(c) {
+                w.pointer = Some(c);
+                match crate::platform::cursor_icon(c) {
+                    Some(icon) => {
+                        w.window.set_cursor_visible(true);
+                        w.window.set_cursor(icon);
+                    }
+                    None => w.window.set_cursor_visible(false),
+                }
+            }
+        }
     }
 
     fn after_input(&mut self, f: &str) {
@@ -609,6 +672,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 }
                 let m = self.mods();
                 self.desk.mouse_move(store, &f, x, y, m, Source::User);
+                self.pointer(&f, (x, y));
                 self.after_input(&f);
             }
             WindowEvent::MouseInput { state, button: b, .. } => {

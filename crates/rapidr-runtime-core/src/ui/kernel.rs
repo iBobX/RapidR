@@ -44,6 +44,10 @@ use crate::value::{v_int, v_null, Value};
 // The buttons and menus lane's part: a pick's OnClick, Popup, AutoPopup,
 // RAPIDR_DUMP_MENUS.
 mod menus;
+// The dialogs and platform lane's: kernel-drawn message boxes, colour and
+// font dialogs, rfd's Open / Save sheets; window frames, cursors, $THEME.
+pub(super) mod dialogs;
+mod platform;
 
 // ------------------------------------------------------------------ state --
 
@@ -250,6 +254,7 @@ fn sync_desk(k: &mut Kern) {
             WinOp::Popup(form, menu, x, y) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Popup { form, menu, x, y }),
         }
     }
+    platform::sync(desk);
     desk.modal = modal;
     for (id, f) in desk.forms.iter_mut() {
         f.ui.modal = desk.modal.contains(id);
@@ -308,8 +313,11 @@ pub fn step(max_wait: Option<Duration>) {
 /// step again).
 fn dispatch_pending() {
     for e in with_kern(|k| std::mem::take(&mut k.desk.events)).unwrap_or_default() {
-        if let HostEvent::Kernel(_, ev) = e {
-            dispatch(ev);
+        match e {
+            // (a kernel-drawn dialog's: never the program's)
+            HostEvent::Kernel(form, ev) if rapidr_ui_kernel::dialogs::is_dialog(&form) => dialogs::event(&form, ev),
+            HostEvent::Kernel(_, ev) => dispatch(ev),
+            HostEvent::Wake => {}
         }
     }
 }
@@ -541,6 +549,7 @@ fn spec_of(name: &str) -> WindowSpec {
         position: Some((rp_comp_get(name, "left").to_i64(), rp_comp_get(name, "top").to_i64())),
         border: rp_comp_get(name, "borderstyle").to_i64() != 0,
         icon: icon_of(name),
+        frame: platform::frame(name),
     }
 }
 
@@ -1050,18 +1059,15 @@ pub fn run_gui_event_loop() {
     }
 }
 
-/// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: the kernel-drawn dialog is the
-/// dialogs lane's (Stage 8); until then the text is printed and the first
-/// button taken.
+/// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: a kernel-drawn modal dialog
+/// (dialogs.rs); the button chosen, `None` for Escape or the close box.
 pub fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize> {
-    pending("MESSAGEBOX");
-    println!("[{title}] {text}");
-    (!labels.is_empty()).then_some(0)
+    dialogs::choice(title, text, labels)
 }
 
-pub fn gui_dialog_execute(_name: &str, _comp_type: &str) -> Value {
-    pending("dialogs (QOPENDIALOG …)");
-    v_int(0)
+/// Open / Save (rfd, async), colour and font (kernel-drawn) dialogs.
+pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
+    dialogs::execute(name, comp_type)
 }
 
 // ------------------------------------------------- the facade: queries --
@@ -1187,9 +1193,10 @@ pub fn code_editor_method(_name: &str, _method: &str, _args: &[Value]) -> Value 
     v_null()
 }
 
-/// `$THEME name`: the kernel's themes are Stage 9's.
+/// `$THEME name` (platform.rs: the kernel draws the classic look).
 pub fn set_theme(theme: &str) {
     st(|s| s.theme = theme.to_lowercase());
+    platform::theme(theme);
 }
 
 /// What the kernel host doesn't do yet (said once per feature).
@@ -1232,7 +1239,7 @@ pub fn minimize() {
     }
 }
 
-/// MSGBOX: the text and OK (the dialogs lane's; printed until then).
+/// MSGBOX: the text and OK.
 pub fn message_box(text: &str) {
     gui_choice("", text, &["OK"]);
 }

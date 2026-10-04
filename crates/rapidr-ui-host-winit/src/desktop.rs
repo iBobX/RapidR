@@ -47,6 +47,12 @@ pub enum HostCmd {
     /// ([`crate::Host::native_menus`]); its pick comes back as a
     /// `KernelEvent::MenuPick`.
     Popup { form: String, menu: String, x: i64, y: i64 },
+    // (the dialogs and platform lane's)
+    /// An Open / Save dialog (`dialogs.rs`), on form `form`'s window when
+    /// given (a sheet on macOS); its answer through `Host::file_dialog(id)`.
+    FileDialog { id: u64, form: Option<String>, req: crate::dialogs::FileRequest },
+    /// Form `id`'s window gone for good (a kernel-drawn dialog closed).
+    Forget(String),
 }
 
 /// A window's picture (RGBA, straight).
@@ -68,6 +74,8 @@ pub struct WindowSpec {
     /// A frame and title bar (BorderStyle <> bsNone).
     pub border: bool,
     pub icon: Option<Icon>,
+    /// Resizing and the title bar's buttons (BorderStyle, BorderIcons).
+    pub frame: crate::platform::Frame,
 }
 
 pub struct Form {
@@ -99,12 +107,14 @@ pub struct Desktop {
     /// A test drives the program: the user's input is dropped.
     pub ignore_user: bool,
     pub clipboard: Box<dyn Clipboard>,
+    /// Screen.Cursor (0: each component's own; platform.rs).
+    pub screen_cursor: i64,
     next_z: u64,
 }
 
 impl Desktop {
     pub fn new(clipboard: Box<dyn Clipboard>) -> Desktop {
-        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, next_z: 1 }
+        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, screen_cursor: 0, next_z: 1 }
     }
 
     /// Form `id`'s kernel side, made from the store the first time.
@@ -132,6 +142,15 @@ impl Desktop {
         if let Some(f) = self.form(id) {
             f.shown = false;
             self.cmds.push(HostCmd::Hide(id.to_lowercase()));
+        }
+    }
+
+    /// Form `id` and its window gone for good (a kernel-drawn dialog
+    /// closed).
+    pub fn forget(&mut self, id: &str) {
+        let key = id.to_lowercase();
+        if self.forms.remove(&key).is_some() {
+            self.cmds.push(HostCmd::Forget(key));
         }
     }
 

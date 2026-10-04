@@ -10,7 +10,7 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**703 libraries** under 26 license expressions.
+**704 libraries** under 26 license expressions.
 
 ## Apache-2.0 OR MIT (390)
 
@@ -407,7 +407,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (187)
+## MIT (188)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -539,6 +539,7 @@ which also carries their full license texts.
 | redox_syscall | 0.7.5 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_users | 0.5.2 | <https://gitlab.redox-os.org/redox-os/users> |
 | rend | 0.4.2 | <https://github.com/djkoloski/rend> |
+| rfd | 0.17.2 | <https://github.com/PolyMeilex/rfd> |
 | rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
 | rkyv | 0.7.46 | <https://github.com/rkyv/rkyv> |
 | rkyv_derive | 0.7.46 | <https://github.com/rkyv/rkyv> |

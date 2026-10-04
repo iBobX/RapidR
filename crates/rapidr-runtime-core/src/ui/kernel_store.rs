@@ -23,8 +23,20 @@ pub struct RtStore;
 /// program set it (`__colorset`, object.rs), white included.
 const LABEL_DEFAULT_COLOR: i64 = 0xFFFFFF;
 
+/// A kernel-drawn dialog's component (`rapidr:…`): its own store answers
+/// (the dialogs lane's `kernel/dialogs.rs`).
+fn dialog<R>(id: &str, f: impl FnOnce(&dyn Store) -> R) -> Option<R> {
+    if !rapidr_ui_kernel::dialogs::is_dialog(id) {
+        return None;
+    }
+    super::kernel::dialogs::with_store(id, f)
+}
+
 impl Store for RtStore {
     fn get(&self, id: &str, prop: &str) -> Value {
+        if let Some(v) = dialog(id, |s| s.get(id, prop)) {
+            return v;
+        }
         let v = rp_comp_get(id, prop);
         if prop.eq_ignore_ascii_case("color")
             && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR))
@@ -37,14 +49,23 @@ impl Store for RtStore {
     }
 
     fn type_of(&self, id: &str) -> String {
+        if let Some(t) = dialog(id, |s| s.type_of(id)) {
+            return t;
+        }
         rp_comp_type(id).to_ascii_uppercase()
     }
 
     fn children(&self, id: &str) -> Vec<(String, String)> {
+        if let Some(c) = dialog(id, |s| s.children(id)) {
+            return c;
+        }
         get_children_of(id)
     }
 
     fn font(&self, id: &str) -> Font {
+        if let Some(f) = dialog(id, |s| s.font(id)) {
+            return f;
+        }
         rapidr_value::objects::font_from_props(id, &|i, p| rp_comp_get(i, p))
     }
 }

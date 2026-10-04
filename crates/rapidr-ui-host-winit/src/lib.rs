@@ -23,16 +23,20 @@ pub mod a11y;
 pub mod canvas;
 pub mod cpu;
 pub mod desktop;
+pub mod dialogs;
 pub mod gpu;
 pub mod headless;
 pub mod images;
 pub mod menu;
+pub mod platform;
 pub mod winit_host;
 
 use std::task::Waker;
 use std::time::Duration;
 
 pub use desktop::{Desktop, Form, HostCmd, HostEvent, Icon, Source, WindowSpec};
+pub use dialogs::FileRequest;
+pub use platform::Frame;
 use rapidr_ui_kernel::Store;
 use rapidr_value::objects::codec::Pixels;
 
@@ -70,6 +74,12 @@ pub trait Host {
     /// context menus); else the kernel draws them.
     fn native_menus(&self) -> bool {
         false
+    }
+    /// Open / Save dialog `id`'s answer ([`HostCmd::FileDialog`]) once it's
+    /// closed: the paths picked (none: cancelled); `None` while it's open.
+    /// A host without the system's dialogs cancels them.
+    fn file_dialog(&mut self, _id: u64) -> Option<Vec<String>> {
+        Some(Vec::new())
     }
 }
 

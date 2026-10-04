@@ -32,6 +32,7 @@
 
 pub mod a11y;
 pub mod components;
+pub mod dialogs;
 pub mod display;
 mod focus;
 pub mod input;
