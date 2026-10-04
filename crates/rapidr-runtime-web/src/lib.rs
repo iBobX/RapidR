@@ -5,6 +5,7 @@
 //! operate on `Value` instances identical to the desktop runtime, but with
 //! the GUI, network, and I/O layers replaced by browser APIs.
 
+pub mod a11y_web;
 mod builtins;
 pub mod database_web;
 pub mod datascience_web;

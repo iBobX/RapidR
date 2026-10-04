@@ -226,6 +226,8 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
     if let Some(el) = get_el(&id) {
         let _ = el.set_attribute("data-rr-type", comp_type);
     }
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
 }
 
 // ---------------------------------------------------------------------------
@@ -324,13 +326,18 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
                     title_text.set_text_content(Some(&strip_ampersands(&s)));
                 }
             } else if let Ok(Some(caption)) = el.query_selector(":scope > .rr-panel-caption") {
-                caption.set_text_content(Some(&strip_ampersands(&s)));
+                crate::a11y_web::caption_into(&caption, &s);
             } else if el.tag_name().to_uppercase() == "LABEL" {
                 if let Ok(Some(span)) = el.query_selector("span") {
-                    span.set_text_content(Some(&strip_ampersands(&s)));
+                    crate::a11y_web::caption_into(&span, &s);
                 } else {
-                    el.set_text_content(Some(&strip_ampersands(&s)));
+                    crate::a11y_web::caption_into(&el, &s);
                 }
+            } else if let Ok(Some(legend)) = el.query_selector(":scope > legend") {
+                // (a group box's caption is its legend: its components stay)
+                crate::a11y_web::caption_into(&legend, &s);
+            } else if matches!(el.get_attribute("data-rr-type").as_deref(), Some("RBUTTON" | "RCOOLBTN" | "ROVALBTN" | "RLABEL")) {
+                crate::a11y_web::caption_into(&el, &s);
             } else {
                 // Plain text only: captions often show DB/HTTP/AI data, so
                 // markup must never be interpreted here. Use RDOM.InnerHTML
@@ -442,7 +449,10 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
             let _ = style.set_property("text-align", align);
         }
         "checked" | "value" => {
-            if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+            // (a check box's / radio button's input is in its label)
+            if let Some(input) = check_input(&el).filter(|_| prop == "checked") {
+                input.set_checked(val.to_bool());
+            } else if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
                 if prop == "checked" {
                     input.set_checked(val.to_bool());
                 } else {
@@ -779,6 +789,15 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
     }
 }
 
+/// The input a check box or radio button is (its element is the label
+/// around it), or the element itself when it's an input.
+fn check_input(el: &web_sys::HtmlElement) -> Option<web_sys::HtmlInputElement> {
+    if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
+        return Some(input);
+    }
+    el.query_selector(":scope > input[type=checkbox], :scope > input[type=radio]").ok().flatten()?.dyn_into::<web_sys::HtmlInputElement>().ok()
+}
+
 pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
     let comp_type = crate::object_web::rp_comp_type(name);
     if comp_type == "RROUTER" {
@@ -874,13 +893,10 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
                 Value::Boolean(el.has_attribute("readonly"))
             }
         }
-        "checked" => {
-            if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
-                Value::Boolean(input.checked())
-            } else {
-                Value::Boolean(false)
-            }
-        }
+        "checked" => match check_input(&el) {
+            Some(input) => Value::Boolean(input.checked()),
+            None => Value::Boolean(false),
+        },
         "value" => {
             if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
                 v_str(&input.value())
@@ -1834,7 +1850,7 @@ pub fn setup_widget(el: &web_sys::HtmlElement, id: &str, name: &str, props: &Has
 fn create_button(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("button");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&el, &caption);
     el.set_class_name("rr-widget");
     modal_result_click(&el, name);
     setup_widget(&el, id, name, props);
@@ -1862,7 +1878,7 @@ fn modal_result_click(el: &web_sys::HtmlElement, name: &str) {
 fn create_coolbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("button");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&el, &caption);
     el.set_class_name("rr-widget rr-coolbtn");
     modal_result_click(&el, name);
 
@@ -2060,6 +2076,8 @@ fn create_mdi_frame(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// A child window's frame shows its title, whether it's the active one,
 /// and whether it's maximized.
 pub fn mdi_frame_update(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let Some(el) = document().get_element_by_id(&comp_id(name)) else { return };
     let get = |p: &str| crate::object_web::rp_comp_get_stored(name, p);
     if let Ok(Some(t)) = el.query_selector(".rr-mdichild-caption") {
@@ -2088,7 +2106,7 @@ pub fn stack_elements(names: &[String]) {
 fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("button");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&el, &caption);
     el.set_class_name("rr-widget rr-ovalbtn");
 
     let color = props.get("color").map(|v| {
@@ -2117,7 +2135,7 @@ fn create_ovalbtn(id: &str, name: &str, props: &HashMap<String, Value>) {
 fn create_label(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("span");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    el.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&el, &caption);
     el.set_class_name("rr-widget");
     let _ = el.style().set_property("overflow", "hidden");
     let _ = el.style().set_property("white-space", "nowrap");
@@ -2236,7 +2254,7 @@ fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
     for (k, v) in [("position", "absolute"), ("inset", "0"), ("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("pointer-events", "none"), ("overflow", "hidden"), ("white-space", "nowrap")] {
         let _ = cs.set_property(k, v);
     }
-    caption.set_text_content(Some(&strip_ampersands(&props.get("caption").map(|v| v.to_string_val()).unwrap_or_default())));
+    crate::a11y_web::caption_into(&caption, &props.get("caption").map(|v| v.to_string_val()).unwrap_or_default());
     let _ = el.append_child(&caption);
     setup_widget(&el, id, name, props);
     render_panel_bevels(name);
@@ -2284,7 +2302,7 @@ fn create_checkbox(id: &str, name: &str, props: &HashMap<String, Value>) {
 
     let span = create_el("span");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    span.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&span, &caption);
     let _ = wrapper.append_child(&span);
 
     wrapper.set_id(id);
@@ -2311,7 +2329,7 @@ fn create_radio(id: &str, name: &str, props: &HashMap<String, Value>) {
 
     let span = create_el("span");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    span.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&span, &caption);
     let _ = wrapper.append_child(&span);
 
     wrapper.set_id(id);
@@ -2511,6 +2529,8 @@ fn create_dirtree(id: &str, name: &str, props: &HashMap<String, Value>) {
 
 /// Shows a QDIRTREE's rows (indented, `+` closed / `-` open).
 pub fn render_dirtree(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let Some(sel) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
     let Some((lines, selected)) = rapidr_value::objects::with_dirtree(name, |t| {
         (t.rows().iter().map(rapidr_value::objects::dirtree::DirTree::row_text).collect::<Vec<_>>(), t.selected_row())
@@ -2559,6 +2579,8 @@ pub fn render_list(name: &str) {
 /// The options as plain text, ItemIndex (or, with MultiSelect, every
 /// selected item) selected.
 fn render_list_now(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let Some(el) = get_el(&comp_id(name)) else { return };
     // An edit combo: the items as suggestions, the Text in the edit box.
     if let Ok(input) = el.clone().dyn_into::<web_sys::HtmlInputElement>() {
@@ -2833,11 +2855,15 @@ fn render_owner_combo(el: &web_sys::Element, name: &str) {
 
 /// The combo box's drop-down: its items as drawn, under the box.
 fn owner_combo_drop(name: &str, box_el: &web_sys::Element) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     close_grid_drop_down();
     let width = crate::object_web::rp_comp_get_stored(name, "width").to_i64();
     let rect = box_el.get_bounding_client_rect();
     let list = create_el("div");
     list.set_class_name("rr-grid-dropdown");
+    // (whose list it is: a11y_web says so)
+    let _ = list.set_attribute("data-for", &name.to_uppercase());
     let st = list.style();
     for (k, v) in [("position", "fixed"), ("background", "white"), ("border", "1px solid #666"), ("z-index", "100000"), ("max-height", "300px"), ("overflow-y", "auto"), ("box-shadow", "2px 2px 4px rgba(0,0,0,.3)"), ("padding", "2px")] {
         let _ = st.set_property(k, v);
@@ -3147,6 +3173,8 @@ pub fn refresh_header(name: &str) {
 }
 
 fn refresh_header_now(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p).to_i64();
     for (i, pressed, (left, top, right, bottom)) in rapidr_value::objects::paint_header(name, stored("width"), stored("height")) {
         let rect = format!("{name}.SECTIONRECT({i})");
@@ -3382,6 +3410,8 @@ fn svg_font(font: &rapidr_value::objects::font::Font) -> String {
 
 /// A QTABCONTROL drawn again from its model (an SVG under its components).
 pub fn render_tabcontrol(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     use rapidr_value::objects::tabcontrol::Op;
     let Some(el) = get_el(&comp_id(name)) else { return };
     let Some(back) = el.query_selector(":scope > .rr-tab-back").ok().flatten() else { return };
@@ -3704,6 +3734,8 @@ fn tree_ask_images(name: &str) {
 /// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
 /// program deleted).
 pub fn render_tree(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     note_display_scale();
     tree_ask_images(name);
     for i in rapidr_value::objects::with_tree(name, |m| m.take_deleted()).unwrap_or_default() {
@@ -3832,7 +3864,7 @@ fn create_groupbox(id: &str, name: &str, props: &HashMap<String, Value>) {
     el.set_class_name("rr-widget");
     let legend = create_el("legend");
     let caption = props.get("caption").map(|v| v.to_string_val()).unwrap_or_default();
-    legend.set_inner_text(&strip_ampersands(&caption));
+    crate::a11y_web::caption_into(&legend, &caption);
     let _ = el.append_child(&legend);
     setup_widget(&el, id, name, props);
 }
@@ -3861,6 +3893,8 @@ fn create_statusbar(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// set or it has no panels — as the desktop runtime draws it. Captions are
 /// plain text, never markup.
 pub fn render_statusbar(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     use crate::object_web::rp_comp_get_stored as get;
     let Some(el) = get_el(&comp_id(name)) else { return };
     el.set_inner_text("");
@@ -4012,6 +4046,8 @@ fn create_trackbar(id: &str, name: &str, props: &HashMap<String, Value>) {
 
 /// A QTRACKBAR drawn again from its model.
 pub fn render_trackbar(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let Some(el) = get_el(&comp_id(name)) else { return };
     let (w, h) = (crate::object_web::rp_comp_get(name, "width").to_f64(), crate::object_web::rp_comp_get(name, "height").to_f64());
     let enabled = crate::object_web::rp_comp_get_stored(name, "enabled");
@@ -4803,6 +4839,10 @@ fn close_grid_drop_down() {
     if let Ok(open) = document().query_selector_all(".rr-grid-dropdown") {
         for i in 0..open.length() {
             if let Some(el) = open.item(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()) {
+                // (a11y_web: its combo box no longer expanded)
+                if let Some(owner) = el.get_attribute("data-for") {
+                    crate::a11y_web::changed(&owner);
+                }
                 el.remove();
             }
         }
@@ -4842,6 +4882,8 @@ pub fn render_grid(name: &str) {
 /// Redraws a QSTRINGGRID's table now: fixed cells shaded, the selected
 /// cell highlighted, cell text as plain text (never markup).
 fn render_grid_now(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     use rapidr_value::objects::grid::{GO_HORZ_LINE, GO_VERT_LINE};
     let Some(table) = get_el(&format!("{}-table", comp_id(name))) else { return };
     // (VisibleRowCount / VisibleColCount: what fits inside its frame, as on
@@ -5066,6 +5108,8 @@ fn grid_replay(td: &web_sys::HtmlElement, ops: &[rapidr_value::objects::grid::Ce
 
 /// Shows a QLISTVIEW as its model paints it (at the screen's scale).
 pub fn render_listview(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let Some(canvas) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
     note_display_scale();
     listview_prepare(name);
@@ -5228,6 +5272,8 @@ fn create_video(id: &str, name: &str, props: &HashMap<String, Value>) {
 // ---------------------------------------------------------------------------
 
 pub fn gui_web_show_form(name: &str) {
+    // (a11y_web: the ARIA follows)
+    crate::a11y_web::changed(name);
     let id = comp_id(name);
     if let Some(el) = get_el(&id) {
         let _ = el.style().set_property("display", "block");

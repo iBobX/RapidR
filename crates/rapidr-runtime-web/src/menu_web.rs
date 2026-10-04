@@ -70,6 +70,8 @@ pub fn render_all() {
             let name = bar.get_attribute("data-rr-name").unwrap_or_default();
             bar.set_inner_html("");
             fill(&bar, &name, true);
+            // (a11y_web: its ARIA follows)
+            crate::a11y_web::changed(&name);
         }
     }
 }

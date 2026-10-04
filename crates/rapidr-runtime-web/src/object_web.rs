@@ -525,6 +525,8 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (a11y_web: the form's ARIA follows, once the program's code returns)
+    crate::a11y_web::changed(name);
     let val = rapidr_value::layout::property_value(prop, val);
     // QBUTTON Kind: its caption and ModalResult (rapidr_value::events).
     if prop.eq_ignore_ascii_case("kind") {
