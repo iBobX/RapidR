@@ -3389,82 +3389,52 @@ pub fn gui_center(name: &str) {
     }
 }
 
-/// An Open / Save dialog (rapidr_value::file_dialog): Caption (or Title),
-/// Filter / FilterIndex, InitialDir, FileName preset; the answer in
-/// FileName, FileTitle, Files(…) and SelCount; DefaultExt added to a saved
-/// name; a save asks before replacing a file (WarnIfOverWrite).
+/// An Open / Save dialog (ui::file_dialog: the request and the answer are
+/// host-neutral): FLTK's native chooser shown for the request.
 fn file_dialog(name: &str, save: bool, multi: bool) -> Value {
     use rapidr_value::file_dialog as fd;
-    let prop = |p: &str| rp_comp_get(name, p).to_string_val();
-    let kind = match (save, multi) {
-        (true, _) => dialog::NativeFileChooserType::BrowseSaveFile,
-        (false, true) => dialog::NativeFileChooserType::BrowseMultiFile,
-        (false, false) => dialog::NativeFileChooserType::BrowseFile,
-    };
-    let mut dlg = dialog::NativeFileChooser::new(kind);
-    let title = [prop("caption"), prop("title")].into_iter().find(|t| !t.is_empty());
-    if let Some(title) = title {
-        dlg.set_title(&title);
-    }
-    let filters = fd::parse_filter(&prop("filter"));
-    if !filters.is_empty() {
-        dlg.set_filter(&fd::fltk_filter(&filters));
-        // (FilterIndex counts from 1)
-        let index = rp_comp_get(name, "filterindex").to_i64();
-        dlg.set_filter_value((index.max(1) - 1).min(filters.len() as i64 - 1) as i32);
-    }
-    let dir = prop("initialdir");
-    if !dir.is_empty() {
-        let _ = dlg.set_directory(&dir);
-    }
-    let preset = prop("filename");
-    if !preset.is_empty() {
-        dlg.set_preset_file(&fd::file_title(&preset));
-    }
-    let warn = rp_comp_get(name, "warnifoverwrite");
-    if save && (matches!(warn, Value::Null) || warn.to_bool()) {
-        dlg.set_option(dialog::FileDialogOptions::SaveAsConfirm);
-    }
-    // (`RAPIDR_TEST_FILE_DIALOG=a;b`: tests pick these; empty: Cancel)
-    let mut paths: Vec<String> = match crate::ui::testhooks::file_dialog_answer(multi) {
-        Some(paths) => paths,
-        None => {
-            dlg.show();
-            dlg.filenames().iter().map(|p| p.to_string_lossy().into_owned()).filter(|p| !p.is_empty()).collect()
+    crate::ui::file_dialog::execute(name, save, multi, |req| {
+        let kind = match (req.save, req.multi) {
+            (true, _) => dialog::NativeFileChooserType::BrowseSaveFile,
+            (false, true) => dialog::NativeFileChooserType::BrowseMultiFile,
+            (false, false) => dialog::NativeFileChooserType::BrowseFile,
+        };
+        let mut dlg = dialog::NativeFileChooser::new(kind);
+        if let Some(title) = &req.title {
+            dlg.set_title(title);
         }
-    };
-    if paths.is_empty() {
-        return v_int(0);
-    }
-    if save {
-        paths[0] = fd::with_default_ext(&paths[0], &prop("defaultext"));
-    }
-    let picked = fd::picked(&paths);
-    rp_comp_set(name, "filename", v_str(&picked.file_name));
-    rp_comp_set(name, "filetitle", v_str(&picked.file_title));
-    rp_comp_set(name, "selcount", v_int(picked.sel_count));
-    for (i, f) in picked.files.iter().enumerate() {
-        rp_comp_set(name, &format!("files({i})"), v_str(f));
-    }
-    v_int(-1)
+        if !req.filters.is_empty() {
+            dlg.set_filter(&fd::fltk_filter(&req.filters));
+            dlg.set_filter_value(req.filter_index as i32);
+        }
+        if let Some(dir) = &req.dir {
+            let _ = dlg.set_directory(dir);
+        }
+        if let Some(file) = &req.file_name {
+            dlg.set_preset_file(file);
+        }
+        if req.confirm_overwrite {
+            dlg.set_option(dialog::FileDialogOptions::SaveAsConfirm);
+        }
+        dlg.show();
+        dlg.filenames().iter().map(|p| p.to_string_lossy().into_owned()).collect()
+    })
 }
 
 /// Execute a dialog (Open/Save/Color/Font).
 pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
     ensure_app();
     match comp_type {
-        "ROPENDIALOG" => file_dialog(name, false, false),
-        "RSAVEDIALOG" => file_dialog(name, true, false),
-        // RAPIDQ2.INC's QFILEDIALOG: Mode fdOpen 0 / fdSave 1, MultiSelect.
-        "RFILEDIALOG" => {
-            let save = rp_comp_get(name, "mode").to_i64() == 1;
-            file_dialog(name, save, !save && rp_comp_get(name, "multiselect").to_bool())
-        }
+        // (QOPENDIALOG, QSAVEDIALOG, RAPIDQ2.INC's QFILEDIALOG)
+        "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" => match crate::ui::file_dialog::kind(name, comp_type) {
+            Some((save, multi)) => file_dialog(name, save, multi),
+            None => v_int(0),
+        },
         "RCOLORDIALOG" => {
             // Show FLTK color chooser dialog
             if let Some((r, g, b)) = dialog::color_chooser("Choose Color", dialog::ColorMode::Rgb) {
-                let hex = format!("#{:02X}{:02X}{:02X}", r, g, b);
-                rp_comp_set(name, "color", v_str(&hex));
+                // (Color is RapidQ's LONG, &HBBGGRR, as on the web and the kernel)
+                rp_comp_set(name, "color", v_int(i64::from(b) << 16 | i64::from(g) << 8 | i64::from(r)));
                 v_int(1)
             } else {
                 v_int(0)
