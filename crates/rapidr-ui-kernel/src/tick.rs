@@ -56,6 +56,14 @@ impl FormUi {
         self.wakes.caret = (self.blinks && self.editor_focused()).then(|| now() + BLINK);
     }
 
+    /// The caret's blink armed if an editor has the focus and it isn't yet
+    /// (an editor focused before it was first drawn: after painting).
+    pub(crate) fn arm_caret(&mut self) {
+        if self.blinks && self.wakes.caret.is_none() && self.editor_focused() {
+            self.wakes.caret = Some(now() + BLINK);
+        }
+    }
+
     /// Whether the focused component shows a caret.
     pub fn editor_focused(&self) -> bool {
         self.focus.is_some_and(|f| self.nodes[f].ui.edit.is_some())

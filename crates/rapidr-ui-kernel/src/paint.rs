@@ -186,6 +186,8 @@ impl FormUi {
         // (open menus over everything)
         self.paint_menus(store, &mut p);
         self.dirty = false;
+        // (the caret's blink: tick.rs)
+        self.arm_caret();
         list
     }
 

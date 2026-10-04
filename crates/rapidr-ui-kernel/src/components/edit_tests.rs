@@ -196,6 +196,7 @@ fn the_context_menu_cuts_copies_pastes_and_undoes() {
 #[test]
 fn the_caret_blinks_on_the_kernels_deadline() {
     let (s, mut f, mut ts) = edit_form("x");
+    assert!(f.next_wake().is_some(), "the focused edit's blink armed when first drawn");
     let t0 = Instant::now();
     set_test_now(Some(t0));
     f.focus_id(&s, "te");
