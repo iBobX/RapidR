@@ -128,3 +128,18 @@ fn accessibility_updates_send_what_changed() {
     // asked again for all of it
     assert_eq!(a11y::update(&tree, 2.0, &mut sent, true).unwrap().nodes.len(), 3);
 }
+
+#[test]
+fn a_synthetic_italic_leans_forward_on_the_cpu() {
+    // (Liberation has no italic faces: parley skews the upright one)
+    let mut s = MemStore::new();
+    s.add("fi", "RFORM", None).set("fi", "clientwidth", v_int(60)).set("fi", "clientheight", v_int(40));
+    s.add("li", "RLABEL", Some("fi")).set("li", "caption", v_str("I")).set("li", "left", v_int(4)).set("li", "top", v_int(4)).set("li", "fontsize", v_int(20)).set("li", "fontitalic", v_int(1));
+    let mut d = Desktop::new(Box::new(MemClipboard::default()));
+    d.ensure_form(&s, "fi", false, WindowSpec { title: "fi".into(), size: (60, 40), position: None, border: true, icon: None, ..Default::default() });
+    let px = capture(&mut d, &s, "fi").unwrap();
+    let ink_rows: Vec<usize> = (0..px.height).filter(|y| (0..px.width).any(|x| px.pixels[y * px.width + x] & 0xFF < 0x40)).collect();
+    let left = |y: usize| (0..px.width).find(|x| px.pixels[y * px.width + x] & 0xFF < 0x40).unwrap();
+    let (top, bottom) = (ink_rows[1], ink_rows[ink_rows.len() - 2]);
+    assert!(left(top) > left(bottom), "the top of the I right of its foot: {} vs {}", left(top), left(bottom));
+}

@@ -47,7 +47,10 @@ impl Canvas for CpuCanvas<'_> {
         self.ctx.set_paint(color(run.rgb));
         let mut b = self.ctx.glyph_run(self.res, run.font).font_size(run.size).hint(run.hint).normalized_coords(run.coords);
         if let Some(t) = run.glyph_transform {
-            b = b.glyph_transform(t);
+            // (Stage 10: glifo applies it after flipping the outlines to y
+            // down, vello on the GPU before — in the font's y up — so a
+            // synthetic italic's skew is turned over here, or it leans back)
+            b = b.glyph_transform(Affine::FLIP_Y * t * Affine::FLIP_Y);
         }
         if let Some(a) = run.embolden {
             b = b.font_embolden(glifo::FontEmbolden::new(vello::kurbo::Diagonal2::new(a, a)));
