@@ -354,10 +354,12 @@ impl Shim<'_> {
                     }
                 }
                 HostCmd::Border(f) => {
-                    if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get(&f)) {
+                    if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get_mut(&f)) {
                         w.window.set_decorations(k.spec.border);
                         w.window.set_resizable(k.spec.frame.resizable);
                         w.window.set_enabled_buttons(k.spec.frame.buttons());
+                        k.ui.system_corner = system_corner(k.spec.border);
+                        k.ui.dirty = true;
                     }
                 }
                 HostCmd::Icon(f) => {
@@ -514,6 +516,7 @@ impl Shim<'_> {
             k.scale = scale;
             k.ui.dirty = true;
             k.state = spec.state;
+            k.ui.system_corner = system_corner(spec.border);
         }
         window.request_redraw();
         self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false });
@@ -665,6 +668,14 @@ impl Shim<'_> {
             }
         }
     }
+}
+
+/// Whether a window's bottom-right corner is the system's: macOS rounds a
+/// titled window's corners off (by about 16 points on macOS 26) and resizes
+/// it from them itself — a status bar's size grip drawn there would be cut
+/// off (`FormUi::system_corner`).
+fn system_corner(border: bool) -> bool {
+    cfg!(target_os = "macos") && border
 }
 
 /// (the WindowState lane's) wsNormal 0 / wsMinimized 1 / wsMaximized 2 as

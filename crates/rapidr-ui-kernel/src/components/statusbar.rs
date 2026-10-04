@@ -12,7 +12,10 @@
 //! grip takes the press before the components, as Windows' HTBOTTOMRIGHT
 //! (no OnMouseDown); the host resizes the window as the user's drag of its
 //! border would (`Container::Resize` → `HostCmd::Resize`), so OnResize and
-//! Width / Height follow.
+//! Width / Height follow. Where the host says the window's corner is the
+//! system's (`FormUi::system_corner`: macOS' titled windows, whose rounded
+//! corner would cut the grip off and which resize from any edge) the grip
+//! isn't drawn; its square keeps its place, its cursor and its drag.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -145,7 +148,10 @@ impl ComponentKind for StatusBar {
             let inside = (x + 1, y + 1, (bw - 2).max(0), (bh - 2).max(0));
             p.clipped(inside, |p| p.text((x + 3, y, (bw - 6).max(0), bh), &text, &cx.font, color, Place::Left));
         }
-        if has_grip(cx.store, cx.id) {
+        // (a grip's bar is docked at the form's bottom: its corner is the
+        // window's. Not drawn where that's the system's — macOS rounds it
+        // off and resizes from it itself; the square stays the grip's)
+        if has_grip(cx.store, cx.id) && !cx.system_corner {
             paint_grip(p, w, h);
         }
     }
@@ -205,6 +211,23 @@ mod tests {
         let lit = |x: i64, y: i64| list.items.iter().any(|i| matches!(i, crate::Item::Op { origin, op: Op::Fill { rect, color: crate::paint::LIGHT } } if (origin.0 + rect.0, origin.1 + rect.1) == (x, y) && rect.2 == 1));
         assert!(lit(299 - 3, 199), "a ridge's white pixel");
         assert_eq!(super::panels(&s, "sg1b", 300, 24)[0].0 .2, 300 - 16 - 2);
+    }
+
+    #[test]
+    fn where_the_windows_corner_is_the_systems_the_grip_isnt_drawn_but_still_drags() {
+        let s = form("sg3");
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "sg3f", false);
+        f.system_corner = true;
+        let list = f.paint(&s, &mut ts, 1.0);
+        let lit = |x: i64, y: i64| list.items.iter().any(|i| matches!(i, crate::Item::Op { origin, op: Op::Fill { rect, color: crate::paint::LIGHT } } if (origin.0 + rect.0, origin.1 + rect.1) == (x, y) && rect.2 == 1));
+        assert!(!lit(299 - 3, 199), "no ridge in macOS' rounded corner");
+        // (the square stays the grip's: the box ends before it, a drag resizes)
+        assert_eq!(super::panels(&s, "sg3b", 300, 24)[0].0 .2, 300 - 16 - 2);
+        f.mouse_down(&s, &mut ts, 295.0, 196.0, Button::Left, Mods::NONE);
+        f.mouse_move(&s, &mut ts, 345.0, 236.0, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 345.0, 236.0, Button::Left, Mods::NONE);
+        assert_eq!(f.take_events(), vec![KernelEvent::Container(Container::Resize { form: "sg3f".into(), w: 350, h: 240 })]);
     }
 
     #[test]

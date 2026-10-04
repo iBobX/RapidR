@@ -155,6 +155,9 @@ pub struct Cx<'a> {
     /// The scale the form was last painted at (device pixels per logical
     /// pixel): editors lay out at it.
     pub scale: f64,
+    /// Its form's window corner is the system's
+    /// ([`FormUi::system_corner`](crate::tree::FormUi::system_corner)).
+    pub system_corner: bool,
 }
 
 impl Cx<'_> {

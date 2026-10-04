@@ -126,10 +126,10 @@ impl FormUi {
             caret_on: self.caret_on,
             default_frame: false,
         };
-        let scale = self.scale;
+        let (scale, system_corner) = (self.scale, self.system_corner);
         let node = &mut self.nodes[i];
         let font = store.font(&node.id);
-        let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font, state, ui: &mut node.ui, events: &mut self.events, scale };
+        let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font, state, ui: &mut node.ui, events: &mut self.events, scale, system_corner };
         Some(f(kind, &mut cx))
     }
 

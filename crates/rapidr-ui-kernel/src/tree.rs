@@ -94,6 +94,11 @@ pub struct FormUi {
     /// The caret blinks (the host turns it off for captures: a headless
     /// host draws it steadily on).
     pub blinks: bool,
+    /// Its window's bottom-right corner is the system's (the host says):
+    /// rounded off and resizing the window itself — macOS' titled windows.
+    /// A status bar's size grip isn't drawn there (its square keeps its
+    /// place, cursor and drag).
+    pub system_corner: bool,
     /// The last press: when, on what, where, and how many clicks it made.
     pub(crate) last_click: Option<(crate::tick::Instant, Option<usize>, f64, f64, u8)>,
     /// The wheel's turn not yet a whole notch (form scroll bars, lists).
@@ -143,6 +148,7 @@ impl FormUi {
             surface: None,
             wakes: Default::default(),
             blinks: true,
+            system_corner: false,
             last_click: None,
             wheel_rest: (0.0, 0.0),
         };

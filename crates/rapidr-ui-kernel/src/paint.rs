@@ -206,14 +206,14 @@ impl FormUi {
             default_frame: default == Some(i) && !focused_is_button,
         };
         let children = self.children(i);
-        let scale = self.scale;
+        let (scale, system_corner) = (self.scale, self.system_corner);
         p.at((x, y), |p| {
             p.clipped((0, 0, w, h), |p| {
                 let node = &mut self.nodes[i];
                 if let Some(kind) = node.kind {
                     // (painting fires nothing)
                     let mut events = Vec::new();
-                    let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font: store.font(&node.id), state, ui: &mut node.ui, events: &mut events, scale };
+                    let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font: store.font(&node.id), state, ui: &mut node.ui, events: &mut events, scale, system_corner };
                     kind.paint(&mut cx, p);
                 }
             });
