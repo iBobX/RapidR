@@ -718,33 +718,38 @@ pub enum NameFrom {
 /// The name rule (plan §6), after a component's own name (`describe`'s:
 /// its Caption …): its AccessibleName replaces it; without either, its
 /// Hint, then the QLABEL naming it (`label`: that label's node id and
-/// caption, asked only then; a label and a pane are never named by one).
-/// AccessibleDescription is its description.
+/// caption, asked only then, and only for a control: a label, a panel, a
+/// status bar, a picture are never named by one). Its description is its
+/// AccessibleDescription, else its Hint when the Hint isn't its name (a
+/// tooltip, as a browser reads a title).
 pub fn apply_name_rule(n: &mut AccessNode, get: Props, label: impl FnOnce() -> Option<(u64, String)>) -> NameFrom {
-    n.description = text(get, "accessibledescription");
+    let hint = text(get, "hint");
     let given = text(get, "accessiblename");
-    if !given.is_empty() {
+    let from = if !given.is_empty() {
         n.name = given;
-        return NameFrom::Given;
-    }
-    if !n.name.is_empty() {
-        return NameFrom::Own;
-    }
-    n.name = text(get, "hint");
-    if !n.name.is_empty() {
-        return NameFrom::Hint;
-    }
-    if matches!(n.role, Role::Label | Role::Pane) {
-        return NameFrom::Own;
-    }
-    match label() {
-        Some((by, caption)) => {
-            n.labelled_by = Some(by);
-            n.name = mnemonic(&caption).0;
-            NameFrom::Label
+        NameFrom::Given
+    } else if !n.name.is_empty() {
+        NameFrom::Own
+    } else if !hint.is_empty() {
+        n.name = hint.clone();
+        NameFrom::Hint
+    } else if matches!(n.role, Role::Label | Role::Pane | Role::Group | Role::Status | Role::Splitter | Role::Image | Role::Canvas | Role::Window | Role::Dialog | Role::MenuBar | Role::Unknown) {
+        NameFrom::Own
+    } else {
+        match label() {
+            Some((by, caption)) => {
+                n.labelled_by = Some(by);
+                n.name = mnemonic(&caption).0;
+                NameFrom::Label
+            }
+            None => NameFrom::Own,
         }
-        None => NameFrom::Own,
+    };
+    n.description = text(get, "accessibledescription");
+    if n.description.is_empty() && from != NameFrom::Hint {
+        n.description = hint;
     }
+    from
 }
 
 /// Which of a parent's shown components names component `target` without a
@@ -783,22 +788,36 @@ pub trait TabTree {
 /// it), skipping what's hidden or disabled (and its children) and what
 /// Tab doesn't stop on.
 pub fn tab_order<T: TabTree>(tree: &T) -> Vec<T::Id> {
-    fn walk<T: TabTree>(tree: &T, parent: Option<&T::Id>, out: &mut Vec<T::Id>) {
+    tab_walk(tree).into_iter().filter(|(_, stops)| *stops).map(|(c, _)| c).collect()
+}
+
+/// Every shown and enabled component in the order Tab walks them, with
+/// whether Tab stops on it (a label is walked past: [`next_stop_after`]).
+pub fn tab_walk<T: TabTree>(tree: &T) -> Vec<(T::Id, bool)> {
+    fn walk<T: TabTree>(tree: &T, parent: Option<&T::Id>, out: &mut Vec<(T::Id, bool)>) {
         let mut sorted: Vec<(i64, T::Id)> = tree.children(parent).into_iter().enumerate().map(|(k, c)| (tree.tab_order_of(&c).unwrap_or(k as i64), c)).collect();
         sorted.sort_by_key(|(o, _)| *o);
         for (_, c) in sorted {
             if !tree.active(&c) {
                 continue;
             }
-            if tree.stops(&c) {
-                out.push(c.clone());
-            }
+            out.push((c.clone(), tree.stops(&c)));
             walk(tree, Some(&c), out);
         }
     }
     let mut out = Vec::new();
     walk(tree, None, &mut out);
     out
+}
+
+/// What Alt + a label's letter focuses: the first Tab stop after the
+/// label in Tab's walk (Windows' dialogs: the control after the static
+/// text).
+pub fn next_stop_after<T: TabTree>(tree: &T, label: &T::Id) -> Option<T::Id>
+where
+    T::Id: PartialEq,
+{
+    tab_walk(tree).into_iter().skip_while(|(c, _)| c != label).skip(1).find(|(_, stops)| *stops).map(|(c, _)| c)
 }
 
 /// A menu bar's items (`main`: the QMAINMENU), separators left out: each
@@ -983,9 +1002,16 @@ mod tests {
         let get = props(&[]);
         let mut n = describe("e", "REDIT", &get, (100, 21), &font);
         assert_eq!((apply_name_rule(&mut n, &get, || Some((7, "&Name:".into()))), n.name.as_str(), n.labelled_by), (NameFrom::Label, "Name:", Some(7)));
-        // a label is never named by another
+        // a label is never named by another, nor a status bar
         let mut n = describe("l", "RLABEL", &get, (100, 21), &font);
         assert_eq!((apply_name_rule(&mut n, &get, || Some((7, "x".into()))), n.labelled_by), (NameFrom::Own, None));
+        let mut n = describe("sb", "RSTATUSBAR", &get, (300, 20), &font);
+        assert_eq!((apply_name_rule(&mut n, &get, || Some((7, "x".into()))), n.labelled_by), (NameFrom::Own, None));
+        // a Hint its caption doesn't need is its description (a tooltip)
+        let get = props(&[("caption", v_str("OK")), ("hint", v_str("Signs you in"))]);
+        let mut n = describe("ok", "RBUTTON", &get, (75, 25), &font);
+        apply_name_rule(&mut n, &get, || None);
+        assert_eq!((n.name.as_str(), n.description.as_str()), ("OK", "Signs you in"));
     }
 
     #[test]
@@ -1024,5 +1050,15 @@ mod tests {
         let f = Form(vec![("edit", Some(2), true, vec![]), ("panel", Some(0), false, vec![2, 3]), ("b1", None, true, vec![]), ("b2", None, true, vec![]), ("chk", Some(1), true, vec![])], vec![0, 1, 4]);
         let names: Vec<_> = tab_order(&f).into_iter().map(|i| f.0[i].0).collect();
         assert_eq!(names, ["b1", "b2", "chk", "edit"]);
+    }
+
+    #[test]
+    fn a_labels_letter_focuses_the_next_stop_in_tabs_walk() {
+        // "Name:" [edit], "Pass:" [edit2], a button TabOrder 1 (before "Pass:")
+        let f = Form(vec![("name", None, false, vec![]), ("edit", None, true, vec![]), ("pass", None, false, vec![]), ("edit2", None, true, vec![]), ("btn", Some(1), true, vec![])], vec![0, 1, 2, 3, 4]);
+        assert_eq!(next_stop_after(&f, &0).map(|i| f.0[i].0), Some("edit"));
+        // (the button comes before "Pass:" in Tab's walk: not after it)
+        assert_eq!(next_stop_after(&f, &2).map(|i| f.0[i].0), Some("edit2"));
+        assert_eq!(next_stop_after(&f, &3), None);
     }
 }

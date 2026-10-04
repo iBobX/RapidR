@@ -102,10 +102,8 @@ impl FormUi {
     }
 
     /// The component after `i` in Tab order (what a label's mnemonic
-    /// focuses).
+    /// focuses: the next stop after it in Tab's walk, the web's rule too).
     pub(crate) fn next_in_order(&self, store: &dyn Store, i: usize) -> Option<usize> {
-        // (creation order decides where a component that isn't a tab stop
-        // itself, a label, falls)
-        self.tab_order(store).into_iter().find(|&o| o > i)
+        rapidr_value::objects::a11y::next_stop_after(&Walk { ui: self, store }, &i)
     }
 }
