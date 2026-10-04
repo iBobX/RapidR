@@ -912,7 +912,8 @@ pub fn open_color(req: ColorRequest) {
     }
     // (the field and the bar follow the mouse while it's held)
     let drag = Rc::new(Cell::new(None::<&'static str>));
-    let pick: Rc<dyn Fn(&str, &web_sys::MouseEvent)> = {
+    type Pick = Rc<dyn Fn(&str, &web_sys::MouseEvent)>;
+    let pick: Pick = {
         let (state, refresh, spectrum, lum) = (state.clone(), refresh.clone(), spectrum.clone(), lum.clone());
         Rc::new(move |which: &str, e: &web_sys::MouseEvent| {
             if which == "spectrum" {
@@ -1066,7 +1067,7 @@ pub fn open_font(r: FontRequest) {
     let face = list("rr-font-name", fl::FONT_LIST, &pairs(&names), 8, names.iter().position(|n| n.eq_ignore_ascii_case(&f.name)).filter(|_| !req.has(fd::FD_NO_FACE_SEL)));
     let styles: Vec<String> = fd::STYLES.iter().map(|s| s.to_string()).collect();
     let style_index = usize::from(f.styles & 2 != 0) + 2 * usize::from(f.styles & 1 != 0);
-    let style = list("rr-font-style", fl::STYLE_LIST, &pairs(&styles), 8, Some(style_index).filter(|_| !req.has(fd::FD_NO_STYLE_SEL)));
+    let style = list("rr-font-style", fl::STYLE_LIST, &pairs(&styles), 8, (!req.has(fd::FD_NO_STYLE_SEL)).then_some(style_index));
     let size_items: Vec<String> = sizes.iter().map(i64::to_string).collect();
     let size = list("rr-font-size", fl::SIZE_LIST, &pairs(&size_items), 8, sizes.iter().position(|s| *s == f.size).filter(|_| !req.has(fd::FD_NO_SIZE_SEL)));
     let check = |class: &str, caption: &str, rect: Rect, on: bool| {
@@ -1134,7 +1135,7 @@ pub fn open_font(r: FontRequest) {
                     f.color = *c;
                 }
             }
-            let _ = sample.style().set_css_text(&format!("position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;{}", sample_rect.0, sample_rect.1, sample_rect.2, sample_rect.3, font_css(&f)));
+            sample.style().set_css_text(&format!("position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;{}", sample_rect.0, sample_rect.1, sample_rect.2, sample_rect.3, font_css(&f)));
         })
     };
     let changed = |el: &web_sys::HtmlElement| {

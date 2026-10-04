@@ -1339,7 +1339,10 @@ pub fn minimize() {
 
 /// MSGBOX: the text and OK.
 pub fn message_box(text: &str) {
-    gui_choice("", text, &["OK"], None, false);
+    // (the dialogs lane's: SHOWMESSAGE's box, titled Application.Title, as
+    // FLTK's and the web's)
+    let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
+    gui_choice(&title, text, &["OK"], None, false);
 }
 
 /// The program ends: the windows' pending commands run (closed forms'

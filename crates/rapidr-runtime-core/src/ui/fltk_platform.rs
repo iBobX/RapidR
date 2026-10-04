@@ -33,6 +33,9 @@ pub fn minimize() {
     }
 }
 
+/// (the dialogs lane's: SHOWMESSAGE's box, titled Application.Title, as the
+/// kernel's and the web's — FLTK's stock message had its own look)
 pub fn message_box(text: &str) {
-    fltk::dialog::message_default(text);
+    let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
+    crate::gui::gui_choice(&title, text, &["OK"], None, false);
 }

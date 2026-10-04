@@ -891,7 +891,7 @@ fn fltk_font_dialog(owner: &str, title: &str, req: rapidr_value::font_dialog::Re
     let mut face = browser(fl::FONT_LIST, &names, names.iter().position(|n| n.eq_ignore_ascii_case(&f.name)).filter(|_| !unselected(fd::FD_NO_FACE_SEL)));
     let styles: Vec<String> = fd::STYLES.iter().map(|s| s.to_string()).collect();
     let style_index = usize::from(f.styles & 2 != 0) + 2 * usize::from(f.styles & 1 != 0);
-    let mut style = browser(fl::STYLE_LIST, &styles, Some(style_index).filter(|_| !unselected(fd::FD_NO_STYLE_SEL)));
+    let mut style = browser(fl::STYLE_LIST, &styles, (!unselected(fd::FD_NO_STYLE_SEL)).then_some(style_index));
     let size_items: Vec<String> = sizes.iter().map(i64::to_string).collect();
     let mut size = browser(fl::SIZE_LIST, &size_items, sizes.iter().position(|s| *s == f.size).filter(|_| !unselected(fd::FD_NO_SIZE_SEL)));
     let (mut strike, mut under, mut color) = (CheckButton::default(), CheckButton::default(), Choice::default());

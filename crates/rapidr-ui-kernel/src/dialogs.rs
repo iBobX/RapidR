@@ -1,30 +1,32 @@
-//! Dialogs the kernel draws itself, as forms in a [`MemStore`]: the
-//! MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE box (the text and the buttons
-//! `rapidr_value::dialogs` gives, the first one the default), QCOLORDIALOG
-//! (Windows' basic colours and custom colours) and QFONTDIALOG (font, style
-//! and size lists, a sample) — the system has no colour or font dialog the
-//! host could show without blocking (rfd has neither).
+//! Dialogs the kernel draws itself, as forms in a [`MemStore`], from the
+//! shared models every runtime shows them from: the MESSAGEBOX /
+//! MESSAGEDLG / SHOWMESSAGE box (`rapidr_value::dialogs`: its icon, text
+//! and buttons, the first one the default), QCOLORDIALOG
+//! (`rapidr_value::color_dialog`: the basic and custom colours, the custom
+//! colour editor) and QFONTDIALOG (`rapidr_value::font_dialog`: the face,
+//! style and size lists, the effects, a sample) — the system has no colour
+//! or font dialog the host could show without blocking (rfd has neither).
 //!
 //! A dialog is an ordinary kernel form: the host shows its window, routes
 //! input into it (Tab, Enter on the default button, Escape, mnemonics,
 //! screen readers) and queues its [`KernelEvent`]s; runtime-core hands them
 //! to [`Dialog::event`] instead of the program, and steps until it answers.
 //! Its components' ids start with [`PREFIX`], which no BASIC name can.
-//! What only a dialog draws (a message's icon …) is a [`Part`]
-//! (`RDLGPART`, a type no program can make).
-
-use rapidr_value::color_dialog::{self as cd, layout as cl, State as ColorState};
-use rapidr_value::font_dialog as fd;
-use rapidr_value::objects::font::Font;
-use rapidr_value::dialogs::{icon_shapes, message_layout, MsgIcon};
-use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
-use rapidr_value::objects::text::text_size;
-use rapidr_value::Value;
+//! What only a dialog draws (a message's icon, the colour editor's field
+//! and bar, the font's sample) is a [`Part`] (`RDLGPART`, a type no program
+//! can make).
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use rapidr_value::color_dialog::{self as cd, layout as cl, State as ColorState};
+use rapidr_value::dialogs::{icon_shapes, message_layout, MsgIcon};
+use rapidr_value::font_dialog as fd;
+use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
+use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Op;
+use rapidr_value::objects::text::text_size;
+use rapidr_value::Value;
 
 use crate::components::{ComponentKind, Cx};
 use crate::display::Picture;
@@ -692,7 +694,6 @@ pub use rapidr_value::font_dialog::FONT_NAMES;
 mod tests {
     use super::*;
     use crate::input::{Clipboard, MemClipboard, Mods};
-    use rapidr_value::objects::font::Font;
     use crate::text::TextSystem;
     use crate::tree::FormUi;
     use rapidr_value::input::Button;
