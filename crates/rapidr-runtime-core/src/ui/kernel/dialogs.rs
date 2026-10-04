@@ -20,12 +20,11 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use rapidr_ui_host_winit::{FileRequest, Frame, HostCmd, Icon, WindowSpec};
-use rapidr_ui_kernel::dialogs::{self as kd, Answer, Dialog, FontChoice};
+use rapidr_ui_kernel::dialogs::{Answer, Dialog};
 use rapidr_ui_kernel::{KernelEvent, Store};
 
 use super::{ensure_host, invalidate, pump, screen, st, step, with_kern, RtStore};
-use crate::object::{rp_comp_get, rp_comp_set};
-use crate::value::{v_int, v_str, Value};
+use crate::value::{v_int, Value};
 
 thread_local! {
     /// The kernel-drawn dialogs open now, innermost last.
@@ -33,6 +32,9 @@ thread_local! {
     /// Their answers, by form id, until their wait takes them.
     static ANSWERS: RefCell<HashMap<String, Answer>> = RefCell::new(HashMap::new());
     static NEXT: Cell<u64> = const { Cell::new(1) };
+    /// The QFONTDIALOG each open font dialog is the program's (its Apply's
+    /// OnApply), by form id.
+    static APPLY_TO: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
 }
 
 fn next_id() -> u64 {
@@ -56,17 +58,23 @@ pub(in crate::ui) fn with_store<R>(id: &str, f: impl FnOnce(&dyn Store) -> R) ->
 /// An event of dialog form `form`'s (from `dispatch_pending`): its answer
 /// kept once it closes; what it changed drawn again.
 pub(super) fn event(form: &str, ev: KernelEvent) {
-    let (answer, size) = OPEN.with(|o| {
+    let (answer, size, applied) = OPEN.with(|o| {
         let mut o = o.borrow_mut();
-        let Some(d) = o.iter_mut().find(|d| d.id == form) else { return (None, None) };
+        let Some(d) = o.iter_mut().find(|d| d.id == form) else { return (None, None, None) };
         let before = d.size;
         let answer = d.event(&ev);
-        (answer, (d.size != before).then_some(d.size))
+        (answer, (d.size != before).then_some(d.size), d.take_applied())
     });
     if let Some(a) = answer {
         ANSWERS.with(|m| {
             m.borrow_mut().entry(form.to_string()).or_insert(a);
         });
+    }
+    // (a font dialog's Apply: the program's OnApply, the dialog still open)
+    if let Some(font) = applied {
+        if let Some(owner) = APPLY_TO.with(|a| a.borrow().get(form).cloned()) {
+            crate::ui::choose_dialogs::font_applied(&owner, &font);
+        }
     }
     // (it grew: a colour dialog's editor opened — new parts, a wider window)
     if let Some((w, h)) = size {
@@ -155,7 +163,6 @@ pub(super) fn execute(name: &str, comp_type: &str) -> Value {
     if let Some((save, multi)) = crate::ui::file_dialog::kind(name, comp_type) {
         return crate::ui::file_dialog::execute(name, save, multi, pick_files);
     }
-    let caption = |default: &str| Some(rp_comp_get(name, "caption").to_string_val()).filter(|c| !c.is_empty()).unwrap_or_else(|| default.to_string());
     match comp_type {
         // (Color is &HBBGGRR, RapidQ's LONG; the custom colours come back
         // either way)
@@ -166,26 +173,21 @@ pub(super) fn execute(name: &str, comp_type: &str) -> Value {
                 _ => (None, custom),
             }
         }),
-        "RFONTDIALOG" => {
-            let font_name = rp_comp_get(name, "fontname").to_string_val();
-            let size = rp_comp_get(name, "fontsize").to_i64();
-            let chosen = FontChoice {
-                name: if font_name.trim().is_empty() { "Arial".into() } else { font_name },
-                size: if size > 0 { size } else { 12 },
-                bold: rp_comp_get(name, "fontbold").to_bool(),
-                italic: rp_comp_get(name, "fontitalic").to_bool(),
-            };
-            match run(Dialog::font(next_id(), &caption("Font"), &chosen, &kd::FONT_NAMES)) {
-                Answer::Font(Some(f)) => {
-                    rp_comp_set(name, "fontname", v_str(&f.name));
-                    rp_comp_set(name, "fontsize", v_int(f.size));
-                    rp_comp_set(name, "fontbold", v_int(i64::from(f.bold)));
-                    rp_comp_set(name, "fontitalic", v_int(i64::from(f.italic)));
-                    v_int(1)
-                }
-                _ => v_int(0),
+        // (the faces: the shared ones and the system's, as fontique finds
+        // them; Apply stores the font so far and fires OnApply)
+        "RFONTDIALOG" => crate::ui::choose_dialogs::font_execute(name, |title, req| {
+            ensure_host();
+            let names = crate::ui::choose_dialogs::font_names(|| with_kern(|k| k.desk.text.family_names()).unwrap_or_default());
+            let d = Dialog::font(next_id(), title, req, &names);
+            APPLY_TO.with(|a| a.borrow_mut().insert(d.id.clone(), name.to_string()));
+            let id = d.id.clone();
+            let answer = run(d);
+            APPLY_TO.with(|a| a.borrow_mut().remove(&id));
+            match answer {
+                Answer::Font(f) => f,
+                _ => None,
             }
-        }
+        }),
         _ => v_int(0),
     }
 }

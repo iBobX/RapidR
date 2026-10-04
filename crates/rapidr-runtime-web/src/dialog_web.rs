@@ -978,3 +978,210 @@ pub fn open_color(req: ColorRequest) {
     WAITING.with(|w| w.set(true));
     SUSPEND.with(|s| s.set(true));
 }
+
+/// What a font dialog asks for (QFONTDIALOG).
+pub struct FontRequest {
+    pub title: String,
+    pub req: rapidr_value::font_dialog::Request,
+    /// The faces it may list (`Request::names` picks).
+    pub names: Vec<String>,
+    /// Gets the font chosen (`None`: Cancel) before the program goes on.
+    pub done: Rc<dyn Fn(Option<rapidr_value::objects::font::Font>)>,
+    /// Apply (fdApplyButton): the font so far, for the program's OnApply.
+    pub apply: Rc<dyn Fn(&rapidr_value::objects::font::Font)>,
+}
+
+/// A font as CSS for the sample: its face (the generic family RapidR draws
+/// it with after it), size, weight, slant, lines and colour.
+fn font_css(f: &rapidr_value::objects::font::Font) -> String {
+    let generic = match rapidr_value::objects::text::family_name(&f.name) {
+        "Liberation Mono" => "monospace",
+        "Liberation Serif" => "serif",
+        _ => "sans-serif",
+    };
+    let lines: Vec<&str> = [(4, "underline"), (8, "line-through")].iter().filter(|(b, _)| f.styles & b != 0).map(|(_, l)| *l).collect();
+    format!(
+        "font-family:'{}',{generic};font-size:{}px;font-weight:{};font-style:{};text-decoration:{};color:{};",
+        f.name.replace('\'', ""),
+        f.pixel_size(),
+        if f.styles & 1 != 0 { "bold" } else { "normal" },
+        if f.styles & 2 != 0 { "italic" } else { "normal" },
+        if lines.is_empty() { "none".to_string() } else { lines.join(" ") },
+        css_color(f.color)
+    )
+}
+
+/// The font dialog in the page, as the desktop's: the face, style and size
+/// lists, with fdEffects Strikeout, Underline and the colour, the sample;
+/// OK, Cancel, Apply (fdApplyButton), a disabled Help (fdShowHelp). The
+/// program waits for it and gets 1 / 0 from Execute. Only call when
+/// [`can_wait`] is true.
+pub fn open_font(r: FontRequest) {
+    use rapidr_value::font_dialog::{self as fd, layout as fl};
+    let Some(body) = document().body() else { return };
+    let req = r.req;
+    let (names, sizes, colors, effects) = (req.names(&r.names), req.sizes(), req.colors(), req.has(fd::FD_EFFECTS));
+    let font = Rc::new(RefCell::new(req.font.clone()));
+    let (backdrop, _panel, area) = dialog_panel("rr-font-dialog", &r.title);
+    let (w, h) = fl::size(effects);
+    let _ = area.style().set_property("width", &format!("{w}px"));
+    let _ = area.style().set_property("height", &format!("{h}px"));
+    let add = |el: &web_sys::HtmlElement| {
+        let _ = area.append_child(el);
+    };
+    let label = |caption: &str, rect: Rect| {
+        let l = placed("div", "rr-font-label", rect, "white-space:nowrap;");
+        set_caption(&l, caption);
+        add(&l);
+    };
+    let group = |caption: &str, (x, y, w, h): Rect| {
+        let g = placed("div", "rr-font-group", (x, y + 6, w, h - 6), "border:2px groove #f0f0f0;");
+        let t = placed("div", "", (6, -9, w - 12, 14), "");
+        let span = create_el("span");
+        let _ = span.set_attribute("style", "background:#f0f0f0;padding:0 2px;");
+        span.set_text_content(Some(caption));
+        let _ = t.append_child(&span);
+        let _ = g.append_child(&t);
+        add(&g);
+    };
+    let list = |class: &str, rect: Rect, items: &[(String, String)], size: u32, selected: Option<usize>| {
+        let s = placed("select", class, rect, "font:inherit;background:#fff;color:#000;border:2px inset #f0f0f0;").unchecked_into::<web_sys::HtmlSelectElement>();
+        if size > 0 {
+            s.set_size(size);
+        }
+        for (text, value) in items {
+            if let Ok(o) = web_sys::HtmlOptionElement::new_with_text_and_value(text, value) {
+                let _ = s.add_with_html_option_element(&o);
+            }
+        }
+        s.set_selected_index(selected.map_or(-1, |i| i as i32));
+        add(s.unchecked_ref());
+        s
+    };
+    let f = req.font.clone();
+    label("&Font:", fl::FONT_LABEL);
+    label("Font st&yle:", fl::STYLE_LABEL);
+    label("&Size:", fl::SIZE_LABEL);
+    let pairs = |v: &[String]| v.iter().map(|n| (n.clone(), n.clone())).collect::<Vec<_>>();
+    let face = list("rr-font-name", fl::FONT_LIST, &pairs(&names), 8, names.iter().position(|n| n.eq_ignore_ascii_case(&f.name)).filter(|_| !req.has(fd::FD_NO_FACE_SEL)));
+    let styles: Vec<String> = fd::STYLES.iter().map(|s| s.to_string()).collect();
+    let style_index = usize::from(f.styles & 2 != 0) + 2 * usize::from(f.styles & 1 != 0);
+    let style = list("rr-font-style", fl::STYLE_LIST, &pairs(&styles), 8, Some(style_index).filter(|_| !req.has(fd::FD_NO_STYLE_SEL)));
+    let size_items: Vec<String> = sizes.iter().map(i64::to_string).collect();
+    let size = list("rr-font-size", fl::SIZE_LIST, &pairs(&size_items), 8, sizes.iter().position(|s| *s == f.size).filter(|_| !req.has(fd::FD_NO_SIZE_SEL)));
+    let check = |class: &str, caption: &str, rect: Rect, on: bool| {
+        let row = placed("label", "rr-font-check", rect, "display:flex;align-items:center;gap:4px;white-space:nowrap;");
+        let c = create_el("input").unchecked_into::<web_sys::HtmlInputElement>();
+        c.set_type("checkbox");
+        c.set_class_name(class);
+        c.set_checked(on);
+        let _ = c.style().set_property("margin", "0");
+        let text = create_el("span");
+        set_caption(&text, caption);
+        let _ = row.append_child(&c);
+        let _ = row.append_child(&text);
+        add(&row);
+        c
+    };
+    let mut effect_inputs = None;
+    if effects {
+        group("Effects", fl::EFFECTS);
+        let strike = check("rr-font-strike", "Stri&keout", fl::STRIKEOUT, f.styles & 8 != 0);
+        let under = check("rr-font-under", "&Underline", fl::UNDERLINE, f.styles & 4 != 0);
+        label("&Color:", fl::COLOR_LABEL);
+        let items: Vec<(String, String)> = colors.iter().map(|(n, c)| (n.clone(), c.to_string())).collect();
+        let color = list("rr-font-color", fl::COLOR_LIST, &items, 0, colors.iter().position(|(_, c)| *c == f.color));
+        effect_inputs = Some((strike, under, color));
+    }
+    let (sample_group, sample_rect) = fl::sample(effects);
+    group("Sample", sample_group);
+    let sample = placed("div", "rr-font-sample", sample_rect, "display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;");
+    sample.set_text_content(Some(fd::SAMPLE));
+    add(&sample);
+    let ok = push_button("rr-font-ok", "OK", fl::OK, true);
+    add(&ok);
+    let cancel = push_button("rr-font-cancel", "Cancel", fl::CANCEL, false);
+    add(&cancel);
+    let apply_shown = req.has(fd::FD_APPLY_BUTTON);
+    let apply = apply_shown.then(|| push_button("rr-font-apply", "&Apply", fl::APPLY, false));
+    if let Some(a) = &apply {
+        add(a);
+    }
+    if req.has(fd::FD_SHOW_HELP) {
+        let help = push_button("rr-font-help", "&Help", if apply_shown { fl::HELP } else { fl::APPLY }, false);
+        help.unchecked_ref::<web_sys::HtmlButtonElement>().set_disabled(true);
+        let _ = help.style().set_property("color", "#808080");
+        add(&help);
+    }
+
+    // (any change: the choice read again and the sample shown in it)
+    let update: Rc<dyn Fn()> = {
+        let (font, face, style, size, sample, effect_inputs) = (font.clone(), face.clone(), style.clone(), size.clone(), sample.clone(), effect_inputs.clone());
+        Rc::new(move || {
+            let mut f = font.borrow_mut();
+            if let Some(n) = usize::try_from(face.selected_index()).ok().and_then(|i| names.get(i)) {
+                f.name = n.clone();
+            }
+            if let Ok(st) = usize::try_from(style.selected_index()) {
+                f.styles = (f.styles & !3) | u8::from(st & 2 != 0) | u8::from(st & 1 != 0) << 1;
+            }
+            if let Some(s) = usize::try_from(size.selected_index()).ok().and_then(|i| sizes.get(i)) {
+                f.size = *s;
+            }
+            if let Some((strike, under, color)) = &effect_inputs {
+                f.styles = (f.styles & 3) | u8::from(under.checked()) << 2 | u8::from(strike.checked()) << 3;
+                if let Some((_, c)) = usize::try_from(color.selected_index()).ok().and_then(|i| colors.get(i)) {
+                    f.color = *c;
+                }
+            }
+            let _ = sample.style().set_css_text(&format!("position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;{}", sample_rect.0, sample_rect.1, sample_rect.2, sample_rect.3, font_css(&f)));
+        })
+    };
+    let changed = |el: &web_sys::HtmlElement| {
+        let update = update.clone();
+        let c = Closure::<dyn FnMut()>::new(move || update());
+        let _ = el.add_event_listener_with_callback("change", c.as_ref().unchecked_ref());
+        c.forget();
+    };
+    changed(face.unchecked_ref());
+    changed(style.unchecked_ref());
+    changed(size.unchecked_ref());
+    if let Some((strike, under, color)) = &effect_inputs {
+        changed(strike.unchecked_ref());
+        changed(under.unchecked_ref());
+        changed(color.unchecked_ref());
+    }
+
+    // The answer, once: OK / Enter (the font), Cancel / Escape (none).
+    let done = Rc::new(Cell::new(false));
+    let finish: Rc<dyn Fn(bool)> = {
+        let (done, backdrop, font, answer, update) = (done.clone(), backdrop.clone(), font.clone(), r.done.clone(), update.clone());
+        Rc::new(move |ok: bool| {
+            if done.replace(true) {
+                return;
+            }
+            update();
+            backdrop.remove();
+            answer(ok.then(|| font.borrow().clone()));
+            resume(Value::Integer(i64::from(ok)), None);
+        })
+    };
+    for (el, ok_button) in [(ok.clone(), true), (cancel.clone(), false)] {
+        let finish = finish.clone();
+        on_mouse(&el, "click", Box::new(move |_| finish(ok_button)));
+    }
+    if let Some(a) = &apply {
+        let (font, applied, update) = (font.clone(), r.apply.clone(), update.clone());
+        on_mouse(a, "click", Box::new(move |_| {
+            update();
+            let f = font.borrow().clone();
+            applied(&f);
+        }));
+    }
+    ok_cancel_keys(&backdrop, finish);
+    update();
+    let _ = body.append_child(&backdrop);
+    let _ = ok.focus();
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+}

@@ -839,6 +839,182 @@ fn fltk_color_dialog(title: &str, bgr: i64) -> Option<i64> {
     chosen.get().then(|| i64::from(b) << 16 | i64::from(g) << 8 | i64::from(r))
 }
 
+/// QFONTDIALOG on FLTK, laid out as the kernel's and the web's
+/// (`rapidr_value::font_dialog::layout`): the faces (the shared ones —
+/// FLTK draws every face with its own three families), styles and sizes,
+/// with fdEffects Strikeout, Underline and the colour, the sample; OK,
+/// Cancel, Apply (fdApplyButton: the font so far stored, then `owner`'s
+/// OnApply), a disabled Help (fdShowHelp). The font chosen, `None` for
+/// Cancel or the close box.
+fn fltk_font_dialog(owner: &str, title: &str, req: rapidr_value::font_dialog::Request) -> Option<rapidr_value::objects::font::Font> {
+    use rapidr_value::font_dialog::{self as fd, layout as fl};
+    use std::rc::Rc;
+    ensure_app();
+    let names = req.names(&crate::ui::choose_dialogs::font_names(Vec::new));
+    let (sizes, colors, effects) = (req.sizes(), req.colors(), req.has(fd::FD_EFFECTS));
+    let at = |(x, y, w, h): fl::Rect| (x as i32, y as i32, w as i32, h as i32);
+    let (w, h) = fl::size(effects);
+    let mut win = Window::default().with_size(w as i32, h as i32).with_label(title);
+    win.make_modal(true);
+    let font = Rc::new(RefCell::new(req.font.clone()));
+    let label = |rect: fl::Rect, text: &str| {
+        let (x, y, w, h) = at(rect);
+        let mut f = Frame::new(x, y, w, h, None);
+        f.set_label(text);
+        f.set_align(Align::Left | Align::Inside);
+        f.set_label_size(13);
+    };
+    let group = |rect: fl::Rect, text: &str| {
+        let (x, y, w, h) = at(rect);
+        let mut f = Frame::new(x, y + 6, w, h - 6, None);
+        f.set_frame(FrameType::EngravedFrame);
+        f.set_label(text);
+        f.set_label_size(13);
+        f.set_align(Align::TopLeft);
+    };
+    let browser = |rect: fl::Rect, items: &[String], selected: Option<usize>| {
+        let (x, y, w, h) = at(rect);
+        let mut b = HoldBrowser::new(x, y, w, h, None);
+        for i in items {
+            b.add(&i.replace('@', "@@"));
+        }
+        if let Some(s) = selected {
+            b.select(s as i32 + 1);
+        }
+        b
+    };
+    let f = req.font.clone();
+    label(fl::FONT_LABEL, "&Font:");
+    label(fl::STYLE_LABEL, "Font st&yle:");
+    label(fl::SIZE_LABEL, "&Size:");
+    let unselected = |o: i64| req.has(o);
+    let mut face = browser(fl::FONT_LIST, &names, names.iter().position(|n| n.eq_ignore_ascii_case(&f.name)).filter(|_| !unselected(fd::FD_NO_FACE_SEL)));
+    let styles: Vec<String> = fd::STYLES.iter().map(|s| s.to_string()).collect();
+    let style_index = usize::from(f.styles & 2 != 0) + 2 * usize::from(f.styles & 1 != 0);
+    let mut style = browser(fl::STYLE_LIST, &styles, Some(style_index).filter(|_| !unselected(fd::FD_NO_STYLE_SEL)));
+    let size_items: Vec<String> = sizes.iter().map(i64::to_string).collect();
+    let mut size = browser(fl::SIZE_LIST, &size_items, sizes.iter().position(|s| *s == f.size).filter(|_| !unselected(fd::FD_NO_SIZE_SEL)));
+    let (mut strike, mut under, mut color) = (CheckButton::default(), CheckButton::default(), Choice::default());
+    if effects {
+        group(fl::EFFECTS, "Effects");
+        let check = |rect: fl::Rect, text: &str, on: bool| {
+            let (x, y, w, h) = at(rect);
+            let mut c = CheckButton::new(x, y, w, h, None);
+            c.set_label(text);
+            c.set_label_size(13);
+            c.set_checked(on);
+            c
+        };
+        strike = check(fl::STRIKEOUT, "Stri&keout", f.styles & 8 != 0);
+        under = check(fl::UNDERLINE, "&Underline", f.styles & 4 != 0);
+        label(fl::COLOR_LABEL, "&Color:");
+        let (x, y, w, h) = at(fl::COLOR_LIST);
+        color = Choice::new(x, y, w, h, None);
+        for (n, _) in &colors {
+            color.add_choice(n);
+        }
+        color.set_value(colors.iter().position(|(_, c)| *c == f.color).map_or(-1, |i| i as i32));
+    }
+    let (sample_group, sample_rect) = fl::sample(effects);
+    group(sample_group, "Sample");
+    let (x, y, w, h) = at(sample_rect);
+    let mut sample = Frame::new(x, y, w, h, None);
+    {
+        let font = font.clone();
+        sample.draw(move |s| {
+            let f = font.borrow();
+            let c = Color::from_rgb((f.color & 0xFF) as u8, (f.color >> 8 & 0xFF) as u8, (f.color >> 16 & 0xFF) as u8);
+            draw::set_font(fltk_face(&f), font_pixels(&f));
+            draw::set_draw_color(c);
+            let tw = draw::width(fd::SAMPLE) as i32;
+            let (left, base) = (s.x() + (s.w() - tw) / 2, s.y() + (s.h() + draw::height()) / 2 - draw::descent());
+            draw::draw_text(fd::SAMPLE, left, base);
+            let thick = (font_pixels(&f) / 14).max(1);
+            if f.styles & 4 != 0 {
+                draw::draw_rect_fill(left, base + 1, tw, thick, c);
+            }
+            if f.styles & 8 != 0 {
+                draw::draw_rect_fill(left, base - (f64::from(font_pixels(&f)) * 0.3).round() as i32, tw, thick, c);
+            }
+        });
+    }
+    // (any change: the choice read again and the sample drawn)
+    let update: Rc<dyn Fn()> = {
+        let (face, style, size, strike, under, color, font, sample) = (face.clone(), style.clone(), size.clone(), strike.clone(), under.clone(), color.clone(), font.clone(), sample.clone());
+        let (names, sizes, colors) = (names.clone(), sizes.clone(), colors.clone());
+        Rc::new(move || {
+            let mut f = font.borrow_mut();
+            if let Some(n) = usize::try_from(face.value() - 1).ok().and_then(|i| names.get(i)) {
+                f.name = n.clone();
+            }
+            if let Ok(st) = usize::try_from(style.value() - 1) {
+                f.styles = (f.styles & !3) | u8::from(st & 2 != 0) | u8::from(st & 1 != 0) << 1;
+            }
+            if let Some(s) = usize::try_from(size.value() - 1).ok().and_then(|i| sizes.get(i)) {
+                f.size = *s;
+            }
+            if effects {
+                f.styles = (f.styles & 3) | u8::from(under.is_checked()) << 2 | u8::from(strike.is_checked()) << 3;
+                if let Some((_, c)) = usize::try_from(color.value()).ok().and_then(|i| colors.get(i)) {
+                    f.color = *c;
+                }
+            }
+            drop(f);
+            sample.clone().redraw();
+        })
+    };
+    macro_rules! on_change {
+        ($($w:ident),*) => {$({
+            let update = update.clone();
+            $w.set_callback(move |_| update());
+        })*};
+    }
+    on_change!(face, style, size);
+    if effects {
+        on_change!(strike, under, color);
+    }
+    let button = |rect: fl::Rect, text: &str| {
+        let (x, y, w, h) = at(rect);
+        let mut b = Button::new(x, y, w, h, None);
+        b.set_label(text);
+        b.set_label_size(13);
+        b
+    };
+    let chosen = Rc::new(std::cell::Cell::new(false));
+    let (ox, oy, ow, oh) = at(fl::OK);
+    let mut ok = fltk::button::ReturnButton::new(ox, oy, ow, oh, "OK");
+    let (c, mut w) = (chosen.clone(), win.clone());
+    ok.set_callback(move |_| {
+        c.set(true);
+        w.hide();
+    });
+    let mut cancel = button(fl::CANCEL, "Cancel");
+    let mut w = win.clone();
+    cancel.set_callback(move |_| w.hide());
+    let apply = req.has(fd::FD_APPLY_BUTTON);
+    if apply {
+        let mut b = button(fl::APPLY, "&Apply");
+        let (owner, font, update) = (owner.to_string(), font.clone(), update.clone());
+        b.set_callback(move |_| {
+            update();
+            let f = font.borrow().clone();
+            crate::ui::choose_dialogs::font_applied(&owner, &f);
+        });
+    }
+    if req.has(fd::FD_SHOW_HELP) {
+        button(if apply { fl::HELP } else { fl::APPLY }, "&Help").deactivate();
+    }
+    win.end();
+    win.show();
+    while win.shown() {
+        if !app::wait() {
+            break;
+        }
+    }
+    let f = font.borrow().clone();
+    chosen.get().then_some(f)
+}
+
 /// Shared shapes (`trackbar::Shape`: a message box's icon) drawn with their
 /// (0, 0) at (`x`, `y`): fills, then outlines, as the trackbar's are.
 fn draw_shapes(shapes: &[rapidr_value::objects::trackbar::Shape], x: i32, y: i32) {
@@ -3245,197 +3421,9 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
         // answers as on every host — ui::choose_dialogs; FLTK's chooser has
         // no basic or custom swatches, so Colors(i) come back as they were)
         "RCOLORDIALOG" => crate::ui::choose_dialogs::color_execute(name, |title, state| (fltk_color_dialog(title, state.color), state.custom)),
-        "RFONTDIALOG" => {
-            // Full font picker with list, size, bold/italic, and live preview
-            use std::rc::Rc;
-
-            let current_name = rp_comp_get(name, "fontname").to_string_val();
-            let current_name = if current_name.is_empty() { "Helvetica".to_string() } else { current_name };
-            let current_size: i32 = rp_comp_get(name, "fontsize").to_string_val().parse().unwrap_or(12);
-
-            let font_names = app::get_font_names();
-
-            let mut win = Window::new(100, 100, 560, 430, None);
-            win.set_label("Font Picker");
-
-            // Font list
-            let mut fl_lbl = Frame::new(10, 5, 250, 20, None);
-            fl_lbl.set_label("Font:");
-            fl_lbl.set_align(Align::Left | Align::Inside);
-            let mut font_browser = HoldBrowser::new(10, 25, 250, 290, None);
-            let mut cur_font_idx = 0i32;
-            for (i, fn_name) in font_names.iter().enumerate() {
-                font_browser.add(fn_name);
-                if fn_name.eq_ignore_ascii_case(&current_name) {
-                    cur_font_idx = i as i32 + 1;
-                }
-            }
-            if cur_font_idx > 0 {
-                font_browser.select(cur_font_idx);
-            }
-
-            // Size list
-            let mut sz_lbl = Frame::new(270, 5, 80, 20, None);
-            sz_lbl.set_label("Size:");
-            sz_lbl.set_align(Align::Left | Align::Inside);
-            let mut size_browser = HoldBrowser::new(270, 25, 70, 290, None);
-            let sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 48, 72];
-            let mut cur_size_idx = 0i32;
-            for (i, &sz) in sizes.iter().enumerate() {
-                size_browser.add(&sz.to_string());
-                if sz == current_size { cur_size_idx = i as i32 + 1; }
-            }
-            if cur_size_idx > 0 { size_browser.select(cur_size_idx); }
-
-            // Bold / Italic checkboxes
-            let mut bold_cb = CheckButton::new(350, 30, 90, 25, None);
-            bold_cb.set_label("Bold");
-            let mut italic_cb = CheckButton::new(450, 30, 90, 25, None);
-            italic_cb.set_label("Italic");
-
-            // Preview area
-            let mut pv_lbl = Frame::new(350, 65, 200, 20, None);
-            pv_lbl.set_label("Preview:");
-            pv_lbl.set_align(Align::Left | Align::Inside);
-            let mut preview = Frame::new(350, 85, 200, 230, None);
-            preview.set_frame(FrameType::DownBox);
-            preview.set_color(Color::White);
-            preview.set_label("AaBbCc 123");
-            preview.set_label_size(current_size);
-            if cur_font_idx > 0 {
-                preview.set_label_font(Font::by_index(cur_font_idx as usize - 1));
-            }
-
-            // OK / Cancel
-            let mut ok_btn = Button::new(350, 390, 90, 30, None);
-            ok_btn.set_label("OK");
-            let mut cancel_btn = Button::new(450, 390, 90, 30, None);
-            cancel_btn.set_label("Cancel");
-
-            win.end();
-            win.make_modal(true);
-            win.show();
-
-            let confirmed = Rc::new(std::cell::RefCell::new(false));
-
-            // Helper: update preview from current selections
-            macro_rules! update_preview_fn {
-                ($preview:expr, $font_browser:expr, $size_browser:expr, $bold_cb:expr, $italic_cb:expr, $font_names:expr) => {{
-                    let fi = $font_browser.value();
-                    if fi > 0 && (fi as usize - 1) < $font_names.len() {
-                        let mut idx = fi as usize - 1;
-                        // In FLTK, bold = idx|1, italic = idx|2
-                        if $bold_cb.value() { idx |= 1; }
-                        if $italic_cb.value() { idx |= 2; }
-                        if idx < $font_names.len() {
-                            $preview.set_label_font(Font::by_index(idx));
-                        } else {
-                            $preview.set_label_font(Font::by_index(fi as usize - 1));
-                        }
-                    }
-                    let si = $size_browser.value();
-                    if si > 0 {
-                        if let Some(sz_str) = $size_browser.text(si) {
-                            if let Ok(sz) = sz_str.parse::<i32>() {
-                                $preview.set_label_size(sz);
-                            }
-                        }
-                    }
-                    $preview.set_label("AaBbCc 123");
-                    $preview.redraw();
-                }};
-            }
-
-            // Font browser callback
-            {
-                let mut pv = preview.clone();
-                let fb = font_browser.clone();
-                let sb = size_browser.clone();
-                let bc = bold_cb.clone();
-                let ic = italic_cb.clone();
-                let fns = font_names.clone();
-                font_browser.set_callback(move |_| {
-                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
-                });
-            }
-            // Size browser callback
-            {
-                let mut pv = preview.clone();
-                let fb = font_browser.clone();
-                let sb = size_browser.clone();
-                let bc = bold_cb.clone();
-                let ic = italic_cb.clone();
-                let fns = font_names.clone();
-                size_browser.set_callback(move |_| {
-                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
-                });
-            }
-            // Bold checkbox callback
-            {
-                let mut pv = preview.clone();
-                let fb = font_browser.clone();
-                let sb = size_browser.clone();
-                let bc = bold_cb.clone();
-                let ic = italic_cb.clone();
-                let fns = font_names.clone();
-                bold_cb.set_callback(move |_| {
-                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
-                });
-            }
-            // Italic checkbox callback
-            {
-                let mut pv = preview.clone();
-                let fb = font_browser.clone();
-                let sb = size_browser.clone();
-                let bc = bold_cb.clone();
-                let ic = italic_cb.clone();
-                let fns = font_names.clone();
-                italic_cb.set_callback(move |_| {
-                    update_preview_fn!(pv, fb, sb, bc, ic, fns);
-                });
-            }
-
-            // OK button
-            {
-                let c = confirmed.clone();
-                let mut w = win.clone();
-                ok_btn.set_callback(move |_| {
-                    *c.borrow_mut() = true;
-                    w.hide();
-                });
-            }
-            // Cancel button
-            {
-                let mut w = win.clone();
-                cancel_btn.set_callback(move |_| {
-                    w.hide();
-                });
-            }
-
-            while win.shown() {
-                app::wait();
-            }
-
-            if *confirmed.borrow() {
-                let fi = font_browser.value();
-                let font_name = if fi > 0 && (fi as usize - 1) < font_names.len() {
-                    font_names[fi as usize - 1].clone()
-                } else {
-                    "Helvetica".to_string()
-                };
-                let si = size_browser.value();
-                let font_size = if si > 0 {
-                    size_browser.text(si).unwrap_or_default().parse::<i32>().unwrap_or(12)
-                } else { 12 };
-                rp_comp_set(name, "fontname", v_str(&font_name));
-                rp_comp_set(name, "fontsize", v_int(font_size as i64));
-                rp_comp_set(name, "fontbold", v_int(if bold_cb.value() { 1 } else { 0 }));
-                rp_comp_set(name, "fontitalic", v_int(if italic_cb.value() { 1 } else { 0 }));
-                v_int(1)
-            } else {
-                v_int(0)
-            }
-        }
+        // (the dialogs lane's: laid out as every host's, answering the same
+        // properties — ui::choose_dialogs, rapidr_value::font_dialog)
+        "RFONTDIALOG" => crate::ui::choose_dialogs::font_execute(name, |title, req| fltk_font_dialog(name, title, req)),
         _ => v_int(0),
     }
 }

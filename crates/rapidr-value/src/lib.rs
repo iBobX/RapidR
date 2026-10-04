@@ -13,6 +13,7 @@ pub mod data;
 pub mod console;
 pub mod dialogs;
 pub mod color_dialog;
+pub mod font_dialog;
 pub mod basic_files;
 pub mod builtins;
 pub mod memory;

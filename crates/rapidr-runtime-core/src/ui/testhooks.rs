@@ -245,6 +245,13 @@ pub fn color_dialog_answer() -> Option<Option<i64>> {
     next_answer("RAPIDR_TEST_COLOR_DIALOG").map(|a| rapidr_value::color_dialog::parse_color(&a))
 }
 
+/// `RAPIDR_TEST_FONT_DIALOG=Courier New,14,bu,255;`: what each
+/// QFONTDIALOG.Execute answers in turn — name, size, styles (b i u s),
+/// colour for OK, empty for Cancel (`None`: ask the user).
+pub fn font_dialog_answer() -> Option<Option<rapidr_value::objects::font::Font>> {
+    next_answer("RAPIDR_TEST_FONT_DIALOG").map(|a| rapidr_value::font_dialog::parse_answer(&a))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

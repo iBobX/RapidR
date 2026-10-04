@@ -50,7 +50,7 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
   if (!frame) { ok(false, `${c.name}: preview frame`); continue; }
   const idOf = (name) => "rr-" + name.toLowerCase();
   // (how many of the case's dialog answers were given)
-  let colorAnswers = 0;
+  let colorAnswers = 0, fontAnswers = 0;
   // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,
   // then resizes the frontmost form — before the events, as the desktop
   // test's hooks do.
@@ -158,6 +158,31 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.nam
         return true;
       }, answers[n] ?? "");
       if (!answered) colorAnswers--;
+      await page.waitForTimeout(300);
+    }
+    // A font dialog: the case's next answer (`Name,Size,styles,colour`) set
+    // in its lists, check boxes and colour, then OK (empty: Cancel).
+    if (c.fontDialog !== undefined) {
+      const answers = c.fontDialog.split(";");
+      const n = fontAnswers++;
+      const answered = await frame.evaluate((answer) => {
+        const dlg = document.querySelector(".rr-font-dialog");
+        if (!dlg) return false;
+        if (!answer) { dlg.querySelector(".rr-font-cancel").click(); return true; }
+        const [name, size, styles = "", color = ""] = answer.split(",").map((s) => s.trim());
+        const set = (sel, value) => { const el = dlg.querySelector(sel); if (!el) return; el.value = value; el.dispatchEvent(new Event("change", { bubbles: true })); };
+        const check = (sel, on) => { const el = dlg.querySelector(sel); if (!el) return; el.checked = on; el.dispatchEvent(new Event("change", { bubbles: true })); };
+        set(".rr-font-name", name);
+        set(".rr-font-size", size);
+        // (the style list: Regular, Italic, Bold, Bold Italic)
+        set(".rr-font-style", ["Regular", "Italic", "Bold", "Bold Italic"][(styles.includes("i") ? 1 : 0) + (styles.includes("b") ? 2 : 0)]);
+        check(".rr-font-under", styles.includes("u"));
+        check(".rr-font-strike", styles.includes("s"));
+        if (color) set(".rr-font-color", color);
+        dlg.querySelector(".rr-font-ok").click();
+        return true;
+      }, answers[n] ?? "");
+      if (!answered) fontAnswers--;
       await page.waitForTimeout(300);
     }
     // A file dialog the event opened: the case's answer typed in, then Open / Save.

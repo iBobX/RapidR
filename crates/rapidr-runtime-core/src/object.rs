@@ -179,8 +179,12 @@ impl RpComponent {
                     props.insert(format!("colors({})", i + 1), v_int(*c));
                 }
             }
+            // (TFontDialog's: the default QFONT, Options [fdEffects], no
+            // size limits; FontCount)
             "RFONTDIALOG" => {
-                props.insert("color".into(), v_int(0));
+                for (p, v) in rapidr_value::font_dialog::defaults() {
+                    props.insert(p.into(), v);
+                }
             }
             "RSTATUSBAR" => {
                 // Docked at the bottom (Align = alBottom) once it has a parent.
@@ -522,6 +526,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
         return;
+    }
+    // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
+    // FontName / FontSize / FontColor too: one value.
+    if let Some(other) = rapidr_value::font_dialog::alias(&prop_lower).filter(|_| rp_comp_type(name) == "RFONTDIALOG") {
+        store_prop(name, other, val.clone());
     }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get(name, &prop_lower).to_i64());
@@ -1051,6 +1060,15 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         let i = args.first().map_or(0, Value::to_i64);
         let v = rp_comp_get(name, &format!("files({i})"));
         return if matches!(v, Value::Null) { v_str("") } else { v };
+    }
+    // (the dialogs lane's) A QFONTDIALOG's AddStyles, DelStyles,
+    // AddOptions, DelOptions, GetFont(F), SetFont(F), FontName(i).
+    if comp_type == "RFONTDIALOG" {
+        let get = |p: &str| rp_comp_get(name, p);
+        let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
+        if let Some(v) = rapidr_value::font_dialog::call(&method_lower, args, &get, &mut set) {
+            return v;
+        }
     }
     // (the dialogs lane's) A QCOLORDIALOG's Colors(i), 1 to 16: read, or
     // `Colors(i) = c` (its second argument).

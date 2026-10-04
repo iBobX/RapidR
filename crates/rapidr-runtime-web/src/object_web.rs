@@ -265,11 +265,12 @@ pub fn rp_create_component(name: &str, type_name: &str) {
                 props.insert(format!("colors({})", i + 1), v_int(*c));
             }
         }
+        // (the dialogs lane's: TFontDialog's, as on the desktop — the
+        // default QFONT, Options [fdEffects], FontCount)
         "RFONTDIALOG" => {
-            props.insert("fontname".to_string(), v_str("Segoe UI"));
-            props.insert("fontsize".to_string(), v_int(12));
-            props.insert("fontbold".to_string(), v_bool(false));
-            props.insert("fontitalic".to_string(), v_bool(false));
+            for (p, v) in rapidr_value::font_dialog::defaults() {
+                props.insert(p.to_string(), v);
+            }
         }
         _ => {
             // Generic defaults
@@ -552,6 +553,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
         return;
+    }
+    // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
+    // FontName / FontSize / FontColor too: one value, as on the desktop.
+    if let Some(other) = rapidr_value::font_dialog::alias(&lprop).filter(|_| rp_comp_type(&uname) == "RFONTDIALOG") {
+        rp_comp_set_prop_only(&uname, other, val.clone());
     }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(lprop.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get_stored(name, &lprop).to_i64());
@@ -1614,6 +1620,15 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             v => v,
         };
     }
+    // A QFONTDIALOG's AddStyles, DelStyles, AddOptions, DelOptions,
+    // GetFont(F), SetFont(F), FontName(i).
+    if comp_type == "RFONTDIALOG" {
+        let get = |p: &str| rp_comp_get_stored(name, p);
+        let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
+        if let Some(v) = rapidr_value::font_dialog::call(method, args, &get, &mut set) {
+            return v;
+        }
+    }
     if method != "execute" {
         return v_null();
     }
@@ -1704,29 +1719,49 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             input.click();
             v_int(1)
         }
-        "RFONTDIALOG" => {
-            // Browsers have no font picker. Use prompt() for name + size.
-            let (cur_name, cur_size) = COMPONENTS.with(|c| {
-                let comps = c.borrow();
-                let comp = comps.get(name);
-                (
-                    comp.and_then(|c| c.properties.get("fontname").map(|v| v.to_string_val()))
-                        .unwrap_or_else(|| "Segoe UI".to_string()),
-                    comp.and_then(|c| c.properties.get("fontsize").map(|v| v.to_i64()))
-                        .unwrap_or(12),
-                )
+        // The page's own font dialog, the desktop's (dialog_web::open_font;
+        // rapidr_value::font_dialog): the program waits for it; Apply stores
+        // the font so far and fires OnApply.
+        "RFONTDIALOG" if crate::dialog_web::can_wait() => {
+            use rapidr_value::font_dialog as fd;
+            let req = fd::request(&|p| rp_comp_get_stored(name, p));
+            let title = Some(rp_comp_get_stored(name, "caption").to_string_val()).filter(|c| !c.is_empty()).unwrap_or_else(|| "Font".into());
+            let store = |owner: &str, font: &rapidr_value::objects::font::Font| {
+                for (p, v) in fd::properties(font) {
+                    rp_comp_set_prop_only(owner, p, v);
+                }
+            };
+            let (owner, owner2) = (name.to_string(), name.to_string());
+            crate::dialog_web::open_font(crate::dialog_web::FontRequest {
+                title,
+                req,
+                names: fd::FONT_NAMES.iter().map(|s| s.to_string()).collect(),
+                done: std::rc::Rc::new(move |font| {
+                    if let Some(f) = font {
+                        store(&owner, &f);
+                    }
+                }),
+                apply: std::rc::Rc::new(move |f| {
+                    store(&owner2, f);
+                    rp_fire_event(&owner2, "onapply");
+                }),
             });
+            v_null()
+        }
+        "RFONTDIALOG" => {
+            // (a Rust-built page can't wait: the browser's prompt() for the
+            // name and the size)
+            let req = rapidr_value::font_dialog::request(&|p| rp_comp_get_stored(name, p));
             if let Some(window) = web_sys::window() {
-                if let Ok(Some(fname)) =
-                    window.prompt_with_message_and_default("Font name:", &cur_name)
-                {
-                    if let Ok(Some(fsize)) = window.prompt_with_message_and_default(
-                        "Font size (pt):",
-                        &cur_size.to_string(),
-                    ) {
-                        rp_comp_set_prop_only(name, "fontname", v_str(&fname));
+                if let Ok(Some(fname)) = window.prompt_with_message_and_default("Font name:", &req.font.name) {
+                    if let Ok(Some(fsize)) = window.prompt_with_message_and_default("Font size (pt):", &req.font.size.to_string()) {
+                        let mut font = req.font.clone();
+                        font.name = fname;
                         if let Ok(n) = fsize.parse::<i64>() {
-                            rp_comp_set_prop_only(name, "fontsize", v_int(n));
+                            font.size = n;
+                        }
+                        for (p, v) in rapidr_value::font_dialog::properties(&font) {
+                            rp_comp_set_prop_only(name, p, v);
                         }
                         return v_int(1);
                     }

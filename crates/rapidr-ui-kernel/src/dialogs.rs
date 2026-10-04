@@ -14,6 +14,8 @@
 //! (`RDLGPART`, a type no program can make).
 
 use rapidr_value::color_dialog::{self as cd, layout as cl, State as ColorState};
+use rapidr_value::font_dialog as fd;
+use rapidr_value::objects::font::Font;
 use rapidr_value::dialogs::{icon_shapes, message_layout, MsgIcon};
 use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
 use rapidr_value::objects::text::text_size;
@@ -47,16 +49,19 @@ pub enum Answer {
     /// custom colours (what the user added stays, OK or Cancel).
     Color(Option<i64>, [i64; 16]),
     /// A font dialog's font (`None`: cancelled).
-    Font(Option<FontChoice>),
+    Font(Option<Font>),
 }
 
-/// A font dialog's choice.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FontChoice {
-    pub name: String,
-    pub size: i64,
-    pub bold: bool,
-    pub italic: bool,
+/// A font dialog's lists and what it shows (`rapidr_value::font_dialog`).
+struct FontState {
+    /// The font chosen, and the options.
+    req: fd::Request,
+    names: Vec<String>,
+    sizes: Vec<i64>,
+    colors: Vec<(String, i64)>,
+    /// The font, style and size lists show no selection until picked in
+    /// (fdNoFaceSel, fdNoStyleSel, fdNoSizeSel).
+    unselected: [bool; 3],
 }
 
 enum Kind {
@@ -65,7 +70,7 @@ enum Kind {
     /// with the web's), and what the mouse drags (the spectrum, the
     /// luminance bar).
     Color { state: ColorState, drag: Option<&'static str> },
-    Font { choice: FontChoice, names: Vec<String> },
+    Font(Box<FontState>),
 }
 
 /// A kernel-drawn dialog: its form (`id`) and components in `store`.
@@ -77,10 +82,10 @@ pub struct Dialog {
     pub size: (i64, i64),
     pub store: MemStore,
     kind: Kind,
+    /// A font dialog's Apply pressed: the font to store before OnApply
+    /// fires (`take_applied`).
+    applied: Option<Font>,
 }
-
-// Windows' dialog metrics (logical pixels).
-const BUTTON: (i64, i64) = (75, 23);
 
 /// A caption shown as is (`&` isn't a mnemonic in a message).
 fn literal(text: &str) -> String {
@@ -96,7 +101,12 @@ impl Dialog {
         let id = format!("{PREFIX}dlg{n}");
         let mut store = MemStore::new();
         store.add(&id, "RFORM", None);
-        Dialog { id, title: title.to_string(), size: (0, 0), store, kind }
+        Dialog { id, title: title.to_string(), size: (0, 0), store, kind, applied: None }
+    }
+
+    /// A font dialog's Apply, since the last call: the font then.
+    pub fn take_applied(&mut self) -> Option<Font> {
+        self.applied.take()
     }
 
     fn child(&self, part: &str) -> String {
@@ -274,82 +284,130 @@ impl Dialog {
         self.show_color(typing);
     }
 
-    fn ok_cancel(&mut self, ok: (i64, i64), cancel: (i64, i64)) {
-        let id = self.put("ok", "RBUTTON", (ok.0, ok.1, 66, BUTTON.1));
-        self.set(&id, "caption", Value::String("OK".into()));
-        self.set(&id, "default", Value::Integer(-1));
-        let id = self.put("cancel", "RBUTTON", (cancel.0, cancel.1, 66, BUTTON.1));
-        self.set(&id, "caption", Value::String("Cancel".into()));
-        self.set(&id, "cancel", Value::Integer(-1));
-    }
-
-    /// QFONTDIALOG: `names`' fonts (the chosen one added if missing), the
-    /// four styles, the usual sizes, a sample in the choice; OK / Cancel.
-    pub fn font(n: u64, title: &str, chosen: &FontChoice, names: &[&str]) -> Dialog {
-        let mut names: Vec<String> = names.iter().map(|s| s.to_string()).collect();
-        if !chosen.name.is_empty() && !names.iter().any(|n| n.eq_ignore_ascii_case(&chosen.name)) {
-            names.push(chosen.name.clone());
-            names.sort_by_key(|n| n.to_lowercase());
-        }
-        let mut d = Dialog::new(n, title, Kind::Font { choice: chosen.clone(), names: names.clone() });
-        let label = |d: &mut Dialog, part: &str, text: &str, x: i64| {
-            let id = d.put(part, "RLABEL", (x, 6, 100, 14));
-            d.set(&id, "caption", Value::String(text.into()));
+    /// QFONTDIALOG (`rapidr_value::font_dialog`, after Windows'
+    /// ChooseFont): the faces `all` offers (fdFixedPitchOnly: the
+    /// fixed-pitch ones; the chosen one added if missing), the four styles,
+    /// the sizes (within Min / MaxFontSize with fdLimitSize); with
+    /// fdEffects Strikeout, Underline and the colour list; a sample in the
+    /// choice; OK, Cancel, Apply (fdApplyButton), Help (fdShowHelp,
+    /// disabled: there's no help to show).
+    pub fn font(n: u64, title: &str, req: fd::Request, all: &[String]) -> Dialog {
+        use rapidr_value::font_dialog::layout as fl;
+        let effects = req.has(fd::FD_EFFECTS);
+        let state = FontState {
+            names: req.names(all),
+            sizes: req.sizes(),
+            colors: req.colors(),
+            unselected: [req.has(fd::FD_NO_FACE_SEL), req.has(fd::FD_NO_STYLE_SEL), req.has(fd::FD_NO_SIZE_SEL)],
+            req,
         };
-        label(&mut d, "lfont", "&Font:", 6);
-        label(&mut d, "lstyle", "Font st&yle:", 162);
-        label(&mut d, "lsize", "&Size:", 268);
-        let list = |d: &mut Dialog, part: &str, x: i64, w: i64, items: Vec<String>| {
-            let id = d.put(part, "RLISTBOX", (x, 22, w, 112));
+        let (names, sizes, colors) = (state.names.clone(), state.sizes.clone(), state.colors.clone());
+        let (apply, help) = (state.req.has(fd::FD_APPLY_BUTTON), state.req.has(fd::FD_SHOW_HELP));
+        let mut d = Dialog::new(n, title, Kind::Font(Box::new(state)));
+        let put_caption = |d: &mut Dialog, part: &str, kind: &str, text: &str, rect: fl::Rect| {
+            let id = d.put(part, kind, rect);
+            d.set(&id, "caption", Value::String(text.into()));
+            id
+        };
+        put_caption(&mut d, "lfont", "RLABEL", "&Font:", fl::FONT_LABEL);
+        put_caption(&mut d, "lstyle", "RLABEL", "Font st&yle:", fl::STYLE_LABEL);
+        put_caption(&mut d, "lsize", "RLABEL", "&Size:", fl::SIZE_LABEL);
+        let list = |d: &mut Dialog, part: &str, kind: &str, rect: fl::Rect, items: Vec<String>| {
+            let id = d.put(part, kind, rect);
             let args: Vec<Value> = items.into_iter().map(Value::String).collect();
             d.store.call(&id, "additems", &args);
+            id
         };
-        list(&mut d, "font", 6, 150, names);
-        list(&mut d, "style", 162, 100, STYLES.iter().map(|s| s.to_string()).collect());
-        list(&mut d, "size", 268, 50, SIZES.iter().map(|s| s.to_string()).collect());
-        let group = d.put("group", "RGROUPBOX", (162, 140, 156, 62));
-        d.set(&group, "caption", Value::String("Sample".into()));
-        let sample = d.put("sample", "RLABEL", (170, 158, 140, 40));
-        d.set(&sample, "caption", Value::String("AaBbYyZz".into()));
-        d.set(&sample, "alignment", Value::Integer(2));
-        d.ok_cancel((324, 22), (324, 50));
-        d.finish(396, 210);
+        list(&mut d, "font", "RLISTBOX", fl::FONT_LIST, names);
+        list(&mut d, "style", "RLISTBOX", fl::STYLE_LIST, fd::STYLES.iter().map(|s| s.to_string()).collect());
+        list(&mut d, "size", "RLISTBOX", fl::SIZE_LIST, sizes.iter().map(|s| s.to_string()).collect());
+        if effects {
+            put_caption(&mut d, "effects", "RGROUPBOX", "Effects", fl::EFFECTS);
+            put_caption(&mut d, "strike", "RCHECKBOX", "Stri&keout", fl::STRIKEOUT);
+            put_caption(&mut d, "under", "RCHECKBOX", "&Underline", fl::UNDERLINE);
+            put_caption(&mut d, "lcolor", "RLABEL", "&Color:", fl::COLOR_LABEL);
+            let id = list(&mut d, "color", "RCOMBOBOX", fl::COLOR_LIST, colors.into_iter().map(|(n, _)| n).collect());
+            // (csDropDownList: a pick, no typing)
+            d.set(&id, "style", Value::Integer(2));
+        }
+        let (group, text) = fl::sample(effects);
+        put_caption(&mut d, "group", "RGROUPBOX", "Sample", group);
+        let sample = d.put("sample", "RDLGPART", text);
+        d.set(&sample, "part", Value::String("sample".into()));
+        let id = put_caption(&mut d, "ok", "RBUTTON", "OK", fl::OK);
+        d.set(&id, "default", Value::Integer(-1));
+        let id = put_caption(&mut d, "cancel", "RBUTTON", "Cancel", fl::CANCEL);
+        d.set(&id, "cancel", Value::Integer(-1));
+        if apply {
+            put_caption(&mut d, "apply", "RBUTTON", "&Apply", fl::APPLY);
+        }
+        if help {
+            let id = put_caption(&mut d, "help", "RBUTTON", "&Help", if apply { fl::HELP } else { fl::APPLY });
+            d.set(&id, "enabled", Value::Integer(0));
+        }
+        let (w, h) = fl::size(effects);
+        d.finish(w, h);
         d.show_font();
         d
     }
 
-    /// The font lists' selections and the sample, from the choice.
+    /// The font dialog's lists, check boxes and colour, and the sample, from
+    /// the choice.
     fn show_font(&mut self) {
-        let Kind::Font { choice, names } = &self.kind else { return };
-        let (choice, names) = (choice.clone(), names.clone());
-        let font_index = names.iter().position(|n| n.eq_ignore_ascii_case(&choice.name)).map_or(-1, |i| i as i64);
-        let style = i64::from(choice.italic) + 2 * i64::from(choice.bold);
-        let size_index = SIZES.iter().position(|s| *s == choice.size).map_or(-1, |i| i as i64);
-        for (part, index) in [("font", font_index), ("style", style), ("size", size_index)] {
+        let Kind::Font(s) = &self.kind else { return };
+        let font = s.req.font.clone();
+        let font_index = s.names.iter().position(|n| n.eq_ignore_ascii_case(&font.name)).map_or(-1, |i| i as i64);
+        // (the style list: italic 1 + bold 2; the font's bits: fsBold 0,
+        // fsItalic 1)
+        let style = i64::from(font.styles & 2 != 0) + 2 * i64::from(font.styles & 1 != 0);
+        let size_index = s.sizes.iter().position(|v| *v == font.size).map_or(-1, |i| i as i64);
+        let color_index = s.colors.iter().position(|(_, c)| *c == font.color).map_or(-1, |i| i as i64);
+        let unselected = s.unselected;
+        for (k, (part, index)) in [("font", font_index), ("style", style), ("size", size_index)].into_iter().enumerate() {
             let id = self.child(part);
-            self.set(&id, "itemindex", Value::Integer(index));
+            self.set(&id, "itemindex", Value::Integer(if unselected[k] { -1 } else { index }));
         }
+        for (part, bit) in [("strike", 8), ("under", 4)] {
+            let id = self.child(part);
+            self.set(&id, "checked", Value::Integer(-i64::from(font.styles & bit != 0)));
+        }
+        let id = self.child("color");
+        self.set(&id, "itemindex", Value::Integer(color_index));
+        // (the sample in the font: its Font properties)
         let sample = self.child("sample");
-        self.set(&sample, "fontname", Value::String(choice.name.clone()));
-        self.set(&sample, "fontsize", Value::Integer(choice.size));
-        self.set(&sample, "fontbold", Value::Integer(-i64::from(choice.bold)));
-        self.set(&sample, "fontitalic", Value::Integer(-i64::from(choice.italic)));
+        for (p, v) in fd::properties(&font) {
+            self.set(&sample, p, v);
+        }
     }
 
-    /// The font dialog's choice from its lists.
-    fn read_font(&mut self) {
+    /// The font dialog's choice from its lists, check boxes and colour (a
+    /// list picked in shows its selection from now on: `picked`).
+    fn read_font(&mut self, picked: Option<usize>) {
         let index = |d: &Dialog, part: &str| store::int(&d.store, &d.child(part), "itemindex", -1);
-        let (font, style, size) = (index(self, "font"), index(self, "style"), index(self, "size"));
-        if let Kind::Font { choice, names } = &mut self.kind {
-            if let Some(n) = usize::try_from(font).ok().and_then(|i| names.get(i)) {
-                choice.name = n.clone();
+        let checked = |d: &Dialog, part: &str| store::flag(&d.store, &d.child(part), "checked", false);
+        let (face, style, size, color) = (index(self, "font"), index(self, "style"), index(self, "size"), index(self, "color"));
+        let (strike, under) = (checked(self, "strike"), checked(self, "under"));
+        if let Kind::Font(s) = &mut self.kind {
+            if let Some(k) = picked {
+                s.unselected[k] = false;
             }
+            let effects = s.req.has(fd::FD_EFFECTS);
+            let f = &mut s.req.font;
+            if let Some(n) = usize::try_from(face).ok().and_then(|i| s.names.get(i)) {
+                f.name = n.clone();
+            }
+            // (Regular, Italic, Bold, Bold Italic: italic 1 + bold 2)
             if (0..4).contains(&style) {
-                choice.italic = style & 1 != 0;
-                choice.bold = style & 2 != 0;
+                f.styles = (f.styles & !3) | u8::from(style & 2 != 0) | u8::from(style & 1 != 0) << 1;
             }
-            if let Some(s) = usize::try_from(size).ok().and_then(|i| SIZES.get(i)) {
-                choice.size = *s;
+            if let Some(v) = usize::try_from(size).ok().and_then(|i| s.sizes.get(i)) {
+                f.size = *v;
+            }
+            if effects {
+                f.styles = (f.styles & 3) | u8::from(under) << 2 | u8::from(strike) << 3;
+                if let Some((_, c)) = usize::try_from(color).ok().and_then(|i| s.colors.get(i)) {
+                    f.color = *c;
+                }
             }
         }
         self.show_font();
@@ -367,7 +425,7 @@ impl Dialog {
         match &self.kind {
             Kind::Message => Answer::Button(None),
             Kind::Color { state, .. } => Answer::Color(None, state.custom),
-            Kind::Font { .. } => Answer::Font(None),
+            Kind::Font(_) => Answer::Font(None),
         }
     }
 
@@ -375,8 +433,33 @@ impl Dialog {
         match &self.kind {
             Kind::Message => Answer::Button(Some(0)),
             Kind::Color { state, .. } => Answer::Color(Some(state.color), state.custom),
-            Kind::Font { choice, .. } => Answer::Font(Some(choice.clone())),
+            Kind::Font(s) => Answer::Font(Some(s.req.font.clone())),
         }
+    }
+
+    /// A font dialog's event (a list, a check box or the colour picked,
+    /// Apply): `true` when it was one.
+    fn font_event(&mut self, ev: &KernelEvent) -> bool {
+        if !matches!(self.kind, Kind::Font(_)) {
+            return false;
+        }
+        let (KernelEvent::Click(id) | KernelEvent::Change(id)) = ev else { return false };
+        let Some(part) = self.part(id) else { return false };
+        match part {
+            "font" | "style" | "size" => {
+                let k = ["font", "style", "size"].iter().position(|p| *p == part);
+                self.read_font(k);
+            }
+            "strike" | "under" | "color" => self.read_font(None),
+            "apply" if matches!(ev, KernelEvent::Click(_)) => {
+                self.read_font(None);
+                if let Kind::Font(s) = &self.kind {
+                    self.applied = Some(s.req.font.clone());
+                }
+            }
+            _ => return false,
+        }
+        true
     }
 
     /// A colour dialog's event (a swatch, the field or bar dragged, a box
@@ -450,7 +533,7 @@ impl Dialog {
     /// One of its form's events: the answer once the dialog closes. (What
     /// it changed is in its store: the form needs syncing.)
     pub fn event(&mut self, ev: &KernelEvent) -> Option<Answer> {
-        if self.color_event(ev) {
+        if self.color_event(ev) || self.font_event(ev) {
             return None;
         }
         match ev {
@@ -464,18 +547,8 @@ impl Dialog {
                 "ok" => Some(self.accepted()),
                 "cancel" => Some(self.cancelled()),
                 p if matches!(self.kind, Kind::Message) => p.strip_prefix('b').and_then(|i| i.parse().ok()).map(|i| Answer::Button(Some(i))),
-                "font" | "style" | "size" => {
-                    self.read_font();
-                    None
-                }
                 _ => None,
             },
-            KernelEvent::Change(id) => {
-                if matches!(self.part(id)?, "font" | "style" | "size") {
-                    self.read_font();
-                }
-                None
-            }
             _ => None,
         }
     }
@@ -572,6 +645,26 @@ impl ComponentKind for Part {
                 p.fill(inner, crate::text::bgr_to_rgb(int("color")));
                 sunken(p, inner);
             }
+            // (the font dialog's sample: its text centred in the font and
+            // colour, with the underline and strikeout lines Windows draws)
+            "sample" => {
+                let font = cx.font.clone();
+                let color = crate::text::bgr_to_rgb(font.color);
+                p.text((0, 0, w, h), fd::SAMPLE, &font, color, rapidr_value::objects::ops::Place::Center);
+                let (tw, th) = text_size(fd::SAMPLE, &font);
+                let (left, top) = ((w - tw) / 2, (h - th) / 2);
+                let px = font.pixel_size();
+                let thick = (px / 14).max(1);
+                // (Liberation's ascent is 0.905 em; the strikeout across the
+                // lower case, about 0.3 em over the baseline)
+                let base = top + (px as f64 * 0.905).round() as i64;
+                if font.styles & 4 != 0 {
+                    p.fill((left, base + 1, tw, thick), color);
+                }
+                if font.styles & 8 != 0 {
+                    p.fill((left, base - (px as f64 * 0.3).round() as i64, tw, thick), color);
+                }
+            }
             _ => {}
         }
     }
@@ -583,6 +676,7 @@ impl ComponentKind for Part {
             "spectrum" => "Color matrix".into(),
             "lum" => "Luminosity".into(),
             "preview" => "Color|Solid".into(),
+            "sample" => fd::SAMPLE.into(),
             _ => String::new(),
         };
         n.bounds = cx.rect;
@@ -590,15 +684,9 @@ impl ComponentKind for Part {
     }
 }
 
-/// QFONTDIALOG's styles (the index: italic 1 + bold 2).
-const STYLES: [&str; 4] = ["Regular", "Italic", "Bold", "Bold Italic"];
-/// QFONTDIALOG's sizes (points).
-const SIZES: [i64; 16] = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
-
-/// The fonts a font dialog offers: the faces RapidQ programs name, all
-/// drawn with RapidR's built-in Liberation fonts
-/// (`rapidr_value::objects::text::family_name`).
-pub const FONT_NAMES: [&str; 8] = ["Arial", "Courier New", "Georgia", "MS Sans Serif", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana"];
+/// The faces RapidQ programs name (every runtime's font dialog lists them:
+/// `rapidr_value::font_dialog`).
+pub use rapidr_value::font_dialog::FONT_NAMES;
 
 #[cfg(test)]
 mod tests {
@@ -764,10 +852,16 @@ mod tests {
     #[test]
     fn font_dialog_lists_and_sample() {
         let mut ts = TextSystem::new();
-        let chosen = FontChoice { name: "Arial".into(), size: 10, bold: false, italic: false };
-        let mut d = Dialog::font(4, "Font", &chosen, &FONT_NAMES);
+        let all: Vec<String> = FONT_NAMES.iter().map(|s| s.to_string()).collect();
+        let req = fd::request(&|_| Value::Null);
+        let chosen = req.font.clone();
+        let mut d = Dialog::font(4, "Font", req.clone(), &all);
         assert_eq!(store::int(&d.store, "rapidr:dlg4:size", "itemindex", -1), 2);
         assert_eq!(store::int(&d.store, "rapidr:dlg4:font", "itemindex", -1), 0);
+        // (fdEffects by default: the effects, the colour Black; no Apply)
+        assert_eq!(d.size, fd::layout::size(true));
+        assert_eq!(store::int(&d.store, "rapidr:dlg4:color", "itemindex", -1), 0);
+        assert!(!d.store.ids().contains(&"rapidr:dlg4:apply".to_string()));
         // the style list's "Bold" row, picked by the mouse
         let mut f = ui(&d);
         f.sync(&d.store);
@@ -777,10 +871,50 @@ mod tests {
         f.mouse_up(&d.store, &mut ts, x, y, Button::Left, Mods::NONE);
         assert_eq!(answer(&mut d, &mut f), None);
         assert_eq!(store::int(&d.store, "rapidr:dlg4:sample", "fontbold", 0), -1);
+        // Underline checked
+        assert_eq!(click(&mut d, &mut f, &mut ts, "under"), None);
+        assert_eq!(store::int(&d.store, "rapidr:dlg4:sample", "fontunderline", 0), -1);
         let picked = click(&mut d, &mut f, &mut ts, "ok");
-        assert_eq!(picked, Some(Answer::Font(Some(FontChoice { bold: true, ..chosen.clone() }))));
+        assert_eq!(picked, Some(Answer::Font(Some(Font { styles: 0b101, ..chosen.clone() }))));
         // (a font the list hasn't: added)
-        let d2 = Dialog::font(5, "Font", &FontChoice { name: "Comic Sans MS".into(), ..chosen }, &FONT_NAMES);
+        let mut other = req.clone();
+        other.font.name = "Comic Sans MS".into();
+        let d2 = Dialog::font(5, "Font", other, &all);
         assert_eq!(store::int(&d2.store, "rapidr:dlg5:font", "itemindex", -1), 1);
+    }
+
+    #[test]
+    fn font_dialog_options() {
+        let mut ts = TextSystem::new();
+        let all: Vec<String> = FONT_NAMES.iter().map(|s| s.to_string()).collect();
+        // no effects; Apply and Help; sizes 10 to 14; no size selected
+        let mut req = fd::request(&|_| Value::Null);
+        req.options = 1 << fd::FD_APPLY_BUTTON | 1 << fd::FD_SHOW_HELP | 1 << fd::FD_LIMIT_SIZE | 1 << fd::FD_NO_SIZE_SEL;
+        req.min = 10;
+        req.max = 14;
+        req.font.color = 0x0000FF;
+        let mut d = Dialog::font(9, "Font", req, &all);
+        assert_eq!(d.size, fd::layout::size(false));
+        assert!(!d.store.ids().contains(&d.child("under")));
+        assert_eq!(store::int(&d.store, &d.child("size"), "itemindex", 0), -1);
+        assert_eq!(store::int(&d.store, &d.child("help"), "enabled", 9), 0);
+        assert_eq!(rapidr_value::objects::get(&d.child("size"), "itemcount").map(|v| v.to_i64()), Some(4));
+        // Apply: the font so far for the program's OnApply, the dialog open
+        let mut f = ui(&d);
+        assert_eq!(click(&mut d, &mut f, &mut ts, "apply"), None);
+        let applied = d.take_applied().expect("applied");
+        assert_eq!((applied.size, applied.color), (10, 0x0000FF));
+        assert_eq!(d.take_applied(), None);
+        // the sample draws its text with the lines when underlined
+        let mut req = fd::request(&|_| Value::Null);
+        req.font.styles = 4 | 8;
+        let d = Dialog::font(10, "Font", req, &all);
+        let mut f = ui(&d);
+        let list = f.paint(&d.store, &mut ts, 1.0);
+        let n = f.node(&d.child("sample")).expect("the sample").abs;
+        use rapidr_value::objects::ops::Op as O;
+        let at_sample = list.items.iter().filter(|i| matches!(i, crate::display::Item::Op { origin, op: O::Text { .. } | O::Fill { .. } } if *origin == (n.0, n.1))).count();
+        // (its text and two lines)
+        assert_eq!(at_sample, 3, "{}", list.dump());
     }
 }

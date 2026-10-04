@@ -68,6 +68,16 @@ impl TextSystem {
         layout
     }
 
+    /// (the dialogs lane's) The font families there are — the system's and
+    /// the built-in ones — for a font dialog's list (names starting with a
+    /// `.`, the system's private faces, left out).
+    pub fn family_names(&mut self) -> Vec<String> {
+        let mut names: Vec<String> = self.font_cx.collection.family_names().filter(|n| !n.starts_with('.')).map(str::to_string).collect();
+        names.sort_by_key(|n| n.to_lowercase());
+        names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+        names
+    }
+
     /// How wide and high `text` is in `font`, in logical pixels (unrounded;
     /// `text_size` rounds the same width).
     pub fn measure(&mut self, text: &str, font: &Font) -> (f32, f32) {
