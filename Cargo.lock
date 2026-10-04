@@ -4585,6 +4585,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-ui-host-web"
+version = "2.113.0"
+dependencies = [
+ "glifo",
+ "js-sys",
+ "parley",
+ "rapidr-ui-host-winit",
+ "rapidr-ui-kernel",
+ "rapidr-value",
+ "vello",
+ "vello_cpu",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "rapidr-ui-host-winit"
 version = "2.113.0"
 dependencies = [
@@ -4614,6 +4631,7 @@ version = "2.113.0"
 dependencies = [
  "parley",
  "rapidr-value",
+ "web-time",
 ]
 
 [[package]]

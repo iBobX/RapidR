@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  Spike (docs/web-host-plan.md): RapidR's UI kernel in the browser. Each
+  form is a <canvas> the kernel's display list is drawn into (vello_cpu in
+  wasm, or vello on WebGPU with ?gpu=1), with an ARIA mirror of its
+  accessibility tree over it. Built by
+    wasm-pack build crates/rapidr-ui-host-web --target web --release --out-dir ../../target/web-host-spike
+  and served from the repository root. Parameters: ?forms=trackbar,texts,lists
+  &steady=1 (no caret blink) &gpu=1 (target/web-host-spike-gpu, built with
+  --features gpu).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RapidR UI kernel on the web (spike)</title>
+<style>
+  /* (the text fields of the mirror lay their text out with the kernel's
+     fonts, so the browser's caret — where input methods put their
+     window — falls where the kernel draws its own) */
+  @font-face { font-family: "Liberation Sans"; src: url("../crates/rapidr-value/fonts/LiberationSans-Regular.ttf"); }
+  @font-face { font-family: "Liberation Mono"; src: url("../crates/rapidr-value/fonts/LiberationMono-Regular.ttf"); }
+  :root { color-scheme: light; }
+  body { margin: 16px; font: 14px system-ui, sans-serif; background: #3a6ea5; color: #000; }
+  h1 { font-size: 16px; color: #fff; margin: 0 0 8px; }
+  #status { color: #fff; font: 12px ui-monospace, monospace; margin-bottom: 12px; white-space: pre-wrap; }
+  #desk { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .rr-window { background: #c0c0c0; border: 2px outset #dfdfdf; display: inline-block; }
+  .rr-title { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font: bold 12px "Liberation Sans", Arial, sans-serif; padding: 3px 6px; user-select: none; }
+  .rr-client { position: relative; overflow: hidden; }
+  .rr-client canvas.rr-surface { display: block; touch-action: none; }
+  /* The mirror: present for the accessibility tree and the focus, never
+     seen, never in the mouse's way (the canvas takes the pointer). */
+  .rr-a11y, .rr-a11y * { position: absolute; margin: 0; padding: 0; border: 0; background: transparent; color: transparent;
+    outline: none; overflow: hidden; pointer-events: none; white-space: pre; box-sizing: border-box; }
+  .rr-a11y { inset: 0; }
+  .rr-a11y input, .rr-a11y textarea { caret-color: transparent; resize: none; padding: 1px 3px; font: 13px "Liberation Sans", Arial, sans-serif; line-height: 15px; }
+  .rr-a11y ::selection { background: transparent; color: transparent; }
+  #log { background: #fff; font: 11px ui-monospace, monospace; height: 160px; overflow: auto; margin-top: 12px; padding: 4px; white-space: pre; }
+</style>
+</head>
+<body>
+<h1>RapidR UI kernel on the web — spike</h1>
+<div id="status">loading…</div>
+<div id="desk"></div>
+<pre id="log" aria-label="Events" tabindex="0"></pre>
+<script type="module" src="web_host_spike.js"></script>
+</body>
+</html>

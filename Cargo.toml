@@ -15,6 +15,8 @@ members = [
     "crates/rapidr-value",
     "crates/rapidr-ui-kernel",
     "crates/rapidr-ui-host-winit",
+    # (a spike, out of every regular build: docs/web-host-plan.md)
+    "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",
     "interpreter/rapidr-vm",
     "interpreter/rapidr-bcgen",

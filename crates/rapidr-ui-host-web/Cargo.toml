@@ -1,0 +1,45 @@
+[package]
+name = "rapidr-ui-host-web"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "Spike: RapidR's UI kernel in the browser — a <canvas> drawn by vello_cpu (or vello on WebGPU), input and input methods through the DOM, an ARIA mirror of the kernel's accessibility tree (docs/web-host-plan.md)"
+
+# A spike (docs/web-host-plan.md, "Spike results"): kept out of every
+# regular build — the web IDE, `rapidr bundle-bc` and the runtimes don't
+# use it — and out of THIRD_PARTY_NOTICES.md until it's adopted (every
+# crate it links is already listed there). Built by
+# `wasm-pack build crates/rapidr-ui-host-web --target web --release
+# --out-dir ../../target/web-host-spike`; its page is
+# tests/web_host_spike.html.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# vello on WebGPU where the browser has it (the CPU renderer stays the
+# fallback and what the pixel comparison reads).
+gpu = ["dep:vello", "dep:wasm-bindgen-futures", "web-sys/HtmlCanvasElement"]
+
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-ui-kernel = { workspace = true }
+# The kernel's text layouts (MIT OR Apache-2.0), read while drawing.
+parley = { version = "0.11", default-features = false, features = ["std"] }
+# The CPU renderer the desktop host captures with (Apache-2.0 OR MIT),
+# without its PNG codec; its glyph crate for synthetic bold.
+vello_cpu = { version = "0.3", default-features = false, features = ["std", "text", "u8_pipeline"] }
+glifo = { version = "0.4", default-features = false, features = ["std"] }
+# The browser (MIT OR Apache-2.0): the versions the workspace is aligned on.
+wasm-bindgen = "0.2.129"
+js-sys = "0.3.106"
+web-sys = { version = "0.3.106", features = ["CanvasRenderingContext2d", "ImageData", "console"] }
+# (feature "gpu") vello on wgpu's WebGPU backend (MIT OR Apache-2.0).
+vello = { version = "0.11", optional = true }
+wasm-bindgen-futures = { version = "0.4.79", optional = true }
+
+# The desktop's capture of the same forms, for the pixel comparison
+# (examples/desktop_capture.rs): the headless host's CPU path.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rapidr-ui-host-winit = { workspace = true }
