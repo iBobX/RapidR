@@ -91,11 +91,11 @@ redistributed; end users supply them via the operating system or browser.
 
 ## 5. SQLite (via `rusqlite`) — Public Domain
 
-The desktop runtime statically links SQLite via the `rusqlite` crate.
-SQLite's source is in the public domain. See <https://www.sqlite.org/copyright.html>.
-
-The browser-side `RSqlite` component uses `sqlite-wasm` only when explicitly
-loaded by user code; nothing from sqlite-wasm is vendored in the IDE.
+RSQLITE is SQLite itself on every runtime (`crates/rapidr-db`). The
+desktop runtime statically links it via `rusqlite` / `libsqlite3-sys`; the
+web runtime's wasm (the IDE's and every web bundle's) compiles it in via
+`rusqlite` / `sqlite-wasm-rs`. SQLite's source is in the public domain. See
+<https://www.sqlite.org/copyright.html>.
 
 ---
 
@@ -121,7 +121,9 @@ cannot see, so it is credited here.
 | Zstandard (zstd) | `zstd-sys` (Polars / Parquet) | BSD-3-Clause (dual GPL-2.0; used under BSD) | <https://github.com/facebook/zstd> |
 | LZ4 | `lz4-sys` (Polars) | BSD-2-Clause | <https://github.com/lz4/lz4> |
 | zlib | `libz-sys` | zlib License | <https://zlib.net> |
-| SQLite | `libsqlite3-sys` | Public Domain (section 5) | <https://sqlite.org> |
+| SQLite | `libsqlite3-sys` (desktop), `sqlite-wasm-rs` (web wasm) | Public Domain (section 5) | <https://sqlite.org> |
+| musl libc (the few C library functions SQLite needs in wasm) | `sqlite-wasm-rs` | MIT | <https://musl.libc.org> |
+| printf (Marco Paland, Eyal Rozenberg) | `sqlite-wasm-rs` | MIT | <https://github.com/eyalroz/printf> |
 | OpenSSL | `openssl-sys` (TLS for RHttp/sockets, linked from the system) | Apache-2.0 (OpenSSL 3) | <https://www.openssl.org> |
 | Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system; the charts' and the desktop UI's system fonts) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
 | X11, Wayland, xkbcommon (Linux) | `x11-dl`, `wayland-sys`, `xkbcommon-dl` (the desktop UI's windows and keys: loaded from the system when a window opens) | MIT / MIT-style | <https://www.x.org>, <https://wayland.freedesktop.org>, <https://xkbcommon.org> |

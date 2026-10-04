@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**647 libraries** under 26 license expressions.
+**648 libraries** under 26 license expressions.
 
-## Apache-2.0 OR MIT (364)
+## Apache-2.0 OR MIT (363)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -144,7 +144,6 @@ which also carries their full license texts.
 | hashbrown | 0.15.5 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.16.1 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.17.1 | <https://github.com/rust-lang/hashbrown> |
-| hashlink | 0.9.1 | <https://github.com/kyren/hashlink> |
 | heck | 0.5.0 | <https://github.com/withoutboats/heck> |
 | hermit-abi | 0.5.3 | <https://github.com/hermit-os/hermit-rs> |
 | hex | 0.4.3 | <https://github.com/KokaKiwi/rust-hex> |
@@ -381,7 +380,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (159)
+## MIT (161)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -424,7 +423,7 @@ which also carries their full license texts.
 | jsonpath_lib_polars_vendor | 0.0.1 | <https://github.com/freestrings/jsonpath> |
 | libm | 0.2.16 | <https://github.com/rust-lang/compiler-builtins> |
 | libredox | 0.1.15 | <https://gitlab.redox-os.org/redox-os/libredox.git> |
-| libsqlite3-sys | 0.30.1 | <https://github.com/rusqlite/rusqlite> |
+| libsqlite3-sys | 0.38.2 | <https://github.com/rusqlite/rusqlite> |
 | lru | 0.18.5 | <https://github.com/jeromefroe/lru-rs.git> |
 | lz4 | 1.28.1 | <https://github.com/10xGenomics/lz4-rs> |
 | lz4-sys | 1.11.1+lz4-1.10.0 | <https://github.com/10xGenomics/lz4-rs> |
@@ -494,13 +493,15 @@ which also carries their full license texts.
 | redox_users | 0.5.2 | <https://gitlab.redox-os.org/redox-os/users> |
 | rfd | 0.17.2 | <https://github.com/PolyMeilex/rfd> |
 | rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
-| rusqlite | 0.32.1 | <https://github.com/rusqlite/rusqlite> |
+| rsqlite-vfs | 0.1.1 | <https://crates.io/crates/rsqlite-vfs> |
+| rusqlite | 0.40.2 | <https://github.com/rusqlite/rusqlite> |
 | saturating | 0.1.0 | <https://github.com/breeswish/saturating-rs> |
 | sctk-adwaita | 0.10.1 | <https://github.com/PolyMeilex/sctk-adwaita> |
 | simd-adler32 | 0.3.9 | <https://github.com/mcountryman/simd-adler32> |
 | slab | 0.4.12 | <https://github.com/tokio-rs/slab> |
 | smithay-client-toolkit | 0.19.2 | <https://github.com/smithay/client-toolkit> |
 | spin | 0.9.9 | <https://github.com/mvdnes/spin-rs.git> |
+| sqlite-wasm-rs | 0.5.5 | <https://github.com/Spxg/sqlite-wasm-rs> |
 | strict-num | 0.1.1 | <https://github.com/RazrFalcon/strict-num> |
 | strum_macros | 0.26.4 | <https://github.com/Peternator7/strum> |
 | synstructure | 0.13.2 | <https://github.com/mystor/synstructure> |

@@ -89,7 +89,8 @@ The Rust migration has reached **functional transpiler status** with a complete 
 | `rapidr-runtime-core` | ~5,700 | **Native runtime** — the desktop GUI (through the UI kernel), builtins, database (MySQL/SQLite), networking, file I/O |
 | `rapidr-ui-kernel` | — | **UI kernel** — GUI-free: forms as retained trees over the component store, focus, input routing, display lists, parley text and editors, accessibility trees; builds for wasm too |
 | `rapidr-ui-host-winit` | — | **Desktop host** — winit windows pumped from the program's loop, vello on the GPU (vello_cpu without one), AccessKit, muda menus, rfd file dialogs, a headless host for tests |
-| `rapidr-runtime-web` | ~5,600 | **Web runtime** — DOM/Canvas GUI, web builtins, in-memory SQLite, data science, wasm-bindgen interop |
+| `rapidr-runtime-web` | ~5,600 | **Web runtime** — DOM/Canvas GUI, web builtins, SQLite (compiled to wasm), data science, wasm-bindgen interop |
+| `rapidr-db` | — | **RSQLITE / RMYSQL**, shared by both runtimes: one SQLite everywhere (rusqlite), MySQL (desktop), parameter binding |
 
 **Key architecture decisions:**
 - Generated code uses `thread_local!` storage for module-level variables (`gv()`/`gs()` scalar accessors, `ga_get()`/`ga_set()` array accessors), correctly sharing state across SUBs/FUNCTIONs
@@ -729,7 +730,7 @@ The Rust runtime is in `crates/rapidr-runtime-core/src/` with modules:
 | `builtins.rs` | ~450 | 100+ built-in BASIC functions (string, math, I/O, system) |
 | `ui/` | ~3,000 | The desktop UI facade (`ui/mod.rs`) and the UI kernel's glue (`ui/kernel.rs`: windows, waits, timers, events; `kernel_store.rs`, `kernel_lists.rs`, `kernel/{menus,dialogs,platform}.rs`), file / colour / font dialogs, GUI test hooks (`testhooks.rs`) |
 | `object.rs` | ~1,200 | Component property get/set/method dispatch via `rp_comp_*` API |
-| `database.rs` | ~350 | MySQL (`mysql` crate) and SQLite (`rusqlite` crate) components |
+| `database.rs` | ~40 | RSQLITE / RMYSQL: the shared `rapidr-db` components with this runtime's properties, events and messages |
 | `network.rs` | ~400 | TCP socket, server socket, HTTP client components |
 | `datascience.rs` | ~700 | `RNum` (ndarray), `RPlot` (plotters + image), `RDataFrame` (polars) |
 | `file_io.rs` | ~200 | RFileStream, RIni, RMemoryStream, RStringList implementations |
@@ -778,10 +779,74 @@ headless host for tests). See [docs/desktop-host-plan.md](docs/desktop-host-plan
 - `RCOLORDIALOG` — System color picker
 - `RJSON` — JSON parsing, generation, dot-path get/set, file I/O (cross-platform)
 
-### 6.3 Database (`database.rs`)
+### 6.3 Database (`rapidr-db`)
 
-- **RMYSQL** — MySQL client via `mysql` crate. Connect, query, fetch rows/fields, iterate databases/tables.
-- **RSQLITE** — SQLite via `rusqlite` crate. Same interface as RMYSQL.
+Both runtimes call the same crate, `crates/rapidr-db`, so a program's
+queries give the same rows, the same text and the same messages in a native
+build, in the interpreter and on the web.
+
+- **RSQLITE** — SQLite itself on every runtime (`rusqlite`): compiled from
+  SQLite's C sources into native builds and the interpreter, and into the
+  web's wasm (`sqlite-wasm-rs`, with the desktop's compile options:
+  `.cargo/config.toml`). On the web a database file lasts for the page's
+  session (a project's `.db` file is read in when the program first
+  connects to it); nothing is saved to the browser's storage yet.
+- **RMYSQL** — MySQL client via the `mysql` crate: native builds and the
+  interpreter (a browser can't open MySQL's TCP connection).
+
+Methods: `Connect` (RSQLITE: 1 if the file was there, 0 if new), `Close`,
+`Query`, `QueryScalar` (RSQLITE: the first column of the first row, the last
+query's rows untouched), `FetchRow`, `Row(i)` (column `i`, from 0, as text:
+NULL is "", integers in full, reals as `2.5`, `3`, `0.1`), `RowSeek(n)` (the
+next FetchRow fetches row `n`, from 0), `FetchField`, `FieldSeek`,
+`EscapeString`; RMYSQL also `SelectDB`, `DB(i)`. Properties: `Connected`,
+`DB`, `RowCount`, `ColCount`, `FieldCount` (RMYSQL: `DBCount`). Events:
+`OnConnect`, `OnQueryDone` (after every Query), `OnDisconnect`,
+`OnError(Message)`.
+
+`Query` decides by the statement, not its text: a statement with result
+columns — SELECT, PRAGMA, `WITH … SELECT`, EXPLAIN, `INSERT … RETURNING`;
+MySQL's SHOW, DESCRIBE — gives the rows FetchRow walks and RowCount /
+ColCount / FieldCount; the others leave the last rows as they were. SQL of
+several statements (`CREATE TABLE t (a); INSERT INTO t VALUES (1)`) runs
+them in order; the last that had result columns gives the rows. `Query`
+returns 1, or 0 on an error, which `OnError` gets (and stderr / the
+browser's console shows).
+
+#### Parameter binding
+
+A value put into SQL as text can change what the statement does: with
+`"... WHERE pass = '" + typed + "'"`, typing `x' OR '1'='1` matches every
+row (SQL injection). RapidR's `Query` (both components) binds values to the
+SQL's `?` placeholders instead — sent apart from the SQL, so a value is only
+ever a value:
+
+```rapidr
+DIM DB AS RSQLITE
+DB.Connect("shop.db")
+DB.Query("SELECT id, name FROM users WHERE name = ? AND pass = ?", UserEdit.Text, PassEdit.Text)
+IF DB.FetchRow THEN PRINT "Welcome, "; DB.Row(1)
+
+' or queued one at a time (used, then dropped, by the next query)
+DB.AddParam "Ann"
+DB.AddParam 30
+DB.Query("INSERT INTO users (name, age) VALUES (?, ?)")
+```
+
+- The values after the SQL go to its placeholders in order; an array gives
+  its elements. `DB.AddParam v [, w …]` queues values for the next query
+  (before the ones given to it); `DB.ClearParams` drops them.
+- An integer is bound as INTEGER, a number as REAL, a string as TEXT, an
+  empty VARIANT as NULL.
+- The counts must match — checked before the statement runs. A wrong
+  count is an error with the same message on every runtime (`OnError`:
+  `wrong number of parameters: the SQL has 2 placeholders (?) and 1 value
+  was given`); a `?` in a query given no values stays the error it always
+  was, never a NULL.
+- RMYSQL sends a query with values as a prepared statement — one
+  statement — and its rows come back written as the text protocol writes
+  them (`2.5`, `1e20`, `2024-01-05`). In RSQLITE, SQL of several statements
+  takes the values statement after statement.
 
 ### 6.4 Network (`network.rs`)
 
@@ -813,7 +878,7 @@ The `rapidr-runtime-web` crate (`crates/rapidr-runtime-web/`) provides a browser
 | `object_web` | `object_web.rs` (~1,200 lines) | Component creation, property storage, event dispatch. Central `rp_comp_create`, `rp_comp_get`, `rp_comp_set`, `rp_comp_method` API backed by thread-local `GUI_COMPONENTS` |
 | `builtins_web` | `builtins_web.rs` | WASM-compatible built-in functions: string, math, I/O stubs, system functions |
 | `datascience_web` | `datascience_web.rs` (~1,550 lines) | RNum (Vec<f64>), RDataFrame (column-oriented Vec<Vec<String>>), RPlot (HTML5 Canvas) |
-| `database_web` | `database_web.rs` (~590 lines) | In-memory SQLite emulation: CREATE TABLE, INSERT, SELECT, UPDATE, DELETE, DROP TABLE with SQL parsing |
+| `database_web` | `database_web.rs` (~180 lines) | RSQLITE: the shared `rapidr-db` (SQLite compiled to wasm) with the web's properties, events, console and project files; widgets bound to it (DataSource / DataField) |
 | `value` | `value.rs` | Shared `Value` enum (Int, Float, String, Null) for the web runtime |
 
 ### Web Build Pipeline
@@ -882,7 +947,7 @@ The web runtime provides pure Rust + web-sys implementations (no ndarray, polars
 - **RNum** — Backed by `Vec<f64>`. Supports arange, linspace, zeros, ones, fromlist, element-wise math (sin, cos, sqrt, exp, log, etc.), arithmetic (add, subtract, multiply, divide), aggregation (sum, mean, std, min, max, median), sorting, random generation, and more.
 - **RDataFrame** — Column-oriented `Vec<Vec<String>>`. Supports addcolumn, setcell(col, row, val), cell(col, row), filter, sort, groupby, togrid, readcsv, and more. Auto-expands rows on setcell.
 - **RPlot** — Renders to HTML5 Canvas. Supports line, bar, barh, scatter, step, area, histogram, pie charts, annotations, and legend.
-- **RSQLite** — Full in-memory SQL emulation with CREATE TABLE, INSERT, SELECT (with WHERE, ORDER BY, LIMIT), UPDATE, DELETE, DROP TABLE. Methods: `connect`, `query`/`exec`, `fetchrow`, `fetchfield`, `row`.
+- **RSQLite** — SQLite itself, compiled to wasm (§6.3): the same SQL, rows and messages as the desktop. A database file lasts for the page's session; a widget with `DataSource` (the component) and `DataField` (a column) shows the current row and writes its edits back.
 
 ### Multi-Form Programs
 
@@ -1090,6 +1155,13 @@ Under the hood that runs:
 wasm-pack build interpreter/rapidr-vm-host-web --target web \
   --out-dir target/web --out-name rapidrintr --release
 ```
+
+SQLite's C sources are part of the wasm (RSQLITE): clang compiles them
+(Apple's does wasm32), and `AR_wasm32_unknown_unknown=tools/wasm-ar.sh`
+archives them — llvm-ar when there is one, else the system's `ar` without a
+symbol index (Apple's can't index wasm objects). The script and
+`rapidr build --web` set it; the SQLite compile options are in
+`.cargo/config.toml`.
 
 `rapidr-vm-host-web` was extended in April 2026 to depend on
 `rapidr-lexer`, `rapidr-parser`, `rapidr-preprocessor`, and `rapidr-bcgen`

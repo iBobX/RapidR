@@ -13,7 +13,7 @@
 //! events (OnConnect, OnQueryDone, OnDisconnect, OnError), where messages
 //! go, and on the web the project's files.
 //!
-//! Parameter binding (RapidR's; SECURITY.md SEC-07): `DB.Query(sql, p1,
+//! Parameter binding (RapidR's; the roadmap's SEC-07): `DB.Query(sql, p1,
 //! p2, …)` binds the values after the SQL to its `?` placeholders, and
 //! `DB.AddParam v` queues one for the next query (`DB.ClearParams` drops
 //! them). A bound value is never SQL text, so no value — `x' OR '1'='1` —
