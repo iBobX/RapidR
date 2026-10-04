@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.111.0] — 2026-10-04
+
+### Added
+- The UI kernel host (`RAPIDR_HOST=kernel`) draws and drives most of
+  RapidQ's components, the same as on FLTK (native and interpreted, 1× and
+  2×): panels, group boxes, scroll boxes and a form's scroll bars, splitters,
+  status bars, MDI child windows; check boxes, radio buttons, cool / oval
+  buttons, gauges and progress bars, up-downs; the in-window main menu and
+  pop-up menus (the macOS menu bar natively); list and combo boxes (owner
+  drawn too), list views, string grids (OnDrawCell, editing, drop-down
+  columns), headers, tree views and outlines, directory trees and file
+  lists. 43 of 54 GUI test programs now run identically on both hosts.
+
+### Fixed
+- Kernel host: a Color the program sets is painted, even white.
+
 ## [2.110.0] — 2026-10-04
 
 ### Added
