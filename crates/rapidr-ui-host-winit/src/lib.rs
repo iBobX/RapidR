@@ -25,6 +25,7 @@ pub mod cpu;
 pub mod desktop;
 pub mod gpu;
 pub mod headless;
+pub mod menu;
 pub mod winit_host;
 
 use std::task::Waker;
@@ -64,6 +65,11 @@ pub trait Host {
     fn waker(&self) -> Waker;
     fn headless(&self) -> bool;
     fn name(&self) -> &'static str;
+    /// Shows pop-up menus itself ([`HostCmd::Popup`]: macOS' and Windows'
+    /// context menus); else the kernel draws them.
+    fn native_menus(&self) -> bool {
+        false
+    }
 }
 
 /// Which renderer windows use.

@@ -42,6 +42,11 @@ pub enum HostCmd {
     /// [`WindowSpec::icon`] again.
     Icon(String),
     Minimize(String),
+    /// Pop-up menu `menu` shown by the system at (x, y) of form `form`'s
+    /// window's inside (logical) — hosts with native menus
+    /// ([`crate::Host::native_menus`]); its pick comes back as a
+    /// `KernelEvent::MenuPick`.
+    Popup { form: String, menu: String, x: i64, y: i64 },
 }
 
 /// A window's picture (RGBA, straight).

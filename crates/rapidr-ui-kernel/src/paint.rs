@@ -156,8 +156,8 @@ impl FormUi {
         let mut list = DisplayList { size: (w, h + self.menu_offset), scale, items: Vec::new() };
         let mut p = Painter::new(&mut list);
         if self.menu_offset > 0 {
-            // (the in-window menu bar's place; the menu lane draws the bar)
-            p.fill((0, 0, w, self.menu_offset), FACE);
+            // (the in-window menu bar: components/menubar.rs)
+            self.paint_menu_bar(store, &mut p);
         }
         let color = rapidr_value::objects::form_color(&store.get(&self.form, "color"));
         p.fill((0, self.menu_offset, w, h), bgr_to_rgb(color));
@@ -168,6 +168,8 @@ impl FormUi {
         }
         // (the form's scroll bars, over its components)
         crate::components::scrollbox::paint_form_bars(&self.form, (w, h), &mut p, self.menu_offset);
+        // (open menus over everything)
+        self.paint_menus(store, &mut p);
         self.dirty = false;
         list
     }

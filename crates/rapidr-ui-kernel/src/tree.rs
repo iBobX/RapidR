@@ -23,6 +23,8 @@ pub struct NodeUi {
     pub edit: Option<Box<EditUi>>,
     /// A track bar's thumb being dragged.
     pub dragging: bool,
+    /// The part pressed (an up-down's arrow: 0 up, 1 down).
+    pub part: Option<usize>,
 }
 
 pub struct Node {
@@ -74,7 +76,10 @@ pub struct FormUi {
     pub modal: bool,
     /// Needs painting again.
     pub dirty: bool,
-    menu_in_window: bool,
+    /// Its main menu and pop-up menus as the kernel draws them (the bar,
+    /// open menus): components/menubar.rs.
+    pub menus: crate::components::menubar::MenuUi,
+    pub(crate) menu_in_window: bool,
     pub(crate) events: Vec<KernelEvent>,
 }
 
@@ -115,6 +120,7 @@ impl FormUi {
             scale: 1.0,
             modal: false,
             dirty: true,
+            menus: Default::default(),
             menu_in_window,
             events: Vec::new(),
         };

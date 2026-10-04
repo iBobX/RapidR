@@ -6,6 +6,8 @@
 //! glue never changes.
 
 pub mod button;
+pub mod check;
+pub mod coolbtn;
 pub mod edit;
 pub mod form;
 pub mod groupbox;
@@ -15,8 +17,14 @@ pub mod panel;
 pub mod scrollbox;
 pub mod splitter;
 pub mod statusbar;
+pub mod menubar;
+pub mod ovalbtn;
+pub mod popupmenu;
+pub mod progress;
+pub mod radio;
 pub mod tabcontrol;
 pub mod trackbar;
+pub mod updown;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -43,6 +51,13 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RSPLITTER", &splitter::Splitter),
     ("RSTATUSBAR", &statusbar::StatusBar),
     ("RMDICHILD", &mdi::ChildFrame),
+    ("RCHECKBOX", &check::CheckBox),
+    ("RRADIOBUTTON", &radio::RadioButton),
+    ("RCOOLBTN", &coolbtn::CoolBtn),
+    ("ROVALBTN", &ovalbtn::OvalBtn),
+    ("RPROGRESSBAR", &progress::Progress),
+    ("RPROGRESS", &progress::Progress),
+    ("RUPDOWN", &updown::UpDown),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only
@@ -105,6 +120,12 @@ impl Cx<'_> {
     /// OnChange.
     pub fn change(&mut self) {
         self.events.push(KernelEvent::Change(self.id.to_string()));
+    }
+
+    /// The user changed one of its plain properties (a check box's
+    /// Checked, a cool button's Down): stored before the events after it.
+    pub fn set(&mut self, id: &str, prop: &str, value: i64) {
+        self.events.push(KernelEvent::Set { id: id.to_lowercase(), prop: prop.to_string(), value });
     }
 }
 
@@ -228,5 +249,11 @@ pub trait ComponentKind: Sync {
     /// whether it was understood. Stage 3's driver.
     fn test_action(&self, _cx: &mut Cx, _action: &str) -> bool {
         false
+    }
+
+    /// What a click on it does besides OnClick (Alt + its mnemonic, a
+    /// screen reader's click): a check box's Checked turns over first.
+    fn activate(&self, cx: &mut Cx) {
+        cx.click();
     }
 }

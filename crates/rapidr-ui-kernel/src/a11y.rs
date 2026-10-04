@@ -37,6 +37,10 @@ impl FormUi {
         root.bounds = (0, 0, self.client.0, self.client.1 + self.menu_offset);
         root.states.modal = self.modal;
         root.states.focused = self.focus.is_none();
+        // (the in-window menu bar: components/menubar.rs)
+        if let Some(bar) = self.describe_menu_bar(store) {
+            root.children.push(bar);
+        }
         for i in self.roots() {
             if let Some(n) = self.describe(store, ts, i) {
                 root.children.push(n);
@@ -122,6 +126,9 @@ impl FormUi {
     /// (with `value` for SetValue). Done as the user's input would be;
     /// whether it was understood.
     pub fn access_action(&mut self, store: &dyn Store, ts: &mut TextSystem, target: u64, action: Action, value: Option<AccessValue>) -> bool {
+        if let Some(done) = self.menu_access(store, target, action) {
+            return done;
+        }
         let Some((i, part)) = self.access_target(store, target) else { return false };
         if !self.nodes[i].shown || !self.nodes[i].enabled {
             return false;

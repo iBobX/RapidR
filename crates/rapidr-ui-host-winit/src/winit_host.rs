@@ -28,6 +28,7 @@ use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
 use winit::window::{Window, WindowId};
 
 use crate::cpu::CpuRenderer;
+use crate::menu::NativeMenus;
 use crate::{a11y, gpu, Desktop, Host, HostCmd, HostEvent, RendererKind, Source};
 
 pub enum UserEvent {
@@ -80,6 +81,10 @@ struct State {
     screen: Option<((i64, i64), f64, i64)>,
     /// The mouse on the screen (logical), as last seen.
     mouse: (i64, i64),
+    /// The system's menus (menu.rs) and the form whose window has the
+    /// keyboard (macOS' menu bar shows its main menu).
+    menus: NativeMenus,
+    key_form: Option<String>,
 }
 
 pub struct WinitHost {
@@ -92,6 +97,7 @@ impl WinitHost {
     pub fn new(kind: RendererKind, forced: Option<f64>) -> Self {
         let event_loop = EventLoop::<UserEvent>::with_user_event().build().expect("winit event loop (on the main thread)");
         let proxy = event_loop.create_proxy();
+        let menus = NativeMenus::new(proxy.clone());
         WinitHost {
             event_loop,
             state: State {
@@ -105,6 +111,8 @@ impl WinitHost {
                 mods: ModifiersState::empty(),
                 screen: None,
                 mouse: (0, 0),
+                menus,
+                key_form: None,
             },
         }
     }
@@ -152,6 +160,10 @@ impl Host for WinitHost {
 
     fn headless(&self) -> bool {
         false
+    }
+
+    fn native_menus(&self) -> bool {
+        crate::menu::native_popups()
     }
 
     fn name(&self) -> &'static str {
@@ -295,8 +307,18 @@ impl Shim<'_> {
                         w.window.set_minimized(true);
                     }
                 }
+                HostCmd::Popup { form, menu, x, y } => {
+                    if let Some(w) = self.s.wins.get(&form) {
+                        let window = w.window.clone();
+                        self.s.menus.popup(&window, &form, &menu, x, y);
+                    }
+                }
             }
         }
+        // (menus: macOS' bar for the key form; picks made meanwhile)
+        let key = self.s.key_form.clone();
+        self.s.menus.sync(self.desk, self.store, key.as_deref());
+        crate::menu::take_picks(self.desk);
     }
 
     /// A window's inside for a logical size: at the forced scale in device
@@ -310,6 +332,7 @@ impl Shim<'_> {
     }
 
     fn show(&mut self, el: &ActiveEventLoop, f: &str) {
+        self.s.key_form = Some(f.to_string());
         if let Some(w) = self.s.wins.get(f) {
             w.window.set_visible(true);
             w.window.focus_window();
@@ -550,6 +573,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             }
             WindowEvent::RedrawRequested => self.redraw(&f),
             WindowEvent::Focused(true) => {
+                self.s.key_form = Some(f.clone());
                 // A modal form keeps the focus (macOS has no owned windows).
                 if let Some(m) = self.desk.modal.last() {
                     if *m != f {

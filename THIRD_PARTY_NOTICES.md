@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**701 libraries** under 26 license expressions.
+**703 libraries** under 26 license expressions.
 
-## Apache-2.0 OR MIT (388)
+## Apache-2.0 OR MIT (390)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -179,6 +179,7 @@ which also carries their full license texts.
 | jni-sys-macros | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jpeg-decoder | 0.3.2 | <https://github.com/image-rs/jpeg-decoder> |
 | js-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys> |
+| keyboard-types | 0.8.3 | <https://github.com/rust-windowing/keyboard-types> |
 | khronos-egl | 6.0.0 | <https://github.com/timothee-haudebourg/khronos-egl> |
 | kurbo | 0.13.1 | <https://github.com/linebender/kurbo> |
 | lazy_static | 1.5.0 | <https://github.com/rust-lang-nursery/lazy-static.rs> |
@@ -193,6 +194,7 @@ which also carries their full license texts.
 | matrixmultiply | 0.3.10 | <https://github.com/bluss/matrixmultiply/> |
 | memmap2 | 0.9.10 | <https://github.com/RazrFalcon/memmap2-rs> |
 | mime | 0.3.17 | <https://github.com/hyperium/mime> |
+| muda | 0.21.0 | <https://github.com/tauri-apps/muda> |
 | mysql | 25.0.1 | <https://github.com/blackbeam/rust-mysql-simple> |
 | mysql-common-derive | 0.31.2 | <https://github.com/blackbeam/rust_mysql_common> |
 | mysql_common | 0.32.4 | <https://github.com/blackbeam/rust_mysql_common> |

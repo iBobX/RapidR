@@ -41,6 +41,10 @@ use super::testhooks::{self, Action, Capture, TestEvent};
 use crate::object::{form_of, get_children_of, rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_args, rp_fire_event_then, store_prop};
 use crate::value::{v_int, v_null, Value};
 
+// The buttons and menus lane's part: a pick's OnClick, Popup, AutoPopup,
+// RAPIDR_DUMP_MENUS.
+mod menus;
+
 // ------------------------------------------------------------------ state --
 
 /// The host and the kernel's forms: borrowed while the host pumps.
@@ -60,6 +64,8 @@ enum WinOp {
     Border(String, bool),
     Icon(String, Option<Icon>),
     Minimize(String),
+    /// A pop-up menu shown by the host (form, menu, x, y in its inside).
+    Popup(String, String, i64, i64),
 }
 
 /// A wait the bytecode VM serves itself ([`gui_set_cooperative_waits`]).
@@ -193,6 +199,7 @@ fn started() -> bool {
 /// What the program changed, into the kernel's forms: window commands,
 /// new forms' kernel sides, trees rebuilt, layouts read again.
 fn sync_desk(k: &mut Kern) {
+    menus::dump_if_changed();
     let store = RtStore;
     let (paint, structure) = NOTIFY.with(|n| n.replace((false, false)));
     let ops = st(|s| std::mem::take(&mut s.ops));
@@ -240,6 +247,7 @@ fn sync_desk(k: &mut Kern) {
                 }
             }
             WinOp::Minimize(f) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Minimize(f)),
+            WinOp::Popup(form, menu, x, y) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Popup { form, menu, x, y }),
         }
     }
     desk.modal = modal;
@@ -343,7 +351,11 @@ fn dispatch(ev: KernelEvent) {
             APPLYING.with(|a| a.set(a.get() - 1));
         }
         KernelEvent::ScaleChanged(f, scale) => scale_changed(&f, scale),
-        KernelEvent::MenuPick(_) => {}
+        KernelEvent::MenuPick(item) => menus::picked(&item),
+        KernelEvent::Set { id, prop, value } => {
+            rp_comp_set(&id, &prop, v_int(value));
+            invalidate();
+        }
         KernelEvent::Container(c) => container_event(c),
     }
 }
@@ -365,6 +377,9 @@ fn container_event(c: rapidr_ui_kernel::components::form::Container) {
 
 /// `name`'s mouse event (gui.rs's `mouse_event`: QIMAGE fires its own).
 fn mouse_event(name: &str, kind: Mouse, button: Button, x: i64, y: i64, shift: i64) {
+    if kind == Mouse::Down && button == Button::Right && menus::auto_popup(name, x, y) {
+        return;
+    }
     if rp_comp_type(name).eq_ignore_ascii_case("RIMAGE") {
         return;
     }
@@ -868,8 +883,8 @@ pub fn gui_apply_icons() {
     }
 }
 
-pub fn gui_menu_popup(_name: &str, _x: i32, _y: i32) {
-    pending("QPOPUPMENU.Popup");
+pub fn gui_menu_popup(name: &str, x: i32, y: i32) {
+    menus::popup(name, x, y);
 }
 
 // ---------------------------------------------------- the facade: text --

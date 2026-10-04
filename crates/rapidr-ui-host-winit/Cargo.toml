@@ -31,3 +31,9 @@ softbuffer = "0.4"
 accesskit = "0.25"
 accesskit_winit = "0.34"
 pollster = "0.4"
+
+# The system's menus (MIT OR Apache-2.0): macOS' menu bar, macOS' and
+# Windows' context menus (menu.rs). Not on Linux, where muda needs GTK: the
+# kernel draws every menu there (and its default GTK feature stays off).
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+muda = { version = "0.21", default-features = false }

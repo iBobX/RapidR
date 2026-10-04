@@ -2671,6 +2671,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard-types"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
+dependencies = [
+ "bitflags 2.11.0",
+ "serde",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2955,6 +2965,25 @@ checksum = "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1"
 dependencies = [
  "libc",
  "wasi",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "muda"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6744ab645ebe79f9c428455c7cb9dfa4275fa3b50a25408e08f927da8dc618c"
+dependencies = [
+ "crossbeam-channel",
+ "dpi",
+ "keyboard-types",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+ "once_cell",
+ "png 0.18.1",
+ "thiserror 2.0.18",
  "windows-sys 0.61.2",
 ]
 
@@ -3343,6 +3372,7 @@ checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.11.0",
  "objc2 0.6.4",
+ "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
 ]
@@ -4964,6 +4994,7 @@ dependencies = [
  "accesskit",
  "accesskit_winit",
  "glifo",
+ "muda",
  "parley",
  "pollster",
  "rapidr-ui-kernel",

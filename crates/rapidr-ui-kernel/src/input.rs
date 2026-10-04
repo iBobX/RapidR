@@ -94,11 +94,15 @@ pub enum KernelEvent {
     Moved(String, i64, i64),
     /// Its screen's scale changed (OnScaleChanged).
     ScaleChanged(String, f64),
-    /// A menu item picked (by id).
+    /// A menu item picked (by id): its OnClick.
     MenuPick(String),
     /// A container's action runtime-core carries out (components scrolled,
     /// a splitter dragged, an MDI child's frame used).
     Container(crate::components::form::Container),
+    /// The user changed a plain property of `id` (a check box's Checked, a
+    /// cool button's Down): runtime-core stores it before the events after
+    /// it (its OnClick).
+    Set { id: String, prop: String, value: i64 },
 }
 
 impl FormUi {
@@ -148,12 +152,12 @@ impl FormUi {
     /// A mouse button pressed at (x, y) of the client area.
     pub fn mouse_down(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
-        // (scroll bars take the mouse first, over the components)
-        if button == Button::Left && crate::components::scrollbox::bars_down(self, store, x, y) {
+        // (an open menu, the in-window menu bar: components/menubar.rs)
+        if self.menu_mouse_down(store, x, y) {
             return;
         }
-        if y < self.menu_offset as f64 {
-            // (the in-window menu bar: the menu lane's)
+        // (scroll bars take the mouse next, over the components)
+        if button == Button::Left && crate::components::scrollbox::bars_down(self, store, x, y) {
             return;
         }
         let target = self.hit(x, y);
@@ -178,6 +182,9 @@ impl FormUi {
 
     /// The mouse moved to (x, y) of the client area.
     pub fn mouse_move(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, mods: Mods) {
+        if self.menu_mouse_move(store, x, y) {
+            return;
+        }
         if crate::components::scrollbox::bars_drag(self, store, x, y) {
             return;
         }
@@ -211,6 +218,9 @@ impl FormUi {
     /// A mouse button released at (x, y) of the client area.
     pub fn mouse_up(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
+        if self.menu_mouse_up(store, x, y) {
+            return;
+        }
         if button == Button::Left && crate::components::scrollbox::bars_up(self, store) {
             return;
         }
@@ -253,6 +263,11 @@ impl FormUi {
     pub fn key_down(&mut self, store: &dyn Store, ts: &mut TextSystem, vk: i64, text: &str, mods: Mods, clip: &mut dyn Clipboard) {
         self.dirty = true;
         self.caret_on = true;
+        // (an open menu takes the keys; a main menu's ShortCut is picked
+        // before the key reaches anything: components/menubar.rs)
+        if self.menu_key(store, vk, mods) {
+            return;
+        }
         let chain = self.key_chain();
         self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state(), text: text.to_string() });
         let shortcut = mods.command || mods.ctrl;
@@ -261,7 +276,8 @@ impl FormUi {
             self.move_focus(store, mods.shift);
             handled = true;
         } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) {
-            handled = self.mnemonic(store, ts, (vk as u8 + 32) as char);
+            let letter = (vk as u8 + 32) as char;
+            handled = self.mnemonic(store, ts, letter) || self.menu_mnemonic(store, letter);
         } else if let Some(f) = self.focus {
             handled = self.with_cx(store, ts, f, |k, cx| k.key(cx, &KeyIn { vk, text, mods }, clip)).unwrap_or(false);
         }
@@ -290,7 +306,7 @@ impl FormUi {
 
     /// Alt + `letter`: the button whose caption marks it clicked, or the
     /// component after the label that marks it focused.
-    fn mnemonic(&mut self, store: &dyn Store, _ts: &mut TextSystem, letter: char) -> bool {
+    fn mnemonic(&mut self, store: &dyn Store, ts: &mut TextSystem, letter: char) -> bool {
         let found = (0..self.nodes.len()).find(|&i| {
             let n = &self.nodes[i];
             n.shown && n.enabled && n.kind.and_then(|k| k.mnemonic(store, &n.id)) == Some(letter)
@@ -300,7 +316,7 @@ impl FormUi {
             if self.can_focus(store, i) {
                 self.set_focus(Some(i));
             }
-            self.events.push(KernelEvent::Click(self.nodes[i].id.clone()));
+            self.with_cx(store, ts, i, |k, cx| k.activate(cx));
         } else if let Some(next) = self.next_in_order(store, i) {
             self.set_focus(Some(next));
         }
