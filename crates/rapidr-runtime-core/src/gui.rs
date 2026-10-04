@@ -303,6 +303,11 @@ fn install_input_dispatch() {
         if let Some(handled) = scroll_bars_event(ev, win) {
             return handled;
         }
+        // (the input lane's: then a status bar's size grip, as Windows'
+        // sizing border — no OnMouseDown)
+        if let Some(handled) = size_grip_event(ev, win) {
+            return handled;
+        }
         // SAFETY: `win` is the window FLTK passed in for this event.
         let handled = unsafe { app::handle_raw(ev, win) };
         // The wheel no component used scrolls the form / scroll box under
@@ -755,7 +760,7 @@ fn design_test_mouse(ds: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64)
 /// QIMAGE as its widget's handler.
 fn hook_mouse(comp: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64, double: bool) {
     use rapidr_value::input::Button;
-    if scroll_bars_hook(comp, kind, x, y) {
+    if scroll_bars_hook(comp, kind, x, y) || grip_hook(comp, kind, x, y) {
         return;
     }
     // (a list view takes the focus at a press, as its widget's handler)
@@ -5223,6 +5228,12 @@ pub fn gui_set_input_value(name: &str, text: &str) {
 /// `SimplePanel` is set or it has no panels.
 fn draw_statusbar(id: &str, x: i32, y: i32, w: i32, h: i32) {
     draw::draw_box(FrameType::FlatBox, x, y, w, h, Color::BackGround);
+    // (the input lane's: the size grip, the boxes ending before it)
+    let grip = status_grip(id);
+    if grip {
+        draw_size_grip(x, y, w, h);
+    }
+    let w = if grip { w - rapidr_value::layout::STATUS_GRIP as i32 } else { w };
     draw::set_font(Font::Helvetica, 12);
     draw::set_draw_color(Color::Black);
     let count = rp_comp_get(id, "panelcount").to_i64().clamp(0, 256) as i32;
@@ -5244,6 +5255,113 @@ fn draw_statusbar(id: &str, x: i32, y: i32, w: i32, h: i32) {
         draw::draw_text2(&caption, px + 4, y, (pw - 8).max(0), h, Align::Left | Align::Inside);
         draw::pop_clip();
         px += pw;
+    }
+}
+
+// ------------------------------------------------- (the input lane's) --
+
+thread_local! {
+    /// A QSTATUSBAR's size grip held: its form, and the mouse's offset from
+    /// the window's inside's bottom-right.
+    static GRIP_HELD: RefCell<Option<(String, i32, i32)>> = const { RefCell::new(None) };
+}
+
+/// Whether QSTATUSBAR `name` shows its size grip (Delphi's SizeGrip, True
+/// unless set: on a sizeable form, docked at its bottom —
+/// `rapidr_value::layout::status_grip`, as the kernel host's).
+fn status_grip(name: &str) -> bool {
+    let parent = rp_comp_get(name, "parent").to_string_val();
+    let on_form = matches!(rp_comp_type(&parent).to_ascii_uppercase().as_str(), "RFORM" | "RFORMMDI");
+    let size_grip = match rp_comp_get(name, "sizegrip") {
+        Value::Null => true,
+        v => v.to_bool(),
+    };
+    let border = match rp_comp_get(&parent, "borderstyle") {
+        Value::Null => 2,
+        v => v.to_i64(),
+    };
+    rapidr_value::layout::status_grip(size_grip, on_form, border, crate::layout::align_of(name))
+}
+
+/// Windows' classic size grip at the bottom-right of a bar at (x, y), `w`
+/// × `h`: three raised ridges, each a white line over two grey ones.
+fn draw_size_grip(x: i32, y: i32, w: i32, h: i32) {
+    let g = rapidr_value::layout::STATUS_GRIP as i32;
+    let (cx, cy) = (x + w - 1, y + h - 1);
+    for base in [1, 5, 9] {
+        for (d, color) in [(base, Color::from_rgb(128, 128, 128)), (base + 1, Color::from_rgb(128, 128, 128)), (base + 2, Color::White)] {
+            draw::set_draw_color(color);
+            for k in 0..=d {
+                let (px, py) = (cx - d + k, cy - k);
+                if px >= x + w - g + 2 && py >= y + h - g + 2 {
+                    draw::draw_point(px, py);
+                }
+            }
+        }
+    }
+}
+
+/// A press at (x, y) of status bar `name`'s widget: on its size grip, the
+/// window's resize begins. Whether it was.
+fn grip_press(name: &str, x: i32, y: i32) -> bool {
+    let Some(bar) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(name).map(GuiWidget::base))) else { return false };
+    let g = rapidr_value::layout::STATUS_GRIP as i32;
+    if x < bar.w() - g || y < bar.h() - g || x >= bar.w() || y >= bar.h() || !status_grip(name) {
+        return false;
+    }
+    // (docked at the bottom, its full width: its bottom-right is the window's inside's)
+    let form = rp_comp_get(name, "parent").to_string_val().to_lowercase();
+    GRIP_HELD.with(|held| *held.borrow_mut() = Some((form, bar.w() - x, bar.h() - y)));
+    true
+}
+
+/// The mouse at (x, y) of the window's inside with a grip held: the window
+/// resized with it, as the user's drag of its border (`form_resized`:
+/// Width / Height, OnResize). Whether one is held.
+fn grip_drag(x: i32, y: i32) -> bool {
+    let Some((form, ox, oy)) = GRIP_HELD.with(|held| held.borrow().clone()) else { return false };
+    if let Some(GuiWidget::Window(mut win)) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(&form).cloned())) {
+        let (wx, wy) = (win.x(), win.y());
+        win.resize(wx, wy, (x + ox).max(1), (y + oy).max(1));
+    }
+    true
+}
+
+/// A press, drag or release on a status bar's size grip: `Some` when the
+/// grip took it (nothing else hears it).
+fn size_grip_event(ev: Event, win: app::WindowPtr) -> Option<bool> {
+    match ev {
+        Event::Push => {
+            let (ex, ey) = (app::event_x(), app::event_y());
+            let bars: Vec<(String, i32, i32)> = GUI_WIDGETS.with(|gw| {
+                let Ok(gw) = gw.try_borrow() else { return Vec::new() };
+                gw.iter()
+                    .filter(|(n, w)| {
+                        let w = w.base();
+                        w.visible_r() && rp_comp_type(n) == "RSTATUSBAR" && w.window().is_some_and(|ww| ww.as_widget_ptr() as usize == win as usize)
+                    })
+                    .map(|(n, w)| (n.clone(), w.base().x(), w.base().y()))
+                    .collect()
+            });
+            bars.into_iter().any(|(n, bx, by)| grip_press(&n, ex - bx, ey - by)).then_some(true)
+        }
+        Event::Drag => grip_drag(app::event_x(), app::event_y()).then_some(true),
+        Event::Released => GRIP_HELD.with(|held| held.borrow_mut().take()).map(|_| true),
+        _ => None,
+    }
+}
+
+/// The test hooks' mouse on a status bar's size grip (`x`, `y` in the
+/// bar): whether the grip took it, as the real input's.
+fn grip_hook(name: &str, kind: rapidr_value::input::Mouse, x: i64, y: i64) -> bool {
+    use rapidr_value::input::Mouse;
+    match kind {
+        Mouse::Down => rp_comp_type(name) == "RSTATUSBAR" && grip_press(name, x as i32, y as i32),
+        Mouse::Move => {
+            let Some(bar) = GUI_WIDGETS.with(|gw| gw.try_borrow().ok().and_then(|gw| gw.get(name).map(GuiWidget::base))) else { return false };
+            grip_drag(bar.x() + x as i32, bar.y() + y as i32)
+        }
+        Mouse::Up => GRIP_HELD.with(|held| held.borrow_mut().take()).is_some(),
     }
 }
 

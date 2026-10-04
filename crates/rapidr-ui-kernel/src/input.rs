@@ -172,6 +172,10 @@ impl FormUi {
         if button == Button::Left && crate::components::scrollbox::bars_down(self, store, x, y) {
             return;
         }
+        // (the input lane's: a status bar's size grip, as Windows' sizing border)
+        if button == Button::Left && crate::components::statusbar::grip_down(self, store, x, y) {
+            return;
+        }
         let target = self.hit(x, y);
         if !self.live(target) {
             return;
@@ -241,6 +245,10 @@ impl FormUi {
         if crate::components::scrollbox::bars_drag(self, store, x, y) {
             return;
         }
+        // (the input lane's)
+        if crate::components::statusbar::grip_drag(self, x, y) {
+            return;
+        }
         let hit = self.hit(x, y);
         if hit != self.hover {
             if let Some(old) = self.hover {
@@ -275,6 +283,10 @@ impl FormUi {
             return;
         }
         if button == Button::Left && crate::components::scrollbox::bars_up(self, store) {
+            return;
+        }
+        // (the input lane's)
+        if button == Button::Left && crate::components::statusbar::grip_up(self) {
             return;
         }
         let hit = self.hit(x, y);

@@ -28,6 +28,27 @@ fn desk(s: &MemStore) -> Desktop {
     d
 }
 
+/// (the input lane's) A status bar's size grip dragged: `Desktop` makes the
+/// kernel's request a window command, and the headless host resizes the
+/// window at once, as the user's drag of its border (OnResize after the pump).
+#[test]
+fn a_size_grips_drag_resizes_the_window_as_the_user() {
+    let mut s = store();
+    s.add("bar", "RSTATUSBAR", Some("frm")).set("bar", "align", v_int(2)).set("bar", "top", v_int(76)).set("bar", "width", v_int(200)).set("bar", "height", v_int(24));
+    let mut d = Desktop::new(Box::new(MemClipboard::default()));
+    d.ensure_form(&s, "frm", false, WindowSpec { title: "frm".into(), size: (200, 100), ..Default::default() });
+    d.show("frm");
+    let mut h = HeadlessHost::new(1.0);
+    h.pump(Some(Duration::ZERO), &mut d, &s);
+    d.mouse_down(&s, "frm", (195.0, 96.0), Button::Left, Mods::NONE, Source::Script);
+    d.mouse_move(&s, "frm", 225.0, 116.0, Mods::NONE, Source::Script);
+    assert_eq!(d.cmds, vec![HostCmd::Resize { form: "frm".into(), w: 230, h: 120 }]);
+    assert!(d.events.is_empty(), "the press and drag are the grip's");
+    h.pump(Some(Duration::ZERO), &mut d, &s);
+    assert_eq!(d.form("frm").map(|f| f.spec.size), Some((230, 120)));
+    assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::Resized("frm".into(), 230, 120))]);
+}
+
 #[test]
 fn a_headless_pump_runs_the_commands_and_sleeps() {
     let s = store();

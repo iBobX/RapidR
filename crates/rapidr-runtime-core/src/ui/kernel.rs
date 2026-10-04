@@ -394,6 +394,8 @@ fn container_event(c: rapidr_ui_kernel::components::form::Container) {
         Container::SplitMove(delta) => crate::layout::splitter_move(delta),
         Container::SplitEnd => crate::layout::splitter_end(),
         Container::Mdi { form, component, action } => crate::mdi::user(&form, &component, action),
+        // (the input lane's: the host's — `Desktop` makes it a window command)
+        Container::Resize { .. } => {}
     }
 }
 

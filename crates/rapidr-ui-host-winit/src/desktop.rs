@@ -53,6 +53,12 @@ pub enum HostCmd {
     FileDialog { id: u64, form: Option<String>, req: crate::dialogs::FileRequest },
     /// Form `id`'s window gone for good (a kernel-drawn dialog closed).
     Forget(String),
+    // (the input lane's)
+    /// A QSTATUSBAR's size grip dragged: form `form`'s window's inside to
+    /// `w` × `h` (logical) — winit asks the system (`request_inner_size`),
+    /// the headless host resizes at once; either way the resize comes back
+    /// as the user's ([`Desktop::resized`]: OnResize, Width / Height).
+    Resize { form: String, w: i64, h: i64 },
 }
 
 /// A window's picture (RGBA, straight).
@@ -200,11 +206,17 @@ impl Desktop {
         }
     }
 
-    /// Form `id`'s kernel events into the queue.
+    /// Form `id`'s kernel events into the queue (a size grip's request is
+    /// the host's: a window command).
     fn collect(&mut self, id: &str) {
         let key = id.to_lowercase();
         if let Some(f) = self.forms.get_mut(&key) {
             for e in f.ui.take_events() {
+                // (the input lane's)
+                if let KernelEvent::Container(rapidr_ui_kernel::components::form::Container::Resize { form, w, h }) = e {
+                    self.cmds.push(HostCmd::Resize { form, w, h });
+                    continue;
+                }
                 self.events.push(HostEvent::Kernel(key.clone(), e));
             }
         }

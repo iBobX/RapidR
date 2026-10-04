@@ -25,10 +25,16 @@ impl HeadlessHost {
 impl Host for HeadlessHost {
     fn pump(&mut self, timeout: Option<Duration>, desk: &mut Desktop, _store: &dyn Store) {
         for cmd in std::mem::take(&mut desk.cmds) {
-            if let HostCmd::Show(f) = cmd {
-                if let Some(form) = desk.form(&f) {
-                    form.scale = self.scale;
+            match cmd {
+                HostCmd::Show(f) => {
+                    if let Some(form) = desk.form(&f) {
+                        form.scale = self.scale;
+                    }
                 }
+                // (the input lane's: a size grip's drag resizes at once, as
+                // the user's drag of the border would)
+                HostCmd::Resize { form, w, h } => desk.resized(&form, w, h),
+                _ => {}
             }
         }
         if !desk.events.is_empty() {

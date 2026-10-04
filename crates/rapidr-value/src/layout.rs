@@ -67,6 +67,18 @@ pub fn property_value(prop: &str, val: crate::Value) -> crate::Value {
     }
 }
 
+/// (the input lane's) A QSTATUSBAR's size grip: a square this big at its
+/// bottom-right (Windows' SM_CXVSCROLL).
+pub const STATUS_GRIP: i64 = 16;
+
+/// (the input lane's) Whether a QSTATUSBAR shows its size grip, as Delphi's
+/// TStatusBar.SizeGrip (RapidQ's SizeGrip, True by default): on a form
+/// (`on_form`: the form is its parent) that is sizeable (BorderStyle
+/// bsSizeable 2 or bsSizeToolWin 5), docked at its bottom.
+pub fn status_grip(size_grip: bool, on_form: bool, border_style: i64, align: Align) -> bool {
+    size_grip && on_form && matches!(border_style, 2 | 5) && align == Align::Bottom
+}
+
 /// The Align a component type starts with (QSTATUSBAR docks at the bottom,
 /// QSPLITTER at the left, as in RapidQ), for RapidR's type names.
 pub fn default_align(type_name: &str) -> Align {
@@ -736,6 +748,12 @@ mod tests {
         }
         assert_eq!(Align::from_value(99), Align::None);
         assert_eq!(default_align("RStatusBar"), Align::Bottom);
+        // (the input lane's: a status bar's size grip — sizeable forms, the bottom)
+        assert!(status_grip(true, true, 2, Align::Bottom) && status_grip(true, true, 5, Align::Bottom));
+        assert!(!status_grip(false, true, 2, Align::Bottom), "SizeGrip off");
+        assert!(!status_grip(true, false, 2, Align::Bottom), "on a panel");
+        assert!(!status_grip(true, true, 1, Align::Bottom) && !status_grip(true, true, 3, Align::Bottom), "bsSingle, bsDialog");
+        assert!(!status_grip(true, true, 2, Align::Top), "docked at the top");
         assert_eq!(default_align("RSPLITTER"), Align::Left);
         assert_eq!(default_align("RBUTTON"), Align::None);
     }

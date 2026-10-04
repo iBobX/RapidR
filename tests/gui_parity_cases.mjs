@@ -161,4 +161,9 @@ export const cases = [
   // a double click instead: no edit)
   { name: "pause_edit", kernel: true, events: "tv.__node_1,tv.__node_1,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,tv.__enter,lv.__mousedown_10_31,lv.__mouseup_10_31,lv.__mousedown_10_31,lv.__mouseup_10_31,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,lv.__mousedown_10_48,lv.__mouseup_10_48,lv.__dblclick_10_48,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=ing1 ed1:Renamed c0:2 c0:0 c0:2 c1:2 dbl |Renamed Renamed two"] },
+  // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
+  // the bar, and on the corner once SizeGrip is off)
+  { name: "size_grip", kernel: true, events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
+    expect: ["lbl.caption=w318 g-1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"], web: false,
+    why: "the browser's forms aren't resized by the user (no frame drag, so no size grip)" },
 ];

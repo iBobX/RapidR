@@ -28,6 +28,11 @@ pub enum Container {
     /// raised, moved, resized, minimized, maximized or closed
     /// (`mdi::rt_user`).
     Mdi { form: String, component: String, action: Action },
+    /// (the input lane's) A QSTATUSBAR's size grip dragged: form `form`'s
+    /// window's inside asked to be `w` × `h` (logical; its in-window menu
+    /// included). The host's, not runtime-core's: `Desktop` makes it a
+    /// `HostCmd::Resize`, and the window's resize comes back as the user's.
+    Resize { form: String, w: i64, h: i64 },
 }
 
 #[cfg(test)]
@@ -111,9 +116,11 @@ mod tests {
         // the group box: etched, its caption without the &
         assert!(dump.contains("#808080/#ffffff #ffffff/#808080 @0,70"), "{dump}");
         assert!(dump.contains("\"Group\""), "{dump}");
-        // the status bar: the first panel 100 wide by default, the last the rest
+        // the status bar: the first panel 100 wide by default, the last the
+        // rest — up to the size grip (the input lane's: a sizeable form, the
+        // bar docked at the bottom)
         assert!(dump.contains("edge 1,2 98x21 #808080 #ffffff @0,140"), "{dump}");
-        assert!(dump.contains("edge 101,2 198x21 #808080 #ffffff @0,140"), "{dump}");
+        assert!(dump.contains("edge 101,2 182x21 #808080 #ffffff @0,140"), "{dump}");
         let tree = f.access_tree(&s, &mut ts);
         let roles: Vec<(Role, String)> = tree.children.iter().map(|n| (n.role, n.name.clone())).collect();
         assert_eq!(roles, vec![(Role::Pane, "Hi".into()), (Role::Group, "Group".into()), (Role::Group, String::new())]);

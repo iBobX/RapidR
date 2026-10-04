@@ -180,6 +180,8 @@ impl RpComponent {
                 props.insert("simpletext".into(), v_str(""));
                 props.insert("simplepanel".into(), v_bool(false));
                 props.insert("panelcount".into(), v_int(0));
+                // (the input lane's: its size grip shows — RapidQ's default)
+                props.insert("sizegrip".into(), v_bool(true));
             }
             "RPROGRESS" => {
                 props.insert("min".into(), v_int(0));

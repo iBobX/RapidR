@@ -346,6 +346,14 @@ impl Shim<'_> {
                     dialogs.open(id, &req, parent.as_deref(), waker);
                     self.desk.events.push(HostEvent::Wake);
                 }
+                // (the input lane's: a size grip dragged — the system resizes,
+                // and its Resized is the user's)
+                HostCmd::Resize { form, w: lw, h: lh } => {
+                    let scale = self.scale_of(&form);
+                    if let Some(w) = self.s.wins.get(&form) {
+                        let _ = w.window.request_inner_size(self.inner_size(lw, lh, scale));
+                    }
+                }
                 HostCmd::Forget(f) => {
                     if let Some(w) = self.s.wins.remove(&f) {
                         self.s.ids.remove(&w.window.id());

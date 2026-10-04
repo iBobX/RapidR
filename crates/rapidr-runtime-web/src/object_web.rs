@@ -279,6 +279,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if align != rapidr_value::layout::Align::None {
         props.insert("align".to_string(), v_int(align.value()));
     }
+    // (the input lane's) A QSTATUSBAR's SizeGrip is True (RapidQ's default).
+    if utype == "RSTATUSBAR" {
+        props.insert("sizegrip".to_string(), v_bool(true));
+    }
     // Its size: RapidQ's, the same on every runtime (rapidr_value::layout).
     if let Some((w, h)) = rapidr_value::layout::default_size(&utype) {
         props.insert("left".to_string(), props.get("left").cloned().unwrap_or(v_int(0)));
