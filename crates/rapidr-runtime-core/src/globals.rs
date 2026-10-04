@@ -1,6 +1,6 @@
-//! RapidQ's global objects on the desktop (rapidr_value::globals): FLTK
-//! answers for the screen and the mouse, the system clipboard (arboard)
-//! for the clipboard.
+//! RapidQ's global objects on the desktop (rapidr_value::globals): the
+//! desktop host (`ui`) answers for the screen and the mouse, the system
+//! clipboard (arboard, with FLTK) for the clipboard.
 
 use rapidr_value::globals::Platform;
 use rapidr_value::Value;
@@ -22,44 +22,35 @@ thread_local! {
 
 impl Platform for Desktop {
     fn set_icon(&self) {
-        #[cfg(feature = "gui")]
-        crate::gui::gui_apply_icons();
+        #[cfg(feature = "desktop-ui")]
+        crate::ui::gui_apply_icons();
     }
 
     fn screen_size(&self) -> (i64, i64) {
-        #[cfg(feature = "gui")]
-        {
-            let (w, h) = fltk::app::screen_size();
-            (w as i64, h as i64)
-        }
-        #[cfg(not(feature = "gui"))]
+        #[cfg(feature = "desktop-ui")]
+        return crate::ui::screen_size();
+        #[cfg(not(feature = "desktop-ui"))]
         (0, 0)
     }
 
     fn work_area(&self) -> (i64, i64) {
-        #[cfg(feature = "gui")]
-        {
-            let (_, _, w, h) = fltk::app::screen_work_area(0);
-            (w as i64, h as i64)
-        }
-        #[cfg(not(feature = "gui"))]
+        #[cfg(feature = "desktop-ui")]
+        return crate::ui::work_area();
+        #[cfg(not(feature = "desktop-ui"))]
         (0, 0)
     }
 
     fn mouse(&self) -> (i64, i64) {
-        #[cfg(feature = "gui")]
-        {
-            let (x, y) = fltk::app::get_mouse();
-            (x as i64, y as i64)
-        }
-        #[cfg(not(feature = "gui"))]
+        #[cfg(feature = "desktop-ui")]
+        return crate::ui::mouse();
+        #[cfg(not(feature = "desktop-ui"))]
         (0, 0)
     }
 
     fn monitors(&self) -> i64 {
-        #[cfg(feature = "gui")]
-        return fltk::app::screen_count().max(1) as i64;
-        #[cfg(not(feature = "gui"))]
+        #[cfg(feature = "desktop-ui")]
+        return crate::ui::monitors();
+        #[cfg(not(feature = "desktop-ui"))]
         1
     }
 
@@ -91,15 +82,8 @@ impl Platform for Desktop {
     }
 
     fn minimize(&self) {
-        #[cfg(feature = "gui")]
-        if let Some(windows) = fltk::app::windows() {
-            use fltk::prelude::{WidgetExt, WindowExt};
-            for mut w in windows {
-                if w.shown() && w.parent().is_none() {
-                    w.iconize();
-                }
-            }
-        }
+        #[cfg(feature = "desktop-ui")]
+        crate::ui::minimize();
     }
 
     fn set_cursor(&self, cursor: i64) {

@@ -4,7 +4,7 @@
 //! with `rapidr_value::layout` placing the aligned children, so a program
 //! reads the aligned size right away (`Grid.Align = alClient : PRINT
 //! Grid.Width`), before or after the form is shown. When the widgets exist,
-//! `gui::gui_apply_geometry` moves them.
+//! `ui::gui_apply_geometry` moves them.
 //!
 //! A container is laid out again when an aligned child's Align, position,
 //! size or visibility changes, when the container itself is resized (by the
@@ -151,8 +151,8 @@ pub fn reanchor(parent: &str) {
     });
     for (i, r) in moves {
         let name = &children[i].0;
-        #[cfg(feature = "gui")]
-        crate::gui::gui_apply_geometry(name);
+        #[cfg(feature = "desktop-ui")]
+        crate::ui::gui_apply_geometry(name);
         if (r.width, r.height) != (list[i].1.width, list[i].1.height) {
             client_changed(name);
             crate::scroll::update(name);
@@ -208,9 +208,9 @@ pub(crate) fn after_set(name: &str, prop: &str) {
         }
         "anchors" => anchor_here(name),
         "left" | "top" | "width" | "height" | "visible" => {
-            #[cfg(feature = "gui")]
+            #[cfg(feature = "desktop-ui")]
             if prop != "visible" {
-                crate::gui::gui_apply_geometry(name);
+                crate::ui::gui_apply_geometry(name);
             }
             if prop != "visible" {
                 anchor_here(name);
@@ -319,8 +319,8 @@ pub fn realign(parent: &str, changed: Option<&str>) {
         }
     });
     for (name, _, resized) in moves {
-        #[cfg(feature = "gui")]
-        crate::gui::gui_apply_geometry(&name);
+        #[cfg(feature = "desktop-ui")]
+        crate::ui::gui_apply_geometry(&name);
         if resized {
             client_changed(&name);
         }

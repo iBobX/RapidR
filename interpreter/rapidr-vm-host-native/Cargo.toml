@@ -8,6 +8,9 @@ license.workspace = true
 [features]
 default = []
 gui = ["rapidr-runtime-core/gui"]
+# The UI kernel host (a placeholder until it lands; joins `full` then:
+# docs/desktop-host-plan.md §1.2).
+kernel = ["rapidr-runtime-core/kernel"]
 network = ["rapidr-runtime-core/network"]
 database = ["rapidr-runtime-core/database"]
 ffi = ["rapidr-runtime-core/ffi"]

@@ -29,7 +29,11 @@ libc = "0.2"
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rusqlite", "dep:mysql"]
 network = ["dep:ureq"]
-gui = ["dep:fltk", "dep:fltk-theme", "dep:arboard"]
+# A desktop host: FLTK (`gui`) or the UI kernel (`kernel`, being built:
+# docs/desktop-host-plan.md); the runtime reaches either through `src/ui`.
+desktop-ui = []
+gui = ["desktop-ui", "dep:fltk", "dep:fltk-theme", "dep:arboard"]
+kernel = ["desktop-ui"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
 ffi = ["dep:libloading"]

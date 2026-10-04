@@ -195,8 +195,8 @@ pub fn rp_waitkey() -> Value {
     if rapidr_value::console::key_waiting() {
         return v_int(1);
     }
-    #[cfg(feature = "gui")]
-    if let Some(waited) = crate::gui::gui_wait_key() {
+    #[cfg(feature = "desktop-ui")]
+    if let Some(waited) = crate::ui::gui_wait_key() {
         return v_int(waited as i64);
     }
     v_int(crate::terminal::wait_key() as i64)
@@ -250,8 +250,8 @@ pub fn rp_chdrive(drive: &Value) -> Value {
 /// `DOEVENTS`: pending UI events, timers and redraws get their turn
 /// (console programs: nothing to do).
 pub fn rp_doevents() {
-    #[cfg(feature = "gui")]
-    crate::gui::gui_doevents();
+    #[cfg(feature = "desktop-ui")]
+    crate::ui::gui_doevents();
 }
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).
@@ -286,10 +286,10 @@ pub fn rp_end() {
 /// the program goes on, as if OK was pressed.
 pub fn rp_showmessage(msg: &Value) {
     let text = msg.to_string_val();
-    #[cfg(feature = "gui")]
+    #[cfg(feature = "desktop-ui")]
     if std::env::var_os("RAPIDR_CAPTURE").is_none() && std::env::var_os("RAPIDR_TEST_EVENTS").is_none() {
         let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
-        crate::gui::gui_choice(&title, &text, &["OK"]);
+        crate::ui::gui_choice(&title, &text, &["OK"]);
         return;
     }
     println!("[SHOWMESSAGE] {text}");
@@ -297,11 +297,9 @@ pub fn rp_showmessage(msg: &Value) {
 
 pub fn rp_msgbox(msg: &Value) -> Value {
     let text = msg.to_string_val();
-    #[cfg(feature = "gui")]
-    {
-        fltk::dialog::message_default(&text);
-    }
-    #[cfg(not(feature = "gui"))]
+    #[cfg(feature = "desktop-ui")]
+    crate::ui::message_box(&text);
+    #[cfg(not(feature = "desktop-ui"))]
     {
         println!("[MSGBOX] {}", text);
     }
@@ -666,16 +664,16 @@ pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Va
 }
 
 fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button]) -> Value {
-    #[cfg(feature = "gui")]
+    #[cfg(feature = "desktop-ui")]
     {
         let labels: Vec<&str> = buttons.iter().map(|b| b.label).collect();
-        let result = match crate::gui::gui_choice(title, text, &labels) {
+        let result = match crate::ui::gui_choice(title, text, &labels) {
             Some(i) => buttons[i].result,
             None => crate::value::dialogs::dismissed(buttons),
         };
         v_int(result)
     }
-    #[cfg(not(feature = "gui"))]
+    #[cfg(not(feature = "desktop-ui"))]
     {
         // No GUI: show the message and take the first (affirmative) button.
         println!("[{title}] {text}");
@@ -686,15 +684,15 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
 /// `MOUSEX` / `MOUSEY`: the mouse pointer relative to the active form's
 /// client area.
 pub fn rp_mousex() -> Value {
-    #[cfg(feature = "gui")]
-    return v_int(crate::gui::mouse_in_form().0);
-    #[cfg(not(feature = "gui"))]
+    #[cfg(feature = "desktop-ui")]
+    return v_int(crate::ui::mouse_in_form().0);
+    #[cfg(not(feature = "desktop-ui"))]
     v_int(0)
 }
 
 pub fn rp_mousey() -> Value {
-    #[cfg(feature = "gui")]
-    return v_int(crate::gui::mouse_in_form().1);
-    #[cfg(not(feature = "gui"))]
+    #[cfg(feature = "desktop-ui")]
+    return v_int(crate::ui::mouse_in_form().1);
+    #[cfg(not(feature = "desktop-ui"))]
     v_int(0)
 }

@@ -571,20 +571,9 @@ fn fltk_vk(key: i32) -> i64 {
 }
 
 fn install_capture_hook() {
-    let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") else { return };
+    use crate::ui::testhooks::Capture;
+    let Some(Capture { prefix, delay, events, resize, split }) = Capture::from_env() else { return };
     ignore_user_input();
-    let delay = std::env::var("RAPIDR_CAPTURE_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(1.5);
-    // `RAPIDR_TEST_EVENTS=b1.onclick,b2.onclick`: fire these first, as if
-    // the user had clicked (tests of EVENT handlers and bindings).
-    let events = std::env::var("RAPIDR_TEST_EVENTS").unwrap_or_default();
-    let resize = std::env::var("RAPIDR_TEST_RESIZE").ok().and_then(|r| {
-        let (w, h) = r.split_once(',')?;
-        Some((w.trim().parse::<i32>().ok()?, h.trim().parse::<i32>().ok()?))
-    });
-    let split = std::env::var("RAPIDR_TEST_SPLIT").ok().and_then(|r| {
-        let (name, delta) = r.rsplit_once(':')?;
-        Some((name.trim().to_string(), delta.trim().parse::<i64>().ok()?))
-    });
     app::add_timeout3(delay, move |_| {
         if let Some((name, delta)) = &split {
             if crate::layout::splitter_begin(name) {
@@ -601,93 +590,85 @@ fn install_capture_hook() {
                 win.resize(x, y, w - fw as i32, h - fh as i32);
             }
         }
-        // One event per turn of the event loop, as real clicks come (the
-        // bytecode VM runs a handler once the callback that fired it returns).
-        let queue: Vec<String> = events.split(',').map(|e| e.trim().to_string()).filter(|e| !e.is_empty()).collect();
-        fire_test_events(queue, prefix.clone());
+        // `RAPIDR_TEST_EVENTS` (ui::testhooks), one per turn of the event
+        // loop, as real clicks come (the bytecode VM runs a handler once
+        // the callback that fired it returns).
+        fire_test_events(events.clone(), prefix.clone());
     });
 }
 
 /// Fires the first of `queue`, then the rest a turn later; then (once the
 /// last handlers have run) redraws and captures the windows.
-fn fire_test_events(mut queue: Vec<String>, prefix: String) {
+fn fire_test_events(mut queue: Vec<crate::ui::testhooks::TestEvent>, prefix: String) {
+    use crate::ui::testhooks::Action;
     if queue.is_empty() {
         app::redraw();
         app::add_timeout3(0.3, move |_| capture_windows(&prefix));
         return;
     }
     let e = queue.remove(0);
-    if let Some((comp, event)) = e.rsplit_once('.') {
-        // A toggle button's click goes through its group, as the widget's does.
-        if event.eq_ignore_ascii_case("onclick") && is_toggle_button(comp) {
-            toggle_press(&comp.to_lowercase());
-        }
-        let event = event.to_ascii_lowercase();
-        // `grid.__cell_2_1`: the user clicks cell (2, 1).
-        let cell = event.strip_prefix("__cell_").and_then(|rc| {
-            let (c, r) = rc.split_once('_')?;
-            Some((c.parse::<i64>().ok()?, r.parse::<i64>().ok()?))
-        });
-        let comp_lower = comp.to_lowercase();
-        let nums = |prefix: &str| -> Option<Vec<i64>> { event.strip_prefix(prefix).map(|r| r.split('_').filter_map(|n| n.parse().ok()).collect()) };
-        let widget = || GUI_WIDGETS.with(|gw| gw.borrow().get(&comp_lower).map(GuiWidget::base));
-        // `edit.__key_65`: the key typed with `edit` focused;
-        // `canvas.__mousedown_10_20` (…up, …move): the mouse at (10, 20) in it.
-        // `tree.__node_2`: node 2 picked; `tree.__toggle_0`: node 0
-        // expanded or collapsed.
-        // (as a click: the pick, then OnClick; OnClick before a toggle)
-        if let Some([i]) = nums("__node_").as_deref() {
-            tree_user_select(&comp_lower, *i as usize);
+    let comp = e.comp.as_str();
+    let comp_lower = e.comp_lower();
+    // A toggle button's click goes through its group, as the widget's does.
+    if matches!(&e.action, Action::Fire(ev) if ev == "onclick") && is_toggle_button(comp) {
+        toggle_press(&comp_lower);
+    }
+    let widget = || GUI_WIDGETS.with(|gw| gw.borrow().get(&comp_lower).map(GuiWidget::base));
+    // (as a click: the pick, then OnClick; OnClick before a toggle)
+    match e.action {
+        Action::Node(i) => {
+            tree_user_select(&comp_lower, i as usize);
             rp_fire_event(&comp_lower, "onclick");
-        } else if event == "__edit" && rapidr_value::objects::is_listview(&comp_lower) {
-            // (a list view: F2 on it)
-            listview_key(&comp_lower, 113, 0);
-        } else if (event == "__enter" || event == "__escape") && rapidr_value::objects::is_listview(&comp_lower) {
-            LISTVIEW_EDITORS.with(|e| {
-                if let Some((editor, _)) = e.borrow_mut().get_mut(&comp_lower) {
+        }
+        // (a list view: F2 on it)
+        Action::Edit if rapidr_value::objects::is_listview(&comp_lower) => listview_key(&comp_lower, 113, 0),
+        Action::Enter | Action::Escape if rapidr_value::objects::is_listview(&comp_lower) => {
+            LISTVIEW_EDITORS.with(|ed| {
+                if let Some((editor, _)) = ed.borrow_mut().get_mut(&comp_lower) {
                     editor.set_value("Renamed");
                 }
             });
-            listview_end_edit(&comp_lower, event == "__enter");
-        } else if event == "__edit" {
-            // F2: the selected node edited; `__enter` types "Renamed" and
-            // Enter in its editor, `__escape` drops the edit.
+            listview_end_edit(&comp_lower, e.action == Action::Enter);
+        }
+        // F2: the selected node edited; `__enter` types "Renamed" and
+        // Enter in its editor, `__escape` drops the edit.
+        Action::Edit => {
             if let Some(i) = rapidr_value::objects::with_tree(&comp_lower, |m| usize::try_from(m.item_index).ok()).flatten() {
                 tree_begin_edit(&comp_lower, i);
             }
-        } else if event == "__enter" || event == "__escape" {
-            TREE_EDITORS.with(|e| {
-                if let Some((editor, _)) = e.borrow_mut().get_mut(&comp_lower) {
+        }
+        Action::Enter | Action::Escape => {
+            TREE_EDITORS.with(|ed| {
+                if let Some((editor, _)) = ed.borrow_mut().get_mut(&comp_lower) {
                     editor.set_value("Renamed");
                 }
             });
-            tree_end_edit(&comp_lower, event == "__enter");
-        } else if let Some([i]) = nums("__toggle_").as_deref() {
-            let open = !rapidr_value::objects::with_tree(&comp_lower, |m| m.nodes.get(*i as usize).is_some_and(|n| n.expanded)).unwrap_or(true);
+            tree_end_edit(&comp_lower, e.action == Action::Enter);
+        }
+        Action::Toggle(i) => {
+            let open = !rapidr_value::objects::with_tree(&comp_lower, |m| m.nodes.get(i as usize).is_some_and(|n| n.expanded)).unwrap_or(true);
             rp_fire_event(&comp_lower, "onclick");
-            tree_user_toggle(&comp_lower, *i as usize, open);
-        } else if let Some([i]) = nums("__item_").as_deref() {
+            tree_user_toggle(&comp_lower, i as usize, open);
+        }
+        Action::Item(i) => {
             if rapidr_value::objects::with_list(&comp_lower, |l| l.combo).unwrap_or(false) {
-                owner_combo_pick(&comp_lower, *i);
+                owner_combo_pick(&comp_lower, i);
             } else {
-                owner_list_select(&comp_lower, *i);
+                owner_list_select(&comp_lower, i);
                 list_refresh(&comp_lower);
                 rp_fire_event(&comp_lower, "onclick");
             }
-        } else if let Some([vk]) = nums("__key_").as_deref() {
+        }
+        Action::Key(vk) => {
             let chain = component_chain(widget());
-            let text = rapidr_value::input::text_of_vk(*vk);
-            key_events(&chain, true, *vk, 0, &text);
+            let text = rapidr_value::input::text_of_vk(vk);
+            key_events(&chain, true, vk, 0, &text);
             // (a track bar moves as its widget's key handler moves it)
-            trackbar_input(&comp_lower, |t, _, _| matches!(*vk, 33..=40) && t.key(*vk));
-            tab_control_input(&comp_lower, |t, w, h, font| matches!(*vk, 37..=40) && t.key(*vk, w, h, font));
-            key_events(&chain, false, *vk, 0, "");
-        } else if let Some((kind, [x, y])) = [("__mousedown_", rapidr_value::input::Mouse::Down), ("__mouseup_", rapidr_value::input::Mouse::Up), ("__mousemove_", rapidr_value::input::Mouse::Move)]
-            .iter()
-            .find_map(|(p, k)| nums(p).and_then(|n| <[i64; 2]>::try_from(n).ok()).map(|n| (*k, n)))
-            .as_ref()
-            .map(|(k, n)| (*k, *n))
-        {
+            trackbar_input(&comp_lower, |t, _, _| matches!(vk, 33..=40) && t.key(vk));
+            tab_control_input(&comp_lower, |t, w, h, font| matches!(vk, 37..=40) && t.key(vk, w, h, font));
+            key_events(&chain, false, vk, 0, "");
+        }
+        Action::Mouse(kind, x, y) => {
             // (a scroll box's / form's bars take the mouse first, as the
             // real input's dispatch: no OnMouseDown for them)
             if !scroll_bars_hook(&comp_lower, kind, x, y) {
@@ -697,33 +678,27 @@ fn fire_test_events(mut queue: Vec<String>, prefix: String) {
             match kind {
                 rapidr_value::input::Mouse::Down => {
                     trackbar_input(&comp_lower, |t, w, h| t.mouse_down(fx, fy, w, h).1);
-                    tab_control_input(&comp_lower, |t, w, h, font| t.mouse_down(x as i64, y as i64, w, h, font).is_some_and(|r| r.0));
+                    tab_control_input(&comp_lower, |t, w, h, font| t.mouse_down(x, y, w, h, font).is_some_and(|r| r.0));
                 }
                 rapidr_value::input::Mouse::Move => trackbar_input(&comp_lower, |t, w, h| t.drag(fx, fy, w, h)),
                 _ => {}
             }
         }
-        match (event.as_str(), cell) {
-            _ if ["__key_", "__mouse", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape"].iter().any(|p| event.starts_with(p)) => {}
-            // `form.__close`: the window's close button.
-            ("__close", _) => gui_close(comp),
-            (_, Some((c, r))) => {
-                grid_select(&comp.to_lowercase(), c, r);
-            }
-            _ => crate::object::rp_fire_event(comp, &event),
+        Action::Ignored => {}
+        // `form.__close`: the window's close button.
+        Action::Close => gui_close(comp),
+        // `grid.__cell_2_1`: the user clicks cell (2, 1).
+        Action::Cell(c, r) => {
+            grid_select(&comp_lower, c, r);
         }
+        Action::Fire(ref event) => crate::object::rp_fire_event(comp, event),
     }
     app::add_timeout3(0.05, move |_| fire_test_events(queue.clone(), prefix.clone()));
 }
 
 fn capture_windows(prefix: &str) {
     // `RAPIDR_TEST_DUMP=b1.caption,b2.caption`: print these properties.
-    for p in std::env::var("RAPIDR_TEST_DUMP").unwrap_or_default().split(',').filter(|p| !p.trim().is_empty()) {
-        if let Some((comp, prop)) = p.trim().rsplit_once('.') {
-            let value = if prop == "__shown" { i64::from(widget_shown(comp)).to_string() } else { rp_comp_get(comp, prop).to_string_val() };
-            println!("{}={}", p.trim(), value);
-        }
-    }
+    crate::ui::testhooks::print_dump(widget_shown, |comp, prop| rp_comp_get(comp, prop).to_string_val());
     // Draw what handlers changed since the last redraw (the interpreter runs
     // them after the hook's own redraw).
     app::redraw();
@@ -795,11 +770,6 @@ pub fn gui_choice(title: &str, text: &str, labels: &[&str]) -> Option<usize> {
         }
     }
     chosen.get()
-}
-
-/// Makes sure FLTK is ready before a dialog is shown on its own.
-pub fn gui_prepare_dialog() {
-    ensure_app();
 }
 
 fn bgr_to_fltk_color(bgr: i64) -> Color {
@@ -3456,9 +3426,9 @@ fn file_dialog(name: &str, save: bool, multi: bool) -> Value {
         dlg.set_option(dialog::FileDialogOptions::SaveAsConfirm);
     }
     // (`RAPIDR_TEST_FILE_DIALOG=a;b`: tests pick these; empty: Cancel)
-    let mut paths: Vec<String> = match std::env::var("RAPIDR_TEST_FILE_DIALOG") {
-        Ok(answer) => answer.split(';').filter(|p| !p.is_empty()).take(if multi { usize::MAX } else { 1 }).map(str::to_string).collect(),
-        Err(_) => {
+    let mut paths: Vec<String> = match crate::ui::testhooks::file_dialog_answer(multi) {
+        Some(paths) => paths,
+        None => {
             dlg.show();
             dlg.filenames().iter().map(|p| p.to_string_lossy().into_owned()).filter(|p| !p.is_empty()).collect()
         }

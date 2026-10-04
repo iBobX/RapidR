@@ -93,8 +93,8 @@ pub fn update(name: &str) {
         crate::layout::realign(name, None);
     }
     UPDATING.with(|u| u.set(false));
-    #[cfg(feature = "gui")]
-    crate::gui::redraw_widget(name);
+    #[cfg(feature = "desktop-ui")]
+    crate::ui::redraw_widget(name);
 }
 
 /// The components moved by a scroll: Left by -dx, Top by -dy.
@@ -113,9 +113,9 @@ pub fn move_children(name: &str, (dx, dy): Shift) {
             }
         }
     });
-    #[cfg(feature = "gui")]
+    #[cfg(feature = "desktop-ui")]
     for (c, _) in &kids {
-        crate::gui::gui_apply_geometry(c);
+        crate::ui::gui_apply_geometry(c);
     }
 }
 
@@ -123,8 +123,8 @@ pub fn move_children(name: &str, (dx, dy): Shift) {
 /// bars are drawn again.
 pub fn user_scrolled(name: &str, shift: Shift) {
     move_children(name, shift);
-    #[cfg(feature = "gui")]
-    crate::gui::redraw_widget(name);
+    #[cfg(feature = "desktop-ui")]
+    crate::ui::redraw_widget(name);
 }
 
 /// The program reading AutoScroll, HorzPosition, … of a QFORM / QSCROLLBOX.
