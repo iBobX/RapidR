@@ -41,6 +41,7 @@ pub mod canvas;
 pub mod image;
 // (Stage 10: the IDE's)
 pub mod codeedit;
+pub mod design;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -88,6 +89,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RMEMO", &memo::Memo),
     ("RRICHEDIT", &richedit::RichEdit),
     // (Stage 10: the IDE's)
+    ("RDESIGNSURFACE", &design::Design),
     ("RCODEEDITOR", &codeedit::CodeEditor),
 ];
 
