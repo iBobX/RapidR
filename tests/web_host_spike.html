@@ -4,10 +4,11 @@
   form is a <canvas> the kernel's display list is drawn into (vello_cpu in
   wasm, or vello on WebGPU with ?gpu=1), with an ARIA mirror of its
   accessibility tree over it. Built by
-    wasm-pack build crates/rapidr-ui-host-web --target web --release --out-dir ../../target/web-host-spike
-  and served from the repository root. Parameters: ?forms=trackbar,texts,lists
-  &steady=1 (no caret blink) &gpu=1 (target/web-host-spike-gpu, built with
-  --features gpu).
+    tools/build_web_host_spike.sh [--gpu]
+  (target/web-host-spike, with wasm SIMD) and served from the repository
+  root. Parameters: ?forms=trackbar,texts,lists &steady=1 (no caret blink)
+  &pkg=web-host-spike-scalar (the build without SIMD) &gpu=1
+  (target/web-host-spike-gpu, built with --features gpu).
 -->
 <html lang="en">
 <head>

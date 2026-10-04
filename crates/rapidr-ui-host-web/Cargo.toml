@@ -10,8 +10,8 @@ description = "Spike: RapidR's UI kernel in the browser — a <canvas> drawn by 
 # regular build — the web IDE, `rapidr bundle-bc` and the runtimes don't
 # use it — and out of THIRD_PARTY_NOTICES.md until it's adopted (every
 # crate it links is already listed there). Built by
-# `wasm-pack build crates/rapidr-ui-host-web --target web --release
-# --out-dir ../../target/web-host-spike`; its page is
+# tools/build_web_host_spike.sh (with wasm SIMD into target/web-host-spike;
+# without into target/web-host-spike-scalar); its page is
 # tests/web_host_spike.html.
 [lib]
 crate-type = ["cdylib", "rlib"]

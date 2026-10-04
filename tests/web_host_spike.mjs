@@ -5,9 +5,10 @@
 //   fonts), raw / gzip / brotli, against today's web runtime
 //   (target/web/rapidrintr_bg.wasm, or RAPIDR_COMPARE_WASM).
 // - Pixels: each form's frame in the browser (the wasm's own pixels and the
-//   canvas read back) against the desktop host's CPU capture of the same
+//   canvas read back) against the desktop's CPU capture of the same
 //   MemStore form (`cargo run -p rapidr-ui-host-web --example
-//   desktop_capture --release`), at devicePixelRatio 1 and 2.
+//   desktop_capture --release`), at devicePixelRatio 1 and 2, with wasm
+//   SIMD (the default build) and without.
 // - Timings: wasm load, fonts, first frame, per-frame paint (kernel /
 //   vello_cpu / putImageData / mirror), input → frame latency.
 // - Input: clicks, keys, the wheel, an input method's composition (CDP
@@ -16,8 +17,9 @@
 //   mirror's elements against the kernel's AccessNode tree — what AccessKit
 //   gets on the desktop.
 //
-// Usage (repo root, after the wasm-pack build and the desktop capture, the
-// repo served on http://127.0.0.1:8782 or RAPIDR_URL):
+// Usage (repo root, after tools/build_web_host_spike.sh — the wasm builds
+// and the desktop capture — with the repo served on http://127.0.0.1:8782
+// or RAPIDR_URL):
 //   node tests/web_host_spike.mjs
 // Writes target/web-host-spike/report.json and screenshots next to it.
 
@@ -43,7 +45,8 @@ function sizes(file) {
 }
 const mb = (n) => (n / 1e6).toFixed(2) + " MB";
 for (const [name, file] of [
-  ["spike (vello_cpu)", join(OUT, "rapidr_ui_host_web_bg.wasm")],
+  ["spike (vello_cpu, wasm SIMD)", join(OUT, "rapidr_ui_host_web_bg.wasm")],
+  ["spike (vello_cpu, no SIMD)", join(ROOT, "target/web-host-spike-scalar/rapidr_ui_host_web_bg.wasm")],
   ["spike (+ vello on WebGPU)", join(ROOT, "target/web-host-spike-gpu/rapidr_ui_host_web_bg.wasm")],
   ["web runtime today", process.env.RAPIDR_COMPARE_WASM || join(ROOT, "target/web/rapidrintr_bg.wasm")],
 ]) {
@@ -155,22 +158,22 @@ for (const dpr of [1, 2]) {
 }
 for (const [k, v] of Object.entries(report.timings)) if (k.startsWith("frame")) console.log(`  ${k} (${v.size.join("×")} px, ${v.items} items): kernel paint ${v.paint} + vello_cpu ${v.raster} + putImageData ${v.put} ms; whole frame mean ${v.total} ms (p95 ${v.totalP95})`);
 
-// The same with wasm SIMD (a build with `-C target-feature=+simd128` into
-// target/web-host-spike-simd, if there is one): vello_cpu's fearless_simd
-// then runs on simd128 instead of its scalar fallback.
-if (existsSync(join(ROOT, "target/web-host-spike-simd/rapidr_ui_host_web_bg.wasm"))) {
-  report.simd = {};
+// The same without wasm SIMD (the build in target/web-host-spike-scalar, if
+// there is one): vello_cpu's fearless_simd then runs its scalar fallback
+// instead of simd128, as the default build does.
+if (existsSync(join(ROOT, "target/web-host-spike-scalar/rapidr_ui_host_web_bg.wasm"))) {
+  report.scalar = {};
   for (const dpr of [1, 2]) {
-    const { context, page } = await open(browser, dpr, "steady=1&pkg=web-host-spike-simd");
+    const { context, page } = await open(browser, dpr, "steady=1&pkg=web-host-spike-scalar");
     for (const name of ["trackbar", "texts", "lists"]) {
       const d = desktop(name, dpr, "desktop-builtin");
       const web = await page.evaluate((n) => window.spike.pixels(n), name);
       const r = diff(web, d.rgba, d.w, d.h);
-      ok(r.differing === 0, `${name}@${dpr}x with wasm SIMD: byte-identical to the desktop's capture with the same fonts (${r.differing} differ, max ${r.maxDiff})`);
+      ok(r.differing === 0, `${name}@${dpr}x without wasm SIMD: byte-identical to the desktop's capture with the same fonts (${r.differing} differ, max ${r.maxDiff})`);
       const bench = await page.evaluate((n) => window.spike.bench(n, 60), name);
       const mean = (k) => r2(bench.reduce((s, b) => s + b[k], 0) / bench.length);
-      report.simd[`${name}@${dpr}x`] = { differing: r.differing, raster: mean("raster"), total: mean("total") };
-      console.log(`  frame ${name}@${dpr}x with wasm SIMD: vello_cpu ${mean("raster")} ms, whole frame ${mean("total")} ms`);
+      report.scalar[`${name}@${dpr}x`] = { differing: r.differing, raster: mean("raster"), total: mean("total") };
+      console.log(`  frame ${name}@${dpr}x without wasm SIMD: vello_cpu ${mean("raster")} ms, whole frame ${mean("total")} ms`);
     }
     await context.close();
   }
@@ -180,7 +183,7 @@ if (existsSync(join(ROOT, "target/web-host-spike-simd/rapidr_ui_host_web_bg.wasm
 // drawn whole each frame — the worst case; the plan's damage rectangles
 // make most frames a component's.
 report.big = {};
-for (const pkg of ["web-host-spike", "web-host-spike-simd"]) {
+for (const pkg of ["web-host-spike", "web-host-spike-scalar"]) {
   if (!existsSync(join(ROOT, `target/${pkg}/rapidr_ui_host_web_bg.wasm`))) continue;
   for (const dpr of [1, 2]) {
     const { context, page } = await open(browser, dpr, `steady=1&forms=big&pkg=${pkg}`);

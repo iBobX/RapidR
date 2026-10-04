@@ -12,7 +12,8 @@
 const params = new URLSearchParams(location.search);
 const gpuWanted = params.get("gpu") === "1";
 const steady = params.get("steady") === "1";
-// (?pkg=<dir under target/>: another build of the spike, e.g. with wasm SIMD)
+// (?pkg=<dir under target/>: another build of the spike, e.g.
+// web-host-spike-scalar, without wasm SIMD; tools/build_web_host_spike.sh)
 const pkgDir = /^[\w-]+$/.test(params.get("pkg") || "") ? params.get("pkg") : gpuWanted ? "web-host-spike-gpu" : "web-host-spike";
 const pkg = `../target/${pkgDir}/rapidr_ui_host_web.js`;
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
