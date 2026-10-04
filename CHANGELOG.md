@@ -7,6 +7,30 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.112.0] — 2026-10-04
+
+### Added
+- The UI kernel host (`RAPIDR_HOST=kernel`) now runs every desktop GUI test
+  program identically to FLTK (native and interpreted, 1× and 2×):
+  - drawing surfaces — QCANVAS, a form's own drawing, QIMAGE (BMP, $RESOURCE,
+    SVG, icons), speed buttons' glyphs — sharp at 2×;
+  - text — the kernel's own editor for QEDIT (PasswordChar, Alignment,
+    HideSelection, MaxLength, CharCase, word / all selection, undo, the
+    Cut / Copy / Paste menu), QMEMO and QRICHEDIT (plain text, word wrap,
+    scroll bars), the editable QCOMBOBOX box; the mouse wheel; IME;
+  - dialogs — MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE drawn by the kernel,
+    the system's Open / Save dialogs (as sheets on macOS), colour and font
+    dialogs;
+  - the platform — window frames from BorderStyle / BorderIcons, cursors
+    (Screen.Cursor, each component's, I-beams, resize arrows), the mouse on
+    the screen, the work area.
+
+### Fixed
+- Desktop: QCOLORDIALOG's Color is RapidQ's integer (`&HBBGGRR`), not a
+  `"#RRGGBB"` string.
+- "MS Sans Serif" / "Microsoft Sans Serif" are drawn and measured with the
+  sans face.
+
 ## [2.111.0] — 2026-10-04
 
 ### Added
