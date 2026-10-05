@@ -120,6 +120,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 **Rest of Phase 0**
 - [x] Upgrade `mysql` crate to drop `proc-macro-error2` (v2.113.0: mysql 28 without derive / TLS / system zlib) (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
 - [ ] Confirm first CI run on GitHub (Linux system packages for the UI kernel host and ALSA untested)
+- [x] Local checks on the other systems (no remote CI): Linux in Docker (`tools/linux/check.sh`: build, conformance, GUI events headless and through Xvfb) and an Ubuntu 24.04 ARM VM with real Wayland windows; a Windows 11 ARM VM — build (RHTTP on SChannel: no clang), conformance, the GUI events headless and with real windows, UI Automation (`tools/windows/uia_probe.ps1`). Found and fixed: `.exe` names, Windows paths in the generated Cargo.toml, INPUT$ from a pipe, Wayland's applied sizes, labels' text for screen readers, WARP crashing vello (software GPUs draw on the CPU) (v2.115.0)
 - [x] `SECURITY.md` → GitHub private vulnerability reporting (repo setting must be enabled by owner)
 - [x] Track all of `tests/` in git (generated outputs ignored)
 - [ ] Run the web IDE Playwright suites in CI (wasm-pack build + static server + Playwright)
