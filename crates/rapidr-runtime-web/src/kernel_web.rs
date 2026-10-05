@@ -280,10 +280,11 @@ fn dispatch_pending() {
 }
 
 /// The modal forms that closed: their ShowModal returns (the VM, suspended
-/// in it, goes on with the ModalResult — `dialog_web`'s protocol).
+/// in it, goes on with the ModalResult — `dialog_web`'s protocol). One the
+/// program only hid still waits (`forms::modal_waits`, as on the desktop).
 fn modals_closed() {
     for name in forms::modal_forms() {
-        if !forms::form_shown(&name) && !rapidr_ui_kernel::dialogs::is_dialog(&name) {
+        if !forms::modal_waits(&name) && !rapidr_ui_kernel::dialogs::is_dialog(&name) {
             forms::remove_modal(&name);
             crate::dialog_web::modal_closed(&crate::gui_web::comp_id(&name));
         }
