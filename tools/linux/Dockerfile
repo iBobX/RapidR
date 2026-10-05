@@ -5,14 +5,15 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 # What the desktop host links on Linux: fontconfig (fontique), xkbcommon,
 # X11 / Wayland (winit), ALSA (sounds); Xvfb and Mesa's software Vulkan
-# (lavapipe) for real windows without a GPU; Node for the test drivers.
+# (lavapipe) for real windows without a GPU; Node for the test drivers;
+# Python for the release scripts (tools/release/).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl build-essential pkg-config git \
       libfontconfig1-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev \
       libx11-dev libx11-xcb-dev libxcursor-dev libxrandr-dev libxi-dev libxcb1-dev \
       libwayland-dev libasound2-dev \
       xvfb xauth mesa-vulkan-drivers libvulkan1 \
-      nodejs npm \
+      nodejs npm python3 \
     && rm -rf /var/lib/apt/lists/*
 ARG RUST=1.98.1
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${RUST}

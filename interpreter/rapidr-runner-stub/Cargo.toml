@@ -10,6 +10,11 @@ publish = false
 name = "rapidrintr-runner"
 path = "src/main.rs"
 
+# Windows' windowed runner (no console window): src/windowed.rs
+[[bin]]
+name = "rapidrintr-runnerw"
+path = "src/windowed.rs"
+
 [dependencies]
 # (the desktop host: the UI kernel)
 rapidr-vm-host-native = { workspace = true, features = ["gui"] }

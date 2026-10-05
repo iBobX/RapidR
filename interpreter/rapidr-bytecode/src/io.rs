@@ -1,11 +1,14 @@
 //! Binary (de)serialization for [`Module`].
 
-use crate::{Const, Function, Module, Param, MAGIC, VERSION};
+use crate::{parse_version, AppType, Const, Function, Header, Module, Param, MAGIC, MIN_RUNTIME, OLDEST_VERSION, RELEASES_URL, RUNTIME_VERSION, VERSION};
 
 #[derive(Debug)]
 pub enum Error {
     BadMagic,
     BadVersion(u16),
+    /// Made for a newer runtime: the version its header asks for (none when
+    /// only its format says so).
+    NeedsRuntime { needs: Option<[u16; 3]>, format: u16 },
     Truncated,
     InvalidUtf8,
     InvalidConstTag(u8),
@@ -17,6 +20,14 @@ impl std::fmt::Display for Error {
         match self {
             Error::BadMagic => write!(f, "not a RRBC file (bad magic)"),
             Error::BadVersion(v) => write!(f, "unsupported RRBC version {v}"),
+            Error::NeedsRuntime { needs: Some([a, b, c]), .. } => write!(
+                f,
+                "this program needs RapidR Runtime {a}.{b}.{c} or newer (this is {RUNTIME_VERSION}); get it from {RELEASES_URL}"
+            ),
+            Error::NeedsRuntime { needs: None, format } => write!(
+                f,
+                "this program needs a newer RapidR Runtime than {RUNTIME_VERSION} (its bytecode format is {format}, this runtime reads up to {VERSION}); get it from {RELEASES_URL}"
+            ),
             Error::Truncated => write!(f, "truncated RRBC file"),
             Error::InvalidUtf8 => write!(f, "invalid UTF-8 in RRBC string"),
             Error::InvalidConstTag(t) => write!(f, "invalid const tag 0x{t:02X}"),
@@ -26,6 +37,54 @@ impl std::fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+/// Format 3's header after `header_len`: min_runtime (3 × u16), app_type (u8).
+const HEADER_LEN: u16 = 7;
+
+impl Header {
+    /// A `.rrbc`'s header, without decoding the program: what a launcher
+    /// needs (the app type) and whether this runtime can run it
+    /// ([`Header::check_runtime`]).
+    pub fn read(buf: &[u8]) -> Result<Header, Error> {
+        Header::read_from(&mut Reader { buf, pos: 0 }).map(|(h, _)| h)
+    }
+
+    /// The header and the flags.
+    fn read_from(r: &mut Reader) -> Result<(Header, u16), Error> {
+        if r.read_n(4)? != MAGIC {
+            return Err(Error::BadMagic);
+        }
+        let format = r.read_u16()?;
+        if format < OLDEST_VERSION {
+            return Err(Error::BadVersion(format));
+        }
+        let flags = r.read_u16()?;
+        if format == 2 {
+            return Ok((Header { format, min_runtime: [0; 3], app_type: AppType::Unknown }, flags));
+        }
+        // (a later format may make it longer: what follows is skipped)
+        let len = r.read_u16()?;
+        if len < HEADER_LEN {
+            return Err(Error::Truncated);
+        }
+        let mut h = Reader { buf: r.read_n(usize::from(len))?, pos: 0 };
+        let min_runtime = [h.read_u16()?, h.read_u16()?, h.read_u16()?];
+        let app_type = AppType::from_u8(h.read_u8()?);
+        Ok((Header { format, min_runtime, app_type }, flags))
+    }
+
+    /// An error saying which runtime to get when this one is too old for it.
+    pub fn check_runtime(&self) -> Result<(), Error> {
+        let have = parse_version(RUNTIME_VERSION);
+        if self.min_runtime > have {
+            return Err(Error::NeedsRuntime { needs: Some(self.min_runtime), format: self.format });
+        }
+        if self.format > VERSION {
+            return Err(Error::NeedsRuntime { needs: None, format: self.format });
+        }
+        Ok(())
+    }
+}
 
 impl Module {
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -37,6 +96,11 @@ impl Module {
         let has_map = !self.source_map.runs.is_empty();
         let has_resources = !self.resources.is_empty();
         out.extend_from_slice(&(u16::from(has_map) | u16::from(has_resources) << 1).to_le_bytes());
+        out.extend_from_slice(&HEADER_LEN.to_le_bytes());
+        for part in MIN_RUNTIME {
+            out.extend_from_slice(&part.to_le_bytes());
+        }
+        out.push(self.app_type as u8);
 
         // consts
         write_u32(&mut out, self.consts.len() as u32);
@@ -84,15 +148,8 @@ impl Module {
 
     pub fn from_bytes(buf: &[u8]) -> Result<Module, Error> {
         let mut r = Reader { buf, pos: 0 };
-        let magic = r.read_n(4)?;
-        if magic != MAGIC {
-            return Err(Error::BadMagic);
-        }
-        let version = r.read_u16()?;
-        if version != VERSION {
-            return Err(Error::BadVersion(version));
-        }
-        let flags = r.read_u16()?;
+        let (header, flags) = Header::read_from(&mut r)?;
+        header.check_runtime()?;
 
         let n_consts = r.read_count(1)?;
         let mut consts = Vec::with_capacity(n_consts);
@@ -133,7 +190,7 @@ impl Module {
                 resources.push((name, r.read_n(len)?.to_vec()));
             }
         }
-        Ok(Module { consts, strings, functions, entry, source_map, resources })
+        Ok(Module { consts, strings, functions, entry, source_map, resources, app_type: header.app_type })
     }
 }
 
@@ -277,11 +334,67 @@ mod tests {
     #[test]
     fn corrupt_counts_are_rejected_not_allocated() {
         // A header, then a const count of four billion.
-        let mut bytes = crate::MAGIC.to_vec();
-        bytes.extend_from_slice(&crate::VERSION.to_le_bytes());
-        bytes.extend_from_slice(&0u16.to_le_bytes());
+        let mut bytes = crate::Module::new().to_bytes();
+        bytes.truncate(header_end(&bytes));
         bytes.extend_from_slice(&u32::MAX.to_le_bytes());
         assert!(crate::Module::from_bytes(&bytes).is_err());
+    }
+
+    /// Where format 3's header ends (magic, format, flags, len, header).
+    fn header_end(bytes: &[u8]) -> usize {
+        10 + usize::from(u16::from_le_bytes([bytes[8], bytes[9]]))
+    }
+
+    #[test]
+    fn header_records_app_type_and_runtime() {
+        let mut m = Module::new();
+        m.app_type = AppType::Console;
+        let bytes = m.to_bytes();
+        let h = Header::read(&bytes).unwrap();
+        assert_eq!(h, Header { format: VERSION, min_runtime: MIN_RUNTIME, app_type: AppType::Console });
+        assert!(h.check_runtime().is_ok(), "this runtime runs what its compiler writes");
+        assert_eq!(Module::from_bytes(&bytes).unwrap().app_type, AppType::Console);
+    }
+
+    #[test]
+    fn a_newer_program_names_the_runtime_it_needs() {
+        let mut bytes = Module::new().to_bytes();
+        // min_runtime → 99.1.2
+        for (i, part) in [99u16, 1, 2].iter().enumerate() {
+            bytes[10 + 2 * i..12 + 2 * i].copy_from_slice(&part.to_le_bytes());
+        }
+        let err = Module::from_bytes(&bytes).unwrap_err().to_string();
+        assert!(err.contains("needs RapidR Runtime 99.1.2 or newer"), "{err}");
+        assert!(err.contains(RELEASES_URL), "{err}");
+        // A later format with a longer header: the header is still read,
+        // and the format alone is reason enough.
+        let mut later = Module::new().to_bytes();
+        later[4..6].copy_from_slice(&(VERSION + 1).to_le_bytes());
+        let end = header_end(&later);
+        later[8..10].copy_from_slice(&(HEADER_LEN + 3).to_le_bytes());
+        later.splice(end..end, [9, 9, 9]);
+        let h = Header::read(&later).unwrap();
+        assert_eq!((h.format, h.min_runtime), (VERSION + 1, MIN_RUNTIME));
+        let err = Module::from_bytes(&later).unwrap_err().to_string();
+        assert!(err.contains("needs a newer RapidR Runtime"), "{err}");
+    }
+
+    #[test]
+    fn format_2_files_still_run() {
+        // A format-2 file: no header after the flags.
+        let mut m = Module::new();
+        m.resources = vec![("R".into(), vec![7])];
+        let v3 = m.to_bytes();
+        let mut v2 = v3[..8].to_vec();
+        v2[4..6].copy_from_slice(&2u16.to_le_bytes());
+        v2.extend_from_slice(&v3[header_end(&v3)..]);
+        let back = Module::from_bytes(&v2).unwrap();
+        assert_eq!(back.resources, m.resources);
+        assert_eq!(back.app_type, AppType::Unknown);
+        assert_eq!(Header::read(&v2).unwrap().min_runtime, [0; 3]);
+        // Format 1 never existed outside development: refused as before.
+        v2[4..6].copy_from_slice(&1u16.to_le_bytes());
+        assert!(matches!(Module::from_bytes(&v2), Err(Error::BadVersion(1))));
     }
 
     #[test]
@@ -313,6 +426,7 @@ mod tests {
     }
 
     use crate::*;
+    use super::{Error, HEADER_LEN};
 
     #[test]
     fn round_trip_empty() {

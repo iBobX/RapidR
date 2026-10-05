@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- RapidR.app: the IDE and the SDK (tools/release/macos.sh). Its executable
+     is rapidrw (crates/rapidr-launcher): a .rr / .bas Finder opens goes to
+     `rapidr ide`. The source types are RapidR's (exported here); running them
+     is RapidR Runtime.app's "Open With" action. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>RapidR</string>
+	<key>CFBundleDisplayName</key>
+	<string>RapidR</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.ibobx.rapidr</string>
+	<key>CFBundleExecutable</key>
+	<string>rapidrw</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleVersion</key>
+	<string>@VERSION@</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>RapidR — MIT License</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>RapidR source</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.ibobx.rapidr.source</string>
+				<string>io.github.ibobx.rapidr.rapidq-source</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.ibobx.rapidr.source</string>
+			<key>UTTypeDescription</key>
+			<string>RapidR source</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rr</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.ibobx.rapidr.rapidq-source</string>
+			<key>UTTypeDescription</key>
+			<string>RapidQ BASIC source</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>bas</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

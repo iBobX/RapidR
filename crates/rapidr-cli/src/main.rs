@@ -8,38 +8,52 @@ use rapidr_lexer::lex_file as lexer_lex_file;
 use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
+mod home;
+mod launch;
+mod setup;
+
+use home::Home;
+
+/// The subcommands (a first argument that is one isn't a file).
+const SUBCOMMANDS: &[&str] = &[
+    "version", "run", "open", "info", "about", "ide", "setup", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+];
+
+/// A `#!` script: its first line starts with `#!` (`#!/usr/bin/env rapidr`).
+fn is_script(path: &str) -> bool {
+    use std::io::Read;
+    let mut start = [0u8; 2];
+    fs::File::open(path).and_then(|mut f| f.read_exact(&mut start)).is_ok() && &start == b"#!"
+}
+
 fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
 
-    // Shortcut: rapidr [--release|--debug] <file.rr|file.rr>
-    // When the first non-flag argument looks like a source file and no subcommand is given
-    if !args.is_empty() {
-        let first_non_flag = args.iter().find(|a| !a.starts_with('-'));
-        let has_subcommand = matches!(
-            args.first().map(|s| s.as_str()),
-            Some("version" | "parse" | "preprocess" | "lex" | "codegen" | "build")
-        );
-        if !has_subcommand {
-            if let Some(file) = first_non_flag {
-                if file.ends_with(".rr") || file.ends_with(".rr") {
-                    let mut release = true; // default to release
-                    let mut web = false;
-                    let mut interp = false;
-                    let mut source_path = String::new();
-                    for arg in &args {
-                        match arg.as_str() {
-                            "--release" | "-r" => release = true,
-                            "--debug" | "-d" => release = false,
-                            "--web" | "-w" => web = true,
-                            "--interp" | "-i" => interp = true,
-                            _ if !arg.starts_with('-') => source_path = arg.clone(),
-                            _ => {}
-                        }
-                    }
-                    return build_source_file(&source_path, None, release, web, interp);
+    // Shortcuts: `rapidr [--release|--debug] [--web] [--interp] <file.rr|.bas>`
+    // builds it; `rapidr <file.rrbc> [args]` and a `#!/usr/bin/env rapidr`
+    // script (`rapidr script.rr [args]`) run it.
+    if let Some(at) = args.iter().position(|a| !a.starts_with('-')) {
+        let file = args[at].clone();
+        let lower = file.to_ascii_lowercase();
+        let is_subcommand = at == 0 && SUBCOMMANDS.contains(&file.as_str());
+        if !is_subcommand && (lower.ends_with(".rrbc") || is_script(&file)) {
+            return launch::run(&file, args[at + 1..].to_vec(), launch::From::Command);
+        }
+        if !is_subcommand && (lower.ends_with(".rr") || lower.ends_with(".bas")) {
+            let mut release = true; // default to release
+            let mut web = false;
+            let mut interp = false;
+            for arg in &args {
+                match arg.as_str() {
+                    "--release" | "-r" => release = true,
+                    "--debug" | "-d" => release = false,
+                    "--web" | "-w" => web = true,
+                    "--interp" | "-i" => interp = true,
+                    _ => {}
                 }
             }
+            return build_source_file(&file, None, release, web, interp, None);
         }
     }
 
@@ -52,6 +66,13 @@ fn main() -> ExitCode {
             println!("RapidR {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
+        (Some("run"), Some(path)) => launch::run(&path, rest, launch::From::Command),
+        (Some("open"), Some(path)) => launch::run(&path, rest, launch::From::Desktop),
+        (Some("info"), Some(path)) => launch::info(&path),
+        (Some("about"), _) => launch::about(),
+        (Some("ide"), _) => launch::ide(args[1..].to_vec()),
+        (Some("setup"), _) => setup::setup(&args[1..]),
+        (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
         (Some("lex"), Some(path)) => lex_source_file(&path),
@@ -64,9 +85,11 @@ fn main() -> ExitCode {
             let mut release = None;
             let mut web = false;
             let mut interp = false;
+            let mut target = None;
             let mut iter = rest.iter();
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
+                    "--target" => target = iter.next().cloned(),
                     "--release" | "-r" => release = Some(true),
                     "--debug" | "-d" => release = Some(false),
                     "--web" | "-w" => web = true,
@@ -86,7 +109,11 @@ fn main() -> ExitCode {
             }
             // Native builds default to a quick debug compile; interpreted
             // ones to the optimized runner (built once, then reused).
-            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp)
+            if target.is_some() && !interp {
+                eprintln!("--target: only interpreted builds (--interp) pick a target; native builds are for this machine");
+                return ExitCode::from(2);
+            }
+            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp, target)
         }
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
@@ -118,12 +145,18 @@ fn main() -> ExitCode {
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
+            eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
+            eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
+            eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
+            eprintln!("  rapidr ide [file.rr]                             The IDE");
+            eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
-            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i]");
+            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
             eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
@@ -205,8 +238,8 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     };
     let src_dir = out_dir.join("src");
 
-    // Find the workspace root (where crates/rapidr-runtime-core lives)
-    let workspace_root = find_workspace_root();
+    // RapidR's home: the runtime crates and the lockfile (home.rs)
+    let workspace_root = Home::find().map(|h| h.root);
 
     // Preprocess to detect $APPTYPE
     let pre = preprocess_file(path, PreprocessOptions::default()).ok();
@@ -310,6 +343,7 @@ fn build_source_file(
     release: bool,
     web: bool,
     interp: bool,
+    target: Option<String>,
 ) -> ExitCode {
     // Detect web target from $APPTYPE or --web flag
     let app_type = preprocess_file(path, PreprocessOptions::default())
@@ -331,7 +365,7 @@ fn build_source_file(
         return if is_web {
             build_interp_web(path, output_dir)
         } else {
-            build_interp_desktop(path, output_dir, release)
+            build_interp_desktop(path, output_dir, release, target)
         };
     }
 
@@ -368,10 +402,14 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
     if release {
         cargo_args.push("--release");
     }
-    let status = process::Command::new("cargo")
-        .args(&cargo_args)
-        .current_dir(out_dir)
-        .status();
+    let mut cargo = match cargo_for_programs() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    let status = cargo.args(&cargo_args).current_dir(out_dir).status();
 
     match status {
         Ok(s) if s.success() => {
@@ -409,10 +447,32 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
             ExitCode::from(1)
         }
         Err(e) => {
-            eprintln!("Failed to run cargo: {e}");
+            eprintln!("Failed to run cargo: {e}\nNative builds compile with Rust: `rapidr setup` installs it.");
             ExitCode::from(1)
         }
     }
+}
+
+/// `cargo` for building a program against RapidR's runtime. An install
+/// builds with its vendored crates, offline (home.rs); a runtime-only
+/// install builds none.
+fn cargo_for_programs() -> Result<process::Command, String> {
+    let home = Home::find();
+    let mut cargo = process::Command::new(home::rust_tool("cargo"));
+    let Some(home) = home else { return Ok(cargo) };
+    if !home.can_build() {
+        return Err("This is the RapidR Runtime: it runs programs (`rapidr run`) and builds none. Native and web builds need the RapidR SDK.".into());
+    }
+    if home.release.is_some() {
+        let vendor = home.root.join("vendor");
+        cargo
+            .arg("--offline")
+            .arg("--config")
+            .arg("source.crates-io.replace-with='vendored-sources'")
+            .arg("--config")
+            .arg(format!("source.vendored-sources.directory='{}'", vendor.display()));
+    }
+    Ok(cargo)
 }
 
 fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode {
@@ -425,13 +485,19 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     if release {
         cargo_args.push("--release");
     }
-    let mut cargo = process::Command::new("cargo");
+    let mut cargo = match cargo_for_programs() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
     cargo.args(&cargo_args).current_dir(out_dir);
     // SQLite's C sources go into the wasm (RSQLITE), compiled as the
     // workspace compiles them (its .cargo/config.toml, wherever the program
     // is), archived by llvm-ar or without one by the system's ar
     // (tools/wasm-ar.sh).
-    if let Some(root) = find_workspace_root() {
+    if let Some(root) = Home::find().map(|h| h.root) {
         let config = root.join(".cargo/config.toml");
         if config.exists() {
             cargo.arg("--config").arg(config);
@@ -555,29 +621,6 @@ fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections
     )
 }
 
-/// The RapidR workspace root (the Cargo.toml with `[workspace]` that has
-/// crates/rapidr-runtime-core), so builds work from any directory: the
-/// RAPIDR_HOME environment variable, else the nearest one above the current
-/// directory, the `rapidr` executable, or where this CLI was compiled.
-fn find_workspace_root() -> Option<std::path::PathBuf> {
-    if let Ok(home) = env::var("RAPIDR_HOME") {
-        let p = Path::new(&home);
-        if p.join("Cargo.toml").exists() {
-            return Some(p.to_path_buf());
-        }
-    }
-    let is_root = |dir: &Path| {
-        dir.join("crates/rapidr-runtime-core").is_dir()
-            && fs::read_to_string(dir.join("Cargo.toml")).is_ok_and(|c| c.contains("[workspace]"))
-    };
-    let above = |start: PathBuf| start.ancestors().find(|d| is_root(d)).map(Path::to_path_buf);
-    env::current_dir()
-        .ok()
-        .and_then(above)
-        .or_else(|| env::current_exe().ok().and_then(|e| e.canonicalize().ok()).and_then(above))
-        .or_else(|| above(PathBuf::from(env!("CARGO_MANIFEST_DIR"))))
-}
-
 // ---------------- Bytecode (rapidrintr) ----------------
 
 /// Preprocess → lex → parse → bytecode, keeping the preprocessed source so
@@ -609,6 +652,7 @@ fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     // Run-time errors name the file and line (file names only).
     let origins = pre.line_map.iter().map(|(file, line)| (file.as_deref().and_then(|f| f.to_str()), *line as u32));
     compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(path, origins);
+    compiled.module.apply_app_type_directive(pre.app_type.as_deref());
     // `$RESOURCE` files are built into the module.
     for (name, file) in resource_files(&pre)? {
         let bytes = if file.is_empty() { Vec::new() } else { fs::read(&file).map_err(|e| format!("$RESOURCE {name}: {file}: {e}"))? };
@@ -763,15 +807,14 @@ fn bundle_bc_file(
 }
 
 /// Default lookup for the rapidrintr wasm/js artifacts produced by
-/// `wasm-pack build interpreter/rapidr-vm-host-web --target web`.
-/// Searches a few well-known locations relative to the current dir.
+/// `wasm-pack build interpreter/rapidr-vm-host-web --target web`: an
+/// install has them in its home's `web/` (home.rs); in a checkout, a few
+/// well-known locations relative to the current dir.
 fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
-    let candidates = [
-        Path::new("target/web"),
-        Path::new("target/web-bundle"),
-        Path::new("interpreter/rapidr-vm-host-web/pkg"),
-        Path::new("pkg"),
-    ];
+    let candidates: Vec<PathBuf> = match Home::find().filter(|h| h.release.is_some()) {
+        Some(home) => vec![home.root.join("web")],
+        None => ["target/web", "target/web-bundle", "interpreter/rapidr-vm-host-web/pkg", "pkg"].map(PathBuf::from).to_vec(),
+    };
     for dir in candidates {
         let wasm = dir.join("rapidrintr_bg.wasm");
         let wasm_alt = dir.join("rapidr_vm_host_web_bg.wasm");
@@ -801,6 +844,7 @@ fn build_interp_desktop(
     path: &str,
     output_dir: Option<String>,
     release: bool,
+    target: Option<String>,
 ) -> ExitCode {
     // 1. Compile source → bytecode.
     let compiled = match compile_to_bytecode(path) {
@@ -810,8 +854,12 @@ fn build_interp_desktop(
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
     let rrbc = compiled.module.to_bytes();
 
-    // 2. Locate (or build) the runner stub.
-    let stub = match locate_or_build_stub(release) {
+    // 2. Locate (or build) the runner stub: this machine's, or the
+    //    `--target` an install ships. A windowed program for Windows starts
+    //    from the windowed runner (no console window opens with it).
+    let target = target.unwrap_or_else(home::host_target);
+    let windowed = target.starts_with("windows-") && !compiled.module.app_type.wants_console();
+    let stub = match locate_or_build_stub(release, &target, windowed) {
         Ok(p) => p,
         Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
     };
@@ -831,7 +879,7 @@ fn build_interp_desktop(
         eprintln!("create_dir_all {}: {e}", dest_dir.display());
         return ExitCode::from(1);
     }
-    let dest = dest_dir.join(format!("{stem}{}", std::env::consts::EXE_SUFFIX));
+    let dest = dest_dir.join(format!("{stem}{}", home::exe_suffix(&target)));
 
     // 4. Attach payload.
     if let Err(e) = attach_payload(&stub, &rrbc, &dest) {
@@ -896,34 +944,53 @@ fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Locate `rapidrintr-runner`, rebuilding it when the sources changed.
+/// The runner stub `--interp` executables start from: `rapidrintr-runner`,
+/// or `rapidrintr-runnerw` (Windows' windowed one, `windowed`).
 ///
-/// `cargo build -p rapidr-runner-stub` runs every time (a quick no-op when
-/// it's up to date), so the runner never lags behind the CLI; an existing
-/// runner in `target/runner`, `target/release` or `target/debug` is used
-/// only if cargo can't run.
-fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
-    let exe_name = format!("rapidrintr-runner{}", std::env::consts::EXE_SUFFIX);
+/// An install ships one per target (home.rs: `runners/<os>-<arch>/`). A
+/// checkout builds this machine's with `cargo build -p rapidr-runner-stub`
+/// every time (a quick no-op when it's up to date), so the runner never lags
+/// behind the CLI; an existing runner in `target/runner`, `target/release`
+/// or `target/debug` is used only if cargo can't run.
+fn locate_or_build_stub(release: bool, target: &str, windowed: bool) -> Result<PathBuf, String> {
+    let name = if windowed { "rapidrintr-runnerw" } else { "rapidrintr-runner" };
+    let exe_name = format!("{name}{}", home::exe_suffix(target));
+    let home = Home::find();
+    if let Some(home) = home.as_ref().filter(|h| h.release.is_some()) {
+        let path = home.runner(target, name);
+        if path.is_file() {
+            return Ok(path);
+        }
+        let shipped = home.runner_targets();
+        return Err(if shipped.is_empty() {
+            "This is the RapidR Runtime: it runs programs (`rapidr run`) and builds none. Executables need the RapidR SDK.".to_string()
+        } else {
+            format!("no runner for {target} in this install ({}); it has: {}", home.root.display(), shipped.join(", "))
+        });
+    }
+    if target != home::host_target() {
+        return Err(format!("--target {target}: a source checkout builds this machine's runner only ({}); an installed RapidR ships the others", home::host_target()));
+    }
     // Release: the stripped `runner` profile (Cargo.toml).
     let preferred = if release { "runner" } else { "debug" };
 
-    let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub"];
+    let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub", "--bin", name];
     if release { args.extend(["--profile", "runner"]); }
     // Built in the RapidR workspace, wherever the program being built is.
-    let root = find_workspace_root().unwrap_or_else(|| PathBuf::from("."));
+    let root = home.map(|h| h.root).unwrap_or_else(|| PathBuf::from("."));
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     // Where cargo puts it: CARGO_TARGET_DIR when set (relative to where
     // rapidr was run), else the workspace's target/.
-    let target = std::env::var_os("CARGO_TARGET_DIR").map(|t| cwd.join(t)).unwrap_or_else(|| root.join("target"));
-    let built = process::Command::new("cargo").args(&args).current_dir(&root).env("CARGO_TARGET_DIR", &target).status();
-    let path = target.join(preferred).join(&exe_name);
+    let target_dir = std::env::var_os("CARGO_TARGET_DIR").map(|t| cwd.join(t)).unwrap_or_else(|| root.join("target"));
+    let built = process::Command::new(home::rust_tool("cargo")).args(&args).current_dir(&root).env("CARGO_TARGET_DIR", &target_dir).status();
+    let path = target_dir.join(preferred).join(&exe_name);
     match built {
         Ok(status) if status.success() && path.exists() => return Ok(path),
         Ok(status) => eprintln!("warning: cargo build rapidr-runner-stub failed ({status}); using an existing runner if there is one"),
         Err(e) => eprintln!("warning: can't run cargo ({e}); using an existing runner if there is one"),
     }
     for profile in [preferred, if release { "release" } else { "runner" }] {
-        let candidate = target.join(profile).join(&exe_name);
+        let candidate = target_dir.join(profile).join(&exe_name);
         if candidate.exists() {
             return Ok(candidate);
         }
