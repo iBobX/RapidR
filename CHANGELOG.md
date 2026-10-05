@@ -8,6 +8,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **RapidQ's own compiler as the ground truth, at scale**
+  (`docs/rapidq-ground-truth.md`): `tools/rc_probe.sh` runs a list of
+  programs through RC.EXE in the Windows VM, each in its own folder with its
+  `.input` as standard input, and returns RapidQ's exact output;
+  `tools/rapidq_truth.py` stages the conformance cases, the console programs
+  of RapidQ's examples or a folder of probes, runs them through RC.EXE and
+  RapidR (VM, `--native` too) and lists every difference; `--write-expected`
+  pins RapidQ's output as a case's `.expected`. Programs that could print or
+  touch the registry are never run in the VM. `tests/rapidq_golden/`: RapidQ's
+  own output of console examples (`tools/rapidq_truth.py golden`).
+- Conformance cases that stop with a run-time error:
+  `name.expected-runtime-error` (both backends and the browser), and new
+  cases whose `.expected` is RC.EXE's output: `rapidq_print_doubles`,
+  `rapidq_int_rounding`, `rapidq_numeric_stores`, `rapidq_operators_int`,
+  `rapidq_text_functions`, `rapidq_if_print_else`, `rapidq_booleans`,
+  `rapidq_division_by_zero`.
 - **Themes for the UI kernel's look**, beside RapidQ's classic one (still
   the default, byte for byte): `modern` (flat, Windows 11-like: rounded
   controls, an accent colour, focus rings, thin scroll bars), `dark` (the
@@ -59,6 +75,45 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   juxtaposed_operands.bas`). So `CASE 4, 7<TAB>C& = -2` (RapidQ's
   `reminder/dayfunction.bas`) is the list 4, 7 with no body, as in RapidQ —
   RapidR used to run the assignment.
+- **RapidQ-exact numbers and more, checked against RC.EXE** (native,
+  interpreted and web alike; details and evidence in
+  `docs/rapidq-ground-truth.md`):
+  - PRINT shows a fractional number with 9 decimals (`3.500000000`), Delphi's
+    digits, and a whole one as a 32-bit integer (beyond: `-2147483648`, as
+    for an infinity or NaN); STR$ has 9 significant digits (`0.333333333`,
+    `1.23456789E9`, `1E-5`). They were the shortest form / 15 digits.
+  - PRINT's (and LPRINT's) comma is the semicolon — no 14-column zones; a
+    leading separator is accepted (`PRINT , "x"`).
+  - INT and FIX truncate toward zero; ROUND, CINT and CLNG are `INT(x +
+    0.5)` (2.5 → 3, -2.5 → -2, -2.7 → -2); ROUND, CINT, CLNG, CEIL and FLOOR
+    are 32-bit.
+  - A store into an integer variable truncates (2.7 → 2), beyond 32 bits it
+    is -2147483648; a BYVAL parameter rounds half to even; a FUNCTION's
+    result isn't converted; DWORD is 32-bit signed; SINGLE is a real 32-bit
+    float. They rounded half to even, wrapped, converted results, kept DWORD
+    unsigned and SINGLE double.
+  - `\` rounds its operands as CINT; MOD, AND, OR, XOR, NOT, SHL, SHR take
+    32-bit operands rounded half to even (`7.5 MOD 2` = 0); `\` and MOD by
+    zero stop the program ("Division by zero"), `/` by zero is an infinity
+    (all three gave 0); a NaN compares equal and less; `&H80000000` …
+    `&HFFFFFFFF` are negative; INV is -1 without an inverse.
+  - VAL skips spaces and reads the number at the start (`"12abc"` = 12);
+    HEX$ has 8 digits; BIN$ 32 bits; REPLACE$ appends past the end;
+    Clipboard.GetAsText(n) gives n - 1 characters.
+  - A component's Boolean property or method result reads 1 when true
+    (`IF Check.Checked = True`, RAPIDQ.INC's True = 1); FILEEXISTS and
+    DIREXISTS give 1; a QFORM starts Enabled.
+  - An undeclared variable a SUB uses before the main program does is the
+    SUB's own (kept between calls), as RapidQ's one-pass compiler has it;
+    `DIM m` without AS is a DOUBLE; `""` inside a string is no escaped quote
+    (two strings side by side — the web IDE's designer writes quotes as
+    `CHR$(34)` now); STRING * n is always n characters (padded with spaces,
+    n spaces at first; `STRING * 0` empty).
+  - A PRINT right before the ELSE of a single-line IF stays on its line;
+    `CASE IS = "l" AND x = "d"` compares first, then ANDs; inside a TYPE's
+    own code a store into its property field doesn't call the setter.
+  - TIMER is the seconds since local midnight (it was since 1970 on the
+    desktop, since the page loaded on the web); TIME$ and DATE$ are local.
 
 ### Fixed
 - Interpreted desktop builds run timers' handlers while a dialog waits for

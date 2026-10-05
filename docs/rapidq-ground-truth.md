@@ -1,11 +1,11 @@
 # RapidQ's own compiler as the ground truth
 
-When the manual, the phatcode mirror and the corpus leave a question open — how RapidQ parses something, what a built-in returns, how PRINT formats a number — the answer is what RapidQ itself does. RapidQ's compiler (`RC.EXE`, Rapid-Q 2006, William Yu) still runs: compile a small program with it, run the program, read what it prints. RapidR's behaviour is then made to match, and the program becomes a conformance case whose `.expected` is RapidQ's output (`tests/conformance/cases/juxtaposed_operands.bas` was made this way).
+When the manual, the phatcode mirror and the corpus leave a question open — how RapidQ parses something, what a built-in returns, how PRINT formats a number — the answer is what RapidQ itself does. RapidQ's compiler (`RC.EXE`, Rapid-Q 2006, William Yu) still runs: compile a small program with it, run the program, read what it prints. RapidR's behaviour is then made to match, and the program becomes a conformance case whose `.expected` is RapidQ's output (`tests/conformance/cases/juxtaposed_operands.bas` was made this way, and the `rapidq_*` cases listed below).
 
 ## Running it: `tools/rc_probe.sh`
 
 ```sh
-tools/rc_probe.sh <dir> [timeout seconds]
+tools/rc_probe.sh [-s sub] [-l list] [-e] <dir> [timeout seconds]
 ```
 
 compiles every `.bas` in `<dir>` with RC.EXE in the Parallels Windows VM and runs the console ones, printing what RC and each program say:
@@ -26,30 +26,111 @@ File in error: jy6.bas
 What it does, step by step:
 
 1. **The VM.** `RAPIDR_VM` (default `Windows 11 Pro`, Windows 11 on ARM). Parallels pauses an idle VM by itself; the script resumes a paused or suspended one (`prlctl resume`). It doesn't pause it again.
-2. **Files through shared folders.** Parallels shares the Mac's home folder with the VM as `\\Mac\Home` (mapped to `Z:` too). The script turns Mac paths under `$HOME` into `\\Mac\Home\…` paths: RapidQ's folder (`RAPIDQ_DIR`, default `~/Downloads/Rapidq`: `RC.EXE`, `Lib\`, `include\`), the programs' folder, and `tools/windows/rc_probe.ps1` itself. So `<dir>` must be under your home (the repository's `tests/conformance/.work/…` is; the session scratchpad in `/private/tmp` isn't).
-3. **The run in Windows** (`tools/windows/rc_probe.ps1`, through `prlctl exec "<vm>" --current-user powershell -ExecutionPolicy Bypass -File \\Mac\Home\…\rc_probe.ps1`): RapidQ's `RC.EXE`, `Lib\` and `include\` copied to `%USERPROFILE%\rq`, the programs to `%USERPROFILE%\rq\t` (RC writes the `.exe` beside the source; nothing is written to the Mac's RapidQ folder), then for each program `RC.EXE -I<rq>\include -L<rq>\Lib prog.bas` — its banner and compile summary dropped, its errors kept — and, when an `.exe` came out, the program run with `Start-Process -RedirectStandardOutput` and the output printed. A program still running after the timeout (default 10 s) is ended and reported as `TIMEOUT`. Programs whose name starts with `g_` are only compiled (a GUI program waits for its form to close).
-4. **x86 on ARM.** RC.EXE and the programs it makes are 32-bit x86 Windows programs; Windows 11 on ARM runs them under its x86 emulation with nothing to set up. They're quick (a compile in well under a second).
+2. **Files through shared folders.** Parallels shares the Mac's home folder with the VM as `\\Mac\Home` (mapped to `Z:` too). The script turns Mac paths under `$HOME` into `\\Mac\Home\…` paths: RapidQ's folder (`RAPIDQ_DIR`, default `~/Downloads/Rapidq`: `RC.EXE`, `Lib\`, `include\`), the programs' folder, and `tools/windows/rc_probe.ps1` itself. So `<dir>` must be under your home (the repository's `tests/conformance/.work/…` is; the session scratchpad in `/private/tmp` isn't). Nothing is ever written to the share: everything is copied into the VM first.
+3. **The run in Windows** (`tools/windows/rc_probe.ps1`, through `prlctl exec "<vm>" --current-user powershell -ExecutionPolicy Bypass -File \\Mac\Home\…\rc_probe.ps1`): RapidQ's `RC.EXE`, `Lib\` and `include\` copied to `%USERPROFILE%\rq`, the programs to `%USERPROFILE%\rq\<sub>` (`-s`, default `t`; give each user of the VM a folder of its own — `gt` is the ground-truth runs', `t` the probes'), then for each program `RC.EXE -I<rq>\include -L<rq>\Lib prog.bas` (under a 60 s timeout) — its banner and compile summary dropped, its errors kept — and, when an `.exe` came out, the program run with `Start-Process` and redirected output, `<name>.input` next to it as its standard input (an empty file otherwise: never the console, where it would wait). A program still running after the timeout (default 10 s) is ended and reported as `TIMEOUT`. Programs whose name starts with `g_`, and any whose `.exe` is a GUI program (its PE subsystem), are only compiled. Everything printed also goes to `%USERPROFILE%\rq\<sub>.report.txt`, to read back when the Mac's side of a long `prlctl exec` drops.
+4. **A list of programs** (`-l list`): the whole `<dir>` tree is copied and each program listed (one path per line, relative to `<dir>`) runs in its own folder, so its own includes and data files are beside it.
+5. **Exact output** (`-e`): each program's output as one base64 line (`-- out64 …`), RapidQ's bytes as they are (Windows-1252, CRLF).
+6. **Safety.** The VM shares the Mac's real printer and has a real registry: a program whose source mentions LPRINT / LFLUSH / a printer / a print dialog / an LPT or PRN device, or QREGISTRY / the registry API, is only compiled, never run (rc_probe.ps1 checks the source; `tools/rapidq_truth.py` filters such programs out before, includes and all).
+7. **On screen** (`s_*` programs): run in a console window of their own, not redirected; such a probe reads the screen back itself (`CHR$(SCREEN(row, col))`) and writes it to `<name>.txt` with a QFILESTREAM, which is what's printed. That's how the console statements are checked.
+8. **x86 on ARM.** RC.EXE and the programs it makes are 32-bit x86 Windows programs; Windows 11 on ARM runs them under its x86 emulation with nothing to set up. They're quick (a compile in well under a second).
+
+`tools/windows/vmexec.sh "<command line>"` runs one Windows command in the VM (`cmd /c`), for looking around (`dir %USERPROFILE%\rq`, `type %USERPROFILE%\rq\gt.report.txt`).
+
+## Comparing at scale: `tools/rapidq_truth.py`
+
+```sh
+tools/rapidq_truth.py conformance [--native] [--cached] [--write-expected] [filter …]
+tools/rapidq_truth.py corpus [--native] [--cached] [--write-golden] [filter …]
+tools/rapidq_truth.py probes <dir> [--native] [--cached] [--write-expected]
+tools/rapidq_truth.py golden [--native] [filter …]
+```
+
+stages a set of programs in `tests/conformance/.work/rqtruth/<set>/`, runs them through RC.EXE (`rc_probe.sh -s gt -l … -e`), runs the same staged files through RapidR — the bytecode VM, and the native build with `--native` — and prints, per program, `ok` or the differences (RapidQ against RapidR, and against the case's `.expected`), saving `report.txt` and RC's results (`rc.json`, reused by `--cached`).
+
+- **conformance**: the console cases of `tests/conformance/cases` (those with an `.expected`, and their `.input`). `--write-expected` writes RapidQ's output into the `.expected` of the cases given as filters (new ones without an `.expected` included) — how the `rapidq_*` cases below were made.
+- **corpus**: the console programs of RapidQ's examples (`$APPTYPE CONSOLE`, or no form at all), without the ones that call Windows DLLs, use OLE or DirectX, the network, a printer, the registry, or start other programs (each listed with its reason). `--write-golden` saves RapidQ's output to `tests/rapidq_golden/<name>.expected`; `golden` compares RapidR with those without the VM.
+- **probes**: any folder of one-off questions.
+
+Staging makes a program RapidQ-runnable without changing what it does: CRLF line ends, `$APPTYPE CONSOLE` first when it has no `$APPTYPE`, its `.input` with CRLF (RapidQ's INPUT ends a line at CR), and the main program's `END` turned into a jump to its last line — a RapidQ program's END drops what it printed into a file or pipe (its output buffer isn't flushed); falling off the end doesn't. When RapidQ stops with an exception (`Exception EDivByZero in module x.exe at 00042F58.` + its message, on standard output), the tool keeps it apart and expects RapidR's run-time error with the same message, after the same output.
 
 ## Writing probes
 
-- **Console programs** start with `$APPTYPE CONSOLE`; PRINT then goes to standard output, which the script captures. RC says `Compiling as CONSOLE Application (L4)` (`L1` when the program uses a DirectX object: the GUI library).
-- **CRLF line endings**: the probes so far were all written with them (RapidQ is a DOS-era tool); whether RC minds LF wasn't tried.
-- **One question per program when a probe may fail**: RC stops at the first error (`Line N: ERROR: …`, with the source line and a caret), and a program that raises an exception loses the output it had printed (it's buffered) — `QDXJOYSTICK` without a joystick, for instance, prints nothing at all. Several PRINT lines in one program are fine when they all compile and run.
+- **Console programs** start with `$APPTYPE CONSOLE`; PRINT then goes to standard output, which the script captures. RC says `Compiling as CONSOLE Application (L4)` (`L1` when the program uses a DirectX object: the GUI library; `L3` when it uses components).
+- **CRLF line endings** (RapidQ is a DOS-era tool); the tool writes them.
+- **One question per program when a probe may fail**: RC stops at the first error (`Line N: ERROR: …`, with the source line and a caret), and a program that raises an exception stops there. Several PRINT lines in one program are fine when they all compile and run.
 - **RapidQ's names are case-insensitive and global**: `CONST A` and `DIM a(10)` clash (`Identifier A already used`); built-in names are taken (`SUB Pos` → `POS identifier already in use`).
-- **Compare what RapidR prints**: the same file through `rapidr build-bc f.bas -o f.rrbc && rapidr run-bc f.rrbc` (or as a conformance case, both backends). PRINT's number formatting differs today (RapidQ prints a fractional double with 9 decimals: `-984.147000000`); keep probes to integers and strings unless the formatting is the question.
+- **What redirected output can't show**: RapidQ's console statements (CLS, COLOR, LOCATE, CSRLIN, POS, INPUT$) work on the console window itself — redirected, CLS / COLOR / LOCATE leave nothing, CSRLIN and POS read 1, INPUT$(n) gets a whole line, and END loses what was printed. Those are compared on screen (`s_*` probes; RapidR's ANSI sequences stand for them). On screen: LOCATE, CSRLIN and POS work as QBasic's (`LOCATE 6, 10 : PRINT "at";` leaves CSRLIN 6, POS 12), PRINT's comma joins as in a pipe, END keeps the output.
 - **RC.EXE's own strings** answer "does RapidQ have X?" without running anything: `strings -n 3 ~/Downloads/Rapidq/RC.EXE | grep -i <name>` lists its objects and their members in pairs (`QDXJOYSTICK|ISLEFT|QDXJOYSTICK|ISRIGHT|…`) and every message it can print (`.reference/rapidq-compiler-messages.txt` is that list).
 
 ## Quirks met
 
-- A worktree-isolated agent's shell refuses `prlctl exec … cmd /c …` typed on its command line (it can't show the remote command isn't `git`); running a script file (`tools/rc_probe.sh`) works.
+- A worktree-isolated agent's shell refuses `prlctl exec … cmd /c …` typed on its command line (it can't show the remote command isn't `git`); running a script file (`tools/rc_probe.sh`, `tools/windows/vmexec.sh`) works.
 - `cmd /c` with `!var:~0,2!` substrings broke on quoting; PowerShell in a `.ps1` is simpler.
-- An earlier way of running the programs (`cmd /c prog.exe` attached to the console) hung on a program that raised an exception — RapidQ's message box waited for a click — until the process was killed with `taskkill`; `Start-Process` with redirected output and a timeout doesn't.
+- An earlier way of running the programs (`cmd /c prog.exe` attached to the console) hung on a program that raised an exception — RapidQ's message box waited for a click — until the process was killed with `taskkill`; `Start-Process` with redirected output and a timeout doesn't (a console program prints the exception instead).
 - The VM may be paused again while a probe runs (it pauses when idle, or someone pauses it); `prlctl exec` then waits forever — interrupt it, resume the VM, run again.
+- Two runs at once in the VM clash on copying `RC.EXE` (a running one is locked): one batch at a time.
 
-## Findings so far
+## Findings
 
+What RapidQ does, the evidence (RC.EXE's output; the probes are the `rapidq_*` conformance cases unless said otherwise) and what RapidR does now. **Changed** means RapidR was made to match on the VM, native builds and the web (one implementation in `rapidr_value` / `rapidr_ast` / the parser).
+
+### Numbers
+
+- **PRINT of a number** (changed): a whole number as a 32-bit integer — beyond 32 bits, an infinity and NaN print `-2147483648` (`PRINT 1E10`, `PRINT 7 / 0`); any other with 9 decimals (`3.500000000`, `0.333333333`, `-0.000000000` for a tiny negative one). The digits are Delphi's `FloatToDecimal` ones with the FPU in double precision: 18 of them, so `1234567890.1` prints `1234567890.099999840` and `1.0000000015` `1.000000001` (`rapidr_value::format::print_double`). Residual: a few values ≥ 1E7 still differ in their 17th–18th digit (`123456789.125` prints `…125000013` in RapidQ, `…124999984` here) — the exact rounding of RapidQ's scaling step isn't known. RapidR printed the shortest form (`3.5`, `0.333333333333333`). `rapidq_print_doubles`.
+- **STR$** (changed): `FloatToStrF(x, ffGeneral, 9, 0)` — 9 significant digits, the shorter of fixed and scientific (`0.333333333`, `2.5`, `1E20`, `1E-5`, `1.23456789E9` even for an INTEGER, `INF`), no leading space. RapidR used 15 digits. `rapidq_print_doubles`.
+- **PRINT's comma** (changed): the same as the semicolon — no print zones (the manual says so too: "under Rapid-Q the comma and semi-colon have the same effect"); a separator may come first (`PRINT ,"y"`). RapidR padded to 14-column zones. LPRINT ("just like PRINT") too. `print_separators`, `rapidq_if_print_else`.
+- **INT / FIX** (changed): truncate toward zero (`INT(-2.5)` = -2, `INT(-0.5)` = 0) — the manual's "largest integer less than or equal" is wrong — as a float's whole number (`INT(1E10) / 1E10` is 1). RapidR floored. `rapidq_int_rounding`.
+- **ROUND / CINT / CLNG** (changed): `INT(x + 0.5)` truncating — 2.5 → 3, 0.5 → 1, -2.5 → -2, -2.2 → -1, -2.7 → -2, -3.99 → -3 (not the manual's half-to-even, not half-away); **CEIL / FLOOR** as named; all four are 32-bit integers (`ROUND(1E10) / 1E10` is -0.214748365). FRAC keeps the sign. `rapidq_int_rounding`.
+- **Stores into integer variables** (changed): truncate (`i = 2.7` → 2, `-2.7` → -2) — array elements, TYPE fields, FOR's start, INC/DEC, SWAP, READ, INPUT alike; beyond 32 bits (or NaN) -2147483648; BYTE / WORD / SHORT then wrap. RapidR rounded half to even. `rapidq_numeric_stores`.
+- **BYVAL integer parameters** (changed): round half to even (`P 2.5` gets 2, `P 3.5` 4, `P 2.7` 3) — unlike stores. `rapidq_numeric_stores`.
+- **FUNCTION results** (changed): not converted (`FUNCTION F AS INTEGER : F = 2.7` returns 2.7). RapidR converted them. `rapidq_numeric_stores`, `numeric_types`.
+- **DWORD** (changed): 32-bit *signed* (`d = -1` prints -1; `d = 4294967295` holds -2147483648). RapidR had it unsigned.
+- **SINGLE** (changed): a real 32-bit float (`s = 0.1` prints `0.100000001`, `16777217` → 16777216). RapidR kept doubles. (Native builds keep SINGLE variables as `Value`s.)
+- **Arithmetic** is in floating point: `i * 2` for `i = 2147483647` is 4294967294, printed -2147483648. RapidR's 64-bit integer arithmetic gives the same results within 32 bits, and the same prints and stores beyond (where a value comes back into range RapidQ's double and RapidR's i64 still agree up to 2^53).
+- **`\`** (changed): each operand rounded as CINT rounds (7.5 → 8, -7.5 → -7, -7.1 → -6 …), the quotient truncated. **MOD, AND, OR, XOR, NOT, SHL, SHR** (changed): operands rounded half to even to 32 bits (`7.5 MOD 2` = 0, `2.5 OR 0` = 2, `3000000000 AND 255` = 0); a shift count's low 5 bits (`1 SHL 32` = 1). `rapidq_operators_int`.
+- **Division by zero** (changed): `/` gives an infinity or NaN (no error); `\` and MOD by zero stop the program with "Division by zero" (RapidQ's EDivByZero exception). RapidR gave 0 for all three; now a run-time error (`run-time error: Division by zero (at … line …)`). `rapidq_division_by_zero` (a new `.expected-runtime-error` kind of case).
+- **NaN comparisons** (changed): `=`, `<`, `<=` true; `<>`, `>`, `>=` false (the x87's FCOM on an unordered pair). `rapidq_print_doubles`.
+- **&H literals** (changed): &H80000000 … &HFFFFFFFF are negative 32-bit numbers (`&H80000001 SHL 1` = 2). `operators_rapidq`, `rapidq_operators_int`.
+- **INV** (changed): -1 when there is no inverse, also for a modulus of 0 or 1 (`2 INV 4`, `7 INV 1`, `5 INV 0`). RapidR gave 0. `rapidq_operators_int`.
+- **VAL** (changed): spaces anywhere are skipped (`VAL("12 34")` = 1234, `"- 5"` = -5), then the longest number at the start (`"12abc"` = 12, `"1.2.3"` = 1.2, `"1.5e"` = 1.5, `"1,5"` = 1, `"1d2"` = 1); `&H10`, `0x10` are 0. RapidR read the whole string or 0. `rapidq_text_functions`.
+- **HEX$** (changed): 8 digits (`000000FF`; the manual says so for Windows), the low 32 bits of the number rounded half to even (`HEX$(3000000000)` = B2D05E00); **BIN$** the 32 bits without leading zeros. `rapidq_text_functions`.
+- **TIMER** (changed): seconds since local midnight (the manual's Windows value), so a SINGLE keeps milliseconds; RapidR returned seconds since 1970 (desktop) or since the page loaded (web). TIME$ and DATE$ are the local time now (they were UTC on the desktop).
+
+### Language
+
+- **Implicit variables in SUBs** (changed): RapidQ compiles in one pass — an undeclared name the main program used above a SUB is that global inside it; a name a SUB uses first is the SUB's own, kept between calls; the main program's same name further down is another variable. RapidR made every undeclared name one global. `implicit_globals`, `option_dim_decimal` (`rapidr_ast::implicit_scope`).
+- **`DIM m` without AS** (changed): a DOUBLE, whatever `$OPTION DIM` says (that types undeclared names only). RapidR used `$OPTION DIM`'s type or VARIANT. (`DIM a, b AS INTEGER` and `DIM (a, b) AS INTEGER` — the manual's forms — are refused by RC.EXE 2006; RapidR accepts them.)
+- **`""` inside a string** (changed): no escaped quote — `"[:"":>"` is two strings side by side, worth the first (`[:`, LEN 2). RapidR read a quote. (The web IDE's designer now writes a quote in a caption as `" + CHR$(34) + "`.) `rapidq_literals`.
+- **STRING * n** (changed): always n characters — a store is padded with spaces as well as cut (`s = "hi"` holds "hi" and six spaces, LEN 8), a new one is n spaces (arrays too), `STRING * 0` holds nothing. RapidR only cut. `fixed_strings`.
+- **A PRINT before the ELSE of a single-line IF** (changed) ends without a new line (`IF 1 THEN PRINT "a" ELSE PRINT "b" : PRINT "c"` prints `ac`); `PRINT "x"; ELSE` is accepted. `rapidq_if_print_else`, `builtins_manual`, `operators_rapidq`, `rapidq_expressions`.
+- **`CASE IS = "l" AND x = "d"`** (changed): the IS comparison is the first operand of the AND / OR (`(sel = "l") AND (x = "d")`); RapidR read `sel = ("l" AND x = "d")`. Corpus `console/printf/printf.bas`.
+- **PROPERTY SET inside the TYPE's own code** (changed): `TCounter.Focus = …` / `WITH TCounter : .Focus = …` in a method stores the field; the setter runs for stores from outside only. RapidR called the setter. `oop_property_set`.
+- **REPLACE$** (changed): the text before the position, the replacement, what follows the replaced characters — past the end it is appended (`REPLACE$("abc", "Z", 9)` = abcZ), at 0 or before it goes in front (Zabc). RapidR left the string alone past the end. `rapidq_text_functions`, `rapidq_names`.
+- **Booleans of components** (changed): a property or method result that is a (Delphi) Boolean reads 1 when true — `Check.Checked`, `Form.Enabled`, `Application.ShowHint`, `Clipboard.HasFormat(1)` — so `IF Check.Checked = True` works with RAPIDQ.INC's `True = 1`, as the corpus does it; Checked keeps 0 / 1 whatever is stored, Enabled keeps the number stored; FILEEXISTS / DIREXISTS give 1. A comparison's own result stays -1. RapidR read -1. `rapidq_booleans`, `globals`.
+- **Clipboard.GetAsText(n)** (changed): n is a buffer size, its NUL included — n - 1 characters. `globals`.
 - Operands side by side (`A B OR C`, `-9(COS(x))`, `2(3)`, `CASE 4, 7  C = -2`): RC's operator stack runs on and the value is the operand stack's bottom; the dropped operands are still worked out. RapidR matches (parser: `parse_stacked_expression`; `tests/conformance/cases/juxtaposed_operands.bas`).
-- `INT` truncates toward zero (`INT(-2.5)` is -2, `INT(-0.5)` is 0), whatever the manual says; RapidR floors — open.
-- PRINT of a fractional DOUBLE: 9 decimals (`-984.147000000`, `-9.841470985`); RapidR prints the shortest form — open.
 - `QDXJOYSTICK` exists (undocumented): `IsLeft`, `IsRight`, `IsUp`, `IsDown` (read-only), `Button(n)` (read-only, one argument), `Update` (no arguments); no `Tag` / `Parent`; `CREATE` works; an array of them is refused (`Array of QDXJOYSTICK is not supported!`). Without a joystick it raises `EStringListError` (List index out of bounds) — not copied: RapidR's says Connected 0.
 - `CASE ELSE <statement>` on one line is refused (`Expected end-of-line but got …`); RapidR accepts it.
+
+### Judgment calls (RapidQ's behaviour seen, deliberately not copied)
+
+- **A number where text is expected** gives text that drops it — `"a" + 2.5 + "b"` is "ab", `s$ = 2.5` and `s$ = "x" + 5` store "", `"a" + 2.5` alone is the number 2.5, `QSTRINGLIST.AddItems 2.5` adds "" — and a string stored into a number is 0. It depends on operand order, and a working RapidQ program never relies on it (it uses STR$ / VAL); RapidR keeps converting (numbers as `FloatToStr`'s 15 digits, strings as VAL), so programs ported from VB-like BASICs keep working. A program that relied on RapidQ's empty text would differ.
+- **A bare field name inside a TYPE's SUB / FUNCTION** isn't the field in RapidQ (`N = 7` in a method is a variable of its own; reading `N` gives 0); in CONSTRUCTOR blocks it is. RapidR treats it as the instance's member everywhere in the TYPE (its OOP model since v2.27.0); RapidQ programs write `TypeName.Field` and don't notice.
+- **Out-of-bounds array elements** (no bounds checks in RapidQ): a write past the end lands in memory (`A(5) = 9` for `DIM A(3)` reads back 9). RapidR stays memory-safe — the write is dropped, the read is 0. `array_bounds_rapidq`.
+- **Crashes**: `VAL("--1")` and `VAL("-")` stop RapidQ with EConvertError, `FUNCTION F AS BYTE : F = 300` with EStringListError, port I/O with EPrivilege; RapidR gives 0 / returns the value / refuses OUT at compile time. Division by zero is the one crash copied (as a run-time error): there RapidR's old 0 was silently wrong.
+- **Unicode**: RapidQ strings are bytes in the source's code page; a UTF-8 source's "é" is 2 bytes there. RapidR keeps characters (a Windows-1252 source reads the same in both). `unicode_strings`.
+- **Fonts and pictures**: text metrics come from Windows' Arial in RapidQ and Liberation (Arial's widths) in RapidR — `TextWidth("Hello")` is 35 against 36; anti-aliased pixels differ. RapidQ can't load an ICO or JPEG into a QBITMAP (EInvalidGraphic); RapidR can. A QIMAGELIST draws an icon's see-through part black in RapidQ, see-through in RapidR. `bitmap_text`, `icon_images`, `jpeg_images`.
+- **Single-line `IF … THEN … ELSEIF …`**: RapidQ accepts it and prints nonsense (`IF 1 THEN PRINT "y" ELSEIF 1 THEN PRINT "z"` prints `1z`); RapidR reports an error.
+- **PRINT of an object** (a component, `QFORM` as a value) prints nothing in RapidQ; RapidR prints its name. `parent_type_name`, `component_arrays`.
+- **TAB(n)** isn't in RC.EXE 2006 (KEYWORD.LST lists it): `PRINT "ab"; TAB(6); "x"` prints `ab0x` on screen too — an undeclared name reads 0. RapidR's TAB moves to the column (QBasic's), an addition.
+- **RapidR's own names** (`akLeft`… constants, CBOOL, RSQLITE, `PRINT #` to files, …) are extensions: RapidQ sees an undeclared variable or refuses them.
+
+### Not comparable this way
+
+- The console statements (see *Writing probes*): `console_ansi`, `input_chars` (INPUT$).
+- `file_streams` (a RapidR path that doesn't exist in the VM), `resources` / `resources_memory` (RapidQ's RESOURCE() differs — `RESOURCE(2)` on two resources is 0, RapidR's -1, and its stream raised EReadError: open).
+- Skipped for safety (never run by RC.EXE): `lprint`, `printer`, `rapidq_objects`, `rapidq_program` (printing), `qregistry` (registry); in the corpus, the programs listed by `tools/rapidq_truth.py corpus` (printing, registry, network, SHELL / RUN, DLL calls).
+
+### Corpus programs
+
+Of RapidQ's 386 examples, 44 are console programs RapidR can run; RC.EXE compiles 24 of them (the rest are other BASICs, miss an include such as `WindowsAPI.inc`, or call DLLs RapidR doesn't load). Of those, 9 wait for keys (3DBOX, MOVETEXT, seeqsort, BATTLE, FIAR, …) and 2 time themselves (sieve, BindSpeedTest). The deterministic ones now print exactly what RapidQ prints; their outputs are kept in `tests/rapidq_golden/` (`tools/rapidq_truth.py golden`).
