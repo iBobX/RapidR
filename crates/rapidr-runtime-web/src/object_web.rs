@@ -2857,11 +2857,12 @@ pub fn rp_run_app() {
 }
 
 // ---------------------------------------------------------------------------
-// Theme — no-op on web (styling comes from rapidr-rrcss::RR_BASE_CSS)
+// Theme — the browser keeps its look (styling comes from
+// rapidr-rrcss::RR_BASE_CSS); the name is kept for Application.Theme
 // ---------------------------------------------------------------------------
 
-pub fn set_theme(_theme: &str) {
-    // Themes don't apply to web — the shared RR_BASE_CSS provides the styling
+pub fn set_theme(theme: &str) {
+    crate::globals_web::name_theme(theme);
 }
 
 pub fn gui_register_timer(_name: &str) {

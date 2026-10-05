@@ -100,6 +100,15 @@ struct State {
     /// (timers during native menu tracking) runtime-core's turn while the
     /// system holds a pump.
     hook: Option<crate::tracking::Hook>,
+    /// (kernel themes) The theme's generation the windows' frames follow.
+    theme: u64,
+}
+
+/// (kernel themes) The system frame a theme asks for: a fluent theme's
+/// light or dark title bar; the classic look leaves it to the system.
+fn frame_theme() -> Option<winit::window::Theme> {
+    let t = rapidr_value::theme::current();
+    t.fluent().then_some(if t.dark { winit::window::Theme::Dark } else { winit::window::Theme::Light })
 }
 
 pub struct WinitHost {
@@ -139,6 +148,7 @@ impl WinitHost {
                 dialogs: crate::dialogs::Dialogs::default(),
                 waker,
                 hook: None,
+                theme: rapidr_value::theme::generation(),
             },
         })
     }
@@ -315,6 +325,14 @@ impl Shim<'_> {
     /// Runs the program's window commands.
     fn apply(&mut self, el: &ActiveEventLoop) {
         self.note_monitor(el);
+        // (kernel themes: the program switched — the frames follow)
+        let theme = rapidr_value::theme::generation();
+        if theme != self.s.theme {
+            self.s.theme = theme;
+            for w in self.s.wins.values() {
+                w.window.set_theme(frame_theme());
+            }
+        }
         // (timers during native menu tracking: while the system holds the
         // pump — macOS' menu bar tracked, winit's observers calling in — no
         // second loop of the system's starts inside it; a context menu or a
@@ -481,7 +499,8 @@ impl Shim<'_> {
             .with_inner_size(self.inner_size(spec.size.0, spec.size.1, 1.0))
             .with_window_icon(icon(spec.icon.as_ref()))
             // (the WindowState lane's: a form shown maximized)
-            .with_maximized(spec.state == 2);
+            .with_maximized(spec.state == 2)
+            .with_theme(frame_theme());
         if let Some((x, y)) = spec.position {
             attrs = attrs.with_position(LogicalPosition::new(x as f64, y as f64));
         }

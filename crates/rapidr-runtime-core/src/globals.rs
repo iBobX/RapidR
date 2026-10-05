@@ -26,6 +26,15 @@ impl Platform for Desktop {
         crate::ui::gui_apply_icons();
     }
 
+    // (kernel themes) `Application.Theme = name`: as `$THEME name`, at
+    // run time (every form drawn again).
+    fn set_theme(&self, name: &str) {
+        #[cfg(feature = "gui")]
+        crate::ui::set_theme(name);
+        #[cfg(not(feature = "gui"))]
+        let _ = name;
+    }
+
     fn screen_size(&self) -> (i64, i64) {
         #[cfg(feature = "gui")]
         return crate::ui::screen_size();
