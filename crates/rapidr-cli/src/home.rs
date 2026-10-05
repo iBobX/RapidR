@@ -118,9 +118,25 @@ pub fn exe_suffix(target: &str) -> &'static str {
 
 /// `<exe folder>/../lib/rapidr` when it is an install's home.
 fn installed_root() -> Option<PathBuf> {
-    let exe = env::current_exe().ok()?.canonicalize().ok()?;
+    let exe = plain(env::current_exe().ok()?.canonicalize().ok()?);
     let home = exe.parent()?.parent()?.join("lib").join("rapidr");
     home.join("release.toml").is_file().then_some(home)
+}
+
+/// `fs::canonicalize`, as people and tools read paths (Application.ExeName,
+/// cargo's configuration): see [`plain`].
+pub fn canonical(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+    fs::canonicalize(path).map(plain)
+}
+
+/// A canonical path as tools read it: on Windows without the `\\?\` prefix
+/// `canonicalize` gives (cargo's configuration, clang and the linker don't
+/// take it).
+fn plain(path: PathBuf) -> PathBuf {
+    match path.to_str().and_then(|p| p.strip_prefix(r"\\?\")) {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => path,
+    }
 }
 
 /// The RapidR workspace (the Cargo.toml with `[workspace]` that has
@@ -135,7 +151,7 @@ fn checkout_root() -> Option<PathBuf> {
     env::current_dir()
         .ok()
         .and_then(above)
-        .or_else(|| env::current_exe().ok().and_then(|e| e.canonicalize().ok()).and_then(above))
+        .or_else(|| env::current_exe().ok().and_then(|e| e.canonicalize().ok()).map(plain).and_then(above))
         .or_else(|| above(PathBuf::from(env!("CARGO_MANIFEST_DIR"))))
 }
 
@@ -173,6 +189,13 @@ mod tests {
         assert_eq!(home.runner_targets(), ["linux-x86_64", "windows-aarch64"]);
         assert!(home.runner("windows-aarch64", "rapidrintr-runnerw").ends_with("runners/windows-aarch64/rapidrintr-runnerw.exe"));
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn verbatim_windows_paths_are_made_plain() {
+        assert_eq!(plain(PathBuf::from(r"\\?\C:\Users\me\RapidR")), PathBuf::from(r"C:\Users\me\RapidR"));
+        assert_eq!(plain(PathBuf::from(r"\\?\UNC\server\share")), PathBuf::from(r"\\?\UNC\server\share"));
+        assert_eq!(plain(PathBuf::from("/usr/lib/rapidr")), PathBuf::from("/usr/lib/rapidr"));
     }
 
     #[test]

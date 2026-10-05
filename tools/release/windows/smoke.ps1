@@ -107,6 +107,7 @@ if ($kind -eq "sdk") {
             $got = if (Test-Path "$T\work\$case.exe") { (Out-Of "$T\work\$case.exe" @()).Replace("`r", "").TrimEnd() } else { $log }
             $lines = { param($x) ($x -split "`n" | ForEach-Object { $_.TrimEnd() }) -join "`n" }
             Check "native $case`: output as expected" { (& $lines $got) -eq (& $lines $want) }
+            if (-not (Test-Path "$T\work\$case.exe")) { Write-Host (($log -split "`n" | Select-Object -Last 25) -join "`n") }
         }
         if (Test-Path $readobj) {
             $dlls = & $readobj --coff-imports "$T\work\arithmetic.exe" | Select-String "Name: (.*\.dll)" | ForEach-Object { $_.Matches[0].Groups[1].Value.ToLower() } | Sort-Object -Unique
