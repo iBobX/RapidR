@@ -31,14 +31,16 @@ impl Store for RtStore {
         if let Some(v) = dialog(id, |s| s.get(id, prop)) {
             return v;
         }
-        let v = rp_comp_get(id, prop);
-        // (the Color the registry gives a new QLABEL, QFORM and QPANEL,
-        // which isn't painted, unless the program set it — `__colorset`,
-        // object.rs: rapidr_value::component_defaults' rule, the web's too)
-        if prop.eq_ignore_ascii_case("color") && rapidr_value::component_defaults::kernel_reads_unset(&rp_comp_type(id), prop, &v, || rp_comp_get(id, "__colorset").to_bool()) {
-            return Value::Null;
+        // (a Color the program never set reads Null here — the kernel's
+        // default: a form's and a panel's face, no background for a label —
+        // while the program reads RapidQ's clBtnFace / clWindow / its
+        // parent's: object.rs `program_color`)
+        // (a Font.Color the program didn't set: its parent's, RapidQ's
+        // ParentFont)
+        if matches!(prop.to_ascii_lowercase().as_str(), "fontcolor" | "font.color") {
+            return crate::object::drawn_font_color(id, prop);
         }
-        v
+        rp_comp_get(id, prop)
     }
 
     fn type_of(&self, id: &str) -> String {

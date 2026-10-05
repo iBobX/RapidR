@@ -188,7 +188,7 @@ impl Header {
                 _ => l + 4,
             } + i64::from(pressed);
             let ty = (h - th) / 2 + i64::from(pressed);
-            let color = match font.color as u32 & 0xFFFFFF {
+            let color = match crate::objects::color_bgr(font.color) {
                 0 => bgr(look.text),
                 c => c,
             };

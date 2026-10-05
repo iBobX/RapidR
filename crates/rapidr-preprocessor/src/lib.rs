@@ -621,8 +621,10 @@ fn emit_line(
 }
 
 /// Constants from RapidQ's RAPIDQ.INC (Delphi/Win32 values; colors are BGR
-/// like RapidQ's, which RapidR's runtimes also use). System colors have no
-/// OS lookup in RapidR, so they get their standard default RGB values.
+/// like RapidQ's, which RapidR's runtimes also use). System colours are
+/// Delphi's system-colour TColors (`&H80000000 + COLOR_…`), as the real
+/// RAPIDQ.INC has them: what a form's Color reads, drawn in the theme's
+/// colours (`rapidr_value::objects::color_bgr`).
 pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     // As in the real RAPIDQ.INC (comparisons themselves give -1 / 0).
     ("False", 0), ("True", 1),
@@ -635,9 +637,9 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("clRed", 0x0000FF), ("clLime", 0x00FF00), ("clYellow", 0x00FFFF),
     ("clBlue", 0xFF0000), ("clFuchsia", 0xFF00FF), ("clAqua", 0xFFFF00),
     ("clWhite", 0xFFFFFF), ("clLtGray", 0xC0C0C0), ("clDkGray", 0x808080),
-    ("clBtnFace", 0xF0F0F0), ("clWindow", 0xFFFFFF), ("clWindowText", 0x000000),
-    ("clBtnText", 0x000000), ("clBtnShadow", 0xA0A0A0), ("clHighlight", 0xD77800),
-    ("clHighlightText", 0xFFFFFF), ("clGrayText", 0x6D6D6D),
+    ("clBtnFace", -2147483633), ("clWindow", -2147483643), ("clWindowText", -2147483640),
+    ("clBtnText", -2147483630), ("clBtnShadow", -2147483632), ("clHighlight", -2147483635),
+    ("clHighlightText", -2147483634), ("clGrayText", -2147483631),
     // Modal results
     ("mrNone", 0), ("mrOk", 1), ("mrCancel", 2), ("mrAbort", 3), ("mrRetry", 4),
     ("mrIgnore", 5), ("mrYes", 6), ("mrNo", 7), ("mrAll", 8),
@@ -683,10 +685,10 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     // styles, grid options, cursors, …). The system colors have no OS lookup
     // in RapidR: the usual Windows defaults.
     ("taLeftJustify", 0), ("taRightJustify", 1), ("taCenter", 2), ("SND_NODEFAULT", 2), ("SND_NOSTOP", 16),
-    ("SND_MEMORY", 4), ("clScrollBar", 0xc8c8c8), ("clBackGround", 0x000000), ("clActiveCaption", 0xd1b499), ("clInActiveCaption", 0xdbcdbf),
-    ("clMenu", 0xf0f0f0), ("clWindowFrame", 0x646464), ("clMenuText", 0x000000), ("clCaptionText", 0x000000), ("clActiveBorder", 0xb4b4b4),
-    ("clInActiveBorder", 0xfcf7f4), ("clAppWorkSpace", 0xababab), ("clHilight", 0xd77800), ("clHilightText", 0xffffff), ("clInActiveCaptionText", 0x000000),
-    ("clBtnHighlight", 0xffffff), ("cl3DDkShadow", 0x696969), ("cl3DLight", 0xe3e3e3), ("clInfoText", 0x000000), ("clInfoBk3DDkShadow", 0xe1ffff),
+    ("SND_MEMORY", 4), ("clScrollBar", -2147483648), ("clBackGround", -2147483647), ("clActiveCaption", -2147483646), ("clInActiveCaption", -2147483645),
+    ("clMenu", -2147483644), ("clWindowFrame", -2147483642), ("clMenuText", -2147483641), ("clCaptionText", -2147483639), ("clActiveBorder", -2147483638),
+    ("clInActiveBorder", -2147483637), ("clAppWorkSpace", -2147483636), ("clHilight", -2147483635), ("clHilightText", -2147483634), ("clInActiveCaptionText", -2147483629),
+    ("clBtnHighlight", -2147483628), ("cl3DDkShadow", -2147483627), ("cl3DLight", -2147483626), ("clInfoText", -2147483625), ("clInfoBk3DDkShadow", -2147483624),
     ("ssShift", 256), ("ssCtrl", 16), ("ssAlt", 1), ("fpDefault", 0), ("fpVariable", 1),
     ("fpFixed", 2), ("ANSI_CHARSET", 0), ("DEFAULT_CHARSET", 1), ("SYMBOL_CHARSET", 2), ("MAC_CHARSET", 77),
     ("SHIFTJIS_CHARSET", 128), ("HANGEUL_CHARSET", 129), ("JOHAB_CHARSET", 130), ("GB2312_CHARSET", 134), ("CHINESEBIG5_CHARSET", 136),

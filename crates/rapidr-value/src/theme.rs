@@ -569,6 +569,43 @@ impl Theme {
         self.look == Look::Fluent
     }
 
+    /// Windows' system colour `index` (GetSysColor's COLOR_…, a Delphi
+    /// TColor `&H80000000 + index` such as clBtnFace) in this theme, as
+    /// 0xRRGGBB — what a program's `Color = clBtnFace` is drawn in and what
+    /// Pixel then reads (RC.EXE on Windows 11: clBtnFace F0F0F0, clWindow
+    /// FFFFFF). Colours the theme has no token for: Windows 10 / 11's.
+    pub fn system_color(&self, index: u32) -> u32 {
+        match index {
+            0 => 0xC8C8C8,             // COLOR_SCROLLBAR
+            1 => 0x000000,             // COLOR_BACKGROUND (the desktop)
+            2 | 27 => self.caption,    // ACTIVECAPTION, GRADIENTACTIVECAPTION
+            3 | 28 => self.inactive_caption,
+            4 => self.menu,
+            5 => self.window,
+            6 => self.frame,
+            7 => self.menu_text,
+            8 | 18 => self.text,       // WINDOWTEXT, BTNTEXT
+            9 => self.caption_text,
+            10 => 0xB4B4B4,            // ACTIVEBORDER
+            11 => 0xF4F7FC,            // INACTIVEBORDER
+            12 => 0xABABAB,            // APPWORKSPACE
+            13 => self.highlight,
+            14 => self.highlight_text,
+            15 | 30 => self.face,      // BTNFACE, MENUBAR
+            16 => self.shadow,
+            17 => self.gray_text,
+            19 => self.inactive_caption_text,
+            20 => self.light,          // BTNHIGHLIGHT
+            21 => self.dark_shadow,
+            22 => 0xE3E3E3,            // 3DLIGHT
+            23 => 0x000000,            // INFOTEXT
+            24 => 0xFFFFE1,            // INFOBK
+            26 => self.hot_text,
+            29 => self.menu_highlight,
+            _ => 0x000000,
+        }
+    }
+
     /// Text the program left uncoloured, drawn on `background`: the theme's
     /// text — or, on a colour the program chose where that wouldn't read,
     /// black or white, whichever reads better. (The classic look keeps
