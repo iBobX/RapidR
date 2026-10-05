@@ -10,6 +10,7 @@
 #   tools/release/windows-vm.sh smoke <installer file name> [Native] [Associations]
 #   tools/release/windows-vm.sh fetch <file in …\rapidr-release\out> <local file>
 #   tools/release/windows-vm.sh stop         stop the release jobs running in the VM
+#   tools/release/windows-vm.sh clean        remove %USERPROFILE%\rapidr-release (rapidr-tools stays)
 #   tools/release/windows-vm.sh sync <script.ps1> [args…]    a short script, waited for
 #
 # A job is started detached in the VM (windows/detach.ps1) and its log polled — a
@@ -73,6 +74,7 @@ case "${1:-}" in
         ;;
     smoke) inst="$2"; shift 2; job smoke.ps1 "Installer=$VMREL\\out\\$inst" "$@" ;;
     stop) awake; "$EXEC" "powershell -NoProfile -ExecutionPolicy Bypass -File $SHARE\\tools\\release\\windows\\stop.ps1" ;;
+    clean) awake; "$EXEC" "powershell -NoProfile -ExecutionPolicy Bypass -File $SHARE\\tools\\release\\windows\\stop.ps1" > /dev/null; "$EXEC" "rmdir /s /q $VMREL & echo removed $VMREL" ;;
     sync)
         shift; script="${1//\//\\}"; shift
         awake
