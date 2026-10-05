@@ -31,9 +31,14 @@ await page.evaluate(() => {
     'INPUT "Your name? ", n$',
     'PRINT "hello "; n$',
     'SHOWMESSAGE "Welcome"',
+    'DIM Ticks AS INTEGER',
     'SUB Ask',
     '  a = MESSAGEBOX("Really?", "From a button", MB_YESNO)',
     '  Label1.Caption = "answer " + STR$(a)',
+    'END SUB',
+    'SUB Tick',
+    '  Ticks = Ticks + 1',
+    '  Label2.Caption = "ticks" + STR$(Ticks)',
     'END SUB',
     'CREATE Form AS QFORM',
     '  Caption = "After the dialogs"',
@@ -44,6 +49,14 @@ await page.evaluate(() => {
     '    Caption = "Ask"',
     '    Top = 40',
     '    OnClick = Ask',
+    '  END CREATE',
+    '  CREATE Label2 AS QLABEL',
+    '    Caption = "no ticks"',
+    '    Top = 70',
+    '  END CREATE',
+    '  CREATE Tmr AS QTIMER',
+    '    Interval = 50',
+    '    OnTimer = Tick',
     '  END CREATE',
     'END CREATE',
     'Form.ShowModal',
@@ -108,6 +121,13 @@ await page.waitForTimeout(300);
 d = await dialog();
 ok(d && d.title === "From a button" && JSON.stringify(d.buttons) === '["Yes","No"]', `dialog from a button's handler (${JSON.stringify(d)})`);
 ok(await frame.evaluate(() => document.body.innerText.includes("no answer")), "the handler waits for the answer");
+// (a timer's handler runs while the box waits, as the desktop's — native
+// and interpreted: tests/fixtures/dialog_timers.bas — and RapidQ's do)
+const ticks = () => frame.evaluate(() => document.querySelector('[data-rr-name="Label2" i]')?.textContent || "");
+const before = await ticks();
+await page.waitForTimeout(400);
+const during = await ticks();
+ok(/^ticks\s*\d+$/.test(during) && during !== before && await dialog() !== null, `the timer ticks while the box waits (${before} → ${during})`);
 await click("Yes");
 await page.waitForTimeout(300);
 ok(await frame.evaluate(() => document.body.innerText.includes("answer 6") || document.body.innerText.includes("answer  6")), "the handler continued with IDYES (6)");

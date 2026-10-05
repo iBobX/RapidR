@@ -128,6 +128,39 @@ pub trait Windows: Copy + 'static {
     /// (`program`: the program's Popup, not an AutoPopup) — the host's own
     /// menu or the kernel's; its pick comes back as a `MenuPick`.
     fn open_popup(self, form: &str, menu: &str, x: i64, y: i64, program: bool);
+    /// Whether a kernel-drawn pop-up menu is open on `form` (a wait for one
+    /// lasts that long: `waits::Wait::Menu`). A host whose pop-up menus
+    /// never hold the program has none to say.
+    fn popup_open(self, _form: &str) -> bool {
+        false
+    }
+
+    // ---- the dialogs (`crate::dialogs`) ----
+
+    /// A kernel-drawn dialog's window (`id`, the dialog's form: its parts
+    /// are in `crate::dialogs::with_store`'s store) made and shown: titled
+    /// `title`, its inside `size`, a dialog's frame (not resizable, a close
+    /// box), centred on the screen. The glue puts it on the modal list.
+    fn open_dialog(self, id: &str, title: &str, size: (i64, i64));
+    /// Dialog `id`'s window gone for good (it answered).
+    fn close_dialog(self, id: &str);
+    /// Dialog `id` grew (a colour dialog's editor opened): its window too.
+    fn dialog_resized(self, _id: &str, _size: (i64, i64)) {}
+    /// A message box's sound as it shows (Windows' MessageBox beeps its
+    /// icon's); never under a test (`crate::testhooks::under_test`).
+    fn beep(self, _icon: Option<rapidr_value::dialogs::MsgIcon>) {}
+    /// The system's font families, for a font dialog's list (besides the
+    /// shared ones, `choose_dialogs::font_names`).
+    fn font_families(self) -> Vec<String> {
+        Vec::new()
+    }
+    /// The host's own Open / Save dialog for `req` (request `id`), over
+    /// window `form` (`None`: the program has none shown); its answer comes
+    /// later ([`Windows::files_answer`]) — nothing waits here.
+    fn ask_files(self, id: u64, form: Option<&str>, req: &crate::file_dialog::Request);
+    /// Request `id`'s paths once its dialog closed (none: cancelled),
+    /// `None` while it's open.
+    fn files_answer(self, id: u64) -> Option<Vec<String>>;
 
     // ---- a GUI test (`script.rs`) ----
 

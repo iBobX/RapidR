@@ -379,6 +379,15 @@ thread_local! {
     static EVENT_HANDLERS: RefCell<HashMap<(String, String), EventHandler>> = RefCell::new(HashMap::new());
     static CREATION_COUNTER: RefCell<u32> = RefCell::new(0);
     static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
+    /// How many handlers have been queued for the bytecode VM.
+    static VM_QUEUED: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many event handlers have been queued for the bytecode VM so far (it
+/// runs them after the host operation or the wait's turn that fired them).
+/// A native build runs its handlers as they're fired: always 0.
+pub fn rp_vm_events_queued() -> u64 {
+    VM_QUEUED.with(std::cell::Cell::get)
 }
 
 /// Install a thread-local indirect event dispatcher. Used by the
@@ -420,6 +429,7 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
             }
         };
         if let Some(d) = borrow.as_ref() {
+            VM_QUEUED.with(|q| q.set(q.get() + 1));
             d(handler_id, args);
         } else if !SHUTTING_DOWN.with(|s| s.get()) {
             // After `rp_run_app` returns and timers/widgets are torn
@@ -1664,8 +1674,10 @@ fn bind_handler(name: &str, event: &str, handler: EventHandler) {
     });
 }
 
-/// For the bytecode VM: `ShowModal` leaves its wait to the VM (see
-/// `ui::gui_set_cooperative_waits`), which serves it with [`rp_pump_wait`].
+/// For the bytecode VM: `ShowModal` — and every other builtin that waits
+/// for the user (DOEVENTS, Popup, the dialogs, INPUT$) — leaves its wait to
+/// the VM (see `ui::gui_set_cooperative_waits`), which serves it with
+/// [`rp_pump_wait`].
 pub fn rp_set_cooperative_waits(on: bool) {
     #[cfg(feature = "gui")]
     crate::ui::gui_set_cooperative_waits(on);

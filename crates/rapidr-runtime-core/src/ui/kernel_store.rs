@@ -24,12 +24,12 @@ pub struct RtStore;
 const LABEL_DEFAULT_COLOR: i64 = 0xFFFFFF;
 
 /// A kernel-drawn dialog's component (`rapidr:…`): its own store answers
-/// (the dialogs lane's `kernel/dialogs.rs`).
+/// (the open dialogs are `rapidr_ui_app::dialogs`').
 fn dialog<R>(id: &str, f: impl FnOnce(&dyn Store) -> R) -> Option<R> {
     if !rapidr_ui_kernel::dialogs::is_dialog(id) {
         return None;
     }
-    super::kernel::dialogs::with_store(id, f)
+    rapidr_ui_app::dialogs::with_store(id, f)
 }
 
 impl Store for RtStore {

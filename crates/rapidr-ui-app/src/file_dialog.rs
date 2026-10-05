@@ -1,12 +1,13 @@
 //! Open / Save dialogs (QOPENDIALOG, QSAVEDIALOG, RAPIDQ2.INC's
 //! QFILEDIALOG): what the program asked for read from the component
 //! ([`Request`]: Caption or Title, Filter / FilterIndex, InitialDir, a
-//! FileName preset, WarnIfOverWrite), the host's dialog shown through a
-//! `pick` closure (the kernel's rfd sheet), and the answer stored:
-//! FileName, FileTitle, Files(…), SelCount, DefaultExt added to a saved
-//! name (`rapidr_value::file_dialog`). Under a test,
-//! `RAPIDR_TEST_FILE_DIALOG` answers and nothing is shown. (On the web the
-//! `pick` will be the page's file input: docs/web-host-plan.md §3.8.)
+//! FileName preset, WarnIfOverWrite), and the answer stored once the
+//! dialog closes ([`answered`]): FileName, FileTitle, Files(…), SelCount,
+//! DefaultExt added to a saved name (`rapidr_value::file_dialog`). The
+//! host shows its dialog (`Windows::ask_files`: the desktop's rfd sheet;
+//! on the web the page's file input, docs/web-host-plan.md §3.8) and the
+//! program waits for it as for any dialog (`dialogs.rs`); under a test
+//! `RAPIDR_TEST_FILE_DIALOG` answers instead.
 
 use rapidr_value::file_dialog as fd;
 use rapidr_value::{v_int, v_str, Value};
@@ -68,14 +69,10 @@ pub fn request<P: Program>(p: P, name: &str, save: bool, multi: bool) -> Request
     }
 }
 
-/// `Dialog.Execute`: the paths `pick` returns for the request (the test's
-/// answer instead under `RAPIDR_TEST_FILE_DIALOG`; none: Cancel), stored
-/// in the component. True (-1) when something was picked.
-pub fn execute<P: Program>(p: P, name: &str, save: bool, multi: bool, pick: impl FnOnce(&Request) -> Vec<String>) -> Value {
-    let mut paths = match crate::testhooks::file_dialog_answer(multi) {
-        Some(paths) => paths,
-        None => pick(&request(p, name, save, multi)).into_iter().filter(|p| !p.is_empty()).collect(),
-    };
+/// `Dialog.Execute`'s answer, the paths picked (none: Cancel), stored in
+/// dialog `name`: Execute's result, True (-1) when something was picked.
+pub fn answered<P: Program>(p: P, name: &str, save: bool, multi: bool, paths: Vec<String>) -> Value {
+    let mut paths: Vec<String> = paths.into_iter().filter(|p| !p.is_empty()).collect();
     if paths.is_empty() {
         return v_int(0);
     }

@@ -17,17 +17,19 @@
 //! - **Nothing here blocks.** The waits that wait for the user — a native
 //!   build's ShowModal loop, INPUT$, a dialog's answer — are the runtime's,
 //!   around these functions (runtime-core's `ui/kernel.rs`: `step`, the pump,
-//!   the tracking tick); what a VM serves itself is bookkept in [`waits`].
-//!   Program code runs only where the runtime calls in, never inside a host
-//!   callback.
+//!   the tracking tick); what a VM serves itself is bookkept in [`waits`],
+//!   the dialogs (shown, answered, their answers mapped to the builtins'
+//!   results) in [`dialogs`]. Program code runs only where the runtime
+//!   calls in, never inside a host callback.
 //!
 //! Modules: [`dispatch`] (a kernel event as the program's), [`forms`]
 //! (show / hide / close, OnLoad / OnShow / the first OnPaint, the modal
 //! list, a user's resize and move, WindowState, toggle buttons),
 //! [`timers`], [`waits`], [`lists`] (the lists lane's events and
 //! owner-draw), [`menus`], the test hooks' environment ([`testhooks`]) and
-//! the [`script`] that plays it, the dialogs' requests and answers
-//! ([`file_dialog`], [`choose_dialogs`]).
+//! the [`script`] that plays it, the dialogs the program waits for
+//! ([`dialogs`]) and their requests and answers ([`file_dialog`],
+//! [`choose_dialogs`]).
 
 pub mod program;
 pub mod windows;
@@ -43,6 +45,7 @@ pub mod script;
 pub mod testhooks;
 // (the dialogs lane's: Open / Save dialogs; colour and font dialogs too)
 pub mod choose_dialogs;
+pub mod dialogs;
 pub mod file_dialog;
 
 #[cfg(test)]

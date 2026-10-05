@@ -1,9 +1,10 @@
 //! QCOLORDIALOG and QFONTDIALOG, as `file_dialog.rs` is for Open / Save:
-//! what the program asked for read from the component, the host's dialog
-//! shown through a `pick` closure (the kernel's drawn dialogs), and the
-//! answer stored the same way (`rapidr_value::color_dialog`,
-//! `rapidr_value::font_dialog`). Under a test, `RAPIDR_TEST_COLOR_DIALOG` /
-//! `RAPIDR_TEST_FONT_DIALOG` answer and nothing is shown.
+//! what the program asked for read from the component, and the answer
+//! stored once the dialog closes (`rapidr_value::color_dialog`,
+//! `rapidr_value::font_dialog`). The dialogs are the kernel's
+//! (`Dialog::color` / `Dialog::font`), shown and waited for by `dialogs.rs`;
+//! under a test `RAPIDR_TEST_COLOR_DIALOG` / `RAPIDR_TEST_FONT_DIALOG`
+//! answer instead.
 
 use rapidr_value::color_dialog as cd;
 use rapidr_value::font_dialog as fd;
@@ -35,16 +36,10 @@ pub fn color_state<P: Program>(p: P, name: &str) -> cd::State {
     cd::State::new(p.get(name, "color").to_i64(), custom_colors(p, name), style)
 }
 
-/// `ColorDialog.Execute`: the colour `pick` answers for the title and the
-/// state (the test's answer instead under `RAPIDR_TEST_COLOR_DIALOG`;
-/// `None`: Cancel) into Color, the custom colours it kept into Colors(i)
-/// either way. 1 when a colour was picked, as RAPIDQ2.INC's Execute.
-pub fn color_execute<P: Program>(p: P, name: &str, pick: impl FnOnce(&str, cd::State) -> (Option<i64>, [i64; 16])) -> Value {
-    let state = color_state(p, name);
-    let (color, custom) = match crate::testhooks::color_dialog_answer() {
-        Some(answer) => (answer, state.custom),
-        None => pick(&title(p, name, "Color"), state),
-    };
+/// `ColorDialog.Execute`'s answer: the colour picked (`None`: Cancel) into
+/// Color, the custom colours the dialog kept into Colors(i) either way.
+/// Execute's result: 1 when a colour was picked, as RAPIDQ2.INC's Execute.
+pub fn color_answered<P: Program>(p: P, name: &str, color: Option<i64>, custom: [i64; 16]) -> Value {
     for (i, c) in custom.iter().enumerate() {
         p.set(name, &format!("colors({})", i + 1), v_int(*c));
     }
@@ -87,15 +82,9 @@ pub fn font_applied<P: Program>(p: P, name: &str, font: &Font) {
     p.fire(name, "onapply");
 }
 
-/// `FontDialog.Execute`: the font `pick` answers for the title and the
-/// request (the test's answer instead under `RAPIDR_TEST_FONT_DIALOG`;
-/// `None`: Cancel) stored. 1 when one was chosen.
-pub fn font_execute<P: Program>(p: P, name: &str, pick: impl FnOnce(&str, fd::Request) -> Option<Font>) -> Value {
-    let req = font_request(p, name);
-    let chosen = match crate::testhooks::font_dialog_answer() {
-        Some(answer) => answer,
-        None => pick(&title(p, name, "Font"), req),
-    };
+/// `FontDialog.Execute`'s answer, the font chosen (`None`: Cancel),
+/// stored. Execute's result: 1 when one was chosen.
+pub fn font_answered<P: Program>(p: P, name: &str, chosen: Option<Font>) -> Value {
     match chosen {
         Some(f) => {
             font_store(p, name, &f);

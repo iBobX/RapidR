@@ -16,6 +16,15 @@
 //!   Cancel).
 //! - `RAPIDR_TEST_COLOR_DIALOG=255;` / `RAPIDR_TEST_FONT_DIALOG=…`: what
 //!   each colour / font dialog answers in turn (empty: Cancel).
+//! - `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box
+//!   (MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX) answers in turn — a
+//!   button's caption (empty: Escape).
+//! - `RAPIDR_TEST_DIALOG_HOLD=ms`: a dialog one of those hooks answers is
+//!   shown and waited for as the user's would be (the windows paint, timers
+//!   tick and their handlers run — interpreted builds too), and the hook
+//!   answers it once it has been open `ms` milliseconds and nothing opened
+//!   over it is still open. Without it the hooks answer at once, nothing
+//!   shown.
 
 use rapidr_value::input::Mouse;
 
@@ -260,6 +269,37 @@ pub fn font_dialog_answer() -> Option<Option<rapidr_value::objects::font::Font>>
     next_answer("RAPIDR_TEST_FONT_DIALOG").map(|a| rapidr_value::font_dialog::parse_answer(&a))
 }
 
+/// `RAPIDR_TEST_MESSAGE_DIALOG` is set: message boxes are answered by it
+/// (under a test SHOWMESSAGE then shows its box too, instead of printing).
+pub fn message_hook() -> bool {
+    std::env::var_os("RAPIDR_TEST_MESSAGE_DIALOG").is_some()
+}
+
+/// `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box with
+/// buttons `labels` answers in turn — the button whose caption it names
+/// (any case, `&` left out), `None` for an empty answer or one naming no
+/// button (Escape: `rapidr_value::dialogs::dismissed`). `None`: the hook
+/// isn't set (the box waits for the user).
+pub fn message_dialog_answer(labels: &[&str]) -> Option<Option<usize>> {
+    next_answer("RAPIDR_TEST_MESSAGE_DIALOG").map(|a| message_button(&a, labels))
+}
+
+/// The button of `labels` that `answer` names (see [`message_dialog_answer`]).
+pub fn message_button(answer: &str, labels: &[&str]) -> Option<usize> {
+    let plain = |s: &str| s.replace('&', "").trim().to_lowercase();
+    let answer = plain(answer);
+    if answer.is_empty() {
+        return None;
+    }
+    labels.iter().position(|l| plain(l) == answer)
+}
+
+/// `RAPIDR_TEST_DIALOG_HOLD=ms`: how long a dialog a hook answers stays
+/// open first (`None`: the hooks answer at once, nothing shown).
+pub fn dialog_hold() -> Option<std::time::Duration> {
+    std::env::var("RAPIDR_TEST_DIALOG_HOLD").ok().and_then(|ms| ms.trim().parse::<u64>().ok()).map(std::time::Duration::from_millis)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -350,5 +390,15 @@ mod tests {
         assert_eq!(file_dialog_paths("a;b;", false), ["a"]);
         assert_eq!(file_dialog_paths("a;;b", true), ["a", "b"]);
         assert!(file_dialog_paths("", true).is_empty());
+    }
+
+    #[test]
+    fn a_message_answer_names_a_button() {
+        let labels = ["Yes", "No", "Cancel"];
+        assert_eq!(message_button("no", &labels), Some(1));
+        assert_eq!(message_button(" &Cancel ", &labels), Some(2));
+        assert_eq!(message_button("Retry", &labels), None);
+        assert_eq!(message_button("", &labels), None);
+        assert_eq!(message_button("OK", &["&OK"]), Some(0));
     }
 }

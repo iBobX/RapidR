@@ -25,7 +25,14 @@
 //! A native handler may call `ShowModal`, which steps again (a nested pump,
 //! legal: no host callback is on the stack). The interpreter keeps its
 //! protocol: `ShowModal` starts a wait the VM serves with [`gui_pump_wait`],
-//! one step each, and its handlers run after the pump returns.
+//! one step each, and its handlers run after the pump returns. So does every
+//! builtin that waits for the user — DOEVENTS, Popup, the message boxes, the
+//! file / colour / font dialogs, INPUT$ (`rapidr_ui_app::waits::Wait`) —
+//! never inside the builtin, where the VM's handlers could only queue: its
+//! timers' handlers run during a dialog as a native build's do, and the wait
+//! ends with the builtin's result. Timers fire only once the interpreter's
+//! handlers queued ahead of them have run (as a native build's run as
+//! they're dispatched): `step` holds them back for the next step otherwise.
 //!
 //! While the system holds a pump (a native menu tracked, Windows' size /
 //! move loop), the host's tracking tick gives the program a turn from inside
@@ -278,6 +285,12 @@ pub fn step(max_wait: Option<Duration>) {
     }
     ensure_host();
     forms::show_pending(Rt);
+    // (the interpreter: timers held back for the handlers queued ahead of
+    // them, which the VM has run since — or which wait, and this is their
+    // wait's step: the timers fire now, before anything else)
+    if timers::take_held_back() && timers::fire_due(Rt) {
+        return;
+    }
     // (the lists lane's owner-draw events, before the windows are drawn)
     lists::pre_paint(Rt, &forms::shown_forms());
     let now = Instant::now();
@@ -296,10 +309,27 @@ pub fn step(max_wait: Option<Duration>) {
     if let Some(at) = with_kern(|k| k.desk.next_wake()).flatten() {
         at_most(at.saturating_duration_since(now));
     }
+    // (a test hook's answer to a dialog, once it has been open long enough)
+    if let Some(at) = rapidr_ui_app::dialogs::hook_wake() {
+        at_most(at.saturating_duration_since(now));
+    }
+    let queued = crate::object::rp_vm_events_queued();
     pump(t);
     crate::object::rp_run_deferred();
     dispatch_pending();
-    timers::fire_due(Rt);
+    rapidr_ui_app::dialogs::give_hooked(Rt);
+    // The timers fire once the handlers before them have run, as in a
+    // native build (its handlers run as they're dispatched). The
+    // interpreter's were only queued: the timers wait for the next step,
+    // after the VM has run them — or inside the wait one of them starts, so
+    // a timer's handler is never queued behind a handler waiting for a
+    // dialog (silent all through it).
+    if crate::object::rp_vm_events_queued() != queued {
+        timers::hold_back();
+    } else if timers::fire_due(Rt) {
+        // (a timer's handler queued for the VM runs before anything else)
+        return;
+    }
     script::step(Rt);
 }
 
@@ -309,7 +339,7 @@ fn dispatch_pending() {
     for e in with_kern(|k| std::mem::take(&mut k.desk.events)).unwrap_or_default() {
         match e {
             // (a kernel-drawn dialog's: never the program's)
-            HostEvent::Kernel(form, ev) if rapidr_ui_kernel::dialogs::is_dialog(&form) => dialogs::event(&form, ev),
+            HostEvent::Kernel(form, ev) if rapidr_ui_kernel::dialogs::is_dialog(&form) => rapidr_ui_app::dialogs::event(Rt, &form, ev),
             HostEvent::Kernel(_, ev) => rapidr_ui_app::dispatch::dispatch(Rt, ev),
             HostEvent::Wake => {}
         }
@@ -669,7 +699,7 @@ pub fn gui_doevents() {
     timers::start_all(Rt);
     forms::show_pending(Rt);
     if waits::cooperative() {
-        waits::start(Wait::Once);
+        waits::start(Wait::Once(rapidr_ui_kernel::tick::now()));
         return;
     }
     step(Some(Duration::ZERO));
@@ -677,7 +707,9 @@ pub fn gui_doevents() {
 
 /// INPUT$'s wait with windows: events are served until a key reaches
 /// INKEY$'s queue. `None` without a window shown; `Some(false)` when the
-/// last window closed first.
+/// last window closed first. (The interpreter's is a wait it serves itself,
+/// `Wait::Key`, so its timers' handlers run meanwhile: its result — 1 or
+/// 0 — replaces this one.)
 pub fn gui_wait_key() -> Option<bool> {
     if !started() || !forms::any_shown() {
         return None;
@@ -689,6 +721,10 @@ pub fn gui_wait_key() -> Option<bool> {
         return Some(false);
     }
     timers::start_all(Rt);
+    if waits::cooperative() && !rapidr_value::console::key_waiting() {
+        waits::start(Wait::Key);
+        return Some(true);
+    }
     while !rapidr_value::console::key_waiting() {
         forms::show_pending(Rt);
         if !forms::any_shown() {
@@ -717,24 +753,42 @@ pub fn gui_begin_app_wait() {
 }
 
 /// One step of the innermost wait: `None` while it goes on, `Some` when
-/// it's over (a ShowModal's: its ModalResult).
+/// it's over (a ShowModal's: its ModalResult; a dialog's: its builtin's
+/// result).
 pub fn gui_pump_wait() -> Option<Value> {
     // (a tracking tick never starts a wait: see `tracking_tick`)
     if held() {
         return Some(v_null());
     }
     forms::show_pending(Rt);
-    // (one turn each: DOEVENTS's, Popup's — its menu shown and tracked in
-    // these pumps, its pick dispatched before Popup returns)
-    if let Some(popup) = waits::take_turn() {
-        if popup {
+    match waits::turn() {
+        // (one turn: Popup's — its menu shown and tracked in these pumps,
+        // its pick dispatched before Popup returns)
+        Some(Wait::Popup) => {
+            waits::pop();
             pump(Some(Duration::ZERO));
             pump(Some(Duration::ZERO));
             dispatch_pending();
-        } else {
-            step(Some(Duration::ZERO));
+            return Some(v_null());
         }
-        return Some(v_null());
+        // (DOEVENTS: a turn — and every timer due when it was called fires
+        // before it returns, each once the handler before it has run, which
+        // the VM does between these turns: a native build's DOEVENTS runs
+        // them all in its turn)
+        Some(Wait::Once(since)) => {
+            step(Some(Duration::ZERO));
+            if timers::held_back() && timers::due_since(since) {
+                return None;
+            }
+            waits::pop();
+            return Some(v_null());
+        }
+        _ => {}
+    }
+    // (a dialog's, INPUT$'s, a kernel-drawn menu's: their answer is the
+    // result of the builtin that started them)
+    if let Some(result) = waits::answered(Rt) {
+        return Some(result);
     }
     if waits::over() {
         if let Some(Wait::Form(form)) = waits::pop() {
@@ -760,10 +814,19 @@ pub fn run_gui_event_loop() {
 }
 
 /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: a kernel-drawn modal dialog
-/// (dialogs.rs) with its icon, beeping when asked; the button chosen,
-/// `None` for Escape or the close box.
-pub fn gui_choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool) -> Option<usize> {
-    dialogs::choice(title, text, labels, icon, beep)
+/// (`rapidr_ui_app::dialogs`, dialogs.rs) with its icon, beeping when
+/// asked; `then` maps the button chosen (`None` for Escape or the close
+/// box) to the builtin's result — returned here in a native build, the end
+/// of the wait the interpreter serves in its.
+pub fn gui_choice(
+    title: &str,
+    text: &str,
+    labels: &[&str],
+    icon: Option<rapidr_value::dialogs::MsgIcon>,
+    beep: bool,
+    then: impl FnOnce(Option<usize>) -> Value + 'static,
+) -> Value {
+    dialogs::choice(title, text, labels, icon, beep, then)
 }
 
 /// Open / Save (rfd, async), colour and font (kernel-drawn) dialogs.
@@ -959,12 +1022,12 @@ pub fn minimize() {
     }
 }
 
-/// MSGBOX: the text and OK.
-pub fn message_box(text: &str) {
+/// MSGBOX: the text and OK; 0.
+pub fn message_box(text: &str) -> Value {
     // (the dialogs lane's: SHOWMESSAGE's box, titled Application.Title, as
     // the web's)
     let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
-    gui_choice(&title, text, &["OK"], None, false);
+    gui_choice(&title, text, &["OK"], None, false, |_| v_int(0))
 }
 
 /// The program ends: the windows' pending commands run (closed forms'
@@ -1161,6 +1224,30 @@ impl Windows for Rt {
     }
     fn open_popup(self, form: &str, menu: &str, x: i64, y: i64, program: bool) {
         menus::open_at(form, menu, x, y, program);
+    }
+    fn popup_open(self, form: &str) -> bool {
+        menus::popup_open(form)
+    }
+    fn open_dialog(self, id: &str, title: &str, size: (i64, i64)) {
+        dialogs::open_window(id, title, size);
+    }
+    fn close_dialog(self, id: &str) {
+        dialogs::close_window(id);
+    }
+    fn dialog_resized(self, id: &str, size: (i64, i64)) {
+        dialogs::resized(id, size);
+    }
+    fn beep(self, icon: Option<rapidr_value::dialogs::MsgIcon>) {
+        dialogs::beep(icon);
+    }
+    fn font_families(self) -> Vec<String> {
+        dialogs::font_families()
+    }
+    fn ask_files(self, id: u64, form: Option<&str>, req: &rapidr_ui_app::file_dialog::Request) {
+        dialogs::ask_files(id, form, req);
+    }
+    fn files_answer(self, id: u64) -> Option<Vec<String>> {
+        dialogs::files_answer(id)
     }
     fn script_input(self, input: ScriptInput) {
         match input {

@@ -62,8 +62,25 @@ pub(super) fn open_at(form: &str, name: &str, x: i64, y: i64, program: bool) {
     if !opened || with_kern(|k| k.host.headless()).unwrap_or(true) {
         return;
     }
-    let open = || with_kern(|k| k.desk.forms.get(form).is_some_and(|f| f.ui.popup_open().is_some())).unwrap_or(false);
-    while open() && form_shown(form) {
+    // (the interpreter's Popup: a wait it serves itself, so its timers'
+    // handlers run while the menu is open, as a native build's do)
+    if program && waits::cooperative() {
+        waits::start(Wait::Menu(form.to_string()));
+        return;
+    }
+    loop {
+        // (an AutoPopup, opened from a pump the VM lent itself to: its
+        // handlers — OnPopup first — run meanwhile; nothing in a native
+        // build, whose handlers ran as they were fired)
+        crate::object::rp_serve_program();
+        if !popup_open(form) || !form_shown(form) {
+            break;
+        }
         step(None);
     }
+}
+
+/// Whether a kernel-drawn pop-up menu is open on `form`.
+pub(super) fn popup_open(form: &str) -> bool {
+    with_kern(|k| k.desk.forms.get(form).is_some_and(|f| f.ui.popup_open().is_some())).unwrap_or(false)
 }

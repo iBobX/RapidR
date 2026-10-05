@@ -21,6 +21,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   names keep working (classic or modern). Real windows get a light or dark
   title bar to match. The web keeps its own look for now and reads the
   names back.
+- GUI test hooks: `RAPIDR_TEST_MESSAGE_DIALOG` (what each message box
+  answers, by button caption) and `RAPIDR_TEST_DIALOG_HOLD=ms` (a dialog a
+  hook answers stays open, waited for as the user's, before the answer);
+  the `dialog_timers` case checks timers during every dialog, native and
+  interpreted.
 - **Direct3D Retained Mode** (RapidQ's QD3DFRAME, QD3DMESHBUILDER,
   QD3DMESH, QD3DFACE, QD3DLIGHT, QD3DTEXTURE, QD3DVISUAL, QD3DWRAP,
   QD3DVECTOR and QDXSCREEN's 3D methods) on native, interpreted and web
@@ -46,6 +51,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   what it left checked with `reg query`).
 
 ### Fixed
+- Interpreted desktop builds run timers' handlers while a dialog waits for
+  the user — MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX, the Open / Save /
+  colour / font dialogs, INPUT$, a kernel-drawn pop-up menu — as native
+  builds and RapidQ do, instead of in a burst once it closed. Each is a wait
+  the interpreter serves between instructions, as ShowModal is, and ends
+  with the dialog's answer. A timer's handler may open a dialog of its own
+  over another, or close a modal form under a box.
+- A timer whose handler waits (a dialog, ShowModal) doesn't fire again
+  until that handler returns, and a timer never waits behind another
+  handler that waits (two timers due together, a click and a timer): each
+  fires once the handler before it has run, or inside its wait —
+  interpreted builds now agree with native.
+- A dialog shown before the first ShowModal or DOEVENTS starts the
+  program's timers, as ShowModal does (RapidQ's timers tick during any
+  dialog).
 - Linux (Wayland): a window drawn on the GPU no longer stops its program
   while it can't be seen — minimized, on another workspace, the screen
   locked. A FIFO swapchain waited in present for the compositor's frame

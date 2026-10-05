@@ -14,7 +14,7 @@ use rapidr_value::{v_int, v_str, Value};
 
 use crate::waits::Wait;
 use crate::windows::{take_notify, take_ops};
-use crate::{dispatch, forms, timers, waits, Program, ScriptInput, WindowOp, Windows};
+use crate::{dialogs, dispatch, forms, timers, waits, Program, ScriptInput, WindowOp, Windows};
 
 #[derive(Default)]
 struct World {
@@ -30,6 +30,13 @@ struct World {
     inputs: Vec<ScriptInput>,
     /// What the host queued for the program (a system resize's events).
     events: Vec<KernelEvent>,
+    /// Handlers are queued, as for an interpreter (`fire_then`'s
+    /// continuations wait in `queued` until the test runs them).
+    queue: bool,
+    queued: Vec<(Vec<Value>, crate::program::Then)>,
+    /// The dialogs' windows the host made (id, title) and closed.
+    dialogs: Vec<(String, String)>,
+    closed: Vec<String>,
 }
 
 thread_local! {
@@ -108,7 +115,11 @@ impl Program for Mem {
     fn fire_then(self, id: &str, event: &str, args: &[Value], then: Box<dyn FnOnce(&[Value])>) {
         self.fire_args(id, event, args);
         let answer = world(|w| w.answers.get(&(id.to_string(), event.to_string())).cloned()).unwrap_or_else(|| args.to_vec());
-        then(&answer);
+        if world(|w| w.queue) {
+            world(|w| w.queued.push((answer, then)));
+        } else {
+            then(&answer);
+        }
     }
     fn has_handler(self, _id: &str, _event: &str) -> bool {
         true
@@ -173,6 +184,16 @@ impl Windows for Mem {
         world(|w_| w_.events.extend([KernelEvent::Resized(form.into(), w, h), KernelEvent::Moved(form.into(), x, y)]));
     }
     fn open_popup(self, _form: &str, _menu: &str, _x: i64, _y: i64, _program: bool) {}
+    fn open_dialog(self, id: &str, title: &str, _size: (i64, i64)) {
+        world(|w| w.dialogs.push((id.into(), title.into())));
+    }
+    fn close_dialog(self, id: &str) {
+        world(|w| w.closed.push(id.into()));
+    }
+    fn ask_files(self, _id: u64, _form: Option<&str>, _req: &crate::file_dialog::Request) {}
+    fn files_answer(self, _id: u64) -> Option<Vec<String>> {
+        None
+    }
     fn script_input(self, input: ScriptInput) {
         world(|w| w.inputs.push(input));
     }
@@ -320,9 +341,93 @@ fn a_modal_form_is_a_wait_the_vm_serves() {
     assert_eq!(waits::pop(), Some(Wait::Form("f".into())));
     assert_eq!(forms::modal_ended(Mem, "f"), 1);
     assert!(!forms::is_modal("f"));
-    // (DOEVENTS: one turn)
-    waits::start(Wait::Once);
-    assert_eq!((waits::take_turn(), waits::take_turn()), (Some(false), None));
+    // (DOEVENTS: a turn, which the runtime ends)
+    let now = Instant::now();
+    waits::start(Wait::Once(now));
+    assert_eq!(waits::turn(), Some(Wait::Once(now)));
+    assert_eq!(waits::pop(), Some(Wait::Once(now)));
+    assert_eq!(waits::turn(), None);
+}
+
+/// The handlers queued so far run, as an interpreter runs them after the
+/// turn that queued them (each continuation with its handler's arguments).
+fn run_queued() {
+    for (args, then) in world(|w| std::mem::take(&mut w.queued)) {
+        then(&args);
+    }
+}
+
+#[test]
+fn a_dialog_is_a_wait_the_vm_serves_and_ends_with_its_answer() {
+    form_with_button();
+    forms::show(Mem, "f");
+    take_ops();
+    waits::set_cooperative(true);
+    // (MESSAGEDLG's Yes / No: mrYes 6, mrNo 7, Escape mrNo)
+    let to_result = |b: Option<usize>| v_int(match b {
+        Some(0) => 6,
+        _ => 7,
+    });
+    let dialogs::Pending::Open(outer) = dialogs::message(Mem, "Confirm", "Sure?", &["Yes", "No"], None, false, to_result) else { panic!("a dialog shown") };
+    let outer_form = world(|w| w.dialogs.last().cloned()).expect("its window made").0;
+    assert!(forms::is_modal(&outer_form), "on the modal list");
+    waits::start(Wait::Dialog(outer));
+    assert!(waits::take_started());
+    assert_eq!(waits::answered(Mem), None, "no answer yet");
+    assert!(!waits::over());
+    // (a timer's handler, run during it, opens a box of its own over it)
+    let dialogs::Pending::Open(inner) = dialogs::message(Mem, "Inner", "Go on?", &["OK", "Cancel"], None, false, |b| v_int(if b == Some(0) { 1 } else { 2 })) else { panic!() };
+    let inner_form = world(|w| w.dialogs.last().cloned()).expect("its window").0;
+    waits::start(Wait::Dialog(inner));
+    assert_eq!(forms::modal_forms(), [outer_form.clone(), inner_form.clone()]);
+    // (the outer one's answer comes first: its wait isn't the innermost)
+    dialogs::event(Mem, &outer_form, KernelEvent::Click(format!("{outer_form}:b1")));
+    assert_eq!(waits::answered(Mem), None);
+    // (the inner one answered OK: its wait ends with IDOK, then the outer's
+    // with mrNo — each builtin's result, mapped when its wait ends)
+    dialogs::event(Mem, &inner_form, KernelEvent::Click(format!("{inner_form}:b0")));
+    assert_eq!(waits::answered(Mem), Some(v_int(1)));
+    assert_eq!(waits::answered(Mem), Some(v_int(7)));
+    assert_eq!(waits::pop(), None);
+    assert_eq!(world(|w| w.closed.clone()), [inner_form, outer_form]);
+    assert!(forms::modal_forms().is_empty());
+    // (a native build waits in place: the same answer through `finished`)
+    let dialogs::Pending::Open(native) = dialogs::message(Mem, "Box", "Hi", &["OK"], None, false, |_| v_int(0)) else { panic!() };
+    let form = world(|w| w.dialogs.last().cloned()).expect("its window").0;
+    assert_eq!(dialogs::finished(native), None);
+    dialogs::event(Mem, &form, KernelEvent::KeyDown { chain: vec![form.clone()], vk: 27, shift: 0, text: String::new() });
+    assert_eq!(dialogs::finished(native), Some(v_int(0)));
+}
+
+#[test]
+fn a_timer_fires_once_the_handler_before_it_has_run() {
+    NOW.with(|n| n.set(Some(Instant::now())));
+    for t in ["t1", "t2"] {
+        make(t, "RTIMER", None);
+        Mem.store(t, "interval", v_int(100));
+        Mem.store(t, "enabled", v_int(-1));
+        timers::register(t);
+    }
+    timers::start_all(Mem);
+    advance(Duration::from_millis(100));
+    // (an interpreter's handlers are queued: the first timer's ends the
+    // round, the second waits for it to have run)
+    world(|w| w.queue = true);
+    assert!(timers::fire_due(Mem));
+    assert_eq!(fired(), ["t1.ontimer"]);
+    assert!(timers::held_back() && timers::due_since(NOW.with(|n| n.get()).unwrap()));
+    // (the first's handler hasn't run: it isn't armed again, however late)
+    advance(Duration::from_millis(500));
+    assert!(timers::take_held_back());
+    assert!(timers::fire_due(Mem));
+    assert_eq!(fired(), ["t1.ontimer", "t2.ontimer"]);
+    assert!(!timers::fire_due(Mem), "nothing due: t1's handler hasn't run");
+    // (the VM ran them: both armed again an Interval from then)
+    run_queued();
+    assert!(!timers::fire_due(Mem));
+    advance(Duration::from_millis(100));
+    assert!(timers::fire_due(Mem));
+    assert_eq!(fired().len(), 3);
 }
 
 #[test]
