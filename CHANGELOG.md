@@ -7,6 +7,48 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.114.0] — 2026-10-04
+
+### Changed
+- **FLTK is gone: the UI kernel is RapidR's only desktop host**, with no
+  fallback. `RAPIDR_HOST` and `RAPIDR_THEME` are no longer read
+  (`$THEME` stays and draws the classic look); `rapidr build --host kernel`
+  only notes it's no longer needed, `--host fltk` is an error. Smaller
+  executables (the CLI −2.8 MB, every interpreted program −2.1 MB) and
+  CMake is no longer needed to build.
+- RSQLITE is SQLite itself on every runtime: the web runs SQLite compiled
+  to wasm (built with the desktop's options) instead of a hand-written
+  imitation, and opens `.db` assets with SQLite's own reader. A query
+  returns rows when the statement has columns (`WITH … SELECT`, `EXPLAIN`,
+  `INSERT … RETURNING`); several statements in one Query all run.
+  OnConnect, OnQueryDone, OnDisconnect and OnError fire on every runtime;
+  QueryScalar works everywhere.
+
+### Added
+- SQL parameter binding (SEC-07): `DB.Query(sql, value1, value2, …)`
+  binds values to `?` placeholders (arrays are flattened), `AddParam` /
+  `ClearParams` queue them — RSQLITE on every runtime, RMYSQL on the
+  desktop. Bound values can't change the statement (no SQL injection).
+- The web host plan (`docs/web-host-plan.md`) and its spike: the UI kernel
+  drawn in the browser on a canvas, byte-identical to the desktop, with an
+  ARIA mirror for screen readers; the drawing code shared by both hosts
+  (`rapidr-ui-render`).
+- `tools/linux/check.sh`: the committed tree built and tested on Ubuntu in
+  Docker, headless and on X11 windows — no remote CI needed.
+
+### Fixed
+- Timers keep firing, and their changes are drawn, while a native menu is
+  held open (context menus and the macOS menu bar), as on Windows; no CPU
+  spin while a menu is open.
+- A console program never starts the windowing system (it no longer needs
+  a display on Linux servers, nor becomes a GUI app on macOS); without a
+  display, programs run on without showing windows.
+- Screen readers get a window's contents on their first question (macOS).
+- macOS: no size grip drawn in the window's rounded corner (dragging there
+  still resizes).
+- Web: RowSeek was one row off. Desktop: only the first of several
+  statements in a Query ran.
+
 ## [2.113.0] — 2026-10-04
 
 ### Added

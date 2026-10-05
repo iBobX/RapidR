@@ -4365,14 +4365,14 @@ checksum = "ca45419789ae5a7899559e9512e58ca889e41f04f1f2445e9f4b290ceccd1d08"
 
 [[package]]
 name = "rapidr-ast"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-bcgen"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bytecode",
@@ -4385,7 +4385,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-buildserver"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "axum",
  "serde",
@@ -4400,14 +4400,14 @@ dependencies = [
 
 [[package]]
 name = "rapidr-bytecode"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-value",
 ]
 
 [[package]]
 name = "rapidr-cli"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "base64 0.22.1",
  "rapidr-bcgen",
@@ -4424,7 +4424,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-codegen-rust"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -4434,7 +4434,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-compiler-wasm"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
@@ -4446,7 +4446,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-db"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "mysql",
  "rapidr-value",
@@ -4455,11 +4455,11 @@ dependencies = [
 
 [[package]]
 name = "rapidr-diagnostics"
-version = "2.113.0"
+version = "2.114.0"
 
 [[package]]
 name = "rapidr-lexer"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-diagnostics",
  "rapidr-preprocessor",
@@ -4467,7 +4467,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-parser"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -4476,25 +4476,25 @@ dependencies = [
 
 [[package]]
 name = "rapidr-preprocessor"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-rrcss"
-version = "2.113.0"
+version = "2.114.0"
 
 [[package]]
 name = "rapidr-runner-stub"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-vm-host-native",
 ]
 
 [[package]]
 name = "rapidr-runtime-core"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "arboard",
  "image",
@@ -4514,7 +4514,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-runtime-web"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "js-sys",
  "rapidr-db",
@@ -4527,7 +4527,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-host-web"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "js-sys",
  "parley",
@@ -4542,7 +4542,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-host-winit"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -4565,7 +4565,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-kernel"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "parley",
  "rapidr-value",
@@ -4574,7 +4574,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-render"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "glifo",
  "parley",
@@ -4586,7 +4586,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-value"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "jpeg-decoder",
  "resvg",
@@ -4595,7 +4595,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-value",
@@ -4603,7 +4603,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm-host-native"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-runtime-core",
@@ -4613,7 +4613,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm-host-web"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "js-sys",
  "rapidr-bcgen",
@@ -4630,7 +4630,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-webbundle"
-version = "2.113.0"
+version = "2.114.0"
 dependencies = [
  "rapidr-rrcss",
  "zip",
