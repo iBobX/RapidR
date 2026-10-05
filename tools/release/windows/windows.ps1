@@ -115,7 +115,9 @@ function Trim-Toolchain($a) {
     Expand-Archive -ErrorAction Stop -Path $zip.FullName -DestinationPath "$Work\toolchains\unz-$a" -Force
     $full = Get-ChildItem "$Work\toolchains\unz-$a" -Directory | Select-Object -First 1
     New-Item -ItemType Directory -Force "$dir\bin", "$dir\lib\clang" | Out-Null
-    $keep = "^(clang|clang\+\+|clang-\d+|clang-target-wrapper|$a-w64-mingw32-(clang|clang\+\+|ar)|ld\.lld|lld|llvm-ar|llvm-ranlib|llvm-rc|llvm-windres)\.exe$|^lib(LLVM-\d+|clang-cpp|c\+\+|unwind|winpthread-1)\.dll$"
+    $keep = "^(clang|clang\+\+|clang-\d+|clang-target-wrapper|$a-w64-mingw32-(clang|clang\+\+|ar)|ld\.lld|lld|llvm-ar|llvm-ranlib|llvm-rc|llvm-windres)\.exe$|^lib(LLVM-\d+|clang-cpp|c\+\+|unwind|winpthread-1)\.dll$|\.cfg$"
+    # (the .cfg files are clang's defaults in LLVM-MinGW: lld, compiler-rt and libunwind
+    # instead of ld, libgcc and libgcc_eh — without them clang asks for GNU's)
     Get-ChildItem "$($full.FullName)\bin" -File | Where-Object { $_.Name -match $keep } | Copy-Item -Destination "$dir\bin"
     Copy-Item -Recurse "$($full.FullName)\include" "$dir\include"
     Copy-Item -Recurse "$($full.FullName)\$a-w64-mingw32" "$dir\$a-w64-mingw32"
@@ -134,6 +136,11 @@ mingw-w64 (runtime, headers) - $a-w64-mingw32\share\mingw32\COPYING*. A program 
 the mingw-w64 runtime: ship COPYING.MinGW-w64-runtime.txt's notices with it (RapidR's LICENSES.md section 7).
 "@
     Remove-Item -Recurse -Force "$Work\toolchains\unz-$a"
+    # (it links on its own, with lld, compiler-rt and libunwind — never libgcc)
+    Set-Content "$Work\toolchains\h.c" "int main(void){return 0;}"
+    $v = & "$dir\bin\$a-w64-mingw32-clang.exe" -v "$Work\toolchains\h.c" -o "$Work\toolchains\h.exe" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0 -or $v -match "-lgcc" -or $v -notmatch "ld\.lld") { throw "the trimmed toolchain for $a doesn't link as it should:`n$v" }
+    Remove-Item "$Work\toolchains\h.*"
     $mb = (Get-ChildItem $dir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
     Write-Host ("  toolchain for {0}: {1:N0} MB" -f $a, $mb)
     return $dir
