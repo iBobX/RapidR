@@ -232,7 +232,7 @@ Next up, in order:
 - [x] QLISTBOX `TabWidth`, `ExtendedSelect` (v2.63.0)
 - [ ] Grid `OnDrawCell` text from the shared fonts in the browser too (the desktop's UI kernel draws it with them; `ExtendedSelect` for plain multi-select lists came with the shared list model the kernel draws)
 - [x] Desktop look: `$THEME` honored by native and interpreted programs (v2.62.0); since FLTK's removal (Stage 11) the UI kernel draws Windows' classic look (RapidQ's) and says once when a program names another
-- [ ] Kernel themes beside the classic look: a modern one for new programs and a high-contrast one, drawn from the same models (`$THEME` picks; old programs keep classic)
+- [x] Kernel themes beside the classic look: a modern one for new programs and a high-contrast one, drawn from the same models (`$THEME` picks; old programs keep classic) — modern, dark, highcontrast; `Application.Theme`, `RAPIDR_THEME`, `auto` (v2.116.0); next: the web on the same table (W3+), `auto` following a change while running, the code editor's colours
 - [x] QIMAGELIST AddICOFile / AddICOHandle / InsertICO… / GetICO (an icon scaled whole to the list's size) and `ImageList.Draw` onto a canvas (v2.76.0)
 - [ ] `Rotate (xOrigin, yOrigin, Angle)` on QBITMAP / QCANVAS / QIMAGE: the manual doesn't say the direction or what fills the uncovered area — needs a real RapidQ to compare
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
@@ -289,7 +289,7 @@ Next up, in order:
 - [x] RapidQ built-ins QUICKSORT, TAB, ATAN, GET$, SETCONSOLETITLE, CHDRIVE (v2.90.0); LPRINT / LFLUSH; bare property reads inside CREATE; an undeclared variable only read is 0 (v2.91.0)
 - [x] QSOCKET's numbered-socket API, QFORM Add/DelBorderIcons (v2.93.0); menus from a shared model: ShortCut, Checked, RadioItem, Enabled, MenuIndex, AddItems/Insert/DelItems/DelIndex, QPOPUPMENU Popup / AutoPopup (v2.94.0)
 - [x] RapidQ API audit (manual vs runtimes, `scratch` script): QEDIT / QRICHEDIT (v2.97.0), QTRACKBAR (v2.98.0), QTABCONTROL (v2.99.0), QFORM / QSCROLLBOX AutoScroll (v2.100.0), QREGISTRY (v2.101.0)
-- [ ] QREGISTRY on Windows' own registry in native Windows builds (the per-user store elsewhere): needs a Windows machine to verify
+- [x] QREGISTRY on Windows' own registry in native and interpreted Windows builds (the per-user store elsewhere; `RAPIDR_REGISTRY` still names a file): one set of TRegistry answers for both, checked on Windows 11 ARM (`tools/windows/registry_check.ps1`, an `--ignored` unit test) (v2.116.0)
 - [ ] First public release once RapidQ compatibility and the MDI IDE are done: release notes saying RapidR targets full RapidQ compatibility on all three runtimes (native compiler, interpreter, web), extends it (data-science stack, AI stack, …), and is not a clone of RapidQ or Delphi — an original implementation written from the ground up in pure Rust
 - [x] Default component sizes as RapidQ's, the same on every runtime (the desktop's QBUTTON is 80 × 25, the web's 100 × 30; `tools/RQInclude.bi` lists RapidQ's: QBUTTON 75 × 25, QEDIT 120 × 25, QPANEL 150 × 100, …)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
@@ -327,7 +327,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 **Accessibility (principle 8)**
 - [ ] Shared models describe themselves: role, name (Caption / Text / Hint), value, state, actions — one accessibility tree per form
 - [x] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree (v2.113.0); keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
-- [ ] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme
+- [x] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme (v2.116.0: `$THEME highcontrast`)
 - [ ] No toolkit widgets are left on the desktop (FLTK removed): every component is the kernel's and gains accessibility through its model's description — track the ones whose description is still generic
 
 **Responsive layout (additive to Align)**

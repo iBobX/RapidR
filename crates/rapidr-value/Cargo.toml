@@ -12,3 +12,9 @@ resvg = { version = "0.48.1", default-features = false }
 jpeg-decoder = { version = "0.3", default-features = false }
 # Text on bitmaps (objects/text.rs): reads the built-in Liberation fonts.
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
+
+# QREGISTRY on Windows: Windows' own registry (registry.rs). Microsoft's
+# windows-rs (MIT OR Apache-2.0); its windows-link / -result / -strings are
+# already in the tree.
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6.1"

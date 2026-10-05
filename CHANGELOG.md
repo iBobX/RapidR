@@ -7,6 +7,44 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Themes for the UI kernel's look**, beside RapidQ's classic one (still
+  the default, byte for byte): `modern` (flat, Windows 11-like: rounded
+  controls, an accent colour, focus rings, thin scroll bars), `dark` (the
+  same in Windows 11's dark colours) and `highcontrast` (Windows' High
+  Contrast Black: 7:1 text, 3-pixel focus rings). `$THEME name` picks one,
+  `Application.Theme = "dark"` switches at run time (RapidR's; RapidQ's
+  Application has no Theme), `RAPIDR_THEME` sets a default for programs
+  that name none, and `auto` follows the system's dark / high-contrast
+  setting. A theme never moves or resizes anything, nor changes fonts; the
+  program's own colours (`Color`, `Font.Color`) win. The old FLTK theme
+  names keep working (classic or modern). Real windows get a light or dark
+  title bar to match. The web keeps its own look for now and reads the
+  names back.
+
+### Changed
+- **QREGISTRY on Windows is Windows' own registry**, as RapidQ's was, in
+  native and interpreted builds alike (Microsoft's `windows-registry`
+  crate). It answers as the per-user store does — both are worked out in
+  one place (`rapidr_value::registry`): the same paths, data types, sizes
+  and 1 / 0. Keys a program may only read (HKEY_LOCAL_MACHINE without
+  elevation) open and read; changes to them answer 0 and change nothing.
+  HKEY_PERFORMANCE_DATA and Windows 9x's HKEY_DYN_DATA aren't keys there.
+  `RAPIDR_REGISTRY=<file>` still puts the keys in that file, on Windows
+  too, so test runs never touch the machine's registry; macOS, Linux and
+  the web keep the per-user store. Checked on Windows 11
+  (`tools/windows/registry_check.ps1`: one program interpreted, as an
+  interpreted build and as a native build, the same as the store's run,
+  what it left checked with `reg query`).
+
+### Fixed
+- QREGISTRY as TRegistry: GetDataType is 0 (unknown) for the registry's
+  other kinds of value (REG_MULTI_SZ, REG_QWORD, …; they were binary) and
+  the store's file keeps their kind; KeyExists of a root (`""`, `"\"`) is
+  always 1; RenameValue puts the value last (TRegistry deletes, then
+  writes); MoveKey into the key's own sub-key is refused whatever the case
+  of the names.
+
 ## [2.115.0] — 2026-10-05
 
 ### Added

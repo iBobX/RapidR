@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**659 libraries** under 26 license expressions.
+**660 libraries** under 26 license expressions.
 
-## Apache-2.0 OR MIT (371)
+## Apache-2.0 OR MIT (372)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -356,6 +356,7 @@ which also carries their full license texts.
 | windows-interface | 0.59.3 | <https://github.com/microsoft/windows-rs> |
 | windows-link | 0.2.1 | <https://github.com/microsoft/windows-rs> |
 | windows-numerics | 0.3.1 | <https://github.com/microsoft/windows-rs> |
+| windows-registry | 0.6.1 | <https://github.com/microsoft/windows-rs> |
 | windows-result | 0.1.2 | <https://github.com/microsoft/windows-rs> |
 | windows-result | 0.4.1 | <https://github.com/microsoft/windows-rs> |
 | windows-strings | 0.5.1 | <https://github.com/microsoft/windows-rs> |
