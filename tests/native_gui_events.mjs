@@ -61,6 +61,7 @@
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
 //   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
+//   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
@@ -169,7 +170,10 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     for (const line of c.expect) ok(out.includes(line), `${c.name} (${kind}): ${line}` + (out.includes(line) ? "" : `\n    got: ${out.trim().split("\n").join(" / ")}`));
     // (`pixels`: the window as captured)
     if (c.pixels) {
-      const scale = Number(process.env.RAPIDR_SCALE || 1);
+      // (the capture's device pixels a logical one: RAPIDR_SCALE headless,
+      // the screen's with real windows — from the window's client width)
+      const capWidth = (() => { try { return readFileSync(join(WORK, "window-1.bmp")).readInt32LE(18); } catch { return 0; } })();
+      const scale = c.clientWidth && capWidth ? capWidth / c.clientWidth : Number(process.env.RAPIDR_SCALE || 1);
       const got = c.pixels.map(([x, y]) => capturePixel(join(WORK, "window-1.bmp"), Math.floor((x + 0.5) * scale), Math.floor((y + 0.5) * scale)));
       const want = c.pixels.map((p) => p[2]);
       ok(got.join(",") === want.join(","), `${c.name} (${kind}): captured pixels ${want.join(",")}` + (got.join(",") === want.join(",") ? "" : `   [got: ${got.join(",")}]`));

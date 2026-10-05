@@ -95,3 +95,71 @@ fn stop() {}
 fn play(_bytes: Vec<u8>, _looped: bool, _wait: bool) {
     eprintln!("[rapidr] PLAYWAV: built without audio");
 }
+
+// ------------------------------------------------- QDXSOUND's device --
+//
+// (the DirectX lane's) A QDXSOUND's model (rapidr_value::objects::directx::
+// DxSound) keeps Playing and Position by the clock; this plays what it
+// asks for on the sound device, a sink per QDXSOUND: the WAV's frames as
+// stereo with Pan's gains, from a frame, sped up or slowed down to
+// Frequency, looped or once, at Volume's gain. Under the GUI tests (and
+// without the audio feature) nothing plays.
+
+/// Gives QDXSOUND the sound device (once; not under a GUI test).
+pub fn install_dx_device() {
+    #[cfg(feature = "audio")]
+    {
+        let testing = std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some();
+        if !testing {
+            rapidr_value::objects::directx::set_sound_device(rapidr_value::objects::directx::SoundDevice { play: dx_play, volume: dx_volume, stop: dx_stop });
+        }
+    }
+}
+
+#[cfg(feature = "audio")]
+thread_local! {
+    static DX_SINKS: std::cell::RefCell<std::collections::HashMap<String, rodio::Sink>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+#[cfg(feature = "audio")]
+fn dx_play(p: &rapidr_value::objects::directx::SoundPlay) {
+    use rodio::Source;
+    dx_stop(&p.id);
+    let handle = OUTPUT.with(|o| {
+        let mut o = o.borrow_mut();
+        if o.is_none() {
+            *o = rodio::OutputStream::try_default().ok();
+        }
+        o.as_ref().map(|(_, h)| h.clone())
+    });
+    let Some(handle) = handle else { return };
+    let Ok(sink) = rodio::Sink::try_new(&handle) else { return };
+    let buffer = rodio::buffer::SamplesBuffer::new(2, p.wav.rate, p.wav.stereo(p.pan));
+    let from = std::time::Duration::from_secs_f64(p.from as f64 / f64::from(p.wav.rate.max(1)));
+    let speed = p.speed.clamp(0.01, 100.0) as f32;
+    if p.looped {
+        sink.append(buffer.buffered().repeat_infinite().skip_duration(from).speed(speed));
+    } else {
+        sink.append(buffer.skip_duration(from).speed(speed));
+    }
+    sink.set_volume(p.gain);
+    DX_SINKS.with(|s| s.borrow_mut().insert(p.id.clone(), sink));
+}
+
+#[cfg(feature = "audio")]
+fn dx_volume(id: &str, gain: f32) {
+    DX_SINKS.with(|s| {
+        if let Some(sink) = s.borrow().get(id) {
+            sink.set_volume(gain);
+        }
+    });
+}
+
+#[cfg(feature = "audio")]
+fn dx_stop(id: &str) {
+    DX_SINKS.with(|s| {
+        if let Some(sink) = s.borrow_mut().remove(id) {
+            sink.stop();
+        }
+    });
+}

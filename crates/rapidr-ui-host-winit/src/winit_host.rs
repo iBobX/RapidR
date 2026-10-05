@@ -73,6 +73,9 @@ struct Win {
     pointer: Option<rapidr_value::input::Cursor>,
     /// Input methods allowed (an edit has the focus).
     ime: bool,
+    /// (the DirectX lane's) Made full screen (a QDXSCREEN's FullScreen;
+    /// there's no way back).
+    fullscreen: bool,
 }
 
 struct State {
@@ -452,8 +455,11 @@ impl Shim<'_> {
                 // (the DirectX lane's: borderless over the whole screen —
                 // its Resized follows)
                 HostCmd::Fullscreen(f) => {
-                    if let Some(w) = self.s.wins.get(&f) {
-                        w.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+                    if let Some(w) = self.s.wins.get_mut(&f) {
+                        if !w.fullscreen {
+                            w.fullscreen = true;
+                            w.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+                        }
                     }
                 }
                 // (the WindowState lane's: the system maximizes, minimizes
@@ -575,7 +581,7 @@ impl Shim<'_> {
             k.ui.system_corner = system_corner(spec.border);
         }
         window.request_redraw();
-        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false });
+        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false });
     }
 
     /// The window's surface: the GPU's unless it has none (or the CPU was
@@ -705,10 +711,24 @@ impl Shim<'_> {
     /// (the WindowState lane's) What form `f`'s window is now — minimized,
     /// maximized or neither — told to the program when it changed (the
     /// user's own maximize, restore or minimize).
+    ///
+    /// (the DirectX lane's) A frameless window (bsNone) isn't asked whether
+    /// it's maximized: the user can't maximize it (no zoom button), and on
+    /// macOS winit answers by giving it a title bar for a moment
+    /// (`is_zoomed`'s temporary style mask), which resizes it, which asks
+    /// again — a loop that never let the program go on. It is what the
+    /// program made it; a full-screen one (a QDXSCREEN's FullScreen) is
+    /// never asked.
     fn note_state(&mut self, f: &str) {
         let Some(w) = self.s.wins.get(f) else { return };
+        if w.fullscreen {
+            return;
+        }
+        let framed = self.desk.forms.get(f).is_some_and(|k| k.spec.border);
         let now = if w.window.is_minimized() == Some(true) {
             1
+        } else if !framed {
+            self.desk.forms.get(f).map_or(0, |k| if k.state == 2 { 2 } else { 0 })
         } else if w.window.is_maximized() {
             2
         } else {

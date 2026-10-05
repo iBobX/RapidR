@@ -466,17 +466,22 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
-/// Plays a sine tone via Web Audio. Failures (no audio support, autoplay
-/// policy) are silently ignored, matching desktop BEEP semantics.
-fn play_tone(freq_hz: f64, dur_ms: f64) {
-    let ctx = AUDIO_CTX.with(|cell| {
+/// The page's AudioContext (made the first time; shared: BEEP, SOUND,
+/// QDXSOUND).
+pub(crate) fn audio_context() -> Option<web_sys::AudioContext> {
+    AUDIO_CTX.with(|cell| {
         let mut slot = cell.borrow_mut();
         if slot.is_none() {
             *slot = web_sys::AudioContext::new().ok();
         }
         slot.clone()
-    });
-    let Some(ctx) = ctx else { return };
+    })
+}
+
+/// Plays a sine tone via Web Audio. Failures (no audio support, autoplay
+/// policy) are silently ignored, matching desktop BEEP semantics.
+fn play_tone(freq_hz: f64, dur_ms: f64) {
+    let Some(ctx) = audio_context() else { return };
     let Ok(osc) = ctx.create_oscillator() else { return };
     osc.frequency().set_value(freq_hz as f32);
     if osc.connect_with_audio_node(&ctx.destination()).is_err() {

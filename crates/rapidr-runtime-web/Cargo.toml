@@ -121,4 +121,8 @@ features = [
     "AudioScheduledSourceNode",
     "OscillatorNode",
     "AudioParam",
+    # (QDXSOUND: a WAV's frames played by Web Audio)
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "GainNode",
 ]

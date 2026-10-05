@@ -425,9 +425,11 @@ fn spec_of(name: &str) -> WindowSpec {
 }
 
 /// (the DirectX lane's) The program is the active application (one of its
-/// windows has the keyboard; always on the headless host).
+/// windows has the keyboard; always on the headless host, and under a GUI
+/// test, whose script is the user — real windows there needn't get the
+/// keyboard from the system).
 pub fn app_active() -> bool {
-    with_kern(|k| k.host.active()).unwrap_or(true)
+    rapidr_ui_app::testhooks::under_test() || with_kern(|k| k.host.active()).unwrap_or(true)
 }
 
 /// The host has no system to ask (the headless host of the GUI tests).

@@ -4,8 +4,8 @@
 //! showing its last Flip (`gui_web::render_dxscreen`); this sets a form's
 //! screens up when it's first shown (OnInitialize, OnInitializeSurface) or
 //! when one is put on a form already shown, gives a FullScreen form the
-//! page, and paces and counts a QDXTIMER (ActiveOnly: while the page
-//! shows).
+//! page, paces and counts a QDXTIMER (ActiveOnly: while the page
+//! shows), and plays a QDXSOUND's WAV through Web Audio.
 
 use wasm_bindgen::prelude::*;
 
@@ -88,4 +88,68 @@ pub fn timer_fired(name: &str) -> bool {
     }
     rapidr_value::objects::dxtimer_fired(name, js_sys::Date::now());
     true
+}
+
+// ---------------------------------------------------------- QDXSOUND --
+//
+// The model (rapidr_value::objects::directx::DxSound) keeps Playing and
+// Position by the page's clock; Web Audio plays what it asks for: the WAV's
+// frames as a stereo buffer with Pan's gains, from a frame, at a playback
+// rate (Frequency over the file's rate), looped or once, through a gain
+// node (Volume, changed while it plays).
+
+thread_local! {
+    static PLAYING: std::cell::RefCell<std::collections::HashMap<String, (web_sys::AudioBufferSourceNode, web_sys::GainNode)>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Gives QDXSOUND the page's clock and Web Audio (once).
+pub fn install_sound_device() {
+    rapidr_value::objects::directx::set_clock(js_sys::Date::now);
+    rapidr_value::objects::directx::set_sound_device(rapidr_value::objects::directx::SoundDevice { play: sound_play, volume: sound_volume, stop: sound_stop });
+}
+
+fn sound_play(p: &rapidr_value::objects::directx::SoundPlay) {
+    sound_stop(&p.id);
+    let Some(ctx) = crate::builtins::audio_context() else { return };
+    let wav = &p.wav;
+    let frames = wav.frames();
+    if frames == 0 {
+        return;
+    }
+    let Ok(buffer) = ctx.create_buffer(2, frames as u32, wav.rate as f32) else { return };
+    let stereo = wav.stereo(p.pan);
+    let (left, right): (Vec<f32>, Vec<f32>) = stereo.as_chunks::<2>().0.iter().map(|f| (f[0], f[1])).unzip();
+    if buffer.copy_to_channel(&left, 0).is_err() || buffer.copy_to_channel(&right, 1).is_err() {
+        return;
+    }
+    let (Ok(source), Ok(gain)) = (ctx.create_buffer_source(), ctx.create_gain()) else { return };
+    source.set_buffer(Some(&buffer));
+    source.set_loop(p.looped);
+    source.playback_rate().set_value(p.speed as f32);
+    gain.gain().set_value(p.gain);
+    if source.connect_with_audio_node(&gain).is_err() || gain.connect_with_audio_node(&ctx.destination()).is_err() {
+        return;
+    }
+    let _ = ctx.resume();
+    if source.start_with_when_and_grain_offset(0.0, p.from as f64 / f64::from(wav.rate.max(1))).is_ok() {
+        PLAYING.with(|m| m.borrow_mut().insert(p.id.clone(), (source, gain)));
+    }
+}
+
+fn sound_volume(id: &str, gain: f32) {
+    PLAYING.with(|m| {
+        if let Some((_, g)) = m.borrow().get(id) {
+            g.gain().set_value(gain);
+        }
+    });
+}
+
+fn sound_stop(id: &str) {
+    PLAYING.with(|m| {
+        if let Some((source, _)) = m.borrow_mut().remove(id) {
+            #[allow(deprecated)]
+            let _ = source.stop();
+        }
+    });
 }

@@ -10,6 +10,9 @@ test needs none of RapidQ's example files.
   item 1 "strip":  16 x 8, PatternWidth / PatternHeight 8: pattern 0 green,
                    pattern 1 yellow; not transparent
 
+Also tests/fixtures/dx_beep.wav for tests/fixtures/dx_sound.bas: half a
+second of a 500 Hz square wave, 8-bit mono at 8000 Hz (4000 bytes of sound).
+
 Usage (repo root): python3 tools/make_dx_fixture.py
 """
 import os
@@ -56,6 +59,11 @@ def main():
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     with open(os.path.join(root, "tests", "fixtures", "dx_sprites.dxg"), "wb") as f:
         f.write(resource + form)
+    sound = bytes(0xC0 if (i // 8) % 2 == 0 else 0x40 for i in range(4000))
+    fmt = struct.pack("<HHIIHH", 1, 1, 8000, 8000, 1, 8)
+    wav = b"WAVEfmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(sound)) + sound
+    with open(os.path.join(root, "tests", "fixtures", "dx_beep.wav"), "wb") as f:
+        f.write(b"RIFF" + struct.pack("<I", len(wav)) + wav)
 
 
 if __name__ == "__main__":

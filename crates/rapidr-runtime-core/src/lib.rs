@@ -12,7 +12,7 @@ pub mod layout;
 pub mod scroll;
 pub mod mdi;
 pub mod globals;
-mod sound;
+pub(crate) mod sound;
 pub mod terminal;
 pub use rapidr_value as value;
 

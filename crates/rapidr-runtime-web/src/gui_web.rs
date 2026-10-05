@@ -175,7 +175,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RCANVAS" => create_canvas(&id, name, props),
         // (the DirectX lane's)
         "RDXSCREEN" => create_dxscreen(&id, name, props),
-        "RDXIMAGELIST" | "RDXTIMER" => { /* no DOM element */ }
+        "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" => { /* no DOM element */ }
         "RHEADER" => {
             create_canvas(&id, name, props);
             header_mouse_events(&id, name);

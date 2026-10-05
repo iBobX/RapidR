@@ -1702,7 +1702,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RCOOLBTN", "ROVALBTN",
     "RJSON",
     // RapidQ's DirectX 2D objects (rapidr_value::objects::directx)
-    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER",
+    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND",
     // RapidQ's non-visual objects (rapidr_value::objects)
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
     // Web-exclusive components
@@ -1736,7 +1736,7 @@ pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",
     "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE",
     "QD3DVECTOR", "QD3DVISUAL", "QD3DWRAP", "QDIGDISPLAY", "QDIRLISTVIEW",
-    "QDOCKFORM", "QDOWNLOAD", "QDXSOUND",
+    "QDOCKFORM", "QDOWNLOAD",
 "QGLASSFRAME", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
     "QRECT", "QVIDEO", "QWAVE",
 ];

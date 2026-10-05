@@ -87,6 +87,8 @@ enum Object {
     DxImageList(directx::DxImageList),
     /// QDXTIMER's frame counter (FrameRate).
     DxTimer(directx::DxTimer),
+    /// QDXSOUND's sound and where it plays.
+    DxSound(directx::DxSound),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -252,6 +254,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RDXSCREEN" => Object::DxScreen(directx::DxScreen::default()),
         "RDXIMAGELIST" => Object::DxImageList(directx::DxImageList::default()),
         "RDXTIMER" => Object::DxTimer(directx::DxTimer::default()),
+        "RDXSOUND" => Object::DxSound(directx::DxSound::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -806,6 +809,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::DxScreen(s) => s.get(&prop),
         Object::DxImageList(l) => l.get(&prop),
         Object::DxTimer(t) => t.get(&prop),
+        Object::DxSound(s) => s.get(&prop),
     })?
 }
 
@@ -821,6 +825,16 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         return Some(Ok(()));
     }
     // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.
+    // A QDXSOUND's FileName: the WAV file read.
+    if prop == "filename" && with(id, |o| matches!(o, Object::DxSound(_))) == Some(true) {
+        let name = val.to_string_val();
+        let bytes = read_file(&name);
+        return with(id, |o| match o {
+            Object::DxSound(s) => Some(bytes.and_then(|b| s.load(id, &name, &b))),
+            _ => None,
+        })
+        .flatten();
+    }
     if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_) | Object::DxScreen(_)) || matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let font = with(&val.to_string_val(), |o| match o {
             Object::Font(f) => Some(f.clone()),
@@ -888,6 +902,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Registry(r) => r.set(&prop, val).then_some(Ok(())),
         Object::Design(d) => d.set(&prop, val).then_some(Ok(())),
         Object::DxScreen(s) => s.set(&prop, val),
+        Object::DxSound(s) => s.set(id, &prop, val),
         Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
 }
@@ -978,6 +993,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::DxScreen(_) => "dxscreen",
         Object::DxImageList(_) => "dximagelist",
         Object::DxTimer(_) => "dxtimer",
+        Object::DxSound(_) => "dxsound",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1350,6 +1366,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Registry(r) => r.call(method, args),
         Object::Design(d) => d.call(method, args),
         Object::DxScreen(s) => s.call(method, args),
+        Object::DxSound(s) => s.call(id, method),
         Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
     .map(Ok)
