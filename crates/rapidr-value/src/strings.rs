@@ -48,11 +48,26 @@ pub fn right(s: &Value, n: &Value) -> Value {
     Value::String(c[start..].iter().collect())
 }
 
-/// INSTR([start,] haystack, needle): 1-based position, 0 if absent.
+/// INSTR([start,] haystack, needle): 1-based position, 0 if absent — as
+/// RapidQ computes it (RC.EXE): an empty needle is never found; the search
+/// is in the text from `start` (before the first character: all of it) and
+/// the place found is counted from `start` (0 counts as 1), so
+/// `INSTR(-5, "abc", "b")` is -4.
 pub fn instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
     let hay = chars(haystack);
-    match find_chars(&hay, &chars(needle), index0(start)) {
-        Some(i) => v_int(i as i64 + 1),
+    let nee = chars(needle);
+    if nee.is_empty() {
+        return v_int(0);
+    }
+    let start = match start {
+        Value::Null => 1,
+        s => match s.to_i64() {
+            0 => 1,
+            n => n,
+        },
+    };
+    match find_chars(&hay, &nee, (start - 1).max(0) as usize) {
+        Some(i) => v_int(i as i64 + 1 - (start - 1).max(0) + (start - 1)),
         None => v_int(0),
     }
 }
@@ -119,7 +134,9 @@ pub fn space(n: &Value) -> Value {
 /// string whose first character repeats.
 pub fn string_of(n: &Value, c: &Value) -> Value {
     let ch = match c {
-        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => char::from_u32(c.to_i64().clamp(0, 0x10FFFF) as u32).unwrap_or('?'),
+        // (a real code rounded half to even, as RapidQ's: STRING$(2, 65.7) is "BB")
+        Value::Double(d) => char::from_u32(crate::format::int32(*d).clamp(0, 0x10FFFF) as u32).unwrap_or('?'),
+        Value::Integer(_) | Value::Boolean(_) => char::from_u32(c.to_i64().clamp(0, 0x10FFFF) as u32).unwrap_or('?'),
         other => other.to_string_val().chars().next().unwrap_or(' '),
     };
     Value::String(std::iter::repeat_n(ch, repeat_count(n, "STRING$")).collect())

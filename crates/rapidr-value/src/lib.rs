@@ -33,6 +33,9 @@ pub mod scrollbars;
 pub mod theme;
 pub mod registry;
 pub mod resources;
+// (Stage W3) What both runtimes' component registries give a new
+// component, and what the UI kernel reads as unset.
+pub mod component_defaults;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -358,14 +361,31 @@ pub fn v_bool(b: bool) -> Value {
     Value::Boolean(b)
 }
 
-/// A store into `STRING * n`: the text cut to `n` characters (RapidQ keeps
-/// a fixed string in an `n`-byte buffer; what a shorter value leaves unused
-/// isn't part of the text).
+/// A store into `STRING * n`: always `n` characters, as RapidQ has them
+/// (RC.EXE: `DIM s AS STRING * 8 : s = "hi"` holds "hi" and six spaces,
+/// LEN 8) — longer text cut, shorter padded with spaces; `STRING * 0` holds
+/// nothing.
 pub fn rp_fixed_string(val: &Value, n: usize) -> Value {
     let s = val.to_string_val();
     match s.char_indices().nth(n) {
         Some((cut, _)) => Value::String(s[..cut].to_string().into()),
-        None => Value::String(s.into()),
+        None => {
+            let len = s.chars().count();
+            let mut s = s;
+            s.extend(std::iter::repeat_n(' ', n - len));
+            Value::String(s.into())
+        }
+    }
+}
+
+/// A component property or method result as a program reads it: RapidQ's
+/// are Delphi Booleans, true reads 1 (RC.EXE: `Check.Checked = -1 : PRINT
+/// Check.Checked` shows 1, `Form.Enabled` 1; RAPIDQ.INC's `True` is 1, so
+/// programs test `.Checked = True`). A comparison's own result stays -1.
+pub fn property_read(v: Value) -> Value {
+    match v {
+        Value::Boolean(b) => Value::Integer(b as i64),
+        v => v,
     }
 }
 
@@ -438,12 +458,33 @@ impl Value {
         }
     }
 
-    /// BASIC integer division  (a \ b)
+    /// BASIC integer division (a \ b) as RapidQ does it (RC.EXE): each
+    /// operand rounded as CINT rounds (`INT(x + 0.5)`), 32 bits, the
+    /// quotient truncated; by zero, RapidQ's "Division by zero" error.
+    pub fn checked_int_div(&self, rhs: &Value) -> Result<Value, &'static str> {
+        let a = self.idiv_operand();
+        let b = rhs.idiv_operand();
+        numeric::checked_idiv(a, b).map(Value::Integer).ok_or(numeric::DIVISION_BY_ZERO)
+    }
+
+    /// `a \ b` in compiled programs (by zero, a run-time error).
     pub fn int_div(&self, rhs: &Value) -> Value {
-        let a = self.to_i64();
-        let b = rhs.to_i64();
-        // Wrapping: `MIN \ -1` must not crash the program.
-        if b == 0 { Value::Integer(0) } else { Value::Integer(a.wrapping_div(b)) }
+        self.checked_int_div(rhs).unwrap_or_else(|e| runtime_error(e))
+    }
+
+    /// `a MOD b` as RapidQ does it: both rounded half to even to 32-bit
+    /// integers (`7.5 MOD 2` is 0), the remainder has the dividend's sign;
+    /// by zero, "Division by zero".
+    pub fn checked_mod(&self, rhs: &Value) -> Result<Value, &'static str> {
+        numeric::checked_imod(self.bits(), rhs.bits()).map(Value::Integer).ok_or(numeric::DIVISION_BY_ZERO)
+    }
+
+    fn idiv_operand(&self) -> i64 {
+        match self {
+            Value::Integer(n) => format::int32_of(*n),
+            Value::Boolean(b) => -(*b as i64),
+            other => numeric::idiv_operand(other.to_f64()),
+        }
     }
 
     /// BASIC exponentiation (a ^ b)
@@ -487,12 +528,14 @@ impl Value {
         }
     }
 
-    /// The integer bitwise operators work on (true = -1, reals rounded).
+    /// The integer the bitwise operators and MOD work on, as RapidQ makes
+    /// it (the x87's FISTP): true = -1, reals rounded half to even (`2.5 OR
+    /// 0` is 2), 32 bits (beyond: -2147483648).
     fn bits(&self) -> i64 {
         match self {
             Value::Boolean(b) => -(*b as i64),
-            Value::Double(d) => d.round() as i64,
-            other => other.to_i64(),
+            Value::Integer(n) => format::int32_of(*n),
+            other => format::int32(other.to_f64()),
         }
     }
 
@@ -522,28 +565,38 @@ impl Value {
     // Comparisons — return Value::Boolean for use in expressions,
     // but also impl PartialEq / PartialOrd below.
 
+    // (A NaN compares as the x87's FCOM leaves it in RapidQ: "less" and
+    // "equal" at once — `=`, `<` and `<=` are true, `<>`, `>` and `>=`
+    // false; RC.EXE prints that for `d = 0 / 0`.)
+
     pub fn rp_eq(&self, rhs: &Value) -> Value {
-        Value::Boolean(self.cmp_eq(rhs))
+        Value::Boolean(self.nan_compare(rhs) || self.cmp_eq(rhs))
     }
 
     pub fn rp_ne(&self, rhs: &Value) -> Value {
-        Value::Boolean(!self.cmp_eq(rhs))
+        Value::Boolean(!self.nan_compare(rhs) && !self.cmp_eq(rhs))
     }
 
     pub fn rp_lt(&self, rhs: &Value) -> Value {
-        Value::Boolean(self.cmp_ord(rhs) == std::cmp::Ordering::Less)
+        Value::Boolean(self.nan_compare(rhs) || self.cmp_ord(rhs) == std::cmp::Ordering::Less)
     }
 
     pub fn rp_le(&self, rhs: &Value) -> Value {
-        Value::Boolean(matches!(self.cmp_ord(rhs), std::cmp::Ordering::Less | std::cmp::Ordering::Equal))
+        Value::Boolean(self.nan_compare(rhs) || matches!(self.cmp_ord(rhs), std::cmp::Ordering::Less | std::cmp::Ordering::Equal))
     }
 
     pub fn rp_gt(&self, rhs: &Value) -> Value {
-        Value::Boolean(self.cmp_ord(rhs) == std::cmp::Ordering::Greater)
+        Value::Boolean(!self.nan_compare(rhs) && self.cmp_ord(rhs) == std::cmp::Ordering::Greater)
     }
 
     pub fn rp_ge(&self, rhs: &Value) -> Value {
-        Value::Boolean(matches!(self.cmp_ord(rhs), std::cmp::Ordering::Greater | std::cmp::Ordering::Equal))
+        Value::Boolean(!self.nan_compare(rhs) && matches!(self.cmp_ord(rhs), std::cmp::Ordering::Greater | std::cmp::Ordering::Equal))
+    }
+
+    /// A numeric comparison with a NaN on either side.
+    fn nan_compare(&self, rhs: &Value) -> bool {
+        let num = |v: &Value| matches!(v, Value::Double(d) if d.is_nan());
+        (num(self) || num(rhs)) && !matches!(self, Value::String(_) | Value::Object(_)) && !matches!(rhs, Value::String(_) | Value::Object(_))
     }
 
     // --- internal comparison helpers ---
@@ -645,24 +698,19 @@ impl Mul for &Value {
 
 impl Div for &Value {
     type Output = Value;
+    /// Floating point, by zero an infinity or NaN (RapidQ's `PRINT 7 / 0`
+    /// shows -2147483648, as a whole number beyond 32 bits).
     fn div(self, rhs: Self) -> Value {
-        let b = rhs.to_f64();
-        if b == 0.0 { Value::Double(0.0) } else { Value::Double(self.to_f64() / b) }
+        Value::Double(self.to_f64() / rhs.to_f64())
     }
 }
 
 impl Rem for &Value {
     type Output = Value;
+    /// `a MOD b` in compiled programs ([`Value::checked_mod`]; by zero a
+    /// run-time error).
     fn rem(self, rhs: Self) -> Value {
-        match (self, rhs) {
-            (Value::Integer(a), Value::Integer(b)) => {
-                if *b == 0 { Value::Integer(0) } else { Value::Integer(a.wrapping_rem(*b)) }
-            }
-            _ => {
-                let b = rhs.to_f64();
-                if b == 0.0 { Value::Double(0.0) } else { Value::Double(self.to_f64() % b) }
-            }
-        }
+        self.checked_mod(rhs).unwrap_or_else(|e| runtime_error(e))
     }
 }
 
@@ -718,17 +766,21 @@ mod tests {
 
 /// `a SHL n` (RapidQ): shift the 32-bit value left; bits past bit 31 are
 /// lost and the result is a signed LONG, like RapidQ's integers.
+/// (RC.EXE: the operands as the bitwise operators take them — `2.5 SHL 1`
+/// is 4 — and the count as the x86 takes it, its low 5 bits: `1 SHL 32` is
+/// 1, `1 SHL 31` -2147483648.)
 pub fn rp_shl(a: &Value, n: &Value) -> Value {
-    let shift = n.to_i64().clamp(0, 32) as u32;
-    let bits = a.to_i64() as u32;
-    Value::Integer(if shift >= 32 { 0 } else { (bits << shift) as i32 as i64 })
+    let shift = (n.bits() & 31) as u32;
+    let bits = a.bits() as u32;
+    Value::Integer((bits << shift) as i32 as i64)
 }
 
-/// `a SHR n` (RapidQ): logical shift right of the 32-bit value, as a LONG.
+/// `a SHR n` (RapidQ): logical shift right of the 32-bit value, as a LONG
+/// (`-1 SHR 28` is 15; the count's low 5 bits).
 pub fn rp_shr(a: &Value, n: &Value) -> Value {
-    let shift = n.to_i64().clamp(0, 32) as u32;
-    let bits = a.to_i64() as u32;
-    Value::Integer(if shift >= 32 { 0 } else { (bits >> shift) as i32 as i64 })
+    let shift = (n.bits() & 31) as u32;
+    let bits = a.bits() as u32;
+    Value::Integer((bits >> shift) as i32 as i64)
 }
 
 /// `REDIM a(bounds) AS T` (RapidQ manual, REDIM): resizes an existing array
@@ -768,12 +820,14 @@ pub fn rp_redim(old: &Value, bounds: &[(i64, i64)], fill: Value) -> Value {
 }
 
 /// `a INV m` (RapidQ): the inverse of `a` modulo `m`, e.g. 3 INV 26 = 9;
-/// 0 when there is none.
+/// -1 when there is none (RC.EXE: `2 INV 4` is -1).
 pub fn rp_inv(a: &Value, m: &Value) -> Value {
     // In 128 bits so no step overflows (`INV(MIN, -1)` must not crash).
     let (a, m) = (a.to_i64() as i128, m.to_i64() as i128);
-    if m == 0 {
-        return Value::Integer(0);
+    // (RC.EXE: `7 INV 1` and `5 INV 0` are -1 too — an inverse from 1 to
+    // m - 1 or none)
+    if m.abs() <= 1 {
+        return Value::Integer(-1);
     }
     let (mut r0, mut r1) = (a.rem_euclid(m.abs()), m.abs());
     let (mut t0, mut t1) = (1i128, 0i128);
@@ -782,7 +836,7 @@ pub fn rp_inv(a: &Value, m: &Value) -> Value {
         (r0, r1) = (r1, r0 - q * r1);
         (t0, t1) = (t1, t0 - q * t1);
     }
-    Value::Integer(if r0 == 1 { t0.rem_euclid(m.abs()) as i64 } else { 0 })
+    Value::Integer(if r0 == 1 { t0.rem_euclid(m.abs()) as i64 } else { -1 })
 }
 
 #[cfg(test)]
@@ -810,7 +864,8 @@ mod fixed_string_tests {
     #[test]
     fn fixed_strings_cut_by_characters_and_cbool() {
         assert_eq!(rp_fixed_string(&v_str("hello world"), 8).to_string_val(), "hello wo");
-        assert_eq!(rp_fixed_string(&v_str("hi"), 8).to_string_val(), "hi");
+        assert_eq!(rp_fixed_string(&v_str("hi"), 8).to_string_val(), "hi      ", "padded, as RapidQ has it");
+        assert_eq!(rp_fixed_string(&v_str("abc"), 0).to_string_val(), "");
         assert_eq!(rp_fixed_string(&v_str("héllo"), 2).to_string_val(), "hé");
         assert_eq!(rp_fixed_string(&v_int(12345), 3).to_string_val(), "123");
         assert!(cbool(&v_int(5)).to_bool() && !cbool(&v_int(0)).to_bool());
@@ -834,7 +889,7 @@ mod redim_tests {
         assert_eq!(array_bound(&a, 1, true), Some(0));
         assert!(matches!(rp_redim(&Value::Null, &[(1, 3)], Value::Null), Value::Array(_)));
         assert_eq!(rp_inv(&Value::Integer(3), &Value::Integer(26)), Value::Integer(9));
-        assert_eq!(rp_inv(&Value::Integer(2), &Value::Integer(4)), Value::Integer(0));
+        assert_eq!(rp_inv(&Value::Integer(2), &Value::Integer(4)), Value::Integer(-1));
     }
 }
 
@@ -907,6 +962,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         "__null" => return Some(Ok(Value::Null)),
         "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
         "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),
+        "__arg_round" => return Some(Ok(numeric::arg_round(&arg(0)))),
         // Stores into declared numeric types (`numeric`, rapidr_ast::numeric).
         _ if key.starts_with("__to_") => {
             if let Some(kind) = numeric::NumKind::from_builtin(key) {

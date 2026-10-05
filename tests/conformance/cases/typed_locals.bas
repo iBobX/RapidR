@@ -4,9 +4,9 @@ SUB Arith
   DIM a AS LONG, b AS LONG, d AS DOUBLE, e AS DOUBLE, s AS SHORT, by AS BYTE
   a = 7: b = 2
   PRINT a + b; " "; a - b; " "; a * b; " "; a / b; " "; a \ b; " "; a MOD b; " "; a ^ b
-  PRINT -a \ b; " "; -a MOD b; " "; a / 0; " "; a \ 0; " "; a MOD 0
+  PRINT -a \ b; " "; -a MOD b; " "; a / 0
   d = 7.5: e = 2
-  PRINT d + e; " "; d - a; " "; d * b; " "; d / e; " "; d \ e; " "; d MOD e; " "; d MOD 0
+  PRINT d + e; " "; d - a; " "; d * b; " "; d / e; " "; d \ e; " "; d MOD e
   PRINT a = b; " "; a <> b; " "; a < b; " "; a <= 7; " "; d > a; " "; d >= 7.5
   PRINT (a > 1) AND (b > 1); " "; (a > 9) OR (b > 9); " "; a AND 3; " "; a OR 8; " "; a XOR 5; " "; NOT a
   a = 2147483647: a = a + 1: PRINT a

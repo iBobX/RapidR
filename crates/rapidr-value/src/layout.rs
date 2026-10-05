@@ -58,11 +58,14 @@ impl Align {
 /// (and a form's ClientWidth / ClientHeight) are integers, as in RapidQ
 /// (Delphi's Integer properties), so `Height = ClientHeight / 2 + 20` keeps
 /// an integer — rounded half to even, as the FPU stores it (304.5 → 304).
+/// A check box's Checked is true or false whatever number is stored (RC.EXE:
+/// `Checked = 5` reads 1).
 pub fn property_value(prop: &str, val: crate::Value) -> crate::Value {
     match val {
         crate::Value::Double(f) if matches!(prop.to_ascii_lowercase().as_str(), "left" | "top" | "width" | "height" | "clientwidth" | "clientheight") => {
             crate::Value::Integer(crate::numeric::round_to_int(f))
         }
+        crate::Value::Integer(_) | crate::Value::Double(_) if prop.eq_ignore_ascii_case("checked") => crate::Value::Boolean(val.to_bool()),
         v => v,
     }
 }

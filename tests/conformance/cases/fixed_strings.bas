@@ -1,4 +1,6 @@
-' STRING * n: a store is cut to n characters (variables, arrays, TYPE fields, locals)
+' STRING * n: always n characters, as RapidQ has it (RC.EXE prints this) — a
+' store is cut or padded with spaces, a new one is n spaces (variables,
+' arrays, TYPE fields, locals); STRING * 0 holds nothing. (CBOOL is RapidR's.)
 DIM s AS STRING * 8
 DIM a(2) AS STRING * 3
 TYPE Rec

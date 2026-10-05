@@ -1,6 +1,7 @@
 ' RapidQ syntax from its examples: STRUCT … END STRUCT (a TYPE), "" inside
-' a string is a quote, ?/??/??? type suffixes on numbers, and a `_`
-' continuation inside a $ESCAPECHARS string.
+' a string is no quote — RC.EXE reads `"[:"":>"` as two strings side by
+' side, worth the first ("[:") — ?/??/??? type suffixes on numbers, and a
+' `_` continuation inside a $ESCAPECHARS string.
 STRUCT Pt
   x AS INTEGER
   y AS INTEGER

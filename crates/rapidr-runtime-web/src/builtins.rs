@@ -29,7 +29,7 @@ fn print_hook(text: &str) {
 pub fn rp_print(items: &[Value], newline: bool) {
     let mut parts = Vec::new();
     for item in items {
-        parts.push(item.to_string_val());
+        parts.push(crate::value::format::print_text(item));
     }
     let text = parts.join(" ");
     let msg = if newline {
@@ -274,13 +274,11 @@ pub fn rp_time() -> Value {
 // Timer — uses performance.now() on web
 // ---------------------------------------------------------------------------
 
+/// TIMER: the seconds since (local) midnight, as RapidQ's on Windows and the
+/// desktop runtimes.
 pub fn rp_timer() -> Value {
-    if let Some(window) = web_sys::window() {
-        if let Ok(perf) = window.performance().ok_or(()) {
-            return v_dbl(perf.now() / 1000.0);
-        }
-    }
-    v_dbl(0.0)
+    let d = js_sys::Date::new_0();
+    v_dbl(d.get_hours() as f64 * 3600.0 + d.get_minutes() as f64 * 60.0 + d.get_seconds() as f64 + d.get_milliseconds() as f64 / 1000.0)
 }
 
 // ---------------------------------------------------------------------------
@@ -540,15 +538,17 @@ pub fn rp_playwav(source: &Value, options: &Value) {
 // Directories — none on web
 // ---------------------------------------------------------------------------
 
-pub fn rp_direxists(_path: &Value) -> Value {
-    v_int(0) // directories don't exist on web
+/// DIREXISTS: no directories on the web — but the program's own, "." (1, as
+/// RapidQ's and the desktop's say).
+pub fn rp_direxists(path: &Value) -> Value {
+    v_int(matches!(path.to_string_val().trim(), "." | "./" | ".\\") as i64)
 }
 
 /// FILEEXISTS: a file the program saved this session or one of its
 /// project's files (object_web::web_file_exists).
 pub fn rp_fileexists(path: &Value) -> Value {
     crate::object_web::install_file_hooks();
-    v_int(if crate::object_web::web_file_exists(&path.to_string_val()) { -1 } else { 0 })
+    v_int(if crate::object_web::web_file_exists(&path.to_string_val()) { 1 } else { 0 })
 }
 
 

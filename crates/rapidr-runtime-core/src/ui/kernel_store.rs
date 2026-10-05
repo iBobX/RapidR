@@ -17,12 +17,6 @@ use crate::object::{get_children_of, rp_comp_get, rp_comp_type};
 /// The runtime's components, as the kernel reads them.
 pub struct RtStore;
 
-/// The Color the registry gives a new QLABEL, QFORM and QPANEL
-/// (`RpComponent::new`), which isn't painted: read as unset (a label
-/// has no background; a form and a panel are the button face) — unless the
-/// program set it (`__colorset`, object.rs), white included.
-const LABEL_DEFAULT_COLOR: i64 = 0xFFFFFF;
-
 /// A kernel-drawn dialog's component (`rapidr:…`): its own store answers
 /// (the open dialogs are `rapidr_ui_app::dialogs`').
 fn dialog<R>(id: &str, f: impl FnOnce(&dyn Store) -> R) -> Option<R> {
@@ -38,11 +32,10 @@ impl Store for RtStore {
             return v;
         }
         let v = rp_comp_get(id, prop);
-        if prop.eq_ignore_ascii_case("color")
-            && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR))
-            && matches!(rp_comp_type(id).as_str(), "RLABEL" | "RFORM" | "RPANEL" | "RBEVEL")
-            && !rp_comp_get(id, "__colorset").to_bool()
-        {
+        // (the Color the registry gives a new QLABEL, QFORM and QPANEL,
+        // which isn't painted, unless the program set it — `__colorset`,
+        // object.rs: rapidr_value::component_defaults' rule, the web's too)
+        if prop.eq_ignore_ascii_case("color") && rapidr_value::component_defaults::kernel_reads_unset(&rp_comp_type(id), prop, &v, || rp_comp_get(id, "__colorset").to_bool()) {
             return Value::Null;
         }
         v

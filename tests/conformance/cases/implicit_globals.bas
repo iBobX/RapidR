@@ -1,5 +1,8 @@
-' Variables that are never DIMmed are global: shared by the program and
-' every SUB / FUNCTION, and kept between calls.
+' Variables that are never DIMmed, as RapidQ's one-pass compiler places
+' them (RC.EXE prints this): a name the main program used above a SUB is that
+' global inside it; a name a SUB uses first is the SUB's own, kept between
+' calls (S3's w), and the main program's same name further down is another
+' variable (q, z, k, calls). rapidr_ast::implicit_scope.
 SUB S1
     q = 5
 END SUB
