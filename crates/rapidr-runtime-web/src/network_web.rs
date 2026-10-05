@@ -76,7 +76,7 @@ fn sync_xhr(method: &str, url: &str, body: Option<&str>) -> Result<(i64, String)
 /// Small "network…" badge so the user sees why the UI is blocked during the
 /// synchronous request. Forces a layout flush so it paints before the XHR.
 fn show_busy_overlay() -> Option<web_sys::Element> {
-    let doc = crate::gui_web::document();
+    let doc = crate::page_web::document();
     let body = doc.body()?;
     let el = doc.create_element("div").ok()?;
     el.set_id("rr-busy-overlay");

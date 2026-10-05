@@ -15,7 +15,6 @@ rapidr-bytecode.workspace = true
 rapidr-vm.workspace = true
 rapidr-vm-host-native = { workspace = true, features = ["full"] }
 rapidr-webbundle.workspace = true
-rapidr-rrcss.workspace = true
 base64 = "0.22"
 # The user's settings folder (rapidr open: the answers about downloaded files)
 dirs = "6"

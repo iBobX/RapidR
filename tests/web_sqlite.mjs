@@ -135,8 +135,12 @@ const out2 = await output();
 ok(out2.includes("first Ann"), "before FetchRow the bound edit shows the first row");
 ok(out2.includes("second Bob"), "after FetchRow, the current row");
 const frame = frameOf();
-await frame.locator("#rr-nameedit").fill("Bobby");
-await frame.locator("#rr-btn").click();
+// (the user types over the edit's text, then clicks the button: real
+// input on the UI kernel's window, where the mirror's elements are)
+await frame.locator("#rr-nameedit").click({ force: true });
+await page.keyboard.press("ControlOrMeta+KeyA");
+await page.keyboard.type("Bobby");
+await frame.locator("#rr-btn").click({ force: true });
 ok(await waitFor(async () => (await output()).some((l) => l.startsWith("row1 "))), "the button's handler ran");
 ok((await output()).includes("row1 Bobby db Bobby Ann Ann"), "the edit went into the current row and the database (that row only)");
 

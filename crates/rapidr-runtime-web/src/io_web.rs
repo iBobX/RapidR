@@ -161,7 +161,7 @@ fn video_frame(name: &str) {
     }
     let (w, h) = (rp_comp_get(&screen, "width").to_i64(), rp_comp_get(&screen, "height").to_i64());
     if rqlib::video_draw(name, w, h) {
-        crate::gui_web::render_canvas(&screen);
+        crate::kernel_web::redraw();
     }
 }
 

@@ -15,7 +15,7 @@ export function installConsole() {
   // (docked while a window of the program shows: the UI kernel's windows,
   // `.rr-kwin`, shown or hidden by their style — watched, since a form may
   // show after the last PRINT)
-  const shown = () => [...document.querySelectorAll(".rr-kwin")].some((w) => w.style.display !== "none") || document.querySelector(".rr-form") !== null;
+  const shown = () => [...document.querySelectorAll(".rr-kwin")].some((w) => w.style.display !== "none");
   const dock = () => el?.classList.toggle("docked", shown());
   const watched = new WeakSet();
   const watch = () => {

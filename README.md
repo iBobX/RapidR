@@ -75,7 +75,6 @@ the supporting crates:
 | `rapidr-preprocessor` | `crates/` | `$DEFINE`, `$IFDEF`, `$INCLUDE`, `$MACRO`, `$THEME`, … |
 | `rapidr-lexer` | `crates/` | Tokenization |
 | `rapidr-parser` | `crates/` | Recursive-descent parser → AST |
-| `rapidr-rrcss` | `crates/` | Tiny CSS subset used by the web runtime for style props |
 | `rapidr-codegen-rust` | `crates/` | AST → Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
 | `rapidr-runtime-core` | `crates/` | Native runtime — the desktop GUI (through the UI kernel), builtins, MySQL/SQLite, networking, data science, file I/O |
 | `rapidr-ui-kernel` | `crates/` | The UI kernel: forms as retained trees over the component store, focus, input routing, display lists, text editing, accessibility trees (GUI-free; builds for wasm too) |

@@ -1,27 +1,19 @@
-//! A QFORM's and a QSCROLLBOX's scroll bars in the page, as the desktop's
+//! A QFORM's and a QSCROLLBOX's scroll bars, as the desktop's
 //! (rapidr-runtime-core's scroll.rs): the shared model
 //! (rapidr_value::scrollbars) works out the ranges and the bars; scrolling
-//! moves the components (their Left / Top); the bars are drawn over the
-//! components from the model's ops and take the mouse before them.
+//! moves the components (their Left / Top). The UI kernel draws the bars
+//! and takes the mouse on them.
 
-use std::cell::{Cell, RefCell};
-
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+use std::cell::Cell;
 
 use rapidr_value::layout::Align;
 use rapidr_value::scrollbars::{self, Child, Shift};
 
-use crate::gui_web::{comp_id, create_el, document, get_el};
 use crate::object_web::{get_children_of, rp_comp_get_stored, rp_comp_set, rp_comp_type};
 use crate::value::{v_int, Value};
 
 thread_local! {
     static UPDATING: Cell<bool> = const { Cell::new(false) };
-    /// The bars held down: their container and the mouse's last place in
-    /// its client area.
-    static CAPTURE: RefCell<Option<(String, i64, i64)>> = const { RefCell::new(None) };
-    static LISTENING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// (not a QFORMMDI: its children's MDI client area is Windows' own)
@@ -92,21 +84,6 @@ pub fn update(name: &str) {
         crate::layout_web::realign(name, None);
     }
     UPDATING.with(|u| u.set(false));
-    render(name);
-}
-
-/// A form shown: its bars (and its scroll boxes') worked out and drawn.
-pub fn shown(form: &str) {
-    update(form);
-    let mut stack = vec![form.to_uppercase()];
-    while let Some(p) = stack.pop() {
-        for (c, t) in get_children_of(&p) {
-            if t == "RSCROLLBOX" {
-                update(&c);
-            }
-            stack.push(c);
-        }
-    }
 }
 
 /// The components moved by a scroll: Left by -dx, Top by -dy.
@@ -129,7 +106,6 @@ fn move_children(name: &str, (dx, dy): Shift) {
 
 pub fn user_scrolled(name: &str, shift: Shift) {
     move_children(name, shift);
-    render(name);
 }
 
 pub fn get(name: &str, prop: &str) -> Option<Value> {
@@ -145,165 +121,4 @@ pub fn set(name: &str, prop: &str, val: &Value) -> bool {
     }
     update(name);
     true
-}
-
-/// The element the components (and the bars) are in: a form's client
-/// area, a scroll box itself.
-fn client_el(name: &str) -> Option<web_sys::HtmlElement> {
-    let id = comp_id(name);
-    if rp_comp_type(name) == "RFORM" {
-        get_el(&format!("{id}-client"))
-    } else {
-        get_el(&id)
-    }
-}
-
-/// The bars drawn again (an SVG over the components).
-pub fn render(name: &str) {
-    let Some(host) = client_el(name) else { return };
-    listen(name, &host);
-    let overlay = match host.query_selector(":scope > .rr-scrollbars").ok().flatten().and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok()) {
-        Some(o) => o,
-        None => {
-            let o = create_el("div");
-            o.set_class_name("rr-scrollbars");
-            for (k, v) in [("position", "absolute"), ("left", "0"), ("top", "0"), ("pointer-events", "none"), ("z-index", "100000")] {
-                let _ = o.style().set_property(k, v);
-            }
-            let _ = host.append_child(&o);
-            o
-        }
-    };
-    let (w, h) = area(name);
-    let ops = scrollbars::with(name, |s| (s.vert.shown || s.horz.shown).then(|| s.ops(w, h))).flatten();
-    let Some(ops) = ops else {
-        overlay.set_inner_html("");
-        return;
-    };
-    let mut svg = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"{h}\" style=\"display:block\">");
-    for op in ops {
-        match op {
-            rapidr_value::objects::tabcontrol::Op::Fill { rect: (x, y, rw, rh), color } => {
-                svg.push_str(&format!("<rect x=\"{x}\" y=\"{y}\" width=\"{rw}\" height=\"{rh}\" fill=\"#{color:06x}\" shape-rendering=\"crispEdges\"/>"));
-            }
-            rapidr_value::objects::tabcontrol::Op::Arrow { points, color } => {
-                let pts: Vec<String> = points.iter().map(|(px, py)| format!("{px},{py}")).collect();
-                svg.push_str(&format!("<polygon points=\"{}\" fill=\"#{color:06x}\"/>", pts.join(" ")));
-            }
-            _ => {}
-        }
-    }
-    svg.push_str("</svg>");
-    overlay.set_inner_html(&svg);
-}
-
-/// Where the mouse is in `name`'s client area.
-fn local(host: &web_sys::HtmlElement, e: &web_sys::MouseEvent) -> (i64, i64) {
-    let r = host.get_bounding_client_rect();
-    ((e.client_x() as f64 - r.left() - host.client_left() as f64).floor() as i64, (e.client_y() as f64 - r.top() - host.client_top() as f64).floor() as i64)
-}
-
-/// The container's listeners, once: a press on its bars (before its
-/// components see it), the wheel.
-fn listen(name: &str, host: &web_sys::HtmlElement) {
-    if host.get_attribute("data-rr-scroll").is_some() {
-        return;
-    }
-    let _ = host.set_attribute("data-rr-scroll", "1");
-    listen_document();
-    {
-        let (name, el) = (name.to_uppercase(), host.clone());
-        let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            if e.button() != 0 {
-                return;
-            }
-            let (x, y) = local(&el, &e);
-            let (w, h) = area(&name);
-            if !scrollbars::with(&name, |s| s.on_bars(x, y, w, h)).unwrap_or(false) {
-                return;
-            }
-            // (no OnMouseDown: the bars aren't the client area, as Windows')
-            e.stop_immediate_propagation();
-            e.prevent_default();
-            let shift = scrollbars::with_mut(&name, |s| s.mouse_down(x, y, w, h)).unwrap_or_default();
-            user_scrolled(&name, shift);
-            CAPTURE.with(|c| *c.borrow_mut() = Some((name.clone(), x, y)));
-            schedule_repeat(name.clone(), 400);
-        });
-        let opts = web_sys::AddEventListenerOptions::new();
-        opts.set_capture(true);
-        let _ = host.add_event_listener_with_callback_and_add_event_listener_options("mousedown", cb.as_ref().unchecked_ref(), &opts);
-        cb.forget();
-    }
-    {
-        let (name, el) = (name.to_uppercase(), host.clone());
-        let cb = Closure::<dyn FnMut(web_sys::WheelEvent)>::new(move |e: web_sys::WheelEvent| {
-            let (x, y) = local(&el, &e);
-            let (w, h) = area(&name);
-            if x < 0 || y < 0 || x >= w || y >= h {
-                return;
-            }
-            let (dx, dy) = (e.delta_x(), e.delta_y());
-            let horizontal = dx.abs() > dy.abs() || e.shift_key();
-            let d = if dx.abs() > dy.abs() { dx } else { dy };
-            if d == 0.0 {
-                return;
-            }
-            let shift = scrollbars::with_mut(&name, |s| s.wheel(if d > 0.0 { 1 } else { -1 }, horizontal, w, h));
-            if shift != (0, 0) {
-                e.prevent_default();
-                e.stop_propagation();
-                user_scrolled(&name, shift);
-            }
-        });
-        let opts = web_sys::AddEventListenerOptions::new();
-        opts.set_passive(false);
-        let _ = host.add_event_listener_with_callback_and_add_event_listener_options("wheel", cb.as_ref().unchecked_ref(), &opts);
-        cb.forget();
-    }
-}
-
-/// The bars held down: the part repeats (as Windows' do).
-fn schedule_repeat(name: String, ms: i32) {
-    let cb = Closure::once_into_js(move || {
-        let Some((held, x, y)) = CAPTURE.with(|c| c.borrow().clone()) else { return };
-        if held != name {
-            return;
-        }
-        let (w, h) = area(&name);
-        let shift = scrollbars::with_mut(&name, |s| s.repeat(x, y, w, h));
-        user_scrolled(&name, shift);
-        schedule_repeat(name, 50);
-    });
-    if let Some(w) = web_sys::window() {
-        let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(cb.unchecked_ref(), ms);
-    }
-}
-
-/// The page's drag and release, once: a held thumb follows the mouse.
-fn listen_document() {
-    if LISTENING.with(|l| l.replace(true)) {
-        return;
-    }
-    let doc = document();
-    let moved = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(|e: web_sys::MouseEvent| {
-        let Some((name, _, _)) = CAPTURE.with(|c| c.borrow().clone()) else { return };
-        let Some(host) = client_el(&name) else { return };
-        let (x, y) = local(&host, &e);
-        CAPTURE.with(|c| *c.borrow_mut() = Some((name.clone(), x, y)));
-        let (w, h) = area(&name);
-        let shift = scrollbars::with_mut(&name, |s| s.mouse_drag(x, y, w, h));
-        user_scrolled(&name, shift);
-        e.prevent_default();
-    });
-    let _ = doc.add_event_listener_with_callback("mousemove", moved.as_ref().unchecked_ref());
-    moved.forget();
-    let up = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(|_: web_sys::MouseEvent| {
-        let Some((name, _, _)) = CAPTURE.with(|c| c.borrow_mut().take()) else { return };
-        let (w, h) = area(&name);
-        let shift = scrollbars::with_mut(&name, |s| s.mouse_up(w, h));
-        user_scrolled(&name, shift);
-    });
-    let _ = doc.add_event_listener_with_callback("mouseup", up.as_ref().unchecked_ref());
-    up.forget();
 }

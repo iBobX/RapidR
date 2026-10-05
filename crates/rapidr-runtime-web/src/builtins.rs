@@ -166,22 +166,10 @@ pub fn rp_input_line() -> Value {
     rp_input(&v_str(&prompt))
 }
 
+/// INPUT's question in the UI kernel's input box (a wait the VM serves).
 fn open_input(prompt: &str, echo: bool) {
     let text = if prompt.trim().is_empty() { "Enter a value:" } else { prompt };
-    // (the UI kernel's input box, as its message boxes)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() && crate::kernel_web::input_box(&app_title(), text, echo).is_some() {
-        return;
-    }
-    crate::dialog_web::open(crate::dialog_web::Dialog {
-        title: "",
-        text,
-        buttons: vec![("OK".into(), 1)],
-        dismissed: 0,
-        input: Some(""),
-        echo,
-        icon: None,
-    });
+    let _ = crate::kernel_web::input_box(&app_title(), text, echo);
 }
 
 // ---------------------------------------------------------------------------
@@ -322,13 +310,10 @@ pub fn rp_chdrive(_drive: &Value) -> Value {
 /// INPUT$(n)'s wait (the parser's RAPIDR__INPUTCHARS): the program sleeps
 /// until a key is pressed in the page. 0 when it can't wait here.
 pub fn rp_waitkey() -> Value {
-    // (Stage W4: with the UI kernel hosting the page and a window shown, the
-    // desktop's: a wait the VM serves, the windows' keys INKEY$'s)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() {
-        if let Some(v) = crate::kernel_web::wait_key() {
-            return v;
-        }
+    // (a window shown: the desktop's — a wait the VM serves, the windows'
+    // keys INKEY$'s)
+    if let Some(v) = crate::kernel_web::wait_key() {
+        return v;
     }
     track_keys();
     if rapidr_value::console::key_waiting() {
@@ -430,11 +415,9 @@ fn swallow_end_unwind() {
 }
 
 pub fn rp_showmessage(msg: &Value) {
-    // (Stage W4: with the UI kernel hosting the page, the desktop's: the
-    // kernel's box titled Application.Title — under a GUI test without a
-    // message hook, printed, the program going on)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() && crate::kernel_web::dialogs_here() {
+    // (the desktop's: the kernel's box titled Application.Title — under a
+    // GUI test without a message hook, printed, the program going on)
+    if crate::kernel_web::dialogs_here() {
         let text = msg.to_string_val();
         if rapidr_ui_app::testhooks::under_test() && !rapidr_ui_app::testhooks::message_hook() {
             web_sys::console::log_1(&JsValue::from_str(&format!("[SHOWMESSAGE] {text}")));
@@ -445,32 +428,16 @@ pub fn rp_showmessage(msg: &Value) {
             return;
         }
     }
-    if crate::dialog_web::can_wait() {
-        // (titled with Application.Title, as on the desktop)
-        let title = app_title();
-        crate::dialog_web::open(crate::dialog_web::Dialog {
-            title: &title,
-            text: &msg.to_string_val(),
-            buttons: vec![("OK".into(), 0)],
-            dismissed: 0,
-            input: None,
-            echo: false,
-            icon: None,
-        });
-        return;
-    }
+    // (a native web build can't wait for the kernel's box: the browser's)
     if let Some(window) = web_sys::window() {
         let _ = window.alert_with_message(&msg.to_string_val());
     }
 }
 
 pub fn rp_msgbox(msg: &Value) -> Value {
-    // (Stage W4: the kernel's box with OK, as the desktop's MSGBOX; 0)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() {
-        if let Some(v) = crate::kernel_web::choice(&app_title(), &msg.to_string_val(), &["OK"], None, false, |_| v_int(0)) {
-            return v;
-        }
+    // (the kernel's box with OK, as the desktop's MSGBOX; 0)
+    if let Some(v) = crate::kernel_web::choice(&app_title(), &msg.to_string_val(), &["OK"], None, false, |_| v_int(0)) {
+        return v;
     }
     rp_showmessage(msg);
     v_int(0)
@@ -705,38 +672,20 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
 /// [`show_choice`], with the icon's sound as it shows (MESSAGEBOX's, as
 /// Windows' MessageBox) where the UI kernel draws the box.
 fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
-    // (Stage W4: with the UI kernel hosting the page, the kernel's box —
-    // the desktop's — a wait the VM serves, the button chosen mapped to
-    // the builtin's result as the desktop maps it)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() {
-        let labels: Vec<&'static str> = buttons.iter().map(|b| b.label).collect();
-        let owned = buttons.to_vec();
-        let then = move |choice: Option<usize>| {
-            v_int(match choice.and_then(|i| owned.get(i)) {
-                Some(b) => b.result,
-                None => crate::value::dialogs::dismissed(&owned),
-            })
-        };
-        if let Some(v) = crate::kernel_web::choice(title, text, &labels, icon, beep, then) {
-            return v;
-        }
+    // (the kernel's box — the desktop's — a wait the VM serves, the button
+    // chosen mapped to the builtin's result as the desktop maps it)
+    let labels: Vec<&'static str> = buttons.iter().map(|b| b.label).collect();
+    let owned = buttons.to_vec();
+    let then = move |choice: Option<usize>| {
+        v_int(match choice.and_then(|i| owned.get(i)) {
+            Some(b) => b.result,
+            None => crate::value::dialogs::dismissed(&owned),
+        })
+    };
+    if let Some(v) = crate::kernel_web::choice(title, text, &labels, icon, beep, then) {
+        return v;
     }
-    let _ = beep;
-    // Run by the bytecode VM: an in-page dialog with every button and the
-    // icon; the program waits for the answer (crate::dialog_web).
-    if crate::dialog_web::can_wait() {
-        crate::dialog_web::open(crate::dialog_web::Dialog {
-            title,
-            text,
-            buttons: buttons.iter().map(|b| (b.label.to_string(), b.result)).collect(),
-            dismissed: crate::value::dialogs::dismissed(buttons),
-            input: None,
-            echo: false,
-            icon,
-        });
-        return v_null();
-    }
+    // (a native web build can't wait for it: the browser's own)
     let Some(window) = web_sys::window() else { return v_int(0) };
     let message = if title.is_empty() { text.to_string() } else { format!("{title}\n\n{text}") };
     match buttons {
@@ -758,11 +707,11 @@ fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::B
 }
 
 /// `MOUSEX` / `MOUSEY`: the mouse relative to the client area of the form
-/// it's over (gui_web::mouse_in_form).
+/// it's over (kernel_web::mouse_in_form).
 pub fn rp_mousex() -> Value {
-    v_int(crate::gui_web::mouse_in_form().0)
+    v_int(crate::kernel_web::mouse_in_form().0)
 }
 
 pub fn rp_mousey() -> Value {
-    v_int(crate::gui_web::mouse_in_form().1)
+    v_int(crate::kernel_web::mouse_in_form().1)
 }

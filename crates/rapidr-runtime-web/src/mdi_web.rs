@@ -1,6 +1,6 @@
 //! QFORMMDI in the browser: `rapidr_value::mdi` does the work (the same as
 //! on the desktop); this is the web runtime it works through. Each child's
-//! frame is an `RMDICHILD` element (`gui_web::create_mdi_frame`).
+//! frame is an `RMDICHILD` the UI kernel draws.
 
 use rapidr_value::mdi::{self, Action, Runtime};
 
@@ -33,7 +33,8 @@ impl Runtime for Web {
         get_children_of(name)
     }
     fn stack(self, names: &[String]) {
-        crate::gui_web::stack_elements(names);
+        let _ = names;
+        crate::kernel_web::rebuild();
     }
     fn client(self, form: &str) -> (i64, i64) {
         crate::layout_web::form_client(&form.to_uppercase())

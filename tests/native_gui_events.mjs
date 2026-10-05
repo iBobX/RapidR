@@ -46,7 +46,7 @@
 //   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.
 //   * tests/fixtures/file_dialogs.bas — QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG answers (RAPIDR_TEST_FILE_DIALOG).
 //   * tests/fixtures/message_dialogs.bas — under the hooks SHOWMESSAGE prints and goes on, MESSAGEDLG waits (captured open).
-//   * tests/fixtures/message_icons.bas — MESSAGEBOX's MB_ICONQUESTION: the icon left of the text (the web's page dialog read).
+//   * tests/fixtures/message_icons.bas — MESSAGEBOX's MB_ICONQUESTION: the icon left of the text (the web's: its window's pixels and tree, as the desktop's).
 //   * tests/fixtures/color_dialog.bas — QCOLORDIALOG's Color, Style, Colors(i), OK / Cancel (RAPIDR_TEST_COLOR_DIALOG).
 //   * tests/fixtures/font_dialog.bas — QFONTDIALOG's Name, Size, FontName(i), GetFont / SetFont, OK / Cancel (RAPIDR_TEST_FONT_DIALOG).
 //   * tests/fixtures/window_state.bas — QFORM.WindowState: maximized (the work area, OnResize), restored, minimized.

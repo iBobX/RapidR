@@ -55,6 +55,11 @@ CREATE Form AS QFORM
     Left = 10: Top = 90: Width = 200
     Text = "汉字"
   END CREATE
+  CREATE Emo AS QLABEL
+    Left = 230: Top = 90: Width = 60: Height = 40
+    FontSize = 20
+    Caption = "${String.fromCodePoint(0x1F600)}"
+  END CREATE
   CREATE Ed2 AS QEDIT
     Left = 10: Top = 120: Width = 200
     Text = "${String.fromCodePoint(0xE000)}${String.fromCodePoint(0xE000)}"
@@ -87,6 +92,7 @@ async function check(kind, open) {
   say(files.some((f) => f.startsWith("NotoSansSC-Regular.")), "Chinese: a Noto Sans SC chunk was fetched");
   say(files.some((f) => f.startsWith("NotoSansKR-Regular.")), "Korean: a Noto Sans KR chunk was fetched");
   say(files.includes("NotoSansSymbols2-Regular.otf"), "✓: Noto Sans Symbols 2 was fetched");
+  say(files.includes("Noto-COLRv1.ttf"), "😀: Noto Color Emoji was fetched");
   say(!files.includes("NotoSans-Regular.otf"), "nothing for what Liberation has (abc)");
   say(new Set(files).size === files.length, "each file once");
 
@@ -115,6 +121,11 @@ async function check(kind, open) {
   const ed = await ink("Ed"), ed2 = await ink("Ed2");
   say(ed && ed2 && ed.join("") !== ed2.join(""), `an edit's Chinese text is drawn, not boxes (${count(ed)} / ${count(ed2)} ink pixels)`);
   say(await k.text(page, "Ed") === "汉字", "the edit holds its text");
+  // (a colour glyph: the face's yellow, not the text's black)
+  const emo = await k.pixels(page, "Emo");
+  let yellow = 0;
+  if (emo) for (let i = 0; i < emo.data.length; i += 4) if (emo.data[i] > 200 && emo.data[i + 1] > 150 && emo.data[i + 2] < 110) yellow++;
+  say(yellow > 30, `😀 is drawn in colour (${yellow} yellow pixels)`);
 
   say(errors.length === 0, `no page errors (${errors.join(" / ")})`);
   await page.close();

@@ -618,7 +618,7 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
 }
 
 fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections::HashMap<String, String>) -> String {
-    let css = rapidr_rrcss::RR_BASE_CSS;
+    let css = rapidr_webbundle::PAGE_CSS;
     let mut assets_script = String::new();
     if !assets.is_empty() {
         assets_script.push_str("  <script>\n    window.__rapidr_assets = {\n");
@@ -640,7 +640,6 @@ fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections
 {notices}  <style>{css}</style>
 {assets_script}</head>
 <body>
-  <div id="rr-root"></div>
   <pre id="rr-console"></pre>
   <script type="module">
     import init from './{wasm_module}.js';

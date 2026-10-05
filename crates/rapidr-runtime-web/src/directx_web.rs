@@ -1,7 +1,7 @@
 //! RapidQ's DirectX 2D objects in the browser (docs/directx-plan.md), as
 //! the desktop's `rapidr-runtime-core/src/directx.rs`: the shared models
-//! (`rapidr_value::objects::directx`) draw, a QDXSCREEN is a `<canvas>`
-//! showing its last Flip (`gui_web::render_dxscreen`); this sets a form's
+//! (`rapidr_value::objects::directx`) draw, a QDXSCREEN shows its last
+//! Flip (the UI kernel draws it); this sets a form's
 //! screens up when it's first shown (OnInitialize, OnInitializeSurface) or
 //! when one is put on a form already shown, gives a FullScreen form the
 //! page, paces and counts a QDXTIMER (ActiveOnly: while the page
@@ -9,7 +9,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::object_web::{form_of, get_children_of, rp_comp_get_stored, rp_comp_type, rp_fire_event, SHOWN_BY_PROGRAM};
+use crate::object_web::{form_of, get_children_of, rp_comp_get_stored, rp_comp_type, rp_fire_event};
 
 /// The QDXSCREENs on `form`, in its containers too.
 fn screens_of(form: &str) -> Vec<String> {
@@ -30,11 +30,11 @@ fn screens_of(form: &str) -> Vec<String> {
 pub fn form_shown(form: &str) {
     let screens = screens_of(form);
     if screens.iter().any(|s| rp_comp_get_stored(s, "fullscreen").to_bool()) {
-        crate::gui_web::form_fullscreen(form);
+        crate::kernel_web::redraw();
     }
     for screen in screens {
         if rapidr_value::objects::dxscreen_initialize(&screen, &|i, p| rp_comp_get_stored(i, p)) {
-            crate::gui_web::render_dxscreen(&screen);
+            crate::kernel_web::redraw();
             rp_fire_event(&screen, "oninitialize");
             rp_fire_event(&screen, "oninitializesurface");
         }
@@ -52,12 +52,8 @@ pub fn fullscreen(form: &str) -> bool {
 /// block has given it its size and OnInitialize by then).
 pub fn parented(name: &str) {
     let Some(form) = form_of(name) else { return };
-    // (the kernel host: its window made, as the desktop asks)
-    #[cfg(feature = "kernel")]
-    let shown = if crate::kernel_web::on() { crate::kernel_web::form_window_exists(&form) } else { rp_comp_get_stored(&form, SHOWN_BY_PROGRAM).to_bool() };
-    #[cfg(not(feature = "kernel"))]
-    let shown = rp_comp_get_stored(&form, SHOWN_BY_PROGRAM).to_bool();
-    if !shown {
+    // (its window made, as the desktop asks)
+    if !crate::kernel_web::form_window_exists(&form) {
         return;
     }
     let later = Closure::once_into_js(move || form_shown(&form));

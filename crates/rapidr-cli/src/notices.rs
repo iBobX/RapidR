@@ -102,13 +102,12 @@ impl Kind {
 
     /// The workspace crates (and features) whose graph is compiled in: a
     /// native program depends on rapidr-runtime-core, an interpreted one is
-    /// the runner stub; a native web program on rapidr-runtime-web with its
-    /// `kernel` feature (codegen's Cargo.toml), a web bundle runs
-    /// rapidr-vm-host-web's wasm.
+    /// the runner stub; a native web program on rapidr-runtime-web
+    /// (codegen's Cargo.toml), a web bundle runs rapidr-vm-host-web's wasm.
     pub fn roots(&self) -> (&'static [&'static str], &'static [&'static str]) {
         match self {
             Kind::Desktop(_) => (&["rapidr-runtime-core", "rapidr-runner-stub"], &[]),
-            Kind::Web => (&["rapidr-vm-host-web", "rapidr-runtime-web"], &["rapidr-runtime-web/kernel"]),
+            Kind::Web => (&["rapidr-vm-host-web", "rapidr-runtime-web"], &[]),
             Kind::Tools(_) => (&["rapidr-cli", "rapidr-launcher"], &[]),
         }
     }
@@ -704,8 +703,8 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
     // (the web runtime's fallback fonts: shipped beside it, fonts/)
     if matches!(kind, Kind::Web) {
         out.push(Component {
-            name: "Noto fallback fonts (Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2, Noto Sans SC, Noto Sans KR)".into(),
-            version: "2.015 / 2.003 / 2.008 / CJK Sans 2.004".into(),
+            name: "Noto fallback fonts (Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2, Noto Sans SC, Noto Sans KR, Noto Color Emoji)".into(),
+            version: "2.015 / 2.003 / 2.008 / CJK Sans 2.004 / emoji 2.051".into(),
             declared: "OFL-1.1".into(),
             used: "OFL-1.1".into(),
             url: "https://github.com/notofonts".into(),

@@ -10,7 +10,7 @@
 //   * a change that must not change the desktop (shared UI code): capture
 //     before and after, then `diff -r before after` — every file must be
 //     byte-identical (dialog_timers' are timing-dependent: its tick counts);
-//   * the web's kernel host (Stage W3): RAPIDR_WEB_HOST=kernel
+//   * the web, whose GUI host is the UI kernel too:
 //     RAPIDR_DESKTOP_CAPTURES=<outdir> node tests/web_gui_parity.mjs compares
 //     the browser's windows and trees with these.
 //

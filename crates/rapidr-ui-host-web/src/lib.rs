@@ -9,8 +9,8 @@
 //!   accessibility mirror over it ([`mirror`], from [`aria`]'s
 //!   descriptions), the pointer, keys, input methods, the clipboard and
 //!   autofill routed into the kernel through `rapidr_ui_app::desktop`'s
-//!   `Desktop` (the desktop host's). The web runtime drives it (its
-//!   `kernel` feature, `?host=kernel`).
+//!   `Desktop` (the desktop host's). The web runtime drives it: it is
+//!   the web's only GUI host.
 //! - The W0 spike (feature `spike`): `SpikeForm`, three fixture forms in
 //!   `MemStore`s and the spike's page (`tests/web_host_spike.html`).
 //!

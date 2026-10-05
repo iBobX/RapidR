@@ -13,7 +13,7 @@ use wasm_bindgen::JsCast;
 
 use rapidr_value::{tray, v_int};
 
-use crate::gui_web::{create_el, document};
+use crate::page_web::{create_el, document};
 
 /// The icons changed: the strip drawn again (after the program's code, so
 /// several changes draw once).
@@ -68,7 +68,7 @@ fn render() {
         let Ok(img) = doc.create_element("img") else { continue };
         let Ok(img) = img.dyn_into::<web_sys::HtmlImageElement>() else { continue };
         img.set_class_name("rr-tray-icon");
-        if let Some(url) = crate::gui_web::rgba_data_url(w, h, &rgba) {
+        if let Some(url) = crate::page_web::rgba_data_url(w, h, &rgba) {
             img.set_src(&url);
         }
         let _ = img.style().set_property("width", "16px");

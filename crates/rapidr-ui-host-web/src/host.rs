@@ -658,6 +658,7 @@ impl WebHost {
                 frame: f.spec.frame,
                 maximized: f.state == rapidr_value::window_state::WS_MAXIMIZED,
                 theme: rapidr_value::theme::generation(),
+                icon: f.spec.icon.clone(),
             };
             if w.look.as_ref() != Some(&look) {
                 w.look = Some(look);
@@ -872,6 +873,12 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 input(|h, store| {
                     h.mouse = (f64::from(e.client_x()), f64::from(e.client_y()));
                     h.desk.mouse_move(store, &id, p.0, p.1, m, Source::User);
+                    // (the pointer: Screen.Cursor, else the component's —
+                    // the desktop's rule)
+                    let cursor = rapidr_ui_app::desktop::cursor_at(&h.desk, store, &id, p);
+                    if let Some(el) = el.dyn_ref::<HtmlElement>() {
+                        set_style(el, &[("cursor", cursor.css().into())]);
+                    }
                 });
             });
         }

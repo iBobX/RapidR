@@ -630,7 +630,58 @@ It passes at 1× and 2×.
 
 **Privacy.** The web IDE no longer loads Google Fonts: its interface uses the system's fonts, and the font picker's names (Inter, Roboto …) resolve through the fallback like any unknown family. Neither the IDE, the runtime nor a bundle makes a third-party request a program doesn't make itself.
 
+**Emoji (since).** Noto Color Emoji in its COLRv1 form, drawn in colour by the renderer (glifo paints COLR through skrifa: no PNG decoder needed). It's fetched from the noto-emoji repository's file at release tag v2.051 (that project publishes no release asset), pinned by SHA-256, and kept whole (5 MB): emoji sequences are ligatures over several characters. `web_fonts.mjs` checks 😀's yellow.
+
 **Open.**
-- Emoji: Noto Color Emoji is CBDT bitmaps or COLRv1, and whether vello_cpu draws COLR is not checked yet.
 - Chunks by frequency rather than by codepoint, so a sentence needs fewer files.
 - The desktop on the same set from the install's resources.
+
+---
+
+## W11: the DOM host deleted (2026-10-05)
+
+The UI kernel is the web runtime's only GUI host, as §5 planned. There is no `?host=dom`, no `RAPIDR_HOST`, and no `kernel` feature any more: `rapidr-runtime-web` depends on the kernel, `rapidr-ui-app` and `rapidr-ui-host-web` unconditionally.
+
+**Deleted:**
+- `gui_web.rs`, the DOM widgets: 6,200 lines;
+- `a11y_web.rs`, the JavaScript-era ARIA mirror;
+- `menu_web.rs`;
+- the DOM dialogs in `dialog_web.rs`: message boxes, input, colour, font, and the DOM ShowModal wait;
+- `scroll_web.rs`'s SVG bars;
+- the DOM half of `object_web.rs`: widget creation, the DOM event binding for drawn components, the VCL click order, the OnShow bookkeeping;
+- the data science DOM placeholders;
+- the `rapidr-rrcss` crate. `rapidr_webbundle::PAGE_CSS` is the page's few rules now.
+
+The wasm shrank from 10.63 to 10.21 MB.
+
+**Kept, now host-free:**
+- **`dialog_web.rs`:** the VM's suspend / resume / yield protocol, and the page's Open / Save picker behind `Windows::ask_files`.
+- **`webapi_web.rs` (new):** RJAVASCRIPT, RWEBSTORAGE, RWEBNOTIFICATION, RWEBGEOLOCATION and RROUTER. Their methods come before the windows' methods, so a notification's `Show` is no longer taken for a form's. The router's `Route` / `Hash` read the address again.
+- **`page_web.rs` (new):** the page's document and elements.
+- **`layout_web.rs`, `scroll_web.rs`'s model, `mdi_web.rs`:** the models the kernel host's `Program` works through.
+
+**Settled on the way:**
+- **QIMAGE.LoadFromPlot:** the chart's pixels become the picture, as on the desktop.
+- **The page's icon:** it follows Application.Icon, so a bundle's tab shows the program's icon.
+- **DataSource / DataField:** a user's edit or click on a bound component writes the field (`kernel_web::bound_input`). The other direction is unchanged.
+- **A QIMAGE given a PNG / JPEG:** it isn't loaded and the console warns, as the desktop does. The DOM host had shown it in an `<img>`.
+- **A native web build** can't wait for the kernel's boxes, so its MESSAGEBOX / SHOWMESSAGE / file / colour / font dialogs keep the browser's `alert` / `confirm` / `prompt` / colour input.
+- **The title bar** shows the form's icon (IcoHandle / Icon, else Application.Icon), as the DOM host's did.
+- **The pointer** follows Screen.Cursor and the components' Cursor, by the desktop's rule: `cursor_at` moved from the winit host into `rapidr_ui_app::desktop`, shared by both hosts.
+
+**The tests** are kernel-host only:
+- `web_gui_run.mjs` has no DOM runner.
+- `web_gui_parity.mjs` and `web_a11y.mjs` have no DOM mode. Their checks that pixels, trees and dumps don't cover are ported: the tray strip, the title-bar glyphs, the page's icon, and a11y_form's keys (Tab order, mnemonics, Enter / Escape, the focus ring by its pixels, the status bar's live region).
+- `message_dialogs`, `design_surface` and `size_grip` now run on the web too.
+- New: `tests/web_webapi.mjs` (the five API components and LoadFromPlot). `tests/web_sqlite.mjs` (the binding both ways) joins `tools/regress.sh`.
+
+**Open after W11.**
+- `dialog_timers` on the kernel host: a MESSAGEBOX a timer's handler opens just as `Form.ShowModal` starts answers 0, and the other timer doesn't tick during it. It stays off the web cases until fixed.
+- An open menu's items aren't in the accessibility tree (desktop and web alike).
+- Ad-hoc scripts outside `regress.sh` still look for DOM-host elements: `corpus_web_compare.mjs`, `verify_sqlite_rendering.mjs`, `test_dropdown_sqlite_hover.mjs`, `test_all_dropdown_examples.mjs`, `debug_e2e_event_handling.mjs`, `_q.mjs`.
+
+**The web IDE** (`web-ide/`) runs its preview and builds on the kernel host. Retiring the HTML / Monaco IDE in favour of the kernel-drawn MDI IDE (§3.9, ROADMAP's IDE phase) needs:
+- the MDI IDE's program runs in the page;
+- the program under test runs in the workspace as MDI windows rather than in the preview frame;
+- the code editor has the language service's UI;
+- the IDE suites (`web_ide_*`) are moved onto it.

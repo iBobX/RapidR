@@ -1,6 +1,7 @@
 # The fallback fonts: what the UI kernel draws a character with when the
 # built-in Liberation fonts (crates/rapidr-value/fonts) lack it — symbols
-# (✓ …), Chinese, Japanese and Korean (docs/web-host-plan.md §3.7, Stage W7).
+# (✓ …), Chinese, Japanese, Korean and emoji (docs/web-host-plan.md §3.7,
+# Stage W7).
 # All are Noto fonts under the SIL Open Font License 1.1 (OFL.txt here), from
 # the Noto project's official GitHub release assets, pinned by version and
 # SHA-256. None declares a Reserved Font Name (their OFL.txt and the CJK
@@ -54,3 +55,16 @@ committed = false
 release = "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/17_NotoSansKR.zip"
 release_sha256 = "ac7eeb4e2b0d41de8ff31b2d6e1e2a41caf253fd5cefb380bfa1f40f1747b612"
 member = "NotoSansKR-Regular.otf"
+
+# (emoji: COLRv1 colour glyphs, which the renderer draws — glifo, via
+# skrifa's colour painter. The Noto emoji project publishes the font in its
+# repository at each release tag rather than as a release asset: the file
+# at tag v2.051, pinned by SHA-256. One file, not split: emoji sequences
+# (ZWJ, flags, skin tones) are ligatures over several characters.)
+[[font]]
+family = "Noto Color Emoji"
+file = "Noto-COLRv1.ttf"
+committed = false
+url = "https://raw.githubusercontent.com/googlefonts/noto-emoji/v2.051/fonts/Noto-COLRv1.ttf"
+sha256 = "0ae57fe58645638523ba35f388d93739d292539a9acb84df5700c81b1e1a28d2"
+split = false

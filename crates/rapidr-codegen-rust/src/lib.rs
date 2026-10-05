@@ -760,7 +760,7 @@ impl RustCodegen {
 
         // For web targets, finalize: auto-parent orphan widgets and show forms
         if self.target == AppTarget::Web {
-            self.line("gui_web_finalize();");
+            self.line("gui_finalize();");
         } else {
             // Files the program never closed keep what was written.
             self.line("rp_close_all();");
@@ -3271,7 +3271,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-rapidr-runtime-web = {{ path = "{runtime_web_path}", features = ["kernel"] }}
+rapidr-runtime-web = {{ path = "{runtime_web_path}" }}
 wasm-bindgen = "=0.2.129"
 "#
     )

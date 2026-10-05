@@ -3,7 +3,6 @@
 //! Mirrors the desktop `object.rs` API — same function signatures so that
 //! generated code works identically on both targets.
 
-use crate::gui_web;
 use crate::value::{v_bool, v_int, v_null, v_str, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -193,12 +192,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
     }
 
-    // (Stage W3: with the kernel hosting, the desktop's own defaults too —
-    // the kernel draws, and the program reads, what it does on the desktop:
-    // a QLABEL's FontSize, a QFORM's BorderStyle …)
-    if kernel_hosts() {
-        props.extend(rapidr_value::component_defaults::desktop(type_name));
-    }
+    // (the desktop's own defaults too — the kernel draws, and the program
+    // reads, what it does on the desktop: a QLABEL's FontSize, a QFORM's
+    // BorderStyle …)
+    props.extend(rapidr_value::component_defaults::desktop(type_name));
     // (the web's own elements show until the program hides them, and say so)
     if matches!(utype.as_str(), "RWEBVIEW" | "RDOM" | "RWEBAUDIO" | "RWEBVIDEO" | "RPLOT") {
         props.entry("visible".to_string()).or_insert(v_bool(true));
@@ -218,23 +215,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         props.insert("height".to_string(), v_int(h));
     }
 
-    // Create the DOM element (skip for non-visual components)
-    match utype.as_str() {
-        "RNUM" | "RDATAFRAME" | "RSQLITE" => {
-            // Non-visual: no DOM element
-        }
-        "RPLOT" if !kernel_hosts() => {
-            crate::datascience_web::create_plot_widget(
-                &format!("rr-{}", uname.to_lowercase()),
-                &uname,
-                &props,
-            );
-        }
-        _ => {
-            gui_web::gui_web_create_widget(&uname, &utype, &props);
-        }
-    }
-
     let name_clone = uname.clone();
     COMPONENTS.with(|c| {
         c.borrow_mut().insert(
@@ -248,31 +228,17 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     });
     // (the web-only components' elements, once the component is
     // registered: overlay_web, placed by the UI kernel's host)
-    #[cfg(feature = "kernel")]
-    if kernel_hosts() && crate::overlay_web::is_overlay(&rp_comp_type(&name_clone)) {
+    if crate::overlay_web::is_overlay(&rp_comp_type(&name_clone)) {
         crate::overlay_web::create(&name_clone, &rp_comp_type(&name_clone));
     }
-
-    gui_web::setup_data_binding(&name_clone);
-    // (a QGLASSFRAME's shade: from its properties, now registered)
-    if rp_comp_type(&name_clone) == "RGLASSFRAME" {
-        gui_web::render_glass(&name_clone);
-    }
+    // (the kernel's tree has it)
+    crate::kernel_web::created(&name_clone);
     install_object_hooks();
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
-        }
-        // (its element may exist already)
-        if rapidr_value::objects::is_dirtree(name) {
-            gui_web::render_dirtree(&name.to_uppercase());
-        }
-        if rapidr_value::objects::is_header(name) {
-            gui_web::refresh_header(name);
-        } else if rapidr_value::objects::is_canvas(name) {
-            gui_web::render_canvas(&name.to_uppercase());
         }
     }
 }
@@ -444,26 +410,6 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
     }
 }
 
-/// Whether the UI kernel hosts the page's forms (`?host=kernel`, Stage W3).
-pub(crate) fn kernel_hosts() -> bool {
-    #[cfg(feature = "kernel")]
-    return crate::kernel_web::on();
-    #[cfg(not(feature = "kernel"))]
-    false
-}
-
-/// Whether form `name` is shown modally on the kernel host (its ModalResult
-/// set closes it, as on the desktop).
-fn kernel_modal(name: &str) -> bool {
-    #[cfg(feature = "kernel")]
-    return kernel_hosts() && rapidr_ui_app::forms::is_modal(name);
-    #[cfg(not(feature = "kernel"))]
-    {
-        let _ = name;
-        false
-    }
-}
-
 pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
@@ -593,7 +539,7 @@ fn refresh_canvas_backdrops() {
         let parent = rp_comp_get(&c, "parent").to_string_val();
         let color = if parent.is_empty() { Value::Null } else { program_color(&parent) };
         if rapidr_value::objects::set_backdrop(&c, rapidr_value::objects::form_color(&color) as u32) {
-            gui_web::render_canvas(&c);
+            crate::kernel_web::redraw();
         }
     }
 }
@@ -605,8 +551,6 @@ fn set_property(name: &str, prop: &str, val: Value) {
         rapidr_value::objects::set(name, prop, &val);
         return;
     }
-    // (a11y_web: the form's ARIA follows, once the program's code returns)
-    crate::a11y_web::changed(name);
     let val = rapidr_value::layout::property_value(prop, val);
     // QBUTTON Kind: its caption and ModalResult (rapidr_value::events).
     if prop.eq_ignore_ascii_case("kind") {
@@ -630,9 +574,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
     }
     // A modal form's ModalResult set: the form closes (ShowModal returns it).
-    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && (crate::dialog_web::is_modal(&crate::gui_web::comp_id(name)) || kernel_modal(name)) {
+    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && rapidr_ui_app::forms::is_modal(name) {
         rp_comp_set_prop_only(name, "modalresult", val);
-        crate::gui_web::close_form(&name.to_uppercase());
+        crate::kernel_web::close_form(&name.to_uppercase());
         return;
     }
     let uname = name.to_uppercase();
@@ -731,18 +675,16 @@ fn set_property(name: &str, prop: &str, val: Value) {
 
     // (a menu's change shows once the program's code returns: menu_web)
     if rapidr_value::objects::menu::is_menu(name) {
-        crate::menu_web::schedule();
+        crate::kernel_web::redraw();
     }
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get_stored_dir(name) } else { String::new() };
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
-        if rapidr_value::objects::is_textedit(name) {
-            gui_web::text_push(name);
-        }
         let picture = rapidr_value::objects::is_picture(name);
         match result {
-            // `Image.BMP = "photo.png"`: not a BMP; the browser shows it.
-            Err(_) if picture && lprop == "bmp" => show_image_file(&uname, &val.to_string_val()),
+            // `Image.BMP = "photo.png"`: not a BMP — nothing loaded, as on
+            // the desktop.
+            Err(_) if picture && lprop == "bmp" => not_a_bmp(&val.to_string_val()),
             Err(e) => object_error(name, prop, &e),
             Ok(()) => {}
         }
@@ -757,37 +699,19 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if picture {
             picture_changed(&uname);
         }
-        if rapidr_value::objects::is_canvas(name) {
-            gui_web::render_canvas(&uname);
-        }
-        // A list box that's owner-drawn or in columns now (its Style,
-        // Columns): the element changes.
-        if matches!(lprop.as_str(), "style" | "columns") && rapidr_value::objects::with_list(name, |l| l.custom_drawn()).unwrap_or(false) {
-            gui_web::convert_to_owner_list(&uname);
-        }
         // A QFILELISTBOX's directory changed: OnChange.
         if lprop == "directory" && rapidr_value::objects::is_file_list(name) {
             rp_fire_event(&uname, "onchange");
         }
-        // A QDIRTREE: shown again; its directory changed: OnChange.
-        if rapidr_value::objects::is_dirtree(name) {
-            gui_web::render_dirtree(&uname);
-            if matches!(lprop.as_str(), "directory" | "initialdir") && before_dir != rp_comp_get_stored_dir(name) {
-                rp_fire_event(&uname, "onchange");
-            }
+        // A QDIRTREE's directory changed: OnChange.
+        if rapidr_value::objects::is_dirtree(name) && matches!(lprop.as_str(), "directory" | "initialdir") && before_dir != rp_comp_get_stored_dir(name) {
+            rp_fire_event(&uname, "onchange");
         }
+        // (drawn again: a tree's rows built again first)
         if rapidr_value::objects::is_tree(name) {
-            gui_web::render_tree(&uname);
-        } else if rapidr_value::objects::is_listview(name) {
-            gui_web::render_listview(&uname);
-        } else if rapidr_value::objects::is_grid(name) {
-            gui_web::render_grid(&uname);
-        } else if rapidr_value::objects::is_list(name) {
-            gui_web::render_list(&uname);
-        } else if rapidr_value::objects::is_trackbar(name) {
-            gui_web::render_trackbar(&uname);
-        } else if rapidr_value::objects::is_tabcontrol(name) {
-            gui_web::tab_control_changed(&uname);
+            crate::kernel_web::tree_refresh(&uname);
+        } else {
+            crate::kernel_web::redraw();
         }
         return;
     }
@@ -826,7 +750,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
             // (a Color the program chose, as the desktop records it)
-            if lprop == "color" && kernel_hosts() {
+            if lprop == "color" {
                 comp.properties.insert("__colorset".into(), v_bool(true));
             }
 
@@ -840,19 +764,20 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
     });
 
-    if lprop == "datasource" || lprop == "datafield" {
-        crate::gui_web::setup_data_binding(&uname);
-    }
-
     // A combo box that's owner-drawn now (its Style, which the list model
     // leaves stored here too): the element changes.
     if lprop == "style" && rapidr_value::objects::with_list(name, |l| l.combo && l.owner_drawn()).unwrap_or(false) {
-        gui_web::convert_to_owner_combo(&uname);
+        crate::kernel_web::redraw();
     }
 
     // Handle parent re-parenting
     if lprop == "parent" {
-        gui_web::gui_web_set_parent(&uname, &val.to_string_val().to_uppercase());
+        // (a web-only component's element goes where its new parent is; the
+        // kernel's tree follows)
+        if crate::overlay_web::is_overlay(&rp_comp_type(&uname)) {
+            crate::overlay_web::set_prop(&uname, "parent", &val);
+        }
+        crate::kernel_web::rebuild();
         crate::layout_web::after_set(&uname, &lprop);
         // (the DirectX lane's: a QDXSCREEN put on a form already shown)
         if rp_comp_type(&uname) == "RDXSCREEN" {
@@ -860,32 +785,13 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
         // (a QGLASSFRAME shades what it's now over)
         if rp_comp_type(&uname) == "RGLASSFRAME" {
-            gui_web::render_glass(&uname);
+            crate::kernel_web::redraw();
         }
         return;
     }
 
     // Handle data-science / database component property sets
     let comp_type = rp_comp_type(&uname);
-    // A form the program shows (Show, ShowModal, Visible = True) — the only
-    // ones its window appears for, as on the desktop: a form starts hidden.
-    // (with the kernel hosting, its OnShow is rapidr_ui_app::forms', as on
-    // the desktop: kernel_web::set_prop)
-    if comp_type == "RFORM" && lprop == "visible" {
-        let was = rp_comp_get_stored(&uname, SHOWN_BY_PROGRAM).to_bool();
-        rp_comp_set_prop_only(&uname, SHOWN_BY_PROGRAM, v_bool(val.to_bool()));
-        // A window shown: its OnShow — at once for Show / ShowModal
-        // (gui_web), else (`Visible = True`, maybe inside its own CREATE)
-        // once the program waits, as on the desktop.
-        if val.to_bool() && !was && rp_comp_get_stored(&uname, "parent").to_string_val().is_empty() && !kernel_hosts() {
-            rp_comp_set_prop_only(&uname, ONSHOW_PENDING, v_bool(true));
-            let form = uname.clone();
-            let later = Closure::once_into_js(move || take_onshow(&form));
-            if let Some(w) = web_sys::window() {
-                let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(later.unchecked_ref(), 0);
-            }
-        }
-    }
     match comp_type.as_str() {
         "RNUM" => {
             crate::datascience_web::num_set_prop(&uname, &lprop, &val);
@@ -907,38 +813,35 @@ fn set_property(name: &str, prop: &str, val: Value) {
 
     // A status bar redraws its panels / simple text.
     if comp_type == "RSTATUSBAR" && (lprop.starts_with("panel") || lprop.starts_with("simple")) {
-        gui_web::render_statusbar(&uname);
+        crate::kernel_web::redraw();
         return;
     }
 
     // A QGLASSFRAME's shade drawn again.
     if comp_type == "RGLASSFRAME" && matches!(lprop.as_str(), "transparency" | "transparentcolor" | "color") {
-        gui_web::gui_web_set_prop(&uname, &lprop, &val);
-        gui_web::render_glass(&uname);
+        crate::kernel_web::set_prop(&uname, &lprop, &val);
+        crate::kernel_web::redraw();
         return;
     }
     // (a colour under a QGLASSFRAME changed: its shade with it, as the
     // desktop's kernel draws it over what is there)
-    if lprop == "color" {
-        let glasses: Vec<String> = COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name == "RGLASSFRAME").map(|(n, _)| n.clone()).collect());
-        for g in glasses {
-            gui_web::render_glass(&g);
-        }
+    if lprop == "color" && COMPONENTS.with(|c| c.borrow().values().any(|comp| comp.type_name == "RGLASSFRAME")) {
+        crate::kernel_web::redraw();
     }
     // A panel's bevels drawn again.
     if (rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL") || (comp_type == "RBEVEL" && (rapidr_value::objects::bevel::default(&lprop).is_some() || matches!(lprop.as_str(), "shape" | "style"))) {
-        gui_web::render_panel_bevels(&uname);
+        crate::kernel_web::redraw();
         return;
     }
     // Pass to GUI layer for DOM update
-    gui_web::gui_web_set_prop(&uname, &lprop, &val);
+    crate::kernel_web::set_prop(&uname, &lprop, &val);
     // Align (layout_web).
     crate::layout_web::after_set(&uname, &lprop);
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_header(&uname) {
-        gui_web::refresh_header(&uname);
+        crate::kernel_web::redraw();
     } else if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
-        gui_web::render_canvas(&uname);
+        crate::kernel_web::redraw();
         if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
             rp_fire_event(&uname, "onpaint");
         }
@@ -954,11 +857,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // A child window's frame shows its title and whether it's active.
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
-        gui_web::mdi_frame_update(&uname);
+        crate::kernel_web::redraw();
     }
     // A tree's image lists: its icons shown again.
     if matches!(lprop.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(&uname) {
-        gui_web::render_tree(&uname);
+        crate::kernel_web::tree_refresh(&uname);
     }
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_picture(&uname) {
         store_prop(&uname, "__sized", v_bool(true));
@@ -969,17 +872,17 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // `CoolBtn.Down = True`: the others of its group come up.
     if lprop == "down" {
-        gui_web::toggle_down_set(&uname);
+        crate::kernel_web::redraw();
     }
     // A QTRACKBAR's size or Enabled: drawn again.
     if matches!(lprop.as_str(), "width" | "height" | "enabled") && rapidr_value::objects::is_trackbar(&uname) {
-        gui_web::render_trackbar(&uname);
+        crate::kernel_web::redraw();
     }
     // A QTABCONTROL's size, colour, font or Enabled: drawn again.
     if rapidr_value::objects::is_tabcontrol(&uname)
         && matches!(lprop.as_str(), "width" | "height" | "enabled" | "color" | "font" | "fontname" | "fontsize" | "fontbold" | "fontitalic" | "fontcolor" | "font.name" | "font.size" | "font.bold" | "font.italic" | "font.color")
     {
-        gui_web::tab_control_changed(&uname);
+        crate::kernel_web::redraw();
     }
 }
 
@@ -1018,6 +921,17 @@ pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>
             rp_comp_set(&comp_name, prop_name, v_str(&val));
         }
     }
+}
+
+/// A property as it is now: the web's own components' (webapi_web), a
+/// window's or a web-only element's (kernel_web); Null where only the
+/// stored value says.
+fn live_prop(name: &str, prop: &str) -> Value {
+    let t = rp_comp_type(name);
+    if crate::webapi_web::is_webapi(&t) {
+        return crate::webapi_web::get_prop(name, &t, prop).unwrap_or_else(v_null);
+    }
+    crate::kernel_web::get_prop(name, prop)
 }
 
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
@@ -1064,18 +978,15 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = crate::scroll_web::get(name, &lprop) {
         return v;
     }
-    if rapidr_value::objects::is_textedit(name) {
-        gui_web::text_pull(name);
-    }
     if let Some(v) = rapidr_value::objects::get(name, &lprop) {
         return v;
     }
 
     // Check data-science / database component properties
-    // If RDOM, query live DOM first
+    // An RDOM: its element's first
     let comp_type = rp_comp_type(&uname);
     if comp_type == "RDOM" {
-        let live = gui_web::gui_web_get_prop(&uname, &lprop);
+        let live = live_prop(&uname, &lprop);
         if !matches!(live, Value::Null) {
             return live;
         }
@@ -1119,7 +1030,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         return stored.unwrap_or(v_int(0));
     }
     if matches!(lprop.as_str(), "width" | "height") {
-        let live = gui_web::gui_web_get_prop(&uname, &lprop);
+        let live = live_prop(&uname, &lprop);
         return match stored {
             Some(v) if live.to_i64() == 0 => v,
             _ => live,
@@ -1136,7 +1047,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         | "poster" | "storagetype" | "latitude" | "longitude" | "accuracy" | "title" | "body"
         | "route" | "hash" | "cssstyle" | "cssclass" => {
             // A component with no element (a QTIMER's Enabled): what was stored.
-            match gui_web::gui_web_get_prop(&uname, &lprop) {
+            match live_prop(&uname, &lprop) {
                 Value::Null if matches!(lprop.as_str(), "left" | "top") => stored.unwrap_or(v_int(0)),
                 Value::Null => stored.unwrap_or_else(v_null),
                 // (Enabled keeps the number stored, as RapidQ's — `Enabled
@@ -1247,16 +1158,15 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     // `PopupMenu.Popup(X, Y)`.
     if lmethod == "popup" && rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Popup) {
-        crate::menu_web::popup(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64));
+        crate::kernel_web::popup(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64));
         return v_null();
     }
     if rapidr_value::objects::menu::is_menu(name) {
-        crate::menu_web::schedule();
+        crate::kernel_web::redraw();
     }
     // QEDIT / QRICHEDIT: the element's text first; then Copy/Cut/Paste with
     // the clipboard, Line(i), AddStrings, … on the model, shown again.
     if rapidr_value::objects::is_textedit(name) {
-        gui_web::text_pull(name);
         let clip = rapidr_value::objects::textedit_clipboard(
             name,
             &lmethod,
@@ -1267,7 +1177,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         );
         let result = clip.map(Ok).or_else(|| rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)));
         if let Some(result) = result {
-            gui_web::text_push(name);
+            crate::kernel_web::redraw();
             return result.unwrap_or_else(|e| {
                 object_error(name, method, &e);
                 v_null()
@@ -1276,36 +1186,19 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     if let Some(result) = rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)) {
         if rapidr_value::objects::is_picture(name) {
-            // `Image.LoadFromFile "photo.png"`: not a BMP; the browser shows it.
+            // `Image.LoadFromFile "photo.png"`: not a BMP — nothing loaded,
+            // as on the desktop.
             if result.is_err() && matches!(lmethod.as_str(), "loadfromfile" | "load") {
-                show_image_file(&uname, &args.first().map(|v| v.to_string_val()).unwrap_or_default());
+                not_a_bmp(&args.first().map(|v| v.to_string_val()).unwrap_or_default());
                 return v_null();
             }
             picture_changed(&uname);
         }
-        if rapidr_value::objects::is_header(name) && rapidr_value::objects::header::changes_sections(&lmethod) {
-            gui_web::refresh_header(&uname);
-        } else if rapidr_value::objects::is_canvas(name) {
-            gui_web::render_canvas(&uname);
-        } else if rapidr_value::objects::is_dxscreen(name) && lmethod == "flip" {
-            // (the DirectX lane's: a Flip shows the back buffer)
-            gui_web::render_dxscreen(&uname);
-        }
-        if rapidr_value::objects::is_dirtree(name) {
-            gui_web::render_dirtree(&uname);
-        }
+        // (drawn again: a tree's rows built again first)
         if rapidr_value::objects::is_tree(name) {
-            gui_web::render_tree(&uname);
-        } else if rapidr_value::objects::is_listview(name) {
-            gui_web::render_listview(&uname);
-        } else if rapidr_value::objects::is_grid(name) {
-            gui_web::render_grid(&uname);
-        } else if rapidr_value::objects::is_list(name) {
-            gui_web::render_list(&uname);
-        } else if rapidr_value::objects::is_trackbar(name) {
-            gui_web::render_trackbar(&uname);
-        } else if rapidr_value::objects::is_tabcontrol(name) {
-            gui_web::tab_control_changed(&uname);
+            crate::kernel_web::tree_refresh(&uname);
+        } else {
+            crate::kernel_web::redraw();
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);
@@ -1382,8 +1275,54 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         return crate::database_web::mysql_method(&uname, &lmethod, args);
     }
 
-    // Delegate to GUI layer
-    gui_web::gui_web_method(&uname, &comp_type, &lmethod, args)
+    // The web's own components without a window (RJAVASCRIPT, RWEBSTORAGE
+    // …): theirs first — a name a form's method has too (Show) is theirs.
+    if let Some(v) = crate::webapi_web::method(&uname, &comp_type, &lmethod, args) {
+        return v;
+    }
+    // `Image.LoadFromPlot Plot`: the chart's pixels become the picture, as
+    // the desktop's.
+    if lmethod == "loadfromplot" && rapidr_value::objects::is_picture(&uname) {
+        image_from_plot(&uname, &args.first().map(Value::to_string_val).unwrap_or_default());
+        return v_null();
+    }
+    // The windows' (the UI kernel's) and the web-only elements' methods.
+    if let Some(v) = crate::kernel_web::method(&uname, &comp_type, &lmethod, args) {
+        return v;
+    }
+    web_sys::console::error_1(&JsValue::from_str(&format!(
+        "[RapidR][NotImplemented] {name}.{method}() — method not implemented on web runtime (component type: {comp_type}). This call will return Null. Native target may support it."
+    )));
+    v_null()
+}
+
+/// A QIMAGE's picture from plot `plot`'s chart (drawn first), its size
+/// with AutoSize, as the desktop's `LoadFromPlot`.
+fn image_from_plot(name: &str, plot: &str) {
+    crate::datascience_web::render_plot(&plot.to_uppercase());
+    let canvas = crate::page_web::document()
+        .get_element_by_id(&format!("rr-{}-canvas", plot.to_lowercase()))
+        .and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok());
+    let Some(canvas) = canvas else { return };
+    let (w, h) = (canvas.width(), canvas.height());
+    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
+    let Ok(data) = ctx.get_image_data(0.0, 0.0, f64::from(w), f64::from(h)) else { return };
+    let rgba = data.data().0;
+    rapidr_value::objects::with_picture(name, |b| {
+        b.resize(i64::from(w), i64::from(h));
+        for (i, p) in rgba.as_chunks::<4>().0.iter().enumerate() {
+            let (x, y) = ((i as u32 % w) as i64, (i as u32 / w) as i64);
+            // (over white where the chart is see-through, as the PNG the desktop decodes)
+            let a = u32::from(p[3]);
+            let mix = |c: u8| (u32::from(c) * a + 255 * (255 - a)) / 255;
+            b.pset(x, y, mix(p[0]) | mix(p[1]) << 8 | mix(p[2]) << 16);
+        }
+    });
+    if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
+        rp_comp_set(name, "width", v_int(i64::from(w)));
+        rp_comp_set(name, "height", v_int(i64::from(h)));
+    }
+    picture_changed(name);
 }
 
 // ---------------------------------------------------------------------------
@@ -1647,7 +1586,7 @@ fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {
             // Open a hidden <input type="file"> and read the chosen file's text.
             // Optional first arg = accept filter (e.g. ".rr,.txt").
             let accept = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let doc = crate::gui_web::document();
+            let doc = crate::page_web::document();
             let input_el = match doc.create_element("input") {
                 Ok(el) => el,
                 Err(_) => return v_int(0),
@@ -1750,15 +1689,12 @@ fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {
 // File *content* loading should go through RFILESTREAM.PickFile().
 // ---------------------------------------------------------------------------
 
-/// Open / Save in the page (dialog_web::open_files, rapidr_value::
-/// file_dialog): the program's files matching the Filter, a name, Upload;
-/// the answer in FileName, FileTitle, Files(…), SelCount. Where the program
-/// can't wait (a Rust-built page), the browser's prompt asks for a name.
-fn web_file_dialog(name: &str, save: bool, multi: bool) -> Value {
+/// Open / Save where the program can't wait for the kernel's (a Rust-built
+/// page): the browser's prompt asks for a name; the answer in FileName,
+/// FileTitle, Files(…), SelCount (rapidr_value::file_dialog).
+fn web_file_dialog(name: &str, save: bool) -> Value {
     use rapidr_value::file_dialog as fd;
     let prop = |p: &str| rp_comp_get_stored(name, p).to_string_val();
-    let filters = fd::parse_filter(&prop("filter"));
-    let index = (rp_comp_get_stored(name, "filterindex").to_i64().max(1) - 1) as usize;
     let default_ext = prop("defaultext");
     let owner = name.to_string();
     let answer = move |names: Vec<String>| {
@@ -1779,33 +1715,14 @@ fn web_file_dialog(name: &str, save: bool, multi: bool) -> Value {
             rp_comp_set_prop_only(&owner, &format!("files({i})"), v_str(f));
         }
     };
-    if !crate::dialog_web::can_wait() {
-        let chosen = web_sys::window().and_then(|w| w.prompt_with_message_and_default(if save { "Save as:" } else { "Open file:" }, &prop("filename")).ok().flatten());
-        let names: Vec<String> = chosen.map(|c| c.split(';').map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).collect()).unwrap_or_default();
-        let picked = !names.is_empty();
-        answer(names);
-        return v_int(if picked { -1 } else { 0 });
-    }
-    let mut files: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().filter(|n| fd::fits(&filters, index, n)).cloned().collect());
-    files.sort();
-    let title = [prop("caption"), prop("title")].into_iter().find(|t| !t.is_empty()).unwrap_or_default();
-    crate::dialog_web::open_files(crate::dialog_web::FileRequest {
-        title,
-        save,
-        multi,
-        files,
-        initial: fd::file_title(&prop("filename")),
-        accept: fd::html_accept(&filters, index),
-        store: std::rc::Rc::new(|path: &str, bytes: Vec<u8>| {
-            let _ = web_write_file(path, &bytes);
-        }),
-        done: std::rc::Rc::new(answer),
-        resume: true,
-    });
-    v_int(0)
+    let chosen = web_sys::window().and_then(|w| w.prompt_with_message_and_default(if save { "Save as:" } else { "Open file:" }, &prop("filename")).ok().flatten());
+    let names: Vec<String> = chosen.map(|c| c.split(';').map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).collect()).unwrap_or_default();
+    let picked = !names.is_empty();
+    answer(names);
+    v_int(if picked { -1 } else { 0 })
 }
 
-/// (Stage W4, the kernel host's `Windows::ask_files`) The page's Open / Save
+/// (the kernel host's `Windows::ask_files`) The page's Open / Save
 /// dialog: the program's files that fit the filter shown first, a name
 /// field, Upload…; `done` gets the paths picked (none: Cancel). The VM's
 /// wait is the kernel host's.
@@ -1824,16 +1741,14 @@ pub fn page_file_dialog(save: bool, multi: bool, title: &str, filters: &[rapidr_
             let _ = web_write_file(path, &bytes);
         }),
         done,
-        resume: false,
     });
 }
 
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
-    // (Stage W4: with the UI kernel hosting the page, the colour and font
-    // dialogs are the kernel's — the desktop's — a wait the VM serves; the
-    // Open / Save dialogs too: rapidr_ui_app::dialogs::execute)
-    #[cfg(feature = "kernel")]
-    if method == "execute" && kernel_hosts() {
+    // (the colour, font, Open and Save dialogs are the kernel's — the
+    // desktop's — a wait the VM serves: rapidr_ui_app::dialogs::execute;
+    // a Rust-built page, which can't wait, gets the browser's below)
+    if method == "execute" {
         if let Some(v) = crate::kernel_web::execute(name, comp_type) {
             return v;
         }
@@ -1864,42 +1779,9 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
         return v_null();
     }
     match comp_type {
-        "ROPENDIALOG" => web_file_dialog(name, false, false),
-        "RSAVEDIALOG" => web_file_dialog(name, true, false),
-        "RFILEDIALOG" => {
-            let save = rp_comp_get_stored(name, "mode").to_i64() == 1;
-            web_file_dialog(name, save, !save && rp_comp_get_stored(name, "multiselect").to_bool())
-        }
-        // The page's own colour dialog, the desktop's (dialog_web::
-        // open_color; rapidr_value::color_dialog): the program waits for it.
-        "RCOLORDIALOG" if crate::dialog_web::can_wait() => {
-            use rapidr_value::color_dialog as cd;
-            let get = |p: &str| rp_comp_get_stored(name, p);
-            let style = match get("style") {
-                Value::Null => cd::CD_NO_FULL_OPEN,
-                v => v.to_i64(),
-            };
-            let custom = cd::custom_colors(|i| match get(&format!("colors({i})")) {
-                Value::Null => None,
-                v => Some(v.to_i64()),
-            });
-            let state = cd::State::new(get("color").to_i64(), custom, style);
-            let title = Some(get("caption").to_string_val()).filter(|c| !c.is_empty()).unwrap_or_else(|| "Color".into());
-            let owner = name.to_string();
-            crate::dialog_web::open_color(crate::dialog_web::ColorRequest {
-                title,
-                state,
-                done: std::rc::Rc::new(move |color: Option<i64>, custom: [i64; 16]| {
-                    for (i, c) in custom.iter().enumerate() {
-                        rp_comp_set_prop_only(&owner, &format!("colors({})", i + 1), v_int(*c));
-                    }
-                    if let Some(c) = color {
-                        rp_comp_set_prop_only(&owner, "color", v_int(c));
-                    }
-                }),
-            });
-            v_null()
-        }
+        "ROPENDIALOG" => web_file_dialog(name, false),
+        "RSAVEDIALOG" => web_file_dialog(name, true),
+        "RFILEDIALOG" => web_file_dialog(name, rp_comp_get_stored(name, "mode").to_i64() == 1),
         // (a Rust-built page can't wait: the browser's colour input)
         "RCOLORDIALOG" => {
             let cur = COMPONENTS
@@ -1913,7 +1795,7 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             let g = ((cur >> 8) & 0xFF) as i64;
             let b = ((cur >> 16) & 0xFF) as i64;
             let default_hex = format!("#{:02x}{:02x}{:02x}", r, g, b);
-            let doc = crate::gui_web::document();
+            let doc = crate::page_web::document();
             let input = match doc
                 .create_element("input")
                 .ok()
@@ -1949,35 +1831,6 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             }
             input.click();
             v_int(1)
-        }
-        // The page's own font dialog, the desktop's (dialog_web::open_font;
-        // rapidr_value::font_dialog): the program waits for it; Apply stores
-        // the font so far and fires OnApply.
-        "RFONTDIALOG" if crate::dialog_web::can_wait() => {
-            use rapidr_value::font_dialog as fd;
-            let req = fd::request(&|p| rp_comp_get_stored(name, p));
-            let title = Some(rp_comp_get_stored(name, "caption").to_string_val()).filter(|c| !c.is_empty()).unwrap_or_else(|| "Font".into());
-            let store = |owner: &str, font: &rapidr_value::objects::font::Font| {
-                for (p, v) in fd::properties(font) {
-                    rp_comp_set_prop_only(owner, p, v);
-                }
-            };
-            let (owner, owner2) = (name.to_string(), name.to_string());
-            crate::dialog_web::open_font(crate::dialog_web::FontRequest {
-                title,
-                req,
-                names: fd::FONT_NAMES.iter().map(|s| s.to_string()).collect(),
-                done: std::rc::Rc::new(move |font| {
-                    if let Some(f) = font {
-                        store(&owner, &f);
-                    }
-                }),
-                apply: std::rc::Rc::new(move |f| {
-                    store(&owner2, f);
-                    rp_fire_event(&owner2, "onapply");
-                }),
-            });
-            v_null()
         }
         "RFONTDIALOG" => {
             // (a Rust-built page can't wait: the browser's prompt() for the
@@ -2110,45 +1963,8 @@ pub fn end_program() {
             }
         }
     });
-    #[cfg(feature = "kernel")]
-    if kernel_hosts() {
-        crate::kernel_web::ended();
-        web_sys::console::log_1(&JsValue::from_str("[RapidR] Program ended."));
-        return;
-    }
-    let forms: Vec<String> = COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name.eq_ignore_ascii_case("RFORM")).map(|(n, _)| n.clone()).collect());
-    for form in forms {
-        gui_web::hide_form(&form);
-    }
+    crate::kernel_web::ended();
     web_sys::console::log_1(&JsValue::from_str("[RapidR] Program ended."));
-}
-
-/// The property recording that the program showed a form (see rp_comp_set).
-pub const SHOWN_BY_PROGRAM: &str = "__showreq";
-/// A shown window's OnShow not fired yet.
-const ONSHOW_PENDING: &str = "__onshowpending";
-
-/// The forms the program showed (and hasn't hidden).
-pub fn shown_forms() -> Vec<String> {
-    COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name.eq_ignore_ascii_case("RFORM") && comp.properties.get(SHOWN_BY_PROGRAM).is_some_and(|v| v.to_bool())).map(|(n, _)| n.clone()).collect())
-}
-
-/// Fires a shown window's pending OnShow (once; not if it was hidden again).
-pub fn take_onshow(form: &str) {
-    if !rp_comp_get_stored(form, ONSHOW_PENDING).to_bool() {
-        return;
-    }
-    rp_comp_set_prop_only(form, ONSHOW_PENDING, v_bool(false));
-    if rp_comp_get_stored(form, SHOWN_BY_PROGRAM).to_bool() {
-        // (the DirectX lane's: its QDXSCREENs set up, OnInitialize)
-        crate::directx_web::form_shown(form);
-        rp_fire_event(form, "onshow");
-    }
-}
-
-/// A window's OnShow no longer pending (ShowModal fires its own).
-pub fn drop_onshow(form: &str) {
-    rp_comp_set_prop_only(form, ONSHOW_PENDING, v_bool(false));
 }
 
 /// Whether the program ran END.
@@ -2192,11 +2008,6 @@ pub fn form_of(name: &str) -> Option<String> {
     None
 }
 
-/// A button without an OnClick clicked (gui_web): its ModalResult.
-pub fn button_clicked(name: &str) {
-    button_modal_result(name);
-}
-
 /// A button with a ModalResult (or Kind bkClose) clicked: its form gets that
 /// result, which closes it when it's shown modally (as the desktop).
 fn button_modal_result(name: &str) {
@@ -2212,7 +2023,7 @@ fn button_modal_result(name: &str) {
         if mr != 0 {
             rp_comp_set(&form, "modalresult", v_int(mr));
         } else {
-            crate::gui_web::close_form(&form);
+            crate::kernel_web::close_form(&form);
         }
     }
 }
@@ -2321,19 +2132,13 @@ fn picture_changed(name: &str) {
             }
         }
     }
-    crate::gui_web::render_picture(name);
+    crate::kernel_web::redraw();
 }
 
-/// A QIMAGE showing an image file other than a BMP (PNG, JPEG, …).
-fn show_image_file(name: &str, path: &str) {
-    let id = format!("rr-{}", name.to_lowercase());
-    if let Some(img) = web_sys::window()
-        .and_then(|w| w.document())
-        .and_then(|d| d.get_element_by_id(&id))
-        .and_then(|e| e.dyn_into::<web_sys::HtmlImageElement>().ok())
-    {
-        img.set_src(path);
-    }
+/// A QIMAGE asked for an image file other than a BMP (PNG, JPEG, …): not
+/// loaded, as the desktop says.
+fn not_a_bmp(path: &str) {
+    web_sys::console::warn_1(&JsValue::from_str(&format!("[WARN] RImage: could not load '{path}'")));
 }
 
 /// A QDIRTREE's Directory (to see whether a store changed it).
@@ -2344,121 +2149,6 @@ fn rp_comp_get_stored_dir(name: &str) -> String {
 thread_local! {
     /// (component, event) pairs with a DOM listener ([`bind_dom_event`]).
     static DOM_BOUND: RefCell<std::collections::HashSet<(String, String)>> = RefCell::new(std::collections::HashSet::new());
-}
-
-thread_local! {
-    /// OnKeyPress events of the key going through the page now.
-    static KEY_PRESSES: RefCell<Vec<(String, i64)>> = const { RefCell::new(Vec::new()) };
-    static PRESS_FLUSH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// An OnKeyPress, fired once every OnKeyDown of its key has run: by the
-/// page's own keydown listener (the last to hear the key), or a microtask
-/// if the key stopped before reaching it.
-fn queue_key_press(name: &str, key: i64) {
-    KEY_PRESSES.with(|p| p.borrow_mut().push((name.to_string(), key)));
-    if !PRESS_FLUSH.with(|f| f.replace(true)) {
-        let flush = Closure::<dyn FnMut()>::new(flush_key_presses);
-        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
-            let _ = doc.add_event_listener_with_callback("keydown", flush.as_ref().unchecked_ref());
-        }
-        flush.forget();
-    }
-    let later = Closure::once_into_js(flush_key_presses);
-    if let Some(w) = web_sys::window() {
-        w.queue_microtask(later.unchecked_ref());
-    }
-}
-
-fn flush_key_presses() {
-    let presses = KEY_PRESSES.with(|p| std::mem::take(&mut *p.borrow_mut()));
-    for (name, k) in presses {
-        rp_fire_event_1(&name, "onkeypress", v_int(k));
-    }
-}
-
-thread_local! {
-    /// (the input lane's) The element id of the component the left button
-    /// last went down on (`note_presses`).
-    static PRESSED_ON: RefCell<Option<String>> = const { RefCell::new(None) };
-    static NOTING_PRESSES: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// (the input lane's) Notes, once, which component each left press lands
-/// on (the innermost: a click needs its release over the one pressed, as
-/// the VCL's csClicked).
-pub(crate) fn note_presses() {
-    if NOTING_PRESSES.with(|n| n.replace(true)) {
-        return;
-    }
-    let Some(doc) = web_sys::window().and_then(|w| w.document()) else { return };
-    let cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-        if e.button() != 0 {
-            return;
-        }
-        let comp = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).and_then(|t| t.closest(".rr-widget, .rr-form").ok().flatten());
-        PRESSED_ON.with(|p| *p.borrow_mut() = comp.map(|c| c.id()));
-    });
-    let _ = doc.add_event_listener_with_callback_and_bool("mousedown", cb.as_ref().unchecked_ref(), true);
-    cb.forget();
-}
-
-/// (the input lane's) Whether the left button went down on `el`.
-pub(crate) fn pressed_on(el: &web_sys::Element) -> bool {
-    PRESSED_ON.with(|p| p.borrow().as_deref() == Some(el.id().as_str()))
-}
-
-/// (the input lane's) A press or release in the browser as Windows counts
-/// it: `detail` is the click count (0 for a script's: a single one).
-pub(crate) fn clicks_of(e: &web_sys::MouseEvent) -> i32 {
-    e.detail().max(1)
-}
-
-/// (the input lane's) OnClick (`click`) or OnDblClick of component `name`
-/// (element `el`) in the VCL's order: a double click's second press is
-/// OnDblClick before its OnMouseDown, a single click let go over the
-/// component pressed is OnClick before its OnMouseUp — capture-phase
-/// listeners on `el`, which run before its own; only for presses on it,
-/// not on its components, a form's title bar or its menu bar. A click
-/// without a mouse (a script's, `detail` 0) is OnClick too. `doubles`:
-/// false for a QCANVAS (each of its clicks is one).
-fn bind_vcl_clicks(el: &web_sys::Element, name: &str, click: bool, doubles: bool) {
-    note_presses();
-    let own = |e: &web_sys::Event, el: &web_sys::Element| -> bool {
-        let Some(t) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return false };
-        if t.closest(".rr-form-titlebar, [data-rr-type=\"RMAINMENU\"]").ok().flatten().is_some() {
-            return false;
-        }
-        t.closest(".rr-widget, .rr-form").ok().flatten().is_some_and(|i| &i == el)
-    };
-    let name = name.to_string();
-    let target = el.clone();
-    if click {
-        let (n1, t1) = (name.clone(), target.clone());
-        let up = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            let single = !doubles || clicks_of(&e) % 2 == 1;
-            if e.button() == 0 && single && own(&e, &t1) && pressed_on(&t1) {
-                rp_fire_event(&n1, "onclick");
-            }
-        });
-        let _ = el.add_event_listener_with_callback_and_bool("mouseup", up.as_ref().unchecked_ref(), true);
-        up.forget();
-        let scripted = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            if e.detail() == 0 && own(&e, &target) {
-                rp_fire_event(&name, "onclick");
-            }
-        });
-        let _ = el.add_event_listener_with_callback("click", scripted.as_ref().unchecked_ref());
-        scripted.forget();
-    } else {
-        let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-            if e.button() == 0 && clicks_of(&e) % 2 == 0 && own(&e, &target) {
-                rp_fire_event(&name, "ondblclick");
-            }
-        });
-        let _ = el.add_event_listener_with_callback_and_bool("mousedown", down.as_ref().unchecked_ref(), true);
-        down.forget();
-    }
 }
 
 fn bind_dom_event(name: &str, event: &str) {
@@ -2494,34 +2184,8 @@ fn bind_dom_event(name: &str, event: &str) {
     }
 
     // (the UI kernel fires the events of what it draws; the page's own
-    // elements are only the web-only components')
-    #[cfg(feature = "kernel")]
-    if kernel_hosts() && !crate::overlay_web::is_overlay(&rp_comp_type(name)) {
-        return;
-    }
-    // A menu's items are clicked in its own drawing (menu_web).
-    if rapidr_value::objects::menu::is_menu(name) {
-        return;
-    }
-    // A QLISTVIEW's clicks go through its rows and header (gui_web's
-    // `create_listview`), which set ItemIndex first.
-    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "oncolumnclick") && rapidr_value::objects::is_listview(name) {
-        return;
-    }
-    // A QTREEVIEW fires its clicks itself (gui_web's `create_treeview`).
-    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "onchange") && rapidr_value::objects::is_tree(name) {
-        return;
-    }
-    // A QDIRTREE fires OnChange itself (gui_web's `create_dirtree`).
-    if event == "onchange" && rapidr_value::objects::is_dirtree(name) {
-        return;
-    }
-    // A QIMAGE fires its mouse events itself (gui_web's `picture_mouse`).
-    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "onmousedown" | "onmouseup" | "onmousemove") && rapidr_value::objects::is_picture(name) {
-        return;
-    }
-    // A QSTRINGGRID fires its events itself (gui_web's `create_grid`).
-    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick" | "onchange" | "onselectcell" | "onsetedittext" | "onellipsisclick") && rapidr_value::objects::is_grid(name) {
+    // elements are only the web-only components': overlay_web)
+    if !crate::overlay_web::is_overlay(&rp_comp_type(name)) {
         return;
     }
 
@@ -2532,13 +2196,7 @@ fn bind_dom_event(name: &str, event: &str) {
     };
 
     let dom_event_name = match event {
-        "onclick" => {
-            if el.tag_name().to_uppercase() == "SELECT" {
-                "change"
-            } else {
-                "click"
-            }
-        }
+        "onclick" => "click",
         "ondblclick" | "ondoubleclick" => "dblclick",
         "onchange" => "input",
         "onkeypress" | "onkeydown" => "keydown",
@@ -2574,23 +2232,10 @@ fn bind_dom_event(name: &str, event: &str) {
     let event_for_closure = event_owned.clone();
 
     // Key events (rapidr_value::input): OnKeyDown / OnKeyUp (Key, Shift)
-    // and OnKeyPress (Key) for a key that types, to the focused control. A
-    // form gets its controls' keys only with KeyPreview on, and then first
-    // (it listens in the capture phase), as RapidQ (input::key_targets).
+    // and OnKeyPress (Key) for a key that types.
     if dom_event_name == "keydown" || dom_event_name == "keyup" {
-        let is_form = rp_comp_type(&name_owned) == "RFORM";
         let closure = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
             use rapidr_value::input;
-            if is_form {
-                let from_control = e
-                    .target()
-                    .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-                    .and_then(|t| t.closest(".rr-widget, .rr-form").ok().flatten())
-                    .is_some_and(|c| !c.class_list().contains("rr-form"));
-                if from_control && !rp_comp_get(&name_for_closure, "keypreview").to_bool() {
-                    return;
-                }
-            }
             let key = e.key();
             let vk = match e.key_code() {
                 0 => input::vk_of_key(&key, &e.code()).unwrap_or(0),
@@ -2598,30 +2243,16 @@ fn bind_dom_event(name: &str, event: &str) {
             };
             let shift = input::shift_state(e.shift_key(), e.ctrl_key(), e.alt_key());
             if event_for_closure == "onkeypress" {
-                // (after every OnKeyDown of this key, as the desktop: a
-                // microtask runs once the key's listeners are done)
                 if let Some(k) = input::press_code(vk, &key) {
-                    queue_key_press(&name_for_closure, k);
+                    rp_fire_event_1(&name_for_closure, "onkeypress", v_int(k));
                 }
             } else {
                 rp_fire_event_2(&name_for_closure, &event_for_closure, v_int(vk), v_int(shift));
             }
         });
-        let _ = el.add_event_listener_with_callback_and_bool(dom_event_name, closure.as_ref().unchecked_ref(), is_form);
+        let _ = el.add_event_listener_with_callback(dom_event_name, closure.as_ref().unchecked_ref());
         closure.forget();
         return;
-    }
-
-    // (the input lane's) A VCL control's clicks in Windows' order, as on the
-    // desktop (`gui.rs`'s `vcl_clicks`): QFORM, QPANEL, QLABEL, QGROUPBOX,
-    // QSCROLLBOX double-click (QCANVAS doesn't: RapidQ's has no OnDblClick).
-    if matches!(event, "onclick" | "ondblclick" | "ondoubleclick") {
-        let t = rp_comp_type(&name_owned).to_ascii_uppercase();
-        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RBEVEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN" | "RGLASSFRAME");
-        if doubles || (t == "RCANVAS" && event == "onclick") {
-            bind_vcl_clicks(&el, &name_owned, event == "onclick", doubles);
-            return;
-        }
     }
 
     // Mouse events (rapidr_value::input): (Button, X, Y, Shift), OnMouseMove
@@ -2634,19 +2265,9 @@ fn bind_dom_event(name: &str, event: &str) {
         let closure = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
             use rapidr_value::input::{shift_state, Button, Mouse};
             let Some(el) = e.current_target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) else { return };
-            let inner = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()).and_then(|t| t.closest(".rr-widget, .rr-form").ok().flatten());
-            if inner.is_some_and(|i| i != el) {
-                return;
-            }
             let rect = el.get_bounding_client_rect();
-            let title = el
-                .query_selector(":scope > .rr-form-titlebar")
-                .ok()
-                .flatten()
-                .and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok())
-                .map_or(0, |t| t.offset_height() as i64);
             let x = (e.client_x() as f64 - rect.left()) as i64;
-            let y = (e.client_y() as f64 - rect.top()) as i64 - title;
+            let y = (e.client_y() as f64 - rect.top()) as i64;
             let kind = match event_for_closure.as_str() {
                 "onmousedown" => Mouse::Down,
                 "onmouseup" => Mouse::Up,
@@ -2674,10 +2295,9 @@ fn bind_dom_event(name: &str, event: &str) {
 
 pub(crate) fn update_timer(name: &str) {
     let uname = name.to_uppercase();
-    // (Stage W4: with the kernel hosting, QTIMER, QDXTIMER and QDXJOYSTICK
-    // tick in the app's timer heap, as on the desktop)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() && matches!(rp_comp_type(&uname).as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK") {
+    // (QTIMER, QDXTIMER and QDXJOYSTICK tick in the app's timer heap, as on
+    // the desktop; the I/O lane's devices on the page's intervals)
+    if matches!(rp_comp_type(&uname).as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK") {
         return crate::kernel_web::timer_changed(&uname);
     }
 
@@ -3136,21 +2756,16 @@ pub fn rp_run_app() {
 }
 
 // ---------------------------------------------------------------------------
-// Theme — the browser keeps its look (styling comes from
-// rapidr-rrcss::RR_BASE_CSS); the name is kept for Application.Theme
+// Theme — Application.Theme: the UI kernel draws in it (globals_web)
 // ---------------------------------------------------------------------------
 
 pub fn set_theme(theme: &str) {
     crate::globals_web::name_theme(theme);
 }
 
-pub fn gui_register_timer(_name: &str) {
-    // (Stage W4: with the kernel hosting, the app's timer heap, as the
-    // desktop's: rapidr_ui_app::timers; else setInterval in update_timer)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() {
-        crate::kernel_web::register_timer(_name);
-    }
+pub fn gui_register_timer(name: &str) {
+    // (the app's timer heap, as the desktop's: rapidr_ui_app::timers)
+    crate::kernel_web::register_timer(name);
 }
 
 /// The program's timers (QTIMER, QDXTIMER, QDXJOYSTICK …): what a modal
@@ -3177,7 +2792,7 @@ fn trigger_download(filename: &str, mime: &str, text: &str) {
     opts.set_type(mime);
     let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&parts, &opts) else { return };
     let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) else { return };
-    let doc = crate::gui_web::document();
+    let doc = crate::page_web::document();
     if let Some(a) = doc
         .create_element("a")
         .ok()

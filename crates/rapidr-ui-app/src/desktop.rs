@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 
 use rapidr_ui_kernel::tick::Instant;
 use rapidr_ui_kernel::{Clipboard, FormUi, KernelEvent, Mods, Store, TextSystem};
-use rapidr_value::input::{Button, Mouse};
+use rapidr_value::input::{Button, Cursor, Mouse};
 use rapidr_value::objects::a11y::Action;
 use rapidr_value::Value;
 
@@ -619,4 +619,40 @@ fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64
     }
     desk.resized(&form, iw, ih);
     crate::windows::push_op(WindowOp::Size(form, (iw, ih)));
+}
+
+/// The pointer over form `form` at `(x, y)` of its inside: Screen.Cursor
+/// (`desk.screen_cursor`), else the Cursor of the component under the
+/// mouse (the form's over its client area); crDefault: the component's
+/// own (an enabled edit's I-beam, a splitter's resize arrows, a header's
+/// or list view header's section edge), else the arrow.
+pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f64)) -> Cursor {
+    if desk.screen_cursor != 0 {
+        return Cursor::of(desk.screen_cursor);
+    }
+    let Some(f) = desk.forms.get(form) else { return Cursor::Default };
+    let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
+    // (the input lane's: a status bar's size grip is the window's sizing
+    // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)
+    let grip = rapidr_value::layout::STATUS_GRIP;
+    if let Some(n) = node.filter(|n| n.type_name == "RSTATUSBAR" && x >= (n.abs.0 + n.abs.2 - grip) as f64 && y >= (n.abs.1 + n.abs.3 - grip) as f64) {
+        if rapidr_ui_kernel::components::statusbar::has_grip(store, &n.id) {
+            return Cursor::SizeNWSE;
+        }
+    }
+    let id = node.map_or(f.ui.form.as_str(), |n| n.id.as_str());
+    let code = rapidr_ui_kernel::store::int(store, id, "cursor", 0);
+    if code != 0 {
+        return Cursor::of(code);
+    }
+    let Some(n) = node else { return Cursor::Default };
+    let (lx, ly) = ((x as i64) - n.abs.0, (y as i64) - n.abs.1);
+    match n.type_name.as_str() {
+        "REDIT" | "RMEMO" | "RRICHEDIT" if n.enabled => Cursor::IBeam,
+        "RSPLITTER" if rapidr_ui_kernel::components::splitter::vertical(store, &n.id) => Cursor::SizeNS,
+        "RSPLITTER" => Cursor::SizeWE,
+        "RHEADER" if rapidr_value::objects::with_header(&n.id, |h| h.on_grip(lx)).unwrap_or(false) => Cursor::SizeWE,
+        "RLISTVIEW" if rapidr_value::objects::with_listview(&n.id, |l| l.on_grip(lx, ly)).unwrap_or(false) => Cursor::SizeWE,
+        _ => Cursor::Default,
+    }
 }

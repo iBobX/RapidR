@@ -149,8 +149,9 @@ the web IDE adds Monaco (LICENSES.md §1).
   Name. RapidR doesn't modify or subset them, so they keep their names.
 - **Noto fallback fonts** (`fonts/fallback/`, Stage W7): Noto Sans 2.015,
   Noto Sans Symbols 2.003 and Symbols 2 2.008 (in the repository,
-  unmodified), Noto Sans SC and KR from Noto CJK Sans 2.004 (fetched at build
-  time, pinned by SHA-256). All are OFL-1.1.
+  unmodified), Noto Sans SC and KR from Noto CJK Sans 2.004 and Noto Color
+  Emoji (COLRv1, noto-emoji's release tag v2.051) — fetched at build time,
+  pinned by SHA-256. All are OFL-1.1.
   - **No Reserved Font Name.** None of these fonts declares one: their
     `OFL.txt` / `LICENSE` have no Reserved Font Name line, and the CJK fonts'
     copyright string is "© 2014-2021 Adobe".

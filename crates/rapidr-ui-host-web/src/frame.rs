@@ -10,7 +10,7 @@
 //! The metrics are the ones every runtime accounts a form's frame with
 //! (`rapidr_value::layout::form_frame`: a 1-pixel border and a 29-pixel
 //! title bar), so a form's Width / Height and ClientWidth / ClientHeight
-//! are what they are on the desktop and in the DOM host.
+//! are what they are on the desktop.
 
 use rapidr_ui_app::desktop::Frame;
 use rapidr_ui_kernel::display::DisplayList;
@@ -33,6 +33,9 @@ pub struct Look {
     /// The theme's generation (`rapidr_value::theme::generation`): drawn
     /// again in a new one.
     pub theme: u64,
+    /// The form's icon (its IcoHandle / Icon, else the application's), at
+    /// the title bar's left as Windows draws it.
+    pub icon: Option<rapidr_ui_app::desktop::Icon>,
 }
 
 /// A button's width on the title bar.
@@ -99,9 +102,17 @@ pub fn paint(look: &Look, size: (i64, i64), scale: f64) -> DisplayList {
     let (bx, by, bw, bh) = (FORM_BORDER, FORM_BORDER, (w - 2 * FORM_BORDER).max(0), FORM_CAPTION);
     p.fill((bx, by, bw, bh), bar);
     let shown = buttons(look.frame);
-    let room = (bw - shown.len() as i64 * BUTTON_W - 10).max(0);
+    // (the icon, 16 × 16, then the title after it)
+    let mut text_x = bx + 8;
+    if let Some(icon) = &look.icon {
+        let picture = rapidr_ui_kernel::display::Picture { width: icon.width as usize, height: icon.height as usize, rgba: icon.rgba.clone() };
+        let revision = icon.rgba.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0000_0100_0000_01b3));
+        p.picture("rapidr:frame-icon", revision, std::sync::Arc::new(picture), (bx + 6, by + (bh - 16) / 2, 16, 16));
+        text_x += 20;
+    }
+    let room = (bw - shown.len() as i64 * BUTTON_W - 10 - (text_x - bx - 8)).max(0);
     let font = Font { name: "Arial".into(), size: 9, color: rapidr_value::theme::bgr(ink) as i64, styles: 1 };
-    p.clipped((bx + 6, by, room, bh), |p| p.text((bx + 8, by, room, bh), &look.title, &font, ink, Place::Left));
+    p.clipped((text_x - 2, by, room, bh), |p| p.text((text_x, by, room, bh), &look.title, &font, ink, Place::Left));
     for (slot, part) in shown {
         let r = button_rect(w, slot);
         if r.0 <= bx + 6 {
@@ -191,7 +202,7 @@ mod tests {
     use super::*;
 
     fn look() -> Look {
-        Look { title: "Form1".into(), active: true, border: true, frame: Frame::default(), maximized: false, theme: 0 }
+        Look { title: "Form1".into(), active: true, border: true, frame: Frame::default(), maximized: false, theme: 0, icon: None }
     }
 
     #[test]
