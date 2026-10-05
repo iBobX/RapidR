@@ -238,6 +238,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     });
 
     gui_web::setup_data_binding(&name_clone);
+    // (a QGLASSFRAME's shade: from its properties, now registered)
+    if rp_comp_type(&name_clone) == "RGLASSFRAME" {
+        gui_web::render_glass(&name_clone);
+    }
     install_object_hooks();
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
@@ -702,6 +706,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if rp_comp_type(&uname) == "RDXSCREEN" {
             crate::directx_web::parented(&uname);
         }
+        // (a QGLASSFRAME shades what it's now over)
+        if rp_comp_type(&uname) == "RGLASSFRAME" {
+            gui_web::render_glass(&uname);
+        }
         return;
     }
 
@@ -750,10 +758,18 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 
     // A QGLASSFRAME's shade drawn again.
-    if comp_type == "RGLASSFRAME" && matches!(lprop.as_str(), "transparency" | "transparentcolor" | "color" | "parent") {
+    if comp_type == "RGLASSFRAME" && matches!(lprop.as_str(), "transparency" | "transparentcolor" | "color") {
         gui_web::gui_web_set_prop(&uname, &lprop, &val);
         gui_web::render_glass(&uname);
         return;
+    }
+    // (a colour under a QGLASSFRAME changed: its shade with it, as the
+    // desktop's kernel draws it over what is there)
+    if lprop == "color" {
+        let glasses: Vec<String> = COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name == "RGLASSFRAME").map(|(n, _)| n.clone()).collect());
+        for g in glasses {
+            gui_web::render_glass(&g);
+        }
     }
     // A panel's bevels drawn again.
     if (rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL") || (comp_type == "RBEVEL" && (rapidr_value::objects::bevel::default(&lprop).is_some() || matches!(lprop.as_str(), "shape" | "style"))) {

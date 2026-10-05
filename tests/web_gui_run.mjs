@@ -77,6 +77,9 @@ export async function runCase(page, c) {
     }, { w, h, sp, delta });
     await page.waitForTimeout(300);
   }
+  // (the left button held from a `__mousedown_…` to its `__mouseup_…`: the
+  // moves between carry it, as a real mouse's do)
+  let pressed = false;
   for (const ev of c.events.split(",").filter(Boolean)) {
     const [target, action] = ev.split(".");
     // The desktop's test actions: `form.__close` (the close button) and
@@ -92,6 +95,8 @@ export async function runCase(page, c) {
     // (…up, …move): the mouse at (10, 20) in it.
     const key = /^__key_(\d+)$/i.exec(action || "");
     const mouse = /^__mouse(down|up|move)_(\d+)_(\d+)$/i.exec(action || "");
+    const kind = mouse?.[1].toLowerCase();
+    if (kind) pressed = kind === "down" || (kind === "move" && pressed);
     // `pn.__dblclick_5_5`: a double click there (the browser's events, each
     // with its click count)
     const dbl = /^__dblclick_(\d+)_(\d+)$/i.exec(action || "");
@@ -166,13 +171,13 @@ export async function runCase(page, c) {
       }
       if (mouse) {
         const r = el.getBoundingClientRect();
-        el.dispatchEvent(new MouseEvent("mouse" + mouse[0], { clientX: r.left + Number(mouse[1]), clientY: r.top + Number(mouse[2]), button: 0, bubbles: true, cancelable: true }));
+        el.dispatchEvent(new MouseEvent("mouse" + mouse[0], { clientX: r.left + Number(mouse[1]), clientY: r.top + Number(mouse[2]), button: 0, buttons: mouse[3] ? 1 : 0, bubbles: true, cancelable: true }));
         return true;
       }
       // (a list box answers a pick with `change`, anything else a click)
       el.dispatchEvent(host.tagName === "SELECT" ? new Event("change", { bubbles: true }) : new MouseEvent("click", { bubbles: true, cancelable: true }));
       return true;
-    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3]], dbl: dbl && [dbl[1], dbl[2]], item: item?.[1], edit });
+    }, { id: idOf(target), selector, key: key?.[1], mouse: mouse && [mouse[1].toLowerCase(), mouse[2], mouse[3], pressed], dbl: dbl && [dbl[1], dbl[2]], item: item?.[1], edit });
     if (!fired) missing.push(target);
     await page.waitForTimeout(300);
     // A colour dialog the event opened: the case's next answer's swatch

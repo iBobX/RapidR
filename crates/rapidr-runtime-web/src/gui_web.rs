@@ -2284,8 +2284,8 @@ fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
 fn create_glass(id: &str, name: &str, props: &HashMap<String, Value>) {
     let el = create_el("div");
     el.set_class_name("rr-widget rr-glass");
+    // (its shade: once it is registered, object_web::rp_create_component)
     setup_widget(&el, id, name, props);
-    render_glass(name);
     let uname = name.to_uppercase();
     let press: std::rc::Rc<std::cell::Cell<Option<(i32, i32)>>> = std::rc::Rc::new(std::cell::Cell::new(None));
     let (p1, p2, p3) = (press.clone(), press.clone(), press);

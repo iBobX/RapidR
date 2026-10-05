@@ -15,13 +15,16 @@ use std::task::Waker;
 use rapidr_value::tray;
 
 /// An icon to show: (its key, tooltip, picture (width, height, RGBA)).
-pub type Shown = ((i64, i64), String, (usize, usize, Vec<u8>));
+pub type Shown = tray::Shown;
+
+/// A click: (the icon's key, Windows' mouse messages).
+pub type Click = ((i64, i64), Vec<i64>);
 
 /// Clicks waiting for the program: (icon, Windows' mouse messages); a
 /// click wakes the pump (it may come from inside the system's loop, or
 /// another thread: D-Bus).
 pub struct Pending {
-    list: Mutex<Vec<((i64, i64), Vec<i64>)>>,
+    list: Mutex<Vec<Click>>,
     waker: Waker,
 }
 
@@ -78,7 +81,7 @@ impl Tray {
     }
 
     /// The clicks since the last turn.
-    pub fn clicks(&mut self) -> Vec<((i64, i64), Vec<i64>)> {
+    pub fn clicks(&mut self) -> Vec<Click> {
         std::mem::take(&mut *self.clicks.list.lock().unwrap_or_else(|e| e.into_inner()))
     }
 }

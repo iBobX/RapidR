@@ -178,7 +178,7 @@ const DEFAULT_ICON_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewB
 /// `IcoHandle`), else RapidR's own. (Windows shows an empty slot for an
 /// icon it can't load; an empty status item can't even be clicked.)
 pub fn picture(hicon: Option<i64>) -> (usize, usize, Vec<u8>) {
-    let own = hicon.and_then(crate::handles::icon_source).filter(|s| !s.is_empty()).map(|s| Value::String(s));
+    let own = hicon.and_then(crate::handles::icon_source).filter(|s| !s.is_empty()).map(Value::String);
     let pixels = |v: Value| crate::objects::icon_pixels(&v).map(|(w, h, rgba, _)| (w, h, rgba));
     own.and_then(pixels)
         .or_else(|| crate::globals::application_icon().and_then(pixels))
@@ -186,8 +186,12 @@ pub fn picture(hicon: Option<i64>) -> (usize, usize, Vec<u8>) {
         .unwrap_or((1, 1, vec![0, 0, 0, 0]))
 }
 
-/// What a host shows for each icon: (key, tooltip, picture).
-pub fn shown() -> Vec<((i64, i64), String, (usize, usize, Vec<u8>))> {
+/// What a host shows for an icon: (key, tooltip, picture (width, height,
+/// RGBA)).
+pub type Shown = ((i64, i64), String, (usize, usize, Vec<u8>));
+
+/// What a host shows for each icon.
+pub fn shown() -> Vec<Shown> {
     icons().into_iter().map(|i| (i.key(), i.tip.clone().unwrap_or_default(), picture(i.icon))).collect()
 }
 

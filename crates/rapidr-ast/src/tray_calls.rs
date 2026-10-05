@@ -95,7 +95,7 @@ pub fn lower(program: &Program) -> Program {
                 if let Expression::Identifier(id) = f.callee.as_ref() {
                     if names.contains(&id.name.to_ascii_lowercase()) {
                         let span = id.span;
-                        f.callee = Box::new(Expression::Identifier(Identifier { span, name: SHELL_NOTIFY_ICON.into() }));
+                        *f.callee = Expression::Identifier(Identifier { span, name: SHELL_NOTIFY_ICON.into() });
                         data_by_id(&mut f.args);
                     }
                 }
