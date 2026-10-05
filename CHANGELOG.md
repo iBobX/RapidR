@@ -7,7 +7,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.115.0] — 2026-10-05
+
 ### Added
+- RapidR is checked on Windows 11 (ARM) and Linux (Ubuntu 24.04 with
+  Wayland) besides macOS: the conformance suite on both backends, the GUI
+  events headless and with real windows, the unit tests, and on Windows
+  what a screen reader sees (`tools/windows/uia_probe.ps1`; macOS:
+  `tools/macos/ax_dump.swift`). The fixes below came from these runs.
 - **RapidQ's DirectX 2D objects on every runtime** (native, interpreted,
   web; docs/directx-plan.md): QDXSCREEN draws on an off-screen surface that
   shows on `Flip` (Init, AutoSize, AllowStretch, Fill's DirectDraw colours,
@@ -22,6 +29,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Frequency, Volume and Pan (DirectSound's decibels), Looped or once;
   Playing, Position and Size; Play, Stop. rodio plays it on the desktop,
   Web Audio in the browser.
+
+### Changed
+- The host-neutral half of the desktop's program glue (the kernel's events,
+  forms, the modal list, timers, waits, lists, menus, the GUI test script
+  and hooks, the dialogs' requests and answers) is a crate of its own,
+  `rapidr-ui-app`, behind two traits (`Program`, `Windows`), so the web host
+  can share it (docs/web-host-plan.md, W2). Nothing a program sees changed:
+  every GUI case's captures, accessibility trees and dumps are byte-for-byte
+  the same.
+- The test runners delete each native build once its program ran
+  (`tests/cargo_builds.mjs`): a full run left 50–100 GB behind.
 
 ### Fixed
 - macOS: a borderless form (BorderStyle bsNone) no longer can freeze its
