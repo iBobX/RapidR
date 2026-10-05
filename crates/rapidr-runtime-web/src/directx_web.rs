@@ -67,6 +67,9 @@ pub fn timer_interval(name: &str, ms: i64) -> i64 {
     if rapidr_value::objects::rqlib::is_comport(name) {
         return rapidr_value::objects::rqlib::LOOK_MS as i64;
     }
+    if let Some((interval, _)) = rapidr_value::objects::rqlib::media_timer(name) {
+        return if interval > 0 { interval } else { 1000 };
+    }
     if rp_comp_type(name) == "RDXJOYSTICK" {
         return rapidr_value::objects::joystick::LOOK_MS as i64;
     }
@@ -84,7 +87,7 @@ pub fn timer_interval(name: &str, ms: i64) -> i64 {
 pub fn timer_fired(name: &str) -> bool {
     // A QDXJOYSTICK's look: what changed fired (OnButtonUp / OnButtonDown
     // with the button's number, OnMove); no OnTimer.
-    if rapidr_value::objects::rqlib::is_comport(name) {
+    if rapidr_value::objects::rqlib::is_comport(name) || rapidr_value::objects::rqlib::media_timer(name).is_some() {
         crate::io_web::look(name);
         return false;
     }

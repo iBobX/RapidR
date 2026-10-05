@@ -22,6 +22,9 @@ polars = { version = "0.46", optional = true, default-features = false, features
 plotters = { version = "0.3", optional = true }
 image = { version = "0.24", optional = true, default-features = false, features = ["png"] }
 rodio = { version = "0.19", optional = true }
+# QMIDI's MIDI output (media.rs): MIT; ALSA on Linux (rodio's already),
+# CoreMIDI on macOS, winmm on Windows.
+midir = { version = "0.11", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
 # QCOMPORT's serial ports (serial.rs): BSD-2-Clause OR Apache-2.0; libc on
@@ -61,6 +64,6 @@ network = ["dep:ureq", "dep:native-tls"]
 # through `src/ui`; the system clipboard.
 gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
-audio = ["dep:rodio"]
+audio = ["dep:rodio", "dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]

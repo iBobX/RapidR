@@ -261,7 +261,7 @@ Next up, in order:
 - [x] RapidQ's UI and data objects from that list, checked against RC.EXE and RapidQ's include libraries, on native, interpreter and web: QRECT and QNOTIFYICONDATA (RC.EXE's records and errors), the system tray (Shell_NotifyIcon onto macOS' status items, Windows' notification area, Linux StatusNotifierItem, a strip on the web; a form's WndProc hears it), QBEVEL and QDIGDISPLAY built in (the include's own TYPE when included), QDIRLISTVIEW and QDOCKFORM as RapidR's own BASIC libraries, QGLASSFRAME; DIR$ / FileRec as RapidQ's (Unreleased)
 - [ ] The tray's Windows and Linux code built and clicked on those systems; a QDOCKFORM dragged with real input
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
-  - I/O and media lane (docs/io-media-plan.md): [x] QCGI and the ENVIRON statement · [x] QCOMPORT · [x] QDOWNLOAD · [ ] QMIDI · [ ] QWAVE · [ ] QCDAUDIO · [ ] QVIDEO
+  - I/O and media lane (docs/io-media-plan.md): [x] QCGI and the ENVIRON statement · [x] QCOMPORT · [x] QDOWNLOAD · [x] QMIDI · [x] QWAVE · [x] QCDAUDIO (no drive) · [ ] QVIDEO (members done; playback open)
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)
 - [ ] Consider generating Rust from a shared, typed IR (one front end for both backends) so they can't drift

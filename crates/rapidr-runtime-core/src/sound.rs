@@ -105,12 +105,18 @@ fn play(_bytes: Vec<u8>, _looped: bool, _wait: bool) {
 // Frequency, looped or once, at Volume's gain. Under the GUI tests (and
 // without the audio feature) nothing plays.
 
-/// Gives QDXSOUND the sound device (once; not under a GUI test).
+/// Whether a test runs the program: a GUI test (`RAPIDR_CAPTURE`,
+/// `RAPIDR_TEST_EVENTS`) or the conformance runner (`RAPIDR_TEST_SOUND`,
+/// set even empty) — no sound device then, nothing heard.
+pub(crate) fn testing() -> bool {
+    ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| std::env::var_os(v).is_some())
+}
+
+/// Gives QDXSOUND the sound device (once; not under a test).
 pub fn install_dx_device() {
     #[cfg(feature = "audio")]
     {
-        let testing = std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some();
-        if !testing {
+        if !testing() {
             rapidr_value::objects::directx::set_sound_device(rapidr_value::objects::directx::SoundDevice { play: dx_play, volume: dx_volume, stop: dx_stop });
         }
     }

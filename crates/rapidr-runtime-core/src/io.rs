@@ -17,6 +17,7 @@ use crate::value::{v_int, v_str, Value};
 pub fn created(name: &str, type_name: &str) {
     match type_name.to_ascii_uppercase().as_str() {
         "RCOMPORT" => crate::serial::install(),
+        "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO" => crate::media::install(),
         // (its QGAUGE and QLABEL: components of their own, `name.StateGauge`
         // and `name.SpeedLbl`, which the program places — the library's
         // StateGauge was 200 × 20)
@@ -33,6 +34,11 @@ pub fn created(name: &str, type_name: &str) {
 
 /// The events object `name`'s model left, fired (after each of its calls).
 pub fn fire_events(name: &str) {
+    // (a media object's Timer turned on or off by Play, Stop …)
+    #[cfg(feature = "gui")]
+    if rqlib::take_timer_changed(name) {
+        crate::ui::gui_timer_changed(name);
+    }
     for (event, args) in rqlib::take_events(name) {
         rp_fire_event_args(name, event, &args);
     }
@@ -164,12 +170,22 @@ fn fetch_inner(_url: &str, _t: &Mutex<Transfer>) -> Outcome {
 /// program handles), and how often.
 #[cfg(feature = "gui")]
 pub fn look_interval(name: &str) -> Option<Duration> {
+    // (a media object's Timer: its Interval)
+    if let Some((interval, _)) = rqlib::media_timer(name) {
+        return Some(Duration::from_millis(if interval > 0 { interval as u64 } else { 1000 }));
+    }
     rqlib::is_comport(name).then(|| Duration::from_millis(rapidr_value::objects::rqlib::LOOK_MS))
 }
 
 /// The runtime's look at `name`: its events fired (never an OnTimer).
 #[cfg(feature = "gui")]
 pub fn look(name: &str) -> bool {
+    // (a media object's Timer: its tick — OnChange)
+    if rqlib::media_timer(name).is_some() {
+        rqlib::media_tick(name);
+        fire_events(name);
+        return false;
+    }
     if rqlib::look_events().iter().any(|e| crate::object::rp_has_handler(name, e)) {
         for (event, args) in rqlib::look(name) {
             rp_fire_event_args(name, event, &args);

@@ -24,7 +24,7 @@ So "RapidQ-exact" means: the library's behaviour (what its code does, run by RC.
 - `+` is a space, except before another `+` or a space: `a++b` is `a+ b`, `+++` at the end is `++ `.
 - A second `=` in a pair is dropped (`t=a=b=c` is `abc`); a pair without `=` has the value ""; names are decoded too (`my+name`, `x%3Dy` is the name `X=Y`).
 - An empty name: `=x&=y&k=1` makes Get("") find `y`; a last pair without a name is left out (`k=1&=x`: Get("") finds nothing).
-- MaxInput takes only values above 0; AutoConvert is 1 or (anything else) 0; ContentLength "12abc" is 12 (VAL reads the leading number — RapidR's own VAL gives 0 there: see Open).
+- MaxInput takes only values above 0; AutoConvert is 1 or (anything else) 0; ContentLength "12abc" is 12 (VAL reads the leading number).
 - A QCGI's variables are copied when it's made (`DIM` runs the constructor where it stands), QUERY_STRING read again by the parse; Parse runs once.
 - `Get`'s Value by reference: the compilers turn `Get(Name, Value)` into `Value = CGI.__get(Name, Value)` before the statement and read the call as `CGI.__found` (a `WHILE`/`DO` condition's Get is moved before the loop the same way — read once).
 
@@ -66,6 +66,43 @@ Judgement calls:
 
 Tests: `download_errors` (errors 1 … 5, the defaults, Percent, Speed; the connection refused on 127.0.0.1 — never the internet) on every backend and the browser; the GUI fixture `download` against the tests' own slow local server (`tests/http_test_server.mjs`, in a worker thread; RAPIDR_TEST_HTTP / the page's RAPIDR_TEST_ENV): OutVar with State, OutFile with the gauge, a 404 — and the program's QTIMER ticking while it waits — native, interpreted and in the browser.
 
+## 4. The media objects: one model (QMIDI, QWAVE, QVIDEO, QCDAUDIO)
+
+**RapidQ**: D. Glodt's four libraries drive Windows' MCI with `mciSendString` — `open … alias MEDIA` (QWAVE `sound`, QCDAUDIO `cdaudio`), `set … time format milliseconds`, `status … length / position / mode`, `play … from`, `pause`, `stop`, `seek`, `close`. Each has a QTIMER of its own (`Midi.Timer.Interval = 200`; 1000 and off at first): Play turns it on; at each tick the library reads the position and the mode again, Stops a play that ended, and calls OnChange with the position. So CurrentFrame / CurrentPos / State are fields the ticks update — read between two ticks they're the last tick's — and setting the position works only while stopped or paused. Error is MCI's text when Open failed. Lenght (sic) is RW in practice (`wave.lenght = …` sets how long Record records).
+
+**Ground truth** from MCI itself in the Windows VM (opening files only, nothing played): the texts of errors 257 … 350; a missing file is 275 ("Cannot find the specified file.  Make sure the path and filename are correct."), a file of another kind 296 ("The specified file cannot be played on the specified MCI device.  The file may be corrupt, not in the correct format, or no file handler available for this format."); a second `open … alias MEDIA` is 289 ("The specified alias is already being used…") — the library then Closes, so the first file closes too; `open new type waveaudio`: 8 bits, 11025 Hz, mono, length 0; `myWaveFile.wav` (51261 bytes at 11025 Hz): 4650 ms (rounded); `town.mid`: 78994 ms (whole microseconds a tick, 1302 at 500000 µs a quarter and 384 ticks: 60672 ticks); an AVI: its length in frames, and in milliseconds rounded; `open cdaudio` without a disc succeeds with `media present` false.
+
+**RapidR** (`rapidr_value::objects::media`, every runtime): the libraries' members, fields and their rules exactly; the position runs by the runtime's clock (the same with or without a device, in the tests too); the object's Timer is ticked by the runtime as a QTIMER is — it fires while the program waits, as RapidQ's WM_TIMER — and its tick fires OnChange (QVIDEO's with the frame and the time, QCDAUDIO's with the track and its "tt:mm:ss:ff" position).
+
+## 5. QMIDI and QWAVE
+
+- **QMIDI** reads standard MIDI files (format 0 and 1, `RMID` too: `rapidr_value::objects::midifile`) with MCI's timing (whole microseconds a tick). Open, Close, Play, Stop, Pause, CurrentFrame, Lenght, State, FileOpen, Error, Volume, Timer, OnChange(Position). The song goes to the system's first MIDI output: midir on the desktop (on Windows that is Microsoft's GS Wavetable Synth, what MCI's sequencer used), Web MIDI in the browser (the browser asks once). macOS and Linux have no synthesizer of their own: without an output (a hardware synth, FluidSynth, …) QMIDI plays silently, everything else the same. Volume scales the notes' velocities (the library set the wave output's volume — Windows' MIDI synth followed it).
+- **QWAVE** opens WAV files (PCM 8 / 16-bit, mono / stereo; MCI opened what its codecs could — `DeviceType` names one: kept, not used), plays them through QDXSOUND's device (rodio, Web Audio), records with New + Record (from the default input: cpal on the desktop, getUserMedia in the browser — each asks the user the first time), from CurrentPos up to Lenght as `record sound to Lenght` inserted it, and Saves (a PCM WAV) and Deletes (a range in ms) as the library does. Bits (8, 16), Frequence (8000, 11025, 44100 — the library's list, not 22050) and Mode (1, 2) take only those values and only while open and stopped or paused; they set the format a new wave records in.
+
+Judgement calls: Volume's gain is linear (the library's `waveOutSetVolume` arithmetic is linear: 50 is half); until the program sets it the system's volume plays (the library's 0 meant "not set"). `onestop.mid` (Windows' own): MCI says 290764 ms, its tempo map read the standard way gives 247380 — the difference looks like MCI applying each tempo change one segment early in that file; RapidR keeps the standard reading (what the music means). Two objects share MCI's one alias in RapidQ (two QMIDIs, or a QMIDI and a QVIDEO, closed each other); RapidR's are independent.
+
+Tests: unit tests (`objects::media::tests`, `objects::midifile::tests` — and an ignored one against Windows' own `town.mid`, whose 78994 ms it matches); the conformance case `media_objects` (no device: the four objects' defaults, Open's failures with MCI's texts, Volume, CurrentFrame, Bits / Frequence / Mode, New, Save and Open of a wave, a CD drive without a disc) on both backends and the browser; the GUI fixture `media` (tools/make_media_fixture.py's song played to its end through the Timer's OnChange — `RAPIDR_TEST_MIDI`: no MIDI output —, then a new wave recorded for 300 ms from the tests' scripted input — `RAPIDR_TEST_WAVE_IN=tone:440`, never a microphone —, saved, opened again and played to its end), native, interpreted, browser. The test runners set `RAPIDR_TEST_SOUND`, `RAPIDR_TEST_MIDI`, `RAPIDR_TEST_WAVE_IN` (and the page's), so no test makes a sound or opens a device. RapidQ's own examples `Object/Examples/midi.bas`, `wave.bas`, `Cd.bas` and `video.bas` compile with RapidQ's include folder and start (captured); `Cd.bas` needed RC.EXE's reading of a binary operator with nothing after it (`"…"+, x`: the value before it — `dangling_operator` case), which `Qcdaudio.inc` has four times.
+
+## 6. QVIDEO (the API; no video yet)
+
+**RapidQ**: MCI's digital video (`QVideo.inc`): an AVI (or what Windows' codecs played) in a window of its own (`style popup` / `overlapped` by BorderStyle) or a child of Parent (a form's Handle), with Caption, Left / Top / Width / Height, WindowState, AudioOff, ImgWidth / ImgHeight (`where … source`), Lenght (frames), LenghtTime (s), CurrentFrame, Show, Play, Stop, Pause, OnChange(Frame, Time).
+
+**RapidR**: every member as the library has it; **Open answers that the file can't be played** (MCI's 296 text; a missing file 275) — there is no video decoder and window yet. What it would take, for later: an AVI reader (RIFF, `idx1`), the codecs old files used that have simple pure-Rust decoders to write (uncompressed DIB, RLE8 / RLE4 — RapidQ's own `scan.avi` is RLE8 —, MJPEG through the JPEG decoder RapidR has), its PCM sound through QDXSOUND's device, and a kernel component showing the frames (desktop) / a canvas (web); MPEG-1 / Cinepak / Indeo have no permissive Rust decoder. On the web a `<video>` overlay would play what the browser plays (MP4, WebM — not AVI).
+
+## 7. QCDAUDIO (no drive)
+
+**RapidQ**: `Qcdaudio.inc` (Time, TrackTime, TrackNumber, TimePosition, Position, State, AudioOpen, Present, Error, CurrentTrack; Open, Close, Play, Stop, Pause, Eject; OnChange(Track, Time$)). In the VM, `open cdaudio` succeeds and `status cdaudio media present` is false: Open closes again and returns False, Error stays "", Present False.
+
+**RapidR**: computers have no CD drives any more (and none would be RapidR's to open): QCDAUDIO always answers as that machine did — no disc. Open returns 0 with Error "" and Present 0; Play / Stop / Pause do nothing (AudioOpen is 0); Eject closes. The members are there with the library's values.
+
+## 8. Licences
+
+Everything these objects add is open source and allows commercial programs (no GPL, LGPL, AGPL or source-available code reaches a built program): serial2 (BSD-2-Clause OR Apache-2.0), midir (MIT) with coremidi / coremidi-sys (MIT) on macOS and alsa (already rodio's) on Linux; ureq, rodio and cpal were there already. No SoundFont or other data is bundled: QMIDI plays on the system's own synthesizer. In the browser: fetch, Web Serial, Web MIDI, Web Audio, getUserMedia — the browser's own APIs. `cargo deny check licenses` passes; THIRD_PARTY_NOTICES.md regenerated. Left out for that reason: video codecs from FFmpeg / GStreamer (QVIDEO, §6), a software MIDI synthesizer with a GPL SoundFont.
+
 ## Open
 
-- RapidR's `VAL("12abc")` is 0; RapidQ's is presumably 12 (QCGI's ContentLength reads 12 for "12abc" through it) — to check with RC.EXE and fix in `rapidr_value::builtins::rp_val` (outside this lane).
+- **QVIDEO playback** (§6): an AVI reader with the simple codecs (uncompressed, RLE, MJPEG), its window / canvas; a `<video>` overlay on the web.
+- **QMIDI without a synthesizer** (macOS, Linux, browsers without Web MIDI): a built-in General MIDI synthesizer would need a permissively licensed SoundFont or synthesis of RapidR's own.
+- **`onestop.mid`'s length** (§5): MCI's 290764 ms against the tempo map's 247380.
+- **QCOMPORT's pseudo-terminal test** runs on Linux only (macOS' ptys refuse IOSSIOSPEED); its real-port path wasn't run against hardware.
+- **Qdownload's example** (`Network/Download/qdownload.bas`) ends with a stray `END STRUCT` RapidR refuses.

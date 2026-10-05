@@ -98,6 +98,10 @@ process.env.RAPIDR_TEST_CLIPBOARD = "1";
 // real serial port: QCOMPORT's scripted ones only, none unless a case's)
 process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
 process.env.RAPIDR_TEST_COMPORT = "";
+// (QMIDI: no MIDI output; QWAVE records the scripted tone, never a
+// microphone — the GUI tests have no sound device either)
+process.env.RAPIDR_TEST_MIDI = "";
+process.env.RAPIDR_TEST_WAVE_IN = "tone:440";
 const CARGO_TARGET = join(ROOT, "tests/conformance/.work/cargo-target");
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };

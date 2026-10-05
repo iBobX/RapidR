@@ -287,6 +287,11 @@ export const cases = [
   // OutVar / State, OutFile / StateGauge, a 404)
   { name: "download", events: "b1.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=1 1850 100 [Line ]1850 ticked -1 | 1 100 1850 | 0 11 The Server doesn't know the file"] },
+  // (the I/O lane's: QMIDI and QWAVE driven by their Timers' OnChange —
+  // no MIDI output, a scripted recording input; the Wait clicks give them
+  // the time to play to their ends)
+  { name: "media", events: "b1.onclick," + Array(50).fill("b2.onclick").join(","), dump: "lbl.caption",
+    expect: ["lbl.caption=0 Cannot find the specified  0 | 1 999 3 50 1 1 end 0 -1 0 | 8 11025 1 0 4 rec 300 1 1 300 8 played 0 -1"] },
   { name: "dx_joystick", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     joystick: "x=0,b=1,name=Pad;x=65535,y=0,b=2;y=65535,pov=9000,b=3,name=Pad;b=1;b=1,x=0;b=0,x=0;-",
     expect: ["lbl.caption=-1000-10 0-1-100-1 000-1-1-1 Pad,-1,32767,65535,3,9000 |down1 move0 up1 move32767 |0"] },

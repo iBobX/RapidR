@@ -2250,6 +2250,7 @@ fn bind_dom_event(name: &str, event: &str) {
     if event == "ontimer"
         || (rp_comp_type(name) == "RDXJOYSTICK" && rapidr_value::objects::joystick::EVENTS.contains(&event))
         || (rp_comp_type(name) == "RCOMPORT" && rapidr_value::objects::rqlib::look_events().contains(&event))
+        || rapidr_value::objects::rqlib::media_timer(name).is_some()
     {
         update_timer(name);
         return;
@@ -2444,7 +2445,7 @@ fn bind_dom_event(name: &str, event: &str) {
 // Timer management
 // ---------------------------------------------------------------------------
 
-fn update_timer(name: &str) {
+pub(crate) fn update_timer(name: &str) {
     let uname = name.to_uppercase();
 
     // Clear existing timer
@@ -2488,6 +2489,13 @@ fn update_timer(name: &str) {
         let eh = eh.borrow();
         events.iter().any(|e| eh.contains_key(&(uname.clone(), e.to_string())))
     });
+    // (the I/O lane's media objects: their Timer is their model's, and ticks
+    // with or without an OnChange — a play's end is noticed there)
+    let media = rapidr_value::objects::rqlib::media_timer(&uname);
+    let (enabled, interval, has_handler) = match media {
+        Some((i, on)) => (on, i, true),
+        None => (enabled, interval, has_handler),
+    };
 
     // (the DirectX lane's: a QDXTIMER's Interval 0 is a screen refresh)
     let interval = crate::directx_web::timer_interval(&uname, interval);

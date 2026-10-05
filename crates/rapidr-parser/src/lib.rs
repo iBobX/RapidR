@@ -2493,7 +2493,14 @@ impl<'a> Parser<'a> {
             want_operand = false;
         }
         if want_operand {
-            return None;
+            // A binary operator with nothing after it (`F("a"+, 5)`, `x = 2
+            // +`): RC.EXE drops it — the value is what came before
+            // (Qcdaudio.inc's `"status cdaudio position"+,` compiles so).
+            if matches!(ops.last(), Some(Op::Binary(..) | Op::Named(..))) && !vals.is_empty() {
+                ops.pop();
+            } else {
+                return None;
+            }
         }
         while !ops.is_empty() {
             reduce(&mut ops, &mut vals)?;
@@ -3407,7 +3414,11 @@ mod tests {
         // (parentheses only group: `(2 3) + 1` is 2)
         let stmts = parse("z = (2 3) + 1\n");
         assert!(matches!(&stmts[0], Statement::Assignment(a) if matches!(&a.value, Expression::Literal(Literal { value: LiteralValue::Integer(2), .. }))), "{stmts:?}");
-        assert_eq!(errors("w = 1 +\n").len(), 1);
+        // (an operator with nothing after it is dropped, as RC.EXE does:
+        // `w = 1 +` is 1 — tests/conformance/cases/dangling_operator.bas)
+        let stmts = parse("w = 1 +\n");
+        assert!(matches!(&stmts[0], Statement::Assignment(a) if matches!(&a.value, Expression::Literal(Literal { value: LiteralValue::Integer(1), .. }))), "{stmts:?}");
+        assert_eq!(errors("w = 1 + -\n").len(), 1);
     }
 
     #[test]

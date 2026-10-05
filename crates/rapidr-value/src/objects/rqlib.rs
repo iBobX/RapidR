@@ -16,10 +16,11 @@ use crate::Value;
 use super::cgi::Cgi;
 use super::comport::ComPort;
 use super::download::{Download, Outcome, Request, Shown};
+use super::media::{self, Kind, Media};
 
 /// Their RapidR component names (QCGI is RCGI, …): no window of their own
 /// on any runtime.
-pub const TYPES: &[&str] = &["RCGI", "RCOMPORT", "RDOWNLOAD"];
+pub const TYPES: &[&str] = &["RCGI", "RCOMPORT", "RDOWNLOAD", "RMIDI", "RWAVE", "RVIDEO", "RCDAUDIO"];
 
 /// Whether `type_name` is one of [`TYPES`].
 pub fn is_type(type_name: &str) -> bool {
@@ -34,6 +35,7 @@ enum Lib {
     Cgi(Cgi),
     ComPort(ComPort),
     Download(Download),
+    Media(Box<Media>),
 }
 
 thread_local! {
@@ -50,6 +52,10 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RCGI" => Lib::Cgi(Cgi::new()),
         "RCOMPORT" => Lib::ComPort(ComPort::default()),
         "RDOWNLOAD" => Lib::Download(Download::default()),
+        "RMIDI" => Lib::Media(Box::new(Media::new(Kind::Midi))),
+        "RWAVE" => Lib::Media(Box::new(Media::new(Kind::Wave))),
+        "RVIDEO" => Lib::Media(Box::new(Media::new(Kind::Video))),
+        "RCDAUDIO" => Lib::Media(Box::new(Media::new(Kind::CdAudio))),
         _ => return false,
     };
     STORE.with(|s| s.borrow_mut().insert(id.to_lowercase(), lib));
@@ -81,6 +87,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Lib::Cgi(c) => c.get(prop),
         Lib::ComPort(c) => c.get(prop),
         Lib::Download(d) => d.get(prop),
+        Lib::Media(m) => m.get(prop),
     })?
 }
 
@@ -91,10 +98,22 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Lib::Cgi(c) => c.set(prop, val).map(|_| Ok(())),
         Lib::ComPort(c) => c.set(prop, val).map(Ok),
         Lib::Download(d) => d.set(prop, val).map(Ok),
+        Lib::Media(m) => media::with_id(id, || m.set(prop, val)).map(Ok),
     })?
 }
 
 pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    // (QWAVE's Save(FileName): the WAV written, True / False)
+    if method == "save" && with(id, |l| matches!(l, Lib::Media(m) if m.kind == Kind::Wave)) == Some(true) {
+        let path = args.first().map(Value::to_string_val).unwrap_or_default();
+        let file = with(id, |l| match l {
+            Lib::Media(m) => m.save(),
+            _ => None,
+        })
+        .flatten();
+        let saved = !path.is_empty() && file.is_some_and(|b| super::write_file(&path, &b).is_ok());
+        return Some(Ok(crate::v_int(i64::from(saved))));
+    }
     // (QCOMPORT's Write / Read: a stream's bytes, read or written outside
     // the store's borrow)
     let mut pending_write: Option<(String, Vec<u8>)> = None;
@@ -110,6 +129,7 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
             })
             .map(Ok),
         Lib::Download(d) => d.call(method, args).map(Ok),
+        Lib::Media(m) => media::with_id(id, || m.call(method, args, &|f| super::read_file(f))).map(Ok),
     })?;
     if let Some((stream, bytes)) = pending_write {
         super::stream_append(&stream, &bytes);
@@ -121,9 +141,39 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
 pub fn take_events(id: &str) -> Vec<(&'static str, Vec<Value>)> {
     with(id, |l| match l {
         Lib::ComPort(c) => c.events.drain(..).collect(),
+        Lib::Media(m) => m.events.drain(..).collect(),
         _ => Vec::new(),
     })
     .unwrap_or_default()
+}
+
+/// A media object's Timer (QMIDI, QWAVE, QVIDEO, QCDAUDIO): its Interval
+/// and whether it's on; `None` for other objects.
+pub fn media_timer(id: &str) -> Option<(i64, bool)> {
+    with(id, |l| match l {
+        Lib::Media(m) => Some((m.timer_interval, m.timer_enabled)),
+        _ => None,
+    })?
+}
+
+/// A media object's Timer ticked: position and state read again, a play
+/// that ended Stopped, OnChange left to fire ([`take_events`]).
+pub fn media_tick(id: &str) {
+    with(id, |l| {
+        if let Lib::Media(m) = l {
+            media::with_id(id, || m.tick());
+        }
+    });
+}
+
+/// Whether a media object's Timer was turned on or off (or its Interval
+/// changed) since asked: the runtime schedules it again.
+pub fn take_timer_changed(id: &str) -> bool {
+    with(id, |l| match l {
+        Lib::Media(m) => std::mem::take(&mut m.timer_changed),
+        _ => false,
+    })
+    .unwrap_or(false)
 }
 
 /// The events the runtime looks for ([`look`]).

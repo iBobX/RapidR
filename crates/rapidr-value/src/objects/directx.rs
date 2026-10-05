@@ -763,6 +763,34 @@ fn now() -> f64 {
     CLOCK.with(Cell::get)()
 }
 
+/// The runtime's clock (ms): what QDXSOUND's — and the media objects'
+/// (media.rs) — positions run by.
+pub fn clock_ms() -> f64 {
+    now()
+}
+
+/// Plays on the runtime's sound device (QWAVE: media.rs); nothing
+/// without one.
+pub fn device_play(p: &SoundPlay) {
+    if let Some(d) = device() {
+        (d.play)(p);
+    }
+}
+
+/// Stops what `id` plays on the sound device.
+pub fn device_stop(id: &str) {
+    if let Some(d) = device() {
+        (d.stop)(id);
+    }
+}
+
+/// The gain of what `id` plays on the sound device.
+pub fn device_volume(id: &str, gain: f32) {
+    if let Some(d) = device() {
+        (d.volume)(id, gain);
+    }
+}
+
 fn device() -> Option<SoundDevice> {
     DEVICE.with(Cell::get)
 }

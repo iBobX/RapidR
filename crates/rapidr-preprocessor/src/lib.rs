@@ -751,6 +751,10 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
 const LIBRARY_INCLUDES: &[(&str, &[(&str, i64)])] = &[
     ("qcgi.inc", &[("CGI_INPUT_DEFAULT", 32767), ("CGI_INPUT_LARGE", 65535), ("CGI_INPUT_SMALL", 255), ("CGI_MAX_PAIRS", 256)]),
     ("qdownload.inc", &[]),
+    ("qmidi.inc", &[("MD_CLOSE", 0), ("MD_PLAY", 1), ("MD_PAUSE", 2), ("MD_STOP", 3)]),
+    ("qwave.inc", &[("WV_CLOSE", 0), ("WV_PLAY", 1), ("WV_PAUSE", 2), ("WV_STOP", 3), ("WV_RECORD", 4), ("WV_MONO", 1), ("WV_STEREO", 2), ("WV_BIT8", 8), ("WV_BIT16", 16), ("WV_KHZ8", 8000), ("WV_KHZ11", 11025), ("WV_KHZ22", 22050), ("WV_KHZ44", 44100)]),
+    ("qvideo.inc", &[("VD_CLOSE", 0), ("VD_PLAY", 1), ("VD_PAUSE", 2), ("VD_STOP", 3)]),
+    ("qcdaudio.inc", &[("CD_CLOSE", 0), ("CD_PLAY", 1), ("CD_PAUSE", 2), ("CD_STOP", 3)]),
 ];
 
 /// Built-in replacement for an include file that isn't on disk, as a single

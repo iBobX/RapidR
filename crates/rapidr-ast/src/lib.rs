@@ -1871,7 +1871,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
     // RapidQ's QGLASSFRAME (rapidr_value::objects::glass)
     "RGLASSFRAME",
     // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
-    "RCGI", "RCOMPORT", "RDOWNLOAD",
+    "RCGI", "RCOMPORT", "RDOWNLOAD", "RMIDI", "RWAVE", "RVIDEO", "RCDAUDIO",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1901,11 +1901,7 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 
 // (QDIRLISTVIEW, QDOCKFORM: RapidR's own libraries, rapidr_preprocessor::
 // RAPIDR_LIBRARIES — TYPEs a program that names them gets)
-pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
-    "QCDAUDIO",
-"QMIDI", "QOLECONTAINER", "QOLEOBJECT",
-    "QVIDEO", "QWAVE",
-];
+pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &["QOLECONTAINER", "QOLEOBJECT"];
 
 /// The type suffix of an INPUT variable (`name$` → "$"), or "": with the
 /// variable's current value it decides whether INPUT stores text or a number
@@ -2122,7 +2118,7 @@ pub fn is_rapidq_object_type(type_name: &str) -> bool {
 /// both backends register it when it's made.
 pub fn is_timer_type(type_name: &str) -> bool {
     // (QDXJOYSTICK: its events looked for at each tick)
-    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT")
+    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")
 }
 
 pub fn is_component_type_name(type_name: &str) -> bool {

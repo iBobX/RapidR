@@ -56,6 +56,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   no longer freezes while it waits: its windows paint and its timers tick
   (native, interpreted and in the browser). Port 443 is HTTPS; redirects
   are followed.
+- **QMIDI, QWAVE, QCDAUDIO and QVIDEO**, D. Glodt's media objects (RapidQ's
+  `QMidi.inc`, `QWave.inc`, `Qcdaudio.inc`, `QVideo.inc`), on one model:
+  Open / Close / Play / Stop / Pause, State, FileOpen, Lenght, Error (MCI's
+  own texts, checked in the Windows VM), Volume, their Timer and OnChange,
+  the libraries' rules exactly; positions by the clock, with or without a
+  device. QMIDI reads standard MIDI files with MCI's timing and plays them
+  on the system's MIDI output (midir; Web MIDI); QWAVE plays WAV files,
+  records (New, Record from the default input — cpal, getUserMedia), Saves
+  and Deletes. QCDAUDIO answers as a machine with no disc does. QVIDEO has
+  every member, but Open says the file can't be played: no video decoder
+  yet. RapidQ's examples `midi.bas`, `wave.bas`, `Cd.bas`, `video.bas`
+  compile and start with RapidQ's include folder.
+- A binary operator with nothing after it (`F("a"+, 5)`, `x = 2 +`) is read
+  as RapidQ's compiler reads it: dropped, the value is what came before
+  (`Qcdaudio.inc` has it four times).
 - **The `ENVIRON "name=text"` statement** sets an environment variable
   (it was a silent no-op): split at the first `=` (or, without one, a
   space), names found in any case by `ENVIRON$` as on Windows; in the
