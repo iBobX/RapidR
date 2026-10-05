@@ -411,6 +411,11 @@ fn stop_timers() {
 /// handlers queued ahead of them first.
 fn fire_timers() {
     use rapidr_ui_app::timers;
+    // (a SLEEP holds the program whole, as the desktop's: its timers fire
+    // once it waits again)
+    if crate::dialog_web::sleeping() {
+        return;
+    }
     timers::take_held_back();
     timers::fire_due(Web);
 }

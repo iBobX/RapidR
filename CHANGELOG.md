@@ -137,6 +137,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - Application.Icon is the page's icon too.
   - A component bound with DataSource / DataField writes the user's edits to its field.
   - A QIMAGE given a non-BMP file warns and loads nothing, as on the desktop.
+  - SLEEP holds a web program whole, as on the desktop. Its timers fire once it waits again, so a timer's handler that opens a box right after a SLEEP gets its answer.
 - **Fallback fonts on the web (W7)** (docs/web-host-plan.md, "W7"): text the built-in Liberation fonts can't draw — ✓ and other symbols, Chinese, Japanese, Korean, emoji (in colour) — is drawn with Noto fonts (SIL OFL 1.1) instead of boxes.
   - The fonts ship beside the web runtime, split by Unicode range. A page fetches a chunk the first time its text needs it: labels, edits and window titles alike.
   - Bundles (`bundle-bc`, the IDE's Build) and `rapidr build --web` sites carry the chunks; an installed RapidR never downloads them.

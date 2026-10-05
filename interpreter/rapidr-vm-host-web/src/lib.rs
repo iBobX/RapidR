@@ -254,9 +254,9 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
             }
             k
         }
-        // (the program pauses, the browser goes on: dialog_web::pause)
+        // (the program pauses, the browser goes on: dialog_web::sleep)
         "sleep" => {
-            if !rapidr_runtime_web::dialog_web::pause(a0.to_f64().max(0.0) * 1000.0) {
+            if !rapidr_runtime_web::dialog_web::sleep(a0.to_f64().max(0.0) * 1000.0) {
                 rp_sleep(&a0);
             }
             v_null()

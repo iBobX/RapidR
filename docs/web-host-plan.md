@@ -676,7 +676,7 @@ The wasm shrank from 10.63 to 10.21 MB.
 - New: `tests/web_webapi.mjs` (the five API components and LoadFromPlot). `tests/web_sqlite.mjs` (the binding both ways) joins `tools/regress.sh`.
 
 **Open after W11.**
-- `dialog_timers` on the kernel host: a MESSAGEBOX a timer's handler opens just as `Form.ShowModal` starts answers 0, and the other timer doesn't tick during it. It stays off the web cases until fixed.
+- `dialog_timers` on the kernel host gives the desktop's dump in most runs but stays off the web cases: its ticks are counted in tens of milliseconds, and the open file dialog's step misses now and then. Its real bug is fixed: a SLEEP now holds the program whole, as the desktop's does (`dialog_web::sleep`). The timers that fell due meanwhile fire once the program waits. They no longer run inside the program on its way out of the SLEEP, where a handler's MESSAGEBOX couldn't wait (it answered 0).
 - An open menu's items aren't in the accessibility tree (desktop and web alike).
 - Ad-hoc scripts outside `regress.sh` still look for DOM-host elements: `corpus_web_compare.mjs`, `verify_sqlite_rendering.mjs`, `test_dropdown_sqlite_hover.mjs`, `test_all_dropdown_examples.mjs`, `debug_e2e_event_handling.mjs`, `_q.mjs`.
 

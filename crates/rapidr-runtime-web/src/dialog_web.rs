@@ -49,6 +49,9 @@ thread_local! {
     static SLICE_END: Cell<f64> = const { Cell::new(0.0) };
     /// (Stage W4) The kernel host's waits the VM is suspended in.
     static KERNEL_WAITS: Cell<u32> = const { Cell::new(0) };
+    /// The program is in a SLEEP: as a desktop program it's held whole —
+    /// its timers don't fire (they do once it waits: [`sleeping`]).
+    static SLEEPING: Cell<bool> = const { Cell::new(false) };
     /// The line the next kernel wait's end shows in the program's output
     /// (an INPUT's answer, as a terminal shows what was typed).
     static ECHO_NEXT: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -213,6 +216,33 @@ pub fn vm_free() -> bool {
     VM_DEPTH.with(Cell::get) == 0 && !is_yielded()
 }
 
+/// SLEEP: [`pause`], the program held whole meanwhile — its timers fire
+/// once it waits again (as the desktop interpreter's, whose SLEEP serves
+/// no timers): a handler fired then is a turn of its own, which can wait
+/// for a dialog, not one squeezed into the program on its way out of the
+/// SLEEP. `false` where it can't wait.
+pub fn sleep(ms: f64) -> bool {
+    if !can_wait() {
+        return false;
+    }
+    SLEEPING.with(|s| s.set(true));
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+    let wake = Closure::once_into_js(move || {
+        SLEEPING.with(|s| s.set(false));
+        resume(Value::Null, None);
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(wake.unchecked_ref(), ms.clamp(0.0, 86_400_000.0) as i32);
+    }
+    true
+}
+
+/// Whether the program is in a SLEEP ([`sleep`]).
+pub fn sleeping() -> bool {
+    SLEEPING.with(Cell::get)
+}
+
 /// [`pause`] whose end gives `value` as the method's result (QCOMPORT's
 /// ReadString with a Wait: the string read).
 pub fn pause_with(ms: f64, value: Value) -> bool {
@@ -257,6 +287,7 @@ pub fn modal_waiting() -> bool {
 /// Forgets the waits (and a yield) of a program that was replaced.
 pub fn clear_modals() {
     KERNEL_WAITS.with(|k| k.set(0));
+    SLEEPING.with(|s| s.set(false));
     YIELDED.with(|y| y.set(false));
     PENDING.with(|p| p.borrow_mut().clear());
 }

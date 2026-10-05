@@ -226,7 +226,7 @@ export const cases = [
   { name: "dialog_timers", events: "", dump: "lbl.caption,form2.__shown",
     messageDialog: "No;Yes;OK;OK;OK;OK", fileDialog: "notes.txt", colorDialog: "255", fontDialog: "Courier New,14", dialogHold: 250, delay: 4,
     expect: ["lbl.caption=inner6-1;dlg7-1;shown-1;msgbox0-1;open notes.txt-1;color000000FF-1;font Courier New14-1;box1-1;modal2;both1-1;", "form2.__shown=0"],
-    web: false, why: "on the kernel host the last step's MESSAGEBOX (T4's handler, as Form.ShowModal starts) answers 0, not the hooks' OK, and T3 doesn't tick during it — both00 for both1-1, whatever the delay; the steps before answer as on the desktop" },
+    web: false, why: "timing: the browser's timers and frames make a step's first tick come too late now and then (most runs give the desktop's dump; the open file dialog's step is the one that misses) — its ticks are counted in tens of milliseconds" },
   // (the DirectX lane's: QDXSCREEN, QDXIMAGELIST, QDXTIMER — the screen at
   // (10, 10) shows its last Flip: blue Fill, the red corner, the sprite's
   // see-through white, the strip's two patterns)
