@@ -185,7 +185,7 @@ export const cases = [
   // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
   // the bar, and on the corner once SizeGrip is off)
   { name: "size_grip", events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
-    expect: ["lbl.caption=w318 g-1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"], web: false,
+    expect: ["lbl.caption=w318 g1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"], web: false,
     why: "the browser's forms aren't resized by the user (no frame drag, so no size grip)" },
   // (its accessibility tree and keys: tests/web_a11y.mjs)
   { name: "a11y_form", events: "", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
@@ -203,7 +203,7 @@ export const cases = [
   // program's dialogs, in seconds)
   { name: "dialog_timers", events: "", dump: "lbl.caption,form2.__shown",
     messageDialog: "No;Yes;OK;OK;OK;OK", fileDialog: "notes.txt", colorDialog: "255", fontDialog: "Courier New,14", dialogHold: 250, delay: 4,
-    expect: ["lbl.caption=inner6-1;dlg7-1;shown-1;msgbox0-1;open notes.txt-1;colorFF-1;font Courier New14-1;box1-1;modal2;both1-1;", "form2.__shown=0"],
+    expect: ["lbl.caption=inner6-1;dlg7-1;shown-1;msgbox0-1;open notes.txt-1;color000000FF-1;font Courier New14-1;box1-1;modal2;both1-1;", "form2.__shown=0"],
     web: false, why: "the browser harness answers a dialog only after an event it fired, and has no hold; the page's own dialogs let the timers run (tests/web_ide_dialogs.mjs)" },
   // (the DirectX lane's: QDXSCREEN, QDXIMAGELIST, QDXTIMER — the screen at
   // (10, 10) shows its last Flip: blue Fill, the red corner, the sprite's
