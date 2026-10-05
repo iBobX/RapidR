@@ -17,6 +17,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   RC.EXE running the library, `tests/conformance/cases/cgi_*`). A program
   that `$INCLUDE`s `qcgi.inc` gets RapidR's QCGI (the file's TYPE is left
   out, its constants kept; without the file, its constants are built in).
+- **QCOMPORT**, a serial port as RapidQ programs have it (RAPIDQ2.INC's
+  COMPORT, the manual's QCOMPORT — RC.EXE's own can't be built): Port,
+  BaudRate, DataBits, Parity, StopBits, buffers, Connected, Handle,
+  BytesNotRead / InQue …; Open, Close, PurgeIn / PurgeOut, WriteString,
+  Write, ReadString, Read; OnComError (the library's messages with
+  Windows' own text, checked against RC.EXE), OnOpen, OnClose,
+  OnWriteString, OnReadString, and OnRxChar when bytes arrive. Ports
+  through serial2 on the desktop (nothing extra to install on Linux), Web
+  Serial in the browser; tests use scripted ports (`RAPIDR_TEST_COMPORT`),
+  never a real device.
+- **QDOWNLOAD** (Qdownload.inc): LeechFile fetches Server / Port / File
+  into OutVar or OutFile with the library's checks and error messages,
+  progress in State or its own StateGauge and SpeedLbl — and the program
+  no longer freezes while it waits: its windows paint and its timers tick
+  (native, interpreted and in the browser). Port 443 is HTTPS; redirects
+  are followed.
 - **The `ENVIRON "name=text"` statement** sets an environment variable
   (it was a silent no-op): split at the first `=` (or, without one, a
   space), names found in any case by `ENVIRON$` as on Windows; in the

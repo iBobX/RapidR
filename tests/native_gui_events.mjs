@@ -84,11 +84,16 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
 import { dropBuild } from "./cargo_builds.mjs";
+import { startHttpServer } from "./http_test_server.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/native_gui_events");
 // (the programs use their own clipboard, never the user's)
 process.env.RAPIDR_TEST_CLIPBOARD = "1";
+// (QDOWNLOAD's server: the tests' own, local — never the internet; and no
+// real serial port: QCOMPORT's scripted ones only, none unless a case's)
+process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
+process.env.RAPIDR_TEST_COMPORT = "";
 const CARGO_TARGET = join(ROOT, "tests/conformance/.work/cargo-target");
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
@@ -127,6 +132,8 @@ const dialogAnswers = (c) => ({
   ...(c.delay === undefined ? {} : { RAPIDR_CAPTURE_DELAY: String(c.delay) }),
   // (`joystick`: QDXJOYSTICK's gamepad, the tests' script)
   ...(c.joystick === undefined ? {} : { RAPIDR_TEST_JOYSTICK: c.joystick }),
+  // (`comport`: QCOMPORT's scripted ports)
+  ...(c.comport === undefined ? {} : { RAPIDR_TEST_COMPORT: c.comport }),
 });
 
 // A captured window's pixel (x, y) as "rrggbb" (an uncompressed 24- or

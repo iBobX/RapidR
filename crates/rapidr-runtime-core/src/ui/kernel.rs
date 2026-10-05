@@ -313,6 +313,11 @@ pub fn step(max_wait: Option<Duration>) {
     if let Some(at) = rapidr_ui_app::dialogs::hook_wake() {
         at_most(at.saturating_duration_since(now));
     }
+    // (work waited for in the background — a QDOWNLOAD's transfer: its
+    // progress shown, its end noticed)
+    if rapidr_ui_app::dialogs::tasks_open() {
+        at_most(rapidr_ui_app::dialogs::TASK_STEP);
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
     crate::object::rp_run_deferred();
@@ -733,6 +738,40 @@ pub fn gui_wait_key() -> Option<bool> {
         step(None);
     }
     Some(true)
+}
+
+/// A method that waits for work done in the background (QDOWNLOAD's
+/// LeechFile; the I/O lane's): `poll` gives its result once it's done.
+/// While it runs the program's windows paint and its timers tick, as during
+/// a dialog: a native build steps until it's done; the interpreter is left
+/// a wait it serves itself (`Wait::Dialog`), whose result replaces this
+/// one. Without windows (a console program, or before the first form) it
+/// simply waits.
+pub fn gui_wait_task(mut poll: impl FnMut() -> Option<Value> + 'static) -> Value {
+    if !started() || held() {
+        loop {
+            if let Some(v) = poll() {
+                return v;
+            }
+            std::thread::sleep(rapidr_ui_app::dialogs::TASK_STEP);
+        }
+    }
+    timers::start_all(Rt);
+    use rapidr_ui_app::dialogs::{finished, task_wait, Pending};
+    match task_wait(poll) {
+        Pending::Done(v) => v,
+        Pending::Open(id) if waits::cooperative() => {
+            waits::start(Wait::Dialog(id));
+            v_null()
+        }
+        Pending::Open(id) => loop {
+            if let Some(v) = finished(id) {
+                return v;
+            }
+            step(Some(rapidr_ui_app::dialogs::TASK_STEP));
+            crate::object::rp_serve_program();
+        },
+    }
 }
 
 /// For the bytecode VM: `ShowModal` returns at once and leaves its wait to

@@ -630,7 +630,7 @@ pub fn http_method(name: &str, method: &str, args: &[Value]) -> Value {
 
 /// An agent for one request. On Windows its TLS is the system's (SChannel:
 /// Cargo.toml); elsewhere ureq's own, rustls.
-fn http_agent(timeout: Duration) -> ureq::Agent {
+pub(crate) fn http_agent(timeout: Duration) -> ureq::Agent {
     let builder = ureq::AgentBuilder::new().timeout(timeout);
     #[cfg(windows)]
     let builder = match native_tls::TlsConnector::new() {

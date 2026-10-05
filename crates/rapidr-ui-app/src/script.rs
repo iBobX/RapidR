@@ -111,7 +111,11 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
 pub fn step<R: Program + Windows>(rt: R) {
     let now = rt.now();
     let due = sc(|s| s.as_ref().is_some_and(|sc| sc.next <= now));
-    if !due || rt.in_host_callback() {
+    // (nor while the program waits for work in the background — a
+    // QDOWNLOAD's transfer, waited for as the interpreter waits for a
+    // dialog: a native build's handler is still running then, which the
+    // script waits for anyway)
+    if !due || rt.in_host_callback() || crate::dialogs::tasks_open() {
         return;
     }
     let (started, finished) = sc(|s| s.as_ref().map(|sc| (sc.started, sc.finished))).unwrap_or((true, true));

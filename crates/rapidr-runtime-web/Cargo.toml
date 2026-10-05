@@ -76,6 +76,10 @@ features = [
     "RequestInit",
     "RequestMode",
     "Response",
+    # QDOWNLOAD's transfer, its progress as it comes (io_web.rs)
+    "ReadableStream",
+    "ReadableStreamDefaultReader",
+    "XmlHttpRequest",
     "WebSocket",
     "MessageEvent",
     "CloseEvent",

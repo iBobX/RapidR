@@ -513,6 +513,7 @@ pub const IDNO: i64 = 7;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::value::v_str;
 
     #[test]
     fn test_len() {

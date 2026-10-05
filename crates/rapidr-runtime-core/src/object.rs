@@ -140,6 +140,11 @@ impl RpComponent {
             "RDXJOYSTICK" => {
                 props.insert("enabled".into(), v_bool(true));
             }
+            // (QCOMPORT: the runtime looks for its OnRxChar like a timer's
+            // ticks — io.rs)
+            "RCOMPORT" => {
+                props.insert("enabled".into(), v_bool(true));
+            }
             "RHEADER" => {
                 // Sections: rapidr_value::objects::header; a canvas to draw on.
                 props.insert("left".into(), v_int(0));
@@ -461,7 +466,7 @@ pub fn rp_mark_shutting_down() {
 /// A timer the runtime ticks (QTIMER, and the DirectX lane's QDXTIMER and
 /// QDXJOYSTICK — its events looked for at each tick).
 fn is_timer_type(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK")
+    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT")
 }
 
 /// Disable all RTimer components and clear their indirect handlers so
@@ -524,6 +529,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if type_name.eq_ignore_ascii_case("RDXJOYSTICK") {
         crate::joystick::install();
     }
+    // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
+    if rapidr_value::objects::rqlib::is_type(type_name) {
+        crate::io::created(name, type_name);
+    }
 }
 
 /// `DIM lbl(1 TO 3) AS QLABEL`: one component per element, ids `lbl(1)`,
@@ -568,6 +577,17 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if crate::globals::set(name, &prop_lower, &val) {
         return;
+    }
+    // (the I/O and media lane's: a QDOWNLOAD's StateGauge / SpeedLbl, and
+    // these objects' own properties — io.rs)
+    if let Some((sub, member)) = crate::io::sub_component(name, &prop_lower) {
+        return rp_comp_set(&sub, &member, val);
+    }
+    if rapidr_value::objects::rqlib::exists(name) {
+        if let Some(Ok(())) = rapidr_value::objects::rqlib::set(name, &prop_lower, &val) {
+            crate::io::fire_events(name);
+            return;
+        }
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if crate::scroll::set(name, &prop_lower, &val) {
@@ -960,6 +980,13 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = crate::globals::get(name, &prop_lower) {
         return v;
     }
+    // (the I/O and media lane's: io.rs)
+    if let Some((sub, member)) = crate::io::sub_component(name, &prop_lower) {
+        return rp_comp_get(&sub, &member);
+    }
+    if let Some(v) = rapidr_value::objects::rqlib::get(name, &prop_lower) {
+        return v;
+    }
     // A form's inside (its frame and main menu excluded); other
     // components have no frame inside their size.
     if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
@@ -1122,6 +1149,26 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         return v;
     }
     // A file dialog's Files(i): the folder (0), then the picked names.
+    // (the I/O and media lane's: QCGI, QCOMPORT, QDOWNLOAD … — io.rs)
+    if rapidr_value::objects::rqlib::exists(name) {
+        if let Some((sub, member)) = crate::io::sub_component(name, &method_lower) {
+            return rp_comp_method(&sub, &member, args);
+        }
+        let v = if method_lower == "leechfile" && rapidr_value::objects::rqlib::is_download(name) {
+            crate::io::leech_file(name)
+        } else {
+            match rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
+                Some(Ok(v)) => v,
+                Some(Err(e)) => crate::value::runtime_error(&format!("{name}.{method}: {e}")),
+                None => {
+                    eprintln!("[rapidr] {name}.{method}: no such method");
+                    v_null()
+                }
+            }
+        };
+        crate::io::fire_events(name);
+        return v;
+    }
     if method_lower == "files" && matches!(comp_type.as_str(), "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG") {
         let i = args.first().map_or(0, Value::to_i64);
         let v = rp_comp_get(name, &format!("files({i})"));

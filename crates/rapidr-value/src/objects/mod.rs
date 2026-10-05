@@ -13,10 +13,12 @@ pub mod bevel;
 pub mod bitmap;
 pub mod cgi;
 pub mod code;
+pub mod comport;
 pub mod codec;
 pub mod d3d;
 pub mod design;
 pub mod directx;
+pub mod download;
 pub mod joystick;
 pub mod dirtree;
 pub mod tree;
@@ -699,6 +701,15 @@ pub fn dxtimer_fired(id: &str, now_ms: f64) {
 }
 
 /// Whether `id` is a QDXJOYSTICK.
+/// Bytes written into a stream where it stands (QCOMPORT's Read).
+pub(crate) fn stream_append(id: &str, bytes: &[u8]) {
+    with(id, |o| {
+        if let Object::Stream(m) = o {
+            m.write(bytes);
+        }
+    });
+}
+
 pub fn is_dxjoystick(id: &str) -> bool {
     with(id, |o| matches!(o, Object::DxJoystick(_))) == Some(true)
 }

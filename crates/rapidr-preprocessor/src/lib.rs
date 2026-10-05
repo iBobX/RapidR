@@ -685,6 +685,7 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
 /// `$INCLUDE` gives when the file isn't on disk.
 const LIBRARY_INCLUDES: &[(&str, &[(&str, i64)])] = &[
     ("qcgi.inc", &[("CGI_INPUT_DEFAULT", 32767), ("CGI_INPUT_LARGE", 65535), ("CGI_INPUT_SMALL", 255), ("CGI_MAX_PAIRS", 256)]),
+    ("qdownload.inc", &[]),
 ];
 
 /// Built-in replacement for an include file that isn't on disk, as a single

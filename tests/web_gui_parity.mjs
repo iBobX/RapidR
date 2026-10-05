@@ -11,6 +11,10 @@
 import { join } from "node:path";
 import { cases } from "./gui_parity_cases.mjs";
 import { openIde, runCase } from "./web_gui_run.mjs";
+import { startHttpServer } from "./http_test_server.mjs";
+
+// (QDOWNLOAD's server: the tests' own, local — never the internet)
+process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
 
 const filters = process.argv.slice(2);
 let failed = 0, passed = 0, skipped = 0;

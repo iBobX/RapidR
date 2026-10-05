@@ -63,6 +63,10 @@ pub fn is_dx_timer(name: &str) -> bool {
 /// The milliseconds between timer `name`'s OnTimers for its Interval `ms`
 /// (a QDXTIMER's 0 is a screen refresh; a QDXJOYSTICK's looks for events).
 pub fn timer_interval(name: &str, ms: i64) -> i64 {
+    // (the I/O lane's: a QCOMPORT's looks for OnRxChar)
+    if rapidr_value::objects::rqlib::is_comport(name) {
+        return rapidr_value::objects::rqlib::LOOK_MS as i64;
+    }
     if rp_comp_type(name) == "RDXJOYSTICK" {
         return rapidr_value::objects::joystick::LOOK_MS as i64;
     }
@@ -80,6 +84,10 @@ pub fn timer_interval(name: &str, ms: i64) -> i64 {
 pub fn timer_fired(name: &str) -> bool {
     // A QDXJOYSTICK's look: what changed fired (OnButtonUp / OnButtonDown
     // with the button's number, OnMove); no OnTimer.
+    if rapidr_value::objects::rqlib::is_comport(name) {
+        crate::io_web::look(name);
+        return false;
+    }
     if rp_comp_type(name) == "RDXJOYSTICK" {
         for (event, args) in rapidr_value::objects::dxjoystick_look(name) {
             crate::object_web::rp_fire_event_args(name, event, &args);

@@ -56,6 +56,9 @@ export async function runCase(page, c) {
   // `joystick`: QDXJOYSTICK's gamepad, the tests' script (the page's
   // RAPIDR_TEST_JOYSTICK, read at each look).
   if (c.joystick !== undefined) await frame.evaluate((s) => { window.RAPIDR_TEST_JOYSTICK = s; }, c.joystick);
+  // (ENVIRON$'s test values: the page's RAPIDR_TEST_ENV — the tests' own
+  // HTTP server, tests/http_test_server.mjs)
+  if (process.env.RAPIDR_TEST_HTTP) await frame.evaluate((h) => { window.RAPIDR_TEST_ENV = { RAPIDR_TEST_HTTP: h }; }, process.env.RAPIDR_TEST_HTTP);
   // (how many of the case's dialog answers were given)
   let colorAnswers = 0, fontAnswers = 0;
   // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,

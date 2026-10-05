@@ -60,6 +60,10 @@ pub fn is_dx_timer(name: &str) -> bool {
 /// A QDXTIMER's time between OnTimers (Interval 0: a screen refresh); a
 /// QDXJOYSTICK's between its looks for events; `None` for other timers.
 pub fn timer_interval(name: &str) -> Option<Duration> {
+    // (the I/O lane's: a QCOMPORT's looks for OnRxChar)
+    if let Some(d) = crate::io::look_interval(name) {
+        return Some(d);
+    }
     if rp_comp_type(name) == "RDXJOYSTICK" {
         return Some(Duration::from_millis(rapidr_value::objects::joystick::LOOK_MS));
     }
@@ -86,6 +90,9 @@ pub fn timer_fired(name: &str) -> bool {
     static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
     if rp_comp_type(name) == "RDXJOYSTICK" {
         return joystick_look(name);
+    }
+    if rapidr_value::objects::rqlib::exists(name) {
+        return crate::io::look(name);
     }
     if !is_dx_timer(name) {
         return true;

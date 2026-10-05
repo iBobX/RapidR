@@ -32,6 +32,40 @@ So "RapidQ-exact" means: the library's behaviour (what its code does, run by RC.
 
 **The `ENVIRON` statement** came with it (QCGI's cases need it, and RapidR compiled it to a call that did nothing): RC.EXE splits the string at its first `=`, or at a space when there's none (`"Z = sp"` sets `Z ` to ` sp`); an empty text removes the variable; `ENVIRON$` finds a name in any case, as Windows does (`tests/conformance/cases/environ_statement.bas`). The desktop's is the process's environment; the browser's a table of the page's.
 
+## 2. QCOMPORT (done)
+
+**RapidQ**: RC.EXE knows QCOMPORT (members above; `C.CONNECTED`, `HANDLE`, `INQUE`, `OUTQUE`, `PENDINGIO` are "read-only values"; `Read` / `Write` take three arguments, `ReadString` / `WriteString` two) but can't build a program with it (`rapidq5c.lib`). What programs used is RAPIDQ2.INC's COMPORT, which the manual documents. RC.EXE ran that library in the VM without opening any device (`tests/conformance/cases/comport_defaults.bas`: its defaults, `Close` with nothing open, `Open` of a port name that isn't a device, `WriteString` with nothing open — each message exactly, Windows' own text and CR LF included).
+
+**RapidR** (`rapidr_value::objects::comport`, every runtime): the library's members and messages — Port ("COM1"), BaudRate (9600), DataBits (8), Parity (0), StopBits (1), ReadBufSize / WriteBufSize (1024), DCBflags (20625), Connected, Handle (0; -1 after a failed Open), BytesNotRead / BytesNotWritten (the counts the library's status call saw: after WriteString / ReadString), InQue / OutQue (now); Open, Close, PurgeIn, PurgeOut, WriteString(S, Wait), Write(Stream, Count, Wait), ReadString(Count, Wait); OnComError(Message), OnOpen, OnClose, OnWriteString, OnReadString — plus RC.EXE's own names: Read(Stream, Count, Wait), PendingIO, WaitForLastIO / AbortAllIO / AddFlowControl / DelFlowControl (nothing to do), OnError (with OnComError), OnRxChar(InQue) (fired when bytes arrive: the runtime looks every 50 ms while the program handles it, as for QDXJOYSTICK), OnTxEmpty / OnRing / OnBreak (never fired). RC.EXE's read-only messages at compile time (`comport_read_only`).
+
+**Ports**: serial2 on the desktop (BSD-2-Clause OR Apache-2.0; libc / windows-sys — no system package to build on Linux), its reader thread filling the queue; Web Serial in the browser (Chrome, Edge; a port the page was given before, else the browser's chooser — which needs the user's click, so an OnClick's Open; Open waits for it as for a dialog). The tests' ports are scripted (`RAPIDR_TEST_COMPORT` — set empty by the conformance runner and the GUI runner, so a test never opens a real device — or the page's `RAPIDR_TEST_COMPORT`; a program can set it with ENVIRON before its first QCOMPORT: `comport_echo`): `COM2:echo`, `COM3:reply:OK\r\n`, `COM4:busy`.
+
+Judgement calls:
+
+- **BaudRate**: the library's is the rate (9600); RAPIDQ.INC's `br110` … `br115200` (0 … 12, RC.EXE's own QCOMPORT) are taken as the rates they name — no real port runs at 0 … 12 baud.
+- **StopBits 1**: the library's default is 1, which a Windows DCB reads as 1.5 stop bits (most drivers refuse that with 8 data bits: Open's "settings" error). Its author meant one stop bit (its manual's `sbOneStopBit`), and RapidR opens with one; 2 is two.
+- **Port names**: a number n is "COMn" (additive). On Linux and macOS a device path (`/dev/ttyUSB0`), or `COMn` for the n-th port the system lists (sorted).
+- **Mark / space parity** are refused as Windows refuses settings it can't take (Open's "…changing the Comm Port settings.  The parameter is incorrect."): serial2 and Web Serial have no mark / space. XON / XOFF (DCBflags 21393) has no Web Serial equivalent: none there.
+- **Waits**: WriteString's / ReadString's Wait sleeps (RapidQ: `SLEEP.ms`); the page can't sleep inside a call, so in the browser the program pauses for it after the call (its result kept).
+- **Read's 1-second timeout** (the library's COMMTIMEOUTS): ReadString waits up to a second for a first byte when nothing has arrived, on the desktop; in the browser it returns what has arrived.
+
+Tests: `comport_defaults` (RapidQ's output), `comport_echo` (scripted ports: Open, OnOpen, WriteString and its event, counts, ReadString, PurgeIn, Write / Read of a stream, a second Open, a port in use, mark parity, Close), `comport_read_only` (RC.EXE's messages) — VM, native, browser; `objects::comport::tests`; the real serial2 path with a pseudo-terminal (`serial::tests`, Linux only: macOS' pseudo-terminals refuse the IOSSIOSPEED ioctl real ports take).
+
+## 3. QDOWNLOAD (done)
+
+**RapidQ**: `Qdownload.inc` v2 — Server, Port (80), File (the path without its leading `/`), OutFile, OutVar, OutDevice (1: OutVar, 2: OutFile), StateDevice (1: State in percent, 2: StateGauge's Position and SpeedLbl's "n B/s"), State, Size, LastError, LastStringError, StateGauge (a QGAUGE, 200 × 20), SpeedLbl (a QLABEL); LeechFile, Check, Percent(Now, Complete), Speed(Now$, Before$, Complete). LeechFile is an `HTTP/1.0` GET through QSOCKET, blocking; its errors: 1 "No Server Specified", 2 "No Serverport Specified", 3 "No File Specified", 4 "No Outputfile Specified", 5 "No Connection to specified host could be established" / 6 "You are not connected to the internet" (by Check), 7 "Connection closed by peer", 8 "No idea what's wrong", 9 "Filesize couldn't be determined, or file is 0 bytes long" (Content-Length 0), 10 "A transmission error has occured, retry" (fewer bytes than Content-Length), 11 "The Server doesn't know the file" (404). LastError is never cleared.
+
+**RapidR** (`rapidr_value::objects::download`, the transfer the runtime's): ureq on the desktop (rustls; SChannel on Windows), `fetch` in the browser (a compiled page's code can't wait: a synchronous request there). **The program doesn't freeze**: LeechFile waits as for a dialog — its windows paint, its timers tick, the gauge moves — on the desktop (native: the runtime steps until the transfer is done; interpreted: a wait the VM serves, `Wait::Dialog` with a background task, `rapidr_ui_app::dialogs::task_wait`) and in the browser (`dialog_web::wait_task`); a console program just waits. StateGauge and SpeedLbl are components of their own (`d.StateGauge.Parent = Form` places it).
+
+Judgement calls:
+
+- **Check** is True: the library read a dial-up flag (`HKLM\System\CurrentControlSet\Services\RemoteAccess`) that today's systems don't have — on them RapidQ's Check is always False and a failed connection always error 6. RapidR's is error 5, the accurate one.
+- **Port 443 is HTTPS** (the library would have spoken plain HTTP to it); **redirects are followed** (a server moved to HTTPS answers 301 — the library downloaded the redirect page); **Content-Length in any case**, and **a response without one is taken whole** (Size is what came; the library failed with error 10). Each changes only what failed in RapidQ.
+- Any other status (403, 500) is downloaded as the file, as the library did; only 404 is error 11.
+- **Speed** within the first second (the library divided by zero): the bytes so far.
+
+Tests: `download_errors` (errors 1 … 5, the defaults, Percent, Speed; the connection refused on 127.0.0.1 — never the internet) on every backend and the browser; the GUI fixture `download` against the tests' own slow local server (`tests/http_test_server.mjs`, in a worker thread; RAPIDR_TEST_HTTP / the page's RAPIDR_TEST_ENV): OutVar with State, OutFile with the gauge, a 404 — and the program's QTIMER ticking while it waits — native, interpreted and in the browser.
+
 ## Open
 
 - RapidR's `VAL("12abc")` is 0; RapidQ's is presumably 12 (QCGI's ContentLength reads 12 for "12abc" through it) — to check with RC.EXE and fix in `rapidr_value::builtins::rp_val` (outside this lane).

@@ -379,7 +379,16 @@ pub fn rp_command() -> Value {
 /// `ENVIRON$(name)`: the page's own table (rapidr_value::environ) — empty
 /// until the program's ENVIRON statements set something.
 pub fn rp_environ(name: &Value) -> Value {
-    rp_environ_get(name)
+    let v = rp_environ_get(name);
+    // (a test's: the page's RAPIDR_TEST_ENV object — e.g. RAPIDR_TEST_HTTP,
+    // the GUI tests' own HTTP server)
+    if v.to_string_val().is_empty() {
+        let test = web_sys::window().and_then(|w| js_sys::Reflect::get(&w, &"RAPIDR_TEST_ENV".into()).ok()).filter(|o| o.is_object());
+        if let Some(s) = test.and_then(|o| js_sys::Reflect::get(&o, &name.to_string_val().into()).ok()).and_then(|v| v.as_string()) {
+            return Value::String(s);
+        }
+    }
+    v
 }
 
 

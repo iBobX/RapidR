@@ -20,7 +20,7 @@ use crate::*;
 
 /// The TYPE names of RapidQ's libraries RapidR implements (uppercase), and
 /// RapidR's component for each.
-pub const LIBRARY_TYPES: &[(&str, &str)] = &[("QCGI", "RCGI")];
+pub const LIBRARY_TYPES: &[(&str, &str)] = &[("QCGI", "RCGI"), ("QDOWNLOAD", "RDOWNLOAD"), ("COMPORT", "RCOMPORT"), ("QCOMPORT", "RCOMPORT")];
 
 /// RapidR's component for library TYPE `name` (any case), if it's one.
 pub fn library_component(name: &str) -> Option<&'static str> {

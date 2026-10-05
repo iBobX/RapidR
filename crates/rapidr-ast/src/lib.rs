@@ -1316,8 +1316,11 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
 /// A property RC.EXE refuses to set with its `X.P is a read-only value.`:
 /// QDXJOYSTICK's state (and RapidR's additions to it).
 pub fn is_read_only_value(type_name: &str, property: &str) -> bool {
-    canonical_type_name(type_name).eq_ignore_ascii_case("RDXJOYSTICK")
-        && ["IsLeft", "IsRight", "IsUp", "IsDown", "Connected", "Name", "X", "Y", "Z", "R", "U", "V", "Buttons", "POV"].iter().any(|p| p.eq_ignore_ascii_case(property))
+    let t = canonical_type_name(type_name);
+    (t.eq_ignore_ascii_case("RDXJOYSTICK")
+        && ["IsLeft", "IsRight", "IsUp", "IsDown", "Connected", "Name", "X", "Y", "Z", "R", "U", "V", "Buttons", "POV"].iter().any(|p| p.eq_ignore_ascii_case(property)))
+        // (QCOMPORT's: `C.CONNECTED is a read-only value.`)
+        || (t.eq_ignore_ascii_case("RCOMPORT") && ["Connected", "Handle", "InQue", "OutQue", "PendingIO"].iter().any(|p| p.eq_ignore_ascii_case(property)))
 }
 
 /// The properties RapidQ's manual lists as read-only (R) for its own
@@ -1514,11 +1517,12 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
                 if let Expression::MemberAccess(m) = &a.target {
                     if let Expression::Identifier(o) = m.object.as_ref() {
                         let t = component_types.get(&o.name.to_ascii_lowercase());
-                        if t.is_some_and(|t| is_read_only_property(t, &m.member)) {
-                            out.push((a.span, format!("Property {} of {} is read-only.", m.member, o.name)));
-                        } else if t.is_some_and(|t| is_read_only_value(t, &m.member)) {
-                            // (RC.EXE's other message: `J.ISLEFT is a read-only value.`)
+                        // (RC.EXE's own message first: `J.ISLEFT is a read-only
+                        // value.`; then the manual's read-only properties)
+                        if t.is_some_and(|t| is_read_only_value(t, &m.member)) {
                             out.push((a.span, format!("{}.{} is a read-only value.", o.name.to_ascii_uppercase(), m.member.to_ascii_uppercase())));
+                        } else if t.is_some_and(|t| is_read_only_property(t, &m.member)) {
+                            out.push((a.span, format!("Property {} of {} is read-only.", m.member, o.name)));
                         }
                     }
                 }
@@ -1720,7 +1724,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
     // RapidQ's non-visual objects (rapidr_value::objects)
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
     // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
-    "RCGI",
+    "RCGI", "RCOMPORT", "RDOWNLOAD",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1734,7 +1738,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
 /// Methods RapidQ programs call without parentheses for their result —
 /// `IF Form.ShowModal THEN`, `IF OpenDialog.Execute THEN` — so that in an
 /// expression `Obj.Member` is a call, not a property read (both backends).
-pub const VALUE_METHODS: &[&str] = &["showmodal", "execute"];
+pub const VALUE_METHODS: &[&str] = &["showmodal", "execute", "leechfile"];
 
 /// RapidR's own constants, for its extensions (RapidQ's are RAPIDQ.INC's,
 /// which `rapidr_preprocessor` supplies): there without an include, and a
@@ -1749,9 +1753,9 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 }
 
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
-    "QBEVEL", "QCDAUDIO", "QCOMPORT",
+    "QBEVEL", "QCDAUDIO",
     "QDIGDISPLAY", "QDIRLISTVIEW",
-    "QDOCKFORM", "QDOWNLOAD",
+    "QDOCKFORM",
 "QGLASSFRAME", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
     "QRECT", "QVIDEO", "QWAVE",
 ];
@@ -1971,7 +1975,7 @@ pub fn is_rapidq_object_type(type_name: &str) -> bool {
 /// both backends register it when it's made.
 pub fn is_timer_type(type_name: &str) -> bool {
     // (QDXJOYSTICK: its events looked for at each tick)
-    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK")
+    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT")
 }
 
 pub fn is_component_type_name(type_name: &str) -> bool {
@@ -1983,6 +1987,10 @@ pub fn is_component_type_name(type_name: &str) -> bool {
 /// leaves every other type name unchanged.
 pub fn canonical_type_name(type_name: &str) -> String {
     let upper = type_name.to_ascii_uppercase();
+    // (RAPIDQ2.INC's `$DEFINE QCOMPORT COMPORT`: rapidr_ast::library)
+    if upper == "COMPORT" {
+        return "RCOMPORT".into();
+    }
     if let Some(rest) = upper.strip_prefix('Q') {
         // RapidQ components whose RapidR counterpart has another name.
         if rest == "GAUGE" {

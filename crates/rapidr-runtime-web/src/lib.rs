@@ -20,6 +20,8 @@ pub fn builtins_input_line() -> value::Value {
 mod file_io_web;
 pub mod globals_web;
 pub mod gui_web;
+/// The I/O and media objects' devices (QCOMPORT, QDOWNLOAD, …).
+pub mod io_web;
 pub mod layout_web;
 pub mod mdi_web;
 pub mod menu_web;
