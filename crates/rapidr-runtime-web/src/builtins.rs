@@ -376,8 +376,10 @@ pub fn rp_command() -> Value {
     Value::String(String::new())
 }
 
-pub fn rp_environ(_name: &Value) -> Value {
-    v_str("") // not available on web
+/// `ENVIRON$(name)`: the page's own table (rapidr_value::environ) — empty
+/// until the program's ENVIRON statements set something.
+pub fn rp_environ(name: &Value) -> Value {
+    rp_environ_get(name)
 }
 
 

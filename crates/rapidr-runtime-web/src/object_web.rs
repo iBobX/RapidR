@@ -2629,7 +2629,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RD3DVISUAL"
             | "RD3DWRAP"
             | "RD3DVECTOR"
-    )
+    ) || rapidr_value::objects::rqlib::is_type(type_name)
 }
 
 pub fn is_component_method(member: &str) -> bool {

@@ -183,6 +183,18 @@ pub fn rp_inkey_trap_all(on: &Value) -> Value {
     v_null()
 }
 
+/// The `ENVIRON "name=text"` statement (rapidr_ast::library lowers it to
+/// `__environ_set`): the program's environment (crate::environ).
+pub fn rp_environ_set(spec: &Value) -> Value {
+    crate::environ::set(&spec.to_string_val());
+    Value::Null
+}
+
+/// `ENVIRON$(name)` (crate::environ).
+pub fn rp_environ_get(name: &Value) -> Value {
+    Value::String(crate::environ::get(&name.to_string_val()))
+}
+
 pub fn rp_val(s: &Value) -> Value {
     let mut s = s.to_string_val().trim().to_string();
     let decimal = DECIMAL.with(|d| d.get());

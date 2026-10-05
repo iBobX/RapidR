@@ -11,6 +11,7 @@
 pub mod a11y;
 pub mod bevel;
 pub mod bitmap;
+pub mod cgi;
 pub mod code;
 pub mod codec;
 pub mod d3d;
@@ -30,6 +31,7 @@ pub mod memstream;
 pub mod menu;
 pub mod ops;
 pub mod printer;
+pub mod rqlib;
 pub mod text;
 pub mod tabcontrol;
 pub mod textedit;
@@ -229,6 +231,10 @@ pub fn create(id: &str, type_name: &str) -> bool {
     }
     // (the DirectX lane's: QD3DFRAME … — the scene's own store)
     if d3d::create(id, type_name) {
+        return true;
+    }
+    // (the I/O and media lane's: QCGI … — their own store, rqlib.rs)
+    if rqlib::create(id, type_name) {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
@@ -805,6 +811,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if d3d::exists(id) {
         return d3d::get(id, &prop);
     }
+    if rqlib::exists(id) {
+        return rqlib::get(id, &prop);
+    }
     if let Some(v) = menu::get(id, &prop) {
         return Some(v);
     }
@@ -848,6 +857,9 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     let prop = prop.to_lowercase();
     if d3d::exists(id) {
         return d3d::set(id, &prop, val).map(Ok);
+    }
+    if rqlib::exists(id) {
+        return rqlib::set(id, &prop, val);
     }
     if menu::is_menu(id) {
         return menu::set(id, &prop, val).map(Ok);
@@ -963,6 +975,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     let method = method.to_lowercase();
     if d3d::exists(id) {
         return d3d::call(id, &method, args);
+    }
+    if rqlib::exists(id) {
+        return rqlib::call(id, &method, args);
     }
     if let Some(v) = menu::call(id, &method, args) {
         return Some(Ok(v));

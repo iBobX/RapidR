@@ -8,6 +8,7 @@ pub mod suffix_vars;
 pub mod for_locals;
 pub mod memory;
 pub mod type_values;
+pub mod library;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
 pub fn strip_type_suffix(name: &str) -> &str {
@@ -1718,6 +1719,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR",
     // RapidQ's non-visual objects (rapidr_value::objects)
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
+    // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
+    "RCGI",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1746,7 +1749,7 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 }
 
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
-    "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",
+    "QBEVEL", "QCDAUDIO", "QCOMPORT",
     "QDIGDISPLAY", "QDIRLISTVIEW",
     "QDOCKFORM", "QDOWNLOAD",
 "QGLASSFRAME", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
@@ -2438,7 +2441,7 @@ pub(crate) fn statement_parts_mut(stmt: &mut Statement, into_with: bool) -> (Vec
     (exprs, bodies)
 }
 
-fn walk_expression_mut(expr: &mut Expression, f: &mut dyn FnMut(&mut Expression)) {
+pub(crate) fn walk_expression_mut(expr: &mut Expression, f: &mut dyn FnMut(&mut Expression)) {
     match expr {
         Expression::ArrayAccess(a) => {
             walk_expression_mut(&mut a.array, f);

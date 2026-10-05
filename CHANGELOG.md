@@ -8,6 +8,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **QCGI**, RapidQ's CGI object (its manual's Appendix A: QCGI.INC 1.6),
+  built in on every runtime: the CGI variables as read-only properties
+  (Accept, ContentLength, Cookie, QueryString, RemoteAddr, ServerPort,
+  UserAgent, …), MaxInput, AutoConvert, Parse and `Get(Name, Value)` —
+  pairs read from a GET's QUERY_STRING or a POST's body, `%xx` and `+`
+  decoded exactly as the library does (checked against RapidQ itself:
+  RC.EXE running the library, `tests/conformance/cases/cgi_*`). A program
+  that `$INCLUDE`s `qcgi.inc` gets RapidR's QCGI (the file's TYPE is left
+  out, its constants kept; without the file, its constants are built in).
+- **The `ENVIRON "name=text"` statement** sets an environment variable
+  (it was a silent no-op): split at the first `=` (or, without one, a
+  space), names found in any case by `ENVIRON$` as on Windows; in the
+  browser a table of the page's own.
 - **QDXJOYSTICK**, RapidQ's joystick object (missing from its manual; its
   compiler has it): Update, IsLeft / IsRight / IsUp / IsDown, Button(n) —
   plus RapidR's Index, Connected, Name, X / Y / Z / R / U / V (winmm's 0 …

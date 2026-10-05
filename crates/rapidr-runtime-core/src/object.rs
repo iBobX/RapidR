@@ -2163,7 +2163,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
         | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK"
         | "RD3DFRAME" | "RD3DMESHBUILDER" | "RD3DMESH" | "RD3DFACE" | "RD3DLIGHT" | "RD3DTEXTURE" | "RD3DVISUAL" | "RD3DWRAP" | "RD3DVECTOR"
-    )
+    ) || rapidr_value::objects::rqlib::is_type(type_name)
 }
 
 /// A stored property, without any of `rp_comp_get`'s lookups.

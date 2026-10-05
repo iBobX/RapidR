@@ -1,0 +1,5 @@
+max 10 auto 0
+max0 10
+maxneg 10
+x 1 [%41+%42]
+y 0 [unset]

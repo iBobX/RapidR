@@ -1,0 +1,4 @@
+len 11 qs [q=fromquery]
+a 1 [1]
+b 1 [x y]
+q 0 [unset]

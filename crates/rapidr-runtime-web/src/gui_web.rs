@@ -176,6 +176,8 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         // (the DirectX lane's)
         "RDXSCREEN" => create_dxscreen(&id, name, props),
         "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK" => { /* no DOM element */ }
+        // (the I/O and media lane's: QCGI …)
+        t if rapidr_value::objects::rqlib::is_type(t) => { /* no DOM element */ }
         "RD3DFRAME" | "RD3DMESHBUILDER" | "RD3DMESH" | "RD3DFACE" | "RD3DLIGHT" | "RD3DTEXTURE" | "RD3DVISUAL" | "RD3DWRAP" | "RD3DVECTOR" => { /* the scene's: no DOM element */ }
         "RHEADER" => {
             create_canvas(&id, name, props);

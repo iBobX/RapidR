@@ -257,6 +257,7 @@ Next up, in order:
 - [x] High-DPI: grid cells' own drawing on the web at the screen's scale (v2.75.0)
 - [ ] High-DPI leftover: RapidR's own IDE icons as vectors
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
+  - I/O and media lane (docs/io-media-plan.md): [x] QCGI and the ENVIRON statement · [ ] QCOMPORT · [ ] QDOWNLOAD · [ ] QMIDI · [ ] QWAVE · [ ] QCDAUDIO · [ ] QVIDEO
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)
 - [ ] Consider generating Rust from a shared, typed IR (one front end for both backends) so they can't drift
