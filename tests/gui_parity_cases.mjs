@@ -190,4 +190,10 @@ export const cases = [
   { name: "menu_hold_timers", events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
     expect: ["lbl.caption=pop;de;modal2;ask7;|-1", "dlg.__shown=0"],
     web: false, why: "a page's menus never hold its loop: the hold and its tracking tick are the desktop host's" },
+  // (kernel themes: a click switches to dark at run time — Application.Theme;
+  // `themes`: the desktop also captures the form under each of these,
+  // RAPIDR_THEME, without the events — the web keeps its own look and only
+  // reads the names back)
+  { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
 ];

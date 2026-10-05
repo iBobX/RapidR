@@ -59,6 +59,8 @@
 //   * tests/fixtures/size_grip.bas — QSTATUSBAR's size grip resizes the window (OnResize, Width / Height).
 //   * tests/fixtures/a11y_form.bas — what a screen reader is told (its tree and keys: tests/web_a11y.mjs).
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
+//   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
+//     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
@@ -144,6 +146,21 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     let trees = null;
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);
+    // (kernel themes: the form under each theme a program can name, its
+    // captures kept as <case>-<theme>-<kind>-<n>.bmp)
+    for (const theme of c.themes ?? []) {
+      let shown;
+      try {
+        shown = execFileSync(bin, [], {
+          encoding: "utf8",
+          env: { ...process.env, RAPIDR_THEME: theme, RAPIDR_CAPTURE: join(WORK, `${c.name}-${theme}-${kind}`), RAPIDR_TEST_EVENTS: "", RAPIDR_TEST_DUMP: c.dump },
+        });
+      } catch (e) {
+        shown = `(failed: ${String(e.message).split("\n")[0]})`;
+      }
+      const want = `lbl.caption=theme ${theme}`;
+      ok(shown.includes(want) && existsSync(join(WORK, `${c.name}-${theme}-${kind}-1.bmp`)), `${c.name} (${kind}, ${theme}): ${want}, captured` + (shown.includes(want) ? "" : `\n    got: ${shown.trim().split("\n").join(" / ")}`));
+    }
   }
   if (BUILD_ONLY || !("native" in results && "interpreted" in results)) continue;
   const same = results.native === results.interpreted;
