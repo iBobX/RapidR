@@ -62,6 +62,10 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     let program = &rapidr_ast::library::lower(program);
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
+    // (the system tray: Shell_NotifyIcon and a form's WndProc —
+    // rapidr_ast::tray_calls)
+    let tray = rapidr_ast::tray_calls::lower(program);
+    let program = &tray;
     // ($TYPECHECK: on the program as written, each SUB where it stands)
     let mut typecheck = rapidr_ast::typecheck_errors(program, &|n| builtins::is_builtin(n) || RAPIDQ_BUILTINS.contains(&n));
     typecheck.extend(rapidr_ast::rapidq_checks(program));

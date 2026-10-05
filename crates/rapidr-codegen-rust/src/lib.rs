@@ -53,6 +53,9 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
     // compiler runs (rapidr_ast::objects); fields become direct slot access.
+    // (the system tray first: rapidr_ast::tray_calls)
+    let tray = rapidr_ast::tray_calls::lower(program);
+    let program = &tray;
     let program = rapidr_ast::type_values::lower(&rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::create_property_reads(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::for_locals::lower(&rapidr_ast::suffix_vars::lower(&rapidr_ast::hoist_routines(program)))))), &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n))))))))));
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
@@ -3087,6 +3090,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__null" => Some("v_null()".to_string()),
         // A component type's name as a value (rapidr_ast::type_values).
         "__lastoftype" => Some(format!("rp_last_of_type(&{a0})")),
+        // The system tray (rapidr_ast::tray_calls).
+        "__shell_notifyicon" => Some(format!("tray::shell_notify_icon_builtin(&{a0}, &{a1})")),
         // Stores into declared numeric types (rapidr_ast::numeric).
         "__to_byte" => Some(format!("numeric::to_byte(&{a0})")),
         "__to_word" => Some(format!("numeric::to_word(&{a0})")),

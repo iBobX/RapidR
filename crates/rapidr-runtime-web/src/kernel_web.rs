@@ -388,7 +388,7 @@ fn modals_closed() {
         return;
     }
     for name in forms::modal_forms() {
-        if !forms::form_shown(&name) && !rapidr_ui_kernel::dialogs::is_dialog(&name) {
+        if !forms::modal_waits(&name) && !rapidr_ui_kernel::dialogs::is_dialog(&name) {
             forms::remove_modal(&name);
         }
     }

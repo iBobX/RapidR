@@ -1,0 +1,12 @@
+5:3
+Datatype QRECT not supported in STRUCT
+10:7
+Member WIDTH not part of class R
+11:1
+Member TAG not part of class R
+12:1
+Component assignment is not yet supported.
+13:1
+N.CBSIZE is a read-only value.
+14:7
+Member TAG not part of class N

@@ -48,6 +48,8 @@ pub mod lists;
 pub mod menus;
 pub mod timers;
 pub mod waits;
+// (the system tray's clicks: rapidr_value::tray)
+pub mod tray;
 
 pub mod script;
 pub mod testhooks;

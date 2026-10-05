@@ -59,9 +59,48 @@ thread_local! {
     static STORED: RefCell<HashMap<(String, String), Value>> = RefCell::new(HashMap::new());
 }
 
-/// `name`'s global object: "screen", "application", "clipboard", "mouse".
+/// `name`'s global object: "screen", "application", "clipboard", "mouse",
+/// "filerec".
 pub fn global(name: &str) -> Option<&'static str> {
-    ["screen", "application", "clipboard", "mouse"].into_iter().find(|g| g.eq_ignore_ascii_case(name))
+    ["screen", "application", "clipboard", "mouse", "filerec"].into_iter().find(|g| g.eq_ignore_ascii_case(name))
+}
+
+/// `FileRec` (RapidQ's manual, DIR$): the file DIR$ found last — RC.EXE's
+/// FileName, ShortName ("" when the name is short already), Date
+/// (`10-5-2026`: month-day-year), Time (`10:07`), Size (bytes), FileTime
+/// (newer files greater).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FileRec {
+    pub file_name: String,
+    pub short_name: String,
+    pub date: String,
+    pub time: String,
+    pub size: i64,
+    pub file_time: i64,
+}
+
+thread_local! {
+    static FILE_REC: RefCell<FileRec> = RefCell::new(FileRec::default());
+}
+
+/// DIR$ found a file: FileRec says it.
+pub fn set_file_rec(rec: FileRec) {
+    FILE_REC.with(|f| *f.borrow_mut() = rec);
+}
+
+fn file_rec(prop: &str) -> Option<Value> {
+    FILE_REC.with(|f| {
+        let f = f.borrow();
+        Some(match prop {
+            "filename" => v_str(&f.file_name),
+            "shortname" => v_str(&f.short_name),
+            "date" => v_str(&f.date),
+            "time" => v_str(&f.time),
+            "size" => v_int(f.size),
+            "filetime" => v_int(f.file_time),
+            _ => return None,
+        })
+    })
 }
 
 fn stored(object: &str, prop: &str) -> Option<Value> {
@@ -95,6 +134,9 @@ pub fn application_icon() -> Option<Value> {
 /// doesn't have (the runtime's own lookup goes on).
 pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
     let object = global(name)?;
+    if object == "filerec" {
+        return file_rec(prop);
+    }
     let v = match (object, prop) {
         ("screen", "width") => v_int(p.screen_size().0),
         ("screen", "height") => v_int(p.screen_size().1),
@@ -125,6 +167,10 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         ("application", "hintcolor") => stored(object, prop).unwrap_or(v_int(0x00E1_FFFF)),
         // (RapidR's: the theme drawn now — `auto` reads as what it chose)
         ("application", "theme") => v_str(&p.theme()),
+        // (RC.EXE: Application.Icon reads as the icon's handle — a number,
+        // never 0 — which a QNOTIFYICONDATA's hIcon takes; crate::tray
+        // shows the application's icon for it)
+        ("application", "icon") => v_int(crate::handles::icon_handle("")),
         _ => stored(object, prop)?,
     };
     Some(v)

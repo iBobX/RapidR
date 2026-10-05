@@ -39,8 +39,51 @@ pub fn name_of(handle: i64) -> Option<String> {
     HANDLES.with(|h| h.borrow().by_handle.get(&handle).cloned())
 }
 
+thread_local! {
+    static ICONS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Icon handles start here, apart from components' (RC.EXE's
+/// `Application.Icon` reads as an HICON: a number a QNOTIFYICONDATA's hIcon
+/// takes).
+const FIRST_ICON: i64 = 0x0B00_0004;
+
+/// The handle `Application.Icon` reads as for icon `source` (a file, a
+/// `$RESOURCE`'s handle as text; "" the application's own): stable, never 0.
+pub fn icon_handle(source: &str) -> i64 {
+    ICONS.with(|i| {
+        let mut i = i.borrow_mut();
+        let n = match i.iter().position(|s| s == source) {
+            Some(n) => n,
+            None => {
+                i.push(source.to_string());
+                i.len() - 1
+            }
+        };
+        FIRST_ICON + 4 * n as i64
+    })
+}
+
+/// The icon a handle stands for ("" the application's own).
+pub fn icon_source(handle: i64) -> Option<String> {
+    let n = handle.checked_sub(FIRST_ICON).filter(|d| d % 4 == 0)? / 4;
+    ICONS.with(|i| i.borrow().get(usize::try_from(n).ok()?).cloned())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn icon_handles_are_numbers_for_icons() {
+        let app = icon_handle("");
+        assert_ne!(app, 0);
+        assert_eq!(icon_handle(""), app);
+        let f = icon_handle("app.ico");
+        assert_ne!(f, app);
+        assert_eq!(icon_source(f).as_deref(), Some("app.ico"));
+        assert_eq!(icon_source(0), None);
+        assert_eq!(icon_source(f + 1), None);
+    }
+
     use super::*;
 
     #[test]

@@ -8,6 +8,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The system tray (QNOTIFYICONDATA) on every platform.** RapidQ
+  programs put an icon in Windows' notification area with QNOTIFYICONDATA
+  and `Shell_NotifyIcon` (shell32) and hear its clicks in their form's
+  WndProc. RapidR keeps that one call: the icon shows in the menu bar on
+  macOS, the notification area on Windows, StatusNotifierItem on Linux (no
+  system package needed) and a small strip at the page's bottom right on the
+  web; its clicks reach the form's `WndProc (hWnd, uMsg, wParam, lParam)` as
+  Windows' mouse messages. `Application.Icon` reads as a number (RapidQ's
+  icon handle), so `NI.hIcon = Application.Icon` shows the program's icon.
+- **QDIRLISTVIEW and QDOCKFORM built in**: RapidR's own versions of RapidQ's
+  QDirListView.inc and RAPIDQ2.INC's dockable form (theirs call Windows),
+  written in BASIC on RapidR's components, so they behave the same on every
+  runtime. QDIRLISTVIEW lists a folder (Name, Size, Type, Date Modified),
+  goes into folders and up, fires OnFileSelect; QDOCKFORM docks, floats in
+  its own window, docks at its alternative place, with the library's title
+  and grip styles, a close box, OnDock / OnClose. A program that includes
+  QDirListView.inc or RAPIDQ2.INC gets RapidR's.
+- **QGLASSFRAME** with RapidQ's compiler's members and values (Transparency
+  a byte, Moveable, TransparentColor; 105 × 105): its glass colour over what
+  is under it at 100 − Transparency percent (the form's background — RapidR's
+  windows aren't see-through), and Moveable: dragging it moves its form.
+- **FileRec** (RapidQ's DIR$ companion): FileName, ShortName, Date, Time,
+  Size, FileTime of the file DIR$ found last.
 - **QCGI**, RapidQ's CGI object (its manual's Appendix A: QCGI.INC 1.6),
   built in on every runtime: the CGI variables as read-only properties
   (Accept, ContentLength, Cookie, QueryString, RemoteAddr, ServerPort,
@@ -100,6 +123,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `rapidq_int_rounding`, `rapidq_numeric_stores`, `rapidq_operators_int`,
   `rapidq_text_functions`, `rapidq_if_print_else`, `rapidq_booleans`,
   `rapidq_division_by_zero`.
+- **QBEVEL and QDIGDISPLAY built in.** The manual documents them as
+  components, but in RapidQ they are TYPEs of its include libraries
+  (QBevel.inc, QDigDisplay.inc) — the manual's own QBEVEL example doesn't
+  include it. RapidR now has both on every runtime, behaving as the
+  libraries do: QBEVEL's Shape / Style set its bevels (bsBox, bsFrame) or
+  draw two lines at an edge (bsTopLine … bsRightLine); QDIGDISPLAY shows
+  Display in 12 × 24 seven-segment cells (characters 32 … 64), in the
+  library's colours, sized to it. A program that includes the library
+  gets the library's own TYPE, as in RapidQ (QDigDisplay with its own
+  bitmaps). Screen readers: a pane named by its caption, an image named
+  by its digits.
+- **QRECT and QNOTIFYICONDATA as RapidQ's compiler has them** (checked
+  against RC.EXE): one shared record model on every runtime — fields are
+  32-bit integers cut toward zero (`3.7` → 3), a string stored into one is
+  0, out-of-range values -2147483648; QNOTIFYICONDATA's cbSize is 88 and
+  read-only, uID starts as the instance handle 4194304, szTip keeps 64
+  characters up to a CHR$(0); `SIZEOF` 16 and 24. RapidQ's errors: `Member
+  WIDTH not part of class R`, `Component assignment is not yet supported.`,
+  `Datatype QRECT not supported in STRUCT`, `N.CBSIZE is a read-only
+  value.` (QRECT's Left rounded before, and unknown members read empty).
 - **QDXJOYSTICK**, RapidQ's joystick object (missing from its manual; its
   compiler has it): Update, IsLeft / IsRight / IsUp / IsDown, Button(n) —
   plus RapidR's Index, Connected, Name, X / Y / Z / R / U / V (winmm's 0 …
@@ -110,6 +153,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- **DIR$ as RapidQ's**: attribute 0 lists files only, faDirectory (&H10)
+  folders too with `.` and `..` first, names sorted without regard to case,
+  wildcards (`*`, `?`) of any case, `\` as a folder separator; dot files
+  only with faHidden.
+- **Hiding a modal form no longer ends its ShowModal** (VCL's, so RapidQ's):
+  only Close or ModalResult do — a program can hide its window into the tray
+  and show it again (desktop, interpreter, and the web on both its hosts).
 - The desktop host's `Desktop` (the forms' kernel sides, stacking, the modal list, the window command and event queues, the input entry points) and runtime-core's window-command and test-input glue now live in `rapidr-ui-app`, shared by the desktop and web hosts. The desktop is unchanged: every GUI case's captures, accessibility trees and dumps are byte-identical at 1× and 2×.
 - The web runtime's wasm is built with wasm SIMD (`tools/build_web_artifacts.sh`, its own `target/wasm-simd`). With the kernel host it grows from 6.27 to 10.18 MB raw (1.95 → 2.70 MB brotli).
 - **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
@@ -165,6 +215,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - TIMER is the seconds since local midnight (it was since 1970 on the
     desktop, since the page loaded on the web); TIME$ and DATE$ are local.
 
+
+### Fixed
+- Inside a TYPE extending a component, `DIR$`, `TIMER`, `DATE$` and the
+  other builtins written without parentheses, and CALLFUNC, were taken for
+  the component's members (a native build's DIR$ loop stopped early).
+- In `CREATE x AS Type` (a TYPE), a nested CREATE's own `Parent = …` was
+  overwritten, and `Field.Member = …` (`AltPanel.Parent = Form`) wasn't the
+  instance's field.
 
 ## [2.116.0] — 2026-10-05
 

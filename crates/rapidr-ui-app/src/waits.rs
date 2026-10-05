@@ -107,7 +107,7 @@ pub fn over() -> bool {
     let last = ws(|s| s.waits.last().cloned());
     match last {
         None => true,
-        Some(Wait::Form(name)) => !forms::form_shown(&name),
+        Some(Wait::Form(name)) => !forms::modal_waits(&name),
         Some(Wait::App) => !forms::any_shown(),
         Some(Wait::Popup | Wait::Once(_)) => true,
         Some(Wait::Dialog(_) | Wait::Key | Wait::Menu(_)) => false,

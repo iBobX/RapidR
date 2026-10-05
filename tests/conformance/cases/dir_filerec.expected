@@ -1,0 +1,4 @@
+. .. A.bas b.txt Sub1 
+A.bas b.txt 
+b.txt b.txt -1 2 -1 -1
+[]

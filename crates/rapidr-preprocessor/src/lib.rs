@@ -40,6 +40,9 @@ struct PpState {
     /// include file starts with it off, and the includer's setting comes back
     /// after the include).
     escape_chars: bool,
+    /// RapidR's libraries put before the program (`RAPIDR_LIBRARIES`' file
+    /// names, upper case): their RapidQ include files aren't read.
+    libraries: Vec<String>,
 }
 
 impl PpState {
@@ -56,6 +59,7 @@ impl PpState {
             app_type: None,
             resources: Vec::new(),
             escape_chars: false,
+            libraries: Vec::new(),
         }
     }
 
@@ -193,7 +197,7 @@ pub fn preprocess_file(
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut state = PpState::new(options);
-    let (source, line_map) = preprocess_with_state(&source, base_dir, Some(path.to_path_buf()), &mut state)?;
+    let (source, line_map) = preprocess_program(&source, base_dir, Some(path.to_path_buf()), &mut state)?;
     Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
 }
 
@@ -204,8 +208,55 @@ pub fn preprocess_source(
     options: PreprocessOptions,
 ) -> Result<PreprocessResult, PreprocessError> {
     let mut state = PpState::new(options);
-    let (source, line_map) = preprocess_with_state(source, base_dir.as_ref(), file_path, &mut state)?;
+    let (source, line_map) = preprocess_program(source, base_dir.as_ref(), file_path, &mut state)?;
     Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
+}
+
+/// RapidR's own versions of the components RapidQ's include libraries
+/// define with Windows calls (docs/desktop-host-plan.md, "RapidQ's remaining
+/// UI objects"): (the component's name, the include file it stands for,
+/// RapidR's library). A program that names the component gets the library
+/// first (its lines come from `<RapidR>/<file>`); a RapidQ library of the
+/// same name is never read (QDirListView.inc), or its own definition stays
+/// out (RAPIDQ2.INC's QDOCKFORM, by the `__QDF_INC` guard both use).
+pub const RAPIDR_LIBRARIES: &[(&str, &str, &str)] = &[
+    ("QDOCKFORM", "QDockForm.inc", include_str!("libraries/QDockForm.inc")),
+    ("QDIRLISTVIEW", "QDirListView.inc", include_str!("libraries/QDirListView.inc")),
+];
+
+/// Whether `source` names `word` (any case) as a whole word.
+fn names_word(source: &str, word: &str) -> bool {
+    let upper = source.to_ascii_uppercase();
+    let bytes = upper.as_bytes();
+    let mut from = 0;
+    while let Some(i) = upper[from..].find(word) {
+        let at = from + i;
+        let before = at.checked_sub(1).map(|b| bytes[b]);
+        let after = bytes.get(at + word.len()).copied();
+        if !before.is_some_and(is_identifier_byte) && !after.is_some_and(is_identifier_byte) {
+            return true;
+        }
+        from = at + word.len();
+    }
+    false
+}
+
+/// The program, after RapidR's libraries for the components it names.
+fn preprocess_program(source: &str, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<(String, Vec<LineOrigin>), PreprocessError> {
+    let mut lines = Vec::new();
+    let mut origins = Vec::new();
+    for (name, file, text) in RAPIDR_LIBRARIES {
+        if names_word(source, name) {
+            let (lib, lib_origins) = preprocess_with_state(text, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
+            lines.push(lib);
+            origins.extend(lib_origins);
+            state.libraries.push(file.to_ascii_uppercase());
+        }
+    }
+    let (main, main_origins) = preprocess_with_state(source, base_dir, file_path, state)?;
+    lines.push(main);
+    origins.extend(main_origins);
+    Ok((lines.join("\n"), origins))
 }
 
 fn preprocess_with_state(
@@ -439,6 +490,20 @@ fn preprocess_with_state(
                 )
             })?;
 
+            // A RapidQ library RapidR has its own version of: that one, put
+            // before the program already (or now).
+            let short = Path::new(&include_file.replace('\\', "/")).file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_uppercase();
+            if let Some((_, file, text)) = RAPIDR_LIBRARIES.iter().find(|(_, f, _)| f.to_ascii_uppercase() == short) {
+                if !state.libraries.contains(&short) {
+                    state.libraries.push(short);
+                    let (lib, lib_origins) = preprocess_with_state(text, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
+                    output_lines.push(lib);
+                    origins.extend(lib_origins);
+                } else {
+                    emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+                }
+                continue;
+            }
             let include_path = match resolve_include_path(base_dir, &include_file, &state.include_dirs) {
                 Some(path) => path,
                 None => {

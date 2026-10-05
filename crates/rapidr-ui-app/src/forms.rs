@@ -27,6 +27,11 @@ struct Forms {
     pending_shows: Vec<String>,
     /// The forms shown modally now, innermost last.
     modal: Vec<String>,
+    /// Modal forms the program hid (Visible = 0, Hide): their ShowModal
+    /// still waits — VCL's, so RapidQ's: only Close (ModalResult) ends it
+    /// (examples/forms/titlebtn.bas hides its form into the system tray and
+    /// shows it again).
+    hidden_modal: HashSet<String>,
     /// Each shown form's screen scale (Form.Scale).
     scales: HashMap<String, f64>,
     /// (the WindowState lane's) The bounds a maximized form goes back to
@@ -66,6 +71,13 @@ fn applying(f: impl FnOnce()) {
 /// Whether form `name`'s window shows now.
 pub fn form_shown(name: &str) -> bool {
     st(|s| s.shown.contains(&lower(name)))
+}
+
+/// Whether a modal form's ShowModal still waits: it's shown, or the
+/// program only hid it.
+pub fn modal_waits(name: &str) -> bool {
+    let name = lower(name);
+    st(|s| s.shown.contains(&name) || s.hidden_modal.contains(&name))
 }
 
 pub fn any_shown() -> bool {
@@ -203,6 +215,7 @@ pub fn show_window<R: Program + Windows>(rt: R, name: &str) {
     let name = lower(name);
     st(|s| {
         s.shown.insert(name.clone());
+        s.hidden_modal.remove(&name);
     });
     push_op(WindowOp::Show(name.clone()));
     rt.flush();
@@ -313,6 +326,7 @@ pub fn show_visible<R: Program + Windows>(rt: R, name: &str) {
 /// Hides a form's window (no OnClose).
 pub fn hide<P: Program>(p: P, name: &str) {
     if is_form(p, name) {
+        hide_modal(name);
         hide_window(name);
     } else {
         p.store(&lower(name), "visible", v_bool(false));
@@ -324,8 +338,14 @@ pub fn hide<P: Program>(p: P, name: &str) {
 /// as `caHide`) decides whether the form goes, stays or is minimized.
 pub fn close<P: Program>(p: P, name: &str) {
     use rapidr_value::events::{CloseAction, CA_HIDE};
+    // (a modal form the program hid: Close ends its ShowModal)
+    st(|s| s.hidden_modal.remove(&lower(name)));
     if !is_form(p, name) || window_shown(name).is_none() {
-        return hide(p, name);
+        hide_window(name);
+        if !is_form(p, name) {
+            hide(p, name);
+        }
+        return;
     }
     let name = lower(name);
     p.fire_then(
@@ -348,11 +368,22 @@ pub fn set_visible<R: Program + Windows>(rt: R, name: &str, visible: bool) {
             show_window(rt, name);
             after_show(rt, name);
         } else {
+            hide_modal(name);
             hide_window(name);
         }
         return;
     }
     invalidate();
+}
+
+/// A modal form the program hides keeps its ShowModal waiting.
+fn hide_modal(name: &str) {
+    let name = lower(name);
+    st(|s| {
+        if s.modal.contains(&name) && s.shown.contains(&name) {
+            s.hidden_modal.insert(name);
+        }
+    });
 }
 
 /// `Form.ShowModal`, up to its wait: ModalResult 0, on the modal list,

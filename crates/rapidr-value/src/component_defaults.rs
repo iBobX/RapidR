@@ -52,6 +52,42 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("left", v_int(0));
             put("top", v_int(0));
         }
+        // QBEVEL (QBevel.inc's TYPE EXTENDS QPANEL): bsSpacer, bsLowered —
+        // no bevels (crate::objects::bevel::qbevel_bevels).
+        "RBEVEL" => {
+            put("caption", v_str(""));
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(true));
+            put("color", v_int(CREATION_COLOR));
+            put("shape", v_int(0));
+            put("style", v_int(0));
+            put("bevelouter", v_int(0));
+            put("bevelinner", v_int(0));
+        }
+        // QGLASSFRAME (RC.EXE: 105 × 105, Transparency 60, TransparentColor
+        // 0, Moveable 1, Color clBtnFace): crate::objects::glass.
+        "RGLASSFRAME" => {
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(true));
+            put("enabled", v_bool(true));
+            put("transparency", v_int(crate::objects::glass::TRANSPARENCY));
+            put("transparentcolor", v_int(0));
+            put("moveable", v_int(1));
+            put("color", v_int(-2147483633));
+            put("hint", v_str(""));
+            put("showhint", v_bool(false));
+            put("align", v_int(0));
+            put("cursor", v_int(0));
+        }
+        // QDIGDISPLAY: a canvas showing its Display (objects::digdisplay).
+        "RDIGDISPLAY" => {
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(true));
+            put("color", v_int(0));
+        }
         // (the input lane's: its size grip shows — RapidQ's default; docked
         // at the bottom: layout::default_align)
         "RSTATUSBAR" => {
@@ -346,7 +382,7 @@ pub const CREATION_COLOR: i64 = 0xFFFFFF;
 /// included. Both kernel stores ask this (runtime-core's `RtStore`, the
 /// web's `WebStore`).
 pub fn kernel_reads_unset(type_name: &str, prop: &str, value: &Value, program_set: impl FnOnce() -> bool) -> bool {
-    prop.eq_ignore_ascii_case("color") && matches!(value, Value::Integer(CREATION_COLOR)) && matches!(type_name, "RLABEL" | "RFORM" | "RPANEL") && !program_set()
+    prop.eq_ignore_ascii_case("color") && matches!(value, Value::Integer(CREATION_COLOR)) && matches!(type_name, "RLABEL" | "RFORM" | "RPANEL" | "RBEVEL") && !program_set()
 }
 
 #[cfg(test)]

@@ -86,6 +86,8 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         // (timers during native menu tracking: the next pump held, as a menu
         // the user keeps open would hold it)
         Action::Hold(ms) => rt.script_input(ScriptInput::Hold(ms)),
+        // (the system tray: the form's icon clicked)
+        Action::Tray(m) => crate::tray::test_message(rt, &e.comp, m),
         // (the lists lane's: the component synthesizes the input)
         Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
             let step = match e.action {

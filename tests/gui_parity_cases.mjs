@@ -23,6 +23,46 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // QGLASSFRAME: the default black glass over the form's face (60 % see-
+  // through), red glass at 50 over a cyan panel; Moveable: the form
+  // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.
+  { name: "glass_frame", events: "g.__mousedown_20_20,g.__mousemove_40_30,g.__mouseup_40_30,r.__mousedown_5_5,r.__mousemove_25_15,r.__mouseup_25_15,g.onclick", dump: "lbl.caption,form.left,form.top",
+    expect: ["lbl.caption=- click120110 click120110", "form.left=120", "form.top=110"],
+    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]],
+    webCheck: `[getComputedStyle(document.getElementById("rr-g")).backgroundColor, getComputedStyle(document.getElementById("rr-r")).backgroundColor].join(" ")`,
+    webExpect: "rgb(144, 144, 144) rgb(128, 128, 128)" },
+  // QDOCKFORM built in (RAPIDQ2.INC's dockable form, RapidR's own
+  // library): docked at its alternative place, floated, brought home,
+  // closed (OnClose); the toolbar-style one's grip (the capture's pixels).
+  { name: "dock_form", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,p.__shown",
+    expect: ["lbl.caption=- r11 f00 h10 closed c1", "p.__shown=0"],
+    pixels: [[6, 4, "808080"], [6, 5, "c0c0c0"]] },
+  // QDIRLISTVIEW built in (QDirListView.inc's component, RapidR's own
+  // library): a folder the program made, a file picked and Enter
+  // (OnFileSelect), a folder double-clicked (into it), Backspace (up).
+  { name: "dir_list_view", events: "dirlist.__mousedown_30_58,dirlist.__mouseup_30_58,dirlist.__key_13,dirlist.__dblclick_30_40,btn.onclick,dirlist.__key_8,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=- pick:dirlv/notes.txt [-1>/Inner2 ../0 deep.bas/1 |] [-1>/Inner3 ../0 Inner/0 notes.txt/1 2 KB|TXT File]"],
+    inWork: true, web: false, why: "a browser has no folders to list (DIR$)" },
+  // The system tray (QNOTIFYICONDATA, Shell_NotifyIcon, the form's
+  // WndProc): added once (a second NIM_ADD fails), its tip modified, the
+  // form hidden (its ShowModal waits on); the icon's press and release heard
+  // with wParam its uID; the release deletes it (a second NIM_DELETE fails)
+  // and shows the form; a press after that says nothing.
+  { name: "tray_icon", events: "btn.onclick,form.__tray_513,form.__tray_514,form.__tray_513", dump: "lbl.caption,form.__shown",
+    expect: ["lbl.caption=add10 mod1 7:00000201f 7:00000202f del10", "form.__shown=1"],
+    webCheck: `document.querySelectorAll(".rr-tray-icon").length + " " + getComputedStyle(document.getElementById("rr-tray")).display`,
+    webExpect: "0 none" },
+  // QBEVEL and QDIGDISPLAY built in (no include library): Shape / Style
+  // set the bevels or draw a line pair; the display's size and segments.
+  // Pixels: the top line's light and dark rows, the right line's dark and
+  // light columns, a lit segment (cyan), an unlit one's dither.
+  { name: "bevel_display", events: "btn.onclick,edge.onclick,clock.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=-02021 12:34602460 00FFFF00|00008000|00000000cc"],
+    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]],
+    webCheck: `(() => { const c = document.getElementById("rr-clock"); const s = c.width / 60; const g = c.getContext("2d");
+      const px = ([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("");
+      return [[13, 15], [1, 7], [1, 8]].map(px).join(",") + " " + document.querySelectorAll("#rr-edge > .rr-bevel").length + " " + document.querySelectorAll("#rr-box > .rr-bevel").length; })()`,
+    webExpect: "00ffff,008000,000000 2 2" },
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",
