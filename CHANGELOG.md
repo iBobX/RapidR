@@ -21,6 +21,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   names keep working (classic or modern). Real windows get a light or dark
   title bar to match. The web keeps its own look for now and reads the
   names back.
+- **QDXJOYSTICK**, RapidQ's joystick object (missing from its manual; its
+  compiler has it): Update, IsLeft / IsRight / IsUp / IsDown, Button(n) —
+  plus RapidR's Index, Connected, Name, X / Y / Z / R / U / V (winmm's 0 …
+  65535), Buttons, POV and the events OnButtonDown / OnButtonUp / OnMove.
+  Gamepads come from gilrs on Windows and macOS, the kernel's evdev on
+  Linux (no extra system package to build) and the Gamepad API in the
+  browser, all laid out the same way. No joystick reads "not connected",
+  never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 - **Direct3D Retained Mode** (RapidQ's QD3DFRAME, QD3DMESHBUILDER,
   QD3DMESH, QD3DFACE, QD3DLIGHT, QD3DTEXTURE, QD3DVISUAL, QD3DWRAP,
   QD3DVECTOR and QDXSCREEN's 3D methods) on native, interpreted and web
