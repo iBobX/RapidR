@@ -7,6 +7,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **QDXJOYSTICK**, RapidQ's joystick object (missing from its manual; its
+  compiler has it): Update, IsLeft / IsRight / IsUp / IsDown, Button(n) —
+  plus RapidR's Index, Connected, Name, X / Y / Z / R / U / V (winmm's 0 …
+  65535), Buttons, POV and the events OnButtonDown / OnButtonUp / OnMove.
+  Gamepads come from gilrs on Windows and macOS, the kernel's evdev on
+  Linux (no extra system package to build) and the Gamepad API in the
+  browser, all laid out the same way. No joystick reads "not connected",
+  never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
+
+### Changed
+- **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
+  takes `SetRenderMode(A A OR B)`, `-9(COS(x))`, `x = 16 374739` and the
+  like — its operator stack runs on, the value is the operand stack's
+  bottom (`A B OR C` is A, `-9(COS(x))` is 9, `(2 3) + 1` is 2) and the
+  other operands are still worked out (a FUNCTION among them is called).
+  RapidR refused them; both compilers now read them the same way (checked
+  line by line against RC.EXE: `tests/conformance/cases/
+  juxtaposed_operands.bas`). So `CASE 4, 7<TAB>C& = -2` (RapidQ's
+  `reminder/dayfunction.bas`) is the list 4, 7 with no body, as in RapidQ —
+  RapidR used to run the assignment.
+
+
 ## [2.116.0] — 2026-10-05
 
 ### Added
@@ -51,7 +74,6 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`tools/windows/registry_check.ps1`: one program interpreted, as an
   interpreted build and as a native build, the same as the store's run,
   what it left checked with `reg query`).
-
 ### Fixed
 - Interpreted desktop builds run timers' handlers while a dialog waits for
   the user — MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX, the Open / Save /

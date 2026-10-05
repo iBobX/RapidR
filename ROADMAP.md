@@ -157,8 +157,8 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
   - [x] D1b: FullScreen, ActiveOnly, Rotate, View.*, Cursor, a screen added to a shown form, the screen font (MS Sans Serif 8) (`dx_more` fixture)
   - [x] D2: QDXSOUND (rodio / Web Audio) (`dx_sound` fixture)
   - [x] D3–D4: the QD3D* scene and API, the `.X` loader, the software rasterizer, shadows (`d3d_scene`, `d3d_xfile` fixtures; RapidQ's own look can't be compared: `d3drm.dll` left Windows with Vista) (v2.116.0)
-  - [ ] D5: the wgpu renderer
-  - [ ] D6: joysticks (RapidQ has no object: a RapidR `RJOYSTICK` on `gilrs` / the Gamepad API)
+  - [ ] D5: the wgpu renderer — **parked** (the software rasterizer is fast enough: Park.x, 29k faces, 4.4 ms at 1×, 8.1 ms at 2×; revisit when a real program measurably needs it — docs/directx-plan.md "Stage D5: parked")
+  - [x] D6: joysticks — RapidQ's undocumented QDXJOYSTICK (IsLeft … Button(n), Update; found in RC.EXE) plus RapidR's X / Buttons / POV / events, on gilrs (Windows, macOS), evdev (Linux) and the Gamepad API (`dx_joystick` fixture)
 
 Next up, in order:
 - [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)

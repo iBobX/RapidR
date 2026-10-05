@@ -35,11 +35,19 @@ ureq = { version = "2", optional = true, default-features = false, features = ["
 native-tls = { version = "0.2", optional = true }
 
 [target.'cfg(unix)'.dependencies]
-# INKEY$: the terminal read a key at a time (terminal.rs).
+# INKEY$: the terminal read a key at a time (terminal.rs); QDXJOYSTICK's
+# evdev gamepads on Linux (joystick/evdev.rs).
 libc = "0.2"
 
+# QDXJOYSTICK's gamepads on Windows (Windows.Gaming.Input) and macOS (IOKit),
+# with SDL's controller mappings (MIT OR Apache-2.0; the mappings zlib).
+# Not on Linux: its backend builds against libudev (joystick/evdev.rs reads
+# the kernel's devices itself).
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+gilrs = { version = "0.11", optional = true }
+
 [features]
-default = ["database", "network", "gui", "datascience", "audio", "ffi"]
+default = ["database", "network", "gui", "datascience", "audio", "ffi", "gamepad"]
 database = ["dep:rapidr-db"]
 network = ["dep:ureq", "dep:native-tls"]
 # The desktop host: the UI kernel, the host-neutral program glue
@@ -48,4 +56,5 @@ network = ["dep:ureq", "dep:native-tls"]
 gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
+gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]

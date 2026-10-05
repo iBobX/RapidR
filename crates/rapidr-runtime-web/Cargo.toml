@@ -96,6 +96,9 @@ features = [
     "PositionError",
     "PositionOptions",
     "Navigator",
+    # (the DirectX lane's: QDXJOYSTICK's gamepads)
+    "Gamepad",
+    "GamepadButton",
 
     # File I/O bridge (RFILESTREAM, dialogs, downloads)
     "File",

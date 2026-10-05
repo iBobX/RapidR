@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**660 libraries** under 26 license expressions.
+**669 libraries** under 26 license expressions.
 
-## Apache-2.0 OR MIT (372)
+## Apache-2.0 OR MIT (376)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -113,6 +113,7 @@ which also carries their full license texts.
 | fearless_simd | 0.7.0 | <https://github.com/linebender/fearless_simd> |
 | flate2 | 1.1.9 | <https://github.com/rust-lang/flate2-rs> |
 | float-ord | 0.3.2 | <https://github.com/notriddle/rust-float-ord> |
+| fnv | 1.0.7 | <https://github.com/servo/rust-fnv> |
 | font-kit | 0.14.3 | <https://github.com/servo/font-kit> |
 | font-types | 0.12.6 | <https://github.com/googlefonts/fontations> |
 | fontique | 0.11.1 | <https://github.com/linebender/parley> |
@@ -137,6 +138,8 @@ which also carries their full license texts.
 | getrandom | 0.3.4 | <https://github.com/rust-random/getrandom> |
 | getrandom | 0.4.2 | <https://github.com/rust-random/getrandom> |
 | gif | 0.12.0 | <https://github.com/image-rs/image-gif> |
+| gilrs | 0.11.2 | <https://gitlab.com/gilrs-project/gilrs> |
+| gilrs-core | 0.6.8 | <https://gitlab.com/gilrs-project/gilrs> |
 | glifo | 0.4.0 | <https://github.com/linebender/vello> |
 | glob | 0.3.3 | <https://github.com/rust-lang/glob> |
 | gpu-allocator | 0.28.0 | <https://github.com/Traverse-Research/gpu-allocator> |
@@ -177,7 +180,7 @@ which also carries their full license texts.
 | lazy_static | 1.5.0 | <https://github.com/rust-lang-nursery/lazy-static.rs> |
 | leb128fmt | 0.1.0 | <https://github.com/bluk/leb128fmt> |
 | lewton | 0.10.2 | <https://github.com/RustAudio/lewton> |
-| libc | 0.2.183 | <https://github.com/rust-lang/libc> |
+| libc | 0.2.190 | <https://github.com/rust-lang/libc> |
 | linebender_resource_handle | 0.1.1 | <https://github.com/linebender/raw_resource_handle> |
 | litrs | 1.0.0 | <https://github.com/LukasKalbertodt/litrs> |
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
@@ -318,6 +321,7 @@ which also carries their full license texts.
 | utf8_iter | 1.0.4 | <https://github.com/hsivonen/utf8_iter> |
 | uuid | 1.23.0 | <https://github.com/uuid-rs/uuid> |
 | value-trait | 0.10.1 | <https://github.com/simd-lite/value-trait> |
+| vec_map | 0.8.2 | <https://github.com/contain-rs/vec-map> |
 | vello | 0.11.0 | <https://github.com/linebender/vello> |
 | vello_common | 0.3.0 | <https://github.com/linebender/vello> |
 | vello_cpu | 0.3.0 | <https://github.com/linebender/vello> |
@@ -389,7 +393,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (163)
+## MIT (165)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -433,6 +437,7 @@ which also carries their full license texts.
 | libm | 0.2.16 | <https://github.com/rust-lang/compiler-builtins> |
 | libredox | 0.1.15 | <https://gitlab.redox-os.org/redox-os/libredox.git> |
 | libsqlite3-sys | 0.38.2 | <https://github.com/rusqlite/rusqlite> |
+| libudev-sys | 0.1.4 | <https://github.com/dcuddeback/libudev-sys> |
 | lru | 0.18.5 | <https://github.com/jeromefroe/lru-rs.git> |
 | lz4 | 1.28.1 | <https://github.com/10xGenomics/lz4-rs> |
 | lz4-sys | 1.11.1+lz4-1.10.0 | <https://github.com/10xGenomics/lz4-rs> |
@@ -440,6 +445,7 @@ which also carries their full license texts.
 | mime_guess | 2.0.5 | <https://github.com/abonander/mime_guess> |
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
+| nix | 0.31.3 | <https://github.com/nix-rust/nix> |
 | now | 0.1.3 | <https://github.com/Kilerd/now> |
 | objc-sys | 0.3.5 | <https://github.com/madsmtm/objc2> |
 | objc2 | 0.5.2 | <https://github.com/madsmtm/objc2> |
@@ -608,7 +614,7 @@ which also carries their full license texts.
 | sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
 | winit | 0.30.13 | <https://github.com/rust-windowing/winit> |
 
-## Apache-2.0 OR MIT OR Zlib (18)
+## Apache-2.0 OR MIT OR Zlib (19)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -622,6 +628,7 @@ which also carries their full license texts.
 | objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-core-text | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-io-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-metal | 0.3.2 | <https://github.com/madsmtm/objc2> |
 | objc2-quartz-core | 0.3.2 | <https://github.com/madsmtm/objc2> |
@@ -687,6 +694,16 @@ which also carries their full license texts.
 | symphonia-core | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-metadata | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 
+## ISC (5)
+
+| Library | Version | Upstream |
+|---|---|---|
+| inotify | 0.11.5 | <https://github.com/hannobraun/inotify-rs> |
+| inotify-sys | 0.1.8 | <https://github.com/hannobraun/inotify-sys> |
+| libloading | 0.8.9 | <https://github.com/nagisa/rust_libloading/> |
+| rustls-webpki | 0.103.15 | <https://github.com/rustls/webpki> |
+| untrusted | 0.9.0 | <https://github.com/briansmith/untrusted> |
+
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 
 | Library | Version | Upstream |
@@ -702,14 +719,6 @@ which also carries their full license texts.
 | clipboard-win | 5.4.1 | <https://github.com/DoumanAsh/clipboard-win> |
 | error-code | 3.4.0 | <https://github.com/DoumanAsh/error-code> |
 | xxhash-rust | 0.8.15 | <https://github.com/DoumanAsh/xxhash-rust> |
-
-## ISC (3)
-
-| Library | Version | Upstream |
-|---|---|---|
-| libloading | 0.8.9 | <https://github.com/nagisa/rust_libloading/> |
-| rustls-webpki | 0.103.15 | <https://github.com/rustls/webpki> |
-| untrusted | 0.9.0 | <https://github.com/briansmith/untrusted> |
 
 ## MIT AND Apache-2.0 (3)
 

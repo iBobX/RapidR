@@ -66,6 +66,7 @@
 //   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
 //   * tests/fixtures/d3d_scene.bas — Direct3D: frames, faces, lights, the camera, Render (the software rasterizer), Move, CameraLookAt.
 //   * tests/fixtures/d3d_xfile.bas — Direct3D: a .X model (frame matrix, materials, a texture on one face), SetRGB, SetTexture.
+//   * tests/fixtures/dx_joystick.bas — QDXJOYSTICK: Update, IsLeft …, Button(n); X, Buttons, POV; OnButtonDown / OnButtonUp / OnMove (the case's `joystick` script).
 //   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
 //     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //
@@ -124,6 +125,8 @@ const dialogAnswers = (c) => ({
   ...(c.messageDialog === undefined ? {} : { RAPIDR_TEST_MESSAGE_DIALOG: c.messageDialog }),
   ...(c.dialogHold === undefined ? {} : { RAPIDR_TEST_DIALOG_HOLD: String(c.dialogHold) }),
   ...(c.delay === undefined ? {} : { RAPIDR_CAPTURE_DELAY: String(c.delay) }),
+  // (`joystick`: QDXJOYSTICK's gamepad, the tests' script)
+  ...(c.joystick === undefined ? {} : { RAPIDR_TEST_JOYSTICK: c.joystick }),
 });
 
 // A captured window's pixel (x, y) as "rrggbb" (an uncompressed 24- or

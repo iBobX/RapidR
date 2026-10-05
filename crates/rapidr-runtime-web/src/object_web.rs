@@ -172,6 +172,12 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("stickyfocus".to_string(), v_bool(false));
             crate::directx_web::install_sound_device();
         }
+        // (QDXJOYSTICK: the page looks for its events like a timer's ticks
+        // — directx_web::timer_fired)
+        "RDXJOYSTICK" => {
+            props.insert("enabled".to_string(), v_bool(true));
+            crate::directx_web::install_joystick_source();
+        }
         "RHEADER" => {
             // Sections: rapidr_value::objects::header; a canvas to draw on.
             props.insert("left".to_string(), v_int(0));
@@ -736,7 +742,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
 
-            if comp.type_name == "RTIMER" || comp.type_name == "RDXTIMER" {
+            if comp.type_name == "RTIMER" || comp.type_name == "RDXTIMER" || comp.type_name == "RDXJOYSTICK" {
                 if lprop == "enabled" || lprop == "interval" {
                     drop(comps);
                     update_timer(&uname);
@@ -2270,7 +2276,8 @@ fn bind_dom_event(name: &str, event: &str) {
     let event_owned = event.to_string();
 
     // Timer events are handled specially — they don't need DOM binding
-    if event == "ontimer" {
+    // (nor a QDXJOYSTICK's: looked for at its ticks)
+    if event == "ontimer" || (rp_comp_type(name) == "RDXJOYSTICK" && rapidr_value::objects::joystick::EVENTS.contains(&event)) {
         update_timer(name);
         return;
     }
@@ -2497,9 +2504,12 @@ fn update_timer(name: &str) {
         }
     });
 
-    // Check if we have an ontimer event handler registered
+    // Check if we have an ontimer event handler registered (a QDXJOYSTICK:
+    // one of its events')
+    let events: &[&str] = if rp_comp_type(&uname) == "RDXJOYSTICK" { &rapidr_value::objects::joystick::EVENTS } else { &["ontimer"] };
     let has_handler = EVENT_HANDLERS.with(|eh| {
-        eh.borrow().contains_key(&(uname.clone(), "ontimer".to_string()))
+        let eh = eh.borrow();
+        events.iter().any(|e| eh.contains_key(&(uname.clone(), e.to_string())))
     });
 
     // (the DirectX lane's: a QDXTIMER's Interval 0 is a screen refresh)
@@ -2609,6 +2619,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RDXIMAGELIST"
             | "RDXTIMER"
             | "RDXSOUND"
+            | "RDXJOYSTICK"
             | "RD3DFRAME"
             | "RD3DMESHBUILDER"
             | "RD3DMESH"

@@ -13,6 +13,8 @@ pub mod scroll;
 pub mod mdi;
 pub mod globals;
 pub(crate) mod sound;
+/// QDXJOYSTICK's gamepads (the DirectX lane's).
+pub mod joystick;
 pub mod terminal;
 pub use rapidr_value as value;
 
