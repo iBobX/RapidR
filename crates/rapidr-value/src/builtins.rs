@@ -53,8 +53,14 @@ pub fn rp_string_func(n: &Value, ch: &Value) -> Value {
     crate::strings::string_of(n, ch)
 }
 
+/// `CHR$(n)`: the character of code n's low byte — a real code rounded half
+/// to even first, as RapidQ's (`CHR$(65.7)` is "B", `CHR$(66.5)` "B").
 pub fn rp_chr(n: &Value) -> Value {
-    Value::String(String::from(char::from(n.to_i64() as u8)))
+    let code = match n {
+        Value::Double(d) => crate::format::int32(*d),
+        other => other.to_i64(),
+    };
+    Value::String(String::from(char::from(code as u8)))
 }
 
 pub fn rp_asc(s: &Value) -> Value {
@@ -459,6 +465,9 @@ pub fn rp_convbase(num_str: &Value, from_base: &Value, to_base: &Value) -> Value
         Ok(n) => n,
         Err(_) => return v_str(""),
     };
+    // A negative number into another base: its 32 bits (RC.EXE:
+    // CONVBASE$("-10", 10, 16) is FFFFFFF6 — "32 bits negative", Lib's notes).
+    let decimal = if decimal < 0 && to != 10 && decimal >= i32::MIN as i64 { decimal as u32 as i64 } else { decimal };
     match to {
         10 => Value::String(decimal.to_string()),
         16 => Value::String(format!("{:X}", decimal)),

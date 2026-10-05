@@ -39,7 +39,7 @@ export const cases = [
   { name: "list_items", events: "items.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=5|zero|four|a/b & c|3|Applepear|2|2", "lbl.caption=picked 3 four"] },
   { name: "picture_resource", events: "img.onclick,img.onclick", dump: "summary.caption,lbl.caption",
-    expect: ["summary.caption=1|20x10|FF00|FF0000|80FFFF|40|FF|FFFFFF|-1", "lbl.caption=click;click;"] },
+    expect: ["summary.caption=1|20x10|0000FF00|00FF0000|0080FFFF|40|000000FF|00FFFFFF|-1", "lbl.caption=click;click;"] },
   { name: "grid_draw_cell", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"],
     // (web: each owner-drawn cell drawn at the screen's scale — sharp at 2×)
@@ -86,7 +86,7 @@ export const cases = [
   { name: "panel_bevels", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=201 123 112"] },
   { name: "svg_picture", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=48 1 D4FF FFFFFF"] },
+    expect: ["lbl.caption=48 1 0000D4FF 00FFFFFF"] },
   { name: "outline", events: "outline.__toggle_3,outline.__node_4,btn.onclick", dump: "lbl.caption,outline.row",
     expect: ["lbl.caption=6 First Child of Parent 2 2", "outline.row=4"] },
   // (`colorDialog`: what each colour dialog answers in turn, `;`-separated
@@ -94,20 +94,20 @@ export const cases = [
   // OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG on the desktop, the page
   // dialog clicked in the browser)
   { name: "color_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", colorDialog: "255;",
-    expect: ["lbl.caption=0|2|80|FF00FF", "lbl2.caption=ok FF 123456|cancel FF"] },
+    expect: ["lbl.caption=00000000|00000002|00000080|00FF00FF", "lbl2.caption=ok 000000FF 00123456|cancel 000000FF"] },
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
   { name: "font_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
-    expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 FF|cancel Courier New"] },
+    expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 000000FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
   { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
     events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
-    expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 -1|0 300", "lbl3.caption=1;2;2;"] },
+    expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 1|0 300", "lbl3.caption=1;2;2;"] },
   { name: "file_dialogs", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
   { name: "header", events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart FF00"] },
-  { name: "icons", events: "", dump: "lbl.caption,img.width,img2.width", expect: ["lbl.caption=16x16 C85A14", "img.width=16", "img2.width=16"],
+    expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart 0000FF00"] },
+  { name: "icons", events: "", dump: "lbl.caption,img.width,img2.width", expect: ["lbl.caption=16x16 00C85A14", "img.width=16", "img2.width=16"],
     // (web: each form's title bar icon — its own, else the application's — and the page's)
     webCheck: `(() => { const src = (n) => { const i = document.querySelector('.rr-form[data-rr-name="' + n + '"] .rr-form-icon'); return i && i.style.display !== "none" ? i.src : ""; };
       return [src("FORM").startsWith("data:image/png"), src("OTHER").startsWith("data:image/png"), src("FORM") !== src("OTHER"), !!document.querySelector("link[rel~='icon'][href^='data:image/png']")].join(","); })()`,
@@ -153,7 +153,7 @@ export const cases = [
   { name: "onshow_scroll", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=show;333x283"] },
   { name: "form_visible", events: "btn.onclick,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=start 0-10;-1-1-110;-1-1-111;"] },
+    expect: ["lbl.caption=start 010;11110;11111;"] },
   { name: "screen_scale", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=96 -1 -1"] },
   { name: "anchors", events: "ok.onclick", dump: "a.caption,b.caption,c.caption", resize: "250,180",
