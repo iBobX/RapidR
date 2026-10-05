@@ -55,7 +55,7 @@ if want web; then
   echo "== web gui parity on the kernel host"; RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   echo "== web gui parity on the kernel host at 2x"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   echo "== web accessibility on the kernel host (Chrome's tree over the mirror = the kernel's)"; RAPIDR_WEB_HOST=kernel node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host"
-  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs; do
+  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

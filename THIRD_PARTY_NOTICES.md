@@ -10,6 +10,12 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
+The fonts RapidR draws text with are credited there too (§4). They are
+the Liberation fonts and the Noto fallback fonts (Noto Sans, Noto Sans
+Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
+License 1.1. The Noto fonts' chunks ship beside the web runtime with
+their `OFL.txt`.
+
 **678 libraries** under 27 license expressions.
 
 ## Apache-2.0 OR MIT (379)

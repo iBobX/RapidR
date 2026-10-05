@@ -243,6 +243,7 @@ fn ensure() {
     }
     host::install(&STORE, Rc::new(turn));
     host::set_overlay_types(crate::overlay_web::TYPES);
+    crate::fonts_web::install();
     let capture = testhooks::Capture::from_env();
     host::with(|h, _| {
         // (carets blink, but not under a test: captures must be steady)
@@ -483,6 +484,7 @@ fn frame() {
     if ENDED.with(Cell::get) {
         return;
     }
+    crate::fonts_web::apply_loaded();
     if TURNING.with(Cell::get) || host::busy() {
         later();
         return;

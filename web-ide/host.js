@@ -340,6 +340,16 @@ function applyAppStorageOp({ op, key, value }) {
 }
 
 function handlePreviewMessage(d) {
+  // (a fallback font's chunk for the preview: runtime/fonts/, beside the
+  // runtime it was given)
+  if (d.__rapidr_font) {
+    const { id, file } = d.__rapidr_font;
+    const port = previewPort;
+    const reply = (bytes) => port?.postMessage({ __rapidr_font_reply: { id, bytes } }, bytes ? [bytes] : []);
+    if (!/^[\w.-]+$/.test(file)) return reply(null);
+    fetch(`./runtime/fonts/${file}`).then((r) => (r.ok ? r.arrayBuffer() : null)).then(reply, () => reply(null));
+    return;
+  }
   if (d.__rapidr_console) {
     const { level, text } = d.__rapidr_console;
     // Runtime PRINT goes through console.log → Output panel.
@@ -2650,16 +2660,37 @@ async function fetchNotices() {
   return out;
 }
 
+/// The fallback fonts beside the runtime (runtime/fonts: index.json, the
+/// chunks, OFL.txt — tools/fonts.py), shipped in the bundle for its page to
+/// load as its text needs them; none if they aren't there.
+async function fetchFonts() {
+  try {
+    const r = await fetch("./runtime/fonts/index.json");
+    if (!r.ok) return {};
+    const index = await r.text();
+    const names = [...new Set(JSON.parse(index).chunks.map((c) => c.file)), "OFL.txt"];
+    const out = { "fonts/index.json": new TextEncoder().encode(index) };
+    await Promise.all(names.map(async (n) => {
+      const f = await fetch(`./runtime/fonts/${n}`);
+      if (f.ok) out[`fonts/${n}`] = new Uint8Array(await f.arrayBuffer());
+    }));
+    return out;
+  } catch (_) {
+    return {};
+  }
+}
+
 async function doBuild() {
   if (!state.wasmReady) { setStatus("wasm not ready", "error"); return; }
   try {
     const { buildBundleZip } = await import("./zip.js");
     const src = serializeProject(state.project);
     const rrbc = compile(src, state.project.name, projectAssetMap());
-    const [jsText, wasmRes, notices] = await Promise.all([
+    const [jsText, wasmRes, notices, fonts] = await Promise.all([
       fetch("./runtime/rapidrintr.js").then(r => r.text()),
       fetch("./runtime/rapidrintr_bg.wasm").then(r => r.arrayBuffer()),
       fetchNotices(),
+      fetchFonts(),
     ]);
     const { bytes } = buildBundleZip({
       projectName: state.project.name,
@@ -2670,6 +2701,7 @@ async function doBuild() {
       version: RAPIDR_IDE_VERSION,
       assets: (state.project.assets || []).map(a => ({ name: a.name, dataUrl: a.dataUrl })),
       notices,
+      fonts,
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
     const a = document.createElement("a");

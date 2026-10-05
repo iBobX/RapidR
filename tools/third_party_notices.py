@@ -82,6 +82,12 @@ def render(pkgs):
         "into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),",
         "which also carries their full license texts.",
         "",
+        "The fonts RapidR draws text with are credited there too (§4). They are",
+        "the Liberation fonts and the Noto fallback fonts (Noto Sans, Noto Sans",
+        "Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font",
+        "License 1.1. The Noto fonts' chunks ship beside the web runtime with",
+        "their `OFL.txt`.",
+        "",
         f"**{len(pkgs)} libraries** under {len(by_license)} license expressions.",
         "",
     ]

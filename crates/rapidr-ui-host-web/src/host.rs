@@ -691,6 +691,15 @@ impl WebHost {
         }
     }
 
+    /// A font was added to the text system: every window, frame and
+    /// inside, drawn again.
+    pub fn fonts_changed(&mut self) {
+        for w in self.wins.values_mut() {
+            w.force = true;
+            w.frame_dirty = true;
+        }
+    }
+
     /// Form `id` drawn by the CPU renderer at its scale, as the desktop's
     /// `RAPIDR_CAPTURE` saves it (a test's capture: the very pixels).
     pub fn capture(&mut self, store: &dyn Store, id: &str) -> Option<Pixels> {
