@@ -38,7 +38,7 @@ $tasks = if ($Associations) { "/TASKS=basdefault" } else { "/TASKS=" }
 Start-Process -Wait -FilePath $Installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=$T\app", "/LOG=$T\install.log", $tasks)
 $R = "$T\app\bin\rapidr.exe"; $RW = "$T\app\bin\rapidrw.exe"
 Check "installed: rapidr.exe, rapidrw.exe, lib\rapidr" { (Test-Path $R) -and (Test-Path $RW) -and (Test-Path "$T\app\lib\rapidr\release.toml") }
-Check "licence files" { (Test-Path "$T\app\share\doc\rapidr\LICENSE") -and (Test-Path "$T\app\share\doc\rapidr\THIRD_PARTY_NOTICES.md") }
+Check "licence files" { (Test-Path "$T\app\share\doc\rapidr\LICENSE") -and (Test-Path "$T\app\share\doc\rapidr\THIRD_PARTY_NOTICES.md") -and (Test-Path "$T\app\share\doc\rapidr\LEGAL.md") -and (Test-Path "$T\app\share\doc\rapidr\THIRD-PARTY-NOTICES.txt") }
 Check "PATH untouched without the task" { [Environment]::GetEnvironmentVariable("Path", "User") -eq $pathBefore }
 $kind = if ((Get-Content "$T\app\lib\rapidr\release.toml") -match 'kind = "sdk"') { "sdk" } else { "runtime" }
 Write-Host "== $kind`: $(Out-Of $R @('version'))"
@@ -82,6 +82,7 @@ if ($kind -eq "sdk") {
     & $R build hello.bas --interp | Out-Null
     Check "console program: a console executable" { (Subsystem "$T\work\hello.exe") -eq 3 }
     Check "it runs" { (Out-Of "$T\work\hello.exe" @("q")) -match "hello q" }
+    Check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" { (Get-Content -Raw "$T\work\THIRD-PARTY-NOTICES.txt") -match "Rust standard library" }
     & $R build gui.bas --interp | Out-Null
     Check "GUI program: a windowed executable (no console window)" { (Subsystem "$T\work\gui.exe") -eq 2 }
     $other = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "windows-x86_64" } else { "windows-aarch64" }
@@ -117,6 +118,7 @@ if ($kind -eq "sdk") {
         Copy-Item "$Cases\tests\fixtures\list_items.bas" "$T\work\list_items.bas"
         Out-Of $R @("build", "list_items.bas") | Out-Null
         $env:RAPIDR_CAPTURE = "$T\work\gui"; $env:RAPIDR_CAPTURE_DELAY = "0.5"
+        Check "native builds carry the mingw-w64 notices" { (Get-Content -Raw "$T\work\THIRD-PARTY-NOTICES.txt") -match "mingw-w64 runtime" }
         Check "native GUI fixture runs (capture)" { (Test-Path "$T\work\list_items.exe") -and ((Out-Of "$T\work\list_items.exe" @()) -match "captured window") }
         Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:CARGO_HOME, env:CARGO_TARGET_DIR
         Remove-Item -Recurse -Force "$T\native-target", "$T\cargo-home" -ErrorAction SilentlyContinue

@@ -124,12 +124,12 @@ EOF
 for ARCH in $ARCHS; do
     T="$ARCH-unknown-linux-gnu"
     step "build $T (glibc $GLIBC)"
-    # (pkg-config finds that architecture's libraries)
-    export PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=/
-    export PKG_CONFIG_LIBDIR="/usr/lib/$ARCH-linux-gnu/pkgconfig:/usr/share/pkgconfig"
-    export CARGO_PROFILE_RELEASE_STRIP=symbols
-    cargo zigbuild -q --locked --release --target "$T.$GLIBC" -p rapidr-cli
-    cargo zigbuild -q --locked --profile runner --target "$T.$GLIBC" -p rapidr-runner-stub --bin rapidrintr-runner
+    # (pkg-config finds that architecture's libraries — for these builds only:
+    # stage.py's notices build this machine's rapidr)
+    cross=(env PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=/ CARGO_PROFILE_RELEASE_STRIP=symbols
+        PKG_CONFIG_LIBDIR="/usr/lib/$ARCH-linux-gnu/pkgconfig:/usr/share/pkgconfig")
+    "${cross[@]}" cargo zigbuild -q --locked --release --target "$T.$GLIBC" -p rapidr-cli
+    "${cross[@]}" cargo zigbuild -q --locked --profile runner --target "$T.$GLIBC" -p rapidr-runner-stub --bin rapidrintr-runner
     for b in "$TD/$T/release/rapidr" "$TD/$T/runner/rapidrintr-runner"; do
         g="$(newest_glibc "$b")"
         [ "$(printf '%s\n%s\n' "$g" "$GLIBC" | sort -V | tail -1)" = "$GLIBC" ] || die "$b needs glibc $g, newer than $GLIBC"

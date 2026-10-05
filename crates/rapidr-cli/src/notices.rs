@@ -276,6 +276,9 @@ const ALLOWED: &[(&str, &str)] = &[
 
 const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
 const OFL: &str = include_str!("../../rapidr-value/fonts/OFL-1.1.txt");
+/// mingw-w64's notices, from the LLVM-MinGW release the Windows SDK ships.
+const MINGW_RUNTIME: &str = include_str!("../licenses/MinGW-w64-runtime.txt");
+const MINGW_COPYING: &str = include_str!("../licenses/MinGW-w64-COPYING.txt");
 
 fn rank(id: &str) -> Option<usize> {
     ALLOWED.iter().position(|(a, _)| *a == id)
@@ -744,6 +747,32 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             url: "https://freetype.org".into(),
             note: "The system's FreeType when it is installed (Linux: linked dynamically), else built in. The FreeType License asks for this credit: Portions of this software are copyright © The FreeType Project (www.freetype.org). All rights reserved. Its texts are under freetype-sys below.".into(),
             blocks: vec![],
+        });
+    }
+    if kind.os() == "windows" {
+        // What LLVM-MinGW (the SDK's toolchain, the *-pc-windows-gnullvm
+        // targets) links into a program: its texts, from the llvm-mingw
+        // release the SDK ships (crates/rapidr-cli/licenses/MinGW-w64-*.txt).
+        out.push(Component {
+            name: "mingw-w64 runtime (LLVM-MinGW: *-pc-windows-gnullvm builds)".into(),
+            version: String::new(),
+            declared: "ZPL-2.1, with BSD-, ISC- and MIT-style and public-domain parts".into(),
+            used: "ZPL-2.1 and the parts' own terms".into(),
+            url: "https://www.mingw-w64.org".into(),
+            note: "Its start-up objects and run-time library (crt2.o, libmingw32, libmingwex: gdtoa, getopt, parts of the math library, …) are linked statically into programs built with the gnullvm targets — RapidR's own Windows executables and native builds made with the RapidR SDK. Its licence asks for these notices to go with the program in binary form. (A few mingw-w64 headers imported from Wine are LGPL-2.1-or-later; they are only compiled against, never linked.)".into(),
+            blocks: vec![
+                Block { title: "mingw-w64 — COPYING.MinGW-w64-runtime.txt".into(), text: MINGW_RUNTIME.into() },
+                Block { title: "mingw-w64 — COPYING (ZPL-2.1)".into(), text: MINGW_COPYING.into() },
+            ],
+        });
+        out.push(Component {
+            name: "LLVM compiler-rt (builtins) and libunwind (LLVM-MinGW: *-pc-windows-gnullvm builds)".into(),
+            version: String::new(),
+            declared: "Apache-2.0 WITH LLVM-exception".into(),
+            used: "Apache-2.0 WITH LLVM-exception".into(),
+            url: "https://llvm.org".into(),
+            note: "Linked statically into programs built with the gnullvm targets (in place of GCC's libgcc: no GPL code is linked). The LLVM exception lets this embedded code be shipped without its notices; they are here all the same.".into(),
+            blocks: vec![Block { title: "LLVM — Apache-2.0 WITH LLVM-exception".into(), text: ALLOWED.iter().find(|(id, _)| *id == "Apache-2.0 WITH LLVM-exception").map(|(_, t)| *t).unwrap_or_default().into() }],
         });
     }
     let system = match kind.os() {

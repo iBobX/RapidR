@@ -82,6 +82,7 @@ for k in ("UTExportedTypeDeclarations","UTImportedTypeDeclarations"):
         PREFIX="$T/prefix" sh "$top/install.sh" > "$T/install.log" 2>&1 || { cat "$T/install.log"; bad "install.sh"; }
         BIN="$T/prefix/bin"
         check "installed: bin/rapidr, lib/rapidr" test -x "$BIN/rapidr" -a -f "$T/prefix/lib/rapidr/release.toml"
+        check "LEGAL.md and the notices installed" test -f "$T/prefix/share/doc/rapidr/LEGAL.md" -a -f "$T/prefix/share/doc/rapidr/THIRD-PARTY-NOTICES.txt"
         check "MIME types registered" test -f "$XDG_DATA_HOME/mime/packages/rapidr.xml"
         check "rapidr-runtime.desktop runs with the installed rapidr" grep -q "^Exec=$T/prefix/bin/rapidr open %f" "$XDG_DATA_HOME/applications/rapidr-runtime.desktop"
         if command -v update-mime-database >/dev/null; then
@@ -161,6 +162,7 @@ if [ "$KIND" = sdk ]; then
     out="$(PATH="$BASE_PATH" CARGO_HOME="$T/no-cargo" "$R" build hello.bas --interp 2>&1)"
     check "rapidr build --interp" test -x "$W/hello"
     check "the executable runs" has "$("$W/hello" q 2>&1)" "hello q"
+    check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide 2>&1)" "statusbar.caption=Ready"
     check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide "$W/hello.bas" 2>&1)" "Opened: $W/hello.bas"
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
