@@ -5,20 +5,14 @@
 //! Screen.Width / Height, the work area, the monitors and the mouse are the
 //! host's answers (`Host::screen` …), asked by kernel.rs's facade.
 
-use rapidr_ui_host_winit::platform::{frame_of, BI_DEFAULT};
 use rapidr_ui_host_winit::{Desktop, Frame, HostCmd};
 
-use crate::object::rp_comp_get;
-use crate::value::Value;
+use crate::ui::program::Rt;
 
 /// Form `name`'s frame: its BorderStyle and BorderIcons (all three when
-/// never set).
+/// never set; `rapidr_ui_app::desktop`'s rule, the web host's too).
 pub(super) fn frame(name: &str) -> Frame {
-    let icons = match rp_comp_get(name, "bordericons") {
-        Value::Null => BI_DEFAULT,
-        v => v.to_i64(),
-    };
-    frame_of(rp_comp_get(name, "borderstyle").to_i64(), icons)
+    rapidr_ui_app::desktop::frame(Rt, name)
 }
 
 /// Before each pump: Screen.Cursor for the pointer, and the frames of the

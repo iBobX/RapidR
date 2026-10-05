@@ -22,6 +22,11 @@
 //!   results) in [`dialogs`]. Program code runs only where the runtime
 //!   calls in, never inside a host callback.
 //!
+//! - **The forms as the hosts keep them** ([`desktop`]: each one's kernel
+//!   side, stacking, the modal list, the window commands and the host's
+//!   events, the input entry points the user and a test script share) —
+//!   moved from the desktop host in Stage W3 so the web host shares it.
+//!
 //! Modules: [`dispatch`] (a kernel event as the program's), [`forms`]
 //! (show / hide / close, OnLoad / OnShow / the first OnPaint, the modal
 //! list, a user's resize and move, WindowState, toggle buttons),
@@ -33,6 +38,9 @@
 
 pub mod program;
 pub mod windows;
+// (Stage W3) The forms as the hosts keep them: moved from the desktop host
+// so the web host shares it.
+pub mod desktop;
 
 pub mod dispatch;
 pub mod forms;

@@ -23,7 +23,6 @@
 //! too.
 
 pub mod a11y;
-pub mod desktop;
 pub mod dialogs;
 pub mod headless;
 pub mod menu;
@@ -34,7 +33,9 @@ pub mod winit_host;
 use std::task::Waker;
 use std::time::Duration;
 
-pub use desktop::{Desktop, Form, HostCmd, HostEvent, Icon, Source, WindowSpec};
+// (Stage W3: `Desktop` and its queues are the hosts' shared ones, in
+// rapidr-ui-app; re-exported under their old names.)
+pub use rapidr_ui_app::desktop::{Desktop, Form, HostCmd, HostEvent, Icon, Source, WindowSpec};
 pub use dialogs::FileRequest;
 pub use platform::Frame;
 use rapidr_ui_kernel::Store;

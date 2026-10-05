@@ -33,6 +33,9 @@ pub mod scrollbars;
 pub mod theme;
 pub mod registry;
 pub mod resources;
+// (Stage W3) What both runtimes' component registries give a new
+// component, and what the UI kernel reads as unset.
+pub mod component_defaults;
 
 #[derive(Debug, Clone)]
 pub enum Value {

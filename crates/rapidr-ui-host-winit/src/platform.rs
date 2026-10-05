@@ -23,51 +23,23 @@ use crate::Desktop;
 
 // ------------------------------------------------------------- the frame --
 
-/// A form's window frame as winit can show it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Frame {
-    /// The user may resize it (bsSizeable, bsSizeToolWin).
-    pub resizable: bool,
-    /// The title bar's buttons.
-    pub close: bool,
-    pub minimize: bool,
-    pub maximize: bool,
-}
+// (Stage W3: the frame itself — `Frame`, `frame_of`, `BI_DEFAULT` — is
+// host-neutral, in `rapidr_ui_app::desktop`, which the web host shares.)
+pub use rapidr_ui_app::desktop::{frame_of, Frame, BI_DEFAULT};
 
-impl Default for Frame {
-    fn default() -> Self {
-        Frame { resizable: true, close: true, minimize: true, maximize: true }
+/// The title bar's buttons a frame has, as winit shows them.
+pub fn buttons(frame: Frame) -> WindowButtons {
+    let mut b = WindowButtons::empty();
+    if frame.close {
+        b |= WindowButtons::CLOSE;
     }
-}
-
-/// BorderIcons' bits (biSystemMenu 0, biMinimize 1, biMaximize 2, biHelp 3).
-pub const BI_DEFAULT: i64 = 0b0111;
-
-/// The frame for BorderStyle `style` (bsNone 0, bsSingle 1, bsSizeable 2,
-/// bsDialog 3, bsToolWindow 4, bsSizeToolWin 5) and BorderIcons `icons`
-/// (as Windows draws them): without biSystemMenu no button at all; a dialog
-/// or tool window has no minimize / maximize; only bsSizeable and
-/// bsSizeToolWin resize. biHelp has no counterpart.
-pub fn frame_of(style: i64, icons: i64) -> Frame {
-    let system = icons & 1 != 0;
-    let full = matches!(style, 1 | 2);
-    Frame { resizable: matches!(style, 2 | 5), close: system, minimize: system && full && icons & 2 != 0, maximize: system && full && icons & 4 != 0 }
-}
-
-impl Frame {
-    pub fn buttons(self) -> WindowButtons {
-        let mut b = WindowButtons::empty();
-        if self.close {
-            b |= WindowButtons::CLOSE;
-        }
-        if self.minimize {
-            b |= WindowButtons::MINIMIZE;
-        }
-        if self.maximize {
-            b |= WindowButtons::MAXIMIZE;
-        }
-        b
+    if frame.minimize {
+        b |= WindowButtons::MINIMIZE;
     }
+    if frame.maximize {
+        b |= WindowButtons::MAXIMIZE;
+    }
+    b
 }
 
 // --------------------------------------------------------------- cursors --
@@ -391,7 +363,7 @@ mod tests {
         assert_eq!(frame_of(1, BI_DEFAULT), Frame { resizable: false, ..Frame::default() });
         assert_eq!(frame_of(3, BI_DEFAULT), Frame { resizable: false, close: true, minimize: false, maximize: false });
         // no biSystemMenu: no buttons at all; bsSizeToolWin resizes
-        assert_eq!(frame_of(2, 6).buttons(), WindowButtons::empty());
+        assert_eq!(buttons(frame_of(2, 6)), WindowButtons::empty());
         assert_eq!(frame_of(5, BI_DEFAULT), Frame { resizable: true, close: true, minimize: false, maximize: false });
     }
 
