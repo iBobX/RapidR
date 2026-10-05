@@ -9,6 +9,10 @@
 //   name.expected-error   OR: the program must FAIL to compile, and the
 //                         compiler output must contain every non-empty line
 //                         of this file (e.g. "3:1" and "Unknown SUB")
+//   name.expected-runtime-error  with name.expected: the program prints
+//                         that, then stops with a run-time error whose
+//                         message has every non-empty line of this file
+//                         (e.g. RapidQ's "Division by zero")
 //
 // Known bugs are tracked with a first-line marker in the .bas file:
 //   ' xfail: vm, codegen — reason (ROADMAP item)
@@ -125,7 +129,7 @@ function cargoErrors(text) {
 
 const RUNNERS = { vm: runVm, codegen: runCodegen };
 
-function check(result, expected, expectedError) {
+function check(result, expected, expectedError, runtimeError = null) {
   if (expectedError !== null) {
     if (result.compiled) return "compiled, but a compile error was expected";
     const missing = expectedError.split("\n").map((l) => l.trim()).filter(Boolean)
@@ -133,7 +137,12 @@ function check(result, expected, expectedError) {
     return missing.length ? `error output lacks: ${missing.join(" | ")}` : null;
   }
   if (!result.compiled) return `failed to compile:\n${result.diagnostics.trim()}`;
-  if (result.crashed) return `crashed:\n${result.diagnostics.trim()}\n--- output ---\n${result.output}`;
+  if (runtimeError !== null) {
+    if (!result.crashed) return `ran to the end, but a run-time error was expected\n--- output ---\n${result.output}`;
+    const missing = runtimeError.split("\n").map((l) => l.trim()).filter(Boolean)
+      .filter((needle) => !result.diagnostics.includes(needle));
+    if (missing.length) return `error output lacks: ${missing.join(" | ")}\n--- error output ---\n${result.diagnostics.trim()}`;
+  } else if (result.crashed) return `crashed:\n${result.diagnostics.trim()}\n--- output ---\n${result.output}`;
   if (norm(result.output) !== norm(expected)) {
     return `output differs\n--- expected ---\n${norm(expected)}\n--- actual ---\n${norm(result.output)}`;
   }
@@ -153,11 +162,13 @@ for (const name of cases) {
   const errPath = join(CASES, `${name}.expected-error`);
   const expected = existsSync(expPath) ? readFileSync(expPath, "utf8") : "";
   const expectedError = existsSync(errPath) ? readFileSync(errPath, "utf8") : null;
+  const runtimePath = join(CASES, `${name}.expected-runtime-error`);
+  const runtimeError = existsSync(runtimePath) ? readFileSync(runtimePath, "utf8") : null;
   const inputPath = join(CASES, `${name}.input`);
   const input = existsSync(inputPath) ? readFileSync(inputPath, "utf8") : "";
 
   for (const backend of backends) {
-    const problem = check(RUNNERS[backend](name, src, input), expected, expectedError);
+    const problem = check(RUNNERS[backend](name, src, input), expected, expectedError, runtimeError);
     let status;
     if (problem && xfail.has(backend)) status = "XFAIL";
     else if (problem) status = "FAIL";

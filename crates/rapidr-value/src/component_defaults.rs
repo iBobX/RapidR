@@ -31,6 +31,8 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("top", v_int(100));
             // (hidden until shown, as in RapidQ)
             put("visible", v_bool(false));
+            // (RC.EXE: a new QFORM's Enabled reads 1)
+            put("enabled", v_bool(true));
             // (the WindowState lane's: wsNormal)
             put("windowstate", v_int(crate::window_state::WS_NORMAL));
         }

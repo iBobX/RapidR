@@ -1,5 +1,8 @@
 ' Declared numeric types (RapidQ manual, Appendix C): storing converts to
-' the variable's type — integers round half to even and wrap to their width.
+' the variable's type as RapidQ's RC.EXE does — a store into an integer
+' truncates (2.7 → 2), beyond 32 bits it is -2147483648, the narrow types
+' wrap; a BYVAL parameter rounds half to even (Half(5.6) gets 6); DWORD is
+' 32-bit signed; a FUNCTION's result isn't converted (Half(7) is 3.5).
 DIM n AS INTEGER, b AS BYTE, w AS WORD, sh AS SHORT, l AS LONG, dw AS DWORD
 DIM d AS DOUBLE, v
 n = 2.5: PRINT n

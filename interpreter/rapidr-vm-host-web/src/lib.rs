@@ -98,7 +98,7 @@ impl Host for WebHost {
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
-        Ok(rp_comp_method(id, method, args))
+        Ok(rp_comp_call(id, method, args))
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
@@ -333,12 +333,12 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
             rapidr_runtime_web::object_web::rp_component_array(&kind, &name, &bounds)
         }
         // Components reached through objects (rapidr_ast::objects): by id.
-        "__objget" => rp_comp_get(&a0.to_string_val(), &a1.to_string_val()),
+        "__objget" => rp_comp_read(&a0.to_string_val(), &a1.to_string_val()),
         "__objset" => {
             rp_comp_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
             v_null()
         }
-        "__objcall" => rp_comp_method(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),
+        "__objcall" => rp_comp_call(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),
         "__objcreate" => {
             rp_create_component(&a0.to_string_val(), &a1.to_string_val());
             v_null()

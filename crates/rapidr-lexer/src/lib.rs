@@ -800,14 +800,6 @@ impl<'src> Lexer<'src> {
     fn lex_string_tail(&mut self) -> Result<String, LexError> {
         let content_start = self.index;
         while let Some(ch) = self.current_char() {
-            if ch == '"' && self.peek_char(1) == Some('"') {
-                let mut text = self.source[content_start..self.index].to_string();
-                text.push('"');
-                self.advance_char();
-                self.advance_char();
-                text.push_str(&self.lex_string_tail()?);
-                return Ok(text);
-            }
             if ch == '"' {
                 let text = self.source[content_start..self.index].to_string();
                 self.advance_char();
@@ -902,17 +894,9 @@ impl<'src> Lexer<'src> {
         let content_start = self.index;
 
         while let Some(ch) = self.current_char() {
-            // `""` inside a string is a quote (`"[:"":>"` is `[:":>`, as in
-            // RapidQ's KEYMAP example); a string can't be followed by
-            // another directly anyway.
-            if ch == '"' && self.peek_char(1) == Some('"') {
-                let mut text = self.source[content_start..self.index].to_string();
-                text.push('"');
-                self.advance_char();
-                self.advance_char();
-                text.push_str(&self.lex_string_tail()?);
-                return Ok(Token::new(TokenType::StringLit, text, TextSpan::new(start, self.index), line, column));
-            }
+            // (`""` inside a string is no quote in RapidQ: RC.EXE reads
+            // `"[:"":>"` as two strings side by side, whose value is the
+            // first — `[:`, LEN 2 — the parser's juxtaposed operands)
             if ch == '"' {
                 let lexeme = self.source[content_start..self.index].to_string();
                 self.advance_char();

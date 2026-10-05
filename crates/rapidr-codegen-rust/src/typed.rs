@@ -39,7 +39,9 @@ impl Kind {
             "SHORT" => Kind::Short,
             "INTEGER" | "LONG" => Kind::Long,
             "DWORD" => Kind::Dword,
-            "SINGLE" | "DOUBLE" => Kind::Double,
+            // (SINGLE stays a `Value`: its 32-bit rounding is
+            // `numeric::to_single`)
+            "DOUBLE" => Kind::Double,
             _ => return None,
         })
     }
@@ -76,14 +78,14 @@ impl Kind {
         }
     }
 
-    /// An `i64` expression wrapped to this integer kind's width.
+    /// A 32-bit `i64` expression wrapped to this integer kind's width
+    /// (INTEGER, LONG and DWORD are all 32-bit signed in RapidQ).
     fn wrap(self, code: &str) -> String {
         let via = match self {
             Kind::Byte => "u8",
             Kind::Word => "u16",
             Kind::Short => "i16",
-            Kind::Long => "i32",
-            Kind::Dword => "u32",
+            Kind::Long | Kind::Dword => return code.to_string(),
             Kind::Double => return code.to_string(),
         };
         format!("(({code}) as {via} as i64)")
@@ -394,7 +396,8 @@ impl RustCodegen {
                     (UnaryOperator::Positive, _) => Some((a, t)),
                     (UnaryOperator::Negate, Ty::Int) => Some((format!("({a}).wrapping_neg()"), Ty::Int)),
                     (UnaryOperator::Negate, Ty::Float) => Some((format!("(-({a}))"), Ty::Float)),
-                    (UnaryOperator::Not, Ty::Int | Ty::Bool) => Some((format!("(!({a}))"), t)),
+                    (UnaryOperator::Not, Ty::Int) => Some((format!("(!numeric::int32_of({a}))"), t)),
+                    (UnaryOperator::Not, Ty::Bool) => Some((format!("(!({a}))"), t)),
                     _ => None,
                 }
             }
@@ -405,8 +408,9 @@ impl RustCodegen {
                 let both_int = ta == Ty::Int && tc == Ty::Int;
                 let fa = || if ta == Ty::Int { format!("(({a}) as f64)") } else { format!("({a})") };
                 let fc = || if tc == Ty::Int { format!("(({c}) as f64)") } else { format!("({c})") };
-                let ia = || if ta == Ty::Int { format!("({a})") } else { format!("(({a}) as i64)") };
-                let ic = || if tc == Ty::Int { format!("({c})") } else { format!("(({c}) as i64)") };
+                // (`\`'s operands: RapidQ rounds a real as its CINT does)
+                let ia = || if ta == Ty::Int { format!("({a})") } else { format!("numeric::idiv_operand({a})") };
+                let ic = || if tc == Ty::Int { format!("({c})") } else { format!("numeric::idiv_operand({c})") };
                 use BinaryOperator as B;
                 Some(match b.operator {
                     B::Add | B::Subtract | B::Multiply if both_int => {
@@ -428,12 +432,18 @@ impl RustCodegen {
                     B::Divide if numeric => (format!("numeric::fdiv({}, {})", fa(), fc()), Ty::Float),
                     B::IntegerDivide if numeric => (format!("numeric::idiv({}, {})", ia(), ic()), Ty::Int),
                     B::Modulo if both_int => (format!("numeric::imod({a}, {c})"), Ty::Int),
-                    B::Modulo if numeric => (format!("numeric::fmod({}, {})", fa(), fc()), Ty::Float),
+                    B::Modulo if numeric => (format!("numeric::fmod({}, {})", fa(), fc()), Ty::Int),
                     B::Power if numeric => (format!("{}.powf({})", fa(), fc()), Ty::Float),
-                    B::Equal if numeric => (format!("({} == {})", fa(), fc()), Ty::Bool),
-                    B::NotEqual if numeric => (format!("({} != {})", fa(), fc()), Ty::Bool),
-                    B::LessThan if numeric => (format!("({} < {})", fa(), fc()), Ty::Bool),
-                    B::GreaterThan if numeric => (format!("({} > {})", fa(), fc()), Ty::Bool),
+                    // (integers compare plainly; floats as `Value` does,
+                    // a NaN as RapidQ's FCOM leaves it — numeric::eq & co.)
+                    B::Equal if both_int => (format!("({} == {})", fa(), fc()), Ty::Bool),
+                    B::NotEqual if both_int => (format!("({} != {})", fa(), fc()), Ty::Bool),
+                    B::LessThan if both_int => (format!("({} < {})", fa(), fc()), Ty::Bool),
+                    B::GreaterThan if both_int => (format!("({} > {})", fa(), fc()), Ty::Bool),
+                    B::Equal if numeric => (format!("numeric::eq({}, {})", fa(), fc()), Ty::Bool),
+                    B::NotEqual if numeric => (format!("numeric::ne({}, {})", fa(), fc()), Ty::Bool),
+                    B::LessThan if numeric => (format!("numeric::lt({}, {})", fa(), fc()), Ty::Bool),
+                    B::GreaterThan if numeric => (format!("numeric::gt({}, {})", fa(), fc()), Ty::Bool),
                     // Plain `<=` / `>=` where NaN can't occur; `Value`'s
                     // NaN-as-equal rule otherwise.
                     B::LessThanOrEqual if both_int => (format!("({} <= {})", fa(), fc()), Ty::Bool),
@@ -446,7 +456,12 @@ impl RustCodegen {
                             B::Or => "|",
                             _ => "^",
                         };
-                        (format!("(({a}) {op} ({c}))"), ta)
+                        if ta == Ty::Int {
+                            // (on RapidQ's 32-bit integers, as `Value`'s)
+                            (format!("(numeric::int32_of({a}) {op} numeric::int32_of({c}))"), ta)
+                        } else {
+                            (format!("(({a}) {op} ({c}))"), ta)
+                        }
                     }
                     _ => return None,
                 })
@@ -454,6 +469,11 @@ impl RustCodegen {
             // `__to_long(e)` & co. (rapidr_ast::numeric) on a typed value.
             Expression::FunctionCall(fc) if fc.args.len() == 1 => {
                 let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+                // A BYVAL integer parameter's rounding (half to even).
+                if id.name.eq_ignore_ascii_case("__arg_round") {
+                    let (code, ty) = self.typed_expr(&fc.args[0])?;
+                    return Some(if ty == Ty::Float { (format!("({code}).round_ties_even()"), ty) } else { (code, ty) });
+                }
                 let kind = Kind::of_conversion(&id.name)?;
                 let typed = self.typed_expr(&fc.args[0])?;
                 Some((convert_typed(kind, typed), kind.ty()))
@@ -565,15 +585,15 @@ impl RustCodegen {
     }
 }
 
-/// A typed value converted for a store into `kind` (round half to even,
-/// wrap to the width — `rapidr_value::numeric`).
+/// A typed value converted for a store into `kind` (truncated, beyond 32
+/// bits -2147483648, wrapped to the width — `rapidr_value::numeric`).
 fn convert_typed(kind: Kind, (code, ty): (String, Ty)) -> String {
     match (kind, ty) {
         (Kind::Double, Ty::Int) => format!("(({code}) as f64)"),
         (Kind::Double, Ty::Float) => code,
         (Kind::Double, Ty::Bool) => format!("(if {code} {{ -1.0_f64 }} else {{ 0.0_f64 }})"),
-        (k, Ty::Int) => k.wrap(&code),
-        (k, Ty::Float) => k.wrap(&format!("numeric::round_to_int({code})")),
+        (k, Ty::Int) => k.wrap(&format!("numeric::int32_of({code})")),
+        (k, Ty::Float) => k.wrap(&format!("numeric::trunc_to_int({code})")),
         (k, Ty::Bool) => k.wrap(&format!("(if {code} {{ -1_i64 }} else {{ 0_i64 }})")),
     }
 }

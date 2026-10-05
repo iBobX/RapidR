@@ -1,9 +1,9 @@
 in AddUp n=2 total=1
 in AddUp n=5 total=3
-in AddUp n=8 total=6
+in AddUp n=7 total=6
 in AddUp n=10 total=10
 in AddUp n=12 total=15
-15 7.59375 3.5
+15 7.593750000 3.500000000
 byte 4
 own mine
 after own 15

@@ -157,15 +157,13 @@ struct Parser<'a> {
     /// `$OPTION BYREF` seen: parameters without BYVAL are passed by
     /// reference from there on (RapidQ's default is BYVAL).
     default_by_ref: bool,
-    /// `$OPTION DIM T`: the type of a DIM without AS.
-    default_dim: Option<String>,
     /// Keywords the program uses as variables (`type = 2`), lowercase.
     keyword_vars: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, default_dim: None }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false }
     }
 
     // --- diagnostics ---
@@ -753,9 +751,6 @@ impl<'a> Parser<'a> {
                     };
                     self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, "__decimal"), args: vec![Expression::Literal(Literal { span, value })] }));
                 }
-                if let Some(t) = v.strip_prefix("DIM ").and_then(|t| t.split_whitespace().next()) {
-                    self.default_dim = Some(canonical_type_name(t));
-                }
             }
         }
         // Directives consume the rest of the line
@@ -824,7 +819,10 @@ impl<'a> Parser<'a> {
                     let t = canonical_type_name(&self.advance()?.lexeme);
                     t + &self.template_args()
                 }
-                None => self.default_dim.clone().unwrap_or_else(|| "VARIANT".to_string()),
+                // `DIM m` with no type: a DOUBLE, whatever `$OPTION DIM`
+                // says (it types undeclared names only — RC.EXE: `$OPTION
+                // DIM INTEGER : DIM m : m = 9 / 4` holds 2.25).
+                None => "DOUBLE".to_string(),
             };
             // `AS STRING * 20`: a fixed-length string (a STRING cut to 20).
             let mut fixed_len = None;
@@ -954,13 +952,21 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::Print)?;
         let mut items = Vec::new();
         let mut zones = Vec::new();
-        // Only a trailing `;` or `,` keeps the cursor on the line.
+        // Only a trailing `;` or `,` keeps the cursor on the line. In
+        // RapidQ "the comma and semi-colon have the same effect" (its
+        // manual; RC.EXE: `PRINT 1, 2` prints 12) — no QBasic print zones —
+        // and a separator may come first (`PRINT , "y"`). An ELSE ends the
+        // PRINT of a single-line IF (`IF c THEN PRINT "a"; ELSE …`).
         let mut append_newline = true;
-        while !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
+        let ends = |p: &Self| p.at_eol() || matches!(p.peek_kind(), Some(TokenType::Colon | TokenType::Else));
+        while !ends(self) {
+            if self.match_kind(TokenType::Comma) || self.match_kind(TokenType::Semi) {
+                append_newline = false;
+                continue;
+            }
             items.push(self.parse_expression()?);
-            let comma = self.match_kind(TokenType::Comma);
-            let separated = comma || self.match_kind(TokenType::Semi);
-            zones.push(comma);
+            let separated = self.match_kind(TokenType::Comma) || self.match_kind(TokenType::Semi);
+            zones.push(false);
             append_newline = !separated;
             if !separated {
                 break;
@@ -979,11 +985,15 @@ impl<'a> Parser<'a> {
         let span = self.advance()?.span;
         let mut args = Vec::new();
         let mut append_newline = true;
-        while !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
+        // ("just like PRINT": `,` as `;`, no print zones)
+        while !self.at_eol() && !matches!(self.peek_kind(), Some(TokenType::Colon | TokenType::Else)) {
+            if self.match_kind(TokenType::Comma) || self.match_kind(TokenType::Semi) {
+                append_newline = false;
+                continue;
+            }
             args.push(self.parse_expression()?);
-            let comma = self.match_kind(TokenType::Comma);
-            let separated = comma || self.match_kind(TokenType::Semi);
-            args.push(Expression::Literal(Literal { span, value: LiteralValue::Integer(comma as i64) }));
+            let separated = self.match_kind(TokenType::Comma) || self.match_kind(TokenType::Semi);
+            args.push(Expression::Literal(Literal { span, value: LiteralValue::Integer(0) }));
             append_newline = !separated;
             if !separated {
                 break;
@@ -1416,6 +1426,14 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
+            // RapidQ's PRINT right before the ELSE of a single-line IF ends
+            // without a new line (RC.EXE: `IF 1 THEN PRINT "a" ELSE PRINT
+            // "b" : PRINT "c"` prints "ac").
+            if self.peek_kind() == Some(TokenType::Else) {
+                if let Some(Statement::Print(p)) = then_body.last_mut() {
+                    p.append_newline = false;
+                }
+            }
             let mut else_body = Vec::new();
             if self.match_kind(TokenType::Else) || self.peek_kind() == Some(TokenType::Else) {
                 self.match_kind(TokenType::Else);
@@ -1640,7 +1658,22 @@ impl<'a> Parser<'a> {
                 TokenType::Gt => BinaryOperator::GreaterThan,
                 _ => BinaryOperator::GreaterThanOrEqual,
             };
-            return Some(CaseValue::Is(op, self.parse_expression()?));
+            // The comparison's right side stops at AND / OR / XOR, which go
+            // on with the comparison as their first operand (`CASE IS = "l"
+            // AND x = "d"` is `(sel = "l") AND (x = "d")`, as RapidQ reads it).
+            let operand = self.parse_comparison_operand()?;
+            let mut rest = Vec::new();
+            loop {
+                let logic = match self.peek_kind() {
+                    Some(TokenType::And) => BinaryOperator::And,
+                    Some(TokenType::Or) => BinaryOperator::Or,
+                    Some(TokenType::Xor) => BinaryOperator::Xor,
+                    _ => break,
+                };
+                self.advance();
+                rest.push((logic, self.parse_not()?));
+            }
+            return Some(if rest.is_empty() { CaseValue::Is(op, operand) } else { CaseValue::IsLogic(op, operand, rest) });
         }
         let value = self.parse_expression()?;
         if self.match_kind(TokenType::To) {
@@ -2618,6 +2651,12 @@ impl<'a> Parser<'a> {
         Some(expr)
     }
 
+    /// A comparison's operand: arithmetic and concatenation, no comparison
+    /// or logic (`CASE IS = "l" AND …`'s "l").
+    fn parse_comparison_operand(&mut self) -> Option<Expression> {
+        self.parse_term()
+    }
+
     fn parse_comparison(&mut self) -> Option<Expression> {
         let mut expr = self.parse_term()?;
         loop {
@@ -2922,10 +2961,20 @@ enum Terminator {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// `&H80000001` is a 32-bit integer in RapidQ: from &H80000000 to
+/// &HFFFFFFFF, negative (RC.EXE: `&H80000001 SHL 1` is 2).
+fn signed_32(n: i64) -> i64 {
+    if (0x8000_0000..=0xFFFF_FFFF).contains(&n) {
+        n as u32 as i32 as i64
+    } else {
+        n
+    }
+}
+
 fn parse_number_literal(lexeme: &str) -> LiteralValue {
     if let Some(hex) = lexeme.strip_prefix("0x") {
         i64::from_str_radix(hex, 16)
-            .map(LiteralValue::Integer)
+            .map(|n| LiteralValue::Integer(signed_32(n)))
             .unwrap_or_else(|_| LiteralValue::String(lexeme.to_string()))
     } else if let Some(oct) = lexeme.strip_prefix("0o") {
         i64::from_str_radix(oct, 8)
@@ -3208,7 +3257,8 @@ fn assign(span: TextSpan, name: &str, index: Vec<Expression>, value: Expression)
 /// The length in `STRING * 20` (a positive literal; anything else leaves the string unbounded).
 fn literal_length(e: &Expression) -> Option<usize> {
     match e {
-        Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) if *n > 0 => Some(*n as usize),
+        // (`STRING * 0` too: RapidQ's holds nothing)
+        Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) if *n >= 0 => Some(*n as usize),
         _ => None,
     }
 }
@@ -3418,7 +3468,7 @@ mod tests {
     fn fixed_length_strings_and_unclosed_with_and_on_error() {
         let stmts = parse("DIM s AS STRING * 8, u AS STRING * 0, n AS INTEGER\nTYPE R\n  Name AS STRING * 5\nEND TYPE\n");
         let lens: Vec<Option<usize>> = stmts.iter().filter_map(|s| if let Statement::Dim(d) = s { Some(d.fixed_len) } else { None }).collect();
-        assert_eq!(lens, vec![Some(8), None, None]);
+        assert_eq!(lens, vec![Some(8), Some(0), None]);
         let field_len = stmts.iter().find_map(|s| if let Statement::Type(t) = s { t.fields.first().map(|f| f.fixed_len) } else { None });
         assert_eq!(field_len, Some(Some(5)));
         // WITH closed by END SUB; ON ERROR accepted.
@@ -3444,7 +3494,8 @@ mod tests {
 
     #[test]
     fn parses_directives_and_dim_statements() {
-        // RapidQ manual: in `DIM x, y AS INTEGER` only y is INTEGER; x is a VARIANT.
+        // RapidQ manual: in `DIM x, y AS INTEGER` only y is INTEGER (RC.EXE 2006
+        // refuses the line; a DIM without AS is a DOUBLE, as RC.EXE has `DIM m`).
         let stmts = parse("$APPTYPE GUI\nDIM x, y AS INTEGER\nDIM (a, b)(3) AS STRING, n AS LONG = 4\nDEFINT i = 1, j(2) = {7, 8, 9}\n");
         assert!(matches!(stmts[0], Statement::Directive(_)));
         let dims: Vec<(String, String, usize)> = stmts
@@ -3454,7 +3505,7 @@ mod tests {
                 _ => None,
             })
             .collect();
-        let expect = [("x", "VARIANT", 0), ("y", "INTEGER", 0), ("a", "STRING", 1), ("b", "STRING", 1), ("n", "LONG", 0), ("i", "INTEGER", 0), ("j", "INTEGER", 1)];
+        let expect = [("x", "DOUBLE", 0), ("y", "INTEGER", 0), ("a", "STRING", 1), ("b", "STRING", 1), ("n", "LONG", 0), ("i", "INTEGER", 0), ("j", "INTEGER", 1)];
         assert_eq!(dims, expect.map(|(n, t, d)| (n.to_string(), t.to_string(), d)).to_vec());
         let assigns = stmts.iter().filter(|s| matches!(s, Statement::Assignment(_))).count();
         assert_eq!(assigns, 5, "n = 4, i = 1 and three elements of j");

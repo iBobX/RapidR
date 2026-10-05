@@ -914,10 +914,22 @@ fn comp_is_panel(name: &str) -> bool {
 /// builds, the interpreter and the web.
 pub fn rp_comp_value(name: &str, member: &str) -> Value {
     let lower = member.to_ascii_lowercase();
+    // (a Boolean reads 1, as RapidQ's: rapidr_value::property_read)
     if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
-        return rp_comp_method(name, &lower, &[]);
+        return rapidr_value::property_read(rp_comp_method(name, &lower, &[]));
     }
-    rp_comp_get(name, member)
+    rapidr_value::property_read(rp_comp_get(name, member))
+}
+
+/// `Obj.Sub.Prop` read by a program (codegen): as [`rp_comp_value`]'s.
+pub fn rp_comp_read(name: &str, prop: &str) -> Value {
+    rapidr_value::property_read(rp_comp_get(name, prop))
+}
+
+/// `x = Obj.Method(…)` in a program: the method's result as RapidQ gives it
+/// (a Boolean reads 1, `rapidr_value::property_read`).
+pub fn rp_comp_call(name: &str, method: &str, args: &[Value]) -> Value {
+    rapidr_value::property_read(rp_comp_method(name, method, args))
 }
 
 pub fn rp_comp_type(name: &str) -> String {

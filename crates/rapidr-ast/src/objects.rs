@@ -623,12 +623,14 @@ impl Lowering<'_> {
     }
 
     /// `obj.field = v` / `field = v`: the setter, a slot store, or a
-    /// component property.
-    fn store_member(&self, span: TextSpan, o: Expression, t: &str, member: &str, value: Expression) -> Statement {
+    /// component property. `own`: the instance's own field, inside its
+    /// TYPE's code (`TCounter.Focus = …`, `WITH TCounter`) — as RapidQ does
+    /// (RC.EXE), that stores the field, the setter isn't called.
+    fn store_member(&self, span: TextSpan, o: Expression, t: &str, member: &str, value: Expression, own: bool) -> Statement {
         if self.is_user_type(t) {
             if let Some((def, setter)) = self.types.setter(t, member) {
                 let in_setter = self.ctx.current_method.as_ref().is_some_and(|(m, _)| m.eq_ignore_ascii_case(&setter));
-                if !in_setter {
+                if !in_setter && !(own && self.ctx.current_type.is_some()) {
                     return call_stmt_at(span, &mangle(&def, &setter), vec![o, value]);
                 }
             }
@@ -691,7 +693,8 @@ impl Lowering<'_> {
             Expression::MemberAccess(m) => {
                 if let Some(t) = self.object_type(&m.object) {
                     let o = self.expr(&m.object);
-                    return vec![self.store_member(span, o, &t, &m.member, value)];
+                    let own = matches!(m.object.as_ref(), Expression::Identifier(id) if self.is_this(&id.name));
+                    return vec![self.store_member(span, o, &t, &m.member, value, own)];
                 }
             }
             Expression::FunctionCall(fc) => {
@@ -728,7 +731,7 @@ impl Lowering<'_> {
                 }
                 if !self.is_this(&id.name) && self.implicit_member(&id.name) {
                     let t = self.ctx.current_type.clone().unwrap_or_default();
-                    return vec![self.store_member(span, ident_at(span, "This"), &t, &id.name, value)];
+                    return vec![self.store_member(span, ident_at(span, "This"), &t, &id.name, value, true)];
                 }
             }
             _ => {}
@@ -990,6 +993,7 @@ impl Lowering<'_> {
                             .map(|v| match v {
                                 CaseValue::Value(x) => CaseValue::Value(self.expr(x)),
                                 CaseValue::Is(op, x) => CaseValue::Is(*op, self.expr(x)),
+                                CaseValue::IsLogic(op, x, rest) => CaseValue::IsLogic(*op, self.expr(x), rest.iter().map(|(l, e)| (*l, self.expr(e))).collect()),
                                 CaseValue::Range(a, b) => CaseValue::Range(self.expr(a), self.expr(b)),
                             })
                             .collect(),

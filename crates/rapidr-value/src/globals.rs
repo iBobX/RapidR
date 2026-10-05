@@ -164,10 +164,12 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
             p.set_clipboard_text(&arg(0).to_string_val());
             v_null()
         }
+        // GetAsText(n): n is the buffer's size, its closing NUL included —
+        // n - 1 characters (RC.EXE: "abcdef" with 3 gives "ab").
         ("clipboard", "getastext") => {
             let text = p.clipboard_text();
             match args.first().map(Value::to_i64) {
-                Some(n) if n >= 0 => v_str(&text.chars().take(n as usize).collect::<String>()),
+                Some(n) if n >= 0 => v_str(&text.chars().take((n - 1).max(0) as usize).collect::<String>()),
                 _ => v_str(&text),
             }
         }
@@ -248,7 +250,7 @@ mod tests {
         assert!(!call(&p, "clipboard", "hasformat", &[v_int(CF_TEXT)]).unwrap().to_bool());
         set(&p, "Clipboard", "text", &v_str("hello"));
         assert_eq!(get(&p, "clipboard", "text").unwrap().to_string_val(), "hello");
-        assert_eq!(call(&p, "clipboard", "getastext", &[v_int(3)]).unwrap().to_string_val(), "hel");
+        assert_eq!(call(&p, "clipboard", "getastext", &[v_int(3)]).unwrap().to_string_val(), "he");
         assert!(call(&p, "clipboard", "hasformat", &[v_int(CF_TEXT)]).unwrap().to_bool());
         assert_eq!(get(&p, "clipboard", "formatcount").unwrap().to_i64(), 1);
         call(&p, "clipboard", "clear", &[]);

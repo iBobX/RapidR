@@ -1,4 +1,6 @@
-' $OPTION DIM / $OPTION DECIMAL (RapidQ manual, chapter 3)
+' $OPTION DIM / $OPTION DECIMAL (RapidQ manual, chapter 3): $OPTION DIM types
+' the names never declared (n, i); `DIM m` without AS is a DOUBLE whatever it
+' says, and Bump's k is its own (RC.EXE prints this).
 $OPTION DIM INTEGER
 $OPTION DECIMAL ","
 n = 7 / 2

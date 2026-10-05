@@ -35,6 +35,7 @@ pub fn suffix_type(name: &str) -> Option<&'static str> {
     .filter(|_| strip_type_suffix(name).len() < name.len())
 }
 pub mod stream_arrays;
+pub mod implicit_scope;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -158,8 +159,9 @@ pub struct LineStatement {
 pub struct PrintStatement {
     pub span: TextSpan,
     pub items: Vec<Expression>,
-    /// `zones[i]`: item i is followed by `,` (move to the next 14-column
-    /// print zone). Items followed by `;` or nothing are printed directly.
+    /// `zones[i]`: item i moves to the next 14-column print zone after it
+    /// (QBasic's `,`). The parser leaves them all false: in RapidQ the comma
+    /// and the semicolon have the same effect.
     pub zones: Vec<bool>,
     /// False when the statement ends with `;` or `,` (stay on the line).
     pub append_newline: bool,
@@ -234,6 +236,11 @@ pub enum CaseValue {
     Range(Expression, Expression),
     /// `CASE IS > 10` — the comparison holds (`=`, `<>`, `<`, `<=`, `>`, `>=`).
     Is(BinaryOperator, Expression),
+    /// `CASE IS = "l" AND MID$(s, i, 1) = "d"` — the comparison, then AND /
+    /// OR / XOR with more conditions, left to right: RapidQ's compiler reads
+    /// the IS comparison as the first operand of a logical expression (the
+    /// corpus' printf.bas).
+    IsLogic(BinaryOperator, Expression, Vec<(BinaryOperator, Expression)>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -816,13 +823,47 @@ pub fn option_dim_type(statements: &[Statement]) -> Option<String> {
 /// and TYPE bodies set properties, not variables; `is_builtin`: names the
 /// runtimes answer themselves (`TIMER`, `PI`). Both backends.
 pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Program {
+    use std::collections::HashSet;
+    // First, which SUB's undeclared names are its own (implicit_scope):
+    // whatever the main program declares, or RapidQ/RapidR answers itself,
+    // isn't a variable of a SUB.
+    let program = &{
+        let mut top: HashSet<String> = HashSet::new();
+        let main: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
+        walk(
+            &main,
+            &mut |s| match s {
+                Statement::Dim(d) => top.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_ascii_lowercase())),
+                Statement::Const(c) => { top.insert(strip_type_suffix(&c.name).to_ascii_lowercase()); }
+                Statement::Create(c) => { top.insert(c.name.to_ascii_lowercase()); }
+                Statement::Declare(d) => { top.insert(strip_type_suffix(&d.name).to_ascii_lowercase()); }
+                Statement::Type(t) => { top.insert(t.name.to_ascii_lowercase()); }
+                Statement::Label(l) => { top.insert(l.name.to_ascii_lowercase()); }
+                _ => {}
+            },
+            &mut |_| {},
+        );
+        for s in &program.statements {
+            match s {
+                Statement::Subroutine(r) => { top.insert(strip_type_suffix(&r.name).to_ascii_lowercase()); }
+                Statement::Function(f) => { top.insert(strip_type_suffix(&f.name).to_ascii_lowercase()); }
+                _ => {}
+            }
+        }
+        implicit_scope::lower(program, &|k| {
+            top.contains(k)
+                || is_builtin(k)
+                || rapidr_constant(k).is_some()
+                || matches!(k, "true" | "false" | "vttrue" | "vtfalse" | "result" | "me" | "this" | "sender" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
+                || is_component_type_name(&canonical_type_name(k))
+        })
+    };
     // (RapidQ's default: "all undeclared variables are assumed to be of
     // type DOUBLE if no suffix is provided")
     let ty = option_dim_type(&program.statements).unwrap_or_else(|| "DOUBLE".to_string());
     if ty == "VARIANT" {
         return program.clone();
     }
-    use std::collections::HashSet;
     let key = |n: &str| n.to_ascii_lowercase();
     let mut declared: HashSet<String> = HashSet::new();
     for s in &program.statements {
@@ -2211,6 +2252,10 @@ fn walk_statement(stmt: &Statement, on_stmt: &mut dyn FnMut(&Statement), on_expr
                     match v {
                         CaseValue::Value(e) | CaseValue::Is(_, e) => exprs.push(e),
                         CaseValue::Range(a, b) => exprs.extend([a, b]),
+                        CaseValue::IsLogic(_, e, rest) => {
+                            exprs.push(e);
+                            exprs.extend(rest.iter().map(|(_, x)| x));
+                        }
                     }
                 }
                 bodies.push(&c.body);
@@ -2410,6 +2455,10 @@ pub(crate) fn statement_parts_mut(stmt: &mut Statement, into_with: bool) -> (Vec
                     match v {
                         CaseValue::Value(e) | CaseValue::Is(_, e) => exprs.push(e),
                         CaseValue::Range(a, b) => exprs.extend([a, b]),
+                        CaseValue::IsLogic(_, e, rest) => {
+                            exprs.push(e);
+                            exprs.extend(rest.iter_mut().map(|(_, x)| x));
+                        }
                     }
                 }
                 bodies.push(&mut c.body);
