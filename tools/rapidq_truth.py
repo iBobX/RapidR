@@ -5,8 +5,8 @@ programs compiled by RC.EXE in the Windows VM and run there
 --native the native build too — and the outputs compared.
 
 Usage (repo root, after building ./rapidr):
-    tools/rapidq_truth.py probes <dir> [--native] [--cached]
-    tools/rapidq_truth.py conformance [--native] [--cached] [filter ...]
+    tools/rapidq_truth.py probes <dir> [--native] [--cached] [--write-expected]
+    tools/rapidq_truth.py conformance [--native] [--cached] [--write-expected] [filter ...]
     tools/rapidq_truth.py corpus [--native] [--cached] [--write-golden] [filter ...]
     tools/rapidq_truth.py golden [--native] [filter ...]
 
@@ -24,6 +24,10 @@ corpus       the console programs of RapidQ's example corpus
              to tests/rapidq_golden/<name>.expected.
 golden       no VM: RapidR's output of the corpus programs against the
              saved tests/rapidq_golden/*.expected (RapidQ's own output).
+
+--write-expected (conformance, probes) writes RapidQ's output to the
+.expected of each case it ran to the end (a new case without one included),
+to pin RapidQ's behaviour; filter to the cases meant.
 
 --cached reuses the last RC run of the set (its rc.json) instead of the VM.
 Programs are staged (CRLF, `$APPTYPE CONSOLE` added when the program has
@@ -124,6 +128,8 @@ def unsafe(text):
 
 
 ROUTINE_START = re.compile(r"^\s*(SUB|FUNCTION|SUBI|FUNCTIONI)\s+\w", re.I)
+# ("Press any key": a wait for a key that never comes from a pipe)
+ANY_KEY = re.compile(r'^\s*DO\s*:\s*LOOP\s+UNTIL\s+INKEY\$\s*<>\s*""\s*$', re.I)
 ROUTINE_END = re.compile(r"^\s*END\s+(SUB|FUNCTION|SUBI|FUNCTIONI)\b", re.I)
 PLAIN_END = re.compile(r"^\s*END\s*('.*)?$", re.I)
 
@@ -133,7 +139,8 @@ def staged_source(text):
     first unless the program says what it is. The main program's END
     becomes a jump to its last line: a RapidQ program's END drops what it
     printed while it went to a file or pipe (its output buffer isn't
-    flushed), falling off the end doesn't."""
+    flushed), falling off the end doesn't. A "press any key" loop
+    (`DO: LOOP UNTIL INKEY$ <> ""`) is left out: no key comes from a pipe."""
     text = text.replace("\r\n", "\n")
     if not APPTYPE.search(text):
         text = "$APPTYPE CONSOLE\n" + text
@@ -146,20 +153,28 @@ def staged_source(text):
         elif depth == 0 and PLAIN_END.match(line):
             line = "GOTO RQTRUTH_END"
             ends = True
+        elif ANY_KEY.match(line):
+            line = "' (rapidq_truth: the wait for a key left out)"
         lines.append(line)
     if ends:
         lines.append("RQTRUTH_END:")
     return "\n".join(lines).replace("\n", "\r\n")
 
 
+ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
 def norm(s):
+    # (RapidR's ANSI sequences for CLS, COLOR, LOCATE: RapidQ's console
+    # calls leave nothing in redirected output)
+    s = ANSI.sub("", s)
     lines = [l.rstrip() for l in s.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
     return "\n".join(lines).rstrip()
 
 
 # --- the programs of each set -------------------------------------------
 
-def conformance_programs(filters):
+def conformance_programs(filters, new_cases=False):
     progs, skipped = [], []
     for f in sorted(os.listdir(CASES)):
         if not f.endswith(".bas"):
@@ -168,7 +183,8 @@ def conformance_programs(filters):
         if filters and not any(x in name for x in filters):
             continue
         expected = os.path.join(CASES, name + ".expected")
-        if not os.path.exists(expected):
+        # (a new case, given --write-expected: its .expected is RapidQ's output)
+        if not os.path.exists(expected) and not (new_cases and not os.path.exists(os.path.join(CASES, name + ".expected-error"))):
             continue
         src = os.path.join(CASES, f)
         why = unsafe(program_text(src))
@@ -279,6 +295,9 @@ def rc_run(base, progs, cached, timeout=10):
     return results
 
 
+EXCEPTION = re.compile(r"Exception (E\w+) in module [^\r\n]* at [0-9A-F]+\.\r?\n([^\r\n]*)\r?\n?$")
+
+
 def parse_report(text):
     """rc_probe.ps1 -Encode's report → {name: {status, rc, out, err}}."""
     results, cur = {}, None
@@ -293,7 +312,14 @@ def parse_report(text):
         elif cur is None:
             continue
         elif line.startswith("-- out64 "):
-            cur["out"] = base64.b64decode(line[9:].strip()).decode("cp1252", errors="replace")
+            out = base64.b64decode(line[9:].strip()).decode("cp1252", errors="replace")
+            # (a run-time error: RapidQ prints the exception and its message
+            # last — kept apart, compared with RapidR's run-time error)
+            m = EXCEPTION.search(out)
+            if m:
+                cur["exception"] = [m.group(1), m.group(2).strip()]
+                out = out[:m.start()]
+            cur["out"] = out
         elif line.startswith("-- err "):
             cur["err"].append(line[7:])
         elif line == "-- run":
@@ -409,24 +435,29 @@ def compare(set_name, progs, rc, native, write_golden=False):
             report.append(f"-- {line}: {status}")
             continue
         truth = norm(r["out"])
-        if write_golden:
-            os.makedirs(GOLDEN, exist_ok=True)
+        if write_golden and not r.get("exception"):
+            os.makedirs(os.path.dirname(p["expected"]), exist_ok=True)
             with open(p["expected"], "w", encoding="utf-8") as f:
                 f.write(truth + "\n")
         notes = []
-        vm_status, vm_out = rapidr_vm(p, base)
-        if vm_status != "ran" and vm_status != "compile error":
-            notes.append(f"vm {vm_status}")
-        if vm_status == "compile error":
-            notes.append("vm: compile error: " + vm_out.split("\n")[0])
-        elif norm(vm_out) != truth:
-            notes.append("vm differs\n" + diff(truth, norm(vm_out), "rapidq", "rapidr-vm"))
+        # RapidQ stopped with an exception: RapidR must stop with the same
+        # message (as its run-time error) after the same output.
+        exc = r.get("exception")
+
+        def check_run(label, status, out):
+            if status == "compile error":
+                notes.append(f"{label}: compile error: " + out.split("\n")[0])
+                return
+            if exc and (status == "ran" or exc[1].rstrip(".") not in status):
+                notes.append(f"{label}: RapidQ stopped with {exc[0]} ({exc[1]}), RapidR {status}")
+            elif not exc and status != "ran":
+                notes.append(f"{label} {status}")
+            if norm(out) != truth:
+                notes.append(f"{label} differs\n" + diff(truth, norm(out), "rapidq", f"rapidr-{label}"))
+
+        check_run("vm", *rapidr_vm(p, base))
         if native:
-            n_status, n_out = rapidr_native(p, base)
-            if n_status == "compile error":
-                notes.append("native: compile error: " + n_out.split("\n")[-1])
-            elif norm(n_out) != truth:
-                notes.append("native differs\n" + diff(truth, norm(n_out), "rapidq", "rapidr-native"))
+            check_run("native", *rapidr_native(p, base))
         if set_name not in ("corpus", "golden") and os.path.exists(p["expected"]):
             exp = norm(read(p["expected"]))
             if exp != truth:
@@ -448,8 +479,10 @@ def main():
     ap.add_argument("--native", action="store_true")
     ap.add_argument("--cached", action="store_true")
     ap.add_argument("--write-golden", action="store_true")
+    ap.add_argument("--write-expected", action="store_true")
     ap.add_argument("--timeout", type=int, default=10)
     a = ap.parse_args()
+    a.write_golden = a.write_golden or a.write_expected
     if not os.path.exists(RAPIDR):
         sys.exit(f"{RAPIDR} not found: build it first (./build.sh)")
 
@@ -460,7 +493,7 @@ def main():
         skipped = []
     elif a.set == "conformance":
         set_name = "conformance"
-        progs, skipped = conformance_programs(a.args)
+        progs, skipped = conformance_programs(a.args, a.write_expected)
     else:
         set_name = "corpus"
         progs, skipped = corpus_programs(a.args)

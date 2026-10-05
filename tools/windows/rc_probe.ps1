@@ -88,6 +88,20 @@ foreach ($bas in $progs) {
   if ($src -match $registry) { Write-Output "-- compiled (not run: registry)"; Pop-Location; continue }
   if ($name -like "g_*") { Write-Output "-- compiled"; Pop-Location; continue }
   if ((Get-Subsystem $exe) -ne 3) { Write-Output "-- compiled (GUI program)"; Pop-Location; continue }
+  # s_*: a console program run in a console window of its own (what the
+  # console statements do shows only there), which writes what it read back
+  # from the screen (SCREEN(row, col)) to <name>.txt — printed here.
+  if ($name -like "s_*") {
+    Write-Output "-- screen"
+    $p = Start-Process -FilePath $exe -PassThru -WindowStyle Minimized
+    if (-not $p.WaitForExit($Timeout * 1000)) {
+      Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+      Write-Output "TIMEOUT after $Timeout s"
+    }
+    Get-Content -LiteralPath (Join-Path $bas.DirectoryName "$name.txt") -ErrorAction SilentlyContinue | ForEach-Object { Write-Output $_ }
+    Pop-Location
+    continue
+  }
   Write-Output "-- run"
   $in = Join-Path $bas.DirectoryName "$name.input"
   if (-not (Test-Path -LiteralPath $in)) { $in = $empty }
