@@ -121,13 +121,24 @@ impl WinitHost {
         crate::tracking::set_waker(Box::new(move || {
             ticker.send_event(UserEvent::Tick).ok();
         }));
+        let gpu = RenderContext::new();
+        // A GPU that's software — Windows' WARP, Mesa's llvmpipe / lavapipe,
+        // SwiftShader: virtual machines, remote desktops, servers — runs
+        // vello's compute shaders slower than vello_cpu draws, and WARP
+        // crashes in them (an access violation in d3d10warp.dll on Windows
+        // 11 ARM in Parallels): the CPU draws instead.
+        let kind = if kind == RendererKind::Gpu && !RendererKind::gpu_asked() && software_gpu_only(&gpu.instance) {
+            RendererKind::Cpu
+        } else {
+            kind
+        };
         Ok(WinitHost {
             event_loop,
             state: State {
                 proxy,
                 kind,
                 forced,
-                gpu: RenderContext::new(),
+                gpu,
                 renderers: Vec::new(),
                 wins: HashMap::new(),
                 ids: HashMap::new(),
@@ -146,6 +157,12 @@ impl WinitHost {
     fn monitor(&self) -> ((i64, i64), f64, i64) {
         self.state.screen.unwrap_or(((1920, 1080), 1.0, 1))
     }
+}
+
+/// Whether every adapter wgpu finds is software (or there's none).
+fn software_gpu_only(instance: &wgpu::Instance) -> bool {
+    let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
+    adapters.iter().all(|a| a.get_info().device_type == wgpu::DeviceType::Cpu)
 }
 
 impl Host for WinitHost {

@@ -6,7 +6,8 @@
 //!   `exit()`; one `EventLoop` per process, made on the main thread when the
 //!   first window is needed. A window per shown form, drawn by vello on the
 //!   GPU or by vello_cpu through softbuffer (`RAPIDR_RENDERER=cpu|gpu`; the
-//!   CPU when wgpu finds no GPU), an AccessKit adapter each.
+//!   CPU when wgpu finds no GPU, or only a software one), an AccessKit
+//!   adapter each.
 //! - [`HeadlessHost`](headless::HeadlessHost): no OS windows, no event
 //!   loop, no NSApplication; `pump(t)` sleeps until `t`; the screen is a
 //!   fixed 1920 × 1080. GUI tests run on it (`RAPIDR_CAPTURE` without
@@ -105,6 +106,11 @@ impl RendererKind {
             Ok(v) if v.trim().eq_ignore_ascii_case("cpu") => RendererKind::Cpu,
             _ => RendererKind::Gpu,
         }
+    }
+
+    /// `RAPIDR_RENDERER=gpu`: the GPU even when it's a software one.
+    pub fn gpu_asked() -> bool {
+        matches!(std::env::var("RAPIDR_RENDERER"), Ok(v) if v.trim().eq_ignore_ascii_case("gpu"))
     }
 }
 
