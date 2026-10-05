@@ -69,7 +69,7 @@
 // tree with them).
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, rmSync, existsSync, readFileSync, copyFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
@@ -82,7 +82,17 @@ const CARGO_TARGET = join(ROOT, "tests/conformance/.work/cargo-target");
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
 
+// Building on one machine and running on another (a VM without Rust:
+// tools/vm/): `RAPIDR_BUILD_ONLY=dir` builds every case's executables into
+// `dir` (<case>-native / <case>-interp) and runs nothing; `RAPIDR_PREBUILT=dir`
+// runs the ones found there instead of building (a kind not there is skipped).
+const BUILD_ONLY = process.env.RAPIDR_BUILD_ONLY;
+const PREBUILT = process.env.RAPIDR_PREBUILT;
+// (`RAPIDR_KINDS=interp` or `native`: only that build kind)
+const KINDS = [false, true].filter((i) => !process.env.RAPIDR_KINDS || process.env.RAPIDR_KINDS.includes(i ? "interp" : "native"));
+
 function build(name, interp) {
+  if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}`);
   const out = join(WORK, `${name}-${interp ? "interp" : "native"}`);
   mkdirSync(out, { recursive: true });
   const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, ...(interp ? ["--interp"] : [])];
@@ -112,9 +122,15 @@ rmSync(WORK, { recursive: true, force: true });
 const only = process.argv.slice(2);
 for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.includes(f)))) {
   const results = {};
-  for (const interp of [false, true]) {
+  for (const interp of KINDS) {
     const kind = interp ? "interpreted" : "native";
     const bin = build(c.name, interp);
+    if (BUILD_ONLY) {
+      mkdirSync(BUILD_ONLY, { recursive: true });
+      copyFileSync(bin, join(BUILD_ONLY, `${c.name}-${interp ? "interp" : "native"}`));
+      continue;
+    }
+    if (PREBUILT && !existsSync(bin)) continue;
     ok(existsSync(bin), `${c.name}: ${kind} executable built`);
     const a11y = join(WORK, `${c.name}-${kind}.a11y.json`);
     let out;
@@ -129,8 +145,10 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);
   }
+  if (BUILD_ONLY || !("native" in results && "interpreted" in results)) continue;
   const same = results.native === results.interpreted;
   ok(same, `${c.name}: native and interpreted builds agree` + (same ? "" : `\n    native: ${results.native.trim().split("\n").join(" / ")}\n    interpreted: ${results.interpreted.trim().split("\n").join(" / ")}`));
 }
+if (BUILD_ONLY) { console.log(`\nGUI events: executables built into ${BUILD_ONLY}`); process.exit(0); }
 if (failed) { console.log(`\nGUI events: ${failed} CHECK(S) FAILED`); process.exit(1); }
 console.log("\nGUI events: ALL CHECKS PASSED");
