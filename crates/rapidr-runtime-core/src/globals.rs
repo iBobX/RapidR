@@ -83,7 +83,7 @@ impl Platform for Desktop {
     }
 
     fn exe_path(&self) -> String {
-        std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+        crate::program::path()
     }
 
     fn terminate(&self) {

@@ -12,6 +12,7 @@ pub mod layout;
 pub mod scroll;
 pub mod mdi;
 pub mod globals;
+pub mod program;
 pub(crate) mod sound;
 /// QDXJOYSTICK's gamepads (the DirectX lane's).
 pub mod joystick;

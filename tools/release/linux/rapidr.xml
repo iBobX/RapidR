@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- RapidR's file types for freedesktop's shared-mime-info: installed in
+     mime/packages/ (~/.local/share by the .tar.gz's install.sh, /usr/share by
+     the .deb); rapidr-runtime.desktop and rapidr-ide.desktop open them. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-rapidr-bytecode">
+    <comment>RapidR program</comment>
+    <magic priority="60">
+      <match type="string" offset="0" value="RRBC"/>
+    </magic>
+    <glob pattern="*.rrbc"/>
+  </mime-type>
+  <mime-type type="text/x-rapidr">
+    <comment>RapidR source</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.rr"/>
+  </mime-type>
+  <mime-type type="text/x-rapidq-basic">
+    <comment>RapidQ BASIC source</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.bas" weight="60"/>
+  </mime-type>
+</mime-info>

@@ -1,0 +1,19 @@
+[package]
+name = "rapidr-launcher"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "The desktop's way into the RapidR Runtime: Windows' windowed launcher (rapidrw.exe) and the macOS apps' launcher"
+
+# Windows: rapidrw.exe, next to rapidr.exe (the file types' launcher).
+# macOS: the executable of RapidR.app and RapidR Runtime.app (it receives
+# the files Finder opens and hands them on).
+[[bin]]
+name = "rapidrw"
+path = "src/main.rs"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSURL", "NSString", "NSNotification", "NSRunLoop", "NSDate"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder", "NSRunningApplication"] }

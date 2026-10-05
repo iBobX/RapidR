@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=RapidR Runtime
+Comment=Run RapidR and RapidQ programs
+Exec=@BIN@/rapidr open %f
+Terminal=false
+NoDisplay=true
+Categories=Development;
+MimeType=application/x-rapidr-bytecode;text/x-rapidr;text/x-rapidq-basic;

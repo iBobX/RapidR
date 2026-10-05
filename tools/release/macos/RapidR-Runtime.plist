@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- RapidR Runtime.app: runs RapidR programs (tools/release/macos.sh). Its
+     executable is rapidrw (crates/rapidr-launcher): a file Finder opens goes
+     to `rapidr open` (a downloaded one asks first; a console program gets a
+     Terminal window). It owns .rrbc (a double click runs it) and is the
+     alternate handler of .rr / .bas: their "Open With > RapidR Runtime" runs
+     the source. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>RapidR Runtime</string>
+	<key>CFBundleDisplayName</key>
+	<string>RapidR Runtime</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.ibobx.rapidr.runtime</string>
+	<key>CFBundleExecutable</key>
+	<string>rapidrw</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleVersion</key>
+	<string>@VERSION@</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>RapidR — MIT License</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>RapidR program</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.ibobx.rapidr.bytecode</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>RapidR source (run)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.ibobx.rapidr.source</string>
+				<string>io.github.ibobx.rapidr.rapidq-source</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.ibobx.rapidr.bytecode</string>
+			<key>UTTypeDescription</key>
+			<string>RapidR program</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rrbc</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.ibobx.rapidr.source</string>
+			<key>UTTypeDescription</key>
+			<string>RapidR source</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rr</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.ibobx.rapidr.rapidq-source</string>
+			<key>UTTypeDescription</key>
+			<string>RapidQ BASIC source</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>bas</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
