@@ -51,6 +51,8 @@ thread_local! {
     static PENDING: RefCell<VecDeque<(Value, Option<String>)>> = const { RefCell::new(VecDeque::new()) };
     /// When the current time slice ends (ms, `performance.now()`).
     static SLICE_END: Cell<f64> = const { Cell::new(0.0) };
+    /// (Stage W4) The kernel host's waits the VM is suspended in.
+    static KERNEL_WAITS: Cell<u32> = const { Cell::new(0) };
     static PERFORMANCE: Option<web_sys::Performance> = web_sys::window().and_then(|w| w.performance());
 }
 
@@ -236,6 +238,36 @@ pub fn task_done(value: Value) {
     resume(value, None);
 }
 
+/// (Stage W4) A wait of the UI kernel host's (`rapidr_ui_app::waits`:
+/// ShowModal, a kernel-drawn dialog, INPUT$, DOEVENTS) started in this
+/// builtin: the VM stops after it, and the page's turn continues it with
+/// the wait's result ([`resume_wait`]) once the wait is over. These nest —
+/// a timer's handler may wait for a box while the program waits for
+/// another, the innermost ending first, as the waits' stack has them.
+/// `false` where nothing can wait (no VM: a native build; a VM busy
+/// otherwise).
+pub fn suspend_for_wait() -> bool {
+    if VM_DEPTH.with(Cell::get) != 1 || RESUME.with(|r| r.borrow().is_none()) {
+        return false;
+    }
+    KERNEL_WAITS.with(|k| k.set(k.get() + 1));
+    SUSPEND.with(|s| s.set(true));
+    true
+}
+
+/// The innermost of the kernel host's waits is over: the VM goes on with
+/// `value` as the result of the builtin that started it.
+pub fn resume_wait(value: Value) {
+    KERNEL_WAITS.with(|k| k.set(k.get().saturating_sub(1)));
+    resume(value, None);
+}
+
+/// Whether the VM is free to be continued now (not running, not between
+/// two time slices).
+pub fn vm_free() -> bool {
+    VM_DEPTH.with(Cell::get) == 0 && !is_yielded()
+}
+
 /// [`pause`] whose end gives `value` as the method's result (QCOMPORT's
 /// ReadString with a Wait: the string read).
 pub fn pause_with(ms: f64, value: Value) -> bool {
@@ -274,12 +306,13 @@ pub fn key_pressed() {
 
 /// The program waits in a ShowModal.
 pub fn modal_waiting() -> bool {
-    MODALS.with(|m| !m.borrow().is_empty())
+    MODALS.with(|m| !m.borrow().is_empty()) || KERNEL_WAITS.with(Cell::get) > 0
 }
 
 /// Forgets the waits (and a yield) of a program that was replaced.
 pub fn clear_modals() {
     MODALS.with(|m| m.borrow_mut().clear());
+    KERNEL_WAITS.with(|k| k.set(0));
     YIELDED.with(|y| y.set(false));
     PENDING.with(|p| p.borrow_mut().clear());
 }
@@ -484,6 +517,10 @@ pub struct FileRequest {
     pub store: Rc<dyn Fn(&str, Vec<u8>)>,
     /// Gets the picked names (none: Cancel) before the program goes on.
     pub done: Rc<dyn Fn(Vec<String>)>,
+    /// The VM goes on once it's answered (Execute's True / False); `false`:
+    /// `done` is the whole answer (the UI kernel host's waits end the VM's
+    /// wait themselves: kernel_web).
+    pub resume: bool,
 }
 
 /// An Open / Save dialog in the page: the program's files (a click picks
@@ -551,7 +588,7 @@ pub fn open_files(req: FileRequest) {
     let done = Rc::new(Cell::new(false));
     let finish: Rc<dyn Fn(bool)> = {
         let (done, backdrop, field, answer) = (done.clone(), backdrop.clone(), field.clone(), req.done.clone());
-        let multi = req.multi;
+        let (multi, resume_vm) = (req.multi, req.resume);
         Rc::new(move |ok: bool| {
             if done.replace(true) {
                 return;
@@ -563,7 +600,9 @@ pub fn open_files(req: FileRequest) {
             backdrop.remove();
             let picked = !names.is_empty();
             answer(names);
-            resume(Value::Integer(if picked { -1 } else { 0 }), None);
+            if resume_vm {
+                resume(Value::Integer(if picked { -1 } else { 0 }), None);
+            }
         })
     };
 

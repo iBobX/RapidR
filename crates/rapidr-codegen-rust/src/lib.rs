@@ -3266,7 +3266,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-rapidr-runtime-web = {{ path = "{runtime_web_path}" }}
+rapidr-runtime-web = {{ path = "{runtime_web_path}", features = ["kernel"] }}
 wasm-bindgen = "=0.2.129"
 "#
     )

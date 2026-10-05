@@ -38,6 +38,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { cases } from "./gui_parity_cases.mjs";
 import { openIde, runCase, runCaseKernel, WEB_HOST } from "./web_gui_run.mjs";
+import { startHttpServer } from "./http_test_server.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/web_a11y");
@@ -84,7 +85,13 @@ const ENV = {
   // (nothing reaches a real printer or the user's registry)
   RAPIDR_PRINT_TO: process.env.RAPIDR_PRINT_TO || join(WORK, "prints"),
   RAPIDR_REGISTRY: process.env.RAPIDR_REGISTRY || join(WORK, "registry.reg"),
+  // (the I/O lane's cases, as tests/native_gui_events.mjs runs them: the
+  // tests' HTTP server, no MIDI output, a scripted recording input)
+  RAPIDR_TEST_HTTP: (await startHttpServer()).address,
+  RAPIDR_TEST_MIDI: "",
+  RAPIDR_TEST_WAVE_IN: "tone:440",
 };
+process.env.RAPIDR_TEST_HTTP = ENV.RAPIDR_TEST_HTTP;
 
 /// Case `c`'s kernel tree: the desktop run's, else made here.
 async function kernelTree(c) {

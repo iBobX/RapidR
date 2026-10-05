@@ -317,6 +317,14 @@ pub fn rp_chdrive(_drive: &Value) -> Value {
 /// INPUT$(n)'s wait (the parser's RAPIDR__INPUTCHARS): the program sleeps
 /// until a key is pressed in the page. 0 when it can't wait here.
 pub fn rp_waitkey() -> Value {
+    // (Stage W4: with the UI kernel hosting the page and a window shown, the
+    // desktop's: a wait the VM serves, the windows' keys INKEY$'s)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        if let Some(v) = crate::kernel_web::wait_key() {
+            return v;
+        }
+    }
     track_keys();
     if rapidr_value::console::key_waiting() {
         return v_int(1);
@@ -417,6 +425,21 @@ fn swallow_end_unwind() {
 }
 
 pub fn rp_showmessage(msg: &Value) {
+    // (Stage W4: with the UI kernel hosting the page, the desktop's: the
+    // kernel's box titled Application.Title — under a GUI test without a
+    // message hook, printed, the program going on)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() && crate::kernel_web::dialogs_here() {
+        let text = msg.to_string_val();
+        if rapidr_ui_app::testhooks::under_test() && !rapidr_ui_app::testhooks::message_hook() {
+            web_sys::console::log_1(&JsValue::from_str(&format!("[SHOWMESSAGE] {text}")));
+            return;
+        }
+        let title = app_title();
+        if crate::kernel_web::choice(&title, &text, &["OK"], None, false, |_| v_null()).is_some() {
+            return;
+        }
+    }
     if crate::dialog_web::can_wait() {
         // (titled with Application.Title, as on the desktop)
         let title = app_title();
@@ -437,6 +460,13 @@ pub fn rp_showmessage(msg: &Value) {
 }
 
 pub fn rp_msgbox(msg: &Value) -> Value {
+    // (Stage W4: the kernel's box with OK, as the desktop's MSGBOX; 0)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        if let Some(v) = crate::kernel_web::choice(&app_title(), &msg.to_string_val(), &["OK"], None, false, |_| v_int(0)) {
+            return v;
+        }
+    }
     rp_showmessage(msg);
     v_int(0)
 }
@@ -642,7 +672,7 @@ pub const IDNO: i64 = 7;
 pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
     use crate::value::dialogs as d;
     let buttons = d::message_box_buttons(flags.to_i64());
-    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()))
+    show_choice_beep(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()), true)
 }
 
 /// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): Delphi's
@@ -664,6 +694,30 @@ fn app_title() -> String {
 /// or OK/Cancel (confirm), so a third button (Yes/No/Cancel's Cancel,
 /// Abort/Retry/Ignore's Ignore) can't be offered on the web.
 fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>) -> Value {
+    show_choice_beep(text, title, buttons, icon, false)
+}
+
+/// [`show_choice`], with the icon's sound as it shows (MESSAGEBOX's, as
+/// Windows' MessageBox) where the UI kernel draws the box.
+fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
+    // (Stage W4: with the UI kernel hosting the page, the kernel's box —
+    // the desktop's — a wait the VM serves, the button chosen mapped to
+    // the builtin's result as the desktop maps it)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        let labels: Vec<&'static str> = buttons.iter().map(|b| b.label).collect();
+        let owned = buttons.to_vec();
+        let then = move |choice: Option<usize>| {
+            v_int(match choice.and_then(|i| owned.get(i)) {
+                Some(b) => b.result,
+                None => crate::value::dialogs::dismissed(&owned),
+            })
+        };
+        if let Some(v) = crate::kernel_web::choice(title, text, &labels, icon, beep, then) {
+            return v;
+        }
+    }
+    let _ = beep;
     // Run by the bytecode VM: an in-page dialog with every button and the
     // icon; the program waits for the answer (crate::dialog_web).
     if crate::dialog_web::can_wait() {

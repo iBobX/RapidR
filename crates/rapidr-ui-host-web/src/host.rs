@@ -66,10 +66,21 @@ impl Clipboard for PageClipboard {
 /// (or inside size) then.
 #[derive(Clone, Copy)]
 struct Drag {
-    resize: Option<(bool, bool)>,
+    /// The edges dragged (left, top, right, bottom); `None`: the title bar.
+    resize: Option<(bool, bool, bool, bool)>,
     from: (f64, f64),
+    /// The window's place on the page then.
     start: (i64, i64),
+    /// Its inside's size then (an edge's drag).
+    size: (i64, i64),
 }
+
+/// The edges a window is resized by (as Windows': every side and corner),
+/// with their cursors.
+/// A minimized window's width (its title bar's).
+const MIN_WIDTH: i64 = 160;
+
+const EDGES: [(&str, &str); 8] = [("e", "ew-resize"), ("s", "ns-resize"), ("se", "nwse-resize"), ("w", "ew-resize"), ("n", "ns-resize"), ("nw", "nwse-resize"), ("ne", "nesw-resize"), ("sw", "nesw-resize")];
 
 /// One form's window on the page.
 struct Win {
@@ -95,6 +106,9 @@ struct Win {
     pressed: Option<Part>,
     /// Minimized (only its title bar shows).
     minimized: bool,
+    /// Where a minimized window sits along the page's bottom edge (as
+    /// Windows' minimized windows line up): its slot, from the left.
+    min_slot: Option<usize>,
     /// Its place and inside before it was maximized.
     normal: Option<((i64, i64), (i64, i64))>,
     _listeners: Vec<Listener>,
@@ -397,6 +411,11 @@ impl WebHost {
     fn place(&mut self, id: &str) {
         let Some(pos) = self.desk.forms.get(id).and_then(|f| f.spec.position) else { return };
         if let Some(w) = self.wins.get(id) {
+            // (minimized: its title bar in its slot along the page's bottom)
+            let pos = match w.min_slot {
+                Some(slot) => ((slot as i64) * (MIN_WIDTH + 4), screen().1 - frame::inset(true).1 - rapidr_value::layout::FORM_BORDER),
+                None => pos,
+            };
             set_style(&w.root, &[("left", px(pos.0 as f64)), ("top", px(pos.1 as f64))]);
         }
     }
@@ -415,6 +434,7 @@ impl WebHost {
                     w.normal = Some((pos, inside));
                 }
                 w.minimized = false;
+                w.min_slot = None;
                 let (sw, sh) = screen();
                 let (ow, oh) = frame::outer((0, 0), border);
                 let (iw, ih) = ((sw - ow).max(1), (sh - oh).max(1));
@@ -428,9 +448,15 @@ impl WebHost {
             WS_MINIMIZED => {
                 w.minimized = true;
                 w.frame_dirty = true;
+                let taken: Vec<usize> = self.wins.values().filter_map(|w| w.min_slot).collect();
+                let slot = (0..).find(|s| !taken.contains(s)).unwrap_or(0);
+                if let Some(w) = self.wins.get_mut(id) {
+                    w.min_slot = Some(slot);
+                }
             }
             _ => {
                 w.minimized = false;
+                w.min_slot = None;
                 w.frame_dirty = true;
                 if let Some((p, s)) = w.normal.take() {
                     if let Some(f) = self.desk.form(id) {
@@ -465,15 +491,10 @@ impl WebHost {
         root.append_child(&client).ok()?;
         root.append_child(mirror.root()).ok()?;
         let mut grips = Vec::new();
-        for edge in ["e", "s", "se"] {
+        for (edge, cursor) in EDGES {
             let g: HtmlElement = doc.create_element("div").ok()?.dyn_into().ok()?;
             g.set_class_name("rr-kgrip");
             g.set_attribute("data-edge", edge).ok()?;
-            let cursor = match edge {
-                "e" => "ew-resize",
-                "s" => "ns-resize",
-                _ => "nwse-resize",
-            };
             let _ = g.style().set_property("cursor", cursor);
             root.append_child(&g).ok()?;
             grips.push(g);
@@ -505,6 +526,7 @@ impl WebHost {
             drag: None,
             pressed: None,
             minimized: false,
+            min_slot: None,
             normal: None,
             _listeners: Vec::new(),
         };
@@ -578,7 +600,7 @@ impl WebHost {
                 layout(w);
                 let look = w.look.clone().expect("a look");
                 let size = frame::outer(w.inside, look.border);
-                let shown_size = if w.minimized { (size.0, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER) } else { size };
+                let shown_size = if w.minimized { (MIN_WIDTH, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER) } else { size };
                 let list = frame::paint(&look, shown_size, scale);
                 let (dw, dh) = rapidr_ui_render::canvas::device_size(&list);
                 if w.frame.width() != dw || w.frame.height() != dh {
@@ -594,7 +616,8 @@ impl WebHost {
             if drawn {
                 let tree = f.ui.access_tree(store, text);
                 let focused = f.ui.focused().map(str::to_string);
-                w.mirror.sync(&tree, focused.as_deref(), top.as_deref() == Some(id.as_str()));
+                let hints = hints(&f.ui, store);
+                w.mirror.sync(&tree, focused.as_deref(), top.as_deref() == Some(id.as_str()), &hints);
             }
         }
     }
@@ -616,7 +639,8 @@ impl WebHost {
         let (Some(f), Some(w)) = (forms.get_mut(id), self.wins.get_mut(id)) else { return };
         let tree = f.ui.access_tree(store, text);
         let focused = f.ui.focused().map(str::to_string);
-        w.mirror.sync(&tree, focused.as_deref(), active);
+        let hints = hints(&f.ui, store);
+        w.mirror.sync(&tree, focused.as_deref(), active, &hints);
     }
 }
 
@@ -628,6 +652,7 @@ fn layout(w: &mut Win) {
     let (iw, ih) = w.inside;
     let (ow, oh) = frame::outer(w.inside, border);
     let shown_h = if w.minimized { iy + rapidr_value::layout::FORM_BORDER } else { oh };
+    let ow = if w.minimized { MIN_WIDTH } else { ow };
     set_style(&w.root, &[("width", px(ow as f64)), ("height", px(shown_h as f64))]);
     set_style(&w.frame.clone().unchecked_into(), &[("left", px(0.0)), ("top", px(0.0)), ("width", px(ow as f64)), ("height", px(shown_h as f64)), ("display", if border { "block" } else { "none" }.into())]);
     let inside = if w.minimized { "none" } else { "block" };
@@ -637,12 +662,41 @@ fn layout(w: &mut Win) {
     let resizable = border && !w.minimized && w.look.as_ref().is_some_and(|l| l.frame.resizable && !l.maximized);
     for g in &w.grips {
         let edge = g.get_attribute("data-edge").unwrap_or_default();
+        // (the sides between the corners; the corners 12 pixels square)
         let r = match edge.as_str() {
-            "e" => (ow - 2, 0, 6, oh - 8),
-            "s" => (0, oh - 2, ow - 8, 6),
+            "e" => (ow - 2, 8, 6, oh - 16),
+            "s" => (8, oh - 2, ow - 16, 6),
+            "w" => (-4, 8, 6, oh - 16),
+            "n" => (8, -4, ow - 16, 6),
+            "nw" => (-4, -4, 12, 12),
+            "ne" => (ow - 8, -4, 12, 12),
+            "sw" => (-4, oh - 8, 12, 12),
             _ => (ow - 8, oh - 8, 12, 12),
         };
         set_style(g, &[("left", px(r.0 as f64)), ("top", px(r.1 as f64)), ("width", px(r.2 as f64)), ("height", px(r.3 as f64)), ("display", if resizable { "block" } else { "none" }.into())]);
+    }
+}
+
+/// The form's text fields' hints for autofill (their AutoComplete — a
+/// RapidR property — and their names), by accessibility node.
+fn hints(ui: &rapidr_ui_kernel::FormUi, store: &dyn Store) -> HashMap<u64, crate::mirror::Hint> {
+    ui.nodes
+        .iter()
+        .filter(|n| matches!(n.type_name.as_str(), "REDIT" | "RMEMO" | "RRICHEDIT" | "RCOMBOBOX"))
+        .map(|n| {
+            let autocomplete = store.get(&n.id, "autocomplete").to_string_val();
+            (rapidr_value::objects::a11y::node_id(&n.id), crate::mirror::Hint { autocomplete: autocomplete.trim().to_string(), name: n.id.clone() })
+        })
+        .collect()
+}
+
+/// The frame's size as shown (a minimized window: its title bar alone).
+fn shown_frame(w: &Win, look: &Look) -> (i64, i64) {
+    let size = frame::outer(w.inside, look.border);
+    if w.minimized {
+        (MIN_WIDTH, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER)
+    } else {
+        size
     }
 }
 
@@ -778,17 +832,17 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 let (pos, maximized) = (f.spec.position.unwrap_or((0, 0)), f.state == rapidr_value::window_state::WS_MAXIMIZED);
                 let Some(w) = h.wins.get_mut(&id) else { return };
                 let Some(look) = w.look.clone() else { return };
-                let size = frame::outer(w.inside, look.border);
+                let size = shown_frame(w, &look);
                 match frame::hit(&look, size, p.0, p.1) {
-                    Part::Title if e.detail() == 2 && look.frame.maximize => {
-                        let to = if maximized { rapidr_value::window_state::WS_NORMAL } else { rapidr_value::window_state::WS_MAXIMIZED };
+                    Part::Title if e.detail() == 2 && (look.frame.maximize || w.minimized) => {
+                        let to = if maximized || w.minimized { rapidr_value::window_state::WS_NORMAL } else { rapidr_value::window_state::WS_MAXIMIZED };
                         w.drag = None;
                         h.desk.cmds.push(HostCmd::State(id.clone()));
                         if let Some(f) = h.desk.form(&id) {
                             f.spec.state = to;
                         }
                     }
-                    Part::Title if !maximized => w.drag = Some(Drag { resize: None, from: page, start: pos }),
+                    Part::Title if !maximized && !w.minimized => w.drag = Some(Drag { resize: None, from: page, start: pos, size: (0, 0) }),
                     part @ (Part::Close | Part::Maximize | Part::Minimize) => w.pressed = Some(part),
                     _ => {}
                 }
@@ -818,7 +872,7 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 w.drag = None;
                 let Some(pressed) = w.pressed.take() else { return };
                 let Some(look) = w.look.clone() else { return };
-                if frame::hit(&look, frame::outer(w.inside, look.border), p.0, p.1) != pressed {
+                if frame::hit(&look, shown_frame(w, &look), p.0, p.1) != pressed {
                     return;
                 }
                 let state = h.desk.forms.get(&id).map_or(0, |f| f.state);
@@ -845,7 +899,7 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
     // ---- the edges: resized ----
     for g in &w.grips {
         let edge = g.get_attribute("data-edge").unwrap_or_default();
-        let (ex, ey) = (edge.contains('e'), edge.contains('s'));
+        let sides = (edge.contains('w'), edge.contains('n'), edge.contains('e'), edge.contains('s'));
         let ge: Element = g.clone().into();
         {
             let (id, el) = (id.to_string(), ge.clone());
@@ -859,9 +913,9 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                     if !h.desk.accepts_input(&id) {
                         return;
                     }
-                    let size = h.desk.forms.get(&id).map_or((0, 0), |f| f.spec.size);
+                    let (size, pos) = h.desk.forms.get(&id).map_or(((0, 0), (0, 0)), |f| (f.spec.size, f.spec.position.unwrap_or((0, 0))));
                     if let Some(w) = h.wins.get_mut(&id) {
-                        w.drag = Some(Drag { resize: Some((ex, ey)), from: page, start: size });
+                        w.drag = Some(Drag { resize: Some(sides), from: page, start: pos, size });
                     }
                 });
             });
@@ -873,11 +927,20 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 let page = (f64::from(e.client_x()), f64::from(e.client_y()));
                 input(|h, store| {
                     let Some(d) = h.wins.get(&id).and_then(|w| w.drag) else { return };
-                    let Some((rx, ry)) = d.resize else { return };
-                    let iw = if rx { (d.start.0 + (page.0 - d.from.0).round() as i64).max(1) } else { d.start.0 };
-                    let ih = if ry { (d.start.1 + (page.1 - d.from.1).round() as i64).max(1) } else { d.start.1 };
+                    let Some((l, t, r, b)) = d.resize else { return };
+                    let (dx, dy) = ((page.0 - d.from.0).round() as i64, (page.1 - d.from.1).round() as i64);
+                    // (a left or top edge moves the window as much as it
+                    // grows it: the opposite edge stays)
+                    let iw = if r { d.size.0 + dx } else if l { d.size.0 - dx } else { d.size.0 }.max(1);
+                    let ih = if b { d.size.1 + dy } else if t { d.size.1 - dy } else { d.size.1 }.max(1);
+                    let left = if l { d.start.0 + d.size.0 - iw } else { d.start.0 };
+                    let top = if t { d.start.1 + d.size.1 - ih } else { d.start.1 };
                     if let Some(f) = h.desk.form(&id) {
                         f.ui.sync(store);
+                    }
+                    if (left, top) != d.start || l || t {
+                        h.desk.moved(&id, left, top);
+                        h.place(&id);
                     }
                     h.desk.resized(&id, iw, ih);
                 });

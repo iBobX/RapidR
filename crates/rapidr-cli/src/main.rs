@@ -263,14 +263,13 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     } else {
         rapidr_codegen_rust::generate_cargo_toml(stem, &runtime_path.to_string_lossy())
     };
-    // (the workspace's lockfile, so wgpu, vello and winit are the versions
-    // RapidR is tested with, not whatever is newest)
-    if target != AppTarget::Web {
-        if let Some(lock) = workspace_root.as_ref().map(|r| r.join("Cargo.lock")).filter(|l| l.exists()) {
-            if fs::create_dir_all(&out_dir).is_ok() {
-                if let Err(e) = fs::copy(&lock, out_dir.join("Cargo.lock")) {
-                    eprintln!("Warning: could not copy {}: {e}", lock.display());
-                }
+    // (the workspace's lockfile, so wgpu, vello, winit — and on the web the
+    // UI kernel's vello_cpu and parley — are the versions RapidR is tested
+    // with, not whatever is newest)
+    if let Some(lock) = workspace_root.as_ref().map(|r| r.join("Cargo.lock")).filter(|l| l.exists()) {
+        if fs::create_dir_all(&out_dir).is_ok() {
+            if let Err(e) = fs::copy(&lock, out_dir.join("Cargo.lock")) {
+                eprintln!("Warning: could not copy {}: {e}", lock.display());
             }
         }
     }
@@ -427,6 +426,11 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     }
     let mut cargo = process::Command::new("cargo");
     cargo.args(&cargo_args).current_dir(out_dir);
+    // (wasm SIMD: the UI kernel's CPU renderer on simd128, as the web
+    // runtime's own build — every 2026 browser has it)
+    if env::var_os("RUSTFLAGS").is_none() {
+        cargo.env("RUSTFLAGS", "-C target-feature=+simd128");
+    }
     // SQLite's C sources go into the wasm (RSQLITE), compiled as the
     // workspace compiles them (its .cargo/config.toml, wherever the program
     // is), archived by llvm-ar or without one by the system's ar

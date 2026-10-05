@@ -267,6 +267,12 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         // Host::take_events). Once its time slice is over, the program
         // pauses too, and the browser goes on (painting, new events).
         "doevents" => {
+            // (Stage W4: with the UI kernel hosting the page, the desktop's —
+            // the timers due now fire before it returns, a wait the VM serves)
+            #[cfg(feature = "kernel")]
+            if rapidr_runtime_web::kernel_web::on() && rapidr_runtime_web::kernel_web::doevents() {
+                return v_null();
+            }
             if rapidr_runtime_web::dialog_web::slice_over() {
                 if !rapidr_runtime_web::dialog_web::pause(0.0) {
                     rp_doevents();
@@ -472,6 +478,10 @@ fn take_queued_events() -> Vec<Event> {
 /// Replaces the page's program: the old session and its queued events go.
 fn start_session(session: Session) {
     dialog::clear_modals();
+    // (Stage W4: the interpreter serves the UI kernel host's waits itself:
+    // ShowModal, the dialogs, INPUT$, DOEVENTS — rapidr_ui_app::waits)
+    #[cfg(feature = "kernel")]
+    rapidr_runtime_web::kernel_web::set_interpreter(true);
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
     HAS_COMPONENTS.with(|h| h.set(false));

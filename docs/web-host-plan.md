@@ -469,3 +469,65 @@ No new external dependency: every crate the host and the `kernel` feature link w
 - **W6:** web-only components (RWEBVIEW, RDOM, media, RPLOT) aren't drawn on the kernel host yet.
 - **W7:** fonts as assets, and the fallback fonts (CJK shows as boxes).
 - **W9:** damage rectangles, and the size levers.
+
+---
+
+## W4 results (2026-10-05)
+
+The VM, the kernel's dialogs and the timers on the kernel host, and native web builds on it. Every browser GUI case now runs there: no case is pending.
+
+### The VM's waits (`kernel_web.rs`, `dialog_web.rs`)
+
+A browser's VM can't block, so a wait is the VM suspended and resumed. ShowModal, DOEVENTS, INPUT$ / WAITKEY and the kernel-drawn dialogs start a `rapidr_ui_app::waits` wait (the desktop's own bookkeeping) and suspend the VM (`dialog_web::suspend_for_wait`). After each turn the kernel host serves the innermost wait the way the desktop's interpreter does:
+
+- an answered dialog resumes the VM with its answer;
+- a modal form that closed resumes it with its ModalResult, and the timers stop as `rp_stop_all_timers` stops them on the desktop;
+- DOEVENTS (`Wait::Once`) fires what's due, then resumes once per turn, so a script's next step gets its turn too.
+
+Nested waits resume in stack order. The interpreter's session says it serves waits (`set_interpreter`); a native web build, whose generated Rust can't be suspended, keeps the cooperative path (handlers queued, the modal list), as before.
+
+### The kernel's dialogs and the timers
+
+- MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE and MSGBOX are the kernel's message box (`Windows::open_dialog`), with its icons and its beep; the colour and font dialogs (QCOLORDIALOG / QFONTDIALOG's Execute) are the kernel's dialogs. All are pixel-identical to the desktop's.
+- **Open / Save** (W8 pulled forward): QOPENDIALOG / QSAVEDIALOG's Execute go through `Windows::ask_files`: the page's own file picker over the program's files (`object_web::page_file_dialog`), the answer coming back as the kernel's `files_answer`. `RAPIDR_TEST_FILE_DIALOG` answers it as on the desktop.
+- **Timers** (QTIMER, QDXTIMER, QDXJOYSTICK's polling) run on `rapidr_ui_app`'s timer heap, as on the desktop: they start at ShowModal / a dialog / DOEVENTS / INPUT$, re-arm after their handler (`fire_then`), are held back while a handler waits, and wake the page through one deadline (`arm_deadline`). A joystick is only looked at once the program has a handler for it.
+
+### The host's gaps
+
+- Windows size from all eight edges and corners; the left and top edges move the window (`EDGES`, a minimum width of 160).
+- A minimized window is a title bar along the bottom of the page in its own slot; restoring or maximizing frees the slot, and a double click on its title restores it.
+- Autofill hints: an edit's, memo's, rich edit's or combo box's `AutoComplete` property becomes its mirror field's `autocomplete` (default `off`), and the field's `name` is the component's.
+- `event_answers`' grid row: a grid scrolls its newly selected cell into view before it is described as well as before it's drawn (`show_selection`). The desktop's accessibility tree said the old TopRow until the next frame; now it says what is drawn, on both hosts. That is the only desktop change (that case's `a11y.json`).
+
+### Native web builds
+
+`rapidr build --web` builds the runtime with feature `kernel` (codegen's Cargo template), copies the workspace's Cargo.lock for web projects too, and builds with wasm SIMD unless RUSTFLAGS says otherwise. `tests/web_end_timer.mjs` builds and runs one each way.
+
+### Tests
+
+- `RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs` with `RAPIDR_DESKTOP_CAPTURES`: **70 of 70 cases with every expected line** at 1× and 2×.
+  - Windows byte-identical to the desktop's: **72 of 75 at 1×, 71 of 75 at 2×**. The differences are `menus` / `themes` (the desktop's macOS menu bar, as in W3), `message_icons`' second box (two pixels: wasm SIMD's rounding against NEON's fused multiply-add) and `modal_result` at 2× (one pixel, the same).
+  - Accessibility trees: 65 of 68 before the grid fix; `event_answers`' is now equal (checked separately), leaving `menus` / `themes`.
+- `RAPIDR_WEB_HOST=kernel node tests/web_a11y.mjs`: **70 of 70**.
+- The DOM host, unchanged: web conformance 128 passed (2 known failures); GUI parity 128 / 128 at 1× and 2×; `web_a11y.mjs` 81 / 81 (download and media needed `./rapidr` rebuilt with the media objects); every `web_ide_*`, `web_bundle_*`, `web_end_timer`, `web_vm_yield`.
+- The desktop: `tests/gui_captures.mjs` against W3's captures: byte-identical apart from `event_answers`' tree (above) and `dialog_timers` (its tick counts are timing-dependent).
+- `tools/regress.sh` now makes the desktop's captures itself and runs the kernel host's parity against them at 1× and 2×, printing each `≠`.
+- A page error is the page's uncaught exception, as in the DOM host's runner: the 404s in `download` and `media` are the fixtures asking for missing files on purpose (`no_such_file.txt`, `no_such_song.mid`).
+
+### Sizes
+
+`target/web/rapidrintr_bg.wasm`: 10.41 MB raw, 4.42 MB gzip -9, 2.75 MB brotli 11 (W3: 10.18 / 4.34 / 2.70).
+
+### Licences
+
+No new dependency.
+
+### Next: the kernel host becomes the only web host
+
+The user's direction (2026-10-05): no opt-in. The kernel host becomes the default for the IDE preview, `bundle-bc` bundles and `rapidr build --web`. Once every web suite passes there, the DOM host is deleted (§5), together with the `RAPIDR_WEB_HOST` switches. Before that:
+
+- the web-only components (RWEBVIEW, RDOM, media, RPLOT) as DOM overlays over the canvas (W6);
+- the fallback fonts, so CJK and symbols don't regress (W7);
+- every suite ported to the kernel host: `web_ide_*`, `web_bundle_*` and `web_end_timer` look for the DOM host's elements.
+
+The HTML / Monaco web IDE (`web-ide/`) stays for now, as the test harness and the only web IDE, running its preview on the kernel host. It retires when the kernel-drawn MDI IDE (ROADMAP's IDE phase, §3.9) runs in the page.

@@ -103,8 +103,13 @@ pub fn timer_fired(name: &str) -> bool {
         return false;
     }
     if rp_comp_type(name) == "RDXJOYSTICK" {
-        for (event, args) in rapidr_value::objects::dxjoystick_look(name) {
-            crate::object_web::rp_fire_event_args(name, event, &args);
+        // (only when the program has a handler for one of its events, as
+        // the desktop's: a look reads the gamepads — the tests' script's
+        // next step)
+        if rapidr_value::objects::joystick::EVENTS.iter().any(|e| crate::object_web::rp_has_handler(name, e)) {
+            for (event, args) in rapidr_value::objects::dxjoystick_look(name) {
+                crate::object_web::rp_fire_event_args(name, event, &args);
+            }
         }
         return false;
     }

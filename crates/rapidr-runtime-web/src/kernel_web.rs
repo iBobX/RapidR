@@ -57,6 +57,8 @@ thread_local! {
     /// A form's WindowState as the program last set it (the app's
     /// `set_window_state` wants the one before).
     static STATES: RefCell<std::collections::HashMap<String, i64>> = RefCell::new(std::collections::HashMap::new());
+    /// The page's Open / Save dialogs' answers by request id (`None`: open).
+    static FILES: RefCell<std::collections::HashMap<u64, Option<Vec<String>>>> = RefCell::new(std::collections::HashMap::new());
     /// A GUI test's results once its script ended (`rapidr_test_results`).
     static RESULTS: RefCell<Option<String>> = const { RefCell::new(None) };
 }
@@ -184,7 +186,9 @@ impl Program for Web {
     fn in_host_callback(self) -> bool {
         // (and the VM between two time slices: its handler isn't over — a
         // test's next event waits for it, as on the desktop)
-        host::busy() || crate::dialog_web::is_yielded()
+        // — and while the program sleeps or waits for the page's own work, a
+        // SLEEP or a download, which hold a desktop program whole)
+        host::busy() || crate::dialog_web::is_yielded() || crate::dialog_web::is_waiting()
     }
     fn quietly(self, f: &mut dyn FnMut()) {
         crate::layout_web::quietly(f)
@@ -216,6 +220,16 @@ impl Program for Web {
     }
     fn form_fullscreen(self, id: &str) -> bool {
         crate::directx_web::fullscreen(&id.to_uppercase())
+    }
+    // (Stage W4: the timers' heap — a QDXTIMER's period and its frames, a
+    // QDXJOYSTICK's looks, as the desktop's directx.rs)
+    fn timer_period(self, id: &str) -> Option<std::time::Duration> {
+        let name = id.to_uppercase();
+        let is_dx = matches!(rp_comp_type(&name).as_str(), "RDXTIMER" | "RDXJOYSTICK");
+        is_dx.then(|| std::time::Duration::from_millis(crate::directx_web::timer_interval(&name, rp_comp_get(&name, "interval").to_i64()).max(1) as u64))
+    }
+    fn timer_firing(self, id: &str) -> bool {
+        crate::directx_web::timer_fired(&id.to_uppercase())
     }
 }
 
@@ -279,19 +293,126 @@ fn dispatch_pending() {
     }
 }
 
-/// The modal forms that closed: their ShowModal returns (the VM, suspended
-/// in it, goes on with the ModalResult — `dialog_web`'s protocol).
+// ------------------------------------------------------------- the waits --
+//
+// (Stage W4) The interpreter's waits are `rapidr_ui_app::waits`', as the
+// desktop's interpreter has them (`waits::set_cooperative`): ShowModal, a
+// kernel-drawn dialog (MESSAGEBOX …, the colour and font dialogs), INPUT$'s
+// key and DOEVENTS leave a wait there, and the VM suspends after the
+// builtin (`dialog_web::suspend_for_wait`). Each page turn serves the
+// innermost one ([`serve_waits`]): over or answered, the VM goes on with its
+// result in place of the builtin's — the ModalResult, the button's IDYES,
+// Execute's 1 / 0 / -1, INPUT$'s 1 / 0. Meanwhile the page runs: the
+// program's timers tick and their handlers run (and may wait in turn: the
+// innermost wait ends first). A native web build can't suspend: its
+// ShowModal shows the form and returns, and its dialogs stay the page's.
+
+/// The interpreter runs the page's program: its waits are the VM's to serve
+/// (`rapidr-vm-host-web` says so as a program starts).
+pub fn set_interpreter(on: bool) {
+    rapidr_ui_app::waits::set_cooperative(on);
+}
+
+/// Whether the program waits in the VM's way (an interpreter; not a native
+/// web build, whose code can't suspend).
+pub fn cooperative() -> bool {
+    rapidr_ui_app::waits::cooperative()
+}
+
+/// Leaves wait `w` to the VM (it suspends after this builtin); `false` when
+/// it can't (a native build, a VM that can't suspend here).
+fn begin_wait(w: rapidr_ui_app::waits::Wait) -> bool {
+    if !cooperative() || !crate::dialog_web::suspend_for_wait() {
+        return false;
+    }
+    rapidr_ui_app::waits::start(w);
+    schedule();
+    // (served from the page's next turn)
+    later();
+    true
+}
+
+/// The innermost waits that are over, each ended — the VM goes on with its
+/// result (and may start another, served in turn). Only while the VM is
+/// free; else a moment later.
+fn serve_waits() {
+    use rapidr_ui_app::waits::{self, Wait};
+    loop {
+        if !crate::dialog_web::modal_waiting() {
+            return;
+        }
+        if !crate::dialog_web::vm_free() {
+            later();
+            return;
+        }
+        rapidr_ui_app::dialogs::give_hooked(Web);
+        // (DOEVENTS: a turn — and every timer that was due when it was called
+        // fires before it returns, each once the handler before it has run)
+        if let Some(Wait::Once(since)) = waits::turn() {
+            fire_timers();
+            if rapidr_ui_app::timers::held_back() && rapidr_ui_app::timers::due_since(since) {
+                return;
+            }
+            waits::pop();
+            crate::dialog_web::resume_wait(Value::Null);
+            // (one DOEVENTS a serving: a `DO: DOEVENTS: LOOP` gives the rest of
+            // the page's turn — input, the test script, a frame — its due)
+            return;
+        }
+        if let Some(result) = waits::answered(Web) {
+            crate::dialog_web::resume_wait(result);
+            continue;
+        }
+        if waits::over() {
+            match waits::pop() {
+                Some(Wait::Form(form)) => {
+                    // (the timers stop with the modal form, as the desktop's)
+                    stop_timers();
+                    let result = forms::modal_ended(Web, &form);
+                    crate::dialog_web::resume_wait(Value::Integer(result));
+                }
+                Some(_) => crate::dialog_web::resume_wait(Value::Null),
+                None => return,
+            }
+            continue;
+        }
+        return;
+    }
+}
+
+/// A native web build's modal forms that closed: off the modal list (its
+/// ShowModal returned when it showed them).
 fn modals_closed() {
+    if cooperative() {
+        return;
+    }
     for name in forms::modal_forms() {
         if !forms::form_shown(&name) && !rapidr_ui_kernel::dialogs::is_dialog(&name) {
             forms::remove_modal(&name);
-            crate::dialog_web::modal_closed(&crate::gui_web::comp_id(&name));
         }
     }
 }
 
+/// Every timer the program made, disabled (`Enabled = 0`): a ShowModal's
+/// end, as the desktop's `rp_stop_all_timers`.
+fn stop_timers() {
+    for name in crate::object_web::timer_names() {
+        rp_comp_set(&name, "enabled", Value::Integer(0));
+    }
+}
+
+/// The timers due, fired (the app's heap: Interval and Enabled read again
+/// each tick, armed again once the handler has run) — the interpreter's
+/// handlers queued ahead of them first.
+fn fire_timers() {
+    use rapidr_ui_app::timers;
+    timers::take_held_back();
+    timers::fire_due(Web);
+}
+
 /// The page's turn after input or a deadline: what the kernel queued
-/// dispatched, the test script's step, then a frame asked for. Never while
+/// dispatched, the waits served, the due timers fired, the test script's
+/// step, then a frame asked for and the next deadline armed. Never while
 /// the host is busy (a listener of its own on the stack): then a moment
 /// later.
 pub fn turn() {
@@ -302,12 +423,17 @@ pub fn turn() {
     TURNING.with(|t| t.set(true));
     sync();
     dispatch_pending();
+    serve_waits();
     modals_closed();
+    fire_timers();
+    serve_waits();
     script::step(Web);
     dispatch_pending();
+    serve_waits();
     modals_closed();
     TURNING.with(|t| t.set(false));
     schedule();
+    arm_deadline();
 }
 
 /// A turn as soon as the page's current task is over.
@@ -369,11 +495,12 @@ fn frame() {
 }
 
 /// One timer for the earliest deadline: the kernel's (a caret's blink, a
-/// held scroll bar's repeat) and the test script's next step.
+/// held scroll bar's repeat), the program's next QTIMER, a test hook's
+/// answer to a dialog and the test script's next step.
 fn arm_deadline() {
     let now = rapidr_ui_kernel::tick::now();
     let kernel = host::with(|h, _| h.next_wake()).flatten();
-    let next = [kernel, script::next_step()].into_iter().flatten().min();
+    let next = [kernel, script::next_step(), rapidr_ui_app::timers::next_due(), rapidr_ui_app::dialogs::hook_wake()].into_iter().flatten().min();
     let Some(at) = next else { return };
     let ms = at.saturating_duration_since(now).as_secs_f64() * 1000.0;
     let Some(w) = web_sys::window() else { return };
@@ -479,13 +606,27 @@ impl Windows for Web {
         });
         schedule();
     }
-    fn ask_files(self, id: u64, form: Option<&str>, req: &Request) {
-        let _ = (form, req);
-        host::with(|h, _| h.desk.cmds.push(rapidr_ui_app::desktop::HostCmd::FileDialog { id, form: None, req: Default::default() }));
-        sync();
+    // (Stage W8, pulled forward: the page's Open / Save dialog — the
+    // program's files, a name, Upload… — answered into FILES; the VM's wait
+    // for it is the kernel host's, as any dialog's)
+    fn ask_files(self, id: u64, _form: Option<&str>, req: &Request) {
+        FILES.with(|f| f.borrow_mut().insert(id, None));
+        let done = std::rc::Rc::new(move |paths: Vec<String>| {
+            FILES.with(|f| f.borrow_mut().insert(id, Some(paths)));
+            later();
+        });
+        crate::object_web::page_file_dialog(req.save, req.multi, req.title.as_deref().unwrap_or(""), &req.filters, req.filter_index, req.file_name.as_deref().unwrap_or(""), done);
     }
     fn files_answer(self, id: u64) -> Option<Vec<String>> {
-        host::with(|h, _| h.file_answer(id)).flatten()
+        FILES.with(|f| {
+            let mut f = f.borrow_mut();
+            match f.get(&id) {
+                Some(Some(_)) => f.remove(&id).flatten(),
+                Some(None) => None,
+                // (never asked: cancelled)
+                None => Some(Vec::new()),
+            }
+        })
     }
     fn script_input(self, input: ScriptInput) {
         if matches!(input, ScriptInput::Hold(_)) {
@@ -651,9 +792,11 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
             return Some(Value::Integer(lists::tree_item_at(name, arg(0), arg(1))));
         }
         ("RFORM", "show") => forms::show(Web, name),
+        // (the interpreter waits until the form closes: a wait it serves,
+        // its result the ModalResult; a native web build's returns at once)
         ("RFORM", "showmodal") => {
             forms::begin_modal(Web, name);
-            crate::dialog_web::begin_modal(&crate::gui_web::comp_id(name));
+            begin_wait(rapidr_ui_app::waits::Wait::Form(lower(name)));
         }
         ("RFORM", "hide") => forms::hide(Web, name),
         ("RFORM", "close") => forms::close(Web, name),
@@ -771,4 +914,95 @@ pub fn tree_refresh(name: &str) {
 pub fn show_form(name: &str) {
     forms::show(Web, name);
     schedule();
+}
+
+// ------------------------------------------- timers, dialogs, waits (W4) --
+
+/// A QTIMER the program made (`__gui_register_timer`): it ticks while the
+/// program waits, in the app's heap.
+pub fn register_timer(name: &str) {
+    rapidr_ui_app::timers::register(name);
+}
+
+/// A timer's Enabled or Interval changed (or its OnTimer was bound): it
+/// ticks if it's enabled now and the program's windows started.
+pub fn timer_changed(name: &str) {
+    rapidr_ui_app::timers::changed(Web, name);
+    arm_deadline();
+}
+
+/// Whether the interpreter waits for the page's kernel-drawn dialogs (a
+/// native web build keeps the page's own, which can answer at once).
+pub fn dialogs_here() -> bool {
+    cooperative()
+}
+
+/// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE / MSGBOX: the kernel's message
+/// box (`rapidr_ui_app::dialogs::message`), the desktop's: `then` maps the
+/// button chosen (`None`: Escape, the close box) to the builtin's result —
+/// given at once by a test's hook, else the end of a wait the VM serves
+/// (its placeholder result `Null` here). `None`: not here (a native web
+/// build: the page's dialog).
+pub fn choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool, then: impl FnOnce(Option<usize>) -> Value + 'static) -> Option<Value> {
+    if !dialogs_here() {
+        return None;
+    }
+    ensure();
+    match rapidr_ui_app::dialogs::message(Web, title, text, labels, icon, beep, then) {
+        rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),
+        rapidr_ui_app::dialogs::Pending::Open(id) => {
+            begin_wait(rapidr_ui_app::waits::Wait::Dialog(id));
+            Some(Value::Null)
+        }
+    }
+}
+
+/// `Dialog.Execute` of a QCOLORDIALOG / QFONTDIALOG (and, W8, the file
+/// dialogs): the kernel's dialog, its result as `choice`'s. `None`: not
+/// here.
+pub fn execute(name: &str, comp_type: &str) -> Option<Value> {
+    if !dialogs_here() {
+        return None;
+    }
+    ensure();
+    match rapidr_ui_app::dialogs::execute(Web, &lower(name), comp_type) {
+        rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),
+        rapidr_ui_app::dialogs::Pending::Open(id) => {
+            begin_wait(rapidr_ui_app::waits::Wait::Dialog(id));
+            Some(Value::Null)
+        }
+    }
+}
+
+/// INPUT$'s wait with windows (the desktop's `gui_wait_key`): 1 when a key
+/// is in INKEY$'s queue; else the VM waits (`Wait::Key`: 1 when a key
+/// comes, 0 when no window is left). `None`: no window shown (the page's
+/// own keys, as before).
+pub fn wait_key() -> Option<Value> {
+    if !host::installed() || !forms::any_shown() || !cooperative() {
+        return None;
+    }
+    rapidr_ui_app::timers::start_all(Web);
+    if rapidr_value::console::key_waiting() {
+        return Some(Value::Integer(1));
+    }
+    begin_wait(rapidr_ui_app::waits::Wait::Key).then_some(Value::Null)
+}
+
+/// `DOEVENTS` (the desktop's): the timers start; the windows the program
+/// made visible show; then a turn, in which every timer due now fires
+/// before it returns — only when one is due (a `DO: DOEVENTS: LOOP` runs
+/// at full speed otherwise; the time slices give the page its turns).
+/// `false`: not a wait (nothing due, or a native build).
+pub fn doevents() -> bool {
+    if !host::installed() {
+        return false;
+    }
+    rapidr_ui_app::timers::start_all(Web);
+    forms::show_pending(Web);
+    let now = rapidr_ui_kernel::tick::now();
+    let due = rapidr_ui_app::timers::next_due().is_some_and(|at| at <= now);
+    // (or the time slice is over: the page gets its turn — painting, input —
+    // inside this wait too, not in a pause of the page's own)
+    (due || crate::dialog_web::slice_over()) && begin_wait(rapidr_ui_app::waits::Wait::Once(now))
 }

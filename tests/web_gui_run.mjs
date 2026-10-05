@@ -232,6 +232,7 @@ export function hookEnv(c) {
   const env = { RAPIDR_CAPTURE: "web", RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump, RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "" };
   const opt = { fileDialog: "RAPIDR_TEST_FILE_DIALOG", colorDialog: "RAPIDR_TEST_COLOR_DIALOG", fontDialog: "RAPIDR_TEST_FONT_DIALOG", messageDialog: "RAPIDR_TEST_MESSAGE_DIALOG", dialogHold: "RAPIDR_TEST_DIALOG_HOLD", delay: "RAPIDR_CAPTURE_DELAY", joystick: "RAPIDR_TEST_JOYSTICK" };
   for (const [k, v] of Object.entries(opt)) if (c[k] !== undefined) env[v] = String(c[k]);
+  if (process.env.RAPIDR_TEST_HTTP) env.RAPIDR_TEST_HTTP = process.env.RAPIDR_TEST_HTTP;
   return env;
 }
 
@@ -245,7 +246,7 @@ export async function runCaseKernel(browser, c, dpr = 1, timeout = 30000) {
   const page = await browser.newPage({ deviceScaleFactor: dpr, viewport: { width: 1920, height: 1080 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  // (the page's uncaught errors, as the DOM host's runner counts them; a 404 a program asks for — a missing file — is its own answer)
   try {
     await page.goto(`${URL_BASE}/tests/web_kernel.html?host=kernel`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
@@ -254,6 +255,9 @@ export async function runCaseKernel(browser, c, dpr = 1, timeout = 30000) {
       window.__rapidr_assets = assets;
       // (QDXJOYSTICK's gamepad: the tests' script, read at each look)
       if (env.RAPIDR_TEST_JOYSTICK !== undefined) window.RAPIDR_TEST_JOYSTICK = env.RAPIDR_TEST_JOYSTICK;
+      // (the tests' own HTTP server, ENVIRON$("RAPIDR_TEST_HTTP"))
+      if (env.RAPIDR_TEST_HTTP) window.RAPIDR_TEST_ENV = { RAPIDR_TEST_HTTP: env.RAPIDR_TEST_HTTP };
+      window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
       const bc = window.rr.compile(source, "fixture", assets);
       window.rr.rapidr_set_test_env(env);
       window.rr.rapidr_run_bc(bc);
