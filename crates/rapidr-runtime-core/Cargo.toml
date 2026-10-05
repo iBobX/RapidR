@@ -18,8 +18,10 @@ image = { version = "0.24", optional = true, default-features = false, features 
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
-# The UI kernel and its winit / headless host (`gui`).
+# The UI kernel, the program glue every host shares and the winit /
+# headless host (`gui`).
 rapidr-ui-kernel = { workspace = true, optional = true }
+rapidr-ui-app = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
@@ -30,10 +32,10 @@ libc = "0.2"
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rapidr-db"]
 network = ["dep:ureq"]
-# The desktop host: the UI kernel and its winit host
-# (docs/desktop-host-plan.md), reached through `src/ui`; the system
-# clipboard.
-gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-host-winit", "dep:arboard"]
+# The desktop host: the UI kernel, the host-neutral program glue
+# (rapidr-ui-app) and the winit host (docs/desktop-host-plan.md), reached
+# through `src/ui`; the system clipboard.
+gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
 datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
 audio = ["dep:rodio"]
 ffi = ["dep:libloading"]

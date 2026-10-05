@@ -2,12 +2,16 @@
 //! goes through here, to the UI kernel and its winit or headless host
 //! (`kernel.rs`, docs/desktop-host-plan.md). The names below are the ones
 //! the runtime may use; the rest of `kernel` is the host's own.
+//!
+//! What doesn't depend on the host is `rapidr_ui_app`'s, shared with the
+//! web runtime (docs/web-host-plan.md, Stage W2): the program it works
+//! through is [`program::Rt`].
 
-pub mod testhooks;
-// (the dialogs lane's: Open / Save dialogs; colour and font dialogs too)
-pub mod file_dialog;
-pub mod choose_dialogs;
+// (the test hooks' environment; the dialogs lane's Open / Save, colour and
+// font dialogs' requests and answers: rapidr-ui-app's)
+pub use rapidr_ui_app::{choose_dialogs, file_dialog, testhooks};
 
+pub mod program;
 pub mod kernel;
 pub mod kernel_store;
 pub mod kernel_lists;

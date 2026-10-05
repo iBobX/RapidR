@@ -24,6 +24,7 @@ use rapidr_ui_kernel::dialogs::{Answer, Dialog};
 use rapidr_ui_kernel::{KernelEvent, Store};
 
 use super::{ensure_host, invalidate, pump, screen, st, step, with_kern, RtStore};
+use crate::ui::program::Rt;
 use crate::value::{v_int, Value};
 
 thread_local! {
@@ -73,7 +74,7 @@ pub(super) fn event(form: &str, ev: KernelEvent) {
     // (a font dialog's Apply: the program's OnApply, the dialog still open)
     if let Some(font) = applied {
         if let Some(owner) = APPLY_TO.with(|a| a.borrow().get(form).cloned()) {
-            crate::ui::choose_dialogs::font_applied(&owner, &font);
+            crate::ui::choose_dialogs::font_applied(Rt, &owner, &font);
         }
     }
     // (it grew: a colour dialog's editor opened — new parts, a wider window)
@@ -183,13 +184,13 @@ pub(super) fn execute(name: &str, comp_type: &str) -> Value {
         super::held_cannot("a file, colour or font dialog");
         return v_int(0);
     }
-    if let Some((save, multi)) = crate::ui::file_dialog::kind(name, comp_type) {
-        return crate::ui::file_dialog::execute(name, save, multi, pick_files);
+    if let Some((save, multi)) = crate::ui::file_dialog::kind(Rt, name, comp_type) {
+        return crate::ui::file_dialog::execute(Rt, name, save, multi, pick_files);
     }
     match comp_type {
         // (Color is &HBBGGRR, RapidQ's LONG; the custom colours come back
         // either way)
-        "RCOLORDIALOG" => crate::ui::choose_dialogs::color_execute(name, |title, state| {
+        "RCOLORDIALOG" => crate::ui::choose_dialogs::color_execute(Rt, name, |title, state| {
             let custom = state.custom;
             match run(Dialog::color(next_id(), title, state)) {
                 Answer::Color(c, custom) => (c, custom),
@@ -198,7 +199,7 @@ pub(super) fn execute(name: &str, comp_type: &str) -> Value {
         }),
         // (the faces: the shared ones and the system's, as fontique finds
         // them; Apply stores the font so far and fires OnApply)
-        "RFONTDIALOG" => crate::ui::choose_dialogs::font_execute(name, |title, req| {
+        "RFONTDIALOG" => crate::ui::choose_dialogs::font_execute(Rt, name, |title, req| {
             ensure_host();
             let names = crate::ui::choose_dialogs::font_names(|| with_kern(|k| k.desk.text.family_names()).unwrap_or_default());
             let d = Dialog::font(next_id(), title, req, &names);
