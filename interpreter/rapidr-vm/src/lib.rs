@@ -435,8 +435,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Sub => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a - &b); }
                 Op::Mul => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a * &b); }
                 Op::Div => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a / &b); }
-                Op::IDiv => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.int_div(&b)); }
-                Op::Mod => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a % &b); }
+                Op::IDiv => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_int_div(&b).map_err(|e| VmError::Runtime(e.into()))?); }
+                Op::Mod => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_mod(&b).map_err(|e| VmError::Runtime(e.into()))?); }
                 Op::Pow => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.power(&b)); }
                 Op::Neg => { let a = self.pop()?; self.stack.push(-&a); }
                 Op::Concat => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.concat(&b)); }
@@ -621,9 +621,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     }
                 }
                 Op::ToNum => {
-                    let kind = rapidr_value::numeric::NumKind::from_code(read_u8(code, &mut ip)?).ok_or(VmError::BadOperand)?;
+                    let operand = read_u8(code, &mut ip)?;
                     let v = self.pop()?;
-                    self.stack.push(rapidr_value::numeric::convert(&v, kind));
+                    if operand == rapidr_value::numeric::ARG_ROUND {
+                        self.stack.push(rapidr_value::numeric::arg_round(&v));
+                    } else {
+                        let kind = rapidr_value::numeric::NumKind::from_code(operand).ok_or(VmError::BadOperand)?;
+                        self.stack.push(rapidr_value::numeric::convert(&v, kind));
+                    }
                 }
                 Op::CallIndirect => {
                     let argc = read_u8(code, &mut ip)?;
@@ -717,11 +722,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
                 // ----- I/O -----
                 Op::Print => {
-                    let s = self.pop()?.to_string_val();
+                    let s = rapidr_value::format::print_text(&self.pop()?);
                     self.emit_output(&s)?;
                 }
                 Op::PrintLn => {
-                    let mut s = self.pop()?.to_string_val();
+                    let mut s = rapidr_value::format::print_text(&self.pop()?);
                     s.push('\n');
                     self.emit_output(&s)?;
                 }

@@ -4582,6 +4582,7 @@ name = "rapidr-runtime-core"
 version = "2.115.0"
 dependencies = [
  "arboard",
+ "chrono",
  "image",
  "libc",
  "libloading",

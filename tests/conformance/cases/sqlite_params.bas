@@ -41,7 +41,7 @@ PRINT "-- values after the SQL"
 DIM nm AS STRING
 DIM age AS INTEGER
 DIM score AS DOUBLE
-nm = "O'Neil, ""Bob"" = x AND y"
+nm = "O'Neil, " + CHR$(34) + "Bob" + CHR$(34) + " = x AND y"
 age = 42
 score = 2.5
 r = DB.Query("INSERT INTO users (name, pass, age, score) VALUES (?, ?, ?, ?)", nm, "secret", age, score)

@@ -606,7 +606,7 @@ impl Bcgen {
                     } else if !decl.dimensions.is_empty() && is_component_type_name(&d.type_name) {
                         self.lower_component_array(decl, &d.type_name, code)?;
                     } else if !decl.dimensions.is_empty() && !is_component_type_name(&d.type_name) {
-                        self.lower_array_dim(decl, &d.type_name, code)?;
+                        self.lower_array_dim(decl, &d.type_name, d.fixed_len, code)?;
                     } else if !is_component_type_name(&d.type_name) {
                         // `DIM n AS INTEGER` starts at 0, a STRING at "".
                         let default = self.module.add_const(type_default(&d.type_name));
@@ -824,12 +824,17 @@ impl Bcgen {
             let skip = code.len();
             push_u32(code, 0);
             if decl.dimensions.is_empty() {
-                let default = self.module.add_const(type_default(&d.type_name));
+                // (`STATIC s AS STRING * n` starts as n spaces too)
+                let first = match d.fixed_len {
+                    Some(n) if d.type_name.eq_ignore_ascii_case("STRING") => Const::Str(" ".repeat(n)),
+                    _ => type_default(&d.type_name),
+                };
+                let default = self.module.add_const(first);
                 emit(code, Op::LoadConst); push_u32(code, default);
                 let s = self.global_str(&decl.name);
                 emit(code, Op::StoreGlobal); push_u32(code, s);
             } else {
-                self.lower_array_dim(decl, &d.type_name, code)?;
+                self.lower_array_dim(decl, &d.type_name, d.fixed_len, code)?;
             }
             let yes = self.module.add_const(Const::Bool(true));
             emit(code, Op::LoadConst); push_u32(code, yes);
@@ -914,8 +919,12 @@ impl Bcgen {
         self.global_object_arrays.get(name).cloned()
     }
 
-    fn lower_array_dim(&mut self, decl: &VariableDeclarator, type_name: &str, code: &mut Vec<u8>) -> Result<(), String> {
-        let fill = self.module.add_const(type_default(type_name));
+    fn lower_array_dim(&mut self, decl: &VariableDeclarator, type_name: &str, fixed_len: Option<usize>, code: &mut Vec<u8>) -> Result<(), String> {
+        // (`STRING * n` elements start as n spaces, as RapidQ's)
+        let fill = match fixed_len {
+            Some(n) if type_name.eq_ignore_ascii_case("STRING") => self.module.add_const(Const::Str(" ".repeat(n))),
+            _ => self.module.add_const(type_default(type_name)),
+        };
         emit(code, Op::LoadConst); push_u32(code, fill);
         let zero = self.module.add_const(Const::Int(0));
         for dim in &decl.dimensions {
@@ -957,7 +966,7 @@ impl Bcgen {
                 emit(code, Op::Le);
                 emit(code, Op::And);
             }
-            CaseValue::Is(op, e) => {
+            CaseValue::Is(op, e) | CaseValue::IsLogic(op, e, _) => {
                 emit(code, Op::LoadLocal); push_u16(code, tmp);
                 self.lower_expr(e, code)?;
                 emit(code, match op {
@@ -968,6 +977,17 @@ impl Bcgen {
                     BinaryOperator::GreaterThan => Op::Gt,
                     _ => Op::Ge,
                 });
+                // `IS = "l" AND x = "d"`: the comparison, then the rest.
+                if let CaseValue::IsLogic(_, _, rest) = value {
+                    for (logic, e) in rest {
+                        self.lower_expr(e, code)?;
+                        emit(code, match logic {
+                            BinaryOperator::And => Op::And,
+                            BinaryOperator::Or => Op::Or,
+                            _ => Op::Xor,
+                        });
+                    }
+                }
             }
         }
         Ok(())
@@ -2158,6 +2178,13 @@ impl Bcgen {
                 let kind = numeric_kind(fc).unwrap_or(rapidr_value::numeric::NumKind::Double);
                 self.lower_expr(&fc.args[0], code)?;
                 emit(code, Op::ToNum); code.push(kind.code());
+                Ok(())
+            }
+            // `__arg_round(v)` (a BYVAL integer parameter's rounding) → the
+            // same opcode, `ARG_ROUND` as its operand.
+            Expression::FunctionCall(fc) if fc.args.len() == 1 && matches!(fc.callee.as_ref(), Expression::Identifier(id) if id.name.eq_ignore_ascii_case("__arg_round")) => {
+                self.lower_expr(&fc.args[0], code)?;
+                emit(code, Op::ToNum); code.push(rapidr_value::numeric::ARG_ROUND);
                 Ok(())
             }
             // `__getfield(obj, slot)` (rapidr_ast::objects) → one opcode.

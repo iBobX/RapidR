@@ -570,7 +570,7 @@ Over **100 built-in functions** covering string manipulation, math, file I/O, sy
 | `EXP(n)` / `LOG(n)` | Exponential / natural log |
 | `CEIL(n)` / `FLOOR(n)` | Rounding |
 | `FIX(n)` / `FRAC(n)` | Integer / fractional part |
-| `ROUND(n[, dec])` | Round to decimal places |
+| `ROUND(n)` | Round to an integer, as RapidQ: `INT(n + 0.5)` (2.5 → 3, -2.5 → -2) |
 | `CINT(n)` / `CLNG(n)` | Convert to integer/long |
 | `RND[(n)]` | Random — `RND` returns 0.0–1.0; `RND(n)` returns 0 to n-1 |
 | `RANDOMIZE [seed]` | Seed random generator |

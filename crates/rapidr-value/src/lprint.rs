@@ -16,13 +16,15 @@ thread_local! {
 const MAX_TEXT: usize = 4 << 20;
 const ZONE: usize = 14;
 
-/// `LPRINT a; b, c` (the parser's `__lprint(newline, item, zone, …)`).
+/// `LPRINT a; b, c` (the parser's `__lprint(newline, item, zone, …)`):
+/// numbers as PRINT shows them (`crate::format::print_text`); the parser
+/// gives `,` no print zone, as PRINT (a zone flag still pads to 14 columns).
 pub fn lprint(args: &[Value]) -> Value {
     let newline = args.first().is_some_and(|v| v.to_i64() != 0);
     let full = TEXT.with(|t| {
         let mut t = t.borrow_mut();
         for pair in args.get(1..).unwrap_or(&[]).chunks(2) {
-            t.push_str(&pair[0].to_string_val());
+            t.push_str(&crate::format::print_text(&pair[0]));
             if pair.get(1).is_some_and(|z| z.to_i64() != 0) {
                 let col = t.len() - t.rfind('\n').map_or(0, |i| i + 1);
                 t.push_str(&" ".repeat(ZONE - col % ZONE));

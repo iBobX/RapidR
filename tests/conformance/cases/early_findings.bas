@@ -1,4 +1,4 @@
-' The first review's findings (ROADMAP, 2026-09-24), now fixed on both backends; numbers print as RapidQ's STR$ (15 digits)
+' The first review's findings (ROADMAP, 2026-09-24), now fixed on both backends; numbers print as RapidQ's PRINT does (RC.EXE: 9 decimals, whole numbers as 32-bit integers) and STR$ (9 digits)
 DECLARE SUB Hello (n AS INTEGER)
 ? "question print"
 i = 5: INC i: INC i, 3: DEC i

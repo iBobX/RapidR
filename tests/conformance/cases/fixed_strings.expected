@@ -1,10 +1,10 @@
-[hello wo]    8
-[hi]          2
-abcxy||
-[Bobby]       3
-abcd
+[hello wo]8
+[hi      ]8
+abcxy |   |
+[Bobby]3
+ab
 [ab]
-[abcd]
-unbounded
--1            0             -1            0             0
+[ab  ]
+
+-10-100
 yes

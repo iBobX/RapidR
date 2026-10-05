@@ -7,12 +7,13 @@
 //! stores into typed TYPE fields itself).
 //!
 //! Converted: assignments to typed variables and array elements, `INPUT`
-//! into them, a FOR counter's start value, BYVAL typed parameters on entry,
-//! and a typed FUNCTION's result (`f = …`, `Result = …`, `RETURN …`). A
-//! local declaration (or parameter) of another type shadows a typed global
-//! of the same name. Not converted: a FOR counter's own increments (an
-//! integer counter with an integer STEP stays an integer), type suffixes
-//! (`n%`).
+//! into them, a FOR counter's start value, BYVAL typed parameters on entry
+//! (an integer one rounded half to even first, `__arg_round`, as RapidQ's
+//! RC.EXE does). A local declaration (or parameter) of another type shadows
+//! a typed global of the same name. Not converted: a typed FUNCTION's
+//! result (RapidQ returns `F = 2.7` from a `FUNCTION F AS INTEGER` as 2.7), a
+//! FOR counter's own increments (an integer counter with an integer STEP
+//! stays an integer), type suffixes (`n%`).
 
 use std::collections::HashMap;
 
@@ -28,13 +29,15 @@ pub fn conversion_for(type_name: &str) -> Option<&'static str> {
         "SHORT" => "__to_short",
         "INTEGER" | "LONG" => "__to_long",
         "DWORD" => "__to_dword",
-        "SINGLE" | "DOUBLE" => "__to_double",
+        "DOUBLE" => "__to_double",
+        "SINGLE" => "__to_single",
         _ => return None,
     })
 }
 
 /// The conversion builtins this pass (and `objects`) emit.
-pub const CONVERSION_BUILTINS: &[&str] = &["__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_fixed"];
+pub const CONVERSION_BUILTINS: &[&str] =
+    &["__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_single", "__to_fixed", "__arg_round"];
 
 /// A conversion applied to a store: a numeric builtin, or `__to_fixed(v, n)`
 /// for a `STRING * n` (the text cut to `n` characters).
@@ -192,6 +195,20 @@ impl Pass<'_> {
                     return vec![Statement::Assignment(AssignmentStatement { span: i.span, value: convert_at(i.span, conv, target.clone()), target })];
                 }
             }
+            // `DIM s AS STRING * n` starts as n spaces (RC.EXE prints them).
+            Statement::Dim(d) if d.fixed_len.is_some() && !d.is_static && !d.is_redim && d.type_name.trim().eq_ignore_ascii_case("STRING") => {
+                let conv = Conv { name: "__to_fixed", len: d.fixed_len };
+                let empty = Expression::Literal(Literal { span: d.span, value: LiteralValue::String(String::new()) });
+                return d
+                    .declarators
+                    .iter()
+                    .filter(|v| v.dimensions.is_empty())
+                    .map(|v| {
+                        let target = Expression::Identifier(Identifier { span: v.span, name: v.name.clone() });
+                        Statement::Assignment(AssignmentStatement { span: d.span, target, value: convert_at(d.span, conv, empty.clone()) })
+                    })
+                    .collect();
+            }
             Statement::Return(r) => {
                 if let (Some(v), Some((_, conv))) = (r.value.as_mut(), self.result.as_ref()) {
                     *v = convert_at(r.span, *conv, v.clone());
@@ -251,7 +268,18 @@ impl Pass<'_> {
             .filter_map(|p| {
                 let conv = conv_for(&p.type_name, None)?;
                 let target = Expression::Identifier(Identifier { span, name: p.name.clone() });
-                Some(Statement::Assignment(AssignmentStatement { span, value: convert_at(span, conv, target.clone()), target }))
+                // An integer parameter rounds half to even first (RC.EXE:
+                // `P 2.5` gets 2, `P 2.7` 3), where a store truncates.
+                let value = if conv.len.is_none() && !matches!(conv.name, "__to_double" | "__to_single") {
+                    Expression::FunctionCall(FunctionCallExpression {
+                        span,
+                        callee: Box::new(Expression::Identifier(Identifier { span, name: "__arg_round".into() })),
+                        args: vec![target.clone()],
+                    })
+                } else {
+                    target.clone()
+                };
+                Some(Statement::Assignment(AssignmentStatement { span, value: convert_at(span, conv, value), target }))
             })
             .collect();
         if !entry.is_empty() {
@@ -277,8 +305,9 @@ pub fn lower(mut program: Program) -> Program {
             }
             Statement::Function(f) => {
                 let span = f.span;
-                let result = f.return_type.as_deref().and_then(|t| conv_for(t, None)).map(|c| (key(&f.name), c));
-                Pass::routine(&globals, &f.params, &mut f.body, result, span);
+                // (its result isn't converted: RapidQ returns what was
+                // stored, see the module docs)
+                Pass::routine(&globals, &f.params, &mut f.body, None, span);
                 out.push(s);
             }
             _ => {

@@ -47,27 +47,48 @@ for (const name of names) {
   const marker = /^'\s*xfail:\s*([^—\-\n]*)/i.exec(source.split("\n")[0]);
   const expectedFail = !!marker && /\bweb\b/i.test(marker[1]);
   const expected = norm(readFileSync(join(CASES, name + ".expected"), "utf8"));
+  // (A case that stops with a run-time error — `.expected-runtime-error`,
+  // tests/conformance/run.mjs — ends at the error's line, which has its
+  // message.)
+  const runtimePath = join(CASES, name + ".expected-runtime-error");
+  const runtimeError = existsSync(runtimePath) ? readFileSync(runtimePath, "utf8").split("\n").map((l) => l.trim()).filter(Boolean) : null;
   // (Markers unique to the case: the output tab keeps earlier runs' text.)
   const tag = `@@${name}@@`;
   await page.evaluate(({ src, tag }) => {
     window.RapidR.runCommand("run.stop");
     // (the program as written: no designer form around it)
-    window.RapidR.state.project.rawSource = `PRINT "${tag}B"\n${src}\nPRINT "${tag}E"\n`;
+    // (the closing marker on a line of its own, even after a program whose
+    // last PRINT stays on its line)
+    window.RapidR.state.project.rawSource = `PRINT "${tag}B"\n${src}\nPRINT\nPRINT "${tag}E"\n`;
     window.RapidR.runCommand("run.start");
   }, { src: source, tag });
   let text = "";
   // (A program that ENDs itself never prints the closing marker.)
   const ended = new RegExp(`^(${tag}E|\\[RapidR\\] Program ended\\.)$`, "m");
+  // (a run-time error goes to the Errors tab; the Output tab has what the
+  // program printed before it)
+  const errorsBefore = runtimeError ? await page.evaluate(() => document.querySelector('.obody[data-tab="errors"]')?.innerText || "") : "";
+  const hasError = (errs) => errs.slice(errorsBefore.length).split("\n").some((l) => runtimeError.every((needle) => l.includes(needle)));
+  let errors = "";
   for (let waited = 0; waited < 20000; waited += 250) {
     await page.waitForTimeout(250);
     text = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]')?.innerText || "");
     // (only after this case's start: an earlier case's "Program ended." line
     // is still in the output tab)
     const start = text.lastIndexOf(`${tag}B\n`);
-    if (start >= 0 && ended.test(text.slice(start))) break;
+    if (runtimeError) {
+      errors = await page.evaluate(() => document.querySelector('.obody[data-tab="errors"]')?.innerText || "");
+      if (start >= 0 && hasError(errors)) break;
+    } else if (start >= 0 && ended.test(text.slice(start))) break;
   }
-  const m = new RegExp(`^${tag}B\\n?([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text.replace(/\r\n/g, "\n").replace(new RegExp(`^.*PRINT "${tag}[BE]".*$`, "gm"), ""));
-  const got = m ? norm(m[1]) : `<no output: ${JSON.stringify(text.slice(-200))}>`;
+  let got;
+  if (runtimeError) {
+    const start = text.lastIndexOf(`${tag}B\n`);
+    got = start >= 0 && hasError(errors) ? norm(text.slice(start + tag.length + 2).replace(/\r\n/g, "\n")) : `<no run-time error: ${JSON.stringify(errors.slice(-200))}>`;
+  } else {
+    const m = new RegExp(`^${tag}B\\n?([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text.replace(/\r\n/g, "\n").replace(new RegExp(`^.*PRINT "${tag}[BE]".*$`, "gm"), ""));
+    got = m ? norm(m[1]) : `<no output: ${JSON.stringify(text.slice(-200))}>`;
+  }
   const same = got === expected;
   if (same && expectedFail) { xpass++; console.log(`XPASS  ${name} (remove its web xfail marker)`); }
   else if (same) { passed++; console.log(`PASS   ${name}`); }
