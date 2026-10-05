@@ -14,8 +14,12 @@
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_vm_yield.mjs
+// (On the kernel host the preview's form is a window the kernel draws: the
+// test reads its accessibility mirror and clicks as the user does,
+// tests/web_kernel_page.mjs.)
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -100,7 +104,7 @@ await run([
 ]);
 const captions = new Set(), printed = new Set(), mainDone = new Set();
 for (let i = 0; i < 40 && !(await output()).includes("[RapidR] Program ended."); i++) {
-  const c = await (await preview()).evaluate(() => document.querySelector("#rr-label1")?.textContent || "").catch(() => "");
+  const c = await k.text(await preview(), "Label1").catch(() => "");
   if (c) captions.add(c);
   // (sampled before the output is read: a sample taken after the END —
   // the output then says so — doesn't count)
@@ -152,10 +156,10 @@ for (const doEvents of [false, true]) {
   const kind = doEvents ? "with DoEvents" : "without DoEvents";
   await run(clickProgram(doEvents));
   ok(await waitFor(async () => (await output()).includes("looping")), `${kind}: the busy loop started`);
-  await (await preview()).click("#rr-button1", { timeout: 1500 }).catch((e) => console.log("  click: " + e.message.split("\n")[0]));
+  await k.click(await preview(), "Button1", null, { timeout: 1500 }).catch((e) => console.log("  click: " + e.message.split("\n")[0]));
   await page.waitForTimeout(300);
   const during = await output();
-  const caption = await (await preview()).evaluate(() => document.querySelector("#rr-label1")?.textContent || "");
+  const caption = (await k.text(await preview(), "Label1")) || "";
   const clicked = (lines) => lines.filter((l) => l.startsWith("clicked, busy ="));
   if (doEvents) ok(clicked(during).join() === "clicked, busy =1" && !during.includes("loop over") && caption === "clicked", `${kind}: the click ran at a DoEvents while the loop goes on (${JSON.stringify(during.slice(-3))}, ${caption})`);
   else ok(clicked(during).length === 0 && caption === "-", `${kind}: the click's handler didn't run while main is busy (${JSON.stringify(during.slice(-3))}, ${caption})`);
@@ -186,10 +190,10 @@ await run([
   "END CREATE",
   "Form.ShowModal",
 ]);
-await (await preview()).waitForSelector("#rr-button1", { timeout: 10000 });
-await (await preview()).click("#rr-button1");
+await k.waitFor(await preview(), "Button1", 10000);
+await k.click(await preview(), "Button1");
 await page.waitForTimeout(200);
-const handlerMs = await latency((await preview()).click("#rr-button1", { timeout: 1500 }));
+const handlerMs = await latency(k.click(await preview(), "Button1", null, { timeout: 1500 }));
 ok(handlerMs < 1000, `the preview takes a click while a handler runs (${handlerMs} ms)`);
 ok(await waitFor(async () => (await output()).includes("end2"), 8000), "both clicks' handlers ran");
 const handlerLines = (await output()).filter((l) => /^(start|end)\d$/.test(l));

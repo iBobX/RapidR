@@ -199,6 +199,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if kernel_hosts() {
         props.extend(rapidr_value::component_defaults::desktop(type_name));
     }
+    // (the web's own elements show until the program hides them, and say so)
+    if matches!(utype.as_str(), "RWEBVIEW" | "RDOM" | "RWEBAUDIO" | "RWEBVIDEO" | "RPLOT") {
+        props.entry("visible".to_string()).or_insert(v_bool(true));
+    }
     // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout_web).
     let align = rapidr_value::layout::default_align(&utype);
     if align != rapidr_value::layout::Align::None {
@@ -219,7 +223,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RNUM" | "RDATAFRAME" | "RSQLITE" => {
             // Non-visual: no DOM element
         }
-        "RPLOT" => {
+        "RPLOT" if !kernel_hosts() => {
             crate::datascience_web::create_plot_widget(
                 &format!("rr-{}", uname.to_lowercase()),
                 &uname,
@@ -242,6 +246,12 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             },
         );
     });
+    // (the web-only components' elements, once the component is
+    // registered: overlay_web, placed by the UI kernel's host)
+    #[cfg(feature = "kernel")]
+    if kernel_hosts() && crate::overlay_web::is_overlay(&rp_comp_type(&name_clone)) {
+        crate::overlay_web::create(&name_clone, &rp_comp_type(&name_clone));
+    }
 
     gui_web::setup_data_binding(&name_clone);
     // (a QGLASSFRAME's shade: from its properties, now registered)
@@ -1978,6 +1988,12 @@ pub fn end_program() {
             }
         }
     });
+    #[cfg(feature = "kernel")]
+    if kernel_hosts() {
+        crate::kernel_web::ended();
+        web_sys::console::log_1(&JsValue::from_str("[RapidR] Program ended."));
+        return;
+    }
     let forms: Vec<String> = COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name.eq_ignore_ascii_case("RFORM")).map(|(n, _)| n.clone()).collect());
     for form in forms {
         gui_web::hide_form(&form);
@@ -2355,6 +2371,12 @@ fn bind_dom_event(name: &str, event: &str) {
         return;
     }
 
+    // (the UI kernel fires the events of what it draws; the page's own
+    // elements are only the web-only components')
+    #[cfg(feature = "kernel")]
+    if kernel_hosts() && !crate::overlay_web::is_overlay(&rp_comp_type(name)) {
+        return;
+    }
     // A menu's items are clicked in its own drawing (menu_web).
     if rapidr_value::objects::menu::is_menu(name) {
         return;

@@ -52,6 +52,8 @@ pub enum Answer {
     Color(Option<i64>, [i64; 16]),
     /// A font dialog's font (`None`: cancelled).
     Font(Option<Font>),
+    /// An input box's text (`None`: closed or Escape).
+    Text(Option<String>),
 }
 
 /// A font dialog's lists and what it shows (`rapidr_value::font_dialog`).
@@ -68,6 +70,9 @@ struct FontState {
 
 enum Kind {
     Message,
+    /// A prompt with a text field (the web's INPUT in a program with
+    /// windows: no console to type in).
+    Input,
     /// The colour dialog's state (`rapidr_value::color_dialog`, shared
     /// with the web's), and what the mouse drags (the spectrum, the
     /// luminance bar).
@@ -167,6 +172,38 @@ impl Dialog {
             if i == 0 {
                 d.set(&id, "default", Value::Integer(-1));
             }
+        }
+        d.finish(layout.size.0, layout.size.1);
+        d
+    }
+
+    /// An input box: `text` (the prompt) over a text field holding
+    /// `initial`, an OK button under them (the default: Enter in the field
+    /// answers), titled `title` — a message box's layout with the field
+    /// under the text.
+    pub fn input(n: u64, title: &str, text: &str, initial: &str) -> Dialog {
+        const FIELD_W: i64 = 240;
+        const FIELD_H: i64 = 21;
+        const GAP: i64 = 8;
+        let mut d = Dialog::new(n, title, Kind::Input);
+        let font = d.store.font(&d.id);
+        let lines = wrap(text, &font, WRAP);
+        let line_h = text_size("Ag", &font).1.max(1);
+        let text_w = lines.iter().map(|l| text_size(l, &font).0).max().unwrap_or(0).max(FIELD_W);
+        let text_h = lines.len() as i64 * line_h;
+        let layout = message_layout(text_w, text_h + GAP + FIELD_H, 1, false);
+        let (tx, ty, _, _) = layout.text;
+        for (i, line) in lines.iter().enumerate() {
+            let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w + 2, line_h));
+            d.set(&id, "caption", Value::String(literal(line)));
+        }
+        let field = d.put("field", "REDIT", (tx, ty + text_h + GAP, text_w, FIELD_H));
+        d.set(&field, "text", Value::String(initial.to_string()));
+        d.set(&field, "accessiblename", Value::String(lines.join(" ")));
+        if let Some(rect) = layout.buttons.first() {
+            let id = d.put("ok", "RBUTTON", *rect);
+            d.set(&id, "caption", Value::String("OK".into()));
+            d.set(&id, "default", Value::Integer(-1));
         }
         d.finish(layout.size.0, layout.size.1);
         d
@@ -426,6 +463,7 @@ impl Dialog {
     fn cancelled(&self) -> Answer {
         match &self.kind {
             Kind::Message => Answer::Button(None),
+            Kind::Input => Answer::Text(None),
             Kind::Color { state, .. } => Answer::Color(None, state.custom),
             Kind::Font(_) => Answer::Font(None),
         }
@@ -434,6 +472,7 @@ impl Dialog {
     fn accepted(&self) -> Answer {
         match &self.kind {
             Kind::Message => Answer::Button(Some(0)),
+            Kind::Input => Answer::Text(Some(self.store.get(&self.child("field"), "text").to_string_val())),
             Kind::Color { state, .. } => Answer::Color(Some(state.color), state.custom),
             Kind::Font(s) => Answer::Font(Some(s.req.font.clone())),
         }

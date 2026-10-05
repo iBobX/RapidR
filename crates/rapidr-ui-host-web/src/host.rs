@@ -90,6 +90,15 @@ struct Win {
     client: HtmlCanvasElement,
     ctx: CanvasRenderingContext2d,
     mirror: Mirror,
+    /// The web-only components' elements over the client canvas (§3.6),
+    /// clipped to it.
+    overlays: HtmlElement,
+    /// Over those, the open drop-down list and menus (the kernel draws
+    /// them apart while the form has such elements: `popups_apart`); shown
+    /// only while one is open.
+    popups: HtmlCanvasElement,
+    pctx: CanvasRenderingContext2d,
+    pcpu: Option<CpuRenderer>,
     grips: Vec<HtmlElement>,
     cpu: Option<CpuRenderer>,
     fcpu: Option<CpuRenderer>,
@@ -135,12 +144,28 @@ thread_local! {
     static STORE: Cell<Option<&'static dyn Store>> = const { Cell::new(None) };
     static WAKE: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
     static SCALE_WATCH: RefCell<Option<Listener>> = const { RefCell::new(None) };
+    /// The component types the page shows as its own elements over the
+    /// canvas (the runtime's web-only components), uppercase.
+    static OVERLAY_TYPES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The component types whose elements (`#rr-<name>`, marked
+/// `data-rr-overlay`) the host places over its windows' canvases at their
+/// nodes' places, clipped to their parents (docs/web-host-plan.md §3.6).
+pub fn set_overlay_types(types: &[&str]) {
+    OVERLAY_TYPES.with(|o| *o.borrow_mut() = types.iter().map(|t| t.to_uppercase()).collect());
+}
+
+fn is_overlay(type_name: &str) -> bool {
+    OVERLAY_TYPES.with(|o| o.borrow().iter().any(|t| t.eq_ignore_ascii_case(type_name)))
 }
 
 const STYLE: &str = r#"
 .rr-kwin { position: absolute; box-sizing: content-box; outline: none; user-select: none; -webkit-user-select: none; }
 .rr-kwin canvas { position: absolute; display: block; touch-action: none; }
 .rr-kwin .rr-kgrip { position: absolute; background: transparent; touch-action: none; }
+.rr-kwin .rr-koverlays { position: absolute; overflow: hidden; pointer-events: none; }
+.rr-kwin .rr-koverlays > * { pointer-events: auto; }
 .rr-a11y, .rr-a11y * { position: absolute; margin: 0; padding: 0; border: 0; background: transparent; color: transparent;
   outline: none; overflow: hidden; pointer-events: none; white-space: pre; box-sizing: border-box; }
 .rr-a11y input, .rr-a11y textarea { caret-color: transparent; resize: none; padding: 1px 3px; font: 13px "Liberation Sans", Arial, sans-serif; line-height: 15px; }
@@ -487,8 +512,16 @@ impl WebHost {
         // (the picture is the mirror's to describe)
         client.set_attribute("aria-hidden", "true").ok()?;
         let mirror = Mirror::new(doc, id)?;
+        let overlays: HtmlElement = doc.create_element("div").ok()?.dyn_into().ok()?;
+        overlays.set_class_name("rr-koverlays");
+        let popups: HtmlCanvasElement = doc.create_element("canvas").ok()?.dyn_into().ok()?;
+        popups.set_class_name("rr-kpopups");
+        popups.set_attribute("aria-hidden", "true").ok()?;
+        let _ = popups.style().set_property("display", "none");
         root.append_child(&frame).ok()?;
         root.append_child(&client).ok()?;
+        root.append_child(&overlays).ok()?;
+        root.append_child(&popups).ok()?;
         root.append_child(mirror.root()).ok()?;
         let mut grips = Vec::new();
         for (edge, cursor) in EDGES {
@@ -508,6 +541,8 @@ impl WebHost {
         };
         let fctx = ctx_of(&frame)?;
         let ctx = ctx_of(&client)?;
+        // (a layer: transparent where nothing is open)
+        let pctx: CanvasRenderingContext2d = popups.get_context("2d").ok()??.dyn_into().ok()?;
         let mut w = Win {
             root,
             frame,
@@ -515,6 +550,10 @@ impl WebHost {
             client,
             ctx,
             mirror,
+            overlays,
+            popups,
+            pctx,
+            pcpu: None,
             grips,
             cpu: None,
             fcpu: None,
@@ -564,6 +603,7 @@ impl WebHost {
             let mut drawn = false;
             if w.force || f.ui.dirty || (w.scale - scale).abs() > f64::EPSILON {
                 rapidr_value::objects::bitmap::set_display_scale(scale);
+                f.ui.popups_apart = f.ui.nodes.iter().any(|n| is_overlay(&n.type_name));
                 let list = f.ui.paint(store, text, scale);
                 let (dw, dh) = rapidr_ui_render::canvas::device_size(&list);
                 if list.size != w.inside || (w.scale - scale).abs() > f64::EPSILON {
@@ -579,6 +619,34 @@ impl WebHost {
                 r.render(dw, dh, &list, text, &f.ui);
                 if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(r.pixmap.data_as_u8_slice()), dw, dh) {
                     let _ = w.ctx.put_image_data(&image, 0.0, 0.0);
+                }
+                let popups = if f.ui.popups_apart { Some(f.ui.paint_popups(store, text, scale)) } else { None };
+                match popups.filter(|p| !p.items.is_empty()) {
+                    Some(list) => {
+                        if w.popups.width() != dw || w.popups.height() != dh {
+                            w.popups.set_width(dw);
+                            w.popups.set_height(dh);
+                        }
+                        let r = w.pcpu.get_or_insert_with(|| CpuRenderer::new(dw, dh));
+                        r.render_transparent(dw, dh, &list, text, &f.ui);
+                        // (the canvas wants straight alpha; the pixmap's is premultiplied)
+                        let mut px = r.pixmap.data_as_u8_slice().to_vec();
+                        for p in px.as_chunks_mut::<4>().0 {
+                            let a = u32::from(p[3]);
+                            if a != 0 && a != 255 {
+                                for c in &mut p[..3] {
+                                    *c = ((u32::from(*c) * 255 + a / 2) / a).min(255) as u8;
+                                }
+                            }
+                        }
+                        if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&px), dw, dh) {
+                            let _ = w.pctx.put_image_data(&image, 0.0, 0.0);
+                        }
+                        let _ = w.popups.style().set_property("display", "block");
+                    }
+                    None => {
+                        let _ = w.popups.style().set_property("display", "none");
+                    }
                 }
                 w.force = false;
                 drawn = true;
@@ -618,6 +686,7 @@ impl WebHost {
                 let focused = f.ui.focused().map(str::to_string);
                 let hints = hints(&f.ui, store);
                 w.mirror.sync(&tree, focused.as_deref(), top.as_deref() == Some(id.as_str()), &hints);
+                place_overlays(&self.doc, w, &f.ui);
             }
         }
     }
@@ -658,6 +727,8 @@ fn layout(w: &mut Win) {
     let inside = if w.minimized { "none" } else { "block" };
     set_style(&w.client.clone().unchecked_into(), &[("left", px(ix as f64)), ("top", px(iy as f64)), ("width", px(iw as f64)), ("height", px(ih as f64)), ("display", inside.into())]);
     set_style(w.mirror.root(), &[("left", px(ix as f64)), ("top", px(iy as f64)), ("width", px(iw as f64)), ("height", px(ih as f64)), ("display", inside.into())]);
+    set_style(&w.overlays, &[("left", px(ix as f64)), ("top", px(iy as f64)), ("width", px(iw as f64)), ("height", px(ih as f64)), ("display", inside.into())]);
+    set_style(&w.popups.clone().unchecked_into(), &[("left", px(ix as f64)), ("top", px(iy as f64)), ("width", px(iw as f64)), ("height", px(ih as f64))]);
     // (the edges a resizable window is dragged by: 4 pixels outside, 2 in)
     let resizable = border && !w.minimized && w.look.as_ref().is_some_and(|l| l.frame.resizable && !l.maximized);
     for g in &w.grips {
@@ -677,12 +748,48 @@ fn layout(w: &mut Win) {
     }
 }
 
+/// The web-only components' elements of form `ui` over its canvas: each at
+/// its node's place in the client area, hidden with it, clipped to its
+/// parents' rectangles (a scrolled or smaller parent cuts it as the kernel
+/// cuts what it draws).
+fn place_overlays(doc: &Document, w: &Win, ui: &rapidr_ui_kernel::FormUi) {
+    for n in ui.nodes.iter().filter(|n| is_overlay(&n.type_name)) {
+        let Some(el) = doc.get_element_by_id(&format!("rr-{}", n.id)).and_then(|e| e.dyn_into::<HtmlElement>().ok()) else { continue };
+        if el.get_attribute("data-rr-overlay").is_none() {
+            continue;
+        }
+        if el.parent_element().as_ref() != Some(w.overlays.as_ref()) {
+            let _ = w.overlays.append_child(&el);
+        }
+        let (x, y, width, height) = n.abs;
+        // (the parents' rectangles: what of it they show)
+        let (mut cl, mut ct, mut cr, mut cb) = (x, y, x + width, y + height);
+        let mut p = n.parent;
+        while let Some(i) = p {
+            let (px0, py0, pw, ph) = ui.nodes[i].abs;
+            cl = cl.max(px0);
+            ct = ct.max(py0);
+            cr = cr.min(px0 + pw);
+            cb = cb.min(py0 + ph);
+            p = ui.nodes[i].parent;
+        }
+        let clip = if (cl, ct, cr, cb) == (x, y, x + width, y + height) {
+            String::new()
+        } else {
+            format!("inset({}px {}px {}px {}px)", (ct - y).max(0), (x + width - cr).max(0), (y + height - cb).max(0), (cl - x).max(0))
+        };
+        let shown = n.shown && cr > cl && cb > ct;
+        set_style(&el, &[("left", px(x as f64)), ("top", px(y as f64)), ("width", px(width as f64)), ("height", px(height as f64)), ("display", if shown { "" } else { "none" }.into()), ("clip-path", clip)]);
+    }
+}
+
 /// The form's text fields' hints for autofill (their AutoComplete — a
 /// RapidR property — and their names), by accessibility node.
 fn hints(ui: &rapidr_ui_kernel::FormUi, store: &dyn Store) -> HashMap<u64, crate::mirror::Hint> {
     let form = (rapidr_value::objects::a11y::node_id(&ui.form), crate::mirror::Hint { autocomplete: String::new(), name: ui.form.clone() });
     ui.nodes
         .iter()
+        .filter(|n| !is_overlay(&n.type_name))
         .map(|n| {
             let field = matches!(n.type_name.as_str(), "REDIT" | "RMEMO" | "RRICHEDIT" | "RCOMBOBOX");
             let autocomplete = if field { store.get(&n.id, "autocomplete").to_string_val().trim().to_string() } else { String::new() };
@@ -727,82 +834,85 @@ fn to_system_clipboard(text: &str) {
 
 fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
     let mut out = Vec::new();
-    // ---- the client area: the pointer, through the kernel's routing ----
-    let client: Element = w.client.clone().into();
-    {
-        let (id, el) = (id.to_string(), client.clone());
-        listen(&client, "pointerdown", &mut out, move |e| {
-            let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
-            // (keeps the focus where the kernel puts it, not on the page)
-            e.prevent_default();
-            let _ = el.set_pointer_capture(e.pointer_id());
-            let p = at(&el, &e);
-            let m = mouse_mods(&e, mac);
-            input(|h, store| {
-                h.activate(&id);
-                h.desk.mouse_down(store, &id, p, Button::from_dom(e.button()), m, Source::User);
-                h.sync_mirror(store, &id);
+    // ---- the client area: the pointer, through the kernel's routing (on
+    // the drop-down / menu layer too, which is the client area's while it
+    // shows) ----
+    for client in [Element::from(w.client.clone()), Element::from(w.popups.clone())] {
+        {
+            let (id, el) = (id.to_string(), client.clone());
+            listen(&client, "pointerdown", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
+                // (keeps the focus where the kernel puts it, not on the page)
+                e.prevent_default();
+                let _ = el.set_pointer_capture(e.pointer_id());
+                let p = at(&el, &e);
+                let m = mouse_mods(&e, mac);
+                input(|h, store| {
+                    h.activate(&id);
+                    h.desk.mouse_down(store, &id, p, Button::from_dom(e.button()), m, Source::User);
+                    h.sync_mirror(store, &id);
+                });
             });
-        });
-    }
-    {
-        let (id, el) = (id.to_string(), client.clone());
-        listen(&client, "pointermove", &mut out, move |e| {
-            let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
-            let p = at(&el, &e);
-            let m = mouse_mods(&e, mac);
-            input(|h, store| {
-                h.mouse = (f64::from(e.client_x()), f64::from(e.client_y()));
-                h.desk.mouse_move(store, &id, p.0, p.1, m, Source::User);
+        }
+        {
+            let (id, el) = (id.to_string(), client.clone());
+            listen(&client, "pointermove", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
+                let p = at(&el, &e);
+                let m = mouse_mods(&e, mac);
+                input(|h, store| {
+                    h.mouse = (f64::from(e.client_x()), f64::from(e.client_y()));
+                    h.desk.mouse_move(store, &id, p.0, p.1, m, Source::User);
+                });
             });
-        });
-    }
-    {
-        let (id, el) = (id.to_string(), client.clone());
-        listen(&client, "pointerup", &mut out, move |e| {
-            let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
-            let p = at(&el, &e);
-            let m = mouse_mods(&e, mac);
-            input(|h, store| {
-                let before = h.clip.0.borrow().clone();
-                h.desk.mouse_up(store, &id, p, Button::from_dom(e.button()), m, Source::User);
-                // (an edit's context menu copied or cut)
-                let after = h.clip.0.borrow().clone();
-                if after != before {
-                    if let Some(t) = after {
-                        to_system_clipboard(&t);
+        }
+        {
+            let (id, el) = (id.to_string(), client.clone());
+            listen(&client, "pointerup", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
+                let p = at(&el, &e);
+                let m = mouse_mods(&e, mac);
+                input(|h, store| {
+                    let before = h.clip.0.borrow().clone();
+                    h.desk.mouse_up(store, &id, p, Button::from_dom(e.button()), m, Source::User);
+                    // (an edit's context menu copied or cut)
+                    let after = h.clip.0.borrow().clone();
+                    if after != before {
+                        if let Some(t) = after {
+                            to_system_clipboard(&t);
+                        }
                     }
-                }
-                h.sync_mirror(store, &id);
+                    h.sync_mirror(store, &id);
+                });
             });
-        });
-    }
-    {
-        let (id, el) = (id.to_string(), client.clone());
-        listen(&client, "pointerleave", &mut out, move |e| {
-            let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
-            if !el.has_pointer_capture(e.pointer_id()) {
-                input(|h, store| h.desk.mouse_leave(store, &id, Source::User));
-            }
-        });
-    }
-    listen(&client, "contextmenu", &mut out, |e| e.prevent_default());
-    {
-        let (id, el) = (id.to_string(), client.clone());
-        listen(&client, "wheel", &mut out, move |e| {
-            let Ok(e) = e.dyn_into::<web_sys::WheelEvent>() else { return };
-            e.prevent_default();
-            // (notches, positive down: a line mode's 3 lines, a pixel mode's
-            // 48 logical pixels — the desktop host's touchpad rule)
-            let k = match e.delta_mode() {
-                1 => 1.0 / 3.0,
-                2 => 1.0,
-                _ => 1.0 / 48.0,
-            };
-            let p = at(&el, &e);
-            let m = mouse_mods(&e, mac);
-            input(|h, store| h.desk.mouse_wheel(store, &id, p, (e.delta_x() * k, e.delta_y() * k), m, Source::User));
-        });
+        }
+        {
+            let (id, el) = (id.to_string(), client.clone());
+            listen(&client, "pointerleave", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
+                if !el.has_pointer_capture(e.pointer_id()) {
+                    input(|h, store| h.desk.mouse_leave(store, &id, Source::User));
+                }
+            });
+        }
+        listen(&client, "contextmenu", &mut out, |e| e.prevent_default());
+        {
+            let (id, el) = (id.to_string(), client.clone());
+            listen(&client, "wheel", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::WheelEvent>() else { return };
+                e.prevent_default();
+                // (notches, positive down: a line mode's 3 lines, a pixel mode's
+                // 48 logical pixels — the desktop host's touchpad rule)
+                let k = match e.delta_mode() {
+                    1 => 1.0 / 3.0,
+                    2 => 1.0,
+                    _ => 1.0 / 48.0,
+                };
+                let p = at(&el, &e);
+                let m = mouse_mods(&e, mac);
+                input(|h, store| h.desk.mouse_wheel(store, &id, p, (e.delta_x() * k, e.delta_y() * k), m, Source::User));
+            });
+        }
     }
     for c in [&w.client, &w.frame] {
         let id = id.to_string();

@@ -8,11 +8,16 @@
 //   * goEditing: double-click edits in place, Enter stores (OnSetEditText);
 //   * an ellipsis column (ColumnStyle = gcsEllipsis) fires OnEllipsisClick;
 //   * RapidR's AddRow / SetCell / GetCell / Clear.
+// (On the kernel host the grid is drawn on the window's canvas: the test
+// reads its cells through the accessibility mirror — a `grid` of `row`s of
+// `gridcell`s, each in its place — reads what is drawn from the canvas's
+// pixels, and acts with real clicks and keys, tests/web_kernel_page.mjs.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_grid.mjs
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -94,71 +99,124 @@ ok(/ide=2\|3\|Run\|\.\.\./.test(printed), `RapidR's AddRow / SetCell / GetCell (
 
 const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
-const cells = () => frame.evaluate(() => {
-  const table = document.getElementById("rr-grid-table");
-  if (!table) return null;
-  return [...table.querySelectorAll("tr")].map((tr) => [...tr.children].map((td) => td.querySelector(".rr-grid-text")?.textContent ?? ""));
-});
-const grid = await cells();
+await k.waitFor(frame, "Grid");
+
+// (the grid's cells as the mirror has them: [row][col] → { text, selected,
+// x, y, w, h } — the place in CSS pixels from the grid's top left corner)
+const cells = (name) => frame.evaluate((n) => {
+  const grid = document.getElementById("rr-" + n);
+  if (!grid) return null;
+  const g = grid.getBoundingClientRect();
+  return [...grid.querySelectorAll('[role="row"]')].map((row) => [...row.querySelectorAll('[role="gridcell"]')].map((c) => {
+    const r = c.getBoundingClientRect();
+    return { text: c.getAttribute("aria-label") ?? "", selected: c.getAttribute("aria-selected") === "true", x: r.left - g.left, y: r.top - g.top, w: r.width, h: r.height };
+  }));
+}, name);
+const texts = (g) => g && g.map((r) => r.map((c) => c.text));
+const label = () => k.text(frame, "Lbl");
+// (a real click inside cell (c, r) of grid `name`, at (dx, dy) from its top
+// left corner — its middle by default)
+const clickCell = async (g, c, r, at = null, opts = {}) => {
+  const cell = g[r][c];
+  await k.click(frame, "Grid", at ? [cell.x + at[0], cell.y + at[1]] : [cell.x + cell.w / 2, cell.y + cell.h / 2], opts);
+};
+// (the colours drawn in cell (c, r)'s square [x0, y0, x1, y1) — CSS pixels
+// from the cell's corner — as a map "r,g,b" → count)
+const colours = async (name, cell, [x0, y0, x1, y1]) => {
+  const p = await k.pixels(frame, name);
+  const seen = {};
+  for (let y = Math.ceil((cell.y + y0) * p.scale); y < Math.floor((cell.y + y1) * p.scale); y++) {
+    for (let x = Math.ceil((cell.x + x0) * p.scale); x < Math.floor((cell.x + x1) * p.scale); x++) {
+      const i = (y * p.width + x) * 4;
+      const key = `${p.data[i]},${p.data[i + 1]},${p.data[i + 2]}`;
+      seen[key] = (seen[key] || 0) + 1;
+    }
+  }
+  return seen;
+};
+const dark = (seen) => Object.keys(seen).some((key) => key.split(",").every((v) => Number(v) < 100));
+const most = (seen) => Object.entries(seen).sort((a, b) => b[1] - a[1])[0]?.[0];
+// (an ellipsis button: the square at the cell's right, a face-coloured
+// button with the "..." in it; inset 3px past its edges)
+const button = async (name, cell) => {
+  const s = await colours(name, cell, [cell.w - cell.h + 3, 3, cell.w - 3, cell.h - 3]);
+  return { dots: dark(s), back: most(s) };
+};
+
+const g0 = await cells("grid");
+const grid = texts(g0);
 ok(!!grid, "grid rendered");
-ok(grid && grid.length === 6 && grid[0].length === 4, `6 rows × 4 columns (${grid && grid.length}×${grid && grid[0].length})`);
+ok(grid && grid.length === 6 && grid.every((r) => r.length === 4), `6 rows × 4 columns (${grid && grid.length}×${grid && grid[0].length})`);
 ok(grid && JSON.stringify(grid[0]) === JSON.stringify(["", "Name", "Age", "More"]), `header row (${grid && JSON.stringify(grid[0])})`);
 ok(grid && grid[1][1] === "P2" && grid[3][1] === "P1" && grid[2][1] === "", `rows after InsertRow / SwapRows (${grid && JSON.stringify(grid.map((r) => r[1]))})`);
-const look = await frame.evaluate(() => {
-  const table = document.getElementById("rr-grid-table");
-  const td = (c, r) => table.querySelector(`td[data-col="${c}"][data-row="${r}"]`);
-  return {
-    firstWidth: Math.round(td(0, 1).getBoundingClientRect().width),
-    fixedBg: getComputedStyle(td(1, 0)).backgroundColor,
-    markup: !!table.querySelector("td b"),
-    ellipsis: !!td(3, 2).querySelector(".rr-grid-ellipsis"),
-    fixedEllipsis: !!td(3, 0).querySelector(".rr-grid-ellipsis"),
-    ideDots: !!document.querySelector('#rr-ide-table td[data-col="2"][data-row="1"] .rr-grid-ellipsis'),
-  };
-});
-ok(look.firstWidth === 30, `ColWidths(0) = 30 (${look.firstWidth})`);
-ok(look.fixedBg === "rgb(212, 208, 200)", `fixed row shaded (${look.fixedBg})`);
-ok(!look.markup, "cell text is plain text, never markup");
-ok(look.ellipsis && !look.fixedEllipsis, "ellipsis column has a button (not in the fixed row)");
-ok(look.ideDots, `RapidR "..." cell shows a button`);
+ok(g0 && g0[1][0].w === 30, `ColWidths(0) = 30 (${g0 && g0[1][0].w})`);
+// (a fixed cell is drawn in the face colour — the form's own, the theme's
+// rapidr_value::theme — a normal one in the window's: sampled right of
+// their texts; the form's face beside the grid)
+const fixedBack = most(await colours("grid", g0[0][2], [g0[0][2].w - 20, 4, g0[0][2].w - 4, g0[0][2].h - 4]));
+const cellBack = most(await colours("grid", g0[2][2], [4, 4, g0[2][2].w - 4, g0[2][2].h - 4]));
+const face = (await k.pixelAt(frame, "Form", 460, 100))?.join(",");
+ok(fixedBack === face && cellBack === "255,255,255" && fixedBack !== cellBack, `fixed row shaded (${fixedBack}; the form's face ${face}; a normal cell ${cellBack})`);
+// (the kernel draws a cell's text as it is: the mirror's name is the text,
+// "<b>" and all)
+ok(grid && grid[5][1] === "<b>plain</b>", `cell text is plain text, never markup (${grid && grid[5][1]})`);
+const ell = await button("grid", g0[2][3]);
+const fixedEll = await button("grid", g0[0][3]);
+const plainCell = await button("grid", g0[2][2]);
+ok(ell.dots && ell.back === fixedBack && !fixedEll.dots && !plainCell.dots && plainCell.back === "255,255,255",
+  `ellipsis column has a button (not in the fixed row) (${JSON.stringify({ ell, fixedEll, plainCell })})`);
+const ide = await cells("ide");
+const ideDots = ide && ide[1] && ide[1][2] ? await button("ide", ide[1][2]) : null;
+ok(ide && ide[1]?.[2]?.text === "..." && ideDots?.dots && ideDots.back === fixedBack, `RapidR "..." cell shows a button (${JSON.stringify(ideDots)})`);
 
 // Selecting: a click selects and fires OnSelectCell; fixed cells don't.
-await frame.click('#rr-grid-table td[data-col="2"][data-row="4"]');
+await clickCell(g0, 2, 4);
 await page.waitForTimeout(300);
-let lbl = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+let lbl = await label();
 ok(lbl === "sel2,4|2,4", `click selects cell (2, 4) (${lbl})`);
-const selected = await frame.evaluate(() => [...document.querySelectorAll('#rr-grid-table td[aria-selected="true"]')].map((td) => td.dataset.col + "," + td.dataset.row));
-ok(JSON.stringify(selected) === JSON.stringify(["2,4"]), `selected cell highlighted (${JSON.stringify(selected)})`);
-await frame.click('#rr-grid-table td[data-col="1"][data-row="0"]');
+const selected = async () => {
+  const g = await cells("grid");
+  return g.flatMap((row, r) => row.map((c, i) => (c.selected ? `${i},${r}` : null)).filter((s) => s));
+};
+let sel = await selected();
+ok(JSON.stringify(sel) === JSON.stringify(["2,4"]), `selected cell highlighted (${JSON.stringify(sel)})`);
+await clickCell(g0, 1, 0);
 await page.waitForTimeout(300);
-lbl = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+lbl = await label();
 ok(lbl === "sel2,4|2,4", `a fixed cell isn't selected (${lbl})`);
-await frame.focus("#rr-grid");
-await frame.press("#rr-grid", "ArrowUp");
+// (the arrow key to the focused grid: the DOM focus is the kernel's)
+const focused = await frame.evaluate(() => document.activeElement?.id);
+ok(focused === "rr-grid", `the clicked grid has the focus (${focused})`);
+await page.keyboard.press("ArrowUp");
 await page.waitForTimeout(300);
-lbl = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+lbl = await label();
 ok(lbl === "sel2,3|2,3", `ArrowUp moves the selection (${lbl})`);
 
 // Editing (goEditing): double-click, type, Enter.
-await frame.dblclick('#rr-grid-table td[data-col="1"][data-row="4"]');
+await clickCell(g0, 1, 4, null, { clickCount: 2 });
 await page.waitForTimeout(300);
-const editing = await frame.evaluate(() => !!document.querySelector('#rr-grid-table td[data-col="1"][data-row="4"] [contenteditable="true"]'));
-ok(editing, "double-click edits the cell in place");
-await frame.evaluate(() => {
-  const el = document.querySelector('#rr-grid-table td[data-col="1"][data-row="4"] [contenteditable="true"]');
-  el.textContent = "Ana";
+// (the cell's editor in the mirror: a text field with the cell's text, with
+// the DOM focus — what a screen reader, an input method and a phone's
+// keyboard type into, as for an edit)
+const editor = await frame.evaluate(() => {
+  const el = document.activeElement;
+  return { tag: el?.tagName, id: el?.id, value: el?.value };
 });
-await frame.press('#rr-grid-table td[data-col="1"][data-row="4"] [contenteditable="true"]', "Enter");
+ok(editor.tag === "INPUT" && editor.value === "P3", `double-click edits the cell in place, a focused text field in the mirror (${JSON.stringify(editor)})`);
+// (the cell's text replaced with real keys: the editor starts with it all
+// selected, as Delphi's in-place editor)
+await page.keyboard.type("Ana", { delay: 20 });
+await page.keyboard.press("Enter");
 await page.waitForTimeout(400);
-lbl = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+lbl = await label();
 ok(lbl === "edit1,4=Ana|Ana", `Enter stores the cell and fires OnSetEditText (${lbl})`);
-const after = await cells();
+const after = texts(await cells("grid"));
 ok(after && after[4][1] === "Ana", `edited text drawn (${after && after[4][1]})`);
 
-// Ellipsis button.
-await frame.click('#rr-grid-table td[data-col="3"][data-row="2"] .rr-grid-ellipsis');
+// Ellipsis button: a click at the cell's right edge.
+await clickCell(g0, 3, 2, [g0[2][3].w - 6, g0[2][3].h / 2]);
 await page.waitForTimeout(300);
-lbl = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+lbl = await label();
 ok(lbl === "ellipsis3,2", `ellipsis button fires OnEllipsisClick(3, 2) (${lbl})`);
 
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);

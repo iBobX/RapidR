@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as k from "./web_kernel_page.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
@@ -59,26 +60,37 @@ ok(!got.docked && got.height >= got.winHeight - 1, `console program: the panel f
 ok(!got.text.includes("\x1b"), "no raw escape sequences");
 await page.screenshot({ path: join(WORK, "console.png") });
 
-// 2. A program with a form: the panel docks at the bottom.
+// 2. A program with a form: the panel docks at the bottom, the form's
+// window stays in reach (what is under its title bar's middle is the window).
 const formPage = await open(bundle("console_bundle_form"));
+await k.waitFor(formPage, "Form");
 const form = await formPage.evaluate(() => {
   const el = document.getElementById("rapidr-console");
-  return { text: el.textContent, docked: el.classList.contains("docked"), forms: document.querySelectorAll(".rr-form").length };
+  const win = document.querySelector('.rr-kwin[data-rr-form="form"]');
+  const r = win?.getBoundingClientRect();
+  const top = r && document.elementFromPoint(r.left + r.width / 2, r.top + 10);
+  return { text: el.textContent, docked: el.classList.contains("docked"), reachable: !!top && win.contains(top) };
 });
-ok(form.forms === 1 && form.docked, `with a form the console docks at the bottom (forms=${form.forms}, docked=${form.docked})`);
+const forms = (await k.windows(formPage)).map((w) => w.form);
+ok(forms.length === 1 && form.docked, `with a form the console docks at the bottom (forms=${forms}, docked=${form.docked})`);
+ok(form.reachable, "the console doesn't cover the form's window");
 ok(form.text.startsWith("log line"), `form program's PRINT shown (${JSON.stringify(form.text)})`);
-// 3. INPUT in a bundle: an in-page field, the answer echoed in the console.
+// 3. INPUT in a bundle: an in-page question (a kernel dialog with a field),
+// the answer typed with real keys and echoed in the console.
 const inPage = await browser.newPage();
 inPage.on("pageerror", (e) => errors.push(e.message));
 inPage.on("dialog", async (d) => { errors.push(`browser ${d.type()} dialog used`); await d.dismiss(); });
 await inPage.goto(bundle("console_input"));
-await inPage.waitForSelector(".rr-dialog-input", { timeout: 15000 });
-await inPage.fill(".rr-dialog-input", "Ada");
-await inPage.press(".rr-dialog-input", "Enter");
-await inPage.waitForSelector(".rr-dialog-input", { timeout: 5000 });
-await inPage.fill(".rr-dialog-input", "36");
-await inPage.press(".rr-dialog-input", "Enter");
-await inPage.waitForTimeout(300);
+const answer = async (prompt, typed) => {
+  await inPage.waitForFunction(() => ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName), null, { timeout: 15000 });
+  const d = await k.dialog(inPage);
+  ok(d && d.input && d.text.trim() === prompt.trim(), `INPUT asks with a kernel dialog: ${JSON.stringify(prompt)} (${JSON.stringify(d)})`);
+  await inPage.locator(":focus").pressSequentially(typed);
+  await inPage.locator(":focus").press("Enter");
+  await inPage.waitForTimeout(300);
+};
+await answer("What is your name? ", "Ada");
+await answer("How old are you? ", "36");
 const typed = await inPage.evaluate(() => document.getElementById("rapidr-console").textContent);
 ok(typed.startsWith("What is your name? Ada\nHow old are you? 36\n"), `prompts and typed lines in the console (${JSON.stringify(typed)})`);
 ok(/Hello Ada, next year you'll be ?37/.test(typed), "the program continued with the answers (a number for age)");

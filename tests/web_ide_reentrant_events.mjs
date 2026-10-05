@@ -1,7 +1,7 @@
 // Events fired while the interpreter is running, in the IDE preview (the
 // web VM host, interpreter/rapidr-vm-host-web): the runtime only queues
 // them and the VM runs each at a safe point, to completion.
-//   * A click handler calls Form2.Close, which fires Form2's OnClose
+//   * A click handler calls Form2.Close (Form2 is shown), which fires Form2's OnClose
 //     synchronously — inside the VM. That handler opens a dialog (the VM
 //     suspends); after the answer, OnClose finishes and then the click
 //     handler continues after its Close. (Before v2.30.0 this re-entered
@@ -11,8 +11,12 @@
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_reentrant_events.mjs
+// (On the kernel host the clicks are real mouse clicks on the window the
+// kernel draws, and the dialog is a modal kernel window:
+// tests/web_kernel_page.mjs.)
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -73,6 +77,9 @@ await page.evaluate(() => {
     '    OnClick = Counting',
     '  END CREATE',
     'END CREATE',
+    // (Form2 shown, so its Close fires OnClose: the UI kernel, desktop and
+    // web, fires it only for a form whose window is up)
+    'Form2.Show',
     'Form.ShowModal',
   ].join("\n") };
   window.RapidR.runCommand("run.start");
@@ -80,21 +87,26 @@ await page.evaluate(() => {
 await page.waitForTimeout(1500);
 const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
-const text = (id) => frame.evaluate((i) => document.getElementById(i)?.textContent, id);
-const dialog = () => frame.evaluate(() => document.querySelector(".rr-dialog .rr-dialog-text")?.textContent || null);
+const text = (name) => k.text(frame, name);
+const dialog = async () => (await k.dialog(frame))?.text ?? null;
 
-await frame.evaluate(() => document.getElementById("rr-button1").click());
+await k.waitFor(frame, "Button1");
+await k.click(frame, "Button1");
 await page.waitForTimeout(300);
 ok((await dialog()) === "Close it?", `OnClose, fired inside the click handler, shows its dialog (${await dialog()})`);
-ok((await text("rr-label1")) === "-", "the click handler waits for it");
-await frame.evaluate(() => [...document.querySelectorAll(".rr-dialog-button")].find((b) => b.textContent === "Yes").click());
+ok((await text("Label1")) === "-", "the click handler waits for it");
+await k.clickButton(frame, "Yes");
 await page.waitForTimeout(300);
-const log = await text("rr-label1");
+const log = await text("Label1");
 ok(log === "click;closing;answer6;after-close;", `OnClose finishes, then the click handler continues after its Close (${log})`);
 
-await frame.evaluate(() => { const b = document.getElementById("rr-button2"); b.click(); b.click(); b.click(); });
+// (three real clicks in a row, without waiting between them: each one's
+// handler is queued and runs to completion)
+await k.click(frame, "Button2");
+await k.click(frame, "Button2");
+await k.click(frame, "Button2");
 await page.waitForTimeout(300);
-ok((await text("rr-label2")) === "count 3", `three quick clicks run the handler three times (${await text("rr-label2")})`);
+ok((await text("Label2")) === "count 3", `three quick clicks run the handler three times (${await text("Label2")})`);
 ok(nativeDialogs.length === 0, `no browser dialogs (${nativeDialogs.join(",")})`);
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 

@@ -314,6 +314,19 @@ pub fn message<R: Program + Windows>(
     })
 }
 
+/// An input box (the web's INPUT with windows shown): `text` over a field
+/// holding `initial`, OK; `then` maps the text typed (`None`: Escape, the
+/// close box) to the builtin's result.
+pub fn input<R: Program + Windows>(rt: R, title: &str, text: &str, initial: &str, then: impl FnOnce(Option<String>) -> Value + 'static) -> Pending {
+    let make = || Dialog::input(next_id(), title, text, initial);
+    show(rt, make, None, move |a| {
+        then(match a {
+            Answer::Text(t) => t,
+            _ => None,
+        })
+    })
+}
+
 /// `Dialog.Execute` of the file, colour and font dialogs.
 pub fn execute<R: Program + Windows>(rt: R, name: &str, comp_type: &str) -> Pending {
     if let Some((save, multi)) = file_dialog::kind(rt, name, comp_type) {

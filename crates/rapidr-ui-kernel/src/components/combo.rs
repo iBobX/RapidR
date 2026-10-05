@@ -29,7 +29,7 @@ use crate::text::TextSystem;
 use crate::tree::FormUi;
 
 /// The most rows the drop-down shows (Windows' default DropDownCount).
-const DROP_ROWS: usize = 8;
+pub(crate) const DROP_ROWS: usize = 8;
 
 /// The open drop-down: (form, combo id, the row under the mouse).
 #[derive(Clone, Debug, PartialEq)]
@@ -66,6 +66,14 @@ pub fn is_dropped(id: &str) -> bool {
 fn open(form: &str, id: &str) {
     let top = with_list(id, |l| usize::try_from(l.item_index).unwrap_or(0).saturating_sub(DROP_ROWS - 1)).unwrap_or(0);
     DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top, items: None, anchor: None }));
+}
+
+/// Component `id`'s dropped list of another kind's (a grid's gcsList
+/// column): its items, the one under the mouse and the cell it drops from
+/// (absolute in the form's client area).
+pub fn dropped_list(id: &str) -> Option<(Vec<String>, Option<usize>, Rect)> {
+    let d = dropped().filter(|d| d.id.eq_ignore_ascii_case(id))?;
+    Some((d.items?, d.hot, d.anchor?))
 }
 
 /// Drops a list of `items` from `anchor` (a cell, absolute in form `form`'s

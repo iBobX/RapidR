@@ -1,11 +1,15 @@
 // RapidQ's non-visual objects in the IDE preview (rapidr_value::objects):
 // a QBITMAP drawn on a QCANVAS with Canvas.Draw, a QFONT assigned to a
 // QLABEL, and a QMEMORYSTREAM — the same code the desktop runtime runs.
+// (On the kernel host the label and the canvas are pixels in their window's
+// client canvas: the label's font is read through the runtime and seen in
+// the pixels its text is drawn with.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_objects.mjs
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -38,6 +42,7 @@ await page.evaluate(() => {
     '    Caption = "Styled"',
     '    Left = 10',
     '    Top = 10',
+    '    Height = 40',
     '  END CREATE',
     '  CREATE Canvas1 AS QCANVAS',
     '    Left = 10',
@@ -64,23 +69,40 @@ ok(/mem=abc3/.test(out), `QMEMORYSTREAM wrote and read back (${JSON.stringify(ou
 
 const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
-const got = await frame.evaluate(() => {
-  const label = document.getElementById("rr-label1");
-  const canvas = document.getElementById("rr-canvas1");
-  if (!label || !canvas) return { missing: true };
-  const st = getComputedStyle(label);
-  const ctx = canvas.getContext("2d");
-  const px = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data).slice(0, 3).join(",");
-  return {
-    font: st.fontFamily, size: st.fontSize, weight: st.fontWeight, deco: st.textDecorationLine,
-    center: px(10 + 15, 20 + 15), corner: px(10 + 1, 20 + 1), second: px(60 + 15, 20 + 15), outside: px(5, 5),
-  };
-});
-ok(!got.missing, "label and canvas rendered");
-// (20 points: 27 pixels, as Windows and the desktop make them)
-ok(/Courier New/.test(got.font) && got.size === "27px" && Number(got.weight) >= 700,
-  `Label.Font = Font applied name, size and bold (${got.font}, ${got.size}, ${got.weight})`);
-ok(/underline/.test(got.deco) && /line-through/.test(got.deco), `underline and strike-out together (${got.deco})`);
+await k.waitFor(frame, "Canvas1");
+const label = await k.pixels(frame, "Label1");
+ok(!!label && !!(await k.pixels(frame, "Canvas1")), "label and canvas rendered");
+const font = {};
+for (const p of ["FontName", "FontSize", "FontBold", "FontUnderline", "FontStrikeOut"]) font[p] = await k.prop(frame, "Label1", p);
+const on = (v) => v !== "" && Number(v) !== 0;
+ok(font.FontName === "Courier New" && font.FontSize === "20" && on(font.FontBold),
+  `Label.Font = Font applied name, size and bold (${font.FontName}, ${font.FontSize}, ${font.FontBold})`);
+ok(on(font.FontUnderline) && on(font.FontStrikeOut), `underline and strike-out together (${font.FontUnderline}, ${font.FontStrikeOut})`);
+// (the label's text as drawn: dark pixels on the form's color. 20 points
+// is 27 pixels, as Windows and the desktop make them, so the text spans far
+// more rows than the default font's; the strike-out and the underline are
+// dark lines across the whole text (the text is wider than the label), one
+// through it and one under it)
+let inkTop = -1, inkBottom = -1;
+const lines = [];
+if (label) for (let y = 0; y < label.height; y++) {
+  let run = 0, longest = 0, any = false;
+  for (let x = 0; x < label.width; x++) {
+    const i = (y * label.width + x) * 4;
+    const dark = (label.data[i] + label.data[i + 1] + label.data[i + 2]) / 3 < 100;
+    run = dark ? run + 1 : 0;
+    longest = Math.max(longest, run);
+    any ||= dark;
+  }
+  if (longest >= label.width * 0.9) { if (!lines.length || lines.at(-1).end < y - 1) lines.push({ start: y, end: y }); else lines.at(-1).end = y; }
+  else if (any) { if (inkTop < 0) inkTop = y; inkBottom = y; }
+}
+const tall = label ? (inkBottom - inkTop + 1) / label.scale : 0;
+ok(tall >= 18, `the label's text is drawn in the 20-point font (${tall} pixels from top to bottom)`);
+ok(lines.length === 2 && lines[0].start > inkTop && lines[1].start > lines[0].end + 4,
+  `with the strike-out line through it and the underline under it (lines at ${lines.map((l) => l.start).join(", ")}; text ${inkTop}-${inkBottom})`);
+const px = async (x, y) => (await k.pixelAt(frame, "Canvas1", x, y))?.join(",");
+const got = { center: await px(10 + 15, 20 + 15), corner: await px(10 + 1, 20 + 1), second: await px(60 + 15, 20 + 15), outside: await px(5, 5) };
 ok(got.center === "0,0,255", `bitmap's blue circle drawn on the canvas (${got.center})`);
 ok(got.corner === "0,255,0", `bitmap's transparent color lets the canvas show through (${got.corner})`);
 ok(got.second === "0,0,255", `Canvas.Draw also takes the bitmap itself (${got.second})`);

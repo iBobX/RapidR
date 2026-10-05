@@ -10,8 +10,12 @@
 //      whose import target (rapidrintr.js) actually exports `default`.
 //
 // Usage:  node tests/web_ide_round4.mjs
+// (On the kernel host the preview's forms are windows the kernel draws: the
+// test reads their accessibility mirror and clicks as the user does,
+// tests/web_kernel_page.mjs.)
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -73,24 +77,26 @@ await page.evaluate(() => {
   project.forms[1].code.source = `SUB BtnFocusPrincipal_Click\n  Principal.Focus()\nEND SUB\n`;
 });
 
-// Run and inspect the runtime DOM inside the preview iframe.
+// Run and inspect the windows inside the preview iframe.
 await page.evaluate(() => document.querySelector('[data-cmd="run.start"]').click());
 await page.waitForTimeout(2500);
 // The preview is cross-origin to the IDE (SEC-02), so inspect it through
 // Playwright's frame API rather than contentDocument.
 const previewFrame = page.frames().find(f => f.url().includes("preview.html"));
-const runtimeInfo = previewFrame
-  ? await previewFrame.evaluate(() => ({
-      ok: true,
-      buttons: Array.from(document.querySelectorAll("button")).map(b => b.textContent.trim()),
-      body: document.body.innerText,
-    }))
-  : { ok: false, why: "no preview frame" };
-ok(runtimeInfo.ok, "preview iframe mounted");
-ok(runtimeInfo.buttons.includes("Show Usuarios") || runtimeInfo.body.includes("Show Usuarios"),
-   `Principal renders 'Show Usuarios' (got buttons=${JSON.stringify(runtimeInfo.buttons)})`);
-ok(runtimeInfo.buttons.includes("Focus Principal") || runtimeInfo.body.includes("Focus Principal"),
-   `Usuarios renders 'Focus Principal' (got buttons=${JSON.stringify(runtimeInfo.buttons)})`);
+ok(!!previewFrame, "preview iframe mounted");
+// (the startup form's window with its button, as its mirror has it; then a
+// real click on it shows Usuarios, whose button focuses Principal again)
+const shownForms = async () => (await k.windows(previewFrame)).map(w => w.form);
+ok((await shownForms()).includes("principal") && (await k.text(previewFrame, "BtnShowUsuarios")) === "Show Usuarios",
+   `Principal renders 'Show Usuarios' (windows=${await shownForms()}, button=${await k.text(previewFrame, "BtnShowUsuarios")})`);
+await k.click(previewFrame, "BtnShowUsuarios");
+await page.waitForTimeout(300);
+ok((await shownForms()).at(-1) === "usuarios" && (await k.text(previewFrame, "BtnFocusPrincipal")) === "Focus Principal",
+   `Usuarios.Show() shows Usuarios with 'Focus Principal' (windows=${await shownForms()}, button=${await k.text(previewFrame, "BtnFocusPrincipal")})`);
+await k.click(previewFrame, "BtnFocusPrincipal");
+await page.waitForTimeout(300);
+ok(JSON.stringify((await shownForms()).slice(-2)) === '["usuarios","principal"]' && (await k.text(previewFrame, "BtnShowUsuarios")) === "Show Usuarios",
+   `Principal.Focus() brings Principal to the front, its button still there (windows=${await shownForms()})`);
 await page.evaluate(() => document.querySelector('[data-cmd="run.stop"]').click());
 
 // ─── 2 + 3. Color picker realtime + OK button ──────────────────────────

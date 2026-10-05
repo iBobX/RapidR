@@ -11,8 +11,12 @@
 //   path is working end-to-end.
 //
 // Usage:  node tests/web_ide_e2e_build.mjs
+// (On the kernel host the bundle's form is a window the kernel draws: the
+// test reads its accessibility mirror and clicks as the user does,
+// tests/web_kernel_page.mjs.)
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -166,17 +170,19 @@ async function main() {
       const s = document.getElementById("rapidr-status");
       return s && (s.textContent === "" || s.textContent === "loading…" === false);
     }, null, { timeout: 20000 }).catch(() => {});
-    // Look for the Label widget (the runtime renders it as a DOM node).
-    const initial = await page2.evaluate(() => document.body.innerText);
-    ok(/ready/.test(initial), `bundle rendered Label1 initial caption (got "${initial.slice(0,200)}")`);
+    // Look for the Label (its element in the kernel's accessibility mirror).
+    await k.waitFor(page2, "Label1", 20000).catch(() => {});
+    const initial = await k.text(page2, "Label1");
+    ok(initial === "ready" && await k.shown(page2, "Form1"), `bundle rendered Label1 initial caption on Form1 (got ${JSON.stringify(initial)})`);
 
-    // 7. Click the button and verify Label1 updates.
-    // The runtime renders RButton as a real <button>; find by visible text.
-    await page2.locator('button:has-text("Go")').first().click();
+    // 7. Click the button (a real click on the window the kernel draws) and
+    // verify Label1 updates.
+    ok((await k.text(page2, "Button1")) === "Go", `the button is there, captioned Go (${await k.text(page2, "Button1")})`);
+    await k.click(page2, "Button1");
     await page2.waitForTimeout(200);
-    const after = await page2.evaluate(() => document.body.innerText);
-    ok(/hello e2e/.test(after),
-       `Button click updated Label1 text (got "${after.slice(0,200)}")`);
+    const after = await k.text(page2, "Label1");
+    ok(after === "hello e2e",
+       `Button click updated Label1 text (got ${JSON.stringify(after)})`);
     // 8. PRINT shows on the page, docked under the form, despite the CSP.
     const printed = await page2.evaluate(() => {
       const el = document.getElementById("rapidr-console");

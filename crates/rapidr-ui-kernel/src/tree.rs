@@ -103,6 +103,11 @@ pub struct FormUi {
     pub(crate) last_click: Option<(crate::tick::Instant, Option<usize>, f64, f64, u8)>,
     /// The wheel's turn not yet a whole notch (form scroll bars, lists).
     pub(crate) wheel_rest: (f64, f64),
+    /// The open drop-down list and menus are drawn apart, by
+    /// [`FormUi::paint_popups`], not by [`FormUi::paint`]: a host with its
+    /// own elements over the window's drawing (the web's RWEBVIEW …) puts
+    /// them on a layer above those.
+    pub popups_apart: bool,
 }
 
 /// Visible / Enabled as the runtimes keep them (-1, True, "0" …).
@@ -151,6 +156,7 @@ impl FormUi {
             system_corner: false,
             last_click: None,
             wheel_rest: (0.0, 0.0),
+            popups_apart: false,
         };
         f.rebuild(store);
         f.focus = f.tab_order(store).first().copied();
