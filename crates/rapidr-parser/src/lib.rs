@@ -558,10 +558,19 @@ impl<'a> Parser<'a> {
             TokenType::RustStart => self.parse_rust_block().map(Statement::RustBlock),
             // A bare `END` ends the program (the END builtin). `END IF`,
             // `END SUB`, … are block terminators and never reach here.
+            // A stray `END TYPE` / `END STRUCT` (no TYPE open: one that is
+            // ends in parse_type_def) is RC.EXE's END too — the program
+            // ends there, in a SUB as well (probes in the Windows VM;
+            // RapidQ's Network/Download/qdownload.bas ends with one).
             TokenType::End
-                if matches!(self.peek_kind_at(1), None | Some(TokenType::Newline | TokenType::Colon | TokenType::Eof)) =>
+                if matches!(self.peek_kind_at(1), None | Some(TokenType::Newline | TokenType::Colon | TokenType::Eof))
+                    || (self.peek_kind_at(1) == Some(TokenType::Type)
+                        && matches!(self.peek_kind_at(2), None | Some(TokenType::Newline | TokenType::Colon | TokenType::Eof))) =>
             {
                 let tok = self.advance()?;
+                if self.peek_kind() == Some(TokenType::Type) {
+                    self.advance();
+                }
                 Some(Statement::Call(CallStatement {
                     span: tok.span,
                     callee: Expression::Identifier(Identifier { span: tok.span, name: "END".into() }),

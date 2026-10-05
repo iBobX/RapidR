@@ -456,6 +456,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let val = if state_before.is_some() { v_int(rapidr_value::window_state::of(val.to_i64())) } else { val };
     // A canvas's size before (it paints again only when it changes: a
     // library setting its size in its own OnPaint mustn't loop).
+    #[cfg_attr(not(feature = "gui"), allow(unused_variables))]
     let canvas_size_before = (matches!(prop_lower.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(name)).then(|| rp_comp_get(name, &prop_lower).to_i64());
     // RapidR's forms and containers have no frame inside their size: the
     // client area is the whole component, less a form's in-window menu.
@@ -828,6 +829,9 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // (the I/O and media lane's: io.rs)
     if let Some((sub, member)) = crate::io::sub_component(name, &prop_lower) {
         return rp_comp_get(&sub, &member);
+    }
+    if let Some(v) = crate::io::frames_timer_get(name, &prop_lower) {
+        return v;
     }
     if let Some(v) = rapidr_value::objects::rqlib::get(name, &prop_lower) {
         return v;

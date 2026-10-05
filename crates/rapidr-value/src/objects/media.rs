@@ -18,12 +18,16 @@
 //!   timer (`objects::rqlib::media_tick`).
 //! - The position runs by the runtime's clock (`directx::clock_ms`), not
 //!   by the device: the same with or without a sound card, in tests too.
+//!   QVIDEO's frames follow it: the picture shown is the frame the clock
+//!   is at (`objects::avi` decodes it), its sound plays on QDXSOUND's
+//!   device from there.
 
 use std::collections::VecDeque;
 use std::rc::Rc;
 
 use crate::{v_int, v_str, Value};
 
+use super::avi::{self, Avi};
 use super::directx::{self, SoundPlay, Wav};
 use super::midifile::Song;
 
@@ -38,6 +42,24 @@ pub const FILE_NOT_FOUND: &str = "Cannot find the specified file.  Make sure the
 pub const CANNOT_PLAY: &str = "The specified file cannot be played on the specified MCI device.  The file may be corrupt, not in the correct format, or no file handler available for this format.";
 pub const ALIAS_IN_USE: &str = "The specified alias is already being used in this application.  Use a unique alias.";
 
+/// Error as the libraries set it: `RTRIM$` of the buffer
+/// mciGetErrorString filled — its text and the terminating NUL (RC.EXE:
+/// `LEN(Error)` is the text's length + 1).
+pub fn mci_error(text: &str) -> String {
+    format!("{text}\0")
+}
+
+/// A string MCI wrote into the libraries' 128-character buffer (`RetString
+/// = Space$(128)`), as they keep it: the text, its NUL, the buffer's
+/// spaces after (RC.EXE: QVIDEO's Caption from "info … window text").
+fn mci_buffer(text: &str) -> String {
+    let mut s: String = text.chars().take(127).collect();
+    s.push('\0');
+    let n = s.chars().count();
+    s.extend(std::iter::repeat_n(' ', 128usize.saturating_sub(n)));
+    s
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Midi,
@@ -46,7 +68,8 @@ pub enum Kind {
     CdAudio,
 }
 
-/// What plays a QMIDI's song: the runtime's MIDI output (none: silent).
+/// What plays a QMIDI's song: the runtime's MIDI output or, without one,
+/// its built-in synthesizer (`objects::synth`); none installed (a test): silent.
 #[derive(Clone, Copy)]
 pub struct MidiDevice {
     /// Plays `song` from `from_us` (replacing what object `id` played).
@@ -201,8 +224,18 @@ pub struct Media {
     pub bits: i64,
     pub frequence: i64,
     pub mode: i64,
-    /// QVIDEO's fields (the library's; nothing shows: §6).
+    /// QVIDEO's fields (the library's) and its window.
     pub video: VideoFields,
+    film: Option<Film>,
+    /// The window MCI made for the video, as the runtime shows it (its
+    /// components follow it when `window_changed`).
+    pub window: VideoWindow,
+    pub window_changed: bool,
+    /// Frames are due (playing) or not any more: the runtime paces the
+    /// picture again (`rqlib::video_frames`).
+    pub frames_changed: bool,
+    /// "set MEDIA audio all off" (AudioOff True): the sound muted.
+    audio_off: bool,
     /// QCDAUDIO's (no drive: §7).
     pub cd: CdFields,
     pub events: VecDeque<(&'static str, Vec<Value>)>,
@@ -225,6 +258,55 @@ pub struct VideoFields {
     pub audio_off: i64,
     pub caption: String,
     pub window_state: i64,
+}
+
+/// An AVI open in a QVIDEO, its decoder, and the frame its window shows.
+struct Film {
+    avi: Avi,
+    decoder: avi::Decoder,
+    /// The frame and size last drawn on the window.
+    shown: Option<(u32, i64, i64)>,
+}
+
+/// QVIDEO's window — MCI's `open … parent P style child`, or `style popup`
+/// / `overlapped` without a Parent: the runtime shows it as a QCANVAS the
+/// frames are drawn on (`<id>.screen`), held by a QFORM of its own
+/// (`<id>.window`) when there's no Parent.
+#[derive(Default, Clone, Debug, PartialEq)]
+pub struct VideoWindow {
+    /// Between Open and Close.
+    pub open: bool,
+    /// The form (or other component) Parent's handle names; "" for a
+    /// window of its own.
+    pub parent: String,
+    /// A window of its own without a frame (BorderStyle 0: `style popup`;
+    /// any other: `overlapped`, a sizeable window with a caption).
+    pub popup: bool,
+    /// MoveWindow's: where (a window of its own: once the program placed
+    /// it — MCI's first is Windows' default place) and its size (a window
+    /// of its own: its frame included).
+    pub placed: bool,
+    pub left: i64,
+    pub top: i64,
+    pub width: i64,
+    pub height: i64,
+    /// Shown (Show, Play: MCI shows the window as it plays).
+    pub visible: bool,
+    pub caption: String,
+    /// WindowState (a window of its own): 0 normal, 1 minimized, 2
+    /// maximized.
+    pub state: i64,
+}
+
+impl VideoWindow {
+    /// The components the runtime shows it with: the screen the frames
+    /// are drawn on, and a window of its own's form.
+    pub fn screen(id: &str) -> String {
+        format!("{}.screen", id.to_lowercase())
+    }
+    pub fn form(id: &str) -> String {
+        format!("{}.window", id.to_lowercase())
+    }
 }
 
 #[derive(Default, Clone)]
@@ -269,6 +351,11 @@ impl Media {
             frequence: 0,
             mode: 0,
             video: VideoFields::default(),
+            film: None,
+            window: VideoWindow::default(),
+            window_changed: false,
+            frames_changed: false,
+            audio_off: false,
             cd: CdFields::default(),
             events: VecDeque::new(),
             gain: None,
@@ -286,7 +373,12 @@ impl Media {
     fn live_position(&self) -> i64 {
         match self.since {
             Some((t0, p0)) => {
-                let p = p0 + (now() - t0).max(0.0) as i64;
+                let elapsed = (now() - t0).max(0.0);
+                // (QVIDEO counts frames: µs a frame by the file)
+                let p = p0 + match &self.film {
+                    Some(f) => (elapsed * 1000.0 / f.avi.us_per_frame.max(1.0)) as i64,
+                    None => elapsed as i64,
+                };
                 if self.recording.is_some() {
                     p.min(self.length.max(p0))
                 } else {
@@ -433,16 +525,43 @@ impl Media {
             "borderstyle" => v.border_style = n,
             "imgwidth" => v.img_width = n,
             "imgheight" => v.img_height = n,
-            // (SetLeft … SetHeight: only with a video open)
-            "left" if open => v.left = n,
-            "top" if open => v.top = n,
-            "width" if open => v.width = n,
-            "height" if open => v.height = n,
-            "left" | "top" | "width" | "height" | "audiooff" => {}
-            "caption" => v.caption = val.to_string_val(),
+            // (SetLeft … SetHeight: only with a video open — MoveWindow
+            // with all four)
+            "left" | "top" | "width" | "height" if open => {
+                match prop {
+                    "left" => v.left = n,
+                    "top" => v.top = n,
+                    "width" => v.width = n,
+                    _ => v.height = n,
+                }
+                let w = &mut self.window;
+                (w.placed, w.left, w.top, w.width, w.height) = (true, v.left, v.top, v.width, v.height);
+                self.window_changed = true;
+            }
+            "left" | "top" | "width" | "height" => {}
+            // (SetAudioOff: "set MEDIA audio all off / on" — the field
+            // itself is never written, so it reads 0)
+            "audiooff" => {
+                if self.file_open {
+                    self.set_audio_off(n != 0);
+                }
+            }
+            "caption" => {
+                v.caption = val.to_string_val();
+                if self.file_open && v.parent == 0 {
+                    self.window.caption = v.caption.clone();
+                    self.window_changed = true;
+                }
+            }
             "windowstate" => {
                 if self.file_open && v.parent == 0 {
                     v.window_state = if (0..3).contains(&n) { n } else { 0 };
+                    // (ShowWindow: SW_SHOWNORMAL / SHOWMINIMIZED /
+                    // SHOWMAXIMIZED — shown too)
+                    if (0..3).contains(&n) {
+                        (self.window.state, self.window.visible) = (n, true);
+                        self.window_changed = true;
+                    }
                 }
             }
             _ => return None,
@@ -493,6 +612,7 @@ impl Media {
                 }
             }
             Kind::Wave => directx::device_volume(&self.id_hint(), gain),
+            Kind::Video if !self.audio_off => directx::device_volume(&self.id_hint(), gain),
             _ => {}
         }
     }
@@ -516,9 +636,10 @@ impl Media {
         }
         if self.file_open {
             // (the libraries' one alias, MEDIA / sound, still open: MCI's
-            // error 289; FlagOpen False closes the open one)
-            self.error = ALIAS_IN_USE.to_string();
-            self.close();
+            // error 289 — and the open one stays open: in RC.EXE the
+            // library's `IF FlagOpen = False THEN Close` never runs once an
+            // Open went through, its local keeping True)
+            self.error = mci_error(ALIAS_IN_USE);
             return 0;
         }
         let loaded = match bytes {
@@ -531,10 +652,13 @@ impl Media {
                 self.state = STOP;
                 self.pos = 0;
                 self.file_open = true;
+                if self.kind == Kind::Video {
+                    self.open_window(file);
+                }
                 1
             }
             Err(text) => {
-                self.error = text.to_string();
+                self.error = mci_error(text);
                 self.close();
                 0
             }
@@ -558,9 +682,140 @@ impl Media {
                 self.sound = Some(s);
                 Some(ms)
             }
-            // (no video decoder yet: every file "cannot be played" — §6)
-            Kind::Video | Kind::CdAudio => None,
+            // (an AVI whose video RapidR decodes: objects::avi; anything
+            // else "cannot be played")
+            Kind::Video => {
+                let film = avi::parse(b)?;
+                let frames = i64::from(film.frames);
+                self.film = Some(Film { decoder: avi::Decoder::new(&film), avi: film, shown: None });
+                Some(frames)
+            }
+            Kind::CdAudio => None,
         }
+    }
+
+    /// QVIDEO's Open went through: what the library read back from MCI
+    /// (`status … length` in milliseconds then frames, `where … source`,
+    /// the window's handle, text and size), and the window MCI made —
+    /// hidden until Show or Play.
+    fn open_window(&mut self, file: &str) {
+        let Some(film) = &self.film else { return };
+        let id = self.id_hint();
+        let (iw, ih) = (i64::from(film.avi.width), i64::from(film.avi.height));
+        let ms = film.avi.length_ms();
+        let v = &mut self.video;
+        // (`LenghtTime = Val(length) / 1000`, stored in a LONG)
+        v.length_time = crate::numeric::to_long(&crate::v_dbl(ms as f64 / 1000.0)).to_i64();
+        (v.img_width, v.img_height) = (iw, ih);
+        let parent = if v.parent != 0 { crate::handles::name_of(v.parent).unwrap_or_default() } else { String::new() };
+        let own = v.parent == 0;
+        let popup = own && v.border_style == 0;
+        if own {
+            // (no Caption set: MCI's window text, the file's name — read
+            // into the library's 128-character buffer)
+            if v.caption.is_empty() {
+                v.caption = mci_buffer(file.rsplit(['\\', '/']).next().unwrap_or(file));
+            }
+        }
+        // (a child: the picture's size; a window of its own GetWindowRect's
+        // — in the Windows VM a popup has a 1-pixel border, an overlapped
+        // window's inside is at least 120 wide, Windows' smallest with a
+        // caption, the picture stretched to it)
+        (v.width, v.height) = match (own, popup) {
+            (false, _) => (iw, ih),
+            (true, true) => (iw + 2, ih + 2),
+            (true, false) => crate::layout::form_outer_size(iw.max(120), ih, 2, 0),
+        };
+        (v.left, v.top) = (0, 0);
+        v.handle = crate::handles::handle_of(&if own { VideoWindow::form(&id) } else { VideoWindow::screen(&id) });
+        self.window = VideoWindow {
+            open: true,
+            parent,
+            popup,
+            placed: false,
+            left: 0,
+            top: 0,
+            width: v.width,
+            height: v.height,
+            visible: false,
+            // (the window shows the text up to its NUL)
+            caption: if own { v.caption.split('\0').next().unwrap_or_default().to_string() } else { String::new() },
+            state: 0,
+        };
+        self.window_changed = true;
+    }
+
+    /// "set MEDIA audio all off / on": the sound muted, or playing again
+    /// from where the picture is.
+    fn set_audio_off(&mut self, off: bool) {
+        if self.audio_off == off {
+            return;
+        }
+        self.audio_off = off;
+        if self.since.is_some() && self.kind == Kind::Video {
+            if off {
+                directx::device_stop(&self.id_hint());
+            } else {
+                self.play_film_sound(self.live_position());
+            }
+        }
+    }
+
+    /// QVIDEO's sound from frame `from`, on QDXSOUND's device.
+    fn play_film_sound(&self, from: i64) {
+        let Some(sound) = self.film.as_ref().and_then(|f| f.avi.audio.as_ref().map(|a| (a, f.avi.us_per_frame))) else { return };
+        let (a, us) = sound;
+        if self.audio_off || a.data.is_empty() || !matches!(a.bits, 8 | 16) || !matches!(a.channels, 1 | 2) {
+            return;
+        }
+        let block = usize::from(a.channels) * usize::from(a.bits / 8);
+        let frame = (from.max(0) as f64 * us / 1_000_000.0 * f64::from(a.rate)) as usize;
+        if frame * block >= a.data.len() {
+            return;
+        }
+        let wav = Rc::new(Wav { channels: a.channels, rate: a.rate, bits: a.bits, data: Rc::from(&a.data[..a.data.len() / block * block]) });
+        directx::device_play(&SoundPlay { id: self.id_hint(), wav, from: frame, speed: 1.0, gain: self.gain.unwrap_or(1.0), pan: (1.0, 1.0), looped: false });
+    }
+
+    /// Where MCIAVI lands seeking frame `n` ("seek exactly off", its
+    /// default): the key frame at or before it — checked in the Windows
+    /// VM (a Cinepak or RLE file seeked to 3 is at 0, an uncompressed one
+    /// at 3). Other objects: `n`.
+    fn key_frame(&self, n: i64) -> i64 {
+        match &self.film {
+            Some(f) if n > 0 => i64::from(f.avi.key_frame_at(n.min(i64::from(u32::MAX)) as u32)),
+            _ => n,
+        }
+    }
+
+    /// Frames are due (playing) or not: the runtime paces them.
+    pub fn frames_due(&self) -> bool {
+        self.kind == Kind::Video && self.since.is_some() && self.state == PLAY
+    }
+
+    /// The time between two frames (ms; at least 10).
+    pub fn frame_ms(&self) -> i64 {
+        self.film.as_ref().map_or(1000, |f| ((f.avi.us_per_frame / 1000.0).round() as i64).clamp(10, 1000))
+    }
+
+    /// QVIDEO's picture now (the frame the clock is at while it plays,
+    /// else the one it was left at), drawn by `draw` when it isn't the one
+    /// last drawn at this size: `draw(pixels, width, height)` (0x00BBGGRR,
+    /// top row first). Whether it drew.
+    pub fn draw_frame(&mut self, w: i64, h: i64, draw: impl FnOnce(&[u32], usize, usize)) -> bool {
+        if !self.window.open {
+            return false;
+        }
+        let at = if self.since.is_some() { self.live_position() } else { self.key_frame(self.pos) };
+        let Some(f) = self.film.as_mut() else { return false };
+        let n = at.clamp(0, i64::from(f.avi.frames.max(1)) - 1) as u32;
+        if f.shown == Some((n, w, h)) {
+            return false;
+        }
+        f.shown = Some((n, w, h));
+        let (fw, fh) = (f.avi.width as usize, f.avi.height as usize);
+        draw(f.decoder.frame(&f.avi, n), fw, fh);
+        true
     }
 
     pub fn close(&mut self) {
@@ -575,8 +830,16 @@ impl Media {
         self.song = None;
         self.sound = None;
         if self.kind == Kind::Video {
-            let caption = std::mem::take(&mut self.video.caption);
-            self.video = VideoFields { caption, ..VideoFields::default() };
+            // (the library's Close clears these; Parent, BorderStyle,
+            // Caption, WindowState and Handle stay as they were)
+            let v = &mut self.video;
+            (v.length_time, v.left, v.top, v.width, v.height, v.img_width, v.img_height) = (0, 0, 0, 0, 0, 0, 0);
+            self.film = None;
+            self.audio_off = false;
+            if self.window.open {
+                self.window = VideoWindow::default();
+                self.window_changed = true;
+            }
         }
         if self.kind == Kind::CdAudio {
             let present = self.cd.present;
@@ -602,20 +865,23 @@ impl Media {
                     directx::device_stop(&id);
                 }
             }
+            Kind::Video => {
+                directx::device_stop(&id);
+                self.frames_changed = true;
+            }
             _ => {}
         }
     }
 
     pub fn play(&mut self) {
-        if !self.file_open || self.kind == Kind::Video {
-            return;
-        }
-        if self.kind == Kind::CdAudio {
+        if !self.file_open || self.kind == Kind::CdAudio {
             return;
         }
         self.set_timer(true);
         self.halt_device();
-        let from = self.pos;
+        // (QVIDEO: MCIAVI's "seek exactly off" — it plays from the key
+        // frame at or before CurrentFrame)
+        let from = self.key_frame(self.pos);
         let id = self.id_hint();
         match self.kind {
             Kind::Midi => {
@@ -632,10 +898,28 @@ impl Media {
                     }
                 }
             }
+            // ("play MEDIA from CurrentFrame": the window shows as it
+            // plays; at the end it stays on the last frame)
+            Kind::Video => {
+                self.play_film_sound(from);
+                self.frames_changed = true;
+                if !self.window.visible {
+                    self.window.visible = true;
+                    self.window_changed = true;
+                }
+            }
             _ => {}
         }
         self.since = Some((now(), from));
         self.state = PLAY;
+    }
+
+    /// QVIDEO's Show ("window MEDIA state show").
+    pub fn show(&mut self) {
+        if self.file_open && !self.window.visible {
+            self.window.visible = true;
+            self.window_changed = true;
+        }
     }
 
     pub fn stop(&mut self) {
@@ -746,6 +1030,9 @@ impl Media {
         let state = self.live_state();
         let pos = self.live_position();
         self.pos = pos;
+        // (QVIDEO's time: `INT(CurrentFrame * (LenghtTime / Lenght))`, of
+        // the position read — before a Stop puts CurrentFrame at 0)
+        let time = if self.length > 0 { (pos as f64 * (self.video.length_time as f64 / self.length as f64)) as i64 } else { 0 };
         // (QWAVE's GetState also reads "stopped" while recording ends)
         if state == STOP && matches!(self.state, PLAY | RECORD) {
             self.state = STOP;
@@ -754,10 +1041,7 @@ impl Media {
             self.state = state;
         }
         match self.kind {
-            Kind::Video => {
-                let time = if self.length > 0 { (self.pos as f64 * (self.video.length_time as f64 / self.length as f64)) as i64 } else { 0 };
-                self.events.push_back(("onchange", vec![v_int(self.pos), v_int(time)]));
-            }
+            Kind::Video => self.events.push_back(("onchange", vec![v_int(self.pos), v_int(time)])),
             _ => self.events.push_back(("onchange", vec![v_int(self.pos)])),
         }
     }
@@ -799,7 +1083,10 @@ impl Media {
                 self.delete(arg(0).to_i64(), arg(1).to_i64());
                 Value::Null
             }
-            "show" if k == Kind::Video => Value::Null,
+            "show" if k == Kind::Video => {
+                self.show();
+                Value::Null
+            }
             "eject" if k == Kind::CdAudio => {
                 self.close();
                 self.cd.present = 0;
@@ -849,14 +1136,14 @@ mod tests {
         at(1000.0);
         let mut w = Media::new(Kind::Wave);
         assert_eq!(w.call("open", &[v_str("nosuch.wav")], &none), Some(v_int(0)));
-        assert_eq!((w.error.as_str(), w.state), (FILE_NOT_FOUND, CLOSE));
+        assert_eq!((w.error.as_str(), w.state), (mci_error(FILE_NOT_FOUND).as_str(), CLOSE));
         let b = wav_bytes(2000);
         assert_eq!(with_id("w", || w.open("a.wav", Ok(b.clone()))), 1);
         assert_eq!((w.length, w.state, w.bits, w.frequence, w.mode), (2000, STOP, 8, 11025, 1));
-        // (opened again: MCI's alias in use, and the open one closed)
-        assert_eq!(w.open("a.wav", Ok(b.clone())), 0);
-        assert_eq!((w.error.as_str(), w.file_open), (ALIAS_IN_USE, false));
-        w.open("a.wav", Ok(b));
+        // (opened again: MCI's alias in use; the open one stays open, as
+        // in RC.EXE)
+        assert_eq!(w.open("a.wav", Ok(b)), 0);
+        assert_eq!((w.error.as_str(), w.file_open, w.state), (mci_error(ALIAS_IN_USE).as_str(), true, STOP));
         w.set("currentpos", &v_int(500));
         w.play();
         assert!(w.timer_enabled);
@@ -896,6 +1183,52 @@ mod tests {
         assert_eq!(directx::parse_wav(&file).unwrap().data.len(), 11025);
         w.delete(0, 500);
         assert_eq!(w.length, 500);
+    }
+
+    #[test]
+    fn video_frames_follow_the_clock() {
+        directx::set_clock(clock);
+        at(0.0);
+        let clip = include_bytes!("../../../../tests/fixtures/video/cinepak.avi").to_vec();
+        let mut v = Media::new(Kind::Video);
+        v.set("parent", &v_int(crate::handles::handle_of("form")));
+        assert_eq!(with_id("v", || v.open("clips/cinepak.avi", Ok(clip.clone()))), 1);
+        assert_eq!((v.length, v.video.length_time, v.video.img_width, v.video.img_height), (8, 0, 32, 24));
+        assert_eq!((v.video.width, v.video.height, v.video.handle), (32, 24, crate::handles::handle_of("v.screen")));
+        assert!(v.window_changed && v.window.open && !v.window.visible);
+        assert_eq!((v.window.parent.as_str(), v.window.caption.as_str()), ("form", ""));
+        // (a frame sought: the field keeps it, the picture is its key
+        // frame's — key frames 0 and 4)
+        v.set("currentframe", &v_int(5));
+        let mut shown = Vec::new();
+        assert!(v.draw_frame(32, 24, |px, w, h| shown.push((px[0], w, h))));
+        assert!(!v.draw_frame(32, 24, |_, _, _| {}), "the same frame isn't drawn twice");
+        assert_eq!(v.pos, 5);
+        // (playing: from the key frame, one frame each 100 ms)
+        with_id("v", || v.play());
+        assert!(v.frames_due() && v.window.visible && v.frame_ms() == 100);
+        at(250.0);
+        v.tick();
+        assert_eq!(v.pos, 6);
+        assert_eq!(v.events.pop_front().map(|e| (e.1[0].to_i64(), e.1[1].to_i64())), Some((6, 0)));
+        at(1000.0);
+        with_id("v", || v.tick());
+        assert_eq!((v.state, v.pos, v.frames_due()), (STOP, 0, false));
+        // (the library's Close keeps Parent, Caption, Handle)
+        let handle = v.video.handle;
+        with_id("v", || v.close());
+        assert!(!v.window.open && v.video.parent != 0 && v.video.handle == handle && v.video.width == 0);
+        // (no Parent: a popup with a 1-pixel border, its caption the file's
+        // name in the library's 128-character buffer)
+        v.set("parent", &v_int(0));
+        assert_eq!(with_id("v", || v.open("clips/cinepak.avi", Ok(clip.clone()))), 1);
+        assert_eq!((v.video.width, v.video.height, v.window.popup), (34, 26, true));
+        assert_eq!((v.video.caption.len(), v.window.caption.as_str()), (128, "cinepak.avi"));
+        assert!(v.video.caption.starts_with("cinepak.avi\0 "));
+        // (not an AVI)
+        let mut w = Media::new(Kind::Video);
+        assert_eq!(w.open("x.avi", Ok(b"RIFF....WAVE".to_vec())), 0);
+        assert_eq!(w.error, mci_error(CANNOT_PLAY));
     }
 
     #[test]

@@ -1,23 +1,30 @@
 //! The I/O and media objects on the desktop (rapidr_value::objects::rqlib;
 //! docs/io-media-plan.md): their devices installed when the first is made,
-//! the events their models leave fired, QDOWNLOAD's transfer, and the
-//! looks the runtime takes for QCOMPORT's OnRxChar (as for a joystick's
-//! events: `directx::timer_fired`).
+//! the events their models leave fired, QDOWNLOAD's transfer, the looks
+//! the runtime takes for QCOMPORT's OnRxChar (as for a joystick's events:
+//! `directx::timer_fired`), and QVIDEO's window — a QCANVAS the frames are
+//! drawn on, paced by a timer of its own while it plays.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rapidr_value::objects::download::Outcome;
-use rapidr_value::objects::rqlib;
+use rapidr_value::objects::{media, rqlib};
 
-use crate::object::{rp_comp_set, rp_fire_event_args};
-use crate::value::{v_int, v_str, Value};
+use crate::object::{rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event_args};
+use crate::value::{v_bool, v_int, v_str, Value};
 
 /// Object `name` of type `type_name` was made: its device, ready.
 pub fn created(name: &str, type_name: &str) {
     match type_name.to_ascii_uppercase().as_str() {
         "RCOMPORT" => crate::serial::install(),
-        "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO" => crate::media::install(),
+        "RMIDI" | "RWAVE" | "RCDAUDIO" => crate::media::install(),
+        // (its frames paced while it plays: a timer of its own)
+        "RVIDEO" => {
+            crate::media::install();
+            #[cfg(feature = "gui")]
+            crate::ui::gui_register_timer(&rqlib::frames_timer(name));
+        }
         // (its QGAUGE and QLABEL: components of their own, `name.StateGauge`
         // and `name.SpeedLbl`, which the program places — the library's
         // StateGauge was 200 × 20)
@@ -39,9 +46,121 @@ pub fn fire_events(name: &str) {
     if rqlib::take_timer_changed(name) {
         crate::ui::gui_timer_changed(name);
     }
+    if rqlib::is_video(name) {
+        video_changed(name);
+    }
     for (event, args) in rqlib::take_events(name) {
         rp_fire_event_args(name, event, &args);
     }
+}
+
+/// QVIDEO `name` after a call: its window's components follow the model
+/// (`media::VideoWindow`), its frames timer starts or stops, and the
+/// frame it's at is shown.
+fn video_changed(name: &str) {
+    #[cfg(feature = "gui")]
+    if rqlib::take_frames_changed(name) {
+        crate::ui::gui_timer_changed(&rqlib::frames_timer(name));
+    }
+    if let Some(w) = rqlib::take_video_window(name) {
+        video_window(name, &w);
+    }
+    video_frame(name);
+}
+
+/// QVIDEO `name`'s window as its components: `<name>.screen`, a QCANVAS
+/// (black) the frames are drawn on — on Parent's form (a child window at
+/// Left / Top, Width × Height), or filling `<name>.window`, a QFORM of its
+/// own (no frame for a popup) — made at the first Open, hidden by Close.
+fn video_window(name: &str, w: &media::VideoWindow) {
+    let (screen, form) = (media::VideoWindow::screen(name), media::VideoWindow::form(name));
+    let own = w.parent.is_empty();
+    if !w.open {
+        if !rp_comp_type(&screen).is_empty() {
+            rp_comp_set(&screen, "visible", v_bool(false));
+        }
+        if rp_comp_type(&form) == "RFORM" {
+            crate::object::rp_comp_method(&form, "close", &[]);
+        }
+        return;
+    }
+    if rp_comp_type(&screen).is_empty() {
+        crate::object::rp_create_component(&screen, "RCANVAS");
+        rp_comp_set(&screen, "color", v_int(0));
+    }
+    if own {
+        if rp_comp_type(&form).is_empty() {
+            crate::object::rp_create_component(&form, "RFORM");
+        }
+        rp_comp_set(&form, "borderstyle", v_int(if w.popup { 0 } else { 2 }));
+        rp_comp_set(&form, "caption", v_str(&w.caption));
+        if w.placed {
+            rp_comp_set(&form, "left", v_int(w.left));
+            rp_comp_set(&form, "top", v_int(w.top));
+        }
+        rp_comp_set(&form, "width", v_int(w.width));
+        rp_comp_set(&form, "height", v_int(w.height));
+        rp_comp_set(&screen, "parent", v_str(&form));
+        rp_comp_set(&screen, "visible", v_bool(true));
+        if w.popup {
+            // (a popup's 1-pixel black border around the picture)
+            rp_comp_set(&form, "color", v_int(0));
+            rp_comp_set(&screen, "align", v_int(0));
+            rp_comp_set(&screen, "left", v_int(1));
+            rp_comp_set(&screen, "top", v_int(1));
+            rp_comp_set(&screen, "width", v_int((w.width - 2).max(0)));
+            rp_comp_set(&screen, "height", v_int((w.height - 2).max(0)));
+        } else {
+            // (alClient: the picture fills the window)
+            rp_comp_set(&screen, "align", v_int(5));
+        }
+        if w.visible {
+            rp_comp_set(&form, "windowstate", v_int(w.state));
+            crate::object::rp_comp_method(&form, "show", &[]);
+        }
+    } else {
+        if rp_comp_type(&form) == "RFORM" {
+            crate::object::rp_comp_method(&form, "close", &[]);
+        }
+        rp_comp_set(&screen, "align", v_int(0));
+        rp_comp_set(&screen, "parent", v_str(&w.parent));
+        rp_comp_set(&screen, "left", v_int(w.left));
+        rp_comp_set(&screen, "top", v_int(w.top));
+        rp_comp_set(&screen, "width", v_int(w.width));
+        rp_comp_set(&screen, "height", v_int(w.height));
+        rp_comp_set(&screen, "visible", v_bool(w.visible));
+    }
+}
+
+/// QVIDEO `name`'s frame now on its screen (when it changed).
+fn video_frame(name: &str) {
+    let screen = media::VideoWindow::screen(name);
+    if rp_comp_type(&screen).is_empty() {
+        return;
+    }
+    let (w, h) = (rp_comp_get(&screen, "width").to_i64(), rp_comp_get(&screen, "height").to_i64());
+    if rqlib::video_draw(name, w, h) {
+        #[cfg(feature = "gui")]
+        crate::ui::canvas_redraw(&screen);
+    }
+}
+
+/// `name` is a QVIDEO's frames timer: its Enabled (frames due) and
+/// Interval (the file's time a frame), as the runtime's timers read them.
+pub fn frames_timer_get(name: &str, prop: &str) -> Option<Value> {
+    if !matches!(prop, "enabled" | "interval") || !name.ends_with(".frames") {
+        return None;
+    }
+    let (_, ms, due) = rqlib::video_frames(name)?;
+    Some(if prop == "enabled" { v_bool(due) } else { v_int(ms) })
+}
+
+/// A QVIDEO's frames timer fired: the frame the clock is at shown.
+#[cfg(feature = "gui")]
+pub fn frames_tick(name: &str) -> bool {
+    let Some((video, _, _)) = rqlib::video_frames(name) else { return false };
+    video_frame(&video);
+    true
 }
 
 /// `QDOWNLOAD.StateGauge.Parent = Form`: a member of its gauge or label.
@@ -170,6 +289,10 @@ fn fetch_inner(_url: &str, _t: &Mutex<Transfer>) -> Outcome {
 /// program handles), and how often.
 #[cfg(feature = "gui")]
 pub fn look_interval(name: &str) -> Option<Duration> {
+    // (a QVIDEO's frames: the file's time a frame)
+    if let Some((_, ms, _)) = rqlib::video_frames(name) {
+        return Some(Duration::from_millis(ms as u64));
+    }
     // (a media object's Timer: its Interval)
     if let Some((interval, _)) = rqlib::media_timer(name) {
         return Some(Duration::from_millis(if interval > 0 { interval as u64 } else { 1000 }));
