@@ -1,10 +1,14 @@
 //! QREGISTRY (RapidQ manual, Appendix A): keys holding sub-keys and named
-//! values, under a root (HKEY_CURRENT_USER by default). RapidR keeps them in
-//! a per-user store, the same on every platform — a text file in the
-//! Windows `.reg` format (Regedit's), in the user's settings folder (on the
-//! web, the page's local storage) — so a program's settings persist between
-//! runs the way RapidQ's did in the registry; nothing outside the store is
-//! read or changed.
+//! values, under a root (HKEY_CURRENT_USER by default).
+//!
+//! On Windows they are Windows' own registry, as RapidQ's were — in native
+//! and interpreted builds alike (both run on this file). `RAPIDR_REGISTRY`
+//! naming a file puts them in that file instead, on Windows too, so test
+//! runs never touch the machine's registry. Elsewhere RapidR keeps them in a
+//! per-user store — a text file in the Windows `.reg` format (Regedit's), in
+//! the user's settings folder (on the web, the page's local storage) — so a
+//! program's settings persist between runs the way RapidQ's did in the
+//! registry; nothing outside the store is read or changed.
 //!
 //! The API is Delphi's TRegistry, which QREGISTRY's names follow: OpenKey /
 //! KeyExists / CreateKey / DeleteKey take a path relative to the open key
@@ -14,6 +18,12 @@
 //! float is stored as its 8 bytes. The functions answer 1 or 0 (the
 //! manual's KeyExists: "Returns 0 or 1"). ReadBinary(Name, Index) keeps
 //! RapidQ's bug — the first byte is Index -1 — which its programs count on.
+//!
+//! What a call answers is worked out once, here, from a few operations on
+//! keys ([`Keys`]) that the store and Windows' registry each do, so both
+//! answer alike. A refusal (no such key, access denied — HKEY_LOCAL_MACHINE
+//! without elevation) is TRegistry's 0 / nothing, never an error. The store
+//! keeps limits of its own (`MAX_*`); Windows' registry keeps its own.
 
 use std::cell::{Cell, RefCell};
 
@@ -37,8 +47,8 @@ const ROOTS: [(u32, &str); 7] = [
     (HKEY_DYN_DATA, "HKEY_DYN_DATA"),
 ];
 
-/// Largest value kept (the registry's own limit is about this), and the
-/// longest key or value name.
+/// The store's limits: the largest value kept (the registry's own limit is
+/// about this), and the longest key or value name.
 const MAX_DATA: usize = 1 << 20;
 const MAX_NAME: usize = 16_383;
 /// Most keys under one key and values in one key (a runaway loop can't
@@ -53,6 +63,9 @@ pub enum Data {
     Expand(String),
     Int(i32),
     Bin(Vec<u8>),
+    /// Another kind (REG_MULTI_SZ, REG_QWORD, REG_NONE, …): TRegistry's
+    /// rdUnknown; its bytes as they are.
+    Other(u32, Vec<u8>),
 }
 
 impl Data {
@@ -63,6 +76,7 @@ impl Data {
             Data::Expand(_) => 2,
             Data::Int(_) => 3,
             Data::Bin(_) => 4,
+            Data::Other(..) => 0,
         }
     }
 
@@ -75,19 +89,146 @@ impl Data {
                 b
             }
             Data::Int(n) => n.to_le_bytes().to_vec(),
-            Data::Bin(b) => b.clone(),
+            Data::Bin(b) | Data::Other(_, b) => b.clone(),
+        }
+    }
+
+    /// A value as the registry keeps it: its kind (REG_SZ = 1, …) and bytes
+    /// (strings in UTF-16).
+    fn from_raw(kind: u32, bytes: Vec<u8>) -> Data {
+        match kind {
+            1 => Data::Str(from_utf16(&bytes)),
+            2 => Data::Expand(from_utf16(&bytes)),
+            3 => Data::Bin(bytes),
+            4 if bytes.len() == 4 => Data::Int(i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
+            _ => Data::Other(kind, bytes),
+        }
+    }
+
+    /// [`Data::from_raw`]'s other way.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    fn to_raw(&self) -> (u32, Vec<u8>) {
+        match self {
+            Data::Str(s) => (1, utf16(s)),
+            Data::Expand(s) => (2, utf16(s)),
+            Data::Bin(b) => (3, b.clone()),
+            Data::Int(i) => (4, i.to_le_bytes().to_vec()),
+            Data::Other(k, b) => (*k, b.clone()),
+        }
+    }
+
+    /// Within the store's limit.
+    fn limited(self) -> Data {
+        let cut = |s: String| if s.len() > MAX_DATA { s.chars().take(MAX_DATA).collect() } else { s };
+        match self {
+            Data::Str(s) => Data::Str(cut(s)),
+            Data::Expand(s) => Data::Expand(cut(s)),
+            Data::Bin(mut b) => {
+                b.truncate(MAX_DATA);
+                Data::Bin(b)
+            }
+            Data::Other(k, mut b) => {
+                b.truncate(MAX_DATA);
+                Data::Other(k, b)
+            }
+            d @ Data::Int(_) => d,
         }
     }
 }
+
+fn same(a: &str, b: &str) -> bool {
+    a.eq_ignore_ascii_case(b) || a.to_lowercase() == b.to_lowercase()
+}
+
+fn utf16(s: &str) -> Vec<u8> {
+    s.encode_utf16().chain(std::iter::once(0)).flat_map(u16::to_le_bytes).collect()
+}
+
+fn from_utf16(b: &[u8]) -> String {
+    let units: Vec<u16> = b.as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect();
+    let end = units.iter().position(|u| *u == 0).unwrap_or(units.len());
+    String::from_utf16_lossy(&units[..end])
+}
+
+// ---------------------------------------------------------------------------
+// Where the keys are
+// ---------------------------------------------------------------------------
+
+/// The keys under a root, by path (its parts, none empty; none: the root
+/// itself) — the per-user store, or Windows' registry. Names ignore case.
+/// A refusal (no such key, access denied) is `false` / nothing.
+trait Keys {
+    /// The key is there (a root always is).
+    fn exists(&self, root: u32, path: &[String]) -> bool;
+    /// The key, made (with the keys on the way) if it isn't there.
+    fn create(&self, root: u32, path: &[String]) -> bool;
+    /// The key and everything under it (never a root).
+    fn delete(&self, root: u32, path: &[String]) -> bool;
+    /// Its sub-keys' names, in the order Windows lists them (alphabetical,
+    /// ignoring case).
+    fn key_names(&self, root: u32, path: &[String]) -> Vec<String>;
+    /// Its values, in the order they're listed.
+    fn values(&self, root: u32, path: &[String]) -> Vec<(String, Data)>;
+    fn key_count(&self, root: u32, path: &[String]) -> usize;
+    fn key_item(&self, root: u32, path: &[String], index: usize) -> Option<String>;
+    fn value_count(&self, root: u32, path: &[String]) -> usize;
+    fn value_item(&self, root: u32, path: &[String], index: usize) -> Option<String>;
+    fn value(&self, root: u32, path: &[String], name: &str) -> Option<Data>;
+    /// Sets a value, the key made if it isn't there (deleted meanwhile).
+    fn set_value(&self, root: u32, path: &[String], name: &str, data: Data) -> bool;
+    fn delete_value(&self, root: u32, path: &[String], name: &str) -> bool;
+    /// A call's changes kept (the store's text written once, at its end).
+    fn flush(&self) {}
+}
+
+/// Windows' registry on Windows — unless `RAPIDR_REGISTRY` names a file, or
+/// a store was installed ([`set_io`]: a test's) — the per-user store
+/// elsewhere.
+fn keys() -> &'static dyn Keys {
+    #[cfg(windows)]
+    if IO.with(Cell::get).is_none() && std::env::var_os("RAPIDR_REGISTRY").is_none_or(|p| p.is_empty()) {
+        return &win::Registry;
+    }
+    &UserStore
+}
+
+/// A key and everything under it, read (what MoveKey copies).
+fn tree(keys: &dyn Keys, root: u32, path: &[String]) -> Option<Key> {
+    if !keys.exists(root, path) {
+        return None;
+    }
+    let mut key = Key { keys: Vec::new(), values: keys.values(root, path) };
+    for name in keys.key_names(root, path) {
+        let sub = [path, std::slice::from_ref(&name)].concat();
+        if let Some(k) = tree(keys, root, &sub) {
+            key.keys.push((name, k));
+        }
+    }
+    Some(key)
+}
+
+/// A key's sub-keys and values put under `path` (MoveKey: added to what's
+/// there).
+fn copy(keys: &dyn Keys, root: u32, path: &[String], key: &Key) {
+    for (name, data) in &key.values {
+        keys.set_value(root, path, name, data.clone());
+    }
+    for (name, k) in &key.keys {
+        let sub = [path, std::slice::from_ref(name)].concat();
+        if keys.create(root, &sub) {
+            copy(keys, root, &sub, k);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The per-user store
+// ---------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default, PartialEq)]
 struct Key {
     keys: Vec<(String, Key)>,
     values: Vec<(String, Data)>,
-}
-
-fn same(a: &str, b: &str) -> bool {
-    a.eq_ignore_ascii_case(b) || a.to_lowercase() == b.to_lowercase()
 }
 
 fn name_of(s: &str) -> String {
@@ -135,6 +276,7 @@ impl Key {
     }
 
     fn set_value(&mut self, name: &str, data: Data) -> bool {
+        let data = data.limited();
         if let Some(slot) = self.values.iter_mut().find(|(n, _)| same(n, name)) {
             slot.1 = data;
             return true;
@@ -153,23 +295,7 @@ impl Key {
         names.sort_by_key(|n| n.to_lowercase());
         names
     }
-
-    /// Another key's sub-keys and values copied in (MoveKey).
-    fn merge(&mut self, other: &Key) {
-        for (n, d) in &other.values {
-            self.set_value(n, d.clone());
-        }
-        for (n, k) in &other.keys {
-            if let Some(dst) = self.create(std::slice::from_ref(n)) {
-                dst.merge(k);
-            }
-        }
-    }
 }
-
-// ---------------------------------------------------------------------------
-// The store and its file
-// ---------------------------------------------------------------------------
 
 /// Reads the store's text (`None`: none yet) and writes it back: the web
 /// runtime installs its own (local storage).
@@ -180,6 +306,8 @@ pub type Save = fn(&str);
 struct Store {
     roots: Vec<(u32, Key)>,
     loaded: bool,
+    /// Changed since its text was last written.
+    changed: bool,
 }
 
 thread_local! {
@@ -190,7 +318,8 @@ thread_local! {
 }
 
 /// Where the store is kept (instead of the user's settings folder): the web
-/// runtime's local storage; a test's own file.
+/// runtime's local storage; a test's own (on Windows too: then it, not the
+/// registry).
 pub fn set_io(load: Load, save: Save) {
     // (installed again with the same functions: the store read stays)
     let same = IO.with(Cell::get).is_some_and(|(l, s)| l as usize == load as usize && s as usize == save as usize);
@@ -201,18 +330,19 @@ pub fn set_io(load: Load, save: Save) {
 }
 
 /// The store's file: `RAPIDR_REGISTRY`, else `registry.reg` in RapidR's
-/// folder of the user's settings.
+/// folder of the user's settings (none on Windows: the registry itself).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn store_path() -> Option<std::path::PathBuf> {
     use std::path::PathBuf;
     if let Some(p) = std::env::var_os("RAPIDR_REGISTRY").filter(|p| !p.is_empty()) {
         return Some(PathBuf::from(p));
     }
+    if cfg!(windows) {
+        return None;
+    }
     let home = std::env::var_os("HOME").map(PathBuf::from);
     let dir = if cfg!(target_os = "macos") {
         home?.join("Library").join("Application Support").join("RapidR")
-    } else if cfg!(windows) {
-        PathBuf::from(std::env::var_os("APPDATA")?).join("RapidR")
     } else {
         std::env::var_os("XDG_CONFIG_HOME").filter(|p| !p.is_empty()).map(PathBuf::from).or_else(|| home.map(|h| h.join(".config")))?.join("rapidr")
     };
@@ -262,14 +392,12 @@ fn with_store<R>(f: impl FnOnce(&mut Store) -> R) -> R {
     })
 }
 
-/// A change to the store: made, then saved.
+/// A change to the store (its text written when the call is done).
 fn change<R>(f: impl FnOnce(&mut Store) -> R) -> R {
-    let (r, text) = with_store(|s| {
-        let r = f(s);
-        (r, write(&s.roots))
-    });
-    save_text(&text);
-    r
+    with_store(|s| {
+        s.changed = true;
+        f(s)
+    })
 }
 
 impl Store {
@@ -283,6 +411,87 @@ impl Store {
         }
         self.roots.push((root, Key::default()));
         &mut self.roots.last_mut().unwrap().1
+    }
+}
+
+/// The per-user store as [`Keys`].
+struct UserStore;
+
+impl UserStore {
+    fn read<R>(&self, root: u32, path: &[String], f: impl FnOnce(&Key) -> R) -> Option<R> {
+        with_store(|s| s.root(root).and_then(|r| r.at(path)).map(f))
+    }
+}
+
+impl Keys for UserStore {
+    fn exists(&self, root: u32, path: &[String]) -> bool {
+        path.is_empty() || self.read(root, path, |_| ()).is_some()
+    }
+
+    fn create(&self, root: u32, path: &[String]) -> bool {
+        change(|s| s.root_mut(root).create(path).is_some())
+    }
+
+    fn delete(&self, root: u32, path: &[String]) -> bool {
+        let Some((last, parent)) = path.split_last() else { return false };
+        change(|s| {
+            let Some(p) = s.root_mut(root).at_mut(parent) else { return false };
+            let before = p.keys.len();
+            p.keys.retain(|(k, _)| !same(k, last));
+            p.keys.len() != before
+        })
+    }
+
+    fn key_names(&self, root: u32, path: &[String]) -> Vec<String> {
+        self.read(root, path, Key::key_names).unwrap_or_default()
+    }
+
+    fn values(&self, root: u32, path: &[String]) -> Vec<(String, Data)> {
+        self.read(root, path, |k| k.values.clone()).unwrap_or_default()
+    }
+
+    fn key_count(&self, root: u32, path: &[String]) -> usize {
+        self.read(root, path, |k| k.keys.len()).unwrap_or(0)
+    }
+
+    fn key_item(&self, root: u32, path: &[String], index: usize) -> Option<String> {
+        self.read(root, path, |k| k.key_names().get(index).cloned()).flatten()
+    }
+
+    fn value_count(&self, root: u32, path: &[String]) -> usize {
+        self.read(root, path, |k| k.values.len()).unwrap_or(0)
+    }
+
+    fn value_item(&self, root: u32, path: &[String], index: usize) -> Option<String> {
+        self.read(root, path, |k| k.values.get(index).map(|(n, _)| n.clone())).flatten()
+    }
+
+    fn value(&self, root: u32, path: &[String], name: &str) -> Option<Data> {
+        self.read(root, path, |k| k.value(name).cloned()).flatten()
+    }
+
+    fn set_value(&self, root: u32, path: &[String], name: &str, data: Data) -> bool {
+        change(|s| s.root_mut(root).create(path).is_some_and(|k| k.set_value(name, data)))
+    }
+
+    fn delete_value(&self, root: u32, path: &[String], name: &str) -> bool {
+        change(|s| {
+            s.root_mut(root).at_mut(path).is_some_and(|k| {
+                let before = k.values.len();
+                k.values.retain(|(v, _)| !same(v, name));
+                k.values.len() != before
+            })
+        })
+    }
+
+    fn flush(&self) {
+        let text = STORE.with(|s| {
+            let mut s = s.borrow_mut();
+            std::mem::take(&mut s.changed).then(|| write(&s.roots))
+        });
+        if let Some(text) = text {
+            save_text(&text);
+        }
     }
 }
 
@@ -302,16 +511,6 @@ fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect::<Vec<_>>().join(",")
 }
 
-fn utf16(s: &str) -> Vec<u8> {
-    s.encode_utf16().chain(std::iter::once(0)).flat_map(u16::to_le_bytes).collect()
-}
-
-fn from_utf16(b: &[u8]) -> String {
-    let units: Vec<u16> = b.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
-    let end = units.iter().position(|u| *u == 0).unwrap_or(units.len());
-    String::from_utf16_lossy(&units[..end])
-}
-
 fn write_key(out: &mut String, path: &str, key: &Key) {
     out.push_str(&format!("\n[{path}]\n"));
     for (n, d) in &key.values {
@@ -323,6 +522,7 @@ fn write_key(out: &mut String, path: &str, key: &Key) {
             Data::Expand(s) => format!("hex(2):{}", hex(&utf16(s))),
             Data::Int(i) => format!("dword:{:08x}", *i as u32),
             Data::Bin(b) => format!("hex:{}", hex(b)),
+            Data::Other(k, b) => format!("hex({k:x}):{}", hex(b)),
         };
         out.push_str(&format!("{name}={data}\n"));
     }
@@ -397,21 +597,161 @@ fn parse(text: &str) -> Vec<(u32, Key)> {
             unquote(data).map(|(s, _)| Data::Str(s))
         } else if let Some(h) = data.strip_prefix("dword:") {
             u32::from_str_radix(h.trim(), 16).ok().map(|n| Data::Int(n as i32))
-        } else if let Some(h) = data.strip_prefix("hex(1):") {
-            Some(Data::Str(from_utf16(&parse_hex(h))))
-        } else if let Some(h) = data.strip_prefix("hex(2):") {
-            Some(Data::Expand(from_utf16(&parse_hex(h))))
         } else if let Some(h) = data.strip_prefix("hex:") {
             Some(Data::Bin(parse_hex(h)))
         } else {
-            // (other kinds: their bytes)
-            data.split_once("):").map(|(_, h)| Data::Bin(parse_hex(h)))
+            // (hex(kind): the other kinds, REG_EXPAND_SZ = hex(2) among them)
+            data.strip_prefix("hex(").and_then(|d| d.split_once("):")).and_then(|(k, h)| Some(Data::from_raw(u32::from_str_radix(k.trim(), 16).ok()?, parse_hex(h))))
         };
         if let (Some(v), Some(k)) = (value, store.root_mut(*root).create(path)) {
             k.set_value(&name, v);
         }
     }
     store.roots
+}
+
+// ---------------------------------------------------------------------------
+// Windows' registry
+// ---------------------------------------------------------------------------
+
+#[cfg(windows)]
+mod win {
+    //! The keys in Windows' registry (where RapidQ's QREGISTRY kept them).
+    //! Each call opens the key it needs and closes it again: an open key is
+    //! its path, as in the store. Keys open for reading unless the call
+    //! changes something, so OpenKey / KeyExists / the Read… calls work on
+    //! keys a program may only read (HKEY_LOCAL_MACHINE without elevation),
+    //! where changes are refused.
+
+    use super::{Data, Keys, HKEY_CLASSES_ROOT, HKEY_CURRENT_CONFIG, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS};
+    use std::cell::RefCell;
+    use windows_registry::{Key, Type, Value};
+
+    pub(super) struct Registry;
+
+    /// A root's key — Windows' five (HKEY_PERFORMANCE_DATA isn't keys,
+    /// HKEY_DYN_DATA was Windows 9x's); no other number is one, never a
+    /// handle the program has open.
+    fn root_key(root: u32) -> Option<&'static Key> {
+        Some(match root {
+            HKEY_CLASSES_ROOT => windows_registry::CLASSES_ROOT,
+            HKEY_CURRENT_USER => windows_registry::CURRENT_USER,
+            HKEY_LOCAL_MACHINE => windows_registry::LOCAL_MACHINE,
+            HKEY_USERS => windows_registry::USERS,
+            HKEY_CURRENT_CONFIG => windows_registry::CURRENT_CONFIG,
+            _ => return None,
+        })
+    }
+
+    /// The key, open for reading.
+    fn open(root: u32, path: &[String]) -> Option<Key> {
+        root_key(root)?.open(path.join("\\")).ok()
+    }
+
+    fn data(v: &Value) -> Data {
+        Data::from_raw(v.ty().into(), v.to_vec())
+    }
+
+    struct Listed {
+        root: u32,
+        path: Vec<String>,
+        values: bool,
+        names: Vec<String>,
+    }
+
+    thread_local! {
+        /// The names a key listed last. KeyItem / ValueItem go through a
+        /// key's list by index; Windows lists from the start each time, so
+        /// a walk through thousands of keys (HKEY_CLASSES_ROOT) reads the
+        /// list once: item 0 (a walk's start), the counts and any change
+        /// through QREGISTRY list it afresh.
+        static LISTED: RefCell<Option<Listed>> = const { RefCell::new(None) };
+    }
+
+    fn changed() {
+        LISTED.with(|l| *l.borrow_mut() = None);
+    }
+
+    fn names(root: u32, path: &[String], values: bool) -> Vec<String> {
+        let names: Vec<String> = match open(root, path) {
+            Some(key) if values => key.values().map(|it| it.map(|(n, _)| n).collect()).unwrap_or_default(),
+            Some(key) => key.keys().map(|it| it.collect()).unwrap_or_default(),
+            None => Vec::new(),
+        };
+        LISTED.with(|l| *l.borrow_mut() = Some(Listed { root, path: path.to_vec(), values, names: names.clone() }));
+        names
+    }
+
+    fn item(root: u32, path: &[String], values: bool, index: usize) -> Option<String> {
+        if index > 0 {
+            let listed = LISTED.with(|l| l.borrow().as_ref().filter(|l| l.root == root && l.values == values && l.path == path).map(|l| l.names.get(index).cloned()));
+            if let Some(name) = listed {
+                return name;
+            }
+        }
+        names(root, path, values).into_iter().nth(index)
+    }
+
+    impl Keys for Registry {
+        fn exists(&self, root: u32, path: &[String]) -> bool {
+            open(root, path).is_some()
+        }
+
+        fn create(&self, root: u32, path: &[String]) -> bool {
+            changed();
+            // (one already there opens for reading: OpenKey(…, 1) works on
+            // keys the program can't change)
+            root_key(root).is_some_and(|r| r.options().read().create().open(path.join("\\")).is_ok())
+        }
+
+        fn delete(&self, root: u32, path: &[String]) -> bool {
+            changed();
+            // (never a root: RegDeleteTree would empty it)
+            !path.is_empty() && root_key(root).is_some_and(|r| r.remove_tree(path.join("\\")).is_ok())
+        }
+
+        fn key_names(&self, root: u32, path: &[String]) -> Vec<String> {
+            names(root, path, false)
+        }
+
+        fn values(&self, root: u32, path: &[String]) -> Vec<(String, Data)> {
+            open(root, path).and_then(|k| Some(k.values().ok()?.map(|(n, v)| (n, data(&v))).collect())).unwrap_or_default()
+        }
+
+        fn key_count(&self, root: u32, path: &[String]) -> usize {
+            names(root, path, false).len()
+        }
+
+        fn key_item(&self, root: u32, path: &[String], index: usize) -> Option<String> {
+            item(root, path, false, index)
+        }
+
+        fn value_count(&self, root: u32, path: &[String]) -> usize {
+            names(root, path, true).len()
+        }
+
+        fn value_item(&self, root: u32, path: &[String], index: usize) -> Option<String> {
+            item(root, path, true, index)
+        }
+
+        fn value(&self, root: u32, path: &[String], name: &str) -> Option<Data> {
+            open(root, path)?.get_value(name).ok().map(|v| data(&v))
+        }
+
+        fn set_value(&self, root: u32, path: &[String], name: &str, data: Data) -> bool {
+            changed();
+            let (kind, bytes) = data.to_raw();
+            let Some(key) = root_key(root).and_then(|r| r.options().write().create().open(path.join("\\")).ok()) else { return false };
+            // (the kind as its number: the bytes go as they are — a value
+            // MoveKey copies keeps its kind even if it isn't well formed)
+            key.set_bytes(name, Type::Other(kind), &bytes).is_ok()
+        }
+
+        fn delete_value(&self, root: u32, path: &[String], name: &str) -> bool {
+            changed();
+            root_key(root).and_then(|r| r.options().write().open(path.join("\\")).ok()).is_some_and(|k| k.remove_value(name).is_ok())
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -446,35 +786,20 @@ impl Registry {
         path
     }
 
-    /// Reads the open key (the root with none open).
-    fn read<R>(&self, f: impl FnOnce(&Key) -> R) -> Option<R> {
-        with_store(|s| s.root(self.root).and_then(|r| r.at(&self.path)).map(f))
-    }
-
-    /// Changes the open key (made if it was deleted meanwhile).
-    fn write<R>(&self, f: impl FnOnce(&mut Key) -> R) -> Option<R> {
-        let root = self.root;
-        let path = self.path.clone();
-        change(|s| s.root_mut(root).create(&path).map(f))
-    }
-
-    fn value(&self, name: &str) -> Option<Data> {
-        self.read(|k| k.value(name).cloned()).flatten()
-    }
-
     fn close(&mut self) {
         self.path.clear();
         self.handle = 0;
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
+        let keys = keys();
         Some(match prop {
             "rootkey" => v_int(i64::from(self.root)),
             "currentkey" => v_int(self.handle),
             "currentpath" => v_str(&self.path.join("\\")),
-            "hassubkeys" => flag(self.read(|k| !k.keys.is_empty()).unwrap_or(false)),
-            "keyitemcount" => v_int(self.read(|k| k.keys.len() as i64).unwrap_or(0)),
-            "valueitemcount" => v_int(self.read(|k| k.values.len() as i64).unwrap_or(0)),
+            "hassubkeys" => flag(keys.key_count(self.root, &self.path) > 0),
+            "keyitemcount" => v_int(keys.key_count(self.root, &self.path) as i64),
+            "valueitemcount" => v_int(keys.value_count(self.root, &self.path) as i64),
             _ => return None,
         })
     }
@@ -492,17 +817,25 @@ impl Registry {
     }
 
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        let keys = keys();
+        let answer = self.answer(keys, method, args);
+        keys.flush();
+        answer
+    }
+
+    fn answer(&mut self, keys: &dyn Keys, method: &str, args: &[Value]) -> Option<Value> {
         let s = |i: usize| args.get(i).map(Value::to_string_val).unwrap_or_default();
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let root = self.root;
+        let (root, open) = (self.root, self.path.clone());
+        let value = |name: &str| keys.value(root, &open, name);
+        let write = |name: &str, data: Data| {
+            keys.set_value(root, &open, name, data);
+            Value::Null
+        };
         Some(match method {
             "openkey" => {
                 let path = self.resolve(&s(0));
-                let ok = if n(1) != 0 {
-                    change(|st| st.root_mut(root).create(&path).is_some())
-                } else {
-                    with_store(|st| st.root(root).and_then(|r| r.at(&path)).is_some() || path.is_empty())
-                };
+                let ok = if n(1) != 0 { keys.create(root, &path) } else { keys.exists(root, &path) };
                 if ok {
                     self.path = path;
                     self.handle = NEXT_HANDLE.with(|h| {
@@ -516,114 +849,78 @@ impl Registry {
                 self.close();
                 Value::Null
             }
-            "createkey" => {
-                let path = self.resolve(&s(0));
-                flag(change(|st| st.root_mut(root).create(&path).is_some()))
-            }
-            "keyexists" => {
-                let path = self.resolve(&s(0));
-                flag(with_store(|st| st.root(root).and_then(|r| r.at(&path)).is_some()))
-            }
+            "createkey" => flag(keys.create(root, &self.resolve(&s(0)))),
+            "keyexists" => flag(keys.exists(root, &self.resolve(&s(0)))),
             "deletekey" => {
                 let path = self.resolve(&s(0));
-                let Some((last, parent)) = path.split_last() else { return Some(flag(false)) };
-                let ok = change(|st| {
-                    let Some(p) = st.root_mut(root).at_mut(parent) else { return false };
-                    let before = p.keys.len();
-                    p.keys.retain(|(k, _)| !same(k, last));
-                    p.keys.len() != before
-                });
+                // (never a root)
+                let ok = !path.is_empty() && keys.delete(root, &path);
                 // (the open key went with it)
                 if ok && self.path.len() >= path.len() && self.path.iter().zip(&path).all(|(a, b)| same(a, b)) {
                     self.close();
                 }
                 flag(ok)
             }
-            "valueexists" => flag(self.value(&s(0)).is_some()),
-            "deletevalue" => {
-                let name = s(0);
-                flag(self.write(|k| {
-                    let before = k.values.len();
-                    k.values.retain(|(v, _)| !same(v, &name));
-                    k.values.len() != before
-                }) == Some(true))
-            }
+            "valueexists" => flag(value(&s(0)).is_some()),
+            "deletevalue" => flag(keys.delete_value(root, &open, &s(0))),
+            // (TRegistry's: the data under the new name, unless that's
+            // another value's — then nothing)
             "renamevalue" => {
                 let (old, new) = (s(0), s(1));
-                self.write(|k| {
-                    if k.value(&new).is_none() || same(&old, &new) {
-                        if let Some(slot) = k.values.iter_mut().find(|(v, _)| same(v, &old)) {
-                            slot.0 = name_of(&new);
-                        }
+                if same(&old, &new) || value(&new).is_none() {
+                    if let Some(data) = value(&old) {
+                        keys.delete_value(root, &open, &old);
+                        keys.set_value(root, &open, &new, data);
                     }
-                });
+                }
                 Value::Null
             }
-            "keyitem" => v_str(&self.read(|k| k.key_names().get(n(0).max(0) as usize).cloned()).flatten().unwrap_or_default()),
-            "valueitem" => v_str(&self.read(|k| k.values.get(n(0).max(0) as usize).map(|(v, _)| v.clone())).flatten().unwrap_or_default()),
+            "keyitem" => v_str(&keys.key_item(root, &open, n(0).max(0) as usize).unwrap_or_default()),
+            "valueitem" => v_str(&keys.value_item(root, &open, n(0).max(0) as usize).unwrap_or_default()),
             "movekey" => {
                 let (from, to) = (self.resolve(&s(0)), self.resolve(&s(1)));
-                let delete = n(2) != 0;
-                let ok = change(|st| {
-                    let r = st.root_mut(root);
-                    let Some(src) = r.at(&from).cloned() else { return false };
-                    if from.is_empty() || to.starts_with(&from) {
-                        return false;
-                    }
-                    let Some(dst) = r.create(&to) else { return false };
-                    dst.merge(&src);
-                    if delete {
-                        if let Some((last, parent)) = from.split_last() {
-                            if let Some(p) = r.at_mut(parent) {
-                                p.keys.retain(|(k, _)| !same(k, last));
+                // (not a root, nor into itself)
+                let into_itself = to.len() >= from.len() && from.iter().zip(&to).all(|(a, b)| same(a, b));
+                let ok = !from.is_empty()
+                    && !into_itself
+                    && tree(keys, root, &from).is_some_and(|src| {
+                        keys.create(root, &to) && {
+                            copy(keys, root, &to, &src);
+                            if n(2) != 0 {
+                                keys.delete(root, &from);
                             }
+                            true
                         }
-                    }
-                    true
-                });
+                    });
                 flag(ok)
             }
-            "getdatasize" => v_int(self.value(&s(0)).map_or(-1, |d| d.bytes().len() as i64)),
-            "getdatatype" => v_int(self.value(&s(0)).map_or(0, |d| d.kind())),
-            "readstring" => v_str(&match self.value(&s(0)) {
+            "getdatasize" => v_int(value(&s(0)).map_or(-1, |d| d.bytes().len() as i64)),
+            "getdatatype" => v_int(value(&s(0)).map_or(0, |d| d.kind())),
+            "readstring" => v_str(&match value(&s(0)) {
                 Some(Data::Str(t) | Data::Expand(t)) => t,
                 _ => String::new(),
             }),
-            "readinteger" => v_int(match self.value(&s(0)) {
+            "readinteger" => v_int(match value(&s(0)) {
                 Some(Data::Int(i)) => i64::from(i),
                 _ => 0,
             }),
-            "readfloat" => Value::Double(match self.value(&s(0)) {
+            "readfloat" => Value::Double(match value(&s(0)) {
                 Some(Data::Bin(b)) if b.len() == 8 => f64::from_le_bytes(b[..8].try_into().unwrap_or_default()),
                 _ => 0.0,
             }),
             // (RapidQ's bug: Index -1 is the first byte)
-            "readbinary" => v_int(self.value(&s(0)).and_then(|d| usize::try_from(n(1) + 1).ok().and_then(|i| d.bytes().get(i).copied())).map_or(0, i64::from)),
-            "writestring" => {
-                let (name, text): (String, String) = (s(0), s(1).chars().take(MAX_DATA).collect());
-                self.write(|k| k.set_value(&name, Data::Str(text)));
-                Value::Null
-            }
-            "writeinteger" => {
-                let (name, v) = (s(0), n(1) as i32);
-                self.write(|k| k.set_value(&name, Data::Int(v)));
-                Value::Null
-            }
-            "writefloat" => {
-                let (name, v) = (s(0), args.get(1).map_or(0.0, Value::to_f64));
-                self.write(|k| k.set_value(&name, Data::Bin(v.to_le_bytes().to_vec())));
-                Value::Null
-            }
+            "readbinary" => v_int(value(&s(0)).and_then(|d| usize::try_from(n(1) + 1).ok().and_then(|i| d.bytes().get(i).copied())).map_or(0, i64::from)),
+            "writestring" => write(&s(0), Data::Str(s(1))),
+            "writeinteger" => write(&s(0), Data::Int(n(1) as i32)),
+            "writefloat" => write(&s(0), Data::Bin(args.get(1).map_or(0.0, Value::to_f64).to_le_bytes().to_vec())),
             "writebinary" => {
-                let name = s(0);
-                let size = usize::try_from(n(2)).unwrap_or(0).min(MAX_DATA);
+                let size = usize::try_from(n(2)).unwrap_or(0);
                 let bytes: Vec<u8> = match args.get(1) {
                     Some(Value::Array(a)) => a.borrow().data.iter().take(size).map(|v| v.to_i64() as u8).collect(),
                     Some(v) => v.to_string_val().bytes().take(size).collect(),
                     None => Vec::new(),
                 };
-                self.write(|k| k.set_value(&name, Data::Bin(bytes)));
-                Value::Null
+                write(&s(0), Data::Bin(bytes))
             }
             // (another computer's registry: not reachable)
             "registryconnect" => flag(false),
@@ -644,6 +941,16 @@ mod tests {
     }
     fn save(s: &str) {
         TEXT.with(|t| *t.borrow_mut() = Some(s.to_string()));
+    }
+
+    fn call(r: &mut Registry, method: &str, args: &[Value]) -> Value {
+        r.call(method, args).unwrap_or_else(|| panic!("no {method}"))
+    }
+    fn int(r: &mut Registry, method: &str, args: &[Value]) -> i64 {
+        call(r, method, args).to_i64()
+    }
+    fn text(r: &mut Registry, method: &str, args: &[Value]) -> String {
+        call(r, method, args).to_string_val()
     }
 
     #[test]
@@ -705,5 +1012,206 @@ mod tests {
         let text = load().unwrap();
         assert_eq!(write(&parse(&text)), text);
         assert!(text.contains("@=\"c:\\\\x \\\"%1\\\"\""));
+    }
+
+    /// What every place the keys can be answers alike, under `base` (a key
+    /// path from HKEY_CURRENT_USER's root, made and deleted here).
+    fn shared_semantics(base: &str) {
+        let mut r = Registry::default();
+        let at = |p: &str| v_str(&format!("{base}\\{p}"));
+        assert_eq!(int(&mut r, "deletekey", &[v_str(base)]), 0, "{base} was left over");
+        // a root is always there, and is never deleted
+        assert_eq!(int(&mut r, "keyexists", &[v_str("")]), 1);
+        assert_eq!(int(&mut r, "keyexists", &[v_str("\\")]), 1);
+        assert_eq!(int(&mut r, "openkey", &[at("Nope"), v_int(0)]), 0);
+        assert_eq!(r.get("currentkey"), Some(v_int(0)));
+
+        // every kind of data
+        assert_eq!(int(&mut r, "openkey", &[at("Kinds"), v_int(1)]), 1);
+        assert_ne!(r.get("currentkey"), Some(v_int(0)));
+        call(&mut r, "writestring", &[v_str("Str"), v_str("héllo, wörld")]);
+        call(&mut r, "writestring", &[v_str(""), v_str("the default")]);
+        call(&mut r, "writestring", &[v_str("Lines"), v_str("one\r\ntwo")]);
+        call(&mut r, "writestring", &[v_str("Empty"), v_str("")]);
+        call(&mut r, "writeinteger", &[v_str("Int"), v_int(-5)]);
+        call(&mut r, "writefloat", &[v_str("Float"), Value::Double(-2.5)]);
+        let arr = crate::BasicArray { bounds: vec![(0, 3)], data: [7, 0, 255, 9].map(v_int).to_vec() };
+        call(&mut r, "writebinary", &[v_str("Bin"), Value::Array(std::rc::Rc::new(RefCell::new(arr))), v_int(3)]);
+        call(&mut r, "writebinary", &[v_str("FromText"), v_str("abc"), v_int(99)]);
+        let names: Vec<String> = (0..9).map(|i| text(&mut r, "valueitem", &[v_int(i)])).collect();
+        assert_eq!(names, ["Str", "", "Lines", "Empty", "Int", "Float", "Bin", "FromText", ""], "in the order written");
+        assert_eq!(r.get("valueitemcount"), Some(v_int(8)));
+        let kinds: Vec<i64> = ["str", "", "lines", "empty", "int", "float", "bin", "fromtext", "nope"].iter().map(|n| int(&mut r, "getdatatype", &[v_str(n)])).collect();
+        assert_eq!(kinds, [1, 1, 1, 1, 3, 4, 4, 4, 0]);
+        let sizes: Vec<i64> = ["Str", "", "Lines", "Empty", "Int", "Float", "Bin", "FromText", "Nope"].iter().map(|n| int(&mut r, "getdatasize", &[v_str(n)])).collect();
+        assert_eq!(sizes, [15, 12, 9, 1, 4, 8, 3, 3, -1]);
+        assert_eq!(text(&mut r, "readstring", &[v_str("STR")]), "héllo, wörld");
+        assert_eq!(text(&mut r, "readstring", &[v_str("")]), "the default");
+        assert_eq!(text(&mut r, "readstring", &[v_str("Lines")]), "one\r\ntwo");
+        assert_eq!(text(&mut r, "readstring", &[v_str("Int")]), "", "not a string");
+        assert_eq!(int(&mut r, "readinteger", &[v_str("Int")]), -5);
+        assert_eq!(int(&mut r, "readinteger", &[v_str("Str")]), 0);
+        assert_eq!(call(&mut r, "readfloat", &[v_str("Float")]), Value::Double(-2.5));
+        assert_eq!(call(&mut r, "readfloat", &[v_str("Bin")]), Value::Double(0.0));
+        let bin: Vec<i64> = (-2..=3).map(|i| int(&mut r, "readbinary", &[v_str("Bin"), v_int(i)])).collect();
+        assert_eq!(bin, [0, 7, 0, 255, 0, 0]);
+        assert_eq!(int(&mut r, "readbinary", &[v_str("FromText"), v_int(-1)]), 97);
+        assert_eq!(int(&mut r, "readbinary", &[v_str("Str"), v_int(-1)]), 104, "a string's bytes");
+        assert_eq!(int(&mut r, "readbinary", &[v_str("Int"), v_int(-1)]), 251);
+        // written again: the same place in the list
+        call(&mut r, "writeinteger", &[v_str("STR"), v_int(1)]);
+        assert_eq!(text(&mut r, "valueitem", &[v_int(0)]), "Str");
+        assert_eq!(int(&mut r, "getdatatype", &[v_str("Str")]), 3);
+
+        // RenameValue: to the end of the list; not over another value
+        call(&mut r, "renamevalue", &[v_str("Str"), v_str("Renamed")]);
+        assert_eq!((int(&mut r, "valueexists", &[v_str("Str")]), int(&mut r, "readinteger", &[v_str("renamed")])), (0, 1));
+        assert_eq!(text(&mut r, "valueitem", &[v_int(7)]), "Renamed");
+        call(&mut r, "renamevalue", &[v_str("Renamed"), v_str("Int")]);
+        assert_eq!((int(&mut r, "readinteger", &[v_str("Renamed")]), int(&mut r, "readinteger", &[v_str("Int")])), (1, -5));
+        call(&mut r, "renamevalue", &[v_str("Renamed"), v_str("RENAMED")]);
+        assert_eq!(text(&mut r, "valueitem", &[v_int(7)]), "RENAMED", "a new case");
+        assert_eq!((int(&mut r, "deletevalue", &[v_str("renamed")]), int(&mut r, "deletevalue", &[v_str("renamed")])), (1, 0));
+        assert_eq!(r.get("valueitemcount"), Some(v_int(7)));
+
+        // sub-keys: listed alphabetically, ignoring case
+        for k in ["b", "A2", "c\\deep"] {
+            assert_eq!(int(&mut r, "createkey", &[v_str(k)]), 1);
+        }
+        assert_eq!(r.get("hassubkeys"), Some(v_int(1)));
+        let keys: Vec<String> = (0..4).map(|i| text(&mut r, "keyitem", &[v_int(i)])).collect();
+        assert_eq!(keys, ["A2", "b", "c", ""]);
+        assert_eq!(int(&mut r, "deletekey", &[v_str("B")]), 1);
+        assert_eq!(text(&mut r, "keyitem", &[v_int(1)]), "c", "a walk after a change");
+        assert_eq!(r.get("keyitemcount"), Some(v_int(2)));
+        assert_eq!(int(&mut r, "keyexists", &[v_str("C\\Deep")]), 1);
+        assert_eq!(int(&mut r, "keyexists", &[at("kinds\\c\\deep")]), 1);
+
+        // MoveKey: everything under it, added to what's there
+        call(&mut r, "closekey", &[]);
+        call(&mut r, "openkey", &[at("Moved"), v_int(1)]);
+        call(&mut r, "writestring", &[v_str("Kept"), v_str("yes")]);
+        assert_eq!(int(&mut r, "movekey", &[at("Kinds"), at("kinds\\inside"), v_int(1)]), 0, "not into itself");
+        assert_eq!(int(&mut r, "movekey", &[at("Nope"), at("Elsewhere"), v_int(1)]), 0);
+        assert_eq!(int(&mut r, "movekey", &[at("Kinds"), at("Moved"), v_int(0)]), 1);
+        assert_eq!(int(&mut r, "keyexists", &[at("Kinds")]), 1, "copied");
+        assert_eq!(int(&mut r, "movekey", &[at("Kinds"), at("Moved"), v_int(1)]), 1);
+        assert_eq!(int(&mut r, "keyexists", &[at("Kinds")]), 0, "moved");
+        assert_eq!(text(&mut r, "readstring", &[v_str("Kept")]), "yes");
+        assert_eq!(text(&mut r, "readstring", &[v_str("")]), "the default");
+        assert_eq!(call(&mut r, "readfloat", &[v_str("Float")]), Value::Double(-2.5));
+        assert_eq!(int(&mut r, "getdatatype", &[v_str("Bin")]), 4);
+        assert_eq!(r.get("valueitemcount"), Some(v_int(8)));
+        assert_eq!(int(&mut r, "keyexists", &[v_str("c\\deep")]), 1);
+
+        // the open key deleted meanwhile: reads find nothing, a write makes it again
+        let mut other = Registry::default();
+        assert_eq!(int(&mut other, "deletekey", &[at("Moved")]), 1);
+        assert_eq!(r.get("currentpath"), Some(v_str(&format!("{}\\Moved", base.trim_start_matches('\\')))));
+        assert_eq!((r.get("valueitemcount"), int(&mut r, "getdatasize", &[v_str("Kept")])), (Some(v_int(0)), -1));
+        call(&mut r, "writeinteger", &[v_str("Again"), v_int(3)]);
+        assert_eq!(int(&mut other, "keyexists", &[at("Moved")]), 1);
+        // deleting a key above the open one closes it
+        assert_eq!(int(&mut r, "deletekey", &[v_str(base)]), 1);
+        assert_eq!((r.get("currentkey"), r.get("currentpath")), (Some(v_int(0)), Some(v_str(""))));
+        assert_eq!(int(&mut r, "keyexists", &[v_str(base)]), 0);
+    }
+
+    #[test]
+    fn shared_semantics_in_the_store() {
+        set_io(load, save);
+        shared_semantics("\\Software\\RapidR-Test\\unit");
+        // what was written is text that reads back the same
+        let text = load().unwrap();
+        assert_eq!(write(&parse(&text)), text);
+    }
+
+    #[test]
+    fn roots_are_never_deleted() {
+        set_io(load, save);
+        let mut r = Registry::default();
+        r.call("openkey", &[v_str("Kept"), v_int(1)]);
+        r.call("closekey", &[]);
+        assert_eq!(r.call("deletekey", &[v_str("")]), Some(v_int(0)));
+        assert_eq!(r.call("deletekey", &[v_str("\\")]), Some(v_int(0)));
+        assert_eq!(r.call("movekey", &[v_str("\\"), v_str("\\Elsewhere"), v_int(1)]), Some(v_int(0)));
+        assert_eq!(r.call("keyexists", &[v_str("Kept")]), Some(v_int(1)));
+    }
+
+    #[test]
+    fn other_kinds_of_value() {
+        // (as Regedit exports them: REG_MULTI_SZ, REG_QWORD, REG_NONE, a
+        // REG_EXPAND_SZ, a REG_DWORD in hex(4))
+        let reg = "Windows Registry Editor Version 5.00\n\n[HKEY_CURRENT_USER\\Kinds]\n\"Multi\"=hex(7):61,00,00,00,62,00,00,00,00,00\n\"Qword\"=hex(b):01,00,00,00,00,00,00,00\n\"None\"=hex(0):\n\"Path\"=hex(2):25,00,54,00,4d,00,50,00,25,00,00,00\n\"Dword\"=hex(4):2a,00,00,00\n";
+        TEXT.with(|t| *t.borrow_mut() = Some(reg.to_string()));
+        set_io(load, save);
+        let mut r = Registry::default();
+        r.call("openkey", &[v_str("Kinds"), v_int(0)]);
+        let kinds: Vec<i64> = ["Multi", "Qword", "None", "Path", "Dword"].iter().map(|n| int(&mut r, "getdatatype", &[v_str(n)])).collect();
+        assert_eq!(kinds, [0, 0, 0, 2, 3]);
+        let sizes: Vec<i64> = ["Multi", "Qword", "None", "Path"].iter().map(|n| int(&mut r, "getdatasize", &[v_str(n)])).collect();
+        assert_eq!(sizes, [10, 8, 0, 6]);
+        assert_eq!(text(&mut r, "readstring", &[v_str("Path")]), "%TMP%");
+        assert_eq!(text(&mut r, "readstring", &[v_str("Multi")]), "");
+        assert_eq!(int(&mut r, "readinteger", &[v_str("Dword")]), 42);
+        assert_eq!(int(&mut r, "readbinary", &[v_str("Qword"), v_int(-1)]), 1);
+        // they're kept as they were (MoveKey too)
+        assert_eq!(int(&mut r, "movekey", &[v_str("\\Kinds"), v_str("\\Moved"), v_int(1)]), 1);
+        let text = load().unwrap();
+        assert!(text.contains("[HKEY_CURRENT_USER\\Moved]\n\"Multi\"=hex(7):61,00,00,00,62,00,00,00,00,00\n\"Qword\"=hex(b):01,"), "{text}");
+        assert!(text.contains("\"None\"=hex(0):\n\"Path\"=hex(2):25,00,54,") && text.contains("\"Dword\"=dword:0000002a"), "{text}");
+    }
+
+    /// The same answers from Windows' registry, under
+    /// `HKEY_CURRENT_USER\Software\RapidR-Test` (made and deleted). Not run
+    /// by default — test runs leave the machine's registry alone:
+    /// `cargo test -p rapidr-value registry -- --ignored` on Windows, without
+    /// RAPIDR_REGISTRY.
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn shared_semantics_in_windows_registry() {
+        use windows_registry::CURRENT_USER;
+        assert!(std::env::var_os("RAPIDR_REGISTRY").is_none(), "RAPIDR_REGISTRY is set: the store, not the registry");
+        // (the test's key goes, whatever happens; a run stopped half-way
+        // left it: gone first)
+        struct Cleanup;
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = CURRENT_USER.remove_tree("Software\\RapidR-Test");
+            }
+        }
+        drop(Cleanup);
+        let _cleanup = Cleanup;
+        let base = "\\Software\\RapidR-Test\\unit";
+        shared_semantics(base);
+        // other kinds of value (put there as other programs would), kept
+        // by MoveKey as they were
+        let key = CURRENT_USER.create("Software\\RapidR-Test\\unit\\Kinds").unwrap();
+        key.set_multi_string("Multi", &["a", "b"]).unwrap();
+        key.set_u64("Qword", 1).unwrap();
+        key.set_expand_string("Path", "%TMP%").unwrap();
+        let before: Vec<_> = ["Multi", "Qword", "Path"].iter().map(|n| key.get_value(n).unwrap()).collect();
+        drop(key);
+        let mut r = Registry::default();
+        r.call("openkey", &[v_str(&format!("{base}\\Kinds")), v_int(0)]);
+        let kinds: Vec<i64> = ["Multi", "Qword", "Path"].iter().map(|n| int(&mut r, "getdatatype", &[v_str(n)])).collect();
+        assert_eq!(kinds, [0, 0, 2]);
+        let sizes: Vec<i64> = ["Multi", "Qword", "Path"].iter().map(|n| int(&mut r, "getdatasize", &[v_str(n)])).collect();
+        assert_eq!(sizes, [10, 8, 6]);
+        assert_eq!(text(&mut r, "readstring", &[v_str("Path")]), "%TMP%");
+        assert_eq!(int(&mut r, "movekey", &[v_str(&format!("{base}\\Kinds")), v_str(&format!("{base}\\Moved")), v_int(1)]), 1);
+        let moved = CURRENT_USER.open("Software\\RapidR-Test\\unit\\Moved").unwrap();
+        let after: Vec<_> = ["Multi", "Qword", "Path"].iter().map(|n| moved.get_value(n).unwrap()).collect();
+        assert_eq!(after, before);
+        drop(moved);
+        // a key the program may only read: read, opened, never changed
+        r.set("rootkey", &v_int(i64::from(HKEY_LOCAL_MACHINE)));
+        assert_eq!(int(&mut r, "openkey", &[v_str("\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"), v_int(0)]), 1);
+        assert!(!text(&mut r, "readstring", &[v_str("ProductName")]).is_empty());
+        assert_eq!(int(&mut r, "openkey", &[v_str("\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"), v_int(1)]), 1, "there: opened");
+        r.set("rootkey", &v_int(i64::from(HKEY_CURRENT_USER)));
+        assert_eq!(int(&mut r, "deletekey", &[v_str("\\Software\\RapidR-Test")]), 1);
+        assert!(CURRENT_USER.open("Software\\RapidR-Test").is_err());
     }
 }

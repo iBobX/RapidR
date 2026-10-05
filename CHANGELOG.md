@@ -19,7 +19,28 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   frame with Interval 0, and with ActiveOnly only while the program is
   active. Screen text is MS Sans Serif 8, as in RapidQ.
 
+### Changed
+- **QREGISTRY on Windows is Windows' own registry**, as RapidQ's was, in
+  native and interpreted builds alike (Microsoft's `windows-registry`
+  crate). It answers as the per-user store does — both are worked out in
+  one place (`rapidr_value::registry`): the same paths, data types, sizes
+  and 1 / 0. Keys a program may only read (HKEY_LOCAL_MACHINE without
+  elevation) open and read; changes to them answer 0 and change nothing.
+  HKEY_PERFORMANCE_DATA and Windows 9x's HKEY_DYN_DATA aren't keys there.
+  `RAPIDR_REGISTRY=<file>` still puts the keys in that file, on Windows
+  too, so test runs never touch the machine's registry; macOS, Linux and
+  the web keep the per-user store. Checked on Windows 11
+  (`tools/windows/registry_check.ps1`: one program interpreted, as an
+  interpreted build and as a native build, the same as the store's run,
+  what it left checked with `reg query`).
+
 ### Fixed
+- QREGISTRY as TRegistry: GetDataType is 0 (unknown) for the registry's
+  other kinds of value (REG_MULTI_SZ, REG_QWORD, …; they were binary) and
+  the store's file keeps their kind; KeyExists of a root (`""`, `"\"`) is
+  always 1; RenameValue puts the value last (TRegistry deletes, then
+  writes); MoveKey into the key's own sub-key is refused whatever the case
+  of the names.
 - Native builds: `Obj.Sub.Method(…)` (`DX.View.SetFront(10)`,
   `Printer.Font.DelStyles(3)`) calls the sub-object's method by its
   combined name on the object, as the interpreter does; it went to a value
