@@ -297,6 +297,10 @@ Next up, in order:
 - [x] RapidQ API audit (manual vs runtimes, `scratch` script): QEDIT / QRICHEDIT (v2.97.0), QTRACKBAR (v2.98.0), QTABCONTROL (v2.99.0), QFORM / QSCROLLBOX AutoScroll (v2.100.0), QREGISTRY (v2.101.0)
 - [x] QREGISTRY on Windows' own registry in native and interpreted Windows builds (the per-user store elsewhere; `RAPIDR_REGISTRY` still names a file): one set of TRegistry answers for both, checked on Windows 11 ARM (`tools/windows/registry_check.ps1`, an `--ignored` unit test) (v2.116.0)
 - [ ] First public release once RapidQ compatibility and the MDI IDE are done: release notes saying RapidR targets full RapidQ compatibility on all three runtimes (native compiler, interpreter, web), extends it (data-science stack, AI stack, …), and is not a clone of RapidQ or Delphi — an original implementation written from the ground up in pure Rust
+  - [ ] Release binaries on a GitHub release, built locally (no remote CI): download, install, start working. macOS (universal: arm64 + x86_64, .dmg / .pkg), Windows (x64 + ARM64, an installer), Linux (x86_64 + aarch64: .deb, .tar.gz / AppImage); checksums + SBOM; the web IDE as a static bundle
+  - [ ] A downloaded install builds programs on its own: interpreted standalone executables with no Rust installed; native builds with the runtime's sources shipped (vendored, offline) and the Rust toolchain set up by the installer or `rapidr setup`
+  - [ ] A RapidR Runtime of its own (installable without the IDE, like a JRE) that registers the file types per user: `.rrbc` (compiled program) runs on double-click; `.rr` / `.bas` open in the IDE with a "Run" action; console vs windowed launcher chosen from the program's APPTYPE; the bytecode header carries its format and minimum runtime version (a clear "needs RapidR Runtime ≥ x.y" message); `#!/usr/bin/env rapidr` scripts on macOS/Linux; a downloaded file (quarantine / Mark of the Web) asks once before it runs; uninstall removes the associations. Standalone executables stay for programs that ship without the runtime
+  - [ ] Installers checked in the VMs (Windows 11 ARM incl. x64 emulation, Ubuntu ARM) and on this Mac; code signing / notarization (Apple Developer ID, Windows certificate) — the user's decision
 - [x] Default component sizes as RapidQ's, the same on every runtime (the desktop's QBUTTON is 80 × 25, the web's 100 × 30; `tools/RQInclude.bi` lists RapidQ's: QBUTTON 75 × 25, QEDIT 120 × 25, QPANEL 150 × 100, …)
 - [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
 - [x] Fix builtins per the manual (v2.55.0, shared `rapidr_value::format` / `builtins`): `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = Delphi `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = Delphi `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
@@ -356,6 +360,17 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] **The web on the same UI kernel** ([docs/web-host-plan.md](docs/web-host-plan.md)): the kernel drawn on a `<canvas>` (vello_cpu, wasm SIMD), input and IME through hidden text fields, an ARIA mirror of the kernel's accessibility tree, DOM overlays only for web-only components; the DOM runtime deleted once parity holds (no fallback). All licences permissive (fonts SIL OFL); Tailwind not needed
   - [x] W0 spike: byte-identical pixels with the desktop at 1× and 2×, Chrome's accessibility tree equal to the kernel's, ~0.2–0.5 ms a form's frame; W1 `rapidr-ui-render` shared by both hosts (v2.114.0)
   - [x] W2 `rapidr-ui-app`: the host-neutral half of the program glue behind `Program` / `Windows` (v2.115.0) — next: W3 (the web host proper; move the desktop's `Desktop` into the crate too), W4 (dialogs and ShowModal as waits the VM serves)
+  - [x] W3 the web host proper (`?host=kernel`; the DOM host stays the default). It covers:
+    - windows on the page with kernel-drawn frames, stacking, moving, sizing and WindowState;
+    - devicePixelRatio and canvas context loss;
+    - input, IME, the clipboard and autofill;
+    - the ARIA mirror in Rust;
+    - `WebStore` and the web runtime's `Program` / `Windows`;
+    - `Desktop` moved into `rapidr-ui-app`;
+    - the registry's shared defaults table (step 1);
+    - a wasm SIMD build.
+
+    64 of 68 browser GUI cases run on it, with windows byte-identical to the desktop's and equal accessibility trees. Next: W4 (the VM's waits, the kernel's dialogs and timers on the page), then W5–W9 in parallel lanes.
   - [x] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
 
 ## Phase 2 — Debugger (~6 weeks)

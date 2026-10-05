@@ -8,6 +8,19 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
+/// (Stage W3) While the UI kernel hosts the page (`?host=kernel`,
+/// kernel_web.rs), what would draw a component's DOM asks the kernel to draw
+/// it again instead.
+macro_rules! kernel_redraws {
+    () => {
+        #[cfg(feature = "kernel")]
+        if crate::kernel_web::on() {
+            crate::kernel_web::redraw();
+            return;
+        }
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -77,12 +90,20 @@ fn value_to_css_color(val: &Value) -> String {
 
 /// Whether any of the program's forms is showing.
 pub fn any_form_shown() -> bool {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::any_form_shown();
+    }
     let Ok(forms) = document().query_selector_all(".rr-form") else { return false };
     (0..forms.length()).filter_map(|i| forms.item(i)?.dyn_into::<web_sys::HtmlElement>().ok()).any(|f| f.is_connected() && (f.offset_width() > 0 || f.offset_height() > 0))
 }
 
 /// Whether `name` has an element the user can see (rendered, not hidden).
 pub fn element_shown(name: &str) -> bool {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::element_shown(name);
+    }
     document()
         .get_element_by_id(&comp_id(name))
         .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok())
@@ -146,6 +167,10 @@ fn jsvalue_to_value(v: &JsValue) -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String, Value>) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::created(name);
+    }
     note_display_scale();
     inject_form_styles();
     let id = comp_id(name);
@@ -279,6 +304,10 @@ pub fn apply_form_icon(name: &str) {
 /// `Application.Icon` changed: the page's icon, and every form without its
 /// own.
 pub fn apply_application_icon() {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::redraw();
+    }
     let doc = document();
     let url = rapidr_value::globals::application_icon().and_then(|v| rapidr_value::objects::icon_pixels(&v)).and_then(|(w, h, rgba, _)| rgba_data_url(w, h, &rgba));
     if let Some(url) = url {
@@ -302,6 +331,10 @@ pub fn apply_application_icon() {
 }
 
 pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::set_prop(name, prop, val);
+    }
     let id = comp_id(name);
     let el = match get_el(&id) {
         Some(e) => e,
@@ -816,6 +849,10 @@ fn check_input(el: &web_sys::HtmlElement) -> Option<web_sys::HtmlInputElement> {
 }
 
 pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::get_prop(name, prop);
+    }
     let comp_type = crate::object_web::rp_comp_type(name);
     if comp_type == "RROUTER" {
         if prop == "route" || prop == "hash" {
@@ -1074,6 +1111,12 @@ pub fn gui_web_get_prop(name: &str, prop: &str) -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        if let Some(v) = crate::kernel_web::method(name, comp_type, method, args) {
+            return v;
+        }
+    }
     let id = comp_id(name);
 
     match (comp_type, method) {
@@ -1976,6 +2019,10 @@ fn toggle_press(name: &str) {
 /// The program set a button's Down: the others of its group come up, and
 /// it shows the new state.
 pub fn toggle_down_set(name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return;
+    }
     if !matches!(crate::object_web::rp_comp_type(name).to_uppercase().as_str(), "RCOOLBTN" | "ROVALBTN") {
         return;
     }
@@ -2095,6 +2142,7 @@ fn create_mdi_frame(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// A child window's frame shows its title, whether it's the active one,
 /// and whether it's maximized.
 pub fn mdi_frame_update(name: &str) {
+    kernel_redraws!();
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     let Some(el) = document().get_element_by_id(&comp_id(name)) else { return };
@@ -2115,6 +2163,10 @@ pub fn mdi_frame_update(name: &str) {
 /// Puts these elements on top of the others in their parent, in order (the
 /// last on top): a QFORMMDI's frames and components.
 pub fn stack_elements(names: &[String]) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::rebuild();
+    }
     for (i, name) in names.iter().enumerate() {
         if let Some(el) = document().get_element_by_id(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok()) {
             let _ = el.style().set_property("z-index", &(100 + i).to_string());
@@ -2228,6 +2280,10 @@ fn text_element(name: &str) -> Option<(String, u32, u32)> {
 /// (rapidr_value::objects::textedit), before the program reads them — as
 /// the desktop's.
 pub fn text_pull(name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return;
+    }
     let name = name.to_lowercase();
     let Some((text, a, b)) = text_element(&name) else { return };
     let (ca, cb) = (utf16_to_char(&text, a.min(b)), utf16_to_char(&text, a.max(b)));
@@ -2237,6 +2293,7 @@ pub fn text_pull(name: &str) {
 /// A QEDIT's / QRICHEDIT's model shown in its element again, if the program
 /// changed it since (text, selection, ReadOnly).
 pub fn text_push(name: &str) {
+    kernel_redraws!();
     let name = name.to_lowercase();
     let Some((rev, raw, start, len, read_only)) = rapidr_value::objects::with_textedit(&name, |t| (t.revision, t.raw(), t.sel_start, t.sel_len, t.read_only)) else { return };
     if TEXT_SHOWN.with(|s| s.borrow().get(&name) == Some(&rev)) {
@@ -2362,6 +2419,7 @@ pub fn render_glass(name: &str) {
 /// A QPANEL's BevelOuter / BevelInner frames (rapidr_value::objects::
 /// bevel): one-pixel boxes over its edges, under its children.
 pub fn render_panel_bevels(name: &str) {
+    kernel_redraws!();
     let Some(el) = get_el(&comp_id(name)) else { return };
     if let Ok(old) = el.query_selector_all(":scope > .rr-bevel") {
         for i in 0..old.length() {
@@ -2521,6 +2579,7 @@ fn create_owner_list(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// element becomes the owner-drawn list, keeping its place and geometry.
 /// (Events the program bound to the old element must come after the Style.)
 pub fn convert_to_owner_list(name: &str) {
+    kernel_redraws!();
     let Some(old) = get_el(&comp_id(name)) else { return };
     if !old.tag_name().eq_ignore_ascii_case("select") {
         return;
@@ -2649,6 +2708,7 @@ fn create_dirtree(id: &str, name: &str, props: &HashMap<String, Value>) {
 
 /// Shows a QDIRTREE's rows (indented, `+` closed / `-` open).
 pub fn render_dirtree(name: &str) {
+    kernel_redraws!();
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     let Some(sel) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlSelectElement>().ok()) else { return };
@@ -2674,6 +2734,7 @@ thread_local! {
 
 /// Redraws a QLISTBOX's / QCOMBOBOX's options from its items, soon.
 pub fn render_list(name: &str) {
+    kernel_redraws!();
     let name = name.to_uppercase();
     let first = LISTS_TO_RENDER.with(|l| {
         let mut l = l.borrow_mut();
@@ -2888,6 +2949,7 @@ fn create_owner_combo(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// element is made already (the style comes after it): the element becomes
 /// the owner-drawn box, keeping its place and geometry.
 pub fn convert_to_owner_combo(name: &str) {
+    kernel_redraws!();
     let Some(old) = get_el(&comp_id(name)) else { return };
     if old.class_list().contains("rr-owner-combo") {
         return;
@@ -3147,6 +3209,7 @@ thread_local! {
 /// Shows a QIMAGE's picture (rapidr_value::objects, a Bitmap, as on the
 /// desktop), soon (batched).
 pub fn render_picture(name: &str) {
+    kernel_redraws!();
     let name = name.to_uppercase();
     let first = PICTURES_TO_RENDER.with(|g| {
         let mut g = g.borrow_mut();
@@ -3207,6 +3270,7 @@ thread_local! {
 /// Shows a QCANVAS's surface (rapidr_value::objects, a Bitmap, as on the
 /// desktop), soon (batched).
 pub fn render_canvas(name: &str) {
+    kernel_redraws!();
     let name = name.to_uppercase();
     let first = CANVASES_TO_RENDER.with(|g| {
         let mut g = g.borrow_mut();
@@ -3270,6 +3334,7 @@ thread_local! {
 /// Pressed, Rect) for its owner-drawn ones, as on the desktop — soon
 /// (batched, and never inside the CREATE that adds its sections).
 pub fn refresh_header(name: &str) {
+    kernel_redraws!();
     let name = name.to_uppercase();
     let first = HEADERS_TO_REFRESH.with(|g| {
         let mut g = g.borrow_mut();
@@ -3393,6 +3458,10 @@ pub fn track_mouse() {
 /// `MOUSEX` / `MOUSEY`: the mouse relative to the client area of the form
 /// it's over (else the frontmost form), as on the desktop.
 pub fn mouse_in_form() -> (i64, i64) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::mouse_in_form();
+    }
     let (x, y) = MOUSE_AT.with(std::cell::Cell::get);
     let doc = document();
     let form = doc
@@ -3447,6 +3516,7 @@ fn create_dxscreen(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// control with AllowStretch (RapidQ's default), else at its own size;
 /// FullScreen scaled to fit, centred.
 pub fn render_dxscreen(name: &str) {
+    kernel_redraws!();
     let Some(canvas) = get_el(&format!("{}-screen", comp_id(name))).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
     note_display_scale();
     let c = rapidr_value::objects::dxscreen_control(name, &|i, p| crate::object_web::rp_comp_get_stored(i, p));
@@ -3472,6 +3542,7 @@ pub fn render_dxscreen(name: &str) {
 /// full screen needs the user's gesture, which a program at its start
 /// hasn't): its Width / Height become the page's, its layout follows.
 pub fn form_fullscreen(name: &str) {
+    kernel_redraws!();
     let id = comp_id(name);
     let Some(el) = get_el(&id) else { return };
     let style = el.style();
@@ -3635,6 +3706,7 @@ pub fn render_tabcontrol(name: &str) {
 /// A QTABCONTROL changed by the program: drawn again, its aligned
 /// components laid out in its area again.
 pub fn tab_control_changed(name: &str) {
+    kernel_redraws!();
     render_tabcontrol(name);
     crate::layout_web::client_changed(name);
 }
@@ -3912,6 +3984,12 @@ fn tree_ask_images(name: &str) {
 /// Shows a tree's visible nodes again (and fires OnDeletion for nodes the
 /// program deleted).
 pub fn render_tree(name: &str) {
+    // (the kernel host: OnDeletion for the nodes the program deleted, as
+    // the desktop's tree_refresh)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::tree_refresh(name);
+    }
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     note_display_scale();
@@ -4071,6 +4149,7 @@ fn create_statusbar(id: &str, name: &str, props: &HashMap<String, Value>) {
 /// set or it has no panels — as the desktop runtime draws it. Captions are
 /// plain text, never markup.
 pub fn render_statusbar(name: &str) {
+    kernel_redraws!();
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     use crate::object_web::rp_comp_get_stored as get;
@@ -4224,6 +4303,7 @@ fn create_trackbar(id: &str, name: &str, props: &HashMap<String, Value>) {
 
 /// A QTRACKBAR drawn again from its model.
 pub fn render_trackbar(name: &str) {
+    kernel_redraws!();
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     let Some(el) = get_el(&comp_id(name)) else { return };
@@ -5035,6 +5115,7 @@ thread_local! {
 
 /// Redraws a QSTRINGGRID's table from its data, soon (batched).
 pub fn render_grid(name: &str) {
+    kernel_redraws!();
     let name = name.to_uppercase();
     let first = GRIDS_TO_RENDER.with(|g| {
         let mut g = g.borrow_mut();
@@ -5286,6 +5367,7 @@ fn grid_replay(td: &web_sys::HtmlElement, ops: &[rapidr_value::objects::grid::Ce
 
 /// Shows a QLISTVIEW as its model paints it (at the screen's scale).
 pub fn render_listview(name: &str) {
+    kernel_redraws!();
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     let Some(canvas) = get_el(&comp_id(name)).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
@@ -5450,6 +5532,10 @@ fn create_video(id: &str, name: &str, props: &HashMap<String, Value>) {
 // ---------------------------------------------------------------------------
 
 pub fn gui_web_show_form(name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::show_form(name);
+    }
     // (a11y_web: the ARIA follows)
     crate::a11y_web::changed(name);
     let id = comp_id(name);
@@ -5471,6 +5557,10 @@ fn apply_shown_state(name: &str) {
 
 /// Re-parent a DOM element to a different parent's client area.
 pub fn gui_web_set_parent(name: &str, parent_name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::rebuild();
+    }
     if rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Item) {
         crate::menu_web::schedule();
         return;
@@ -5547,6 +5637,10 @@ pub fn gui_web_set_parent(name: &str, parent_name: &str) {
 /// Auto-parent orphan widgets (those appended to body) to the first top-level
 /// form, then show all top-level forms and fire `onload` for each form.
 pub fn gui_web_finalize() {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::finalize();
+    }
     let doc = document();
     // (the forms' scroll bars, once they're all in the page)
     let later = Closure::once_into_js(|| {
@@ -5905,6 +5999,10 @@ fn form_resized(form_id: &str, left: i32, top: i32, width: i32, height: i32) {
 /// For tests (as the desktop's `RAPIDR_TEST_RESIZE`): the user resizes
 /// form `name` to Width × Height.
 pub fn test_resize_form(name: &str, width: i32, height: i32) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::test_resize(name, i64::from(width), i64::from(height));
+    }
     let id = comp_id(name);
     let Some(el) = get_el(&id) else { return };
     let _ = el.style().set_property("width", &format!("{width}px"));
@@ -5914,6 +6012,10 @@ pub fn test_resize_form(name: &str, width: i32, height: i32) {
 
 /// Hides a form (END: no OnClose).
 pub fn hide_form(name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::hide_form(name);
+    }
     let id = comp_id(name);
     if let Some(el) = get_el(&id) {
         let _ = el.style().set_property("display", "none");
@@ -5928,6 +6030,10 @@ fn form_close(form_id: &str) {
 /// `Form.Close` and the title bar's ✕: OnClose's `Action` (it starts as
 /// `caHide`) decides whether the form goes, stays or is minimized.
 pub fn close_form(name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::close_form(name);
+    }
     use rapidr_value::events::{CloseAction, CA_HIDE};
     let form = name.to_string();
     crate::object_web::rp_fire_event_then(name, "onclose", &[v_int(CA_HIDE)], move |a| match CloseAction::of(&a[0]) {
@@ -6063,6 +6169,10 @@ fn inject_form_styles() {
 }
 
 pub fn setup_data_binding(name: &str) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return;
+    }
     let uname = name.to_uppercase();
     let ds = crate::object_web::rp_comp_get_stored(&uname, "datasource").to_string_val();
     let df = crate::object_web::rp_comp_get_stored(&uname, "datafield").to_string_val();

@@ -61,6 +61,11 @@ thread_local! {
 /// `name` changed (a property, a part drawn again): its form's ARIA follows
 /// once the program's code returns.
 pub fn changed(name: &str) {
+    // (Stage W3: with the kernel hosting, the mirror is the host's)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return;
+    }
     listen();
     let Some(form) = form_of(name) else { return };
     DIRTY.with(|d| d.borrow_mut().insert(form));

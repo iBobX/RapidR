@@ -18,6 +18,12 @@ fi
 export AR_wasm32_unknown_unknown="${AR_wasm32_unknown_unknown:-$ROOT/tools/wasm-ar.sh}"
 
 echo "Building combined wasm (rapidr-vm-host-web → rapidrintr) …"
+# wasm SIMD (docs/web-host-plan.md §3.4, Stage W3): the UI kernel's CPU
+# renderer (vello_cpu's fearless_simd) runs on simd128 — 2.4–2.8× faster
+# for the same pixels — and every 2026 browser has it, so the build is
+# SIMD-only. The flags rebuild every crate: its own target directory
+# (target/wasm-simd, as tools/build_web_host_spike.sh's), not target/'s.
+RUSTFLAGS="${RUSTFLAGS:-} -C target-feature=+simd128" CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target/wasm-simd}" \
 wasm-pack build interpreter/rapidr-vm-host-web \
     --target web \
     --out-dir "$ROOT/target/web" \

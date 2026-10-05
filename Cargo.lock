@@ -4810,6 +4810,9 @@ dependencies = [
  "js-sys",
  "rapidr-db",
  "rapidr-rrcss",
+ "rapidr-ui-app",
+ "rapidr-ui-host-web",
+ "rapidr-ui-kernel",
  "rapidr-value",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4830,6 +4833,7 @@ version = "2.116.0"
 dependencies = [
  "js-sys",
  "parley",
+ "rapidr-ui-app",
  "rapidr-ui-kernel",
  "rapidr-ui-render",
  "rapidr-value",

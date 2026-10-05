@@ -12,7 +12,7 @@ use vello::wgpu;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 
-use crate::{now_ms, with_text, SpikeForm};
+use crate::spike::{now_ms, with_text, SpikeForm};
 
 #[wasm_bindgen]
 pub struct SpikeGpu {

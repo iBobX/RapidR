@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  The web runtime (target/web, tools/build_web_artifacts.sh) with the UI
+  kernel as its GUI host (docs/web-host-plan.md, Stage W3): what
+  tests/web_gui_run.mjs runs the GUI fixtures in when RAPIDR_WEB_HOST=kernel.
+  The page only loads the runtime; the test compiles a fixture, gives it the
+  test hooks' environment (rapidr_set_test_env) and runs it. Open it with
+  ?host=kernel (without, the DOM host draws).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RapidR web runtime</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #3a6ea5; }
+</style>
+<script type="module">
+  const rt = await import("../target/web/rapidrintr.js");
+  await rt.default();
+  window.rr = rt;
+  window.rrReady = true;
+</script>
+</head>
+<body></body>
+</html>

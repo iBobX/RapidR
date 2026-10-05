@@ -235,3 +235,57 @@ export async function runCase(page, c) {
   await page.waitForTimeout(500);
   return { frame, missing };
 }
+
+// ---- the UI kernel as the web runtime's GUI host (docs/web-host-plan.md,
+// Stage W3): RAPIDR_WEB_HOST=kernel ----
+//
+// The fixture runs in tests/web_kernel.html?host=kernel with the desktop's
+// test hooks (rapidr_ui_app::script: RAPIDR_TEST_EVENTS fired through the
+// kernel's routing as on the desktop, RAPIDR_TEST_DUMP, the resize and the
+// splitter, the dialogs' answers), given to the runtime as its environment
+// (rapidr_set_test_env). When the script ends the page has the dump lines,
+// each window's accessibility tree and its capture (the wasm's pixels, as
+// the desktop's RAPIDR_CAPTURE BMP) — rapidr_test_results.
+
+export const WEB_HOST = process.env.RAPIDR_WEB_HOST || "dom";
+
+/// The case's environment for the test hooks, as tests/native_gui_events.mjs
+/// gives the desktop's.
+export function hookEnv(c) {
+  const env = { RAPIDR_CAPTURE: "web", RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump, RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "" };
+  const opt = { fileDialog: "RAPIDR_TEST_FILE_DIALOG", colorDialog: "RAPIDR_TEST_COLOR_DIALOG", fontDialog: "RAPIDR_TEST_FONT_DIALOG", messageDialog: "RAPIDR_TEST_MESSAGE_DIALOG", dialogHold: "RAPIDR_TEST_DIALOG_HOLD", delay: "RAPIDR_CAPTURE_DELAY", joystick: "RAPIDR_TEST_JOYSTICK" };
+  for (const [k, v] of Object.entries(opt)) if (c[k] !== undefined) env[v] = String(c[k]);
+  return env;
+}
+
+const assetMap = () => Object.fromEntries(fixtureAssets().map((a) => [a.name, a.dataUrl]));
+
+/// Case `c` on the kernel host, in a page of its own (`dpr`: the screen's
+/// scale; the viewport — the screen — the desktop's headless host's,
+/// 1920 × 1080): `{ results: {dump, a11y, captures} | null, errors, host, page }`
+/// (the caller closes the page).
+export async function runCaseKernel(browser, c, dpr = 1, timeout = 30000) {
+  const page = await browser.newPage({ deviceScaleFactor: dpr, viewport: { width: 1920, height: 1080 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  try {
+    await page.goto(`${URL_BASE}/tests/web_kernel.html?host=kernel`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
+    const source = readFileSync(join(HERE, "fixtures", c.name + ".bas"), "utf8");
+    const host = await page.evaluate(({ source, assets, env }) => {
+      window.__rapidr_assets = assets;
+      // (QDXJOYSTICK's gamepad: the tests' script, read at each look)
+      if (env.RAPIDR_TEST_JOYSTICK !== undefined) window.RAPIDR_TEST_JOYSTICK = env.RAPIDR_TEST_JOYSTICK;
+      const bc = window.rr.compile(source, "fixture", assets);
+      window.rr.rapidr_set_test_env(env);
+      window.rr.rapidr_run_bc(bc);
+      return window.rr.rapidr_host();
+    }, { source, assets: assetMap(), env: hookEnv(c) });
+    await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout, polling: 100 });
+    const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
+    return { results, errors, host, page };
+  } catch (e) {
+    return { results: null, errors: [...errors, String(e.message).split("\n")[0]], host: "?", page };
+  }
+}

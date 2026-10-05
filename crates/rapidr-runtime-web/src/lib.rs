@@ -24,6 +24,9 @@ pub mod gui_web;
 pub mod io_web;
 /// The media objects' devices (QMIDI, QWAVE).
 pub mod media_web;
+/// The UI kernel as the page's GUI host (`?host=kernel`, Stage W3).
+#[cfg(feature = "kernel")]
+pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
 pub mod menu_web;

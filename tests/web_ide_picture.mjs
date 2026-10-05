@@ -61,7 +61,7 @@ const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
 const text = (id) => frame.evaluate((id) => document.getElementById(id)?.textContent ?? null, id);
 
-ok((await text("rr-summary")) === "40|FF|FF00|FFFFFF", `same values as the desktop builds (${await text("rr-summary")})`);
+ok((await text("rr-summary")) === "40|000000FF|0000FF00|00FFFFFF", `same values as the desktop builds (HEX$ gives 8 digits, as RC.EXE) (${await text("rr-summary")})`);
 // The picture is shown: its pixels, in the element.
 const shown = await frame.evaluate(() => {
   const img = document.getElementById("rr-pad");

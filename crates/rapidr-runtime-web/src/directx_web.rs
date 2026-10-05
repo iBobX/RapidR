@@ -41,12 +41,23 @@ pub fn form_shown(form: &str) {
     }
 }
 
+/// Whether form `form` shows full screen (a QDXSCREEN on it has
+/// FullScreen; the kernel host's question, as the desktop's).
+pub fn fullscreen(form: &str) -> bool {
+    screens_of(form).iter().any(|s| rp_comp_get_stored(s, "fullscreen").to_bool())
+}
+
 /// QDXSCREEN `name` was put on a form (its Parent): on a form the program
 /// shows already it's set up once the program's code returns (its CREATE
 /// block has given it its size and OnInitialize by then).
 pub fn parented(name: &str) {
     let Some(form) = form_of(name) else { return };
-    if !rp_comp_get_stored(&form, SHOWN_BY_PROGRAM).to_bool() {
+    // (the kernel host: its window made, as the desktop asks)
+    #[cfg(feature = "kernel")]
+    let shown = if crate::kernel_web::on() { crate::kernel_web::form_window_exists(&form) } else { rp_comp_get_stored(&form, SHOWN_BY_PROGRAM).to_bool() };
+    #[cfg(not(feature = "kernel"))]
+    let shown = rp_comp_get_stored(&form, SHOWN_BY_PROGRAM).to_bool();
+    if !shown {
         return;
     }
     let later = Closure::once_into_js(move || form_shown(&form));

@@ -123,6 +123,7 @@ pub fn step<R: Program + Windows>(rt: R) {
     let (started, finished) = sc(|s| s.as_ref().map(|sc| (sc.started, sc.finished))).unwrap_or((true, true));
     if finished {
         capture_and_end(rt);
+        return;
     }
     // (busy until this step's handlers have run: a handler's ShowModal steps
     // again, and the next event waits for it)
@@ -175,8 +176,11 @@ pub fn step<R: Program + Windows>(rt: R) {
 }
 
 /// `RAPIDR_TEST_DUMP`'s lines, then the host's captures and the end.
-fn capture_and_end<R: Program + Windows>(rt: R) -> ! {
+fn capture_and_end<R: Program + Windows>(rt: R) {
     testhooks::print_dump(|c| shown_up(rt, c), |comp, prop| rt.get(comp, prop).to_string_val());
     let prefix = sc(|s| s.as_ref().map(|sc| sc.capture.prefix.clone())).unwrap_or_default();
+    // (the script is over: a host whose process can't exit — a page —
+    // comes back here)
+    sc(|s| *s = None);
     rt.capture_and_end(&prefix)
 }

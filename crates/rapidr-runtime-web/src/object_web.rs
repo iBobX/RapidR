@@ -193,6 +193,12 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
     }
 
+    // (Stage W3: with the kernel hosting, the desktop's own defaults too —
+    // the kernel draws, and the program reads, what it does on the desktop:
+    // a QLABEL's FontSize, a QFORM's BorderStyle …)
+    if kernel_hosts() {
+        props.extend(rapidr_value::component_defaults::desktop(type_name));
+    }
     // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout_web).
     let align = rapidr_value::layout::default_align(&utype);
     if align != rapidr_value::layout::Align::None {
@@ -426,6 +432,14 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
             crate::value::runtime_error(&format!("DIM {name}: {e}"));
         }
     }
+}
+
+/// Whether the UI kernel hosts the page's forms (`?host=kernel`, Stage W3).
+pub(crate) fn kernel_hosts() -> bool {
+    #[cfg(feature = "kernel")]
+    return crate::kernel_web::on();
+    #[cfg(not(feature = "kernel"))]
+    false
 }
 
 pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
@@ -677,6 +691,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
+            // (a Color the program chose, as the desktop records it: the
+            // kernel paints it, white included — component_defaults'
+            // `kernel_reads_unset`)
+            if lprop == "color" && kernel_hosts() {
+                comp.properties.insert("__colorset".into(), v_bool(true));
+            }
 
             if comp.type_name == "RTIMER" || comp.type_name == "RDXTIMER" || comp.type_name == "RDXJOYSTICK" || comp.type_name == "RCOMPORT" {
                 if lprop == "enabled" || lprop == "interval" {
@@ -717,13 +737,15 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     let comp_type = rp_comp_type(&uname);
     // A form the program shows (Show, ShowModal, Visible = True) — the only
     // ones its window appears for, as on the desktop: a form starts hidden.
+    // (with the kernel hosting, its OnShow is rapidr_ui_app::forms', as on
+    // the desktop: kernel_web::set_prop)
     if comp_type == "RFORM" && lprop == "visible" {
         let was = rp_comp_get_stored(&uname, SHOWN_BY_PROGRAM).to_bool();
         rp_comp_set_prop_only(&uname, SHOWN_BY_PROGRAM, v_bool(val.to_bool()));
         // A window shown: its OnShow — at once for Show / ShowModal
         // (gui_web), else (`Visible = True`, maybe inside its own CREATE)
         // once the program waits, as on the desktop.
-        if val.to_bool() && !was && rp_comp_get_stored(&uname, "parent").to_string_val().is_empty() {
+        if val.to_bool() && !was && rp_comp_get_stored(&uname, "parent").to_string_val().is_empty() && !kernel_hosts() {
             rp_comp_set_prop_only(&uname, ONSHOW_PENDING, v_bool(true));
             let form = uname.clone();
             let later = Closure::once_into_js(move || take_onshow(&form));

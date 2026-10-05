@@ -197,7 +197,7 @@ impl Windows for Mem {
     fn script_input(self, input: ScriptInput) {
         world(|w| w.inputs.push(input));
     }
-    fn capture_and_end(self, _prefix: &str) -> ! {
+    fn capture_and_end(self, _prefix: &str) {
         panic!("the test's end")
     }
 }

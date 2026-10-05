@@ -66,6 +66,9 @@ fn tag(n: &AccessNode) -> &'static str {
         Role::MultilineTextInput => "textarea",
         Role::TextInput if n.states.multiline => "textarea",
         Role::TextInput => "input",
+        // (a combo box's value is its text: a text field's, as the browser
+        // reads one; its list's elements beside it — an input holds none)
+        Role::ComboBox => "input",
         Role::Canvas => "canvas",
         _ => "div",
     }
@@ -154,50 +157,80 @@ fn json_str(s: &str) -> String {
     out
 }
 
-/// The mirror's elements for a form's tree, parents first, as JSON: an
-/// array of `{id, parent, tag, attrs: [[name, value] …], text, value,
-/// bounds: [x, y, w, h], focusable, focused}`. Ids are the nodes' (stable:
-/// a hash of the component's id); `bounds` are relative to the parent's
-/// element.
-pub fn mirror(root: &AccessNode) -> String {
-    let mut out = String::from("[");
-    let mut first = true;
-    walk(root, None, (0, 0), &mut out, &mut first);
-    out.push(']');
+/// One element of the mirror (a node of the kernel's tree).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Spec {
+    /// The node's id (stable: a hash of the component's id).
+    pub id: u64,
+    pub parent: Option<u64>,
+    /// `div`, `input`, `textarea` or `canvas`.
+    pub tag: &'static str,
+    pub attrs: Vec<(&'static str, String)>,
+    /// A label's text.
+    pub text: String,
+    /// A text box's value.
+    pub value: String,
+    /// Relative to the parent's element (logical = CSS pixels).
+    pub bounds: (i64, i64, i64, i64),
+    /// It takes the DOM focus when the kernel focuses it.
+    pub focusable: bool,
+    pub focused: bool,
+}
+
+/// The mirror's elements for a form's tree, parents first.
+pub fn specs(root: &AccessNode) -> Vec<Spec> {
+    let mut out = Vec::new();
+    walk(root, None, (0, 0), &mut out);
     out
 }
 
-fn walk(n: &AccessNode, parent: Option<u64>, origin: (i64, i64), out: &mut String, first: &mut bool) {
-    if !*first {
-        out.push(',');
-    }
-    *first = false;
+fn walk(n: &AccessNode, parent: Option<u64>, origin: (i64, i64), out: &mut Vec<Spec>) {
     let (x, y, w, h) = n.bounds;
-    let attrs: Vec<String> = attributes(n).iter().map(|(k, v)| format!("[{},{}]", json_str(k), json_str(v))).collect();
     // (a label is its text; a text box its value)
-    let text = if n.role == Role::Label { n.name.as_str() } else { "" };
+    let text = if n.role == Role::Label { n.name.clone() } else { String::new() };
     let value = match n.role {
-        Role::TextInput | Role::MultilineTextInput => n.value.as_deref().unwrap_or(""),
-        _ => "",
+        Role::TextInput | Role::MultilineTextInput | Role::ComboBox => n.value.clone().unwrap_or_default(),
+        _ => String::new(),
     };
-    out.push_str(&format!(
-        "{{\"id\":\"{}\",\"parent\":{},\"tag\":\"{}\",\"attrs\":[{}],\"text\":{},\"value\":{},\"bounds\":[{},{},{},{}],\"focusable\":{},\"focused\":{}}}",
-        n.id,
-        parent.map_or("null".to_string(), |p| format!("\"{p}\"")),
-        tag(n),
-        attrs.join(","),
-        json_str(text),
-        json_str(value),
-        x - origin.0,
-        y - origin.1,
-        w.max(0),
-        h.max(0),
-        focusable(n) && !n.states.disabled,
-        n.states.focused,
-    ));
+    out.push(Spec {
+        id: n.id,
+        parent,
+        tag: tag(n),
+        attrs: attributes(n),
+        text,
+        value,
+        bounds: (x - origin.0, y - origin.1, w.max(0), h.max(0)),
+        focusable: focusable(n) && !n.states.disabled,
+        focused: n.states.focused,
+    });
     for c in &n.children {
-        walk(c, Some(n.id), (x, y), out, first);
+        walk(c, Some(n.id), (x, y), out);
     }
+}
+
+/// The mirror's elements for a form's tree, parents first, as JSON: an
+/// array of `{id, parent, tag, attrs: [[name, value] …], text, value,
+/// bounds: [x, y, w, h], focusable, focused}` (the spike's page reads it).
+pub fn mirror(root: &AccessNode) -> String {
+    let items: Vec<String> = specs(root)
+        .iter()
+        .map(|s| {
+            let attrs: Vec<String> = s.attrs.iter().map(|(k, v)| format!("[{},{}]", json_str(k), json_str(v))).collect();
+            let (x, y, w, h) = s.bounds;
+            format!(
+                "{{\"id\":\"{}\",\"parent\":{},\"tag\":\"{}\",\"attrs\":[{}],\"text\":{},\"value\":{},\"bounds\":[{x},{y},{w},{h}],\"focusable\":{},\"focused\":{}}}",
+                s.id,
+                s.parent.map_or("null".to_string(), |p| format!("\"{p}\"")),
+                s.tag,
+                attrs.join(","),
+                json_str(&s.text),
+                json_str(&s.value),
+                s.focusable,
+                s.focused,
+            )
+        })
+        .collect();
+    format!("[{}]", items.join(","))
 }
 
 #[cfg(test)]
