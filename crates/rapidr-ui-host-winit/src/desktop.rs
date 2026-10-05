@@ -63,6 +63,11 @@ pub enum HostCmd {
     /// [`WindowSpec::state`] again: the window maximized, minimized or
     /// restored (QFORM.WindowState).
     State(String),
+    // (the DirectX lane's)
+    /// Form `f`'s window covers the screen, without a frame (a QDXSCREEN's
+    /// FullScreen); the system's new size comes back as a resize. The
+    /// headless host leaves it to runtime-core.
+    Fullscreen(String),
 }
 
 /// A window's picture (RGBA, straight).

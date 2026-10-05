@@ -21,6 +21,20 @@
 //!   and the control differ, AllowStretch (the default) stretches the
 //!   picture over the control, else it shows at its own size at the top
 //!   left.
+//! - Text is drawn in the screen's Font, MS Sans Serif 8 until the program
+//!   sets one (`Font = QFont`, `Font.Size = …`): DelphiX's surface canvas
+//!   was a TCanvas with Delphi's default font, as the manual's chapter 13
+//!   screenshots show ("FPS: 20").
+//! - FullScreen (manual: set before ShowModal, with the form bsNone): the
+//!   form's window covers the screen and the surface keeps its size — as
+//!   DirectDraw's exclusive mode switched the display to it — shown scaled
+//!   to the screen with its proportions kept, black around ([`picture_rect`];
+//!   no display mode is changed).
+//! - Rotate(xOrigin, yOrigin, Angle) turns what the back buffer holds about
+//!   the point, clockwise, Angle in DelphiX's units (256 a whole turn —
+//!   its `Cos256` tables); View.SetFront / SetBack / SetPlane keep the 3D
+//!   viewport's clipping planes (front 1, back 5000 as the manual says),
+//!   View.Clear clears the back buffer to the scene's background (black).
 //! - Colours are RapidQ's &HBBGGRR everywhere but `Fill` and `FastPset`,
 //!   which write the surface's own pixel value as DirectDraw does: &HRRGGBB
 //!   on today's 32-bit screens (the manual: "Fill … &HFF = Blue, &HFF00 =
@@ -58,12 +72,25 @@ pub struct DxScreen {
     seen: Option<(i64, i64)>,
     /// Flips so far.
     pub flips: u64,
+    /// The 3D viewport's front and back clipping planes (View.SetFront /
+    /// SetBack) and its front plane's sides (View.SetPlane: left, right,
+    /// bottom, top; `None`: the camera's default field).
+    pub view_front: f64,
+    pub view_back: f64,
+    pub view_plane: Option<[f64; 4]>,
+    /// The scene's background (View.Clear's colour; SetBackgroundRGB).
+    pub background: u32,
+}
+
+/// DelphiX's surface canvas font: Delphi's default TFont.
+fn screen_font() -> super::font::Font {
+    super::font::Font { name: "MS Sans Serif".into(), size: 8, color: 0, styles: 0 }
 }
 
 impl Default for DxScreen {
     fn default() -> Self {
-        let black = || Bitmap { background: 0, transparent_color: 0, ..Bitmap::default() };
-        Self { back: black(), front: black(), init: None, initialized: false, seen: None, flips: 0 }
+        let black = || Bitmap { background: 0, transparent_color: 0, font: screen_font(), ..Bitmap::default() };
+        Self { back: black(), front: black(), init: None, initialized: false, seen: None, flips: 0, view_front: 1.0, view_back: 5000.0, view_plane: None, background: 0 }
     }
 }
 
@@ -118,7 +145,37 @@ impl DxScreen {
         if let Some(p) = prop.strip_prefix("font.") {
             return self.back.font.get(p);
         }
-        None
+        // (`DX.View.GetFront` read without parentheses)
+        match prop {
+            "view.getfront" => Some(Value::Double(self.view_front)),
+            "view.getback" => Some(Value::Double(self.view_back)),
+            _ => None,
+        }
+    }
+
+    /// `Rotate(xOrigin, yOrigin, Angle)`: what the back buffer holds turned
+    /// about (x0, y0) by `angle` 256ths of a turn, clockwise on the screen;
+    /// where nothing turns onto, the pixels stay.
+    pub fn rotate(&mut self, x0: i64, y0: i64, angle: i64) {
+        let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+        if w == 0 || h == 0 || angle.rem_euclid(256) == 0 {
+            return;
+        }
+        let a = angle.rem_euclid(256) as f64 * std::f64::consts::TAU / 256.0;
+        let (sin, cos) = a.sin_cos();
+        let src = self.back.img.pixels.clone();
+        for y in 0..h {
+            for x in 0..w {
+                // The pixel that turns onto (x, y): turned back.
+                let (dx, dy) = ((x - x0) as f64, (y - y0) as f64);
+                let sx = (x0 as f64 + dx * cos + dy * sin).round() as i64;
+                let sy = (y0 as f64 - dx * sin + dy * cos).round() as i64;
+                if (0..w).contains(&sx) && (0..h).contains(&sy) {
+                    self.back.img.pixels[(y * w + x) as usize] = src[(sy * w + sx) as usize];
+                }
+            }
+        }
+        self.back.invalidate_display();
     }
 
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<Result<(), String>> {
@@ -145,6 +202,19 @@ impl DxScreen {
                 self.back.fill_rect(0, 0, w, h, device_color(n(0)));
             }
             "fastpset" => self.back.pset(n(0), n(1), device_color(n(2))),
+            "rotate" => self.rotate(n(0), n(1), n(2)),
+            // The 3D viewport (`DX.View.SetFront(10)`: method `view.setfront`).
+            "view.clear" => {
+                let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+                self.back.fill_rect(0, 0, w, h, self.background);
+            }
+            "view.setfront" => self.view_front = args.first().map_or(1.0, Value::to_f64),
+            "view.setback" => self.view_back = args.first().map_or(5000.0, Value::to_f64),
+            "view.setplane" if args.len() >= 4 => {
+                let f = |i: usize| args[i].to_f64();
+                self.view_plane = Some([f(0), f(1), f(2), f(3)]);
+            }
+            "view.getfront" | "view.getback" => return self.get(method),
             // (nothing to give back: the surface is the runtime's memory)
             "release" => {}
             // `Pixel(x, y)` reads; `Pixel(x, y) = c` writes (the value last).
@@ -189,6 +259,20 @@ impl DxScreen {
     }
 }
 
+/// Where a screen's picture goes in its control (logical pixels): the
+/// surface `surface` (w, h) in a control `control` (w, h) — over all of it
+/// with AllowStretch, at its own size at the top left without, and with
+/// FullScreen scaled to fit with its proportions kept, centred.
+pub fn picture_rect(surface: (i64, i64), control: (i64, i64), stretch: bool, fullscreen: bool) -> (i64, i64, i64, i64) {
+    let ((sw, sh), (cw, ch)) = (surface, control);
+    if fullscreen && sw > 0 && sh > 0 {
+        let k = (cw as f64 / sw as f64).min(ch as f64 / sh as f64);
+        let (w, h) = ((sw as f64 * k).round() as i64, (sh as f64 * k).round() as i64);
+        return ((cw - w) / 2, (ch - h) / 2, w, h);
+    }
+    if stretch { (0, 0, cw, ch) } else { (0, 0, sw, sh) }
+}
+
 /// Sets QDXSCREEN `screen` up (its form shown; `w` × `h` the control's
 /// size, `autosize` its AutoSize): `true` the first time — the runtime then
 /// fires OnInitialize and OnInitializeSurface.
@@ -219,6 +303,13 @@ pub struct DxTimer {
 }
 
 impl DxTimer {
+    /// Whether the timer's OnTimer fires now: with ActiveOnly (the
+    /// default) only while the program is the active application (one of
+    /// its windows has the keyboard; on the web, the page shows).
+    pub fn fires(active_only: bool, app_active: bool) -> bool {
+        !active_only || app_active
+    }
+
     /// The timer fires at `now_ms` (any clock the runtime keeps).
     pub fn tick(&mut self, now_ms: f64) {
         let since = *self.since.get_or_insert(now_ms);
@@ -671,6 +762,35 @@ mod tests {
         s.text_rect((0, 0, 5, 20), &[v_int(0), v_int(0), v_str("WWWW"), v_int(0xFFFFFF), v_int(0xFF)]);
         assert_eq!(s.back.pixel(2, 2), Some(0xFF), "inside: the text's background");
         assert_eq!(s.back.pixel(20, 2), Some(0), "outside: as it was");
+    }
+
+    /// Text in MS Sans Serif 8 by default; View.*; Rotate a quarter turn
+    /// (64) clockwise about a point.
+    #[test]
+    fn font_view_rotate() {
+        let mut s = DxScreen::default();
+        assert_eq!(s.back.font.name, "MS Sans Serif");
+        assert_eq!(s.back.font.size, 8);
+        s.call("init", &[v_int(40), v_int(30)]);
+        initialize(&mut s, 40, 30, true);
+        assert_eq!(s.get("view.getfront").unwrap().to_f64(), 1.0);
+        assert_eq!(s.call("view.getback", &[]).unwrap().to_f64(), 5000.0);
+        s.call("view.setfront", &[Value::Double(10.5)]);
+        assert_eq!(s.get("view.getfront").unwrap().to_f64(), 10.5);
+        s.call("line", &[v_int(10), v_int(10), v_int(20), v_int(10), v_int(0xFF)]);
+        s.call("rotate", &[v_int(10), v_int(10), v_int(64)]);
+        assert_eq!(s.back.pixel(10, 18), Some(0xFF), "the line points down now");
+        assert_eq!(s.back.pixel(18, 10), Some(0), "and no longer right");
+        s.call("view.clear", &[]);
+        assert_eq!(s.back.pixel(10, 18), Some(0));
+    }
+
+    #[test]
+    fn picture_placement() {
+        assert_eq!(picture_rect((100, 50), (200, 200), true, false), (0, 0, 200, 200));
+        assert_eq!(picture_rect((100, 50), (200, 200), false, false), (0, 0, 100, 50));
+        assert_eq!(picture_rect((640, 480), (1920, 1080), true, true), (240, 0, 1440, 1080), "4:3 on a 16:9 screen");
+        assert!(DxTimer::fires(false, false) && DxTimer::fires(true, true) && !DxTimer::fires(true, false));
     }
 
     #[test]

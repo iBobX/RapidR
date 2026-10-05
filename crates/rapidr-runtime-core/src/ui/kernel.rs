@@ -577,10 +577,12 @@ fn fire_due_timers_then(then: impl Fn()) {
             st(|s| s.scheduled.remove(&name));
             continue;
         }
-        // (the DirectX lane's: a QDXTIMER counts its frames)
-        crate::directx::timer_fired(&name);
-        rp_fire_event(&name, "ontimer");
-        then();
+        // (the DirectX lane's: a QDXTIMER counts its frames; with
+        // ActiveOnly it fires only while the program is active)
+        if crate::directx::timer_fired(&name) {
+            rp_fire_event(&name, "ontimer");
+            then();
+        }
         let at = Instant::now() + timer_interval(&name);
         st(|s| {
             s.timer_gen += 1;
@@ -734,6 +736,40 @@ fn show_window(name: &str) {
     if state == rapidr_value::window_state::WS_MAXIMIZED && headless() && !st(|s| s.normal_bounds.contains_key(&name)) {
         simulate_state(&name, rapidr_value::window_state::WS_NORMAL, state);
     }
+    // (the DirectX lane's: a QDXSCREEN's FullScreen)
+    if crate::directx::form_fullscreen(&name) {
+        fullscreen(&name);
+    }
+}
+
+/// (the DirectX lane's) A form whose QDXSCREEN is FullScreen: its window
+/// covers the screen without a frame (RapidQ's DirectDraw exclusive mode,
+/// without its display mode change) — the system's borderless full screen,
+/// or on the headless host the form taking the screen itself, as a user's
+/// drag would (Left / Top / Width / Height, its layout, OnResize).
+fn fullscreen(name: &str) {
+    with_kern(|k| k.desk.cmds.push(rapidr_ui_host_winit::HostCmd::Fullscreen(name.to_string())));
+    pump(Some(Duration::ZERO));
+    if headless() {
+        let (sw, sh) = screen();
+        let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(name, "borderstyle").to_i64());
+        let (iw, ih) = ((sw - fw).max(1), (sh - fh).max(1));
+        with_kern(|k| {
+            if let Some(f) = k.desk.forms.get_mut(name) {
+                f.ui.sync(&RtStore);
+            }
+            k.desk.resized(name, iw, ih);
+            k.desk.moved(name, 0, 0);
+        });
+        st(|s| s.ops.push(WinOp::Size(name.to_string(), (iw, ih))));
+    }
+    dispatch_pending();
+}
+
+/// (the DirectX lane's) The program is the active application (one of its
+/// windows has the keyboard; always on the headless host).
+pub fn app_active() -> bool {
+    with_kern(|k| k.host.active()).unwrap_or(true)
 }
 
 /// The host has no system to ask (the headless host of the GUI tests).

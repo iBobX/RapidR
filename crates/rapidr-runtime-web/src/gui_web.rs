@@ -3327,15 +3327,17 @@ fn create_dxscreen(id: &str, name: &str, props: &HashMap<String, Value>) {
     setup_widget(&el, id, name, props);
 }
 
-/// Puts what a QDXSCREEN's last Flip showed on its canvas: over the whole
-/// control with AllowStretch (RapidQ's default), else at its own size.
+/// Puts what a QDXSCREEN's last Flip showed on its canvas, where the
+/// desktop's kernel puts it (`directx::picture_rect`): over the whole
+/// control with AllowStretch (RapidQ's default), else at its own size;
+/// FullScreen scaled to fit, centred.
 pub fn render_dxscreen(name: &str) {
     let Some(canvas) = get_el(&format!("{}-screen", comp_id(name))).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
     note_display_scale();
-    let (cw, ch, autosize) = rapidr_value::objects::dxscreen_control(name, &|i, p| crate::object_web::rp_comp_get_stored(i, p));
-    let Some((w, h, rgba, scale)) = rapidr_value::objects::with_dxscreen(name, |s| {
-        s.follow_control(cw, ch, autosize);
-        s.front.display_rgba()
+    let c = rapidr_value::objects::dxscreen_control(name, &|i, p| crate::object_web::rp_comp_get_stored(i, p));
+    let Some(((w, h, rgba, scale), size)) = rapidr_value::objects::with_dxscreen(name, |s| {
+        s.follow_control(c.width, c.height, c.follows());
+        (s.front.display_rgba(), (s.front.img.width as i64, s.front.img.height as i64))
     }) else {
         return;
     };
@@ -3343,12 +3345,28 @@ pub fn render_dxscreen(name: &str) {
         return;
     }
     put_display(&canvas, w, h, &rgba, scale);
-    let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p);
-    if !matches!(stored("allowstretch"), Value::Null) && !stored("allowstretch").to_bool() {
-        return;
+    let (x, y, pw, ph) = rapidr_value::objects::directx::picture_rect(size, (c.width, c.height), c.stretch, c.fullscreen);
+    let style = canvas.style();
+    for (k, v) in [("left", x), ("top", y), ("width", pw), ("height", ph)] {
+        let _ = style.set_property(k, &format!("{v}px"));
     }
-    let _ = canvas.style().set_property("width", &format!("{}px", stored("width").to_i64()));
-    let _ = canvas.style().set_property("height", &format!("{}px", stored("height").to_i64()));
+}
+
+/// (the DirectX lane's) A form whose QDXSCREEN is FullScreen takes the
+/// whole page, as on the desktop it covers the screen (the browser's own
+/// full screen needs the user's gesture, which a program at its start
+/// hasn't): its Width / Height become the page's, its layout follows.
+pub fn form_fullscreen(name: &str) {
+    let id = comp_id(name);
+    let Some(el) = get_el(&id) else { return };
+    let style = el.style();
+    for (k, v) in [("position", "fixed"), ("left", "0"), ("top", "0"), ("width", "100vw"), ("height", "100vh"), ("border-radius", "0"), ("z-index", "10000")] {
+        let _ = style.set_property(k, v);
+    }
+    let (vw, vh) = web_sys::window()
+        .map(|w| (w.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(0.0), w.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(0.0)))
+        .unwrap_or((0.0, 0.0));
+    form_resized(&id, 0, 0, vw as i32, vh as i32);
 }
 
 /// A QTABCONTROL: a container whose first layer draws the tabs from the

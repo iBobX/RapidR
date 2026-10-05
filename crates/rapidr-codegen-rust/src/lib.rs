@@ -303,8 +303,19 @@ impl RustCodegen {
     /// the program: RapidQ's global objects by name (`Application`,
     /// `Screen`, …), anything else through the component id it holds.
     fn object_method_call(&self, object: &Expression, method: &str, args: &[&Expression]) -> String {
-        let receiver = self.receiver(object);
         let args: Vec<String> = args.iter().map(|a| self.owned_expr(a)).collect();
+        // `DX.View.SetFront(10)`, `Printer.Font.DelStyles(3)`: the
+        // sub-object's method by its combined name on the object, as the
+        // VM calls it (rapidr-bcgen's `CallMethodDyn` with `view.setfront`).
+        if let Expression::MemberAccess(inner) = object {
+            if let Expression::Identifier(id) = inner.object.as_ref() {
+                if id.name != "_with_" && !is_component_type_name(&id.name) && !id.name.eq_ignore_ascii_case("math") {
+                    let receiver = self.receiver(&inner.object);
+                    return format!("rp_comp_method({receiver}, \"{}.{}\", &[{}])", inner.member.to_lowercase(), method.to_lowercase(), args.join(", "));
+                }
+            }
+        }
+        let receiver = self.receiver(object);
         format!("rp_comp_method({receiver}, \"{}\", &[{}])", method.to_lowercase(), args.join(", "))
     }
 

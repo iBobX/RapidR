@@ -68,6 +68,12 @@ pub trait Host {
     /// Wakes the pump (for futures: async dialogs).
     fn waker(&self) -> Waker;
     fn headless(&self) -> bool;
+    /// (the DirectX lane's) The program is the active application: one of
+    /// its windows has the keyboard (QDXTIMER's ActiveOnly). A host without
+    /// a system (headless) always is.
+    fn active(&self) -> bool {
+        true
+    }
     fn name(&self) -> &'static str;
     /// Shows pop-up menus itself ([`HostCmd::Popup`]: macOS' and Windows'
     /// context menus); else the kernel draws them.

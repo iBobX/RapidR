@@ -36,8 +36,8 @@ pub use kernel::{
     // doesn't)
     gui_showmodal, gui_wait_key, gui_begin_app_wait, gui_take_wait_started, gui_set_cooperative_waits,
     run_gui_event_loop, gui_choice, gui_dialog_execute,
-    // What only the host knows.
-    window_shown, form_window_exists, form_scale, menu_offset, is_modal, mouse_in_form,
+    // What only the host knows (`app_active`: the DirectX lane's).
+    window_shown, form_window_exists, form_scale, menu_offset, is_modal, mouse_in_form, app_active,
     // Methods drawn by the host.
     canvas_method, image_method, tree_method,
     // The IDE's components: RDESIGNSURFACE's Show / Hide (its model, and

@@ -18,7 +18,7 @@ use rapidr_value::objects::a11y::AccessNode;
 use super::canvas::{click_or_double, draw_shown, shown};
 use super::{ComponentKind, Cx, MouseIn, MouseOut};
 use crate::paint::Painter;
-use crate::store::{self, Store};
+use crate::store::Store;
 
 pub struct DxScreen;
 
@@ -38,14 +38,14 @@ impl ComponentKind for DxScreen {
         }
         p.fill((0, 0, w, h), crate::text::bgr_to_rgb(0));
         let cache = &mut cx.ui.surface;
-        let autosize = store::flag(cx.store, cx.id, "autosize", true);
+        let c = rapidr_value::objects::dxscreen_control(cx.id, &|i, p| cx.store.get(i, p));
         let Some(Some(s)) = rapidr_value::objects::with_dxscreen(cx.id, |d| {
-            d.follow_control(w, h, autosize);
+            d.follow_control(w, h, c.follows());
             shown(cache, &mut d.front)
         }) else {
             return;
         };
-        let rect = if store::flag(cx.store, cx.id, "allowstretch", true) { (0, 0, w, h) } else { (0, 0, s.size.0, s.size.1) };
+        let rect = rapidr_value::objects::directx::picture_rect(s.size, (w, h), c.stretch, c.fullscreen);
         draw_shown(p, cx.id, &s, rect);
     }
 
@@ -110,6 +110,10 @@ mod tests {
         assert_eq!(pixel, Some(0xFF));
         s.set("dxs", "allowstretch", v_int(0));
         assert_eq!(images(&f.paint(&s, &mut text, 1.0))[0].2, (0, 0, 80, 60), "its own size");
+        // FullScreen: scaled to fit, its proportions kept (80 × 60 in
+        // 160 × 120 — a 4:3 control: all of it).
+        s.set("dxs", "fullscreen", v_int(-1)).set("dxs", "width", v_int(200));
+        assert_eq!(images(&f.paint(&s, &mut text, 1.0))[0].2, (20, 0, 160, 120), "centred, black on both sides");
         rapidr_value::objects::remove("dxs");
     }
 }
