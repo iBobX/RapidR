@@ -5,7 +5,8 @@
 //! press and a release on it), Space, Alt + its letter or a screen
 //! reader's click turns Checked over, then OnClick — Checked goes to the
 //! store through [`KernelEvent::Set`](crate::KernelEvent::Set), so the
-//! handler reads the new value.
+//! handler reads the new value. A fluent theme draws the box rounded, the
+//! accent with a white check mark when checked, and a focus ring.
 
 use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::ops::Place;
@@ -14,9 +15,8 @@ use rapidr_value::objects::text::text_size;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{caption, Painter, DARK, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::{backdrop, caption, ink_of, Painter};
 use crate::store::{self, Store};
-use crate::text::bgr_to_rgb;
 
 /// The box's side.
 pub const BOX: i64 = 13;
@@ -33,24 +33,71 @@ pub fn check_mark(p: &mut Painter, x: i64, y: i64, color: u32) {
 /// A sunken 13 × 13 box (a check box's) at (x, y), `well` inside.
 pub fn sunken_box(p: &mut Painter, x: i64, y: i64, well: u32) {
     p.fill((x + 2, y + 2, BOX - 4, BOX - 4), well);
-    p.edge((x, y, BOX, BOX), &[SHADOW, DARK], &[LIGHT, FACE]);
+    p.sunken_edge((x, y, BOX, BOX));
+}
+
+/// A fluent theme's mark (a check box's `side`-pixel box, a radio
+/// button's circle — `round`) at (x, y): the accent when on, else a rim
+/// on the control's face; its fill under the mouse and pressed.
+pub fn fluent_mark(p: &mut Painter, (x, y, side): (i64, i64, i64), round: bool, on: bool, s: super::State) {
+    let t = p.theme();
+    let radius = if round { side as f64 / 2.0 } else { (t.radius - 1.0).max(2.0) };
+    let rect = (x, y, side, side);
+    if on {
+        let fill = match (s.enabled, s.pressed, s.hover) {
+            (false, ..) => t.gray_text,
+            (_, true, _) => t.accent_pressed,
+            (_, _, true) => t.accent_hot,
+            _ => t.accent,
+        };
+        p.round(rect, radius, Some(fill), None, 1.0);
+        let ink = if s.enabled { t.accent_text } else { t.face };
+        if round {
+            // (the dot: bigger under the mouse, smaller pressed)
+            let r = if s.pressed { 2.0 } else if s.hover { 3.0 } else { 2.5 };
+            let c = side as f64 / 2.0;
+            let d = (c - r).round() as i64;
+            let size = side - 2 * d;
+            p.round((x + d, y + d, size, size), size as f64 / 2.0, Some(ink), None, 1.0);
+        } else {
+            p.check_glyph(x as f64, y as f64, side as f64, ink);
+        }
+    } else {
+        let fill = match (s.enabled, s.pressed, s.hover) {
+            (false, ..) => t.control_disabled,
+            (_, true, _) => t.control_pressed,
+            (_, _, true) => t.control_hot,
+            _ => t.control,
+        };
+        let rim = if s.enabled { t.border_strong } else { t.gray_text };
+        p.round(rect, radius, Some(fill), Some(rim), 1.0);
+    }
 }
 
 /// A check box's or radio button's caption, right of its mark (and the
 /// focus rectangle around it).
 pub fn caption_right(cx: &Cx, p: &mut Painter, mark: i64) {
     let (w, h) = (cx.width(), cx.height());
+    let t = p.theme();
     let text = store::string(cx.store, cx.id, "caption");
-    let color = if cx.state.enabled { bgr_to_rgb(cx.font.color) } else { GRAY_TEXT };
+    let color = ink_of(cx, backdrop(cx.store, cx.id));
     let x = mark + GAP;
-    if !cx.state.enabled {
-        caption(p, (x + 1, 1, w - x, h), &text, &cx.font, LIGHT, Place::Left);
+    // (disabled, classic: embossed — white under the grey)
+    if !cx.state.enabled && !t.fluent() {
+        caption(p, (x + 1, 1, w - x, h), &text, &cx.font, t.light, Place::Left);
     }
     caption(p, (x, 0, w - x, h), &text, &cx.font, color, Place::Left);
     if cx.state.focused {
         let (tw, th) = text_size(&mnemonic(&text).0, &cx.font);
-        let (fw, fh) = ((tw + 2).min(w - x + 1), th + 2);
-        p.focus((x - 1, (h - th) / 2 - 1, fw.max(1), fh));
+        if t.fluent() {
+            // (a ring round the caption, clear of it and of the mark)
+            let pad = t.focus_width as i64 + 2;
+            let (fx, fh) = (x - pad, (th + 2 * pad).min(h));
+            p.focus((fx, (h - fh) / 2, (tw + 2 * pad).min(w - fx).max(1), fh.max(1)));
+        } else {
+            let (fw, fh) = ((tw + 2).min(w - x + 1), th + 2);
+            p.focus((x - 1, (h - th) / 2 - 1, fw.max(1), fh));
+        }
     }
 }
 
@@ -78,10 +125,15 @@ impl ComponentKind for CheckBox {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let h = cx.height();
         let s = cx.state;
+        let t = p.theme();
         let y = (h - BOX) / 2;
-        sunken_box(p, 0, y, if s.pressed || !s.enabled { FACE } else { LIGHT });
-        if checked(cx.store, cx.id) {
-            check_mark(p, 3, y + 3, if s.enabled { 0x000000 } else { GRAY_TEXT });
+        if t.fluent() {
+            fluent_mark(p, (0, y, BOX), false, checked(cx.store, cx.id), s);
+        } else {
+            sunken_box(p, 0, y, if s.pressed || !s.enabled { t.face } else { t.window });
+            if checked(cx.store, cx.id) {
+                check_mark(p, 3, y + 3, if s.enabled { t.text } else { t.gray_text });
+            }
         }
         caption_right(cx, p, BOX);
     }

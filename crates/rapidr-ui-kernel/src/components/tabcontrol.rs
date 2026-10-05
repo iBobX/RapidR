@@ -23,8 +23,14 @@ impl ComponentKind for Tabs {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        let color = form_color(&cx.store.get(cx.id, "color"));
-        let ops = with_tabcontrol(cx.id, |t| t.ops(w, h, &cx.font, color, cx.state.enabled, cx.state.focused)).unwrap_or_default();
+        // (unset: the theme's face; the tabs' text the theme's unless the
+        // program coloured it — the model draws the font's colour)
+        let color = match cx.store.get(cx.id, "color") {
+            rapidr_value::Value::Null => i64::from(rapidr_value::theme::bgr(p.theme().face)),
+            v => form_color(&v),
+        };
+        let font = crate::paint::inked(cx, crate::text::bgr_to_rgb(color));
+        let ops = with_tabcontrol(cx.id, |t| t.ops(w, h, &font, color, cx.state.enabled, cx.state.focused)).unwrap_or_default();
         p.ops(lift(ops));
     }
 

@@ -31,7 +31,7 @@ use rapidr_value::Value;
 use crate::components::{ComponentKind, Cx};
 use crate::display::Picture;
 use crate::input::KernelEvent;
-use crate::paint::{Painter, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, MemStore, Store};
 
 /// What every kernel dialog's ids start with (`:` can't be in a BASIC name).
@@ -605,7 +605,8 @@ impl ComponentKind for Part {
         // (pictures at the screen's resolution)
         let scale = p.scale().max(1.0);
         let dev = |v: i64| ((v as f64 * scale).round() as usize).max(1);
-        let sunken = |p: &mut Painter, r: cd::Rect| p.edge((r.0 - 1, r.1 - 1, r.2 + 2, r.3 + 2), &[SHADOW], &[LIGHT]);
+        let t = p.theme();
+        let sunken = |p: &mut Painter, r: cd::Rect| p.thin_sunken((r.0 - 1, r.1 - 1, r.2 + 2, r.3 + 2));
         match store::string(cx.store, cx.id, "part").as_str() {
             "icon" => {
                 if let Some(icon) = MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)) {
@@ -626,7 +627,7 @@ impl ComponentKind for Part {
                 let y = 1 + ((240 - int("sat")) * (inner.3 - 1)) / 240;
                 p.clipped(inner, |p| {
                     for r in [(x - 8, y - 1, 5, 3), (x + 4, y - 1, 5, 3), (x - 1, y - 8, 3, 5), (x - 1, y + 4, 3, 5)] {
-                        p.fill(r, 0x000000);
+                        p.fill(r, t.text);
                     }
                 });
             }
@@ -640,7 +641,7 @@ impl ComponentKind for Part {
                 sunken(p, bar);
                 let y = bar.1 as f64 + ((240 - int("lum")) * (bar.3 - 1)) as f64 / 240.0 + 0.5;
                 let x = (cl::LUM_BAR_W + 2) as f64;
-                p.op(Op::Arrow { points: [(x, y), (x + 7.0, y - 6.0), (x + 7.0, y + 6.0)], color: 0x000000 });
+                p.op(Op::Arrow { points: [(x, y), (x + 7.0, y - 6.0), (x + 7.0, y + 6.0)], color: t.text });
             }
             "preview" => {
                 let inner = (1, 1, w - 2, h - 2);

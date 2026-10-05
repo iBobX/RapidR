@@ -16,6 +16,22 @@ thread_local! {
     /// The mouse on the screen, from the page's last mouse move.
     static MOUSE: Cell<(i64, i64)> = const { Cell::new((0, 0)) };
     static TRACKING: Cell<bool> = const { Cell::new(false) };
+    /// The theme the program named (`$THEME`, `Application.Theme`).
+    static THEME: Cell<&'static str> = const { Cell::new("classic") };
+}
+
+/// `$THEME name` / `Application.Theme = name`: the browser keeps drawing
+/// its own look (rrcss) — no theme is drawn here — but the program reads
+/// back the theme its name chose, as on the desktop (`auto`: the modern
+/// look, what the desktop chooses when the system says nothing).
+pub fn name_theme(name: &str) {
+    use rapidr_value::theme::{choose, Choice};
+    let chosen = match choose(name) {
+        Choice::Theme(t) => t.name,
+        Choice::Auto => rapidr_value::theme::MODERN.name,
+        Choice::Unknown => rapidr_value::theme::CLASSIC.name,
+    };
+    THEME.with(|t| t.set(chosen));
 }
 
 /// Follows the mouse over the page (Screen.MouseX / MouseY).
@@ -40,6 +56,14 @@ fn screen_prop(prop: &str) -> i64 {
 }
 
 impl Platform for Web {
+    fn theme(&self) -> String {
+        THEME.with(Cell::get).to_string()
+    }
+
+    fn set_theme(&self, name: &str) {
+        name_theme(name);
+    }
+
     /// The page's devicePixelRatio (a page's `RAPIDR_SCALE` forces it,
     /// for tests).
     fn scale(&self) -> f64 {

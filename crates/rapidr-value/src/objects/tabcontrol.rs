@@ -34,13 +34,9 @@ const FLAT_GAP: i64 = 8;
 /// The scroll buttons' width (a single line of tabs too long to show).
 const SCROLL_W: i64 = 17;
 
-/// The light and dark edges of 3D frames, and the hot-tracked text.
-const LIGHT: u32 = 0xFFFFFF;
-const SHADOW: u32 = 0x808080;
-const DARK: u32 = 0x404040;
-const HOT: u32 = 0x003CB4;
-const GRAY_TEXT: u32 = 0x808080;
-const FACE: u32 = 0xF0F0F0;
+// (the edges' colours, the hot-tracked and disabled text: the current
+// theme's — crate::theme)
+use crate::theme::Theme;
 
 #[derive(Clone, Debug)]
 pub struct TabControl {
@@ -440,12 +436,15 @@ impl TabControl {
     }
 
     /// What to draw for a `w` × `h` control in `font`, its Color `color`
-    /// (&HBBGGRR), enabled or not, with the keyboard focus or not.
+    /// (&HBBGGRR), enabled or not, with the keyboard focus or not — in the
+    /// current theme (`crate::theme`): Windows' 3D tabs, or flat ones (a
+    /// thin frame, the selected tab's accent along its outer edge).
     pub fn ops(&self, w: i64, h: i64, font: &Font, color: i64, enabled: bool, focused: bool) -> Vec<Op> {
+        let th = crate::theme::current();
         let l = self.layout(w, h, font);
         let mut out = Vec::new();
         let back = rgb(color);
-        let inactive_back = self.inactive_color.map_or(FACE, rgb);
+        let inactive_back = self.inactive_color.map_or(th.face, rgb);
         out.push(Op::Fill { rect: (0, 0, w, h), color: back });
         let fill = |out: &mut Vec<Op>, r: Rect, color: u32| {
             let r = self.map(&l, r);
@@ -475,10 +474,10 @@ impl TabControl {
                 }
             };
             // (which edges are light depends on where they end up)
-            let (near_c, far_c): (&[u32], &[u32]) = self.edge_colors();
-            edge(&mut out, fy, near_c, 1, Side::Near);
-            edge(&mut out, fy + fh - 1, far_c, -1, Side::Far);
-            let (start_c, end_c): (&[u32], &[u32]) = self.side_colors();
+            let (near_c, far_c) = self.edge_colors(th);
+            edge(&mut out, fy, &near_c, 1, Side::Near);
+            edge(&mut out, fy + fh - 1, &far_c, -1, Side::Far);
+            let (start_c, end_c) = self.side_colors(th);
             for (k, c) in start_c.iter().enumerate() {
                 fill(&mut out, (fx + k as i64, fy, 1, fh), *c);
             }
@@ -506,9 +505,9 @@ impl TabControl {
             }
             let r = (r.0, r.1, r.2.min(l.clip - r.0), r.3);
             if self.button_style {
-                self.draw_button(&mut out, &l, r, selected, hot, if selected { back } else { inactive_back });
+                self.draw_button(th, &mut out, &l, r, selected, hot, if selected { back } else { inactive_back });
             } else {
-                self.draw_tab(&mut out, &l, r, it.side, if selected { back } else { inactive_back }, selected);
+                self.draw_tab(th, &mut out, &l, r, it.side, if selected { back } else { inactive_back }, selected);
             }
             // Its text, centred (the selected tab's a pixel outward; a
             // pushed button's a pixel down and right).
@@ -522,9 +521,11 @@ impl TabControl {
             }
             let text_font = if selected { font } else { inactive_font };
             let color = if !enabled {
-                GRAY_TEXT
+                th.gray_text
+            } else if th.fluent() && self.button_style && selected {
+                th.accent_text
             } else if hot && self.hot_track {
-                HOT
+                th.hot_text
             } else {
                 rgb(text_font.color)
             };
@@ -542,15 +543,15 @@ impl TabControl {
             for it in l.items.iter().filter(|it| it.shown && it.index + 1 < self.count()) {
                 let x = it.rect.0 + it.rect.2 + FLAT_GAP / 2 - 1;
                 if x + 2 < l.clip {
-                    fill(&mut out, (x, it.rect.1 + 2, 1, it.rect.3 - 4), SHADOW);
-                    fill(&mut out, (x + 1, it.rect.1 + 2, 1, it.rect.3 - 4), LIGHT);
+                    fill(&mut out, (x, it.rect.1 + 2, 1, it.rect.3 - 4), th.shadow);
+                    fill(&mut out, (x + 1, it.rect.1 + 2, 1, it.rect.3 - 4), th.light);
                 }
             }
         }
         // The scroll buttons.
         if let Some((back_r, fwd_r, can_back, can_fwd)) = l.scroller {
             for (r, can, forward) in [(back_r, can_back, false), (fwd_r, can_fwd, true)] {
-                self.draw_button(&mut out, &l, r, false, false, FACE);
+                self.draw_button(th, &mut out, &l, r, false, false, th.face);
                 let (x, y, bw, bh) = self.map(&l, r);
                 let (cx, cy) = (x as f64 + bw as f64 / 2.0, y as f64 + bh as f64 / 2.0);
                 let s = 3.0;
@@ -561,7 +562,7 @@ impl TabControl {
                     (true, false) => [(cx - s, cy + s / 2.0), (cx + s, cy + s / 2.0), (cx, cy - s / 2.0 - 1.0)],
                     (true, true) => [(cx - s, cy - s / 2.0), (cx + s, cy - s / 2.0), (cx, cy + s / 2.0 + 1.0)],
                 };
-                out.push(Op::Arrow { points, color: if can && enabled { 0x000000 } else { GRAY_TEXT } });
+                out.push(Op::Arrow { points, color: if can && enabled { th.text } else { th.gray_text } });
             }
         }
         out
@@ -586,24 +587,34 @@ impl TabControl {
     }
 
     /// Lines (outermost first) of a raised edge facing light or dark.
-    fn raised(light: bool) -> &'static [u32] {
-        if light { &[LIGHT] } else { &[DARK, SHADOW] }
+    /// (a fluent theme's edges: one thin line)
+    fn raised(th: &Theme, light: bool) -> Vec<u32> {
+        if th.fluent() {
+            vec![th.border]
+        } else if light {
+            vec![th.light]
+        } else {
+            vec![th.dark_shadow, th.shadow]
+        }
     }
 
     /// The frame's edge next to the near tabs (canonical top) and the far
     /// one, outermost line first.
-    fn edge_colors(&self) -> (&'static [u32], &'static [u32]) {
-        (Self::raised(self.faces_light_y(true)), Self::raised(self.faces_light_y(false)))
+    fn edge_colors(&self, th: &Theme) -> (Vec<u32>, Vec<u32>) {
+        (Self::raised(th, self.faces_light_y(true)), Self::raised(th, self.faces_light_y(false)))
     }
 
     /// The frame's start (canonical left) and end edges — canonical -x is
     /// left for horizontal tabs, up for vertical ones: always light.
-    fn side_colors(&self) -> (&'static [u32], &'static [u32]) {
-        (Self::raised(true), Self::raised(false))
+    fn side_colors(&self, th: &Theme) -> (Vec<u32>, Vec<u32>) {
+        (Self::raised(th, true), Self::raised(th, false))
     }
 
-    /// A tab with rounded outer corners, its edge on the area open.
-    fn draw_tab(&self, out: &mut Vec<Op>, l: &Layout, r: Rect, side: Side, back: u32, _selected: bool) {
+    /// A tab with rounded outer corners, its edge on the area open (a
+    /// fluent theme's: square, a thin frame on the selected one, its accent
+    /// along the outer edge; the others on the face).
+    #[allow(clippy::too_many_arguments)]
+    fn draw_tab(&self, th: &Theme, out: &mut Vec<Op>, l: &Layout, r: Rect, side: Side, back: u32, selected: bool) {
         let (x, y, w, h) = r;
         let mut fill = |r: Rect, c: u32| {
             let r = self.map(l, r);
@@ -615,35 +626,61 @@ impl TabControl {
         let near = side == Side::Near;
         let (outer, inner_from, inner_to) = if near { (y, y + 2, y + h) } else { (y + h - 1, y, y + h - 2) };
         fill(if near { (x + 1, y + 1, w - 2, h - 1) } else { (x + 1, y, w - 2, h - 1) }, back);
+        if th.fluent() {
+            if selected {
+                fill((x + 1, outer, w - 2, 1), th.border);
+                let (from, to) = if near { (y + 1, y + h) } else { (y, y + h - 1) };
+                fill((x, from, 1, to - from), th.border);
+                fill((x + w - 1, from, 1, to - from), th.border);
+                fill((x + 1, if near { outer + 1 } else { outer - 2 }, w - 2, 2), th.accent);
+            }
+            return;
+        }
+        let (light, shadow, dark) = (th.light, th.shadow, th.dark_shadow);
         // outer edge and its corners
         let outer_light = self.faces_light_y(near);
-        let oc = if outer_light { LIGHT } else { DARK };
+        let oc = if outer_light { light } else { dark };
         fill((x + 2, outer, w - 4, 1), oc);
         if !outer_light {
-            fill((x + 2, if near { outer + 1 } else { outer - 1 }, w - 4, 1), SHADOW);
+            fill((x + 2, if near { outer + 1 } else { outer - 1 }, w - 4, 1), shadow);
         }
         let corner = if near { outer + 1 } else { outer - 1 };
-        fill((x + 1, corner, 1, 1), LIGHT);
-        fill((x + w - 2, corner, 1, 1), DARK);
+        fill((x + 1, corner, 1, 1), light);
+        fill((x + w - 2, corner, 1, 1), dark);
         // the sides: start light, end dark (shadow inside)
-        fill((x, inner_from, 1, inner_to - inner_from), LIGHT);
-        fill((x + w - 1, inner_from, 1, inner_to - inner_from), DARK);
-        fill((x + w - 2, inner_from, 1, inner_to - inner_from), SHADOW);
+        fill((x, inner_from, 1, inner_to - inner_from), light);
+        fill((x + w - 1, inner_from, 1, inner_to - inner_from), dark);
+        fill((x + w - 2, inner_from, 1, inner_to - inner_from), shadow);
     }
 
     /// A button (ButtonStyle): raised, or pushed in when selected; flat
     /// buttons show no edges but when pushed or under the mouse.
-    fn draw_button(&self, out: &mut Vec<Op>, l: &Layout, r: Rect, pushed: bool, hot: bool, back: u32) {
+    #[allow(clippy::too_many_arguments)]
+    fn draw_button(&self, th: &Theme, out: &mut Vec<Op>, l: &Layout, r: Rect, pushed: bool, hot: bool, back: u32) {
         let mr = self.map(l, r);
         let (x, y, w, h) = mr;
-        out.push(Op::Fill { rect: mr, color: back });
         let flat = self.button_style && self.flat_buttons;
+        if th.fluent() {
+            // (the accent when pushed; a thin frame, but on a flat button
+            // at rest)
+            out.push(Op::Fill { rect: mr, color: if pushed { th.accent } else if hot { th.control_hot } else { back } });
+            if !pushed && !(flat && !hot) {
+                for rr in [(x, y, w, 1), (x, y, 1, h), (x, y + h - 1, w, 1), (x + w - 1, y, 1, h)] {
+                    if rr.2 > 0 && rr.3 > 0 {
+                        out.push(Op::Fill { rect: rr, color: th.border });
+                    }
+                }
+            }
+            return;
+        }
+        out.push(Op::Fill { rect: mr, color: back });
+        let (light, shadow, dark) = (th.light, th.shadow, th.dark_shadow);
         let lines: (&[u32], &[u32]) = match (flat, pushed, hot) {
             (true, false, false) => return,
-            (true, false, true) => (&[LIGHT], &[SHADOW]),
-            (true, true, _) => (&[SHADOW], &[LIGHT]),
-            (false, false, _) => (&[LIGHT], &[DARK, SHADOW]),
-            (false, true, _) => (&[DARK, SHADOW], &[LIGHT]),
+            (true, false, true) => (&[light], &[shadow]),
+            (true, true, _) => (&[shadow], &[light]),
+            (false, false, _) => (&[light], &[dark, shadow]),
+            (false, true, _) => (&[dark, shadow], &[light]),
         };
         // (in the control's pixels: top and left, then bottom and right)
         for (k, c) in lines.0.iter().enumerate() {

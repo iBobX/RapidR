@@ -221,4 +221,10 @@ export const cases = [
   // Playing and Position follow the clock)
   { name: "dx_sound", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=4000,8000,100,0,0 play-1 still-1 in stop0 kept 1000,16000 end0,0 |80,-30,0,dx_beep.wav"] },
+  // (kernel themes: a click switches to dark at run time — Application.Theme;
+  // `themes`: the desktop also captures the form under each of these,
+  // RAPIDR_THEME, without the events — the web keeps its own look and only
+  // reads the names back)
+  { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
 ];

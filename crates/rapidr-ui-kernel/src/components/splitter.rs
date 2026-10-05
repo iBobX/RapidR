@@ -13,7 +13,7 @@ use rapidr_value::objects::a11y::AccessNode;
 use super::form::Container;
 use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
 use crate::input::KernelEvent;
-use crate::paint::{Painter, FACE, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, Store};
 
 pub struct Splitter;
@@ -40,8 +40,12 @@ impl ComponentKind for Splitter {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        p.fill((0, 0, w, h), FACE);
-        p.edge((0, 0, w, h), &[LIGHT], &[SHADOW]);
+        let t = p.theme();
+        p.fill((0, 0, w, h), t.face);
+        // (a fluent theme's: no edges, the face between the panes)
+        if !t.fluent() {
+            p.thin_raised((0, 0, w, h));
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

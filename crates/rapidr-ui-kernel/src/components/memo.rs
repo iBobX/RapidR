@@ -29,14 +29,14 @@
 
 use rapidr_value::objects::code::Syntax;
 use rapidr_value::objects::font::Font;
-use rapidr_value::objects::ops::{lift, Place, Rect};
+use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::with_textedit;
 
 use super::edit::{background, key_in, look_of, shows_selection, EditUi, MenuState, Source, Spec};
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::{Clipboard, Mods};
-use crate::paint::{Painter, DARK, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::text::Look;
 use crate::store::{self, Store};
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -79,8 +79,9 @@ impl Flavor {
     /// The code editor's look: Courier New at 13 pixels, black (grey when
     /// disabled), no word wrap, BASIC's colours.
     fn code_look(enabled: bool) -> Look {
+        let t = rapidr_value::theme::current();
         let font = Font { name: "Courier New".into(), size: -13, ..Font::default() };
-        Look { font, color: if enabled { 0 } else { GRAY_TEXT }, syntax: Syntax::Basic, ..Look::default() }
+        Look { font, color: if enabled { t.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() }
     }
 }
 
@@ -161,7 +162,7 @@ impl Memo {
         if gw <= 0 || gh <= 0 {
             return;
         }
-        p.fill(geo.gutter, FACE);
+        p.fill(geo.gutter, p.theme().face);
         let s = f64::from(e.ed.scale()).max(0.01);
         let font = Font { name: "Arial".into(), size: -12, ..Font::default() };
         let sy = e.scroll().1;
@@ -172,7 +173,7 @@ impl Memo {
                 let n = (i + 1).to_string();
                 let th = rapidr_value::objects::text::text_size(&n, &font).1;
                 let ny = (y + (lh - th as f64) / 2.0).round() as i64;
-                p.text((gx, ny, gw - 4, th), &n, &font, GRAY_TEXT, Place::TopRight);
+                p.text((gx, ny, gw - 4, th), &n, &font, p.theme().gray_text, Place::TopRight);
             }
         });
     }
@@ -211,8 +212,12 @@ impl ComponentKind for Memo {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        p.fill((0, 0, w, h), background(cx.store, cx.id));
-        p.edge((0, 0, w, h), &[SHADOW, DARK], &[LIGHT, FACE]);
+        if p.fluent() {
+            p.fluent_field(w, h, background(cx.store, cx.id), Some(cx.state.focused));
+        } else {
+            p.fill((0, 0, w, h), background(cx.store, cx.id));
+            p.sunken_edge((0, 0, w, h));
+        }
         let (focused, caret_on) = (cx.state.focused, cx.state.caret_on);
         let show = shows_selection(cx.store, cx.id, focused);
         let id = cx.id.to_string();
@@ -221,8 +226,8 @@ impl ComponentKind for Memo {
         Self::paint_gutter(e, geo, p);
         let (bx, by, bw, bh) = geo.bars;
         if e.bars.vert.shown || e.bars.horz.shown {
-            let ops = e.bars.ops(bw, bh);
-            p.at((bx, by), |p| p.clipped((0, 0, bw, bh), |p| p.ops(lift(ops))));
+            let ops = crate::paint::bar_ops(&e.bars, bw, bh);
+            p.at((bx, by), |p| p.clipped((0, 0, bw, bh), |p| p.ops(ops)));
         }
     }
 

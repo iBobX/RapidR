@@ -365,8 +365,12 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
             if let Value::String(s) = &a0 { rapidr_runtime_web::object_web::gui_register_timer(s); }
             v_null()
         }
-        // `$THEME name`: the browser has its own look.
-        "__set_theme" => v_null(),
+        // `$THEME name`: the browser has its own look; Application.Theme
+        // reads the name back (as native web builds' set_theme).
+        "__set_theme" => {
+            obj::set_theme(&a0.to_string_val());
+            v_null()
+        }
 
         _ => v_null(),
     }

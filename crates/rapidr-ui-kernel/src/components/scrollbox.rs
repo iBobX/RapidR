@@ -15,16 +15,15 @@
 use std::cell::RefCell;
 
 use rapidr_value::objects::a11y::AccessNode;
-use rapidr_value::objects::ops::{lift, Rect};
+use rapidr_value::objects::ops::Rect;
 use rapidr_value::scrollbars::{self, BAR};
 use rapidr_value::Value;
 
 use super::form::Container;
 use super::{ComponentKind, Cx, MouseIn, MouseOut};
 use crate::input::KernelEvent;
-use crate::paint::{Painter, DARK, FACE, LIGHT, SHADOW};
+use crate::paint::{color_of, Painter};
 use crate::store::Store;
-use crate::text::bgr_to_rgb;
 use crate::tree::FormUi;
 
 pub struct ScrollBox;
@@ -47,8 +46,8 @@ pub fn bars_taken(id: &str) -> (i64, i64) {
 
 /// The bars of `id` drawn for an area `w` × `h` (nothing without a bar).
 fn bar_ops(id: &str, w: i64, h: i64, p: &mut Painter) {
-    if let Some(ops) = scrollbars::with(id, |s| (s.vert.shown || s.horz.shown).then(|| s.ops(w, h))).flatten() {
-        p.clipped((0, 0, w, h), |p| p.ops(lift(ops)));
+    if let Some(ops) = scrollbars::with(id, |s| (s.vert.shown || s.horz.shown).then(|| crate::paint::bar_ops(s, w, h))).flatten() {
+        p.clipped((0, 0, w, h), |p| p.ops(ops));
     }
 }
 
@@ -73,11 +72,18 @@ impl ComponentKind for ScrollBox {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        let color = rapidr_value::objects::form_color(&cx.store.get(cx.id, "color"));
-        p.fill((0, 0, w, h), bgr_to_rgb(color));
+        let t = p.theme();
+        let color = color_of(cx.store, cx.id).unwrap_or(t.face);
         if border(cx.store, cx.id) > 0 {
-            // (Windows' client edge: sunken, two lines)
-            p.edge((0, 0, w, h), &[SHADOW, DARK], &[LIGHT, FACE]);
+            if t.fluent() {
+                p.round((0, 0, w, h), t.radius, Some(color), Some(t.border), 1.0);
+            } else {
+                p.fill((0, 0, w, h), color);
+                // (Windows' client edge: sunken, two lines)
+                p.sunken_edge((0, 0, w, h));
+            }
+        } else {
+            p.fill((0, 0, w, h), color);
         }
     }
 

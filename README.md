@@ -92,7 +92,7 @@ the supporting crates:
 
 - **Native GUI on RapidR's own UI kernel** — Forms, buttons, labels, edits, panels, tabs, string grids, combo boxes, code editors, design surfaces, splitters, scroll boxes, and more
 - **Web GUI via WASM** — Same component API compiled to WebAssembly for browser deployment, plus 9 web-exclusive components (RWebView, RDOM, RJavaScript, RWebStorage, RWebAudio, RWebVideo, RWebNotification, RWebGeolocation, RRouter)
-- **Classic look, high-DPI, accessible** — Desktop forms are drawn in Windows' classic look (RapidQ's) at the screen's scale, with screen-reader trees (AccessKit) and keyboard navigation; `$THEME` is accepted (other looks are planned)
+- **Classic look or a modern one, high-DPI, accessible** — Desktop forms are drawn in Windows' classic look (RapidQ's) at the screen's scale, with screen-reader trees (AccessKit) and keyboard navigation; a program can choose a modern, a dark or a high-contrast look instead (`$THEME`, `Application.Theme`)
 - **Global variable mechanism** — Module-level `DIM` variables use thread-local storage (`gv()`/`gs()` accessors), correctly shared across all SUBs/FUNCTIONs
 - **User-Defined Types** — `TYPE...END TYPE` with fields, inheritance, constructors, and methods
 - **Database** — MySQL (via `mysql` crate) and SQLite (via `rusqlite`) with property-based API
@@ -393,7 +393,17 @@ The bundle is fully static: unzip and serve from any HTTP host
 | `$ESCAPECHARS` | Enable escape character processing | `$ESCAPECHARS ON` |
 | `$THEME` | The desktop look (native and interpreted) | `$THEME Classic` |
 
-**Themes:** the desktop draws Windows' classic look (RapidQ's): `Classic` (also `System`, `Light`, `Windows`, `Win95`, `Win98`, `Win2K`). Any other name is accepted and says once that the classic look is drawn; modern and high-contrast looks are planned.
+**Themes** (the desktop's; the web keeps its own look and reads the name back):
+
+| Name | Look | Also answers to |
+|---|---|---|
+| `Classic` | Windows' classic look — RapidQ's, and every program's that names none | `System`, `Light`, `Windows`, `Win95`, `Win98`, `Win2K`, `Base` |
+| `Modern` | Flat, after Windows 11 (Fluent): rounded controls with thin borders, an accent colour, accent check boxes and radio buttons, thin scroll bars, focus rings | `Fluent`, `Win11`, `Win10`, `Metro`, `Aero`, `Win7`, `Aqua`, `AquaClassic`, `Mac`, `Linux`, `Greybird`, `Gleam`, `Clean`, `GTK`, `Plastic`, `Oxy`, `Blue`, … (the FLTK-era looks) |
+| `Dark` | The modern look, dark | `DarkMode` |
+| `HighContrast` | Windows' High Contrast Black: white on black, cyan selections, yellow for the mouse and the focus, green for what's disabled, thick focus rings | `High Contrast`, `HC` |
+| `Auto` | The system's: high contrast or dark when it is, else modern | |
+
+`Application.Theme = "dark"` (RapidR's) switches at run time and reads the theme drawn now. A theme only changes how things are drawn — never a size, a place or a font — and colours the program set (`Color`, `Font.Color`) stay its own. `RAPIDR_THEME=name` gives a program that names none a theme (the user's choice). Any other name draws the classic look and says so once.
 
 ---
 

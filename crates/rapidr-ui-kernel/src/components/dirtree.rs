@@ -20,8 +20,7 @@ use super::list::{background, bar_mouse, bar_tick, scroll_into_view, sunken, vsc
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{Painter, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, SHADOW};
-use crate::text::bgr_to_rgb;
+use crate::paint::{ink, Painter};
 
 /// A row's height and a level's indent.
 const ROW: i64 = 18;
@@ -106,13 +105,7 @@ impl ComponentKind for DirTreeBox {
                     let x = 2 + row.depth as i64 * INDENT;
                     let mid = top + ROW / 2;
                     if row.has_children {
-                        let (bx, by) = (x, mid - 4);
-                        p.fill((bx, by, 9, 9), 0xFFFFFF);
-                        p.edge((bx, by, 9, 9), &[SHADOW], &[SHADOW]);
-                        p.fill((bx + 2, mid, 5, 1), 0x000000);
-                        if !row.expanded {
-                            p.fill((bx + 4, by + 2, 1, 5), 0x000000);
-                        }
+                        super::tree::expander(p, x + 4, mid, 9, row.expanded);
                     }
                     // (a folder: its tab and its body)
                     let fx = x + 12;
@@ -122,15 +115,21 @@ impl ComponentKind for DirTreeBox {
                     let tx = fx + 18;
                     let (tw, _) = rapidr_value::objects::text::text_size(&row.name, &font);
                     let selected = sel == Some(i);
+                    let t = p.theme();
+                    let mark = if focused { t.highlight } else { t.unfocused_strong };
                     if selected {
-                        p.fill((tx, top + 1, tw + 4, ROW - 2), if focused { HIGHLIGHT } else { 0xD0D0D0 });
+                        if t.fluent() {
+                            p.round((tx, top + 1, tw + 4, ROW - 2), 2.0, Some(mark), None, 1.0);
+                        } else {
+                            p.fill((tx, top + 1, tw + 4, ROW - 2), mark);
+                        }
                     }
                     let color = if !enabled {
-                        GRAY_TEXT
+                        t.gray_text
                     } else if selected && focused {
-                        HIGHLIGHT_TEXT
+                        t.highlight_text
                     } else {
-                        bgr_to_rgb(font.color)
+                        ink(cx.store, cx.id, &font, true, if selected { mark } else { super::list::background(cx) })
                     };
                     p.text((tx + 2, top, tw + 2, ROW), &row.name, &font, color, Place::Left);
                     if selected && focused {

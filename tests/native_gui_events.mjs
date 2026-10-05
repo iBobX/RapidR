@@ -62,6 +62,8 @@
 //   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
 //   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
+//   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
+//     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
@@ -181,6 +183,21 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     let trees = null;
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);
+    // (kernel themes: the form under each theme a program can name, its
+    // captures kept as <case>-<theme>-<kind>-<n>.bmp)
+    for (const theme of c.themes ?? []) {
+      let shown;
+      try {
+        shown = execFileSync(bin, [], {
+          encoding: "utf8",
+          env: { ...process.env, RAPIDR_THEME: theme, RAPIDR_CAPTURE: join(WORK, `${c.name}-${theme}-${kind}`), RAPIDR_TEST_EVENTS: "", RAPIDR_TEST_DUMP: c.dump },
+        });
+      } catch (e) {
+        shown = `(failed: ${String(e.message).split("\n")[0]})`;
+      }
+      const want = `lbl.caption=theme ${theme}`;
+      ok(shown.includes(want) && existsSync(join(WORK, `${c.name}-${theme}-${kind}-1.bmp`)), `${c.name} (${kind}, ${theme}): ${want}, captured` + (shown.includes(want) ? "" : `\n    got: ${shown.trim().split("\n").join(" / ")}`));
+    }
   }
   // (a native build, ~350 MB, gone once it ran: tests/cargo_builds.mjs)
   if (!PREBUILT && KINDS.includes(false)) dropBuild(CARGO_TARGET, c.name);

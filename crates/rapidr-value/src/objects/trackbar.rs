@@ -57,6 +57,30 @@ pub struct Shape {
     pub stroke: Option<u32>,
 }
 
+/// A track bar's parts ([`TrackBar::parts`]), in its pixels: along the
+/// bar (x for a horizontal one), across it (y).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Parts {
+    pub vertical: bool,
+    /// The channel's ends along the bar, and its middle across it.
+    pub channel: (f64, f64),
+    pub middle: f64,
+    /// Where Min is along the bar (a value is drawn from it).
+    pub start: f64,
+    /// The thumb's middle along the bar; its edges across it.
+    pub thumb: f64,
+    pub thumb_across: (f64, f64),
+    /// The selection range's ends (SelStart, SelEnd).
+    pub range: Option<(f64, f64)>,
+    /// The ticks along the bar (a pixel's middle) and whether each is a
+    /// long one (the first, the last).
+    pub ticks: Vec<(f64, bool)>,
+    /// Where the ticks before the thumb (above / left) start across the
+    /// bar, going outward; and those after it.
+    pub ticks_before: Option<f64>,
+    pub ticks_after: Option<f64>,
+}
+
 /// Most ticks drawn (a huge range with Frequency 1 draws no more).
 const MAX_TICKS: usize = 1000;
 /// From the ends to the first and last positions (along the bar).
@@ -139,8 +163,10 @@ impl TrackBar {
 
     /// What to draw in a `w` × `h` control: the channel, the selection
     /// range, the tick marks and the thumb (pointing at the ticks, as
-    /// Windows').
+    /// Windows'), in the current theme's colours (`crate::theme`; a fluent
+    /// theme draws its own from [`TrackBar::parts`]).
     pub fn shapes(&self, w: f64, h: f64, enabled: bool) -> Vec<Shape> {
+        let th = crate::theme::current();
         let (len, _) = self.axes(w, h);
         let vertical = self.vertical();
         let xy = |a: f64, c: f64| if vertical { (c, a) } else { (a, c) };
@@ -149,15 +175,15 @@ impl TrackBar {
         let mut out = Vec::new();
         // The channel.
         let mid = t0 + THUMB_THICK / 2.0;
-        out.push(Shape { points: rect(INSET - 5.0, mid - 2.0, len - INSET + 5.0, mid + 2.0), fill: Some(0xE7EAEA), stroke: Some(0xA0A0A0) });
+        out.push(Shape { points: rect(INSET - 5.0, mid - 2.0, len - INSET + 5.0, mid + 2.0), fill: Some(th.channel), stroke: Some(th.channel_edge) });
         // The selection range.
         if self.sel_end > self.sel_start {
             let (a, b) = (self.along(self.clamp(self.sel_start), len), self.along(self.clamp(self.sel_end), len));
-            out.push(Shape { points: rect(a, mid - 1.0, b, mid + 1.0), fill: Some(if enabled { 0x0078D7 } else { 0xA0A0A0 }), stroke: None });
+            out.push(Shape { points: rect(a, mid - 1.0, b, mid + 1.0), fill: Some(if enabled { th.highlight } else { th.channel_edge }), stroke: None });
         }
         // The ticks (the first and last a bit longer).
         let ticks = self.tick_positions();
-        let tick = if enabled { 0x808080 } else { 0xC0C0C0 };
+        let tick = if enabled { th.ticks } else { th.ticks_disabled };
         for (i, p) in ticks.iter().enumerate() {
             let a = self.along(*p, len).round() + 0.5;
             let long = if i == 0 || i + 1 == ticks.len() { 1.0 } else { 0.0 };
@@ -180,8 +206,30 @@ impl TrackBar {
             1 => vec![xy(c, c0), xy(a1, c0 + point), xy(a1, c1), xy(a0, c1), xy(a0, c0 + point)],
             _ => rect(a0, c0, a1, c1),
         };
-        out.push(Shape { points: thumb, fill: Some(if enabled { 0x007AD9 } else { 0xCCCCCC }), stroke: Some(if enabled { 0x005A9E } else { 0xA0A0A0 }) });
+        out.push(Shape { points: thumb, fill: Some(if enabled { th.slider } else { th.slider_disabled }), stroke: Some(if enabled { th.slider_edge } else { th.channel_edge }) });
         out
+    }
+
+    /// Where a `w` × `h` control's parts are, for a theme that draws its
+    /// own (the fluent ones): the same places [`TrackBar::shapes`] draws
+    /// them, which the mouse finds.
+    pub fn parts(&self, w: f64, h: f64) -> Parts {
+        let (len, _) = self.axes(w, h);
+        let t0 = self.thumb_across();
+        let ticks = self.tick_positions();
+        let n = ticks.len();
+        Parts {
+            vertical: self.vertical(),
+            channel: (INSET - 5.0, len - INSET + 5.0),
+            middle: t0 + THUMB_THICK / 2.0,
+            start: self.along(self.lo(), len),
+            thumb: self.along(self.clamp(self.position), len).round(),
+            thumb_across: (t0, t0 + THUMB_THICK),
+            range: (self.sel_end > self.sel_start).then(|| (self.along(self.clamp(self.sel_start), len), self.along(self.clamp(self.sel_end), len))),
+            ticks: ticks.iter().enumerate().map(|(i, p)| (self.along(*p, len).round() + 0.5, i == 0 || i + 1 == n)).collect(),
+            ticks_before: matches!(self.tick_marks, 1 | 2).then_some(t0 - 2.0),
+            ticks_after: matches!(self.tick_marks, 0 | 2).then_some(t0 + THUMB_THICK + 2.0),
+        }
     }
 
     /// The shapes as an SVG document (the web shows it).

@@ -16,7 +16,7 @@ use rapidr_value::v_int;
 use super::list::{fire, picture_of};
 use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
-use crate::paint::{Painter, FACE};
+use crate::paint::Painter;
 use crate::store::Store;
 
 pub struct HeaderBar;
@@ -47,7 +47,7 @@ impl ComponentKind for HeaderBar {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        p.fill((0, 0, w, h), FACE);
+        p.fill((0, 0, w, h), p.theme().face);
         // (its surface, painted with its faces and what OnDrawSection drew;
         // at the header's size once runtime-core painted it)
         let shown = with_canvas(cx.id, w, h, |b| b.display_rgba());

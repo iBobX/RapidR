@@ -23,9 +23,9 @@ use super::list::{picture_of, view_size};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{Painter, DARK, FACE, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
+use crate::paint::{ink, Painter};
 use crate::store::Store;
-use crate::text::{bgr_to_rgb, TextSystem};
+use crate::text::TextSystem;
 use crate::tree::FormUi;
 
 /// The most rows the drop-down shows (Windows' default DropDownCount).
@@ -162,9 +162,14 @@ pub fn paint_popup(f: &FormUi, store: &dyn Store, _ts: &mut TextSystem, p: &mut 
             None => return,
         },
     };
+    let t = p.theme();
     p.at((x, y), |p| {
-        p.fill((0, 0, w, h), 0xFFFFFF);
-        p.edge((0, 0, w, h), &[0x000000], &[0x000000]);
+        if t.fluent() {
+            p.round((0, 0, w, h), t.radius, Some(t.menu), Some(t.border), 1.0);
+        } else {
+            p.fill((0, 0, w, h), t.window);
+            p.frame((0, 0, w, h), t.frame);
+        }
         p.clipped((1, 1, w - 2, h - 2), |p| {
             for (i, top, rh) in rows {
                 let hot = d.hot.map_or(l.item_index == i as i64, |hi| hi == i);
@@ -176,11 +181,11 @@ pub fn paint_popup(f: &FormUi, store: &dyn Store, _ts: &mut TextSystem, p: &mut 
                     }
                     continue;
                 }
-                if hot {
-                    p.fill((1, top, w - 2, rh), HIGHLIGHT);
-                }
+                let back = if t.fluent() { t.menu } else { t.window };
+                let color = if hot { super::list::selected_row(p, (1, top, w - 2, rh)) } else { ink(store, &d.id, &font, true, back) };
                 let text = l.items[i].replace(['\n', '\r', '\t'], " ");
-                p.text((3, top, w - 6, rh), &text, &font, if hot { HIGHLIGHT_TEXT } else { bgr_to_rgb(font.color) }, Place::Left);
+                let x = if t.fluent() { 8 } else { 3 };
+                p.text((x, top, w - 3 - x, rh), &text, &font, color, Place::Left);
             }
         });
     });
@@ -285,11 +290,31 @@ impl ComponentKind for ComboBox {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
         let s = cx.state;
-        p.fill((0, 0, w, h), if s.enabled { 0xFFFFFF } else { FACE });
-        p.edge((0, 0, w, h), &[SHADOW, DARK], &[LIGHT, FACE]);
+        let t = p.theme();
         let (bx, by, bw, bh) = button_rect(w, h);
-        let Some(mut l) = with_list(cx.id, |l| l.clone()) else { return };
-        let editable = !l.owner_drawn() && cx.store.get(cx.id, "style").to_i64() < 2;
+        let list = with_list(cx.id, |l| l.clone());
+        let editable = list.as_ref().is_some_and(|l| !l.owner_drawn()) && cx.store.get(cx.id, "style").to_i64() < 2;
+        // (fluent: an editable box is a text box; a list-only one a button)
+        let back = match (t.fluent(), s.enabled, editable) {
+            (false, true, _) => t.window,
+            (false, false, _) => t.face,
+            (true, false, _) => t.control_disabled,
+            (true, true, true) => t.window,
+            (true, true, false) if is_dropped(cx.id) => t.control_pressed,
+            (true, true, false) if s.hover => t.control_hot,
+            (true, true, false) => t.control,
+        };
+        if t.fluent() {
+            if editable {
+                p.fluent_field(w, h, back, Some(s.focused));
+            } else {
+                p.round((0, 0, w, h), t.radius, Some(back), Some(if s.hover && s.enabled { t.border_hot } else { t.border }), 1.0);
+            }
+        } else {
+            p.fill((0, 0, w, h), back);
+            p.sunken_edge((0, 0, w, h));
+        }
+        let Some(mut l) = list else { return };
         let area = (2, 2, (bx - 2).max(0), h - 4);
         let font = cx.font.clone();
         if l.owner_drawn() {
@@ -308,31 +333,41 @@ impl ComponentKind for ComboBox {
             super::edit::paint_line(cx, p, text_area(w, h), super::edit::Source::Combo);
         } else {
             let text = if l.item_index < 0 { l.text.clone() } else { l.items.get(l.item_index as usize).cloned().unwrap_or_default() };
-            // (a list-only combo with the focus shows its text selected)
-            let selected = s.focused && !editable;
+            // (a list-only combo with the focus shows its text selected;
+            // a fluent one its focus ring)
+            let selected = s.focused && !editable && !t.fluent();
             if selected {
-                p.fill((area.0 + 1, area.1 + 1, area.2 - 2, area.3 - 2), HIGHLIGHT);
+                p.fill((area.0 + 1, area.1 + 1, area.2 - 2, area.3 - 2), t.highlight);
             }
-            let color = if !s.enabled { GRAY_TEXT } else if selected { HIGHLIGHT_TEXT } else { bgr_to_rgb(font.color) };
+            let color = if selected && s.enabled { t.highlight_text } else { ink(cx.store, cx.id, &font, s.enabled, back) };
             p.clipped(area, |p| p.text((area.0 + 2, area.1, area.2 - 2, area.3), &text.replace(['\n', '\r', '\t'], " "), &font, color, Place::Left));
             if selected {
                 p.focus((area.0 + 1, area.1 + 1, area.2 - 2, area.3 - 2));
             }
+        }
+        if t.fluent() {
+            if s.focused && !editable {
+                p.focus((0, 0, w, h));
+            }
+            // (a chevron, no button)
+            let (cxm, cym) = (bx as f64 + bw as f64 / 2.0, by as f64 + bh as f64 / 2.0);
+            p.chevron(cxm, cym, 8.0, true, if s.enabled { t.text } else { t.gray_text });
+            return;
         }
         if s.focused && l.owner_drawn() {
             p.focus((area.0 + 1, area.1 + 1, area.2 - 2, area.3 - 2));
         }
         // (the button: raised, pushed while the list is down)
         let down = is_dropped(cx.id);
-        p.fill((bx, by, bw, bh), FACE);
+        p.fill((bx, by, bw, bh), t.face);
         if down {
-            p.edge((bx, by, bw, bh), &[SHADOW], &[SHADOW]);
+            p.frame((bx, by, bw, bh), t.shadow);
         } else {
-            p.edge((bx, by, bw, bh), &[FACE, LIGHT], &[DARK, SHADOW]);
+            p.raised_edge((bx, by, bw, bh));
         }
         let d = f64::from(u8::from(down));
         let (cxm, cym) = (bx as f64 + bw as f64 / 2.0 + d, by as f64 + bh as f64 / 2.0 + d);
-        let arrow = if s.enabled { 0x000000 } else { GRAY_TEXT };
+        let arrow = if s.enabled { t.text } else { t.gray_text };
         p.op(rapidr_value::objects::ops::Op::Arrow { points: [(cxm - 4.0, cym - 2.0), (cxm + 4.0, cym - 2.0), (cxm, cym + 2.0)], color: arrow });
     }
 

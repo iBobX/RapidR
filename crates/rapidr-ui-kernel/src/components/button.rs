@@ -6,6 +6,9 @@
 //! Enter anywhere on the form for its Default button, Escape for its
 //! Cancel one, Alt + its caption's `&` letter.
 //!
+//! A fluent theme draws it flat: a rounded face with a thin border (the
+//! Default button in the accent), a focus ring round its edge.
+//!
 //! Kind (bkOK …), Default, Cancel and ModalResult are data
 //! ([`ButtonData`]): the kernel only emits `Click`; runtime-core's OnClick
 //! dispatch applies ModalResult / bkClose to the form, as today.
@@ -16,12 +19,8 @@ use rapidr_value::objects::ops::Place;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{caption, Painter, DARK, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::{caption, ink_of, Painter};
 use crate::store::{self, Store};
-use crate::text::bgr_to_rgb;
-
-/// A button under the mouse (additive: classic Windows has no hover).
-const HOT_FACE: u32 = 0xE5F1FB;
 
 /// What a QBUTTON's properties mean.
 #[derive(Clone, Debug, PartialEq)]
@@ -69,20 +68,43 @@ impl ComponentKind for PushButton {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
         let s = cx.state;
+        let t = p.theme();
         let data = ButtonData::of(cx.store, cx.id);
-        p.fill((0, 0, w, h), if s.hover && !s.pressed && s.enabled { HOT_FACE } else { FACE });
+        if t.fluent() {
+            // (the Default button in the accent; under the mouse, pressed,
+            // disabled: the theme's fills)
+            let accent = data.default && s.enabled;
+            let fill = match (accent, s.enabled, s.pressed, s.hover) {
+                (_, false, _, _) => t.control_disabled,
+                (true, _, true, _) => t.accent_pressed,
+                (true, _, _, true) => t.accent_hot,
+                (true, ..) => t.accent,
+                (false, _, true, _) => t.control_pressed,
+                (false, _, _, true) => t.control_hot,
+                _ => t.control,
+            };
+            let border = if accent { fill } else if s.hover && s.enabled { t.border_hot } else { t.border };
+            p.round((0, 0, w, h), t.radius, Some(fill), Some(border), 1.0);
+            let color = if accent { t.accent_text } else { ink_of(cx, fill) };
+            caption(p, (0, 0, w, h), &data.caption, &cx.font, color, Place::Center);
+            if s.focused {
+                p.focus((0, 0, w, h));
+            }
+            return;
+        }
+        p.fill((0, 0, w, h), if s.hover && !s.pressed && s.enabled { t.hot } else { t.face });
         let mut r = (0, 0, w, h);
         if s.focused || s.pressed || s.default_frame {
-            p.edge(r, &[0x000000], &[0x000000]);
+            p.frame(r, t.frame);
             r = (1, 1, w - 2, h - 2);
         }
         if s.pressed {
-            p.edge(r, &[SHADOW], &[SHADOW]);
+            p.frame(r, t.shadow);
         } else {
-            p.edge(r, &[LIGHT], &[DARK, SHADOW]);
+            p.button_edge(r);
         }
         let shift = i64::from(s.pressed);
-        let color = if s.enabled { bgr_to_rgb(cx.font.color) } else { GRAY_TEXT };
+        let color = ink_of(cx, t.face);
         caption(p, (shift, shift, w, h), &data.caption, &cx.font, color, Place::Center);
         if s.focused {
             p.focus((4, 4, w - 8, h - 8));
