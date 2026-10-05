@@ -680,13 +680,15 @@ fn layout(w: &mut Win) {
 /// The form's text fields' hints for autofill (their AutoComplete — a
 /// RapidR property — and their names), by accessibility node.
 fn hints(ui: &rapidr_ui_kernel::FormUi, store: &dyn Store) -> HashMap<u64, crate::mirror::Hint> {
+    let form = (rapidr_value::objects::a11y::node_id(&ui.form), crate::mirror::Hint { autocomplete: String::new(), name: ui.form.clone() });
     ui.nodes
         .iter()
-        .filter(|n| matches!(n.type_name.as_str(), "REDIT" | "RMEMO" | "RRICHEDIT" | "RCOMBOBOX"))
         .map(|n| {
-            let autocomplete = store.get(&n.id, "autocomplete").to_string_val();
-            (rapidr_value::objects::a11y::node_id(&n.id), crate::mirror::Hint { autocomplete: autocomplete.trim().to_string(), name: n.id.clone() })
+            let field = matches!(n.type_name.as_str(), "REDIT" | "RMEMO" | "RRICHEDIT" | "RCOMBOBOX");
+            let autocomplete = if field { store.get(&n.id, "autocomplete").to_string_val().trim().to_string() } else { String::new() };
+            (rapidr_value::objects::a11y::node_id(&n.id), crate::mirror::Hint { autocomplete, name: n.id.clone() })
         })
+        .chain(std::iter::once(form))
         .collect()
 }
 

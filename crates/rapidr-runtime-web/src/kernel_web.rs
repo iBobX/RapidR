@@ -1,6 +1,6 @@
 //! The UI kernel as the web runtime's host (docs/web-host-plan.md, Stage
-//! W3; feature `kernel`, chosen with `?host=kernel` — the DOM host stays the
-//! default until parity, Stage W5, and Stage W11 deletes it): the program's
+//! W3; feature `kernel`, the default host since W4 — `?host=dom` asks for
+//! the old DOM host until it is deleted): the program's
 //! forms drawn by the same kernel, the same display lists and the same CPU
 //! renderer as on the desktop, as windows on the page
 //! (`rapidr_ui_host_web::host`), their accessibility as an ARIA mirror.
@@ -63,20 +63,21 @@ thread_local! {
     static RESULTS: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
-/// Whether the kernel hosts the program's forms: the page asked for it
-/// (`?host=kernel` in its address, or `RAPIDR_HOST = "kernel"` set on the
-/// page before the runtime starts).
+/// Whether the kernel hosts the program's forms: always, unless the page
+/// asked for the old DOM host (`?host=dom` in its address, or
+/// `RAPIDR_HOST = "dom"` set on the page before the runtime starts) — only
+/// until the DOM host is deleted (docs/web-host-plan.md §5).
 pub fn on() -> bool {
     if let Some(on) = ON.with(Cell::get) {
         return on;
     }
-    let asked = web_sys::window().is_some_and(|w| {
+    let dom = web_sys::window().is_some_and(|w| {
         let search = w.location().search().unwrap_or_default();
         let global = js_sys::Reflect::get(&w, &JsValue::from_str("RAPIDR_HOST")).ok().and_then(|v| v.as_string()).unwrap_or_default();
-        search.split(['?', '&']).any(|p| p.eq_ignore_ascii_case("host=kernel")) || global.eq_ignore_ascii_case("kernel")
+        search.split(['?', '&']).any(|p| p.eq_ignore_ascii_case("host=dom")) || global.eq_ignore_ascii_case("dom")
     });
-    ON.with(|o| o.set(Some(asked)));
-    asked
+    ON.with(|o| o.set(Some(!dom)));
+    !dom
 }
 
 fn lower(s: &str) -> String {
