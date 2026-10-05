@@ -121,7 +121,7 @@ check "rapidr hello.rrbc" has "$("$R" hello.rrbc z 2>&1)" "hello z"
 check "rapidr info: console" has "$("$R" info hello.rrbc)" "apptype: console"
 # (macOS: every executable universal, checked statically — nothing x86_64 is run here:
 # macOS 28 drops Rosetta, and running Intel code flags the app)
-universal() { case " $(lipo -archs "$1" 2>/dev/null) " in *" arm64 "*" x86_64 "*|*" x86_64 "*" arm64 "*) return 0 ;; *) return 1 ;; esac; }
+universal() { local a=" $(lipo -archs "$1" 2>/dev/null) "; [[ "$a" == *" arm64 "* && "$a" == *" x86_64 "* ]]; }
 if [[ "$ART" == *.dmg ]]; then
     notuni=""
     while IFS= read -r -d '' f; do

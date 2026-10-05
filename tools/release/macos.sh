@@ -31,7 +31,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -f "$PREP/src.tar" ] || die "run tools/release/prepare.sh first"
-[ "$(git rev-parse HEAD)" = "$(cat "$PREP/commit")" ] || die "HEAD isn't the commit prepare.sh archived"
+# (the code shipped is the archived commit's: release scripts and docs may have moved on)
+git diff --quiet "$(cat "$PREP/commit")" HEAD -- crates interpreter examples web-ide Cargo.toml Cargo.lock LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md \
+    || die "the code differs from the commit prepare.sh archived ($(cat "$PREP/commit")): run prepare.sh again"
 [ -n "$NOTARY" ] && [ -z "$SIGN" ] && die "--notarize needs --sign (a Developer ID)"
 need lipo "Xcode command line tools"; need hdiutil "macOS"; need codesign "Xcode command line tools"
 ARCH=universal ARCHS="aarch64 x86_64"
@@ -101,14 +103,19 @@ sign() {
     codesign "${opts[@]}" "$app"
     codesign --verify --deep --strict "$app"
 }
+# A slice's minimum macOS (LC_BUILD_VERSION's minos; LC_VERSION_MIN_MACOSX's version
+# for an older target).
+minos() {
+    otool -arch "$1" -l "$2" | awk '/LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX/{b=1} b&&/^ *(minos|version) /{print $2; exit}'
+}
 # Every Mach-O in an app: universal (arm64 and x86_64), its minimum macOS.
 scan() {
     local app="$1" f archs bad=0
     while IFS= read -r -d '' f; do
         file -b "$f" | grep -q "Mach-O" || continue
         archs="$(lipo -archs "$f")"
-        case " $archs " in *" arm64 "*" x86_64 "*|*" x86_64 "*" arm64 "*) ;; *) echo "  NOT UNIVERSAL: $f ($archs)"; bad=1 ;; esac
-        echo "  ${f#"$W/apps/"}: $archs; minimum macOS $(otool -arch arm64 -l "$f" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit}') (arm64), $(otool -arch x86_64 -l "$f" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit}') (x86_64)"
+        [[ " $archs " == *" arm64 "* && " $archs " == *" x86_64 "* ]] || { echo "  NOT UNIVERSAL: $f ($archs)"; bad=1; }
+        echo "  ${f#"$W/apps/"}: $archs; minimum macOS $(minos arm64 "$f") (arm64), $(minos x86_64 "$f") (x86_64)"
     done < <(find "$app" -type f -perm -u+x -print0)
     [ $bad = 0 ] || die "$app has executables that aren't universal"
 }
