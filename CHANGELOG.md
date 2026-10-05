@@ -46,6 +46,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   what it left checked with `reg query`).
 
 ### Fixed
+- Linux (Wayland): a window drawn on the GPU no longer stops its program
+  while it can't be seen — minimized, on another workspace, the screen
+  locked. A FIFO swapchain waited in present for the compositor's frame
+  callback, which doesn't come then, and the whole program (its timers
+  too) waited with it; on Wayland windows now present in Mailbox mode.
+  Found in an Ubuntu VM whose session had locked.
+- A computer whose only GPU for vello is a software one draws on the CPU
+  even when an OpenGL adapter is also there (an Ubuntu VM: Mesa's software
+  Vulkan beside virgl's GL, which vello can't use): only Vulkan, Metal and
+  DX12 adapters count.
 - QREGISTRY as TRegistry: GetDataType is 0 (unknown) for the registry's
   other kinds of value (REG_MULTI_SZ, REG_QWORD, …; they were binary) and
   the store's file keeps their kind; KeyExists of a root (`""`, `"\"`) is

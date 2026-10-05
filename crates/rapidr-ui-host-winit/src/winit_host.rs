@@ -175,9 +175,28 @@ impl WinitHost {
     }
 }
 
-/// Whether every adapter wgpu finds is software (or there's none).
+/// Wayland: a FIFO swapchain waits in present for the compositor's frame
+/// callback, which doesn't come while the window can't be seen (minimized,
+/// on another workspace, the screen locked) — the whole program, its timers
+/// too, stopped there (Mesa's WSI; found in an Ubuntu VM whose session had
+/// locked). Mailbox doesn't wait; the host draws only when winit asks
+/// (RedrawRequested, itself paced by the frame callbacks), so it doesn't
+/// draw more often either.
+fn unthrottled_on_wayland(window: &Window, surface: &mut RenderSurface<'static>, dev: &vello::util::DeviceHandle) {
+    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let wayland = window.window_handle().is_ok_and(|h| matches!(h.as_raw(), RawWindowHandle::Wayland(_)));
+    if wayland && surface.surface.get_capabilities(dev.adapter()).present_modes.contains(&wgpu::PresentMode::Mailbox) {
+        surface.config.present_mode = wgpu::PresentMode::Mailbox;
+        surface.surface.configure(&dev.device, &surface.config);
+    }
+}
+
+/// Whether every adapter wgpu finds on the backends vello runs on (Vulkan,
+/// Metal, DX12) is software, or there's none. (Not OpenGL's: vello's
+/// compute shaders find no device there — an Ubuntu VM's virgl, a GPU
+/// adapter, left the window to Mesa's software Vulkan.)
 fn software_gpu_only(instance: &wgpu::Instance) -> bool {
-    let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
+    let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::PRIMARY));
     adapters.iter().all(|a| a.get_info().device_type == wgpu::DeviceType::Cpu)
 }
 
@@ -608,8 +627,9 @@ impl Shim<'_> {
     fn surface(&mut self, window: &Arc<Window>, size: PhysicalSize<u32>) -> Surface {
         if self.s.kind == RendererKind::Gpu {
             match pollster::block_on(self.s.gpu.create_surface(window.clone(), size.width.max(1), size.height.max(1), wgpu::PresentMode::AutoVsync)) {
-                Ok(surface) => {
+                Ok(mut surface) => {
                     let dev = surface.dev_id;
+                    unthrottled_on_wayland(window, &mut surface, &self.s.gpu.devices[dev]);
                     self.s.renderers.resize_with(self.s.gpu.devices.len(), || None);
                     if self.s.renderers[dev].is_none() {
                         match gpu::renderer(&self.s.gpu.devices[dev].device) {
