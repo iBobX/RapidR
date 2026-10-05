@@ -8,6 +8,46 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Every program RapidR builds carries its open-source notices.** A
+  `THIRD-PARTY-NOTICES.txt` is written beside every native and interpreted
+  executable and into every web build (the zip's root for `bundle-bc` and the
+  web IDE's **Build**, `<stem>_web/` for `build --web`; `index.html` links it
+  with `<link rel="license">`). It lists RapidR's runtime and every component
+  compiled in — the crates of the build's real dependency graph for that
+  target, Rust's standard library, the Liberation fonts, SQLite and the C
+  code crates bundle, the system's and toolchain's pieces — with every
+  licence text in full, so shipping the program with that file is all the
+  licences ask. `rapidr notices [<os>-<arch>|web|tools-<os>]` prints one; an
+  install ships them (`lib/rapidr/notices/`), so this works offline without
+  Rust. Programs see no difference (no new command-line switch).
+- **LEGAL.md** (what you may do with RapidR and the programs you build, what
+  to ship, trademarks and no affiliation with RapidQ's author or any vendor,
+  no warranty) and **docs/licensing.md** (what each output contains, licence
+  by licence; what each licence asks; codecs and patents; open questions for
+  a professional review). Linked from the README, the web IDE's About and
+  Help > Legal…, the desktop IDE's About and `rapidr about`; the installers
+  include it (the Windows installer shows it).
+- `tools/regress.sh legal`: `cargo deny check licenses`, the repository's
+  notices, and `tools/check_notices.py` (builds a program each way and checks
+  its notices list every crate `cargo tree` finds).
+- **The RapidR Runtime and release packaging** (docs/release-packaging.md,
+  `tools/release/`): an installed RapidR finds its files by one rule
+  (`RAPIDR_HOME`, `<exe>/../lib/rapidr` with its `release.toml`, else the
+  source checkout). Programs run, the IDE works and interpreted executables
+  build with no Rust installed (shipped runners, `--target <os>-<arch>`);
+  native builds compile offline against the shipped runtime sources, and
+  `rapidr setup` installs Rust through rustup only after asking. New
+  commands `rapidr run`, `open`, `info`, `ide`; `rapidrw`, the windowed
+  launcher. Bytecode format 3 records the oldest runtime a program needs and
+  its app type — an older runtime says "this program needs RapidR Runtime
+  ≥ x.y" (format-2 files still run). `#!/usr/bin/env rapidr` scripts on
+  macOS and Linux. File types per user: `.rrbc` runs on a double click,
+  `.rr` / `.bas` open in the IDE with a Run action; a downloaded file
+  (quarantine / Mark of the Web) asks once before it runs. Windows GUI
+  programs build as windowed executables (no console window). Local build
+  scripts for the installers: macOS `.dmg` (the IDE + SDK, and the Runtime
+  alone), Windows (Inno Setup), Linux `.tar.gz` / `.deb`, the web bundle,
+  SHA256SUMS and an SBOM.
 - **The system tray (QNOTIFYICONDATA) on every platform.** RapidQ
   programs put an icon in Windows' notification area with QNOTIFYICONDATA
   and `Shell_NotifyIcon` (shell32) and hear its clicks in their form's
@@ -153,6 +193,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- QDirListView and QDockForm's built-in libraries rewritten as RapidR's own
+  code (their bodies followed user-contributed RapidQ libraries too closely);
+  same members, events and behaviour. Four conformance cases that reused the
+  RapidQ manual's examples replaced by our own programs covering the same.
+- Web bundles carry `THIRD-PARTY-NOTICES.txt` instead of `LICENSE-RapidR.txt`,
+  `THIRD_PARTY_NOTICES.md` and `LICENSES.md` (it holds RapidR's licence and
+  the full texts the others lacked).
+- The SDK's cut-down vendored crates (those only other platforms compile)
+  keep their licence files.
 - **DIR$ as RapidQ's**: attribute 0 lists files only, faDirectory (&H10)
   folders too with `.` and `..` first, names sorted without regard to case,
   wildcards (`*`, `?`) of any case, `\` as a folder separator; dot files
@@ -212,6 +261,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - A PRINT right before the ELSE of a single-line IF stays on its line;
     `CASE IS = "l" AND x = "d"` compares first, then ANDs; inside a TYPE's
     own code a store into its property field doesn't call the setter.
+  - A component's Color before the program sets one reads RapidQ's
+    system colours: clBtnFace (`&H8000000F`) for a QFORM / QPANEL, the
+    parent's Color for a QLABEL / QCANVAS / QGROUPBOX (clWindow without
+    one), clWindow (`&H80000005`) for the others — it read white. A system
+    colour is drawn in the theme's colour (clBtnFace: F0F0F0), so a form's
+    Pixel reads the F0F0F0 it shows, and TextOut blends over it. A QCANVAS
+    shows its parent's colour where nothing is drawn, not its own Color
+    (RapidQ's TPaintBox). The desktop's "creation white" rule is gone.
+  - Font.Color reads clWindowText (`&H80000008`) until set — a new QFONT's
+    Color too — and a parented component its parent's (ParentFont, drawn
+    so too); it read 0. Form.Pixel reads -1 before Show, after Close,
+    outside the form and over a window of its own (a panel, a button …),
+    and a label's / canvas's / image's pixel over those.
   - TIMER is the seconds since local midnight (it was since 1970 on the
     desktop, since the page loaded on the web); TIME$ and DATE$ are local.
 

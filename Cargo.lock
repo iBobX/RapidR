@@ -4707,6 +4707,7 @@ dependencies = [
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
+ "serde_json",
  "sha2",
 ]
 

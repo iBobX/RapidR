@@ -36,7 +36,10 @@ lib/rapidr/                      RapidR's home
   fonts/                         the web's fallback-font chunks (OFL), copied by   SDK
                                  web builds (stage.py --fonts; when the web lane's
                                  build makes them)
-share/doc/rapidr/                LICENSE, LICENSES.md, THIRD_PARTY_NOTICES.md, OFL-1.1.txt, README.md
+  notices/                       <os>-<arch>.txt per runner, web.txt: the          SDK
+                                 THIRD-PARTY-NOTICES.txt every build writes
+share/doc/rapidr/                LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
+                                 THIRD-PARTY-NOTICES.txt (rapidr's own), OFL-1.1.txt, README.md
 share/icons/                     rapidr.ico, rapidr-doc.ico (Windows; Linux: hicolor PNGs)
 ```
 
@@ -176,9 +179,17 @@ authors', to ship as they like.
 
 - Rust crates: checked by `cargo deny check licenses` against `deny.toml`
   (MIT, Apache-2.0, BSD, ISC, zlib, 0BSD, BSL-1.0, Unlicense, Unicode-3.0,
-  CDLA-Permissive-2.0, MPL-2.0 for unmodified font crates), listed in
+  CDLA-Permissive-2.0, MPL-2.0 for a few unmodified crates), listed in
   `THIRD_PARTY_NOTICES.md` (`python3 tools/third_party_notices.py --check`)
-  and in the SBOM. A crate offered under a choice that includes LGPL
+  and in the SBOM.
+- **What builds carry:** `stage.py` writes, with `rapidr notices` (the CLI's
+  generator, from this checkout's graph), `lib/rapidr/notices/<target>.txt`
+  for every runner it stages and `web.txt` (an install copies them beside
+  every executable and into every web bundle it builds, offline), and
+  `share/doc/rapidr/THIRD-PARTY-NOTICES.txt` for RapidR's own programs.
+  `LEGAL.md` is in every package; the Windows installer shows it before
+  installing (`InfoBeforeFile`), after the MIT licence page. See
+  `docs/licensing.md`. A crate offered under a choice that includes LGPL
   (r-efi: MIT OR Apache-2.0 OR LGPL-2.1+) is used under MIT.
 - JS / wasm: Monaco (MIT) in the web IDE; the wasm-bindgen glue (MIT /
   Apache-2.0) — `LICENSES.md`. Fonts: Liberation (OFL-1.1).

@@ -110,7 +110,7 @@ make_dmg() {
     rm -rf "$src" && mkdir -p "$src"
     for a in "$@"; do cp -R "$W/apps/$a.app" "$src/"; done
     ln -s /Applications "$src/Applications"
-    cp LICENSE LICENSES.md THIRD_PARTY_NOTICES.md "$src/"
+    cp LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$src/"
     rm -f "$OUT/$file"
     hdiutil create -quiet -volname "$vol" -srcfolder "$src" -fs HFS+ -format ULFO "$OUT/$file"
     rm -rf "$src"

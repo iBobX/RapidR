@@ -1,6 +1,6 @@
 # RapidR — VS Code Extension
 
-> The official Visual Studio Code extension for RapidR, providing a complete development environment for the RapidR programming language.
+> The official RapidR extension for Visual Studio Code, providing a complete development environment for the RapidR programming language.
 
 ---
 

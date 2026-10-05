@@ -32,3 +32,5 @@ tests/conformance/.work
 crates/rapidr-ui-proto/target
 /dist
 /.release-share
+# (the notices every build writes beside its executable: docs/licensing.md)
+THIRD-PARTY-NOTICES.txt

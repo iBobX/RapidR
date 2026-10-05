@@ -3,8 +3,9 @@
 //! it takes the CGI variables from the environment (`crate::environ`); its
 //! first `Get` (or `Parse`) reads the request's name / value pairs — a GET's
 //! QUERY_STRING, a POST's body from standard input — and `Get` hands one
-//! back. Everything here follows what the library does, checked against
-//! RapidQ itself (RC.EXE running the library: docs/io-media-plan.md, the
+//! back. RapidR's own implementation of that behaviour, compatible with
+//! programs written for the library: what it does was observed by running
+//! them with RapidQ itself (RC.EXE and QCGI.INC: docs/io-media-plan.md, the
 //! `cgi_*` conformance cases):
 //!
 //! - **Parse** reads at most MaxInput characters: a POST's CONTENT_LENGTH
@@ -24,7 +25,7 @@
 //!   `CGI.__found`: rapidr_ast::library.)
 //! - **MaxInput** (32767) takes only a value above 0; **AutoConvert** (1)
 //!   is 1 or, set to anything else, 0.
-//! - The CGI variables are read-only properties (the library's functions):
+//! - The CGI variables are read-only properties (functions in RapidQ):
 //!   Accept (HTTP_ACCEPT), AuthType, ContentLength and ServerPort (numbers:
 //!   the text's leading number, as VAL reads it), ContentType, Cookie
 //!   (HTTP_COOKIE), GatewayInterface, PathInfo, PathTranslated, Referer
@@ -35,9 +36,9 @@
 
 use crate::{v_int, v_str, Value};
 
-/// CGI_MAX_PAIRS.
+/// How many pairs a request can hold (RapidQ's limit).
 const MAX_PAIRS: usize = 256;
-/// CGI_INPUT_DEFAULT.
+/// MaxInput when the program sets none.
 pub const INPUT_DEFAULT: i64 = 32767;
 
 /// The read-only properties and the environment variable each is.
@@ -149,8 +150,8 @@ pub struct Cgi {
     vars: Vec<String>,
     pub max_input: i64,
     pub auto_convert: i64,
-    /// The pairs, names in capitals, kept sorted (the library's binary
-    /// search).
+    /// The pairs, names in capitals, kept sorted by name so a lookup is a
+    /// binary search.
     pairs: Vec<(String, String)>,
     parsed: bool,
     /// Whether the last `__get` found its name (`__found`).
@@ -227,7 +228,7 @@ impl Cgi {
                 self.found = self.lookup(&arg(0).to_string_val()).is_some();
                 Some(v_int(i64::from(self.found)))
             }
-            // (the library's functions, called with parentheses)
+            // (the CGI variables read with parentheses, `CGI.ScriptName()`)
             _ if is_variable(method) && args.is_empty() => self.get(method),
             _ => None,
         }
@@ -257,7 +258,7 @@ impl Cgi {
                 reader(n).chars().collect()
             }
             // (the variable as it is now, not as it was when the object was
-            // made — the library reads it again here)
+            // made: RapidQ's Parse sees a QUERY_STRING changed since)
             "GET" => crate::environ::get("QUERY_STRING").chars().take(max).collect(),
             _ => Vec::new(),
         };
@@ -271,8 +272,8 @@ impl Cgi {
         }
         let (mut name, mut value) = (String::new(), String::new());
         let mut in_value = false;
-        // (the library's LookAhead: the `num` characters after `index`, or
-        // nothing when there aren't that many)
+        // (the `num` characters after `index`, or nothing when the text
+        // ends sooner)
         let ahead = |index: usize, num: usize| -> Option<&[char]> { qs.get(index + 1..index + 1 + num) };
         let mut i = 0;
         while i < qs.len() {
@@ -308,8 +309,9 @@ impl Cgi {
         }
     }
 
-    /// The library's InsertPair: the pair kept in order, or its value
-    /// replaced; `false` when 256 pairs are there already.
+    /// Stores one pair: a new name goes in at its sorted place, a name
+    /// already there gets the new value; `false` when the table is full
+    /// (256 pairs).
     fn insert(&mut self, name: String, value: String) -> bool {
         if self.pairs.len() + 1 > MAX_PAIRS {
             return false;
@@ -337,8 +339,8 @@ fn value_or(v: Value) -> Value {
     }
 }
 
-/// The library's SimpleDeHex: two hex digits as their character when it's
-/// a printable one (space … `~`).
+/// `%xx`'s two hex digits as the character they name, when that's a
+/// printable one (space … `~`); `None` leaves the `%` as it is.
 fn dehex(two: &[char]) -> Option<char> {
     let hi = two.first()?.to_digit(16)?;
     let lo = two.get(1)?.to_digit(16)?;

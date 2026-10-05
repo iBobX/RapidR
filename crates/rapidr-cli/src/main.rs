@@ -10,13 +10,14 @@ use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
 mod home;
 mod launch;
+mod notices;
 mod setup;
 
 use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "setup", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -106,6 +107,7 @@ fn main() -> ExitCode {
         (Some("about"), _) => launch::about(),
         (Some("ide"), _) => launch::ide(args[1..].to_vec()),
         (Some("setup"), _) => setup::setup(&args[1..]),
+        (Some("notices"), _) => notices::command(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
@@ -185,6 +187,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
             eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
+            eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");
@@ -472,6 +475,14 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
                     println!("Binary: {}", dest_binary.display());
                 }
             }
+            // The open-source notices the program ships with (notices.rs)
+            match notices::write(dest_dir, &notices::Kind::Desktop(home::host_target())) {
+                Ok(p) => println!("Notices: {}", p.display()),
+                Err(e) => {
+                    eprintln!("{}", notices::missing(&e));
+                    return ExitCode::from(1);
+                }
+            }
 
             println!("Build succeeded!");
             ExitCode::SUCCESS
@@ -637,9 +648,15 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
         eprintln!("Cannot write index.html: {e}");
         return ExitCode::from(1);
     }
+    // The open-source notices the page ships with (index.html links them)
+    if let Err(e) = notices::write(&web_out, &notices::Kind::Web) {
+        eprintln!("{}", notices::missing(&e));
+        return ExitCode::from(1);
+    }
 
     println!("Web build: {}", web_out.display());
     println!("  {}/index.html", web_out.display());
+    println!("  {}/{}", web_out.display(), notices::FILE_NAME);
     println!("  {}/{}_bg.wasm", web_out.display(), wasm_module);
     println!("  {}/{}.js", web_out.display(), wasm_module);
     println!("\nServe with: python3 -m http.server -d {} 8080", web_out.display());
@@ -659,6 +676,7 @@ fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections
         }
         assets_script.push_str("    };\n  </script>\n");
     }
+    let notices = notices::html_head_lines();
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -666,7 +684,7 @@ fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
-  <style>{css}</style>
+{notices}  <style>{css}</style>
 {assets_script}</head>
 <body>
   <div id="rr-root"></div>
@@ -833,7 +851,14 @@ fn bundle_bc_file(
         Err(e) => { eprintln!("read {}: {e}", js_p.display()); return ExitCode::from(1); }
     };
 
-    // 3. Build the bundle.
+    // 3. Build the bundle, with the open-source notices it ships with.
+    let notices_text = match notices::text(&notices::Kind::Web) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("{}", notices::missing(&e));
+            return ExitCode::from(1);
+        }
+    };
     let assets = collect_assets(Path::new(path));
     if !assets.is_empty() {
         println!("Embedding {} asset(s) in web bundle...", assets.len());
@@ -848,6 +873,7 @@ fn bundle_bc_file(
         rapidrintr_js: &js_text,
         title: None,
         assets: Some(&assets),
+        notices: &notices_text,
     }) {
         Ok(b) => b,
         Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
@@ -871,9 +897,17 @@ fn bundle_bc_file(
 /// install has them in its home's `web/` (home.rs); in a checkout, a few
 /// well-known locations relative to the current dir.
 fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
-    let candidates: Vec<PathBuf> = match Home::find().filter(|h| h.release.is_some()) {
-        Some(home) => vec![home.root.join("web")],
-        None => ["target/web", "target/web-bundle", "interpreter/rapidr-vm-host-web/pkg", "pkg"].map(PathBuf::from).to_vec(),
+    let candidates: Vec<PathBuf> = match Home::find() {
+        Some(home) if home.release.is_some() => vec![home.root.join("web")],
+        // (a checkout: from the current directory, then the checkout's root)
+        home => {
+            let rel = ["target/web", "target/web-bundle", "interpreter/rapidr-vm-host-web/pkg", "pkg"].map(PathBuf::from);
+            let mut c = rel.to_vec();
+            if let Some(h) = home {
+                c.extend(rel.iter().map(|r| h.root.join(r)));
+            }
+            c
+        }
     };
     for dir in candidates {
         let wasm = dir.join("rapidrintr_bg.wasm");
@@ -953,6 +987,15 @@ fn build_interp_desktop(
         fs::metadata(&dest).map(|m| m.len()).unwrap_or(0),
         rrbc.len(),
     );
+    // 5. The open-source notices it ships with (the same file as a native
+    //    build's for this target: notices.rs).
+    match notices::write(&dest_dir, &notices::Kind::Desktop(target)) {
+        Ok(p) => println!("Notices: {}", p.display()),
+        Err(e) => {
+            eprintln!("{}", notices::missing(&e));
+            return ExitCode::from(1);
+        }
+    }
     ExitCode::SUCCESS
 }
 

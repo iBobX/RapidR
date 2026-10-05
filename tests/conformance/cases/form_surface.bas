@@ -1,15 +1,19 @@
 ' A form is drawn on like a canvas (the surface lies under its controls).
+' Its Pixel reads as RapidQ's (RC.EXE): -1 until it's shown and over a
+' window of its own (the button), what's drawn elsewhere.
 CREATE Win AS QFORM
     Width = 300
     Height = 200
     Color = &H00FF00
     CREATE Btn AS QBUTTON
-        Left = 10
-        Top = 10
+        Left = 200
+        Top = 150
         Caption = "b"
     END CREATE
 END CREATE
-PRINT "bg "; Win.Pixel(150, 100)
+PRINT "hidden "; Win.Pixel(150, 100)
+Win.Show
+PRINT "bg "; Win.Pixel(150, 100); " "; Win.Pixel(210, 160); " "; Win.Pixel(-1, 5)
 Win.FillRect(10, 20, 30, 40, &HFF)
 PRINT "fill "; Win.Pixel(10, 20); " "; Win.Pixel(29, 39); " "; Win.Pixel(30, 40)
 Win.Line(0, 60, 49, 60, &HFF0000)
@@ -28,3 +32,5 @@ PRINT "ink "; n
 PRINT "caption "; Btn.Caption
 Win.Cls
 PRINT "cls "; Win.Pixel(10, 20)
+Win.Close
+PRINT "closed "; Win.Pixel(150, 100)

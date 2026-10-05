@@ -6,17 +6,27 @@ RapidR (the desktop binary, the in-browser IDE, and built web bundles)
 include the third-party software listed below. Each entry names the
 component, its upstream license, and how RapidR uses it.
 
-If you redistribute RapidR or a built web bundle, please keep this file
-alongside the binary and preserve the upstream copyright notices below.
+**Programs you build** don't need this file: each one gets its own
+`THIRD-PARTY-NOTICES.txt` (beside the executable, or in the web build's
+folder), generated from that build's components with every licence text in
+full. Ship it with the program; that is all. [LEGAL.md](LEGAL.md) says what
+you may do with RapidR and your programs; [docs/licensing.md](docs/licensing.md)
+has the details per output.
+
+If you redistribute RapidR itself, keep this file, `THIRD_PARTY_NOTICES.md`
+and `THIRD-PARTY-NOTICES.txt` (in an install's `share/doc/rapidr/`) with it.
 
 ---
 
-## 1. Monaco Editor — MIT License
+## 1. Monaco Editor 0.52.2 — MIT License
 
-Vendored under `web-ide/vendor/monaco/` and used by the in-browser IDE for
-source editing, syntax highlighting, and IntelliSense.
+Vendored under `web-ide/vendor/monaco/` and used by the in-browser IDE (only
+the IDE: never a program you build) for source editing, syntax highlighting,
+and IntelliSense.
 
-> Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+> The MIT License (MIT)
+>
+> Copyright (c) 2016 - present Microsoft Corporation
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy
 > of this software and associated documentation files (the "Software"), to deal
@@ -25,12 +35,31 @@ source editing, syntax highlighting, and IntelliSense.
 > copies of the Software, and to permit persons to whom the Software is
 > furnished to do so, subject to the following conditions:
 >
-> The above copyright notice and this permission notice shall be included in
-> all copies or substantial portions of the Software.
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
 >
-> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
 
 Upstream: <https://github.com/microsoft/monaco-editor>
+
+Monaco's `editor.main.js` bundles, under their own licences:
+
+| Component | License | Upstream |
+|---|---|---|
+| DOMPurify 3.1.7 (© Cure53 and other contributors) | Apache-2.0 or MPL-2.0, at your option (used under Apache-2.0) | <https://github.com/cure53/DOMPurify> |
+| marked (© Christopher Jeffrey and the Marked contributors) | MIT | <https://github.com/markedjs/marked> |
+| Codicons icon font (`codicon.ttf`, © Microsoft Corporation) | CC-BY-4.0 (the icons) | <https://github.com/microsoft/vscode-codicons> |
+
+Their full texts are the standard ones: Apache-2.0
+(<https://www.apache.org/licenses/LICENSE-2.0>), MIT (above), CC-BY-4.0
+(<https://creativecommons.org/licenses/by/4.0/legalcode>). The codicons are
+credited here as CC-BY-4.0 asks (author, licence, link; unmodified).
 
 ---
 
@@ -54,9 +83,11 @@ runtimes linked into apps built with RapidR include the Rust standard
 library (MIT OR Apache-2.0) and the open-source crates listed, with their
 versions, licenses and upstream links, in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). That file is generated
-from the real dependency graph by `tools/third_party_notices.py` and CI
-fails if it is out of date; every license is checked against the permissive
-allowlist in `deny.toml` (`cargo deny check licenses`).
+from the real dependency graph by `tools/third_party_notices.py`
+(`--check` fails if it is out of date); every license is checked against the
+permissive allowlist in `deny.toml` (`cargo deny check licenses`). The full
+licence texts, per kind of output, are in the `THIRD-PARTY-NOTICES.txt` files
+`rapidr notices` generates (crates/rapidr-cli/src/notices.rs).
 
 ---
 
@@ -80,12 +111,14 @@ character widths as Arial, Times New Roman and Courier New.
 > [`crates/rapidr-value/fonts/OFL-1.1.txt`](crates/rapidr-value/fonts/OFL-1.1.txt)
 > and at <https://openfontlicense.org>.
 
-### System fonts named by the IDE
+### Fonts the web IDE names or loads
 
-The IDE references the system-installed `Inter`, `Tahoma`, `Arial`,
-`Verdana`, `Times New Roman`, `Courier New`, `Segoe UI`, and
-`MS Sans Serif` fonts via CSS only. Those font files are not vendored or
-redistributed; end users supply them via the operating system or browser.
+The web IDE's pages (`web-ide/index.html`, `preview.html`) load Inter,
+Roboto, Montserrat, Nunito, Playfair Display and Fira Code from Google Fonts
+(SIL OFL 1.1 / Apache-2.0); Google serves them, RapidR doesn't redistribute
+them, and programs you build don't use them. The IDE also names system fonts
+(`Tahoma`, `Arial`, `Verdana`, `Times New Roman`, `Courier New`, `Segoe UI`,
+`MS Sans Serif`) in CSS only: the operating system supplies those.
 
 ---
 
@@ -117,14 +150,12 @@ cannot see, so it is credited here.
 
 | Library | Via | License | Upstream |
 |---|---|---|---|
-| FreeType (font rendering for charts) | `freetype-sys` via `plotters` → `font-kit` | FreeType License (FTL) — see the notice below | <https://freetype.org> |
-| Zstandard (zstd) | `zstd-sys` (Polars / Parquet) | BSD-3-Clause (dual GPL-2.0; used under BSD) | <https://github.com/facebook/zstd> |
-| LZ4 | `lz4-sys` (Polars) | BSD-2-Clause | <https://github.com/lz4/lz4> |
-| zlib | `libz-sys` | zlib License | <https://zlib.net> |
+| FreeType (font rendering for charts, Linux) | `freetype-sys` via `plotters` → `font-kit` (the system's library when installed, else built in) | FreeType License (FTL) — see the notice below | <https://freetype.org> |
 | SQLite | `libsqlite3-sys` (desktop), `sqlite-wasm-rs` (web wasm) | Public Domain (section 5) | <https://sqlite.org> |
 | musl libc (the few C library functions SQLite needs in wasm) | `sqlite-wasm-rs` | MIT | <https://musl.libc.org> |
 | printf (Marco Paland, Eyal Rozenberg) | `sqlite-wasm-rs` | MIT | <https://github.com/eyalroz/printf> |
-| OpenSSL | `openssl-sys` (TLS for RHttp/sockets, linked from the system) | Apache-2.0 (OpenSSL 3) | <https://www.openssl.org> |
+| BoringSSL-derived C and assembly | `ring` (TLS for HTTPS through rustls, macOS and Linux) | Apache-2.0 / ISC (ring's licence files) | <https://github.com/briansmith/ring> |
+| Windows' TLS (Schannel) | `native-tls` / `schannel` (HTTPS on Windows: a system component) | system interface | — |
 | Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system; the charts' and the desktop UI's system fonts) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
 | X11, Wayland, xkbcommon (Linux) | `x11-dl`, `wayland-sys`, `xkbcommon-dl` (the desktop UI's windows and keys: loaded from the system when a window opens) | MIT / MIT-style | <https://www.x.org>, <https://wayland.freedesktop.org>, <https://xkbcommon.org> |
 | ALSA (Linux), Core Audio (macOS) | `alsa-sys`, `coreaudio-sys` (system audio, linked) | LGPL-2.1 (alsa-lib, dynamically linked) / Apple system framework | — |
@@ -135,6 +166,11 @@ FreeType notice, as its license requires:
 
 > Portions of this software are copyright © The FreeType Project
 > (www.freetype.org). All rights reserved.
+
+Zstandard, LZ4, zlib and OpenSSL appear in `Cargo.lock` (optional or
+other-platform dependencies of crates RapidR uses) but are compiled into
+nothing RapidR ships: the generated `THIRD-PARTY-NOTICES.txt` files, made
+from the real graphs, list what is.
 
 ### 7.1 Windows: LLVM-MinGW, shipped with the RapidR SDK
 
@@ -183,7 +219,9 @@ programs' licences their own.
 
 ## 8. RapidR (this project) — MIT License
 
-See [LICENSE](LICENSE).
+See [LICENSE](LICENSE). Trademarks and affiliation: RapidR is compatible with
+RapidQ and is not affiliated with RapidQ's author or any vendor it names
+(see [LEGAL.md](LEGAL.md)).
 
 This includes the media code and data built into programs: QMIDI's
 built-in General MIDI synthesizer (`rapidr-value/src/objects/synth.rs`)
@@ -192,6 +230,9 @@ bundled — and QVIDEO's AVI reader and video decoders (uncompressed DIB,
 RLE8 / RLE4, Microsoft Video 1, Cinepak; Motion JPEG through the
 `jpeg-decoder` crate listed in THIRD_PARTY_NOTICES.md) are original code
 written from the formats' public descriptions, not derived from FFmpeg,
-libav, GStreamer or any other GPL/LGPL project. The AVI and MIDI test
+libav, GStreamer or any other GPL/LGPL project. MP3 files play on the desktop
+through `rodio`'s decoder (`symphonia`, MPL-2.0, unmodified; MP3's patents
+have expired); no H.264, HEVC, AAC or other patent-encumbered codec is
+included (docs/licensing.md §5). The AVI and MIDI test
 fixtures are generated by RapidR's own scripts (`tools/make_avi_fixtures.py`,
 `tools/make_media_fixture.py`).

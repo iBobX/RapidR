@@ -12,7 +12,10 @@ Usage (repo root):
     python3 tools/third_party_notices.py --check  # fail if it's out of date (CI)
 
 JavaScript/CSS vendored into the IDE (Monaco, …) is not a Cargo dependency;
-it is credited by hand in LICENSES.md.
+it is credited by hand in LICENSES.md. The notices each *built program*
+carries, with full licence texts, are another file: THIRD-PARTY-NOTICES.txt,
+made per kind of output by `rapidr notices` (crates/rapidr-cli/src/notices.rs,
+docs/licensing.md).
 """
 
 import collections
@@ -80,7 +83,9 @@ def render(pkgs):
         "dependency graph (CI fails if it is out of date). Licenses are checked against",
         "the permissive allowlist in `deny.toml`. JavaScript and other assets vendored",
         "into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),",
-        "which also carries their full license texts.",
+        "which also carries their full license texts. Every program RapidR builds carries",
+        "its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it",
+        "(`rapidr notices`; [LEGAL.md](LEGAL.md), [docs/licensing.md](docs/licensing.md)).",
         "",
         f"**{len(pkgs)} libraries** under {len(by_license)} license expressions.",
         "",

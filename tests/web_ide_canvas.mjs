@@ -75,10 +75,12 @@ ok(shown && shown.w === 120 && shown.h === 70, `the HTML canvas has the control'
 let diff = 0, ink = 0;
 if (shown) for (let y = 0; y < rows.length; y++) for (let x = 0; x < 40; x++) {
   if (rows[y][x] !== shown.rows[y][x]) diff++;
-  if (rows[y][x] !== 0x00FF00) ink++;
+  // (undrawn: the form's face shows — RapidQ's QCANVAS doesn't paint its
+  // own Color, RC.EXE: docs/rapidq-ground-truth.md)
+  if (rows[y][x] !== 0xF0F0F0) ink++;
 }
 ok(shown && diff === 0, `the HTML canvas shows the model's pixels (${diff} of ${rows.length * 40} differ)`);
-ok(ink > 100, `something was drawn (${ink} pixels not the background)`);
+ok(ink > 100 && ink < rows.length * 40 - 100, `something was drawn (${ink} pixels not the background)`);
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 
 // OnPaint: fired when the form is built, and again by Repaint; what the

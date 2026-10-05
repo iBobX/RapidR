@@ -2056,7 +2056,7 @@ SUB ToolsPickFont
 END SUB
 
 SUB ShowAbout
-    MSGBOX("RapidR Visual IDE v1.2" + CHR$(10) + CHR$(10) + "A production visual development environment" + CHR$(10) + "for building RapidR BASIC applications." + CHR$(10) + CHR$(10) + "Transpiles BASIC to native Rust executables.")
+    MSGBOX("RapidR Visual IDE v1.2" + CHR$(10) + CHR$(10) + "A production visual development environment" + CHR$(10) + "for building RapidR BASIC applications." + CHR$(10) + CHR$(10) + "Transpiles BASIC to native Rust executables." + CHR$(10) + CHR$(10) + "MIT licence. Programs you build are yours, commercial or not:" + CHR$(10) + "ship each with the THIRD-PARTY-NOTICES.txt the build writes beside it." + CHR$(10) + "RapidR is compatible with RapidQ; it is not affiliated with its author" + CHR$(10) + "or any vendor it names. Details: LEGAL.md (https://github.com/iBobX/RapidR/blob/main/LEGAL.md)")
 END SUB
 
 SUB OpenInVSCode

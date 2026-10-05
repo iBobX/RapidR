@@ -6,7 +6,7 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$OUT"
-LICENCES="LICENSE LICENSES.md THIRD_PARTY_NOTICES.md"
+LICENCES="LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md"
 fail=0
 listing() {
     case "$1" in

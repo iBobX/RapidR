@@ -132,7 +132,7 @@ pub fn request(get: &dyn Fn(&str) -> Value) -> Request {
         v => v.to_i64(),
     };
     Request {
-        font: Font { name: if name.trim().is_empty() { defaults.name } else { name }, size: if size > 0 { size } else { defaults.size }, color: either("color", "fontcolor").to_i64() & 0xFF_FFFF, styles },
+        font: Font { name: if name.trim().is_empty() { defaults.name } else { name }, size: if size > 0 { size } else { defaults.size }, color: crate::objects::color_bgr(either("color", "fontcolor").to_i64()) as i64, styles },
         min: get("minfontsize").to_i64(),
         max: get("maxfontsize").to_i64(),
         options,

@@ -251,7 +251,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
-        "RFONT" => Object::Font(Font::default()),
+        // (its Color clWindowText, as RapidQ's: RC.EXE)
+        "RFONT" => Object::Font(Font { color: crate::component_defaults::CL_WINDOW_TEXT, ..Font::default() }),
         "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
@@ -658,6 +659,25 @@ pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
 }
 
+/// Pixel (x, y) of bitmap / canvas / picture `id`, if it has one there.
+pub fn bitmap_pixel(id: &str, x: i64, y: i64) -> Option<u32> {
+    with(id, |o| match o {
+        Object::Bitmap(b) => b.pixel(x, y),
+        _ => None,
+    })
+    .flatten()
+}
+
+/// QCANVAS `id`'s backdrop — its parent's colour, &HBBGGRR, where nothing
+/// is drawn ([`bitmap::Bitmap::set_backdrop`]). Whether it changed.
+pub fn set_backdrop(id: &str, bgr: u32) -> bool {
+    with(id, |o| match o {
+        Object::Bitmap(b) if b.canvas && !b.form => b.set_backdrop(bgr),
+        _ => false,
+    })
+    .unwrap_or(false)
+}
+
 /// QDIGDISPLAY `id`'s Display (`None`: it isn't one).
 pub fn digdisplay_text(id: &str) -> Option<String> {
     DIGITS.with(|d| d.borrow().get(&id.to_lowercase()).cloned())
@@ -790,7 +810,7 @@ pub fn font_from_props(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Font {
     Font {
         name: if name.trim().is_empty() { "Arial".into() } else { name },
         size: if size > 0 { size } else { 10 },
-        color: props(id, "fontcolor").to_i64() & 0xFFFFFF,
+        color: color_bgr(props(id, "fontcolor").to_i64()) as i64,
         styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
     }
 }
@@ -808,8 +828,9 @@ pub fn create_form_surface(id: &str, color: i64) {
 /// is the usual light grey.
 pub fn form_color(v: &Value) -> i64 {
     match v {
-        Value::Integer(_) | Value::Double(_) => v.to_i64() & 0xFFFFFF,
-        Value::Null => 0xF0F0F0,
+        Value::Integer(_) | Value::Double(_) => color_bgr(v.to_i64()) as i64,
+        // (never set: the button face, the theme's — a form's clBtnFace)
+        Value::Null => color_bgr(crate::component_defaults::CL_BTN_FACE) as i64,
         other => {
             let s = other.to_string_val();
             match s.strip_prefix('#').filter(|h| h.len() == 6).and_then(|h| u32::from_str_radix(h, 16).ok()) {
@@ -819,6 +840,19 @@ pub fn form_color(v: &Value) -> i64 {
             }
         }
     }
+}
+
+/// A program's colour number as &HBBGGRR: Windows' system colours
+/// (`&H80000000 + index`: clBtnFace, clWindow, … — what RapidQ's Color
+/// reads until the program sets one) in the current theme's colours, as
+/// Delphi's ColorToRGB turns them; any other number its low 24 bits.
+pub fn color_bgr(n: i64) -> u32 {
+    let n32 = n as u32;
+    if n32 & 0xFF00_0000 == 0x8000_0000 && n32 & 0x00FF_FF00 == 0 {
+        let rgb = crate::theme::current().system_color(n32 & 0xFF);
+        return ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | (rgb >> 16);
+    }
+    n32 & 0xFFFFFF
 }
 
 /// Whether the form `id` has a drawing surface.

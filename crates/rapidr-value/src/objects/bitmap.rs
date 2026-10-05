@@ -309,9 +309,23 @@ impl Bitmap {
         self.revision
     }
 
-    /// A QCANVAS's surface.
+    /// A QCANVAS's surface: its parent's colour shows where nothing is
+    /// drawn — the button face until it has one (`set_backdrop`).
     pub fn new_canvas() -> Self {
-        Self { canvas: true, ..Self::default() }
+        Self { canvas: true, background: super::color_bgr(crate::component_defaults::CL_BTN_FACE), ..Self::default() }
+    }
+
+    /// What shows where nothing is drawn (a QCANVAS's parent's colour,
+    /// &HBBGGRR): pixels still showing the old one change. Whether it
+    /// changed.
+    pub fn set_backdrop(&mut self, bgr: u32) -> bool {
+        let bgr = bgr & 0xFFFFFF;
+        if bgr == self.background {
+            return false;
+        }
+        let old = std::mem::replace(&mut self.background, bgr);
+        self.recolor(old, bgr);
+        true
     }
 
     /// A QFORM's surface: transparent where nothing is drawn.
@@ -661,7 +675,6 @@ impl Bitmap {
         }
         if self.canvas {
             match prop {
-                "color" => return Some(v_int(self.background as i64)),
                 "pencolor" => return Some(v_int(self.pen as i64)),
                 "brushcolor" => return Some(v_int(self.brush as i64)),
                 "fontcolor" => return Some(v_int(self.font.color)),
@@ -693,7 +706,7 @@ impl Bitmap {
         // its color matters here: the surface shows it through.
         if self.form {
             if prop == "color" {
-                let color = val.to_i64() as u32 & 0xFFFFFF;
+                let color = super::color_bgr(val.to_i64());
                 let old = std::mem::replace(&mut self.background, color);
                 self.recolor(old, color);
                 self.transparent_color = color;
@@ -704,15 +717,12 @@ impl Bitmap {
             return self.font.set(p, val).then_some(Ok(()));
         }
         if self.canvas {
-            let color = val.to_i64() as u32 & 0xFFFFFF;
+            let color = super::color_bgr(val.to_i64());
             match prop {
-                // The background changes under what's drawn: only pixels
-                // still showing it change.
-                "color" => {
-                    let old = std::mem::replace(&mut self.background, color);
-                    self.recolor(old, color);
-                    return None;
-                }
+                // (a QCANVAS's Color is only a property, the runtime's: as
+                // RapidQ's — a TPaintBox — it shows its parent's colour
+                // where nothing is drawn, whatever its own; `set_backdrop`)
+                "color" => return None,
                 "pencolor" => self.pen = color,
                 "brushcolor" => self.brush = color,
                 "fontcolor" => self.font.color = color as i64,
@@ -732,7 +742,7 @@ impl Bitmap {
             "width" => self.resize(val.to_i64(), self.img.height as i64),
             "height" => self.resize(self.img.width as i64, val.to_i64()),
             "transparent" => self.transparent = val.to_bool(),
-            "transparentcolor" => self.transparent_color = val.to_i64() as u32 & 0xFFFFFF,
+            "transparentcolor" => self.transparent_color = super::color_bgr(val.to_i64()),
             _ => return None,
         }
         Some(Ok(()))
@@ -750,7 +760,7 @@ impl Bitmap {
             }
         }
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let c = |i: usize| n(i) as u32 & 0xFFFFFF;
+        let c = |i: usize| super::color_bgr(n(i));
         match method {
             "pset" => self.pset(n(0), n(1), c(2)),
             // `Bitmap.Pixel(x, y)` reads; with a third argument it writes.
@@ -773,8 +783,8 @@ impl Bitmap {
             // in the bitmap's Font (objects/text.rs).
             "textout" => {
                 let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-                let color = if args.len() > 3 { c(3) } else { self.font.color as u32 & 0xFFFFFF };
-                let bg = args.get(4).map(Value::to_i64).filter(|v| *v >= 0).map(|v| v as u32 & 0xFFFFFF);
+                let color = if args.len() > 3 { c(3) } else { super::color_bgr(self.font.color) };
+                let bg = args.get(4).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(super::color_bgr);
                 let font = self.font.clone();
                 super::text::text_out(self, n(0), n(1), &text, &font, color, bg);
             }
@@ -790,7 +800,7 @@ impl Bitmap {
     /// cy, r)`, `FillCircle`, `Ellipse`, `SetFont`, `SetPixel`).
     fn canvas_call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let color = |i: usize, default: u32| if args.len() > i { n(i) as u32 & 0xFFFFFF } else { default };
+        let color = |i: usize, default: u32| if args.len() > i { super::color_bgr(n(i)) } else { default };
         let (pen, brush) = (self.pen, self.brush);
         match method {
             "line" => self.line(n(0), n(1), n(2), n(3), color(4, pen)),
@@ -805,7 +815,7 @@ impl Bitmap {
             }
             "circle" => {
                 if args.len() > 5 {
-                    self.ellipse(n(0), n(1), n(2), n(3), n(5) as u32 & 0xFFFFFF, true);
+                    self.ellipse(n(0), n(1), n(2), n(3), super::color_bgr(n(5)), true);
                 }
                 self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
             }
@@ -816,7 +826,7 @@ impl Bitmap {
             // Ellipse(x1, y1, x2, y2 [, color [, fill]]).
             "ellipse" => {
                 if args.len() > 5 {
-                    self.ellipse(n(0), n(1), n(2), n(3), n(5) as u32 & 0xFFFFFF, true);
+                    self.ellipse(n(0), n(1), n(2), n(3), super::color_bgr(n(5)), true);
                 }
                 self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
             }
@@ -842,7 +852,7 @@ impl Bitmap {
                 if let Some(size) = args.get(4).map(Value::to_i64).filter(|s| *s > 0) {
                     font.size = -size.min(1000);
                 }
-                let fg = color(3, font.color as u32 & 0xFFFFFF);
+                let fg = color(3, super::color_bgr(font.color));
                 super::text::text_out(self, x, y, &text.unwrap_or_default(), &font, fg, None);
             }
             "setfont" => {
