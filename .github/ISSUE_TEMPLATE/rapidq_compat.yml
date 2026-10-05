@@ -1,0 +1,43 @@
+name: 🔁 RapidQ compatibility
+description: A program behaves differently in RapidR than in RapidQ.
+labels: ["rapidq-compat", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        RapidR aims to run RapidQ programs exactly as RapidQ does. If yours doesn't, we want to know!
+        We check reports against RapidQ's own compiler, so RapidQ's real output is especially valuable.
+  - type: input
+    id: version
+    attributes:
+      label: RapidR version
+      placeholder: "2.117.0"
+    validations:
+      required: true
+  - type: textarea
+    id: program
+    attributes:
+      label: The program
+      description: The smallest program that shows the difference (no copyrighted code you don't have the right to share, please).
+      render: basic
+    validations:
+      required: true
+  - type: textarea
+    id: rapidq
+    attributes:
+      label: What RapidQ does
+      description: Its output or a screenshot, and which RapidQ version you used if you know it.
+    validations:
+      required: true
+  - type: textarea
+    id: rapidr
+    attributes:
+      label: What RapidR does
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Where you saw it
+      multiple: true
+      options: [Native build, Interpreted, Web, "Not sure"]

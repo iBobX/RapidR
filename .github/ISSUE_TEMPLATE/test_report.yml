@@ -1,0 +1,54 @@
+name: ✅ Test report
+description: Tell us RapidR works (or not) on your system — every machine counts.
+labels: ["test-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for volunteering! Reports that everything works are just as useful as bug reports:
+        they tell us which systems are verified. File anything broken as a 🐞 Bug report too.
+  - type: input
+    id: version
+    attributes:
+      label: RapidR version
+      placeholder: "2.117.0"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: OS and version, CPU, and for the web the browser.
+      placeholder: "Windows 10 22H2 x64, Intel i5 / Fedora 41 aarch64 / Safari 19"
+    validations:
+      required: true
+  - type: dropdown
+    id: installer
+    attributes:
+      label: What you installed
+      options:
+        - RapidR (IDE + SDK)
+        - RapidR Runtime only
+        - The .tar.gz / .deb (Linux)
+        - The web bundle
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: What worked
+      options:
+        - label: The installer ran and RapidR is on my system
+        - label: The IDE opens
+        - label: An example program runs (rapidr run examples/…)
+        - label: A GUI program shows its window and responds
+        - label: Double-clicking a .rrbc program runs it
+        - label: An interpreted executable builds and runs (rapidr build --interp)
+        - label: A native build works (rapidr setup, then rapidr build)
+        - label: A web build runs in my browser (rapidr build --web)
+        - label: A screen reader reads the program's windows
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: What didn't work, what was confusing, what you liked.

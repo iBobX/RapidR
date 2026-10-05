@@ -1,0 +1,66 @@
+name: 🐞 Bug report
+description: Something in RapidR doesn't work as it should.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing RapidR! A small program that shows the problem is the most useful thing you can give us.
+        Security problems go privately through SECURITY.md, not here.
+  - type: input
+    id: version
+    attributes:
+      label: RapidR version
+      description: "`rapidr version`, or the IDE's Help → About."
+      placeholder: "2.117.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Windows, Linux, "Web browser", Other]
+    validations:
+      required: true
+  - type: input
+    id: os_details
+    attributes:
+      label: OS version, CPU and (for the web) browser
+      placeholder: "Windows 11 24H2 x64 / macOS 27 Apple M3 / Ubuntu 24.04 x86_64 / Firefox 140"
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: How the program ran
+      multiple: true
+      options:
+        - Native build (rapidr build)
+        - Interpreted (rapidr run, .rrbc, or an interpreted executable)
+        - Web (browser)
+        - The IDE (desktop)
+        - The IDE (web)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: program
+    attributes:
+      label: A small program that shows it
+      description: As short as you can make it. It is formatted as BASIC automatically.
+      render: basic
+  - type: textarea
+    id: output
+    attributes:
+      label: Output, errors or screenshots
+  - type: checkboxes
+    id: a11y
+    attributes:
+      label: Accessibility
+      options:
+        - label: This is about a screen reader, keyboard use, high contrast or another accessibility feature.
