@@ -277,6 +277,12 @@ fn preprocess_with_state(
         let line = original_line.trim();
         let upper_line = line.to_ascii_uppercase();
 
+        // `#!/usr/bin/env rapidr`: a script's first line, for the shell.
+        if line_index == 0 && original_line.starts_with("#!") {
+            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            continue;
+        }
+
         if upper_line.starts_with("$IFDEF") {
             let symbol = line
                 .split_once(char::is_whitespace)
@@ -1073,6 +1079,15 @@ mod tests {
         preprocess_source(src, ".", None, PreprocessOptions::default())
             .unwrap()
             .source
+    }
+
+    #[test]
+    fn shebang_first_line_is_left_out_lines_kept() {
+        let result = preprocess("#!/usr/bin/env rapidr\nPRINT 1\n");
+        assert_eq!(result.lines().next(), Some(""), "line 1 stays, empty");
+        assert!(result.contains("PRINT 1"));
+        // Only the first line: elsewhere `#!` is the program's.
+        assert!(preprocess("PRINT 1\n#!x\n").contains("#!x"));
     }
 
     #[test]

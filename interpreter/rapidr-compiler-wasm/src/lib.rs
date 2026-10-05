@@ -35,8 +35,9 @@ pub fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
     let program = parse_tokens(&tokens)
         .map_err(|e| e.to_string())?;
 
-    let compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
+    let mut compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
         .map_err(|e| format!("bcgen error: {e}"))?;
+    compiled.module.apply_app_type_directive(pre.app_type.as_deref());
 
     Ok(compiled.module.to_bytes())
 }

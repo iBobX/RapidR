@@ -2,7 +2,10 @@
 //! docs/io-media-plan.md), as runtime-core's `io.rs` does them on the
 //! desktop: QDOWNLOAD's transfer by `fetch` (the program waits as for a
 //! dialog: `dialog_web::wait_task`), QCOMPORT's ports by Web Serial — or
-//! the tests' scripted ones — and the events their models leave.
+//! the tests' scripted ones —, the events their models leave, and QVIDEO's
+//! window: a QCANVAS (an HTML canvas) the frames are drawn on by the same
+//! decoder as the desktop's (`objects::avi`, in wasm), paced by an
+//! interval of its own while it plays.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -10,13 +13,13 @@ use std::rc::Rc;
 
 use rapidr_value::objects::comport::{self, Flow, Link, PortError, Settings};
 use rapidr_value::objects::download::{Outcome, Shown};
-use rapidr_value::objects::rqlib;
+use rapidr_value::objects::{media, rqlib};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
-use crate::object_web::{rp_comp_set, rp_create_component, rp_fire_event_args};
-use crate::value::{v_int, v_null, v_str, Value};
+use crate::object_web::{rp_comp_get, rp_comp_method, rp_comp_set, rp_comp_type, rp_create_component, rp_fire_event_args};
+use crate::value::{v_bool, v_int, v_null, v_str, Value};
 
 fn time_now() -> String {
     crate::builtins::rp_time().to_string_val()
@@ -45,8 +48,120 @@ pub fn fire_events(name: &str) {
     if rqlib::take_timer_changed(name) {
         crate::object_web::update_timer(name);
     }
+    if rqlib::is_video(name) {
+        video_changed(name);
+    }
     for (event, args) in rqlib::take_events(name) {
         rp_fire_event_args(name, event, &args);
+    }
+}
+
+thread_local! {
+    /// The intervals pacing the playing QVIDEOs' frames.
+    static FRAME_TIMERS: RefCell<std::collections::HashMap<String, i32>> = RefCell::new(Default::default());
+}
+
+/// QVIDEO `name` after a call, as on the desktop (runtime-core's io.rs):
+/// its window's components follow the model, its frames are paced while
+/// it plays, the frame it's at is shown.
+fn video_changed(name: &str) {
+    if rqlib::take_frames_changed(name) {
+        frames_paced(name);
+    }
+    if let Some(w) = rqlib::take_video_window(name) {
+        video_window(name, &w);
+    }
+    video_frame(name);
+}
+
+/// QVIDEO `name`'s frames interval started (playing) or stopped.
+fn frames_paced(name: &str) {
+    let key = name.to_lowercase();
+    let Some(window) = web_sys::window() else { return };
+    if let Some(handle) = FRAME_TIMERS.with(|t| t.borrow_mut().remove(&key)) {
+        window.clear_interval_with_handle(handle);
+    }
+    let Some((_, ms, true)) = rqlib::video_frames(&rqlib::frames_timer(&key)) else { return };
+    let video = key.clone();
+    let tick = Closure::<dyn FnMut()>::new(move || video_frame(&video));
+    if let Ok(handle) = window.set_interval_with_callback_and_timeout_and_arguments_0(tick.as_ref().unchecked_ref(), ms as i32) {
+        FRAME_TIMERS.with(|t| t.borrow_mut().insert(key, handle));
+    }
+    tick.forget();
+}
+
+/// QVIDEO `name`'s window as its components (runtime-core's io.rs: the
+/// same): `<name>.screen`, a black QCANVAS on Parent's form or filling
+/// `<name>.window`, a QFORM of its own.
+fn video_window(name: &str, w: &media::VideoWindow) {
+    let (screen, form) = (media::VideoWindow::screen(name), media::VideoWindow::form(name));
+    let own = w.parent.is_empty();
+    if !w.open {
+        if !rp_comp_type(&screen).is_empty() {
+            rp_comp_set(&screen, "visible", v_bool(false));
+        }
+        if rp_comp_type(&form) == "RFORM" {
+            rp_comp_method(&form, "close", &[]);
+        }
+        return;
+    }
+    if rp_comp_type(&screen).is_empty() {
+        rp_create_component(&screen, "RCANVAS");
+        rp_comp_set(&screen, "color", v_int(0));
+    }
+    if own {
+        if rp_comp_type(&form).is_empty() {
+            rp_create_component(&form, "RFORM");
+        }
+        rp_comp_set(&form, "borderstyle", v_int(if w.popup { 0 } else { 2 }));
+        rp_comp_set(&form, "caption", v_str(&w.caption));
+        if w.placed {
+            rp_comp_set(&form, "left", v_int(w.left));
+            rp_comp_set(&form, "top", v_int(w.top));
+        }
+        rp_comp_set(&form, "width", v_int(w.width));
+        rp_comp_set(&form, "height", v_int(w.height));
+        rp_comp_set(&screen, "parent", v_str(&form));
+        rp_comp_set(&screen, "visible", v_bool(true));
+        if w.popup {
+            // (a popup's 1-pixel black border around the picture)
+            rp_comp_set(&form, "color", v_int(0));
+            rp_comp_set(&screen, "align", v_int(0));
+            rp_comp_set(&screen, "left", v_int(1));
+            rp_comp_set(&screen, "top", v_int(1));
+            rp_comp_set(&screen, "width", v_int((w.width - 2).max(0)));
+            rp_comp_set(&screen, "height", v_int((w.height - 2).max(0)));
+        } else {
+            // (alClient: the picture fills the window)
+            rp_comp_set(&screen, "align", v_int(5));
+        }
+        if w.visible {
+            rp_comp_set(&form, "windowstate", v_int(w.state));
+            rp_comp_method(&form, "show", &[]);
+        }
+    } else {
+        if rp_comp_type(&form) == "RFORM" {
+            rp_comp_method(&form, "close", &[]);
+        }
+        rp_comp_set(&screen, "align", v_int(0));
+        rp_comp_set(&screen, "parent", v_str(&w.parent));
+        rp_comp_set(&screen, "left", v_int(w.left));
+        rp_comp_set(&screen, "top", v_int(w.top));
+        rp_comp_set(&screen, "width", v_int(w.width));
+        rp_comp_set(&screen, "height", v_int(w.height));
+        rp_comp_set(&screen, "visible", v_bool(w.visible));
+    }
+}
+
+/// QVIDEO `name`'s frame now on its screen (when it changed).
+fn video_frame(name: &str) {
+    let screen = media::VideoWindow::screen(name);
+    if rp_comp_type(&screen).is_empty() {
+        return;
+    }
+    let (w, h) = (rp_comp_get(&screen, "width").to_i64(), rp_comp_get(&screen, "height").to_i64());
+    if rqlib::video_draw(name, w, h) {
+        crate::gui_web::render_canvas(&screen);
     }
 }
 

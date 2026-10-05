@@ -299,6 +299,11 @@ cd /tmp/hello && cargo build
 
 | Command | Description |
 |---------|-------------|
+| `run <file.rrbc\|.rr\|.bas> [args]` | Run a program with the interpreter (the RapidR Runtime); `rapidr <file.rrbc>` and `#!/usr/bin/env rapidr` scripts too |
+| `open <file> [args]` | Run it as opening it from the desktop does (a downloaded file asks once; a console program gets a terminal) |
+| `info <file>` | Its app type, bytecode format and the runtime it needs |
+| `ide [file.rr]` | Start the IDE |
+| `setup [--check] [--yes]` | Install Rust for native builds (rustup, after asking); put `rapidr` on PATH |
 | `codegen <file.rr> [outdir]` | Generate a Rust project from a `.rr` file |
 | `build <file.rr> [outdir] [flags]` | Generate, build, and copy binary alongside source |
 | `build-bc <file.rr> [-o out.rrbc]` | Compile to portable bytecode (no Rust toolchain needed at runtime) |
@@ -317,6 +322,9 @@ Flags for `build` (and the bare `rapidr <file.rr>` shortcut):
 | `--debug`   / `-d` | Build in debug mode (default) |
 | `--web`     / `-w` | Target WebAssembly via the Rust codegen + wasm-bindgen pipeline |
 | `--interp`  / `-i` | Target the bytecode interpreter — emits a self-contained native binary (or, with `--web`, a static `.zip`) that has no Rust toolchain dependency at runtime |
+| `--target <os>-<arch>` | With `--interp`: an executable for another target an installed RapidR ships a runner for (`windows-x86_64`, `macos-aarch64`, …) |
+
+Installed releases (the SDK and the RapidR Runtime, their file types, how they find their files): [docs/release-packaging.md](docs/release-packaging.md).
 
 ---
 

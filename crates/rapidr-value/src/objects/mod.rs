@@ -9,6 +9,7 @@
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
 pub mod a11y;
+pub mod avi;
 pub mod bevel;
 pub mod bitmap;
 pub mod cgi;
@@ -39,6 +40,7 @@ pub mod ops;
 pub mod printer;
 pub mod record;
 pub mod rqlib;
+pub mod synth;
 pub mod text;
 pub mod tabcontrol;
 pub mod textedit;

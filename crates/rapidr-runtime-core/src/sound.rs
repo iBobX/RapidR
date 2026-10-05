@@ -108,6 +108,7 @@ fn play(_bytes: Vec<u8>, _looped: bool, _wait: bool) {
 /// Whether a test runs the program: a GUI test (`RAPIDR_CAPTURE`,
 /// `RAPIDR_TEST_EVENTS`) or the conformance runner (`RAPIDR_TEST_SOUND`,
 /// set even empty) — no sound device then, nothing heard.
+#[cfg(feature = "audio")]
 pub(crate) fn testing() -> bool {
     ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| std::env::var_os(v).is_some())
 }
@@ -150,6 +151,32 @@ fn dx_play(p: &rapidr_value::objects::directx::SoundPlay) {
     }
     sink.set_volume(p.gain);
     DX_SINKS.with(|s| s.borrow_mut().insert(p.id.clone(), sink));
+}
+
+/// Plays `source` on the sound device as `id`'s (QMIDI's built-in
+/// synthesizer: media.rs), replacing what `id` played; `false` without a
+/// device.
+#[cfg(feature = "audio")]
+pub(crate) fn play_source(id: &str, source: impl rodio::Source<Item = f32> + Send + 'static) -> bool {
+    dx_stop(id);
+    let handle = OUTPUT.with(|o| {
+        let mut o = o.borrow_mut();
+        if o.is_none() {
+            *o = rodio::OutputStream::try_default().ok();
+        }
+        o.as_ref().map(|(_, h)| h.clone())
+    });
+    let Some(handle) = handle else { return false };
+    let Ok(sink) = rodio::Sink::try_new(&handle) else { return false };
+    sink.append(source);
+    DX_SINKS.with(|s| s.borrow_mut().insert(id.to_string(), sink));
+    true
+}
+
+/// Stops what [`play_source`] plays as `id`.
+#[cfg(feature = "audio")]
+pub(crate) fn stop_source(id: &str) {
+    dx_stop(id);
 }
 
 #[cfg(feature = "audio")]

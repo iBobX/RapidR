@@ -899,6 +899,7 @@ fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {
 
     let mut compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
         .map_err(|e| format!("bcgen error: {e}"))?;
+    compiled.module.apply_app_type_directive(pre.app_type.as_deref());
 
     // `$RESOURCE` files are built into the module.
     for r in &pre.resources {

@@ -64,10 +64,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   device. QMIDI reads standard MIDI files with MCI's timing and plays them
   on the system's MIDI output (midir; Web MIDI); QWAVE plays WAV files,
   records (New, Record from the default input — cpal, getUserMedia), Saves
-  and Deletes. QCDAUDIO answers as a machine with no disc does. QVIDEO has
-  every member, but Open says the file can't be played: no video decoder
-  yet. RapidQ's examples `midi.bas`, `wave.bas`, `Cd.bas`, `video.bas`
+  and Deletes. QCDAUDIO answers as a machine with no disc does. RapidQ's examples `midi.bas`, `wave.bas`, `Cd.bas`, `video.bas`
   compile and start with RapidQ's include folder.
+- **QVIDEO plays AVI files** on every runtime with decoders of RapidR's
+  own (`objects::avi`): uncompressed DIB (1–32-bit, palettes), Microsoft
+  RLE8 / RLE4, Microsoft Video 1 (CRAM), Cinepak and Motion JPEG, and the
+  file's PCM sound. Frames follow the clock; the picture is drawn on a
+  canvas on Parent's form or in a window of its own (popup / overlapped
+  sizes, the picture stretched, seeks landing on key frames — all as MCI
+  does in the Windows VM); the browser runs the same decoder in wasm.
+  `tools/make_avi_fixtures.py` writes the test clips.
+- **QMIDI plays without a system synthesizer** (macOS, Linux, browsers
+  without Web MIDI): a built-in General MIDI synthesizer of RapidR's own
+  (`objects::synth`) — procedural instruments and drum kit, no SoundFont
+  bundled — on the sound device (rodio; Web Audio in the page).
+- The media libraries' **Error** keeps MCI's NUL (`LEN` one more than the
+  text) and an **Open while a file is open** leaves that file open, as
+  RC.EXE runs QMidi.inc / QWave.inc / QVideo.inc; QVIDEO's Caption is MCI's
+  128-character buffer.
+- A stray **`END STRUCT` / `END TYPE`** is RC.EXE's END (the program ends
+  there): RapidQ's `Network/Download/qdownload.bas` compiles.
 - A binary operator with nothing after it (`F("a"+, 5)`, `x = 2 +`) is read
   as RapidQ's compiler reads it: dropped, the value is what came before
   (`Qcdaudio.inc` has it four times).
