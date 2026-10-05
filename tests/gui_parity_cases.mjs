@@ -134,7 +134,7 @@ export const cases = [
     webCheck: `[...document.querySelectorAll('nav[data-rr-type="RMAINMENU"] .rr-menu-item-sub')].map(e => e.querySelector('.rr-menu-mark').textContent + e.querySelector('.rr-menu-text').textContent + e.querySelector('.rr-menu-keys').textContent + (e.classList.contains('rr-menu-disabled') ? '!' : '')).join('|') + ' ' + document.querySelectorAll('nav .rr-menu-sep').length`,
     webExpect: "NewCtrl+N|Beginner|●Expert|Exit! 1" },
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
-  { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]"] },
+  { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
   { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
     expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"],
@@ -196,6 +196,15 @@ export const cases = [
     events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
     expect: ["lbl.caption=pop;de;modal2;ask7;|-1", "dlg.__shown=0"],
     web: false, why: "a page's menus never hold its loop: the hold and its tracking tick are the desktop host's" },
+  // (timers while a dialog waits — the interpreter serves each dialog's
+  // wait as ShowModal's: `dialogHold`, every answered dialog shown and
+  // waited for that many ms first; `messageDialog`: what each message box
+  // answers in turn, by caption; `delay`: the script starts after the
+  // program's dialogs, in seconds)
+  { name: "dialog_timers", events: "", dump: "lbl.caption,form2.__shown",
+    messageDialog: "No;Yes;OK;OK;OK;OK", fileDialog: "notes.txt", colorDialog: "255", fontDialog: "Courier New,14", dialogHold: 250, delay: 4,
+    expect: ["lbl.caption=inner6-1;dlg7-1;shown-1;msgbox0-1;open notes.txt-1;colorFF-1;font Courier New14-1;box1-1;modal2;both1-1;", "form2.__shown=0"],
+    web: false, why: "the browser harness answers a dialog only after an event it fired, and has no hold; the page's own dialogs let the timers run (tests/web_ide_dialogs.mjs)" },
   // (the DirectX lane's: QDXSCREEN, QDXIMAGELIST, QDXTIMER — the screen at
   // (10, 10) shows its last Flip: blue Fill, the red corner, the sprite's
   // see-through white, the strip's two patterns)

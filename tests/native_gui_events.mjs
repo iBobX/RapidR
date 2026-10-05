@@ -59,6 +59,8 @@
 //   * tests/fixtures/size_grip.bas — QSTATUSBAR's size grip resizes the window (OnResize, Width / Height).
 //   * tests/fixtures/a11y_form.bas — what a screen reader is told (its tree and keys: tests/web_a11y.mjs).
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
+//   * tests/fixtures/dialog_timers.bas — timers tick while message boxes and file / colour / font dialogs wait
+//     (RAPIDR_TEST_DIALOG_HOLD), nested ones too; their answers come back.
 //   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
 //   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
@@ -112,11 +114,16 @@ function build(name, interp) {
   return interp ? join(out, `${name}${EXE}`) : join(CARGO_TARGET, "debug", `${name}${EXE}`);
 }
 
-// (`colorDialog` / `fontDialog`: what the colour / font dialogs answer in
-// turn, `;`-separated)
+// (`colorDialog` / `fontDialog` / `messageDialog`: what the colour / font
+// dialogs and message boxes answer in turn, `;`-separated; `dialogHold`:
+// how many ms each answered dialog stays open first, waited for as the
+// user's; `delay`: seconds before the test's script starts)
 const dialogAnswers = (c) => ({
   ...(c.colorDialog === undefined ? {} : { RAPIDR_TEST_COLOR_DIALOG: c.colorDialog }),
   ...(c.fontDialog === undefined ? {} : { RAPIDR_TEST_FONT_DIALOG: c.fontDialog }),
+  ...(c.messageDialog === undefined ? {} : { RAPIDR_TEST_MESSAGE_DIALOG: c.messageDialog }),
+  ...(c.dialogHold === undefined ? {} : { RAPIDR_TEST_DIALOG_HOLD: String(c.dialogHold) }),
+  ...(c.delay === undefined ? {} : { RAPIDR_CAPTURE_DELAY: String(c.delay) }),
 });
 
 // A captured window's pixel (x, y) as "rrggbb" (an uncompressed 24- or

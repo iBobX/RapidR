@@ -284,28 +284,30 @@ pub fn rp_end() {
 
 /// `SHOWMESSAGE text`: RapidQ's modal message box with an OK button,
 /// titled with Application.Title. Under a test's hooks (RAPIDR_CAPTURE,
-/// RAPIDR_TEST_EVENTS), and without a GUI, the message is printed instead and
-/// the program goes on, as if OK was pressed.
+/// RAPIDR_TEST_EVENTS) — unless RAPIDR_TEST_MESSAGE_DIALOG answers message
+/// boxes — and without a GUI, the message is printed instead and the
+/// program goes on, as if OK was pressed.
 pub fn rp_showmessage(msg: &Value) {
     let text = msg.to_string_val();
     #[cfg(feature = "gui")]
-    if std::env::var_os("RAPIDR_CAPTURE").is_none() && std::env::var_os("RAPIDR_TEST_EVENTS").is_none() {
+    if !crate::ui::testhooks::under_test() || crate::ui::testhooks::message_hook() {
         let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
-        crate::ui::gui_choice(&title, &text, &["OK"], None, false);
+        crate::ui::gui_choice(&title, &text, &["OK"], None, false, |_| v_null());
         return;
     }
     println!("[SHOWMESSAGE] {text}");
 }
 
+/// `MSGBOX text`: the message box with OK; 0.
 pub fn rp_msgbox(msg: &Value) -> Value {
     let text = msg.to_string_val();
     #[cfg(feature = "gui")]
-    crate::ui::message_box(&text);
+    return crate::ui::message_box(&text);
     #[cfg(not(feature = "gui"))]
     {
         println!("[MSGBOX] {}", text);
+        v_int(0)
     }
-    v_int(0)
 }
 
 // Filesystem functions — now in file_io.rs, but keep these thin wrappers
@@ -674,12 +676,16 @@ pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Va
 fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
     #[cfg(feature = "gui")]
     {
-        let labels: Vec<&str> = buttons.iter().map(|b| b.label).collect();
-        let result = match crate::ui::gui_choice(title, text, &labels, icon, beep) {
-            Some(i) => buttons[i].result,
-            None => crate::value::dialogs::dismissed(buttons),
-        };
-        v_int(result)
+        let labels: Vec<&'static str> = buttons.iter().map(|b| b.label).collect();
+        let buttons = buttons.to_vec();
+        // (the button chosen → its result; mapped when the box closes — in
+        // the interpreter that's when the wait it serves ends)
+        crate::ui::gui_choice(title, text, &labels, icon, beep, move |choice| {
+            v_int(match choice.and_then(|i| buttons.get(i)) {
+                Some(b) => b.result,
+                None => crate::value::dialogs::dismissed(&buttons),
+            })
+        })
     }
     #[cfg(not(feature = "gui"))]
     {
