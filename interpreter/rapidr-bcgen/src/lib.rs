@@ -249,7 +249,8 @@ struct FnCtx {
 impl Bcgen {
     fn new() -> Self {
         Self {
-            module: Module::new(),
+            // (GUI once it creates a component: `CreateComp`)
+            module: Module { app_type: rapidr_bytecode::AppType::Console, ..Module::new() },
             fn_indices: NameMap::default(),
             fn_is_func: NameMap::default(),
             current_routine: None,
@@ -629,6 +630,7 @@ impl Bcgen {
                         if !self.create_declared_names.contains(&lower) {
                             let kind_s = self.module.add_string(&d.type_name.to_uppercase());
                             let id_s = self.module.add_string(&decl.name);
+                            self.module.app_type = rapidr_bytecode::AppType::Gui;
                             emit(code, Op::CreateComp);
                             push_u32(code, kind_s); push_u32(code, id_s);
                             emit(code, Op::Pop);
@@ -1964,6 +1966,7 @@ impl Bcgen {
     ) -> Result<(), String> {
         let kind_s = self.module.add_string(&c.type_name.to_uppercase());
         let id_s = self.module.add_string(&c.name);
+        self.module.app_type = rapidr_bytecode::AppType::Gui;
         emit(code, Op::CreateComp);
         push_u32(code, kind_s); push_u32(code, id_s);
         emit(code, Op::Pop); // discard returned reference for now
@@ -2782,6 +2785,17 @@ mod tests {
             .tokenize()
             .expect("lex");
         rapidr_parser::parse_tokens(&toks).expect("test source should parse")
+    }
+
+    #[test]
+    fn app_type_is_gui_when_the_program_creates_components() {
+        use rapidr_bytecode::AppType;
+        let console = compile_program(&parse("PRINT 1\n")).unwrap();
+        assert_eq!(console.module.app_type, AppType::Console);
+        let created = compile_program(&parse("CREATE Form AS QFORM\nCaption = \"x\"\nEND CREATE\n")).unwrap();
+        assert_eq!(created.module.app_type, AppType::Gui);
+        let dimmed = compile_program(&parse("DIM Form AS QFORM\n")).unwrap();
+        assert_eq!(dimmed.module.app_type, AppType::Gui);
     }
 
     fn run(src: &str) -> StubHost {

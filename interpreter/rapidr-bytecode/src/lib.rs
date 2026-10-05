@@ -7,8 +7,12 @@
 //!
 //! ```text
 //! magic       : 4 bytes  "RRBC"
-//! version     : u16 LE    (current = 1)
-//! flags       : u16 LE    (reserved = 0)
+//! version     : u16 LE    the format (current = 3; 2 is still read)
+//! flags       : u16 LE    bit 0: a source map follows, bit 1: resources
+//! -- format 3 on: the header, which every later format keeps as it is --
+//! header_len  : u16 LE    bytes of header after this field (now 7)
+//! min_runtime : 3 × u16 LE the oldest RapidR Runtime that runs it
+//! app_type    : u8        [`AppType`] ($APPTYPE)
 //!
 //! n_consts    : u32 LE
 //! consts      : n_consts * Const
@@ -111,6 +115,72 @@ pub struct Module {
     /// The program's `$RESOURCE`s in order: name and bytes
     /// (`rapidr_value::resources`, registered by the host at startup).
     pub resources: Vec<(String, Vec<u8>)>,
+    /// Console or windowed ($APPTYPE): which launcher runs it.
+    pub app_type: AppType,
+}
+
+/// What kind of program a module is: `$APPTYPE CONSOLE | GUI | CGI` (and
+/// RapidR's WEB), or, without one, GUI when it creates components, else
+/// CONSOLE — RapidQ "detects what kind of application your program is just
+/// by looking at the source code". The runtime's launchers read it: a
+/// console program opened from the desktop gets a console.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppType {
+    /// A format-2 file (it doesn't say).
+    #[default]
+    Unknown = 0,
+    Console = 1,
+    Gui = 2,
+    Cgi = 3,
+    Web = 4,
+}
+
+impl AppType {
+    /// `$APPTYPE <word>`'s word.
+    pub fn from_directive(word: &str) -> Option<AppType> {
+        match word.trim().to_ascii_uppercase().as_str() {
+            "CONSOLE" => Some(AppType::Console),
+            "GUI" => Some(AppType::Gui),
+            "CGI" => Some(AppType::Cgi),
+            "WEB" => Some(AppType::Web),
+            _ => None,
+        }
+    }
+
+    pub fn from_u8(b: u8) -> AppType {
+        match b {
+            1 => AppType::Console,
+            2 => AppType::Gui,
+            3 => AppType::Cgi,
+            4 => AppType::Web,
+            _ => AppType::Unknown,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            AppType::Unknown => "unknown",
+            AppType::Console => "console",
+            AppType::Gui => "gui",
+            AppType::Cgi => "cgi",
+            AppType::Web => "web",
+        }
+    }
+
+    /// It reads and writes a console (CONSOLE, CGI).
+    pub fn wants_console(self) -> bool {
+        matches!(self, AppType::Console | AppType::Cgi)
+    }
+}
+
+/// The start of a `.rrbc`, read without the rest ([`Header::read`]): enough
+/// for a launcher to pick a console, and for an older runtime to say which
+/// version a newer program needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Header {
+    pub format: u16,
+    pub min_runtime: [u16; 3],
+    pub app_type: AppType,
 }
 
 /// Lines of the compiled program → the file (name only, never its path) and
@@ -158,6 +228,14 @@ impl Module {
         Self::default()
     }
 
+    /// The program's `$APPTYPE`, when it has one, over what the compiler
+    /// made of it.
+    pub fn apply_app_type_directive(&mut self, directive: Option<&str>) {
+        if let Some(t) = directive.and_then(AppType::from_directive) {
+            self.app_type = t;
+        }
+    }
+
     /// Intern a constant; returns its index.
     pub fn add_const(&mut self, c: Const) -> u32 {
         if let Some(i) = self.consts.iter().position(|x| x == &c) {
@@ -184,4 +262,27 @@ impl Module {
 }
 
 pub const MAGIC: &[u8; 4] = b"RRBC";
-pub const VERSION: u16 = 2;
+/// The bytecode format written. A runtime reads every format from
+/// [`OLDEST_VERSION`] to its own; a newer file is refused with the runtime
+/// version it needs (its header's layout never changes from format 3 on).
+pub const VERSION: u16 = 3;
+/// Format 2: no header (no minimum runtime, no app type).
+pub const OLDEST_VERSION: u16 = 2;
+/// This runtime's version: RapidR's.
+pub const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The oldest RapidR Runtime that runs what this compiler writes, recorded
+/// in every module. Raise it to the release's version whenever the compiler
+/// starts writing something older runtimes don't know (an opcode, a
+/// builtin, a header field); format 3 came with 2.116.
+pub const MIN_RUNTIME: [u16; 3] = [2, 116, 0];
+/// Where a newer runtime is.
+pub const RELEASES_URL: &str = "https://github.com/iBobX/RapidR/releases";
+
+/// `major.minor.patch` → numbers (missing parts are 0).
+pub fn parse_version(v: &str) -> [u16; 3] {
+    let mut out = [0u16; 3];
+    for (slot, part) in out.iter_mut().zip(v.split(['.', '-', '+'])) {
+        *slot = part.parse().unwrap_or(0);
+    }
+    out
+}

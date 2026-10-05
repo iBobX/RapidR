@@ -1,7 +1,9 @@
 //! The media objects' devices in the browser (rapidr_value::objects::media;
 //! docs/io-media-plan.md §4–§5), as runtime-core's `media.rs` on the
 //! desktop: QMIDI's song sent to the page's first MIDI output (Web MIDI —
-//! the browser asks the user once; none, or refused: silent), QWAVE played
+//! the browser asks the user once; none, refused, or a browser without Web
+//! MIDI: RapidR's built-in synthesizer, `objects::synth`, rendered in wasm
+//! for Web Audio as it plays), QWAVE played
 //! through QDXSOUND's Web Audio device and recorded from the microphone
 //! (getUserMedia, the browser asking). The tests' page sets
 //! `RAPIDR_TEST_MIDI` (no MIDI) and `RAPIDR_TEST_WAVE_IN` (`tone:HZ`, a
@@ -32,7 +34,7 @@ pub fn install() {
     crate::directx_web::install_sound_device();
     // (the tests' page variables are read when a device is first used: the
     // test sets them once the program runs)
-    media::set_midi_device(MidiDevice { play: midi_play, stop: midi_stop, volume: |_, _| {} });
+    media::set_midi_device(MidiDevice { play: midi_play, stop: midi_stop, volume: midi_volume });
     media::set_wave_input(WaveInput { start: mic_start, take: mic_take, stop: mic_stop });
 }
 
@@ -75,7 +77,10 @@ fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
     }
     let id = id.to_string();
     wasm_bindgen_futures::spawn_local(async move {
-        let Some(out) = first_output().await else { return };
+        let Some(out) = first_output().await else {
+            synth_play(&id, &song, from_us, gain);
+            return;
+        };
         let Ok(send) = js_sys::Reflect::get(&out, &"send".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) else { return };
         let t0 = now_ms();
         for e in song.events.iter().filter(|e| e.at_us >= from_us) {
@@ -91,6 +96,7 @@ fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
 }
 
 fn midi_stop(id: &str) {
+    synth_stop(id);
     let Some(out) = SENT.with(|s| s.borrow_mut().remove(id)) else { return };
     // (what was sent ahead dropped — MIDIOutput.clear, where there is one —
     // and every note off)
@@ -101,6 +107,79 @@ fn midi_stop(id: &str) {
         for ch in 0..16u8 {
             let _ = send.call1(&out, &js_sys::Uint8Array::from(&[0xB0 | ch, 123, 0][..]));
         }
+    }
+}
+
+// ------------------------------------------------- built-in synthesizer --
+
+/// A song on the built-in synthesizer: its Web Audio node (a script
+/// processor whose callback renders the next block) and that callback.
+struct Synth {
+    node: JsValue,
+    _render: Closure<dyn FnMut(JsValue)>,
+    /// Volume's gain, read by the callback.
+    gain: Rc<std::cell::Cell<f32>>,
+}
+
+thread_local! {
+    static SYNTHS: RefCell<HashMap<String, Synth>> = RefCell::new(HashMap::new());
+}
+
+/// QMIDI `id`'s song from `from_us` on the built-in synthesizer, at the
+/// page's audio rate.
+fn synth_play(id: &str, song: &Song, from_us: u64, gain: f32) {
+    synth_stop(id);
+    let Some(ctx) = crate::builtins::audio_context() else { return };
+    let ctx_js: JsValue = ctx.clone().into();
+    let Ok(create) = js_sys::Reflect::get(&ctx_js, &"createScriptProcessor".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) else { return };
+    let Ok(node) = create.call3(&ctx_js, &4096.into(), &0.into(), &2.into()) else { return };
+    let events = song.events.iter().map(|e| (e.at_us, e.bytes.clone())).collect();
+    let mut player = rapidr_value::objects::synth::Player::new(events, ctx.sample_rate() as u32, from_us, gain.clamp(0.0, 1.0));
+    let mut block: Vec<f32> = Vec::new();
+    let (mut left, mut right): (Vec<f32>, Vec<f32>) = (Vec::new(), Vec::new());
+    let shared = Rc::new(std::cell::Cell::new(gain));
+    let (volume, mut applied) = (shared.clone(), gain);
+    let render = Closure::<dyn FnMut(JsValue)>::new(move |ev: JsValue| {
+        if volume.get() != applied {
+            applied = volume.get();
+            player.set_gain(applied);
+        }
+        let Some(out) = js_sys::Reflect::get(&ev, &"outputBuffer".into()).ok().and_then(|b| b.dyn_into::<web_sys::AudioBuffer>().ok()) else { return };
+        let n = out.length() as usize;
+        block.resize(n * 2, 0.0);
+        player.render(&mut block);
+        left.clear();
+        right.clear();
+        for f in block.as_chunks::<2>().0 {
+            left.push(f[0]);
+            right.push(f[1]);
+        }
+        let _ = out.copy_to_channel(&left, 0);
+        let _ = out.copy_to_channel(&right, 1);
+    });
+    let _ = js_sys::Reflect::set(&node, &"onaudioprocess".into(), render.as_ref().unchecked_ref());
+    if let Ok(connect) = js_sys::Reflect::get(&node, &"connect".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+        let _ = connect.call1(&node, &ctx.destination());
+    }
+    let _ = ctx.resume();
+    SYNTHS.with(|s| s.borrow_mut().insert(id.to_string(), Synth { node, _render: render, gain: shared }));
+}
+
+/// QMIDI's Volume while the built-in synthesizer plays its song (a MIDI
+/// output's notes already sent keep theirs).
+fn midi_volume(id: &str, gain: f32) {
+    SYNTHS.with(|s| {
+        if let Some(s) = s.borrow().get(id) {
+            s.gain.set(gain.clamp(0.0, 1.0));
+        }
+    });
+}
+
+fn synth_stop(id: &str) {
+    let Some(s) = SYNTHS.with(|s| s.borrow_mut().remove(id)) else { return };
+    let _ = js_sys::Reflect::set(&s.node, &"onaudioprocess".into(), &JsValue::NULL);
+    if let Ok(disconnect) = js_sys::Reflect::get(&s.node, &"disconnect".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+        let _ = disconnect.call0(&s.node);
     }
 }
 

@@ -40,6 +40,10 @@ import { cases } from "./gui_parity_cases.mjs";
 import { openIde, runCase, runCaseKernel, WEB_HOST } from "./web_gui_run.mjs";
 import { startHttpServer } from "./http_test_server.mjs";
 
+// (QDOWNLOAD's server: the tests' own, local — never the internet; the
+// browser's run and a desktop run made here both use it)
+process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/web_a11y");
 const DESKTOP = process.env.RAPIDR_A11Y_DIR || join(ROOT, "tests/conformance/.work/native_gui_events");
@@ -87,11 +91,10 @@ const ENV = {
   RAPIDR_REGISTRY: process.env.RAPIDR_REGISTRY || join(WORK, "registry.reg"),
   // (the I/O lane's cases, as tests/native_gui_events.mjs runs them: the
   // tests' HTTP server, no MIDI output, a scripted recording input)
-  RAPIDR_TEST_HTTP: (await startHttpServer()).address,
+  RAPIDR_TEST_HTTP: process.env.RAPIDR_TEST_HTTP,
   RAPIDR_TEST_MIDI: "",
   RAPIDR_TEST_WAVE_IN: "tone:440",
 };
-process.env.RAPIDR_TEST_HTTP = ENV.RAPIDR_TEST_HTTP;
 
 /// Case `c`'s kernel tree: the desktop run's, else made here.
 async function kernelTree(c) {

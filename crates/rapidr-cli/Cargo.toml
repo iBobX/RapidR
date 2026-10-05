@@ -17,6 +17,14 @@ rapidr-vm-host-native = { workspace = true, features = ["full"] }
 rapidr-webbundle.workspace = true
 rapidr-rrcss.workspace = true
 base64 = "0.22"
+# The user's settings folder (rapidr open: the answers about downloaded files)
+dirs = "6"
+# Downloaded files are remembered by content (SHA-256)
+sha2 = "0.10"
+
+[target.'cfg(unix)'.dependencies]
+# Reads the attribute a download carries (macOS' quarantine, Linux's origin)
+libc = "0.2"
 
 [[bin]]
 name = "rapidr"

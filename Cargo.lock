@@ -4695,6 +4695,8 @@ name = "rapidr-cli"
 version = "2.116.0"
 dependencies = [
  "base64 0.22.1",
+ "dirs",
+ "libc",
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-codegen-rust",
@@ -4705,6 +4707,7 @@ dependencies = [
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
+ "sha2",
 ]
 
 [[package]]
@@ -4741,6 +4744,15 @@ dependencies = [
 [[package]]
 name = "rapidr-diagnostics"
 version = "2.116.0"
+
+[[package]]
+name = "rapidr-launcher"
+version = "2.116.0"
+dependencies = [
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+]
 
 [[package]]
 name = "rapidr-lexer"

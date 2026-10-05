@@ -255,6 +255,15 @@ export const cases = [
   // the time to play to their ends)
   { name: "media", events: "b1.onclick," + Array(50).fill("b2.onclick").join(","), dump: "lbl.caption",
     expect: ["lbl.caption=0 Cannot find the specified  0 | 1 999 3 50 1 1 end 0 -1 0 | 8 11025 1 0 4 rec 300 1 1 300 8 played 0 -1"] },
+  // (the I/O lane's: QVIDEO on a form, a Cinepak clip played to its end by
+  // the clock through its Timer's OnChange; a window of its own's sizes;
+  // left on frame 5's key frame — what the window shows: frame 4's pixels,
+  // as an independent decoder gives them, the picture at 200 %)
+  { name: "video_player", events: "b1.onclick," + Array(50).fill("b2.onclick").join(","), dump: "lbl.caption",
+    expect: ["lbl.caption=0 Cannot find the specified  | 1 8 0 32x24 32x24 -1 3 3 1 1 end 0 0 -1 0 | 1 34x26 video_clip.tmp.avi 128 122x55 Clip 5 3"],
+    pixels: [[23, 73, "101010"], [55, 89, "dc3c14"], [81, 115, "f0d7c8"]], clientWidth: 318,
+    webCheck: `(() => { const c = document.getElementById("rr-v.screen"); if (!c) return "no canvas"; const k = c.width / parseFloat(c.style.width); const g = c.getContext("2d"); const p = (x, y) => Array.from(g.getImageData(Math.floor((x + 0.5) * k), Math.floor((y + 0.5) * k), 1, 1).data.slice(0, 3)).map((v) => v.toString(16).padStart(2, "0")).join(""); return [p(3, 3), p(35, 19), p(61, 45)].join(","); })()`,
+    webExpect: "101010,dc3c14,f0d7c8" },
   { name: "dx_joystick", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     joystick: "x=0,b=1,name=Pad;x=65535,y=0,b=2;y=65535,pov=9000,b=3,name=Pad;b=1;b=1,x=0;b=0,x=0;-",
     expect: ["lbl.caption=-1000-10 0-1-100-1 000-1-1-1 Pad,-1,32767,65535,3,9000 |down1 move0 up1 move32767 |0"] },

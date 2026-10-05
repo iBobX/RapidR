@@ -237,7 +237,7 @@ pub fn rp_sleep(seconds: &Value) {
 }
 
 pub fn rp_command() -> Value {
-    Value::String(std::env::args().skip(1).collect::<Vec<_>>().join(" "))
+    Value::String(crate::program::args().join(" "))
 }
 
 /// `ENVIRON$(name)` (rapidr_value::environ: the process's environment).

@@ -439,6 +439,13 @@ fn run_queued<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
     }
 }
 
+/// The program being run is the file `path` with `args`, not this
+/// executable (the RapidR Runtime running a program file:
+/// `rapidr_runtime_core::program`). Call before [`run_bytes`].
+pub fn set_program(path: &str, args: Vec<String>) {
+    rapidr_runtime_core::program::set(path, args);
+}
+
 /// Decode an in-memory `.rrbc` byte slice and execute it on a fresh
 /// [`NativeHost`].
 ///
