@@ -20,6 +20,14 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // QGLASSFRAME: the default black glass over the form's face (60 % see-
+  // through), red glass at 50 over a cyan panel; Moveable: the form
+  // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.
+  { name: "glass_frame", events: "g.__mousedown_20_20,g.__mousemove_40_30,g.__mouseup_40_30,r.__mousedown_5_5,r.__mousemove_25_15,r.__mouseup_25_15,g.onclick", dump: "lbl.caption,form.left,form.top",
+    expect: ["lbl.caption=- click120110 click120110", "form.left=120", "form.top=110"],
+    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]],
+    webCheck: `[getComputedStyle(document.getElementById("rr-g")).backgroundColor, getComputedStyle(document.getElementById("rr-r")).backgroundColor].join(" ")`,
+    webExpect: "rgb(144, 144, 144) rgb(128, 128, 128)" },
   // QDOCKFORM built in (RAPIDQ2.INC's dockable form, RapidR's own
   // library): docked at its alternative place, floated, brought home,
   // closed (OnClose); the toolbar-style one's grip (the capture's pixels).

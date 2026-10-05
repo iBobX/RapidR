@@ -158,6 +158,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "REDIT" => create_edit(&id, name, props),
         "RMEMO" | "RRICHEDIT" => create_textarea(&id, name, props),
         "RPANEL" | "RBEVEL" => create_panel(&id, name, props),
+        "RGLASSFRAME" => create_glass(&id, name, props),
         "RCHECKBOX" => create_checkbox(&id, name, props),
         "RRADIOBUTTON" => create_radio(&id, name, props),
         // Style (RAPIDQ.INC): csDropDown = 0 (the default) and csSimple = 1
@@ -309,6 +310,11 @@ pub fn gui_web_set_prop(name: &str, prop: &str, val: &Value) {
 
     if matches!(prop, "icon" | "icohandle") && el.class_list().contains("rr-form") {
         apply_form_icon(name);
+        return;
+    }
+    // (a QGLASSFRAME shows its shade, not its Color)
+    if matches!(prop, "color" | "backcolor") && el.class_list().contains("rr-glass") {
+        render_glass(name);
         return;
     }
     // (the WindowState lane's) A form maximized, minimized or restored.
@@ -2269,6 +2275,86 @@ fn create_panel(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.append_child(&caption);
     setup_widget(&el, id, name, props);
     render_panel_bevels(name);
+}
+
+/// A QGLASSFRAME (rapidr_value::objects::glass): its shade over its
+/// parent's background; Moveable: a left-button drag on it moves its form.
+fn create_glass(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("div");
+    el.set_class_name("rr-widget rr-glass");
+    setup_widget(&el, id, name, props);
+    render_glass(name);
+    let uname = name.to_uppercase();
+    let press: std::rc::Rc<std::cell::Cell<Option<(i32, i32)>>> = std::rc::Rc::new(std::cell::Cell::new(None));
+    let (p1, p2, p3) = (press.clone(), press.clone(), press);
+    let n1 = uname.clone();
+    let down = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        if e.button() == 0 && crate::object_web::rp_comp_get(&n1, "moveable").to_i64() != 0 {
+            p1.set(Some((e.client_x(), e.client_y())));
+        }
+    });
+    let n2 = uname;
+    let moved = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+        let Some((x, y)) = p2.get() else { return };
+        if e.buttons() & 1 == 0 {
+            p2.set(None);
+            return;
+        }
+        // (the page's coordinates: the form moves under the mouse, the
+        // press point with it)
+        let (dx, dy) = (e.client_x() - x, e.client_y() - y);
+        if dx == 0 && dy == 0 {
+            return;
+        }
+        p2.set(Some((e.client_x(), e.client_y())));
+        let mut form = crate::object_web::rp_comp_get(&n2, "parent").to_string_val().to_uppercase();
+        for _ in 0..64 {
+            if form.is_empty() || crate::object_web::rp_comp_type(&form) == "RFORM" {
+                break;
+            }
+            form = crate::object_web::rp_comp_get(&form, "parent").to_string_val().to_uppercase();
+        }
+        if form.is_empty() {
+            return;
+        }
+        let at = |p: &str| crate::object_web::rp_comp_get(&form, p).to_i64();
+        let (l, t) = (at("left") + dx as i64, at("top") + dy as i64);
+        crate::object_web::rp_comp_set(&form, "left", v_int(l));
+        crate::object_web::rp_comp_set(&form, "top", v_int(t));
+    });
+    let up = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_e: web_sys::MouseEvent| p3.set(None));
+    let _ = el.add_event_listener_with_callback("mousedown", down.as_ref().unchecked_ref());
+    if let Some(w) = web_sys::window() {
+        let _ = w.add_event_listener_with_callback("mousemove", moved.as_ref().unchecked_ref());
+        let _ = w.add_event_listener_with_callback("mouseup", up.as_ref().unchecked_ref());
+    }
+    down.forget();
+    moved.forget();
+    up.forget();
+}
+
+/// A QGLASSFRAME's shade, drawn again.
+pub fn render_glass(name: &str) {
+    let Some(el) = get_el(&comp_id(name)) else { return };
+    let get = |n: &str, p: &str| crate::object_web::rp_comp_get(n, p);
+    // (its parent's background, up to one set; the button face else)
+    let mut under = 0xF0F0F0u32;
+    let mut at = get(name, "parent").to_string_val();
+    for _ in 0..64 {
+        if at.is_empty() {
+            break;
+        }
+        let c = crate::object_web::rp_comp_get_stored(&at, "color");
+        let unset = rapidr_value::component_defaults::kernel_reads_unset(&crate::object_web::rp_comp_type(&at), "color", &c, || false);
+        if !unset && !matches!(c, Value::Null) && c.to_i64() >= 0 {
+            let b = c.to_i64() as u32;
+            under = ((b & 0xFF) << 16) | (b & 0xFF00) | ((b >> 16) & 0xFF);
+            break;
+        }
+        at = get(&at, "parent").to_string_val();
+    }
+    let rgb = rapidr_value::objects::glass::shade(under, get(name, "transparentcolor").to_i64(), get(name, "transparency").to_i64());
+    let _ = el.style().set_property("background", &format!("#{rgb:06x}"));
 }
 
 /// A QPANEL's BevelOuter / BevelInner frames (rapidr_value::objects::

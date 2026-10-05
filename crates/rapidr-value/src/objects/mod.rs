@@ -21,6 +21,7 @@ pub mod joystick;
 pub mod dirtree;
 pub mod tree;
 pub mod font;
+pub mod glass;
 pub mod filelist;
 pub mod grid;
 pub mod header;

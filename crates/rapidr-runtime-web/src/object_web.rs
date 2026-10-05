@@ -495,6 +495,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         _ => val,
     };
+    // A QGLASSFRAME's Transparency, TransparentColor, Moveable: as RC.EXE
+    // stores them (rapidr_value::objects::glass).
+    let val = if rp_comp_type(&uname) == "RGLASSFRAME" { rapidr_value::objects::glass::stored(&lprop, &val).unwrap_or(val) } else { val };
     // A QBEVEL's Shape / Style set its bevels (QBevel.inc's setters).
     if rp_comp_type(&uname) == "RBEVEL" {
         let other = rp_comp_get(&uname, if lprop == "shape" { "style" } else { "shape" }).to_i64();
@@ -731,6 +734,12 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         return;
     }
 
+    // A QGLASSFRAME's shade drawn again.
+    if comp_type == "RGLASSFRAME" && matches!(lprop.as_str(), "transparency" | "transparentcolor" | "color" | "parent") {
+        gui_web::gui_web_set_prop(&uname, &lprop, &val);
+        gui_web::render_glass(&uname);
+        return;
+    }
     // A panel's bevels drawn again.
     if (rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL") || (comp_type == "RBEVEL" && (rapidr_value::objects::bevel::default(&lprop).is_some() || matches!(lprop.as_str(), "shape" | "style"))) {
         gui_web::render_panel_bevels(&uname);
@@ -2348,7 +2357,7 @@ fn bind_dom_event(name: &str, event: &str) {
     // QSCROLLBOX double-click (QCANVAS doesn't: RapidQ's has no OnDblClick).
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick") {
         let t = rp_comp_type(&name_owned).to_ascii_uppercase();
-        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RBEVEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN");
+        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RBEVEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN" | "RGLASSFRAME");
         if doubles || (t == "RCANVAS" && event == "onclick") {
             bind_vcl_clicks(&el, &name_owned, event == "onclick", doubles);
             return;
@@ -2499,6 +2508,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RNOTIFYICONDATA"
             | "RBEVEL"
             | "RDIGDISPLAY"
+            | "RGLASSFRAME"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"

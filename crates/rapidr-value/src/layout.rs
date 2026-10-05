@@ -109,6 +109,8 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RPANEL" | "RBEVEL" | "RTABCONTROL" | "RGROUPBOX" | "RSCROLLBOX" | "RSTRINGGRID" | "RLISTVIEW" => (150, 100),
         // (QDigDisplay.inc: one 12 × 24 cell, its Display "0")
         "RDIGDISPLAY" => (12, 24),
+        // (RC.EXE's QGLASSFRAME)
+        "RGLASSFRAME" => (105, 105),
         "RCOMBOBOX" => (145, 25),
         "RLISTBOX" | "RTREEVIEW" => (120, 100),
         "RDIRTREE" | "RFILELISTBOX" => (150, 150),

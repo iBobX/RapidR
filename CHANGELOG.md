@@ -25,6 +25,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   its own window, docks at its alternative place, with the library's title
   and grip styles, a close box, OnDock / OnClose. A program that includes
   QDirListView.inc or RAPIDQ2.INC gets RapidR's.
+- **QGLASSFRAME** with RapidQ's compiler's members and values (Transparency
+  a byte, Moveable, TransparentColor; 105 × 105): its glass colour over what
+  is under it at 100 − Transparency percent (the form's background — RapidR's
+  windows aren't see-through), and Moveable: dragging it moves its form.
 - **FileRec** (RapidQ's DIR$ companion): FileName, ShortName, Date, Time,
   Size, FileTime of the file DIR$ found last.
 - **RapidQ's own compiler as the ground truth, at scale**

@@ -433,6 +433,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         _ => val,
     };
+    // A QGLASSFRAME's Transparency, TransparentColor, Moveable: as RC.EXE
+    // stores them (rapidr_value::objects::glass).
+    let val = if rp_comp_type(name) == "RGLASSFRAME" { rapidr_value::objects::glass::stored(&prop_lower, &val).unwrap_or(val) } else { val };
     // A QBEVEL's Shape / Style set its bevels (QBevel.inc's setters).
     if rp_comp_type(name) == "RBEVEL" {
         let other = rp_comp_get(name, if prop_lower == "shape" { "style" } else { "shape" }).to_i64();
@@ -2039,7 +2042,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
 pub fn is_component_type(type_name: &str) -> bool {
     matches!(
         type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY"
+        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY" | "RGLASSFRAME"
         | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
         | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"

@@ -41,6 +41,8 @@ pub mod canvas;
 pub mod image;
 // (the DirectX lane's)
 pub mod dxscreen;
+// (RapidQ's QGLASSFRAME)
+pub mod glass;
 // (Stage 10: the IDE's)
 pub mod codeedit;
 pub mod design;
@@ -100,6 +102,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     // (RapidQ's custom components: QBevel.inc's, QDigDisplay.inc's)
     ("RBEVEL", &panel::Bevel),
     ("RDIGDISPLAY", &canvas::DigDisplay),
+    ("RGLASSFRAME", &glass::GlassFrame),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

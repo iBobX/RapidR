@@ -258,6 +258,8 @@ Next up, in order:
 - [x] High-DPI: canvases, form surfaces, QIMAGE pictures, owner-drawn list / combo items, grid images and tree icons shown at the screen's scale (the window's scale factor on Retina, the browser's `devicePixelRatio`): each bitmap keeps what the screen shows next to the pixels programs read (`Pixel`, `.BMP`, flood fills — unchanged, checked by the GUI suites at 2×); text, lines and ellipses drawn finer, SVGs drawn at the scale (v2.70.0)
 - [x] High-DPI: grid cells' own drawing on the web at the screen's scale (v2.75.0)
 - [ ] High-DPI leftover: RapidR's own IDE icons as vectors
+- [x] RapidQ's UI and data objects from that list, checked against RC.EXE and RapidQ's include libraries, on native, interpreter and web: QRECT and QNOTIFYICONDATA (RC.EXE's records and errors), the system tray (Shell_NotifyIcon onto macOS' status items, Windows' notification area, Linux StatusNotifierItem, a strip on the web; a form's WndProc hears it), QBEVEL and QDIGDISPLAY built in (the include's own TYPE when included), QDIRLISTVIEW and QDOCKFORM as RapidR's own BASIC libraries, QGLASSFRAME; DIR$ / FileRec as RapidQ's (Unreleased)
+- [ ] The tray's Windows and Linux code built and clicked on those systems; a QDOCKFORM dragged with real input
 - [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
 - [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
 - [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)

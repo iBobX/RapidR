@@ -1864,6 +1864,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RNOTIFYICONDATA",
     // RapidQ's include libraries' components (INCLUDE_LIBRARY_COMPONENTS)
     "RBEVEL", "RDIGDISPLAY",
+    // RapidQ's QGLASSFRAME (rapidr_value::objects::glass)
+    "RGLASSFRAME",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1896,7 +1898,7 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QCDAUDIO", "QCGI", "QCOMPORT",
     "QDOWNLOAD",
-"QGLASSFRAME", "QMIDI", "QOLECONTAINER", "QOLEOBJECT",
+"QMIDI", "QOLECONTAINER", "QOLEOBJECT",
     "QVIDEO", "QWAVE",
 ];
 
