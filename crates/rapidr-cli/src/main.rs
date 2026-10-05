@@ -517,6 +517,9 @@ fn cargo_for_programs() -> Result<process::Command, String> {
         cargo
             .env("RUSTUP_TOOLCHAIN", format!("stable-{triple}"))
             .env(format!("CARGO_TARGET_{}_LINKER", env_triple.to_uppercase()), &clang)
+            // (libunwind and the mingw-w64 runtime linked in: an executable
+            // that needs no DLL beside it)
+            .env(format!("CARGO_TARGET_{}_RUSTFLAGS", env_triple.to_uppercase()), "-C target-feature=+crt-static")
             .env(format!("CC_{env_triple}"), &clang)
             .env(format!("AR_{env_triple}"), bin.join("llvm-ar.exe"));
         let path = env::var_os("PATH").unwrap_or_default();

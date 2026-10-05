@@ -10,6 +10,7 @@ finds its home from the executable by it):
     lib/rapidr/runners/<os>-<arch>/     rapidrintr-runner[w][.exe]      sdk
     lib/rapidr/web/                     rapidrintr.js, _bg.wasm         sdk
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
+    lib/rapidr/toolchain/               LLVM-MinGW, trimmed (Windows)   sdk
     share/icons/                        rapidr.ico, rapidr-doc.ico      Windows
     share/doc/rapidr/                   LICENSE, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         the fonts' OFL, README.md
@@ -46,6 +47,7 @@ def main():
     ap.add_argument("--runner", action="append", default=[], help="<os>-<arch>=<folder with rapidrintr-runner[w]> (sdk)")
     ap.add_argument("--web", help="the folder with rapidrintr.js and rapidrintr_bg.wasm (sdk)")
     ap.add_argument("--ide", help="the IDE's bytecode (sdk)")
+    ap.add_argument("--toolchain", help="Windows: the trimmed LLVM-MinGW native builds link with (sdk)")
     ap.add_argument("--version", help="for a runtime's release.toml (default: home's)")
     ap.add_argument("--rust", default="", help="for a runtime's release.toml")
     args = ap.parse_args()
@@ -72,6 +74,8 @@ def main():
         os.makedirs(os.path.join(lib, "web"))
         for f in ["rapidrintr.js", "rapidrintr_bg.wasm"]:
             shutil.copy2(os.path.join(args.web, f), os.path.join(lib, "web", f))
+        if args.toolchain:
+            shutil.copytree(args.toolchain, os.path.join(lib, "toolchain"))
         os.makedirs(os.path.join(lib, "ide"))
         shutil.copy2(args.ide, os.path.join(lib, "ide", "rapidr-ide.rrbc"))
     else:

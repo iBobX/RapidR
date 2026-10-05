@@ -31,3 +31,4 @@ tests/conformance/.work
 .reference/
 crates/rapidr-ui-proto/target
 /dist
+/.release-share

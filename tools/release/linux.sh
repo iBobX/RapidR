@@ -9,8 +9,9 @@
 #
 # Linked by Zig (cargo-zigbuild) against glibc $GLIBC — Ubuntu 20.04, Debian 11 and
 # newer — whichever the build machine's: the binaries ask for no newer symbol
-# (checked). The other architecture's ALSA / FreeType come from multiarch -dev
-# packages; fontconfig is opened at run time (dlopen). tools/release/linux/
+# (checked). The other architecture's ALSA, FreeType and fontconfig come from
+# multiarch -dev packages (fontique can't open fontconfig at run time: it is
+# linked, as on any desktop it is installed). tools/release/linux/
 # setup-tools.sh installs all of it. Run from the release's source (prepare.sh's
 # src.tar, extracted): tools/release/linux-vm.sh does, in the Ubuntu VM.
 # AppImage: not made (see docs/release-packaging.md).
@@ -50,7 +51,6 @@ depends() {
             *) die "$1 needs $l: add its package to depends() in linux.sh" ;;
         esac
     done
-    deps+=("libfontconfig1")   # (opened at run time)
     printf '%s\n' "${deps[@]}" | awk '!seen[$0]++' | paste -sd, - | sed 's/,/, /g'
 }
 
@@ -124,8 +124,8 @@ EOF
 for ARCH in $ARCHS; do
     T="$ARCH-unknown-linux-gnu"
     step "build $T (glibc $GLIBC)"
-    # (pkg-config finds that architecture's libraries; fontconfig is dlopen'd)
-    export PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=/ RUST_FONTCONFIG_DLOPEN=on
+    # (pkg-config finds that architecture's libraries)
+    export PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=/
     export PKG_CONFIG_LIBDIR="/usr/lib/$ARCH-linux-gnu/pkgconfig:/usr/share/pkgconfig"
     export CARGO_PROFILE_RELEASE_STRIP=symbols
     cargo zigbuild -q --locked --release --target "$T.$GLIBC" -p rapidr-cli
