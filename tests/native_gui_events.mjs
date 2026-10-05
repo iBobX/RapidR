@@ -76,6 +76,7 @@ import { mkdirSync, rmSync, existsSync, readFileSync, copyFileSync } from "node:
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
+import { dropBuild } from "./cargo_builds.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/native_gui_events");
@@ -178,6 +179,8 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);
   }
+  // (a native build, ~350 MB, gone once it ran: tests/cargo_builds.mjs)
+  if (!PREBUILT && KINDS.includes(false)) dropBuild(CARGO_TARGET, c.name);
   if (BUILD_ONLY || !("native" in results && "interpreted" in results)) continue;
   const same = results.native === results.interpreted;
   ok(same, `${c.name}: native and interpreted builds agree` + (same ? "" : `\n    native: ${results.native.trim().split("\n").join(" / ")}\n    interpreted: ${results.interpreted.trim().split("\n").join(" / ")}`));
