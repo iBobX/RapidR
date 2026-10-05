@@ -212,6 +212,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - A PRINT right before the ELSE of a single-line IF stays on its line;
     `CASE IS = "l" AND x = "d"` compares first, then ANDs; inside a TYPE's
     own code a store into its property field doesn't call the setter.
+  - A component's Color before the program sets one reads RapidQ's
+    system colours: clBtnFace (`&H8000000F`) for a QFORM / QPANEL, the
+    parent's Color for a QLABEL / QCANVAS / QGROUPBOX (clWindow without
+    one), clWindow (`&H80000005`) for the others — it read white. A system
+    colour is drawn in the theme's colour (clBtnFace: F0F0F0), so a form's
+    Pixel reads the F0F0F0 it shows, and TextOut blends over it. A QCANVAS
+    shows its parent's colour where nothing is drawn, not its own Color
+    (RapidQ's TPaintBox). The desktop's "creation white" rule is gone.
   - TIMER is the seconds since local midnight (it was since 1970 on the
     desktop, since the page loaded on the web); TIME$ and DATE$ are local.
 

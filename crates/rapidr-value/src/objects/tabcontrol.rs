@@ -132,7 +132,7 @@ struct Layout {
 
 /// `&HBBGGRR` → 0xRRGGBB.
 fn rgb(bgr: i64) -> u32 {
-    let c = (bgr & 0xFFFFFF) as u32;
+    let c = crate::objects::color_bgr(bgr);
     (c & 0xFF) << 16 | (c & 0xFF00) | (c >> 16)
 }
 
@@ -786,7 +786,7 @@ impl TabControl {
             "tabposition" => self.tab_position = val.to_i64(),
             "tabwidth" => self.tab_width = val.to_i64().clamp(0, 10_000),
             "tabheight" => self.tab_height = val.to_i64().clamp(0, 10_000),
-            "tabinactivecolor" => self.inactive_color = Some(val.to_i64() & 0xFFFFFF),
+            "tabinactivecolor" => self.inactive_color = Some(crate::objects::color_bgr(val.to_i64()) as i64),
             _ => return false,
         }
         self.changed();

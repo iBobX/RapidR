@@ -953,7 +953,7 @@ impl ListView {
         let colors = Colors::now();
         let c = colors;
         // (a font the program didn't colour: the theme's text)
-        let text = match font.color as u32 & 0xFFFFFF {
+        let text = match crate::objects::color_bgr(font.color) {
             0 => c.text,
             ink => ink,
         };

@@ -141,7 +141,8 @@ fn generic(face: &str) -> GenericFamily {
 
 /// &HBBGGRR → 0xRRGGBB.
 pub fn bgr_to_rgb(bgr: i64) -> u32 {
-    let c = (bgr & 0xFFFFFF) as u32;
+    // (a system colour, clBtnFace …: the theme's)
+    let c = rapidr_value::objects::color_bgr(bgr);
     (c & 0xFF) << 16 | (c & 0xFF00) | (c >> 16)
 }
 
