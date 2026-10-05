@@ -21,6 +21,8 @@ base64 = "0.22"
 dirs = "6"
 # Downloaded files are remembered by content (SHA-256)
 sha2 = "0.10"
+# THIRD-PARTY-NOTICES.txt reads `cargo metadata` (notices.rs)
+serde_json = "1"
 
 [target.'cfg(unix)'.dependencies]
 # Reads the attribute a download carries (macOS' quarantine, Linux's origin)

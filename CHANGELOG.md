@@ -8,6 +8,28 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Every program RapidR builds carries its open-source notices.** A
+  `THIRD-PARTY-NOTICES.txt` is written beside every native and interpreted
+  executable and into every web build (the zip's root for `bundle-bc` and the
+  web IDE's **Build**, `<stem>_web/` for `build --web`; `index.html` links it
+  with `<link rel="license">`). It lists RapidR's runtime and every component
+  compiled in — the crates of the build's real dependency graph for that
+  target, Rust's standard library, the Liberation fonts, SQLite and the C
+  code crates bundle, the system's and toolchain's pieces — with every
+  licence text in full, so shipping the program with that file is all the
+  licences ask. `rapidr notices [<os>-<arch>|web|tools-<os>]` prints one; an
+  install ships them (`lib/rapidr/notices/`), so this works offline without
+  Rust. Programs see no difference (no new command-line switch).
+- **LEGAL.md** (what you may do with RapidR and the programs you build, what
+  to ship, trademarks and no affiliation with RapidQ's author or any vendor,
+  no warranty) and **docs/licensing.md** (what each output contains, licence
+  by licence; what each licence asks; codecs and patents; open questions for
+  a professional review). Linked from the README, the web IDE's About and
+  Help > Legal…, the desktop IDE's About and `rapidr about`; the installers
+  include it (the Windows installer shows it).
+- `tools/regress.sh legal`: `cargo deny check licenses`, the repository's
+  notices, and `tools/check_notices.py` (builds a program each way and checks
+  its notices list every crate `cargo tree` finds).
 - **The RapidR Runtime and release packaging** (docs/release-packaging.md,
   `tools/release/`): an installed RapidR finds its files by one rule
   (`RAPIDR_HOME`, `<exe>/../lib/rapidr` with its `release.toml`, else the
@@ -171,6 +193,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- QDirListView and QDockForm's built-in libraries rewritten as RapidR's own
+  code (their bodies followed user-contributed RapidQ libraries too closely);
+  same members, events and behaviour. Four conformance cases that reused the
+  RapidQ manual's examples replaced by our own programs covering the same.
+- Web bundles carry `THIRD-PARTY-NOTICES.txt` instead of `LICENSE-RapidR.txt`,
+  `THIRD_PARTY_NOTICES.md` and `LICENSES.md` (it holds RapidR's licence and
+  the full texts the others lacked).
+- The SDK's cut-down vendored crates (those only other platforms compile)
+  keep their licence files.
 - **DIR$ as RapidQ's**: attribute 0 lists files only, faDirectory (&H10)
   folders too with `.` and `..` first, names sorted without regard to case,
   wildcards (`*`, `?`) of any case, `\` as a folder separator; dot files

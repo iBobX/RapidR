@@ -123,8 +123,10 @@ function build(name, interp) {
   mkdirSync(out, { recursive: true });
   const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, ...(interp ? ["--interp"] : [])];
   execFileSync(join(ROOT, `rapidr${EXE}`), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
-  // Native builds also copy the executable next to the source; don't leave it there.
+  // Native builds also copy the executable (and its THIRD-PARTY-NOTICES.txt)
+  // next to the source; don't leave them there.
   rmSync(join(ROOT, `tests/fixtures/${name}${EXE}`), { force: true });
+  if (!interp) rmSync(join(ROOT, "tests/fixtures/THIRD-PARTY-NOTICES.txt"), { force: true });
   return interp ? join(out, `${name}${EXE}`) : join(CARGO_TARGET, "debug", `${name}${EXE}`);
 }
 

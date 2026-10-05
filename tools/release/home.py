@@ -156,10 +156,17 @@ def stub_unneeded(vendor, needed):
             for name in files:
                 saved += os.path.getsize(os.path.join(base, name))
         manifest = open(os.path.join(path, "Cargo.toml"), "rb").read()
+        # (its licence files stay with what is left of it: docs/licensing.md)
+        licences = {n: open(os.path.join(path, n), "rb").read() for n in os.listdir(path)
+                    if os.path.isfile(os.path.join(path, n)) and n.lower().startswith(("licen", "copying", "copyright", "notice", "unlicense"))}
         shutil.rmtree(path)
         os.makedirs(path)
         open(os.path.join(path, "Cargo.toml"), "wb").write(manifest)
         files = {"Cargo.toml": hashlib.sha256(manifest).hexdigest()}
+        for name, data in licences.items():
+            open(os.path.join(path, name), "wb").write(data)
+            files[name] = hashlib.sha256(data).hexdigest()
+            saved -= len(data)
         # (its targets as empty files: a manifest with none doesn't load)
         for target in stub_targets(tomllib.loads(manifest.decode())):
             dest = os.path.join(path, target)
