@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as k from "./web_kernel_page.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
@@ -30,14 +31,17 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 await page.goto(`${URL_BASE}/tests/conformance/.work/oop_events/site/index.html`);
-await page.waitForFunction(() => document.querySelectorAll("button.rr-widget").length >= 3, { timeout: 15000 });
-
-const captions = () => page.evaluate(() => [...document.querySelectorAll("button.rr-widget")].map((b) => b.textContent));
-ok(JSON.stringify(await captions()) === '["Click me","Click me","Sender test"]', "CONSTRUCTOR set both instances' captions");
-await page.getByText("Click me").first().click();
-await page.getByText("Clicked 1").click();
-await page.getByText("Click me").click();
-await page.getByText("Sender test").click();
+await k.waitFor(page, "B3");
+// (the buttons as the kernel draws them: their mirror elements' names)
+const captions = () => Promise.all(["B1", "B2", "B3"].map((b) => k.text(page, b)));
+ok(JSON.stringify(await captions()) === '["Click me","Click me","Sender test"]', `CONSTRUCTOR set both instances' captions (${await captions()})`);
+await k.click(page, "B1");
+await page.waitForTimeout(150);
+await k.click(page, "B1");
+await page.waitForTimeout(150);
+await k.click(page, "B2");
+await page.waitForTimeout(150);
+await k.click(page, "B3");
 await page.waitForTimeout(300);
 const after = await captions();
 ok(after[0] === "Clicked 2", `first instance counted its own clicks (${after[0]})`);
