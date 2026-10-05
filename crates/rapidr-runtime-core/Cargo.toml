@@ -10,7 +10,10 @@ rapidr-value = { workspace = true }
 serde_json = "1"
 # RSQLITE and RMYSQL (shared with the web runtime: one SQLite everywhere)
 rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
-ureq = { version = "2", optional = true }
+# RHTTP (network.rs). Its TLS: rustls everywhere but Windows, where it's the
+# system's (SChannel, kept current by Windows Update) — rustls' crypto, ring,
+# needs clang to build for Windows on ARM.
+ureq = { version = "2", optional = true, default-features = false, features = ["gzip"] }
 ndarray = { version = "0.16", optional = true }
 polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log"] }
 plotters = { version = "0.3", optional = true }
@@ -22,6 +25,13 @@ arboard = { version = "3", optional = true, default-features = false }
 rapidr-ui-kernel = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
 
+[target.'cfg(not(windows))'.dependencies]
+ureq = { version = "2", optional = true, default-features = false, features = ["tls"] }
+
+[target.'cfg(windows)'.dependencies]
+ureq = { version = "2", optional = true, default-features = false, features = ["native-tls"] }
+native-tls = { version = "0.2", optional = true }
+
 [target.'cfg(unix)'.dependencies]
 # INKEY$: the terminal read a key at a time (terminal.rs).
 libc = "0.2"
@@ -29,7 +39,7 @@ libc = "0.2"
 [features]
 default = ["database", "network", "gui", "datascience", "audio", "ffi"]
 database = ["dep:rapidr-db"]
-network = ["dep:ureq"]
+network = ["dep:ureq", "dep:native-tls"]
 # The desktop host: the UI kernel and its winit host
 # (docs/desktop-host-plan.md), reached through `src/ui`; the system
 # clipboard.

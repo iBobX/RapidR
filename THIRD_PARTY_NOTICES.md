@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**648 libraries** under 26 license expressions.
+**659 libraries** under 26 license expressions.
 
-## Apache-2.0 OR MIT (363)
+## Apache-2.0 OR MIT (371)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -67,6 +67,7 @@ which also carries their full license texts.
 | chrono-tz | 0.10.4 | <https://github.com/chronotope/chrono-tz> |
 | color | 0.3.3 | <https://github.com/linebender/color> |
 | concurrent-queue | 2.5.0 | <https://github.com/smol-rs/concurrent-queue> |
+| core-foundation | 0.10.1 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation | 0.9.4 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics | 0.23.2 | <https://github.com/servo/core-foundation-rs> |
@@ -115,8 +116,10 @@ which also carries their full license texts.
 | font-kit | 0.14.3 | <https://github.com/servo/font-kit> |
 | font-types | 0.12.6 | <https://github.com/googlefonts/fontations> |
 | fontique | 0.11.1 | <https://github.com/linebender/parley> |
+| foreign-types | 0.3.2 | <https://github.com/sfackler/foreign-types> |
 | foreign-types | 0.5.0 | <https://github.com/sfackler/foreign-types> |
 | foreign-types-macros | 0.2.3 | <https://github.com/sfackler/foreign-types> |
+| foreign-types-shared | 0.1.1 | <https://github.com/sfackler/foreign-types> |
 | foreign-types-shared | 0.3.1 | <https://github.com/sfackler/foreign-types> |
 | form_urlencoded | 1.2.2 | <https://github.com/servo/rust-url> |
 | futures | 0.3.32 | <https://github.com/rust-lang/futures-rs> |
@@ -188,6 +191,7 @@ which also carries their full license texts.
 | naga | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | naga-types | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | named_pipe | 0.4.1 | <https://github.com/blackbeam/named_pipe> |
+| native-tls | 0.2.18 | <https://github.com/rust-native-tls/rust-native-tls> |
 | ndarray | 0.16.1 | <https://github.com/rust-ndarray/ndarray> |
 | ndk | 0.8.0 | <https://github.com/rust-mobile/ndk> |
 | ndk | 0.9.0 | <https://github.com/rust-mobile/ndk> |
@@ -201,6 +205,8 @@ which also carries their full license texts.
 | num-integer | 0.1.46 | <https://github.com/rust-num/num-integer> |
 | num-traits | 0.2.19 | <https://github.com/rust-num/num-traits> |
 | once_cell | 1.21.4 | <https://github.com/matklad/once_cell> |
+| openssl-macros | 0.1.1 | <https://crates.io/crates/openssl-macros> |
+| openssl-probe | 0.2.1 | <https://github.com/rustls/openssl-probe> |
 | ordered-stream | 0.2.0 | <https://github.com/danieldg/ordered-stream> |
 | parking | 2.2.1 | <https://github.com/smol-rs/parking> |
 | parking_lot | 0.12.5 | <https://github.com/Amanieu/parking_lot> |
@@ -257,6 +263,8 @@ which also carries their full license texts.
 | rustversion | 1.0.22 | <https://github.com/dtolnay/rustversion> |
 | scoped-tls | 1.0.1 | <https://github.com/alexcrichton/scoped-tls> |
 | scopeguard | 1.2.0 | <https://github.com/bluss/scopeguard> |
+| security-framework | 3.7.0 | <https://github.com/kornelski/rust-security-framework> |
+| security-framework-sys | 2.17.0 | <https://github.com/kornelski/rust-security-framework> |
 | semver | 1.0.27 | <https://github.com/dtolnay/semver> |
 | serde | 1.0.228 | <https://github.com/serde-rs/serde> |
 | serde_core | 1.0.228 | <https://github.com/serde-rs/serde> |
@@ -380,7 +388,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (161)
+## MIT (163)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -451,6 +459,7 @@ which also carries their full license texts.
 | objc2-ui-kit | 0.2.2 | <https://github.com/madsmtm/objc2> |
 | objc2-uniform-type-identifiers | 0.2.2 | <https://github.com/madsmtm/objc2> |
 | objc2-user-notifications | 0.2.2 | <https://github.com/madsmtm/objc2> |
+| openssl-sys | 0.9.117 | <https://github.com/rust-openssl/rust-openssl> |
 | orbclient | 0.3.55 | <https://gitlab.redox-os.org/redox-os/orbclient> |
 | ordered-float | 5.5.0 | <https://github.com/reem/rust-ordered-float> |
 | pem | 4.0.0 | <https://github.com/jcreekmore/pem-rs.git> |
@@ -496,6 +505,7 @@ which also carries their full license texts.
 | rsqlite-vfs | 0.1.1 | <https://crates.io/crates/rsqlite-vfs> |
 | rusqlite | 0.40.2 | <https://github.com/rusqlite/rusqlite> |
 | saturating | 0.1.0 | <https://github.com/breeswish/saturating-rs> |
+| schannel | 0.1.29 | <https://github.com/steffengy/schannel-rs> |
 | sctk-adwaita | 0.10.1 | <https://github.com/PolyMeilex/sctk-adwaita> |
 | simd-adler32 | 0.3.9 | <https://github.com/mcountryman/simd-adler32> |
 | slab | 0.4.12 | <https://github.com/tokio-rs/slab> |
@@ -573,7 +583,7 @@ which also carries their full license texts.
 | zerovec | 0.11.5 | <https://github.com/unicode-org/icu4x> |
 | zerovec-derive | 0.11.2 | <https://github.com/unicode-org/icu4x> |
 
-## Apache-2.0 (18)
+## Apache-2.0 (19)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -588,6 +598,7 @@ which also carries their full license texts.
 | hound | 3.5.1 | <https://github.com/ruuda/hound> |
 | oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
 | oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
+| openssl | 0.10.81 | <https://github.com/rust-openssl/rust-openssl> |
 | owned_ttf_parser | 0.25.1 | <https://github.com/alexheretic/owned-ttf-parser> |
 | polars-arrow-format | 0.1.0 | <https://github.com/pola-rs/arrow-format> |
 | spirv | 0.4.0+sdk-1.4.341.0 | <https://github.com/gfx-rs/rspirv> |

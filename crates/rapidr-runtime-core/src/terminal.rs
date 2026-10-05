@@ -2,7 +2,8 @@
 //! waiting and without echo. On Unix the terminal leaves line mode at the
 //! first INKEY$ ([`read_keys`]), goes back to it for INPUT ([`line_mode`])
 //! and when the program ends; on Windows the C runtime's `_kbhit` /
-//! `_getch` read the console. Keys go to rapidr_value::console's queue.
+//! `_getch` read the console. From a pipe or a file, INPUT$ reads its bytes
+//! as they come. Keys go to rapidr_value::console's queue.
 
 #[cfg(unix)]
 mod imp {
@@ -115,8 +116,16 @@ mod imp {
         fn _getch() -> i32;
     }
 
+    /// Whether stdin is the console (not a pipe or a file).
+    fn console() -> bool {
+        std::io::IsTerminal::is_terminal(&std::io::stdin())
+    }
+
     pub fn read() -> Vec<String> {
         let mut keys = Vec::new();
+        if !console() {
+            return keys;
+        }
         // SAFETY: the C runtime's console functions.
         unsafe {
             while _kbhit() != 0 && keys.len() < 256 {
@@ -132,8 +141,19 @@ mod imp {
         keys
     }
 
-    /// Sleeps in `_getch` until a key is pressed.
+    /// Sleeps in `_getch` until a key is pressed. Not the console: one
+    /// byte read as it comes (a pipe, a file; false when it ends).
     pub fn wait() -> bool {
+        if !console() {
+            let mut b = [0u8; 1];
+            return match std::io::Read::read(&mut std::io::stdin().lock(), &mut b) {
+                Ok(1) => {
+                    rapidr_value::console::push_key(char::from(b[0]).to_string());
+                    true
+                }
+                _ => false,
+            };
+        }
         // SAFETY: the C runtime's console functions.
         let key = unsafe {
             let c = _getch();

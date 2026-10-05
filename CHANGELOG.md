@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- Windows: programs built with `rapidr build` are `.exe` files. An
+  interpreted build was written without the extension, and a native
+  build's copy next to the source was silently skipped.
+- Windows on ARM builds without clang: RHTTP's TLS is Windows' own
+  (SChannel, kept current by Windows Update); elsewhere it stays rustls.
+  `ring`, rustls' crypto, needs clang to build for Windows on ARM.
+- Windows: native builds work when RapidR lives under a Windows path (the
+  generated Cargo.toml's paths are escaped; `\U…` was read as an escape).
+- Windows: INPUT$ from a pipe or a file reads its characters instead of
+  waiting for the console's keys.
+- Wayland: a size the window system applies at once (the status bar's
+  size grip, a program setting Width / Height) is a resize the program
+  hears about (OnResize, Width / Height).
+
 ## [2.114.0] — 2026-10-04
 
 ### Changed

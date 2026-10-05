@@ -89,17 +89,19 @@ const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!
 const BUILD_ONLY = process.env.RAPIDR_BUILD_ONLY;
 const PREBUILT = process.env.RAPIDR_PREBUILT;
 // (`RAPIDR_KINDS=interp` or `native`: only that build kind)
+// (Windows: programs are .exe)
+const EXE = process.platform === "win32" ? ".exe" : "";
 const KINDS = [false, true].filter((i) => !process.env.RAPIDR_KINDS || process.env.RAPIDR_KINDS.includes(i ? "interp" : "native"));
 
 function build(name, interp) {
-  if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}`);
+  if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}${EXE}`);
   const out = join(WORK, `${name}-${interp ? "interp" : "native"}`);
   mkdirSync(out, { recursive: true });
   const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, ...(interp ? ["--interp"] : [])];
-  execFileSync(join(ROOT, "rapidr"), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
+  execFileSync(join(ROOT, `rapidr${EXE}`), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
   // Native builds also copy the executable next to the source; don't leave it there.
-  rmSync(join(ROOT, `tests/fixtures/${name}`), { force: true });
-  return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
+  rmSync(join(ROOT, `tests/fixtures/${name}${EXE}`), { force: true });
+  return interp ? join(out, `${name}${EXE}`) : join(CARGO_TARGET, "debug", `${name}${EXE}`);
 }
 
 // (`colorDialog` / `fontDialog`: what the colour / font dialogs answer in
@@ -133,7 +135,7 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     const bin = build(c.name, interp);
     if (BUILD_ONLY) {
       mkdirSync(BUILD_ONLY, { recursive: true });
-      copyFileSync(bin, join(BUILD_ONLY, `${c.name}-${interp ? "interp" : "native"}`));
+      copyFileSync(bin, join(BUILD_ONLY, `${c.name}-${interp ? "interp" : "native"}${EXE}`));
       continue;
     }
     if (PREBUILT && !existsSync(bin)) continue;

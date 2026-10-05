@@ -3178,10 +3178,17 @@ pub fn crate_name(stem: &str) -> String {
     }
 }
 
+/// `s` inside a TOML string's quotes (a Windows path's `\` would start an
+/// escape).
+fn toml_escape(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 /// Generate a Cargo.toml for the output project that depends on the runtime
 /// (its default features: the UI kernel's desktop host among them).
 pub fn generate_cargo_toml(project_name: &str, runtime_path: &str) -> String {
     let project_name = crate_name(project_name);
+    let runtime_path = toml_escape(runtime_path);
     format!(
         r#"[package]
 name = "{project_name}"
@@ -3207,6 +3214,7 @@ rapidr-runtime-core = {{ path = "{runtime_path}" }}
 /// Generate a Cargo.toml for a web (WASM) project.
 pub fn generate_cargo_toml_web(project_name: &str, runtime_web_path: &str) -> String {
     let project_name = crate_name(project_name);
+    let runtime_web_path = toml_escape(runtime_web_path);
     format!(
         r#"[package]
 name = "{project_name}"
@@ -3398,6 +3406,15 @@ fn collect_expr_refs(expr: &Expression, refs: &mut HashSet<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cargo_toml_takes_windows_paths() {
+        let toml = generate_cargo_toml("app", r"C:\Users\me\rapidr\crates/rapidr-runtime-core");
+        assert!(toml.contains(r#"path = "C:\\Users\\me\\rapidr\\crates/rapidr-runtime-core""#), "{toml}");
+        let web = generate_cargo_toml_web("app", r"C:\x\rapidr-runtime-web");
+        assert!(web.contains(r#"path = "C:\\x\\rapidr-runtime-web""#), "{web}");
+    }
+
     use rapidr_lexer::Lexer;
     use rapidr_parser::parse_tokens;
 
