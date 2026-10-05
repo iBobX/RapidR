@@ -90,8 +90,7 @@ fn lower(s: &str) -> String {
 
 /// The program's components as the kernel reads them (`rapidr_ui_kernel::
 /// Store` over the registry: `rp_comp_get`, `rp_comp_type`, the children by
-/// Parent in creation order), with the desktop `RtStore`'s rules
-/// (`rapidr_value::component_defaults::kernel_reads_unset`); a kernel-drawn
+/// Parent in creation order), as the desktop `RtStore`; a kernel-drawn
 /// dialog's parts from its own store. Reading never runs program code.
 pub struct WebStore;
 
@@ -108,11 +107,9 @@ impl Store for WebStore {
         if let Some(v) = dialog(id, |s| s.get(id, prop)) {
             return v;
         }
-        let v = rp_comp_get(id, prop);
-        if prop.eq_ignore_ascii_case("color") && rapidr_value::component_defaults::kernel_reads_unset(&rp_comp_type(id), prop, &v, || rp_comp_get(id, "__colorset").to_bool()) {
-            return Value::Null;
-        }
-        v
+        // (a Color the program never set reads Null: the kernel's default,
+        // as the desktop's RtStore)
+        rp_comp_get(id, prop)
     }
 
     fn type_of(&self, id: &str) -> String {

@@ -487,6 +487,45 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (a Color or a Parent changed: the canvases' backdrops follow)
+    let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
+    set_property(name, prop, val);
+    if backdrops {
+        refresh_canvas_backdrops();
+    }
+}
+
+/// What `name.Color` reads in a program: the Color the program set, else
+/// RapidQ's (rapidr_value::component_defaults::color_read — clBtnFace for a
+/// form or a panel, the parent's for a label / canvas / group box, clWindow
+/// for the rest), as RC.EXE reads them.
+pub fn program_color(name: &str) -> Value {
+    fn read(name: &str, depth: u32) -> Value {
+        let stored = rp_comp_get(name, "color");
+        rapidr_value::component_defaults::color_read(&rp_comp_type(name), &stored, || {
+            let parent = rp_comp_get(name, "parent").to_string_val();
+            (depth < 32 && !parent.is_empty() && !parent.eq_ignore_ascii_case(name)).then(|| read(&parent, depth + 1))
+        })
+        .unwrap_or(stored)
+    }
+    read(name, 0)
+}
+
+/// Every QCANVAS shows its parent's colour where nothing is drawn, as
+/// RapidQ's (a TPaintBox) does whatever its own Color: their models'
+/// backdrops made the parents' colours again.
+fn refresh_canvas_backdrops() {
+    let canvases: Vec<String> = COMPONENTS.with(|m| m.borrow().iter().filter(|(_, comp)| comp.type_name == "RCANVAS").map(|(n, _)| n.clone()).collect());
+    for c in canvases {
+        let parent = rp_comp_get(&c, "parent").to_string_val();
+        let color = if parent.is_empty() { Value::Null } else { program_color(&parent) };
+        if rapidr_value::objects::set_backdrop(&c, rapidr_value::objects::form_color(&color) as u32) {
+            gui_web::render_canvas(&c);
+        }
+    }
+}
+
+fn set_property(name: &str, prop: &str, val: Value) {
     // A QRECT's / QNOTIFYICONDATA's field: stored as RapidQ stores it
     // (rapidr_value::objects::record), nothing else.
     if rapidr_value::objects::is_record(name) {
@@ -713,9 +752,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
-            // (a Color the program chose, as the desktop records it: the
-            // kernel paints it, white included — component_defaults'
-            // `kernel_reads_unset`)
+            // (a Color the program chose, as the desktop records it)
             if lprop == "color" && kernel_hosts() {
                 comp.properties.insert("__colorset".into(), v_bool(true));
             }
@@ -1056,11 +1093,14 @@ pub fn rp_comp_value(name: &str, member: &str) -> Value {
     if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
         return rapidr_value::property_read(rp_comp_method(name, &lower, &[]));
     }
-    rapidr_value::property_read(rp_comp_get(name, member))
+    rp_comp_read(name, member)
 }
 
 /// `Obj.Sub.Prop` read by a program (codegen): as [`rp_comp_value`]'s.
 pub fn rp_comp_read(name: &str, prop: &str) -> Value {
+    if prop.eq_ignore_ascii_case("color") {
+        return program_color(name);
+    }
     rapidr_value::property_read(rp_comp_get(name, prop))
 }
 

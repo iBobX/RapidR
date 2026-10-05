@@ -335,8 +335,8 @@ impl ItemList {
     /// image: rapidr_value::objects).
     fn draw(&mut self, method: &str, args: &[Value]) -> bool {
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let c = |i: usize| n(i) as u32 & 0xFFFFFF;
-        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0).map(|v| v as u32 & 0xFFFFFF);
+        let c = |i: usize| crate::objects::color_bgr(n(i));
+        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
         match method {
             "line" => self.record(n(0), n(1), |l, t| CellDraw::Line(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
             "rectangle" => self.record(n(0), n(1), |l, t| CellDraw::Rect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),

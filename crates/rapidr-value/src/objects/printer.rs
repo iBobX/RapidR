@@ -156,8 +156,8 @@ impl Printer {
     /// Methods that need nothing but the printer. `None`: not one of them.
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let c = |i: usize| n(i) as u32 & 0xFFFFFF;
-        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0).map(|v| v as u32 & 0xFFFFFF);
+        let c = |i: usize| crate::objects::color_bgr(n(i));
+        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
         match method {
             "begindoc" => {
                 self.pages = vec![Vec::new()];
@@ -184,7 +184,7 @@ impl Printer {
             "textout" => {
                 let mut font = self.font.clone();
                 if args.len() > 3 {
-                    font.color = n(3) & 0xFFFFFF;
+                    font.color = crate::objects::color_bgr(n(3)) as i64;
                 }
                 let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
                 self.draw(PageOp::Text(n(0), n(1), text, font, optional(4)));

@@ -65,6 +65,8 @@ pub fn create_el(tag: &str) -> web_sys::HtmlElement {
 
 /// Convert a BASIC BGR color integer to a CSS hex string.
 fn bgr_to_css(bgr: i64) -> String {
+    // (a system colour, clBtnFace …: the theme's)
+    let bgr = rapidr_value::objects::color_bgr(bgr) as i64;
     let r = bgr & 0xFF;
     let g = (bgr >> 8) & 0xFF;
     let b = (bgr >> 16) & 0xFF;
@@ -84,6 +86,7 @@ fn value_to_css_color(val: &Value) -> String {
     {
         s
     } else {
+        // (a system colour, clBtnFace …: the theme's)
         bgr_to_css(val.to_i64())
     }
 }
@@ -2404,9 +2407,8 @@ pub fn render_glass(name: &str) {
             break;
         }
         let c = crate::object_web::rp_comp_get_stored(&at, "color");
-        let unset = rapidr_value::component_defaults::kernel_reads_unset(&crate::object_web::rp_comp_type(&at), "color", &c, || false);
-        if !unset && !matches!(c, Value::Null) && c.to_i64() >= 0 {
-            let b = c.to_i64() as u32;
+        if !matches!(c, Value::Null) {
+            let b = rapidr_value::objects::color_bgr(c.to_i64());
             under = ((b & 0xFF) << 16) | (b & 0xFF00) | ((b >> 16) & 0xFF);
             break;
         }

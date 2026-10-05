@@ -14,13 +14,6 @@ import * as k from "./web_kernel_page.mjs";
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
-// (a check waiting on a fix elsewhere: reported, not failed — it says so
-// once it passes, so the mark can go)
-const pending = (cond, msg, why) => console.log(cond ? `✓ ${msg} (passes now: drop its pending mark)` : `- ${msg} (pending: ${why})`);
-// (the RC.EXE ground-truth lane's question: what RapidQ reads for a form's
-// default Color and for Pixel where nothing is drawn — clBtnFace as shown,
-// or white as the shared models answer on the desktop and the web today)
-const FORM_COLOR = "QFORM's default Color / Pixel where nothing is drawn: the RC.EXE lane's fix";
 
 // (the colour drawn at (x, y) — CSS pixels inside the component — of what
 // k.pixels read, as RapidQ's &HBBGGRR number; the middle of the device
@@ -93,10 +86,12 @@ ok(place && Math.round(place.width) === 120 && Math.round(place.height) === 70 &
 let diff = 0, ink = 0;
 if (shown) for (let y = 0; y < rows.length; y++) for (let x = 0; x < 40; x++) {
   if (rows[y][x] !== bgr(shown, x * 3, y * 3)) diff++;
-  if (rows[y][x] !== 0x00FF00) ink++;
+  // (undrawn: the form's face shows — RapidQ's QCANVAS doesn't paint its
+  // own Color, RC.EXE: docs/rapidq-ground-truth.md)
+  if (rows[y][x] !== 0xF0F0F0) ink++;
 }
 ok(shown && diff === 0, `the window shows the model's pixels (${diff} of ${rows.length * 40} differ)`);
-ok(ink > 100, `something was drawn (${ink} pixels not the background)`);
+ok(ink > 100 && ink < rows.length * 40 - 100, `something was drawn (${ink} pixels not the background)`);
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 
 // OnPaint: fired when the form is built, and again by Repaint; what the
@@ -206,8 +201,8 @@ if (fshown) for (let y = 0; y < frows.length; y++) for (let x = 0; x < 20; x++) 
   if (m === 0xF0F0F0) clear++; else painted++;
   if (bgr(fshown, 10 + x * 5, 10 + y * 5) !== m) fdiff++;
 }
-pending(fshown && fdiff === 0, `the browser shows the model's pixels (${fdiff} differ; ${painted} drawn, ${clear} the form's color)`, FORM_COLOR);
-pending(fshown && painted > 20 && clear > 20, "drawn pixels show, and the form's color where nothing is drawn", FORM_COLOR);
+ok(fshown && fdiff === 0, `the browser shows the model's pixels (${fdiff} differ; ${painted} drawn, ${clear} the form's color)`);
+ok(fshown && painted > 20 && clear > 20, "drawn pixels show, and the form's color where nothing is drawn");
 // (the button is drawn over the yellow the form drew under it, and a real
 // click on it reaches its OnClick)
 const btn = await k.rect(frame3, "Btn"), win = await k.rect(frame3, "Win");

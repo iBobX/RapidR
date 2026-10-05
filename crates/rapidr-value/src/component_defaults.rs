@@ -12,9 +12,9 @@
 //! web's QCOOLBTN …) is step 2: each difference becomes a conformance case
 //! read on the three runtimes, RapidQ's value decided and moved here.
 //!
-//! Also here, for both kernel stores (runtime-core's `RtStore`, the web's
-//! `WebStore`): which stored values the UI kernel reads as unset
-//! ([`kernel_reads_unset`]).
+//! Also here: the Color a program reads from a component whose Color it
+//! never set ([`color_read`]) — RapidQ's system colours and ParentColor, as
+//! RC.EXE shows them (docs/rapidq-ground-truth.md).
 
 use crate::{v_bool, v_int, v_str, Value};
 
@@ -59,7 +59,6 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("left", v_int(0));
             put("top", v_int(0));
             put("visible", v_bool(true));
-            put("color", v_int(CREATION_COLOR));
             put("shape", v_int(0));
             put("style", v_int(0));
             put("bevelouter", v_int(0));
@@ -75,7 +74,7 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("transparency", v_int(crate::objects::glass::TRANSPARENCY));
             put("transparentcolor", v_int(0));
             put("moveable", v_int(1));
-            put("color", v_int(-2147483633));
+            put("color", v_int(CL_BTN_FACE));
             put("hint", v_str(""));
             put("showhint", v_bool(false));
             put("align", v_int(0));
@@ -197,7 +196,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
     let mut put = |k: &str, v: Value| p.push((k.to_string(), v));
     match type_name.to_ascii_uppercase().as_str() {
         "RFORM" => {
-            put("color", v_int(0xFFFFFF));
             put("borderstyle", v_int(2));
         }
         "RBUTTON" => {
@@ -207,7 +205,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
         "RLABEL" => {
             put("visible", v_bool(true));
             put("alignment", v_int(0));
-            put("color", v_int(0xFFFFFF));
             put("fontcolor", v_int(0));
             put("fontsize", v_int(12));
         }
@@ -220,7 +217,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
         "RPANEL" => {
             put("caption", v_str(""));
             put("visible", v_bool(true));
-            put("color", v_int(0xFFFFFF));
         }
         "RCHECKBOX" => {
             put("checked", v_int(0));
@@ -243,7 +239,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
             put("stretch", v_bool(false));
         }
         "RCANVAS" => {
-            put("color", v_int(0xFFFFFF));
             put("pencolor", v_int(0));
             put("penwidth", v_int(1));
             put("brushcolor", v_int(0xFFFFFF));
@@ -370,19 +365,41 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
     p
 }
 
-/// The Color the desktop's registry gives a new QLABEL, QFORM and QPANEL,
-/// which no host paints.
-pub const CREATION_COLOR: i64 = 0xFFFFFF;
+/// clBtnFace, Windows' system colour COLOR_BTNFACE as a Delphi TColor
+/// (`&H8000000F`): what a QFORM's and a QPANEL's Color reads until the
+/// program sets one (RC.EXE).
+pub const CL_BTN_FACE: i64 = -2147483633;
+/// clWindow (`&H80000005`): the Color of most other components until set,
+/// and of a QLABEL / QCANVAS / QGROUPBOX without a parent.
+pub const CL_WINDOW: i64 = -2147483643;
 
-/// Whether the UI kernel reads property `prop` of a `type_name` component,
-/// stored as `value`, as never set (it then uses RapidQ's default): a
-/// QLABEL's, QFORM's or QPANEL's creation-default white Color (a label has
-/// no background; a form and a panel are the button face) — unless the
-/// program set it (`program_set`: the registry's `__colorset`), white
-/// included. Both kernel stores ask this (runtime-core's `RtStore`, the
-/// web's `WebStore`).
-pub fn kernel_reads_unset(type_name: &str, prop: &str, value: &Value, program_set: impl FnOnce() -> bool) -> bool {
-    prop.eq_ignore_ascii_case("color") && matches!(value, Value::Integer(CREATION_COLOR)) && matches!(type_name, "RLABEL" | "RFORM" | "RPANEL" | "RBEVEL") && !program_set()
+/// What `component.Color` reads in a program, as RapidQ has it (RC.EXE on
+/// Windows 11, docs/rapidq-ground-truth.md): the Color the program set
+/// (`stored`, not Null: then None, the runtime's value stands); else for a
+/// QFORM, QPANEL (QBEVEL) clBtnFace; for a QLABEL, QCANVAS or QGROUPBOX its
+/// parent's Color, followed live (Delphi's ParentColor: `parent()` reads
+/// it, None without a parent) and clWindow without one; for the other
+/// components RC.EXE was asked about, clWindow. None too for a type
+/// without such a default. The kernel draws a never-set Color as before —
+/// the face for a form or panel, nothing for a label, the parent through a
+/// canvas — which is what these system colours are on screen
+/// (`crate::objects::form_color` turns a system colour into the theme's).
+pub fn color_read(type_name: &str, stored: &Value, parent: impl FnOnce() -> Option<Value>) -> Option<Value> {
+    if !matches!(stored, Value::Null) {
+        return None;
+    }
+    match type_name.to_ascii_uppercase().as_str() {
+        "RFORM" | "RPANEL" | "RBEVEL" => Some(v_int(CL_BTN_FACE)),
+        "RLABEL" | "RCANVAS" | "RGROUPBOX" => Some(parent().unwrap_or_else(|| v_int(CL_WINDOW))),
+        "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RSCROLLBOX" | "RTABCONTROL" => Some(v_int(CL_WINDOW)),
+        _ => None,
+    }
+}
+
+/// Whether a component of `type_name` takes its parent's Color while it
+/// has none of its own (Delphi's ParentColor, as RC.EXE shows it).
+pub fn parent_color(type_name: &str) -> bool {
+    matches!(type_name.to_ascii_uppercase().as_str(), "RLABEL" | "RCANVAS" | "RGROUPBOX")
 }
 
 #[cfg(test)]
@@ -407,11 +424,14 @@ mod tests {
     }
 
     #[test]
-    fn a_creation_white_reads_unset() {
-        let white = v_int(CREATION_COLOR);
-        assert!(kernel_reads_unset("RLABEL", "Color", &white, || false));
-        assert!(!kernel_reads_unset("RLABEL", "color", &white, || true));
-        assert!(!kernel_reads_unset("RBUTTON", "color", &white, || false));
-        assert!(!kernel_reads_unset("RLABEL", "color", &v_int(0xFF), || false));
+    fn colors_as_rapidq_reads_them() {
+        assert_eq!(color_read("RFORM", &Value::Null, || None), Some(v_int(CL_BTN_FACE)));
+        assert_eq!(color_read("rpanel", &Value::Null, || None), Some(v_int(CL_BTN_FACE)));
+        assert_eq!(color_read("RLABEL", &Value::Null, || None), Some(v_int(CL_WINDOW)));
+        assert_eq!(color_read("RLABEL", &Value::Null, || Some(v_int(0xFF))), Some(v_int(0xFF)));
+        assert_eq!(color_read("REDIT", &Value::Null, || Some(v_int(0xFF))), Some(v_int(CL_WINDOW)));
+        assert_eq!(color_read("RFORM", &v_int(0xFF), || None), None, "the program's");
+        assert_eq!(color_read("RTIMER", &Value::Null, || None), None);
+        assert!(get(&desktop("RFORM"), "color").is_none());
     }
 }

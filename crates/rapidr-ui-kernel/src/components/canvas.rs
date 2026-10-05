@@ -243,8 +243,10 @@ mod tests {
         assert_eq!((pic.width, pic.height), (100, 60));
         // (red where drawn, at device resolution; RGBA)
         assert_eq!(&pic.rgba[..4], &[0xFF, 0, 0, 0xFF]);
+        // (undrawn: the backdrop, the button face — a canvas's own Color
+        // isn't painted, as RapidQ's TPaintBox)
         let at = (25 * 100 + 50) * 4;
-        assert_eq!(&pic.rgba[at..at + 4], &[0, 0xFF, 0, 0xFF]);
+        assert_eq!(&pic.rgba[at..at + 4], &[0xF0, 0xF0, 0xF0, 0xFF]);
         // Nothing drawn: the same picture, the same revision.
         let b = f.paint(&s, &mut ts, 2.0);
         assert_eq!(images(&b)[0].1, rev);

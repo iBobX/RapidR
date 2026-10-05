@@ -101,7 +101,7 @@ export const cases = [
   { name: "coolbtn_group", events: "b.onclick,b.onclick,d.onclick,e.onclick,e.onclick,setter.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=B-1 B-1 D0 E-1 E0 setC |00-100"] },
   { name: "canvas_onpaint", events: "btn.onclick,big.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=paints3|form1|255|65280|220x80|36"] },
+    expect: ["lbl.caption=paints3|form1|255|15790320|220x80|36"] },
   { name: "form_draw", events: "big.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=paints2|255|14737632|36|"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
