@@ -10,9 +10,9 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**670 libraries** under 27 license expressions.
+**678 libraries** under 27 license expressions.
 
-## Apache-2.0 OR MIT (376)
+## Apache-2.0 OR MIT (379)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -166,9 +166,11 @@ which also carries their full license texts.
 | indexmap | 2.13.0 | <https://github.com/indexmap-rs/indexmap> |
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
+| java-locator | 0.1.9 | <https://github.com/astonbitecode/java-locator> |
 | jni | 0.21.1 | <https://github.com/jni-rs/jni-rs> |
 | jni | 0.22.4 | <https://github.com/jni-rs/jni-rs> |
 | jni-macros | 0.22.4 | <https://github.com/jni-rs/jni-rs> |
+| jni-min-helper | 0.3.4 | <https://github.com/wuwbobo2021/jni-min-helper> |
 | jni-sys | 0.3.1 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys-macros | 0.4.1 | <https://github.com/jni-rs/jni-sys> |
@@ -239,6 +241,7 @@ which also carries their full license texts.
 | prettyplease | 0.2.37 | <https://github.com/dtolnay/prettyplease> |
 | proc-macro-crate | 3.5.0 | <https://github.com/bkchr/proc-macro-crate> |
 | proc-macro2 | 1.0.106 | <https://github.com/dtolnay/proc-macro2> |
+| process_path | 0.1.4 | <https://github.com/wesleywiser/process_path> |
 | profiling | 1.0.18 | <https://github.com/aclysma/profiling> |
 | psm | 0.1.30 | <https://github.com/rust-lang/stacker/> |
 | quote | 1.0.45 | <https://github.com/dtolnay/quote> |
@@ -393,7 +396,7 @@ which also carries their full license texts.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (165)
+## MIT (169)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -414,9 +417,12 @@ which also carries their full license texts.
 | combine | 4.6.7 | <https://github.com/Marwes/combine> |
 | compact_str | 0.8.1 | <https://github.com/ParkMyCar/compact_str> |
 | coreaudio-sys | 0.2.17 | <https://github.com/RustAudio/coreaudio-sys.git> |
+| coremidi | 0.9.2 | <https://github.com/chris-zen/coremidi> |
+| coremidi-sys | 3.2.1 | <https://github.com/jonas-k/coremidi-sys> |
 | crunchy | 0.2.4 | <https://github.com/eira-fransham/crunchy> |
 | dispatch | 0.2.0 | <http://github.com/SSheldon/rust-dispatch> |
 | dlib | 0.5.3 | <https://github.com/elinorbgr/dlib> |
+| dlopen2 | 0.9.0 | <https://github.com/OpenByteDev/dlopen2> |
 | drm | 0.14.1 | <https://github.com/Smithay/drm-rs> |
 | drm-ffi | 0.9.1 | <https://github.com/Smithay/drm-rs> |
 | drm-fourcc | 2.2.0 | <https://github.com/danielzfranklin/drm-fourcc-rs> |
@@ -442,6 +448,7 @@ which also carries their full license texts.
 | lz4 | 1.28.1 | <https://github.com/10xGenomics/lz4-rs> |
 | lz4-sys | 1.11.1+lz4-1.10.0 | <https://github.com/10xGenomics/lz4-rs> |
 | memoffset | 0.9.1 | <https://github.com/Gilnaa/memoffset> |
+| midir | 0.11.0 | <https://github.com/Boddlnagg/midir> |
 | mime_guess | 2.0.5 | <https://github.com/abonander/mime_guess> |
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
@@ -683,6 +690,17 @@ which also carries their full license texts.
 | tiny-skia-path | 0.11.4 | <https://github.com/RazrFalcon/tiny-skia/tree/master/path> |
 | tiny-skia-path | 0.12.0 | <https://github.com/linebender/tiny-skia/tree/master/path> |
 
+## ISC (6)
+
+| Library | Version | Upstream |
+|---|---|---|
+| inotify | 0.11.5 | <https://github.com/hannobraun/inotify-rs> |
+| inotify-sys | 0.1.8 | <https://github.com/hannobraun/inotify-sys> |
+| libloading | 0.7.4 | <https://github.com/nagisa/rust_libloading/> |
+| libloading | 0.8.9 | <https://github.com/nagisa/rust_libloading/> |
+| rustls-webpki | 0.103.15 | <https://github.com/rustls/webpki> |
+| untrusted | 0.9.0 | <https://github.com/briansmith/untrusted> |
+
 ## MPL-2.0 (6)
 
 | Library | Version | Upstream |
@@ -693,16 +711,6 @@ which also carries their full license texts.
 | symphonia-bundle-mp3 | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-core | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 | symphonia-metadata | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
-
-## ISC (5)
-
-| Library | Version | Upstream |
-|---|---|---|
-| inotify | 0.11.5 | <https://github.com/hannobraun/inotify-rs> |
-| inotify-sys | 0.1.8 | <https://github.com/hannobraun/inotify-sys> |
-| libloading | 0.8.9 | <https://github.com/nagisa/rust_libloading/> |
-| rustls-webpki | 0.103.15 | <https://github.com/rustls/webpki> |
-| untrusted | 0.9.0 | <https://github.com/briansmith/untrusted> |
 
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 

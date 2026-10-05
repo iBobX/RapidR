@@ -27,6 +27,7 @@ fn time_now() -> String {
 pub fn created(name: &str, type_name: &str) {
     match type_name.to_ascii_uppercase().as_str() {
         "RCOMPORT" => install_ports(),
+        "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO" => crate::media_web::install(),
         "RDOWNLOAD" => {
             let gauge = format!("{name}.stategauge");
             rp_create_component(&gauge, "RPROGRESSBAR");
@@ -40,6 +41,10 @@ pub fn created(name: &str, type_name: &str) {
 
 /// The events object `name`'s model left, fired.
 pub fn fire_events(name: &str) {
+    // (a media object's Timer turned on or off by Play, Stop …)
+    if rqlib::take_timer_changed(name) {
+        crate::object_web::update_timer(name);
+    }
     for (event, args) in rqlib::take_events(name) {
         rp_fire_event_args(name, event, &args);
     }
@@ -294,6 +299,12 @@ async fn open_port(serial: &JsValue, port: &str, s: &Settings) -> Result<Box<dyn
 /// The page's look at `name` (a QCOMPORT whose OnRxChar the program
 /// handles): its events fired; never an OnTimer.
 pub fn look(name: &str) {
+    // (a media object's Timer: its tick — OnChange)
+    if rqlib::media_timer(name).is_some() {
+        rqlib::media_tick(name);
+        fire_events(name);
+        return;
+    }
     for (event, args) in rqlib::look(name) {
         rp_fire_event_args(name, event, &args);
     }

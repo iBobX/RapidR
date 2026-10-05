@@ -59,6 +59,9 @@ export async function runCase(page, c) {
   // (ENVIRON$'s test values: the page's RAPIDR_TEST_ENV — the tests' own
   // HTTP server, tests/http_test_server.mjs)
   if (process.env.RAPIDR_TEST_HTTP) await frame.evaluate((h) => { window.RAPIDR_TEST_ENV = { RAPIDR_TEST_HTTP: h }; }, process.env.RAPIDR_TEST_HTTP);
+  // (QMIDI: no MIDI output; QWAVE records a scripted tone, never the
+  // microphone)
+  await frame.evaluate(() => { window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440"; });
   // (how many of the case's dialog answers were given)
   let colorAnswers = 0, fontAnswers = 0;
   // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,

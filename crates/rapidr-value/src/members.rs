@@ -112,7 +112,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RSTRINGGRID" => &[GRID],
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
-        "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" => &[IO],
+        "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" => &[IO],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
         | "RWEBGEOLOCATION" | "RROUTER" => &[WEB],
         _ => &[],

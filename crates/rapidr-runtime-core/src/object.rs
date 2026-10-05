@@ -311,7 +311,7 @@ pub fn rp_mark_shutting_down() {
 /// A timer the runtime ticks (QTIMER, and the DirectX lane's QDXTIMER and
 /// QDXJOYSTICK — its events looked for at each tick).
 fn is_timer_type(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT")
+    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")
 }
 
 /// Disable all RTimer components and clear their indirect handlers so

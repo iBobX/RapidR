@@ -1,0 +1,17 @@
+midi 0 0 0 1000 0 0
+0 Cannot find the specified file.  Make sure the path and filename are correct. 0
+0 The specified file cannot be played on the specified MCI device.  The file may be corrupt, not in the correct format, or no file handler available for this format.
+50
+0
+0 0
+wave 3 1 8 11025 1 0
+11025
+44100 16 2
+1
+0 0 0
+1 0 16 44100 2
+0 The specified alias is already being used in this application.  Use a unique alias. 0
+video 0 Cannot find the specified file.  Make sure the path and filename are correct. 0 0
+cd 0 [] 0 0 0 0 []
+0 0 0
+0
