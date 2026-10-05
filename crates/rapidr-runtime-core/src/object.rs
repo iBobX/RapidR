@@ -544,6 +544,12 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // A QRECT's / QNOTIFYICONDATA's field: stored as RapidQ stores it
+    // (rapidr_value::objects::record), nothing else.
+    if rapidr_value::objects::is_record(name) {
+        rapidr_value::objects::set(name, prop, &val);
+        return;
+    }
     let val = rapidr_value::layout::property_value(prop, val);
     // QBUTTON Kind: its caption and ModalResult (rapidr_value::events).
     if prop.eq_ignore_ascii_case("kind") {

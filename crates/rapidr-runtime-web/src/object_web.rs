@@ -560,6 +560,12 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // A QRECT's / QNOTIFYICONDATA's field: stored as RapidQ stores it
+    // (rapidr_value::objects::record), nothing else.
+    if rapidr_value::objects::is_record(name) {
+        rapidr_value::objects::set(name, prop, &val);
+        return;
+    }
     // (a11y_web: the form's ARIA follows, once the program's code returns)
     crate::a11y_web::changed(name);
     let val = rapidr_value::layout::property_value(prop, val);

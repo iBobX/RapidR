@@ -8,6 +8,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **QRECT and QNOTIFYICONDATA as RapidQ's compiler has them** (checked
+  against RC.EXE): one shared record model on every runtime — fields are
+  32-bit integers cut toward zero (`3.7` → 3), a string stored into one is
+  0, out-of-range values -2147483648; QNOTIFYICONDATA's cbSize is 88 and
+  read-only, uID starts as the instance handle 4194304, szTip keeps 64
+  characters up to a CHR$(0); `SIZEOF` 16 and 24. RapidQ's errors: `Member
+  WIDTH not part of class R`, `Component assignment is not yet supported.`,
+  `Datatype QRECT not supported in STRUCT`, `N.CBSIZE is a read-only
+  value.` (QRECT's Left rounded before, and unknown members read empty).
 - **QDXJOYSTICK**, RapidQ's joystick object (missing from its manual; its
   compiler has it): Update, IsLeft / IsRight / IsUp / IsDown, Button(n) —
   plus RapidR's Index, Connected, Name, X / Y / Z / R / U / V (winmm's 0 …

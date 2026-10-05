@@ -697,6 +697,12 @@ pub fn dxtimer_fired(id: &str, now_ms: f64) {
     with(id, |o| if let Object::DxTimer(t) = o { t.tick(now_ms) });
 }
 
+/// Whether `id` is a QRECT or a QNOTIFYICONDATA: its fields are stored
+/// only here, as RapidQ stores them (no geometry rounding, no layout).
+pub fn is_record(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Record(_))) == Some(true)
+}
+
 /// Reads a QRECT or a QNOTIFYICONDATA (record.rs).
 pub fn with_record<R>(id: &str, f: impl FnOnce(&record::Record) -> R) -> Option<R> {
     with(id, |o| match o {
