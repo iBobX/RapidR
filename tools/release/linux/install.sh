@@ -26,7 +26,7 @@ cp -R "$HERE/share/doc/rapidr" "$PREFIX/share/doc/rapidr"
 cp "$HERE/uninstall.sh" "$PREFIX/lib/rapidr/uninstall.sh"
 
 cp "$HERE/share/mime/packages/rapidr.xml" "$DATA/mime/packages/rapidr.xml"
-ICONS="$(cd "$HERE/share/icons" && find hicolor -name '*.png')"
+ICONS="$(cd "$HERE/share/icons" && find hicolor -type f)"
 for i in $ICONS; do mkdir -p "$DATA/icons/$(dirname "$i")"; cp "$HERE/share/icons/$i" "$DATA/icons/$i"; done
 DESKTOP="rapidr-runtime.desktop"
 [ "$KIND" = sdk ] && DESKTOP="$DESKTOP rapidr-ide.desktop"

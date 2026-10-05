@@ -14,7 +14,7 @@ finds its home from the executable by it):
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
     lib/rapidr/toolchain/               LLVM-MinGW, trimmed (Windows)   sdk
     lib/rapidr/web/fonts/               the web's Noto fallback fonts   sdk (index.json, *.otf, OFL.txt)
-    share/icons/                        rapidr.ico, rapidr-doc.ico      Windows
+    share/icons/                        the apps' and file types' .ico  Windows (design/brand/icons)
     share/doc/rapidr/                   LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         THIRD-PARTY-NOTICES.txt (rapidr's own), the fonts' OFL, README.md
 
@@ -110,8 +110,8 @@ def main():
         # (the file types', the Start menu's and the uninstaller's icons)
         icons = os.path.join(out, "share", "icons")
         os.makedirs(icons)
-        for f in ["rapidr.ico", "rapidr-doc.ico"]:
-            shutil.copy2(os.path.join(ROOT, "tools", "release", "icons", f), os.path.join(icons, f))
+        for f in ["rapidr-ide.ico", "rapidr-runtime.ico", "rapidr-source.ico", "basic-source.ico", "rapidr-program.ico"]:
+            shutil.copy2(os.path.join(ROOT, "design", "brand", "icons", "windows", f), os.path.join(icons, f))
     doc = os.path.join(out, "share", "doc", "rapidr")
     os.makedirs(doc)
     for f in DOCS:

@@ -15,7 +15,7 @@
 	<key>CFBundleExecutable</key>
 	<string>rapidrw</string>
 	<key>CFBundleIconFile</key>
-	<string>rapidr</string>
+	<string>RapidR</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleVersion</key>
@@ -38,7 +38,7 @@
 			<key>CFBundleTypeName</key>
 			<string>RapidR source</string>
 			<key>CFBundleTypeIconFile</key>
-			<string>rapidr-doc</string>
+			<string>RapidR-Source</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -46,6 +46,19 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>io.github.ibobx.rapidr.source</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>RapidQ BASIC source</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>BASIC-Source</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
 				<string>io.github.ibobx.rapidr.rapidq-source</string>
 			</array>
 		</dict>
@@ -55,6 +68,8 @@
 		<dict>
 			<key>UTTypeIdentifier</key>
 			<string>io.github.ibobx.rapidr.source</string>
+			<key>UTTypeIconFile</key>
+			<string>RapidR-Source</string>
 			<key>UTTypeDescription</key>
 			<string>RapidR source</string>
 			<key>UTTypeConformsTo</key>
@@ -73,6 +88,8 @@
 		<dict>
 			<key>UTTypeIdentifier</key>
 			<string>io.github.ibobx.rapidr.rapidq-source</string>
+			<key>UTTypeIconFile</key>
+			<string>BASIC-Source</string>
 			<key>UTTypeDescription</key>
 			<string>RapidQ BASIC source</string>
 			<key>UTTypeConformsTo</key>

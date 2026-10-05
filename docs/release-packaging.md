@@ -40,7 +40,7 @@ lib/rapidr/                      RapidR's home
                                  THIRD-PARTY-NOTICES.txt every build writes
 share/doc/rapidr/                LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                  THIRD-PARTY-NOTICES.txt (rapidr's own), OFL-1.1.txt, README.md
-share/icons/                     rapidr.ico, rapidr-doc.ico (Windows; Linux: hicolor PNGs)
+share/icons/                     the apps' and file types' icons (Windows: .ico; Linux: hicolor 16–512 + scalable)
 ```
 
 On macOS `bin/` is `RapidR.app/Contents/MacOS/` and `lib/` is
@@ -247,8 +247,9 @@ authors', to ship as they like.
   and Microsoft's signtool and MSVC (if chosen) are the platforms' own,
   proprietary, and add nothing to the packages' licences (MSVC's statically
   linked runtime is Microsoft's redistributable code — another reason for
-  gnullvm). Icons: RapidR's own original artwork (`tools/release/icons/*.svg`,
-  rendered to .icns / .ico / PNG by `make_icons.mjs`), MIT like RapidR.
+  gnullvm). Icons: RapidR's own original artwork (`design/brand/icons`: the IDE,
+  the Runtime, .rr, .bas and .rrbc as .icns / .ico / hicolor PNG and SVG),
+  MIT like RapidR — design/brand/README.md.
 
 ## Signing and notarization — the user's decision
 

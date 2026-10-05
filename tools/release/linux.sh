@@ -61,13 +61,9 @@ desktop_files() {
     cp tools/release/linux/rapidr.xml "$stage/share/mime/packages/"
     cp tools/release/linux/rapidr-runtime.desktop "$stage/share/applications/"
     [ "$kind" = sdk ] && cp tools/release/linux/rapidr-ide.desktop "$stage/share/applications/"
-    for size in 48 128 256; do
-        mkdir -p "$stage/share/icons/hicolor/${size}x${size}/apps" "$stage/share/icons/hicolor/${size}x${size}/mimetypes"
-        cp "tools/release/icons/rapidr-$size.png" "$stage/share/icons/hicolor/${size}x${size}/apps/rapidr.png"
-        cp "tools/release/icons/rapidr-doc-$size.png" "$stage/share/icons/hicolor/${size}x${size}/mimetypes/application-x-rapidr-bytecode.png"
-        cp "tools/release/icons/rapidr-doc-$size.png" "$stage/share/icons/hicolor/${size}x${size}/mimetypes/text-x-rapidr.png"
-        cp "tools/release/icons/rapidr-doc-$size.png" "$stage/share/icons/hicolor/${size}x${size}/mimetypes/text-x-rapidq-basic.png"
-    done
+    # (design/brand/icons: the apps' and the file types', 16–512 and scalable)
+    mkdir -p "$stage/share/icons"
+    cp -R design/brand/icons/linux/hicolor "$stage/share/icons/"
     return 0
 }
 
