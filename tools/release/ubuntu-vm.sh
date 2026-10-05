@@ -18,12 +18,25 @@ PIECE=400000
 # every call is retried, and what it prints is taken from the one that worked)
 USER_OPT=(--current-user)
 x() { xin /dev/null "$@"; }
-# (the same, its stdin read from a file — each try from the start)
+# (the same, its stdin read from a file — each try from the start; a call that
+# hangs is ended after RAPIDR_VM_CALL_TIMEOUT seconds, default 300, and tried again)
+TIMEOUT="${RAPIDR_VM_CALL_TIMEOUT:-300}"
+call() {
+    # (`<&0`: a background command would read /dev/null; the watcher's output goes
+    # nowhere, so `$(…)` doesn't wait for it)
+    "$@" <&0 &
+    local pid=$! rc=0
+    ( sleep "$TIMEOUT"; kill "$pid" 2>/dev/null ) > /dev/null 2>&1 &
+    local watch=$!
+    wait "$pid" || rc=$?
+    kill "$watch" 2>/dev/null || true
+    return $rc
+}
 xin() {
     local in="$1" try out
     shift
     for try in 1 2 3 4 5 6; do
-        if out="$(prlctl exec "$VM" ${USER_OPT[@]+"${USER_OPT[@]}"} "$@" < "$in")"; then
+        if out="$(call prlctl exec "$VM" ${USER_OPT[@]+"${USER_OPT[@]}"} "$@" < "$in")"; then
             [ -n "$out" ] && printf '%s\n' "$out"
             return 0
         fi

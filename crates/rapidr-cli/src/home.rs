@@ -14,7 +14,8 @@
 //! (`Cargo.toml`, `Cargo.lock`, `crates/`, `.cargo/config.toml`,
 //! `tools/wasm-ar.sh`) and has what a checkout builds itself instead:
 //! `runners/<os>-<arch>/rapidrintr-runner`, `web/rapidrintr*` and `vendor/`
-//! (the crates.io sources: native builds work offline), and on Windows
+//! (the crates.io sources: native builds work offline), `fonts/` (the web's
+//! fallback-font chunks, which web builds copy: never downloaded), and on Windows
 //! `toolchain/` (LLVM-MinGW: native builds link with it, no Visual Studio).
 //! A runtime-only install has only `release.toml`.
 

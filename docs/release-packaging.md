@@ -33,6 +33,9 @@ lib/rapidr/                      RapidR's home
   Cargo.toml, Cargo.lock,        the runtime crates' sources and their crates.io   SDK
   crates/, vendor/, .cargo/      dependencies, vendored: native builds offline
   toolchain/                     LLVM-MinGW, trimmed (Windows): the linker         SDK
+  fonts/                         the web's fallback-font chunks (OFL), copied by   SDK
+                                 web builds (stage.py --fonts; when the web lane's
+                                 build makes them)
 share/doc/rapidr/                LICENSE, LICENSES.md, THIRD_PARTY_NOTICES.md, OFL-1.1.txt, README.md
 share/icons/                     rapidr.ico, rapidr-doc.ico (Windows; Linux: hicolor PNGs)
 ```
@@ -252,7 +255,14 @@ vendored source trees. `dist/` and `target/` may be links to a build volume
   and security.ubuntu.com for amd64). The `.deb`s' Depends name packages every
   Debian / Ubuntu since 2020 has (`libasound2t64 | libasound2`, …). The other
   architecture's packages are smoke-tested in the same VM under qemu-user
-  (binfmt): everything but a native build. Once per VM:
+  (binfmt): everything but a native build. Ubuntu 24.04's qemu-user (8.2)
+  crashes on every Rust program of the other architecture ("QEMU internal
+  SIGSEGV" reading /proc/self/maps), so `setup-tools.sh qemu` (as root) takes
+  qemu-user 10.1 from Ubuntu 25.10's archive — InRelease checked against
+  Ubuntu's archive key, Packages.xz and the .deb against their SHA-256s —
+  unpacks it into /usr/local/lib/rapidr-qemu (not installed) and points the
+  other architecture's binfmt entry at it until the next reboot
+  (`qemu-undo` puts the system's back). Once per VM:
   `tools/release/ubuntu-vm.sh root tools/release/linux/setup-tools.sh system`
   (as root: apt), then `… run tools/release/linux/setup-tools.sh user` (Zig
   from ziglang.org, SHA-256 checked against its download index;

@@ -66,7 +66,9 @@ if ($Toolchain -eq "gnullvm") {
     $llvm = Get-ChildItem $Tools -Directory | Where-Object Name -like "llvm-mingw-*-ucrt-$hostArch" | Select-Object -Last 1
     if (-not $llvm) { throw "no LLVM-MinGW in $Tools (setup-tools.ps1)" }
     $env:PATH = "$($llvm.FullName)\bin;$env:PATH"
-    $rustTc = (rustup toolchain list) | ForEach-Object { ($_ -split " ")[0] } | Where-Object { $_ -like "*-$hostArch-pc-windows-gnullvm" } | Select-Object -First 1
+    # (the pinned one setup-tools.ps1 installs — the Rust the release is tested with — over `stable`)
+    $gnullvm = (rustup toolchain list) | ForEach-Object { ($_ -split " ")[0] } | Where-Object { $_ -like "*-$hostArch-pc-windows-gnullvm" }
+    $rustTc = @($gnullvm | Where-Object { $_ -match "^\d" }) + @($gnullvm) | Select-Object -First 1
     if (-not $rustTc) { throw "no gnullvm Rust toolchain (setup-tools.ps1)" }
     $env:RUSTUP_TOOLCHAIN = $rustTc
     foreach ($a in "x86_64", "aarch64") {
