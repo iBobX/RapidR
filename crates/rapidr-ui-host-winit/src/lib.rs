@@ -103,11 +103,15 @@ impl RendererKind {
 /// The host for this process: headless, or winit windows (`scale`: a
 /// forced scale, `RAPIDR_SCALE`).
 pub fn new_host(headless: bool, scale: Option<f64>) -> Box<dyn Host> {
-    if headless {
-        Box::new(headless::HeadlessHost::new(scale.unwrap_or(1.0)))
-    } else {
-        Box::new(winit_host::WinitHost::new(RendererKind::from_env(), scale))
+    if !headless {
+        match winit_host::WinitHost::new(RendererKind::from_env(), scale) {
+            Ok(host) => return Box::new(host),
+            // (no display: a Linux server, SSH, a CI machine — the program
+            // runs on, its windows unseen, as the headless host keeps them)
+            Err(e) => eprintln!("[rapidr] no windows can be shown ({e}); the program runs without them"),
+        }
     }
+    Box::new(headless::HeadlessHost::new(scale.unwrap_or(1.0)))
 }
 
 /// Form `id` drawn by the CPU renderer at its scale (what `RAPIDR_CAPTURE`

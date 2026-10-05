@@ -1120,9 +1120,10 @@ pub fn gui_take_wait_started() -> bool {
     st(|s| std::mem::replace(&mut s.wait_started, false))
 }
 
-/// Starts waiting for the program's windows (after the main program).
+/// Starts waiting for the program's windows (after the main program). The
+/// host starts with the first window: a console program never opens the
+/// system's windowing (no display needed, no Dock icon).
 pub fn gui_begin_app_wait() {
-    ensure_host();
     st(|s| s.waits.push(Wait::App));
 }
 
@@ -1149,7 +1150,7 @@ pub fn gui_pump_wait() -> Option<Value> {
 
 /// The program's windows until none is left.
 pub fn run_gui_event_loop() {
-    ensure_host();
+    // (the host starts with the first window: see gui_begin_app_wait)
     show_pending();
     while any_shown() {
         step(None);

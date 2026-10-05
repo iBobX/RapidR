@@ -101,13 +101,14 @@ pub struct WinitHost {
 }
 
 impl WinitHost {
-    /// The process's event loop (made once, on the main thread).
-    pub fn new(kind: RendererKind, forced: Option<f64>) -> Self {
-        let event_loop = EventLoop::<UserEvent>::with_user_event().build().expect("winit event loop (on the main thread)");
+    /// The process's event loop (made once, on the main thread); an error
+    /// when the system has no display to give it.
+    pub fn new(kind: RendererKind, forced: Option<f64>) -> Result<Self, winit::error::EventLoopError> {
+        let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
         let proxy = event_loop.create_proxy();
         let menus = NativeMenus::new(proxy.clone());
         let waker = Waker::from(Arc::new(ProxyWaker(Mutex::new(proxy.clone()))));
-        WinitHost {
+        Ok(WinitHost {
             event_loop,
             state: State {
                 proxy,
@@ -125,7 +126,7 @@ impl WinitHost {
                 dialogs: crate::dialogs::Dialogs::default(),
                 waker,
             },
-        }
+        })
     }
 
     fn monitor(&self) -> ((i64, i64), f64, i64) {
