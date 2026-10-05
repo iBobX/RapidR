@@ -377,7 +377,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
     - [x] The default for the IDE preview, `bundle-bc` and `rapidr build --web` (`?host=dom` until deletion).
     - [x] Every web suite on it (31 web_* suites, parity, a11y, conformance).
     - [x] Web-only components as overlays, with the popup layer above them (W6).
-    - [ ] The fallback fonts (W7).
+    - [x] The fallback fonts (W7): Noto symbols and CJK on demand beside the web runtime, shipped in bundles and installs (emoji next).
     - [ ] Then the DOM host and the `RAPIDR_WEB_HOST` switches deleted.
   - [x] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
 

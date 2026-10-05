@@ -276,6 +276,8 @@ const ALLOWED: &[(&str, &str)] = &[
 
 const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
 const OFL: &str = include_str!("../../rapidr-value/fonts/OFL-1.1.txt");
+/// The Noto fallback fonts' licence (their copyright lines first).
+const NOTO_OFL: &str = include_str!("../../../fonts/fallback/OFL.txt");
 
 fn rank(id: &str) -> Option<usize> {
     ALLOWED.iter().position(|(a, _)| *a == id)
@@ -697,6 +699,18 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             url: "https://github.com/liberationfonts/liberation-fonts".into(),
             note: "Built into the program unmodified. Reserved Font Names: Liberation (and Arimo, Tinos, Cousine). The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
             blocks: vec![Block { title: "Liberation fonts — OFL-1.1".into(), text: OFL.into() }],
+        });
+    }
+    // (the web runtime's fallback fonts: shipped beside it, fonts/)
+    if matches!(kind, Kind::Web) {
+        out.push(Component {
+            name: "Noto fallback fonts (Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2, Noto Sans SC, Noto Sans KR)".into(),
+            version: "2.015 / 2.003 / 2.008 / CJK Sans 2.004".into(),
+            declared: "OFL-1.1".into(),
+            used: "OFL-1.1".into(),
+            url: "https://github.com/notofonts".into(),
+            note: "Shipped beside the web runtime (fonts/) as subsets split by Unicode range, loaded as the page's text needs them; each CJK chunk is renamed \"<family> NNN\". None of these fonts declares a Reserved Font Name. The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
+            blocks: vec![Block { title: "Noto fonts — OFL-1.1".into(), text: NOTO_OFL.into() }],
         });
     }
     for (krate, header) in [("libsqlite3-sys", "sqlite3/sqlite3.h"), ("sqlite-wasm-rs", "sqlite3/sqlite3.h")] {

@@ -46,6 +46,9 @@ pub struct TextSystem {
     pub generation: u64,
 }
 
+/// What hears of a character no loaded font has.
+pub type MissingHook = Rc<dyn Fn(char)>;
+
 thread_local! {
     /// The families a character is looked for in after a QFONT's own face
     /// and before the system's: the fallback fonts a host loads (the web's
@@ -53,7 +56,7 @@ thread_local! {
     static FALLBACKS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
     /// Told each character no loaded font has (the web host then fetches
     /// the fallback font that has it); none on the desktop.
-    static MISSING: RefCell<Option<Rc<dyn Fn(char)>>> = const { RefCell::new(None) };
+    static MISSING: RefCell<Option<MissingHook>> = const { RefCell::new(None) };
 }
 
 /// The fallback families, in the order they're tried.
@@ -62,7 +65,7 @@ pub fn set_fallback_families(names: Vec<String>) {
 }
 
 /// What hears of characters no loaded font has (`None`: nothing).
-pub fn set_missing_glyph_hook(hook: Option<Rc<dyn Fn(char)>>) {
+pub fn set_missing_glyph_hook(hook: Option<MissingHook>) {
     MISSING.with(|m| *m.borrow_mut() = hook);
 }
 

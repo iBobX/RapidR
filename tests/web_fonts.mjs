@@ -66,6 +66,7 @@ Form.ShowModal
 const browser = await chromium.launch();
 /// The checks on a page `open` runs the program in (`kind`: which).
 async function check(kind, open) {
+  const say = (cond, msg) => ok(cond, `${kind}: ${msg}`);
   const page = await browser.newPage({ deviceScaleFactor: Number(process.env.RAPIDR_DPR || 1) });
   const errors = [];
   const fetched = [];
@@ -81,13 +82,13 @@ async function check(kind, open) {
   await page.waitForTimeout(300);
 
   const files = fetched.map((f) => f.split(" ")[1]);
-  ok(`${kind}: ` + fetched.every((f) => f.startsWith("200 ")), `every font file came (${fetched.join(", ")})`);
-  ok(`${kind}: ` + files.includes("index.json"), "the index was read");
-  ok(`${kind}: ` + files.some((f) => f.startsWith("NotoSansSC-Regular.")), "Chinese: a Noto Sans SC chunk was fetched");
-  ok(`${kind}: ` + files.some((f) => f.startsWith("NotoSansKR-Regular.")), "Korean: a Noto Sans KR chunk was fetched");
-  ok(`${kind}: ` + files.includes("NotoSansSymbols2-Regular.otf"), "✓: Noto Sans Symbols 2 was fetched");
-  ok(`${kind}: ` + !files.includes("NotoSans-Regular.otf"), "nothing for what Liberation has (abc)");
-  ok(`${kind}: ` + new Set(files).size === files.length, "each file once");
+  say(fetched.every((f) => f.startsWith("200 ")), `every font file came (${fetched.join(", ")})`);
+  say(files.includes("index.json"), "the index was read");
+  say(files.some((f) => f.startsWith("NotoSansSC-Regular.")), "Chinese: a Noto Sans SC chunk was fetched");
+  say(files.some((f) => f.startsWith("NotoSansKR-Regular.")), "Korean: a Noto Sans KR chunk was fetched");
+  say(files.includes("NotoSansSymbols2-Regular.otf"), "✓: Noto Sans Symbols 2 was fetched");
+  say(!files.includes("NotoSans-Regular.otf"), "nothing for what Liberation has (abc)");
+  say(new Set(files).size === files.length, "each file once");
 
   /// The ink (non-background pixels) of a label: a glyph's strokes.
   const ink = async (name) => {
@@ -106,16 +107,16 @@ async function check(kind, open) {
   };
   const han = await ink("Han"), none = await ink("NoFont");
   const count = (a) => a?.reduce((s, v) => s + v, 0) ?? 0;
-  ok(`${kind}: ` + han && none && han.join("") !== none.join(""), `中 is drawn as a glyph, not as the missing glyph's box (${count(han)} / ${count(none)} ink pixels)`);
-  ok(`${kind}: ` + count(han) > 30, `中 has its strokes (${count(han)} ink pixels)`);
-  ok(`${kind}: ` + count(await ink("Mixed")) > 100, "the Korean, the check mark and the Latin are drawn");
+  say(han && none && han.join("") !== none.join(""), `中 is drawn as a glyph, not as the missing glyph's box (${count(han)} / ${count(none)} ink pixels)`);
+  say(count(han) > 30, `中 has its strokes (${count(han)} ink pixels)`);
+  say(count(await ink("Mixed")) > 100, "the Korean, the check mark and the Latin are drawn");
   const kor = await ink("Kor"), none2 = await ink("NoFont2");
-  ok(`${kind}: ` + kor && none2 && kor.join("") !== none2.join(""), `국어 (two chunks of Noto Sans KR) is drawn, not boxes (${count(kor)} / ${count(none2)} ink pixels)`);
+  say(kor && none2 && kor.join("") !== none2.join(""), `국어 (two chunks of Noto Sans KR) is drawn, not boxes (${count(kor)} / ${count(none2)} ink pixels)`);
   const ed = await ink("Ed"), ed2 = await ink("Ed2");
-  ok(`${kind}: ` + ed && ed2 && ed.join("") !== ed2.join(""), `an edit's Chinese text is drawn, not boxes (${count(ed)} / ${count(ed2)} ink pixels)`);
-  ok(`${kind}: ` + await k.text(page, "Ed") === "汉字", "the edit holds its text");
+  say(ed && ed2 && ed.join("") !== ed2.join(""), `an edit's Chinese text is drawn, not boxes (${count(ed)} / ${count(ed2)} ink pixels)`);
+  say(await k.text(page, "Ed") === "汉字", "the edit holds its text");
 
-  ok(`${kind}: ` + errors.length === 0, `no page errors (${errors.join(" / ")})`);
+  say(errors.length === 0, `no page errors (${errors.join(" / ")})`);
   await page.close();
 }
 

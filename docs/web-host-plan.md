@@ -581,3 +581,56 @@ Results: kernel GUI parity has 75 of 75 cases with every expected line; windows 
 
 - W7: the fallback fonts (CJK, symbols; then emoji).
 - A web IDE question: the preview shows every form at (100, 100) in a 480 × 320 frame (the kernel's default place), so bigger forms are cut off. That's a layout matter for the IDE's preview, not the host.
+
+---
+
+## W7: the fallback fonts on the web (2026-10-05)
+
+A browser has no system fonts the wasm can draw with. So what the Liberation fonts lack — ✓ and other symbols, Chinese, Japanese, Korean — comes from Noto fonts (SIL OFL 1.1) shipped beside the runtime and loaded as text needs them. The desktop keeps the system's fonts for now; loading the same set from an install's resources is the next step there.
+
+**The set.** It's listed in `fonts/fallback/fonts.toml`:
+- Noto Sans, Noto Sans Symbols and Noto Sans Symbols 2: in the repository (`fonts/fallback/`, unhinted OTF, 0.8 MB), so an offline source build still covers symbols;
+- Noto Sans SC (Han, kana) and Noto Sans KR (Hangul), from Noto CJK Sans 2.004: fetched by `python3 tools/fonts.py fetch` from the official release assets, pinned by SHA-256 and cached in `target/fonts-src`. Offline without a cache, the build leaves them out and names that command.
+
+None of these fonts declares a Reserved Font Name (LICENSES.md §4, docs/licensing.md §3.1).
+
+**The chunks.** `python3 tools/fonts.py build target/web/fonts` (run by `tools/build_web_artifacts.sh`, fontTools, MIT) writes:
+- the three small fonts whole;
+- the CJK fonts split by codepoint into chunks of 900 characters (about 200–300 KB each), each renamed `<family> NNN` so it loads as a family of its own (fonts of one family name would be one family to fontique, which draws from the first);
+- `index.json`, saying which file has which characters, and the first font in the list keeps a character;
+- `OFL.txt`.
+
+Altogether that's 51 files, 10.1 MB.
+
+**The runtime.**
+- `rapidr_ui_kernel::text` has:
+  - a fallback family list, tried after a QFONT's face and before the system's;
+  - a missing-glyph hook: `note_missing` reports a layout's glyph-0 characters, from labels' layouts and editors' alike;
+  - `TextSystem::add_font`, whose `generation` makes editors lay out again.
+
+  On the desktop, neither the list nor the hook is set, so its drawing is unchanged.
+- The web runtime's `fonts_web.rs` handles a missing character:
+  - it reads the index on the first one;
+  - it fetches the chunk with that character, once (`RAPIDR_FONTS` names the folder, else `fonts/` beside the page);
+  - at the next frame it adds the chunk and draws every window again, frames included (`WebHost::fonts_changed`).
+- **The IDE's preview** has an opaque origin, so it can't fetch: it asks the IDE for each file (`RAPIDR_FONT_FETCH`), and the IDE reads `runtime/fonts/`.
+
+**Shipping.**
+- `bundle-bc` puts `fonts/` (beside its `--wasm`) into the zip; the IDE's Build does the same from `runtime/fonts/`.
+- `rapidr build --web` copies them next to its page, from an install's `lib/rapidr/web/fonts` or a checkout's `target/web/fonts`.
+- An installed RapidR never downloads. The release scripts copy `target/web/fonts/` with the runtime (the packaging lane).
+- The web notices (`rapidr notices web`) carry the Noto fonts' OFL.
+
+**Test.** `tests/web_fonts.mjs` checks, on the test page and in a `bundle-bc` bundle:
+- 中, 국어 (two KR chunks), ✓ and an edit's 汉字 are drawn as glyphs, not the missing glyph's box (pixels against a private-use character's box);
+- each file comes once;
+- text Liberation has fetches nothing.
+
+It passes at 1× and 2×.
+
+**Privacy.** The web IDE no longer loads Google Fonts: its interface uses the system's fonts, and the font picker's names (Inter, Roboto …) resolve through the fallback like any unknown family. Neither the IDE, the runtime nor a bundle makes a third-party request a program doesn't make itself.
+
+**Open.**
+- Emoji: Noto Color Emoji is CBDT bitmaps or COLRv1, and whether vello_cpu draws COLR is not checked yet.
+- Chunks by frequency rather than by codepoint, so a sentence needs fewer files.
+- The desktop on the same set from the install's resources.
