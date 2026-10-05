@@ -267,6 +267,8 @@ This is low risk. The pin exists only to match the installed CLI, and generated 
 - **CPU fallback.** The host defines `trait Renderer { fn render(&mut self, list, size, scale) }` with `VelloGpu` and `VelloCpu` implementations, presenting CPU frames through `softbuffer`.
   - It falls back automatically when wgpu finds no adapter or vello's compute pipelines fail (VMs, GL-only, RDP), and when every adapter is software (`DeviceType::Cpu`: Windows' WARP, Mesa's llvmpipe / lavapipe, SwiftShader). WARP crashed in vello's shaders on Windows 11 ARM in Parallels (an access violation in d3d10warp.dll once the window redrew), and vello_cpu outdraws an emulated GPU anyway.
   - `RAPIDR_RENDERER=cpu|gpu` forces one.
+  - Only Vulkan, Metal and DX12 adapters count for that check: vello finds no device on OpenGL's (an Ubuntu VM's virgl beside Mesa's software Vulkan).
+  - Wayland windows present in Mailbox mode: with FIFO, Mesa's WSI waits in present for a frame callback that a hidden window (minimized, another workspace, a locked screen) never gets, and the whole program stopped there.
   - Captures always use the CPU renderer, for determinism.
   - The vello_cpu version that matches peniko 0.6 / vello 0.11 must be checked in the Stage 3 spike. tiny-skia plus skrifa outlines is the fallback-of-the-fallback.
 
