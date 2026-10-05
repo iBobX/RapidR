@@ -6,8 +6,13 @@
 #   dist/<ver>/out/RapidR-<ver>-macos-universal.dmg          both apps
 #   dist/<ver>/out/RapidR-Runtime-<ver>-macos-universal.dmg  the runtime only
 #
-#   tools/release/macos.sh [--arch universal|arm64|x86_64]
-#        [--sign "Developer ID Application: Name (TEAMID)"] [--notarize <notarytool keychain profile>]
+#   tools/release/macos.sh [--sign "Developer ID Application: Name (TEAMID)"] [--notarize <notarytool keychain profile>]
+#
+# Every executable in the apps is universal — the CLI, the launcher and the one
+# runner `--interp` executables start from (runners/macos/) — built for macOS
+# MACOSX_DEPLOYMENT_TARGET (10.13 on Intel; 11.0 on Apple silicon, its first). Nothing
+# Intel-only: macOS 28 drops Rosetta. The scan at the end checks every Mach-O
+# statically (lipo -archs, otool's LC_BUILD_VERSION); nothing x86_64 is run here.
 #
 # After tools/release/prepare.sh. Unsigned (the default) the apps are signed
 # ad hoc: they run here and, downloaded, open with right-click > Open (see
@@ -17,25 +22,22 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$ROOT"
-ARCH=universal SIGN="" NOTARY=""
+SIGN="" NOTARY=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --arch) ARCH="$2"; shift 2 ;;
         --sign) SIGN="$2"; shift 2 ;;
         --notarize) NOTARY="$2"; shift 2 ;;
         *) die "unknown option $1" ;;
     esac
 done
 [ -f "$PREP/src.tar" ] || die "run tools/release/prepare.sh first"
-[ "$(git rev-parse HEAD)" = "$(cat "$PREP/commit")" ] || die "HEAD isn't the commit prepare.sh archived"
+# (the code shipped is the archived commit's: release scripts and docs may have moved on)
+git diff --quiet "$(cat "$PREP/commit")" HEAD -- crates interpreter examples web-ide Cargo.toml Cargo.lock LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md \
+    || die "the code differs from the commit prepare.sh archived ($(cat "$PREP/commit")): run prepare.sh again"
 [ -n "$NOTARY" ] && [ -z "$SIGN" ] && die "--notarize needs --sign (a Developer ID)"
 need lipo "Xcode command line tools"; need hdiutil "macOS"; need codesign "Xcode command line tools"
-case "$ARCH" in
-    universal) ARCHS="aarch64 x86_64" ;;
-    arm64) ARCHS="aarch64" ;;
-    x86_64) ARCHS="x86_64" ;;
-    *) die "--arch universal, arm64 or x86_64" ;;
-esac
+ARCH=universal ARCHS="aarch64 x86_64"
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.13}"
 for a in $ARCHS; do
     rustup target list --installed | grep -qx "$a-apple-darwin" || die "rustup target add $a-apple-darwin"
 done
@@ -43,18 +45,19 @@ W="$WORK/macos"
 rm -rf "$W" && mkdir -p "$W/bin"
 trap 'rm -rf "$W"' EXIT
 
-step "build ($ARCHS)"
-RUNNERS=()
+step "build ($ARCHS, macOS $MACOSX_DEPLOYMENT_TARGET on)"
 for a in $ARCHS; do
     t="$a-apple-darwin"
     cargo build -q --locked --release --target "$t" -p rapidr-cli -p rapidr-launcher
     cargo build -q --locked --profile runner --target "$t" -p rapidr-runner-stub --bin rapidrintr-runner
-    RUNNERS+=(--runner "macos-$a=target/$t/runner")
 done
+mkdir -p "$W/runner"
 for b in rapidr rapidrw; do
     lipo -create $(for a in $ARCHS; do echo "target/$a-apple-darwin/release/$b"; done) -output "$W/bin/$b"
 done
-lipo -info "$W/bin/rapidr"
+lipo -create $(for a in $ARCHS; do echo "target/$a-apple-darwin/runner/rapidrintr-runner"; done) -output "$W/runner/rapidrintr-runner"
+RUNNERS=(--runner "macos=$W/runner")
+lipo -info "$W/bin/rapidr" "$W/runner/rapidrintr-runner"
 
 step "the home: the runtime's sources, their crates vendored"
 mkdir -p "$W/src" && tar -x -C "$W/src" -f "$PREP/src.tar"
@@ -79,6 +82,8 @@ make_app() {
     cp "$stage/bin/rapidr" "$stage/bin/rapidrw" "$app/Contents/MacOS/"
     cp -R "$stage/lib" "$app/Contents/lib"
     cp -R "$stage/share/doc/rapidr" "$app/Contents/Resources/doc"
+    # (design/brand/icons: the app's own, and the file types')
+    cp design/brand/icons/macos/*.icns "$app/Contents/Resources/"
 }
 step "apps"
 make_app "RapidR" "$W/sdk" RapidR.plist
@@ -99,6 +104,26 @@ sign() {
     codesign "${opts[@]}" "$app"
     codesign --verify --deep --strict "$app"
 }
+# A slice's minimum macOS (LC_BUILD_VERSION's minos; LC_VERSION_MIN_MACOSX's version
+# for an older target).
+minos() {
+    otool -arch "$1" -l "$2" | awk '/LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX/{b=1} b&&/^ *(minos|version) /{print $2; exit}'
+}
+# Every Mach-O in an app: universal (arm64 and x86_64), its minimum macOS.
+scan() {
+    local app="$1" f archs bad=0
+    while IFS= read -r -d '' f; do
+        file -b "$f" | grep -q "Mach-O" || continue
+        archs="$(lipo -archs "$f")"
+        [[ " $archs " == *" arm64 "* && " $archs " == *" x86_64 "* ]] || { echo "  NOT UNIVERSAL: $f ($archs)"; bad=1; }
+        echo "  ${f#"$W/apps/"}: $archs; minimum macOS $(minos arm64 "$f") (arm64), $(minos x86_64 "$f") (x86_64)"
+    done < <(find "$app" -type f -perm -u+x -print0)
+    [ $bad = 0 ] || die "$app has executables that aren't universal"
+}
+step "every executable universal"
+scan "$W/apps/RapidR.app"
+scan "$W/apps/RapidR Runtime.app"
+
 step "sign (${SIGN:-ad hoc})"
 sign "$W/apps/RapidR.app"
 sign "$W/apps/RapidR Runtime.app"

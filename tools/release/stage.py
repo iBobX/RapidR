@@ -12,12 +12,15 @@ finds its home from the executable by it):
     lib/rapidr/notices/<os>-<arch>.txt, web.txt   the THIRD-PARTY-NOTICES.txt
                                         builds carry (`rapidr notices`) sdk
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
+    lib/rapidr/toolchain/               LLVM-MinGW, trimmed (Windows)   sdk
+    lib/rapidr/web/fonts/               the web's Noto fallback fonts   sdk (index.json, *.otf, OFL.txt)
+    share/icons/                        the apps' and file types' .ico  Windows (design/brand/icons)
     share/doc/rapidr/                   LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         THIRD-PARTY-NOTICES.txt (rapidr's own), the fonts' OFL, README.md
 
     python3 tools/release/stage.py --kind sdk --os macos --out STAGE \\
         --bin target/release --home dist/<ver>/home-macos \\
-        --runner macos-aarch64=target/aarch64-apple-darwin/runner … \\
+        --runner macos=<folder with the universal runner> … \\
         --web target/web --ide dist/<ver>/rapidr-ide.rrbc
 """
 
@@ -57,6 +60,7 @@ def main():
     ap.add_argument("--runner", action="append", default=[], help="<os>-<arch>=<folder with rapidrintr-runner[w]> (sdk)")
     ap.add_argument("--web", help="the folder with rapidrintr.js and rapidrintr_bg.wasm (sdk)")
     ap.add_argument("--ide", help="the IDE's bytecode (sdk)")
+    ap.add_argument("--toolchain", help="Windows: the trimmed LLVM-MinGW native builds link with (sdk)")
     ap.add_argument("--version", help="for a runtime's release.toml (default: home's)")
     ap.add_argument("--rust", default="", help="for a runtime's release.toml")
     args = ap.parse_args()
@@ -83,6 +87,14 @@ def main():
         os.makedirs(os.path.join(lib, "web"))
         for f in ["rapidrintr.js", "rapidrintr_bg.wasm"]:
             shutil.copy2(os.path.join(args.web, f), os.path.join(lib, "web", f))
+        # (the web's fallback fonts, beside the interpreter: `rapidr build --web`
+        # and `bundle-bc` copy them, never download — when the web build makes them)
+        if os.path.isdir(os.path.join(args.web, "fonts")):
+            shutil.copytree(os.path.join(args.web, "fonts"), os.path.join(lib, "web", "fonts"))
+        elif os.path.exists(os.path.join(ROOT, "tools", "fonts.py")):
+            sys.exit(f"no fonts/ beside the web interpreter in {args.web}: prepare.sh makes them")
+        if args.toolchain:
+            shutil.copytree(args.toolchain, os.path.join(lib, "toolchain"))
         os.makedirs(os.path.join(lib, "ide"))
         shutil.copy2(args.ide, os.path.join(lib, "ide", "rapidr-ide.rrbc"))
     else:
@@ -94,6 +106,12 @@ def main():
             f.write("# An installed RapidR's home (crates/rapidr-cli/src/home.rs).\n")
             f.write(f'version = "{version}"\nrust = "{args.rust}"\nkind = "runtime"\n')
 
+    if args.os == "windows":
+        # (the file types', the Start menu's and the uninstaller's icons)
+        icons = os.path.join(out, "share", "icons")
+        os.makedirs(icons)
+        for f in ["rapidr-ide.ico", "rapidr-runtime.ico", "rapidr-source.ico", "basic-source.ico", "rapidr-program.ico"]:
+            shutil.copy2(os.path.join(ROOT, "design", "brand", "icons", "windows", f), os.path.join(icons, f))
     doc = os.path.join(out, "share", "doc", "rapidr")
     os.makedirs(doc)
     for f in DOCS:
@@ -103,7 +121,9 @@ def main():
     if args.kind == "sdk":
         for spec in args.runner:
             target = spec.split("=", 1)[0]
-            notices(target, os.path.join(lib, "notices", f"{target}.txt"))
+            # (macOS' universal runner also makes either slice: --target macos-arm64 / macos-x86_64)
+            for t in [target, "macos-arm64", "macos-x86_64"] if target == "macos" else [target]:
+                notices(t, os.path.join(lib, "notices", f"{t}.txt"))
         notices("web", os.path.join(lib, "notices", "web.txt"))
     print(f"staged {args.kind} for {args.os} in {out}")
 

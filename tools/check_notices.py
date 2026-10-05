@@ -38,7 +38,8 @@ NOTICES = "THIRD-PARTY-NOTICES.txt"
 # purpose: this is the check of it.
 DESKTOP_ROOTS = (["rapidr-runtime-core", "rapidr-runner-stub"], [])
 KINDS = {
-    "macos-aarch64": (DESKTOP_ROOTS, ["aarch64-apple-darwin"]),
+    "macos": (DESKTOP_ROOTS, ["aarch64-apple-darwin", "x86_64-apple-darwin"]),
+    "macos-arm64": (DESKTOP_ROOTS, ["aarch64-apple-darwin"]),
     "macos-x86_64": (DESKTOP_ROOTS, ["x86_64-apple-darwin"]),
     "windows-x86_64": (DESKTOP_ROOTS, ["x86_64-pc-windows-gnullvm", "x86_64-pc-windows-msvc"]),
     "windows-aarch64": (DESKTOP_ROOTS, ["aarch64-pc-windows-gnullvm", "aarch64-pc-windows-msvc"]),
@@ -60,7 +61,10 @@ def check(cond, what):
 
 
 def host_target():
+    """What a build here is for (the CLI's home::host_target): macOS' universal, else <os>-<arch>."""
     os_name = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}[platform.system()]
+    if os_name == "macos":
+        return "macos"
     arch = {"arm64": "aarch64", "aarch64": "aarch64", "x86_64": "x86_64", "AMD64": "x86_64"}[platform.machine()]
     return f"{os_name}-{arch}"
 

@@ -29,6 +29,15 @@ def notices():
     return mod
 
 
+def monaco_version():
+    """The vendored Monaco's version, from its loader's header (` * Version: 0.52.2(…)`)."""
+    with open(os.path.join(ROOT, "web-ide", "vendor", "monaco", "vs", "loader.js"), encoding="utf-8") as f:
+        m = re.search(r"Version: ([0-9][0-9.]*)", f.read(2000))
+    if not m:
+        raise SystemExit("no version in web-ide/vendor/monaco/vs/loader.js")
+    return m.group(1)
+
+
 def licenses(expr):
     """CycloneDX wants a single SPDX id as `license.id`, else an expression."""
     if re.fullmatch(r"[A-Za-z0-9.+-]+", expr):
@@ -63,9 +72,10 @@ def main():
     components += [
         {
             "type": "library",
-            "bom-ref": "pkg:npm/monaco-editor",
+            "bom-ref": f"pkg:npm/monaco-editor@{monaco_version()}",
             "name": "monaco-editor",
-            "purl": "pkg:npm/monaco-editor",
+            "version": monaco_version(),
+            "purl": f"pkg:npm/monaco-editor@{monaco_version()}",
             "licenses": [{"license": {"id": "MIT"}}],
             "description": "the web IDE's editor (web-ide/vendor/monaco)",
             "externalReferences": [{"type": "vcs", "url": "https://github.com/microsoft/monaco-editor"}],

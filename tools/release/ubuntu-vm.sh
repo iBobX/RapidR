@@ -4,6 +4,7 @@
 #
 #   tools/release/ubuntu-vm.sh send <local file> <vm path>
 #   tools/release/ubuntu-vm.sh run <local script> [args…]
+#   tools/release/ubuntu-vm.sh root <local script> [args…]   (as root: installing packages)
 #   tools/release/ubuntu-vm.sh fetch <vm path> <local file>
 #
 # prlctl exec's quirks: it drops the outer command's quoting and dash
@@ -15,13 +16,27 @@ VM="${RAPIDR_LINUX_VM:-Ubuntu 24.04.3 ARM64}"
 PIECE=400000
 # (Parallels sometimes answers "Invalid argument" to a call that is fine:
 # every call is retried, and what it prints is taken from the one that worked)
+USER_OPT=(--current-user)
 x() { xin /dev/null "$@"; }
-# (the same, its stdin read from a file — each try from the start)
+# (the same, its stdin read from a file — each try from the start; a call that
+# hangs is ended after RAPIDR_VM_CALL_TIMEOUT seconds, default 300, and tried again)
+TIMEOUT="${RAPIDR_VM_CALL_TIMEOUT:-300}"
+call() {
+    # (`<&0`: a background command would read /dev/null; the watcher's output goes
+    # nowhere, so `$(…)` doesn't wait for it)
+    "$@" <&0 &
+    local pid=$! rc=0
+    ( sleep "$TIMEOUT"; kill "$pid" 2>/dev/null ) > /dev/null 2>&1 &
+    local watch=$!
+    wait "$pid" || rc=$?
+    kill "$watch" 2>/dev/null || true
+    return $rc
+}
 xin() {
     local in="$1" try out
     shift
     for try in 1 2 3 4 5 6; do
-        if out="$(prlctl exec "$VM" --current-user "$@" < "$in")"; then
+        if out="$(call prlctl exec "$VM" ${USER_OPT[@]+"${USER_OPT[@]}"} "$@" < "$in")"; then
             [ -n "$out" ] && printf '%s\n' "$out"
             return 0
         fi
@@ -87,5 +102,12 @@ case "${1:-}" in
         x bash "$name" "$@"
         ;;
     fetch) helpers; fetch "$2" "$3" ;;
+    root)
+        script="$2"; shift 2
+        name="/tmp/rapidr-release-$(basename "$script")"
+        helpers; send "$script" "$name"
+        USER_OPT=()
+        x bash "$name" "$@"
+        ;;
     *) echo "usage: $0 send|run|fetch …" >&2; exit 2 ;;
 esac

@@ -9,6 +9,7 @@ use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
 mod home;
+mod macos;
 mod launch;
 mod notices;
 mod setup;
@@ -20,6 +21,33 @@ const SUBCOMMANDS: &[&str] = &[
     "version", "run", "open", "info", "about", "ide", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
 ];
 
+/// `--log <file> <command…>`: this rapidr again with the command, its
+/// standard output and error in the file.
+fn run_logged(args: &[String]) -> ExitCode {
+    let Some((log, rest)) = args.split_first() else {
+        eprintln!("--log <file> <command…>");
+        return ExitCode::from(2);
+    };
+    let file = match fs::File::create(log) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("{log}: {e}");
+            return ExitCode::from(1);
+        }
+    };
+    let status = file.try_clone().and_then(|err| {
+        let exe = env::current_exe()?;
+        process::Command::new(exe).args(rest).stdin(process::Stdio::null()).stdout(file).stderr(err).status()
+    });
+    match status {
+        Ok(s) => ExitCode::from(s.code().unwrap_or(1).clamp(0, 255) as u8),
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
 /// A `#!` script: its first line starts with `#!` (`#!/usr/bin/env rapidr`).
 fn is_script(path: &str) -> bool {
     use std::io::Read;
@@ -30,6 +58,13 @@ fn is_script(path: &str) -> bool {
 fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
+
+    // `rapidr --log <file> <command…>`: the command's output (and that of
+    // the tools it runs: cargo) in a file — for programs that run rapidr
+    // (the IDE) on any system without a shell's redirections.
+    if args.first().map(String::as_str) == Some("--log") {
+        return run_logged(&args[1..]);
+    }
 
     // Shortcuts: `rapidr [--release|--debug] [--web] [--interp] <file.rr|.bas>`
     // builds it; `rapidr <file.rrbc> [args]` and a `#!/usr/bin/env rapidr`
@@ -147,6 +182,7 @@ fn main() -> ExitCode {
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
+            eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
@@ -411,6 +447,21 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
             return ExitCode::from(1);
         }
     };
+    // macOS: universal (arm64 + x86_64) when Rust has both targets, for
+    // macOS from DEPLOYMENT_TARGET on (macos.rs)
+    let universal = cfg!(target_os = "macos") && macos::rust_has_both_targets(&home::rust_tool("rustc"));
+    if cfg!(target_os = "macos") {
+        if env::var_os("MACOSX_DEPLOYMENT_TARGET").is_none() {
+            cargo.env("MACOSX_DEPLOYMENT_TARGET", macos::DEPLOYMENT_TARGET);
+        }
+        if universal {
+            for t in macos::TRIPLES {
+                cargo_args.extend(["--target", t]);
+            }
+        } else {
+            println!("(this Mac's architecture only: `rustup target add aarch64-apple-darwin x86_64-apple-darwin` makes universal executables)");
+        }
+    }
     let status = cargo.args(&cargo_args).current_dir(out_dir).status();
 
     match status {
@@ -423,9 +474,20 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
             };
             // (`.exe` on Windows)
             let exe = std::env::consts::EXE_SUFFIX;
-            let built_binary = target_root.join(profile).join(format!("{binary_name}{exe}"));
+            let mut built_binary = target_root.join(profile).join(format!("{binary_name}{exe}"));
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
             let dest_binary = dest_dir.join(format!("{stem}{exe}"));
+            if universal {
+                // (the two slices made one: lipo, which macOS' command line tools have —
+                // the linker Rust uses comes with them)
+                built_binary = target_root.join(format!("{binary_name}-universal"));
+                let slices: Vec<PathBuf> = macos::TRIPLES.iter().map(|t| target_root.join(t).join(profile).join(&binary_name)).collect();
+                let lipo = process::Command::new("lipo").arg("-create").args(&slices).arg("-output").arg(&built_binary).status();
+                if !lipo.is_ok_and(|s| s.success()) {
+                    eprintln!("lipo -create failed: the slices are in {}", target_root.display());
+                    return ExitCode::from(1);
+                }
+            }
 
             if built_binary.exists() {
                 if let Err(e) = fs::copy(&built_binary, &dest_binary) {
@@ -481,6 +543,27 @@ fn cargo_for_programs() -> Result<process::Command, String> {
             .arg("source.crates-io.replace-with='vendored-sources'")
             .arg("--config")
             .arg(format!("source.vendored-sources.directory='{}'", vendor.display()));
+    }
+    // Windows: Rust's gnullvm toolchain, linked by the LLVM-MinGW RapidR
+    // ships — no Visual Studio (RAPIDR_TOOLCHAIN=msvc: Rust's default instead).
+    if let Some(tc) = home.windows_toolchain() {
+        let triple = home::windows_gnullvm_triple();
+        let env_triple = triple.replace('-', "_");
+        let bin = tc.join("bin");
+        let clang = bin.join(format!("{}-w64-mingw32-clang.exe", env::consts::ARCH));
+        cargo
+            .env("RUSTUP_TOOLCHAIN", format!("stable-{triple}"))
+            .env(format!("CARGO_TARGET_{}_LINKER", env_triple.to_uppercase()), &clang)
+            // (libunwind and the mingw-w64 runtime linked in: an executable
+            // that needs no DLL beside it)
+            .env(format!("CARGO_TARGET_{}_RUSTFLAGS", env_triple.to_uppercase()), "-C target-feature=+crt-static")
+            .env(format!("CC_{env_triple}"), &clang)
+            .env(format!("AR_{env_triple}"), bin.join("llvm-ar.exe"));
+        let path = env::var_os("PATH").unwrap_or_default();
+        let paths = std::iter::once(bin).chain(env::split_paths(&path));
+        if let Ok(joined) = env::join_paths(paths) {
+            cargo.env("PATH", joined);
+        }
     }
     Ok(cargo)
 }
@@ -942,7 +1025,14 @@ fn build_interp_desktop(
     //    from the windowed runner (no console window opens with it).
     let target = target.unwrap_or_else(home::host_target);
     let windowed = target.starts_with("windows-") && !compiled.module.app_type.wants_console();
-    let stub = match locate_or_build_stub(release, &target, windowed) {
+    let stub = match locate_or_build_stub(release, &target, windowed).and_then(|path| {
+        let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        // (`--target macos-arm64` / `macos-x86_64`: that slice of the universal runner)
+        match macos::slice_of(&target) {
+            Some(cpu) if bytes.starts_with(&[0xCA, 0xFE, 0xBA]) => macos::thin(&bytes, cpu).map_err(|e| format!("{}: {e}", path.display())),
+            _ => Ok(bytes),
+        }
+    }) {
         Ok(p) => p,
         Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
     };
@@ -1013,8 +1103,8 @@ fn build_interp_web(path: &str, output_dir: Option<String>) -> ExitCode {
 /// of `stub`. The result is a fully self-contained executable that, on
 /// startup, slices off its own payload and runs it via
 /// `rapidr-vm-host-native`.
-fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
-    fs::copy(stub, dest).map_err(|e| format!("copy stub: {e}"))?;
+fn attach_payload(stub: &[u8], rrbc: &[u8], dest: &Path) -> Result<(), String> {
+    fs::write(dest, stub).map_err(|e| format!("write {}: {e}", dest.display()))?;
 
     use std::io::Write;
     let mut f = std::fs::OpenOptions::new()
@@ -1049,7 +1139,9 @@ fn locate_or_build_stub(release: bool, target: &str, windowed: bool) -> Result<P
     let exe_name = format!("{name}{}", home::exe_suffix(target));
     let home = Home::find();
     if let Some(home) = home.as_ref().filter(|h| h.release.is_some()) {
-        let path = home.runner(target, name);
+        // (one universal runner for macOS: a thin --target is a slice of it)
+        let shipped_as = if macos::slice_of(target).is_some() { "macos" } else { target };
+        let path = home.runner(shipped_as, name);
         if path.is_file() {
             return Ok(path);
         }
@@ -1060,8 +1152,8 @@ fn locate_or_build_stub(release: bool, target: &str, windowed: bool) -> Result<P
             format!("no runner for {target} in this install ({}); it has: {}", home.root.display(), shipped.join(", "))
         });
     }
-    if target != home::host_target() {
-        return Err(format!("--target {target}: a source checkout builds this machine's runner only ({}); an installed RapidR ships the others", home::host_target()));
+    if target != home::host_target() && target != home::host_arch_target() {
+        return Err(format!("--target {target}: a source checkout builds this machine's runner only ({}); an installed RapidR ships the others", home::host_arch_target()));
     }
     // Release: the stripped `runner` profile (Cargo.toml).
     let preferred = if release { "runner" } else { "debug" };

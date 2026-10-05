@@ -27,6 +27,12 @@ git ls-files -z "$SITE" | while IFS= read -r -d '' f; do
 done
 mkdir -p "$STAGE/runtime"
 cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt "$STAGE/runtime/"
+# (the fallback fonts beside the interpreter, as every web build has them)
+if [ -d target/web/fonts ]; then
+    cp -R target/web/fonts "$STAGE/runtime/fonts"
+elif [ -f tools/fonts.py ]; then
+    die "no target/web/fonts: tools/build_web_artifacts.sh makes them"
+fi
 cp LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$STAGE/"
 rm -f "$OUT/$NAME.zip"
 (cd "$WORK/web" && zip -qr -X "$OUT/$NAME.zip" "$NAME")

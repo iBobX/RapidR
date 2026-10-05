@@ -1,13 +1,19 @@
 #!/bin/bash
-# Linux, for this machine's architecture (x86_64 or aarch64): the SDK and the
-# Runtime, each as a .tar.gz (per user, no root: install.sh) and a .deb.
+# Linux, x86_64 and aarch64, built on one Ubuntu (either architecture): the SDK
+# and the Runtime, each as a .tar.gz (per user, no root: install.sh) and a .deb.
 #
 #   dist/<ver>/out/rapidr-<ver>-linux-<arch>.tar.gz          rapidr_<ver>_<deb arch>.deb
 #   dist/<ver>/out/rapidr-runtime-<ver>-linux-<arch>.tar.gz  rapidr-runtime_<ver>_<deb arch>.deb
 #
-# Run on Linux, from the source of the release (prepare.sh's src.tar) — the
-# Mac runs it in Docker: tools/release/linux-docker.sh. Needs Rust, the
-# desktop host's -dev packages (tools/linux/Dockerfile), python3, dpkg-deb.
+#   tools/release/linux.sh [x86_64] [aarch64]        (default: both)
+#
+# Linked by Zig (cargo-zigbuild) against glibc $GLIBC — Ubuntu 20.04, Debian 11 and
+# newer — whichever the build machine's: the binaries ask for no newer symbol
+# (checked). The other architecture's ALSA, FreeType and fontconfig come from
+# multiarch -dev packages (fontique can't open fontconfig at run time: it is
+# linked, as on any desktop it is installed). tools/release/linux/
+# setup-tools.sh installs all of it. Run from the release's source (prepare.sh's
+# src.tar, extracted): tools/release/linux-vm.sh does, in the Ubuntu VM.
 # AppImage: not made (see docs/release-packaging.md).
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
@@ -15,32 +21,38 @@ cd "$ROOT"
 [ -f "$PREP/rapidr-ide.rrbc" ] || die "no $PREP: run tools/release/prepare.sh on the Mac first"
 [ -e "$ROOT/.git" ] && die "run from the release's source archive (prep/src.tar, extracted), not a checkout"
 need dpkg-deb "the .deb"
-ARCH="$(uname -m)"
-case "$ARCH" in
-    x86_64) DEBARCH=amd64 ;;
-    aarch64) DEBARCH=arm64 ;;
-    *) die "unsupported architecture $ARCH" ;;
-esac
+need cargo-zigbuild "tools/release/linux/setup-tools.sh user"
+need readelf "binutils"
+GLIBC="${GLIBC:-2.31}"
+ARCHS="${*:-x86_64 aarch64}"
 TD="${CARGO_TARGET_DIR:-target}"
-W="$WORK/linux-$ARCH"
+W="$WORK/linux"
 rm -rf "$W" && mkdir -p "$W"
 trap 'rm -rf "$W"' EXIT
 
-step "build (linux-$ARCH)"
-cargo build -q --locked --release -p rapidr-cli
-cargo build -q --locked --profile runner -p rapidr-runner-stub --bin rapidrintr-runner
-strip "$TD/release/rapidr"
-echo "rapidr links (system libraries, not shipped):"
-ldd "$TD/release/rapidr" | awk '{print "  " $1}'
-
-step "the home: the runtime's sources, their crates vendored"
+step "the home: the runtime's sources, their crates vendored (both architectures)"
 python3 tools/release/home.py --os linux --src "$ROOT" --out "$W/home"
-
-step "stage"
 RUST="$(sed -n 's/^rust = "\(.*\)"/\1/p' "$W/home/release.toml")"
-python3 tools/release/stage.py --kind sdk --os linux --out "$W/sdk" --bin "$TD/release" --home "$W/home" \
-    --runner "linux-$ARCH=$TD/runner" --web "$PREP/web-runtime" --ide "$PREP/rapidr-ide.rrbc"
-python3 tools/release/stage.py --kind runtime --os linux --out "$W/runtime" --bin "$TD/release" --version "$VERSION" --rust "$RUST"
+
+# What a binary needs: its libraries, and the newest glibc symbol version.
+needed() { readelf -d "$1" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'; }
+newest_glibc() { readelf -V -W "$1" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -V | tail -1; }
+# Their packages, by names every Debian / Ubuntu since 2020 knows (24.04 renamed libasound2).
+depends() {
+    local deps=("libc6 (>= $GLIBC)")
+    for l in $(needed "$1"); do
+        case "$l" in
+            libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|ld-linux*) ;;
+            libgcc_s.so.1) deps+=("libgcc-s1 | libgcc1") ;;
+            libasound.so.2) deps+=("libasound2t64 | libasound2") ;;
+            libfreetype.so.6) deps+=("libfreetype6") ;;
+            libfontconfig.so.1) deps+=("libfontconfig1") ;;
+            libz.so.1) deps+=("zlib1g") ;;
+            *) die "$1 needs $l: add its package to depends() in linux.sh" ;;
+        esac
+    done
+    printf '%s\n' "${deps[@]}" | awk '!seen[$0]++' | paste -sd, - | sed 's/,/, /g'
+}
 
 # The file types and their applications (the runtime's; the IDE's in the SDK).
 desktop_files() {
@@ -49,14 +61,17 @@ desktop_files() {
     cp tools/release/linux/rapidr.xml "$stage/share/mime/packages/"
     cp tools/release/linux/rapidr-runtime.desktop "$stage/share/applications/"
     [ "$kind" = sdk ] && cp tools/release/linux/rapidr-ide.desktop "$stage/share/applications/"
+    # (design/brand/icons: the apps' and the file types', 16–512 and scalable)
+    mkdir -p "$stage/share/icons"
+    cp -R design/brand/icons/linux/hicolor "$stage/share/icons/"
     return 0
 }
 
 tarball() {
-    local kind="$1" name="$2"
+    local arch="$1" kind="$2" name="$3"
     local top="$W/tar/$name"
     mkdir -p "$W/tar"
-    cp -R "$W/$kind" "$top"
+    cp -R "$W/$arch-$kind" "$top"
     desktop_files "$top" "$kind"
     cp tools/release/linux/install.sh tools/release/linux/uninstall.sh "$top/"
     chmod +x "$top/install.sh" "$top/uninstall.sh"
@@ -66,30 +81,27 @@ tarball() {
 }
 
 # A .deb: /usr/bin/rapidr and its home /usr/lib/rapidr (the CLI's rule:
-# <exe>/../lib/rapidr); dpkg's triggers update the MIME and desktop
+# <exe>/../lib/rapidr); dpkg's triggers update the MIME, desktop and icon
 # databases. The SDK replaces the runtime (both have /usr/bin/rapidr).
 deb() {
-    local kind="$1" pkg="$2" desc="$3"
+    local arch="$1" kind="$2" pkg="$3" desc="$4" debarch
+    case "$arch" in x86_64) debarch=amd64 ;; aarch64) debarch=arm64 ;; esac
     local root="$W/deb-$pkg"
     mkdir -p "$root/usr" "$root/DEBIAN"
-    cp -R "$W/$kind/bin" "$W/$kind/lib" "$root/usr/"
+    cp -R "$W/$arch-$kind/bin" "$W/$arch-$kind/lib" "$root/usr/"
     mkdir -p "$root/usr/share/doc/$pkg"
-    cp -R "$W/$kind/share/doc/rapidr/." "$root/usr/share/doc/$pkg/"
+    cp -R "$W/$arch-$kind/share/doc/rapidr/." "$root/usr/share/doc/$pkg/"
     cp LICENSE "$root/usr/share/doc/$pkg/copyright"
     desktop_files "$root/usr" "$kind"
     sed -i "s|@BIN@|/usr/bin|g" "$root"/usr/share/applications/*.desktop
-    # (the system libraries rapidr links: dpkg-shlibdeps reads a source tree)
-    local deps
-    deps="$(cd "$W" && mkdir -p shlibs/debian && printf 'Source: rapidr\n' > shlibs/debian/control \
-        && cd shlibs && dpkg-shlibdeps -O "$root/usr/bin/rapidr" 2>/dev/null | sed -n 's/^shlibs:Depends=//p')"
     local other="rapidr-runtime"; [ "$pkg" = rapidr-runtime ] && other="rapidr"
     cat > "$root/DEBIAN/control" <<EOF
 Package: $pkg
 Version: $VERSION
-Architecture: $DEBARCH
+Architecture: $debarch
 Maintainer: RapidR <https://github.com/iBobX/RapidR>
 Installed-Size: $(du -sk "$root/usr" | cut -f1)
-Depends: ${deps:-libc6}
+Depends: $(depends "$root/usr/bin/rapidr")
 Conflicts: $other
 Replaces: $other
 Section: devel
@@ -100,13 +112,35 @@ Description: $desc
  the interpreter, as native executables and on the web; an original
  implementation written from the ground up in pure Rust.
 EOF
-    dpkg-deb --root-owner-group --build "$root" "$OUT/${pkg}_${VERSION}_${DEBARCH}.deb" >/dev/null
+    dpkg-deb --root-owner-group -Zxz --build "$root" "$OUT/${pkg}_${VERSION}_${debarch}.deb" >/dev/null
     rm -rf "$root"
-    echo "wrote $OUT/${pkg}_${VERSION}_${DEBARCH}.deb ($(du -h "$OUT/${pkg}_${VERSION}_${DEBARCH}.deb" | cut -f1))"
+    echo "wrote $OUT/${pkg}_${VERSION}_${debarch}.deb ($(du -h "$OUT/${pkg}_${VERSION}_${debarch}.deb" | cut -f1))"
 }
 
-step "packages"
-tarball sdk "rapidr-$VERSION-linux-$ARCH"
-tarball runtime "rapidr-runtime-$VERSION-linux-$ARCH"
-deb sdk rapidr "RapidR — BASIC compiler, interpreter and IDE (SDK)"
-deb runtime rapidr-runtime "RapidR Runtime — runs RapidR and RapidQ programs"
+for ARCH in $ARCHS; do
+    T="$ARCH-unknown-linux-gnu"
+    step "build $T (glibc $GLIBC)"
+    # (pkg-config finds that architecture's libraries — for these builds only:
+    # stage.py's notices build this machine's rapidr)
+    cross=(env PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=/ CARGO_PROFILE_RELEASE_STRIP=symbols
+        PKG_CONFIG_LIBDIR="/usr/lib/$ARCH-linux-gnu/pkgconfig:/usr/share/pkgconfig")
+    "${cross[@]}" cargo zigbuild -q --locked --release --target "$T.$GLIBC" -p rapidr-cli
+    "${cross[@]}" cargo zigbuild -q --locked --profile runner --target "$T.$GLIBC" -p rapidr-runner-stub --bin rapidrintr-runner
+    for b in "$TD/$T/release/rapidr" "$TD/$T/runner/rapidrintr-runner"; do
+        g="$(newest_glibc "$b")"
+        [ "$(printf '%s\n%s\n' "$g" "$GLIBC" | sort -V | tail -1)" = "$GLIBC" ] || die "$b needs glibc $g, newer than $GLIBC"
+        echo "  $(basename "$b"): glibc ≤ $g; needs $(needed "$b" | paste -sd' ' -)"
+    done
+
+    step "stage $ARCH"
+    python3 tools/release/stage.py --kind sdk --os linux --out "$W/$ARCH-sdk" --bin "$TD/$T/release" --home "$W/home" \
+        --runner "linux-$ARCH=$TD/$T/runner" --web "$PREP/web-runtime" --ide "$PREP/rapidr-ide.rrbc"
+    python3 tools/release/stage.py --kind runtime --os linux --out "$W/$ARCH-runtime" --bin "$TD/$T/release" --version "$VERSION" --rust "$RUST"
+
+    step "packages $ARCH"
+    tarball "$ARCH" sdk "rapidr-$VERSION-linux-$ARCH"
+    tarball "$ARCH" runtime "rapidr-runtime-$VERSION-linux-$ARCH"
+    deb "$ARCH" sdk rapidr "RapidR — BASIC compiler, interpreter and IDE (SDK)"
+    deb "$ARCH" runtime rapidr-runtime "RapidR Runtime — runs RapidR and RapidQ programs"
+    rm -rf "$W/$ARCH-sdk" "$W/$ARCH-runtime"
+done

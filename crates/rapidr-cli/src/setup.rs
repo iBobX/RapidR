@@ -3,9 +3,10 @@
 //! - Rust, for native builds (`rapidr build`): installed with rustup (MIT /
 //!   Apache-2.0) into the user's `~/.cargo` and `~/.rustup`, after saying so
 //!   and asking. Interpreted programs and `--interp` executables need none.
-//! - On Windows, the linker Rust uses: the open-source LLVM-MinGW toolchain
-//!   (`--toolchain gnullvm`, RapidR's recommendation: no Microsoft licence)
-//!   or Microsoft's C++ Build Tools (`--toolchain msvc`, what rustup offers).
+//! - On Windows, Rust's gnullvm toolchain, which links with the LLVM-MinGW
+//!   RapidR ships (`--toolchain gnullvm`, the default: open source, no
+//!   Visual Studio), or Rust's msvc one with Microsoft's C++ Build Tools
+//!   (`--toolchain msvc`; native builds then need RAPIDR_TOOLCHAIN=msvc).
 //! - The `rapidr` command on PATH, when it isn't (the macOS app, a
 //!   `.tar.gz`): a link in `/usr/local/bin` or `~/.local/bin`.
 //!
@@ -19,10 +20,26 @@ use std::process::{Command, ExitCode};
 use crate::home::{rust_tool, Home};
 
 /// The Rust version `rustc --version` reports.
-fn rustc_version() -> Option<String> {
-    let out = Command::new(rust_tool("rustc")).arg("--version").output().ok()?;
+fn rustc_version(gnullvm: bool) -> Option<String> {
+    let mut rustc = Command::new(rust_tool("rustc"));
+    if gnullvm {
+        if !gnullvm_installed() {
+            return None;
+        }
+        rustc.env("RUSTUP_TOOLCHAIN", format!("stable-{}", crate::home::windows_gnullvm_triple()));
+    }
+    let out = rustc.arg("--version").output().ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
     text.split_whitespace().nth(1).map(str::to_string)
+}
+
+/// rustup has the stable gnullvm toolchain (Windows).
+fn gnullvm_installed() -> bool {
+    let want = format!("stable-{}", crate::home::windows_gnullvm_triple());
+    Command::new(rust_tool("rustup"))
+        .args(["toolchain", "list"])
+        .output()
+        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| l.starts_with(&want)))
 }
 
 fn at_least(have: &str, need: &str) -> bool {
@@ -69,8 +86,19 @@ pub fn setup(args: &[String]) -> ExitCode {
     let builds = home.as_ref().is_some_and(Home::can_build);
     let mut ok = true;
 
-    // 1. Rust (native builds)
-    match rustc_version() {
+    // 1. Rust (native builds); on Windows its gnullvm toolchain, linked by
+    // the LLVM-MinGW the SDK ships
+    let shipped = home.as_ref().and_then(Home::windows_toolchain);
+    let gnullvm = cfg!(windows) && toolchain == "gnullvm";
+    let has_rustup = Command::new(rust_tool("rustup")).arg("--version").output().is_ok_and(|o| o.status.success());
+    if gnullvm && builds && has_rustup && !gnullvm_installed() {
+        let tc = format!("stable-{}", crate::home::windows_gnullvm_triple());
+        println!("rust: rustup is here without {tc}, the toolchain native builds use (links with the shipped LLVM-MinGW)");
+        if !check && confirm(&format!("Install it (`rustup toolchain install {tc} --profile minimal`)?"), yes) {
+            ok &= run_ok(Command::new(rust_tool("rustup")).args(["toolchain", "install", &tc, "--profile", "minimal"]));
+        }
+    }
+    match rustc_version(gnullvm) {
         Some(v) if at_least(&v, &need) => println!("rust: {v} (native builds: ready)"),
         Some(v) => {
             println!("rust: {v}, older than the {need} this RapidR was tested with");
@@ -98,7 +126,10 @@ pub fn setup(args: &[String]) -> ExitCode {
         }
     }
     if cfg!(windows) && builds {
-        check_windows_linker(toolchain);
+        match &shipped {
+            Some(tc) if gnullvm => println!("linker: LLVM-MinGW, shipped ({})", tc.display()),
+            _ => check_windows_linker(toolchain),
+        }
     }
 
     // 2. `rapidr` on PATH
@@ -158,10 +189,9 @@ fn install_rust(toolchain: &str) -> bool {
 
 fn windows_toolchain_note(toolchain: &str) -> &'static str {
     if toolchain == "gnullvm" {
-        "On Windows Rust needs a linker. RapidR uses LLVM-MinGW (open source: Apache-2.0 with LLVM exception,\n\
-         mingw-w64's permissive licences; what it links carries no obligations): download the\n\
-         llvm-mingw-<version>-ucrt-<x86_64|aarch64>.zip for this machine from\n\
-         https://github.com/mstorsjo/llvm-mingw/releases, unzip it, and put its bin folder on PATH.\n\
+        "On Windows Rust needs a linker: the RapidR SDK ships LLVM-MinGW (open source: Apache-2.0 with LLVM\n\
+         exception, mingw-w64's permissive licences; what it links carries no obligations), used with\n\
+         Rust's gnullvm toolchain — nothing else to install, no Visual Studio.\n\
          (Or `rapidr setup --toolchain msvc` for Microsoft's C++ Build Tools.)"
     } else {
         "On Windows the msvc toolchain links with Microsoft's C++ Build Tools (Visual Studio Build Tools,\n\

@@ -74,12 +74,14 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
     if from == From::Desktop && app_type.wants_console() && !has_terminal() {
         return open_in_terminal(path, &args);
     }
-    let program = fs::canonicalize(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    let program = crate::home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
     rapidr_vm_host_native::set_program(&program, args);
-    // (the runtime running it, for a program that runs others: the IDE)
+    // (the runtime running it and the system's temporary folder, for a
+    // program that runs others: the IDE)
     if let Ok(exe) = env::current_exe() {
         env::set_var("RAPIDR_RUNTIME", exe);
     }
+    env::set_var("RAPIDR_TEMP", env::temp_dir());
     rapidr_vm_host_native::run_bytes(&bytes)
 }
 
@@ -152,7 +154,7 @@ fn sh_quote(s: &str) -> String {
 #[cfg(unix)]
 fn open_in_terminal(path: &str, args: &[String]) -> Result<(), String> {
     let exe = env::current_exe().map_err(|e| e.to_string())?;
-    let program = fs::canonicalize(path).map_err(|e| format!("{path}: {e}"))?;
+    let program = crate::home::canonical(path).map_err(|e| format!("{path}: {e}"))?;
     let mut line = format!("{} run {}", sh_quote(&exe.to_string_lossy()), sh_quote(&program.to_string_lossy()));
     for a in args {
         line.push(' ');
@@ -320,7 +322,7 @@ pub mod trust {
     pub fn check(path: &Path) -> Result<(), String> {
         let Some(origin) = downloaded(path) else { return Ok(()) };
         let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let path = &fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let path = &crate::home::canonical(path).unwrap_or_else(|_| path.to_path_buf());
         let hash: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
         let store = store().ok_or("no folder for RapidR's settings (set RAPIDR_CONFIG_DIR)")?;
         let known = fs::read_to_string(&store).unwrap_or_default();

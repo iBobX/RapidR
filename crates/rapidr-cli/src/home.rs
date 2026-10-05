@@ -13,9 +13,12 @@
 //! An install's home is laid out like a checkout's root for what builds read
 //! (`Cargo.toml`, `Cargo.lock`, `crates/`, `.cargo/config.toml`,
 //! `tools/wasm-ar.sh`) and has what a checkout builds itself instead:
-//! `runners/<os>-<arch>/rapidrintr-runner`, `web/rapidrintr*` and `vendor/`
-//! (the crates.io sources: native builds work offline). A runtime-only install
-//! has only `release.toml`.
+//! `runners/<os>-<arch>/rapidrintr-runner`, `web/rapidrintr*` (and
+//! `web/fonts/`, the web's fallback fonts, which web builds copy: never
+//! downloaded) and `vendor/` (the crates.io sources: native builds work
+//! offline), and on Windows
+//! `toolchain/` (LLVM-MinGW: native builds link with it, no Visual Studio).
+//! A runtime-only install has only `release.toml`.
 
 use std::env;
 use std::fs;
@@ -71,6 +74,23 @@ impl Home {
     }
 }
 
+impl Home {
+    /// Windows: the LLVM-MinGW an install ships (`toolchain/`) that native
+    /// builds link with, unless RAPIDR_TOOLCHAIN=msvc.
+    pub fn windows_toolchain(&self) -> Option<PathBuf> {
+        if !cfg!(windows) || env::var("RAPIDR_TOOLCHAIN").is_ok_and(|t| t == "msvc") {
+            return None;
+        }
+        let tc = self.root.join("toolchain");
+        tc.join("bin").is_dir().then_some(tc)
+    }
+}
+
+/// Rust's gnullvm triple for this Windows machine.
+pub fn windows_gnullvm_triple() -> String {
+    format!("{}-pc-windows-gnullvm", env::consts::ARCH)
+}
+
 impl Release {
     fn read(path: &Path) -> Option<Release> {
         let text = fs::read_to_string(path).ok()?;
@@ -84,9 +104,22 @@ impl Release {
     }
 }
 
-/// This machine as runner targets name it: `macos-aarch64`, `windows-x86_64`, …
+/// What this machine builds for by default, as runner targets name it:
+/// `macos` (universal: arm64 + x86_64, macos.rs), `windows-x86_64`,
+/// `linux-aarch64`, …
 pub fn host_target() -> String {
-    format!("{}-{}", env::consts::OS, env::consts::ARCH)
+    if env::consts::OS == "macos" {
+        return "macos".into();
+    }
+    host_arch_target()
+}
+
+/// This machine's own architecture: `macos-arm64`, `windows-aarch64`, …
+pub fn host_arch_target() -> String {
+    match (env::consts::OS, env::consts::ARCH) {
+        ("macos", "aarch64") => "macos-arm64".into(),
+        (os, arch) => format!("{os}-{arch}"),
+    }
 }
 
 /// `.exe` for Windows targets.
@@ -100,9 +133,25 @@ pub fn exe_suffix(target: &str) -> &'static str {
 
 /// `<exe folder>/../lib/rapidr` when it is an install's home.
 fn installed_root() -> Option<PathBuf> {
-    let exe = env::current_exe().ok()?.canonicalize().ok()?;
+    let exe = plain(env::current_exe().ok()?.canonicalize().ok()?);
     let home = exe.parent()?.parent()?.join("lib").join("rapidr");
     home.join("release.toml").is_file().then_some(home)
+}
+
+/// `fs::canonicalize`, as people and tools read paths (Application.ExeName,
+/// cargo's configuration): see [`plain`].
+pub fn canonical(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+    fs::canonicalize(path).map(plain)
+}
+
+/// A canonical path as tools read it: on Windows without the `\\?\` prefix
+/// `canonicalize` gives (cargo's configuration, clang and the linker don't
+/// take it).
+fn plain(path: PathBuf) -> PathBuf {
+    match path.to_str().and_then(|p| p.strip_prefix(r"\\?\")) {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => path,
+    }
 }
 
 /// The RapidR workspace (the Cargo.toml with `[workspace]` that has
@@ -117,7 +166,7 @@ fn checkout_root() -> Option<PathBuf> {
     env::current_dir()
         .ok()
         .and_then(above)
-        .or_else(|| env::current_exe().ok().and_then(|e| e.canonicalize().ok()).and_then(above))
+        .or_else(|| env::current_exe().ok().and_then(|e| e.canonicalize().ok()).map(plain).and_then(above))
         .or_else(|| above(PathBuf::from(env!("CARGO_MANIFEST_DIR"))))
 }
 
@@ -155,6 +204,13 @@ mod tests {
         assert_eq!(home.runner_targets(), ["linux-x86_64", "windows-aarch64"]);
         assert!(home.runner("windows-aarch64", "rapidrintr-runnerw").ends_with("runners/windows-aarch64/rapidrintr-runnerw.exe"));
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn verbatim_windows_paths_are_made_plain() {
+        assert_eq!(plain(PathBuf::from(r"\\?\C:\Users\me\RapidR")), PathBuf::from(r"C:\Users\me\RapidR"));
+        assert_eq!(plain(PathBuf::from(r"\\?\UNC\server\share")), PathBuf::from(r"\\?\UNC\server\share"));
+        assert_eq!(plain(PathBuf::from("/usr/lib/rapidr")), PathBuf::from("/usr/lib/rapidr"));
     }
 
     #[test]
