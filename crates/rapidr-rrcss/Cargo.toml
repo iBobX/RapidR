@@ -1,7 +1,0 @@
-[package]
-name = "rapidr-rrcss"
-version.workspace = true
-publish = false
-edition.workspace = true
-license.workspace = true
-description = "Shared base CSS for RapidR web HTML shells (compiled and interpreted modes)."

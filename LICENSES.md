@@ -128,7 +128,8 @@ SHA-256 in [`fonts/fallback/fonts.toml`](fonts/fallback/fonts.toml):
 - Noto Sans 2.015;
 - Noto Sans Symbols 2.003;
 - Noto Sans Symbols 2 2.008;
-- Noto Sans SC and Noto Sans KR from Noto CJK Sans 2.004.
+- Noto Sans SC and Noto Sans KR from Noto CJK Sans 2.004;
+- Noto Color Emoji (COLRv1) from the noto-emoji repository at its release tag v2.051.
 
 **Where they are.** Noto Sans and the two Symbols fonts are in
 `fonts/fallback/`, unmodified. The CJK fonts are fetched at build time
@@ -144,7 +145,8 @@ fonts declares a Reserved Font Name. `OFL.txt` travels with the chunks.
 > Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2: Copyright 2022 The
 > Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic,
 > https://github.com/notofonts/symbols). Noto Sans SC, Noto Sans KR (Noto
-> Sans CJK): © 2014-2021 Adobe (http://www.adobe.com/).
+> Sans CJK): © 2014-2021 Adobe (http://www.adobe.com/). Noto Color Emoji:
+> Copyright 2022 Google Inc.
 >
 > This Font Software is licensed under the SIL Open Font License, Version
 > 1.1. The full license text is in

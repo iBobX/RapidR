@@ -2,7 +2,7 @@
 //! the web counterpart of `rapidr-ui-host-winit`, so a form is the same
 //! retained tree, the same input routing, the same display list and the
 //! same pixels on the web as on the desktop, instead of a second
-//! implementation in DOM elements (`rapidr-runtime-web`'s `gui_web.rs`).
+//! implementation in DOM elements (the old DOM host, since deleted).
 //!
 //! - **Drawing.** The kernel paints a [`DisplayList`]; the drawing code
 //!   the desktop host uses too (`rapidr-ui-render`: `canvas`, `cpu`,

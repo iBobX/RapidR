@@ -51,6 +51,17 @@ pub struct BundleInputs<'a> {
     pub notices: &'a str,
 }
 
+/// The page around a program (a bundle's, a `rapidr build --web` site's):
+/// the UI kernel draws the windows on it, so the page only sets its
+/// background and the native build's console (`#rr-console`).
+pub const PAGE_CSS: &str = r#"
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { min-height: 100vh; background: #e8e8e8; font-family: system-ui, sans-serif; font-size: 13px; overflow: auto; }
+.rr-plot-container canvas { display: block; }
+#rr-console { position: fixed; bottom: 0; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; padding: 8px; display: none; z-index: 10000; border-top: 2px solid #333; }
+"#;
+
 /// The notices' name in the bundle's root (the CLI's notices.rs).
 pub const NOTICES_FILE: &str = "THIRD-PARTY-NOTICES.txt";
 /// The on-page console for PRINT output: loader.js installs it
@@ -113,7 +124,7 @@ fn write_file<W: Write + std::io::Seek>(
 }
 
 fn render_index_html(title: &str, _project_name: &str, assets: Option<&HashMap<String, String>>) -> String {
-    let css = rapidr_rrcss::RR_BASE_CSS;
+    let css = PAGE_CSS;
     let mut assets_script = String::new();
     if let Some(assets_map) = assets {
         if !assets_map.is_empty() {

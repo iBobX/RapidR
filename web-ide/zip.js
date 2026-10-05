@@ -81,8 +81,8 @@ function writeEntry(name, data) {
 }
 
 function indexHtml(title, version) {
-  // Mirrors render_index_html from rapidr-webbundle (sans CSS — the
-  // runtime injects RR_BASE_CSS itself when components are created).
+  // Mirrors render_index_html from rapidr-webbundle (sans its page CSS:
+  // the UI kernel draws the program's windows on the page).
   const ver = version ? `<meta name="generator" content="RapidR IDE v${version}">` : "";
   // Strict-ish CSP: same-origin only; allow inline <style> + the small
   // bootstrapping JSON status updates done by the runtime; allow data:

@@ -1,7 +1,7 @@
 //! Browser [`Host`] implementation for the RapidR bytecode VM.
 //!
-//! Routes builtins / component / DOM ops to `rapidr-runtime-web`. The
-//! program lives in a `RefCell` session; DOM events queue their bytecode
+//! Routes builtins / component ops to `rapidr-runtime-web`. The
+//! program lives in a `RefCell` session; the page's events queue their bytecode
 //! handlers, which run when the VM is idle or at its next safe point —
 //! never by re-entering a running VM. The VM runs in time slices: a program
 //! that never waits gives the page a turn every few milliseconds and then
@@ -254,9 +254,9 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
             }
             k
         }
-        // (the program pauses, the browser goes on: dialog_web::pause)
+        // (the program pauses, the browser goes on: dialog_web::sleep)
         "sleep" => {
-            if !rapidr_runtime_web::dialog_web::pause(a0.to_f64().max(0.0) * 1000.0) {
+            if !rapidr_runtime_web::dialog_web::sleep(a0.to_f64().max(0.0) * 1000.0) {
                 rp_sleep(&a0);
             }
             v_null()
@@ -267,10 +267,9 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         // Host::take_events). Once its time slice is over, the program
         // pauses too, and the browser goes on (painting, new events).
         "doevents" => {
-            // (Stage W4: with the UI kernel hosting the page, the desktop's —
-            // the timers due now fire before it returns, a wait the VM serves)
-            #[cfg(feature = "kernel")]
-            if rapidr_runtime_web::kernel_web::on() && rapidr_runtime_web::kernel_web::doevents() {
+            // (with windows, the desktop's: the timers due now fire before it
+            // returns, a wait the VM serves)
+            if rapidr_runtime_web::kernel_web::doevents() {
                 return v_null();
             }
             if rapidr_runtime_web::dialog_web::slice_over() {
@@ -468,7 +467,7 @@ fn finalize_forms() {
     if FINALIZED.with(|f| f.replace(true)) {
         return;
     }
-    rapidr_runtime_web::gui_web::gui_web_finalize();
+    rapidr_runtime_web::kernel_web::finalize();
 }
 
 fn take_queued_events() -> Vec<Event> {
@@ -478,9 +477,8 @@ fn take_queued_events() -> Vec<Event> {
 /// Replaces the page's program: the old session and its queued events go.
 fn start_session(session: Session) {
     dialog::clear_modals();
-    // (Stage W4: the interpreter serves the UI kernel host's waits itself:
-    // ShowModal, the dialogs, INPUT$, DOEVENTS — rapidr_ui_app::waits)
-    #[cfg(feature = "kernel")]
+    // (the interpreter serves the UI kernel host's waits itself: ShowModal,
+    // the dialogs, INPUT$, DOEVENTS — rapidr_ui_app::waits)
     rapidr_runtime_web::kernel_web::set_interpreter(true);
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
@@ -612,7 +610,7 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
                 // The main program went on after its ShowModal and finished
                 // with no form open: it's over, as on the desktop (which
                 // exits) — its timers stop and no event reaches it any more.
-                if result.is_ok() && !rapidr_runtime_web::gui_web::any_form_shown() {
+                if result.is_ok() && !rapidr_runtime_web::kernel_web::any_form_shown() {
                     rapidr_runtime_web::object_web::end_program();
                 }
             }
@@ -681,9 +679,8 @@ fn continue_slice(generation: u64) {
 /// borrowed) this does nothing: the VM runs them at its next safe point.
 fn run_idle_events() {
     loop {
-        // The answers that came during a yield, and the forms the program
-        // waits on that have closed: it goes on.
-        while dialog::resume_pending() || dialog::resume_after_modal() {}
+        // The answers that came during a yield: it goes on.
+        while dialog::resume_pending() {}
         // (busy between two time slices: later)
         if dialog::is_yielded() {
             return;
@@ -780,7 +777,7 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
 pub fn rapidr_get_prop(name: &str, prop: &str) -> String {
     // `__shown`: whether the component has an element the user can see.
     if prop == "__shown" {
-        return i64::from(rapidr_runtime_web::gui_web::element_shown(name)).to_string();
+        return i64::from(rapidr_runtime_web::kernel_web::element_shown(name)).to_string();
     }
     rapidr_runtime_web::object_web::rp_comp_get(name, prop).to_string_val()
 }
@@ -799,32 +796,11 @@ pub fn rapidr_main_done() -> bool {
         })
 }
 
-/// For tests (as the desktop's `RAPIDR_TEST_RESIZE` / `RAPIDR_TEST_SPLIT`):
-/// the user drags QSPLITTER `splitter` (if not empty) by `delta` pixels,
-/// then resizes form `form` to `width` × `height`.
-#[wasm_bindgen]
-pub fn rapidr_test_resize(form: &str, width: i32, height: i32, splitter: &str, delta: i32) {
-    // (in the desktop hooks' order: the splitter, then the size)
-    if !splitter.is_empty() && rapidr_runtime_web::layout_web::splitter_begin(splitter) {
-        rapidr_runtime_web::layout_web::splitter_move(i64::from(delta / 2));
-        rapidr_runtime_web::layout_web::splitter_move(i64::from(delta));
-        rapidr_runtime_web::layout_web::splitter_end();
-    }
-    if width > 0 && height > 0 {
-        rapidr_runtime_web::gui_web::test_resize_form(form, width, height);
-    }
-}
-
-/// Which GUI host draws the program's forms on this page: "kernel" (the UI
-/// kernel, asked for with `?host=kernel`; docs/web-host-plan.md, Stage W3)
-/// or "dom" (the default until parity).
+/// Which GUI host draws the program's forms: the UI kernel (the page's
+/// only one since the DOM host went; tests read it).
 #[wasm_bindgen]
 pub fn rapidr_host() -> String {
-    #[cfg(feature = "kernel")]
-    if rapidr_runtime_web::kernel_web::on() {
-        return "kernel".into();
-    }
-    "dom".into()
+    "kernel".into()
 }
 
 /// For GUI tests on the kernel host (as the desktop's test hooks read the
@@ -833,10 +809,7 @@ pub fn rapidr_host() -> String {
 /// dialogs' answers, as an object of strings — set before the program runs.
 #[wasm_bindgen]
 pub fn rapidr_set_test_env(vars: JsValue) {
-    #[cfg(feature = "kernel")]
     rapidr_runtime_web::kernel_web::set_test_env(&vars);
-    #[cfg(not(feature = "kernel"))]
-    let _ = vars;
 }
 
 /// A GUI test's results on the kernel host once its script ended (JSON:
@@ -845,10 +818,7 @@ pub fn rapidr_set_test_env(vars: JsValue) {
 /// desktop's `RAPIDR_CAPTURE` BMP, base64), `undefined` before.
 #[wasm_bindgen]
 pub fn rapidr_test_results() -> Option<String> {
-    #[cfg(feature = "kernel")]
-    return rapidr_runtime_web::kernel_web::test_results();
-    #[cfg(not(feature = "kernel"))]
-    None
+    rapidr_runtime_web::kernel_web::test_results()
 }
 
 /// Compile a single RapidR source string to `.rrbc` bytecode bytes.

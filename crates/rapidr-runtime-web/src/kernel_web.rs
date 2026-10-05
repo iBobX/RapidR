@@ -1,8 +1,6 @@
-//! The UI kernel as the web runtime's host (docs/web-host-plan.md, Stage
-//! W3; feature `kernel`, the default host since W4 — `?host=dom` asks for
-//! the old DOM host until it is deleted): the program's
-//! forms drawn by the same kernel, the same display lists and the same CPU
-//! renderer as on the desktop, as windows on the page
+//! The UI kernel as the web runtime's host (docs/web-host-plan.md): the
+//! program's forms drawn by the same kernel, the same display lists and the
+//! same CPU renderer as on the desktop, as windows on the page
 //! (`rapidr_ui_host_web::host`), their accessibility as an ARIA mirror.
 //!
 //! What doesn't depend on the host is `rapidr_ui_app`'s, the desktop's
@@ -21,12 +19,11 @@
 //! earliest deadline (the kernel's: a caret, a held scroll bar; the test
 //! script's next step). The program's own changes (a property set, a
 //! handler run by a timer or a slice of the VM) ask for the frame through
-//! `object_web` / `gui_web`, which call into here when the kernel hosts.
+//! `object_web`, which calls into here.
 //!
-//! Not here yet (Stage W4): the VM's waits through `rapidr_ui_app::waits`
-//! — ShowModal keeps the web's own (the VM suspended until the form
-//! closes, `dialog_web`), the message boxes and the colour / font / file
-//! dialogs stay the page's (`dialog_web`), QTIMERs their `setInterval`s.
+//! **Waits**: ShowModal, the dialogs, INPUT, INPUT$ and DOEVENTS are
+//! `rapidr_ui_app::waits` the interpreter serves (the VM suspended,
+//! `dialog_web`); the timers are the app's timer heap.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -45,10 +42,9 @@ use rapidr_value::Value;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-use crate::object_web::{form_of, get_children_of, rp_comp_get, rp_comp_set, rp_comp_set_prop_only, rp_comp_type, rp_fire_event, rp_fire_event_args, rp_fire_event_then, rp_has_handler};
+use crate::object_web::{form_of, get_children_of, rp_comp_get, rp_comp_get_stored, rp_comp_set, rp_comp_set_prop_only, rp_comp_type, rp_fire_event, rp_fire_event_args, rp_fire_event_then, rp_has_handler};
 
 thread_local! {
-    static ON: Cell<Option<bool>> = const { Cell::new(None) };
     static FRAME_ASKED: Cell<bool> = const { Cell::new(false) };
     static TURNING: Cell<bool> = const { Cell::new(false) };
     static LATER: Cell<bool> = const { Cell::new(false) };
@@ -63,23 +59,6 @@ thread_local! {
     static RESULTS: RefCell<Option<String>> = const { RefCell::new(None) };
     /// The program ENDed: its windows are gone, nothing more is drawn.
     static ENDED: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Whether the kernel hosts the program's forms: always, unless the page
-/// asked for the old DOM host (`?host=dom` in its address, or
-/// `RAPIDR_HOST = "dom"` set on the page before the runtime starts) — only
-/// until the DOM host is deleted (docs/web-host-plan.md §5).
-pub fn on() -> bool {
-    if let Some(on) = ON.with(Cell::get) {
-        return on;
-    }
-    let dom = web_sys::window().is_some_and(|w| {
-        let search = w.location().search().unwrap_or_default();
-        let global = js_sys::Reflect::get(&w, &JsValue::from_str("RAPIDR_HOST")).ok().and_then(|v| v.as_string()).unwrap_or_default();
-        search.split(['?', '&']).any(|p| p.eq_ignore_ascii_case("host=dom")) || global.eq_ignore_ascii_case("dom")
-    });
-    ON.with(|o| o.set(Some(!dom)));
-    !dom
 }
 
 fn lower(s: &str) -> String {
@@ -154,6 +133,24 @@ static STORE: WebStore = WebStore;
 #[derive(Clone, Copy)]
 pub struct Web;
 
+/// A component bound to a database's field (DataSource / DataField, the
+/// web's RSQLITE binding) the user changed: the field gets its value
+/// (the other way, `rp_sync_bound_widgets`).
+fn bound_input(id: &str, event: &str) {
+    if !matches!(event, "onchange" | "onclick") {
+        return;
+    }
+    let (ds, df) = (rp_comp_get_stored(id, "datasource").to_string_val(), rp_comp_get_stored(id, "datafield").to_string_val());
+    if ds.is_empty() || df.is_empty() {
+        return;
+    }
+    let value = match rp_comp_type(id).as_str() {
+        "RCHECKBOX" | "RRADIOBUTTON" => if rp_comp_get(id, "checked").to_bool() { "1" } else { "0" }.to_string(),
+        _ => rp_comp_get(id, "text").to_string_val(),
+    };
+    crate::database_web::update_bound_data(&ds, &df, &value);
+}
+
 impl Program for Web {
     fn get(self, id: &str, prop: &str) -> Value {
         rp_comp_get(id, prop)
@@ -177,6 +174,7 @@ impl Program for Web {
         rapidr_ui_kernel::store::flag(&WebStore, id, prop, default)
     }
     fn fire(self, id: &str, event: &str) {
+        bound_input(id, event);
         rp_fire_event(id, event)
     }
     fn fire_args(self, id: &str, event: &str, args: &[Value]) {
@@ -413,6 +411,11 @@ fn stop_timers() {
 /// handlers queued ahead of them first.
 fn fire_timers() {
     use rapidr_ui_app::timers;
+    // (a SLEEP holds the program whole, as the desktop's: its timers fire
+    // once it waits again)
+    if crate::dialog_web::sleeping() {
+        return;
+    }
     timers::take_held_back();
     timers::fire_due(Web);
 }
@@ -738,11 +741,10 @@ fn base64(bytes: &[u8]) -> String {
     out
 }
 
-// --------------------------------------------- the facade (object_web, gui_web) --
+// ------------------------------------------------- the facade (object_web) --
 //
-// What `object_web` and `gui_web` ask of the GUI while the kernel hosts:
-// the desktop facade's calls (runtime-core's `ui/kernel.rs`), into
-// `rapidr_ui_app`.
+// What `object_web` asks of the GUI: the desktop facade's calls
+// (runtime-core's `ui/kernel.rs`), into `rapidr_ui_app`.
 
 /// A component made: the tree built again (its form's, once shown).
 pub fn created(_name: &str) {
@@ -784,8 +786,8 @@ pub fn set_prop(name: &str, prop: &str, val: &Value) {
     schedule();
 }
 
-/// What only the GUI knows of a property (`gui_web_get_prop`'s, the live
-/// DOM's in the DOM host): a form's Visible is whether its window shows (as
+/// What only the GUI knows of a property: a form's Visible is whether its
+/// window shows (as
 /// the desktop's); everything else is the store's (Null: read it there).
 pub fn get_prop(name: &str, prop: &str) -> Value {
     if crate::overlay_web::is_overlay(&crate::object_web::rp_comp_type(name)) {
@@ -801,7 +803,7 @@ pub fn get_prop(name: &str, prop: &str) -> Value {
     Value::Null
 }
 
-/// A component's method the GUI does (`gui_web_method`'s): `None` for the
+/// A component's method the GUI does: `None` for the
 /// ones the kernel host leaves to the rest.
 pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Option<Value> {
     if let Some(v) = crate::overlay_web::method(name, comp_type, method, args) {
@@ -858,17 +860,12 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
     Some(v)
 }
 
-/// `Form.Close` / a modal form's ModalResult set (gui_web's `close_form`).
+/// `Form.Close` / a modal form's ModalResult set.
 pub fn close_form(name: &str) {
     forms::close(Web, name);
     schedule();
 }
 
-/// A form hidden without OnClose (END).
-pub fn hide_form(name: &str) {
-    forms::hide_window(name);
-    schedule();
-}
 
 /// END: the program's windows go now. A native web build's END unwinds
 /// from inside the host's callback (a thrown exception: nothing after it
@@ -954,13 +951,7 @@ pub fn tree_refresh(name: &str) {
     redraw();
 }
 
-/// A generated web program's form shown (its `Show` from the prelude).
-pub fn show_form(name: &str) {
-    forms::show(Web, name);
-    schedule();
-}
-
-// ------------------------------------------- timers, dialogs, waits (W4) --
+// ------------------------------------------------ timers, dialogs, waits --
 
 /// A QTIMER the program made (`__gui_register_timer`): it ticks while the
 /// program waits, in the app's heap.

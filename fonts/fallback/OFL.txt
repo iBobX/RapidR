@@ -1,6 +1,7 @@
 Noto Sans: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
 Noto Sans Symbols, Noto Sans Symbols 2: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)
 Noto Sans SC, Noto Sans KR (Noto Sans CJK): (c) 2014-2021 Adobe (http://www.adobe.com/)
+Noto Color Emoji: Copyright 2022 Google Inc.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

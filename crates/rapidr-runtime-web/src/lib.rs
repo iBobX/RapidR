@@ -1,11 +1,12 @@
-//! RapidR web runtime — the `Value` type, BASIC builtins, DOM-based component
-//! system, and browser API wrappers compiled to WebAssembly.
+//! RapidR web runtime — the `Value` type, BASIC builtins, the component
+//! registry, and browser API wrappers compiled to WebAssembly.
 //!
 //! Generated Rust/WASM programs `use rapidr_runtime_web::prelude::*` and
-//! operate on `Value` instances identical to the desktop runtime, but with
-//! the GUI, network, and I/O layers replaced by browser APIs.
+//! operate on `Value` instances identical to the desktop runtime. The
+//! program's windows are the UI kernel's, drawn on the page as on the
+//! desktop (`kernel_web`, docs/web-host-plan.md); network and I/O go through
+//! browser APIs.
 
-pub mod a11y_web;
 mod builtins;
 pub mod database_web;
 pub mod datascience_web;
@@ -19,32 +20,29 @@ pub fn builtins_input_line() -> value::Value {
 }
 mod file_io_web;
 pub mod globals_web;
-pub mod gui_web;
 /// The I/O and media objects' devices (QCOMPORT, QDOWNLOAD, …).
 pub mod io_web;
 /// The media objects' devices (QMIDI, QWAVE).
 pub mod media_web;
-/// The UI kernel as the page's GUI host (`?host=kernel`, Stage W3).
-#[cfg(feature = "kernel")]
+/// The UI kernel as the page's GUI host: the program's windows.
 pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
-pub mod menu_web;
 pub mod network_web;
 pub mod object_web;
-/// The web-only components (RWEBVIEW, RDOM, media, the data science
-/// widgets) as elements over the UI kernel's canvases (Stage W6).
-#[cfg(feature = "kernel")]
+/// The web-only components (RWEBVIEW, RDOM, media, RPLOT) as elements over
+/// the UI kernel's canvases.
 pub mod overlay_web;
-/// The fallback fonts (Noto: symbols, CJK) fetched as text needs them
-/// (Stage W7).
-#[cfg(feature = "kernel")]
+/// The fallback fonts (Noto: symbols, CJK) fetched as text needs them.
 pub mod fonts_web;
+/// The page itself: its document, new elements.
+pub mod page_web;
 pub mod scroll_web;
 pub mod storage_web;
 pub mod tray_web;
+/// RJAVASCRIPT, RWEBSTORAGE, RWEBNOTIFICATION, RWEBGEOLOCATION, RROUTER.
+pub mod webapi_web;
 pub use rapidr_value as value;
-pub use rapidr_rrcss::RR_BASE_CSS;
 
 pub mod prelude {
     // Value type + constructors
@@ -77,5 +75,6 @@ pub mod prelude {
 
     // GUI helpers
     pub use crate::object_web::{gui_register_timer, set_theme};
-    pub use crate::gui_web::{gui_web_finalize, gui_web_set_parent, gui_web_show_form};
+    // (the program's main code done: its windows shown)
+    pub use crate::kernel_web::finalize as gui_finalize;
 }

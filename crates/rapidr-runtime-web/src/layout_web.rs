@@ -17,8 +17,8 @@ use rapidr_value::layout::{align_controls, anchor_controls, anchor_record, ancho
 use crate::object_web::{get_children_of, rp_comp_get_stored, rp_comp_set, rp_comp_type};
 use crate::value::{v_int, Value};
 
-/// A web form's main menu, above its client area (gui_web's
-/// `create_mainmenu`); the frame is `rapidr_value::layout::form_frame`.
+/// A form's main menu, above its client area (the UI kernel's in-window
+/// bar); the frame is `rapidr_value::layout::form_frame`.
 pub const MENU_HEIGHT: i64 = rapidr_value::layout::MAIN_MENU_HEIGHT;
 
 thread_local! {

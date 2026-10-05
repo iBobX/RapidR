@@ -5,20 +5,13 @@ version.workspace = true
 publish = false
 license.workspace = true
 
-[features]
-default = []
-# The UI kernel as the page's GUI host (docs/web-host-plan.md, Stage W3):
-# with it, a page asking for `?host=kernel` gets the program's forms drawn
-# by the kernel (rapidr-ui-host-web) instead of DOM elements. The DOM host
-# stays the default until parity (Stage W5); W11 deletes it.
-kernel = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-web"]
-
 [dependencies]
 rapidr-value = { workspace = true }
-rapidr-ui-kernel = { workspace = true, optional = true }
-rapidr-ui-app = { workspace = true, optional = true }
-rapidr-ui-host-web = { path = "../rapidr-ui-host-web", default-features = false, optional = true }
-rapidr-rrcss = { workspace = true }
+# The program's windows: the UI kernel draws them on the page, as on the
+# desktop (docs/web-host-plan.md) — its program glue and the web host.
+rapidr-ui-kernel = { workspace = true }
+rapidr-ui-app = { workspace = true }
+rapidr-ui-host-web = { path = "../rapidr-ui-host-web", default-features = false }
 # RSQLITE: SQLite itself, compiled to wasm (shared with the desktop runtime)
 rapidr-db = { workspace = true }
 wasm-bindgen = "0.2.129"

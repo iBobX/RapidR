@@ -392,10 +392,7 @@ function startPreview(role, payload) {
     iframe.contentWindow.postMessage({ __rapidr_boot: boot }, "*", [port2]);
   };
   window.addEventListener("message", onHello);
-  // (the program's forms are drawn by the UI kernel — docs/web-host-plan.md;
-  // `index.html?host=dom` asks for the old DOM host until it is deleted)
-  const dom = new URLSearchParams(location.search).get("host") === "dom" ? "&host=dom" : "";
-  iframe.src = `./preview.html?role=${role}&v=${RAPIDR_IDE_VERSION}${dom}`;
+  iframe.src = `./preview.html?role=${role}&v=${RAPIDR_IDE_VERSION}`;
 }
 
 function logImmediate(s) {

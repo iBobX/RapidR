@@ -51,10 +51,27 @@ def source(font, fetch=True):
         return os.path.join(HERE, font["file"])
     path = os.path.join(CACHE, font["file"])
     if os.path.exists(path):
+        if "sha256" in font and sha256(open(path, "rb").read()) != font["sha256"]:
+            sys.exit(f"error: {path}: SHA-256 isn't the pinned {font['sha256']} (delete it to fetch again)")
         return path
     if not fetch:
         return None
     os.makedirs(CACHE, exist_ok=True)
+    # (a font file itself, pinned by its SHA-256)
+    if "url" in font:
+        print(f"fetching {font['url']} …", flush=True)
+        try:
+            req = urllib.request.Request(font["url"], headers={"User-Agent": "rapidr-fonts"})
+            data = urllib.request.urlopen(req, timeout=600).read()
+        except OSError as e:
+            print(f"  could not fetch it ({e}); offline, {font['family']} is left out — "
+                  f"run `python3 tools/fonts.py fetch` with the network, then build again", file=sys.stderr)
+            return None
+        if sha256(data) != font["sha256"]:
+            sys.exit(f"error: {font['url']}: SHA-256 {sha256(data)} isn't the pinned {font['sha256']}")
+        with open(path, "wb") as f:
+            f.write(data)
+        return path
     archive = os.path.join(CACHE, font["release"].rsplit("/", 1)[1])
     if not os.path.exists(archive):
         print(f"fetching {font['release']} …", flush=True)
@@ -133,8 +150,8 @@ def build(out_dir):
         mine = sorted(set(cmap) - covered)
         covered |= set(mine)
         stem, ext = os.path.splitext(font["file"])
-        if font["committed"]:
-            # (small: the whole file, one chunk)
+        if font["committed"] or not font.get("split", True):
+            # (small, or not to be split: the whole file, one chunk)
             name = font["file"]
             shutil.copyfile(path, os.path.join(out_dir, name))
             index["chunks"].append({"family": font["family"], "file": name, "ranges": ranges(mine)})

@@ -8,15 +8,19 @@
 //   expect: ["b1.caption=Clicked 2", …] exact `name.property=value` lines
 //   resize / split: test hooks (the frontmost form resized by the user to
 //                   "w,h", a splitter dragged "name:delta"), before the
-//                   events — RAPIDR_TEST_RESIZE / RAPIDR_TEST_SPLIT on the
-//                   desktop, rapidr_test_resize in the browser
-//   web:    false + why — the case can't be compared in a browser
+//                   events — RAPIDR_TEST_RESIZE / RAPIDR_TEST_SPLIT, on the
+//                   desktop and in the browser
+//   web:    false + why — the case can't be compared in a browser (the
+//           web's GUI host is the UI kernel, as the desktop's: the same
+//           test hooks play the events there, and each window's capture
+//           and accessibility tree are compared with the desktop's)
 //   webKernel: "pending: why" — the case doesn't run on the web's kernel
-//             host yet (RAPIDR_WEB_HOST=kernel, Stage W3); every other
-//             browser case must
-//   webClick: { comp: "css selector" } — where a browser click lands for a
-//             component whose clicks go through its rows / cells (the
-//             desktop test hook fires the handler directly)
+//             host yet; every other browser case must
+//   webCheck / webExpect: a JS expression read in the browser's page once
+//             the script has ended, and the value it must give — what the
+//             page shows outside its windows' insides and accessibility
+//             trees (the tray strip, a frame's title bar buttons, the
+//             page's icon), which the captures don't compare
 //   pixels: [[x, y, "rrggbb"], …] — what the desktop's capture of the
 //           first window shows at (x, y) of its client area (logical
 //           pixels; `clientWidth`, the window's ClientWidth, tells the
@@ -28,9 +32,7 @@ export const cases = [
   // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.
   { name: "glass_frame", events: "g.__mousedown_20_20,g.__mousemove_40_30,g.__mouseup_40_30,r.__mousedown_5_5,r.__mousemove_25_15,r.__mouseup_25_15,g.onclick", dump: "lbl.caption,form.left,form.top",
     expect: ["lbl.caption=- click120110 click120110", "form.left=120", "form.top=110"],
-    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]],
-    webCheck: `[getComputedStyle(document.getElementById("rr-g")).backgroundColor, getComputedStyle(document.getElementById("rr-r")).backgroundColor].join(" ")`,
-    webExpect: "rgb(144, 144, 144) rgb(128, 128, 128)" },
+    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]] },
   // QDOCKFORM built in (RAPIDQ2.INC's dockable form, RapidR's own
   // library): docked at its alternative place, floated, brought home,
   // closed (OnClose); the toolbar-style one's grip (the capture's pixels).
@@ -50,6 +52,7 @@ export const cases = [
   // and shows the form; a press after that says nothing.
   { name: "tray_icon", events: "btn.onclick,form.__tray_513,form.__tray_514,form.__tray_513", dump: "lbl.caption,form.__shown",
     expect: ["lbl.caption=add10 mod1 7:00000201f 7:00000202f del10", "form.__shown=1"],
+    // (web: the page's tray strip, tray_web.rs — no icon left in it, hidden)
     webCheck: `document.querySelectorAll(".rr-tray-icon").length + " " + getComputedStyle(document.getElementById("rr-tray")).display`,
     webExpect: "0 none" },
   // QBEVEL and QDIGDISPLAY built in (no include library): Shape / Style
@@ -58,11 +61,7 @@ export const cases = [
   // light columns, a lit segment (cyan), an unlit one's dither.
   { name: "bevel_display", events: "btn.onclick,edge.onclick,clock.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=-02021 12:34602460 00FFFF00|00008000|00000000cc"],
-    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]],
-    webCheck: `(() => { const c = document.getElementById("rr-clock"); const s = c.width / 60; const g = c.getContext("2d");
-      const px = ([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("");
-      return [[13, 15], [1, 7], [1, 8]].map(px).join(",") + " " + document.querySelectorAll("#rr-edge > .rr-bevel").length + " " + document.querySelectorAll("#rr-box > .rr-bevel").length; })()`,
-    webExpect: "00ffff,008000,000000 2 2" },
+    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]] },
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",
@@ -84,10 +83,7 @@ export const cases = [
   { name: "picture_resource", events: "img.onclick,img.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=1|20x10|0000FF00|00FF0000|0080FFFF|40|000000FF|00FFFFFF|-1", "lbl.caption=click;click;"] },
   { name: "grid_draw_cell", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"],
-    // (web: each owner-drawn cell drawn at the screen's scale — sharp at 2×)
-    webCheck: `(() => { const c = [...document.querySelectorAll("td canvas")]; return c.length > 0 && c.every(k => k.width === Math.round(parseFloat(k.style.width) * Math.min(3, Math.max(1, Math.ceil(devicePixelRatio))))); })()`,
-    webExpect: true },
+    expect: ["lbl.caption=round2:25|0,130,25,194,49,two|fixed4 selected3"] },
   { name: "grid_range_list", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=selected1"] },
   { name: "file_browser", events: "", dump: "lbl.caption", web: false, why: "a browser has no directories to list",
@@ -120,10 +116,7 @@ export const cases = [
     expect: ["lbl.caption=before after", "lbl2.caption=repainted1", "dlg.__shown=0", "form.__shown=1"] },
   { name: "tree_view", events: "tv.__toggle_0,tv.__node_2,tv.__node_1,tv.__toggle_4,btn.onclick", dump: "lbl.caption,lbl2.caption,tv.itemindex",
     expect: ["lbl.caption=exp0 chg1 |8|Sub 1|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
-  { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 -1"],
-    // (web: the node's state image beside its own; the selection hidden while the tree hasn't focus)
-    webCheck: `[...document.querySelectorAll('[data-rr-name="Tv" i] [data-node] canvas')].map(c => c.width > c.height * 1.5).join(",") + " " + document.querySelectorAll('[data-rr-name="Tv" i] .rr-tree-text[style*="background"]').length`,
-    webExpect: "true,false,false 0" },
+  { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 -1"] },
   { name: "tree_edit", events: "tv.__node_0,tv.__edit,tv.__enter,tv.__node_2,tv.__edit,tv.__enter,tv.__node_1,tv.__edit,tv.__escape,ro.onclick,tv.__edit,tv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum -1"] },
   { name: "panel_bevels", events: "btn.onclick", dump: "lbl.caption",
@@ -133,9 +126,8 @@ export const cases = [
   { name: "outline", events: "outline.__toggle_3,outline.__node_4,btn.onclick", dump: "lbl.caption,outline.row",
     expect: ["lbl.caption=6 First Child of Parent 2 2", "outline.row=4"] },
   // (`colorDialog`: what each colour dialog answers in turn, `;`-separated
-  // — a colour (decimal, one of the basic swatches for the browser) for
-  // OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG on the desktop, the page
-  // dialog clicked in the browser)
+  // — a colour (decimal) for OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG,
+  // on the desktop and in the browser)
   { name: "color_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", colorDialog: "255;",
     expect: ["lbl.caption=00000000|00000002|00000080|00FF00FF", "lbl2.caption=ok 000000FF 00123456|cancel 000000FF"] },
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
@@ -151,46 +143,37 @@ export const cases = [
   { name: "header", events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart 0000FF00"] },
   { name: "icons", events: "", dump: "lbl.caption,img.width,img2.width", expect: ["lbl.caption=16x16 00C85A14", "img.width=16", "img2.width=16"],
-    // (web: each form's title bar icon — its own, else the application's — and the page's)
-    webCheck: `(() => { const src = (n) => { const i = document.querySelector('.rr-form[data-rr-name="' + n + '"] .rr-form-icon'); return i && i.style.display !== "none" ? i.src : ""; };
-      return [src("FORM").startsWith("data:image/png"), src("OTHER").startsWith("data:image/png"), src("FORM") !== src("OTHER"), !!document.querySelector("link[rel~='icon'][href^='data:image/png']")].join(","); })()`,
-    webExpect: "true,true,true,true" },
-  { name: "option_icon", events: "", dump: "lbl.caption", expect: ["lbl.caption=-1"],
-    webCheck: `(() => { const i = document.querySelector('.rr-form[data-rr-name="FORM"] .rr-form-icon'); return !!i && i.style.display !== "none" && i.src.startsWith("data:image/png"); })()`,
+    // (web: the application's icon is the page's)
+    webCheck: `!!document.querySelector("link[rel~='icon'][href^='data:image/png']")`,
     webExpect: true },
+  { name: "option_icon", events: "", dump: "lbl.caption", expect: ["lbl.caption=-1"] },
   { name: "doevents_loop", events: "", dump: "lbl.caption", expect: ["lbl.caption=ticked -1 -1"] },
   { name: "inkey_wait", events: "lbl.__key_65,lbl.__key_38", dump: "lbl.caption", expect: ["lbl.caption=97/1 27/2"] },
   { name: "inkey_trapall", events: "lbl.__key_16,lbl.__key_65", dump: "lbl.caption", expect: ["lbl.caption=27:42 97:97 "] },
   { name: "grid_draw_hidden", events: "", dump: "lbl.caption", expect: ["lbl.caption=before=0 mark=m"] },
   { name: "border_icons", events: "", dump: "form.bordericons", expect: ["form.bordericons=11"],
-    webCheck: `["min", "max", "close"].map(b => document.querySelector('.rr-form[data-rr-name="Form" i] .rr-form-btn-' + b).disabled).join(",")`,
-    webExpect: "false,true,false" },
-  { name: "message_dialogs", events: "", dump: "lbl.caption", expect: ["lbl.caption=shown"],
-    web: false, why: "the browser's alert / confirm dialogs block the page the test reads" },
-  // (the page's own dialog: its caption, the icon left of the text, the
-  // buttons with their mnemonics)
-  { name: "message_icons", events: "", dump: "lbl.caption", expect: ["lbl.caption=asked"],
-    webCheck: `[...document.querySelectorAll(".rr-dialog")].map((d) => [d.querySelector(".rr-dialog-title")?.textContent, d.querySelector(".rr-dialog-icon")?.dataset.icon,
-      d.querySelector(".rr-dialog-icon svg polygon") ? "svg" : "-", [...d.querySelectorAll(".rr-dialog-button")].map((b) => b.textContent + (b.querySelector("u")?.textContent || "")).join(",")].join("|")).join(";")`,
-    webExpect: "Files|Question|svg|YesY,NoN" },
-  { name: "menus", events: "expert.onclick,newitem.onclick", dump: "lbl.caption,beg.checked,expert.checked", expect: ["lbl.caption=new0154Ctrl+N", "beg.checked=0", "expert.checked=1"],
-    webCheck: `[...document.querySelectorAll('nav[data-rr-type="RMAINMENU"] .rr-menu-item-sub')].map(e => e.querySelector('.rr-menu-mark').textContent + e.querySelector('.rr-menu-text').textContent + e.querySelector('.rr-menu-keys').textContent + (e.classList.contains('rr-menu-disabled') ? '!' : '')).join('|') + ' ' + document.querySelectorAll('nav .rr-menu-sep').length`,
-    webExpect: "NewCtrl+N|Beginner|●Expert|Exit! 1" },
+    // (web: the title bar the page draws, outside the window's capture —
+    // each button's glyph, minimize / maximize / close, in the text's ink
+    // or greyed; the title bar's metrics: the host's frame.rs, 28-pixel
+    // buttons from the right edge of a 320-pixel window)
+    webCheck: `(() => { const c = document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kframe'); const s = c.width / parseFloat(c.style.width); const g = c.getContext("2d");
+      const ink = ([x, y]) => { const r = g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data[0]; return r < 0x40 ? "ink" : r >= 0x60 && r <= 0xa0 ? "grey" : r.toString(16); };
+      return [[247, 17], [275, 11], [304, 15]].map(ink).join(","); })()`,
+    webExpect: "ink,grey,ink" },
+  { name: "message_dialogs", events: "", dump: "lbl.caption", expect: ["lbl.caption=shown"] },
+  // (a message box: its caption, the icon left of the text, the buttons
+  // with their mnemonics)
+  { name: "message_icons", events: "", dump: "lbl.caption", expect: ["lbl.caption=asked"] },
+  { name: "menus", events: "expert.onclick,newitem.onclick", dump: "lbl.caption,beg.checked,expert.checked", expect: ["lbl.caption=new0154Ctrl+N", "beg.checked=0", "expert.checked=1"] },
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
   { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
-    expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"],
-    webCheck: `JSON.stringify([document.querySelector('[data-rr-name="Ed" i]').value, document.querySelector('[data-rr-name="Re" i]').value])`,
-    webExpect: '["hEYo","ONE\\n2\\n"]' },
+    expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"] },
   { name: "trackbar", events: "tb.__key_39,tb.__key_34,tb.__key_36,tb.__mousedown_190_10,tb.__key_35,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=102111|10|4,6,0,2,10,|4"],
-    webCheck: `["Tb", "Vt"].map(n => document.querySelectorAll('[data-rr-name="' + n + '" i] svg polyline').length).join(",")`,
-    webExpect: "5,6" },
+    expect: ["lbl.caption=102111|10|4,6,0,2,10,|4"] },
   { name: "tab_control", events: "tab.__key_39,tab.__key_39,tab.__mousedown_8_10,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=0Tab 2340200|1FirstTab 2|2Tab 2,0First,10|4332196"],
-    webCheck: `[...document.querySelectorAll('[data-rr-name="Tab" i] .rr-tab-back text')].map(t => t.textContent).join(",")`,
-    webExpect: "First,Tab 2,Tab 1" },
+    expect: ["lbl.caption=0Tab 2340200|1FirstTab 2|2Tab 2,0First,10|4332196"] },
   { name: "autoscroll", events: "box.__mousedown_140_90,box.__mouseup_140_90,box.__mousedown_102_90,box.__mouseup_102_90,box.__mousedown_50_30,box.__mouseup_50_30,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=301209425290-1|14679300|216184-96|881121|020096"] },
   { name: "onshow_scroll", events: "btn.onclick", dump: "lbl.caption",
@@ -203,17 +186,14 @@ export const cases = [
     expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
       "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
   { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=36x18 30x15"],
-    // (web: a 12-point label's text is 16 pixels, as on the desktop)
-    webCheck: `getComputedStyle(document.getElementById("rr-l")).fontSize`, webExpect: "16px" },
+    expect: ["lbl.caption=36x18 30x15"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
   // (Stage 10: the IDE's components)
   { name: "design_surface",
     events: "ds.__mousedown_30_30,ds.__mousemove_43_36,ds.__mouseup_43_36,ds.__mousedown_113_47,ds.__mousemove_130_60,ds.__mouseup_130_60,ds.__mousedown_250_100,ds.__mouseup_250_100,ds.__dblclick_150_20,btn.onclick",
     dump: "lbl.caption,log.caption",
-    expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"],
-    web: false, why: "the web draws RDESIGNSURFACE as a plain panel: no designer drawing or mouse there yet (its model answers)" },
+    expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"] },
   { name: "code_editor", events: "btn.onclick", dump: "lbl.caption",
     expect: ['lbl.caption=7|SUB Hello(x AS INTEGER)|118|0|Hello/Twice|4,70|  PRINT|  BEEP "hi" \' greet|37|33|0'] },
   // (`comp.__dblclick_x_y`: a double click at (x, y) in it — press, release,
@@ -228,8 +208,7 @@ export const cases = [
   // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
   // the bar, and on the corner once SizeGrip is off)
   { name: "size_grip", events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
-    expect: ["lbl.caption=w318 g1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"], web: false,
-    why: "the browser's forms aren't resized by the user (no frame drag, so no size grip)" },
+    expect: ["lbl.caption=w318 g1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"] },
   // (its accessibility tree and keys: tests/web_a11y.mjs)
   { name: "a11y_form", events: "", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
   // (timers during native menu tracking: `__hold_600`, a menu held open
@@ -247,28 +226,20 @@ export const cases = [
   { name: "dialog_timers", events: "", dump: "lbl.caption,form2.__shown",
     messageDialog: "No;Yes;OK;OK;OK;OK", fileDialog: "notes.txt", colorDialog: "255", fontDialog: "Courier New,14", dialogHold: 250, delay: 4,
     expect: ["lbl.caption=inner6-1;dlg7-1;shown-1;msgbox0-1;open notes.txt-1;color000000FF-1;font Courier New14-1;box1-1;modal2;both1-1;", "form2.__shown=0"],
-    web: false, why: "the browser harness answers a dialog only after an event it fired, and has no hold; the page's own dialogs let the timers run (tests/web_ide_dialogs.mjs)" },
+    web: false, why: "timing: the browser's timers and frames make a step's first tick come too late now and then (most runs give the desktop's dump; the open file dialog's step is the one that misses) — its ticks are counted in tens of milliseconds" },
   // (the DirectX lane's: QDXSCREEN, QDXIMAGELIST, QDXTIMER — the screen at
   // (10, 10) shows its last Flip: blue Fill, the red corner, the sprite's
   // see-through white, the strip's two patterns)
   { name: "dx_screen", events: "dx.__mousedown_12_34,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=init surface t3 down01234 |16711680,255,65280,65535|16711680,255,65535,65280|10,160x100"],
-    pixels: [[150, 100, "0000ff"], [15, 15, "ff0000"], [111, 11, "0000ff"], [118, 18, "ff0000"], [131, 41, "ffff00"], [139, 41, "00ff00"]], clientWidth: 200,
-    webCheck: `(() => { const c = document.getElementById("rr-dx-screen"); const s = c.width / 160; const g = c.getContext("2d");
-      return [[140, 90], [5, 5], [101, 1], [108, 8], [121, 31], [129, 31]].map(([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("")).join(",")
-        + " " + c.style.width + " " + getComputedStyle(c.parentElement).backgroundColor; })()`,
-    webExpect: "0000ff,ff0000,0000ff,ff0000,ffff00,00ff00 160px rgb(0, 0, 0)" },
+    pixels: [[150, 100, "0000ff"], [15, 15, "ff0000"], [111, 11, "0000ff"], [118, 18, "ff0000"], [131, 41, "ffff00"], [139, 41, "00ff00"]], clientWidth: 200 },
   // (the DirectX lane's, stage D1b: the default font, Rotate, View.*, a
   // screen put on a shown form, a hidden form's screen, FullScreen,
-  // ActiveOnly; the rotated line and the late screen's blue in the capture,
-  // Cursor and the full screen's 4:3 picture in the page)
+  // ActiveOnly; the rotated line, the late screen's blue and the full
+  // screen's 4:3 picture in the captures)
   { name: "dx_more", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick,b5.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=tick rot255,0 view10.5,5000 parented late second120 full |10x13,18|0|wide0,-1"],
-    pixels: [[30, 50, "ff0000"], [40, 40, "000000"], [140, 20, "0000ff"]], clientWidth: 240,
-    webCheck: `(() => { const px = (id, x, y) => { const c = document.getElementById(id); const s = c.width / parseFloat(c.style.width); return [...c.getContext("2d").getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join(""); };
-      const full = document.getElementById("rr-dx3-screen");
-      return [getComputedStyle(document.getElementById("rr-dx")).cursor, px("rr-dx-screen", 20, 40), px("rr-late-screen", 5, 5), Math.round(parseFloat(full.style.width) / parseFloat(full.style.height) * 100)].join(" "); })()`,
-    webExpect: "none ff0000 0000ff 133" },
+    pixels: [[30, 50, "ff0000"], [40, 40, "000000"], [140, 20, "0000ff"]], clientWidth: 240 },
   // (the DirectX lane's, stage D2: QDXSOUND — no sound under the tests:
   // Playing and Position follow the clock)
   { name: "dx_sound", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
@@ -301,16 +272,14 @@ export const cases = [
   // as an independent decoder gives them, the picture at 200 %)
   { name: "video_player", events: "b1.onclick," + Array(50).fill("b2.onclick").join(","), dump: "lbl.caption",
     expect: ["lbl.caption=0 Cannot find the specified  | 1 8 0 32x24 32x24 -1 3 3 1 1 end 0 0 -1 0 | 1 34x26 video_clip.tmp.avi 128 122x55 Clip 5 3"],
-    pixels: [[23, 73, "101010"], [55, 89, "dc3c14"], [81, 115, "f0d7c8"]], clientWidth: 318,
-    webCheck: `(() => { const c = document.getElementById("rr-v.screen"); if (!c) return "no canvas"; const k = c.width / parseFloat(c.style.width); const g = c.getContext("2d"); const p = (x, y) => Array.from(g.getImageData(Math.floor((x + 0.5) * k), Math.floor((y + 0.5) * k), 1, 1).data.slice(0, 3)).map((v) => v.toString(16).padStart(2, "0")).join(""); return [p(3, 3), p(35, 19), p(61, 45)].join(","); })()`,
-    webExpect: "101010,dc3c14,f0d7c8" },
+    pixels: [[23, 73, "101010"], [55, 89, "dc3c14"], [81, 115, "f0d7c8"]], clientWidth: 318 },
   { name: "dx_joystick", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     joystick: "x=0,b=1,name=Pad;x=65535,y=0,b=2;y=65535,pov=9000,b=3,name=Pad;b=1;b=1,x=0;b=0,x=0;-",
     expect: ["lbl.caption=-1000-10 0-1-100-1 000-1-1-1 Pad,-1,32767,65535,3,9000 |down1 move0 up1 move32767 |0"] },
   // (kernel themes: a click switches to dark at run time — Application.Theme;
   // `themes`: the desktop also captures the form under each of these,
-  // RAPIDR_THEME, without the events — the web keeps its own look and only
-  // reads the names back)
+  // RAPIDR_THEME, without the events — the web's run is compared with the
+  // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
 ];

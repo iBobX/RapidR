@@ -5,7 +5,6 @@
 //! RDataFrame → column-oriented Vec<Vec<String>>
 //! RPlot  → HTML5 Canvas via web-sys
 
-use crate::gui_web;
 use crate::object_web;
 use crate::value::{v_dbl, v_int, v_null, v_str, Value};
 use std::cell::RefCell;
@@ -853,7 +852,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
                     crate::builtins::rp_print(&[v_str(&out)], true);
                     // Also render into the visual widget if it exists.
                     let id = format!("rr-{}", uname.to_lowercase());
-                    if let Some(el) = gui_web::document().get_element_by_id(&id) {
+                    if let Some(el) = crate::page_web::document().get_element_by_id(&id) {
                         let mut html = String::from("<table style=\"border-collapse:collapse;width:100%;font-size:11px;\"><thead><tr>");
                         for c in &df.columns {
                             html += &format!("<th style=\"border:1px solid #bbb;background:#eee;padding:2px 6px;text-align:left;\">{}</th>", html_escape(c));
@@ -1699,78 +1698,6 @@ fn format_number(v: f64) -> String {
     } else {
         format!("{:.2}", v)
     }
-}
-
-// ======================================================================
-// Ensure RPLOT creates a canvas container in DOM
-// ======================================================================
-
-pub fn create_plot_widget(id: &str, name: &str, props: &HashMap<String, Value>) {
-    let el = gui_web::create_el("div");
-    el.set_class_name("rr-widget rr-plot-container");
-    let _ = el.style().set_property("background", "white");
-    let _ = el.style().set_property("border", "1px solid #ccc");
-    let _ = el.style().set_property("display", "flex");
-    let _ = el.style().set_property("align-items", "center");
-    let _ = el.style().set_property("justify-content", "center");
-    let _ = el.style().set_property("color", "#888");
-    let _ = el.style().set_property("font-family", "sans-serif");
-    let _ = el.style().set_property("font-size", "12px");
-    el.set_inner_html(&format!(
-        "<span class=\"rr-plot-placeholder\">📈 {}<br/><small>(call .render() / .plot())</small></span>",
-        name
-    ));
-    let has_parent = props.get("parent").map(|v| !v.to_string_val().is_empty()).unwrap_or(false);
-    if !has_parent {
-        let _ = el.style().set_property("display", "none");
-    }
-    gui_web::setup_widget(&el, id, name, props);
-}
-
-// ======================================================================
-// Ensure RDataFrame creates a table container in DOM (visual placeholder).
-// Populated when .show() / .togrid() / etc. are called.
-// ======================================================================
-
-pub fn create_dataframe_widget(id: &str, name: &str, props: &HashMap<String, Value>) {
-    let el = gui_web::create_el("div");
-    el.set_class_name("rr-widget rr-dataframe-container");
-    let _ = el.style().set_property("background", "white");
-    let _ = el.style().set_property("border", "1px solid #ccc");
-    let _ = el.style().set_property("overflow", "auto");
-    let _ = el.style().set_property("font-family", "monospace");
-    let _ = el.style().set_property("font-size", "12px");
-    el.set_inner_html(&format!(
-        "<div class=\"rr-df-placeholder\" style=\"padding:8px;color:#888;\">▦ {}<br/><small>(call .show() to render)</small></div>",
-        name
-    ));
-    let has_parent = props.get("parent").map(|v| !v.to_string_val().is_empty()).unwrap_or(false);
-    if !has_parent {
-        let _ = el.style().set_property("display", "none");
-    }
-    gui_web::setup_widget(&el, id, name, props);
-}
-
-// ======================================================================
-// RNum visual placeholder (numeric array — usually non-visual but if a
-// designer marks it visible we render a tiny chip showing the count).
-// ======================================================================
-
-pub fn create_num_widget(id: &str, name: &str, props: &HashMap<String, Value>) {
-    let el = gui_web::create_el("div");
-    el.set_class_name("rr-widget rr-num-container");
-    let _ = el.style().set_property("background", "#f8f8f8");
-    let _ = el.style().set_property("border", "1px dashed #aaa");
-    let _ = el.style().set_property("color", "#555");
-    let _ = el.style().set_property("font-family", "monospace");
-    let _ = el.style().set_property("font-size", "11px");
-    let _ = el.style().set_property("padding", "4px 8px");
-    el.set_inner_html(&format!("ƒ {} (RNum)", name));
-    let has_parent = props.get("parent").map(|v| !v.to_string_val().is_empty()).unwrap_or(false);
-    if !has_parent {
-        let _ = el.style().set_property("display", "none");
-    }
-    gui_web::setup_widget(&el, id, name, props);
 }
 
 fn html_escape(s: &str) -> String {

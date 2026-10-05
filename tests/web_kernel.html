@@ -1,11 +1,11 @@
 <!doctype html>
 <!--
-  The web runtime (target/web, tools/build_web_artifacts.sh) with the UI
-  kernel as its GUI host (docs/web-host-plan.md, Stage W3): what
-  tests/web_gui_run.mjs runs the GUI fixtures in when RAPIDR_WEB_HOST=kernel.
+  The web runtime (target/web, tools/build_web_artifacts.sh), the UI kernel
+  its GUI host (docs/web-host-plan.md): what tests/web_gui_run.mjs runs the
+  GUI fixtures in, and the page the kernel host's other browser tests load.
   The page only loads the runtime; the test compiles a fixture, gives it the
-  test hooks' environment (rapidr_set_test_env) and runs it. Open it with
-  ?host=kernel (without, the DOM host draws).
+  test hooks' environment (rapidr_set_test_env) if it plays a case's
+  events, and runs it.
 -->
 <html lang="en">
 <head>

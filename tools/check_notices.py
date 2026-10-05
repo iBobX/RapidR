@@ -47,7 +47,7 @@ KINDS = {
     "windows-aarch64": (DESKTOP_ROOTS, ["aarch64-pc-windows-gnullvm", "aarch64-pc-windows-msvc"]),
     "linux-x86_64": (DESKTOP_ROOTS, ["x86_64-unknown-linux-gnu"]),
     "linux-aarch64": (DESKTOP_ROOTS, ["aarch64-unknown-linux-gnu"]),
-    "web": ((["rapidr-vm-host-web", "rapidr-runtime-web"], ["rapidr-runtime-web/kernel"]), ["wasm32-unknown-unknown"]),
+    "web": ((["rapidr-vm-host-web", "rapidr-runtime-web"], []), ["wasm32-unknown-unknown"]),
     "tools-macos": ((["rapidr-cli", "rapidr-launcher"], []), ["aarch64-apple-darwin", "x86_64-apple-darwin"]),
     "tools-windows": ((["rapidr-cli", "rapidr-launcher"], []), ["x86_64-pc-windows-gnullvm", "x86_64-pc-windows-msvc", "aarch64-pc-windows-gnullvm", "aarch64-pc-windows-msvc"]),
     "tools-linux": ((["rapidr-cli", "rapidr-launcher"], []), ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]),

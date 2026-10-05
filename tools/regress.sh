@@ -45,15 +45,16 @@ if want web; then
   # (the UI kernel hosts the web — docs/web-host-plan.md: the cases' dumps
   # by the desktop's own test hooks, and every window and accessibility tree
   # byte for byte against the desktop's own captures, made here by
-  # tests/gui_captures.mjs at 1× and 2×. Known ≠: menus / themes (the
-  # desktop's macOS menu bar), message_icons / modal_result 2× (wasm SIMD's
-  # rounding, one or two pixels by one level))
+  # tests/gui_captures.mjs at 1× and 2×; what the page shows outside the
+  # windows by the cases' webCheck. Known ≠: menus / themes (the desktop's
+  # macOS menu bar), message_icons / message_dialogs, design_surface 1×,
+  # modal_result 2× (wasm SIMD's rounding, one or two pixels by one level))
   echo "== desktop captures for the web"; node tests/gui_captures.mjs "$PWD/$W/gui_captures" 2>&1 | tail -1
   echo "== web gui parity"; RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   # (Chrome's accessibility tree over the mirror = the kernel's)
   echo "== web accessibility"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host|Web accessibility"
-  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs; do
+  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

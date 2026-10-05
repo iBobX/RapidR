@@ -131,7 +131,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (it was a silent no-op): split at the first `=` (or, without one, a
   space), names found in any case by `ENVIRON$` as on Windows; in the
   browser a table of the page's own.
-- **Fallback fonts on the web (W7)** (docs/web-host-plan.md, "W7"): text the built-in Liberation fonts can't draw — ✓ and other symbols, Chinese, Japanese, Korean — is drawn with Noto fonts (SIL OFL 1.1) instead of boxes.
+- **One web host: the old DOM host is deleted** (docs/web-host-plan.md, "W11"): the UI kernel draws every program's windows on the web as on the desktop, with no `?host=dom`, no `kernel` feature and no `rapidr-rrcss`; the web runtime is 0.4 MB smaller.
+  - RWEBNOTIFICATION.Show shows the notification again (a form's Show had taken it), and RROUTER.Route / Hash read the address.
+  - QIMAGE.LoadFromPlot loads the chart's pixels, as on the desktop.
+  - Application.Icon is the page's icon too.
+  - A component bound with DataSource / DataField writes the user's edits to its field.
+  - A QIMAGE given a non-BMP file warns and loads nothing, as on the desktop.
+  - SLEEP holds a web program whole, as on the desktop. Its timers fire once it waits again, so a timer's handler that opens a box right after a SLEEP gets its answer.
+- **Fallback fonts on the web (W7)** (docs/web-host-plan.md, "W7"): text the built-in Liberation fonts can't draw — ✓ and other symbols, Chinese, Japanese, Korean, emoji (in colour) — is drawn with Noto fonts (SIL OFL 1.1) instead of boxes.
   - The fonts ship beside the web runtime, split by Unicode range. A page fetches a chunk the first time its text needs it: labels, edits and window titles alike.
   - Bundles (`bundle-bc`, the IDE's Build) and `rapidr build --web` sites carry the chunks; an installed RapidR never downloads them.
   - `python3 tools/fonts.py` fetches the CJK sources (official Noto releases, pinned by SHA-256) and builds the chunks. Noto Sans and the Symbols fonts are in the repository.

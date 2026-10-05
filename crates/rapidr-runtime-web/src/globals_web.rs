@@ -32,21 +32,18 @@ pub fn name_theme(name: &str) {
         Choice::Unknown => rapidr_value::theme::CLASSIC.name,
     };
     THEME.with(|t| t.set(chosen));
-    // (Stage W3: with the kernel hosting, it draws in that theme from now
-    // on — `auto` the page's look, as the desktop's the system's)
-    #[cfg(feature = "kernel")]
-    if crate::kernel_web::on() {
-        let theme = match choose(name) {
-            Choice::Theme(t) => t,
-            Choice::Auto => {
-                let media = |q: &str| !rapidr_ui_app::testhooks::under_test() && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
-                rapidr_value::theme::auto(media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
-            }
-            Choice::Unknown => &rapidr_value::theme::CLASSIC,
-        };
-        rapidr_value::theme::set(theme);
-        crate::kernel_web::redraw();
-    }
+    // (the kernel draws in that theme from now on — `auto` the page's look,
+    // as the desktop's the system's)
+    let theme = match choose(name) {
+        Choice::Theme(t) => t,
+        Choice::Auto => {
+            let media = |q: &str| !rapidr_ui_app::testhooks::under_test() && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
+            rapidr_value::theme::auto(media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
+        }
+        Choice::Unknown => &rapidr_value::theme::CLASSIC,
+    };
+    rapidr_value::theme::set(theme);
+    crate::kernel_web::redraw();
 }
 
 /// Follows the mouse over the page (Screen.MouseX / MouseY).
@@ -147,7 +144,21 @@ impl Platform for Web {
     }
 
     fn set_icon(&self) {
-        crate::gui_web::apply_application_icon();
+        // (the page's icon too: a bundle's tab shows the program's)
+        let url = rapidr_value::globals::application_icon().and_then(|v| rapidr_value::objects::icon_pixels(&v)).and_then(|(w, h, rgba, _)| crate::page_web::rgba_data_url(w, h, &rgba));
+        if let (Some(url), Some(doc)) = (url, web_sys::window().and_then(|w| w.document())) {
+            let link = doc.query_selector("link[rel~='icon']").ok().flatten().or_else(|| {
+                let l = doc.create_element("link").ok()?;
+                let _ = l.set_attribute("rel", "icon");
+                doc.head()?.append_child(&l).ok()?;
+                Some(l)
+            });
+            if let Some(link) = link {
+                let _ = link.set_attribute("href", &url);
+            }
+        }
+        // (and every window without an icon of its own)
+        crate::kernel_web::redraw();
     }
 
     fn set_title(&self, title: &str) {
