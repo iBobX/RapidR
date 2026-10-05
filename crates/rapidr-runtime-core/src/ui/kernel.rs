@@ -1,7 +1,12 @@
 //! The UI kernel as the runtime's desktop host (the only one;
 //! docs/desktop-host-plan.md §1.3–§1.5): the facade's functions for the
 //! kernel (`rapidr_ui_kernel`) and its winit or headless host
-//! (`rapidr_ui_host_winit`).
+//! (`rapidr_ui_host_winit`). What doesn't depend on the host — the kernel's
+//! events as the program's, forms shown and closed, the modal list, the
+//! timers, the waits' bookkeeping, menus, the test script — is
+//! `rapidr_ui_app`'s, shared with the web runtime (docs/web-host-plan.md,
+//! Stage W2); it works through [`Rt`] (the program: `program.rs`; the
+//! windows: here). This file keeps what pumps or waits for the host.
 //!
 //! **Program code runs only here, between pumps** — in [`step`]:
 //!
@@ -29,26 +34,28 @@
 //! ([`held`]).
 //!
 //! What the host needs from the program goes into queues the next pump
-//! takes (window commands, "something changed"); what the facade is asked
-//! (Visible, Scale, Handle …) is answered from state kept here, never from
-//! the host, which is borrowed while it pumps.
+//! takes (window commands, "something changed": `rapidr_ui_app::windows`);
+//! what the facade is asked (Visible, Scale, Handle …) is answered from
+//! state kept there, never from the host, which is borrowed while it pumps.
 
 use std::cell::{Cell, RefCell};
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-use rapidr_ui_host_winit::{Desktop, Host, HostEvent, Icon, Source, WindowSpec};
-use rapidr_ui_kernel::{Clipboard, KernelEvent, Mods};
+use rapidr_ui_app::waits::{self, Wait};
+use rapidr_ui_app::windows::{invalidate, push_op, restructure, take_notify, take_ops};
+use rapidr_ui_app::{forms, lists, script, timers, ScriptInput, WindowOp, Windows};
+use rapidr_ui_host_winit::{Desktop, Host, HostCmd, HostEvent, Icon, Source, WindowSpec};
+use rapidr_ui_kernel::{Clipboard, Mods};
 use rapidr_value::input::{Button, Mouse};
 
-use super::kernel_store::{flag, RtStore};
-use super::testhooks::{self, Action, Capture, TestEvent};
-use crate::object::{form_of, get_children_of, rp_comp_get, rp_comp_set, rp_comp_type, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_args, rp_fire_event_then, store_prop};
+use super::kernel_store::RtStore;
+use super::program::Rt;
+use super::testhooks::Capture;
+use crate::object::{form_of, rp_comp_get, rp_comp_set};
 use crate::value::{v_int, v_null, Value};
 
-// The buttons and menus lane's part: a pick's OnClick, Popup, AutoPopup,
-// RAPIDR_DUMP_MENUS.
+// The buttons and menus lane's part: Popup's and AutoPopup's menu shown.
 mod menus;
 // The dialogs and platform lane's: kernel-drawn message boxes, colour and
 // font dialogs, rfd's Open / Save sheets; window frames, cursors, $THEME.
@@ -63,80 +70,9 @@ struct Kern {
     desk: Desktop,
 }
 
-/// A window command for the next pump (the host may be pumping when the
-/// program asks: a store hook inside a callback).
-enum WinOp {
-    Show(String),
-    Hide(String),
-    Title(String, String),
-    Size(String, (i64, i64)),
-    Position(String, (i64, i64)),
-    Border(String, bool),
-    Icon(String, Option<Icon>),
-    Minimize(String),
-    /// A pop-up menu shown by the host (form, menu, x, y in its inside).
-    Popup(String, String, i64, i64),
-    // (the WindowState lane's)
-    /// The window maximized, minimized or restored (wsNormal …).
-    State(String, i64),
-}
-
-/// A wait the bytecode VM serves itself ([`gui_set_cooperative_waits`]).
-enum Wait {
-    /// `Form.ShowModal`: until the form is closed.
-    Form(String),
-    /// The program's main event loop: until no window is left.
-    App,
-    // (timers during native menu tracking: the VM waits between
-    // instructions, so it can lend itself to a tracking tick — rather than
-    // inside a builtin, where its handlers could only queue)
-    /// `PopupMenu.Popup` with the host's context menu: one turn, the menu
-    /// shown (and tracked) inside it, its pick dispatched.
-    Popup,
-    /// `DOEVENTS`: one turn.
-    Once,
-}
-
-/// A GUI test's run (`RAPIDR_CAPTURE`; ui::testhooks).
-struct Script {
-    capture: Capture,
-    events: VecDeque<TestEvent>,
-    /// When the next step may run.
-    next: Instant,
-    /// The resize and splitter drag done (they come before the events).
-    started: bool,
-    /// The events done: the next step captures.
-    finished: bool,
-}
-
 #[derive(Default)]
 struct State {
-    /// Forms whose kernel side (and window) was made.
-    built: HashSet<String>,
-    /// Forms shown now.
-    shown: HashSet<String>,
-    /// Built forms whose first OnPaint waits for their window to show.
-    first_paint: HashSet<String>,
-    /// Windows a `Visible = True` shows once the program waits.
-    pending_shows: Vec<String>,
-    /// The forms shown modally now, innermost last.
-    modal: Vec<String>,
-    /// Each shown form's screen scale (Form.Scale).
-    scales: HashMap<String, f64>,
-    ops: Vec<WinOp>,
-    /// QTIMERs the program made, those ticking, and when they're due.
-    timers: Vec<String>,
-    scheduled: HashSet<String>,
-    heap: BinaryHeap<Reverse<(Instant, u64, String)>>,
-    timer_gen: u64,
-    cooperative: bool,
-    waits: Vec<Wait>,
-    wait_started: bool,
-    script: Option<Script>,
     theme: String,
-    /// (the WindowState lane's) The bounds a maximized form goes back to
-    /// (the headless host's maximize: `simulate_state`).
-    normal_bounds: HashMap<String, rapidr_value::window_state::Bounds>,
     // (timers during native menu tracking)
     /// The screen, the work area and the monitors as the host last said
     /// (answered while the host pumps: a tracking tick's handlers).
@@ -157,11 +93,6 @@ thread_local! {
     /// until the process ends.
     static KERN: Cell<Option<&'static RefCell<Kern>>> = const { Cell::new(None) };
     static ST: RefCell<State> = RefCell::new(State::default());
-    /// Something to draw again: (paint, the component tree changed).
-    static NOTIFY: Cell<(bool, bool)> = const { Cell::new((false, false)) };
-    /// Inside a window change the runtime makes (Left / Top following a
-    /// move): not the program's.
-    static APPLYING: Cell<u32> = const { Cell::new(0) };
     /// (timers during native menu tracking) Inside a tracking tick: the
     /// system holds the pump, nothing may wait.
     static HELD: Cell<bool> = const { Cell::new(false) };
@@ -185,10 +116,6 @@ fn with_kern<R>(f: impl FnOnce(&mut Kern) -> R) -> Option<R> {
 
 fn lower(name: &str) -> String {
     name.to_lowercase()
-}
-
-fn is_form(name: &str) -> bool {
-    matches!(rp_comp_type(name).as_str(), "RFORM" | "RFORMMDI")
 }
 
 /// `RAPIDR_SCALE`: the screen's scale for tests.
@@ -229,7 +156,7 @@ fn ensure_host() {
         // (only the test's own events drive it)
         desk.ignore_user = true;
         let next = Instant::now() + Duration::from_secs_f64(c.delay.max(0.0));
-        st(|s| s.script = Some(Script { events: c.events.clone().into(), capture: c, next, started: false, finished: false }));
+        script::start(c, next);
     }
     let k: &'static RefCell<Kern> = Box::leak(Box::new(RefCell::new(Kern { host, desk })));
     KERN.with(|c| c.set(Some(k)));
@@ -241,61 +168,66 @@ fn started() -> bool {
 
 // ------------------------------------------------------------- the pump --
 
+/// A window's picture as the host takes it.
+fn host_icon(icon: Option<rapidr_ui_app::Icon>) -> Option<Icon> {
+    icon.map(|i| Icon { width: i.width, height: i.height, rgba: i.rgba })
+}
+
 /// What the program changed, into the kernel's forms: window commands,
 /// new forms' kernel sides, trees rebuilt, layouts read again.
 fn sync_desk(desk: &mut Desktop) {
-    menus::dump_if_changed();
+    rapidr_ui_app::menus::dump_if_changed(Rt);
     let store = RtStore;
-    let (paint, structure) = NOTIFY.with(|n| n.replace((false, false)));
-    let ops = st(|s| std::mem::take(&mut s.ops));
-    let modal = st(|s| s.modal.clone());
+    let (paint, structure) = take_notify();
+    let ops = take_ops();
+    let modal = forms::modal_forms();
     for op in ops {
         match op {
-            WinOp::Show(f) => {
+            WindowOp::Show(f) => {
                 if !desk.forms.contains_key(&f) {
                     desk.ensure_form(&store, &f, menu_in_window(), spec_of(&f));
                 }
                 desk.show(&f);
             }
-            WinOp::Hide(f) => desk.hide(&f),
-            WinOp::Title(f, t) => {
+            WindowOp::Hide(f) => desk.hide(&f),
+            WindowOp::Title(f, t) => {
                 if let Some(w) = desk.form(&f) {
                     w.spec.title = t;
-                    desk.cmds.push(rapidr_ui_host_winit::HostCmd::Title(f));
+                    desk.cmds.push(HostCmd::Title(f));
                 }
             }
-            WinOp::Size(f, size) => {
+            WindowOp::Size(f, size) => {
                 if let Some(w) = desk.form(&f) {
                     if w.spec.size != size {
                         w.spec.size = size;
-                        desk.cmds.push(rapidr_ui_host_winit::HostCmd::Size(f));
+                        desk.cmds.push(HostCmd::Size(f));
                     }
                 }
             }
-            WinOp::Position(f, p) => {
+            WindowOp::Position(f, p) => {
                 if let Some(w) = desk.form(&f) {
                     w.spec.position = Some(p);
-                    desk.cmds.push(rapidr_ui_host_winit::HostCmd::Position(f));
+                    desk.cmds.push(HostCmd::Position(f));
                 }
             }
-            WinOp::Border(f, b) => {
+            WindowOp::Border(f, b) => {
                 if let Some(w) = desk.form(&f) {
                     w.spec.border = b;
-                    desk.cmds.push(rapidr_ui_host_winit::HostCmd::Border(f));
+                    desk.cmds.push(HostCmd::Border(f));
                 }
             }
-            WinOp::Icon(f, i) => {
+            WindowOp::Icon(f, i) => {
                 if let Some(w) = desk.form(&f) {
-                    w.spec.icon = i;
-                    desk.cmds.push(rapidr_ui_host_winit::HostCmd::Icon(f));
+                    w.spec.icon = host_icon(i);
+                    desk.cmds.push(HostCmd::Icon(f));
                 }
             }
-            WinOp::Minimize(f) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Minimize(f)),
-            WinOp::Popup(form, menu, x, y) => desk.cmds.push(rapidr_ui_host_winit::HostCmd::Popup { form, menu, x, y }),
-            WinOp::State(f, state) => {
+            WindowOp::Minimize(f) => desk.cmds.push(HostCmd::Minimize(f)),
+            WindowOp::Popup(form, menu, x, y) => desk.cmds.push(HostCmd::Popup { form, menu, x, y }),
+            WindowOp::State(f, state) => {
                 if let Some(w) = desk.form(&f) {
                     w.spec.state = state;
-                    desk.cmds.push(rapidr_ui_host_winit::HostCmd::State(f));
+                    desk.cmds.push(HostCmd::State(f));
                 }
             }
         }
@@ -343,16 +275,16 @@ pub fn step(max_wait: Option<Duration>) {
         return;
     }
     ensure_host();
-    show_pending();
+    forms::show_pending(Rt);
     // (the lists lane's owner-draw events, before the windows are drawn)
-    super::kernel_lists::pre_paint(&st(|s| s.shown.iter().cloned().collect::<Vec<_>>()));
+    lists::pre_paint(Rt, &forms::shown_forms());
     let now = Instant::now();
     let mut t = max_wait;
     let mut at_most = |d: Duration| t = Some(t.map_or(d, |t| t.min(d)));
-    if let Some(at) = st(|s| s.heap.peek().map(|Reverse((at, _, _))| *at)) {
+    if let Some(at) = timers::next_due() {
         at_most(at.saturating_duration_since(now));
     }
-    if let Some(at) = st(|s| s.script.as_ref().map(|s| s.next)) {
+    if let Some(at) = script::next_step() {
         at_most(at.saturating_duration_since(now));
     }
     if with_kern(|k| !k.desk.events.is_empty()).unwrap_or(false) {
@@ -365,8 +297,8 @@ pub fn step(max_wait: Option<Duration>) {
     pump(t);
     crate::object::rp_run_deferred();
     dispatch_pending();
-    fire_due_timers();
-    script_step();
+    timers::fire_due(Rt);
+    script::step(Rt);
 }
 
 /// The events the host queued, handled (each to completion; a handler may
@@ -376,135 +308,9 @@ fn dispatch_pending() {
         match e {
             // (a kernel-drawn dialog's: never the program's)
             HostEvent::Kernel(form, ev) if rapidr_ui_kernel::dialogs::is_dialog(&form) => dialogs::event(&form, ev),
-            HostEvent::Kernel(_, ev) => dispatch(ev),
+            HostEvent::Kernel(_, ev) => rapidr_ui_app::dispatch::dispatch(Rt, ev),
             HostEvent::Wake => {}
         }
-    }
-}
-
-/// A kernel event, fired as the program's event (OnClick, OnKeyDown …).
-fn dispatch(ev: KernelEvent) {
-    match ev {
-        KernelEvent::Click(id) => rp_fire_event(&id, "onclick"),
-        // (the input lane's)
-        KernelEvent::DblClick(id) => rp_fire_event(&id, "ondblclick"),
-        KernelEvent::Change(id) => rp_fire_event(&id, "onchange"),
-        KernelEvent::KeyDown { chain, vk, shift, text } => {
-            // (a key pressed in the program's windows is INKEY$'s too)
-            if let Some(k) = rapidr_value::console::inkey_of(vk, &text) {
-                rapidr_value::console::push_key(k);
-            }
-            for name in rapidr_value::input::key_targets(&chain, |f| rp_comp_get(f, "keypreview").to_bool()) {
-                rp_fire_event_2(name, "onkeydown", v_int(vk), v_int(shift));
-            }
-        }
-        KernelEvent::KeyPress { chain, key } => {
-            for name in rapidr_value::input::key_targets(&chain, |f| rp_comp_get(f, "keypreview").to_bool()) {
-                rp_fire_event_1(name, "onkeypress", v_int(key));
-            }
-        }
-        KernelEvent::KeyUp { chain, vk, shift } => {
-            for name in rapidr_value::input::key_targets(&chain, |f| rp_comp_get(f, "keypreview").to_bool()) {
-                rp_fire_event_2(name, "onkeyup", v_int(vk), v_int(shift));
-            }
-        }
-        KernelEvent::Mouse { id, kind, button, x, y, shift } => mouse_event(&id, kind, button, x, y, shift),
-        KernelEvent::Close(f) => gui_close(&f),
-        KernelEvent::Resized(f, w, h) => {
-            let menu = i64::from(menu_offset(&f));
-            form_resized(&f, w, h + menu);
-        }
-        KernelEvent::Moved(f, x, y) => {
-            APPLYING.with(|a| a.set(a.get() + 1));
-            crate::layout::quietly(|| {
-                rp_comp_set(&f, "left", v_int(x));
-                rp_comp_set(&f, "top", v_int(y));
-            });
-            APPLYING.with(|a| a.set(a.get() - 1));
-        }
-        KernelEvent::ScaleChanged(f, scale) => scale_changed(&f, scale),
-        KernelEvent::MenuPick(item) => menus::picked(&item),
-        KernelEvent::Set { id, prop, value } => {
-            rp_comp_set(&id, &prop, v_int(value));
-            invalidate();
-        }
-        KernelEvent::List(id, action) => super::kernel_lists::dispatch(&id, action),
-        KernelEvent::Container(c) => container_event(c),
-    }
-}
-
-/// A container's action (containers lane): a scroll bar, a splitter or an
-/// MDI frame the user moved, into the shared layout models.
-fn container_event(c: rapidr_ui_kernel::components::form::Container) {
-    use rapidr_ui_kernel::components::form::Container;
-    match c {
-        Container::Scrolled { id, dx, dy } => crate::scroll::user_scrolled(&id, (dx, dy)),
-        Container::SplitBegin(id) => {
-            crate::layout::splitter_begin(&id);
-        }
-        Container::SplitMove(delta) => crate::layout::splitter_move(delta),
-        Container::SplitEnd => crate::layout::splitter_end(),
-        Container::Mdi { form, component, action } => crate::mdi::user(&form, &component, action),
-        // (the input lane's: the host's — `Desktop` makes it a window command)
-        Container::Resize { .. } => {}
-    }
-}
-
-/// `name`'s mouse event (a QIMAGE's too: the kernel draws it and routes
-/// its mouse like any component's).
-fn mouse_event(name: &str, kind: Mouse, button: Button, x: i64, y: i64, shift: i64) {
-    // (Stage 10: a design surface's mouse is its own events — OnSelect,
-    // OnMove …, components/design.rs — it takes the mouse whole)
-    if rapidr_value::objects::is_design(name) {
-        return;
-    }
-    if kind == Mouse::Down && button == Button::Right && menus::auto_popup(name, x, y) {
-        return;
-    }
-    rp_fire_event_args(name, kind.event(), &kind.args(button, x, y, shift));
-}
-
-/// The user resized a form's window to `w` × `h` (its inside, the
-/// in-window menu included): its Width / Height follow (within its
-/// Constraints), its aligned and anchored children are laid out again,
-/// OnResize and OnPaint fire.
-fn form_resized(form: &str, w: i64, h: i64) {
-    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(form, "borderstyle").to_i64());
-    let asked = (w + fw, h + fh);
-    let (w, h) = crate::layout::constraints_of(form).size(asked.0, asked.1);
-    let same = rp_comp_get(form, "width").to_i64() == w && rp_comp_get(form, "height").to_i64() == h;
-    if same {
-        // (dragged outside them: the window goes back)
-        if (w, h) != asked {
-            gui_apply_geometry(form);
-        }
-        return;
-    }
-    crate::layout::quietly(|| {
-        rp_comp_set(form, "width", v_int(w));
-        rp_comp_set(form, "height", v_int(h));
-    });
-    crate::layout::client_changed(form);
-    crate::scroll::update(form);
-    gui_apply_geometry(form);
-    rp_fire_event(form, "onresize");
-    rp_fire_event(form, "onpaint");
-}
-
-/// A form's window moved to a screen with another scale: told
-/// (OnScaleChanged) and drawn again at it (OnPaint).
-fn scale_changed(form: &str, scale: f64) {
-    if forced_scale().is_some() {
-        return;
-    }
-    let changed = st(|s| match s.scales.insert(lower(form), scale) {
-        Some(old) => (old - scale).abs() > f64::EPSILON,
-        None => false,
-    });
-    if changed {
-        rapidr_value::objects::bitmap::set_display_scale(scale);
-        rp_fire_event(form, "onscalechanged");
-        fire_first_paint(form);
     }
 }
 
@@ -512,82 +318,12 @@ fn scale_changed(form: &str, scale: f64) {
 
 /// A QTIMER the program made (generated programs call it).
 pub fn gui_register_timer(name: &str) {
-    let name = lower(name);
-    st(|s| {
-        if !s.timers.contains(&name) {
-            s.timers.push(name);
-        }
-    });
-}
-
-fn start_timers() {
-    for t in st(|s| s.timers.clone()) {
-        schedule_timer(&t);
-    }
-}
-
-fn timer_interval(name: &str) -> Duration {
-    // (the DirectX lane's: a QDXTIMER's Interval 0 is a screen refresh)
-    if let Some(d) = crate::directx::timer_interval(name) {
-        return d;
-    }
-    let ms = rp_comp_get(name, "interval").to_i64();
-    Duration::from_millis(if ms > 0 { ms as u64 } else { 1000 })
-}
-
-/// Starts timer `name` ticking if it's enabled and isn't already (it
-/// fires while the program waits: a modal form, the main loop, DOEVENTS).
-fn schedule_timer(name: &str) {
-    let name = lower(name);
-    if rp_comp_get(&name, "enabled").to_i64() == 0 || !st(|s| s.scheduled.insert(name.clone())) {
-        return;
-    }
-    let at = Instant::now() + timer_interval(&name);
-    st(|s| {
-        s.timer_gen += 1;
-        let g = s.timer_gen;
-        s.heap.push(Reverse((at, g, name)));
-    });
+    timers::register(name);
 }
 
 /// A timer's Enabled or Interval changed: it ticks if it's enabled now.
 pub fn gui_timer_changed(name: &str) {
-    if started() {
-        schedule_timer(name);
-    }
-}
-
-/// The timers due, each fired then armed again from now with its Interval
-/// as it is then; one disabled meanwhile stops.
-fn fire_due_timers() {
-    fire_due_timers_then(|| ());
-}
-
-/// [`fire_due_timers`], `then` run after each one's handler was fired (a
-/// tracking tick: the VM's handler run before the next timer's).
-fn fire_due_timers_then(then: impl Fn()) {
-    loop {
-        let now = Instant::now();
-        let due = st(|s| match s.heap.peek() {
-            Some(Reverse((at, _, _))) if *at <= now => s.heap.pop().map(|Reverse((_, _, n))| n),
-            _ => None,
-        });
-        let Some(name) = due else { break };
-        if rp_comp_get(&name, "enabled").to_i64() == 0 {
-            st(|s| s.scheduled.remove(&name));
-            continue;
-        }
-        // (the DirectX lane's: a QDXTIMER counts its frames)
-        crate::directx::timer_fired(&name);
-        rp_fire_event(&name, "ontimer");
-        then();
-        let at = Instant::now() + timer_interval(&name);
-        st(|s| {
-            s.timer_gen += 1;
-            let g = s.timer_gen;
-            s.heap.push(Reverse((at, g, name)));
-        });
-    }
+    timers::changed(Rt, name);
 }
 
 // ------------------------------------------ timers during menu tracking --
@@ -649,14 +385,13 @@ fn tracking_tick(desk: &mut Desktop) -> rapidr_ui_host_winit::tracking::Turn {
     }
     let _held = Held(HELD.with(|h| h.replace(true)));
     crate::object::rp_program_turn(|| {
-        fire_due_timers_then(crate::object::rp_serve_program);
-        super::kernel_lists::pre_paint(&st(|s| s.shown.iter().cloned().collect::<Vec<_>>()));
+        timers::fire_due_then(Rt, crate::object::rp_serve_program);
+        lists::pre_paint(Rt, &forms::shown_forms());
         crate::object::rp_serve_program();
     });
     sync_desk(desk);
     desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
-    let timer = st(|s| s.heap.peek().map(|Reverse((at, _, _))| *at));
-    let next = [timer, desk.next_wake()].into_iter().flatten().min();
+    let next = [timers::next_due(), desk.next_wake()].into_iter().flatten().min();
     rapidr_ui_host_winit::tracking::Turn { next, end_loop: st(|s| std::mem::take(&mut s.end_loop)) }
 }
 
@@ -671,68 +406,19 @@ fn menu_in_window() -> bool {
 /// The height of a form's in-window main menu (0 without one, and on
 /// macOS).
 pub fn menu_offset(form: &str) -> i32 {
-    let has_menu = get_children_of(form).iter().any(|(_, t)| t == "RMAINMENU");
-    if has_menu && menu_in_window() {
-        rapidr_value::layout::MAIN_MENU_HEIGHT as i32
-    } else {
-        0
-    }
-}
-
-/// A form's window inside: Width / Height less the frame the window
-/// system draws (the in-window menu included).
-fn form_window_size(name: &str) -> (i64, i64) {
-    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(name, "borderstyle").to_i64());
-    ((rp_comp_get(name, "width").to_i64() - fw).clamp(1, 100_000), (rp_comp_get(name, "height").to_i64() - fh).clamp(1, 100_000))
-}
-
-/// A form's icon: its IcoHandle / Icon, else the application's.
-fn icon_of(name: &str) -> Option<Icon> {
-    let own = ["icohandle", "icon"].into_iter().map(|p| rp_comp_get(name, p)).find(rapidr_value::objects::has_icon);
-    let (w, h, rgba, _) = own.or_else(rapidr_value::globals::application_icon).and_then(|v| rapidr_value::objects::icon_pixels(&v))?;
-    Some(Icon { width: w as u32, height: h as u32, rgba })
+    forms::menu_offset(Rt, form)
 }
 
 fn spec_of(name: &str) -> WindowSpec {
     WindowSpec {
         title: rp_comp_get(name, "caption").to_string_val(),
-        size: form_window_size(name),
+        size: forms::form_window_size(Rt, name),
         position: Some((rp_comp_get(name, "left").to_i64(), rp_comp_get(name, "top").to_i64())),
         border: rp_comp_get(name, "borderstyle").to_i64() != 0,
-        icon: icon_of(name),
+        icon: host_icon(forms::icon_of(Rt, name)),
         frame: platform::frame(name),
         // (the WindowState lane's)
         state: rapidr_value::window_state::of(rp_comp_get(name, "windowstate").to_i64()),
-    }
-}
-
-/// A form's kernel side, made the first time (OnLoad once, the first
-/// OnPaint waiting for its window to show).
-fn build_form(name: &str) {
-    let name = lower(name);
-    if !st(|s| s.built.insert(name.clone())) {
-        return;
-    }
-    rp_fire_event(&name, "onload");
-    // (the DirectX lane's: its QDXSCREENs set up, OnInitialize)
-    crate::directx::form_built(&name);
-    st(|s| s.first_paint.insert(name));
-}
-
-/// The form's window shown (made the first time), before its OnShow: one
-/// pump so the window exists.
-fn show_window(name: &str) {
-    let name = lower(name);
-    st(|s| {
-        s.shown.insert(name.clone());
-        s.ops.push(WinOp::Show(name.clone()));
-    });
-    pump(Some(Duration::ZERO));
-    // (the WindowState lane's: shown maximized as asked — the system did it
-    // with the window; the headless host's form takes the work area now)
-    let state = rapidr_value::window_state::of(rp_comp_get(&name, "windowstate").to_i64());
-    if state == rapidr_value::window_state::WS_MAXIMIZED && headless() && !st(|s| s.normal_bounds.contains_key(&name)) {
-        simulate_state(&name, rapidr_value::window_state::WS_NORMAL, state);
     }
 }
 
@@ -742,131 +428,11 @@ fn headless() -> bool {
     with_kern(|k| k.host.headless()).unwrap_or_else(|| !started() || headless_known())
 }
 
-/// (the WindowState lane's) `Form.WindowState` set (it was `from`): its
-/// window maximized, minimized or restored by the system, whose word comes
-/// back as Resized / Moved (Left … Height follow, OnResize) and the window's
-/// state (`Desktop::window_state`). On the headless host there's no system:
-/// the form takes the work area itself (`simulate_state`). A form not shown
-/// yet takes its state when it shows.
+/// (the WindowState lane's) `Form.WindowState` set (it was `from`):
+/// `rapidr_ui_app::forms::set_window_state` — the system maximizes,
+/// minimizes or restores the window; the headless host's is simulated.
 pub fn gui_set_window_state(name: &str, from: i64) {
-    let name = lower(name);
-    if !is_form(&name) || !form_shown(&name) {
-        return;
-    }
-    let to = rapidr_value::window_state::of(rp_comp_get(&name, "windowstate").to_i64());
-    st(|s| s.ops.push(WinOp::State(name.clone(), to)));
-    if headless() {
-        pump(Some(Duration::ZERO));
-        simulate_state(&name, from, to);
-    } else {
-        // (the system's answer, as soon as it comes)
-        pump(Some(Duration::ZERO));
-        dispatch_pending();
-    }
-}
-
-/// The headless host's maximize and restore (`rapidr_value::window_state::
-/// change`): the form moved to the work area (its bounds kept to come back
-/// to) or back, as a user's drag would — Left / Top / Width / Height follow,
-/// its layout, OnResize.
-fn simulate_state(name: &str, from: i64, to: i64) {
-    let get = |p: &str| rp_comp_get(name, p).to_i64();
-    let current = (get("left"), get("top"), get("width"), get("height"));
-    let (ww, wh) = work_area();
-    let saved = st(|s| s.normal_bounds.get(name).copied());
-    let (bounds, keep) = rapidr_value::window_state::change(from, to, current, saved, (0, 0, ww, wh));
-    st(|s| match keep {
-        Some(b) => {
-            s.normal_bounds.insert(name.to_string(), b);
-        }
-        None => {
-            s.normal_bounds.remove(name);
-        }
-    });
-    let Some((left, top, w, h)) = bounds else { return };
-    let (fw, fh) = rapidr_value::layout::form_frame(get("borderstyle"));
-    let (iw, ih) = ((w - fw).max(1), (h - fh).max(1));
-    with_kern(|k| {
-        if let Some(f) = k.desk.forms.get_mut(name) {
-            f.ui.sync(&RtStore);
-        }
-        k.desk.resized(name, iw, ih);
-        k.desk.moved(name, left, top);
-    });
-    st(|s| s.ops.push(WinOp::Size(name.to_string(), (iw, ih))));
-    dispatch_pending();
-}
-
-fn hide_window(name: &str) {
-    let name = lower(name);
-    st(|s| {
-        if s.shown.remove(&name) {
-            s.ops.push(WinOp::Hide(name));
-        }
-    });
-}
-
-/// A form's window shown: drawn at its screen's scale from now on, then
-/// (the first time) its OnPaint — as Windows' WM_PAINT comes once a window
-/// shows, after OnShow.
-fn after_show(name: &str) {
-    let name = lower(name);
-    let host_scale = with_kern(|k| k.desk.forms.get(&name).map(|f| f.scale).unwrap_or_else(|| k.host.default_scale()));
-    let scale = forced_scale().or(host_scale).unwrap_or(1.0);
-    rapidr_value::objects::bitmap::set_display_scale(scale);
-    st(|s| s.scales.insert(name.clone(), scale));
-    if st(|s| s.first_paint.remove(&name)) {
-        fire_first_paint(&name);
-    }
-}
-
-fn fire_first_paint(parent: &str) {
-    rp_fire_event(parent, "onpaint");
-    for (child, type_name) in get_children_of(parent) {
-        if type_name.eq_ignore_ascii_case("RCANVAS") {
-            rp_fire_event(&child, "onpaint");
-        } else {
-            fire_first_paint(&child);
-        }
-    }
-}
-
-/// The program waits: the windows it made visible show (unless it hid
-/// them again meanwhile).
-fn show_pending() {
-    for name in st(|s| std::mem::take(&mut s.pending_shows)) {
-        if window_shown(&name) != Some(true) && rp_comp_get(&name, "visible").to_bool() {
-            gui_show(&name);
-        }
-    }
-}
-
-fn form_shown(name: &str) -> bool {
-    st(|s| s.shown.contains(&lower(name)))
-}
-
-fn any_shown() -> bool {
-    st(|s| !s.shown.is_empty())
-}
-
-/// Something drawn changed (the lists lane's runtime side).
-pub(super) fn invalidate_all() {
-    invalidate();
-}
-
-/// Whether form `name` shows now (the lists lane's runtime side).
-pub(super) fn is_shown_form(name: &str) -> bool {
-    form_shown(name)
-}
-
-/// Something drawn changed: painted again at the next pump.
-fn invalidate() {
-    NOTIFY.with(|n| n.set((true, n.get().1)));
-}
-
-/// Components added, removed or moved between parents.
-fn restructure() {
-    NOTIFY.with(|n| n.set((n.get().0, true)));
+    forms::set_window_state(Rt, name, from);
 }
 
 // ---------------------------------------------------- the facade: draw --
@@ -896,7 +462,7 @@ pub fn grid_refresh(_name: &str) {
     invalidate();
 }
 pub fn tree_refresh(name: &str) {
-    super::kernel_lists::tree_refresh(name);
+    lists::tree_refresh(Rt, name);
     invalidate();
 }
 pub fn header_refresh(_name: &str) {
@@ -911,42 +477,7 @@ pub fn gui_apply_font(_name: &str) {
 /// The program set a QCOOLBTN's / QOVALBTN's Down: the others of its
 /// group come up (host-neutral: rapidr_value::toggle_group).
 pub fn toggle_down_set(name: &str) {
-    if !is_toggle_button(name) {
-        return;
-    }
-    let name = lower(name);
-    let down = rp_comp_get(&name, "down").to_bool();
-    let mut changes = rapidr_value::toggle_group::set_down(&name, down, &toggle_members(&name));
-    changes.push((name, down));
-    toggle_apply(changes);
-}
-
-fn is_toggle_button(name: &str) -> bool {
-    matches!(rp_comp_type(name).as_str(), "RCOOLBTN" | "ROVALBTN")
-}
-
-/// The toggle buttons sharing `name`'s parent.
-fn toggle_members(name: &str) -> Vec<rapidr_value::toggle_group::Member> {
-    let parent = rp_comp_get(name, "parent").to_string_val();
-    get_children_of(&parent)
-        .into_iter()
-        .filter(|(_, t)| matches!(t.as_str(), "RCOOLBTN" | "ROVALBTN"))
-        .map(|(n, _)| rapidr_value::toggle_group::Member { group: rp_comp_get(&n, "groupindex").to_i64(), down: rp_comp_get(&n, "down").to_bool(), name: n })
-        .collect()
-}
-
-/// The new Down values, stored (and drawn).
-fn toggle_apply(changes: Vec<(String, bool)>) {
-    for (n, down) in changes {
-        store_prop(&n, "down", v_int(if down { -1 } else { 0 }));
-    }
-    invalidate();
-}
-
-/// The user pressed a QCOOLBTN / QOVALBTN (its group decides what's down).
-fn toggle_press(name: &str) {
-    let allow_all_up = rp_comp_get(name, "allowallup").to_bool();
-    toggle_apply(rapidr_value::toggle_group::press(name, allow_all_up, &toggle_members(name)));
+    forms::toggle_down_set(Rt, name);
 }
 pub fn schedule_menu_sync() {
     invalidate();
@@ -954,10 +485,7 @@ pub fn schedule_menu_sync() {
 
 /// A caption: a form's is its window's title.
 pub fn gui_set_caption(name: &str, text: &str) {
-    if is_form(name) {
-        st(|s| s.ops.push(WinOp::Title(lower(name), text.to_string())));
-    }
-    invalidate();
+    forms::set_caption(Rt, name, text);
 }
 
 // ----------------------------------------------- the facade: structure --
@@ -984,89 +512,43 @@ pub fn ensure_menu_widget(_name: &str) {
 /// `Visible`: a built form's window shows or hides (no OnShow: Show fires
 /// that); a component is read from the store when painted.
 pub fn gui_set_visible(name: &str, visible: bool) {
-    if is_form(name) && window_shown(name).is_some() {
-        if visible {
-            show_window(name);
-            after_show(name);
-        } else {
-            hide_window(name);
-        }
-        return;
-    }
-    invalidate();
+    forms::set_visible(Rt, name, visible);
 }
 
 /// Left / Top / Width / Height: a form's window takes its new size.
 pub fn gui_apply_geometry(name: &str) {
-    if is_form(name) && window_shown(name).is_some() {
-        st(|s| s.ops.push(WinOp::Size(lower(name), form_window_size(name))));
-    }
-    invalidate();
+    forms::apply_geometry(Rt, name);
 }
 
 // ------------------------------------------------- the facade: windows --
 
 /// Shows a form without waiting (OnShow when it wasn't showing).
 pub fn gui_show(name: &str) {
-    ensure_host();
-    if !is_form(name) {
-        // (a component shown: drawn again; its Visible says)
-        store_prop(&lower(name), "visible", crate::value::v_bool(true));
-        return invalidate();
-    }
-    let was_built = window_shown(name).is_some();
-    if was_built && form_shown(name) {
-        // (already showing: on top)
-        st(|s| s.ops.push(WinOp::Show(lower(name))));
-        return;
-    }
-    build_form(name);
-    show_window(name);
-    rp_fire_event(name, "onshow");
-    after_show(name);
+    forms::show(Rt, name);
 }
 
 /// `Form.Visible = True`: its Show; a form not built yet (its own CREATE)
 /// shows once the program waits.
 pub fn gui_show_visible(name: &str) {
-    if window_shown(name).is_some() {
-        gui_show(name);
-        return;
-    }
-    ensure_host();
-    st(|s| s.pending_shows.push(name.to_string()));
+    forms::show_visible(Rt, name);
 }
 
 /// Hides a form's window (no OnClose).
 pub fn gui_hide(name: &str) {
-    if is_form(name) {
-        hide_window(name);
-    } else {
-        store_prop(&lower(name), "visible", crate::value::v_bool(false));
-        invalidate();
-    }
+    forms::hide(Rt, name);
 }
 
 /// `Form.Close` and the window's close box: OnClose's `Action` (it starts
 /// as `caHide`) decides whether the form goes, stays or is minimized.
 pub fn gui_close(name: &str) {
-    use rapidr_value::events::{CloseAction, CA_HIDE};
-    if !is_form(name) || window_shown(name).is_none() {
-        return gui_hide(name);
-    }
-    let name = lower(name);
-    rp_fire_event_then(&name.clone(), "onclose", &[v_int(CA_HIDE)], move |a| match CloseAction::of(&a[0]) {
-        CloseAction::Stay => {}
-        CloseAction::Minimize => st(|s| s.ops.push(WinOp::Minimize(name.clone()))),
-        CloseAction::Close => hide_window(&name),
-    });
+    forms::close(Rt, name);
 }
 
 /// The screen's size (logical pixels).
 fn screen() -> (i64, i64) {
     ensure_host();
     // (the winit host knows its monitor after its first pump)
-    if with_kern(|k| k.host.headless()) == Some(false) && !st(|s| !s.built.is_empty()) {
+    if with_kern(|k| k.host.headless()) == Some(false) && !forms::any_built() {
         pump(Some(Duration::ZERO));
     }
     // (while the host pumps — a tracking tick's handler — as it last said)
@@ -1079,63 +561,33 @@ fn screen() -> (i64, i64) {
     }
 }
 
-/// A form's position centred on the screen.
-fn centered(name: &str) -> (i64, i64) {
-    let (sw, sh) = screen();
-    let (w, h) = form_window_size(name);
-    ((sw - w) / 2, (sh - h) / 2)
-}
-
 /// `Form.Center`: on the screen's middle (when shown; ShowModal centres a
 /// form asked to be before it showed).
 pub fn gui_center(name: &str) {
-    rp_comp_set(name, "_center", v_int(1));
-    if window_shown(name).is_none() {
-        return;
-    }
-    let (x, y) = centered(name);
-    st(|s| s.ops.push(WinOp::Position(lower(name), (x, y))));
-    APPLYING.with(|a| a.set(a.get() + 1));
-    crate::layout::quietly(|| {
-        rp_comp_set(name, "left", v_int(x));
-        rp_comp_set(name, "top", v_int(y));
-    });
-    APPLYING.with(|a| a.set(a.get() - 1));
+    forms::center(Rt, name);
 }
 
 /// `Form.Left` / `Form.Top` set by the program: the window moves there.
 pub fn gui_move_form(name: &str) {
-    if APPLYING.with(Cell::get) > 0 || window_shown(name).is_none() {
-        return;
-    }
-    let p = (rp_comp_get(name, "left").to_i64(), rp_comp_get(name, "top").to_i64());
-    st(|s| s.ops.push(WinOp::Position(lower(name), p)));
+    forms::move_form(Rt, name);
 }
 
 /// `Form.BorderStyle`: bsNone (0) takes away the window's frame.
 pub fn gui_set_form_border(name: &str) {
-    if window_shown(name).is_some() {
-        st(|s| s.ops.push(WinOp::Border(lower(name), rp_comp_get(name, "borderstyle").to_i64() != 0)));
-    }
-    gui_apply_geometry(name);
+    forms::set_form_border(Rt, name);
 }
 
 pub fn gui_apply_icon(name: &str) {
-    if is_form(name) && window_shown(name).is_some() {
-        let icon = icon_of(name);
-        st(|s| s.ops.push(WinOp::Icon(lower(name), icon)));
-    }
+    forms::apply_icon(Rt, name);
 }
 
 /// `Application.Icon` changed: every form without its own.
 pub fn gui_apply_icons() {
-    for f in st(|s| s.built.iter().cloned().collect::<Vec<_>>()) {
-        gui_apply_icon(&f);
-    }
+    forms::apply_icons(Rt);
 }
 
 pub fn gui_menu_popup(name: &str, x: i32, y: i32) {
-    menus::popup(name, x, y);
+    rapidr_ui_app::menus::popup(Rt, name, x, y);
 }
 
 // ---------------------------------------------------- the facade: text --
@@ -1177,47 +629,23 @@ pub fn gui_showmodal(name: &str) -> i64 {
         held_cannot("ShowModal");
         return rapidr_value::events::modal_result(0);
     }
-    store_prop(&name, "modalresult", v_int(0));
-    st(|s| s.modal.push(name.clone()));
-    build_form(&name);
-    if rp_comp_get(&name, "_center").to_i64() != 0 {
-        let p = centered(&name);
-        st(|s| s.ops.push(WinOp::Position(name.clone(), p)));
-    }
-    if form_shown(&name) {
-        st(|s| s.ops.push(WinOp::Show(name.clone())));
-        pump(Some(Duration::ZERO));
-    } else {
-        show_window(&name);
-    }
-    rp_fire_event(&name, "onshow");
-    after_show(&name);
-    start_timers();
-    if st(|s| s.cooperative) {
-        st(|s| {
-            s.waits.push(Wait::Form(name));
-            s.wait_started = true;
-        });
+    forms::begin_modal(Rt, &name);
+    if waits::cooperative() {
+        waits::start(Wait::Form(name));
         return 0;
     }
-    show_pending();
-    while form_shown(&name) {
+    forms::show_pending(Rt);
+    while forms::form_shown(&name) {
         step(None);
     }
     // (the timers stop with the modal form)
     crate::object::rp_stop_all_timers();
-    modal_ended(&name)
+    forms::modal_ended(Rt, &name)
 }
 
 /// Whether `name` is shown modally now (setting its ModalResult closes it).
 pub fn is_modal(name: &str) -> bool {
-    st(|s| s.modal.contains(&lower(name)))
-}
-
-/// A modal form closed: what its ShowModal returns.
-fn modal_ended(name: &str) -> i64 {
-    st(|s| s.modal.retain(|f| f != name));
-    rapidr_value::events::modal_result(rp_comp_get(name, "modalresult").to_i64())
+    forms::is_modal(name)
 }
 
 /// `DOEVENTS`: pending events, timers and redraws get their turn. (The
@@ -1228,13 +656,10 @@ pub fn gui_doevents() {
     if !started() || held() {
         return;
     }
-    start_timers();
-    show_pending();
-    if st(|s| s.cooperative) {
-        st(|s| {
-            s.waits.push(Wait::Once);
-            s.wait_started = true;
-        });
+    timers::start_all(Rt);
+    forms::show_pending(Rt);
+    if waits::cooperative() {
+        waits::start(Wait::Once);
         return;
     }
     step(Some(Duration::ZERO));
@@ -1244,7 +669,7 @@ pub fn gui_doevents() {
 /// INKEY$'s queue. `None` without a window shown; `Some(false)` when the
 /// last window closed first.
 pub fn gui_wait_key() -> Option<bool> {
-    if !started() || !any_shown() {
+    if !started() || !forms::any_shown() {
         return None;
     }
     // (a tracking tick's handler: no key can come inside the system's loop
@@ -1253,10 +678,10 @@ pub fn gui_wait_key() -> Option<bool> {
         held_cannot("INPUT$");
         return Some(false);
     }
-    start_timers();
+    timers::start_all(Rt);
     while !rapidr_value::console::key_waiting() {
-        show_pending();
-        if !any_shown() {
+        forms::show_pending(Rt);
+        if !forms::any_shown() {
             return Some(false);
         }
         step(None);
@@ -1267,18 +692,18 @@ pub fn gui_wait_key() -> Option<bool> {
 /// For the bytecode VM: `ShowModal` returns at once and leaves its wait to
 /// the VM, which steps with [`gui_pump_wait`].
 pub fn gui_set_cooperative_waits(on: bool) {
-    st(|s| s.cooperative = on);
+    waits::set_cooperative(on);
 }
 
 pub fn gui_take_wait_started() -> bool {
-    st(|s| std::mem::replace(&mut s.wait_started, false))
+    waits::take_started()
 }
 
 /// Starts waiting for the program's windows (after the main program). The
 /// host starts with the first window: a console program never opens the
 /// system's windowing (no display needed, no Dock icon).
 pub fn gui_begin_app_wait() {
-    st(|s| s.waits.push(Wait::App));
+    waits::begin_app();
 }
 
 /// One step of the innermost wait: `None` while it goes on, `Some` when
@@ -1288,11 +713,10 @@ pub fn gui_pump_wait() -> Option<Value> {
     if held() {
         return Some(v_null());
     }
-    show_pending();
+    forms::show_pending(Rt);
     // (one turn each: DOEVENTS's, Popup's — its menu shown and tracked in
     // these pumps, its pick dispatched before Popup returns)
-    if st(|s| matches!(s.waits.last(), Some(Wait::Popup | Wait::Once))) {
-        let popup = st(|s| matches!(s.waits.pop(), Some(Wait::Popup)));
+    if let Some(popup) = waits::take_turn() {
         if popup {
             pump(Some(Duration::ZERO));
             pump(Some(Duration::ZERO));
@@ -1302,17 +726,10 @@ pub fn gui_pump_wait() -> Option<Value> {
         }
         return Some(v_null());
     }
-    let done = st(|s| match s.waits.last() {
-        None => true,
-        Some(Wait::Form(name)) => !s.shown.contains(name),
-        Some(Wait::App) => s.shown.is_empty(),
-        Some(Wait::Popup | Wait::Once) => true,
-    });
-    if done {
-        let finished = st(|s| s.waits.pop());
-        if let Some(Wait::Form(form)) = finished {
+    if waits::over() {
+        if let Some(Wait::Form(form)) = waits::pop() {
             crate::object::rp_stop_all_timers();
-            return Some(v_int(modal_ended(&form)));
+            return Some(v_int(forms::modal_ended(Rt, &form)));
         }
         return Some(v_null());
     }
@@ -1326,8 +743,8 @@ pub fn run_gui_event_loop() {
         return;
     }
     // (the host starts with the first window: see gui_begin_app_wait)
-    show_pending();
-    while any_shown() {
+    forms::show_pending(Rt);
+    while forms::any_shown() {
         step(None);
     }
 }
@@ -1348,17 +765,16 @@ pub fn gui_dialog_execute(name: &str, comp_type: &str) -> Value {
 
 /// Whether a form's window shows (`None` before it's built).
 pub fn window_shown(name: &str) -> Option<bool> {
-    let n = lower(name);
-    st(|s| s.built.contains(&n).then(|| s.shown.contains(&n)))
+    forms::window_shown(name)
 }
 
 pub fn form_window_exists(name: &str) -> bool {
-    st(|s| s.built.contains(&lower(name)))
+    forms::form_window_exists(name)
 }
 
 /// Form.Scale: its screen's scale (Screen.Scale before it shows).
 pub fn form_scale(name: &str) -> f64 {
-    st(|s| s.scales.get(&lower(name)).copied()).unwrap_or_else(|| forced_scale().unwrap_or_else(rapidr_value::objects::bitmap::exact_scale))
+    forms::form_scale(Rt, name)
 }
 
 /// MOUSEX / MOUSEY: the mouse in the topmost form's client area.
@@ -1382,7 +798,7 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
     match method {
         "paint" | "refresh" | "update" | "repaint" => {
             invalidate();
-            rp_fire_event(name, "onpaint");
+            crate::object::rp_fire_event(name, "onpaint");
         }
         "show" => gui_show(name),
         "hide" => gui_hide(name),
@@ -1441,7 +857,7 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
 /// A QTREEVIEW's methods that need the drawn tree: the lists lane's.
 pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
-        "getitemat" => return v_int(super::kernel_lists::tree_item_at(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64))),
+        "getitemat" => return v_int(lists::tree_item_at(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64))),
         "show" => gui_show(name),
         "hide" => gui_hide(name),
         _ => eprintln!("[WARN] TreeView.{method}() not implemented"),
@@ -1525,8 +941,8 @@ pub fn monitors() -> i64 {
 
 /// `Application.Minimize`: every shown window.
 pub fn minimize() {
-    for f in st(|s| s.shown.iter().cloned().collect::<Vec<_>>()) {
-        st(|s| s.ops.push(WinOp::Minimize(f)));
+    for f in forms::shown_forms() {
+        push_op(WindowOp::Minimize(f));
     }
     if started() {
         pump(Some(Duration::ZERO));
@@ -1555,25 +971,9 @@ fn end(code: i32) -> ! {
 }
 
 // ----------------------------------------------- test hooks (§2.3) --
-
-/// Whether `name` shows: visible up to its form, whose window shows.
-fn shown_up(name: &str) -> bool {
-    let mut cur = lower(name);
-    for _ in 0..64 {
-        if is_form(&cur) {
-            return form_shown(&cur);
-        }
-        if !flag(&cur, "visible", true) {
-            return false;
-        }
-        let parent = rp_comp_get(&cur, "parent").to_string_val();
-        if parent.is_empty() {
-            return false;
-        }
-        cur = lower(&parent);
-    }
-    false
-}
+//
+// The script is `rapidr_ui_app::script`'s; its input goes through the
+// kernel's routing here, as the user's would.
 
 /// The form a component is on, and where it is in that window's inside
 /// (logical; the in-window menu bar included), from the kernel's tree.
@@ -1653,112 +1053,14 @@ fn test_resize(w: i64, h: i64) {
         }
         k.desk.resized(&form, iw, ih);
     });
-    st(|s| s.ops.push(WinOp::Size(form, (iw, ih))));
+    push_op(WindowOp::Size(form, (iw, ih)));
 }
 
-fn run_test_event(e: TestEvent) {
-    let comp = e.comp_lower();
-    match e.action {
-        Action::Fire(ref event) => {
-            // (a toggle button's click goes through its group, as its press does)
-            if event == "onclick" && is_toggle_button(&comp) {
-                toggle_press(&comp);
-            }
-            rp_fire_event(&e.comp, event)
-        }
-        Action::Key(vk) => test_key(&comp, vk),
-        Action::Mouse(kind, x, y) => test_mouse(&comp, kind, x, y),
-        Action::DblClick(x, y) => test_double_click(&comp, x, y),
-        Action::Close => gui_close(&e.comp),
-        Action::Ignored => {}
-        // (timers during native menu tracking: the next pump held, as a menu
-        // the user keeps open would hold it)
-        Action::Hold(ms) => {
-            with_kern(|k| k.host.hold(Duration::from_millis(ms.max(0) as u64)));
-        }
-        // (the lists lane's: the component synthesizes the input)
-        Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
-            let step = match e.action {
-                Action::Item(i) => format!("__item_{i}"),
-                Action::Node(i) => format!("__node_{i}"),
-                Action::Toggle(i) => format!("__toggle_{i}"),
-                Action::Cell(c, r) => format!("__cell_{c}_{r}"),
-                Action::Edit => "__edit".into(),
-                Action::Enter => "__enter".into(),
-                _ => "__escape".into(),
-            };
-            if let Some(form) = form_of(&comp) {
-                with_kern(|k| k.desk.test_action(&RtStore, &form, &comp, &step));
-            }
-        }
-    }
-}
-
-/// The test's next step, when it's due and the handlers fired so far have
-/// run: the resize and splitter drag, then one event per step, then (a
-/// moment after the last) the dump, the accessibility trees, the captures,
-/// and the end.
-fn script_step() {
-    let now = Instant::now();
-    let due = st(|s| s.script.as_ref().is_some_and(|sc| sc.next <= now));
-    if !due || crate::object::rp_host_callback_active() {
-        return;
-    }
-    let (started, finished) = st(|s| s.script.as_ref().map(|sc| (sc.started, sc.finished))).unwrap_or((true, true));
-    if finished {
-        capture_and_end();
-    }
-    // (busy until this step's handlers have run: a handler's ShowModal steps
-    // again, and the next event waits for it)
-    st(|s| {
-        if let Some(sc) = s.script.as_mut() {
-            sc.next = now + Duration::from_secs(86_400);
-        }
-    });
-    if !started {
-        let (split, resize) = st(|s| {
-            let sc = s.script.as_mut().expect("a script");
-            sc.started = true;
-            (sc.capture.split.clone(), sc.capture.resize)
-        });
-        if let Some((name, delta)) = split {
-            if crate::layout::splitter_begin(&name) {
-                crate::layout::splitter_move(delta / 2);
-                crate::layout::splitter_move(delta);
-                crate::layout::splitter_end();
-            }
-        }
-        if let Some((w, h)) = resize {
-            test_resize(i64::from(w), i64::from(h));
-            dispatch_pending();
-        }
-    }
-    let next = st(|s| s.script.as_mut().and_then(|sc| sc.events.pop_front()));
-    match next {
-        Some(e) => {
-            run_test_event(e);
-            dispatch_pending();
-            st(|s| {
-                if let Some(sc) = s.script.as_mut() {
-                    sc.next = Instant::now() + Duration::from_millis(50);
-                }
-            });
-        }
-        None => st(|s| {
-            if let Some(sc) = s.script.as_mut() {
-                sc.finished = true;
-                sc.next = Instant::now() + Duration::from_millis(300);
-            }
-        }),
-    }
-}
-
-/// `RAPIDR_TEST_DUMP`, `RAPIDR_TEST_A11Y`, then every shown window saved as
-/// `<prefix>-<n>.bmp` (bottom to top, at its scale, by the CPU renderer),
-/// and the program ends.
-fn capture_and_end() -> ! {
-    testhooks::print_dump(shown_up, |comp, prop| rp_comp_get(comp, prop).to_string_val());
-    let prefix = st(|s| s.script.as_ref().map(|sc| sc.capture.prefix.clone())).unwrap_or_default();
+/// The test's end (after `rapidr_ui_app::script` printed `RAPIDR_TEST_DUMP`):
+/// `RAPIDR_TEST_A11Y`, then every shown window saved as `<prefix>-<n>.bmp`
+/// (bottom to top, at its scale, by the CPU renderer), and the program
+/// ends.
+fn capture_and_end(prefix: &str) -> ! {
     let a11y = std::env::var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
     let shots = with_kern(|k| {
         sync_desk(&mut k.desk);
@@ -1795,4 +1097,78 @@ fn capture_and_end() -> ! {
         }
     }
     end(0)
+}
+
+// ------------------------------------------------ rapidr_ui_app's host --
+
+/// The desktop host as `rapidr_ui_app` asks it (the program is
+/// `program.rs`'s).
+impl Windows for Rt {
+    fn start(self) {
+        ensure_host();
+    }
+    fn started(self) -> bool {
+        started()
+    }
+    fn flush(self) {
+        pump(Some(Duration::ZERO));
+    }
+    fn dispatch_pending(self) {
+        dispatch_pending();
+    }
+    fn headless(self) -> bool {
+        headless()
+    }
+    fn forced_scale(self) -> Option<f64> {
+        forced_scale()
+    }
+    fn window_scale(self, form: &str) -> Option<f64> {
+        with_kern(|k| k.desk.forms.get(form).map(|f| f.scale).unwrap_or_else(|| k.host.default_scale()))
+    }
+    fn screen(self) -> (i64, i64) {
+        screen()
+    }
+    fn work_area(self) -> (i64, i64) {
+        work_area()
+    }
+    fn menu_in_window(self) -> bool {
+        menu_in_window()
+    }
+    fn stacking(self) -> Vec<String> {
+        with_kern(|k| k.desk.stacking()).unwrap_or_default()
+    }
+    fn place_of(self, comp: &str) -> Option<(String, (i64, i64))> {
+        place_of(comp)
+    }
+    fn system_resized(self, form: &str, (iw, ih): (i64, i64), (left, top): (i64, i64)) {
+        with_kern(|k| {
+            if let Some(f) = k.desk.forms.get_mut(form) {
+                f.ui.sync(&RtStore);
+            }
+            k.desk.resized(form, iw, ih);
+            k.desk.moved(form, left, top);
+        });
+    }
+    fn open_popup(self, form: &str, menu: &str, x: i64, y: i64, program: bool) {
+        menus::open_at(form, menu, x, y, program);
+    }
+    fn script_input(self, input: ScriptInput) {
+        match input {
+            ScriptInput::Key { comp, vk } => test_key(&comp, vk),
+            ScriptInput::Mouse { comp, kind, x, y } => test_mouse(&comp, kind, x, y),
+            ScriptInput::DblClick { comp, x, y } => test_double_click(&comp, x, y),
+            ScriptInput::Step { form, comp, step } => {
+                with_kern(|k| k.desk.test_action(&RtStore, &form, &comp, &step));
+            }
+            ScriptInput::Resize { w, h } => test_resize(w, h),
+            // (timers during native menu tracking: the next pump held, as a
+            // menu the user keeps open would hold it)
+            ScriptInput::Hold(ms) => {
+                with_kern(|k| k.host.hold(Duration::from_millis(ms.max(0) as u64)));
+            }
+        }
+    }
+    fn capture_and_end(self, prefix: &str) -> ! {
+        capture_and_end(prefix)
+    }
 }
