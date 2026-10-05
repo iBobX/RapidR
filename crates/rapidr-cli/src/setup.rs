@@ -185,7 +185,7 @@ fn check_windows_linker(toolchain: &str) {
 fn link_on_path(exe: &Path, yes: bool) -> bool {
     let system = PathBuf::from("/usr/local/bin");
     let writable = |d: &Path| d.is_dir() && tempfile_in(d);
-    let dir = if writable(&system) { system } else { dirs::home_dir().map(|h| h.join(".local/bin")).unwrap_or(system) };
+    let dir = if writable(&system) { system } else { std::env::home_dir().map(|h| h.join(".local/bin")).unwrap_or(system) };
     let link = dir.join("rapidr");
     if !confirm(&format!("Link {} → {}?", link.display(), exe.display()), yes) {
         return false;

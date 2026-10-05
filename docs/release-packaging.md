@@ -162,13 +162,15 @@ needs no runtime, for programs shipped without it.
 
 ## Licences
 
-Everything shipped is open source and allows commercial use; nothing GPL,
-LGPL or AGPL is in any artifact; programs built with RapidR are their
-authors', to ship as they like.
+Everything shipped is open source and allows commercial use; nothing
+copyleft (GPL, LGPL, AGPL, MPL, …), no cryptographic library and no data
+under a data licence is in any artifact; programs built with RapidR are
+their authors', to ship as they like.
 
-- Rust crates: checked by `cargo deny check licenses` against `deny.toml`
-  (MIT, Apache-2.0, BSD, ISC, zlib, 0BSD, BSL-1.0, Unlicense, Unicode-3.0,
-  CDLA-Permissive-2.0, MPL-2.0 for a few unmodified crates), listed in
+- Rust crates: checked by `cargo deny check licenses bans` against
+  `deny.toml` — the permissive list only (MIT, Apache-2.0, Apache-2.0 WITH
+  LLVM-exception, BSD-2/3-Clause, ISC, Zlib, 0BSD, BSL-1.0, Unlicense,
+  Unicode-3.0, CC0-1.0), and the crates RapidR replaced banned — listed in
   `THIRD_PARTY_NOTICES.md` (`python3 tools/third_party_notices.py --check`)
   and in the SBOM.
 - **What builds carry:** `stage.py` writes, with `rapidr notices` (the CLI's
@@ -183,15 +185,33 @@ authors', to ship as they like.
 - JS / wasm: Monaco (MIT) in the web IDE; the wasm-bindgen glue (MIT /
   Apache-2.0) — `LICENSES.md`. Fonts: Liberation (OFL-1.1).
 - New here: `rapidr-launcher` uses objc2, objc2-foundation, objc2-app-kit
-  (MIT, already in the tree through winit); the CLI uses dirs, sha2, libc
+  (MIT, already in the tree through winit); the CLI uses sha2, libc
   (MIT / Apache-2.0, already in the tree).
 - Installer runtime pieces: Inno Setup's setup and uninstaller stubs (Inno
   Setup licence: free for any use including commercial, source available;
   no obligations on what it installs). The macOS disk image and the `.deb`
   carry no installer code; `install.sh` / `uninstall.sh` are RapidR's (MIT).
-- System libraries the Linux binaries link (not shipped): glibc, ALSA,
-  fontconfig, FreeType, xkbcommon — dynamically, which puts no obligation on
-  RapidR's packages.
+- System libraries the Linux binaries link (not shipped): glibc, OpenSSL 3
+  (`libssl.so.3`, `libcrypto.so.3`: HTTPS), ALSA, fontconfig, xkbcommon —
+  dynamically, which puts no obligation on RapidR's packages. The `.deb`s'
+  `Depends` come from `dpkg-shlibdeps`, so they name `libssl3t64` (Ubuntu
+  24.04; `libssl3` elsewhere) with the rest. The `.tar.gz` installs need it
+  too: it is part of every current distribution's base system.
+- **Building on Linux needs OpenSSL's development files** (since HTTPS moved
+  to the system's TLS): `libssl-dev`, and for the other architecture's
+  build (cross-linking) `libssl-dev:<arch>` too — e.g. on the arm64 Ubuntu
+  VM, `sudo apt install libssl-dev libssl-dev:amd64` (with the amd64
+  multiarch sources the release machine's setup adds; put `libssl-dev` in
+  that setup's list of the other architecture's libraries). `openssl-sys`
+  finds them with pkg-config (`PKG_CONFIG_LIBDIR=/usr/lib/<triple>/pkgconfig`
+  for the cross build, as for ALSA and fontconfig). It links them
+  dynamically; never set `OPENSSL_STATIC` or enable a `vendored` feature
+  (`openssl-src` is banned: deny.toml). Without root, the `.deb`s can be
+  unpacked (`apt-get download`, `dpkg -x`) and pointed at with
+  `<TRIPLE>_OPENSSL_LIB_DIR` / `<TRIPLE>_OPENSSL_INCLUDE_DIR` (the include
+  dir holding both `/usr/include/openssl` and
+  `/usr/include/<triple>/openssl`). FreeType's `-dev` is no longer needed
+  for RapidR itself (charts don't use it); fontconfig's still is.
 - Build tools whose output carries no obligations: rustc / cargo (MIT /
   Apache-2.0), LLVM-MinGW (Apache-2.0 + LLVM exception), wasm-pack and
   wasm-bindgen (MIT / Apache-2.0), Python (PSF), Inno Setup, dpkg-deb

@@ -1,0 +1,24 @@
+# RapidR's stand-in for the crates.io wayland-protocols-plasma, through the
+# workspace's [patch.crates-io] (and every generated program's: codegen's
+# generate_cargo_toml). winit's Wayland backend binds KDE's blur protocol
+# with it; that crate generates its bindings from KDE's protocol files, some
+# of them LGPL-2.1-or-later (blur.xml among them). RapidR never asks for
+# blur, so this one offers winit the same Rust names, generated from
+# RapidR's own protocol file (protocol/no-blur.xml, MIT) whose interface no
+# compositor announces: winit finds no blur manager, as on any compositor
+# without one, and nothing of KDE's is compiled in (docs/licensing.md).
+[package]
+name = "wayland-protocols-plasma"
+version = "0.3.12"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "RapidR's stand-in for wayland-protocols-plasma: winit's blur names, no KDE protocol"
+
+[dependencies]
+wayland-scanner = "0.31.10"
+wayland-backend = "0.3.15"
+wayland-client = { version = "0.31.14", optional = true }
+
+[features]
+client = ["dep:wayland-client"]

@@ -13,7 +13,8 @@ checkout holds. It needs cargo and the network (or cargo's cache). It writes
     Cargo.lock          the repository's, pruned to them (the versions RapidR
                         is tested with)
     crates/…            rapidr-runtime-core, rapidr-runtime-web and the RapidR
-                        crates they use
+                        crates they use; crates/patches/… the crates.io crates
+                        RapidR replaces (the [patch.crates-io] above)
     .cargo/config.toml  the web runtime's SQLite flags (rapidr build --web)
     tools/wasm-ar.sh
     vendor/             `cargo vendor` of their crates.io dependencies; a crate
@@ -108,8 +109,18 @@ def write_workspace(src, out, crates):
     for name, spec in ws.get("dependencies", {}).items():
         if name in names or not (isinstance(spec, dict) and "path" in spec):
             lines.append(f"{name} = {toml_value(spec)}")
+    # (the crates.io crates RapidR replaces: what native builds compile too)
+    lines += ["", "[patch.crates-io]"]
+    lines += [f"{name} = {toml_value(spec)}" for name, spec in patches(src).items()]
     with open(os.path.join(out, "Cargo.toml"), "w") as f:
         f.write("\n".join(lines) + "\n")
+
+
+def patches(src):
+    """The workspace's [patch.crates-io]: {crate: {path = …}} — RapidR's
+    own replacements (crates/patches/), shipped with the runtime's crates."""
+    with open(os.path.join(src, "Cargo.toml"), "rb") as f:
+        return tomllib.load(f).get("patch", {}).get("crates-io", {})
 
 
 def needed_packages(out, targets):
@@ -198,7 +209,7 @@ def main():
     os.makedirs(out)
 
     crates = runtime_crates(src)
-    for c in crates:
+    for c in crates + [spec["path"] for spec in patches(src).values()]:
         shutil.copytree(os.path.join(src, c), os.path.join(out, c), ignore=shutil.ignore_patterns("target"))
     write_workspace(src, out, crates)
     shutil.copy2(os.path.join(src, "Cargo.lock"), os.path.join(out, "Cargo.lock"))

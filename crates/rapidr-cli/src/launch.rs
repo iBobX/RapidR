@@ -312,7 +312,7 @@ pub mod trust {
 
     /// The file holding the answers.
     pub fn store() -> Option<PathBuf> {
-        let dir = env::var_os("RAPIDR_CONFIG_DIR").map(PathBuf::from).or_else(|| dirs::config_dir().map(|d| d.join(if cfg!(target_os = "linux") { "rapidr" } else { "RapidR" })))?;
+        let dir = env::var_os("RAPIDR_CONFIG_DIR").map(PathBuf::from).or_else(|| crate::home::config_dir().map(|d| d.join(if cfg!(target_os = "linux") { "rapidr" } else { "RapidR" })))?;
         Some(dir.join("trusted-files.txt"))
     }
 

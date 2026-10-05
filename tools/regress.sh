@@ -13,7 +13,6 @@
 #                                     examples, gui, web, legal), caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
-curl -s -o /dev/null localhost:8765/ || { echo "serve the repo on http://localhost:8765 first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }
 # The suites build into tests/conformance/.work and the unit tests into
 # target/debug (together ~90 GB a run): both go when the run ends, however
 # it ends, so the disk never fills (the next run builds them again — a few
@@ -31,6 +30,8 @@ for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; 
 # (what's inside $W: it may be a link to a build volume)
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
+# (the browser tests need the repo served: RAPIDR_URL, else port 8765)
+if want web; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
@@ -61,10 +62,17 @@ if want web; then
   done
 fi
 # Licences and notices (LEGAL.md, docs/licensing.md): a licence outside
-# deny.toml's allowlist fails; THIRD_PARTY_NOTICES.md is current; every kind
-# of output carries a THIRD-PARTY-NOTICES.txt listing every crate in it.
+# deny.toml's allowlist (permissive only) or a replaced crate (its [bans])
+# anywhere in the workspace fails; THIRD_PARTY_NOTICES.md is current; every
+# kind of output keeps to the permissive list and carries a
+# THIRD-PARTY-NOTICES.txt listing every crate in it. Any of these failing
+# fails the run (exit 1).
+LEGAL_FAILED=0
 if want legal; then echo "== legal"
-  cargo deny check licenses 2>&1 | tail -1
-  python3 tools/third_party_notices.py --check
-  python3 tools/check_notices.py --rapidr ./rapidr 2>&1 | grep -E "FAIL|notices: all ok"; fi
+  out=$(cargo deny check licenses bans 2>&1) || { LEGAL_FAILED=1; echo "$out" | grep -E "^error" -A8 | head -40; }
+  echo "$out" | tail -1
+  python3 tools/third_party_notices.py --check || LEGAL_FAILED=1
+  out=$(python3 tools/check_notices.py --rapidr ./rapidr 2>&1) || LEGAL_FAILED=1
+  echo "$out" | grep -E "FAIL|notices: all ok"; fi
+[ $LEGAL_FAILED = 1 ] && { echo "LEGAL CHECKS FAILED"; exit 1; }
 echo ALLDONE

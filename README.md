@@ -187,9 +187,9 @@ prefer `web-ide/` for any new work.
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   source $HOME/.cargo/env
   ```
-- **C compiler** (a few bundled C libraries: SQLite, zstd, …) and, on Linux, the system's font, window and sound libraries:
+- **C compiler** (a few bundled C libraries: SQLite, zstd, …) and, on Linux, the system's font, window, sound and TLS libraries:
   - **macOS:** `xcode-select --install`
-  - **Linux (Debian/Ubuntu):** `sudo apt install build-essential pkg-config libfontconfig1-dev libfreetype-dev libasound2-dev` (windows also need `libxkbcommon`, X11 or Wayland and a GPU driver or Mesa, which a desktop already has; without a GPU RapidR draws on the CPU)
+  - **Linux (Debian/Ubuntu):** `sudo apt install build-essential pkg-config libfontconfig1-dev libasound2-dev libssl-dev` (HTTPS uses the system's OpenSSL 3, linked dynamically) (windows also need `libxkbcommon`, X11 or Wayland and a GPU driver or Mesa, which a desktop already has; without a GPU RapidR draws on the CPU)
   - **Windows:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (MSVC; on ARM64 too — no clang needed)
 
 Checked on macOS (Apple silicon), Windows 11 (ARM64) and Ubuntu 24.04 (ARM64; Wayland and X11): the conformance suite on both backends and the GUI events, headless and with real windows; on Windows also what a screen reader sees (UI Automation).

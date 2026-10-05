@@ -1515,6 +1515,125 @@ fn encode_rgb_to_png(buf: &[u8], w: u32, h: u32) -> Vec<u8> {
     png_bytes
 }
 
+/// What charts are drawn on: plotters' bitmap backend, with the text in the
+/// built-in Liberation Sans (the program carries it already; metrically
+/// Arial's and Helvetica's), the same on every system (Cargo.toml). Sizes and
+/// placement are those plotters gives a font of its own: an em of
+/// size / 1.24 pixels, the baseline 0.76 em below the text's top; the
+/// edges' coverage goes through a square root (gamma 2), so the strokes
+/// weigh what the systems' rasterizers gave them.
+struct Chart<'a>(BitMapBackend<'a>);
+
+type ChartError<'a> = plotters_backend::DrawingErrorKind<<BitMapBackend<'a> as DrawingBackend>::ErrorType>;
+
+/// The charts' face: Liberation Sans.
+fn chart_face() -> &'static ab_glyph::FontRef<'static> {
+    static FACE: std::sync::OnceLock<ab_glyph::FontRef<'static>> = std::sync::OnceLock::new();
+    FACE.get_or_init(|| ab_glyph::FontRef::try_from_slice(rapidr_value::objects::text::BUILTIN_FONTS[0]).expect("the built-in Liberation Sans"))
+}
+
+/// ab_glyph's scale (the face's height in pixels) for an em of `em` pixels.
+fn chart_scale(em: f32) -> ab_glyph::PxScale {
+    use ab_glyph::Font;
+    let face = chart_face();
+    ab_glyph::PxScale::from(em * face.height_unscaled() / face.units_per_em().unwrap_or(2048.0))
+}
+
+/// `text` laid out at plotters' `size`: each glyph (its id, its x), the
+/// width, the em.
+fn chart_layout(text: &str, size: f64) -> (Vec<(ab_glyph::GlyphId, f32)>, i32, f32) {
+    use ab_glyph::{Font, ScaleFont};
+    let em = (size / 1.24) as f32;
+    let face = chart_face();
+    let scaled = face.as_scaled(chart_scale(em));
+    let mut x = 0f32;
+    let mut prev = None;
+    let mut glyphs = Vec::new();
+    for c in text.chars() {
+        let id = scaled.glyph_id(c);
+        if let Some(p) = prev {
+            x += scaled.kern(p, id);
+        }
+        glyphs.push((id, x));
+        x += scaled.h_advance(id);
+        prev = Some(id);
+    }
+    (glyphs, x as i32, em)
+}
+
+impl<'a> DrawingBackend for Chart<'a> {
+    type ErrorType = <BitMapBackend<'a> as DrawingBackend>::ErrorType;
+
+    fn get_size(&self) -> (u32, u32) {
+        self.0.get_size()
+    }
+    fn ensure_prepared(&mut self) -> Result<(), ChartError<'a>> {
+        self.0.ensure_prepared()
+    }
+    fn present(&mut self) -> Result<(), ChartError<'a>> {
+        self.0.present()
+    }
+    fn draw_pixel(&mut self, point: plotters_backend::BackendCoord, color: plotters_backend::BackendColor) -> Result<(), ChartError<'a>> {
+        self.0.draw_pixel(point, color)
+    }
+    fn draw_line<S: plotters_backend::BackendStyle>(&mut self, from: plotters_backend::BackendCoord, to: plotters_backend::BackendCoord, style: &S) -> Result<(), ChartError<'a>> {
+        self.0.draw_line(from, to, style)
+    }
+    fn draw_rect<S: plotters_backend::BackendStyle>(&mut self, upper_left: plotters_backend::BackendCoord, bottom_right: plotters_backend::BackendCoord, style: &S, fill: bool) -> Result<(), ChartError<'a>> {
+        self.0.draw_rect(upper_left, bottom_right, style, fill)
+    }
+    fn blit_bitmap(&mut self, pos: plotters_backend::BackendCoord, size: (u32, u32), src: &[u8]) -> Result<(), ChartError<'a>> {
+        self.0.blit_bitmap(pos, size, src)
+    }
+
+    fn estimate_text_size<T: plotters_backend::BackendTextStyle>(&self, text: &str, style: &T) -> Result<(u32, u32), ChartError<'a>> {
+        let (_, width, em) = chart_layout(text, style.size());
+        Ok((width.max(0) as u32, em as u32))
+    }
+
+    // (plotters' own placement: the anchor against the layout box, then the
+    // rotation)
+    fn draw_text<T: plotters_backend::BackendTextStyle>(&mut self, text: &str, style: &T, pos: plotters_backend::BackendCoord) -> Result<(), ChartError<'a>> {
+        use ab_glyph::Font;
+        use plotters_backend::text_anchor::{HPos, VPos};
+        let color = style.color();
+        if color.alpha == 0.0 {
+            return Ok(());
+        }
+        let (glyphs, width, em) = chart_layout(text, style.size());
+        let height = em as i32;
+        let dx = match style.anchor().h_pos {
+            HPos::Left => 0,
+            HPos::Right => -width,
+            HPos::Center => -width / 2,
+        };
+        let dy = match style.anchor().v_pos {
+            VPos::Top => 0,
+            VPos::Center => -height / 2,
+            VPos::Bottom => -height,
+        };
+        let trans = style.transform();
+        let (w, h) = self.get_size();
+        let face = chart_face();
+        let scale = chart_scale(em);
+        let baseline = 0.76 * em;
+        for (id, x) in glyphs {
+            let Some(outline) = face.outline_glyph(id.with_scale_and_position(scale, ab_glyph::point(x, baseline))) else { continue };
+            let bounds = outline.px_bounds();
+            let mut pixels = Vec::new();
+            outline.draw(|gx, gy, coverage| pixels.push((bounds.min.x as i32 + gx as i32, bounds.min.y as i32 + gy as i32, coverage)));
+            for (px, py, coverage) in pixels {
+                let (tx, ty) = trans.transform(px + dx, py + dy);
+                let (tx, ty) = (pos.0 + tx, pos.1 + ty);
+                if tx >= 0 && tx < w as i32 && ty >= 0 && ty < h as i32 {
+                    self.0.draw_pixel((tx, ty), plotters_backend::BackendColor { alpha: color.alpha * f64::from(coverage).sqrt(), rgb: color.rgb })?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Render the accumulated plot state to PNG bytes in memory.
 fn render_plot_bytes(name: &str) -> Vec<u8> {
     let state = plot_get(name);
@@ -1530,7 +1649,7 @@ fn render_plot_bytes(name: &str) -> Vec<u8> {
 
     let mut pixel_buf = vec![0u8; (w * h * 3) as usize];
     {
-    let root = BitMapBackend::with_buffer(&mut pixel_buf, (w, h)).into_drawing_area();
+    let root = Chart(BitMapBackend::with_buffer(&mut pixel_buf, (w, h))).into_drawing_area();
     if root.fill(&WHITE).is_err() { return Vec::new(); }
 
     // Compute data bounds
@@ -1718,7 +1837,7 @@ fn render_plot(name: &str, filename: &str) {
 fn render_pie_chart_bytes(state: &PlotState, w: u32, h: u32) -> Vec<u8> {
     let mut pixel_buf = vec![0u8; (w * h * 3) as usize];
     {
-    let root = BitMapBackend::with_buffer(&mut pixel_buf, (w, h)).into_drawing_area();
+    let root = Chart(BitMapBackend::with_buffer(&mut pixel_buf, (w, h))).into_drawing_area();
     if root.fill(&WHITE).is_err() { return Vec::new(); }
 
     if !state.title.is_empty() {

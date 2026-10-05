@@ -46,7 +46,9 @@ def shipped_packages():
             # kind None = normal dependency (compiled into what ships)
             if any(k.get("kind") is None for k in dep["dep_kinds"]):
                 stack.append(dep["pkg"])
-    return [packages[p] for p in seen - members]
+    # (a path package is RapidR's own: a member, or a crates.io crate's
+    # replacement under crates/patches/, MIT like the rest of RapidR)
+    return [packages[p] for p in seen - members if packages[p]["source"] is not None]
 
 
 def clarifications():

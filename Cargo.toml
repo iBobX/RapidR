@@ -62,6 +62,15 @@ rapidr-vm-host-native = { path = "interpreter/rapidr-vm-host-native" }
 rapidr-vm-host-web = { path = "interpreter/rapidr-vm-host-web" }
 rapidr-compiler-wasm = { path = "interpreter/rapidr-compiler-wasm" }
 rapidr-webbundle = { path = "interpreter/rapidr-webbundle" }
+
+# Crates.io crates RapidR replaces with its own. Every generated program's
+# Cargo.toml gets the same section (rapidr-codegen-rust: PATCHES; an
+# install's home too: tools/release/home.py).
+[patch.crates-io]
+# winit's KDE blur bindings: generated from LGPL-2.1-or-later protocol
+# files upstream; RapidR's carry no KDE protocol (the crate's Cargo.toml).
+wayland-protocols-plasma = { path = "crates/patches/wayland-protocols-plasma" }
+
 # The interpreter runner every `rapidr build --interp` executable is made
 # from: optimized like release, without symbols (64 MB → 43 MB).
 [profile.runner]

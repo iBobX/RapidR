@@ -12,9 +12,9 @@ which also carries their full license texts. Every program RapidR builds carries
 its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 (`rapidr notices`; [LEGAL.md](LEGAL.md), [docs/licensing.md](docs/licensing.md)).
 
-**678 libraries** under 27 license expressions.
+**651 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (379)
+## Apache-2.0 OR MIT (367)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -74,7 +74,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | core-foundation-sys | 0.8.7 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics | 0.23.2 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics-types | 0.1.3 | <https://github.com/servo/core-foundation-rs> |
-| core-text | 20.1.0 | <https://github.com/servo/core-foundation-rs> |
 | coreaudio-rs | 0.11.3 | <https://github.com/RustAudio/coreaudio-rs.git> |
 | cpufeatures | 0.2.17 | <https://github.com/RustCrypto/utils> |
 | crc32fast | 1.5.0 | <https://github.com/srijs/rust-crc32fast> |
@@ -90,8 +89,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | debug_unsafe | 0.1.4 | <https://github.com/RoDmitry/debug_unsafe> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
 | digest | 0.10.7 | <https://github.com/RustCrypto/traits> |
-| dirs | 6.0.0 | <https://github.com/soc/dirs-rs> |
-| dirs-sys | 0.5.0 | <https://github.com/dirs-dev/dirs-sys-rs> |
 | displaydoc | 0.2.5 | <https://github.com/yaahc/displaydoc> |
 | document-features | 0.2.12 | <https://github.com/slint-ui/document-features> |
 | downcast-rs | 1.2.1 | <https://github.com/marcianx/downcast-rs> |
@@ -114,9 +111,7 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | fdeflate | 0.3.7 | <https://github.com/image-rs/fdeflate> |
 | fearless_simd | 0.7.0 | <https://github.com/linebender/fearless_simd> |
 | flate2 | 1.1.9 | <https://github.com/rust-lang/flate2-rs> |
-| float-ord | 0.3.2 | <https://github.com/notriddle/rust-float-ord> |
 | fnv | 1.0.7 | <https://github.com/servo/rust-fnv> |
-| font-kit | 0.14.3 | <https://github.com/servo/font-kit> |
 | font-types | 0.12.6 | <https://github.com/googlefonts/fontations> |
 | fontique | 0.11.1 | <https://github.com/linebender/parley> |
 | foreign-types | 0.3.2 | <https://github.com/sfackler/foreign-types> |
@@ -139,7 +134,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | getrandom | 0.2.17 | <https://github.com/rust-random/getrandom> |
 | getrandom | 0.3.4 | <https://github.com/rust-random/getrandom> |
 | getrandom | 0.4.2 | <https://github.com/rust-random/getrandom> |
-| gif | 0.12.0 | <https://github.com/image-rs/image-gif> |
 | gilrs | 0.11.2 | <https://gitlab.com/gilrs-project/gilrs> |
 | gilrs-core | 0.6.8 | <https://gitlab.com/gilrs-project/gilrs> |
 | glifo | 0.4.0 | <https://github.com/linebender/vello> |
@@ -181,7 +175,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | keyboard-types | 0.8.3 | <https://github.com/rust-windowing/keyboard-types> |
 | khronos-egl | 6.0.0 | <https://github.com/timothee-haudebourg/khronos-egl> |
 | kurbo | 0.13.1 | <https://github.com/linebender/kurbo> |
-| lazy_static | 1.5.0 | <https://github.com/rust-lang-nursery/lazy-static.rs> |
 | leb128fmt | 0.1.0 | <https://github.com/bluk/leb128fmt> |
 | lewton | 0.10.2 | <https://github.com/RustAudio/lewton> |
 | libc | 0.2.190 | <https://github.com/rust-lang/libc> |
@@ -198,6 +191,8 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | naga | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | naga-types | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | named_pipe | 0.4.1 | <https://github.com/blackbeam/named_pipe> |
+| nanomp3 | 0.2.0 | <https://github.com/robbie01/nanomp3> |
+| nanomp3-core | 0.2.0 | <https://github.com/robbie01/nanomp3> |
 | native-tls | 0.2.18 | <https://github.com/rust-native-tls/rust-native-tls> |
 | ndarray | 0.16.1 | <https://github.com/rust-ndarray/ndarray> |
 | ndk | 0.8.0 | <https://github.com/rust-mobile/ndk> |
@@ -221,8 +216,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | parlance | 0.1.0 | <https://github.com/linebender/parley> |
 | parley | 0.11.1 | <https://github.com/linebender/parley> |
 | parley_data | 0.11.1 | <https://github.com/linebender/parley> |
-| pathfinder_geometry | 0.5.1 | <https://github.com/servo/pathfinder> |
-| pathfinder_simd | 0.5.5 | <https://github.com/servo/pathfinder> |
 | peniko | 0.6.1 | <https://github.com/linebender/peniko> |
 | percent-encoding | 2.3.2 | <https://github.com/servo/rust-url/> |
 | pin-project | 1.1.13 | <https://github.com/taiki-e/pin-project> |
@@ -267,7 +260,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | rodio | 0.19.0 | <https://github.com/RustAudio/rodio> |
 | roxmltree | 0.21.1 | <https://github.com/RazrFalcon/roxmltree> |
 | rustc-hash | 1.1.0 | <https://github.com/rust-lang-nursery/rustc-hash> |
-| rustls-pki-types | 1.14.0 | <https://github.com/rustls/pki-types> |
 | rustversion | 1.0.22 | <https://github.com/dtolnay/rustversion> |
 | scoped-tls | 1.0.1 | <https://github.com/alexcrichton/scoped-tls> |
 | scopeguard | 1.2.0 | <https://github.com/bluss/scopeguard> |
@@ -311,7 +303,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | toml_datetime | 1.1.0+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_edit | 0.25.8+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_parser | 1.1.0+spec-1.1.0 | <https://github.com/toml-rs/toml> |
-| ttf-parser | 0.20.0 | <https://github.com/RazrFalcon/ttf-parser> |
 | ttf-parser | 0.25.1 | <https://github.com/harfbuzz/ttf-parser> |
 | typenum | 1.19.0 | <https://github.com/paholg/typenum> |
 | unicase | 2.9.0 | <https://github.com/seanmonstar/unicase> |
@@ -339,7 +330,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | wasm-bindgen-shared | 0.2.129 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared> |
 | web-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/web-sys> |
 | web-time | 1.1.0 | <https://github.com/daxpedda/web-time> |
-| weezl | 0.1.12 | <https://github.com/image-rs/weezl> |
 | wgpu | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-core | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-core-deps-apple | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
@@ -391,14 +381,12 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | windows_x86_64_gnullvm | 0.52.6 | <https://github.com/microsoft/windows-rs> |
 | windows_x86_64_msvc | 0.42.2 | <https://github.com/microsoft/windows-rs> |
 | windows_x86_64_msvc | 0.52.6 | <https://github.com/microsoft/windows-rs> |
-| wio | 0.2.2 | <https://github.com/retep998/wio-rs> |
 | x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
-| zeroize | 1.8.2 | <https://github.com/RustCrypto/utils> |
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (169)
+## MIT (165)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -432,7 +420,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | endi | 1.1.1 | <https://github.com/zeenix/endi> |
 | float-cmp | 0.10.0 | <https://github.com/mikedilger/float-cmp> |
 | float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |
-| freetype-sys | 0.20.1 | <https://github.com/PistonDevelopers/freetype-sys.git> |
 | generic-array | 0.14.7 | <https://github.com/fizyk20/generic-array.git> |
 | harfrust | 0.12.0 | <https://github.com/harfbuzz/harfrust> |
 | http-body | 1.0.1 | <https://github.com/hyperium/http-body> |
@@ -489,7 +476,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | plotters | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | plotters-backend | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | plotters-bitmap | 0.3.7 | <https://github.com/plotters-rs/plotters> |
-| plotters-svg | 0.3.7 | <https://github.com/plotters-rs/plotters.git> |
 | polars | 0.46.0 | <https://github.com/pola-rs/polars> |
 | polars-compute | 0.46.0 | <https://github.com/pola-rs/polars> |
 | polars-core | 0.46.0 | <https://github.com/pola-rs/polars> |
@@ -515,7 +501,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.7.5 | <https://gitlab.redox-os.org/redox-os/syscall> |
-| redox_users | 0.5.2 | <https://gitlab.redox-os.org/redox-os/users> |
 | rfd | 0.17.2 | <https://github.com/PolyMeilex/rfd> |
 | rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
 | rsqlite-vfs | 0.1.1 | <https://crates.io/crates/rsqlite-vfs> |
@@ -549,7 +534,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | wayland-csd-frame | 0.3.0 | <https://github.com/rust-windowing/wayland-csd-frame> |
 | wayland-cursor | 0.31.14 | <https://github.com/smithay/wayland-rs> |
 | wayland-protocols | 0.32.13 | <https://github.com/smithay/wayland-rs> |
-| wayland-protocols-plasma | 0.3.12 | <https://github.com/smithay/wayland-rs> |
 | wayland-protocols-wlr | 0.3.12 | <https://github.com/smithay/wayland-rs> |
 | wayland-scanner | 0.31.11 | <https://github.com/smithay/wayland-rs> |
 | wayland-sys | 0.31.11 | <https://github.com/smithay/wayland-rs> |
@@ -599,6 +583,32 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | zerovec | 0.11.5 | <https://github.com/unicode-org/icu4x> |
 | zerovec-derive | 0.11.2 | <https://github.com/unicode-org/icu4x> |
 
+## Apache-2.0 OR MIT OR Zlib (21)
+
+| Library | Version | Upstream |
+|---|---|---|
+| bytemuck | 1.25.0 | <https://github.com/Lokathor/bytemuck> |
+| bytemuck_derive | 1.10.2 | <https://github.com/Lokathor/bytemuck> |
+| cursor-icon | 1.2.0 | <https://github.com/rust-windowing/cursor-icon> |
+| dispatch2 | 0.3.1 | <https://github.com/madsmtm/objc2> |
+| glow | 0.17.0 | <https://github.com/grovesNL/glow> |
+| miniz_oxide | 0.8.9 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
+| objc2-app-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-core-text | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-io-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-metal | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| objc2-quartz-core | 0.3.2 | <https://github.com/madsmtm/objc2> |
+| raw-window-handle | 0.6.2 | <https://github.com/rust-windowing/raw-window-handle> |
+| safe_arch | 1.2.0 | <https://github.com/Lokathor/safe_arch> |
+| tiny-xlib | 0.2.5 | <https://github.com/rust-windowing/tiny-xlib> |
+| tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
+| tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
+| wide | 1.7.1 | <https://github.com/Lokathor/wide> |
+| xkeysym | 0.2.1 | <https://github.com/notgull/xkeysym> |
+
 ## Apache-2.0 (19)
 
 | Library | Version | Upstream |
@@ -622,30 +632,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | streaming-decompression | 0.1.2 | <https://github.com/jorgecarleitao/streaming-decompressor> |
 | sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
 | winit | 0.30.13 | <https://github.com/rust-windowing/winit> |
-
-## Apache-2.0 OR MIT OR Zlib (19)
-
-| Library | Version | Upstream |
-|---|---|---|
-| bytemuck | 1.25.0 | <https://github.com/Lokathor/bytemuck> |
-| bytemuck_derive | 1.10.2 | <https://github.com/Lokathor/bytemuck> |
-| cursor-icon | 1.2.0 | <https://github.com/rust-windowing/cursor-icon> |
-| dispatch2 | 0.3.1 | <https://github.com/madsmtm/objc2> |
-| glow | 0.17.0 | <https://github.com/grovesNL/glow> |
-| miniz_oxide | 0.8.9 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
-| objc2-app-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-core-foundation | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-core-graphics | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-core-text | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-io-kit | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-io-surface | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-metal | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| objc2-quartz-core | 0.3.2 | <https://github.com/madsmtm/objc2> |
-| raw-window-handle | 0.6.2 | <https://github.com/rust-windowing/raw-window-handle> |
-| tiny-xlib | 0.2.5 | <https://github.com/rust-windowing/tiny-xlib> |
-| tinyvec | 1.11.0 | <https://github.com/Lokathor/tinyvec> |
-| tinyvec_macros | 0.1.1 | <https://github.com/Soveu/tinyvec_macros> |
-| xkeysym | 0.2.1 | <https://github.com/notgull/xkeysym> |
 
 ## Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (17)
 
@@ -681,18 +667,17 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | walkdir | 2.5.0 | <https://github.com/BurntSushi/walkdir> |
 | winapi-util | 0.1.11 | <https://github.com/BurntSushi/winapi-util> |
 
-## BSD-3-Clause (6)
+## BSD-3-Clause (5)
 
 | Library | Version | Upstream |
 |---|---|---|
 | ogg | 0.8.0 | <https://github.com/RustAudio/ogg> |
-| subtle | 2.6.1 | <https://github.com/dalek-cryptography/subtle> |
 | tiny-skia | 0.11.4 | <https://github.com/RazrFalcon/tiny-skia> |
 | tiny-skia | 0.12.0 | <https://github.com/linebender/tiny-skia> |
 | tiny-skia-path | 0.11.4 | <https://github.com/RazrFalcon/tiny-skia/tree/master/path> |
 | tiny-skia-path | 0.12.0 | <https://github.com/linebender/tiny-skia/tree/master/path> |
 
-## ISC (6)
+## ISC (4)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -700,19 +685,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | inotify-sys | 0.1.8 | <https://github.com/hannobraun/inotify-sys> |
 | libloading | 0.7.4 | <https://github.com/nagisa/rust_libloading/> |
 | libloading | 0.8.9 | <https://github.com/nagisa/rust_libloading/> |
-| rustls-webpki | 0.103.15 | <https://github.com/rustls/webpki> |
-| untrusted | 0.9.0 | <https://github.com/briansmith/untrusted> |
-
-## MPL-2.0 (6)
-
-| Library | Version | Upstream |
-|---|---|---|
-| dwrote | 0.11.5 | <https://github.com/servo/dwrote-rs> |
-| option-ext | 0.2.0 | <https://github.com/soc/option-ext.git> |
-| symphonia | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
-| symphonia-bundle-mp3 | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
-| symphonia-core | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
-| symphonia-metadata | 0.5.5 | <https://github.com/pdeljanov/Symphonia> |
 
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 
@@ -760,13 +732,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | r-efi | 5.3.0 | <https://github.com/r-efi/r-efi> |
 | r-efi | 6.0.0 | <https://github.com/r-efi/r-efi> |
 
-## CDLA-Permissive-2.0 (2)
-
-| Library | Version | Upstream |
-|---|---|---|
-| webpki-roots | 0.26.11 | <https://github.com/rustls/webpki-roots> |
-| webpki-roots | 1.0.6 | <https://github.com/rustls/webpki-roots> |
-
 ## (Apache-2.0 OR MIT) AND BSD-3-Clause (1)
 
 | Library | Version | Upstream |
@@ -785,12 +750,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 |---|---|---|
 | adler2 | 2.0.1 | <https://github.com/oyvindln/adler2> |
 
-## Apache-2.0 AND ISC (1)
-
-| Library | Version | Upstream |
-|---|---|---|
-| ring | 0.17.14 | <https://github.com/briansmith/ring> |
-
 ## Apache-2.0 AND MIT (1)
 
 | Library | Version | Upstream |
@@ -808,12 +767,6 @@ its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 | Library | Version | Upstream |
 |---|---|---|
 | ryu | 1.0.23 | <https://github.com/dtolnay/ryu> |
-
-## Apache-2.0 OR ISC OR MIT (1)
-
-| Library | Version | Upstream |
-|---|---|---|
-| rustls | 0.23.45 | <https://github.com/rustls/rustls> |
 
 ## BSD-2-Clause (1)
 
