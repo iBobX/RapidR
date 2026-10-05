@@ -15,8 +15,9 @@
 //             component whose clicks go through its rows / cells (the
 //             desktop test hook fires the handler directly)
 //   pixels: [[x, y, "rrggbb"], …] — what the desktop's capture of the
-//           (only) window shows at (x, y) of its client area (logical
-//           pixels; at RAPIDR_SCALE the device pixel there)
+//           first window shows at (x, y) of its client area (logical
+//           pixels; `clientWidth`, the window's ClientWidth, tells the
+//           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
@@ -200,7 +201,7 @@ export const cases = [
   // see-through white, the strip's two patterns)
   { name: "dx_screen", events: "dx.__mousedown_12_34,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=init surface t3 down01234 |16711680,255,65280,65535|16711680,255,65535,65280|10,160x100"],
-    pixels: [[150, 100, "0000ff"], [15, 15, "ff0000"], [111, 11, "0000ff"], [118, 18, "ff0000"], [131, 41, "ffff00"], [139, 41, "00ff00"]],
+    pixels: [[150, 100, "0000ff"], [15, 15, "ff0000"], [111, 11, "0000ff"], [118, 18, "ff0000"], [131, 41, "ffff00"], [139, 41, "00ff00"]], clientWidth: 200,
     webCheck: `(() => { const c = document.getElementById("rr-dx-screen"); const s = c.width / 160; const g = c.getContext("2d");
       return [[140, 90], [5, 5], [101, 1], [108, 8], [121, 31], [129, 31]].map(([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("")).join(",")
         + " " + c.style.width + " " + getComputedStyle(c.parentElement).backgroundColor; })()`,
@@ -211,7 +212,7 @@ export const cases = [
   // Cursor and the full screen's 4:3 picture in the page)
   { name: "dx_more", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick,b5.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=tick rot255,0 view10.5,5000 parented late second120 full |10x13,18|0|wide0,-1"],
-    pixels: [[30, 50, "ff0000"], [40, 40, "000000"], [140, 20, "0000ff"]],
+    pixels: [[30, 50, "ff0000"], [40, 40, "000000"], [140, 20, "0000ff"]], clientWidth: 240,
     webCheck: `(() => { const px = (id, x, y) => { const c = document.getElementById(id); const s = c.width / parseFloat(c.style.width); return [...c.getContext("2d").getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join(""); };
       const full = document.getElementById("rr-dx3-screen");
       return [getComputedStyle(document.getElementById("rr-dx")).cursor, px("rr-dx-screen", 20, 40), px("rr-late-screen", 5, 5), Math.round(parseFloat(full.style.width) / parseFloat(full.style.height) * 100)].join(" "); })()`,

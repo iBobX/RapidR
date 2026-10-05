@@ -24,6 +24,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Web Audio in the browser.
 
 ### Fixed
+- macOS: a borderless form (BorderStyle bsNone) no longer can freeze its
+  program. Asking whether such a window was maximized gave it a title bar
+  for a moment, which resized it, which asked again; it is now never asked
+  (the user can't maximize it).
 - Native builds: `Obj.Sub.Method(…)` (`DX.View.SetFront(10)`,
   `Printer.Font.DelStyles(3)`) calls the sub-object's method by its
   combined name on the object, as the interpreter does; it went to a value

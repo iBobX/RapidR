@@ -150,7 +150,7 @@ END SUB
 
 SUB Report
   DX.View.Clear
-  lbl.Caption = log + "|" + widths + "|" + STR$(DX.Pixel(20, 40)) + "|" + IIF(DX3.Width > 300, "wide", "narrow") + STR$(DX3.Pixel(10, 5)) + "," + STR$(DX3.Pixel(70, 5))
+  lbl.Caption = log + "|" + widths + "|" + STR$(DX.Pixel(20, 40)) + "|" + IIF(DX3.Width > 400, "wide", "narrow") + STR$(DX3.Pixel(10, 5)) + "," + STR$(DX3.Pixel(70, 5))
 END SUB
 
 Form.ShowModal

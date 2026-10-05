@@ -184,7 +184,9 @@ Each item, with the judgement it needed (the manual says little; DelphiX and the
 
 Tests: `tests/fixtures/dx_more.bas`, case `dx_more` (dumps: the timer's ticks with ActiveOnly, the rotated line's pixels, View's values, the late screen's and the hidden form's set-up, the full screen's width and its surface keeping 64 × 48, the font's sizes; `pixels`: the rotated line and the late screen's blue in the capture; `webCheck`: the screen's `cursor: none`, the same pixels in the page, the full-screen picture's 4:3 proportions). Unit tests: `objects::directx::tests::{font_view_rotate, picture_placement}`, the kernel's `dxscreen::tests` with FullScreen's placement. Passing native and interpreted at 1× and 2×, and on the web at DPR 1 and 2.
 
-Open: ActiveOnly can't be exercised by the GUI tests (their host is always active); a page in a background tab is "inactive" on the web, a window of another application in front on the desktop.
+Open: ActiveOnly can't be exercised by the GUI tests (the program is active under a test, its script being the user — real windows there needn't get the keyboard from the system); a page in a background tab is "inactive" on the web, a window of another application in front on the desktop.
+
+**With real windows** (`RAPIDR_CAPTURE_WINDOWS=1`, 2026-10-05): the DirectX cases pass on macOS too, after three fixes — the capture's pixels are read at the screen's scale (a Retina capture is twice the client size: the case's `clientWidth` tells the runner); a GUI test's program counts as the active application (ActiveOnly); and a frameless window is no longer asked whether it is maximized (winit gives it a title bar for a moment to ask macOS, which resized a full-screen one, which asked again: the program never went on — any bsNone form could spin so). A full screen is macOS' own (its Space, its animation), letterboxed as on the headless host.
 
 ## Stage D2 results (2026-10-05) — QDXSOUND
 
