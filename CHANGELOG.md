@@ -91,6 +91,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (it was a silent no-op): split at the first `=` (or, without one, a
   space), names found in any case by `ENVIRON$` as on Windows; in the
   browser a table of the page's own.
+- **The web on the UI kernel, Stage W4** (docs/web-host-plan.md, "W4 results"): every browser GUI case now runs on the kernel host (`?host=kernel`), 70 of 70, with the desktop's dumps.
+  - **Waits:** ShowModal, DOEVENTS, INPUT$ / WAITKEY and dialogs suspend the browser's VM and resume it as the desktop's interpreter serves them (`rapidr_ui_app::waits`), nested ones in order.
+  - **Dialogs:** MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX, the colour and font dialogs are the kernel's own, pixel-identical to the desktop's. Open / Save go through the kernel's file-dialog request, answered by the page's picker.
+  - **Timers** run on the shared timer heap, as on the desktop (started by modal waits, held back while a handler waits).
+  - **The host:** windows size from every edge and corner; minimized windows line up along the bottom; an edit's `AutoComplete` property becomes its field's autofill hint.
+  - **Native web builds** (`rapidr build --web`) build the runtime with the kernel host and wasm SIMD.
+  - A grid scrolls a newly selected cell into view before its accessibility tree is made, so the tree's cells are where they're drawn (desktop too).
+  - `tools/regress.sh` makes the desktop's GUI captures and compares the kernel host's windows and trees with them at 1× and 2×; `tests/gui_captures.mjs` runs QDOWNLOAD / QMIDI / QWAVE against the tests' own server and scripted devices.
 - **The web on the UI kernel, Stage W3** (docs/web-host-plan.md, "W3 results"): with `?host=kernel` in a page's address, or in the web IDE's (it passes it on to its preview), the program's forms are drawn by the same UI kernel as on the desktop. The DOM host stays the default.
   - **Windows on the page** (`rapidr-ui-host-web`'s `WebHost`): the kernel's display list, drawn by the shared CPU renderer at `devicePixelRatio`, with a kernel-drawn frame in the current theme. Windows stack, move by the title bar, size by their edges, and maximize, minimize, restore and close as on a desktop. A scale change redraws them and fires OnScaleChanged; a lost canvas is redrawn.
   - **Input:** the pointer, the wheel, keys, the clipboard events, input methods (the candidate window at the kernel's caret), a phone's keyboard, and autofill.

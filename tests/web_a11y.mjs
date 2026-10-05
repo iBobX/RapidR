@@ -89,6 +89,11 @@ const ENV = {
   // (nothing reaches a real printer or the user's registry)
   RAPIDR_PRINT_TO: process.env.RAPIDR_PRINT_TO || join(WORK, "prints"),
   RAPIDR_REGISTRY: process.env.RAPIDR_REGISTRY || join(WORK, "registry.reg"),
+  // (the I/O lane's cases, as tests/native_gui_events.mjs runs them: the
+  // tests' HTTP server, no MIDI output, a scripted recording input)
+  RAPIDR_TEST_HTTP: process.env.RAPIDR_TEST_HTTP,
+  RAPIDR_TEST_MIDI: "",
+  RAPIDR_TEST_WAVE_IN: "tone:440",
 };
 
 /// Case `c`'s kernel tree: the desktop run's, else made here.

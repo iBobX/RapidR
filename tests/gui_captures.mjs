@@ -25,8 +25,15 @@ import { mkdirSync, rmSync, writeFileSync, readFileSync, chmodSync } from "node:
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
+import { startHttpServer } from "./http_test_server.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// (as tests/native_gui_events.mjs: QDOWNLOAD's server is the tests' own,
+// no real serial port, no MIDI output, QWAVE records the scripted tone)
+process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
+process.env.RAPIDR_TEST_COMPORT = "";
+process.env.RAPIDR_TEST_MIDI = "";
+process.env.RAPIDR_TEST_WAVE_IN = "tone:440";
 const OUT = resolve(process.argv[2] || join(ROOT, "tests/conformance/.work/gui_captures"));
 const only = process.argv.slice(3);
 const BIN = join(OUT, "_bin");

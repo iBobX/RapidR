@@ -442,6 +442,18 @@ pub(crate) fn kernel_hosts() -> bool {
     false
 }
 
+/// Whether form `name` is shown modally on the kernel host (its ModalResult
+/// set closes it, as on the desktop).
+fn kernel_modal(name: &str) -> bool {
+    #[cfg(feature = "kernel")]
+    return kernel_hosts() && rapidr_ui_app::forms::is_modal(name);
+    #[cfg(not(feature = "kernel"))]
+    {
+        let _ = name;
+        false
+    }
+}
+
 pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
@@ -496,7 +508,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
     }
     // A modal form's ModalResult set: the form closes (ShowModal returns it).
-    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && crate::dialog_web::is_modal(&crate::gui_web::comp_id(name)) {
+    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && (crate::dialog_web::is_modal(&crate::gui_web::comp_id(name)) || kernel_modal(name)) {
         rp_comp_set_prop_only(name, "modalresult", val);
         crate::gui_web::close_form(&name.to_uppercase());
         return;
@@ -1656,11 +1668,44 @@ fn web_file_dialog(name: &str, save: bool, multi: bool) -> Value {
             let _ = web_write_file(path, &bytes);
         }),
         done: std::rc::Rc::new(answer),
+        resume: true,
     });
     v_int(0)
 }
 
+/// (Stage W4, the kernel host's `Windows::ask_files`) The page's Open / Save
+/// dialog: the program's files that fit the filter shown first, a name
+/// field, Upload…; `done` gets the paths picked (none: Cancel). The VM's
+/// wait is the kernel host's.
+pub fn page_file_dialog(save: bool, multi: bool, title: &str, filters: &[rapidr_value::file_dialog::Filter], index: usize, file_name: &str, done: std::rc::Rc<dyn Fn(Vec<String>)>) {
+    use rapidr_value::file_dialog as fd;
+    let mut files: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().filter(|n| fd::fits(filters, index, n)).cloned().collect());
+    files.sort();
+    crate::dialog_web::open_files(crate::dialog_web::FileRequest {
+        title: title.to_string(),
+        save,
+        multi,
+        files,
+        initial: file_name.to_string(),
+        accept: fd::html_accept(filters, index),
+        store: std::rc::Rc::new(|path: &str, bytes: Vec<u8>| {
+            let _ = web_write_file(path, &bytes);
+        }),
+        done,
+        resume: false,
+    });
+}
+
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
+    // (Stage W4: with the UI kernel hosting the page, the colour and font
+    // dialogs are the kernel's — the desktop's — a wait the VM serves; the
+    // Open / Save dialogs too: rapidr_ui_app::dialogs::execute)
+    #[cfg(feature = "kernel")]
+    if method == "execute" && kernel_hosts() {
+        if let Some(v) = crate::kernel_web::execute(name, comp_type) {
+            return v;
+        }
+    }
     // (the dialogs lane's) A QCOLORDIALOG's Colors(i), 1 to 16: read, or
     // `Colors(i) = c` (its second argument), as on the desktop.
     if method == "colors" && comp_type == "RCOLORDIALOG" {
@@ -2485,6 +2530,12 @@ fn bind_dom_event(name: &str, event: &str) {
 
 pub(crate) fn update_timer(name: &str) {
     let uname = name.to_uppercase();
+    // (Stage W4: with the kernel hosting, QTIMER, QDXTIMER and QDXJOYSTICK
+    // tick in the app's timer heap, as on the desktop)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() && matches!(rp_comp_type(&uname).as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK") {
+        return crate::kernel_web::timer_changed(&uname);
+    }
 
     // Clear existing timer
     TIMER_HANDLES.with(|th| {
@@ -2950,7 +3001,18 @@ pub fn set_theme(theme: &str) {
 }
 
 pub fn gui_register_timer(_name: &str) {
-    // Timers are handled via DOM setInterval in update_timer()
+    // (Stage W4: with the kernel hosting, the app's timer heap, as the
+    // desktop's: rapidr_ui_app::timers; else setInterval in update_timer)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        crate::kernel_web::register_timer(_name);
+    }
+}
+
+/// The program's timers (QTIMER, QDXTIMER, QDXJOYSTICK …): what a modal
+/// form's end stops, as the desktop's `rp_stop_all_timers`.
+pub fn timer_names() -> Vec<String> {
+    COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| matches!(comp.type_name.as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")).map(|(n, _)| n.clone()).collect())
 }
 
 pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collections::HashMap<String, Value>)> {
