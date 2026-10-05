@@ -171,6 +171,8 @@ RWEBVIEW (an `<iframe>`, sandboxed as today), RDOM (the program's elements), RWE
 
 ### 3.9 The IDE
 
+(Now planned in full in [docs/ide-plan.md](ide-plan.md): the IDE is rebuilt on new public components, and `examples/ide.rr` and `web-ide/` are deleted at its stage I1's parity.)
+
 The Phase 3 MDI IDE is written once and runs on the kernel on both hosts: `examples/ide.rr` already runs on `RAPIDR_HOST=kernel` (designer, code editor, property grid, the event editor). On the web the same program runs in the page instead of the DOM IDE (`web-ide/`, ~9,900 lines of JS / HTML / CSS) and the program under test runs in the workspace as MDI windows rather than a preview iframe. The code editor is the kernel's RCODEEDITOR; Monaco (MIT) retires when the kernel editor has the language service's UI (completion list, signature help, hover, diagnostics' squiggles) — the Phase 3 language-service crate built native and wasm feeds both. The DOM IDE is deleted with the DOM runtime (§5, no long-term fallback).
 
 ### 3.10 Mobile (Phase 7)
