@@ -13,6 +13,7 @@ pub mod bevel;
 pub mod bitmap;
 pub mod code;
 pub mod codec;
+pub mod d3d;
 pub mod design;
 pub mod directx;
 pub mod dirtree;
@@ -221,6 +222,10 @@ pub fn create(id: &str, type_name: &str) -> bool {
         crate::note_made("RFORMMDI", crate::Made::Component(id.to_string()));
     }
     if menu::create(id, type_name) {
+        return true;
+    }
+    // (the DirectX lane's: QD3DFRAME … — the scene's own store)
+    if d3d::create(id, type_name) {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
@@ -778,6 +783,9 @@ fn ensure_printer(id: &str) {
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    if d3d::exists(id) {
+        return d3d::get(id, &prop);
+    }
     if let Some(v) = menu::get(id, &prop) {
         return Some(v);
     }
@@ -818,6 +826,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    if d3d::exists(id) {
+        return d3d::set(id, &prop, val).map(Ok);
+    }
     if menu::is_menu(id) {
         return menu::set(id, &prop, val).map(Ok);
     }
@@ -929,6 +940,9 @@ pub fn rect_of(v: &Value, props: PropReader) -> (i64, i64, i64, i64) {
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
     ensure_printer(id);
     let method = method.to_lowercase();
+    if d3d::exists(id) {
+        return d3d::call(id, &method, args);
+    }
     if let Some(v) = menu::call(id, &method, args) {
         return Some(Ok(v));
     }
@@ -1006,6 +1020,10 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     if kind == "dxscreen" {
         let c = dxscreen_control(id, props);
         with_dxscreen(id, |s| s.follow_control(c.width, c.height, c.follows()));
+        // Its 3D methods: the scene (d3d.rs), drawn on its back buffer.
+        if d3d::is_screen_method(&method) {
+            return with_dxscreen(id, |s| d3d::screen_call(id, s, &method, args)).flatten();
+        }
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).

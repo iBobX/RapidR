@@ -2609,6 +2609,15 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RDXIMAGELIST"
             | "RDXTIMER"
             | "RDXSOUND"
+            | "RD3DFRAME"
+            | "RD3DMESHBUILDER"
+            | "RD3DMESH"
+            | "RD3DFACE"
+            | "RD3DLIGHT"
+            | "RD3DTEXTURE"
+            | "RD3DVISUAL"
+            | "RD3DWRAP"
+            | "RD3DVECTOR"
     )
 }
 

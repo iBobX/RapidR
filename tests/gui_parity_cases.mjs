@@ -221,6 +221,15 @@ export const cases = [
   // Playing and Position follow the clock)
   { name: "dx_sound", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=4000,8000,100,0,0 play-1 still-1 in stop0 kept 1000,16000 end0,0 |80,-30,0,dx_beep.wav"] },
+  // (the DirectX lane's, stages D3-D4: a Direct3D scene drawn by the
+  // software rasterizer — lit faces, Move, CameraLookAt)
+  { name: "d3d_scene", events: "b1.onclick,b2.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=faces2 lit255,65280,0 turned230 look230,0"],
+    pixels: [[80, 60, "e60000"], [5, 5, "000000"]], clientWidth: 160 },
+  // (the DirectX lane's: a .X model — frame matrix, materials, a texture)
+  { name: "d3d_xfile", events: "b1.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=faces2 verts8 255,16711680,65535,0 green65280,65280 tex16711680,65535"],
+    pixels: [[20, 60, "0000ff"], [60, 60, "ffff00"], [105, 60, "0000ff"], [135, 60, "ffff00"], [80, 60, "000000"]], clientWidth: 160 },
   // (kernel themes: a click switches to dark at run time — Application.Theme;
   // `themes`: the desktop also captures the form under each of these,
   // RAPIDR_THEME, without the events — the web keeps its own look and only

@@ -156,7 +156,8 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
   - [x] D1: QDXSCREEN 2D (back buffer, Flip, drawing, Init / AutoSize / AllowStretch, set-up events), QDXIMAGELIST (`.DXG` libraries), QDXTIMER (Interval 0, FrameRate) on native, interpreted and web (`dx_screen` fixture)
   - [x] D1b: FullScreen, ActiveOnly, Rotate, View.*, Cursor, a screen added to a shown form, the screen font (MS Sans Serif 8) (`dx_more` fixture)
   - [x] D2: QDXSOUND (rodio / Web Audio) (`dx_sound` fixture)
-  - [ ] D3–D5: QD3D* scene and `.X` loader, software rasterizer, wgpu renderer
+  - [x] D3–D4: the QD3D* scene and API, the `.X` loader, the software rasterizer, shadows (`d3d_scene`, `d3d_xfile` fixtures; RapidQ's own look can't be compared: `d3drm.dll` left Windows with Vista)
+  - [ ] D5: the wgpu renderer
   - [ ] D6: joysticks (RapidQ has no object: a RapidR `RJOYSTICK` on `gilrs` / the Gamepad API)
 
 Next up, in order:

@@ -21,6 +21,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   names keep working (classic or modern). Real windows get a light or dark
   title bar to match. The web keeps its own look for now and reads the
   names back.
+- **Direct3D Retained Mode** (RapidQ's QD3DFRAME, QD3DMESHBUILDER,
+  QD3DMESH, QD3DFACE, QD3DLIGHT, QD3DTEXTURE, QD3DVISUAL, QD3DWRAP,
+  QD3DVECTOR and QDXSCREEN's 3D methods) on native, interpreted and web
+  builds: frames, faces, `.X` models (text and binary — every model of
+  RapidQ's examples loads), lights, the camera, textures, wraps, shadows
+  and blended transparency, drawn by RapidR's own software rasterizer into
+  the screen at Render — lit flat or Gouraud, back faces culled, sharp at
+  any display scale.
 
 ### Changed
 - **QREGISTRY on Windows is Windows' own registry**, as RapidQ's was, in

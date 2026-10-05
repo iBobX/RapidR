@@ -62,6 +62,8 @@
 //   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
 //   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
+//   * tests/fixtures/d3d_scene.bas — Direct3D: frames, faces, lights, the camera, Render (the software rasterizer), Move, CameraLookAt.
+//   * tests/fixtures/d3d_xfile.bas — Direct3D: a .X model (frame matrix, materials, a texture on one face), SetRGB, SetTexture.
 //   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
 //     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //
