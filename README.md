@@ -1,3 +1,5 @@
+<p align="center"><img src="design/brand/github/banner.png" alt="RapidR: RapidQ-compatible BASIC, built new in Rust" width="100%"></p>
+
 # RapidR — Full-Stack BASIC-to-Rust Transpiler with Native & Web Runtime
 ## Includes interpreted version for desktop, and web via WebAssembly
 

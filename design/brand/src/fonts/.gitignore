@@ -1,0 +1,4 @@
+# Inter is OFL-1.1 (github.com/rsms/inter). The masters are already outlined;
+# drop Inter-V.ttf (v3.x variable) here only to regenerate them.
+*.ttf
+*.otf
