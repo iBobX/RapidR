@@ -5,9 +5,11 @@
 # emulated on ARM). tools/rc_probe.sh runs it in the Parallels VM from the
 # Mac.
 #
-#   powershell -ExecutionPolicy Bypass -File rc_probe.ps1 -Programs <dir> [-RapidQ <dir>] [-Work <dir>] [-Timeout 10]
+#   powershell -ExecutionPolicy Bypass -File rc_probe.ps1 -Programs <dir> [-RapidQ <dir>] [-Work <dir> | -Folder <name>] [-Timeout 10]
 #
 # -RapidQ: RapidQ's folder (RC.EXE, Lib\, include\); copied to -Work first.
+# -Folder: -Work is %USERPROFILE%\rq\<name> instead — one folder per prober,
+# so two probing at once share neither RC.EXE's copy nor their programs.
 # A program whose name starts with g_ is only compiled (a GUI program would
 # wait for its window to close). A program still running after -Timeout
 # seconds is ended (RapidQ shows an exception in a message box, which waits
@@ -16,8 +18,10 @@ param(
   [Parameter(Mandatory = $true)][string]$Programs,
   [string]$RapidQ = "\\Mac\Home\Downloads\Rapidq",
   [string]$Work = "$env:USERPROFILE\rq",
+  [string]$Folder = "",
   [int]$Timeout = 10
 )
+if ($Folder) { $Work = "$env:USERPROFILE\rq\$Folder" }
 
 New-Item -ItemType Directory -Force "$Work\t" | Out-Null
 Copy-Item -Force "$RapidQ\RC.EXE" $Work

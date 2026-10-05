@@ -30,6 +30,7 @@ pub mod memstream;
 pub mod menu;
 pub mod ops;
 pub mod printer;
+pub mod record;
 pub mod text;
 pub mod tabcontrol;
 pub mod textedit;
@@ -93,6 +94,8 @@ enum Object {
     DxSound(directx::DxSound),
     /// QDXJOYSTICK's state (joystick.rs).
     DxJoystick(joystick::DxJoystick),
+    /// QRECT's / QNOTIFYICONDATA's fields (record.rs).
+    Record(record::Record),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -264,6 +267,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RDXTIMER" => Object::DxTimer(directx::DxTimer::default()),
         "RDXSOUND" => Object::DxSound(directx::DxSound::default()),
         "RDXJOYSTICK" => Object::DxJoystick(joystick::DxJoystick::default()),
+        "RRECT" => Object::Record(record::Record::new(record::Kind::Rect)),
+        "RNOTIFYICONDATA" => Object::Record(record::Record::new(record::Kind::NotifyIconData)),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -692,6 +697,14 @@ pub fn dxtimer_fired(id: &str, now_ms: f64) {
     with(id, |o| if let Object::DxTimer(t) = o { t.tick(now_ms) });
 }
 
+/// Reads a QRECT or a QNOTIFYICONDATA (record.rs).
+pub fn with_record<R>(id: &str, f: impl FnOnce(&record::Record) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Record(r) => Some(f(r)),
+        _ => None,
+    })?
+}
+
 /// Whether `id` is a QDXJOYSTICK.
 pub fn is_dxjoystick(id: &str) -> bool {
     with(id, |o| matches!(o, Object::DxJoystick(_))) == Some(true)
@@ -838,6 +851,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::DxTimer(t) => t.get(&prop),
         Object::DxSound(s) => s.get(&prop),
         Object::DxJoystick(j) => j.get(&prop),
+        Object::Record(r) => r.get(&prop),
     })?
 }
 
@@ -935,6 +949,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::DxScreen(s) => s.set(&prop, val),
         Object::DxSound(s) => s.set(id, &prop, val),
         Object::DxJoystick(j) => j.set(&prop, val),
+        Object::Record(r) => r.set(&prop, val).then_some(Ok(())),
         Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
 }
@@ -1030,6 +1045,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::DxTimer(_) => "dxtimer",
         Object::DxSound(_) => "dxsound",
         Object::DxJoystick(_) => "dxjoystick",
+        Object::Record(_) => "record",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1408,7 +1424,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::DxScreen(s) => s.call(method, args),
         Object::DxSound(s) => s.call(id, method),
         Object::DxJoystick(j) => j.call(method, args),
-        Object::DxImageList(_) | Object::DxTimer(_) => None,
+        Object::DxImageList(_) | Object::DxTimer(_) | Object::Record(_) => None,
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

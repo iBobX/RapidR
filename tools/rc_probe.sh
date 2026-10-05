@@ -9,7 +9,9 @@
 # shared folders as \\Mac\Home\…, as it sees RapidQ's folder
 # (RAPIDQ_DIR, default ~/Downloads/Rapidq) and this repository.
 # RAPIDR_VM names the VM (default "Windows 11 Pro"); a paused or suspended
-# VM is resumed first (it pauses itself when idle).
+# VM is resumed first (it pauses itself when idle). RC_PROBE_FOLDER=<name>
+# works in %USERPROFILE%\rq\<name> in the VM instead of %USERPROFILE%\rq
+# (one folder per prober when several probe at once).
 set -u
 dir=$(cd "${1:?usage: tools/rc_probe.sh <dir with .bas files> [timeout]}" && pwd -P)
 timeout=${2:-10}
@@ -30,4 +32,4 @@ case "$state" in
   *) echo "VM \"$vm\": ${state:-not found}" >&2; exit 1 ;;
 esac
 prlctl exec "$vm" --current-user powershell -NoProfile -ExecutionPolicy Bypass -File "$(unc "$here/windows/rc_probe.ps1")" \
-  -Programs "$(unc "$dir")" -RapidQ "$(unc "$rapidq")" -Timeout "$timeout" | tr -d '\r'
+  -Programs "$(unc "$dir")" -RapidQ "$(unc "$rapidq")" ${RC_PROBE_FOLDER:+-Folder "$RC_PROBE_FOLDER"} -Timeout "$timeout" | tr -d '\r'

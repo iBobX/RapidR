@@ -1315,8 +1315,107 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
 /// A property RC.EXE refuses to set with its `X.P is a read-only value.`:
 /// QDXJOYSTICK's state (and RapidR's additions to it).
 pub fn is_read_only_value(type_name: &str, property: &str) -> bool {
-    canonical_type_name(type_name).eq_ignore_ascii_case("RDXJOYSTICK")
-        && ["IsLeft", "IsRight", "IsUp", "IsDown", "Connected", "Name", "X", "Y", "Z", "R", "U", "V", "Buttons", "POV"].iter().any(|p| p.eq_ignore_ascii_case(property))
+    let read_only: &[&str] = match canonical_type_name(type_name).to_ascii_uppercase().as_str() {
+        "RDXJOYSTICK" => &["IsLeft", "IsRight", "IsUp", "IsDown", "Connected", "Name", "X", "Y", "Z", "R", "U", "V", "Buttons", "POV"],
+        // (RC.EXE: `N.CBSIZE is a read-only value.`, `G.HANDLE is …`)
+        "RNOTIFYICONDATA" => &["cbSize"],
+        "RGLASSFRAME" => &["Handle"],
+        _ => &[],
+    };
+    read_only.iter().any(|p| p.eq_ignore_ascii_case(property))
+}
+
+/// The members RapidQ's compiler knows for its data types QRECT and
+/// QNOTIFYICONDATA and for QGLASSFRAME (RC.EXE's own member table; any
+/// other is its `Member X not part of class Y`), lowercase. QGLASSFRAME
+/// also takes RapidR's additions every visible component has
+/// (AccessibleName, AccessibleDescription, Anchors).
+pub fn fixed_members(type_name: &str) -> Option<&'static [&'static str]> {
+    Some(match canonical_type_name(type_name).to_ascii_uppercase().as_str() {
+        "RRECT" => &["left", "top", "right", "bottom"],
+        "RNOTIFYICONDATA" => &["cbsize", "hwnd", "uid", "uflags", "ucallbackmessage", "hicon", "sztip"],
+        "RGLASSFRAME" => &[
+            "left", "top", "width", "height", "clientwidth", "clientheight", "color", "enabled", "visible", "showhint", "hint",
+            "popupmenu", "cursor", "handle", "align", "moveable", "transparency", "transparentcolor", "onclick", "ondblclick",
+            "onmousedown", "onmousemove", "onmouseup", "parent",
+            // (RapidR's)
+            "accessiblename", "accessibledescription", "anchors",
+        ],
+        _ => return None,
+    })
+}
+
+/// RapidQ's errors about its data types and fixed-member objects
+/// ([`fixed_members`]), in its compiler's words:
+/// - `Member WIDTH not part of class R` — a member it doesn't have (`R` the
+///   object, the member's whole dotted path: `FONT.NAME`);
+/// - `Component assignment is not yet supported.` — `R2 = R` of a QRECT or
+///   QNOTIFYICONDATA;
+/// - `Datatype QRECT not supported in STRUCT` — one in a TYPE without
+///   EXTENDS (RC.EXE refuses every component there; RapidR's own programs
+///   keep composing TYPEs of components, so only these two are refused).
+fn fixed_member_checks(program: &Program, outside_types: &[Statement], component_types: &std::collections::HashMap<String, String>) -> Vec<(TextSpan, String)> {
+    use std::collections::HashMap as Map;
+    let mut out = Vec::new();
+    let is_record = |t: &str| matches!(canonical_type_name(t).to_ascii_uppercase().as_str(), "RRECT" | "RNOTIFYICONDATA");
+    let rapidq_name = |t: &str| {
+        let c = canonical_type_name(t).to_ascii_uppercase();
+        c.strip_prefix('R').map_or(c.clone(), |rest| format!("Q{rest}"))
+    };
+    for s in &program.statements {
+        if let Statement::Type(t) = s {
+            if t.extends.is_none() {
+                for f in t.fields.iter().filter(|f| is_record(&f.type_name)) {
+                    out.push((f.span, format!("Datatype {} not supported in STRUCT", rapidq_name(&f.type_name))));
+                }
+            }
+        }
+    }
+    // (the longest member chain on each use of an object: `g.Font.Name`)
+    let mut chains: Map<(usize, usize), (TextSpan, String, String)> = Map::new();
+    walk(
+        outside_types,
+        &mut |s| {
+            if let Statement::Assignment(a) = s {
+                if let (Expression::Identifier(t), Expression::Identifier(v)) = (&a.target, &a.value) {
+                    let kind = |n: &str| component_types.get(&n.to_ascii_lowercase());
+                    if kind(&t.name).is_some_and(|k| is_record(k)) && kind(&v.name).is_some() {
+                        out.push((a.span, "Component assignment is not yet supported.".to_string()));
+                    }
+                }
+            }
+        },
+        &mut |e| {
+            let Expression::MemberAccess(m) = e else { return };
+            let mut path = vec![m.member.clone()];
+            let mut object = m.object.as_ref();
+            while let Expression::MemberAccess(inner) = object {
+                path.push(inner.member.clone());
+                object = inner.object.as_ref();
+            }
+            let Expression::Identifier(root) = object else { return };
+            let Some(members) = component_types.get(&root.name.to_ascii_lowercase()).and_then(|t| fixed_members(t)) else { return };
+            path.reverse();
+            let joined = path.join(".");
+            let key = (root.span.start, root.span.end);
+            if chains.get(&key).is_none_or(|(_, _, p)| p.len() < joined.len()) {
+                let first_known = members.contains(&path[0].to_ascii_lowercase().as_str());
+                // (a known member's own members — `G.Parent.Caption` — are the
+                // other object's business)
+                if !first_known {
+                    chains.insert(key, (m.span, root.name.clone(), joined));
+                } else {
+                    chains.remove(&key);
+                }
+            }
+        },
+    );
+    let mut found: Vec<_> = chains.into_values().collect();
+    found.sort_by_key(|(span, _, _)| (span.start, span.end));
+    for (span, root, path) in found {
+        out.push((span, format!("Member {} not part of class {}", path.to_ascii_uppercase(), root.to_ascii_uppercase())));
+    }
+    out
 }
 
 /// The properties RapidQ's manual lists as read-only (R) for its own
@@ -1537,6 +1636,7 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
         },
         &mut |_| {},
     );
+    out.extend(fixed_member_checks(program, &outside_types, &component_types));
     let mut global_dims = HashSet::new();
     let main: Vec<Statement> = outside_types.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
     dims(&main, &mut global_dims, &mut out);
@@ -1718,6 +1818,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR",
     // RapidQ's non-visual objects (rapidr_value::objects)
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
+    // RapidQ's data types that are objects (rapidr_value::objects::record)
+    "RNOTIFYICONDATA",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1749,8 +1851,8 @@ pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",
     "QDIGDISPLAY", "QDIRLISTVIEW",
     "QDOCKFORM", "QDOWNLOAD",
-"QGLASSFRAME", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
-    "QRECT", "QVIDEO", "QWAVE",
+"QGLASSFRAME", "QMIDI", "QOLECONTAINER", "QOLEOBJECT",
+    "QVIDEO", "QWAVE",
 ];
 
 /// The type suffix of an INPUT variable (`name$` → "$"), or "": with the

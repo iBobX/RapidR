@@ -2564,6 +2564,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RCANVAS"
             | "RHEADER"
             | "RRECT"
+            | "RNOTIFYICONDATA"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"

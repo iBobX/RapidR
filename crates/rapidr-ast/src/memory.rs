@@ -102,6 +102,10 @@ impl Types {
             "WORD" | "SHORT" => 2,
             "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "STRING" => 4,
             "DOUBLE" => 8,
+            // (RapidQ's data types: RC.EXE's SIZEOF — QNOTIFYICONDATA's six
+            // numbers, its tip not counted)
+            "QRECT" | "RRECT" => 16,
+            "QNOTIFYICONDATA" | "RNOTIFYICONDATA" => 24,
             _ => {
                 let fields = self.0.get(&t)?;
                 if depth > 16 {
@@ -454,7 +458,10 @@ fn statement_span(s: &Statement) -> TextSpan {
 }
 
 fn is_builtin_type(name: &str) -> bool {
-    matches!(name.to_ascii_uppercase().as_str(), "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "STRING")
+    matches!(
+        name.to_ascii_uppercase().as_str(),
+        "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "STRING" | "QRECT" | "QNOTIFYICONDATA"
+    )
 }
 
 fn member_path(e: &Expression) -> String {
