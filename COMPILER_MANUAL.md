@@ -1230,7 +1230,7 @@ web-ide/
 4. **Build = same bytes as `rapidr bundle-bc`.** `zip.js` writes a
    STORED-only PKZIP whose layout (`index.html`, `loader.js`,
    `rapidrintr.js`, `rapidrintr_bg.wasm`, `<name>.rrbc`, optional
-   `assets/<name>`, `manifest.json`) mirrors
+   `assets/<name>`, `manifest.json`, `THIRD-PARTY-NOTICES.txt`) mirrors
    `interpreter/rapidr-webbundle::build_bundle`. Bundled `index.html`
    ships a strict CSP meta tag.
 5. **Multi-form, VB6-style.** Each `RForm` in the project gets its own
@@ -1336,7 +1336,8 @@ re-renders the active design surface (debounced).
   ```
 - Preview iframe is sandboxed (`allow-scripts allow-same-origin
   allow-modals`).
-- Third-party attribution: [`LICENSES.md`](LICENSES.md).
+- Third-party attribution: [`LICENSES.md`](LICENSES.md); every bundle
+  carries the web runtime's `THIRD-PARTY-NOTICES.txt` ([`LEGAL.md`](LEGAL.md)).
 
 ### Test Coverage
 
