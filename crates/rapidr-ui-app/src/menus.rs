@@ -113,7 +113,7 @@ pub fn dump_line(root: &str) -> String {
 /// `RAPIDR_DUMP_MENUS=1`: the menus shown, on stderr, each time the model
 /// (or which menus show) changed.
 pub fn dump_if_changed<P: Program>(p: P) {
-    if std::env::var_os("RAPIDR_DUMP_MENUS").is_none() {
+    if crate::testhooks::var("RAPIDR_DUMP_MENUS").is_none() {
         return;
     }
     let menus = shown_menus(p);

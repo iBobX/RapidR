@@ -8,6 +8,12 @@ license.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["kernel"]
+# The UI kernel as the page's GUI host, asked for with `?host=kernel`
+# (docs/web-host-plan.md, Stage W3; the DOM host stays the default).
+kernel = ["rapidr-runtime-web/kernel"]
+
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-bytecode = { workspace = true }

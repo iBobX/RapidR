@@ -1152,7 +1152,7 @@ impl Windows for Rt {
             }
         }
     }
-    fn capture_and_end(self, prefix: &str) -> ! {
+    fn capture_and_end(self, prefix: &str) {
         capture_and_end(prefix)
     }
 }

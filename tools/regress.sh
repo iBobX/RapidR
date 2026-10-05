@@ -44,6 +44,12 @@ if want web; then
   # (the browser's accessibility tree against the UI kernel's: it makes the
   # kernel's trees it needs — the gui stage's 2× run cleared the 1× run's)
   echo "== web accessibility (ARIA = the UI kernel's tree; the keys)"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Web accessibility"
+  # (the UI kernel as the page's host, `?host=kernel` — docs/web-host-plan.md
+  # Stage W3: the cases' dumps by the desktop's own test hooks; its pending
+  # ones say why. With RAPIDR_DESKTOP_CAPTURES=<tests/gui_captures.mjs' dir>
+  # the windows and trees are compared with the desktop's byte for byte)
+  echo "== web gui parity on the kernel host"; RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|Kernel host|parity"
+  echo "== web accessibility on the kernel host (Chrome's tree over the mirror = the kernel's)"; RAPIDR_WEB_HOST=kernel node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host"
   echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done

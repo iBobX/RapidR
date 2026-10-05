@@ -4,27 +4,32 @@ edition.workspace = true
 version.workspace = true
 publish = false
 license.workspace = true
-description = "Spike: RapidR's UI kernel in the browser — a <canvas> drawn by vello_cpu (or vello on WebGPU), input and input methods through the DOM, an ARIA mirror of the kernel's accessibility tree (docs/web-host-plan.md)"
+description = "RapidR's web host for the UI kernel: the program's forms as kernel-drawn windows on the page (vello_cpu into canvases), input and input methods through the DOM, an ARIA mirror of the kernel's accessibility tree"
 
-# A spike (docs/web-host-plan.md, "Spike results"): kept out of every
-# regular build — the web IDE, `rapidr bundle-bc` and the runtimes don't
-# use it — and out of THIRD_PARTY_NOTICES.md until it's adopted (every
-# crate it links is already listed there). Built by
-# tools/build_web_host_spike.sh (with wasm SIMD into target/web-host-spike;
-# without into target/web-host-spike-scalar); its page is
-# tests/web_host_spike.html.
+# The web host (docs/web-host-plan.md, Stage W3): the web runtime's
+# `kernel` feature uses it (`?host=kernel`). It never depends on a runtime
+# — its callbacks route input into the kernel (`rapidr_ui_app::desktop`'s
+# `Desktop`, the desktop host's own) and wake the runtime, which dispatches.
+#
+# Feature `spike` (on by default) keeps the W0 spike's wasm API and fixture
+# forms (`SpikeForm`, tests/web_host_spike.html, built by
+# tools/build_web_host_spike.sh); the runtime builds without it.
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = []
-# vello on WebGPU where the browser has it (the CPU renderer stays the
-# fallback and what the pixel comparison reads).
-gpu = ["rapidr-ui-render/gpu", "dep:vello", "dep:wasm-bindgen-futures", "web-sys/HtmlCanvasElement"]
+default = ["spike"]
+spike = []
+# vello on WebGPU where the browser has it (the spike's: the CPU renderer
+# stays the fallback and what the pixel comparison reads).
+gpu = ["spike", "rapidr-ui-render/gpu", "dep:vello", "dep:wasm-bindgen-futures", "web-sys/HtmlCanvasElement"]
 
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-ui-kernel = { workspace = true }
+# The forms' kernel sides, stacking, the modal list and the queues
+# (`Desktop`), shared with the desktop host.
+rapidr-ui-app = { workspace = true }
 # The drawing the desktop host does too (vello_cpu; with feature gpu,
 # vello), without vello_cpu's PNG codec: a browser has no system fonts
 # with bitmap glyphs to decode.
@@ -32,7 +37,14 @@ rapidr-ui-render = { workspace = true }
 # The browser (MIT OR Apache-2.0): the versions the workspace is aligned on.
 wasm-bindgen = "0.2.129"
 js-sys = "0.3.106"
-web-sys = { version = "0.3.106", features = ["CanvasRenderingContext2d", "ImageData", "console"] }
+web-sys = { version = "0.3.106", features = [
+    "CanvasRenderingContext2d", "ContextAttributes2d", "ImageData", "console",
+    "Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlInputElement", "HtmlTextAreaElement",
+    "Node", "NamedNodeMap", "Attr", "CssStyleDeclaration", "DomRect", "DomStringMap", "EventTarget", "Event",
+    "AddEventListenerOptions", "MouseEvent", "PointerEvent", "WheelEvent", "KeyboardEvent", "InputEvent",
+    "CompositionEvent", "ClipboardEvent", "DataTransfer", "FocusEvent", "FocusOptions", "MediaQueryList",
+    "Navigator", "Clipboard", "HtmlHeadElement",
+] }
 # (feature "gpu") vello on wgpu's WebGPU backend (MIT OR Apache-2.0): its
 # surfaces and devices; rapidr-ui-render's vello.
 vello = { version = "0.11", optional = true }
@@ -45,3 +57,7 @@ wasm-bindgen-futures = { version = "0.4.79", optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rapidr-ui-render = { workspace = true, features = ["png"] }
 parley = { version = "0.11", default-features = false, features = ["std"] }
+
+[[example]]
+name = "desktop_capture"
+required-features = ["spike"]

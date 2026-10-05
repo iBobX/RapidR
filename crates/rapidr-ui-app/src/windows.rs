@@ -167,8 +167,10 @@ pub trait Windows: Copy + 'static {
     /// The script's input, through the kernel's routing.
     fn script_input(self, input: ScriptInput);
     /// The test's end: every shown window captured, the accessibility trees
-    /// written (`RAPIDR_TEST_A11Y`), the program ended.
-    fn capture_and_end(self, prefix: &str) -> !;
+    /// written (`RAPIDR_TEST_A11Y`), the program ended — the desktop's
+    /// process exits; a page can't, so the web's keeps the results and ends
+    /// the program, and the script is over.
+    fn capture_and_end(self, prefix: &str);
 }
 
 thread_local! {

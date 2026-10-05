@@ -45,6 +45,11 @@ fn caption_html(caption: &str) -> String {
 
 /// The menu changed: it's drawn again once the program's code returns.
 pub fn schedule() {
+    // (Stage W3: with the kernel hosting, it draws the menus)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::redraw();
+    }
     listen();
     if QUEUED.with(|q| q.replace(true)) {
         return;
@@ -158,6 +163,10 @@ fn close_all() {
 
 /// `PopupMenu.Popup(X, Y)`: OnPopup, then the menu at (X, Y) of the page.
 pub fn popup(name: &str, x: i64, y: i64) {
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        return crate::kernel_web::popup(name, x, y);
+    }
     listen();
     crate::object_web::rp_fire_event(name, "onpopup");
     close_all();

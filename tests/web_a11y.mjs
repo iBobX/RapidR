@@ -37,7 +37,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { cases } from "./gui_parity_cases.mjs";
-import { openIde, runCase } from "./web_gui_run.mjs";
+import { openIde, runCase, runCaseKernel, WEB_HOST } from "./web_gui_run.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/web_a11y");
@@ -99,6 +99,8 @@ async function kernelTree(c) {
     ...(c.fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: c.fileDialog }),
     ...(c.colorDialog === undefined ? {} : { RAPIDR_TEST_COLOR_DIALOG: c.colorDialog }),
     ...(c.fontDialog === undefined ? {} : { RAPIDR_TEST_FONT_DIALOG: c.fontDialog }),
+    // (QDXJOYSTICK's gamepad: the tests' script, as the browser's)
+    ...(c.joystick === undefined ? {} : { RAPIDR_TEST_JOYSTICK: c.joystick }),
   };
   await run(join(out, c.name), [], {
     cwd: ROOT,
@@ -344,6 +346,71 @@ function runtimeDialog(tree, k, say) {
   for (const c of want.filter((c) => c.role === "img")) if (!of(["image", "img"]).some((n) => squash(n.name?.value) === squash(c.name))) list.push(`icon "${c.name}" missing`);
   say(`dialog "${k.name}"`, list);
   return true;
+}
+
+// ------------------------------------------- the kernel host (Stage W3) --
+//
+// RAPIDR_WEB_HOST=kernel: the UI kernel draws the forms in the page
+// (tests/web_kernel.html?host=kernel, tests/web_gui_run.mjs) and its
+// accessibility mirror (rapidr-ui-host-web's mirror.rs) is what Chrome
+// reads. The kernel's trees are the page's own (rapidr_test_results' a11y,
+// the bytes RAPIDR_TEST_A11Y writes on the desktop); every node has its
+// own element in the mirror (`data-node`: its id), so parts are matched as
+// components are.
+
+async function snapshotKernel(page) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+  const owner = new Map();
+  const names = new Map();
+  const walk = (n, comp) => {
+    const attrs = {};
+    for (let i = 0; i + 1 < (n.attributes || []).length; i += 2) attrs[n.attributes[i]] = n.attributes[i + 1];
+    if (attrs["data-node"]) {
+      comp = attrs["data-node"];
+      names.set(comp, comp);
+    }
+    owner.set(n.backendNodeId, comp);
+    for (const c of n.children || []) walk(c, comp);
+  };
+  walk(root, null);
+  const { nodes } = await cdp.send("Accessibility.getFullAXTree");
+  await cdp.detach();
+  const byId = new Map(nodes.map((n) => [n.nodeId, n]));
+  const order = [];
+  const visit = (n) => {
+    if (!n) return;
+    order.push(n);
+    for (const c of n.childIds || []) visit(byId.get(c));
+  };
+  visit(nodes.find((n) => !n.parentId));
+  for (const n of order) n.comp = owner.get(n.backendDOMNodeId) ?? null;
+  return { order, byId, names, whole: true };
+}
+
+if (WEB_HOST === "kernel") {
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch();
+  const dpr = Number(process.env.RAPIDR_DPR || 1);
+  let same = 0, differ = 0;
+  for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
+    if (c.web === false) { skipped++; continue; }
+    const { results, errors, page } = await runCaseKernel(browser, c, dpr);
+    if (!results) { ok(false, `${c.name} (kernel): ran (${errors.join("; ")})`); await page.close(); continue; }
+    // (the mirror follows the last frame)
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const trees = JSON.parse(results.a11y.replace(/"(id|labelledBy)":(\d+)/g, '"$1":"$2"'));
+    const tree = await snapshotKernel(page);
+    compared = 0;
+    const diffs = trees.flatMap((t) => compareTree(tree, t, false));
+    diffs.length ? differ++ : same++;
+    ok(diffs.length === 0, `${c.name} (kernel): the browser's accessibility tree is the kernel's (${compared} nodes)` + (diffs.length ? "\n    " + diffs.slice(0, 12).join("\n    ") : ""));
+    await page.close();
+  }
+  await browser.close();
+  console.log(`\nKernel host: Chrome's tree equal to the kernel's for ${same} of ${same + differ} cases`);
+  console.log(`Web accessibility (kernel host): ${passed} checks passed, ${failed} failed, ${skipped} skipped`);
+  process.exit(failed ? 1 : 0);
 }
 
 // ------------------------------------------------------------ the run --

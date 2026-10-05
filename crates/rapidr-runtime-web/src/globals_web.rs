@@ -32,6 +32,21 @@ pub fn name_theme(name: &str) {
         Choice::Unknown => rapidr_value::theme::CLASSIC.name,
     };
     THEME.with(|t| t.set(chosen));
+    // (Stage W3: with the kernel hosting, it draws in that theme from now
+    // on — `auto` the page's look, as the desktop's the system's)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        let theme = match choose(name) {
+            Choice::Theme(t) => t,
+            Choice::Auto => {
+                let media = |q: &str| !rapidr_ui_app::testhooks::under_test() && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
+                rapidr_value::theme::auto(media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
+            }
+            Choice::Unknown => &rapidr_value::theme::CLASSIC,
+        };
+        rapidr_value::theme::set(theme);
+        crate::kernel_web::redraw();
+    }
 }
 
 /// Follows the mouse over the page (Screen.MouseX / MouseY).
