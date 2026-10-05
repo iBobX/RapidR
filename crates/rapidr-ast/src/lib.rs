@@ -8,6 +8,7 @@ pub mod suffix_vars;
 pub mod for_locals;
 pub mod memory;
 pub mod type_values;
+pub mod tray_calls;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
 pub fn strip_type_suffix(name: &str) -> &str {
@@ -1890,10 +1891,11 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
     RAPIDR_CONSTANTS.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| *v)
 }
 
+// (QDIRLISTVIEW, QDOCKFORM: RapidR's own libraries, rapidr_preprocessor::
+// RAPIDR_LIBRARIES — TYPEs a program that names them gets)
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QCDAUDIO", "QCGI", "QCOMPORT",
-    "QDIRLISTVIEW",
-    "QDOCKFORM", "QDOWNLOAD",
+    "QDOWNLOAD",
 "QGLASSFRAME", "QMIDI", "QOLECONTAINER", "QOLEOBJECT",
     "QVIDEO", "QWAVE",
 ];

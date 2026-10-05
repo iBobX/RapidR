@@ -94,6 +94,24 @@ export async function runCase(page, c) {
     // `tree.__edit`: F2 on it; `__enter` / `__escape`: "Renamed" typed in
     // its node editor, then Enter / Escape.
     const edit = /^__(edit|enter|escape)$/i.exec(action || "")?.[1].toLowerCase();
+    // `form.__tray_513`: Windows' mouse message 513 (WM_LBUTTONDOWN …) on
+    // the form's system tray icon (the page's tray strip, tray_web.rs).
+    const tray = /^__tray_(\d+)$/i.exec(action || "");
+    if (tray) {
+      const done = await frame.evaluate(({ form, msg }) => {
+        // (no icon: nothing to press, as on the desktop — the case's dump tells)
+        const icon = document.querySelector(`.rr-tray-icon[data-form="${form}"]`);
+        if (!icon) return true;
+        const kinds = { 513: ["mousedown", 0, 1], 514: ["mouseup", 0, 1], 515: ["mousedown", 0, 2], 516: ["mousedown", 2, 1], 517: ["mouseup", 2, 1], 519: ["mousedown", 1, 1], 520: ["mouseup", 1, 1] };
+        const [type, button, detail] = kinds[msg] || [];
+        if (!type) return false;
+        icon.dispatchEvent(new MouseEvent(type, { button, detail, bubbles: true, cancelable: true }));
+        return true;
+      }, { form: target.toLowerCase(), msg: Number(tray[1]) });
+      if (!done) missing.push(target);
+      await page.waitForTimeout(300);
+      continue;
+    }
     const fired = await frame.evaluate(({ id, selector, key, mouse, dbl, item, edit }) => {
       const host = document.getElementById(id);
       const el = selector ? host?.querySelector(selector) : host;

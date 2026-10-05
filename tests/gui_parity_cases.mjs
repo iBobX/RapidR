@@ -20,6 +20,27 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // QDOCKFORM built in (RAPIDQ2.INC's dockable form, RapidR's own
+  // library): docked at its alternative place, floated, brought home,
+  // closed (OnClose); the toolbar-style one's grip (the capture's pixels).
+  { name: "dock_form", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,p.__shown",
+    expect: ["lbl.caption=- r11 f00 h10 closed c1", "p.__shown=0"],
+    pixels: [[6, 4, "808080"], [6, 5, "c0c0c0"]] },
+  // QDIRLISTVIEW built in (QDirListView.inc's component, RapidR's own
+  // library): a folder the program made, a file picked and Enter
+  // (OnFileSelect), a folder double-clicked (into it), Backspace (up).
+  { name: "dir_list_view", events: "dirlist.__mousedown_30_58,dirlist.__mouseup_30_58,dirlist.__key_13,dirlist.__dblclick_30_40,btn.onclick,dirlist.__key_8,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=- pick:dirlv/notes.txt [-1>/Inner2 ../0 deep.bas/1 |] [-1>/Inner3 ../0 Inner/0 notes.txt/1 2 KB|TXT File]"],
+    inWork: true, web: false, why: "a browser has no folders to list (DIR$)" },
+  // The system tray (QNOTIFYICONDATA, Shell_NotifyIcon, the form's
+  // WndProc): added once (a second NIM_ADD fails), its tip modified, the
+  // form hidden (its ShowModal waits on); the icon's press and release heard
+  // with wParam its uID; the release deletes it (a second NIM_DELETE fails)
+  // and shows the form; a press after that says nothing.
+  { name: "tray_icon", events: "btn.onclick,form.__tray_513,form.__tray_514,form.__tray_513", dump: "lbl.caption,form.__shown",
+    expect: ["lbl.caption=add10 mod1 7:00000201f 7:00000202f del10", "form.__shown=1"],
+    webCheck: `document.querySelectorAll(".rr-tray-icon").length + " " + getComputedStyle(document.getElementById("rr-tray")).display`,
+    webExpect: "0 none" },
   // QBEVEL and QDIGDISPLAY built in (no include library): Shape / Style
   // set the bevels or draw a line pair; the display's size and segments.
   // Pixels: the top line's light and dark rows, the right line's dark and

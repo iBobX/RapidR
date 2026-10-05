@@ -244,7 +244,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
 // ---------------------------------------------------------------------------
 
 /// RGBA pixels as a PNG data URL (an off-screen canvas).
-fn rgba_data_url(w: usize, h: usize, rgba: &[u8]) -> Option<String> {
+pub fn rgba_data_url(w: usize, h: usize, rgba: &[u8]) -> Option<String> {
     let data = web_sys::ImageData::new_with_u8_clamped_array_and_sh(wasm_bindgen::Clamped(rgba), w as u32, h as u32).ok()?;
     let off = document().create_element("canvas").ok()?.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
     off.set_width(w as u32);

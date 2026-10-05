@@ -185,7 +185,7 @@ fn object_kind(types: &Types, type_name: &str) -> Option<String> {
 }
 
 /// RapidQ's global objects: never a member of a TYPE's component.
-const GLOBAL_OBJECTS: &[&str] = &["application", "screen", "clipboard", "printer", "mouse"];
+const GLOBAL_OBJECTS: &[&str] = &["application", "screen", "clipboard", "printer", "mouse", "filerec"];
 
 /// Whether `name` is one of RapidQ's global objects (`Application`,
 /// `Screen`, `Clipboard`, `Printer`, `Mouse`).
@@ -353,7 +353,15 @@ impl Lowering<'_> {
     fn implicit_member(&self, name: &str) -> bool {
         let Some(t) = &self.ctx.current_type else { return false };
         // (`Result`: a FUNCTION's value, never a property)
-        if self.is_local(name) || matches!(key(name).as_str(), "this" | "me" | "true" | "false" | "result") {
+        // (CALLFUNC and CODEPTR: the language's, which the compilers do
+        // themselves, not builtins they look up)
+        // (the builtins written without parentheses — `f = DIR$`, `TIMER` —
+        // are the language's too, whatever the component has)
+        const BARE: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "freefile", "inkey", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
+        if BARE.contains(&strip_type_suffix(&key(name))) {
+            return false;
+        }
+        if self.is_local(name) || matches!(key(name).as_str(), "this" | "me" | "true" | "false" | "result" | "callfunc" | "codeptr") {
             return false;
         }
         self.types.field(t, name).is_some()
@@ -902,6 +910,25 @@ impl Lowering<'_> {
     /// `CREATE x AS TType … END CREATE`: set the instance up, then its
     /// settings (`Caption = …` is `x.Caption = …`, `Center` is `x.Center`);
     /// a nested CREATE gets `x` as its Parent.
+    /// `Field.X…` written inside `CREATE name AS Type` (the root a field of
+    /// the TYPE, not a variable of the program): `name.Field.X…`.
+    fn qualify_field_root(&self, e: &Expression, name: &str, t: &str) -> Expression {
+        match e {
+            Expression::MemberAccess(m) => match m.object.as_ref() {
+                Expression::Identifier(id) if self.types.field(t, &id.name).is_some() && self.var_type(&id.name).is_none() && !self.globals.contains(&key(&id.name)) => {
+                    let span = id.span;
+                    let root = Expression::MemberAccess(MemberAccessExpression { span, object: Box::new(ident_at(span, name)), member: id.name.clone() });
+                    Expression::MemberAccess(MemberAccessExpression { span: m.span, object: Box::new(root), member: m.member.clone() })
+                }
+                inner @ Expression::MemberAccess(_) => {
+                    Expression::MemberAccess(MemberAccessExpression { span: m.span, object: Box::new(self.qualify_field_root(inner, name, t)), member: m.member.clone() })
+                }
+                _ => e.clone(),
+            },
+            _ => e.clone(),
+        }
+    }
+
     fn create_instance(&mut self, c: &CreateStatement, t: &str) -> Vec<Statement> {
         let span = c.span;
         self.record_object_var(&c.name, t, false);
@@ -920,7 +947,9 @@ impl Lowering<'_> {
                 Statement::Assignment(a) => {
                     let target = match &a.target {
                         Expression::Identifier(id) => member(&id.name),
-                        other => other.clone(),
+                        // `AltPanel.Parent = Form`, `Client.BevelOuter = 0`: a
+                        // field's own member, the instance's field
+                        other => self.qualify_field_root(other, &c.name, t),
                     };
                     out.extend(self.assignment(&AssignmentStatement { span: a.span, target, value: a.value.clone() }));
                 }
@@ -930,7 +959,11 @@ impl Lowering<'_> {
                 }
                 Statement::Create(child) => {
                     out.extend(self.stmt(s));
-                    out.push(call_stmt_at(child.span, "__objset", vec![ident_at(span, &child.name), text_at(span, "parent"), ident_at(span, &c.name)]));
+                    // (unless its own body names another Parent: RapidQ's
+                    // `Parent = Dock.Client` inside the block)
+                    if !sets_parent(&child.body) {
+                        out.push(call_stmt_at(child.span, "__objset", vec![ident_at(span, &child.name), text_at(span, "parent"), ident_at(span, &c.name)]));
+                    }
                 }
                 other => out.extend(self.stmt(other)),
             }
@@ -1031,7 +1064,9 @@ impl Lowering<'_> {
                     for x in typed {
                         let Statement::Create(child) = x else { continue };
                         out.extend(self.stmt(x));
-                        out.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
+                        if !sets_parent(&child.body) {
+                            out.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
+                        }
                     }
                     out
                 }
@@ -1324,6 +1359,11 @@ pub fn lower(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Program {
         }
     }
     Program { span: program.span, statements: out }
+}
+
+/// Whether a CREATE block's own statements set its Parent (`Parent = …`).
+fn sets_parent(body: &[Statement]) -> bool {
+    body.iter().any(|s| matches!(s, Statement::Assignment(a) if matches!(&a.target, Expression::Identifier(id) if id.name.eq_ignore_ascii_case("parent"))))
 }
 
 /// The builtins this pass emits (each backend implements them).

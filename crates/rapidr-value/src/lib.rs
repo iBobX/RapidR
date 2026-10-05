@@ -19,6 +19,7 @@ pub mod basic_files;
 pub mod builtins;
 pub mod memory;
 pub mod handles;
+pub mod tray;
 pub mod mdi;
 pub mod events;
 pub mod input;
@@ -961,6 +962,8 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         }
         "__null" => return Some(Ok(Value::Null)),
         "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
+        // The system tray (rapidr_ast::tray_calls): Shell_NotifyIcon.
+        "__shell_notifyicon" => return Some(Ok(tray::shell_notify_icon_builtin(&arg(0), &arg(1)))),
         "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),
         "__arg_round" => return Some(Ok(numeric::arg_round(&arg(0)))),
         // Stores into declared numeric types (`numeric`, rapidr_ast::numeric).

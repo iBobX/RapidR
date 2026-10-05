@@ -12,7 +12,7 @@ use std::fs;
 use std::path::Path;
 
 thread_local! {
-    static DIR_ITER: RefCell<Option<std::vec::IntoIter<String>>> = RefCell::new(None);
+    static DIR_ITER: RefCell<Option<(std::path::PathBuf, std::vec::IntoIter<String>)>> = RefCell::new(None);
 }
 
 // BASIC file I/O by file number is shared with the web runtime and the
@@ -62,69 +62,94 @@ pub fn rp_filelen(filename: &Value) -> Value {
 // DIR$() — stateful directory iteration using glob patterns
 // ---------------------------------------------------------------------------
 
-pub fn rp_dir(pattern: &Value, _attr: &Value) -> Value {
+pub fn rp_dir(pattern: &Value, attr: &Value) -> Value {
     let pat = pattern.to_string_val();
-
     if !pat.is_empty() {
-        // Initial call — build the list
-        let parent = Path::new(&pat)
-            .parent()
-            .unwrap_or(Path::new("."));
-        let filename_pattern = Path::new(&pat)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("*");
-
-        let mut entries = Vec::new();
-        if let Ok(dir) = fs::read_dir(parent) {
-            for entry in dir.flatten() {
-                let name = entry.file_name();
-                let name = name.to_string_lossy();
-                if matches_glob(&name, filename_pattern) {
-                    entries.push(name.into_owned());
-                }
-            }
-        }
-        entries.sort();
-
-        let first = entries.first().cloned().unwrap_or_default();
-
-        // Store remaining entries for subsequent calls
-        let mut iter = entries.into_iter();
-        iter.next(); // consume the first one we're returning
-        DIR_ITER.with(|di| {
-            *di.borrow_mut() = Some(iter);
-        });
-
-        if first.is_empty() {
-            v_str("")
-        } else {
-            Value::String(first)
-        }
-    } else {
-        // Continuation call
-        DIR_ITER.with(|di| {
-            let mut iter = di.borrow_mut();
-            match iter.as_mut().and_then(|i| i.next()) {
-                Some(name) => Value::String(name),
-                None => v_str(""),
-            }
-        })
+        let attr = if matches!(attr, Value::Null) { 0 } else { attr.to_i64() };
+        let (folder, entries) = dir_entries(&pat, attr);
+        DIR_ITER.with(|di| *di.borrow_mut() = Some((folder, entries.into_iter())));
     }
+    DIR_ITER.with(|di| {
+        let mut di = di.borrow_mut();
+        let Some((folder, iter)) = di.as_mut() else { return v_str("") };
+        match iter.next() {
+            Some(name) => {
+                set_file_rec(&folder.join(&name), &name);
+                Value::String(name)
+            }
+            None => v_str(""),
+        }
+    })
 }
 
-/// Minimal glob matching supporting `*` wildcards and `*.ext` patterns.
+/// DIR$'s matches, as RapidQ (Windows' FindFirstFile) lists them: names
+/// matching the pattern's last part (`*`, `?`, any case), in name order
+/// (any case); with faDirectory (&H10) its folders too, `.` and `..`
+/// first; without it files only. Hidden files (a dot first, faHidden &H2)
+/// only when asked. `\` separates folders as `/` does.
+fn dir_entries(pattern: &str, attr: i64) -> (std::path::PathBuf, Vec<String>) {
+    let pat = if cfg!(windows) { pattern.to_string() } else { pattern.replace('\\', "/") };
+    let path = Path::new(&pat);
+    let folder = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => std::path::PathBuf::from("."),
+    };
+    let glob = path.file_name().and_then(|s| s.to_str()).unwrap_or("*").to_string();
+    let dirs = attr & 0x10 != 0;
+    let hidden = attr & 0x02 != 0;
+    let mut names = Vec::new();
+    if let Ok(dir) = fs::read_dir(&folder) {
+        for entry in dir.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+            if (is_dir && !dirs) || (name.starts_with('.') && !hidden) || !matches_glob(&name, &glob) {
+                continue;
+            }
+            names.push(name);
+        }
+    }
+    names.sort_by_key(|n| n.to_lowercase());
+    if dirs && matches_glob(".", &glob) {
+        names.splice(0..0, [".".to_string(), "..".to_string()]);
+    }
+    (folder, names)
+}
+
+/// FileRec for the file DIR$ just found (crate::value::globals::FileRec).
+fn set_file_rec(path: &Path, name: &str) {
+    use chrono::{DateTime, Datelike, Local, Timelike};
+    let meta = fs::metadata(path).ok();
+    let size = meta.as_ref().filter(|m| m.is_file()).map_or(0, |m| m.len() as i64);
+    let modified: Option<DateTime<Local>> = meta.and_then(|m| m.modified().ok()).map(DateTime::from);
+    let (date, time, file_time) = match modified {
+        Some(t) => (
+            format!("{}-{}-{}", t.month(), t.day(), t.year()),
+            format!("{}:{:02}", t.hour(), t.minute()),
+            // (a DOS date and time, as Delphi's FileAge: newer is greater)
+            (((t.year() as i64 - 1980) << 25) | ((t.month() as i64) << 21) | ((t.day() as i64) << 16) | ((t.hour() as i64) << 11) | ((t.minute() as i64) << 5) | (t.second() as i64 / 2)),
+        ),
+        None => (String::new(), String::new(), 0),
+    };
+    crate::value::globals::set_file_rec(crate::value::globals::FileRec { file_name: name.to_string(), short_name: String::new(), date, time, size, file_time });
+}
+
+/// Windows' wildcards: `*` any run, `?` any one character, any case; `*.*`
+/// everything.
 fn matches_glob(name: &str, pattern: &str) -> bool {
     if pattern == "*" || pattern == "*.*" {
         return true;
     }
-    if let Some(suffix) = pattern.strip_prefix('*') {
-        return name.ends_with(suffix);
+    let n: Vec<char> = name.to_lowercase().chars().collect();
+    let p: Vec<char> = pattern.to_lowercase().chars().collect();
+    fn m(n: &[char], p: &[char]) -> bool {
+        match p.first() {
+            None => n.is_empty(),
+            Some('*') => (0..=n.len()).any(|i| m(&n[i..], &p[1..])),
+            Some('?') => !n.is_empty() && m(&n[1..], &p[1..]),
+            Some(c) => n.first() == Some(c) && m(&n[1..], &p[1..]),
+        }
     }
-    if let Some(prefix) = pattern.strip_suffix('*') {
-        return name.starts_with(prefix);
-    }
-    name == pattern
+    m(&n, &p)
 }
 
 // ---------------------------------------------------------------------------

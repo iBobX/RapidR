@@ -27,6 +27,7 @@ pub mod network_web;
 pub mod object_web;
 pub mod scroll_web;
 pub mod storage_web;
+pub mod tray_web;
 pub use rapidr_value as value;
 pub use rapidr_rrcss::RR_BASE_CSS;
 
@@ -38,6 +39,7 @@ pub mod prelude {
     // DATA / READ / RESTORE
     pub use crate::value::data;
     pub use crate::value::numeric;
+    pub use crate::value::tray;
     pub use crate::value::memory;
     pub use crate::value::console;
     pub use crate::value::{input_value, obj_field, rp_inv, rp_new_object, rp_new_object_array, rp_redim, rp_shl, rp_shr, set_obj_field};

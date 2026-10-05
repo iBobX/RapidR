@@ -75,6 +75,8 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
 // ---------------------------------------------------------------------------
 
 pub fn rp_create_component(name: &str, type_name: &str) {
+    // (the system tray's strip: drawn when the program changes its icons)
+    rapidr_value::tray::set_on_change(crate::tray_web::changed);
     // A QFORMMDI is a QFORM whose client area holds child windows (mdi_web.rs).
     if type_name.eq_ignore_ascii_case("RFORMMDI") {
         rapidr_value::mdi::register(name);

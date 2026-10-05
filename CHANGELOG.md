@@ -8,6 +8,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The system tray (QNOTIFYICONDATA) on every platform.** RapidQ
+  programs put an icon in Windows' notification area with QNOTIFYICONDATA
+  and `Shell_NotifyIcon` (shell32) and hear its clicks in their form's
+  WndProc. RapidR keeps that one call: the icon shows in the menu bar on
+  macOS, the notification area on Windows, StatusNotifierItem on Linux (no
+  system package needed) and a small strip at the page's bottom right on the
+  web; its clicks reach the form's `WndProc (hWnd, uMsg, wParam, lParam)` as
+  Windows' mouse messages. `Application.Icon` reads as a number (RapidQ's
+  icon handle), so `NI.hIcon = Application.Icon` shows the program's icon.
+- **QDIRLISTVIEW and QDOCKFORM built in**: RapidR's own versions of RapidQ's
+  QDirListView.inc and RAPIDQ2.INC's dockable form (theirs call Windows),
+  written in BASIC on RapidR's components, so they behave the same on every
+  runtime. QDIRLISTVIEW lists a folder (Name, Size, Type, Date Modified),
+  goes into folders and up, fires OnFileSelect; QDOCKFORM docks, floats in
+  its own window, docks at its alternative place, with the library's title
+  and grip styles, a close box, OnDock / OnClose. A program that includes
+  QDirListView.inc or RAPIDQ2.INC gets RapidR's.
+- **FileRec** (RapidQ's DIR$ companion): FileName, ShortName, Date, Time,
+  Size, FileTime of the file DIR$ found last.
 - **RapidQ's own compiler as the ground truth, at scale**
   (`docs/rapidq-ground-truth.md`): `tools/rc_probe.sh` runs a list of
   programs through RC.EXE in the Windows VM, each in its own folder with its
@@ -54,6 +73,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- **DIR$ as RapidQ's**: attribute 0 lists files only, faDirectory (&H10)
+  folders too with `.` and `..` first, names sorted without regard to case,
+  wildcards (`*`, `?`) of any case, `\` as a folder separator; dot files
+  only with faHidden.
+- **Hiding a modal form no longer ends its ShowModal** (VCL's, so RapidQ's):
+  only Close or ModalResult do — a program can hide its window into the tray
+  and show it again.
 - **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
   takes `SetRenderMode(A A OR B)`, `-9(COS(x))`, `x = 16 374739` and the
   like — its operator stack runs on, the value is the operand stack's
@@ -107,6 +133,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - TIMER is the seconds since local midnight (it was since 1970 on the
     desktop, since the page loaded on the web); TIME$ and DATE$ are local.
 
+
+### Fixed
+- Inside a TYPE extending a component, `DIR$`, `TIMER`, `DATE$` and the
+  other builtins written without parentheses, and CALLFUNC, were taken for
+  the component's members (a native build's DIR$ loop stopped early).
+- In `CREATE x AS Type` (a TYPE), a nested CREATE's own `Parent = …` was
+  overwritten, and `Field.Member = …` (`AltPanel.Parent = Form`) wasn't the
+  instance's field.
 
 ## [2.116.0] — 2026-10-05
 

@@ -58,6 +58,7 @@ pub mod prelude {
     pub use crate::value::data;
     pub use crate::value::console;
     pub use crate::value::numeric;
+    pub use crate::value::tray;
     pub use crate::value::memory;
     pub use crate::value::{input_value, obj_field, rp_inv, rp_last_of_type, rp_new_object, rp_new_object_array, rp_redim, rp_shl, rp_shr, set_obj_field};
 
