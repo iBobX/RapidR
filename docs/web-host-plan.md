@@ -188,7 +188,7 @@ A session is one focused agent session ending in a green commit.
 | W0 | Spike (this document's results) | done | |
 | W1 | `rapidr-ui-render`: `canvas.rs`, `cpu.rs`, `images.rs`, `gpu.rs` out of the desktop host (no behaviour change; the desktop matrix and the spike's byte-identity test green); the spike on it; wasm SIMD build | done (W1 results) | Single owner |
 | W2 | `rapidr-ui-app`: the host-neutral half of runtime-core's `ui/kernel.rs` (KernelEvent → `rp_fire_event*`, Set / List / Container / MenuPick dispatch, show / hide / close actions / OnShow / modal list, the timer heap, `form_resized`, WindowState's simulation) and `ui/testhooks.rs`, behind a small `Program` trait both runtimes implement; ideally one component registry for both runtimes | done (W2 results: `Program` + `Windows`; the registry's path) | Single owner, with the desktop lanes' integrator |
-| W3 | The web host proper: `WebHost` (canvases per form, kernel-drawn frames, stacking, moving, sizing, dpr, context loss, rAF and deadlines), input / IME / clipboard / autofill, the mirror in Rust, `WebStore`; `rapidr-runtime-web` feature `kernel` and `?host=kernel` (the DOM host stays the default) | 4–6 | Single owner |
+| W3 | The web host proper: `WebHost` (canvases per form, kernel-drawn frames, stacking, moving, sizing, dpr, context loss, rAF and deadlines), input / IME / clipboard / autofill, the mirror in Rust, `WebStore`; `rapidr-runtime-web` feature `kernel` and `?host=kernel` (the DOM host stays the default) | done (W3 results: 64 of 68 browser cases on the kernel host) | Single owner |
 | W4 | The VM and native web builds on it: slices + dispatch, ShowModal / dialogs / DOEVENTS / INKEY$, the kernel's dialogs, timers through `rapidr-ui-app` | 3–4 | Single owner |
 | W5 | Parity: `web_gui_parity.mjs` on the kernel host (dumps equal to the desktop's), pixel captures equal to the desktop headless host's at 1× and 2× (and 1.5×), `web_a11y.mjs` on the mirror; each case gets `webKernel: true | "pending: …"` | 2–3 | Tests lane |
 | W6 | Web-only components as overlays, the popup layer above them | 2–3 | Parallel after W3 |
@@ -370,4 +370,102 @@ One table for both runtimes isn't clean or safe in this stage: the two registrie
 - `cargo check -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown`: ok. `cargo clippy -p rapidr-ui-app --all-targets`, and for wasm32: no warnings in the crate; `cargo clippy -p rapidr-runtime-core`: none in `ui/`.
 - `rapidr-ui-app`'s 14 unit tests: the test hooks' 6 (moved) and 8 new ones driving the glue through an in-memory `Program` + `Windows` (a store, the events fired, the window commands, a clock the test moves — what a runtime implements, at its smallest): a form shown (OnLoad, OnShow, the first OnPaint, the window there before OnShow), OnClose's Action (stay, minimize, hide), KeyPreview's order, a user's resize within the Constraints and a move, Set and Container, the timers (armed once, Interval read again, disabled and enabled again), a modal form as the VM's wait, the headless maximize and restore.
 
-Open: ~~the dialogs as waits the VM serves (W4, above)~~ done 2026-10-05 (above); `Desktop` into the app (W3, above); the registry (above). Nothing else from W2.
+Open: ~~the dialogs as waits the VM serves (W4, above)~~ done 2026-10-05 (above); ~~`Desktop` into the app (W3, above); the registry (above)~~ done in W3 (step 1 of the registry; below). Nothing else from W2.
+
+---
+
+## W3 results (2026-10-05)
+
+The UI kernel hosts a web page's forms with `?host=kernel` (the page's address, or `RAPIDR_HOST = "kernel"` set before the runtime starts; the web IDE passes its own `?host=kernel` on to its preview). The DOM host stays the default. On the kernel host, **64 of the 68 browser GUI cases** give the desktop's dumps, played by the desktop's own test hooks. Their windows are **byte-identical to the desktop headless host's captures** at 1× and 2×, apart from the in-window menu bar macOS doesn't have. Their accessibility trees are the kernel's to the byte, and Chrome's tree over the mirror equals the kernel's.
+
+### Step 1: `Desktop` into the app, and the registry's shared table (ca09ead)
+
+- **`rapidr_ui_app::desktop`** now holds `Desktop`: the forms' kernel sides, stacking, the modal list, the `HostCmd` / `HostEvent` queues, and the input entry points the user and test scripts share. It moved with `git mv` from `rapidr-ui-host-winit`, together with `Frame` / `frame_of` / `BI_DEFAULT` and `FileRequest`. winit's buttons stay the host's (`platform::buttons`), and the host re-exports everything under the old names. `Icon` is now the app's.
+- Runtime-core glue the web host needs moved into the app too:
+  - the program's window commands into the forms: `Desktop::apply`, `sync_forms`, `desktop::window_spec`, `frame`;
+  - the test script's input: keys, the mouse, a double click, a component's step, the resize, `place_of` (`desktop::script_input`);
+  - the accessibility JSON: `Desktop::access_json`.
+- **The component registry, step 1.** `rapidr_value::component_defaults::shared` holds what both registries already gave a new component, by type. `desktop` holds what only the desktop's gives (QFORM's Color and BorderStyle, QLABEL's Visible / Alignment / FontSize …). `kernel_reads_unset` is RtStore's creation-white Color rule, now used by both kernel stores. runtime-core's `RpComponent::new` = `shared` + `desktop`; the web's `rp_create_component` = `shared` + its own arms. Under `?host=kernel` the web adds `desktop` too, so the kernel draws, and the program reads, what it does on the desktop: a label's 12-point default font is the difference between equal and unequal captures. Step 2 (deciding each remaining difference by RapidQ's value) is unchanged.
+- **Byte-identical desktop.** `tests/gui_captures.mjs` (new) captures every GUI case's windows, accessibility trees and dumps at 1× and 2×, interpreted, headless. It was run before and after each step: 74 cases, 148 runs, 610 files, all identical except `dialog_timers`' captures. Those are timing-dependent: two runs of development itself differ, and their dumps are equal.
+
+### The web host (`rapidr-ui-host-web`)
+
+- **`host.rs`, `WebHost`.** Each form is a window on the page: a `<div>` with a canvas for the frame, a canvas for the client area, the mirror over it, and invisible drag edges.
+  - **The client area** is the kernel's display list rasterized by the shared CPU renderer at `devicePixelRatio` and put with `putImageData`: the very code the desktop's captures use.
+  - **The frame** is drawn by the kernel's `Painter` in the current theme (`frame.rs`): 1-pixel border and a 29-pixel title bar, as `layout::form_frame` accounts every runtime's forms, with the title bar buttons BorderStyle / BorderIcons leave, active or inactive. A theme change redraws it.
+  - **Window behaviour.** Windows stack (z-order from `Desktop`; a click raises one, or the modal window that keeps it from input). They move by the title bar (Left / Top follow: `form_moved`) and size by the right / bottom edges and the corner (OnResize: `form_resized`). They maximize (the viewport), minimize (to the title bar) and restore, through WindowState or the buttons; a double click on the title bar also maximizes or restores. The close box fires OnClose.
+  - **Scale and context loss.** A `devicePixelRatio` change (another monitor, the browser's zoom) redraws everything and fires OnScaleChanged. A canvas whose backing the browser dropped is redrawn on `contextrestored`.
+  - **The host loop.** The host never runs program code. A listener routes input through `Desktop` (`Source::User`) and wakes the runtime, which dispatches with the host not borrowed. Events the browser fires while the host is busy (a focus the mirror moved) are dropped.
+- **Input.**
+  - Pointer events, the wheel (notches as the desktop's touchpad rule), and keys on the mirror. The browser keeps its own keys, and F6 / Ctrl+Tab leave a program embedded in a page (no keyboard trap).
+  - Clipboard events: Cmd/Ctrl + C / X / V through a page clipboard; a context menu's Copy / Cut goes to `navigator.clipboard`.
+  - Input methods: `compositionupdate` / `compositionend` become `ime_preedit` / `ime_commit`. While composing, the field moves to `FormUi::ime_area`, so the candidate window opens at the kernel's caret even in a scrolled edit.
+  - `beforeinput` without a key: a phone's keyboard, dictation, autocorrect's replacement, a drop.
+  - **Autofill**: an `input` event the mirror didn't cause is the user's edit (select all, then the filled text).
+- **`mirror.rs`, the mirror in Rust.** `aria::specs` describes the elements, and the mirror patches them after each frame by stable node id. The DOM focus is kept on the kernel's focused node in the active window. A text field's value and selection are the kernel's (UTF-16). A screen reader moving the focus becomes `Action::Focus`, and its click becomes `Action::Click`. A combo box is a text field (its value is what Chrome reads), with its list beside it.
+
+### The web runtime (`rapidr-runtime-web` feature `kernel`, `kernel_web.rs`)
+
+- **`WebStore`** is the kernel's `Store` over the registry, with children's ids lowercase as the desktop keeps them, so node ids (and so the accessibility trees) are the same. **`Web`** implements `Program` (over `object_web`, `layout_web`, `scroll_web`, `mdi_web` and `directx_web`) and `Windows` (over the host), as "How W3 and W4 plug in" planned. `rapidr-vm-host-web` turns the feature on (`default = ["kernel"]`), so the IDE's and `rapidr bundle-bc`'s wasm carry both hosts.
+- **The page's turn:** a DOM event leads to the kernel's input, then `turn` (dispatch, the test script's step), then one `requestAnimationFrame`. The frame does `show_pending`, the owner-drawn lists' events, the program's window commands, the kernel's deadlines and the dirty windows drawn; then one timer for the earliest deadline (a caret, a held scroll bar, the script's next step). The program's changes (`object_web` / `gui_web`, whose GUI entry points call into `kernel_web` when the kernel hosts) ask for the frame. A form's Visible is whether its window shows, QTREEVIEW's OnDeletion and GetItemAt are the app's, and `Application.Theme` / `$THEME` set the kernel's theme (`auto`: the page's `prefers-color-scheme` / `forced-colors`).
+- **What is still the web's own (W4):**
+  - ShowModal: `forms::begin_modal`, then the VM suspends in `dialog_web` until the form closes.
+  - Message boxes and the colour / font / file dialogs are the page's.
+  - QTIMERs are `setInterval`s.
+- **Test hooks in the browser.** `testhooks::set_vars` gives the hooks an environment where a process has none (`rapidr_set_test_env`). `Windows::capture_and_end` now returns, and the desktop's still exits. `rapidr_test_results` gives the dump lines, the trees (the bytes `RAPIDR_TEST_A11Y` writes) and each window's BMP (the bytes `RAPIDR_CAPTURE` writes). The script's next event waits while the VM is between two time slices. New page `tests/web_kernel.html`.
+- **Real input, checked by hand** (Playwright's real mouse and keyboard, CDP's input method, no hooks): typing in an edit, Tab by TabOrder (the DOM focus followed), a check box's click and OnClick, a window dragged by its title bar (Left / Top followed), a composition committed into an edit.
+
+### Tests
+
+- `RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs` (with `RAPIDR_DESKTOP_CAPTURES=<tests/gui_captures.mjs' dir>`): **68 cases run, 64 with every expected line**. The 4 pending are marked `webKernel: "pending: …"` in the case table:
+  - `color_dialog`, `font_dialog` and `input_chars` are W4 (waits the VM serves);
+  - `file_dialogs` is W8.
+- **Windows byte-identical to the desktop's: 68 of 70 at 1×, 67 of 70 at 2×.**
+  - `menus` and `themes` have an in-window menu bar, which macOS' desktop doesn't draw. Against desktop captures made with `RAPIDR_MENU=window` (as on Windows and Linux) both are byte-identical, and so are their trees.
+  - `modal_result` at 2× differs in one pixel by one level (216 against 217, the anti-aliased edge of a glyph): wasm SIMD's rounding against NEON's, open.
+- **Accessibility trees equal to the desktop's (the bytes): 60 of 64.** `menus` and `themes` are the menu bar again. `message_icons` is the page's message box (W4). `event_answers` is a grid that scrolled one row on the web after a refused OnSelectCell: open.
+- `RAPIDR_WEB_HOST=kernel node tests/web_a11y.mjs` (Chrome's tree over the mirror against the kernel's, every node matched by its `data-node`): **68 of 68** (65 at first: three combo boxes whose value Chrome read from their options' text, fixed by making a combo box's element a text field).
+- **The DOM host (the default) is unchanged**, run on the wasm SIMD build that carries both hosts:
+  - web conformance: 111 passed, 2 known failures;
+  - web GUI parity: 126 / 126 at 1× and 2×;
+  - `tests/web_a11y.mjs`: 79 / 79;
+  - every `web_ide_*`, `web_bundle_*`, `web_end_timer`, `web_vm_yield`.
+
+  Two test fixes: `web_a11y.mjs`' own desktop runs now get a case's joystick script, and `web_ide_picture.mjs` expects HEX$'s 8 digits (development's RC.EXE change).
+- **The desktop on the final code:** `node tests/native_gui_events.mjs` at 1× and `RAPIDR_SCALE=2`, and the interpreted byte comparison against development (above).
+
+### Sizes
+
+| `target/web/rapidrintr_bg.wasm` | Raw | gzip -9 | brotli 11 |
+|---|---|---|---|
+| Before (development, DOM host only, scalar) | 6.27 MB | 2.66 | 1.95 |
+| With the kernel host (scalar) | 10.40 | 4.40 | 2.73 |
+| With the kernel host, wasm SIMD (the build now) | 10.18 | 4.34 | 2.70 |
+
+So the kernel host costs +3.9 MB raw / +0.75 MB brotli, as §7 estimated (the fonts' outlines and shaping, vello_cpu, parley, ICU4X's dictionaries, the kernel). `tools/build_web_artifacts.sh` now builds with wasm SIMD (§3.4) into its own target directory (`target/wasm-simd`).
+
+### Licences
+
+No new external dependency: every crate the host and the `kernel` feature link was already shipped and listed. `cargo deny check licenses` is ok, and `tools/third_party_notices.py --check` is up to date. No JavaScript or CSS was vendored.
+
+### Open (W4 onward)
+
+- **W4:**
+  - the VM's waits through `rapidr_ui_app::waits` (ShowModal, DOEVENTS, INPUT$'s `Wait::Key`);
+  - the kernel's message boxes and colour / font dialogs on the page: `Windows::open_dialog` is implemented, and the builtins still use `dialog_web`;
+  - timers through the app's heap;
+  - native web builds (`rapidr build --web`'s generated Rust) on the kernel host: they build the runtime without the feature.
+- **W5:**
+  - pixels at 1.5×;
+  - `event_answers`' grid row, and `modal_result`'s one-level pixel at 2× (SIMD rounding);
+  - real screen readers and devices (§4.1);
+  - Firefox and Safari.
+- **The host:**
+  - resizing from the left and top edges;
+  - a minimized window stays where it was (no task bar);
+  - autofill's `autocomplete` / `name` hints from properties (the fields say `autocomplete=off` today);
+  - touch gestures (Phase 7);
+  - the IDE preview with `?host=kernel` is wired but not covered by the IDE suites.
+- **W6:** web-only components (RWEBVIEW, RDOM, media, RPLOT) aren't drawn on the kernel host yet.
+- **W7:** fonts as assets, and the fallback fonts (CJK shows as boxes).
+- **W9:** damage rectangles, and the size levers.

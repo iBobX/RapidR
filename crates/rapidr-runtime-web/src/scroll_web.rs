@@ -127,7 +127,7 @@ fn move_children(name: &str, (dx, dy): Shift) {
     });
 }
 
-fn user_scrolled(name: &str, shift: Shift) {
+pub fn user_scrolled(name: &str, shift: Shift) {
     move_children(name, shift);
     render(name);
 }

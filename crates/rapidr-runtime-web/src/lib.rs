@@ -20,6 +20,9 @@ pub fn builtins_input_line() -> value::Value {
 mod file_io_web;
 pub mod globals_web;
 pub mod gui_web;
+/// The UI kernel as the page's GUI host (`?host=kernel`, Stage W3).
+#[cfg(feature = "kernel")]
+pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
 pub mod menu_web;

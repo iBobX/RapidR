@@ -353,6 +353,17 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] **The web on the same UI kernel** ([docs/web-host-plan.md](docs/web-host-plan.md)): the kernel drawn on a `<canvas>` (vello_cpu, wasm SIMD), input and IME through hidden text fields, an ARIA mirror of the kernel's accessibility tree, DOM overlays only for web-only components; the DOM runtime deleted once parity holds (no fallback). All licences permissive (fonts SIL OFL); Tailwind not needed
   - [x] W0 spike: byte-identical pixels with the desktop at 1× and 2×, Chrome's accessibility tree equal to the kernel's, ~0.2–0.5 ms a form's frame; W1 `rapidr-ui-render` shared by both hosts (v2.114.0)
   - [x] W2 `rapidr-ui-app`: the host-neutral half of the program glue behind `Program` / `Windows` (v2.115.0) — next: W3 (the web host proper; move the desktop's `Desktop` into the crate too), W4 (dialogs and ShowModal as waits the VM serves)
+  - [x] W3 the web host proper (`?host=kernel`; the DOM host stays the default). It covers:
+    - windows on the page with kernel-drawn frames, stacking, moving, sizing and WindowState;
+    - devicePixelRatio and canvas context loss;
+    - input, IME, the clipboard and autofill;
+    - the ARIA mirror in Rust;
+    - `WebStore` and the web runtime's `Program` / `Windows`;
+    - `Desktop` moved into `rapidr-ui-app`;
+    - the registry's shared defaults table (step 1);
+    - a wasm SIMD build.
+
+    64 of 68 browser GUI cases run on it, with windows byte-identical to the desktop's and equal accessibility trees. Next: W4 (the VM's waits, the kernel's dialogs and timers on the page), then W5–W9 in parallel lanes.
   - [x] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
 
 ## Phase 2 — Debugger (~6 weeks)

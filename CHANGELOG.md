@@ -8,6 +8,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The web on the UI kernel, Stage W3** (docs/web-host-plan.md, "W3 results"): with `?host=kernel` in a page's address, or in the web IDE's (it passes it on to its preview), the program's forms are drawn by the same UI kernel as on the desktop. The DOM host stays the default.
+  - **Windows on the page** (`rapidr-ui-host-web`'s `WebHost`): the kernel's display list, drawn by the shared CPU renderer at `devicePixelRatio`, with a kernel-drawn frame in the current theme. Windows stack, move by the title bar, size by their edges, and maximize, minimize, restore and close as on a desktop. A scale change redraws them and fires OnScaleChanged; a lost canvas is redrawn.
+  - **Input:** the pointer, the wheel, keys, the clipboard events, input methods (the candidate window at the kernel's caret), a phone's keyboard, and autofill.
+  - **Accessibility:** an ARIA mirror of the kernel's tree, written in Rust, with the DOM focus on the kernel's.
+  - **In the runtime:** the runtime's `Program` / `Windows` for `rapidr-ui-app` and a `WebStore` (`rapidr-runtime-web` feature `kernel`, on in the web runtime's wasm).
+  - **Results:** 64 of the 68 browser GUI cases give the desktop's dumps on it. Their windows are byte-identical to the desktop's captures at 1× and 2×, and their accessibility trees match the desktop's: Chrome's tree over the mirror is the kernel's.
+  - **Tests:** `RAPIDR_WEB_HOST=kernel` for `tests/web_gui_parity.mjs`, `tests/web_a11y.mjs` and `tests/web_gui_run.mjs`; `RAPIDR_DESKTOP_CAPTURES` compares pixels and trees. `tests/gui_captures.mjs` keeps every GUI case's captures, trees and dumps.
+- `rapidr_value::component_defaults`: what both runtimes' registries give a new component, the desktop's own defaults, and the kernel stores' "unset" rule, in one place (the registry's step 1; no property changed).
 - **RapidQ's own compiler as the ground truth, at scale**
   (`docs/rapidq-ground-truth.md`): `tools/rc_probe.sh` runs a list of
   programs through RC.EXE in the Windows VM, each in its own folder with its
@@ -34,6 +42,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- The desktop host's `Desktop` (the forms' kernel sides, stacking, the modal list, the window command and event queues, the input entry points) and runtime-core's window-command and test-input glue now live in `rapidr-ui-app`, shared by the desktop and web hosts. The desktop is unchanged: every GUI case's captures, accessibility trees and dumps are byte-identical at 1× and 2×.
+- The web runtime's wasm is built with wasm SIMD (`tools/build_web_artifacts.sh`, its own `target/wasm-simd`). With the kernel host it grows from 6.27 to 10.18 MB raw (1.95 → 2.70 MB brotli).
 - **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
   takes `SetRenderMode(A A OR B)`, `-9(COS(x))`, `x = 16 374739` and the
   like — its operator stack runs on, the value is the operand stack's

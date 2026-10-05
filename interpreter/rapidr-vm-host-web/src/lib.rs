@@ -805,6 +805,42 @@ pub fn rapidr_test_resize(form: &str, width: i32, height: i32, splitter: &str, d
     }
 }
 
+/// Which GUI host draws the program's forms on this page: "kernel" (the UI
+/// kernel, asked for with `?host=kernel`; docs/web-host-plan.md, Stage W3)
+/// or "dom" (the default until parity).
+#[wasm_bindgen]
+pub fn rapidr_host() -> String {
+    #[cfg(feature = "kernel")]
+    if rapidr_runtime_web::kernel_web::on() {
+        return "kernel".into();
+    }
+    "dom".into()
+}
+
+/// For GUI tests on the kernel host (as the desktop's test hooks read the
+/// process's environment): `RAPIDR_CAPTURE`, `RAPIDR_TEST_EVENTS`,
+/// `RAPIDR_TEST_DUMP`, `RAPIDR_TEST_RESIZE`, `RAPIDR_TEST_SPLIT` and the
+/// dialogs' answers, as an object of strings — set before the program runs.
+#[wasm_bindgen]
+pub fn rapidr_set_test_env(vars: JsValue) {
+    #[cfg(feature = "kernel")]
+    rapidr_runtime_web::kernel_web::set_test_env(&vars);
+    #[cfg(not(feature = "kernel"))]
+    let _ = vars;
+}
+
+/// A GUI test's results on the kernel host once its script ended (JSON:
+/// `dump` — `RAPIDR_TEST_DUMP`'s lines —, `a11y` — each shown window's
+/// accessibility tree, bottom to top — and `captures` — each window as the
+/// desktop's `RAPIDR_CAPTURE` BMP, base64), `undefined` before.
+#[wasm_bindgen]
+pub fn rapidr_test_results() -> Option<String> {
+    #[cfg(feature = "kernel")]
+    return rapidr_runtime_web::kernel_web::test_results();
+    #[cfg(not(feature = "kernel"))]
+    None
+}
+
 /// Compile a single RapidR source string to `.rrbc` bytecode bytes.
 ///
 /// Mirrors `rapidr-compiler-wasm::compile` so any tool depending on the

@@ -26,13 +26,35 @@
 //!   over it is still open. Without it the hooks answer at once, nothing
 //!   shown.
 
+use std::cell::RefCell;
+
 use rapidr_value::input::Mouse;
+
+thread_local! {
+    /// The hooks' environment where a process has none (Stage W3: the
+    /// browser's page sets it, `set_vars`); the process's otherwise.
+    static VARS: RefCell<Option<Vec<(String, String)>>> = const { RefCell::new(None) };
+}
+
+/// The test hooks' environment set by the host (a browser page has no
+/// process environment): from now on the hooks read these instead.
+pub fn set_vars(vars: Vec<(String, String)>) {
+    VARS.with(|v| *v.borrow_mut() = Some(vars));
+}
+
+/// A test hook's variable: the host's when it set them, else the process's.
+pub fn var(name: &str) -> Option<String> {
+    if let Some(found) = VARS.with(|v| v.borrow().as_ref().map(|vars| vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))) {
+        return found;
+    }
+    std::env::var(name).ok()
+}
 
 /// A GUI test drives the program (`RAPIDR_CAPTURE` or `RAPIDR_TEST_EVENTS`):
 /// it makes no sound (a message box's beep) and asks nothing of the system
 /// it doesn't need.
 pub fn under_test() -> bool {
-    std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some()
+    var("RAPIDR_CAPTURE").is_some() || var("RAPIDR_TEST_EVENTS").is_some()
 }
 
 /// A GUI test's run (`RAPIDR_CAPTURE` set).
@@ -51,7 +73,7 @@ pub struct Capture {
 
 impl Capture {
     pub fn from_env() -> Option<Capture> {
-        Capture::parse(|k| std::env::var(k).ok())
+        Capture::parse(var)
     }
 
     /// The run `var` (an environment) asks for, if any.
@@ -221,7 +243,7 @@ pub fn dump_lines(items: &[DumpItem], shown: impl Fn(&str) -> bool, get: impl Fn
 
 /// Prints `RAPIDR_TEST_DUMP`'s lines.
 pub fn print_dump(shown: impl Fn(&str) -> bool, get: impl Fn(&str, &str) -> String) {
-    for line in dump_lines(&parse_dump(&std::env::var("RAPIDR_TEST_DUMP").unwrap_or_default()), shown, get) {
+    for line in dump_lines(&parse_dump(&var("RAPIDR_TEST_DUMP").unwrap_or_default()), shown, get) {
         println!("{line}");
     }
 }
@@ -229,7 +251,7 @@ pub fn print_dump(shown: impl Fn(&str) -> bool, get: impl Fn(&str, &str) -> Stri
 /// `RAPIDR_TEST_FILE_DIALOG`: the paths a test's Open/Save dialog picks
 /// (at most one unless `multi`; none: Cancel), or `None` to ask the user.
 pub fn file_dialog_answer(multi: bool) -> Option<Vec<String>> {
-    std::env::var("RAPIDR_TEST_FILE_DIALOG").ok().map(|answer| file_dialog_paths(&answer, multi))
+    var("RAPIDR_TEST_FILE_DIALOG").map(|answer| file_dialog_paths(&answer, multi))
 }
 
 pub fn file_dialog_paths(answer: &str, multi: bool) -> Vec<String> {
@@ -245,7 +267,7 @@ thread_local! {
 /// Hook `var`'s next answer, `;`-separated, one per dialog in turn
 /// (`None`: the hook isn't set; past its last: an empty answer, Cancel).
 fn next_answer(var: &'static str) -> Option<String> {
-    let list = std::env::var(var).ok()?;
+    let list = self::var(var)?;
     let n = ANSWERED.with(|a| {
         let mut a = a.borrow_mut();
         let n = a.entry(var).or_insert(0);
@@ -272,7 +294,7 @@ pub fn font_dialog_answer() -> Option<Option<rapidr_value::objects::font::Font>>
 /// `RAPIDR_TEST_MESSAGE_DIALOG` is set: message boxes are answered by it
 /// (under a test SHOWMESSAGE then shows its box too, instead of printing).
 pub fn message_hook() -> bool {
-    std::env::var_os("RAPIDR_TEST_MESSAGE_DIALOG").is_some()
+    var("RAPIDR_TEST_MESSAGE_DIALOG").is_some()
 }
 
 /// `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box with
@@ -297,7 +319,7 @@ pub fn message_button(answer: &str, labels: &[&str]) -> Option<usize> {
 /// `RAPIDR_TEST_DIALOG_HOLD=ms`: how long a dialog a hook answers stays
 /// open first (`None`: the hooks answer at once, nothing shown).
 pub fn dialog_hold() -> Option<std::time::Duration> {
-    std::env::var("RAPIDR_TEST_DIALOG_HOLD").ok().and_then(|ms| ms.trim().parse::<u64>().ok()).map(std::time::Duration::from_millis)
+    var("RAPIDR_TEST_DIALOG_HOLD").and_then(|ms| ms.trim().parse::<u64>().ok()).map(std::time::Duration::from_millis)
 }
 
 #[cfg(test)]

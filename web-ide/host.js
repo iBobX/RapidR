@@ -382,7 +382,10 @@ function startPreview(role, payload) {
     iframe.contentWindow.postMessage({ __rapidr_boot: boot }, "*", [port2]);
   };
   window.addEventListener("message", onHello);
-  iframe.src = `./preview.html?role=${role}&v=${RAPIDR_IDE_VERSION}`;
+  // (`index.html?host=kernel`: the program's forms drawn by the UI kernel —
+  // docs/web-host-plan.md, Stage W3; the DOM host stays the default)
+  const kernel = new URLSearchParams(location.search).get("host") === "kernel" ? "&host=kernel" : "";
+  iframe.src = `./preview.html?role=${role}&v=${RAPIDR_IDE_VERSION}${kernel}`;
 }
 
 function logImmediate(s) {

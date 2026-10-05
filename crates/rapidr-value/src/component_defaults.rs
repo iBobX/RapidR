@@ -146,6 +146,190 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
     p
 }
 
+/// What only the desktop's registry gives a new component of type
+/// `type_name` (any case), after [`shared`]: RapidQ's defaults the web's
+/// DOM host doesn't give (QFORM's Color and BorderStyle, QLABEL's Visible,
+/// Alignment, FontSize …) — step 2 of the registry's path decides each.
+/// The web's kernel host gives them too, so the kernel draws and the program
+/// reads what it does on the desktop.
+pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
+    let mut p: Vec<(String, Value)> = Vec::new();
+    let mut put = |k: &str, v: Value| p.push((k.to_string(), v));
+    match type_name.to_ascii_uppercase().as_str() {
+        "RFORM" => {
+            put("color", v_int(0xFFFFFF));
+            put("borderstyle", v_int(2));
+        }
+        "RBUTTON" => {
+            put("enabled", v_bool(true));
+            put("visible", v_bool(true));
+        }
+        "RLABEL" => {
+            put("visible", v_bool(true));
+            put("alignment", v_int(0));
+            put("color", v_int(0xFFFFFF));
+            put("fontcolor", v_int(0));
+            put("fontsize", v_int(12));
+        }
+        "REDIT" => {
+            put("enabled", v_bool(true));
+            put("visible", v_bool(true));
+            put("readonly", v_bool(false));
+            put("maxlength", v_int(0));
+        }
+        "RPANEL" => {
+            put("caption", v_str(""));
+            put("visible", v_bool(true));
+            put("color", v_int(0xFFFFFF));
+        }
+        "RCHECKBOX" => {
+            put("checked", v_int(0));
+            put("enabled", v_bool(true));
+            put("visible", v_bool(true));
+        }
+        "RRADIOBUTTON" => {
+            put("checked", v_int(0));
+        }
+        // Nothing more than both runtimes give them: QCOMBOBOX, QLISTBOX
+        // (items and selection: crate::objects::list), QTIMER
+        // (Enabled True, the manual's), the DirectX lane's QDXTIMER,
+        // QDXSOUND and QDXJOYSTICK, QHEADER, QSTRINGGRID (cells, sizes and
+        // selection: crate::objects::grid), QTABCONTROL,
+        // QPROGRESS, QJSON, QTREEVIEW, the file / colour / font dialogs,
+        // the menus.
+        "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" | "RTIMER" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK" | "RHEADER" | "RSTRINGGRID" | "RTABCONTROL"
+        | "RPROGRESS" | "RJSON" | "RTREEVIEW" | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RMAINMENU" | "RPOPUPMENU" => {}
+        "RIMAGE" => {
+            put("stretch", v_bool(false));
+        }
+        "RCANVAS" => {
+            put("color", v_int(0xFFFFFF));
+            put("pencolor", v_int(0));
+            put("penwidth", v_int(1));
+            put("brushcolor", v_int(0xFFFFFF));
+            put("fontcolor", v_int(0));
+            put("fontsize", v_int(12));
+            put("fontname", v_str("Arial"));
+        }
+        // (the DirectX lane's)
+        "RDXSCREEN" => {
+            put("visible", v_bool(true));
+        }
+        "RDESIGNSURFACE" => {
+            put("formcaption", v_str("Form1"));
+            put("compcount", v_int(0));
+            put("visible", v_bool(true));
+        }
+        "RCODEEDITOR" => {
+            put("text", v_str(""));
+            put("visible", v_bool(true));
+        }
+        "RGROUPBOX" => {
+            put("caption", v_str(""));
+            put("visible", v_bool(true));
+        }
+        "RMENUITEM" => {
+            put("caption", v_str(""));
+            put("enabled", v_bool(true));
+            put("checked", v_bool(false));
+        }
+        "RSTATUSBAR" => {
+            // Docked at the bottom (Align = alBottom) once it has a parent.
+            put("simpletext", v_str(""));
+            put("simplepanel", v_bool(false));
+            put("panelcount", v_int(0));
+        }
+        "RRICHEDIT" | "RMEMO" => {
+            put("readonly", v_bool(false));
+        }
+        "RFILESTREAM" => {
+            put("size", v_int(0));
+        }
+        "RSTRINGLIST" => {
+            put("count", v_int(0));
+            put("text", v_str(""));
+        }
+        "RTOOLBAR" => {
+            put("width", v_int(0));
+            put("height", v_int(32));
+        }
+        "RSCROLLBAR" => {
+            put("min", v_int(0));
+            put("max", v_int(100));
+            put("position", v_int(0));
+        }
+        "RDATETIMEPICKER" => {
+            put("date", v_str(""));
+            put("time", v_str(""));
+        }
+        "RUPDOWN" => {
+            put("min", v_int(0));
+            put("max", v_int(100));
+            put("position", v_int(0));
+        }
+        "RPRINTER" => {
+            put("title", v_str(""));
+        }
+        // Database components — properties managed by database.rs
+        "RSQLITE" => {
+            put("tablecount", v_int(0));
+        }
+        "RMYSQL" => {
+            put("connected", v_int(0));
+            put("host", v_str("localhost"));
+            put("port", v_int(3306));
+            put("user", v_str(""));
+            put("password", v_str(""));
+            put("db", v_str(""));
+            put("rowcount", v_int(0));
+            put("colcount", v_int(0));
+            put("fieldcount", v_int(0));
+            put("dbcount", v_int(0));
+        }
+        // Network components — properties managed by network.rs
+        "RSOCKET" => {
+            put("host", v_str(""));
+            put("port", v_int(0));
+            put("connected", v_int(0));
+            put("timeout", v_int(5000));
+        }
+        "RSERVERSOCKET" => {
+            put("host", v_str("0.0.0.0"));
+            put("port", v_int(0));
+            put("clientcount", v_int(0));
+        }
+        "RHTTP" => {
+            put("host", v_str(""));
+            put("port", v_int(80));
+            put("url", v_str(""));
+            put("statuscode", v_int(0));
+            put("responsetext", v_str(""));
+            put("responseheaders", v_str(""));
+            put("timeout", v_int(5000));
+            put("usessl", v_int(0));
+        }
+        "RSPLITTER" => {
+            put("minsize", v_int(30));
+            put("visible", v_bool(true));
+        }
+        "RSCROLLBOX" => {
+            put("visible", v_bool(true));
+        }
+        "RLISTVIEW" => {
+            put("itemindex", v_int(-1));
+            put("items", v_str(""));
+            put("count", v_int(0));
+            put("visible", v_bool(true));
+        }
+        "RPROGRESSBAR" => {
+            put("visible", v_bool(true));
+        }
+        // (an unknown type: nothing more)
+        _ => {}
+    }
+    p
+}
+
 /// The Color the desktop's registry gives a new QLABEL, QFORM and QPANEL,
 /// which no host paints.
 pub const CREATION_COLOR: i64 = 0xFFFFFF;
