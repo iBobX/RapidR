@@ -144,6 +144,9 @@ pub enum Action {
     /// open holds it — the kernel's headless host pretends, ticking the
     /// program's timers through its tracking tick (any component names it).
     Hold(i64),
+    /// `__tray_N`: mouse message N (513 WM_LBUTTONDOWN …) from the form's
+    /// first system tray icon (`crate::tray`).
+    Tray(i64),
     /// A synthetic event malformed (`__key_`, `__mouse…`, `__dblclick…`, `__item_`,
     /// `__node_`, `__toggle_`, `__edit…`, `__enter…`, `__escape…` without
     /// the right numbers): nothing happens.
@@ -186,7 +189,9 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::DblClick(x, y)
     } else if let Some(ms) = one("__hold_") {
         Action::Hold(ms)
-    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold"].iter().any(|p| event.starts_with(p)) {
+    } else if let Some(m) = one("__tray_") {
+        Action::Tray(m)
+    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__tray"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {
         Action::Close

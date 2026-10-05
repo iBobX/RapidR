@@ -28,6 +28,8 @@ pub mod headless;
 pub mod menu;
 pub mod platform;
 pub mod tracking;
+// (the system tray: rapidr_value::tray)
+pub mod tray;
 pub mod winit_host;
 
 use std::task::Waker;
@@ -97,6 +99,15 @@ pub trait Host {
     /// menu the user keeps open would hold it: the headless host pretends
     /// ([`tracking::simulate_hold`]); a real one has its user.
     fn hold(&mut self, _hold: Duration) {}
+    /// (the system tray) Shows the program's tray icons
+    /// (`rapidr_value::tray::shown`) — called when they changed. A host
+    /// without a system (headless) keeps none.
+    fn tray_sync(&mut self, _icons: &[tray::Shown]) {}
+    /// The tray icons' clicks since the last turn: (icon, Windows' mouse
+    /// messages).
+    fn tray_clicks(&mut self) -> Vec<((i64, i64), Vec<i64>)> {
+        Vec::new()
+    }
 }
 
 /// Which renderer windows use.

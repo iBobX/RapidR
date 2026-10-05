@@ -119,6 +119,8 @@ fn frame_theme() -> Option<winit::window::Theme> {
 pub struct WinitHost {
     event_loop: EventLoop<UserEvent>,
     state: State,
+    /// (the system tray: made when the program first shows an icon)
+    tray: Option<crate::tray::Tray>,
 }
 
 impl WinitHost {
@@ -167,6 +169,7 @@ impl WinitHost {
                 hook: None,
                 theme: rapidr_value::theme::generation(),
             },
+            tray: None,
         })
     }
 
@@ -252,6 +255,18 @@ impl Host for WinitHost {
 
     fn waker(&self) -> Waker {
         Waker::from(Arc::new(ProxyWaker(Mutex::new(self.state.proxy.clone()))))
+    }
+
+    fn tray_sync(&mut self, icons: &[crate::tray::Shown]) {
+        if self.tray.is_none() && icons.is_empty() {
+            return;
+        }
+        let waker = self.waker();
+        self.tray.get_or_insert_with(|| crate::tray::Tray::new(waker)).sync(icons);
+    }
+
+    fn tray_clicks(&mut self) -> Vec<((i64, i64), Vec<i64>)> {
+        self.tray.as_mut().map(crate::tray::Tray::clicks).unwrap_or_default()
     }
 
     fn headless(&self) -> bool {

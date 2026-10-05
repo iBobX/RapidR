@@ -84,3 +84,36 @@ impl ComponentKind for Panel {
         super::shared_describe(cx, self.name())
     }
 }
+
+/// QBEVEL (`QBevel.inc`: a QPANEL with Shape and Style): the panel — its
+/// Shape / Style set its bevels — and, for `bsTopLine` … `bsRightLine`,
+/// its two lines at that edge over it (`rapidr_value::objects::bevel::
+/// qbevel_lines`), under its components.
+pub struct Bevel;
+
+impl ComponentKind for Bevel {
+    fn name(&self) -> &'static str {
+        "RBEVEL"
+    }
+
+    fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
+        false
+    }
+
+    fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
+        super::canvas::click_or_double(cx, m)
+    }
+
+    fn paint(&self, cx: &mut Cx, p: &mut Painter) {
+        Panel.paint(cx, p);
+        let t = p.theme();
+        let (shape, style) = (store::int(cx.store, cx.id, "shape", 0), store::int(cx.store, cx.id, "style", 0));
+        for (x, y, w, h, light) in bevel::qbevel_lines(shape, style, cx.width(), cx.height()) {
+            p.fill((x, y, w, h), if light { t.light } else { t.shadow });
+        }
+    }
+
+    fn describe(&self, cx: &mut Cx) -> AccessNode {
+        super::shared_describe(cx, self.name())
+    }
+}

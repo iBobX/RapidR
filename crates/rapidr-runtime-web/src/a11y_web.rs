@@ -232,7 +232,7 @@ fn walk(parent: &str, enabled: bool) {
 fn described(t: &str) -> bool {
     matches!(
         t,
-        "RLABEL" | "RBUTTON" | "RCOOLBTN" | "ROVALBTN" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RPANEL" | "RGROUPBOX" | "RSCROLLBOX" | "RSPLITTER" | "RSTATUSBAR" | "RMDICHILD" | "RTRACKBAR" | "RTABCONTROL" | "RPROGRESS" | "RPROGRESSBAR" | "RUPDOWN" | "RLISTBOX" | "RFILELISTBOX" | "RCOMBOBOX" | "RLISTVIEW" | "RSTRINGGRID" | "RHEADER" | "RTREEVIEW" | "RDIRTREE" | "RCANVAS" | "RIMAGE"
+        "RLABEL" | "RBUTTON" | "RCOOLBTN" | "ROVALBTN" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RPANEL" | "RGROUPBOX" | "RSCROLLBOX" | "RSPLITTER" | "RSTATUSBAR" | "RMDICHILD" | "RTRACKBAR" | "RTABCONTROL" | "RPROGRESS" | "RPROGRESSBAR" | "RUPDOWN" | "RLISTBOX" | "RFILELISTBOX" | "RCOMBOBOX" | "RLISTVIEW" | "RSTRINGGRID" | "RHEADER" | "RTREEVIEW" | "RDIRTREE" | "RCANVAS" | "RIMAGE" | "RBEVEL" | "RDIGDISPLAY" | "RGLASSFRAME"
     )
 }
 
@@ -253,7 +253,8 @@ fn apply(name: &str, t: &str, enabled: bool, label: impl FnOnce() -> Option<Stri
     });
     // The role, where the element's own isn't it.
     let role = match t {
-        "RPANEL" | "RSCROLLBOX" => Some("group"),
+        "RPANEL" | "RBEVEL" | "RGLASSFRAME" | "RSCROLLBOX" => Some("group"),
+        "RDIGDISPLAY" => Some("img"),
         "RMDICHILD" => Some("dialog"),
         "RTABCONTROL" => Some("tablist"),
         "RTRACKBAR" => Some("slider"),

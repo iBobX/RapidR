@@ -153,6 +153,24 @@ fn has_ellipsis(g: &StringGrid, c: usize, r: usize) -> bool {
     !fixed && (g.column_style(c) == GCS_ELLIPSIS || g.cell(c, r) == "...")
 }
 
+/// A newly selected cell scrolled into view, before the grid is drawn or
+/// described (so the accessibility tree's cells are where they're drawn).
+fn show_selection(id: &str, w: i64, h: i64) {
+    // (VisibleRowCount / VisibleColCount: the inside, as the web's grid)
+    let fresh = with_grid_mut(id, |g| {
+        g.view = (w - 4, h - 4);
+        let sel = (g.col, g.row);
+        SHOWN.with(|s| s.borrow_mut().insert(id.to_string(), sel)) != Some(sel)
+    });
+    if fresh == Some(true) {
+        with_grid_mut(id, |g| {
+            let l = layout(id, g, w, h);
+            let (c, r) = (g.col, g.row);
+            scroll_to_cell(g, c, r, &l);
+        });
+    }
+}
+
 /// TopRow / LeftCol moved so cell (c, r) shows (Delphi scrolls the
 /// selection into view).
 fn scroll_to_cell(g: &mut StringGrid, c: i64, r: i64, l: &Layout) {
@@ -233,19 +251,7 @@ impl ComponentKind for Grid {
         let (w, h) = (cx.width(), cx.height());
         let t = p.theme();
         sunken(p, w, h, t.window);
-        // (VisibleRowCount / VisibleColCount: the inside, as the web's grid)
-        let fresh = with_grid_mut(cx.id, |g| {
-            g.view = (w - 4, h - 4);
-            let sel = (g.col, g.row);
-            SHOWN.with(|s| s.borrow_mut().insert(cx.id.to_string(), sel)) != Some(sel)
-        });
-        if fresh == Some(true) {
-            with_grid_mut(cx.id, |g| {
-                let l = layout(cx.id, g, w, h);
-                let (c, r) = (g.col, g.row);
-                scroll_to_cell(g, c, r, &l);
-            });
-        }
+        show_selection(cx.id, w, h);
         let Some(g) = with_grid(cx.id, |g| g.clone()) else { return };
         let l = layout(cx.id, &g, w, h);
         let font = cx.font.clone();
@@ -505,6 +511,7 @@ impl ComponentKind for Grid {
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         let mut n = super::shared_describe(cx, "RSTRINGGRID");
         let (w, h) = (cx.width(), cx.height());
+        show_selection(cx.id, w, h);
         let Some(g) = with_grid(cx.id, |g| g.clone()) else { return n };
         let l = layout(cx.id, &g, w, h);
         for (r, row) in n.children.iter_mut().enumerate() {

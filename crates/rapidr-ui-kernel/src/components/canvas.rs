@@ -131,6 +131,33 @@ impl ComponentKind for Canvas {
     }
 }
 
+/// QDIGDISPLAY: a canvas (`QDigDisplay.inc` extends QCANVAS) whose
+/// surface shows its Display (`rapidr_value::objects::digdisplay`); a
+/// screen reader reads that text.
+pub struct DigDisplay;
+
+impl ComponentKind for DigDisplay {
+    fn name(&self) -> &'static str {
+        "RDIGDISPLAY"
+    }
+
+    fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
+        false
+    }
+
+    fn paint(&self, cx: &mut Cx, p: &mut Painter) {
+        Canvas.paint(cx, p);
+    }
+
+    fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
+        click_on_release(cx, m)
+    }
+
+    fn describe(&self, cx: &mut Cx) -> AccessNode {
+        super::shared_describe(cx, self.name())
+    }
+}
+
 /// A graphic control's click: the left button pressed on it and released
 /// over it. Every click is one — RapidQ's QCANVAS has no OnDblClick ("does
 /// not work", its manual says), so a double click is two clicks.

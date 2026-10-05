@@ -18,12 +18,14 @@ pub mod comport;
 pub mod codec;
 pub mod d3d;
 pub mod design;
+pub mod digdisplay;
 pub mod directx;
 pub mod download;
 pub mod joystick;
 pub mod dirtree;
 pub mod tree;
 pub mod font;
+pub mod glass;
 pub mod filelist;
 pub mod grid;
 pub mod header;
@@ -36,6 +38,7 @@ pub mod midifile;
 pub mod menu;
 pub mod ops;
 pub mod printer;
+pub mod record;
 pub mod rqlib;
 pub mod synth;
 pub mod text;
@@ -101,6 +104,8 @@ enum Object {
     DxSound(directx::DxSound),
     /// QDXJOYSTICK's state (joystick.rs).
     DxJoystick(joystick::DxJoystick),
+    /// QRECT's / QNOTIFYICONDATA's fields (record.rs).
+    Record(record::Record),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -124,6 +129,8 @@ thread_local! {
     static NATIVE_FILES: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
     /// QHEADER's sections; its surface is a canvas in OBJECTS.
     static HEADERS: RefCell<HashMap<String, header::Header>> = RefCell::new(HashMap::new());
+    /// QDIGDISPLAY's Display (its surface is a canvas in OBJECTS).
+    static DIGITS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
 }
 
 /// Sends a finished print job somewhere (`Printer.EndDoc`).
@@ -249,6 +256,15 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
         "RCANVAS" => Object::Bitmap(Bitmap::new_canvas()),
+        // (a canvas showing its Display: digdisplay.rs)
+        "RDIGDISPLAY" => {
+            DIGITS.with(|d| d.borrow_mut().insert(id.to_lowercase(), "0".into()));
+            let mut b = Bitmap::new_canvas();
+            let (w, h) = digdisplay::size("0");
+            b.fit(w, h);
+            digdisplay::draw(&mut b, "0");
+            Object::Bitmap(b)
+        }
         "RHEADER" => {
             HEADERS.with(|h| {
                 h.borrow_mut().entry(id.to_lowercase()).or_default();
@@ -276,6 +292,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RDXTIMER" => Object::DxTimer(directx::DxTimer::default()),
         "RDXSOUND" => Object::DxSound(directx::DxSound::default()),
         "RDXJOYSTICK" => Object::DxJoystick(joystick::DxJoystick::default()),
+        "RRECT" => Object::Record(record::Record::new(record::Kind::Rect)),
+        "RNOTIFYICONDATA" => Object::Record(record::Record::new(record::Kind::NotifyIconData)),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -640,6 +658,26 @@ pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
 }
 
+/// QDIGDISPLAY `id`'s Display (`None`: it isn't one).
+pub fn digdisplay_text(id: &str) -> Option<String> {
+    DIGITS.with(|d| d.borrow().get(&id.to_lowercase()).cloned())
+}
+
+/// Draws QDIGDISPLAY `id`'s Display onto its surface again (it was
+/// painted, resized or cleared); its size for the runtime to give the
+/// control (`None`: it isn't one).
+pub fn digdisplay_redraw(id: &str) -> Option<(i64, i64)> {
+    let text = digdisplay_text(id)?;
+    let (w, h) = digdisplay::size(&text);
+    with(id, |o| {
+        if let Object::Bitmap(b) = o {
+            b.fit(w, h);
+            digdisplay::draw(b, &text);
+        }
+    });
+    Some((w, h))
+}
+
 /// Whether `id` is a QDXSCREEN (its runtime widget shows the front buffer
 /// again after a Flip).
 pub fn is_dxscreen(id: &str) -> bool {
@@ -702,6 +740,20 @@ pub fn dxscreen_control(id: &str, props: PropReader) -> DxControl {
 /// frame for FrameRate.
 pub fn dxtimer_fired(id: &str, now_ms: f64) {
     with(id, |o| if let Object::DxTimer(t) = o { t.tick(now_ms) });
+}
+
+/// Whether `id` is a QRECT or a QNOTIFYICONDATA: its fields are stored
+/// only here, as RapidQ stores them (no geometry rounding, no layout).
+pub fn is_record(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Record(_))) == Some(true)
+}
+
+/// Reads a QRECT or a QNOTIFYICONDATA (record.rs).
+pub fn with_record<R>(id: &str, f: impl FnOnce(&record::Record) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Record(r) => Some(f(r)),
+        _ => None,
+    })?
 }
 
 /// Whether `id` is a QDXJOYSTICK.
@@ -839,6 +891,11 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if let Some(v) = with_header(id, |h| h.get(&prop)).flatten() {
         return Some(v);
     }
+    if prop == "display" {
+        if let Some(text) = digdisplay_text(id) {
+            return Some(v_str(&text));
+        }
+    }
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
@@ -862,6 +919,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::DxTimer(t) => t.get(&prop),
         Object::DxSound(s) => s.get(&prop),
         Object::DxJoystick(j) => j.get(&prop),
+        Object::Record(r) => r.get(&prop),
     })?
 }
 
@@ -880,6 +938,12 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         return menu::set(id, &prop, val).map(Ok);
     }
     if with_header(id, |h| h.set(&prop, val)) == Some(true) {
+        return Some(Ok(()));
+    }
+    // A QDIGDISPLAY's Display: drawn at once (the runtime sizes the control).
+    if prop == "display" && digdisplay_text(id).is_some() {
+        DIGITS.with(|d| d.borrow_mut().insert(id.to_lowercase(), val.to_string_val()));
+        digdisplay_redraw(id);
         return Some(Ok(()));
     }
     // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.
@@ -962,6 +1026,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::DxScreen(s) => s.set(&prop, val),
         Object::DxSound(s) => s.set(id, &prop, val),
         Object::DxJoystick(j) => j.set(&prop, val),
+        Object::Record(r) => r.set(&prop, val).then_some(Ok(())),
         Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
 }
@@ -1060,6 +1125,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::DxTimer(_) => "dxtimer",
         Object::DxSound(_) => "dxsound",
         Object::DxJoystick(_) => "dxjoystick",
+        Object::Record(_) => "record",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1438,7 +1504,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::DxScreen(s) => s.call(method, args),
         Object::DxSound(s) => s.call(id, method),
         Object::DxJoystick(j) => j.call(method, args),
-        Object::DxImageList(_) | Object::DxTimer(_) => None,
+        Object::DxImageList(_) | Object::DxTimer(_) | Object::Record(_) => None,
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

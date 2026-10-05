@@ -207,10 +207,20 @@ fn pump(timeout: Option<Duration>) {
         let Ok(mut k) = k.try_borrow_mut() else { return };
         sync_desk(&mut k.desk);
         let Kern { host, desk } = &mut *k;
+        // (the system tray's icons, when the program changed them)
+        let tray = rapidr_value::tray::revision();
+        if TRAY_SHOWN.with(|t| t.replace(tray)) != tray {
+            host.tray_sync(&rapidr_value::tray::shown());
+        }
         // (the kernel's deadlines due: tick.rs)
         desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
         host.pump(timeout, desk, &RtStore);
     });
+}
+
+thread_local! {
+    /// The tray's revision the host shows (rapidr_value::tray).
+    static TRAY_SHOWN: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
 /// One step of the innermost wait (see the module's doc).
@@ -258,6 +268,10 @@ pub fn step(max_wait: Option<Duration>) {
     pump(t);
     crate::object::rp_run_deferred();
     dispatch_pending();
+    // (the system tray's clicks: the form's WndProc)
+    for (key, mouse) in with_kern(|k| k.host.tray_clicks()).unwrap_or_default() {
+        rapidr_ui_app::tray::deliver(Rt, key, &mouse);
+    }
     rapidr_ui_app::dialogs::give_hooked(Rt);
     // The timers fire once the handlers before them have run, as in a
     // native build (its handlers run as they're dispatched). The
@@ -607,7 +621,7 @@ pub fn gui_showmodal(name: &str) -> i64 {
         return 0;
     }
     forms::show_pending(Rt);
-    while forms::form_shown(&name) {
+    while forms::modal_waits(&name) {
         step(None);
     }
     // (the timers stop with the modal form)

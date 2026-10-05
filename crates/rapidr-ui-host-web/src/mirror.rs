@@ -17,6 +17,15 @@ use web_sys::{Document, HtmlElement};
 
 use crate::aria::{self, Spec};
 
+/// What a text field tells autofill and password managers.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Hint {
+    /// The `autocomplete` token ("" none: `off`).
+    pub autocomplete: String,
+    /// The field's `name` (its component's).
+    pub name: String,
+}
+
 pub struct Mirror {
     root: HtmlElement,
     doc: Document,
@@ -91,7 +100,7 @@ impl Mirror {
 
     /// The mirror made what `tree` says; the DOM focus on `focused` (the
     /// focused component, if any) when the window is `active`.
-    pub fn sync(&mut self, tree: &AccessNode, focused: Option<&str>, active: bool) {
+    pub fn sync(&mut self, tree: &AccessNode, focused: Option<&str>, active: bool, hints: &HashMap<u64, Hint>) {
         let specs = aria::specs(tree);
         let mut seen = std::collections::HashSet::new();
         let mut focus_el: Option<(u64, HtmlElement)> = None;
@@ -141,6 +150,18 @@ impl Mirror {
             }
             if s.tag == "div" && el.child_element_count() == 0 && el.text_content().unwrap_or_default() != s.text {
                 el.set_text_content(Some(&s.text));
+            }
+            // (autofill and password managers: a text field's hints, from
+            // its component's AutoComplete — "username", "email",
+            // "current-password" …; without one the browser offers nothing)
+            if s.tag == "input" || s.tag == "textarea" {
+                let (auto, name) = hints.get(&s.id).map_or(("off", ""), |h| (if h.autocomplete.is_empty() { "off" } else { h.autocomplete.as_str() }, h.name.as_str()));
+                if el.get_attribute("autocomplete").as_deref() != Some(auto) {
+                    let _ = el.set_attribute("autocomplete", auto);
+                }
+                if !name.is_empty() && el.get_attribute("name").as_deref() != Some(name) {
+                    let _ = el.set_attribute("name", name);
+                }
             }
             if !self.composing {
                 let field_value = |el: &HtmlElement| el.dyn_ref::<web_sys::HtmlInputElement>().map(|i| i.value()).or_else(|| el.dyn_ref::<web_sys::HtmlTextAreaElement>().map(|t| t.value()));

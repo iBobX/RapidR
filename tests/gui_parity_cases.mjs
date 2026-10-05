@@ -23,6 +23,46 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // QGLASSFRAME: the default black glass over the form's face (60 % see-
+  // through), red glass at 50 over a cyan panel; Moveable: the form
+  // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.
+  { name: "glass_frame", events: "g.__mousedown_20_20,g.__mousemove_40_30,g.__mouseup_40_30,r.__mousedown_5_5,r.__mousemove_25_15,r.__mouseup_25_15,g.onclick", dump: "lbl.caption,form.left,form.top",
+    expect: ["lbl.caption=- click120110 click120110", "form.left=120", "form.top=110"],
+    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]],
+    webCheck: `[getComputedStyle(document.getElementById("rr-g")).backgroundColor, getComputedStyle(document.getElementById("rr-r")).backgroundColor].join(" ")`,
+    webExpect: "rgb(144, 144, 144) rgb(128, 128, 128)" },
+  // QDOCKFORM built in (RAPIDQ2.INC's dockable form, RapidR's own
+  // library): docked at its alternative place, floated, brought home,
+  // closed (OnClose); the toolbar-style one's grip (the capture's pixels).
+  { name: "dock_form", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,p.__shown",
+    expect: ["lbl.caption=- r11 f00 h10 closed c1", "p.__shown=0"],
+    pixels: [[6, 4, "808080"], [6, 5, "c0c0c0"]] },
+  // QDIRLISTVIEW built in (QDirListView.inc's component, RapidR's own
+  // library): a folder the program made, a file picked and Enter
+  // (OnFileSelect), a folder double-clicked (into it), Backspace (up).
+  { name: "dir_list_view", events: "dirlist.__mousedown_30_58,dirlist.__mouseup_30_58,dirlist.__key_13,dirlist.__dblclick_30_40,btn.onclick,dirlist.__key_8,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=- pick:dirlv/notes.txt [-1>/Inner2 ../0 deep.bas/1 |] [-1>/Inner3 ../0 Inner/0 notes.txt/1 2 KB|TXT File]"],
+    inWork: true, web: false, why: "a browser has no folders to list (DIR$)" },
+  // The system tray (QNOTIFYICONDATA, Shell_NotifyIcon, the form's
+  // WndProc): added once (a second NIM_ADD fails), its tip modified, the
+  // form hidden (its ShowModal waits on); the icon's press and release heard
+  // with wParam its uID; the release deletes it (a second NIM_DELETE fails)
+  // and shows the form; a press after that says nothing.
+  { name: "tray_icon", events: "btn.onclick,form.__tray_513,form.__tray_514,form.__tray_513", dump: "lbl.caption,form.__shown",
+    expect: ["lbl.caption=add10 mod1 7:00000201f 7:00000202f del10", "form.__shown=1"],
+    webCheck: `document.querySelectorAll(".rr-tray-icon").length + " " + getComputedStyle(document.getElementById("rr-tray")).display`,
+    webExpect: "0 none" },
+  // QBEVEL and QDIGDISPLAY built in (no include library): Shape / Style
+  // set the bevels or draw a line pair; the display's size and segments.
+  // Pixels: the top line's light and dark rows, the right line's dark and
+  // light columns, a lit segment (cyan), an unlit one's dither.
+  { name: "bevel_display", events: "btn.onclick,edge.onclick,clock.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=-02021 12:34602460 00FFFF00|00008000|00000000cc"],
+    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]],
+    webCheck: `(() => { const c = document.getElementById("rr-clock"); const s = c.width / 60; const g = c.getContext("2d");
+      const px = ([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("");
+      return [[13, 15], [1, 7], [1, 8]].map(px).join(",") + " " + document.querySelectorAll("#rr-edge > .rr-bevel").length + " " + document.querySelectorAll("#rr-box > .rr-bevel").length; })()`,
+    webExpect: "00ffff,008000,000000 2 2" },
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",
@@ -96,17 +136,17 @@ export const cases = [
   // — a colour (decimal, one of the basic swatches for the browser) for
   // OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG on the desktop, the page
   // dialog clicked in the browser)
-  { name: "color_dialog", webKernel: "pending: W4 — the kernel's colour dialog, a wait the VM serves (the page's dialog_web answers no test hook)", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", colorDialog: "255;",
+  { name: "color_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", colorDialog: "255;",
     expect: ["lbl.caption=00000000|00000002|00000080|00FF00FF", "lbl2.caption=ok 000000FF 00123456|cancel 000000FF"] },
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
-  { name: "font_dialog", webKernel: "pending: W4 — the kernel's font dialog, a wait the VM serves", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
+  { name: "font_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
     expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 000000FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
   { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
     events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
     expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 1|0 300", "lbl3.caption=1;2;2;"] },
-  { name: "file_dialogs", webKernel: "pending: W8 — Open / Save through file_dialog.rs on the page", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
+  { name: "file_dialogs", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
   { name: "header", events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart 0000FF00"] },
@@ -137,7 +177,7 @@ export const cases = [
     webCheck: `[...document.querySelectorAll('nav[data-rr-type="RMAINMENU"] .rr-menu-item-sub')].map(e => e.querySelector('.rr-menu-mark').textContent + e.querySelector('.rr-menu-text').textContent + e.querySelector('.rr-menu-keys').textContent + (e.classList.contains('rr-menu-disabled') ? '!' : '')).join('|') + ' ' + document.querySelectorAll('nav .rr-menu-sep').length`,
     webExpect: "NewCtrl+N|Beginner|●Expert|Exit! 1" },
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
-  { name: "input_chars", webKernel: "pending: W4 — INPUT$'s Wait::Key served by the web VM", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
+  { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
   { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
     expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"],

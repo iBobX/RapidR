@@ -75,6 +75,8 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
 // ---------------------------------------------------------------------------
 
 pub fn rp_create_component(name: &str, type_name: &str) {
+    // (the system tray's strip: drawn when the program changes its icons)
+    rapidr_value::tray::set_on_change(crate::tray_web::changed);
     // A QFORMMDI is a QFORM whose client area holds child windows (mdi_web.rs).
     if type_name.eq_ignore_ascii_case("RFORMMDI") {
         rapidr_value::mdi::register(name);
@@ -242,6 +244,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     });
 
     gui_web::setup_data_binding(&name_clone);
+    // (a QGLASSFRAME's shade: from its properties, now registered)
+    if rp_comp_type(&name_clone) == "RGLASSFRAME" {
+        gui_web::render_glass(&name_clone);
+    }
     install_object_hooks();
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
@@ -436,6 +442,18 @@ pub(crate) fn kernel_hosts() -> bool {
     false
 }
 
+/// Whether form `name` is shown modally on the kernel host (its ModalResult
+/// set closes it, as on the desktop).
+fn kernel_modal(name: &str) -> bool {
+    #[cfg(feature = "kernel")]
+    return kernel_hosts() && rapidr_ui_app::forms::is_modal(name);
+    #[cfg(not(feature = "kernel"))]
+    {
+        let _ = name;
+        false
+    }
+}
+
 pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
     let uname = name.to_uppercase();
     let lprop = prop.to_lowercase();
@@ -459,6 +477,12 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // A QRECT's / QNOTIFYICONDATA's field: stored as RapidQ stores it
+    // (rapidr_value::objects::record), nothing else.
+    if rapidr_value::objects::is_record(name) {
+        rapidr_value::objects::set(name, prop, &val);
+        return;
+    }
     // (a11y_web: the form's ARIA follows, once the program's code returns)
     crate::a11y_web::changed(name);
     let val = rapidr_value::layout::property_value(prop, val);
@@ -484,7 +508,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         }
     }
     // A modal form's ModalResult set: the form closes (ShowModal returns it).
-    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && crate::dialog_web::is_modal(&crate::gui_web::comp_id(name)) {
+    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && (crate::dialog_web::is_modal(&crate::gui_web::comp_id(name)) || kernel_modal(name)) {
         rp_comp_set_prop_only(name, "modalresult", val);
         crate::gui_web::close_form(&name.to_uppercase());
         return;
@@ -507,6 +531,26 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // FontName / FontSize / FontColor too: one value, as on the desktop.
     if let Some(other) = rapidr_value::font_dialog::alias(&lprop).filter(|_| rp_comp_type(&uname) == "RFONTDIALOG") {
         rp_comp_set_prop_only(&uname, other, val.clone());
+    }
+    // A QDIGDISPLAY is as big as its Display (QDigDisplay.inc sizes it so).
+    let val = match rapidr_value::objects::digdisplay_text(name) {
+        Some(text) if matches!(lprop.as_str(), "width" | "height") => {
+            let (w, h) = rapidr_value::objects::digdisplay::size(&text);
+            v_int(if lprop == "width" { w } else { h })
+        }
+        _ => val,
+    };
+    // A QGLASSFRAME's Transparency, TransparentColor, Moveable: as RC.EXE
+    // stores them (rapidr_value::objects::glass).
+    let val = if rp_comp_type(&uname) == "RGLASSFRAME" { rapidr_value::objects::glass::stored(&lprop, &val).unwrap_or(val) } else { val };
+    // A QBEVEL's Shape / Style set its bevels (QBevel.inc's setters).
+    if rp_comp_type(&uname) == "RBEVEL" {
+        let other = rp_comp_get(&uname, if lprop == "shape" { "style" } else { "shape" }).to_i64();
+        if let Some(bevels) = rapidr_value::objects::bevel::qbevel_set(&lprop, val.to_i64(), other) {
+            for (p, v) in bevels {
+                rp_comp_set_prop_only(&uname, p, v_int(v));
+            }
+        }
     }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(lprop.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get_stored(name, &lprop).to_i64());
@@ -579,6 +623,14 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             Err(_) if picture && lprop == "bmp" => show_image_file(&uname, &val.to_string_val()),
             Err(e) => object_error(name, prop, &e),
             Ok(()) => {}
+        }
+        // A QDIGDISPLAY's new Display: its size.
+        if lprop == "display" {
+            if let Some(text) = rapidr_value::objects::digdisplay_text(name) {
+                let (w, h) = rapidr_value::objects::digdisplay::size(&text);
+                rp_comp_set(&uname, "width", v_int(w));
+                rp_comp_set(&uname, "height", v_int(h));
+            }
         }
         if picture {
             picture_changed(&uname);
@@ -686,6 +738,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if rp_comp_type(&uname) == "RDXSCREEN" {
             crate::directx_web::parented(&uname);
         }
+        // (a QGLASSFRAME shades what it's now over)
+        if rp_comp_type(&uname) == "RGLASSFRAME" {
+            gui_web::render_glass(&uname);
+        }
         return;
     }
 
@@ -735,8 +791,22 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         return;
     }
 
+    // A QGLASSFRAME's shade drawn again.
+    if comp_type == "RGLASSFRAME" && matches!(lprop.as_str(), "transparency" | "transparentcolor" | "color") {
+        gui_web::gui_web_set_prop(&uname, &lprop, &val);
+        gui_web::render_glass(&uname);
+        return;
+    }
+    // (a colour under a QGLASSFRAME changed: its shade with it, as the
+    // desktop's kernel draws it over what is there)
+    if lprop == "color" {
+        let glasses: Vec<String> = COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| comp.type_name == "RGLASSFRAME").map(|(n, _)| n.clone()).collect());
+        for g in glasses {
+            gui_web::render_glass(&g);
+        }
+    }
     // A panel's bevels drawn again.
-    if rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL" {
+    if (rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL") || (comp_type == "RBEVEL" && (rapidr_value::objects::bevel::default(&lprop).is_some() || matches!(lprop.as_str(), "shape" | "style"))) {
         gui_web::render_panel_bevels(&uname);
         return;
     }
@@ -961,7 +1031,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         // (a panel's bevels: RapidQ's defaults until set; Anchors and
         // Constraints: akLeft + akTop, none)
         _ => stored
-            .or_else(|| (rp_comp_type(&uname) == "RPANEL").then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
+            .or_else(|| (matches!(rp_comp_type(&uname).as_str(), "RPANEL" | "RBEVEL")).then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
             .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(&uname), &lprop).map(v_int))
             .unwrap_or_else(v_null),
     }
@@ -1598,11 +1668,44 @@ fn web_file_dialog(name: &str, save: bool, multi: bool) -> Value {
             let _ = web_write_file(path, &bytes);
         }),
         done: std::rc::Rc::new(answer),
+        resume: true,
     });
     v_int(0)
 }
 
+/// (Stage W4, the kernel host's `Windows::ask_files`) The page's Open / Save
+/// dialog: the program's files that fit the filter shown first, a name
+/// field, Upload…; `done` gets the paths picked (none: Cancel). The VM's
+/// wait is the kernel host's.
+pub fn page_file_dialog(save: bool, multi: bool, title: &str, filters: &[rapidr_value::file_dialog::Filter], index: usize, file_name: &str, done: std::rc::Rc<dyn Fn(Vec<String>)>) {
+    use rapidr_value::file_dialog as fd;
+    let mut files: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().filter(|n| fd::fits(filters, index, n)).cloned().collect());
+    files.sort();
+    crate::dialog_web::open_files(crate::dialog_web::FileRequest {
+        title: title.to_string(),
+        save,
+        multi,
+        files,
+        initial: file_name.to_string(),
+        accept: fd::html_accept(filters, index),
+        store: std::rc::Rc::new(|path: &str, bytes: Vec<u8>| {
+            let _ = web_write_file(path, &bytes);
+        }),
+        done,
+        resume: false,
+    });
+}
+
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
+    // (Stage W4: with the UI kernel hosting the page, the colour and font
+    // dialogs are the kernel's — the desktop's — a wait the VM serves; the
+    // Open / Save dialogs too: rapidr_ui_app::dialogs::execute)
+    #[cfg(feature = "kernel")]
+    if method == "execute" && kernel_hosts() {
+        if let Some(v) = crate::kernel_web::execute(name, comp_type) {
+            return v;
+        }
+    }
     // (the dialogs lane's) A QCOLORDIALOG's Colors(i), 1 to 16: read, or
     // `Colors(i) = c` (its second argument), as on the desktop.
     if method == "colors" && comp_type == "RCOLORDIALOG" {
@@ -2370,7 +2473,7 @@ fn bind_dom_event(name: &str, event: &str) {
     // QSCROLLBOX double-click (QCANVAS doesn't: RapidQ's has no OnDblClick).
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick") {
         let t = rp_comp_type(&name_owned).to_ascii_uppercase();
-        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN");
+        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RBEVEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN" | "RGLASSFRAME");
         if doubles || (t == "RCANVAS" && event == "onclick") {
             bind_vcl_clicks(&el, &name_owned, event == "onclick", doubles);
             return;
@@ -2427,6 +2530,12 @@ fn bind_dom_event(name: &str, event: &str) {
 
 pub(crate) fn update_timer(name: &str) {
     let uname = name.to_uppercase();
+    // (Stage W4: with the kernel hosting, QTIMER, QDXTIMER and QDXJOYSTICK
+    // tick in the app's timer heap, as on the desktop)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() && matches!(rp_comp_type(&uname).as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK") {
+        return crate::kernel_web::timer_changed(&uname);
+    }
 
     // Clear existing timer
     TIMER_HANDLES.with(|th| {
@@ -2529,6 +2638,10 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RCANVAS"
             | "RHEADER"
             | "RRECT"
+            | "RNOTIFYICONDATA"
+            | "RBEVEL"
+            | "RDIGDISPLAY"
+            | "RGLASSFRAME"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"
@@ -2888,7 +3001,18 @@ pub fn set_theme(theme: &str) {
 }
 
 pub fn gui_register_timer(_name: &str) {
-    // Timers are handled via DOM setInterval in update_timer()
+    // (Stage W4: with the kernel hosting, the app's timer heap, as the
+    // desktop's: rapidr_ui_app::timers; else setInterval in update_timer)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() {
+        crate::kernel_web::register_timer(_name);
+    }
+}
+
+/// The program's timers (QTIMER, QDXTIMER, QDXJOYSTICK …): what a modal
+/// form's end stops, as the desktop's `rp_stop_all_timers`.
+pub fn timer_names() -> Vec<String> {
+    COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| matches!(comp.type_name.as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")).map(|(n, _)| n.clone()).collect())
 }
 
 pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collections::HashMap<String, Value>)> {

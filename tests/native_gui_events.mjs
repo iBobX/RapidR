@@ -67,6 +67,10 @@
 //   * tests/fixtures/d3d_scene.bas — Direct3D: frames, faces, lights, the camera, Render (the software rasterizer), Move, CameraLookAt.
 //   * tests/fixtures/d3d_xfile.bas — Direct3D: a .X model (frame matrix, materials, a texture on one face), SetRGB, SetTexture.
 //   * tests/fixtures/dx_joystick.bas — QDXJOYSTICK: Update, IsLeft …, Button(n); X, Buttons, POV; OnButtonDown / OnButtonUp / OnMove (the case's `joystick` script).
+//   * tests/fixtures/bevel_display.bas — QBEVEL and QDIGDISPLAY built in: Shape / Style → bevels and edge lines, Display → size and segments; the capture's pixels.
+//   * tests/fixtures/tray_icon.bas — the system tray: QNOTIFYICONDATA, Shell_NotifyIcon, the form's WndProc (`form.__tray_N`).
+//   * tests/fixtures/dir_list_view.bas — QDIRLISTVIEW (RapidR's library): a folder listed, into it, up, OnFileSelect (`inWork`).
+//   * tests/fixtures/dock_form.bas — QDOCKFORM (RapidR's library): docked, floated, docked at its alternative, closed.
 //   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
 //     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //
@@ -155,10 +159,13 @@ function capturePixel(file, x, y) {
   }
 }
 
-function run(bin, events, dump, resize = "", split = "", fileDialog = undefined, extra = {}) {
+function run(bin, events, dump, resize = "", split = "", fileDialog = undefined, extra = {}, cwd = undefined) {
   // (`fileDialog`: what the file dialogs answer, `a;b`)
   const answer = fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: fileDialog };
   return execFileSync(bin, [], {
+    // (`inWork`: the program's files — a folder it makes — in the work
+    // directory, not the checkout)
+    ...(cwd ? { cwd } : {}),
     encoding: "utf8",
     env: { ...process.env, ...answer, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize, RAPIDR_TEST_SPLIT: split, ...extra },
   }).split("\n").filter((l) => l.includes("=")).join("\n");
@@ -187,7 +194,7 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     const a11y = join(WORK, `${c.name}-${kind}.a11y.json`);
     let out;
     try {
-      out = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog, { ...dialogAnswers(c), RAPIDR_TEST_A11Y: a11y });
+      out = run(bin, c.events, c.dump, c.resize, c.split, c.fileDialog, { ...dialogAnswers(c), RAPIDR_TEST_A11Y: a11y }, c.inWork ? WORK : undefined);
     } catch (e) {
       out = `(failed: ${String(e.message).split("\n")[0]})`;
     }
