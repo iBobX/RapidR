@@ -176,6 +176,76 @@ pub fn take_timer_changed(id: &str) -> bool {
     .unwrap_or(false)
 }
 
+/// Whether `id` is a QVIDEO.
+pub fn is_video(id: &str) -> bool {
+    with(id, |l| matches!(l, Lib::Media(m) if m.kind == Kind::Video)) == Some(true)
+}
+
+/// QVIDEO `id`'s window, when it changed since asked: the runtime makes
+/// its components follow it (`media::VideoWindow`).
+pub fn take_video_window(id: &str) -> Option<media::VideoWindow> {
+    with(id, |l| match l {
+        Lib::Media(m) => std::mem::take(&mut m.window_changed).then(|| m.window.clone()),
+        _ => None,
+    })?
+}
+
+/// The pseudo-timer that paces QVIDEO `id`'s frames while it plays: its
+/// name (registered as a timer by the runtime; `<id>.frames`).
+pub fn frames_timer(id: &str) -> String {
+    format!("{}.frames", id.to_lowercase())
+}
+
+/// `name` is a QVIDEO's frames timer ([`frames_timer`]): its video, the
+/// time between frames (ms) and whether frames are due (playing).
+pub fn video_frames(name: &str) -> Option<(String, i64, bool)> {
+    let video = name.to_lowercase().strip_suffix(".frames")?.to_string();
+    let (ms, due) = with(&video, |l| match l {
+        Lib::Media(m) if m.kind == Kind::Video => Some((m.frame_ms(), m.frames_due())),
+        _ => None,
+    })??;
+    Some((video, ms, due))
+}
+
+/// Whether QVIDEO `id`'s frames started or stopped being due since asked:
+/// the runtime schedules its frames timer again.
+pub fn take_frames_changed(id: &str) -> bool {
+    with(id, |l| match l {
+        Lib::Media(m) => std::mem::take(&mut m.frames_changed),
+        _ => false,
+    })
+    .unwrap_or(false)
+}
+
+/// QVIDEO `id`'s picture now drawn on its screen (`<id>.screen`, a QCANVAS
+/// of `width` × `height`), stretched to it as MCI's window stretches the
+/// video (each pixel the source's nearest, as StretchDIBits' COLORONCOLOR):
+/// whether it changed (the runtime shows the canvas again).
+pub fn video_draw(id: &str, width: i64, height: i64) -> bool {
+    let screen = media::VideoWindow::screen(id);
+    with(id, |l| match l {
+        Lib::Media(m) if m.kind == Kind::Video => m.draw_frame(width, height, |px, fw, fh| {
+            super::with_canvas(&screen, width, height, |b| {
+                let (w, h) = (b.img.width, b.img.height);
+                if fw == 0 || fh == 0 || px.len() < fw * fh {
+                    return;
+                }
+                let xs: Vec<usize> = (0..w).map(|x| x * fw / w.max(1)).collect();
+                for y in 0..h {
+                    let row = &px[(y * fh / h.max(1)) * fw..][..fw];
+                    let out = &mut b.img.pixels[y * w..][..w];
+                    for (o, &sx) in out.iter_mut().zip(&xs) {
+                        *o = row[sx];
+                    }
+                }
+                b.invalidate_display();
+            });
+        }),
+        _ => false,
+    })
+    .unwrap_or(false)
+}
+
 /// The events the runtime looks for ([`look`]).
 pub fn look_events() -> &'static [&'static str] {
     &super::comport::EVENTS

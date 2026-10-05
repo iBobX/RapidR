@@ -97,8 +97,9 @@ function runCodegen(name, src, input) {
   const rr = join(dir, `${name}.rr`);
   copyFileSync(src, rr);
   // Files cases build in with $RESOURCE, next to the copy as next to the case.
-  // (resource_files: files a case lists; picture_files: pictures it loads)
-  for (const folder of ["resource_files", "picture_files"]) {
+  // (resource_files: files a case lists; picture_files: pictures it loads;
+  // video_files: QVIDEO's clips)
+  for (const folder of ["resource_files", "picture_files", "video_files"]) {
     const resources = join(CASES, folder);
     if (existsSync(resources)) cpSync(resources, join(dir, folder), { recursive: true });
   }

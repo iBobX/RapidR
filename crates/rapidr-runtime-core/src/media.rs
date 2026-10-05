@@ -7,7 +7,8 @@
 //!   GS Wavetable Synth: what MCI's sequencer played on). A thread sends
 //!   the messages at their times; Volume scales the notes' velocities.
 //!   No output port (macOS and Linux have no synthesizer of their own):
-//!   silent, the object playing by the clock all the same.
+//!   RapidR's built-in one (`objects::synth`, procedural General MIDI
+//!   instruments, no SoundFont) plays it on the sound device instead.
 //! - **QWAVE** plays through QDXSOUND's device (sound.rs, rodio) and
 //!   records from the default input through cpal (rodio's).
 //!
@@ -16,12 +17,19 @@
 //! scripted input (`tone:440`, or empty: none) instead of a microphone;
 //! the GUI tests have no sound device at all (sound.rs).
 
+#[cfg(feature = "audio")]
 use std::collections::HashMap;
+#[cfg(feature = "audio")]
 use std::rc::Rc;
+#[cfg(feature = "audio")]
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+#[cfg(feature = "audio")]
 use std::sync::{Arc, Mutex};
 
-use rapidr_value::objects::media::{self, MidiDevice, WaveInput};
+use rapidr_value::objects::media;
+#[cfg(feature = "audio")]
+use rapidr_value::objects::media::{MidiDevice, WaveInput};
+#[cfg(feature = "audio")]
 use rapidr_value::objects::midifile::Song;
 
 /// Installs the media devices, once (the first QMIDI or QWAVE made).
@@ -63,9 +71,19 @@ thread_local! {
     static PLAYING: std::cell::RefCell<HashMap<String, Playing>> = std::cell::RefCell::new(HashMap::new());
 }
 
+/// Whether the system has a MIDI output to play songs on.
+#[cfg(feature = "audio")]
+fn has_midi_output() -> bool {
+    midir::MidiOutput::new("RapidR").is_ok_and(|o| o.port_count() > 0)
+}
+
 #[cfg(feature = "audio")]
 fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
     midi_stop(id);
+    if !has_midi_output() {
+        synth_play(id, &song, from_us, gain);
+        return;
+    }
     let stop = Arc::new(AtomicBool::new(false));
     let g = Arc::new(AtomicU32::new((gain.clamp(0.0, 1.0) * 1000.0) as u32));
     let events: Vec<(u64, Vec<u8>)> = song.events.iter().filter(|e| e.at_us >= from_us).map(|e| (e.at_us - from_us, e.bytes.clone())).collect();
@@ -112,6 +130,7 @@ fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
 fn midi_stop(id: &str) {
     if let Some(p) = PLAYING.with(|p| p.borrow_mut().remove(id)) {
         p.stop.store(true, Ordering::Relaxed);
+        crate::sound::stop_source(&synth_id(id));
     }
 }
 
@@ -122,6 +141,80 @@ fn midi_volume(id: &str, gain: f32) {
             p.gain.store((gain.clamp(0.0, 1.0) * 1000.0) as u32, Ordering::Relaxed);
         }
     });
+}
+
+// ------------------------------------------------- built-in synthesizer --
+
+/// The sound device's id for QMIDI `id`'s synthesizer.
+#[cfg(feature = "audio")]
+fn synth_id(id: &str) -> String {
+    format!("{id}.synth")
+}
+
+/// The built-in synthesizer's output rate.
+#[cfg(feature = "audio")]
+const SYNTH_RATE: u32 = 44100;
+
+/// QMIDI's song on the built-in synthesizer, rendered as the sound device
+/// asks for it (rodio's thread).
+#[cfg(feature = "audio")]
+struct SynthSource {
+    player: rapidr_value::objects::synth::Player,
+    gain: Arc<AtomicU32>,
+    applied: u32,
+    buf: Vec<f32>,
+    at: usize,
+    playing: bool,
+}
+
+#[cfg(feature = "audio")]
+impl Iterator for SynthSource {
+    type Item = f32;
+    fn next(&mut self) -> Option<f32> {
+        if self.at >= self.buf.len() {
+            if !self.playing {
+                return None;
+            }
+            let g = self.gain.load(Ordering::Relaxed);
+            if g != self.applied {
+                self.applied = g;
+                self.player.set_gain(g as f32 / 1000.0);
+            }
+            self.playing = self.player.render(&mut self.buf);
+            self.at = 0;
+        }
+        self.at += 1;
+        Some(self.buf[self.at - 1])
+    }
+}
+
+#[cfg(feature = "audio")]
+impl rodio::Source for SynthSource {
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+    fn channels(&self) -> u16 {
+        2
+    }
+    fn sample_rate(&self) -> u32 {
+        SYNTH_RATE
+    }
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        None
+    }
+}
+
+#[cfg(feature = "audio")]
+fn synth_play(id: &str, song: &Song, from_us: u64, gain: f32) {
+    let events = song.events.iter().map(|e| (e.at_us, e.bytes.clone())).collect();
+    let applied = (gain.clamp(0.0, 1.0) * 1000.0) as u32;
+    let g = Arc::new(AtomicU32::new(applied));
+    let player = rapidr_value::objects::synth::Player::new(events, SYNTH_RATE, from_us, gain.clamp(0.0, 1.0));
+    // (about 12 ms a block)
+    let source = SynthSource { player, gain: g.clone(), applied, buf: vec![0.0; 1024], at: 1024, playing: true };
+    if crate::sound::play_source(&synth_id(id), source) {
+        PLAYING.with(|p| p.borrow_mut().insert(id.to_string(), Playing { stop: Arc::new(AtomicBool::new(false)), gain: g }));
+    }
 }
 
 // ----------------------------------------------------------- microphone --

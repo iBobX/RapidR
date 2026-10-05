@@ -36,7 +36,7 @@ await page.waitForFunction(() => document.getElementById("status")?.textContent?
 
 // The cases' `$RESOURCE` files are the project's assets, as a user adds them
 // in the IDE (found by their last path part).
-const assets = ["resource_files", "picture_files"].map((d) => join(CASES, d)).filter((d) => existsSync(d)).flatMap((RES) => readdirSync(RES).filter((f) => statSync(join(RES, f)).isFile()).map((f) => ({
+const assets = ["resource_files", "picture_files", "video_files"].map((d) => join(CASES, d)).filter((d) => existsSync(d)).flatMap((RES) => readdirSync(RES).filter((f) => statSync(join(RES, f)).isFile()).map((f) => ({
   name: f, mime: "application/octet-stream", dataUrl: "data:application/octet-stream;base64," + readFileSync(join(RES, f)).toString("base64"),
 })));
 await page.evaluate((a) => { window.RapidR.state.project.assets = a; }, assets);

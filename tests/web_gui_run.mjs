@@ -12,9 +12,10 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 
-// The fixtures' files ($RESOURCE, pictures) are the project's assets.
+// The fixtures' files ($RESOURCE, pictures; QVIDEO's clips in
+// fixtures/video) are the project's assets.
 function fixtureAssets() {
-  const assetDirs = [join(HERE, "fixtures"), join(HERE, "conformance/cases/resource_files")];
+  const assetDirs = [join(HERE, "fixtures"), join(HERE, "fixtures/video"), join(HERE, "conformance/cases/resource_files")];
   const assets = [];
   for (const dir of assetDirs) {
     for (const f of readdirSync(dir)) {

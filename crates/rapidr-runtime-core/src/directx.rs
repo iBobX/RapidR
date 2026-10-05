@@ -94,6 +94,10 @@ pub fn timer_fired(name: &str) -> bool {
     if rapidr_value::objects::rqlib::exists(name) {
         return crate::io::look(name);
     }
+    // (a QVIDEO's frames: shown, no OnTimer)
+    if crate::io::frames_tick(name) {
+        return false;
+    }
     if !is_dx_timer(name) {
         return true;
     }
