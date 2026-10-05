@@ -31,7 +31,7 @@ fn text_system(system_fonts: bool) -> TextSystem {
     for data in rapidr_value::objects::text::BUILTIN_FONTS {
         font_cx.collection.register_fonts(Blob::new(Arc::new(data)), None);
     }
-    TextSystem { font_cx, layout_cx: parley::LayoutContext::new() }
+    TextSystem { font_cx, layout_cx: parley::LayoutContext::new(), generation: 0 }
 }
 
 fn main() {
