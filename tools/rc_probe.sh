@@ -3,15 +3,30 @@
 # from the Mac: the .bas files in <dir> compiled by RC.EXE in the Parallels
 # Windows VM, and the console ones run — tools/windows/rc_probe.ps1 run there.
 #
-#   tools/rc_probe.sh <dir> [timeout seconds]
+#   tools/rc_probe.sh [-s sub] [-l list] [-e] <dir> [timeout seconds]
 #
 # <dir> must be under your home folder: the VM sees it through Parallels'
 # shared folders as \\Mac\Home\…, as it sees RapidQ's folder
 # (RAPIDQ_DIR, default ~/Downloads/Rapidq) and this repository.
+# -s: the VM folder the programs run in, %USERPROFILE%\rq\<sub> (default t;
+#     give each user of the VM its own). -l: a file (under your home too)
+#     naming the programs to run, relative to <dir> — the whole <dir> is
+#     copied, each program runs in its own folder. -e: each program's output
+#     as one base64 line (exact bytes; tools/rapidq_truth.py reads it).
 # RAPIDR_VM names the VM (default "Windows 11 Pro"); a paused or suspended
 # VM is resumed first (it pauses itself when idle).
 set -u
-dir=$(cd "${1:?usage: tools/rc_probe.sh <dir with .bas files> [timeout]}" && pwd -P)
+sub=t; list=; encode=
+while getopts "s:l:e" opt; do
+  case "$opt" in
+    s) sub=$OPTARG ;;
+    l) list=$OPTARG ;;
+    e) encode=1 ;;
+    *) echo "usage: tools/rc_probe.sh [-s sub] [-l list] [-e] <dir> [timeout]" >&2; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+dir=$(cd "${1:?usage: tools/rc_probe.sh [-s sub] [-l list] [-e] <dir with .bas files> [timeout]}" && pwd -P)
 timeout=${2:-10}
 vm=${RAPIDR_VM:-Windows 11 Pro}
 rapidq=$(cd "${RAPIDQ_DIR:-$HOME/Downloads/Rapidq}" && pwd -P)
@@ -29,5 +44,12 @@ case "$state" in
   running) ;;
   *) echo "VM \"$vm\": ${state:-not found}" >&2; exit 1 ;;
 esac
+extra=()
+if [ -n "$list" ]; then
+  list=$(cd "$(dirname "$list")" && pwd -P)/$(basename "$list")
+  extra+=(-List "$(unc "$list")")
+fi
+[ -n "$encode" ] && extra+=(-Encode)
+# (stdin from /dev/null: prlctl exec without one fails with "Invalid argument")
 prlctl exec "$vm" --current-user powershell -NoProfile -ExecutionPolicy Bypass -File "$(unc "$here/windows/rc_probe.ps1")" \
-  -Programs "$(unc "$dir")" -RapidQ "$(unc "$rapidq")" -Timeout "$timeout" | tr -d '\r'
+  -Programs "$(unc "$dir")" -RapidQ "$(unc "$rapidq")" -Sub "$sub" -Timeout "$timeout" ${extra[@]+"${extra[@]}"} < /dev/null | tr -d '\r'
