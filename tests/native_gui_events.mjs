@@ -62,6 +62,8 @@
 //   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
 //   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
+//   * tests/fixtures/d3d_scene.bas — Direct3D: frames, faces, lights, the camera, Render (the software rasterizer), Move, CameraLookAt.
+//   * tests/fixtures/d3d_xfile.bas — Direct3D: a .X model (frame matrix, materials, a texture on one face), SetRGB, SetTexture.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)

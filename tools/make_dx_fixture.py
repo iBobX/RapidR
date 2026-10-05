@@ -13,6 +13,10 @@ test needs none of RapidQ's example files.
 Also tests/fixtures/dx_beep.wav for tests/fixtures/dx_sound.bas: half a
 second of a 500 Hz square wave, 8-bit mono at 8000 Hz (4000 bytes of sound).
 
+And tests/fixtures/d3d_tex.bmp, the texture tests/fixtures/d3d_model.x
+names (for tests/fixtures/d3d_xfile.bas): 2 x 2, 24-bit, the left column
+blue, the right one yellow.
+
 Usage (repo root): python3 tools/make_dx_fixture.py
 """
 import os
@@ -64,6 +68,13 @@ def main():
     wav = b"WAVEfmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(sound)) + sound
     with open(os.path.join(root, "tests", "fixtures", "dx_beep.wav"), "wb") as f:
         f.write(b"RIFF" + struct.pack("<I", len(wav)) + wav)
+    # A 24-bit BMP: rows bottom-up, B, G, R, each row padded to 4 bytes.
+    row = bytes((255, 0, 0)) + bytes((0, 255, 255)) + b"\0\0"
+    bits = row * 2
+    info = struct.pack("<IiiHHIIiiII", 40, 2, 2, 1, 24, 0, len(bits), 2835, 2835, 0, 0)
+    bmp = b"BM" + struct.pack("<IHHI", 14 + len(info) + len(bits), 0, 0, 14 + len(info)) + info + bits
+    with open(os.path.join(root, "tests", "fixtures", "d3d_tex.bmp"), "wb") as f:
+        f.write(bmp)
 
 
 if __name__ == "__main__":

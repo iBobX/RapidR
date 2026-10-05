@@ -1703,6 +1703,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RJSON",
     // RapidQ's DirectX 2D objects (rapidr_value::objects::directx)
     "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND",
+    // (and Direct3D's: rapidr_value::objects::d3d)
+    "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR",
     // RapidQ's non-visual objects (rapidr_value::objects)
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
     // Web-exclusive components
@@ -1734,8 +1736,7 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",
-    "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE",
-    "QD3DVECTOR", "QD3DVISUAL", "QD3DWRAP", "QDIGDISPLAY", "QDIRLISTVIEW",
+    "QDIGDISPLAY", "QDIRLISTVIEW",
     "QDOCKFORM", "QDOWNLOAD",
 "QGLASSFRAME", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
     "QRECT", "QVIDEO", "QWAVE",
