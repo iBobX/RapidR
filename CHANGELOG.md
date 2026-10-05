@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.116.0] — 2026-10-05
+
 ### Added
 - **Themes for the UI kernel's look**, beside RapidQ's classic one (still
   the default, byte for byte): `modern` (flat, Windows 11-like: rounded
