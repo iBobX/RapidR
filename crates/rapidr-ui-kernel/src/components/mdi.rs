@@ -11,6 +11,10 @@
 //! button, a press that raises it, a drag by the title bar or the
 //! bottom-right corner), which runtime-core applies after the pump with
 //! the program's events (OnChildActive, OnChildClose …).
+//!
+//! In a fluent theme: a thin frame (the accent's while active), the title
+//! bar in the theme's caption colours, its buttons' glyphs drawn as thin
+//! lines with no bevels.
 
 use std::cell::RefCell;
 
@@ -22,14 +26,11 @@ use rapidr_value::objects::ops::Place;
 use super::form::Container;
 use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
 use crate::input::KernelEvent;
-use crate::paint::{Painter, DARK, FACE, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, Store};
 
 pub struct ChildFrame;
 
-/// The title bar's colours (COLOR_ACTIVECAPTION, COLOR_INACTIVECAPTION).
-const ACTIVE: u32 = 0x0A246A;
-const INACTIVE: u32 = 0x808080;
 /// The bottom-right corner that resizes it.
 const GRIP: i64 = 12;
 
@@ -72,9 +73,27 @@ fn button_rect(w: i64, slot: i64) -> (i64, i64, i64, i64) {
     (w - BORDER - (slot + 1) * (TITLE_HEIGHT - 2) + 1, BORDER + 2, TITLE_HEIGHT - 5, TITLE_HEIGHT - 6)
 }
 
-fn glyph(p: &mut Painter, slot: i64, (x, y, w, h): (i64, i64, i64, i64), maximized: bool) {
-    let black = 0x000000;
+fn glyph(p: &mut Painter, slot: i64, (x, y, w, h): (i64, i64, i64, i64), maximized: bool, black: u32) {
+    let t = p.theme();
     let (cx, cy) = (x + w / 2, y + h / 2);
+    if t.fluent() {
+        // (thin lines, as Windows 11's caption buttons)
+        let (fx, fy) = (cx as f64, cy as f64);
+        match slot {
+            0 => {
+                p.stroke(&[(fx - 4.0, fy - 4.0), (fx + 4.0, fy + 4.0)], black, 1.0);
+                p.stroke(&[(fx - 4.0, fy + 4.0), (fx + 4.0, fy - 4.0)], black, 1.0);
+            }
+            1 if maximized => {
+                p.ring((cx - 4, cy - 2, 7, 7), 1.0, black, 1.0);
+                p.stroke(&[(fx - 1.5, fy - 3.5), (fx + 4.5, fy - 3.5), (fx + 4.5, fy + 2.5)], black, 1.0);
+            }
+            1 => p.ring((cx - 4, cy - 4, 9, 9), 1.5, black, 1.0),
+            _ => p.fill((cx - 4, cy, 9, 1), black),
+        }
+        return;
+    }
+    let face = t.face;
     match slot {
         // ×: two lines, two pixels thick
         0 => {
@@ -87,7 +106,7 @@ fn glyph(p: &mut Painter, slot: i64, (x, y, w, h): (i64, i64, i64, i64), maximiz
         1 if maximized => {
             // restore: two windows, the back one up and right
             for (bx, by) in [(cx - 2, cy - 5), (cx - 5, cy - 2)] {
-                p.fill((bx, by, 7, 7), FACE);
+                p.fill((bx, by, 7, 7), face);
                 p.edge((bx, by, 7, 7), &[black], &[black]);
                 p.fill((bx, by + 1, 7, 1), black);
             }
@@ -113,23 +132,36 @@ impl ComponentKind for ChildFrame {
         let (w, h) = (cx.width(), cx.height());
         let active = store::flag(cx.store, cx.id, "active", false);
         let maximized = store::int(cx.store, cx.id, "childstate", 0) == 2;
-        p.fill((0, 0, w, h), FACE);
-        // (a window's raised border)
-        p.edge((0, 0, w, h), &[FACE, LIGHT], &[DARK, SHADOW]);
+        let t = p.theme();
         let (bx, by, bw, bh) = title_bar(w);
-        p.fill((bx, by, bw, bh), if active { ACTIVE } else { INACTIVE });
+        let (bar, ink) = if active { (t.caption, t.caption_text) } else { (t.inactive_caption, t.inactive_caption_text) };
+        if t.fluent() {
+            p.fill((0, 0, w, h), t.face);
+            p.frame((0, 0, w, h), if active { t.caption } else { t.border });
+            // (the title bar reaches the frame)
+            p.fill((1, 1, w - 2, bh + BORDER - 1), bar);
+        } else {
+            p.fill((0, 0, w, h), t.face);
+            // (a window's raised border)
+            p.raised_edge((0, 0, w, h));
+            p.fill((bx, by, bw, bh), bar);
+        }
         let title = store::string(cx.store, cx.id, "caption");
-        let font = Font { styles: cx.font.styles | 1, color: 0xFFFFFF, ..cx.font.clone() };
+        let font = Font { styles: cx.font.styles | 1, color: rapidr_value::theme::bgr(ink) as i64, ..cx.font.clone() };
         let room = (bw - 3 * (TITLE_HEIGHT - 2) - 6).max(0);
-        p.clipped((bx + 2, by, room, bh), |p| p.text((bx + 3, by, room, bh), &title, &font, 0xFFFFFF, Place::Left));
+        p.clipped((bx + 2, by, room, bh), |p| p.text((bx + 3, by, room, bh), &title, &font, ink, Place::Left));
         for slot in 0..3 {
             let r = button_rect(w, slot);
             if r.0 <= bx {
                 continue;
             }
-            p.fill(r, FACE);
-            p.edge(r, &[LIGHT, FACE], &[DARK, SHADOW]);
-            glyph(p, slot, r, maximized);
+            if t.fluent() {
+                glyph(p, slot, r, maximized, ink);
+                continue;
+            }
+            p.fill(r, t.face);
+            p.edge(r, &[t.light, t.face], &[t.dark_shadow, t.shadow]);
+            glyph(p, slot, r, maximized, t.text);
         }
     }
 

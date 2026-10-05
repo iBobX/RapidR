@@ -27,12 +27,8 @@ use super::list::{act, background, bar_mouse, bar_tick, begin_edit, drop_editor,
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{Painter, FACE, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, SHADOW};
+use crate::paint::{ink, Painter};
 use crate::store::{self, Store};
-use crate::text::bgr_to_rgb;
-
-/// The lines' grey (Windows draws them dotted, every other pixel).
-const LINES: u32 = 0xA0A0A0;
 
 thread_local! {
     /// (the input lane's) A click on the selected node of a focused tree:
@@ -79,19 +75,39 @@ fn text_left(cx: &Cx, row: &Row) -> i64 {
 
 /// A vertical dotted line at x from y0 to y1 (both included), and a
 /// horizontal one: Windows' tree lines (every other pixel, on even sums).
+// (the lines: the theme's, dotted every other pixel as Windows draws them)
 fn dotted_v(p: &mut Painter, x: i64, y0: i64, y1: i64) {
+    let lines = p.theme().lines;
     let mut y = y0 + (x + y0).rem_euclid(2);
     while y <= y1 {
-        p.fill((x, y, 1, 1), LINES);
+        p.fill((x, y, 1, 1), lines);
         y += 2;
     }
 }
 
 fn dotted_h(p: &mut Painter, x0: i64, x1: i64, y: i64) {
+    let lines = p.theme().lines;
     let mut x = x0 + (x0 + y).rem_euclid(2);
     while x <= x1 {
-        p.fill((x, y, 1, 1), LINES);
+        p.fill((x, y, 1, 1), lines);
         x += 2;
+    }
+}
+
+/// A node's expand / collapse button centred on (c, mid): Windows' boxed
+/// plus and minus (classic); a fluent theme's chevron (down: expanded).
+pub fn expander(p: &mut Painter, c: i64, mid: i64, side: i64, expanded: bool) {
+    let t = p.theme();
+    if t.fluent() {
+        p.chevron(c as f64 + 0.5, mid as f64 + 0.5, 7.0, expanded, t.border_strong);
+        return;
+    }
+    let (bx, by) = (c - side / 2, mid - side / 2);
+    p.fill((bx, by, side, side), t.window);
+    p.frame((bx, by, side, side), t.shadow);
+    p.fill((bx + 2, mid, side - 4, 1), t.text);
+    if !expanded {
+        p.fill((c, by + 2, 1, side - 4), t.text);
     }
 }
 
@@ -167,7 +183,8 @@ impl ComponentKind for Tree {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
-        sunken(p, w, h, background(cx));
+        let back = background(cx);
+        sunken(p, w, h, back);
         let Some((count, top_row, hide)) = with_tree(cx.id, |t| {
             let rows = t.visible_rows();
             let top = rows.iter().position(|&r| r as i64 >= t.top_index).unwrap_or(0) as i64;
@@ -200,13 +217,7 @@ impl ComponentKind for Tree {
                         }
                     }
                     if let (Some(c), Some(expanded)) = (row.center, row.button) {
-                        let (bx, by) = (c - BUTTON / 2, mid - BUTTON / 2);
-                        p.fill((bx, by, BUTTON, BUTTON), 0xFFFFFF);
-                        p.edge((bx, by, BUTTON, BUTTON), &[SHADOW], &[SHADOW]);
-                        p.fill((bx + 2, mid, BUTTON - 4, 1), 0x000000);
-                        if !expanded {
-                            p.fill((c, by + 2, 1, BUTTON - 4), 0x000000);
-                        }
+                        expander(p, c, mid, BUTTON, expanded);
                     }
                     let mut x = row.left;
                     if let Some((pic, iw, ih)) = icon(cx, row.node, row.selected) {
@@ -219,15 +230,20 @@ impl ComponentKind for Tree {
                     // (the selection: blue with the focus, grey without; none
                     // without the focus and with HideSelection)
                     let shown = row.selected && (focused || !hide);
+                    let t = p.theme();
                     let color = if !enabled {
-                        GRAY_TEXT
+                        t.gray_text
                     } else if shown && focused {
-                        HIGHLIGHT_TEXT
+                        t.highlight_text
                     } else {
-                        bgr_to_rgb(font.color)
+                        ink(cx.store, cx.id, &font, true, if shown { t.unfocused } else { back })
                     };
                     if shown {
-                        p.fill(tr, if focused { HIGHLIGHT } else { FACE });
+                        if t.fluent() {
+                            p.round(tr, 2.0, Some(if focused { t.highlight } else { t.unfocused }), None, 1.0);
+                        } else {
+                            p.fill(tr, if focused { t.highlight } else { t.unfocused });
+                        }
                     }
                     p.text((x + 2, row.top, tw + 2, row.height), &text, &font, color, Place::Left);
                     if shown && focused {

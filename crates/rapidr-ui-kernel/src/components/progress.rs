@@ -9,6 +9,9 @@
 //! - RPROGRESS (RapidR's): Windows' classic progress bar — a thin sunken
 //!   frame, blocks in the highlight colour (Smooth: one bar).
 //!
+//! A fluent theme draws both rounded: the accent done (a QGAUGE whose
+//! colours the program didn't set), on a quiet track.
+//!
 //! Neither takes the focus or the mouse.
 
 use rapidr_value::objects::a11y::AccessNode;
@@ -16,7 +19,7 @@ use rapidr_value::objects::ops::{Op, Place};
 
 use super::radio::oval;
 use super::{ComponentKind, Cx};
-use crate::paint::{Painter, FACE, HIGHLIGHT, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
 
@@ -42,17 +45,47 @@ impl Progress {
     /// QGAUGE (TGauge's look).
     fn gauge(cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        let back = bgr_to_rgb(store::int(cx.store, cx.id, "backcolor", 0xFFFFFF));
-        let fore = bgr_to_rgb(store::int(cx.store, cx.id, "forecolor", 0));
+        let t = p.theme();
+        // (BackColor / ForeColor the program didn't set: the theme's — white
+        // and black in the classic look, a track and the accent otherwise)
+        let set = |prop: &str| store::int(cx.store, cx.id, prop, -1);
+        let back = match set("backcolor") {
+            -1 if t.fluent() => t.unfocused,
+            -1 => t.window,
+            c => bgr_to_rgb(c),
+        };
+        let fore = match set("forecolor") {
+            -1 if t.fluent() => t.accent,
+            -1 => t.text,
+            c => bgr_to_rgb(c),
+        };
         let pct = percent(cx.store, cx.id);
         let mut r = (0, 0, w, h);
+        let kind = store::int(cx.store, cx.id, "kind", 1);
+        let bordered = store::int(cx.store, cx.id, "borderstyle", 1) != 0;
+        if t.fluent() && matches!(kind, 1 | 2) {
+            // (rounded: the track, the part done over it, a thin border)
+            let radius = t.radius.min((w.min(h) / 2) as f64);
+            p.round(r, radius, Some(back), bordered.then_some(t.border), 1.0);
+            let done = if kind == 1 { (0, 0, w * pct / 100, h) } else { (0, h - h * pct / 100, w, h * pct / 100) };
+            p.round(done, radius, Some(fore), None, 1.0);
+            if store::flag(cx.store, cx.id, "showtext", true) {
+                let text = format!("{pct}%");
+                let ink = t.text_on(back);
+                p.text(r, &text, &cx.font, ink, Place::Center);
+                if done.2 > 0 && done.3 > 0 {
+                    let over = t.text_on(fore);
+                    p.clipped(done, |p| p.text(r, &text, &cx.font, over, Place::Center));
+                }
+            }
+            return;
+        }
         p.fill(r, back);
-        if store::int(cx.store, cx.id, "borderstyle", 1) != 0 {
-            p.edge(r, &[0x000000], &[0x000000]);
+        if bordered {
+            p.frame(r, if t.fluent() { t.border } else { t.frame });
             r = (1, 1, w - 2, h - 2);
         }
         let (x, y, iw, ih) = r;
-        let kind = store::int(cx.store, cx.id, "kind", 1);
         // (the done part, where the text is drawn in BackColor)
         let mut done = None;
         match kind {
@@ -71,7 +104,7 @@ impl Progress {
                 p.shape(oval(cxp, cyp, rx, ry, 0.0, 360.0, back));
                 let mut outline = oval(cxp, cyp, rx, ry, 0.0, 360.0, 0);
                 outline.fill = None;
-                outline.stroke = Some(0x000000);
+                outline.stroke = Some(t.frame);
                 p.shape(outline);
                 if pct > 0 {
                     // (clockwise from twelve o'clock)
@@ -82,7 +115,7 @@ impl Progress {
                 // (a half circle, its needle from the bottom middle)
                 let (cxp, cyp, rx, ry) = (x as f64 + (iw - 1) as f64 / 2.0, (y + ih - 1) as f64, (iw - 1) as f64 / 2.0, (ih - 1) as f64);
                 let mut arc = oval(cxp, cyp, rx, ry, 0.0, 180.0, back);
-                arc.stroke = Some(0x000000);
+                arc.stroke = Some(t.frame);
                 p.shape(arc);
                 let a = (180.0 - 180.0 * pct as f64 / 100.0).to_radians();
                 p.op(Op::Line { from: (cxp + 0.5, cyp + 0.5), to: (cxp + 0.5 + rx * a.cos(), cyp + 0.5 - ry * a.sin()), color: fore });
@@ -101,22 +134,31 @@ impl Progress {
     /// RPROGRESS (Windows' classic progress bar).
     fn bar(cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        p.fill((0, 0, w, h), FACE);
-        p.edge((0, 0, w, h), &[SHADOW], &[LIGHT]);
+        let t = p.theme();
+        if t.fluent() {
+            // (rounded and smooth: the accent done on a quiet track)
+            let radius = t.radius.min((h / 2) as f64);
+            p.round((0, 0, w, h), radius, Some(t.unfocused), Some(t.border), 1.0);
+            let done = w * percent(cx.store, cx.id) / 100;
+            p.round((0, 0, done, h), radius, Some(t.accent), None, 1.0);
+            return;
+        }
+        p.fill((0, 0, w, h), t.face);
+        p.thin_sunken((0, 0, w, h));
         let (iw, ih) = (w - 4, h - 4);
         if iw <= 0 || ih <= 0 {
             return;
         }
         let done = iw * percent(cx.store, cx.id) / 100;
         if store::flag(cx.store, cx.id, "smooth", false) {
-            p.fill((2, 2, done, ih), HIGHLIGHT);
+            p.fill((2, 2, done, ih), t.highlight);
             return;
         }
         // (blocks two thirds of the height wide, two pixels apart)
         let block = (ih * 2 / 3).max(2);
         let mut x = 0;
         while x < done {
-            p.fill((2 + x, 2, block.min(iw - x), ih), HIGHLIGHT);
+            p.fill((2 + x, 2, block.min(iw - x), ih), t.highlight);
             x += block + 2;
         }
     }

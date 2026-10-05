@@ -31,12 +31,6 @@ const MIN_THUMB: i64 = 8;
 /// Largest range kept (a component far away can't make it overflow).
 const MAX_RANGE: i64 = 1 << 30;
 
-const LIGHT: u32 = 0xFFFFFF;
-const SHADOW: u32 = 0x808080;
-const DARK: u32 = 0x404040;
-const FACE: u32 = 0xF0F0F0;
-const TRACK: u32 = 0xE6E6E6;
-const PRESSED_TRACK: u32 = 0x9A9A9A;
 
 #[derive(Clone, Debug)]
 pub struct Axis {
@@ -209,8 +203,8 @@ impl Scroller {
         if vertical { (0, d) } else { (d, 0) }
     }
 
-    /// A bar's rectangle, if it shows.
-    fn bar(&self, vertical: bool, w: i64, h: i64) -> Option<Rect> {
+    /// A bar's rectangle, if it shows (a theme drawing its own bars).
+    pub fn bar(&self, vertical: bool, w: i64, h: i64) -> Option<Rect> {
         let (cw, ch) = self.client(w, h);
         if vertical {
             self.vert.shown.then_some((cw, 0, BAR, ch))
@@ -220,7 +214,7 @@ impl Scroller {
     }
 
     /// The thumb's start and length along a bar `len` long (None: no room).
-    fn thumb(&self, vertical: bool, len: i64, w: i64, h: i64) -> Option<(i64, i64)> {
+    pub fn thumb(&self, vertical: bool, len: i64, w: i64, h: i64) -> Option<(i64, i64)> {
         let track = len - 2 * BAR;
         if track < MIN_THUMB {
             return None;
@@ -360,26 +354,29 @@ impl Scroller {
     }
 
     /// What to draw: the bars (and the corner between them) of a `w` × `h`
-    /// area, in its coordinates.
+    /// area, in its coordinates — Windows' classic bars in the current
+    /// theme's colours (`crate::theme`; a fluent theme draws its own thin
+    /// ones from [`Scroller::bar`] and [`Scroller::thumb`]).
     pub fn ops(&self, w: i64, h: i64) -> Vec<Op> {
+        let th = crate::theme::current();
         let mut out = Vec::new();
         let (cw, ch) = self.client(w, h);
         if self.vert.shown && self.horz.shown {
-            out.push(Op::Fill { rect: (cw, ch, BAR, BAR), color: FACE });
+            out.push(Op::Fill { rect: (cw, ch, BAR, BAR), color: th.face });
         }
         for vertical in [false, true] {
             let Some((bx, by, bw, bh)) = self.bar(vertical, w, h) else { continue };
             let pressed = |p: Part| self.pressed == Some((vertical, p));
-            out.push(Op::Fill { rect: (bx, by, bw, bh), color: TRACK });
+            out.push(Op::Fill { rect: (bx, by, bw, bh), color: th.track });
             let len = if vertical { bh } else { bw };
             let at = |along: i64, size: i64| if vertical { (bx, by + along, BAR, size) } else { (bx + along, by, size, BAR) };
             // the page parts held down show darker
             if let Some((t, s)) = self.thumb(vertical, len, w, h) {
                 if pressed(Part::PageBack) {
-                    out.push(Op::Fill { rect: at(BAR, t - BAR), color: PRESSED_TRACK });
+                    out.push(Op::Fill { rect: at(BAR, t - BAR), color: th.track_pressed });
                 }
                 if pressed(Part::PageForward) {
-                    out.push(Op::Fill { rect: at(t + s, len - BAR - t - s), color: PRESSED_TRACK });
+                    out.push(Op::Fill { rect: at(t + s, len - BAR - t - s), color: th.track_pressed });
                 }
                 button(&mut out, at(t, s), false);
             }
@@ -396,7 +393,7 @@ impl Scroller {
                     (true, false) => [(cx - s, cy + s / 2.0), (cx + s, cy + s / 2.0), (cx, cy - s / 2.0 - 1.0)],
                     (true, true) => [(cx - s, cy - s / 2.0), (cx + s, cy - s / 2.0), (cx, cy + s / 2.0 + 1.0)],
                 };
-                out.push(Op::Arrow { points, color: 0x000000 });
+                out.push(Op::Arrow { points, color: th.text });
             }
         }
         out
@@ -467,22 +464,24 @@ fn button(out: &mut Vec<Op>, r: Rect, pushed: bool) {
     if w <= 0 || h <= 0 {
         return;
     }
-    out.push(Op::Fill { rect: r, color: FACE });
+    let th = crate::theme::current();
+    let (face, light, shadow, dark) = (th.face, th.light, th.shadow, th.dark_shadow);
+    out.push(Op::Fill { rect: r, color: face });
     if pushed {
-        for (rr, c) in [((x, y, w, 1), SHADOW), ((x, y, 1, h), SHADOW), ((x, y + h - 1, w, 1), SHADOW), ((x + w - 1, y, 1, h), SHADOW)] {
+        for (rr, c) in [((x, y, w, 1), shadow), ((x, y, 1, h), shadow), ((x, y + h - 1, w, 1), shadow), ((x + w - 1, y, 1, h), shadow)] {
             out.push(Op::Fill { rect: rr, color: c });
         }
         return;
     }
     for (rr, c) in [
-        ((x, y, w, 1), FACE),
-        ((x, y, 1, h), FACE),
-        ((x + 1, y + 1, w - 2, 1), LIGHT),
-        ((x + 1, y + 1, 1, h - 2), LIGHT),
-        ((x, y + h - 1, w, 1), DARK),
-        ((x + w - 1, y, 1, h), DARK),
-        ((x + 1, y + h - 2, w - 2, 1), SHADOW),
-        ((x + w - 2, y + 1, 1, h - 2), SHADOW),
+        ((x, y, w, 1), face),
+        ((x, y, 1, h), face),
+        ((x + 1, y + 1, w - 2, 1), light),
+        ((x + 1, y + 1, 1, h - 2), light),
+        ((x, y + h - 1, w, 1), dark),
+        ((x + w - 1, y, 1, h), dark),
+        ((x + 1, y + h - 2, w - 2, 1), shadow),
+        ((x + w - 2, y + 1, 1, h - 2), shadow),
     ] {
         if rr.2 > 0 && rr.3 > 0 {
             out.push(Op::Fill { rect: rr, color: c });

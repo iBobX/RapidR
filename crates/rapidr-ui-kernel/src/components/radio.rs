@@ -4,16 +4,17 @@
 //! a click (a press and a release on it), Space, Alt + its letter or a
 //! screen reader's click checks it and unchecks the others, then OnClick
 //! (the new Checked values go to the store first, through
-//! [`KernelEvent::Set`](crate::KernelEvent::Set)).
+//! [`KernelEvent::Set`](crate::KernelEvent::Set)). A fluent theme draws a
+//! smooth circle: the accent with a dot when checked.
 
 use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::trackbar::Shape;
 
-use super::check::{caption_right, checked};
+use super::check::{caption_right, checked, fluent_mark};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{Painter, DARK, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, Store};
 
 /// The well's diameter.
@@ -48,12 +49,13 @@ pub fn oval(cx: f64, cy: f64, rx: f64, ry: f64, from: f64, to: f64, color: u32) 
 /// The round well at (x, y): the rim's outer ring grey above / white below,
 /// its inner ring dark grey above / face below, `well` inside.
 pub fn round_well(p: &mut Painter, x: i64, y: i64, well: u32) {
+    let t = p.theme();
     let c = (x as f64 + 5.5, y as f64 + 5.5);
     // (the light from the top left: the split runs from bottom left to top right)
-    p.shape(disc(c.0, c.1, 5.5, 45.0, 225.0, SHADOW));
-    p.shape(disc(c.0, c.1, 5.5, 225.0, 405.0, LIGHT));
-    p.shape(disc(c.0, c.1, 4.5, 45.0, 225.0, DARK));
-    p.shape(disc(c.0, c.1, 4.5, 225.0, 405.0, FACE));
+    p.shape(disc(c.0, c.1, 5.5, 45.0, 225.0, t.shadow));
+    p.shape(disc(c.0, c.1, 5.5, 225.0, 405.0, t.light));
+    p.shape(disc(c.0, c.1, 4.5, 45.0, 225.0, t.dark_shadow));
+    p.shape(disc(c.0, c.1, 4.5, 225.0, 405.0, t.face));
     p.shape(disc(c.0, c.1, 3.5, 0.0, 360.0, well));
 }
 
@@ -89,10 +91,15 @@ impl ComponentKind for RadioButton {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let h = cx.height();
         let s = cx.state;
+        let t = p.theme();
         let y = (h - DIAMETER) / 2;
-        round_well(p, 0, y, if s.pressed || !s.enabled { FACE } else { LIGHT });
-        if checked(cx.store, cx.id) {
-            p.shape(disc(5.5, y as f64 + 5.5, 1.5, 0.0, 360.0, if s.enabled { 0x000000 } else { GRAY_TEXT }));
+        if t.fluent() {
+            fluent_mark(p, (0, y, DIAMETER), true, checked(cx.store, cx.id), s);
+        } else {
+            round_well(p, 0, y, if s.pressed || !s.enabled { t.face } else { t.window });
+            if checked(cx.store, cx.id) {
+                p.shape(disc(5.5, y as f64 + 5.5, 1.5, 0.0, 360.0, if s.enabled { t.text } else { t.gray_text }));
+            }
         }
         caption_right(cx, p, DIAMETER + 1);
     }

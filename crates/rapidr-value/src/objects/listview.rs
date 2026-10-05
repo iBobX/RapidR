@@ -57,18 +57,59 @@ const BAR: i64 = 17;
 const CHECK: i64 = 13;
 const CHECK_SLOT: i64 = 16;
 
-// Colors (&HBBGGRR, as RapidQ's).
+/// The colours a list view draws in (&HBBGGRR, as RapidQ's and its
+/// bitmap's): the current theme's (`crate::theme`).
+#[derive(Clone, Copy, Debug)]
+struct Colors {
+    window: u32,
+    highlight: u32,
+    highlight_text: u32,
+    inactive: u32,
+    hot: u32,
+    grid: u32,
+    border: u32,
+    bar_track: u32,
+    bar_thumb: u32,
+    bar_thumb_held: u32,
+    bar_arrow: u32,
+    check_ink: u32,
+    text: u32,
+}
+
+impl Colors {
+    fn now() -> Colors {
+        use crate::theme::bgr;
+        let t = crate::theme::current();
+        Colors {
+            window: bgr(t.window),
+            highlight: bgr(t.highlight),
+            highlight_text: bgr(t.highlight_text),
+            inactive: bgr(t.unfocused),
+            hot: bgr(t.view_hot),
+            grid: bgr(t.view_grid),
+            border: bgr(t.view_border),
+            // (the classic look's bars sit on the face; a fluent one's on its
+            // quiet track)
+            bar_track: bgr(if t.fluent() { t.track } else { t.face }),
+            bar_thumb: bgr(t.view_thumb),
+            bar_thumb_held: bgr(t.view_thumb_held),
+            bar_arrow: bgr(t.view_arrow),
+            check_ink: bgr(t.view_check),
+            text: bgr(t.text),
+        }
+    }
+}
+
+// (the classic look's, which the tests read back)
+#[cfg(test)]
 const WINDOW: u32 = 0xFFFFFF;
+#[cfg(test)]
 const HIGHLIGHT: u32 = 0xD77800;
-const HIGHLIGHT_TEXT: u32 = 0xFFFFFF;
+#[cfg(test)]
 const INACTIVE: u32 = 0xF0F0F0;
-const HOT: u32 = 0xFFF3E5;
-const GRID: u32 = 0xF0F0F0;
+#[cfg(test)]
 const BORDER: u32 = 0x908782;
-const BAR_TRACK: u32 = 0xF0F0F0;
-const BAR_THUMB: u32 = 0xCDCDCD;
-const BAR_THUMB_HELD: u32 = 0xA6A6A6;
-const BAR_ARROW: u32 = 0x606060;
+#[cfg(test)]
 const CHECK_INK: u32 = 0x333333;
 
 #[derive(Clone, Debug, Default)]
@@ -909,21 +950,27 @@ impl ListView {
         b.resize(w, h);
         b.fill_rect(0, 0, w, h, background);
         let font = self.view.font.clone();
-        let text = font.color as u32 & 0xFFFFFF;
+        let colors = Colors::now();
+        let c = colors;
+        // (a font the program didn't colour: the theme's text)
+        let text = match font.color as u32 & 0xFFFFFF {
+            0 => c.text,
+            ink => ink,
+        };
         let active = self.focused || !self.hide_selection;
         // Grid lines (report view): under the items, over the whole area.
         if self.grid_lines && self.view_style == VS_REPORT {
             let (sx, sy) = self.scroll;
             let mut y = l.view.1 - sy % l.row_h.max(1) + l.row_h - 1;
             while y < l.view.3 {
-                b.line(l.view.0, y, l.view.2 - 1, y, GRID);
+                b.line(l.view.0, y, l.view.2 - 1, y, c.grid);
                 y += l.row_h.max(1);
             }
             let mut x = l.view.0 - sx;
             for c in &self.columns {
                 x += c.width.max(0);
                 if x > l.view.0 && x <= l.view.2 {
-                    b.line(x - 1, l.view.1, x - 1, l.view.3 - 1, GRID);
+                    b.line(x - 1, l.view.1, x - 1, l.view.3 - 1, colors.grid);
                 }
             }
         }
@@ -935,15 +982,15 @@ impl ListView {
             let item = &self.items[i];
             let selected = item.selected && active;
             let fill = if !item.selected {
-                (self.hot_track && self.hot == Some(i)).then_some(HOT)
+                (self.hot_track && self.hot == Some(i)).then_some(c.hot)
             } else if !active {
                 None
             } else if self.focused {
-                Some(HIGHLIGHT)
+                Some(c.highlight)
             } else {
-                Some(INACTIVE)
+                Some(c.inactive)
             };
-            let ink = if selected && self.focused { HIGHLIGHT_TEXT } else { text };
+            let ink = if selected && self.focused { c.highlight_text } else { text };
             let whole_row = self.view_style == VS_REPORT && self.row_select;
             if let Some(fill) = fill {
                 let r = if whole_row { p.cell } else { p.label };
@@ -955,7 +1002,7 @@ impl ListView {
                 dotted(&mut b, r, text);
             }
             if let Some(r) = p.check {
-                check_box(&mut b, r, item.checked);
+                check_box(&mut b, r, item.checked, &c);
             }
             if let (Some(r), Some(img)) = (p.state, usize::try_from(item.state_index).ok().and_then(|k| images.state.get(k))) {
                 b.draw(r.0, r.1, img);
@@ -978,7 +1025,7 @@ impl ListView {
                     let cw = c.width.max(0);
                     if let Some(s) = item.sub_items.get(k - 1).filter(|s| !s.is_empty()) {
                         let s = fit(s, &font, cw - 12);
-                        let ink = if selected && whole_row && self.focused { HIGHLIGHT_TEXT } else { text };
+                        let ink = if selected && whole_row && self.focused { colors.highlight_text } else { text };
                         text_out(&mut b, x + 6, ty(0), &s, &font, ink, None);
                     }
                     x += cw;
@@ -994,13 +1041,13 @@ impl ListView {
         }
         for bar in [l.vbar, l.hbar].into_iter().flatten() {
             let held = matches!(self.drag, Some(Drag::Thumb { vertical, .. }) if vertical == bar.vertical);
-            scroll_bar(&mut b, &bar, held);
+            scroll_bar(&mut b, &bar, held, &c);
         }
         if let (Some(v), Some(hz)) = (l.vbar, l.hbar) {
-            b.fill_rect(v.rect.0, hz.rect.1, v.rect.2, hz.rect.3, BAR_TRACK);
+            b.fill_rect(v.rect.0, hz.rect.1, v.rect.2, hz.rect.3, c.bar_track);
         }
         if l.inset > 0 {
-            b.rectangle(0, 0, w, h, BORDER);
+            b.rectangle(0, 0, w, h, c.border);
         }
         b
     }
@@ -1371,30 +1418,31 @@ fn dotted(b: &mut Bitmap, (l, t, r, bot): Rect, c: u32) {
     }
 }
 
-fn check_box(b: &mut Bitmap, (l, t, r, bot): Rect, checked: bool) {
-    b.fill_rect(l, t, r, bot, WINDOW);
-    b.rectangle(l, t, r, bot, CHECK_INK);
+fn check_box(b: &mut Bitmap, (l, t, r, bot): Rect, checked: bool, c: &Colors) {
+    b.fill_rect(l, t, r, bot, c.window);
+    b.rectangle(l, t, r, bot, c.check_ink);
     if checked {
         for d in 0..2 {
-            b.line(l + 3, t + 6 + d, l + 5, t + 8 + d, CHECK_INK);
-            b.line(l + 5, t + 8 + d, l + 9, t + 3 + d, CHECK_INK);
+            b.line(l + 3, t + 6 + d, l + 5, t + 8 + d, c.check_ink);
+            b.line(l + 5, t + 8 + d, l + 9, t + 3 + d, c.check_ink);
         }
     }
 }
 
-fn scroll_bar(b: &mut Bitmap, bar: &Bar, held: bool) {
+fn scroll_bar(b: &mut Bitmap, bar: &Bar, held: bool, c: &Colors) {
     let (l, t, r, bot) = bar.rect;
-    b.fill_rect(l, t, r, bot, BAR_TRACK);
+    b.fill_rect(l, t, r, bot, c.bar_track);
     let (t0, t1) = bar.thumb();
-    let thumb = if held { BAR_THUMB_HELD } else { BAR_THUMB };
+    let thumb = if held { c.bar_thumb_held } else { c.bar_thumb };
+    let arrow = c.bar_arrow;
     // The arrows: small triangles in the end buttons.
     let tri = |b: &mut Bitmap, cx: i64, cy: i64, dir: (i64, i64)| {
         for k in 0..4 {
             match dir {
-                (0, -1) => b.line(cx - k, cy - 2 + k, cx + k, cy - 2 + k, BAR_ARROW),
-                (0, 1) => b.line(cx - k, cy + 2 - k, cx + k, cy + 2 - k, BAR_ARROW),
-                (-1, 0) => b.line(cx - 2 + k, cy - k, cx - 2 + k, cy + k, BAR_ARROW),
-                _ => b.line(cx + 2 - k, cy - k, cx + 2 - k, cy + k, BAR_ARROW),
+                (0, -1) => b.line(cx - k, cy - 2 + k, cx + k, cy - 2 + k, arrow),
+                (0, 1) => b.line(cx - k, cy + 2 - k, cx + k, cy + 2 - k, arrow),
+                (-1, 0) => b.line(cx - 2 + k, cy - k, cx - 2 + k, cy + k, arrow),
+                _ => b.line(cx + 2 - k, cy - k, cx + 2 - k, cy + k, arrow),
             }
         }
     };
