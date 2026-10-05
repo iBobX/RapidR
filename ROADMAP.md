@@ -126,7 +126,7 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [ ] Run the web IDE Playwright suites in CI (wasm-pack build + static server + Playwright)
 - [x] SEC-07: SQL parameter binding (SQLite, MySQL, web SQLite) — `Query(sql, values…)`, `AddParam`, `ClearParams`; the web runs SQLite itself (wasm) instead of its imitation (v2.114.0)
 - [ ] CSP generated per bundle from components used (e.g. `'unsafe-eval'` only if `RJavaScript` is used; `connect-src` for `RHttp`/`RAI` hosts; `frame-src` for `RWebView`)
-- [ ] Single language registry → generate `lang-data.js`, VS Code data, manual sections
+- [ ] Single language registry → generate `lang-data.js`, VS Code data, manual sections (planned as the IDE's stage I0, [docs/ide-plan.md](docs/ide-plan.md))
 
 ## Phase 1 — RapidQ & VB compatibility (~6–8 weeks)
 
@@ -384,6 +384,9 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 
 ## Phase 2 — Debugger (~6 weeks)
 
+The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate window, conditional breakpoints / hit counts / logpoints / break on error and DAP in stage I6, edit-and-continue and "inspect element" in I5; reverse stepping, the event timeline and the line profiler stay here, after I6.
+
+
 - [ ] Immediate window: evaluate expressions/statements in the paused frame (compile snippet against frame symbols)
 - [ ] Edit & Continue: hot-swap recompiled function when signature unchanged; Set Next Statement
 - [ ] Conditional breakpoints, hit counts, logpoints; break on runtime error
@@ -394,20 +397,80 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] `rapidr dap` Debug Adapter Protocol server (VS Code extension + any DAP client)
 - [ ] Policy: debug on VM, ship on either backend (guaranteed by differential tests)
 
-## Phase 3 — IDE (~5 weeks, can overlap Phase 2)
+## Phase 3 — IDE (stages I0–I9; planned in [docs/ide-plan.md](docs/ide-plan.md))
 
 **Direction (user, 2026-09-28): a professional IDE in the tradition of RapidQ / VB6 / Delphi / Xojo — an MDI workspace on the desktop and on the web alike.** Starts once RapidQ compatibility is complete across native, interpreter and web.
 
-- [ ] MDI workspace: form designers, code editors, the property inspector, the project tree and the running program as child windows inside one main window (cascade / tile, window menu), built on the same child-window model as QFORMMDI (`rapidr_value::mdi`); the running program's forms as windows in the workspace instead of the web preview iframe
-- [ ] Desktop IDE rebuilt on it (the current IDE modified), the web IDE the same workspace in the browser
-- [ ] Split `web-ide/host.js` into modules
-- [ ] Compiler-backed language service: go-to-definition, references, rename, outline, typed completion (replace regex `resolveVariableType`) — one Rust crate, built native for the desktop IDE and wasm for the web IDE, so both have the same IntelliSense: completion of components / properties / methods / events from the language registry, signature help, hover docs, diagnostics as you type (RapidQ's compiler wording), quick fixes, formatting; also served as an LSP server for VS Code and other editors
-- [ ] Debugging the same way in both IDEs: the interpreter (VM) runs debug sessions; release builds native; DAP (Phase 2) for other editors
-- [ ] VB-style events tab (double-click → handler stub), menu editor, tab-order editor, code/designer toggle
-- [ ] IndexedDB autosave; File System Access API open/save
-- [ ] Tauri desktop shell: same IDE + native `.exe`/`.app` builds via the UI kernel host
+**Planned 2026-10-05** ([docs/ide-plan.md](docs/ide-plan.md), with [docs/ide-components.md](docs/ide-components.md), [docs/ide-ai.md](docs/ide-ai.md), [docs/q-and-r-components.md](docs/q-and-r-components.md)): "pro" like Xojo or Xcode — a WYSIWYG designer with smart guides, a fast editor with real IntelliSense, a debugger, live editing, Delphi / Lazarus-style linked data components with the data-science stack first-class, and AI through MCP. One codebase on the UI kernel for the desktop and the web; every building block a public R component users can use in their own programs (the IDE is assembled from them); the IDE's shell a RapidR program; the program under development in its own process / sandboxed frame, driven by one session protocol. The HTML / Monaco web IDE and `examples/ide.rr` are deleted when I1 reaches parity (no fallback). Open decisions for the user: the plan's §9 (name, project format, how much is RapidR, default AI provider, extension sandboxing, …). Replaces this phase's earlier list: splitting `web-ide/host.js` and a Tauri desktop shell are no longer needed (the HTML IDE goes; the kernel host is the desktop shell); the events tab, menu and tab-order editors, autosave and File System Access are in I1 / I4.
+
+**I0 — Foundations** (L, 12–16 sessions)
+- [ ] The language registry (`rapidr-lang`): every component (Q and R names, which RapidQ has), property (type, default, editor, origin), method, event, builtin, statement and directive, with docs in our words; tests tie it to both runtimes both ways; generates the IDE's completion data, the VS Code data, the manual's reference sections and the AI prompt; `COMPONENT_TYPES` and the runtimes' name lists generated (Phase 0's "single language registry")
+- [ ] Project format `.rrproj` v2 (`rapidr-project`), reading the web IDE's JSON v1; plain `.bas` / `.rr` files open without a project
+- [ ] The program session protocol (`rapidr-session`): run / stop / pause / breakpoints / stepping / variables / evaluate / set property / output / forms, over a pipe (desktop child process) and a `MessageChannel` (web sandboxed frame); today's `DebugSession` becomes one transport
+- [ ] VM: per-file breakpoints through the source map (the web compile path fills it too), pause on demand, an evaluator for a paused frame, writing variables, break on runtime error
+- [ ] Parser for tools: comments and directives kept as trivia (corpus files reproduce byte for byte), a byte-level origin map through `$INCLUDE`, lexer error recovery, a public semantic model from bcgen's scopes — no change to any program's meaning
+
+**I1 — Shell** (L, 16–22 sessions)
+- [ ] RDockManager: docked / tabbed / auto-hide / floating panels, layouts saved and restored, all by keyboard; the documents area an MDI client on `rapidr_value::mdi` (cascade / tile) or tabs
+- [ ] RProjectTree, RToolbox (groups "RapidQ" and "RapidR", names as the designer writes them), RPropertyInspector (typed editors from the registry, RapidR extensions badged, Events tab), ROutputConsole (ANSI), RCommandPalette, a real RToolBar kind
+- [ ] The shell (`ide/`, a RapidR program on public components only), commands and shortcuts (VB6 / Delphi scheme), settings, modern / dark / high-contrast themes with editor colours, vector icons, OFL fonts
+- [ ] Run / Stop / Build through `RProgramSession` / `RProject` on both hosts
+- [ ] Web: the IDE page on the canvas host, IndexedDB / OPFS autosave, File System Access open / save, zip import / export, web bundle build
+- [ ] Parity with `web-ide/` and `examples/ide.rr` (the `tests/web_ide_*.mjs` suites re-pointed), then `web-ide/`, Monaco, `examples/ide.rr` and `examples/web_ide.rr` deleted in the same step
+
+**I2 — Code editor** (L, 14–20 sessions)
+- [ ] `rapidr-editor`: rope buffer (ropey, MIT), multi-cursor transactions, undo / redo history, find / replace (regex, in selection, in files), bracket matching, auto-indent, folding
+- [ ] Declarative language definitions (TOML: tokens, comments, strings, brackets, indentation, folding, snippets) and colour schemes; RapidQ / RapidR BASIC generated from the registry; no tree-sitter
+- [ ] RCodeEditor grown on the kernel (the current API kept): virtualized view, gutter, squiggles, completion / hover / signature popups, minimap; RDiffView
+- [ ] IME on every host; accessibility with AccessKit text runs and the web mirror's window of lines
+- [ ] Performance targets met (plan §6.2: typing p99 ≤ 16 ms desktop / 33 ms web on a 100,000-line file; a 10 MB file opens in ≤ 300 ms)
+
+**I3 — Language service** (L, 14–20 sessions)
+- [ ] `rapidr-langsvc` (native and wasm): semantic model, completion of locals / globals / SUBs / FUNCTIONs / TYPEs / components and members (Q and R names alike), hover, signature help, definition, references, rename, outline, live diagnostics in RapidQ's wording, code actions, formatting
+- [ ] The "RapidQ-compatible project" diagnostics: every RapidR-only component, member, builtin, statement, directive and non-RapidQ Q name, with code actions
+- [ ] `rapidr lsp`; the VS Code extension an LSP client (its regex providers deleted)
+
+**I4 — Visual designer** (L, 16–22 sessions)
+- [ ] RFormDesigner: real components drawn WYSIWYG, multi-select, rubber band, eight handles, keyboard nudging / resizing; RDESIGNSURFACE's API on the same model
+- [ ] Grid snapping and smart guides: edges, centres, baselines, parent centring, margins, equal spacing with distances
+- [ ] Align / distribute / same size / z-order; anchors and constraints editor; containers and reparenting
+- [ ] RComponentTray, RTabOrderEditor, RMenuEditor; double-click → event handler
+- [ ] Two-way CREATE-block sync with minimal text edits, one undo history with the editor, user code byte-identical; RapidQ components written with Q names, R-only with R names, existing names kept
+- [ ] The corpus round trip: every form of the 386 RapidQ examples and `examples/` opens and saves byte-identically
+
+**I5 — Live** (M, 8–12 sessions; after the first release)
+- [ ] Remote forms: the program's forms as MDI windows in the workspace (display lists + accessibility trees through the session), "inspect element"
+- [ ] Live property preview into the running program
+- [ ] Hot reload of changed SUBs / FUNCTIONs; edit-and-continue while paused; "restart needed" with the reason otherwise
+
+**I6 — Debugger** (M, 8–12 sessions; the basic part in the first release)
+- [ ] Basic: breakpoints in any file with conditions, step in / over / out, pause, run to cursor, call stack, locals / globals / watches evaluated by the VM, data tips, break on runtime error, the immediate window
+- [ ] Hit counts, logpoints; frames opened in the data preview
+- [ ] `rapidr dap` for VS Code and other DAP clients
+
+**I7 — Linked data and data science** (L, 18–26 sessions; the core in the first release)
+- [ ] One data-frame engine on every runtime (spike: polars on wasm vs our own engine) and RPlot drawn by the kernel (vector, accessible, identical on desktop and web) — replacing today's two implementations
+- [ ] Core: RDBConnection / RDBQuery / RDBTable (SQLite), RDataFile (CSV, JSON), `RDataFrame.Source`, RDFFilter / RDFSort / RDFGroup / RDFCompute, RDataSource, RDBGrid, RPlot's declarative binding — live at design time (read-only), with the tray, component-reference pickers and RDataPreview (schema, rows, quick stats)
+- [ ] Later: Parquet, MySQL at design time, RDFJoin / RDFSelect / RDFLimit, editable datasets with RDBEdit & co. and RDBNavigator, lookups, column-name completion in expressions
+
+**I8 — Smart: AI through MCP** (L, 16–24 sessions; after the first release — a read-only MCP server is a stretch for it)
+- [ ] `rapidr-ai`: Anthropic, OpenAI-compatible (OpenAI, DeepSeek, xAI Grok, Ollama, LM Studio, custom) and Gemini over plain HTTPS, streaming and tool calls normalized, no vendor SDKs; `rapidr ai-proxy` for the web
+- [ ] `rapidr-secrets`: macOS Keychain, Windows Credential Manager, Linux Secret Service; web keys per session (opt-in passphrase-encrypted)
+- [ ] The IDE's MCP server (`rapidr-mcp`, own implementation): `rapidr mcp` over a user-only local socket with a token, optional loopback HTTP; started / stopped from the IDE; tools for project, edits, forms, run, the running app, debug, data
+- [ ] The floating AI button and assistant (RAIChat): context chips, diffs before apply, checkpoints, permission tiers (ask before edits / running), "what was sent"
+- [ ] Data privacy levels per project (none / schema / sample / full) enforced in the tool layer, redaction, local models recommended; data tools build transforms and plots ("group sales by month and plot bars")
+- [ ] Components as AI tools in users' programs through RAI (the editor, the designer, data sources)
+
+**I9 — Extensions** (M, 8–12 sessions)
+- [ ] `.rrext` packages: declarative contributions (languages, themes, snippets, templates) and RapidR code in a capability-filtered VM with fuel limits, talking through the `IDE` object
+- [ ] Permissions prompted at install, optional signatures, per-user install on both hosts
+
+**First public release bar** (plan §8): I0–I4, I6's basic part and I7's core, the HTML IDE deleted, the accessibility and performance targets met.
 
 ## Phase 4 — AI in the IDE (~6 weeks)
+
+Planned as the IDE's stage I8 ([docs/ide-plan.md](docs/ide-plan.md), [docs/ide-ai.md](docs/ide-ai.md)): one provider layer over plain HTTPS (Anthropic, OpenAI-compatible incl. DeepSeek / xAI / Ollama / LM Studio, Gemini), keys in the OS keychain, the IDE's own MCP server (`rapidr mcp` over a user-only local socket + token), the floating assistant with diffs before apply, permission tiers, data privacy levels. The items below are kept as the checklist; where they differ, the plan wins (e.g. no Tauri: the kernel host is the desktop shell).
+
 
 - [ ] Provider adapters: Anthropic Messages + OpenAI-compatible (OpenAI, DeepSeek, OpenRouter, Ollama, custom). Verify DeepSeek CORS; optional proxy fallback
 - [ ] Tool registry (MCP-shaped): `read_file`, `apply_edit`, `add_form`, `add_widget`, `set_property`, `compile`, `run`, `inspect_component`, `get_variables`, `click`, `screenshot_preview`, `lookup_docs`
@@ -419,6 +482,9 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] Security model: keys only in IDE origin (requires SEC-02), optional WebCrypto passphrase, never in `.rrproj`/bundles/logs; permission tiers (read auto / edit auto+checkpoint / run sandboxed, network off by default / external = ask); imported content treated as data
 
 ## Phase 5 — `RAI` component (~5 weeks)
+
+Built on I8's provider layer and tool providers ([docs/ide-ai.md](docs/ide-ai.md) §8): the IDE's components (editor, designer, data sources) can be attached to `RAI` as tools in users' programs, with the same data access levels.
+
 
 ```basic
 CREATE AI AS RAI
@@ -467,8 +533,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 | When | Milestone |
 |------|-----------|
 | Q4 2026 | RapidQ compatibility complete (portable corpus programs compile and run alike on all three runtimes); Phase 1B foundations under way (high-DPI audit, accessibility tree, Anchors) |
-| Q1 2027 | Language service, debugger, MDI IDE on the desktop and the web → **first public release** (see the release item in Phase 1) |
-| Q2 2027 | AI in the IDE, the IDE's MCP server, RAI with tool-calling and AI that uses the running app |
+| Q1 2027 | IDE stages I0–I4, the basic debugger (I6) and linked data live at design time (I7's core) on the desktop and the web → **first public release** (see the release item in Phase 1 and docs/ide-plan.md §8) |
+| Q2 2027 | AI in the IDE and its MCP server (I8), live editing (I5), RAI with tool-calling and AI that uses the running app |
 | Q3 2027 | Mobile step 1; data-science / database / AI stacks polished (high-DPI charts, more databases) |
 | Q4 2027 | Security audit (Phase 6), documentation, examples, community |
 
