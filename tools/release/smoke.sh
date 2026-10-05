@@ -119,8 +119,16 @@ check "#! script" has "$(PATH="$BIN:$BASE_PATH" ./script.rr x 2>&1)" "script x"
 "$R" build-bc hello.bas -o hello.rrbc >/dev/null
 check "rapidr hello.rrbc" has "$("$R" hello.rrbc z 2>&1)" "hello z"
 check "rapidr info: console" has "$("$R" info hello.rrbc)" "apptype: console"
-if [[ "$ART" == *.dmg ]] && lipo -archs "$R" 2>/dev/null | grep -q x86_64 && arch -x86_64 /usr/bin/true 2>/dev/null; then
-    check "the x86_64 slice runs it (Rosetta)" has "$(arch -x86_64 "$R" run hello.bas x 2>&1)" "hello x"
+# (macOS: every executable universal, checked statically — nothing x86_64 is run here:
+# macOS 28 drops Rosetta, and running Intel code flags the app)
+universal() { case " $(lipo -archs "$1" 2>/dev/null) " in *" arm64 "*" x86_64 "*|*" x86_64 "*" arm64 "*) return 0 ;; *) return 1 ;; esac; }
+if [[ "$ART" == *.dmg ]]; then
+    notuni=""
+    while IFS= read -r -d '' f; do
+        file -b "$f" | grep -q Mach-O && ! universal "$f" && notuni="$notuni $f"
+    done < <(find "$T/Applications" -type f -perm -u+x -print0)
+    check "every executable in the apps is universal (arm64 + x86_64)" test -z "$notuni"
+    [ -n "$notuni" ] && echo "        not universal:$notuni"
 fi
 RTR="$T/Applications/RapidR Runtime.app/Contents/MacOS/rapidr"
 if [ -x "$RTR" ] && [ "$RTR" != "$R" ]; then
@@ -162,6 +170,14 @@ if [ "$KIND" = sdk ]; then
     out="$(PATH="$BASE_PATH" CARGO_HOME="$T/no-cargo" "$R" build hello.bas --interp 2>&1)"
     check "rapidr build --interp" test -x "$W/hello"
     check "the executable runs" has "$("$W/hello" q 2>&1)" "hello q"
+    if [[ "$ART" == *.dmg ]]; then
+        check "it is universal" universal "$W/hello"
+        mkdir -p "$W/arm" "$W/intel"
+        "$R" build hello.bas "$W/arm" --interp --target macos-arm64 > /dev/null 2>&1
+        "$R" build hello.bas "$W/intel" --interp --target macos-x86_64 > /dev/null 2>&1
+        check "--target macos-arm64: the arm64 slice, it runs" has "$(lipo -archs "$W/arm/hello"; "$W/arm/hello" a 2>&1)" "arm64"
+        check "--target macos-x86_64: the x86_64 slice (not run)" test "$(lipo -archs "$W/intel/hello" 2>/dev/null)" = x86_64
+    fi
     check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide 2>&1)" "statusbar.caption=Ready"
     check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide "$W/hello.bas" 2>&1)" "Opened: $W/hello.bas"
@@ -170,6 +186,13 @@ if [ "$KIND" = sdk ]; then
         printf '$APPTYPE CONSOLE\nPRINT "native "; 6 * 7\n' > native.bas
         PATH="$CARGO_BIN:$BASE_PATH" CARGO_HOME="$T/cargo-home" CARGO_TARGET_DIR="$T/native-target" "$R" build native.bas > native.log 2>&1
         check "rapidr build (native)" has "$(./native 2>&1)" "native 42" || tail -5 native.log
+        if [[ "$ART" == *.dmg ]]; then
+            if grep -q "this Mac's architecture only" native.log; then
+                echo "  (native build: one architecture — Rust has one macOS target here)"
+            else
+                check "the native build is universal" universal ./native
+            fi
+        fi
         rm -rf "$T/native-target"
     else
         echo "  (no native build: Rust not found, or SMOKE_NATIVE=0)"

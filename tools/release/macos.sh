@@ -6,8 +6,13 @@
 #   dist/<ver>/out/RapidR-<ver>-macos-universal.dmg          both apps
 #   dist/<ver>/out/RapidR-Runtime-<ver>-macos-universal.dmg  the runtime only
 #
-#   tools/release/macos.sh [--arch universal|arm64|x86_64]
-#        [--sign "Developer ID Application: Name (TEAMID)"] [--notarize <notarytool keychain profile>]
+#   tools/release/macos.sh [--sign "Developer ID Application: Name (TEAMID)"] [--notarize <notarytool keychain profile>]
+#
+# Every executable in the apps is universal — the CLI, the launcher and the one
+# runner `--interp` executables start from (runners/macos/) — built for macOS
+# MACOSX_DEPLOYMENT_TARGET (10.13 on Intel; 11.0 on Apple silicon, its first). Nothing
+# Intel-only: macOS 28 drops Rosetta. The scan at the end checks every Mach-O
+# statically (lipo -archs, otool's LC_BUILD_VERSION); nothing x86_64 is run here.
 #
 # After tools/release/prepare.sh. Unsigned (the default) the apps are signed
 # ad hoc: they run here and, downloaded, open with right-click > Open (see
@@ -17,10 +22,9 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$ROOT"
-ARCH=universal SIGN="" NOTARY=""
+SIGN="" NOTARY=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --arch) ARCH="$2"; shift 2 ;;
         --sign) SIGN="$2"; shift 2 ;;
         --notarize) NOTARY="$2"; shift 2 ;;
         *) die "unknown option $1" ;;
@@ -30,12 +34,8 @@ done
 [ "$(git rev-parse HEAD)" = "$(cat "$PREP/commit")" ] || die "HEAD isn't the commit prepare.sh archived"
 [ -n "$NOTARY" ] && [ -z "$SIGN" ] && die "--notarize needs --sign (a Developer ID)"
 need lipo "Xcode command line tools"; need hdiutil "macOS"; need codesign "Xcode command line tools"
-case "$ARCH" in
-    universal) ARCHS="aarch64 x86_64" ;;
-    arm64) ARCHS="aarch64" ;;
-    x86_64) ARCHS="x86_64" ;;
-    *) die "--arch universal, arm64 or x86_64" ;;
-esac
+ARCH=universal ARCHS="aarch64 x86_64"
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.13}"
 for a in $ARCHS; do
     rustup target list --installed | grep -qx "$a-apple-darwin" || die "rustup target add $a-apple-darwin"
 done
@@ -43,18 +43,19 @@ W="$WORK/macos"
 rm -rf "$W" && mkdir -p "$W/bin"
 trap 'rm -rf "$W"' EXIT
 
-step "build ($ARCHS)"
-RUNNERS=()
+step "build ($ARCHS, macOS $MACOSX_DEPLOYMENT_TARGET on)"
 for a in $ARCHS; do
     t="$a-apple-darwin"
     cargo build -q --locked --release --target "$t" -p rapidr-cli -p rapidr-launcher
     cargo build -q --locked --profile runner --target "$t" -p rapidr-runner-stub --bin rapidrintr-runner
-    RUNNERS+=(--runner "macos-$a=target/$t/runner")
 done
+mkdir -p "$W/runner"
 for b in rapidr rapidrw; do
     lipo -create $(for a in $ARCHS; do echo "target/$a-apple-darwin/release/$b"; done) -output "$W/bin/$b"
 done
-lipo -info "$W/bin/rapidr"
+lipo -create $(for a in $ARCHS; do echo "target/$a-apple-darwin/runner/rapidrintr-runner"; done) -output "$W/runner/rapidrintr-runner"
+RUNNERS=(--runner "macos=$W/runner")
+lipo -info "$W/bin/rapidr" "$W/runner/rapidrintr-runner"
 
 step "the home: the runtime's sources, their crates vendored"
 mkdir -p "$W/src" && tar -x -C "$W/src" -f "$PREP/src.tar"
@@ -100,6 +101,21 @@ sign() {
     codesign "${opts[@]}" "$app"
     codesign --verify --deep --strict "$app"
 }
+# Every Mach-O in an app: universal (arm64 and x86_64), its minimum macOS.
+scan() {
+    local app="$1" f archs bad=0
+    while IFS= read -r -d '' f; do
+        file -b "$f" | grep -q "Mach-O" || continue
+        archs="$(lipo -archs "$f")"
+        case " $archs " in *" arm64 "*" x86_64 "*|*" x86_64 "*" arm64 "*) ;; *) echo "  NOT UNIVERSAL: $f ($archs)"; bad=1 ;; esac
+        echo "  ${f#"$W/apps/"}: $archs; minimum macOS $(otool -arch arm64 -l "$f" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit}') (arm64), $(otool -arch x86_64 -l "$f" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit}') (x86_64)"
+    done < <(find "$app" -type f -perm -u+x -print0)
+    [ $bad = 0 ] || die "$app has executables that aren't universal"
+}
+step "every executable universal"
+scan "$W/apps/RapidR.app"
+scan "$W/apps/RapidR Runtime.app"
+
 step "sign (${SIGN:-ad hoc})"
 sign "$W/apps/RapidR.app"
 sign "$W/apps/RapidR Runtime.app"

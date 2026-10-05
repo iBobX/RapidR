@@ -20,7 +20,7 @@ finds its home from the executable by it):
 
     python3 tools/release/stage.py --kind sdk --os macos --out STAGE \\
         --bin target/release --home dist/<ver>/home-macos \\
-        --runner macos-aarch64=target/aarch64-apple-darwin/runner … \\
+        --runner macos=<folder with the universal runner> … \\
         --web target/web --ide dist/<ver>/rapidr-ide.rrbc
 """
 
@@ -121,7 +121,9 @@ def main():
     if args.kind == "sdk":
         for spec in args.runner:
             target = spec.split("=", 1)[0]
-            notices(target, os.path.join(lib, "notices", f"{target}.txt"))
+            # (macOS' universal runner also makes either slice: --target macos-arm64 / macos-x86_64)
+            for t in [target, "macos-arm64", "macos-x86_64"] if target == "macos" else [target]:
+                notices(t, os.path.join(lib, "notices", f"{t}.txt"))
         notices("web", os.path.join(lib, "notices", "web.txt"))
     print(f"staged {args.kind} for {args.os} in {out}")
 

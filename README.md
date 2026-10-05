@@ -323,7 +323,7 @@ Flags for `build` (and the bare `rapidr <file.rr>` shortcut):
 | `--debug`   / `-d` | Build in debug mode (default) |
 | `--web`     / `-w` | Target WebAssembly via the Rust codegen + wasm-bindgen pipeline |
 | `--interp`  / `-i` | Target the bytecode interpreter — emits a self-contained native binary (or, with `--web`, a static `.zip`) that has no Rust toolchain dependency at runtime |
-| `--target <os>-<arch>` | With `--interp`: an executable for another target an installed RapidR ships a runner for (`windows-x86_64`, `macos-aarch64`, …) |
+| `--target <os>-<arch>` | With `--interp`: an executable for another target an installed RapidR ships a runner for (`windows-x86_64`, `macos-arm64`, …; on macOS the default is universal: arm64 + x86_64) |
 
 Installed releases (the SDK and the RapidR Runtime, their file types, how they find their files): [docs/release-packaging.md](docs/release-packaging.md).
 

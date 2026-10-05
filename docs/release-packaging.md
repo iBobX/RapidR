@@ -74,6 +74,34 @@ source replacement, nothing downloaded).
   0.37 GB of sources instead of 1.2 GB. Checked: a native build with an empty
   `CARGO_HOME`, offline, from an install's home.
 
+### macOS: universal, nothing Intel-only
+
+Every executable in RapidR.app and RapidR Runtime.app is universal (arm64 +
+x86_64): `rapidr`, `rapidrw`, and the **one** runner interpreted executables
+start from (`lib/rapidr/runners/macos/`). Apple silicon runs the arm64 slice,
+Intel Macs the x86_64 one. Nothing in the apps is Intel-only: macOS 28 drops
+Rosetta, and macOS 27 already warns ("App Update Required … will not open in
+macOS 28") about an app with an Intel-only part once it has run under
+Rosetta.
+
+- `rapidr build x.bas --interp` makes a universal executable by default;
+  `--target macos-arm64` / `--target macos-x86_64` give one slice, taken out
+  of the universal runner (`crates/rapidr-cli/src/macos.rs`, no lipo needed).
+- `rapidr build x.bas` (native) builds both slices and joins them with lipo
+  when Rust has both targets (`rustup target add aarch64-apple-darwin
+  x86_64-apple-darwin`); with one, it builds that one and says how to get
+  universal.
+- **Deployment target**: `MACOSX_DEPLOYMENT_TARGET=10.13` for RapidR's own
+  executables and native builds (unless the user sets it): the x86_64 slice
+  runs on macOS 10.13 and later — Intel Macs up to the last macOS for them,
+  26 — and Rust raises the arm64 slice to 11.0, the first macOS on Apple
+  silicon. `macos.sh` prints each Mach-O's architectures and minimum macOS
+  (`lipo -archs`, `otool -l`'s `LC_BUILD_VERSION`) and fails on one that
+  isn't universal; the smoke test checks the same of the apps and of what
+  they build. Only the slices are checked on this Mac: x86_64 code is never
+  run here (no Rosetta, no `arch -x86_64`), so the Intel slice is verified
+  statically — it would be worth one run on an Intel Mac before a release.
+
 ### Windows' linker: LLVM-MinGW, shipped
 
 Rust on Windows needs a linker. RapidR uses Rust's `*-pc-windows-gnullvm`
@@ -314,7 +342,7 @@ about 1.2 GB for the whole release.
    `tools/release/macos.sh` (`--sign …`, `--notarize …` when signing).
    Check: `tools/release/smoke.sh dist/<ver>/out/RapidR-<ver>-macos-universal.dmg`
    and the Runtime's dmg (no Launch Services registration: the apps' plists
-   are read).
+   are read; every Mach-O universal, checked statically — nothing x86_64 runs).
 4. **Linux** (Ubuntu VM): `tools/release/linux-vm.sh` builds all eight
    packages there and fetches them; `tools/release/linux-vm.sh smoke` runs
    `smoke.sh` on each in the VM (temporary HOME / prefix; install.sh and

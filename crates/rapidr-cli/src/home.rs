@@ -104,9 +104,22 @@ impl Release {
     }
 }
 
-/// This machine as runner targets name it: `macos-aarch64`, `windows-x86_64`, …
+/// What this machine builds for by default, as runner targets name it:
+/// `macos` (universal: arm64 + x86_64, macos.rs), `windows-x86_64`,
+/// `linux-aarch64`, …
 pub fn host_target() -> String {
-    format!("{}-{}", env::consts::OS, env::consts::ARCH)
+    if env::consts::OS == "macos" {
+        return "macos".into();
+    }
+    host_arch_target()
+}
+
+/// This machine's own architecture: `macos-arm64`, `windows-aarch64`, …
+pub fn host_arch_target() -> String {
+    match (env::consts::OS, env::consts::ARCH) {
+        ("macos", "aarch64") => "macos-arm64".into(),
+        (os, arch) => format!("{os}-{arch}"),
+    }
 }
 
 /// `.exe` for Windows targets.

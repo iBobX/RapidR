@@ -57,7 +57,7 @@ impl Kind {
         Ok(kind)
     }
 
-    /// `macos-aarch64`, `web`, `tools-linux`: the shipped file's name.
+    /// `macos`, `web`, `tools-linux`: the shipped file's name.
     pub fn name(&self) -> String {
         match self {
             Kind::Desktop(t) => t.clone(),
@@ -90,13 +90,15 @@ impl Kind {
             Kind::Desktop(t) => t.as_str(),
         };
         Ok(match t {
-            "macos-aarch64" => vec!["aarch64-apple-darwin"],
+            // (universal: both slices)
+            "macos" => vec!["aarch64-apple-darwin", "x86_64-apple-darwin"],
+            "macos-arm64" => vec!["aarch64-apple-darwin"],
             "macos-x86_64" => vec!["x86_64-apple-darwin"],
             "windows-x86_64" => vec!["x86_64-pc-windows-gnullvm", "x86_64-pc-windows-msvc"],
             "windows-aarch64" => vec!["aarch64-pc-windows-gnullvm", "aarch64-pc-windows-msvc"],
             "linux-x86_64" => vec!["x86_64-unknown-linux-gnu"],
             "linux-aarch64" => vec!["aarch64-unknown-linux-gnu"],
-            _ => return Err(format!("unknown target '{t}': <os>-<arch> (macos-aarch64, windows-x86_64, linux-x86_64, …), web, or tools-<os>")),
+            _ => return Err(format!("unknown target '{t}': macos (universal), <os>-<arch> (macos-arm64, windows-x86_64, linux-x86_64, …), web, or tools-<os>")),
         })
     }
 
