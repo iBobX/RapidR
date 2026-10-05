@@ -8,6 +8,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The RapidR Runtime and release packaging** (docs/release-packaging.md,
+  `tools/release/`): an installed RapidR finds its files by one rule
+  (`RAPIDR_HOME`, `<exe>/../lib/rapidr` with its `release.toml`, else the
+  source checkout). Programs run, the IDE works and interpreted executables
+  build with no Rust installed (shipped runners, `--target <os>-<arch>`);
+  native builds compile offline against the shipped runtime sources, and
+  `rapidr setup` installs Rust through rustup only after asking. New
+  commands `rapidr run`, `open`, `info`, `ide`; `rapidrw`, the windowed
+  launcher. Bytecode format 3 records the oldest runtime a program needs and
+  its app type — an older runtime says "this program needs RapidR Runtime
+  ≥ x.y" (format-2 files still run). `#!/usr/bin/env rapidr` scripts on
+  macOS and Linux. File types per user: `.rrbc` runs on a double click,
+  `.rr` / `.bas` open in the IDE with a Run action; a downloaded file
+  (quarantine / Mark of the Web) asks once before it runs. Windows GUI
+  programs build as windowed executables (no console window). Local build
+  scripts for the installers: macOS `.dmg` (the IDE + SDK, and the Runtime
+  alone), Windows (Inno Setup), Linux `.tar.gz` / `.deb`, the web bundle,
+  SHA256SUMS and an SBOM.
 - **The system tray (QNOTIFYICONDATA) on every platform.** RapidQ
   programs put an icon in Windows' notification area with QNOTIFYICONDATA
   and `Shell_NotifyIcon` (shell32) and hear its clicks in their form's
