@@ -239,6 +239,12 @@ export const cases = [
   { name: "d3d_xfile", events: "b1.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=faces2 verts8 255,16711680,65535,0 green65280,65280 tex16711680,65535"],
     pixels: [[20, 60, "0000ff"], [60, 60, "ffff00"], [105, 60, "0000ff"], [135, 60, "ffff00"], [80, 60, "000000"]], clientWidth: 160 },
+  // (the DirectX lane's, stage D6: QDXJOYSTICK — RapidQ's Update / IsLeft …
+  // / Button(n), RapidR's X / Buttons / POV and events; `joystick`: the
+  // tests' gamepad, a step a read)
+  { name: "dx_joystick", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
+    joystick: "x=0,b=1,name=Pad;x=65535,y=0,b=2;y=65535,pov=9000,b=3,name=Pad;b=1;b=1,x=0;b=0,x=0;-",
+    expect: ["lbl.caption=-1000-10 0-1-100-1 000-1-1-1 Pad,-1,32767,65535,3,9000 |down1 move0 up1 move32767 |0"] },
   // (kernel themes: a click switches to dark at run time — Application.Theme;
   // `themes`: the desktop also captures the form under each of these,
   // RAPIDR_THEME, without the events — the web keeps its own look and only

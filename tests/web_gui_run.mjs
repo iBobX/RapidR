@@ -53,6 +53,9 @@ export async function runCase(page, c) {
   if (!frame) return { frame: null, missing: [] };
   const missing = [];
   const idOf = (name) => "rr-" + name.toLowerCase();
+  // `joystick`: QDXJOYSTICK's gamepad, the tests' script (the page's
+  // RAPIDR_TEST_JOYSTICK, read at each look).
+  if (c.joystick !== undefined) await frame.evaluate((s) => { window.RAPIDR_TEST_JOYSTICK = s; }, c.joystick);
   // (how many of the case's dialog answers were given)
   let colorAnswers = 0, fontAnswers = 0;
   // `resize: "w,h"` / `split: "splitter:delta"`: the user drags a QSPLITTER,

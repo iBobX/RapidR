@@ -61,8 +61,11 @@ pub fn is_dx_timer(name: &str) -> bool {
 }
 
 /// The milliseconds between timer `name`'s OnTimers for its Interval `ms`
-/// (a QDXTIMER's 0 is a screen refresh).
+/// (a QDXTIMER's 0 is a screen refresh; a QDXJOYSTICK's looks for events).
 pub fn timer_interval(name: &str, ms: i64) -> i64 {
+    if rp_comp_type(name) == "RDXJOYSTICK" {
+        return rapidr_value::objects::joystick::LOOK_MS as i64;
+    }
     if is_dx_timer(name) {
         rapidr_value::objects::directx::timer_interval_ms(ms) as i64
     } else {
@@ -75,6 +78,14 @@ pub fn timer_interval(name: &str, ms: i64) -> i64 {
 /// tell more of "the active application") — and a QDXTIMER's frame
 /// counted (FrameRate).
 pub fn timer_fired(name: &str) -> bool {
+    // A QDXJOYSTICK's look: what changed fired (OnButtonUp / OnButtonDown
+    // with the button's number, OnMove); no OnTimer.
+    if rp_comp_type(name) == "RDXJOYSTICK" {
+        for (event, args) in rapidr_value::objects::dxjoystick_look(name) {
+            crate::object_web::rp_fire_event_args(name, event, &args);
+        }
+        return false;
+    }
     if !is_dx_timer(name) {
         return true;
     }
@@ -153,3 +164,59 @@ fn sound_stop(id: &str) {
         }
     });
 }
+
+// ------------------------------------------------------- QDXJOYSTICK --
+//
+// The page's gamepads (the Gamepad API's `navigator.getGamepads()`, its
+// "standard" layout) for rapidr_value::objects::joystick; the tests' script
+// when the page has a `RAPIDR_TEST_JOYSTICK` string (read at each look, so a
+// test can set it after the program started).
+
+struct WebPads {
+    script: Option<(String, rapidr_value::objects::joystick::Script)>,
+}
+
+impl rapidr_value::objects::joystick::Source for WebPads {
+    fn pads(&mut self) -> Vec<rapidr_value::objects::joystick::Pad> {
+        use rapidr_value::objects::joystick::{Pad, Script, Standard};
+        let window = web_sys::window();
+        let test = window.as_ref().and_then(|w| js_sys::Reflect::get(w, &JsValue::from_str("RAPIDR_TEST_JOYSTICK")).ok()).and_then(|v| v.as_string());
+        if let Some(text) = test {
+            if self.script.as_ref().is_none_or(|(t, _)| *t != text) {
+                match Script::parse(&text) {
+                    Ok(s) => self.script = Some((text, s)),
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&e));
+                        self.script = None;
+                    }
+                }
+            }
+            return self.script.as_mut().map(|(_, s)| rapidr_value::objects::joystick::Source::pads(s)).unwrap_or_default();
+        }
+        let Some(list) = window.and_then(|w| w.navigator().get_gamepads().ok()) else { return Vec::new() };
+        list.iter()
+            .filter_map(|g| g.dyn_into::<web_sys::Gamepad>().ok())
+            .filter(|g| g.connected())
+            .map(|g| {
+                let mut s = Standard::new(&g.id());
+                for (i, a) in g.axes().iter().take(4).enumerate() {
+                    s.axes[i] = a.as_f64().unwrap_or(0.0) as f32;
+                }
+                for (i, b) in g.buttons().iter().take(17).enumerate() {
+                    if let Ok(b) = b.dyn_into::<web_sys::GamepadButton>() {
+                        s.buttons[i] = (b.pressed(), b.value() as f32);
+                    }
+                }
+                Pad::from_standard(&s)
+            })
+            .collect()
+    }
+}
+
+/// QDXJOYSTICK's gamepads, once: the first one made.
+pub fn install_joystick_source() {
+    if !rapidr_value::objects::joystick::has_source() {
+        rapidr_value::objects::joystick::set_source(Box::new(WebPads { script: None }));
+    }
+}
+

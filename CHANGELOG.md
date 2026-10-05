@@ -24,6 +24,73 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `rapidq_int_rounding`, `rapidq_numeric_stores`, `rapidq_operators_int`,
   `rapidq_text_functions`, `rapidq_if_print_else`, `rapidq_booleans`,
   `rapidq_division_by_zero`.
+- **QDXJOYSTICK**, RapidQ's joystick object (missing from its manual; its
+  compiler has it): Update, IsLeft / IsRight / IsUp / IsDown, Button(n) —
+  plus RapidR's Index, Connected, Name, X / Y / Z / R / U / V (winmm's 0 …
+  65535), Buttons, POV and the events OnButtonDown / OnButtonUp / OnMove.
+  Gamepads come from gilrs on Windows and macOS, the kernel's evdev on
+  Linux (no extra system package to build) and the Gamepad API in the
+  browser, all laid out the same way. No joystick reads "not connected",
+  never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
+
+### Changed
+- **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
+  takes `SetRenderMode(A A OR B)`, `-9(COS(x))`, `x = 16 374739` and the
+  like — its operator stack runs on, the value is the operand stack's
+  bottom (`A B OR C` is A, `-9(COS(x))` is 9, `(2 3) + 1` is 2) and the
+  other operands are still worked out (a FUNCTION among them is called).
+  RapidR refused them; both compilers now read them the same way (checked
+  line by line against RC.EXE: `tests/conformance/cases/
+  juxtaposed_operands.bas`). So `CASE 4, 7<TAB>C& = -2` (RapidQ's
+  `reminder/dayfunction.bas`) is the list 4, 7 with no body, as in RapidQ —
+  RapidR used to run the assignment.
+- **RapidQ-exact numbers and more, checked against RC.EXE** (native,
+  interpreted and web alike; details and evidence in
+  `docs/rapidq-ground-truth.md`):
+  - PRINT shows a fractional number with 9 decimals (`3.500000000`), Delphi's
+    digits, and a whole one as a 32-bit integer (beyond: `-2147483648`, as
+    for an infinity or NaN); STR$ has 9 significant digits (`0.333333333`,
+    `1.23456789E9`, `1E-5`). They were the shortest form / 15 digits.
+  - PRINT's (and LPRINT's) comma is the semicolon — no 14-column zones; a
+    leading separator is accepted (`PRINT , "x"`).
+  - INT and FIX truncate toward zero; ROUND, CINT and CLNG are `INT(x +
+    0.5)` (2.5 → 3, -2.5 → -2, -2.7 → -2); ROUND, CINT, CLNG, CEIL and FLOOR
+    are 32-bit.
+  - A store into an integer variable truncates (2.7 → 2), beyond 32 bits it
+    is -2147483648; a BYVAL parameter rounds half to even; a FUNCTION's
+    result isn't converted; DWORD is 32-bit signed; SINGLE is a real 32-bit
+    float. They rounded half to even, wrapped, converted results, kept DWORD
+    unsigned and SINGLE double.
+  - `\` rounds its operands as CINT; MOD, AND, OR, XOR, NOT, SHL, SHR take
+    32-bit operands rounded half to even (`7.5 MOD 2` = 0); `\` and MOD by
+    zero stop the program ("Division by zero"), `/` by zero is an infinity
+    (all three gave 0); a NaN compares equal and less; `&H80000000` …
+    `&HFFFFFFFF` are negative; INV is -1 without an inverse.
+  - VAL skips spaces and reads the number at the start (`"12abc"` = 12);
+    HEX$ has 8 digits; BIN$ 32 bits; REPLACE$ appends past the end;
+    INSTR never finds an empty needle and counts from a start before the
+    text (`INSTR(-5, "abc", "b")` = -4); CHR$ / STRING$ round a real code;
+    CONVBASE$ of a negative number gives its 32 bits;
+    Clipboard.GetAsText(n) gives n - 1 characters.
+  - A component's Boolean property or method result reads 1 when true
+    (`IF Check.Checked = True`, RAPIDQ.INC's True = 1); FILEEXISTS and
+    DIREXISTS give 1; a QFORM starts Enabled.
+  - An undeclared variable a SUB uses before the main program does is the
+    SUB's own (kept between calls), as RapidQ's one-pass compiler has it;
+    `DIM m` without AS is a DOUBLE; `""` inside a string is no escaped quote
+    (two strings side by side — the web IDE's designer writes quotes as
+    `CHR$(34)` now); STRING * n is always n characters (padded with spaces,
+    n spaces at first; `STRING * 0` empty).
+  - A PRINT right before the ELSE of a single-line IF stays on its line;
+    `CASE IS = "l" AND x = "d"` compares first, then ANDs; inside a TYPE's
+    own code a store into its property field doesn't call the setter.
+  - TIMER is the seconds since local midnight (it was since 1970 on the
+    desktop, since the page loaded on the web); TIME$ and DATE$ are local.
+
+
+## [2.116.0] — 2026-10-05
+
+### Added
 - **Themes for the UI kernel's look**, beside RapidQ's classic one (still
   the default, byte for byte): `modern` (flat, Windows 11-like: rounded
   controls, an accent colour, focus rings, thin scroll bars), `dark` (the
@@ -65,56 +132,6 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`tools/windows/registry_check.ps1`: one program interpreted, as an
   interpreted build and as a native build, the same as the store's run,
   what it left checked with `reg query`).
-- **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
-  takes `SetRenderMode(A A OR B)`, `-9(COS(x))`, `x = 16 374739` and the
-  like — its operator stack runs on, the value is the operand stack's
-  bottom (`A B OR C` is A, `-9(COS(x))` is 9, `(2 3) + 1` is 2) and the
-  other operands are still worked out (a FUNCTION among them is called).
-  RapidR refused them; both compilers now read them the same way (checked
-  line by line against RC.EXE: `tests/conformance/cases/
-  juxtaposed_operands.bas`). So `CASE 4, 7<TAB>C& = -2` (RapidQ's
-  `reminder/dayfunction.bas`) is the list 4, 7 with no body, as in RapidQ —
-  RapidR used to run the assignment.
-- **RapidQ-exact numbers and more, checked against RC.EXE** (native,
-  interpreted and web alike; details and evidence in
-  `docs/rapidq-ground-truth.md`):
-  - PRINT shows a fractional number with 9 decimals (`3.500000000`), Delphi's
-    digits, and a whole one as a 32-bit integer (beyond: `-2147483648`, as
-    for an infinity or NaN); STR$ has 9 significant digits (`0.333333333`,
-    `1.23456789E9`, `1E-5`). They were the shortest form / 15 digits.
-  - PRINT's (and LPRINT's) comma is the semicolon — no 14-column zones; a
-    leading separator is accepted (`PRINT , "x"`).
-  - INT and FIX truncate toward zero; ROUND, CINT and CLNG are `INT(x +
-    0.5)` (2.5 → 3, -2.5 → -2, -2.7 → -2); ROUND, CINT, CLNG, CEIL and FLOOR
-    are 32-bit.
-  - A store into an integer variable truncates (2.7 → 2), beyond 32 bits it
-    is -2147483648; a BYVAL parameter rounds half to even; a FUNCTION's
-    result isn't converted; DWORD is 32-bit signed; SINGLE is a real 32-bit
-    float. They rounded half to even, wrapped, converted results, kept DWORD
-    unsigned and SINGLE double.
-  - `\` rounds its operands as CINT; MOD, AND, OR, XOR, NOT, SHL, SHR take
-    32-bit operands rounded half to even (`7.5 MOD 2` = 0); `\` and MOD by
-    zero stop the program ("Division by zero"), `/` by zero is an infinity
-    (all three gave 0); a NaN compares equal and less; `&H80000000` …
-    `&HFFFFFFFF` are negative; INV is -1 without an inverse.
-  - VAL skips spaces and reads the number at the start (`"12abc"` = 12);
-    HEX$ has 8 digits; BIN$ 32 bits; REPLACE$ appends past the end;
-    Clipboard.GetAsText(n) gives n - 1 characters.
-  - A component's Boolean property or method result reads 1 when true
-    (`IF Check.Checked = True`, RAPIDQ.INC's True = 1); FILEEXISTS and
-    DIREXISTS give 1; a QFORM starts Enabled.
-  - An undeclared variable a SUB uses before the main program does is the
-    SUB's own (kept between calls), as RapidQ's one-pass compiler has it;
-    `DIM m` without AS is a DOUBLE; `""` inside a string is no escaped quote
-    (two strings side by side — the web IDE's designer writes quotes as
-    `CHR$(34)` now); STRING * n is always n characters (padded with spaces,
-    n spaces at first; `STRING * 0` empty).
-  - A PRINT right before the ELSE of a single-line IF stays on its line;
-    `CASE IS = "l" AND x = "d"` compares first, then ANDs; inside a TYPE's
-    own code a store into its property field doesn't call the setter.
-  - TIMER is the seconds since local midnight (it was since 1970 on the
-    desktop, since the page loaded on the web); TIME$ and DATE$ are local.
-
 ### Fixed
 - Interpreted desktop builds run timers' handlers while a dialog waits for
   the user — MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX, the Open / Save /

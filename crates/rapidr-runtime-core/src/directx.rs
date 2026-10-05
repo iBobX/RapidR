@@ -57,10 +57,26 @@ pub fn is_dx_timer(name: &str) -> bool {
     rp_comp_type(name) == "RDXTIMER"
 }
 
-/// A QDXTIMER's time between OnTimers (Interval 0: a screen refresh);
-/// `None` for other timers.
+/// A QDXTIMER's time between OnTimers (Interval 0: a screen refresh); a
+/// QDXJOYSTICK's between its looks for events; `None` for other timers.
 pub fn timer_interval(name: &str) -> Option<Duration> {
+    if rp_comp_type(name) == "RDXJOYSTICK" {
+        return Some(Duration::from_millis(rapidr_value::objects::joystick::LOOK_MS));
+    }
     is_dx_timer(name).then(|| Duration::from_millis(rapidr_value::objects::directx::timer_interval_ms(rp_comp_get(name, "interval").to_i64())))
+}
+
+/// A QDXJOYSTICK's look: when the program has a handler for one of its
+/// events, the joystick read and what changed fired (OnButtonUp /
+/// OnButtonDown with the button's number, OnMove). No OnTimer.
+fn joystick_look(name: &str) -> bool {
+    use rapidr_value::objects::joystick::EVENTS;
+    if EVENTS.iter().any(|e| crate::object::rp_has_handler(name, e)) {
+        for (event, args) in rapidr_value::objects::dxjoystick_look(name) {
+            crate::object::rp_fire_event_args(name, event, &args);
+        }
+    }
+    false
 }
 
 /// Timer `name` is due: whether its OnTimer fires — a QDXTIMER with
@@ -68,6 +84,9 @@ pub fn timer_interval(name: &str) -> Option<Duration> {
 /// application — and a QDXTIMER's frame counted (FrameRate).
 pub fn timer_fired(name: &str) -> bool {
     static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    if rp_comp_type(name) == "RDXJOYSTICK" {
+        return joystick_look(name);
+    }
     if !is_dx_timer(name) {
         return true;
     }

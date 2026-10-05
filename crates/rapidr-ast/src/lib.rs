@@ -1353,6 +1353,13 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
     out
 }
 
+/// A property RC.EXE refuses to set with its `X.P is a read-only value.`:
+/// QDXJOYSTICK's state (and RapidR's additions to it).
+pub fn is_read_only_value(type_name: &str, property: &str) -> bool {
+    canonical_type_name(type_name).eq_ignore_ascii_case("RDXJOYSTICK")
+        && ["IsLeft", "IsRight", "IsUp", "IsDown", "Connected", "Name", "X", "Y", "Z", "R", "U", "V", "Buttons", "POV"].iter().any(|p| p.eq_ignore_ascii_case(property))
+}
+
 /// The properties RapidQ's manual lists as read-only (R) for its own
 /// components (Appendix A); assigning one is RapidQ's `Property X of Y is
 /// read-only.`
@@ -1546,8 +1553,12 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
             Statement::Assignment(a) => {
                 if let Expression::MemberAccess(m) = &a.target {
                     if let Expression::Identifier(o) = m.object.as_ref() {
-                        if component_types.get(&o.name.to_ascii_lowercase()).is_some_and(|t| is_read_only_property(t, &m.member)) {
+                        let t = component_types.get(&o.name.to_ascii_lowercase());
+                        if t.is_some_and(|t| is_read_only_property(t, &m.member)) {
                             out.push((a.span, format!("Property {} of {} is read-only.", m.member, o.name)));
+                        } else if t.is_some_and(|t| is_read_only_value(t, &m.member)) {
+                            // (RC.EXE's other message: `J.ISLEFT is a read-only value.`)
+                            out.push((a.span, format!("{}.{} is a read-only value.", o.name.to_ascii_uppercase(), m.member.to_ascii_uppercase())));
                         }
                     }
                 }
@@ -1743,7 +1754,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RCOOLBTN", "ROVALBTN",
     "RJSON",
     // RapidQ's DirectX 2D objects (rapidr_value::objects::directx)
-    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND",
+    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND", "RDXJOYSTICK",
     // (and Direct3D's: rapidr_value::objects::d3d)
     "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR",
     // RapidQ's non-visual objects (rapidr_value::objects)
@@ -1997,7 +2008,8 @@ pub fn is_rapidq_object_type(type_name: &str) -> bool {
 /// A timer the runtimes tick while the program waits (QTIMER, QDXTIMER):
 /// both backends register it when it's made.
 pub fn is_timer_type(type_name: &str) -> bool {
-    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER")
+    // (QDXJOYSTICK: its events looked for at each tick)
+    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK")
 }
 
 pub fn is_component_type_name(type_name: &str) -> bool {

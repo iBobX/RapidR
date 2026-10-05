@@ -16,6 +16,7 @@ pub mod codec;
 pub mod d3d;
 pub mod design;
 pub mod directx;
+pub mod joystick;
 pub mod dirtree;
 pub mod tree;
 pub mod font;
@@ -90,6 +91,8 @@ enum Object {
     DxTimer(directx::DxTimer),
     /// QDXSOUND's sound and where it plays.
     DxSound(directx::DxSound),
+    /// QDXJOYSTICK's state (joystick.rs).
+    DxJoystick(joystick::DxJoystick),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -260,6 +263,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RDXIMAGELIST" => Object::DxImageList(directx::DxImageList::default()),
         "RDXTIMER" => Object::DxTimer(directx::DxTimer::default()),
         "RDXSOUND" => Object::DxSound(directx::DxSound::default()),
+        "RDXJOYSTICK" => Object::DxJoystick(joystick::DxJoystick::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -688,6 +692,21 @@ pub fn dxtimer_fired(id: &str, now_ms: f64) {
     with(id, |o| if let Object::DxTimer(t) = o { t.tick(now_ms) });
 }
 
+/// Whether `id` is a QDXJOYSTICK.
+pub fn is_dxjoystick(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::DxJoystick(_))) == Some(true)
+}
+
+/// QDXJOYSTICK `id`'s look for its events (joystick.rs): the events to fire,
+/// with their arguments.
+pub fn dxjoystick_look(id: &str) -> Vec<(&'static str, Vec<Value>)> {
+    with(id, |o| match o {
+        Object::DxJoystick(j) => j.look(),
+        _ => Vec::new(),
+    })
+    .unwrap_or_default()
+}
+
 /// The font a component's properties describe (`Font = Font`, `Font.Size = …`
 /// keep them as `fontname`, `fontsize` (points), `fontcolor`, `fontbold`, …):
 /// what text drawn for the component (a form's surface, a list's items) uses.
@@ -818,6 +837,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::DxImageList(l) => l.get(&prop),
         Object::DxTimer(t) => t.get(&prop),
         Object::DxSound(s) => s.get(&prop),
+        Object::DxJoystick(j) => j.get(&prop),
     })?
 }
 
@@ -914,6 +934,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Design(d) => d.set(&prop, val).then_some(Ok(())),
         Object::DxScreen(s) => s.set(&prop, val),
         Object::DxSound(s) => s.set(id, &prop, val),
+        Object::DxJoystick(j) => j.set(&prop, val),
         Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
 }
@@ -1008,6 +1029,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::DxImageList(_) => "dximagelist",
         Object::DxTimer(_) => "dxtimer",
         Object::DxSound(_) => "dxsound",
+        Object::DxJoystick(_) => "dxjoystick",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -1385,6 +1407,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Design(d) => d.call(method, args),
         Object::DxScreen(s) => s.call(method, args),
         Object::DxSound(s) => s.call(id, method),
+        Object::DxJoystick(j) => j.call(method, args),
         Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
     .map(Ok)

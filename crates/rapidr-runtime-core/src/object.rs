@@ -137,6 +137,11 @@ impl RpComponent {
                 props.insert("bufferlength".into(), v_int(1000));
                 props.insert("stickyfocus".into(), v_bool(false));
             }
+            // (QDXJOYSTICK: the runtime looks for its events like a timer's
+            // ticks — directx::timer_fired)
+            "RDXJOYSTICK" => {
+                props.insert("enabled".into(), v_bool(true));
+            }
             "RHEADER" => {
                 // Sections: rapidr_value::objects::header; a canvas to draw on.
                 props.insert("left".into(), v_int(0));
@@ -455,9 +460,10 @@ pub fn rp_mark_shutting_down() {
     SHUTTING_DOWN.with(|s| s.set(true));
 }
 
-/// A timer the runtime ticks (QTIMER, and the DirectX lane's QDXTIMER).
+/// A timer the runtime ticks (QTIMER, and the DirectX lane's QDXTIMER and
+/// QDXJOYSTICK — its events looked for at each tick).
 fn is_timer_type(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER")
+    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK")
 }
 
 /// Disable all RTimer components and clear their indirect handlers so
@@ -515,6 +521,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     // (the DirectX lane's: QDXSOUND plays on the sound device)
     if type_name.eq_ignore_ascii_case("RDXSOUND") {
         crate::sound::install_dx_device();
+    }
+    // (QDXJOYSTICK: its gamepads' source)
+    if type_name.eq_ignore_ascii_case("RDXJOYSTICK") {
+        crate::joystick::install();
     }
 }
 
@@ -2165,7 +2175,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RLISTVIEW" | "RPROGRESSBAR"
         | "RNUM" | "RPLOT" | "RDATAFRAME"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
-        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND"
+        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK"
         | "RD3DFRAME" | "RD3DMESHBUILDER" | "RD3DMESH" | "RD3DFACE" | "RD3DLIGHT" | "RD3DTEXTURE" | "RD3DVISUAL" | "RD3DWRAP" | "RD3DVECTOR"
     )
 }

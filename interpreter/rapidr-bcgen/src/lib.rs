@@ -2519,6 +2519,8 @@ fn windows_api_hint(api: &str) -> Option<&'static str> {
         "play sounds with PLAYSOUND (or RWEBAUDIO on the web)"
     } else if matches!(a, "shellexecute" | "shellexecuteex" | "winexec" | "createprocess") {
         "run programs and open files with SHELL / SHELLWAIT"
+    } else if a.starts_with("joy") {
+        "read joysticks and gamepads with a QDXJOYSTICK (Update, IsLeft / IsRight / IsUp / IsDown, Button(n); RapidR's X, Y, Buttons, POV, OnButtonDown …)"
     } else if matches!(a, "sleep") {
         "use SLEEP"
     } else if matches!(a, "messagebox" | "messageboxex") {

@@ -69,7 +69,8 @@ let runs = 0;
 function run(cmd, cmdArgs, opts = {}) {
   const registry = join(WORK, `registry-${process.pid}-${runs++}.reg`);
   rmSync(registry, { force: true });
-  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: registry } };
+  // (and no real gamepad: QDXJOYSTICK reads an empty test script)
+  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: registry, RAPIDR_TEST_JOYSTICK: "" } };
   const r = spawnSync(cmd, cmdArgs, { encoding: "utf8", timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT, ...opts });
   rmSync(registry, { force: true });
   let err = r.stderr || "";
