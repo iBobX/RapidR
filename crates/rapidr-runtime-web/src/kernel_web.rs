@@ -106,6 +106,11 @@ impl Store for WebStore {
         }
         // (a Color the program never set reads Null: the kernel's default,
         // as the desktop's RtStore)
+        // (a Font.Color the program didn't set: its parent's, RapidQ's
+        // ParentFont)
+        if matches!(prop.to_ascii_lowercase().as_str(), "fontcolor" | "font.color") {
+            return crate::object_web::drawn_font_color(id, prop);
+        }
         rp_comp_get(id, prop)
     }
 

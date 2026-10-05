@@ -479,6 +479,16 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // (a Color or a Parent changed: the canvases' backdrops follow)
     let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
+    // (the program chose a Font.Color — or a whole Font: RapidQ's
+    // ParentFont no longer applies, rapidr_value::component_defaults::
+    // font_color_read)
+    if matches!(prop.to_ascii_lowercase().as_str(), "font.color" | "fontcolor" | "font") {
+        COMPONENTS.with(|c| {
+            if let Some(comp) = c.borrow_mut().get_mut(&name.to_uppercase()) {
+                comp.properties.insert("__fontcolorset".into(), v_bool(true));
+            }
+        });
+    }
     set_property(name, prop, val);
     if backdrops {
         refresh_canvas_backdrops();
@@ -504,6 +514,69 @@ pub fn program_color(name: &str) -> Value {
 /// Every QCANVAS shows its parent's colour where nothing is drawn, as
 /// RapidQ's (a TPaintBox) does whatever its own Color: their models'
 /// backdrops made the parents' colours again.
+/// What `name.Font.Color` reads in a program: the one the program set,
+/// else its parent's (ParentFont), else clWindowText — RapidQ's, as RC.EXE
+/// reads it (rapidr_value::component_defaults::font_color_read).
+pub fn program_font_color(name: &str) -> Value {
+    fn read(name: &str, depth: u32) -> Value {
+        let set = rp_comp_get(name, "__fontcolorset").to_bool();
+        rapidr_value::component_defaults::font_color_read(set, rp_comp_get(name, "fontcolor"), || {
+            let parent = rp_comp_get(name, "parent").to_string_val();
+            (depth < 32 && !parent.is_empty() && !parent.eq_ignore_ascii_case(name) && !rp_comp_type(&parent).is_empty()).then(|| read(&parent, depth + 1))
+        })
+    }
+    read(name, 0)
+}
+
+/// The Font.Color a component's text is drawn in, for the kernel: its own
+/// when the program set it, else the nearest parent's the program set
+/// (RapidQ's ParentFont), else what's stored (the theme's text).
+pub fn drawn_font_color(name: &str, prop: &str) -> Value {
+    let mut at = name.to_string();
+    for _ in 0..32 {
+        if rp_comp_get(&at, "__fontcolorset").to_bool() {
+            return rp_comp_get(&at, prop);
+        }
+        let parent = rp_comp_get(&at, "parent").to_string_val();
+        if parent.is_empty() || parent.eq_ignore_ascii_case(&at) || rp_comp_type(&parent).is_empty() {
+            break;
+        }
+        at = parent;
+    }
+    rp_comp_get(name, prop)
+}
+
+/// `Form.Pixel(x, y)` as RapidQ reads it (rapidr_value::component_defaults::
+/// form_pixel: -1 unless shown, outside, or over a window of its own; a
+/// graphic control's pixel), or None: the form's surface answers.
+fn form_pixel(name: &str, args: &[Value]) -> Option<Value> {
+    let (x, y) = (args[0].to_i64(), args[1].to_i64());
+    let shown = rp_comp_get(name, "visible").to_bool();
+    let client = (rp_comp_get(name, "clientwidth").to_i64(), rp_comp_get(name, "clientheight").to_i64());
+    let mut kids: Vec<(u32, rapidr_value::component_defaults::PixelChild)> = COMPONENTS.with(|m| {
+        m.borrow()
+            .iter()
+            .filter(|(_, c)| c.properties.get("parent").is_some_and(|p| p.to_string_val().eq_ignore_ascii_case(name)))
+            .map(|(id, c)| (c.creation_order, id.clone(), c.type_name.clone()))
+            .collect::<Vec<_>>()
+    })
+    .into_iter()
+    .filter(|(_, id, _)| rp_comp_get(id, "visible").to_bool() || matches!(rp_comp_get(id, "visible"), Value::Null))
+    .map(|(order, id, type_name)| {
+        let g = |p: &str| rp_comp_get(&id, p).to_i64();
+        let color = match rp_comp_get(&id, "color") {
+            Value::Null => None,
+            v => Some(v.to_i64()),
+        };
+        (order, rapidr_value::component_defaults::PixelChild { rect: (g("left"), g("top"), g("width"), g("height")), id, type_name, color })
+    })
+    .collect();
+    kids.sort_by_key(|(o, _)| *o);
+    let kids: Vec<_> = kids.into_iter().map(|(_, k)| k).collect();
+    let form_color = program_color(name).to_i64();
+    rapidr_value::component_defaults::form_pixel(shown, client, x, y, form_color, &kids).map(v_int)
+}
+
 fn refresh_canvas_backdrops() {
     let canvases: Vec<String> = COMPONENTS.with(|m| m.borrow().iter().filter(|(_, comp)| comp.type_name == "RCANVAS").map(|(n, _)| n.clone()).collect());
     for c in canvases {
@@ -1091,6 +1164,9 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
     if prop.eq_ignore_ascii_case("color") {
         return program_color(name);
     }
+    if (prop.eq_ignore_ascii_case("font.color") || prop.eq_ignore_ascii_case("fontcolor")) && !rp_comp_type(name).is_empty() && !rapidr_value::objects::TYPES.contains(&rp_comp_type(name).as_str()) {
+        return program_font_color(name);
+    }
     rapidr_value::property_read(rp_comp_get(name, prop))
 }
 
@@ -1145,6 +1221,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
     // as the component's properties `panel(0).width` unless the component
     // implements them.
+    // `Form.Pixel(x, y)` read: RapidQ's -1s and its children's pixels.
+    if rp_comp_type(name) == "RFORM" && args.len() == 2 && lmethod.as_str() == "pixel" {
+        if let Some(v) = form_pixel(name, args) {
+            return v;
+        }
+    }
     // A QFORM gets its own drawing surface the first time it's drawn on.
     if rp_comp_type(name) == "RFORM"
         && rapidr_value::objects::is_drawing_method(&lmethod)

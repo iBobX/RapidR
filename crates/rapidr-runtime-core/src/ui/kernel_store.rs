@@ -35,6 +35,11 @@ impl Store for RtStore {
         // default: a form's and a panel's face, no background for a label —
         // while the program reads RapidQ's clBtnFace / clWindow / its
         // parent's: object.rs `program_color`)
+        // (a Font.Color the program didn't set: its parent's, RapidQ's
+        // ParentFont)
+        if matches!(prop.to_ascii_lowercase().as_str(), "fontcolor" | "font.color") {
+            return crate::object::drawn_font_color(id, prop);
+        }
         rp_comp_get(id, prop)
     }
 

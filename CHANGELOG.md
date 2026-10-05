@@ -238,6 +238,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     Pixel reads the F0F0F0 it shows, and TextOut blends over it. A QCANVAS
     shows its parent's colour where nothing is drawn, not its own Color
     (RapidQ's TPaintBox). The desktop's "creation white" rule is gone.
+  - Font.Color reads clWindowText (`&H80000008`) until set — a new QFONT's
+    Color too — and a parented component its parent's (ParentFont, drawn
+    so too); it read 0. Form.Pixel reads -1 before Show, after Close,
+    outside the form and over a window of its own (a panel, a button …),
+    and a label's / canvas's / image's pixel over those.
   - TIMER is the seconds since local midnight (it was since 1970 on the
     desktop, since the page loaded on the web); TIME$ and DATE$ are local.
 
