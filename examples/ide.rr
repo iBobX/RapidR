@@ -14,6 +14,7 @@ DIM CurrentTool AS STRING        ' currently selected toolbox item
 DIM ProjectFile AS STRING        ' saved project path
 DIM RapidRHome AS STRING         ' RapidR workspace root for compilation
 DIM RapidRCli AS STRING          ' the rapidr command the IDE builds with
+DIM TempDir AS STRING            ' the system's temporary folder
 DIM CodeDirty AS INTEGER         ' 1 = design surface changed, code needs regen
 ' (run from a checkout's root: ./examples/ide; ide.config.json changes it)
 RapidRHome = CURDIR$
@@ -1917,7 +1918,7 @@ SUB CompileAndRun
     DIM TmpName AS STRING
     TmpName = "rr_run_" + STR$(RandId)
     DIM TmpFile AS STRING
-    TmpFile = "/tmp/" + TmpName + ".rr"
+    TmpFile = TempDir + "/" + TmpName + ".rr"
 
     DIM FS AS RFILESTREAM
     CREATE FS AS RFILESTREAM
@@ -1933,17 +1934,18 @@ SUB CompileAndRun
 
     DIM CmdStr AS STRING
     DIM OutputFile AS STRING
-    OutputFile = "/tmp/" + TmpName + "_build.log"
+    OutputFile = TempDir + "/" + TmpName + "_build.log"
     ' (checked by the compiler, then run by the interpreter: no Rust needed;
-    ' Build makes the native executable)
-    CmdStr = CHR$(34) + RapidRCli + CHR$(34) + " info " + TmpFile + " > " + OutputFile + " 2>&1"
+    ' Build makes the native executable). One quoted command line, the same
+    ' for every system's shell: rapidr writes its own log (--log).
+    CmdStr = Quoted(RapidRCli) + " --log " + Quoted(OutputFile) + " info " + Quoted(TmpFile)
 
     DIM Result AS INTEGER
     Result = SHELL(CmdStr)
 
     IF Result = 0 THEN
         StatusBar.Caption = "Compilation successful — running..."
-        SHELL(CHR$(34) + RapidRCli + CHR$(34) + " run " + TmpFile + " &")
+        RUN(Quoted(RapidRCli) + " run " + Quoted(TmpFile))
         StatusBar.Caption = "Running project"
     ELSE
         StatusBar.Caption = "Compilation failed — check errors"
@@ -2004,14 +2006,16 @@ SUB BuildStandalone
     DIM OutDir AS STRING
     OutDir = ProjectFile + "_rust"
     DIM Result AS INTEGER
-    Result = SHELL(CHR$(34) + RapidRCli + CHR$(34) + " build " + ProjectFile + " " + OutDir + " --release 2>&1")
+    DIM BuildLog AS STRING
+    BuildLog = TempDir + "/rapidr_ide_build.log"
+    Result = SHELL(Quoted(RapidRCli) + " --log " + Quoted(BuildLog) + " build " + Quoted(ProjectFile) + " " + Quoted(OutDir) + " --release")
 
     IF Result = 0 THEN
         StatusBar.Caption = "Build successful: " + OutDir
         ErrorList.AddItems("Build succeeded: " + OutDir)
     ELSE
         StatusBar.Caption = "Build failed"
-        ErrorList.AddItems("Build failed. Check output for errors.")
+        ShowLog(BuildLog, "Build failed (exit code: " + STR$(Result) + ")")
     END IF
 END SUB
 
@@ -2057,20 +2061,20 @@ END SUB
 
 SUB OpenInVSCode
     IF ProjectFile <> "" THEN
-        SHELL("code " + CHR$(34) + ProjectFile + CHR$(34) + " &")
+        RUN("code " + Quoted(ProjectFile))
         StatusBar.Caption = "Opened in VS Code: " + ProjectFile
     ELSE
         ' Save to temp file first
         GenerateCode
         DIM TmpFile AS STRING
-        TmpFile = "/tmp/rapidr_vscode_temp.rr"
+        TmpFile = TempDir + "/rapidr_vscode_temp.rr"
         DIM FS AS RFILESTREAM
         CREATE FS AS RFILESTREAM
         END CREATE
         FS.Open(TmpFile, 65535)
         FS.WriteLn(CodeEditor.Text)
         FS.Close
-        SHELL("code " + CHR$(34) + TmpFile + CHR$(34) + " &")
+        RUN("code " + Quoted(TmpFile))
         StatusBar.Caption = "Opened temp file in VS Code"
     END IF
 END SUB
@@ -2097,6 +2101,40 @@ SUB LoadConfig
     ELSE
         RapidRCli = RapidRHome + "/rapidr"
     END IF
+    ' The temporary folder (`rapidr ide`: RAPIDR_TEMP, the system's), else
+    ' Windows' TEMP, else the current folder
+    TempDir = ENVIRON$("RAPIDR_TEMP")
+    IF TempDir = "" THEN TempDir = ENVIRON$("TEMP")
+    IF TempDir = "" THEN TempDir = CURDIR$
+END SUB
+
+' A path or program in double quotes, for a command line
+FUNCTION Quoted(Text AS STRING) AS STRING
+    Quoted = CHR$(34) + Text + CHR$(34)
+END FUNCTION
+
+' A log's lines in the error list (or Fallback when it is empty)
+SUB ShowLog(LogFile AS STRING, Fallback AS STRING)
+    DIM LogStream AS RFILESTREAM
+    CREATE LogStream AS RFILESTREAM
+    END CREATE
+    LogStream.Open(LogFile)
+    DIM LogText AS STRING
+    LogText = LogStream.ReadAll
+    LogStream.Close
+    IF LogText = "" THEN
+        ErrorList.AddItems(Fallback)
+        EXIT SUB
+    END IF
+    DIM LineStart AS INTEGER
+    DIM LineEnd AS INTEGER
+    LineStart = 1
+    DO WHILE LineStart <= LEN(LogText)
+        LineEnd = INSTR(LineStart, LogText, CHR$(10))
+        IF LineEnd = 0 THEN LineEnd = LEN(LogText) + 1
+        IF LineEnd > LineStart THEN ErrorList.AddItems(RTRIM$(MID$(LogText, LineStart, LineEnd - LineStart)))
+        LineStart = LineEnd + 1
+    LOOP
 END SUB
 
 SUB SaveConfig

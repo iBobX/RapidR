@@ -323,8 +323,12 @@ pub fn rp_shell(command: &Value) -> Value {
 fn shell_command(cmd: &str) -> std::process::Command {
     #[cfg(windows)]
     {
+        // The command line as written (quoted programs and paths): `/S /C
+        // "…"` strips only the outer quotes. Rust's own argument quoting
+        // (backslash-escaped quotes) is not what cmd reads.
+        use std::os::windows::process::CommandExt;
         let mut c = std::process::Command::new("cmd");
-        c.arg("/C").arg(cmd);
+        c.arg("/S").arg("/C").raw_arg(format!("\"{cmd}\""));
         c
     }
     #[cfg(not(windows))]

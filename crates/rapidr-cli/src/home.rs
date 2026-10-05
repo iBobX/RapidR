@@ -14,8 +14,9 @@
 //! (`Cargo.toml`, `Cargo.lock`, `crates/`, `.cargo/config.toml`,
 //! `tools/wasm-ar.sh`) and has what a checkout builds itself instead:
 //! `runners/<os>-<arch>/rapidrintr-runner`, `web/rapidrintr*` and `vendor/`
-//! (the crates.io sources: native builds work offline). A runtime-only install
-//! has only `release.toml`.
+//! (the crates.io sources: native builds work offline), and on Windows
+//! `toolchain/` (LLVM-MinGW: native builds link with it, no Visual Studio).
+//! A runtime-only install has only `release.toml`.
 
 use std::env;
 use std::fs;
@@ -69,6 +70,23 @@ impl Home {
         out.sort();
         out
     }
+}
+
+impl Home {
+    /// Windows: the LLVM-MinGW an install ships (`toolchain/`) that native
+    /// builds link with, unless RAPIDR_TOOLCHAIN=msvc.
+    pub fn windows_toolchain(&self) -> Option<PathBuf> {
+        if !cfg!(windows) || env::var("RAPIDR_TOOLCHAIN").is_ok_and(|t| t == "msvc") {
+            return None;
+        }
+        let tc = self.root.join("toolchain");
+        tc.join("bin").is_dir().then_some(tc)
+    }
+}
+
+/// Rust's gnullvm triple for this Windows machine.
+pub fn windows_gnullvm_triple() -> String {
+    format!("{}-pc-windows-gnullvm", env::consts::ARCH)
 }
 
 impl Release {

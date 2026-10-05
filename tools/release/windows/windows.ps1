@@ -22,7 +22,9 @@ param(
     [string]$Work = "$env:USERPROFILE\rapidr-release",
     [string]$Publish = ""
 )
-$ErrorActionPreference = "Stop"
+# (Continue: Windows PowerShell turns a native tool's stderr into errors when the output is
+# redirected; failures are checked by exit code and thrown, cmdlets that matter say -ErrorAction Stop)
+$ErrorActionPreference = "Continue"
 function Step($m) { Write-Host "== $m" }
 function Run($exe, [string[]]$a) {
     & $exe @a
@@ -108,3 +110,4 @@ if ($Publish) {
     Copy-Item "$Out\*-setup.exe" $Publish
     Write-Host "copied to $Publish"
 }
+exit 0

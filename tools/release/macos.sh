@@ -79,6 +79,7 @@ make_app() {
     cp "$stage/bin/rapidr" "$stage/bin/rapidrw" "$app/Contents/MacOS/"
     cp -R "$stage/lib" "$app/Contents/lib"
     cp -R "$stage/share/doc/rapidr" "$app/Contents/Resources/doc"
+    cp tools/release/icons/rapidr.icns tools/release/icons/rapidr-doc.icns "$app/Contents/Resources/"
 }
 step "apps"
 make_app "RapidR" "$W/sdk" RapidR.plist

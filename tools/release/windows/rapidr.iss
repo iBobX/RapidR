@@ -6,10 +6,12 @@
 ;            /DStage=<staged prefix> /DOutDir=<folder> rapidr.iss
 ;
 ; Per user, no administrator: %LOCALAPPDATA%\Programs\RapidR, bin\ on the
-; user's PATH, a Start menu entry for the IDE (SDK), the file types under
-; HKCU\Software\Classes — .rrbc runs (rapidrw.exe: a console program gets a
-; console, a windowed one none), .rr / .bas open in the IDE with a "Run"
-; action (the runtime alone: they run). The uninstaller removes all of it.
+; user's PATH (a task, on by default), a Start menu entry for the IDE (SDK),
+; the file types under HKCU\Software\Classes — .rrbc runs (rapidrw.exe: a
+; console program gets a console, a windowed one none), .rr opens in the IDE
+; with a "Run" action (the runtime alone: runs); .bas lists RapidR under
+; "Open with", and is RapidR's by default only when its task is ticked (off by
+; default: .bas is other BASICs' too). The uninstaller removes all of it.
 ; The SDK and the runtime share one AppId: installing one replaces the other.
 
 #ifndef Version
@@ -50,11 +52,12 @@ SolidCompression=yes
 WizardStyle=modern
 ChangesEnvironment=yes
 ChangesAssociations=yes
-UninstallDisplayIcon={app}\bin\rapidrw.exe
+SetupIconFile={#Stage}\share\icons\rapidr.ico
+UninstallDisplayIcon={app}\share\icons\rapidr.ico
 UninstallDisplayName={#AppName} {#Version}
 
 [Tasks]
-Name: "associate"; Description: "Open .rrbc, .rr and .bas files with RapidR"; GroupDescription: "File types:"
+Name: "basdefault"; Description: "Open .bas files with RapidR by default"; GroupDescription: "File types (.rrbc and .rr are always RapidR's):"; Flags: unchecked
 Name: "addtopath"; Description: "Add rapidr to PATH (for the command line)"; GroupDescription: "Command line:"
 
 [Files]
@@ -69,30 +72,30 @@ Type: filesandordirs; Name: "{app}\lib"
 
 [Icons]
 #if Kind == "sdk"
-Name: "{autoprograms}\RapidR IDE"; Filename: "{app}\bin\rapidrw.exe"; Parameters: "--ide"; WorkingDir: "{userdocs}"; Comment: "Write, run and build RapidR and RapidQ programs"
+Name: "{autoprograms}\RapidR IDE"; Filename: "{app}\bin\rapidrw.exe"; Parameters: "--ide"; WorkingDir: "{userdocs}"; IconFilename: "{app}\share\icons\rapidr.ico"; Comment: "Write, run and build RapidR and RapidQ programs"
 #endif
 
 [Registry]
 ; .rrbc: a RapidR program — runs
-Root: HKA; Subkey: "Software\Classes\.rrbc"; ValueType: string; ValueName: ""; ValueData: "RapidR.Program"; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Program"; ValueType: string; ValueName: ""; ValueData: "RapidR program"; Flags: uninsdeletekey; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Program\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"",0"; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Program\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" ""%1"""; Tasks: associate
-; .rr / .bas: source — opens in the IDE (SDK), "Run" runs it
-Root: HKA; Subkey: "Software\Classes\.rr"; ValueType: string; ValueName: ""; ValueData: "RapidR.Source"; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\.bas"; ValueType: string; ValueName: ""; ValueData: "RapidR.Source"; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\.rr\OpenWithProgids"; ValueType: string; ValueName: "RapidR.Source"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\.bas\OpenWithProgids"; ValueType: string; ValueName: "RapidR.Source"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Source"; ValueType: string; ValueName: ""; ValueData: "RapidR source"; Flags: uninsdeletekey; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"",0"; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\run"; ValueType: string; ValueName: ""; ValueData: "&Run"; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\run\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" ""%1"""; Tasks: associate
+Root: HKA; Subkey: "Software\Classes\.rrbc"; ValueType: string; ValueName: ""; ValueData: "RapidR.Program"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\RapidR.Program"; ValueType: string; ValueName: ""; ValueData: "RapidR program"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\RapidR.Program\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\share\icons\rapidr-doc.ico"""
+Root: HKA; Subkey: "Software\Classes\RapidR.Program\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" ""%1"""
+; .rr / .bas: source — opens in the IDE (SDK), "Run" runs it (.bas: the default only by its task)
+Root: HKA; Subkey: "Software\Classes\.rr"; ValueType: string; ValueName: ""; ValueData: "RapidR.Source"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.bas"; ValueType: string; ValueName: ""; ValueData: "RapidR.Source"; Flags: uninsdeletevalue; Tasks: basdefault
+Root: HKA; Subkey: "Software\Classes\.rr\OpenWithProgids"; ValueType: string; ValueName: "RapidR.Source"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.bas\OpenWithProgids"; ValueType: string; ValueName: "RapidR.Source"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\RapidR.Source"; ValueType: string; ValueName: ""; ValueData: "RapidR source"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\share\icons\rapidr-doc.ico"""
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\run"; ValueType: string; ValueName: ""; ValueData: "&Run"
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\run\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" ""%1"""
 #if Kind == "sdk"
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell"; ValueType: string; ValueName: ""; ValueData: "open"; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\open"; ValueType: string; ValueName: ""; ValueData: "&Open in RapidR IDE"; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" --ide ""%1"""; Tasks: associate
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell"; ValueType: string; ValueName: ""; ValueData: "open"
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\open"; ValueType: string; ValueName: ""; ValueData: "&Open in RapidR IDE"
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" --ide ""%1"""
 #else
-Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell"; ValueType: string; ValueName: ""; ValueData: "run"; Tasks: associate
+Root: HKA; Subkey: "Software\Classes\RapidR.Source\shell"; ValueType: string; ValueName: ""; ValueData: "run"
 #endif
 
 [Code]

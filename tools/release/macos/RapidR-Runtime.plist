@@ -16,6 +16,8 @@
 	<string>io.github.ibobx.rapidr.runtime</string>
 	<key>CFBundleExecutable</key>
 	<string>rapidrw</string>
+	<key>CFBundleIconFile</key>
+	<string>rapidr</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleVersion</key>
@@ -37,6 +39,8 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>RapidR program</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>rapidr-doc</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
@@ -49,6 +53,8 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>RapidR source (run)</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>rapidr-doc</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>

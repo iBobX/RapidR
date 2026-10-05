@@ -10,6 +10,7 @@ finds its home from the executable by it):
     lib/rapidr/runners/<os>-<arch>/     rapidrintr-runner[w][.exe]      sdk
     lib/rapidr/web/                     rapidrintr.js, _bg.wasm         sdk
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
+    share/icons/                        rapidr.ico, rapidr-doc.ico      Windows
     share/doc/rapidr/                   LICENSE, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         the fonts' OFL, README.md
 
@@ -82,6 +83,12 @@ def main():
             f.write("# An installed RapidR's home (crates/rapidr-cli/src/home.rs).\n")
             f.write(f'version = "{version}"\nrust = "{args.rust}"\nkind = "runtime"\n')
 
+    if args.os == "windows":
+        # (the file types', the Start menu's and the uninstaller's icons)
+        icons = os.path.join(out, "share", "icons")
+        os.makedirs(icons)
+        for f in ["rapidr.ico", "rapidr-doc.ico"]:
+            shutil.copy2(os.path.join(ROOT, "tools", "release", "icons", f), os.path.join(icons, f))
     doc = os.path.join(out, "share", "doc", "rapidr")
     os.makedirs(doc)
     for f in DOCS:

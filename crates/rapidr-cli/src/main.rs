@@ -19,6 +19,33 @@ const SUBCOMMANDS: &[&str] = &[
     "version", "run", "open", "info", "about", "ide", "setup", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
 ];
 
+/// `--log <file> <command…>`: this rapidr again with the command, its
+/// standard output and error in the file.
+fn run_logged(args: &[String]) -> ExitCode {
+    let Some((log, rest)) = args.split_first() else {
+        eprintln!("--log <file> <command…>");
+        return ExitCode::from(2);
+    };
+    let file = match fs::File::create(log) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("{log}: {e}");
+            return ExitCode::from(1);
+        }
+    };
+    let status = file.try_clone().and_then(|err| {
+        let exe = env::current_exe()?;
+        process::Command::new(exe).args(rest).stdin(process::Stdio::null()).stdout(file).stderr(err).status()
+    });
+    match status {
+        Ok(s) => ExitCode::from(s.code().unwrap_or(1).clamp(0, 255) as u8),
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
 /// A `#!` script: its first line starts with `#!` (`#!/usr/bin/env rapidr`).
 fn is_script(path: &str) -> bool {
     use std::io::Read;
@@ -29,6 +56,13 @@ fn is_script(path: &str) -> bool {
 fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
+
+    // `rapidr --log <file> <command…>`: the command's output (and that of
+    // the tools it runs: cargo) in a file — for programs that run rapidr
+    // (the IDE) on any system without a shell's redirections.
+    if args.first().map(String::as_str) == Some("--log") {
+        return run_logged(&args[1..]);
+    }
 
     // Shortcuts: `rapidr [--release|--debug] [--web] [--interp] <file.rr|.bas>`
     // builds it; `rapidr <file.rrbc> [args]` and a `#!/usr/bin/env rapidr`
@@ -145,6 +179,7 @@ fn main() -> ExitCode {
         _ => {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
+            eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
@@ -471,6 +506,24 @@ fn cargo_for_programs() -> Result<process::Command, String> {
             .arg("source.crates-io.replace-with='vendored-sources'")
             .arg("--config")
             .arg(format!("source.vendored-sources.directory='{}'", vendor.display()));
+    }
+    // Windows: Rust's gnullvm toolchain, linked by the LLVM-MinGW RapidR
+    // ships — no Visual Studio (RAPIDR_TOOLCHAIN=msvc: Rust's default instead).
+    if let Some(tc) = home.windows_toolchain() {
+        let triple = home::windows_gnullvm_triple();
+        let env_triple = triple.replace('-', "_");
+        let bin = tc.join("bin");
+        let clang = bin.join(format!("{}-w64-mingw32-clang.exe", env::consts::ARCH));
+        cargo
+            .env("RUSTUP_TOOLCHAIN", format!("stable-{triple}"))
+            .env(format!("CARGO_TARGET_{}_LINKER", env_triple.to_uppercase()), &clang)
+            .env(format!("CC_{env_triple}"), &clang)
+            .env(format!("AR_{env_triple}"), bin.join("llvm-ar.exe"));
+        let path = env::var_os("PATH").unwrap_or_default();
+        let paths = std::iter::once(bin).chain(env::split_paths(&path));
+        if let Ok(joined) = env::join_paths(paths) {
+            cargo.env("PATH", joined);
+        }
     }
     Ok(cargo)
 }

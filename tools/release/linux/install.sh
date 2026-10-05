@@ -26,6 +26,8 @@ cp -R "$HERE/share/doc/rapidr" "$PREFIX/share/doc/rapidr"
 cp "$HERE/uninstall.sh" "$PREFIX/lib/rapidr/uninstall.sh"
 
 cp "$HERE/share/mime/packages/rapidr.xml" "$DATA/mime/packages/rapidr.xml"
+ICONS="$(cd "$HERE/share/icons" && find hicolor -name '*.png')"
+for i in $ICONS; do mkdir -p "$DATA/icons/$(dirname "$i")"; cp "$HERE/share/icons/$i" "$DATA/icons/$i"; done
 DESKTOP="rapidr-runtime.desktop"
 [ "$KIND" = sdk ] && DESKTOP="$DESKTOP rapidr-ide.desktop"
 for d in $DESKTOP; do
@@ -38,10 +40,12 @@ $PREFIX/lib/rapidr
 $PREFIX/share/doc/rapidr
 $DATA/mime/packages/rapidr.xml
 $(for d in $DESKTOP; do echo "$DATA/applications/$d"; done)
+$(for i in $ICONS; do echo "$DATA/icons/$i"; done)
 EOF
 
 command -v update-mime-database >/dev/null && update-mime-database "$DATA/mime" || true
 command -v update-desktop-database >/dev/null && update-desktop-database "$DATA/applications" || true
+command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$DATA/icons/hicolor" || true
 if command -v xdg-mime >/dev/null; then
     xdg-mime default rapidr-runtime.desktop application/x-rapidr-bytecode
     if [ "$KIND" = sdk ]; then

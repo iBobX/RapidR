@@ -76,10 +76,12 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
     }
     let program = fs::canonicalize(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
     rapidr_vm_host_native::set_program(&program, args);
-    // (the runtime running it, for a program that runs others: the IDE)
+    // (the runtime running it and the system's temporary folder, for a
+    // program that runs others: the IDE)
     if let Ok(exe) = env::current_exe() {
         env::set_var("RAPIDR_RUNTIME", exe);
     }
+    env::set_var("RAPIDR_TEMP", env::temp_dir());
     rapidr_vm_host_native::run_bytes(&bytes)
 }
 

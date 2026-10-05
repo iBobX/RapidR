@@ -15,7 +15,9 @@ param(
     [switch]$Associations,
     [switch]$Native
 )
-$ErrorActionPreference = "Stop"
+# (Continue: Windows PowerShell turns a native tool's stderr into errors when the output is
+# redirected; failures are checked by exit code and thrown, cmdlets that matter say -ErrorAction Stop)
+$ErrorActionPreference = "Continue"
 $T = Join-Path $env:TEMP ("rapidr-smoke-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Force "$T\work", "$T\prints" | Out-Null
 $env:RAPIDR_PRINT_TO = "$T\prints"; $env:RAPIDR_REGISTRY = "$T\registry.reg"; $env:RAPIDR_CONFIG_DIR = "$T\config"
