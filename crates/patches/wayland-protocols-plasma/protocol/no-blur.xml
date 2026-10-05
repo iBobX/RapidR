@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="rapidr_no_blur">
+  <copyright>
+    Copyright (c) RapidR contributors. MIT License (RapidR's LICENSE).
+  </copyright>
+
+  <!-- RapidR's own: what winit's Wayland backend calls for a blurred
+       window background, under interface names no compositor announces,
+       so binding it always fails and nothing is ever sent
+       (../Cargo.toml). -->
+  <interface name="rapidr_no_blur_manager" version="1">
+    <request name="create">
+      <arg name="id" type="new_id" interface="rapidr_no_blur"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+    <request name="unset">
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+  </interface>
+
+  <interface name="rapidr_no_blur" version="1">
+    <request name="commit"/>
+    <request name="release" type="destructor"/>
+  </interface>
+</protocol>

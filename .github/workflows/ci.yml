@@ -41,7 +41,7 @@ jobs:
       - name: Install native GUI/audio build dependencies (UI kernel host, ALSA)
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype-dev \
+          sudo apt-get install -y pkg-config libfontconfig1-dev libssl-dev \
             libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev \
             libxrandr-dev libasound2-dev
       - run: cargo test --workspace

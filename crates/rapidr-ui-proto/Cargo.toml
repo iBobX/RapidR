@@ -48,3 +48,8 @@ dispatch2 = "0.3"
 # pinned toolchain, and the prototype mustn't move the web build's lock.
 # Build here: `cargo run --manifest-path crates/rapidr-ui-proto/Cargo.toml`.
 [workspace]
+
+# (the root workspace's: winit's KDE blur bindings are RapidR's stand-in,
+# crates/patches/wayland-protocols-plasma)
+[patch.crates-io]
+wayland-protocols-plasma = { path = "../patches/wayland-protocols-plasma" }

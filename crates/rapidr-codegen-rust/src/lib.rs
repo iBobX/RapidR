@@ -3228,10 +3228,21 @@ fn toml_escape(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
+/// The crates.io crates RapidR replaces with its own, as the workspace's
+/// `[patch.crates-io]` does (a test keeps them equal): (crate, its folder
+/// beside `rapidr-runtime-core`'s). A native program compiles the runtime's
+/// graph, so it gets them too.
+pub const PATCHES: &[(&str, &str)] = &[("wayland-protocols-plasma", "patches/wayland-protocols-plasma")];
+
 /// Generate a Cargo.toml for the output project that depends on the runtime
 /// (its default features: the UI kernel's desktop host among them).
 pub fn generate_cargo_toml(project_name: &str, runtime_path: &str) -> String {
     let project_name = crate_name(project_name);
+    let crates_dir = std::path::Path::new(runtime_path).parent().unwrap_or(std::path::Path::new(""));
+    let patches: String = PATCHES
+        .iter()
+        .map(|(name, dir)| format!("{name} = {{ path = \"{}\" }}\n", toml_escape(&crates_dir.join(dir).to_string_lossy())))
+        .collect();
     let runtime_path = toml_escape(runtime_path);
     format!(
         r#"[package]
@@ -3251,7 +3262,9 @@ debug = false
 
 [dependencies]
 rapidr-runtime-core = {{ path = "{runtime_path}" }}
-"#
+
+[patch.crates-io]
+{patches}"#
     )
 }
 
@@ -3463,6 +3476,29 @@ mod tests {
         assert!(toml.contains(r#"path = "C:\\Users\\me\\rapidr\\crates/rapidr-runtime-core""#), "{toml}");
         let web = generate_cargo_toml_web("app", r"C:\x\rapidr-runtime-web");
         assert!(web.contains(r#"path = "C:\\x\\rapidr-runtime-web""#), "{web}");
+    }
+
+    /// A native program's [patch.crates-io] is the workspace's.
+    #[test]
+    fn cargo_toml_has_the_workspaces_patches() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        let toml = generate_cargo_toml("app", &format!("{root}/crates/rapidr-runtime-core"));
+        let section = |t: &str| t.split("[patch.crates-io]").nth(1).map(|s| s.split("\n[").next().unwrap_or("").to_string()).unwrap_or_default();
+        let entries = |s: String| -> Vec<(String, std::path::PathBuf)> {
+            s.lines()
+                .filter(|l| !l.trim_start().starts_with('#'))
+                .filter_map(|l| {
+                    let (name, rest) = l.split_once('=')?;
+                    // (the workspace's paths are relative to it)
+                    let path = std::path::Path::new(root).join(rest.split('"').nth(1)?);
+                    Some((name.trim().to_string(), std::fs::canonicalize(path).ok()?))
+                })
+                .collect()
+        };
+        let workspace = std::fs::read_to_string(format!("{root}/Cargo.toml")).unwrap();
+        let ours = entries(section(&toml));
+        assert_eq!(ours.len(), PATCHES.len(), "{toml}");
+        assert_eq!(ours, entries(section(&workspace)));
     }
 
     use rapidr_lexer::Lexer;

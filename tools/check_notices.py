@@ -12,9 +12,11 @@ Builds a small program each way and looks at what comes out:
   native web build (build --web), --web      notices in <stem>_web/, linked
 
 then, for every kind (`rapidr notices <kind>`: each desktop <os>-<arch>, the
-web, RapidR's own tools), compares the crates the file lists with the crates
-`cargo tree` says that kind compiles in — computed here on its own, so a
-mistake in the CLI's list of roots or targets shows.
+web, RapidR's own tools), checks what `cargo tree` says that kind compiles in
+— computed here on its own, so a mistake in the CLI's list of roots or
+targets shows: every crate under a permissive licence (PERMISSIVE: no
+copyleft, no data licences), none of the crates RapidR replaced (BANNED,
+crates.io's KDE protocol bindings), and every crate in the file.
 
     python3 tools/check_notices.py [--rapidr PATH] [--native] [--web]
 
@@ -51,6 +53,18 @@ KINDS = {
     "tools-linux": ((["rapidr-cli", "rapidr-launcher"], []), ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]),
 }
 
+# The only licences a crate compiled into a program may be used under
+# (docs/licensing.md §4), listed here on their own: notices.rs' ALLOWED and
+# deny.toml's allowlist must agree with it, and every kind's graph must keep
+# to it.
+PERMISSIVE = {"MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib",
+              "0BSD", "BSL-1.0", "Unlicense", "Unicode-3.0", "CC0-1.0"}
+
+# Crates that must never be in a program's graph again (what was replaced:
+# docs/licensing.md).
+BANNED = {"ring", "rustls", "aws-lc-rs", "aws-lc-sys", "openssl-src", "webpki-roots", "symphonia", "symphonia-core",
+          "symphonia-bundle-mp3", "font-kit", "dwrote", "option-ext", "freetype-sys"}
+
 failures = []
 
 
@@ -69,21 +83,104 @@ def host_target():
     return f"{os_name}-{arch}"
 
 
-def graph(kind):
-    """(name, version) of every crates.io package `kind` compiles in."""
+GRAPHS = {}
+
+
+def graph_licences(kind):
+    """{(name, version): licence expression} of every crates.io package
+    `kind` compiles in, and the set of path packages (RapidR's own)."""
+    if kind in GRAPHS:
+        return GRAPHS[kind]
     (roots, features), triples = KINDS[kind]
-    out = set()
+    out, own = {}, set()
     for t in triples:
-        cmd = ["cargo", "tree", "--quiet", "--locked", "-e", "normal", "--prefix", "none", "-f", "{p}", "--target", t]
+        cmd = ["cargo", "tree", "--quiet", "--locked", "-e", "normal", "--prefix", "none", "-f", "{p}|{l}", "--target", t]
         for r in roots:
             cmd += ["-p", r]
         for f in features:
             cmd += ["--features", f]
         for line in subprocess.check_output(cmd, cwd=ROOT, text=True).splitlines():
-            parts = line.split()
-            if len(parts) >= 2 and "(/" not in line and ":\\" not in line:
-                out.add((parts[0], parts[1].lstrip("v")))
+            package, _, licence = line.partition("|")
+            parts = package.split()
+            if len(parts) < 2:
+                continue
+            if "(/" in package or ":\\" in package:
+                own.add(parts[0])
+            else:
+                out[(parts[0], parts[1].lstrip("v"))] = licence.replace(" (*)", "").strip()
+    GRAPHS[kind] = (out, own)
+    return out, own
+
+
+def graph(kind):
+    """(name, version) of every crates.io package `kind` compiles in."""
+    return set(graph_licences(kind)[0])
+
+
+def clarified():
+    """deny.toml's [[licenses.clarify]]: the expression of crates that
+    declare none."""
+    out, crate = {}, None
+    for line in open(os.path.join(ROOT, "deny.toml")):
+        m = re.match(r'\s*(crate|expression)\s*=\s*"([^"]*)"', line)
+        if m and m.group(1) == "crate":
+            crate = m.group(2)
+        elif m and crate:
+            out[crate] = m.group(2)
+            crate = None
     return out
+
+
+def permitted(expr):
+    """Whether an SPDX expression can be complied with using PERMISSIVE
+    licences only (an OR needs one alternative, an AND all of them)."""
+    tokens = expr.replace("/", " OR ").replace("(", " ( ").replace(")", " ) ").split()
+    pos = 0
+
+    def alt():
+        nonlocal pos
+        ok = conj()
+        while pos < len(tokens) and tokens[pos] == "OR":
+            pos += 1
+            ok = conj() or ok
+        return ok
+
+    def conj():
+        nonlocal pos
+        ok = atom()
+        while pos < len(tokens) and tokens[pos] == "AND":
+            pos += 1
+            ok = atom() and ok
+        return ok
+
+    def atom():
+        nonlocal pos
+        if tokens[pos] == "(":
+            pos += 1
+            ok = alt()
+            pos += 1
+            return ok
+        ident = tokens[pos]
+        pos += 1
+        if pos < len(tokens) and tokens[pos] == "WITH":
+            ident += " WITH " + tokens[pos + 1]
+            pos += 2
+        return ident in PERMISSIVE
+
+    return bool(tokens) and alt()
+
+
+def check_licences(kind):
+    """Every crate in `kind`'s graph is under a permissive licence, none is
+    banned, and winit's KDE bindings are RapidR's stand-in."""
+    licences, own = graph_licences(kind)
+    clar = clarified()
+    bad = sorted(f"{n} {v} ({l or 'none'})" for (n, v), l in licences.items() if not permitted(l or clar.get(n, "")))
+    check(not bad, f"{kind}: every crate is under {', '.join(sorted(PERMISSIVE))}" + (f" (not: {', '.join(bad[:10])})" if bad else ""))
+    banned = sorted(f"{n} {v}" for (n, v) in licences if n in BANNED)
+    check(not banned, f"{kind}: none of the replaced crates" + (f" (found: {', '.join(banned)})" if banned else ""))
+    plasma = [f"{n} {v}" for (n, v) in licences if n == "wayland-protocols-plasma"]
+    check(not plasma, f"{kind}: no crates.io wayland-protocols-plasma (KDE's LGPL protocol files)" + (f" (found: {plasma[0]}: is the [patch.crates-io] in Cargo.toml?)" if plasma else ""))
 
 
 def listed(text):
@@ -182,6 +279,12 @@ def main():
                 check(NOTICES in open(os.path.join(d, "index.html")).read(), "index.html links it")
             else:
                 check(False, "rapidr build --web")
+
+        print("== what every kind may contain")
+        deny = open(os.path.join(ROOT, "deny.toml")).read().split("\nallow = [", 1)[1].split("]", 1)[0]
+        check(set(re.findall(r'^\s*"([^"]+)"', deny, re.M)) == PERMISSIVE, "deny.toml's allowlist is the permissive list")
+        for kind in KINDS:
+            check_licences(kind)
 
         print("== every kind (rapidr notices <kind>)")
         for kind in KINDS:

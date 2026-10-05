@@ -184,7 +184,20 @@ pub fn rust_tool(name: &str) -> PathBuf {
 
 /// `CARGO_HOME`, else `~/.cargo`.
 pub fn cargo_home() -> Option<PathBuf> {
-    env::var_os("CARGO_HOME").map(PathBuf::from).or_else(|| dirs::home_dir().map(|h| h.join(".cargo")))
+    env::var_os("CARGO_HOME").map(PathBuf::from).or_else(|| env::home_dir().map(|h| h.join(".cargo")))
+}
+
+/// The user's settings folder: `~/Library/Application Support` (macOS),
+/// `%APPDATA%` (Windows), `$XDG_CONFIG_HOME` or `~/.config` (Linux).
+pub fn config_dir() -> Option<PathBuf> {
+    let absolute = |v: std::ffi::OsString| Some(PathBuf::from(v)).filter(|p| p.is_absolute());
+    if cfg!(windows) {
+        env::var_os("APPDATA").and_then(absolute)
+    } else if cfg!(target_os = "macos") {
+        env::home_dir().map(|h| h.join("Library/Application Support"))
+    } else {
+        env::var_os("XDG_CONFIG_HOME").and_then(absolute).or_else(|| env::home_dir().map(|h| h.join(".config")))
+    }
 }
 
 #[cfg(test)]

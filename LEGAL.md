@@ -16,11 +16,19 @@ licence by licence, are in [docs/licensing.md](docs/licensing.md).
   RapidR writes next to it every time you build. That's all.
 
 RapidR's runtime and the open-source libraries it is built from go into your
-program. Their licences (MIT, Apache-2.0, BSD, ISC, zlib, Unicode, MPL-2.0,
-the SIL Open Font License, …) all allow commercial and closed-source use;
-what they ask in return is that their copyright notices and licence texts go
-with the program. `THIRD-PARTY-NOTICES.txt` is exactly that, made from the
-build's real list of components, with every licence text in full.
+program. Every one of them is under a permissive licence — MIT, Apache-2.0,
+BSD, ISC, zlib, Boost, Unicode, public domain, and the SIL Open Font License
+for the fonts — that allows commercial and closed-source use and asks only
+that its copyright notice and licence text go with the program.
+`THIRD-PARTY-NOTICES.txt` is exactly that, made from the build's real list
+of components, with every licence text in full. Nothing in your program is
+copyleft (no GPL, LGPL, MPL or similar), nothing asks you to publish source
+code, to credit anyone in your documentation or advertising, or to do
+anything else, and RapidR's checks fail if that ever changes.
+
+Your program contains no encryption code of its own: HTTPS (`RHttp`,
+`QDownload`) uses the operating system's (macOS, Windows, and on Linux the
+system's OpenSSL 3, which every current distribution installs).
 
 ## What to ship, for each kind of output
 
@@ -52,13 +60,16 @@ build's real list of components, with every licence text in full.
   source, that file's licence applies to it (RapidQ's own `qcgi.inc`, for
   one, is GPL — RapidR's built-in CGI support means you don't need it).
 - **If you change RapidR itself** and ship the changed runtime, keep the MIT
-  notice (the notices file already does). If you change one of the MPL-2.0
-  libraries' files (listed in the notices file; RapidR doesn't change them),
-  make your version of those files available as the MPL asks.
-- **The built-in fonts** (Liberation Sans, Serif and Mono) are inside your
-  program unmodified, under the SIL Open Font License: fine for any program,
+  notice (the notices file already does).
+- **The built-in fonts** (Liberation Sans, Serif and Mono; on Linux also
+  Cantarell, for window titles on GNOME's Wayland) are inside your program
+  unmodified, under the SIL Open Font License: fine for any program,
   commercial included. Don't extract them to sell on their own, and if you
   change them, give your version another name.
+- **On Linux**, your program uses the system's OpenSSL 3 library
+  (`libssl3`, present on every current distribution) for HTTPS; if you
+  package it (e.g. as a `.deb`), list it as a dependency. Nothing of
+  OpenSSL is inside your program.
 - **Your toolchain on Windows.** With the `gnullvm` toolchain (LLVM-MinGW,
   open source) nothing is needed. With Microsoft's `msvc` toolchain, the
   Visual Studio Build Tools licence applies to you as the developer (it is
@@ -66,8 +77,8 @@ build's real list of components, with every licence text in full.
   larger organisations need a Visual Studio licence). `rapidr setup` says
   which you have.
 - **Laws that apply to software in general** (privacy, consumer law, export
-  rules for encryption — desktop programs contain HTTPS code — and so on)
-  are outside what licences cover.
+  rules — your program uses the operating system's encryption for HTTPS —
+  and so on) are outside what licences cover.
 
 ## RapidQ, and the names RapidR mentions
 

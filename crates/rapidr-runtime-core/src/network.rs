@@ -628,12 +628,12 @@ pub fn http_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
 }
 
-/// An agent for one request. On Windows its TLS is the system's (SChannel:
-/// Cargo.toml); elsewhere ureq's own, rustls.
+/// An agent for one request. Its TLS is the operating system's, with the
+/// system's certificates (Cargo.toml): Security.framework on macOS, SChannel
+/// on Windows, OpenSSL 3 on Linux.
 pub(crate) fn http_agent(timeout: Duration) -> ureq::Agent {
     let builder = ureq::AgentBuilder::new().timeout(timeout);
-    #[cfg(windows)]
-    let builder = match native_tls::TlsConnector::new() {
+    let builder = match ureq::native_tls::TlsConnector::new() {
         Ok(tls) => builder.tls_connector(std::sync::Arc::new(tls)),
         Err(e) => {
             eprintln!("[HTTP] TLS unavailable: {e}");

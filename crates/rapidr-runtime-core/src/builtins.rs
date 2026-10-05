@@ -406,9 +406,8 @@ pub fn rp_playsound(filename: &Value) -> Value {
     {
         std::thread::spawn(move || {
             if let Ok((_stream, handle)) = rodio::OutputStream::try_default() {
-                if let Ok(file) = std::fs::File::open(&path) {
-                    let buf = std::io::BufReader::new(file);
-                    if let Ok(source) = rodio::Decoder::new(buf) {
+                if let Ok(bytes) = std::fs::read(&path) {
+                    if let Ok(source) = crate::sound::decode(bytes) {
                         let sink = rodio::Sink::try_new(&handle).unwrap();
                         sink.append(source);
                         sink.sleep_until_end();

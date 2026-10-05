@@ -205,6 +205,51 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- **Nothing in a program you build is copyleft, cryptographic or
+  data-licensed any more** — removed, not just documented (LEGAL.md,
+  docs/licensing.md):
+  - **HTTPS uses the operating system's TLS everywhere** (`RHttp`,
+    `QDownload`): Security.framework on macOS, SChannel on Windows as
+    before, and on Linux the system's OpenSSL 3 (`libssl.so.3`, linked
+    dynamically, never shipped), with the system's certificates. `ring`,
+    `rustls`, `rustls-webpki` and `webpki-roots` (CDLA certificate data) are
+    gone: no cryptographic code is compiled into a program. **Linux:**
+    programs need the system's `libssl3` (every current distribution has
+    it; the `.deb`s depend on it), and building needs `libssl-dev`
+    (docs/release-packaging.md).
+  - **MP3 is decoded by `nanomp3`** (MIT OR Apache-2.0, pure Rust, a port
+    of the public-domain minimp3) instead of rodio's `symphonia` (MPL-2.0);
+    WAV, Ogg Vorbis and FLAC stay rodio's. PLAYWAV / PLAYSOUND play the same
+    files.
+  - **RPLOT's charts draw their text in the built-in Liberation Sans** (with
+    `ab_glyph`, through plotters' backend interface) instead of the
+    system's fonts through `font-kit`: the same size and placement as
+    before, the same on every system. With font-kit went `dwrote` and
+    `option-ext` (MPL-2.0), FreeType (whose licence asks for credit in the
+    documentation) and the charts' fontconfig link; the CLI no longer uses
+    `dirs`.
+  - **winit's KDE blur bindings are RapidR's own**: crates.io's
+    `wayland-protocols-plasma`, generated from KDE's protocol files (some
+    LGPL-2.1-or-later), is replaced in every build — the workspace, every
+    generated program, an install's home — by
+    `crates/patches/wayland-protocols-plasma` (MIT): the same Rust names,
+    from RapidR's own protocol file, which no compositor announces (winit
+    finds no blur manager; RapidR never asked for blur).
+  - The Linux notices now also carry the notices of what crates' code is
+    generated from or built with: every Wayland protocol description
+    (MIT, HPND-sell-variant), xcb-proto (X11), the Cantarell font in
+    winit's Wayland title bars (OFL-1.1) and, on every target, the Adobe
+    Glyph List in `read-fonts` (BSD-3-Clause).
+- **The licence guard is strict**: what a program may contain is the
+  permissive list only — MIT, Apache-2.0 (and WITH LLVM-exception),
+  BSD-2/3-Clause, ISC, Zlib, 0BSD, BSL-1.0, Unlicense, Unicode-3.0, CC0-1.0,
+  and OFL-1.1 for fonts. deny.toml allows only that (for the whole
+  workspace, tools included) and bans the replaced crates; the notice
+  generator refuses any kind of output with anything else (or a replaced
+  crate, or a Wayland protocol file under another licence); and
+  `tools/check_notices.py` checks every kind's graph against its own copy
+  of the list. `tools/regress.sh legal` exits 1 on any failure, and only the
+  web stage needs the repository served (`RAPIDR_URL`, else port 8765).
 - QDirListView and QDockForm's built-in libraries rewritten as RapidR's own
   code (their bodies followed user-contributed RapidQ libraries too closely);
   same members, events and behaviour. Four conformance cases that reused the

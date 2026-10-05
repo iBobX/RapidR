@@ -69,7 +69,7 @@ fn play(bytes: Vec<u8>, looped: bool, wait: bool) {
         return;
     };
     let Ok(sink) = rodio::Sink::try_new(&handle) else { return };
-    let decoded = match rodio::Decoder::new(std::io::Cursor::new(bytes)) {
+    let decoded = match decode(bytes) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("[rapidr] PLAYWAV: can't play it: {e}");
@@ -86,6 +86,87 @@ fn play(bytes: Vec<u8>, looped: bool, wait: bool) {
         return;
     }
     SOUND.with(|s| *s.borrow_mut() = Some(sink));
+}
+
+/// A sound file's samples (PLAYWAV, PLAYSOUND): rodio decodes WAV, Ogg
+/// Vorbis and FLAC, nanomp3 MP3 (Cargo.toml).
+#[cfg(feature = "audio")]
+pub(crate) fn decode(bytes: Vec<u8>) -> Result<Box<dyn rodio::Source<Item = f32> + Send>, String> {
+    use rodio::Source;
+    let rodio_format = [&b"RIFF"[..], b"OggS", b"fLaC"].iter().any(|m| bytes.starts_with(m));
+    if !rodio_format && nanomp3::detect(&bytes) {
+        return Mp3::new(bytes).map(|s| Box::new(s) as Box<dyn rodio::Source<Item = f32> + Send>);
+    }
+    rodio::Decoder::new(std::io::Cursor::new(bytes)).map(|d| Box::new(d.convert_samples()) as Box<dyn rodio::Source<Item = f32> + Send>).map_err(|e| e.to_string())
+}
+
+/// An MP3 stream as a rodio source, a frame at a time.
+#[cfg(feature = "audio")]
+struct Mp3 {
+    reader: nanomp3::Reader<std::io::Cursor<Vec<u8>>, f32>,
+    frame: Vec<f32>,
+    at: usize,
+    channels: u16,
+    rate: u32,
+    total: Option<u64>,
+}
+
+#[cfg(feature = "audio")]
+impl Mp3 {
+    fn new(bytes: Vec<u8>) -> Result<Mp3, String> {
+        let reader = nanomp3::Reader::new(std::io::Cursor::new(bytes)).map_err(|e| format!("MP3: {e}"))?;
+        let channels = match reader.channels() {
+            Some(nanomp3::Channels::Mono) => 1,
+            Some(_) => 2,
+            None => return Err("MP3: no audio".into()),
+        };
+        let (rate, total) = (reader.sample_rate(), reader.total_samples());
+        let mut mp3 = Mp3 { reader, frame: Vec::new(), at: 0, channels, rate, total };
+        mp3.next_frame();
+        Ok(mp3)
+    }
+
+    fn next_frame(&mut self) {
+        self.at = 0;
+        self.frame.clear();
+        if let Ok(Some(samples)) = self.reader.read_frame() {
+            self.frame.extend_from_slice(samples);
+        }
+    }
+}
+
+#[cfg(feature = "audio")]
+impl Iterator for Mp3 {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<f32> {
+        if self.at >= self.frame.len() {
+            self.next_frame();
+        }
+        let s = self.frame.get(self.at).copied()?;
+        self.at += 1;
+        Some(s)
+    }
+}
+
+#[cfg(feature = "audio")]
+impl rodio::Source for Mp3 {
+    // (one format to the end: nanomp3 stops at a change of rate or channels)
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        self.channels
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.rate
+    }
+
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        self.total.map(|n| std::time::Duration::from_secs_f64(n as f64 / f64::from(self.rate.max(1))))
+    }
 }
 
 #[cfg(not(feature = "audio"))]
@@ -195,4 +276,59 @@ fn dx_stop(id: &str) {
             sink.stop();
         }
     });
+}
+
+#[cfg(all(test, feature = "audio"))]
+mod tests {
+    use rodio::Source;
+
+    /// MPEG-1 Layer III frames of silence (128 kbit/s, 44.1 kHz, joint
+    /// stereo): a header, then side information and data all zero.
+    fn silent_mp3(frames: usize) -> Vec<u8> {
+        let mut frame = vec![0u8; 417];
+        frame[..4].copy_from_slice(&[0xFF, 0xFB, 0x90, 0x64]);
+        frame.repeat(frames)
+    }
+
+    /// A 16-bit PCM WAV of mono samples at 8 kHz.
+    fn wav(samples: &[i16]) -> Vec<u8> {
+        let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
+        let mut w = b"RIFF".to_vec();
+        w.extend((36 + data.len() as u32).to_le_bytes());
+        w.extend(b"WAVEfmt ");
+        w.extend(16u32.to_le_bytes());
+        w.extend(1u16.to_le_bytes()); // PCM
+        w.extend(1u16.to_le_bytes()); // mono
+        w.extend(8000u32.to_le_bytes());
+        w.extend(16000u32.to_le_bytes());
+        w.extend(2u16.to_le_bytes());
+        w.extend(16u16.to_le_bytes());
+        w.extend(b"data");
+        w.extend((data.len() as u32).to_le_bytes());
+        w.extend(data);
+        w
+    }
+
+    #[test]
+    fn decodes_mp3_with_nanomp3() {
+        let source = super::decode(silent_mp3(20)).expect("an MP3");
+        assert_eq!((source.channels(), source.sample_rate()), (2, 44100));
+        let samples: Vec<f32> = source.collect();
+        assert!(samples.len() >= 19 * 1152 * 2, "{} samples", samples.len());
+        assert!(samples.iter().all(|s| *s == 0.0));
+    }
+
+    #[test]
+    fn decodes_wav_with_rodio() {
+        let source = super::decode(wav(&[0, 16384, -16384, 32767])).expect("a WAV");
+        assert_eq!((source.channels(), source.sample_rate()), (1, 8000));
+        let samples: Vec<f32> = source.collect();
+        assert_eq!(samples.len(), 4);
+        assert!((samples[1] - 0.5).abs() < 0.001 && (samples[2] + 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn refuses_what_isnt_sound() {
+        assert!(super::decode(b"not a sound file at all".repeat(100)).is_err());
+    }
 }

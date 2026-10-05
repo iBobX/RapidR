@@ -257,9 +257,14 @@ struct Component {
     blocks: Vec<Block>,
 }
 
-/// The licences RapidR accepts (deny.toml's allowlist, the same list), in
-/// the order a choice among alternatives prefers them: the fewer
-/// obligations, the earlier.
+/// The only licences a crate compiled into a program may be used under
+/// (every kind of output: desktop executables, the web; RapidR's own tools
+/// too): permissive, asking at most for a notice, which this file is. No
+/// copyleft of any strength (GPL, LGPL, MPL, EPL, …), no data licences, no
+/// advertising clauses. deny.toml's allowlist (the whole workspace, build
+/// and dev tools included) is this list (a test keeps them equal). In the
+/// order a choice among alternatives prefers them: the fewer obligations,
+/// the earlier.
 const ALLOWED: &[(&str, &str)] = &[
     ("MIT", include_str!("../licenses/MIT.txt")),
     ("Zlib", include_str!("../licenses/Zlib.txt")),
@@ -268,12 +273,38 @@ const ALLOWED: &[(&str, &str)] = &[
     ("BSD-3-Clause", include_str!("../licenses/BSD-3-Clause.txt")),
     ("0BSD", include_str!("../licenses/0BSD.txt")),
     ("Unlicense", include_str!("../licenses/Unlicense.txt")),
+    ("CC0-1.0", include_str!("../licenses/CC0-1.0.txt")),
     ("BSL-1.0", include_str!("../licenses/BSL-1.0.txt")),
     ("Apache-2.0", include_str!("../licenses/Apache-2.0.txt")),
     ("Apache-2.0 WITH LLVM-exception", include_str!("../licenses/Apache-2.0-WITH-LLVM-exception.txt")),
     ("Unicode-3.0", include_str!("../licenses/Unicode-3.0.txt")),
-    ("CDLA-Permissive-2.0", include_str!("../licenses/CDLA-Permissive-2.0.txt")),
-    ("MPL-2.0", include_str!("../licenses/MPL-2.0.txt")),
+];
+
+/// What the components that aren't crates (extras) may be under: fonts
+/// under the SIL Open Font License, public-domain code (SQLite), and the
+/// permissive notices of data and protocol descriptions compiled into
+/// crates (HPND-sell-variant and X11: MIT's kin, a notice and no
+/// endorsement). Generation fails on any other.
+const EXTRA_ALLOWED: &[&str] = &["MIT", "BSD-3-Clause", "OFL-1.1", "public domain", "HPND-sell-variant", "X11"];
+
+/// Crates that must never be compiled into a program: what RapidR replaced
+/// so nothing copyleft, cryptographic or data-licensed is shipped
+/// (docs/licensing.md). Generation fails on any of them.
+const BANNED: &[(&str, &str)] = &[
+    ("ring", "cryptography compiled in: TLS is the system's (native-tls)"),
+    ("rustls", "TLS compiled in: TLS is the system's (native-tls)"),
+    ("aws-lc-rs", "cryptography compiled in: TLS is the system's (native-tls)"),
+    ("aws-lc-sys", "cryptography compiled in: TLS is the system's (native-tls)"),
+    ("openssl-src", "OpenSSL compiled in: Linux uses the system's libssl.so.3"),
+    ("webpki-roots", "CDLA-licensed certificates: the system's are used"),
+    ("symphonia", "MPL-2.0: MP3 is nanomp3's"),
+    ("symphonia-core", "MPL-2.0: MP3 is nanomp3's"),
+    ("symphonia-bundle-mp3", "MPL-2.0: MP3 is nanomp3's"),
+    ("font-kit", "pulls MPL-2.0 crates and FreeType: charts draw with ab_glyph"),
+    ("dwrote", "MPL-2.0"),
+    ("option-ext", "MPL-2.0"),
+    ("freetype-sys", "FreeType's licence asks for credit in the documentation"),
+    ("wayland-protocols-plasma", "crates.io's is generated from LGPL-2.1-or-later KDE protocol files: RapidR's stand-in (crates/patches) must replace it"),
 ];
 
 const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
@@ -319,6 +350,9 @@ fn generate(root: &Path, kind: &Kind) -> Result<String, String> {
             }
         }
     }
+    if let Some((name, why)) = BANNED.iter().find(|(b, _)| wanted.iter().any(|(n, _)| n == b)) {
+        return Err(format!("{name} is in the graph of {}: {why} (docs/licensing.md)", kind.name()));
+    }
     let clarified = clarifications(root);
     let mut components = Vec::new();
     for (name, version) in &wanted {
@@ -326,7 +360,10 @@ fn generate(root: &Path, kind: &Kind) -> Result<String, String> {
         components.push(crate_component(p, &clarified)?);
     }
     let crate_names: BTreeSet<&str> = wanted.iter().map(|(n, _)| n.as_str()).chain(own.iter().map(String::as_str)).collect();
-    let mut extra = extras(kind, &crate_names, &packages, &wanted);
+    let mut extra = extras(kind, &crate_names, &packages, &wanted)?;
+    if let Some(c) = extra.iter().find(|c| c.used.split(" AND ").any(|l| l != "—" && !EXTRA_ALLOWED.contains(&l))) {
+        return Err(format!("{}: licence '{}' isn't allowed in a program (notices.rs, EXTRA_ALLOWED)", c.name, c.used));
+    }
     // RapidR and Rust first, then the rest by name
     let mut all: Vec<Component> = extra.drain(..2).collect();
     let mut rest: Vec<Component> = extra.into_iter().chain(components).collect();
@@ -500,12 +537,6 @@ fn is_licence_name(name: &str) -> bool {
 /// Folders inside a crate whose licence files aren't about compiled code.
 const SKIP_DIRS: &[&str] = &["tests", "test", "testdata", "testsuite", "examples", "benches", "fixtures", "autotests", "target", ".git", "sqlcipher", "sqlite3mc", "docs-src"];
 
-/// Bundled files whose licence the component's note explains instead.
-const SKIP_FILES: &[(&str, &str)] = &[
-    // the plasma protocol descriptions' licences: see the crate's note
-    ("wayland-protocols-plasma", "plasma-wayland-protocols"),
-];
-
 /// What licence a file holds, by its name, else by its words; `None` when
 /// it can't tell (several licences, or a notice): such files are kept.
 fn classify(name: &str, text: &str) -> Option<&'static str> {
@@ -521,8 +552,7 @@ fn classify(name: &str, text: &str) -> Option<&'static str> {
         ("0BSD", "0BSD"),
         ("ISC", "ISC"),
         ("UNICODE", "Unicode-3.0"),
-        ("MPL", "MPL-2.0"),
-        ("CDLA", "CDLA-Permissive-2.0"),
+        ("CC0", "CC0-1.0"),
     ];
     if let Some((_, id)) = by_name.iter().find(|(k, _)| upper.contains(k)) {
         return Some(id);
@@ -538,9 +568,6 @@ fn classify(name: &str, text: &str) -> Option<&'static str> {
     }
     if has("Permission is hereby granted, free of charge") && !has("Boost Software License") && !has("UNICODE LICENSE") {
         found.push("MIT");
-    }
-    if has("Mozilla Public License") {
-        found.push("MPL-2.0");
     }
     if has("Redistribution and use in source and binary forms") {
         found.push(if has("Neither the name") { "BSD-3-Clause" } else { "BSD-2-Clause" });
@@ -560,8 +587,8 @@ fn classify(name: &str, text: &str) -> Option<&'static str> {
     if has("UNICODE LICENSE V3") {
         found.push("Unicode-3.0");
     }
-    if has("Community Data License Agreement") {
-        found.push("CDLA-Permissive-2.0");
+    if has("CC0 1.0 Universal") {
+        found.push("CC0-1.0");
     }
     (found.len() == 1).then(|| found[0])
 }
@@ -598,9 +625,6 @@ fn licence_files(p: &Package) -> Vec<(String, String, bool)> {
         for e in entries {
             let name = e.file_name().to_string_lossy().into_owned();
             let sub = if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") };
-            if SKIP_FILES.iter().any(|(c, prefix)| *c == p.name && sub.starts_with(prefix)) {
-                continue;
-            }
             if e.path().is_dir() {
                 if depth < 4 && !SKIP_DIRS.contains(&name.as_str()) {
                     stack.push((e.path(), sub, depth + 1));
@@ -647,19 +671,7 @@ fn crate_component(p: &Package, clarified: &HashMap<String, String>) -> Result<C
             blocks.push(Block { title: format!("{} {} — {id} (the crate ships no licence file for it)", p.name, p.version), text: format!("{}\n\n{template}", copyright_line(p)) });
         }
     }
-    let mut note = String::new();
-    if used.iter().any(|u| u == "MPL-2.0") {
-        note = format!(
-            "MPL-2.0 (file-level): used unmodified. Its source code is available from crates.io: https://static.crates.io/crates/{n}/{n}-{v}.crate (and {url}).",
-            n = p.name,
-            v = p.version,
-            url = p.url
-        );
-    }
-    if p.name == "wayland-protocols-plasma" {
-        note = "Rust bindings generated from KDE's plasma-wayland-protocols descriptions (winit uses the blur protocol on Wayland). The descriptions are under several licences (MIT, MIT-CMU, BSD-3-Clause, LGPL-2.1-or-later — blur.xml is LGPL-2.1-or-later); they are interface definitions, and their texts are in the crate's source: https://github.com/KDE/plasma-wayland-protocols.".into();
-    }
-    Ok(Component { name: p.name.clone(), version: p.version.clone(), declared, used: used.join(" AND "), url: p.url.clone(), note, blocks })
+    Ok(Component { name: p.name.clone(), version: p.version.clone(), declared, used: used.join(" AND "), url: p.url.clone(), note: String::new(), blocks })
 }
 
 // --- what isn't a crate ----------------------------------------------------
@@ -672,7 +684,7 @@ fn mit_with(copyright: &str) -> String {
 /// standard library (always; first), then by what the graph contains and the
 /// OS: the built-in fonts, C code a crate bundles without its licence file,
 /// the toolchain's start-up code and the system's libraries.
-fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, String), Package>, wanted: &BTreeSet<(String, String)>) -> Vec<Component> {
+fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, String), Package>, wanted: &BTreeSet<(String, String)>) -> Result<Vec<Component>, String> {
     let dir_of = |name: &str| wanted.iter().find(|(n, _)| n == name).and_then(|k| packages.get(k)).map(|p| p.dir.clone());
     let rust = Command::new(home::rust_tool("rustc")).arg("--version").output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
     let mut out = vec![
@@ -754,15 +766,64 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             blocks: vec![Block { title: "printf — MIT".into(), text: mit_with("Copyright (c) 2014-2019 Marco Paland\nCopyright (c) 2021-2024 Eyal Rozenberg") }],
         });
     }
-    if crates.contains("freetype-sys") {
+    if let Some(dir) = dir_of("sctk-adwaita") {
+        // (winit's Wayland title bars, drawn by sctk-adwaita: its fallback
+        // face, built in; the crate ships no text for it)
+        if dir.join("src/title/Cantarell-Regular.ttf").is_file() {
+            let body = OFL.split_once("SIL OPEN FONT LICENSE Version 1.1").map(|(_, b)| format!("SIL OPEN FONT LICENSE Version 1.1{b}")).unwrap_or_else(|| OFL.into());
+            out.push(Component {
+                name: "Cantarell Regular (via sctk-adwaita, Wayland title bars)".into(),
+                version: "0.0.5".into(),
+                declared: "OFL-1.1".into(),
+                used: "OFL-1.1".into(),
+                url: "https://gitlab.gnome.org/GNOME/cantarell-fonts".into(),
+                note: "Built into the program unmodified, for the title of a window on a Wayland desktop that has the program draw its own (GNOME).".into(),
+                blocks: vec![Block { title: "Cantarell — OFL-1.1".into(), text: format!("{CANTARELL_COPYRIGHT}\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license is copied below, and is also available with a FAQ at:\nhttp://scripts.sil.org/OFL\n\n{body}") }],
+            });
+        }
+    }
+    let protocols = wayland_protocol_notices(crates, &dir_of)?;
+    if !protocols.is_empty() {
+        let mut used: Vec<&str> = protocols.iter().map(|(l, _, _)| *l).collect();
+        used.sort();
+        used.dedup();
         out.push(Component {
-            name: "FreeType (via freetype-sys)".into(),
+            name: "Wayland protocol descriptions (in wayland-client, wayland-protocols, wayland-protocols-wlr)".into(),
             version: String::new(),
-            declared: "FTL OR GPL-2.0-or-later".into(),
-            used: "FTL".into(),
-            url: "https://freetype.org".into(),
-            note: "The system's FreeType when it is installed (Linux: linked dynamically), else built in. The FreeType License asks for this credit: Portions of this software are copyright © The FreeType Project (www.freetype.org). All rights reserved. Its texts are under freetype-sys below.".into(),
-            blocks: vec![],
+            declared: used.join(" AND "),
+            used: used.join(" AND "),
+            url: "https://gitlab.freedesktop.org/wayland".into(),
+            note: "Those crates' Rust code is generated from these XML protocol descriptions; each description's notice is below.".into(),
+            blocks: protocols.into_iter().map(|(_, files, text)| Block { title: format!("Wayland protocols — {}", files.join(", ")), text }).collect(),
+        });
+    }
+    if crates.contains("x11rb-protocol") {
+        out.push(Component {
+            name: "xcb-proto (the X11 protocol descriptions x11rb-protocol is generated from)".into(),
+            version: "1.17.0".into(),
+            declared: "X11".into(),
+            used: "X11".into(),
+            url: "https://gitlab.freedesktop.org/xorg/proto/xcbproto".into(),
+            note: String::new(),
+            blocks: vec![Block { title: "xcb-proto — COPYING".into(), text: XCB_PROTO.into() }],
+        });
+    }
+    if let Some(dir) = dir_of("read-fonts") {
+        // (its table of glyph names, compiled in from Adobe's list)
+        let list = fs::read_to_string(dir.join("data/glyphlist.txt")).unwrap_or_default();
+        let header: Vec<&str> = list.lines().take_while(|l| l.starts_with('#')).map(|l| l.trim_start_matches('#').trim_start_matches(' ')).filter(|l| !l.starts_with("---")).collect();
+        let text = header.split(|l| l.starts_with("Name:")).next().unwrap_or(&[]).join("\n").trim().to_string();
+        if !text.contains("Redistribution and use in source and binary forms") {
+            return Err(format!("read-fonts: data/glyphlist.txt's notice wasn't found ({})", dir.display()));
+        }
+        out.push(Component {
+            name: "Adobe Glyph List (via read-fonts)".into(),
+            version: "2.0".into(),
+            declared: "BSD-3-Clause".into(),
+            used: "BSD-3-Clause".into(),
+            url: "https://github.com/adobe-type-tools/agl-aglfn".into(),
+            note: String::new(),
+            blocks: vec![Block { title: "Adobe Glyph List — glyphlist.txt".into(), text }],
         });
     }
     if kind.os() == "windows" {
@@ -792,16 +853,106 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
         });
     }
     let system = match kind.os() {
-        "macos" => Some("macOS's libraries and frameworks (libSystem, AppKit, Metal, Core Audio, Core MIDI, IOKit, …) are part of the operating system: linked dynamically, not part of this program, not distributed with it."),
-        "windows" => Some("Windows' DLLs (kernel32, user32, the Universal C Runtime, …) are part of the operating system: linked dynamically, not distributed with this program. The start-up and run-time support code the toolchain links in: with the *-pc-windows-gnullvm targets (LLVM-MinGW), LLVM's compiler-rt and libunwind (Apache-2.0 WITH LLVM-exception, which lets that embedded code be shipped without notices) and the mingw-w64 runtime's start-up objects (the mingw-w64 runtime licence, COPYING.MinGW-w64-runtime.txt in LLVM-MinGW); with *-pc-windows-msvc, Microsoft's C runtime start-up code (and, with +crt-static, as in RapidR's release builds, the Visual C++ runtime), distributed under the Visual Studio licence's terms for its distributable code."),
-        "linux" => Some("The GNU C library (glibc), libgcc_s, ALSA's libasound, fontconfig, FreeType, X11, Wayland and xkbcommon are the system's libraries: linked or loaded dynamically from the user's system, not part of this program, not distributed with it (glibc and libasound are LGPL-2.1-or-later, which puts no conditions on a program that only uses the system's shared copies). The start-up files linked into every Linux program (glibc's crt1.o / crti.o, GCC's crtbegin.o) carry licence exceptions for exactly this use."),
+        "macos" => Some("macOS's libraries and frameworks (libSystem, AppKit, Metal, Core Audio, Core MIDI, IOKit, Security for HTTPS, …) are part of the operating system: linked dynamically, not part of this program, not distributed with it."),
+        "windows" => Some("Windows' DLLs (kernel32, user32, the Universal C Runtime, SChannel for HTTPS, …) are part of the operating system: linked dynamically, not distributed with this program. The start-up and run-time support code the toolchain links in: with the *-pc-windows-gnullvm targets (LLVM-MinGW), LLVM's compiler-rt and libunwind (Apache-2.0 WITH LLVM-exception, which lets that embedded code be shipped without notices) and the mingw-w64 runtime's start-up objects (the mingw-w64 runtime licence, COPYING.MinGW-w64-runtime.txt in LLVM-MinGW); with *-pc-windows-msvc, Microsoft's C runtime start-up code (and, with +crt-static, as in RapidR's release builds, the Visual C++ runtime), distributed under the Visual Studio licence's terms for its distributable code."),
+        "linux" => Some("The GNU C library (glibc), libgcc_s, OpenSSL 3 (libssl.so.3 and libcrypto.so.3, for HTTPS; Apache-2.0), ALSA's libasound, fontconfig, X11, Wayland and xkbcommon are the system's libraries: linked or loaded dynamically from the user's system, not part of this program, not distributed with it (glibc and libasound are LGPL-2.1-or-later, which puts no conditions on a program that only uses the system's shared copies). The start-up files linked into every Linux program (glibc's crt1.o / crti.o, GCC's crtbegin.o) carry licence exceptions for exactly this use."),
         "web" => Some("The program runs in the visitor's web browser. Its JavaScript glue is generated by wasm-bindgen (listed here); the rest of the page (index.html, loader.js, the console) is RapidR's (MIT)."),
         _ => None,
     };
     if let Some(note) = system {
         out.push(Component { name: "System and toolchain".into(), version: String::new(), declared: "—".into(), used: "—".into(), url: String::new(), note: note.into(), blocks: vec![] });
     }
-    out
+    Ok(out)
+}
+
+/// The copyright lines of sctk-adwaita's Cantarell-Regular.ttf (its name
+/// table's notice; the rest of that notice is the OFL's preamble).
+const CANTARELL_COPYRIGHT: &str = "Copyright (c) 2009-2011, Understanding Limited (dave@understandinglimited.com),\nCopyright (c) 2010-2011, Jakub Steiner (jimmac@gmail.com).";
+
+/// xcb-proto's COPYING (x11rb-protocol is generated from xcb-proto; the
+/// crate doesn't ship this text).
+const XCB_PROTO: &str = "Copyright (C) 2001-2006 Bart Massey, Jamey Sharp, and Josh Triplett.
+All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated
+documentation files (the \"Software\"), to deal in the
+Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall
+be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the names of the authors
+or their institutions shall not be used in advertising or
+otherwise to promote the sale, use or other dealings in this
+Software without prior written authorization from the
+authors.";
+
+/// The crates whose code is generated from Wayland protocol descriptions
+/// (XML files they ship; crates.io's wayland-protocols-plasma is BANNED).
+const WAYLAND_PROTOCOL_CRATES: &[&str] = &["wayland-client", "wayland-protocols", "wayland-protocols-wlr", "wayland-protocols-misc", "wayland-protocols-experimental"];
+
+/// The notices of the protocol descriptions those crates generate code
+/// from: (licence, the files, the notice), one per distinct notice. Each
+/// must be MIT or HPND-sell-variant (MIT's older X11 kin: a notice, and the
+/// authors' names not used to promote the product); any other — KDE's
+/// LGPL-2.1-or-later files, say — is an error.
+fn wayland_protocol_notices(crates: &BTreeSet<&str>, dir_of: &dyn Fn(&str) -> Option<PathBuf>) -> Result<Vec<(&'static str, Vec<String>, String)>, String> {
+    let mut out: Vec<(&'static str, Vec<String>, String)> = Vec::new();
+    for krate in WAYLAND_PROTOCOL_CRATES.iter().filter(|c| crates.contains(*c)) {
+        let Some(dir) = dir_of(krate) else { continue };
+        let mut files = Vec::new();
+        let mut stack = vec![dir.clone()];
+        while let Some(d) = stack.pop() {
+            for e in fs::read_dir(&d).into_iter().flatten().flatten() {
+                let path = e.path();
+                let name = e.file_name().to_string_lossy().into_owned();
+                if path.is_dir() && !SKIP_DIRS.contains(&name.as_str()) {
+                    stack.push(path);
+                } else if name.ends_with(".xml") {
+                    files.push(path);
+                }
+            }
+        }
+        files.sort();
+        for path in files {
+            let xml = fs::read_to_string(&path).unwrap_or_default();
+            let rel = format!("{krate}/{}", path.strip_prefix(&dir).unwrap_or(&path).to_string_lossy().replace('\\', "/"));
+            let Some(body) = xml.split_once("<copyright>").and_then(|(_, r)| r.split_once("</copyright>")).map(|(c, _)| c) else {
+                return Err(format!("{rel}: a Wayland protocol description without a <copyright> notice"));
+            };
+            let lines: Vec<&str> = body.trim_matches('\n').lines().collect();
+            let indent = lines.iter().filter(|l| !l.trim().is_empty()).map(|l| l.len() - l.trim_start().len()).min().unwrap_or(0);
+            let text = lines.iter().map(|l| l.get(indent..).unwrap_or("").trim_end()).collect::<Vec<_>>().join("\n").trim().to_string();
+            let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            let licence = if flat.contains("Permission is hereby granted, free of charge") {
+                "MIT"
+            } else if flat.contains("Permission to use, copy, modify, distribute, and sell this software and its documentation for any purpose is hereby granted without fee") {
+                "HPND-sell-variant"
+            } else {
+                return Err(format!("{rel}: its licence isn't MIT or HPND-sell-variant — it can't be compiled into a program (notices.rs)"));
+            };
+            match out.iter_mut().find(|(_, _, t)| *t == text) {
+                Some((_, names, _)) => names.push(rel),
+                None => out.push((licence, vec![rel], text)),
+            }
+        }
+    }
+    Ok(out)
 }
 
 // --- the text ----------------------------------------------------------------
@@ -916,6 +1067,9 @@ mod tests {
         assert_eq!(ids("(MIT OR Apache-2.0) AND Unicode-3.0", &["MIT", "Unicode-3.0"]), "MIT AND Unicode-3.0");
         assert_eq!(ids("Apache-2.0 AND ISC", &[]), "Apache-2.0 AND ISC");
         assert!(choose(&parse_expr("GPL-3.0").unwrap(), &BTreeSet::new()).is_err());
+        assert!(choose(&parse_expr("MPL-2.0").unwrap(), &BTreeSet::new()).is_err());
+        assert!(choose(&parse_expr("LGPL-2.1-or-later").unwrap(), &BTreeSet::new()).is_err());
+        assert!(choose(&parse_expr("CDLA-Permissive-2.0").unwrap(), &BTreeSet::new()).is_err());
         assert_eq!(ids("GPL-2.0 OR MIT", &[]), "MIT");
     }
 
@@ -923,9 +1077,21 @@ mod tests {
     fn classifies_licence_files() {
         assert_eq!(classify("LICENSE-MIT", ""), Some("MIT"));
         assert_eq!(classify("LICENSE", include_str!("../licenses/Apache-2.0.txt")), Some("Apache-2.0"));
-        assert_eq!(classify("LICENSE", include_str!("../licenses/MPL-2.0.txt")), Some("MPL-2.0"));
+        assert_eq!(classify("LICENSE", include_str!("../licenses/CC0-1.0.txt")), Some("CC0-1.0"));
+        assert_eq!(classify("LICENSE", "Mozilla Public License Version 2.0"), None);
         assert_eq!(classify("LICENSE", include_str!("../licenses/BSD-3-Clause.txt")), Some("BSD-3-Clause"));
         assert_eq!(classify("COPYRIGHT", "Copyrights are retained by contributors"), None);
+    }
+
+    /// What a program may contain is exactly the permissive list
+    /// (docs/licensing.md, LEGAL.md): nothing else creeps in.
+    #[test]
+    fn allowed_is_the_permissive_list() {
+        let mut ours: Vec<&str> = ALLOWED.iter().map(|(id, _)| *id).collect();
+        ours.sort();
+        let mut list = vec!["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "0BSD", "BSL-1.0", "Unlicense", "Unicode-3.0", "CC0-1.0"];
+        list.sort();
+        assert_eq!(ours, list);
     }
 
     /// The licences these notices accept are deny.toml's.

@@ -111,6 +111,14 @@ character widths as Arial, Times New Roman and Courier New.
 > [`crates/rapidr-value/fonts/OFL-1.1.txt`](crates/rapidr-value/fonts/OFL-1.1.txt)
 > and at <https://openfontlicense.org>.
 
+### Cantarell Regular — SIL Open Font License 1.1 (Linux)
+
+Built into the `sctk-adwaita` crate, through which winit draws a window's
+title bar on Wayland desktops that leave it to the program (GNOME):
+unmodified, its fallback face for the title. Copyright (c) 2009-2011,
+Understanding Limited; Copyright (c) 2010-2011, Jakub Steiner. Its notice
+and the OFL's text are in the Linux programs' `THIRD-PARTY-NOTICES.txt`.
+
 ### Noto fallback fonts — SIL Open Font License 1.1
 
 What the Liberation fonts lack (symbols such as ✓, Chinese, Japanese,
@@ -183,27 +191,32 @@ cannot see, so it is credited here.
 
 | Library | Via | License | Upstream |
 |---|---|---|---|
-| FreeType (font rendering for charts, Linux) | `freetype-sys` via `plotters` → `font-kit` (the system's library when installed, else built in) | FreeType License (FTL) — see the notice below | <https://freetype.org> |
 | SQLite | `libsqlite3-sys` (desktop), `sqlite-wasm-rs` (web wasm) | Public Domain (section 5) | <https://sqlite.org> |
 | musl libc (the few C library functions SQLite needs in wasm) | `sqlite-wasm-rs` | MIT | <https://musl.libc.org> |
 | printf (Marco Paland, Eyal Rozenberg) | `sqlite-wasm-rs` | MIT | <https://github.com/eyalroz/printf> |
-| BoringSSL-derived C and assembly | `ring` (TLS for HTTPS through rustls, macOS and Linux) | Apache-2.0 / ISC (ring's licence files) | <https://github.com/briansmith/ring> |
-| Windows' TLS (Schannel) | `native-tls` / `schannel` (HTTPS on Windows: a system component) | system interface | — |
-| Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system; the charts' and the desktop UI's system fonts) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
+| The operating system's TLS: Security.framework (macOS), SChannel (Windows), OpenSSL 3 (Linux: `libssl.so.3` / `libcrypto.so.3`) | `native-tls` (with `security-framework`, `schannel`, `openssl`; HTTPS for RHTTP and QDOWNLOAD) | system components; OpenSSL 3 is Apache-2.0 — linked dynamically, never shipped | <https://www.openssl.org> |
+| Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system; the desktop UI's system fonts) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
 | X11, Wayland, xkbcommon (Linux) | `x11-dl`, `wayland-sys`, `xkbcommon-dl` (the desktop UI's windows and keys: loaded from the system when a window opens) | MIT / MIT-style | <https://www.x.org>, <https://wayland.freedesktop.org>, <https://xkbcommon.org> |
 | ALSA (Linux), Core Audio (macOS) | `alsa-sys`, `coreaudio-sys` (system audio, linked) | LGPL-2.1 (alsa-lib, dynamically linked) / Apple system framework | — |
 | SDL_GameControllerDB (data: the controller mappings) | `gilrs` (QDXJOYSTICK's gamepads on Windows and macOS; compiled in as text) | zlib License — Copyright © 1997-2025 Sam Lantinga | <https://github.com/gabomdq/SDL_GameControllerDB> |
 | Windows.Gaming.Input (Windows), IOKit HID (macOS), the Linux kernel's evdev | `gilrs-core` (Windows, macOS); RapidR's own reader on Linux (system interfaces, no library linked) | system interfaces | — |
 
-FreeType notice, as its license requires:
+Data and protocol descriptions compiled into crates (their notices are in
+every generated `THIRD-PARTY-NOTICES.txt` that needs them):
 
-> Portions of this software are copyright © The FreeType Project
-> (www.freetype.org). All rights reserved.
+| What | Via | License |
+|---|---|---|
+| Wayland protocol descriptions (`wayland.xml`, wayland-protocols, wlr-protocols) | `wayland-client`, `wayland-protocols`, `wayland-protocols-wlr` (Linux): the Rust code is generated from them | MIT, and HPND-sell-variant (MIT's older X11 kin: a notice, no endorsement) |
+| xcb-proto (the X11 protocol descriptions) | `x11rb-protocol` (Linux), generated from them | X11 (MIT with a no-advertising clause) |
+| Adobe Glyph List | `read-fonts` (through `parley`): its table of glyph names | BSD-3-Clause, © Adobe |
+| KDE's Wayland blur protocol | **not used**: crates.io's `wayland-protocols-plasma` (generated from KDE's protocol files, some LGPL-2.1-or-later) is replaced by RapidR's own stand-in, `crates/patches/wayland-protocols-plasma` (MIT, its own protocol file) | — |
 
-Zstandard, LZ4, zlib and OpenSSL appear in `Cargo.lock` (optional or
-other-platform dependencies of crates RapidR uses) but are compiled into
-nothing RapidR ships: the generated `THIRD-PARTY-NOTICES.txt` files, made
-from the real graphs, list what is.
+No cryptographic library is compiled into anything RapidR builds: HTTPS
+uses the operating system's TLS (above). Zstandard, LZ4, zlib and OpenSSL's
+sources appear in `Cargo.lock` only as optional or other-platform
+dependencies of crates RapidR uses and are compiled into nothing RapidR
+ships: the generated `THIRD-PARTY-NOTICES.txt` files, made from the real
+graphs, list what is.
 
 ### 7.1 Windows: LLVM-MinGW, shipped with the RapidR SDK
 
@@ -593,8 +606,8 @@ RLE8 / RLE4, Microsoft Video 1, Cinepak; Motion JPEG through the
 `jpeg-decoder` crate listed in THIRD_PARTY_NOTICES.md) are original code
 written from the formats' public descriptions, not derived from FFmpeg,
 libav, GStreamer or any other GPL/LGPL project. MP3 files play on the desktop
-through `rodio`'s decoder (`symphonia`, MPL-2.0, unmodified; MP3's patents
-have expired); no H.264, HEVC, AAC or other patent-encumbered codec is
+through `nanomp3` (MIT OR Apache-2.0, a pure-Rust port of the
+public-domain minimp3; MP3's patents have expired); no H.264, HEVC, AAC or other patent-encumbered codec is
 included (docs/licensing.md §5). The AVI and MIDI test
 fixtures are generated by RapidR's own scripts (`tools/make_avi_fixtures.py`,
 `tools/make_media_fixture.py`).

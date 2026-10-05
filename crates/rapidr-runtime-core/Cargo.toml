@@ -13,15 +13,28 @@ serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # RSQLITE and RMYSQL (shared with the web runtime: one SQLite everywhere)
 rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
-# RHTTP (network.rs). Its TLS: rustls everywhere but Windows, where it's the
-# system's (SChannel, kept current by Windows Update) — rustls' crypto, ring,
-# needs clang to build for Windows on ARM.
-ureq = { version = "2", optional = true, default-features = false, features = ["gzip"] }
+# RHTTP and QDOWNLOAD's https (network.rs). Its TLS is the operating
+# system's, through native-tls (MIT OR Apache-2.0): Security.framework on
+# macOS, SChannel on Windows, the system's OpenSSL 3 on Linux (libssl.so.3,
+# linked dynamically, never shipped; libssl-dev to build). No cryptography is
+# compiled into a program, and the certificates are the system's.
+ureq = { version = "2", optional = true, default-features = false, features = ["gzip", "native-tls"] }
 ndarray = { version = "0.16", optional = true }
 polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log"] }
-plotters = { version = "0.3", optional = true }
+# RPLOT's charts (MIT). Their text is drawn in the built-in Liberation Sans
+# by ab_glyph (Apache-2.0) through plotters' backend interface
+# (datascience.rs), not with the system's fonts through plotters' font-kit
+# (whose graph has MPL-2.0 code, FreeType and fontconfig).
+plotters = { version = "0.3", optional = true, default-features = false, features = ["bitmap_backend", "bitmap_encoder", "all_series", "all_elements", "full_palette", "colormaps"] }
+plotters-backend = { version = "0.3", optional = true }
+ab_glyph = { version = "0.2", optional = true }
 image = { version = "0.24", optional = true, default-features = false, features = ["png"] }
-rodio = { version = "0.19", optional = true }
+# Sound (sound.rs): rodio (MIT OR Apache-2.0) plays it and decodes WAV
+# (hound), Ogg Vorbis (lewton) and FLAC (claxon); MP3 is nanomp3's (MIT OR
+# Apache-2.0, pure Rust, a port of the public-domain minimp3), not rodio's
+# default symphonia (MPL-2.0).
+rodio = { version = "0.19", optional = true, default-features = false, features = ["wav", "vorbis", "flac"] }
+nanomp3 = { version = "0.2", optional = true }
 # QMIDI's MIDI output (media.rs): MIT; ALSA on Linux (rodio's already),
 # CoreMIDI on macOS, winmm on Windows.
 midir = { version = "0.11", optional = true }
@@ -35,13 +48,6 @@ serial2 = "0.2"
 rapidr-ui-kernel = { workspace = true, optional = true }
 rapidr-ui-app = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
-
-[target.'cfg(not(windows))'.dependencies]
-ureq = { version = "2", optional = true, default-features = false, features = ["tls"] }
-
-[target.'cfg(windows)'.dependencies]
-ureq = { version = "2", optional = true, default-features = false, features = ["native-tls"] }
-native-tls = { version = "0.2", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 # INKEY$: the terminal read a key at a time (terminal.rs); QDXJOYSTICK's
@@ -58,12 +64,12 @@ gilrs = { version = "0.11", optional = true }
 [features]
 default = ["database", "network", "gui", "datascience", "audio", "ffi", "gamepad"]
 database = ["dep:rapidr-db"]
-network = ["dep:ureq", "dep:native-tls"]
+network = ["dep:ureq"]
 # The desktop host: the UI kernel, the host-neutral program glue
 # (rapidr-ui-app) and the winit host (docs/desktop-host-plan.md), reached
 # through `src/ui`; the system clipboard.
 gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
-datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:image"]
-audio = ["dep:rodio", "dep:midir"]
+datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:plotters-backend", "dep:ab_glyph", "dep:image"]
+audio = ["dep:rodio", "dep:nanomp3", "dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]
