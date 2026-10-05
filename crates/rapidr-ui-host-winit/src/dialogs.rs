@@ -17,20 +17,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
-/// What an Open / Save dialog shows (runtime-core's `ui::file_dialog`
-/// request, in the host's terms).
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct FileRequest {
-    pub save: bool,
-    pub multi: bool,
-    pub title: Option<String>,
-    /// (description, patterns: `*.txt`, `*.*`) in the program's order.
-    pub filters: Vec<(String, Vec<String>)>,
-    /// The one shown first (FilterIndex, from 0).
-    pub filter_index: usize,
-    pub dir: Option<String>,
-    pub file_name: Option<String>,
-}
+// (Stage W3: the request itself is host-neutral, in
+// `rapidr_ui_app::desktop`, with the `HostCmd` that carries it.)
+pub use rapidr_ui_app::desktop::FileRequest;
 
 /// A pattern's extension for rfd: `*.txt` → `txt`; `*` / `*.*` → `*`
 /// (any file); anything else (an exact name) has none.

@@ -234,7 +234,10 @@ fn general(v: f64, precision: usize, exp_digits: usize) -> String {
         return "0".into();
     }
     let rounded: f64 = format!("{}0.{}e{}", d.sign(), d.digits.iter().map(|b| (b'0' + b) as char).collect::<String>(), d.exp).parse().unwrap_or(v);
-    if rounded.abs() < 0.00001 || d.exp > precision as i32 {
+    // (Delphi's FloatToText: scientific when the exponent is above the
+    // precision or below -3 — 0.0001 stays, 0.00001 is `1E-5`, as RC.EXE's
+    // STR$ shows)
+    if d.exp < -3 || d.exp > precision as i32 {
         // ffGeneral writes no `+` in the exponent (`1E20`, `1E-6`).
         let s = exponent(rounded, precision, exp_digits);
         let (mantissa, exp) = s.split_once('E').unwrap_or((&s, ""));
@@ -279,8 +282,117 @@ fn money(v: f64, decimals: usize) -> String {
     }
 }
 
-/// A number as `STR$` and `PRINT` show it: Delphi's `FloatToStr` (15
-/// significant digits, the shorter of fixed and scientific), so
+/// A whole number as RapidQ makes it a 32-bit integer (the x87's `FISTP`):
+/// rounded to the nearest (half to even); out of the 32-bit range, NaN or
+/// infinite, the "integer indefinite" -2147483648 (RC.EXE:
+/// `PRINT 2147483648` shows -2147483648, docs/rapidq-ground-truth.md).
+#[inline]
+pub fn int32(v: f64) -> i64 {
+    let r = v.round_ties_even();
+    if r.is_nan() || !(-2147483648.0..=2147483647.0).contains(&r) {
+        i32::MIN as i64
+    } else {
+        r as i64
+    }
+}
+
+/// An integer RapidQ holds (32 bits): out of range, -2147483648.
+#[inline]
+pub fn int32_of(n: i64) -> i64 {
+    if n < i32::MIN as i64 || n > i32::MAX as i64 {
+        i32::MIN as i64
+    } else {
+        n
+    }
+}
+
+/// A number as RapidQ's `PRINT` shows it (RC.EXE is the evidence,
+/// docs/rapidq-ground-truth.md): a whole number as a 32-bit integer
+/// ([`int32`]: `PRINT 1E10` shows -2147483648, so do NaN and the
+/// infinities); any other with 9 decimals (`3.500000000`, `0.333333333`,
+/// `-0.000000000` for a tiny negative one). The digits are Delphi's
+/// `FloatToDecimal` ones as RapidQ's runtime gets them ([`delphi_digits`]):
+/// 18 of them, from double-precision arithmetic, so `123456789.1` shows
+/// `123456789.100000000` and `1234567890.1` `1234567890.099999840`, as
+/// RC.EXE's programs do (a few values ≥ 1E7 still differ in their last
+/// digits: 123456789.125 shows `123456789.125000013` there, `…124999984`
+/// here).
+pub fn print_double(v: f64) -> String {
+    if v.is_nan() || v.is_infinite() || v == v.trunc() {
+        return int32(v).to_string();
+    }
+    let mut d = delphi_digits(v.abs());
+    d.round_to(d.exp as i64 + 9);
+    let mut out = String::from(if v < 0.0 { "-" } else { "" });
+    if d.exp <= 0 {
+        out.push('0');
+    } else {
+        out.extend((0..d.exp as i64).map(|i| d.digit(i)));
+    }
+    out.push('.');
+    out.extend((0..9).map(|i| d.digit(d.exp as i64 + i)));
+    out
+}
+
+/// The 18 digits Delphi's `FloatToDecimal` takes from `x` (> 0), with the
+/// FPU in double precision as RapidQ's runtime has it: the decimal exponent
+/// estimated from the binary one (`(e2 * 19728) >> 16 + 1`), `x` scaled by
+/// 10^(18 - E) (the product rounded to a double), rounded to an integer, a
+/// tenth of it when it came out 19 digits long, then the 18 BCD digits
+/// (`FBSTP`). Reproduces RC.EXE-built programs' digits beyond the 16th
+/// (`1234567890.1` prints `…099999840`, `1.0000000015` `1.000000001`) —
+/// most of them.
+fn delphi_digits(x: f64) -> Decimal {
+    let e2 = ((x.to_bits() >> 52) & 0x7ff) as i64 - 1023;
+    let mut e = ((e2 * 19728) >> 16) + 1;
+    let k = 18 - e;
+    // (10^k is exact up to 10^22; beyond, only digits far past the 9
+    // decimals shown change)
+    let scale = |y: f64, k: i64| if k >= 0 { y * 10f64.powi(k.min(22) as i32) * 10f64.powi((k - 22).max(0) as i32) } else { y / 10f64.powi((-k) as i32) };
+    let mut y = scale(x, k).round_ties_even();
+    if y >= 1e18 {
+        y = (y / 10.0).round_ties_even();
+        e += 1;
+    }
+    let n = if y.is_finite() && y >= 0.0 { y as u64 } else { 0 };
+    let digits: Vec<u8> = format!("{n:018}").bytes().map(|b| b - b'0').collect();
+    let mut d = Decimal { neg: false, digits, exp: e as i32 };
+    // (a scaled value below 10^17 — an underestimated exponent — has
+    // leading zeros: the number's own exponent is lower)
+    while d.digits.first() == Some(&0) && !d.digits.is_empty() {
+        d.digits.remove(0);
+        d.exp -= 1;
+    }
+    d.trim();
+    d
+}
+
+/// A value as `PRINT` shows it: numbers as [`print_double`] (an integer
+/// beyond 32 bits as RapidQ's -2147483648), anything else as its text.
+pub fn print_text(v: &Value) -> String {
+    match v {
+        Value::Integer(n) => int32_of(*n).to_string(),
+        Value::Double(d) => print_double(*d),
+        _ => v.to_string_val(),
+    }
+}
+
+/// `STR$` of a number as RapidQ's RC.EXE shows it: Delphi's
+/// `FloatToStrF(v, ffGeneral, 9, 0)` — 9 significant digits, the shorter
+/// of fixed and scientific (`0.333333333`, `2.5`, `1.23456789E9` — even
+/// for an INTEGER, `1E-5`, `INF`), no leading space.
+pub fn str_number(v: f64) -> String {
+    if v.is_nan() {
+        return "NAN".into();
+    }
+    if v.is_infinite() {
+        return if v > 0.0 { "INF".into() } else { "-INF".into() };
+    }
+    general(v, 9, 0)
+}
+
+/// A number as RapidR's own text conversions show it: Delphi's `FloatToStr`
+/// (15 significant digits, the shorter of fixed and scientific), so
 /// `0.1 + 0.2` is `0.3` and `1E20` stays short.
 pub fn float_to_str(v: f64) -> String {
     if v.is_nan() {
@@ -353,8 +465,89 @@ mod tests {
 
     #[test]
     fn numbers_as_text() {
-        for (v, s) in [(0.1 + 0.2, "0.3"), (1.0 / 3.0, "0.333333333333333"), (1024.0, "1024"), (-2.5, "-2.5"), (1e20, "1E20"), (1e15, "1E15"), (123456789012345.0, "123456789012345"), (0.00001, "0.00001"), (0.000001, "1E-6"), (-0.0, "0"), (f64::NAN, "NAN"), (2.0 / 3.0, "0.666666666666667")] {
+        for (v, s) in [(0.1 + 0.2, "0.3"), (1.0 / 3.0, "0.333333333333333"), (1024.0, "1024"), (-2.5, "-2.5"), (1e20, "1E20"), (1e15, "1E15"), (123456789012345.0, "123456789012345"), (0.0001, "0.0001"), (0.00001, "1E-5"), (0.000001, "1E-6"), (-0.0, "0"), (f64::NAN, "NAN"), (2.0 / 3.0, "0.666666666666667")] {
             assert_eq!(float_to_str(v), s, "{v}");
+        }
+    }
+
+    // What RapidQ's RC.EXE-built programs print (docs/rapidq-ground-truth.md).
+    #[test]
+    fn print_as_rapidq() {
+        for (v, s) in [
+            (1.0 / 3.0, "0.333333333"),
+            (2.0 / 3.0, "0.666666667"),
+            (2.5, "2.500000000"),
+            (0.1, "0.100000000"),
+            (-0.5, "-0.500000000"),
+            (3.0, "3"),
+            (1024.0, "1024"),
+            (1.0 / 7.0 * 1e6, "142857.142857143"),
+            (0.1f32 as f64, "0.100000001"),
+            (123456.7890625, "123456.789062500"),
+            (123456789.1, "123456789.100000000"),
+            (1e9 + 0.5, "1000000000.500000000"),
+            (2147483647.5, "2147483647.500000000"),
+            // (digits beyond the 16th as RapidQ's runtime makes them)
+            (1234567890.1, "1234567890.099999840"),
+            (1234567890123.1, "1234567890123.100160000"),
+            (99999999999.5, "99999999999.500006400"),
+            (1.0000000015, "1.000000001"),
+            (9876543.987654321, "9876543.987654321"),
+            (9999999.99999999, "9999999.999999991"),
+            (1234567.123456789, "1234567.123456789"),
+            (123456.1234567895, "123456.123456790"),
+            (99999.9999999999, "100000.000000000"),
+            (2.675, "2.675000000"),
+            (-9.84147, "-9.841470000"),
+            (0.000001, "0.000001000"),
+            (1e-20, "0.000000000"),
+            (-1e-20, "-0.000000000"),
+            (0.0000000005, "0.000000001"),
+            (0.9999999999, "1.000000000"),
+            (-0.9999999996, "-1.000000000"),
+            (2147483647.0, "2147483647"),
+            (2147483648.0, "-2147483648"),
+            (1e20, "-2147483648"),
+            (-3e9, "-2147483648"),
+            (f64::INFINITY, "-2147483648"),
+            (f64::NAN, "-2147483648"),
+            (-0.0, "0"),
+        ] {
+            assert_eq!(print_double(v), s, "{v}");
+        }
+        assert_eq!(print_text(&Value::Integer(4294967296)), "-2147483648");
+        assert_eq!(print_text(&Value::Integer(-7)), "-7");
+    }
+
+    #[test]
+    fn str_as_rapidq() {
+        for (v, s) in [
+            (1.0 / 3.0, "0.333333333"),
+            (5.0, "5"),
+            (-5.0, "-5"),
+            (2.5, "2.5"),
+            (1e20, "1E20"),
+            (0.1, "0.1"),
+            (0.1f32 as f64, "0.100000001"),
+            (25.0, "25"),
+            (123456.789, "123456.789"),
+            (1.0 / 7.0 * 1e6, "142857.143"),
+            (12345678.5, "12345678.5"),
+            (1234567890.5, "1.23456789E9"),
+            (1234567890.0, "1.23456789E9"),
+            (0.00001, "1E-5"),
+            (0.000001234, "1.234E-6"),
+            (1e-20, "1E-20"),
+            (-1e20, "-1E20"),
+            (3e9, "3E9"),
+            (2147483648.0, "2.14748365E9"),
+            (1.5e9, "1.5E9"),
+            (2f64.sqrt(), "1.41421356"),
+            (100.0 / 3.0, "33.3333333"),
+            (123456789.123, "123456789"),
+            (f64::INFINITY, "INF"),
+        ] {
+            assert_eq!(str_number(v), s, "{v}");
         }
     }
 }

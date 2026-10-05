@@ -12,6 +12,10 @@ description = "RapidR's desktop host for the UI kernel: winit windows pumped fro
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-ui-kernel = { workspace = true }
+# (Stage W3) The forms' kernel sides, stacking, modal routing and the
+# HostCmd / HostEvent queues (`Desktop`), shared with the web host —
+# host-neutral, GUI-free, never the runtime.
+rapidr-ui-app = { workspace = true }
 # The drawing, shared with the web host: vello on the GPU, vello_cpu for
 # captures and where wgpu finds no GPU, with the PNG decoder for colour
 # bitmap glyphs among the system's fonts.

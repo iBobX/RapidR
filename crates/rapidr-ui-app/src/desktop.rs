@@ -1,20 +1,33 @@
-//! Every form the kernel shows, as the hosts see them: each one's kernel
+//! Every form a kernel host shows, as the hosts see them (moved from
+//! `rapidr-ui-host-winit` in Stage W3, docs/web-host-plan.md: the desktop's
+//! winit and headless hosts and the web host share it): each one's kernel
 //! side ([`FormUi`]) and window ([`WindowSpec`]), the shared text system,
 //! the modal forms, and the two queues between the program and the host —
-//! [`HostCmd`]s the program asks for (run inside a pump, where winit has an
-//! `ActiveEventLoop`) and [`HostEvent`]s the host's callbacks queue for the
-//! program (dispatched by runtime-core after the pump returns).
+//! [`HostCmd`]s the program asks for (run in the host's turn: inside a pump
+//! on the desktop, where winit has an `ActiveEventLoop`; at once on the
+//! page) and [`HostEvent`]s the host's callbacks queue for the program
+//! (dispatched by the runtime after the host's turn).
 //!
-//! Input enters through the same methods whether the OS or a test script
+//! Input enters through the same methods whether the user or a test script
 //! sends it: [`Desktop::mouse_down`], [`Desktop::key_down`] … route it into
 //! the form's kernel (hit test, capture, focus, the models) and queue what
 //! the program hears about. Nothing here runs program code.
+//!
+//! Also here, for every host: the program's window commands into the forms
+//! ([`Desktop::apply`], [`Desktop::sync_forms`], [`window_spec`]), a GUI
+//! test's input through the kernel's routing ([`script_input`]) and the
+//! accessibility trees it writes ([`Desktop::access_trees`]).
 
 use std::collections::BTreeMap;
 
+use rapidr_ui_kernel::tick::Instant;
 use rapidr_ui_kernel::{Clipboard, FormUi, KernelEvent, Mods, Store, TextSystem};
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Mouse};
 use rapidr_value::objects::a11y::Action;
+use rapidr_value::Value;
+
+use crate::windows::{ScriptInput, WindowOp};
+use crate::{forms, Program};
 
 /// What the program hears about, queued inside a pump.
 #[derive(Clone, Debug, PartialEq)]
@@ -44,13 +57,13 @@ pub enum HostCmd {
     Minimize(String),
     /// Pop-up menu `menu` shown by the system at (x, y) of form `form`'s
     /// window's inside (logical) — hosts with native menus
-    /// ([`crate::Host::native_menus`]); its pick comes back as a
+    /// (the desktop host's `native_menus`); its pick comes back as a
     /// `KernelEvent::MenuPick`.
     Popup { form: String, menu: String, x: i64, y: i64 },
     // (the dialogs and platform lane's)
     /// An Open / Save dialog (`dialogs.rs`), on form `form`'s window when
     /// given (a sheet on macOS); its answer through `Host::file_dialog(id)`.
-    FileDialog { id: u64, form: Option<String>, req: crate::dialogs::FileRequest },
+    FileDialog { id: u64, form: Option<String>, req: FileRequest },
     /// Form `id`'s window gone for good (a kernel-drawn dialog closed).
     Forget(String),
     // (the input lane's)
@@ -70,12 +83,53 @@ pub enum HostCmd {
     Fullscreen(String),
 }
 
-/// A window's picture (RGBA, straight).
-#[derive(Clone, Debug, PartialEq)]
-pub struct Icon {
-    pub width: u32,
-    pub height: u32,
-    pub rgba: Vec<u8>,
+pub use crate::windows::Icon;
+
+/// A form's window frame: what the window system (the desktop's) or the
+/// web host's kernel-drawn frame shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Frame {
+    /// The user may resize it (bsSizeable, bsSizeToolWin).
+    pub resizable: bool,
+    /// The title bar's buttons.
+    pub close: bool,
+    pub minimize: bool,
+    pub maximize: bool,
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Frame { resizable: true, close: true, minimize: true, maximize: true }
+    }
+}
+
+/// BorderIcons' bits (biSystemMenu 0, biMinimize 1, biMaximize 2, biHelp 3).
+pub const BI_DEFAULT: i64 = 0b0111;
+
+/// The frame for BorderStyle `style` (bsNone 0, bsSingle 1, bsSizeable 2,
+/// bsDialog 3, bsToolWindow 4, bsSizeToolWin 5) and BorderIcons `icons`
+/// (as Windows draws them): without biSystemMenu no button at all; a dialog
+/// or tool window has no minimize / maximize; only bsSizeable and
+/// bsSizeToolWin resize. biHelp has no counterpart.
+pub fn frame_of(style: i64, icons: i64) -> Frame {
+    let system = icons & 1 != 0;
+    let full = matches!(style, 1 | 2);
+    Frame { resizable: matches!(style, 2 | 5), close: system, minimize: system && full && icons & 2 != 0, maximize: system && full && icons & 4 != 0 }
+}
+
+/// What an Open / Save dialog shows (`crate::file_dialog`'s request, in the
+/// host's terms).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FileRequest {
+    pub save: bool,
+    pub multi: bool,
+    pub title: Option<String>,
+    /// (description, patterns: `*.txt`, `*.*`) in the program's order.
+    pub filters: Vec<(String, Vec<String>)>,
+    /// The one shown first (FilterIndex, from 0).
+    pub filter_index: usize,
+    pub dir: Option<String>,
+    pub file_name: Option<String>,
 }
 
 /// What a form's window looks like, as the program set it.
@@ -90,7 +144,7 @@ pub struct WindowSpec {
     pub border: bool,
     pub icon: Option<Icon>,
     /// Resizing and the title bar's buttons (BorderStyle, BorderIcons).
-    pub frame: crate::platform::Frame,
+    pub frame: Frame,
     /// (the WindowState lane's) wsNormal 0, wsMinimized 1, wsMaximized 2:
     /// how the program asked it to show.
     pub state: i64,
@@ -155,13 +209,13 @@ impl Desktop {
     /// When the shown forms' next deadline is (a caret's blink, a held
     /// scroll bar's repeat, a component's tick): the step loop pumps no
     /// longer than that.
-    pub fn next_wake(&self) -> Option<std::time::Instant> {
+    pub fn next_wake(&self) -> Option<Instant> {
         self.forms.values().filter(|f| f.shown).filter_map(|f| f.ui.next_wake()).min()
     }
 
     /// Runs the shown forms' deadlines due at `now` (what they change is
     /// drawn again; their events queued).
-    pub fn tick(&mut self, store: &dyn Store, now: std::time::Instant) {
+    pub fn tick(&mut self, store: &dyn Store, now: Instant) {
         let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && f.ui.next_wake().is_some_and(|at| at <= now)).map(|(k, _)| k.clone()).collect();
         for id in due {
             let Desktop { forms, text, .. } = self;
@@ -364,4 +418,205 @@ impl Desktop {
         }
         self.collect(id);
     }
+}
+
+// ------------------------------------------- the program's windows, shared --
+//
+// (Stage W3) What runtime-core's `sync_desk` and test hooks did with the
+// desktop's `Desktop`, for every host: the program's window commands into
+// the forms, and a GUI test's input through the kernel's routing.
+
+impl Desktop {
+    /// A window command of the program's ([`WindowOp`], `take_ops`) into
+    /// its form: the form's kernel side made the first time it shows
+    /// (`spec`: its window as the program set it, [`window_spec`]), the
+    /// window's description changed and the host's command queued.
+    pub fn apply(&mut self, store: &dyn Store, op: WindowOp, menu_in_window: bool, spec: impl FnOnce(&str) -> WindowSpec) {
+        match op {
+            WindowOp::Show(f) => {
+                if !self.forms.contains_key(&f) {
+                    let s = spec(&f);
+                    self.ensure_form(store, &f, menu_in_window, s);
+                }
+                self.show(&f);
+            }
+            WindowOp::Hide(f) => self.hide(&f),
+            WindowOp::Title(f, t) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.title = t;
+                    self.cmds.push(HostCmd::Title(f));
+                }
+            }
+            WindowOp::Size(f, size) => {
+                if let Some(w) = self.form(&f) {
+                    if w.spec.size != size {
+                        w.spec.size = size;
+                        self.cmds.push(HostCmd::Size(f));
+                    }
+                }
+            }
+            WindowOp::Position(f, p) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.position = Some(p);
+                    self.cmds.push(HostCmd::Position(f));
+                }
+            }
+            WindowOp::Border(f, b) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.border = b;
+                    self.cmds.push(HostCmd::Border(f));
+                }
+            }
+            WindowOp::Icon(f, i) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.icon = i;
+                    self.cmds.push(HostCmd::Icon(f));
+                }
+            }
+            WindowOp::Minimize(f) => self.cmds.push(HostCmd::Minimize(f)),
+            WindowOp::Popup(form, menu, x, y) => self.cmds.push(HostCmd::Popup { form, menu, x, y }),
+            WindowOp::State(f, state) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.state = state;
+                    self.cmds.push(HostCmd::State(f));
+                }
+            }
+            // (the DirectX lane's)
+            WindowOp::Fullscreen(f) => self.cmds.push(HostCmd::Fullscreen(f)),
+        }
+    }
+
+    /// After the window commands: the modal list (`modal`, innermost last),
+    /// and what changed (`take_notify`: paint, the tree) into every form's
+    /// kernel side — its tree rebuilt, or its geometry and models read
+    /// again and drawn.
+    pub fn sync_forms(&mut self, store: &dyn Store, modal: Vec<String>, (paint, structure): (bool, bool)) {
+        self.modal = modal;
+        for (id, f) in self.forms.iter_mut() {
+            f.ui.modal = self.modal.contains(id);
+            if structure {
+                f.ui.rebuild(store);
+            } else if paint {
+                f.ui.sync(store);
+                f.ui.dirty = true;
+            }
+        }
+    }
+
+    /// Form `id`'s accessibility tree as `RAPIDR_TEST_A11Y` writes it (what
+    /// AccessKit gets on the desktop, the web host's mirror shows).
+    pub fn access_json(&mut self, store: &dyn Store, id: &str) -> Option<String> {
+        let Desktop { forms, text, .. } = self;
+        let w = forms.get_mut(&id.to_lowercase())?;
+        Some(w.ui.access_tree(store, text).to_json())
+    }
+}
+
+/// Form `name`'s frame: its BorderStyle and BorderIcons (all three when
+/// never set).
+pub fn frame<P: Program>(p: P, name: &str) -> Frame {
+    let icons = match p.get(name, "bordericons") {
+        Value::Null => BI_DEFAULT,
+        v => v.to_i64(),
+    };
+    frame_of(p.get(name, "borderstyle").to_i64(), icons)
+}
+
+/// Form `name`'s window as the program set it (made when it first shows).
+pub fn window_spec<P: Program>(p: P, name: &str) -> WindowSpec {
+    WindowSpec {
+        title: p.get(name, "caption").to_string_val(),
+        size: forms::form_window_size(p, name),
+        position: Some((p.get(name, "left").to_i64(), p.get(name, "top").to_i64())),
+        border: p.get(name, "borderstyle").to_i64() != 0,
+        icon: forms::icon_of(p, name),
+        frame: frame(p, name),
+        // (the WindowState lane's)
+        state: rapidr_value::window_state::of(p.get(name, "windowstate").to_i64()),
+    }
+}
+
+/// The form a component is on, and where it is in that window's inside
+/// (logical; the in-window menu bar included), from the kernel's tree.
+pub fn place_of<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &str) -> Option<(String, (i64, i64))> {
+    let form = p.form_of(comp)?;
+    let comp = comp.to_lowercase();
+    let f = desk.forms.get_mut(&form)?;
+    f.ui.sync(store);
+    if comp == form {
+        return Some((form.clone(), (0, f.ui.menu_offset)));
+    }
+    let n = f.ui.node(&comp)?;
+    Some((form.clone(), (n.abs.0, n.abs.1)))
+}
+
+/// A GUI test's input (`RAPIDR_TEST_EVENTS`, `RAPIDR_TEST_RESIZE`: the
+/// script's, `crate::script`) through the kernel's routing, as the user's
+/// would be. A held pump ([`ScriptInput::Hold`]) is the host's own: false.
+pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, input: ScriptInput) -> bool {
+    match input {
+        ScriptInput::Key { comp, vk } => script_key(p, desk, store, &comp, vk),
+        ScriptInput::Mouse { comp, kind, x, y } => script_mouse(p, desk, store, &comp, kind, x, y),
+        ScriptInput::DblClick { comp, x, y } => {
+            // (press, release, press, release: the second press within
+            // Windows' double-click time and distance of the first)
+            script_mouse(p, desk, store, &comp, Mouse::Down, x, y);
+            script_mouse(p, desk, store, &comp, Mouse::Up, x, y);
+            if let Some((form, (ox, oy))) = place_of(p, desk, store, &comp) {
+                let at = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
+                desk.mouse_down(store, &form, at, Button::Left, Mods::NONE, Source::Script);
+                desk.mouse_up(store, &form, at, Button::Left, Mods::NONE, Source::Script);
+            }
+        }
+        ScriptInput::Step { form, comp, step } => {
+            desk.test_action(store, &form, &comp, &step);
+        }
+        ScriptInput::Resize { w, h } => script_resize(p, desk, store, w, h),
+        ScriptInput::Hold(_) => return false,
+    }
+    true
+}
+
+/// `comp.__key_N`: the component focused, the key pressed and released.
+fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &str, vk: i64) {
+    let Some(form) = p.form_of(comp) else { return };
+    let comp = comp.to_lowercase();
+    let text = rapidr_value::input::text_of_vk(vk);
+    if let Some(f) = desk.forms.get_mut(&form) {
+        f.ui.sync(store);
+        f.ui.focus_id(store, &comp);
+    }
+    desk.key_down(store, &form, vk, &text, Mods::NONE, Source::Script);
+    desk.key_up(&form, vk, Mods::NONE, Source::Script);
+}
+
+/// `comp.__mousedown_x_y` …: the mouse at (x, y) in the component (hit
+/// test, capture). A press is a single click, however soon after another.
+fn script_mouse<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &str, kind: Mouse, x: i64, y: i64) {
+    let Some((form, (ox, oy))) = place_of(p, desk, store, comp) else { return };
+    let (x, y) = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
+    match kind {
+        Mouse::Down => {
+            // (the input lane's)
+            if let Some(f) = desk.form(&form) {
+                f.ui.forget_clicks();
+            }
+            desk.mouse_down(store, &form, (x, y), Button::Left, Mods::NONE, Source::Script)
+        }
+        Mouse::Move => desk.mouse_move(store, &form, x, y, Mods::NONE, Source::Script),
+        Mouse::Up => desk.mouse_up(store, &form, (x, y), Button::Left, Mods::NONE, Source::Script),
+    }
+}
+
+/// `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height) as
+/// a user dragging its border would.
+fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64, h: i64) {
+    let Some(form) = desk.stacking().last().cloned() else { return };
+    let (fw, fh) = rapidr_value::layout::form_frame(p.get(&form, "borderstyle").to_i64());
+    let (iw, ih) = (w - fw, h - fh);
+    if let Some(f) = desk.forms.get_mut(&form) {
+        f.ui.sync(store);
+    }
+    desk.resized(&form, iw, ih);
+    crate::windows::push_op(WindowOp::Size(form, (iw, ih)));
 }

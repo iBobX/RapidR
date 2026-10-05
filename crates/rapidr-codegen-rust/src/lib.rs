@@ -314,12 +314,12 @@ impl RustCodegen {
             if let Expression::Identifier(id) = inner.object.as_ref() {
                 if id.name != "_with_" && !is_component_type_name(&id.name) && !id.name.eq_ignore_ascii_case("math") {
                     let receiver = self.receiver(&inner.object);
-                    return format!("rp_comp_method({receiver}, \"{}.{}\", &[{}])", inner.member.to_lowercase(), method.to_lowercase(), args.join(", "));
+                    return format!("rp_comp_call({receiver}, \"{}.{}\", &[{}])", inner.member.to_lowercase(), method.to_lowercase(), args.join(", "));
                 }
             }
         }
         let receiver = self.receiver(object);
-        format!("rp_comp_method({receiver}, \"{}\", &[{}])", method.to_lowercase(), args.join(", "))
+        format!("rp_comp_call({receiver}, \"{}\", &[{}])", method.to_lowercase(), args.join(", "))
     }
 
     /// The component id argument for `object.member` when `object` isn't a
@@ -588,7 +588,7 @@ impl RustCodegen {
                                 }
                                 None => "0usize".to_string(),
                             };
-                            let default = default_value_for_type(&d.type_name);
+                            let default = dim_default(d);
                             self.array_init_info.insert(name_lower.clone(), (default, size));
                         }
                         // Track if this is a component variable (not an array of them)
@@ -858,7 +858,7 @@ impl RustCodegen {
             // the first time only, so every call (and recursion) shares it.
             for decl in &d.declarators {
                 let name = to_snake(&decl.name);
-                let default = default_value_for_type(&d.type_name);
+                let default = dim_default(d);
                 let init = if decl.dimensions.is_empty() {
                     default
                 } else {
@@ -933,7 +933,7 @@ impl RustCodegen {
                         let _ = writeln!(self.output, "{}", self.typed_write(&decl.name, kind.zero()));
                     } else {
                         // Module-level scalar → store in global vars
-                        let default = default_value_for_type(&d.type_name);
+                        let default = dim_default(d);
                         let _ = writeln!(self.output, "gs(\"{name}\", {default});");
                     }
                 } else if let Some(kind) = self.typed_local(&decl.name) {
@@ -941,7 +941,7 @@ impl RustCodegen {
                     self.write_indent();
                     let _ = writeln!(self.output, "{name} = {};", kind.zero());
                 } else {
-                    let default = default_value_for_type(&d.type_name);
+                    let default = dim_default(d);
                     self.declare_local(&name, &default);
                 }
             } else {
@@ -963,7 +963,7 @@ impl RustCodegen {
                         ),
                     })
                     .collect();
-                let default = default_value_for_type(&d.type_name);
+                let default = dim_default(d);
                 // REDIM in a SUB resizes the module-level array unless the
                 // SUB declares its own (as in the VM).
                 let global = if self.in_sub_or_function {
@@ -1653,7 +1653,7 @@ impl RustCodegen {
                     self.expr_to_string(low),
                     self.expr_to_string(high)
                 ),
-                CaseValue::Is(op, e) => {
+                CaseValue::Is(op, e) | CaseValue::IsLogic(op, e, _) => {
                     let method = match op {
                         BinaryOperator::Equal => "rp_eq",
                         BinaryOperator::NotEqual => "rp_ne",
@@ -1662,7 +1662,19 @@ impl RustCodegen {
                         BinaryOperator::GreaterThan => "rp_gt",
                         _ => "rp_ge",
                     };
-                    format!("{sel}.{method}(&{}).to_bool()", self.expr_to_string(e))
+                    let mut test = format!("{sel}.{method}(&{})", self.expr_to_string(e));
+                    // `IS = "l" AND x = "d"`: the comparison, then the rest.
+                    if let CaseValue::IsLogic(_, _, rest) = v {
+                        for (logic, e) in rest {
+                            let m = match logic {
+                                BinaryOperator::And => "and",
+                                BinaryOperator::Or => "or",
+                                _ => "xor",
+                            };
+                            test = format!("({test}).{m}(&{})", self.expr_to_string(e));
+                        }
+                    }
+                    format!("({test}).to_bool()")
                 }
             })
             .collect()
@@ -1968,7 +1980,8 @@ impl RustCodegen {
             } else if kind == typed::Kind::Double {
                 format!("numeric::double_of(&{snake})")
             } else {
-                format!("numeric::int_of(&{snake}, {})", kind.runtime())
+                // (a BYVAL parameter rounds half to even, as RapidQ's do)
+                format!("numeric::arg_int_of(&{snake}, {})", kind.runtime())
             };
             let _ = writeln!(self.output, "let mut {snake}: {} = {init};", kind.rust_type());
         }
@@ -2635,9 +2648,9 @@ impl RustCodegen {
                         let method = ma.member.to_lowercase();
                         let args_str = args.join(", ");
                         if args.is_empty() {
-                            return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[])");
+                            return format!("rp_comp_call(\"{comp_name}\", \"{method}\", &[])");
                         }
-                        return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[{args_str}])");
+                        return format!("rp_comp_call(\"{comp_name}\", \"{method}\", &[{args_str}])");
                     }
 
                     // Nested static call: Type.namespace.method(args) e.g. RNum.random.randint()
@@ -2695,7 +2708,7 @@ impl RustCodegen {
                     if let Some(comp_name) = self.get_component_name(&inner_ma.object) {
                         let sub = inner_ma.member.to_lowercase();
                         let prop = ma.member.to_lowercase();
-                        return format!("rp_comp_get(\"{comp_name}\", \"{sub}.{prop}\")");
+                        return format!("rp_comp_read(\"{comp_name}\", \"{sub}.{prop}\")");
                     }
                 }
 
@@ -2713,7 +2726,7 @@ impl RustCodegen {
                 if let Expression::MemberAccess(inner) = ma.object.as_ref() {
                     if matches!(inner.object.as_ref(), Expression::Identifier(id) if id.name != "_with_") {
                         return format!(
-                            "rp_comp_get({}, \"{}.{}\")",
+                            "rp_comp_read({}, \"{}.{}\")",
                             self.receiver(&inner.object),
                             inner.member.to_lowercase(),
                             ma.member.to_lowercase()
@@ -2743,7 +2756,7 @@ impl RustCodegen {
                 // `Sender.Caption`); `Dlg.Execute` is a call
                 // (rapidr_ast::VALUE_METHODS, as in the VM).
                 if rapidr_ast::VALUE_METHODS.contains(&member_lower.as_str()) {
-                    return format!("rp_comp_method({}, \"{member_lower}\", &[])", self.receiver(&ma.object));
+                    return format!("rp_comp_call({}, \"{member_lower}\", &[])", self.receiver(&ma.object));
                 }
                 format!("rp_comp_value({}, \"{member_lower}\")", self.receiver(&ma.object))
             }
@@ -2754,9 +2767,9 @@ impl RustCodegen {
                     let args: Vec<String> = mc.args.iter().map(|a| self.owned_expr(a)).collect();
                     let args_str = args.join(", ");
                     if args.is_empty() {
-                        return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[])");
+                        return format!("rp_comp_call(\"{comp_name}\", \"{method}\", &[])");
                     }
-                    return format!("rp_comp_method(\"{comp_name}\", \"{method}\", &[{args_str}])");
+                    return format!("rp_comp_call(\"{comp_name}\", \"{method}\", &[{args_str}])");
                 }
                 // Fallback: assume object holds a component instance name (Value)
                 let obj = self.owned_expr(&mc.object);
@@ -2764,7 +2777,7 @@ impl RustCodegen {
                 let args: Vec<String> =
                     mc.args.iter().map(|a| self.owned_expr(a)).collect();
                 if args.is_empty() {
-                    format!("rp_comp_method(&{obj}.to_string_val(), \"{method_lower}\", &[])")
+                    format!("rp_comp_call(&{obj}.to_string_val(), \"{method_lower}\", &[])")
                 } else {
                     let args_str = args.join(", ");
                     format!("rp_comp_method(&{obj}.to_string_val(), \"{method_lower}\", &[{args_str}])")
@@ -2828,6 +2841,15 @@ pub(crate) fn to_snake(name: &str) -> String {
 
 fn strip_type_suffix(name: &str) -> String {
     rapidr_ast::strip_type_suffix(name).to_string()
+}
+
+/// A DIMmed variable's (or array element's) first value: `STRING * n` is n
+/// spaces, as RapidQ's.
+fn dim_default(d: &DimStatement) -> String {
+    match d.fixed_len {
+        Some(n) if d.type_name.eq_ignore_ascii_case("STRING") => format!("v_str({:?})", " ".repeat(n)),
+        _ => default_value_for_type(&d.type_name),
+    }
 }
 
 fn default_value_for_type(type_name: &str) -> String {
@@ -3072,6 +3094,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__to_long" => Some(format!("numeric::to_long(&{a0})")),
         "__to_dword" => Some(format!("numeric::to_dword(&{a0})")),
         "__to_double" => Some(format!("numeric::to_double(&{a0})")),
+        "__to_single" => Some(format!("numeric::to_single(&{a0})")),
+        "__arg_round" => Some(format!("numeric::arg_round(&{a0})")),
         "__to_fixed" => Some(format!("rp_fixed_string(&{a0}, ({a1}).to_i64().max(0) as usize)")),
         "__newobject" => Some(format!("rp_new_object(&{a0}, &{a1}, &{a2})")),
         "__getfield" => Some(format!("obj_field(&{a0}, ({a1}).to_i64() as usize)")),
@@ -3086,11 +3110,11 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
             let (value, idx) = args.get(1..)?.split_last()?;
             Some(format!("{{ ({a0}).rp_set(&[{}], ({value}).clone()); v_null() }}", index_list(idx)))
         }
-        "__objget" => Some(format!("rp_comp_get(&({a0}).to_string_val(), &({a1}).to_string_val())")),
+        "__objget" => Some(format!("rp_comp_read(&({a0}).to_string_val(), &({a1}).to_string_val())")),
         "__objset" => Some(format!("{{ rp_comp_set(&({a0}).to_string_val(), &({a1}).to_string_val(), ({a2}).clone()); v_null() }}")),
         "__objcreate" => Some(format!("{{ rp_create_component(&({a0}).to_string_val(), &({a1}).to_string_val()); v_null() }}")),
         "__objcall" => Some(format!(
-            "rp_comp_method(&({a0}).to_string_val(), &({a1}).to_string_val(), &[{}])",
+            "rp_comp_call(&({a0}).to_string_val(), &({a1}).to_string_val(), &[{}])",
             args.iter().skip(2).map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")
         )),
         "__component_array" => Some(format!(
@@ -3338,6 +3362,12 @@ fn collect_all_refs(stmts: &[Statement], refs: &mut HashSet<String>) {
                             CaseValue::Range(low, high) => {
                                 collect_expr_refs(low, refs);
                                 collect_expr_refs(high, refs);
+                            }
+                            CaseValue::IsLogic(_, e, rest) => {
+                                collect_expr_refs(e, refs);
+                                for (_, x) in rest {
+                                    collect_expr_refs(x, refs);
+                                }
                             }
                         }
                     }

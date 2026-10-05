@@ -52,14 +52,13 @@ use std::time::{Duration, Instant};
 use rapidr_ui_app::waits::{self, Wait};
 use rapidr_ui_app::windows::{invalidate, push_op, restructure, take_notify, take_ops};
 use rapidr_ui_app::{forms, lists, script, timers, ScriptInput, WindowOp, Windows};
-use rapidr_ui_host_winit::{Desktop, Host, HostCmd, HostEvent, Icon, Source, WindowSpec};
-use rapidr_ui_kernel::{Clipboard, Mods};
-use rapidr_value::input::{Button, Mouse};
+use rapidr_ui_host_winit::{Desktop, Host, HostEvent, WindowSpec};
+use rapidr_ui_kernel::Clipboard;
 
 use super::kernel_store::RtStore;
 use super::program::Rt;
 use super::testhooks::Capture;
-use crate::object::{form_of, rp_comp_get, rp_comp_set};
+use crate::object::{rp_comp_get, rp_comp_set};
 use crate::value::{v_int, v_null, Value};
 
 // The buttons and menus lane's part: Popup's and AutoPopup's menu shown.
@@ -175,83 +174,20 @@ fn started() -> bool {
 
 // ------------------------------------------------------------- the pump --
 
-/// A window's picture as the host takes it.
-fn host_icon(icon: Option<rapidr_ui_app::Icon>) -> Option<Icon> {
-    icon.map(|i| Icon { width: i.width, height: i.height, rgba: i.rgba })
-}
-
 /// What the program changed, into the kernel's forms: window commands,
-/// new forms' kernel sides, trees rebuilt, layouts read again.
+/// new forms' kernel sides, trees rebuilt, layouts read again
+/// (`rapidr_ui_app::desktop`'s, shared with the web host).
 fn sync_desk(desk: &mut Desktop) {
     rapidr_ui_app::menus::dump_if_changed(Rt);
     let store = RtStore;
-    let (paint, structure) = take_notify();
+    let notify = take_notify();
     let ops = take_ops();
     let modal = forms::modal_forms();
     for op in ops {
-        match op {
-            WindowOp::Show(f) => {
-                if !desk.forms.contains_key(&f) {
-                    desk.ensure_form(&store, &f, menu_in_window(), spec_of(&f));
-                }
-                desk.show(&f);
-            }
-            WindowOp::Hide(f) => desk.hide(&f),
-            WindowOp::Title(f, t) => {
-                if let Some(w) = desk.form(&f) {
-                    w.spec.title = t;
-                    desk.cmds.push(HostCmd::Title(f));
-                }
-            }
-            WindowOp::Size(f, size) => {
-                if let Some(w) = desk.form(&f) {
-                    if w.spec.size != size {
-                        w.spec.size = size;
-                        desk.cmds.push(HostCmd::Size(f));
-                    }
-                }
-            }
-            WindowOp::Position(f, p) => {
-                if let Some(w) = desk.form(&f) {
-                    w.spec.position = Some(p);
-                    desk.cmds.push(HostCmd::Position(f));
-                }
-            }
-            WindowOp::Border(f, b) => {
-                if let Some(w) = desk.form(&f) {
-                    w.spec.border = b;
-                    desk.cmds.push(HostCmd::Border(f));
-                }
-            }
-            WindowOp::Icon(f, i) => {
-                if let Some(w) = desk.form(&f) {
-                    w.spec.icon = host_icon(i);
-                    desk.cmds.push(HostCmd::Icon(f));
-                }
-            }
-            WindowOp::Minimize(f) => desk.cmds.push(HostCmd::Minimize(f)),
-            WindowOp::Popup(form, menu, x, y) => desk.cmds.push(HostCmd::Popup { form, menu, x, y }),
-            WindowOp::State(f, state) => {
-                if let Some(w) = desk.form(&f) {
-                    w.spec.state = state;
-                    desk.cmds.push(HostCmd::State(f));
-                }
-            }
-            // (the DirectX lane's)
-            WindowOp::Fullscreen(f) => desk.cmds.push(HostCmd::Fullscreen(f)),
-        }
+        desk.apply(&store, op, menu_in_window(), spec_of);
     }
     platform::sync(desk);
-    desk.modal = modal;
-    for (id, f) in desk.forms.iter_mut() {
-        f.ui.modal = desk.modal.contains(id);
-        if structure {
-            f.ui.rebuild(&store);
-        } else if paint {
-            f.ui.sync(&store);
-            f.ui.dirty = true;
-        }
-    }
+    desk.sync_forms(&store, modal, notify);
 }
 
 /// The host's turn: up to `timeout` (`None`: until something happens).
@@ -447,16 +383,7 @@ pub fn menu_offset(form: &str) -> i32 {
 }
 
 fn spec_of(name: &str) -> WindowSpec {
-    WindowSpec {
-        title: rp_comp_get(name, "caption").to_string_val(),
-        size: forms::form_window_size(Rt, name),
-        position: Some((rp_comp_get(name, "left").to_i64(), rp_comp_get(name, "top").to_i64())),
-        border: rp_comp_get(name, "borderstyle").to_i64() != 0,
-        icon: host_icon(forms::icon_of(Rt, name)),
-        frame: platform::frame(name),
-        // (the WindowState lane's)
-        state: rapidr_value::window_state::of(rp_comp_get(name, "windowstate").to_i64()),
-    }
+    rapidr_ui_app::desktop::window_spec(Rt, name)
 }
 
 /// (the DirectX lane's) The program is the active application (one of its
@@ -1090,82 +1017,7 @@ fn end(code: i32) -> ! {
 /// The form a component is on, and where it is in that window's inside
 /// (logical; the in-window menu bar included), from the kernel's tree.
 fn place_of(comp: &str) -> Option<(String, (i64, i64))> {
-    let form = form_of(comp)?;
-    let comp = lower(comp);
-    with_kern(|k| {
-        let f = k.desk.forms.get_mut(&form)?;
-        f.ui.sync(&RtStore);
-        if comp == form {
-            return Some((form.clone(), (0, f.ui.menu_offset)));
-        }
-        let n = f.ui.node(&comp)?;
-        Some((form.clone(), (n.abs.0, n.abs.1)))
-    })
-    .flatten()
-}
-
-/// `comp.__key_N`: the component focused, the key pressed and released
-/// through the kernel's input (as the user's would be).
-fn test_key(comp: &str, vk: i64) {
-    let Some(form) = form_of(comp) else { return };
-    let comp = lower(comp);
-    let text = rapidr_value::input::text_of_vk(vk);
-    with_kern(|k| {
-        if let Some(f) = k.desk.forms.get_mut(&form) {
-            f.ui.sync(&RtStore);
-            f.ui.focus_id(&RtStore, &comp);
-        }
-        k.desk.key_down(&RtStore, &form, vk, &text, Mods::NONE, Source::Script);
-        k.desk.key_up(&form, vk, Mods::NONE, Source::Script);
-    });
-}
-
-/// `comp.__mousedown_x_y` …: the mouse at (x, y) in the component, through
-/// the kernel's routing (hit test, capture), as the user's would be. A
-/// press is a single click, however soon after another.
-fn test_mouse(comp: &str, kind: Mouse, x: i64, y: i64) {
-    let Some((form, (ox, oy))) = place_of(comp) else { return };
-    let (x, y) = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
-    with_kern(|k| match kind {
-        Mouse::Down => {
-            // (the input lane's)
-            if let Some(f) = k.desk.form(&form) {
-                f.ui.forget_clicks();
-            }
-            k.desk.mouse_down(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script)
-        }
-        Mouse::Move => k.desk.mouse_move(&RtStore, &form, x, y, Mods::NONE, Source::Script),
-        Mouse::Up => k.desk.mouse_up(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script),
-    });
-}
-
-/// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y) in
-/// the component — press, release, press, release, the second press
-/// within Windows' double-click time and distance of the first.
-fn test_double_click(comp: &str, x: i64, y: i64) {
-    test_mouse(comp, Mouse::Down, x, y);
-    test_mouse(comp, Mouse::Up, x, y);
-    let Some((form, (ox, oy))) = place_of(comp) else { return };
-    let (x, y) = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
-    with_kern(|k| {
-        k.desk.mouse_down(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script);
-        k.desk.mouse_up(&RtStore, &form, (x, y), Button::Left, Mods::NONE, Source::Script);
-    });
-}
-
-/// `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height) as
-/// a user dragging its border would.
-fn test_resize(w: i64, h: i64) {
-    let Some(form) = with_kern(|k| k.desk.stacking().last().cloned()).flatten() else { return };
-    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(&form, "borderstyle").to_i64());
-    let (iw, ih) = (w - fw, h - fh);
-    with_kern(|k| {
-        if let Some(f) = k.desk.forms.get_mut(&form) {
-            f.ui.sync(&RtStore);
-        }
-        k.desk.resized(&form, iw, ih);
-    });
-    push_op(WindowOp::Size(form, (iw, ih)));
+    with_kern(|k| rapidr_ui_app::desktop::place_of(Rt, &mut k.desk, &RtStore, comp)).flatten()
 }
 
 /// The test's end (after `rapidr_ui_app::script` printed `RAPIDR_TEST_DUMP`):
@@ -1182,10 +1034,7 @@ fn capture_and_end(prefix: &str) -> ! {
         let mut shots = Vec::new();
         for f in &order {
             if a11y.is_some() {
-                let Desktop { forms, text, .. } = &mut *desk;
-                if let Some(w) = forms.get_mut(f) {
-                    trees.push(w.ui.access_tree(&RtStore, text).to_json());
-                }
+                trees.extend(desk.access_json(&RtStore, f));
             }
             if let Some(px) = rapidr_ui_host_winit::capture(desk, &RtStore, f) {
                 let title = desk.forms.get(f).map(|w| w.spec.title.clone()).unwrap_or_default();
@@ -1290,17 +1139,16 @@ impl Windows for Rt {
     }
     fn script_input(self, input: ScriptInput) {
         match input {
-            ScriptInput::Key { comp, vk } => test_key(&comp, vk),
-            ScriptInput::Mouse { comp, kind, x, y } => test_mouse(&comp, kind, x, y),
-            ScriptInput::DblClick { comp, x, y } => test_double_click(&comp, x, y),
-            ScriptInput::Step { form, comp, step } => {
-                with_kern(|k| k.desk.test_action(&RtStore, &form, &comp, &step));
-            }
-            ScriptInput::Resize { w, h } => test_resize(w, h),
             // (timers during native menu tracking: the next pump held, as a
             // menu the user keeps open would hold it)
             ScriptInput::Hold(ms) => {
                 with_kern(|k| k.host.hold(Duration::from_millis(ms.max(0) as u64)));
+            }
+            // (keys, the mouse, a double click, a component's step, the
+            // resize: through the kernel's routing, as the user's —
+            // rapidr_ui_app::desktop, shared with the web host)
+            input => {
+                with_kern(|k| rapidr_ui_app::desktop::script_input(Rt, &mut k.desk, &RtStore, input));
             }
         }
     }

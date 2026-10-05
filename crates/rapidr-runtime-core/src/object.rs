@@ -23,32 +23,20 @@ pub struct RpComponent {
 
 impl RpComponent {
     pub fn new(type_name: &str) -> Self {
-        let mut props = HashMap::new();
-        // Set default properties based on type
+        // What both runtimes give it (rapidr_value::component_defaults,
+        // Stage W3), then the desktop's own defaults by type.
+        let mut props: HashMap<String, Value> = rapidr_value::component_defaults::shared(type_name).into_iter().collect();
         let tn = type_name.to_uppercase();
         match tn.as_str() {
             "RFORM" => {
-                props.insert("caption".into(), v_str(""));
-                props.insert("left".into(), v_int(100));
-                props.insert("top".into(), v_int(100));
-                // (hidden until shown, as in RapidQ)
-                props.insert("visible".into(), v_bool(false));
                 props.insert("color".into(), v_int(0xFFFFFF));
                 props.insert("borderstyle".into(), v_int(2));
-                // (the WindowState lane's: wsNormal)
-                props.insert("windowstate".into(), v_int(rapidr_value::window_state::WS_NORMAL));
             }
             "RBUTTON" => {
-                props.insert("caption".into(), v_str(""));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("visible".into(), v_bool(true));
             }
             "RLABEL" => {
-                props.insert("caption".into(), v_str(""));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
                 props.insert("alignment".into(), v_int(0));
                 props.insert("color".into(), v_int(0xFFFFFF));
@@ -56,9 +44,6 @@ impl RpComponent {
                 props.insert("fontsize".into(), v_int(12));
             }
             "REDIT" => {
-                props.insert("text".into(), v_str(""));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("visible".into(), v_bool(true));
                 props.insert("readonly".into(), v_bool(false));
@@ -66,48 +51,30 @@ impl RpComponent {
             }
             "RPANEL" => {
                 props.insert("caption".into(), v_str(""));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
                 props.insert("color".into(), v_int(0xFFFFFF));
             }
             "RCHECKBOX" => {
-                props.insert("caption".into(), v_str(""));
                 props.insert("checked".into(), v_int(0));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("visible".into(), v_bool(true));
             }
             "RRADIOBUTTON" => {
-                props.insert("caption".into(), v_str(""));
                 props.insert("checked".into(), v_int(0));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
             }
-            "RCOMBOBOX" => {
-                // Items, selection and Text: rapidr_value::objects::list.
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
-            }
-            "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" => {
-                // Items and selection: rapidr_value::objects::list.
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
-            }
-            // QTIMER: Enabled is True by default (manual).
-            "RTIMER" => {
-                props.insert("enabled".into(), v_bool(true));
-                props.insert("interval".into(), v_int(1000));
-            }
+            // Nothing more than both runtimes give them: QCOMBOBOX, QLISTBOX
+            // (items and selection: rapidr_value::objects::list), QTIMER
+            // (Enabled True, the manual's), the DirectX lane's QDXTIMER,
+            // QDXSOUND and QDXJOYSTICK, QHEADER, QSTRINGGRID (cells, sizes and
+            // selection: rapidr_value::objects::grid), QTABCONTROL,
+            // QPROGRESS, QJSON, QTREEVIEW, the file / colour / font dialogs,
+            // the menus.
+            "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" | "RTIMER" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK" | "RHEADER" | "RSTRINGGRID" | "RTABCONTROL"
+            | "RPROGRESS" | "RJSON" | "RTREEVIEW" | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RMAINMENU" | "RPOPUPMENU" => {}
             "RIMAGE" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("stretch".into(), v_bool(false));
             }
             "RCANVAS" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("color".into(), v_int(0xFFFFFF));
                 props.insert("pencolor".into(), v_int(0));
                 props.insert("penwidth".into(), v_int(1));
@@ -116,49 +83,9 @@ impl RpComponent {
                 props.insert("fontsize".into(), v_int(12));
                 props.insert("fontname".into(), v_str("Arial"));
             }
-            // (the DirectX lane's) QDXSCREEN; QDXTIMER (manual: Enabled
-            // False, ActiveOnly True; DelphiX's Interval 1000).
+            // (the DirectX lane's)
             "RDXSCREEN" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
-            }
-            "RDXTIMER" => {
-                props.insert("enabled".into(), v_bool(false));
-                props.insert("interval".into(), v_int(1000));
-                props.insert("activeonly".into(), v_bool(true));
-            }
-            // (QDXSOUND: its sound's properties are the model's; these
-            // DirectSound streaming settings only kept — manual's defaults)
-            "RDXSOUND" => {
-                props.insert("autoupdate".into(), v_bool(true));
-                props.insert("bufferlength".into(), v_int(1000));
-                props.insert("stickyfocus".into(), v_bool(false));
-            }
-            // (QDXJOYSTICK: the runtime looks for its events like a timer's
-            // ticks — directx::timer_fired)
-            "RDXJOYSTICK" => {
-                props.insert("enabled".into(), v_bool(true));
-            }
-            // (QCOMPORT: the runtime looks for its OnRxChar like a timer's
-            // ticks — io.rs)
-            "RCOMPORT" => {
-                props.insert("enabled".into(), v_bool(true));
-            }
-            "RHEADER" => {
-                // Sections: rapidr_value::objects::header; a canvas to draw on.
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
-                props.insert("color".into(), v_int(0xF0F0F0));
-            }
-            "RSTRINGGRID" => {
-                // Cells, sizes and selection: rapidr_value::objects::grid.
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
-            }
-            "RTABCONTROL" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
             }
             "RDESIGNSURFACE" => {
                 props.insert("formcaption".into(), v_str("Form1"));
@@ -166,97 +93,35 @@ impl RpComponent {
                 props.insert("visible".into(), v_bool(true));
             }
             "RCODEEDITOR" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("text".into(), v_str(""));
                 props.insert("visible".into(), v_bool(true));
             }
             "RGROUPBOX" => {
                 props.insert("caption".into(), v_str(""));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
-            }
-            "RMAINMENU" | "RPOPUPMENU" => {
-                // Menus
             }
             "RMENUITEM" => {
                 props.insert("caption".into(), v_str(""));
                 props.insert("enabled".into(), v_bool(true));
                 props.insert("checked".into(), v_bool(false));
             }
-            "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" => {
-                props.insert("filename".into(), v_str(""));
-                props.insert("filetitle".into(), v_str(""));
-                props.insert("filter".into(), v_str(""));
-                props.insert("filterindex".into(), v_int(1));
-                props.insert("initialdir".into(), v_str(""));
-                props.insert("title".into(), v_str(""));
-                props.insert("selcount".into(), v_int(0));
-                if type_name == "RFILEDIALOG" {
-                    props.insert("caption".into(), v_str("Open"));
-                    props.insert("filter".into(), v_str("All Files|*.*"));
-                    props.insert("mode".into(), v_int(0));
-                    props.insert("multiselect".into(), v_bool(false));
-                    props.insert("warnifoverwrite".into(), v_bool(true));
-                }
-            }
-            // (the dialogs lane's: RAPIDQ2.INC's QColorDialog — Color 0,
-            // Style cdNoFullOpen, its constructor's Colors(1 TO 16))
-            "RCOLORDIALOG" => {
-                props.insert("color".into(), v_int(0));
-                props.insert("style".into(), v_int(rapidr_value::color_dialog::CD_NO_FULL_OPEN));
-                for (i, c) in rapidr_value::color_dialog::DEFAULT_CUSTOM.iter().enumerate() {
-                    props.insert(format!("colors({})", i + 1), v_int(*c));
-                }
-            }
-            // (TFontDialog's: the default QFONT, Options [fdEffects], no
-            // size limits; FontCount)
-            "RFONTDIALOG" => {
-                for (p, v) in rapidr_value::font_dialog::defaults() {
-                    props.insert(p.into(), v);
-                }
-            }
             "RSTATUSBAR" => {
                 // Docked at the bottom (Align = alBottom) once it has a parent.
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("simpletext".into(), v_str(""));
                 props.insert("simplepanel".into(), v_bool(false));
                 props.insert("panelcount".into(), v_int(0));
-                // (the input lane's: its size grip shows — RapidQ's default)
-                props.insert("sizegrip".into(), v_bool(true));
-            }
-            "RPROGRESS" => {
-                props.insert("min".into(), v_int(0));
-                props.insert("max".into(), v_int(100));
-                props.insert("position".into(), v_int(0));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
             }
             "RRICHEDIT" | "RMEMO" => {
-                props.insert("text".into(), v_str(""));
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("readonly".into(), v_bool(false));
             }
             "RFILESTREAM" => {
-                props.insert("filename".into(), v_str(""));
-                props.insert("position".into(), v_int(0));
                 props.insert("size".into(), v_int(0));
-            }
-            "RJSON" => {
-                props.insert("text".into(), v_str(""));
-                props.insert("filename".into(), v_str(""));
-                props.insert("count".into(), v_int(0));
             }
             "RSTRINGLIST" => {
                 props.insert("count".into(), v_int(0));
                 props.insert("text".into(), v_str(""));
             }
             "RTOOLBAR" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("width".into(), v_int(0));
                 props.insert("height".into(), v_int(32));
             }
@@ -269,10 +134,6 @@ impl RpComponent {
                 props.insert("date".into(), v_str(""));
                 props.insert("time".into(), v_str(""));
             }
-            "RTREEVIEW" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
-            }
             "RUPDOWN" => {
                 props.insert("min".into(), v_int(0));
                 props.insert("max".into(), v_int(100));
@@ -283,11 +144,6 @@ impl RpComponent {
             }
             // Database components — properties managed by database.rs
             "RSQLITE" => {
-                props.insert("connected".into(), v_int(0));
-                props.insert("db".into(), v_str(""));
-                props.insert("rowcount".into(), v_int(0));
-                props.insert("colcount".into(), v_int(0));
-                props.insert("fieldcount".into(), v_int(0));
                 props.insert("tablecount".into(), v_int(0));
             }
             "RMYSQL" => {
@@ -325,30 +181,19 @@ impl RpComponent {
                 props.insert("usessl".into(), v_int(0));
             }
             "RSPLITTER" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("minsize".into(), v_int(30));
                 props.insert("visible".into(), v_bool(true));
             }
             "RSCROLLBOX" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
             }
             "RLISTVIEW" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
                 props.insert("itemindex".into(), v_int(-1));
                 props.insert("items".into(), v_str(""));
                 props.insert("count".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
             }
             "RPROGRESSBAR" => {
-                props.insert("left".into(), v_int(0));
-                props.insert("top".into(), v_int(0));
-                props.insert("min".into(), v_int(0));
-                props.insert("max".into(), v_int(100));
-                props.insert("position".into(), v_int(0));
                 props.insert("visible".into(), v_bool(true));
             }
             _ => {
@@ -1091,10 +936,22 @@ fn comp_is_panel(name: &str) -> bool {
 /// builds, the interpreter and the web.
 pub fn rp_comp_value(name: &str, member: &str) -> Value {
     let lower = member.to_ascii_lowercase();
+    // (a Boolean reads 1, as RapidQ's: rapidr_value::property_read)
     if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
-        return rp_comp_method(name, &lower, &[]);
+        return rapidr_value::property_read(rp_comp_method(name, &lower, &[]));
     }
-    rp_comp_get(name, member)
+    rapidr_value::property_read(rp_comp_get(name, member))
+}
+
+/// `Obj.Sub.Prop` read by a program (codegen): as [`rp_comp_value`]'s.
+pub fn rp_comp_read(name: &str, prop: &str) -> Value {
+    rapidr_value::property_read(rp_comp_get(name, prop))
+}
+
+/// `x = Obj.Method(…)` in a program: the method's result as RapidQ gives it
+/// (a Boolean reads 1, `rapidr_value::property_read`).
+pub fn rp_comp_call(name: &str, method: &str, args: &[Value]) -> Value {
+    rapidr_value::property_read(rp_comp_method(name, method, args))
 }
 
 pub fn rp_comp_type(name: &str) -> String {

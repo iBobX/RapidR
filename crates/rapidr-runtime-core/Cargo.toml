@@ -8,6 +8,9 @@ license.workspace = true
 [dependencies]
 rapidr-value = { workspace = true }
 serde_json = "1"
+# TIMER, DATE$, TIME$: the local time (TIMER is seconds since midnight, as
+# RapidQ's on Windows).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # RSQLITE and RMYSQL (shared with the web runtime: one SQLite everywhere)
 rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
 # RHTTP (network.rs). Its TLS: rustls everywhere but Windows, where it's the

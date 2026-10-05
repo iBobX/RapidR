@@ -444,7 +444,7 @@ impl Shim<'_> {
                     if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get_mut(&f)) {
                         w.window.set_decorations(k.spec.border);
                         w.window.set_resizable(k.spec.frame.resizable);
-                        w.window.set_enabled_buttons(k.spec.frame.buttons());
+                        w.window.set_enabled_buttons(crate::platform::buttons(k.spec.frame));
                         k.ui.system_corner = system_corner(k.spec.border);
                         k.ui.dirty = true;
                     }
@@ -576,7 +576,7 @@ impl Shim<'_> {
             .with_visible(false)
             .with_decorations(spec.border)
             .with_resizable(spec.frame.resizable)
-            .with_enabled_buttons(spec.frame.buttons())
+            .with_enabled_buttons(crate::platform::buttons(spec.frame))
             .with_inner_size(self.inner_size(spec.size.0, spec.size.1, 1.0))
             .with_window_icon(icon(spec.icon.as_ref()))
             // (the WindowState lane's: a form shown maximized)

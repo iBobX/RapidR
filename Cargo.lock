@@ -4675,6 +4675,7 @@ name = "rapidr-runtime-core"
 version = "2.116.0"
 dependencies = [
  "arboard",
+ "chrono",
  "gilrs",
  "image",
  "libc",
@@ -4742,6 +4743,7 @@ dependencies = [
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "pollster",
+ "rapidr-ui-app",
  "rapidr-ui-kernel",
  "rapidr-ui-render",
  "rapidr-value",

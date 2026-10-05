@@ -53,8 +53,14 @@ pub fn rp_string_func(n: &Value, ch: &Value) -> Value {
     crate::strings::string_of(n, ch)
 }
 
+/// `CHR$(n)`: the character of code n's low byte — a real code rounded half
+/// to even first, as RapidQ's (`CHR$(65.7)` is "B", `CHR$(66.5)` "B").
 pub fn rp_chr(n: &Value) -> Value {
-    Value::String(String::from(char::from(n.to_i64() as u8)))
+    let code = match n {
+        Value::Double(d) => crate::format::int32(*d),
+        other => other.to_i64(),
+    };
+    Value::String(String::from(char::from(code as u8)))
 }
 
 pub fn rp_asc(s: &Value) -> Value {
@@ -63,26 +69,30 @@ pub fn rp_asc(s: &Value) -> Value {
 
 /// `REPLACE$(source, replacement, index)`: RapidQ's — `replacement` written
 /// over `source` from character `index` (1 the first): `REPLACE$("Hello",
-/// "J", 1)` is "Jello". Past the end it carries on (the string grows); an
-/// index before the start counts from the first character, one beyond the
-/// end leaves the string as it was. (Find and replace is REPLACESUBSTR$.)
+/// "J", 1)` is "Jello". As RC.EXE shows, it is the text before `index`, the
+/// replacement, then what follows the replaced characters: past the end it
+/// is appended (`REPLACE$("abc", "Z", 9)` is "abcZ"), at 0 or before it goes
+/// in front (`"Zabc"`). (Find and replace is REPLACESUBSTR$.)
 pub fn rp_replace(s: &Value, replacement: &Value, index: &Value) -> Value {
-    let mut chars: Vec<char> = s.to_string_val().chars().collect();
-    let at = usize::try_from(index.to_i64().max(1) - 1).unwrap_or(0);
-    if at > chars.len() {
-        return Value::String(chars.into_iter().collect());
-    }
-    for (k, c) in replacement.to_string_val().chars().enumerate() {
-        match chars.get_mut(at + k) {
-            Some(slot) => *slot = c,
-            None => chars.push(c),
-        }
-    }
-    Value::String(chars.into_iter().collect())
+    let chars: Vec<char> = s.to_string_val().chars().collect();
+    let rep = replacement.to_string_val();
+    let index = index.to_i64();
+    // Delphi's Copy(s, 1, index - 1) + r + Copy(s, index + Length(r), MaxInt).
+    let before = (index - 1).clamp(0, chars.len() as i64) as usize;
+    let after = (index + rep.chars().count() as i64).max(1);
+    let after = ((after - 1) as usize).min(chars.len());
+    let mut out: String = chars[..before].iter().collect();
+    out.push_str(&rep);
+    out.extend(&chars[after..]);
+    Value::String(out)
 }
 
+/// `STR$(n)`: RapidQ's 9 significant digits (`crate::format::str_number`).
 pub fn rp_str(val: &Value) -> Value {
-    Value::String(val.to_string_val())
+    match val {
+        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => Value::String(crate::format::str_number(val.to_f64())),
+        _ => Value::String(val.to_string_val()),
+    }
 }
 
 /// `PRINT TAB(n)`: spaces to column n of the console (1 is the first);
@@ -195,23 +205,92 @@ pub fn rp_environ_get(name: &Value) -> Value {
     Value::String(crate::environ::get(&name.to_string_val()))
 }
 
+/// `VAL(s)` as RapidQ reads a number (RC.EXE): spaces anywhere are
+/// skipped (`VAL("12 34")` is 1234, `VAL("- 5")` -5), then the longest
+/// number at the start counts — a sign, digits, a decimal point (`$OPTION
+/// DECIMAL`'s) and digits, an exponent only with its digits — and the rest
+/// is ignored (`"12abc"` → 12, `"1.2.3"` → 1.2, `"1.5e"` → 1.5, `"1d2"` →
+/// 1); no number, 0 (`"&H10"`, `"$5"`). (RapidQ stops with an error on a
+/// sign without digits, `VAL("--1")`; RapidR gives 0.)
 pub fn rp_val(s: &Value) -> Value {
-    let mut s = s.to_string_val().trim().to_string();
     let decimal = DECIMAL.with(|d| d.get());
-    if decimal != '.' {
-        s = s.replace('.', "\u{1}").replace(decimal, ".");
+    let t: Vec<char> = s.to_string_val().chars().filter(|c| *c != ' ').collect();
+    let mut i = 0;
+    let mut text = String::new();
+    if matches!(t.first(), Some('+' | '-')) {
+        text.push(t[0]);
+        i = 1;
     }
-    if let Ok(n) = s.parse::<i64>() {
-        v_int(n)
-    } else if let Ok(n) = s.parse::<f64>() {
-        v_dbl(n)
-    } else {
-        v_int(0)
+    let digits = |i: &mut usize, text: &mut String| {
+        let from = *i;
+        while t.get(*i).is_some_and(|c| c.is_ascii_digit()) {
+            text.push(t[*i]);
+            *i += 1;
+        }
+        *i > from
+    };
+    let mut any = digits(&mut i, &mut text);
+    if t.get(i) == Some(&decimal) {
+        text.push('.');
+        i += 1;
+        any |= digits(&mut i, &mut text);
+    }
+    if !any {
+        return v_int(0);
+    }
+    if matches!(t.get(i), Some('e' | 'E')) {
+        let mut j = i + 1;
+        let mut exp = String::from("e");
+        if matches!(t.get(j), Some('+' | '-')) {
+            exp.push(t[j]);
+            j += 1;
+        }
+        if digits(&mut j, &mut exp) {
+            text.push_str(&exp);
+        }
+    }
+    match text.parse::<i64>() {
+        Ok(n) => v_int(n),
+        Err(_) => v_dbl(text.parse::<f64>().unwrap_or(0.0)),
     }
 }
 
+/// A whole float as a number: an integer when it is one exactly, else (huge,
+/// NaN, infinite) the float itself.
+fn whole(t: f64) -> Value {
+    if t.is_finite() && t.abs() < 9.0e15 {
+        v_int(t as i64)
+    } else {
+        v_dbl(t)
+    }
+}
+
+/// `INT(x)`: RapidQ truncates toward zero, whatever its manual says
+/// ("largest integer less than or equal"): RC.EXE gives `INT(-2.5)` = -2,
+/// `INT(-0.5)` = 0 — the same as FIX. The result is a float's whole number
+/// (`INT(1E10) / 1E10` is 1), not a 32-bit integer.
 pub fn rp_int(val: &Value) -> Value {
-    v_int(val.to_f64().floor() as i64)
+    match val {
+        Value::Integer(n) => v_int(*n),
+        _ => whole(val.to_f64().trunc()),
+    }
+}
+
+/// A float as RapidQ's ROUND, CINT, CLNG, CEIL and FLOOR return it: a
+/// 32-bit integer (RC.EXE: `ROUND(1E10) / 1E10` is -0.214748365 — beyond 32
+/// bits, -2147483648).
+fn int32_value(f: f64) -> Value {
+    v_int(crate::numeric::trunc_to_int(f))
+}
+
+/// `ROUND(x)` / `CINT(x)` / `CLNG(x)` as RapidQ computes them (RC.EXE):
+/// `INT(x + 0.5)`, truncating — 2.5 → 3, 0.5 → 1, -2.5 → -2, -2.2 → -1,
+/// -3.99 → -3 (the manual's half-to-even claim isn't what it does).
+fn round_half_up(val: &Value) -> Value {
+    match val {
+        Value::Integer(n) => v_int(crate::format::int32_of(*n)),
+        _ => int32_value(val.to_f64() + 0.5),
+    }
 }
 
 pub fn rp_abs(val: &Value) -> Value {
@@ -282,54 +361,75 @@ pub fn rp_exp(val: &Value) -> Value {
     v_dbl(val.to_f64().exp())
 }
 
+/// `CEIL(x)`: a 32-bit integer in RapidQ (`int32_value`).
 pub fn rp_ceil(val: &Value) -> Value {
-    v_dbl(val.to_f64().ceil())
+    int32_value(val.to_f64().ceil())
 }
 
+/// `FLOOR(x)`: a 32-bit integer in RapidQ (`int32_value`).
 pub fn rp_floor(val: &Value) -> Value {
-    v_dbl(val.to_f64().floor())
+    int32_value(val.to_f64().floor())
 }
 
+/// `ROUND(x)`: see `round_half_up`.
 pub fn rp_round(val: &Value) -> Value {
-    v_dbl(val.to_f64().round())
+    round_half_up(val)
 }
 
+/// The 32 bits HEX$ / BIN$ show: a real rounded half to even, a number
+/// beyond 32 bits keeps its low 32 (RC.EXE: `HEX$(3000000000)` is
+/// B2D05E00, `HEX$(-1)` FFFFFFFF, `HEX$(2.7)` 00000003).
+fn low32(val: &Value) -> u32 {
+    let f = match val {
+        Value::Integer(n) => return *n as u32,
+        Value::Boolean(b) => return if *b { u32::MAX } else { 0 },
+        other => other.to_f64().round_ties_even(),
+    };
+    if f.is_finite() && f.abs() < 9.2e18 {
+        f as i64 as u32
+    } else {
+        0
+    }
+}
+
+/// `HEX$(n)`: RapidQ for Windows pads to 8 digits (`HEX$(255)` is
+/// 000000FF — its manual says so, RC.EXE shows it).
 pub fn rp_hex(val: &Value) -> Value {
-    Value::String(format!("{:X}", val.to_i64()))
+    Value::String(format!("{:08X}", low32(val)))
 }
 
 pub fn rp_oct(val: &Value) -> Value {
     Value::String(format!("{:o}", val.to_i64()))
 }
 
+/// `BIN$(n)`: the 32 bits, without leading zeros (`BIN$(-1)` is 32 ones).
 pub fn rp_bin(val: &Value) -> Value {
-    Value::String(format!("{:b}", val.to_i64()))
+    Value::String(format!("{:b}", low32(val)))
 }
 
-/// FIX — truncate toward zero (unlike INT which floors)
+/// `FIX(x)`: truncated toward zero, a float's whole number (as INT).
 pub fn rp_fix(val: &Value) -> Value {
-    let n = val.to_f64();
-    v_int(n as i64)  // Rust truncates toward zero
+    rp_int(val)
 }
 
-/// FRAC — fractional part
+/// FRAC — fractional part (`FRAC(-2.75)` is -0.75)
 pub fn rp_frac(val: &Value) -> Value {
     let n = val.to_f64();
-    v_dbl(n - (n as i64) as f64)
+    v_dbl(n - n.trunc())
 }
 
 pub fn rp_cbool(val: &Value) -> Value {
     crate::cbool(val)
 }
 
-/// CINT — round to nearest integer
+/// `CINT(x)`: as ROUND (`round_half_up`).
 pub fn rp_cint(val: &Value) -> Value {
-    v_int(val.to_f64().round() as i64)
+    round_half_up(val)
 }
 
-/// CLNG — round to nearest long integer (same as CINT in Rust)
+/// `CLNG(x)`: as ROUND (`round_half_up`).
 pub fn rp_clng(val: &Value) -> Value {
-    v_int(val.to_f64().round() as i64)
+    round_half_up(val)
 }
 
 /// CDBL — convert to double
@@ -377,6 +477,9 @@ pub fn rp_convbase(num_str: &Value, from_base: &Value, to_base: &Value) -> Value
         Ok(n) => n,
         Err(_) => return v_str(""),
     };
+    // A negative number into another base: its 32 bits (RC.EXE:
+    // CONVBASE$("-10", 10, 16) is FFFFFFF6 — "32 bits negative", Lib's notes).
+    let decimal = if decimal < 0 && to != 10 && decimal >= i32::MIN as i64 { decimal as u32 as i64 } else { decimal };
     match to {
         10 => Value::String(decimal.to_string()),
         16 => Value::String(format!("{:X}", decimal)),

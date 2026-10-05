@@ -14,7 +14,7 @@ use rodio::Source;
 
 /// BASIC `PRINT` — items are space-separated; optional trailing newline.
 pub fn rp_print(items: &[Value], newline: bool) {
-    let mut text = items.iter().map(|i| i.to_string_val()).collect::<Vec<_>>().join(" ");
+    let mut text = items.iter().map(crate::value::format::print_text).collect::<Vec<_>>().join(" ");
     if newline {
         text.push('\n');
     }
@@ -122,43 +122,14 @@ pub fn rp_input(prompt: &Value) -> Value {
 
 
 
-/// DATE$ — current date as MM-DD-YYYY
+/// DATE$ — today's local date as MM-DD-YYYY
 pub fn rp_date() -> Value {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    // Simple date calculation — days since epoch
-    let days = now / 86400;
-    let (y, m, d) = days_to_ymd(days as i64 + 719468); // days from year 0 to unix epoch
-    Value::String(format!("{:02}-{:02}-{:04}", m, d, y))
+    Value::String(chrono::Local::now().format("%m-%d-%Y").to_string())
 }
 
-/// TIME$ — current time as HH:MM:SS
+/// TIME$ — the local time as HH:MM:SS
 pub fn rp_time() -> Value {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let time_of_day = now % 86400;
-    let h = time_of_day / 3600;
-    let m = (time_of_day % 3600) / 60;
-    let s = time_of_day % 60;
-    Value::String(format!("{:02}:{:02}:{:02}", h, m, s))
-}
-
-/// Civil date from day count (algorithm from Howard Hinnant).
-fn days_to_ymd(z: i64) -> (i64, u32, u32) {
-    let era = if z >= 0 { z } else { z - 146096 } / 146097;
-    let doe = (z - era * 146097) as u32;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = if m <= 2 { y + 1 } else { y };
-    (y, m, d)
+    Value::String(chrono::Local::now().format("%H:%M:%S").to_string())
 }
 
 
@@ -175,10 +146,13 @@ fn days_to_ymd(z: i64) -> (i64, u32, u32) {
 // Misc
 // ---------------------------------------------------------------------------
 
+/// TIMER: the seconds since (local) midnight, as RapidQ's on Windows — small
+/// enough that a SINGLE keeps milliseconds (`T! = TIMER`, the corpus' timing
+/// loops).
 pub fn rp_timer() -> Value {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-    v_dbl(dur.as_secs_f64())
+    use chrono::Timelike;
+    let now = chrono::Local::now();
+    v_dbl(now.num_seconds_from_midnight() as f64 + now.nanosecond().min(999_999_999) as f64 / 1e9)
 }
 
 /// `INKEY$`: the next key pressed, or "" (a console program's terminal;
@@ -311,11 +285,11 @@ pub fn rp_msgbox(msg: &Value) -> Value {
 // Filesystem functions — now in file_io.rs, but keep these thin wrappers
 // for backward compatibility with existing codegen output.
 pub fn rp_direxists(path: &Value) -> Value {
-    v_int(if std::path::Path::new(&path.to_string_val()).is_dir() { -1 } else { 0 })
+    v_int(if std::path::Path::new(&path.to_string_val()).is_dir() { 1 } else { 0 })
 }
 
 pub fn rp_fileexists(path: &Value) -> Value {
-    v_int(if std::path::Path::new(&path.to_string_val()).is_file() { -1 } else { 0 })
+    v_int(if std::path::Path::new(&path.to_string_val()).is_file() { 1 } else { 0 })
 }
 
 // Default value for types
@@ -527,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_hex() {
-        assert_eq!(rp_hex(&v_int(255)), v_str("FF"));
+        assert_eq!(rp_hex(&v_int(255)), v_str("000000FF"), "8 digits, as RapidQ for Windows");
     }
 
     #[test]
@@ -545,7 +519,7 @@ mod tests {
 
     #[test]
     fn test_direxists() {
-        assert_eq!(rp_direxists(&v_str(".")), v_int(-1));
+        assert_eq!(rp_direxists(&v_str(".")), v_int(1), "1, as RapidQ's");
         assert_eq!(rp_direxists(&v_str("NONEXISTENT_DIR_12345")), v_int(0));
     }
 
@@ -561,7 +535,7 @@ mod tests {
     fn test_cint_clng() {
         assert_eq!(rp_cint(&v_dbl(3.6)), v_int(4));
         assert_eq!(rp_cint(&v_dbl(3.4)), v_int(3));
-        assert_eq!(rp_clng(&v_dbl(-2.7)), v_int(-3));
+        assert_eq!(rp_clng(&v_dbl(-2.7)), v_int(-2), "INT(x + 0.5), as RapidQ's");
     }
 
     #[test]

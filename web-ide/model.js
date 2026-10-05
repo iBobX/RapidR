@@ -105,14 +105,44 @@ const STR_PROPS = new Set([
   "url", "alignment",
 ]);
 
+// A BASIC string literal for `s`. RapidQ has no `""` escape inside a
+// string (RC.EXE reads `"a""b"` as two strings side by side, worth "a"), so
+// a quote is joined in as CHR$(34): `"Say " + CHR$(34) + "hi" + CHR$(34)`.
+function basicString(s) {
+  const parts = String(s).split('"');
+  if (parts.length === 1) return `"${parts[0]}"`;
+  return parts.map((p) => `"${p}"`).join(" + CHR$(34) + ");
+}
+
+// The text of a property value written by basicString (or an older
+// project's single literal, whose `""` meant a quote).
+function parseBasicString(raw) {
+  const tokens = raw.match(/"[^"]*"|CHR\$\(34\)|\+|\s+/gi);
+  if (!tokens || tokens.join("") !== raw) return null;
+  const items = tokens.filter((t) => !/^\s+$/.test(t));
+  if (items.length === 1 && items[0].startsWith('"')) return null;
+  let out = "";
+  for (let i = 0; i < items.length; i++) {
+    const t = items[i];
+    if (i % 2 === 1) {
+      if (t !== "+") return null;
+    } else if (t.startsWith('"')) {
+      out += t.slice(1, -1);
+    } else {
+      out += '"';
+    }
+  }
+  return items.length % 2 === 1 ? out : null;
+}
+
 function emitVal(key, v) {
   if (typeof v === "number") return String(v);
   if (typeof v === "boolean") return v ? "1" : "0";
   if (STR_PROPS.has(key.toLowerCase())) {
-    return `"${String(v).replace(/"/g, '""')}"`;
+    return basicString(v);
   }
   if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v)) return v;
-  return `"${String(v).replace(/"/g, '""')}"`;
+  return basicString(v);
 }
 
 function emitProps(props, indent) {
@@ -294,7 +324,10 @@ export function deserializeProject(text, projectName = "untitled") {
         let propValRaw = match[2].trim();
         
         let propVal = propValRaw;
-        if (propValRaw.startsWith('"') && propValRaw.endsWith('"')) {
+        const joined = parseBasicString(propValRaw);
+        if (joined !== null) {
+          propVal = joined;
+        } else if (propValRaw.startsWith('"') && propValRaw.endsWith('"')) {
           propVal = propValRaw.slice(1, -1).replace(/""/g, '"');
         } else if (propValRaw === "1") {
           propVal = 1;
