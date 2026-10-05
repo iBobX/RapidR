@@ -396,6 +396,82 @@ pub fn color_read(type_name: &str, stored: &Value, parent: impl FnOnce() -> Opti
     }
 }
 
+/// clWindowText (`&H80000008`): every component's Font.Color, and a new
+/// QFONT's Color, until the program sets one (RC.EXE).
+pub const CL_WINDOW_TEXT: i64 = -2147483640;
+
+/// What `component.Font.Color` reads in a program, as RapidQ has it
+/// (RC.EXE): the colour the program set (`set`: the runtime's mark), else
+/// its parent's Font.Color followed live (Delphi's ParentFont, every
+/// component) — `parent()`, None without a parent — and clWindowText at the
+/// top. The kernel draws an unset one in the theme's text colour and a
+/// parent's chosen one as RapidQ draws ParentFont (the kernel stores).
+pub fn font_color_read(set: bool, value: Value, parent: impl FnOnce() -> Option<Value>) -> Value {
+    if set {
+        return value;
+    }
+    parent().unwrap_or_else(|| v_int(CL_WINDOW_TEXT))
+}
+
+/// Whether a component of `type_name` is a window of its own (Delphi's
+/// TWinControl): what a form's Pixel reads over it is -1, as RC.EXE shows
+/// (the form's canvas is clipped to its own client area); the graphic
+/// controls — QLABEL, QCANVAS, QIMAGE — are drawn on the form, so Pixel
+/// reads what they show.
+pub fn is_windowed(type_name: &str) -> bool {
+    matches!(
+        type_name.to_ascii_uppercase().as_str(),
+        "RPANEL" | "RBEVEL" | "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RSCROLLBOX" | "RTABCONTROL"
+            | "RGROUPBOX" | "RCHECKBOX" | "RRADIOBUTTON" | "RLISTVIEW" | "RTREEVIEW" | "RFILELISTBOX" | "RDIRTREE" | "RSTATUSBAR" | "RTRACKBAR"
+            | "RSCROLLBAR" | "RPROGRESSBAR" | "RHEADER" | "RDXSCREEN" | "RCODEEDITOR" | "RFORM"
+    )
+}
+
+/// One of a form's children, as [`form_pixel`] needs it.
+pub struct PixelChild {
+    pub id: String,
+    pub type_name: String,
+    /// Left, Top, Width, Height in the form's client area.
+    pub rect: (i64, i64, i64, i64),
+    /// The Color the program set, if it did.
+    pub color: Option<i64>,
+}
+
+/// What `Form.Pixel(x, y)` reads, as RapidQ's (RC.EXE): -1 while the form
+/// isn't showing (before Show, after Close) and outside its client area;
+/// -1 over a window of its own (a panel, a button, an edit …: Windows'
+/// GetPixel on the form's clipped DC); over a graphic control what it
+/// shows — a label its Color (none set: the form's `color`), a canvas its
+/// pixel, an image its picture (white where there is none). None: the
+/// form's own surface answers. `children` in creation order (the last on
+/// top).
+pub fn form_pixel(shown: bool, client: (i64, i64), x: i64, y: i64, color: i64, children: &[PixelChild]) -> Option<i64> {
+    if !shown || x < 0 || y < 0 || x >= client.0 || y >= client.1 {
+        return Some(-1);
+    }
+    let inside = |c: &&PixelChild| {
+        let (l, t, w, h) = c.rect;
+        x >= l && y >= t && x < l + w && y < t + h
+    };
+    if children.iter().filter(inside).any(|c| is_windowed(&c.type_name)) {
+        return Some(-1);
+    }
+    for c in children.iter().rev().filter(inside) {
+        let (l, t, _, _) = c.rect;
+        match c.type_name.to_ascii_uppercase().as_str() {
+            "RLABEL" => return Some(crate::objects::color_bgr(c.color.unwrap_or(color)) as i64),
+            "RCANVAS" => {
+                if let Some(p) = crate::objects::bitmap_pixel(&c.id, x - l, y - t) {
+                    return Some(p as i64);
+                }
+            }
+            "RIMAGE" => return Some(crate::objects::bitmap_pixel(&c.id, x - l, y - t).map_or(0xFFFFFF, i64::from)),
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Whether a component of `type_name` takes its parent's Color while it
 /// has none of its own (Delphi's ParentColor, as RC.EXE shows it).
 pub fn parent_color(type_name: &str) -> bool {
@@ -421,6 +497,25 @@ mod tests {
         assert_eq!(get(&shared("rfiledialog"), "filter"), Some(&v_str("")));
         assert!(get(&shared("RCOLORDIALOG"), "colors(16)").is_some());
         assert!(shared("RUDT").is_empty());
+    }
+
+    #[test]
+    fn font_colors_and_form_pixels_as_rapidq() {
+        assert_eq!(font_color_read(false, Value::Null, || None), v_int(CL_WINDOW_TEXT));
+        assert_eq!(font_color_read(false, v_int(0), || Some(v_int(0xFF))), v_int(0xFF));
+        assert_eq!(font_color_read(true, v_int(0x123456), || Some(v_int(0xFF))), v_int(0x123456));
+        let kids = [
+            PixelChild { id: "p".into(), type_name: "RPANEL".into(), rect: (10, 10, 60, 40), color: None },
+            PixelChild { id: "l".into(), type_name: "RLABEL".into(), rect: (150, 10, 60, 30), color: Some(0xFF00) },
+            PixelChild { id: "l2".into(), type_name: "RLABEL".into(), rect: (150, 50, 60, 30), color: None },
+        ];
+        assert_eq!(form_pixel(false, (300, 200), 100, 100, CL_BTN_FACE, &kids), Some(-1), "not shown");
+        assert_eq!(form_pixel(true, (300, 200), -1, 5, CL_BTN_FACE, &kids), Some(-1));
+        assert_eq!(form_pixel(true, (300, 200), 300, 5, CL_BTN_FACE, &kids), Some(-1));
+        assert_eq!(form_pixel(true, (300, 200), 30, 30, CL_BTN_FACE, &kids), Some(-1), "over a window");
+        assert_eq!(form_pixel(true, (300, 200), 170, 20, CL_BTN_FACE, &kids), Some(0xFF00), "a label's Color");
+        assert_eq!(form_pixel(true, (300, 200), 170, 60, 0xFF, &kids), Some(0xFF), "a label shows the form's");
+        assert_eq!(form_pixel(true, (300, 200), 100, 150, CL_BTN_FACE, &kids), None, "the surface");
     }
 
     #[test]

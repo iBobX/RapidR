@@ -251,7 +251,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
-        "RFONT" => Object::Font(Font::default()),
+        // (its Color clWindowText, as RapidQ's: RC.EXE)
+        "RFONT" => Object::Font(Font { color: crate::component_defaults::CL_WINDOW_TEXT, ..Font::default() }),
         "RMEMORYSTREAM" | "RFILESTREAM" => Object::Stream(MemStream::default()),
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
@@ -656,6 +657,15 @@ pub fn with_picture<R>(id: &str, f: impl FnOnce(&mut Bitmap) -> R) -> Option<R> 
 /// after a change).
 pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
+}
+
+/// Pixel (x, y) of bitmap / canvas / picture `id`, if it has one there.
+pub fn bitmap_pixel(id: &str, x: i64, y: i64) -> Option<u32> {
+    with(id, |o| match o {
+        Object::Bitmap(b) => b.pixel(x, y),
+        _ => None,
+    })
+    .flatten()
 }
 
 /// QCANVAS `id`'s backdrop — its parent's colour, &HBBGGRR, where nothing
