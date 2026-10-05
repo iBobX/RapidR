@@ -57,6 +57,9 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 /// doesn't know aren't errors (RapidQ's own libraries use Win32 routines
 /// and built-ins RapidR lacks); the program's own code is always checked.
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
+    // (RapidQ's library objects RapidR implements, ENVIRON statements:
+    // rapidr_ast::library — native builds run it first too)
+    let program = &rapidr_ast::library::lower(program);
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     // (the system tray: Shell_NotifyIcon and a form's WndProc —

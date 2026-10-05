@@ -193,6 +193,18 @@ pub fn rp_inkey_trap_all(on: &Value) -> Value {
     v_null()
 }
 
+/// The `ENVIRON "name=text"` statement (rapidr_ast::library lowers it to
+/// `__environ_set`): the program's environment (crate::environ).
+pub fn rp_environ_set(spec: &Value) -> Value {
+    crate::environ::set(&spec.to_string_val());
+    Value::Null
+}
+
+/// `ENVIRON$(name)` (crate::environ).
+pub fn rp_environ_get(name: &Value) -> Value {
+    Value::String(crate::environ::get(&name.to_string_val()))
+}
+
 /// `VAL(s)` as RapidQ reads a number (RC.EXE): spaces anywhere are
 /// skipped (`VAL("12 34")` is 1234, `VAL("- 5")` -5), then the longest
 /// number at the start counts — a sign, digits, a decimal point (`$OPTION

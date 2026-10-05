@@ -1,0 +1,12 @@
+port [COM1] baud 9600 bits 8 parity 0 stop 1
+rbuf 1024 wbuf 1024 flags 20625
+connected 0 handle 0 notread 0 notwritten 0 inque 0
+error [There was an error closing the Comm Port.  The handle is invalid.
+] len 67
+after close connected 0
+error [There was an error opening the Comm Port.  The system cannot find the file specified.
+] len 87
+after open connected 0 handle -1
+error [There was an error writing data to the Comm Port.  The handle is invalid.
+] len 75
+end

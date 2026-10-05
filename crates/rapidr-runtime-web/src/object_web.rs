@@ -241,6 +241,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     install_object_hooks();
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+        // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
+        if rapidr_value::objects::rqlib::is_type(type_name) {
+            crate::io_web::created(name, type_name);
+        }
         // (its element may exist already)
         if rapidr_value::objects::is_dirtree(name) {
             gui_web::render_dirtree(&name.to_uppercase());
@@ -387,7 +391,7 @@ pub fn web_remove_file(path: &str) {
     }
 }
 
-fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     // (over a file of the same name in another case, as on Windows)
     let name = saved_name(path).unwrap_or_else(|| path.to_string());
     SAVED_FILES.with(|f| f.borrow_mut().insert(name, bytes.to_vec()));
@@ -460,6 +464,17 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
                 rp_comp_set(name, "caption", crate::value::v_str(caption));
             }
             rp_comp_set(name, "modalresult", v_int(mr));
+        }
+    }
+    // (the I/O and media lane's: a QDOWNLOAD's StateGauge / SpeedLbl, and
+    // these objects' own properties — io_web.rs)
+    if let Some((sub, member)) = crate::io_web::sub_component(name, &prop.to_lowercase()) {
+        return rp_comp_set(&sub, &member, val);
+    }
+    if rapidr_value::objects::rqlib::exists(name) {
+        if let Some(Ok(())) = rapidr_value::objects::rqlib::set(name, &prop.to_lowercase(), &val) {
+            crate::io_web::fire_events(name);
+            return;
         }
     }
     // A modal form's ModalResult set: the form closes (ShowModal returns it).
@@ -659,7 +674,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
 
-            if comp.type_name == "RTIMER" || comp.type_name == "RDXTIMER" || comp.type_name == "RDXJOYSTICK" {
+            if comp.type_name == "RTIMER" || comp.type_name == "RDXTIMER" || comp.type_name == "RDXJOYSTICK" || comp.type_name == "RCOMPORT" {
                 if lprop == "enabled" || lprop == "interval" {
                     drop(comps);
                     update_timer(&uname);
@@ -842,6 +857,13 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = crate::globals_web::get(name, &lprop) {
         return v;
     }
+    // (the I/O and media lane's: io_web.rs)
+    if let Some((sub, member)) = crate::io_web::sub_component(name, &lprop) {
+        return rp_comp_get(&sub, &member);
+    }
+    if let Some(v) = rapidr_value::objects::rqlib::get(name, &lprop) {
+        return v;
+    }
     // Form.Scale (RapidR's): the page's scale.
     if lprop == "scale" && rp_comp_type(&uname) == "RFORM" {
         return crate::globals_web::get("screen", "scale").unwrap_or(Value::Double(1.0));
@@ -1008,6 +1030,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
         return v;
+    }
+    // (the I/O and media lane's: io_web.rs)
+    if let Some((sub, member)) = crate::io_web::sub_component(name, &lmethod) {
+        return rp_comp_method(&sub, &member, args);
+    }
+    if rapidr_value::objects::rqlib::exists(name) {
+        return crate::io_web::method(name, &lmethod, args);
     }
     // A file dialog's Files(i): the folder (0), then the picked names.
     if lmethod == "files" && matches!(rp_comp_type(name).as_str(), "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG") {
@@ -2218,7 +2247,10 @@ fn bind_dom_event(name: &str, event: &str) {
 
     // Timer events are handled specially — they don't need DOM binding
     // (nor a QDXJOYSTICK's: looked for at its ticks)
-    if event == "ontimer" || (rp_comp_type(name) == "RDXJOYSTICK" && rapidr_value::objects::joystick::EVENTS.contains(&event)) {
+    if event == "ontimer"
+        || (rp_comp_type(name) == "RDXJOYSTICK" && rapidr_value::objects::joystick::EVENTS.contains(&event))
+        || (rp_comp_type(name) == "RCOMPORT" && rapidr_value::objects::rqlib::look_events().contains(&event))
+    {
         update_timer(name);
         return;
     }
@@ -2447,7 +2479,11 @@ fn update_timer(name: &str) {
 
     // Check if we have an ontimer event handler registered (a QDXJOYSTICK:
     // one of its events')
-    let events: &[&str] = if rp_comp_type(&uname) == "RDXJOYSTICK" { &rapidr_value::objects::joystick::EVENTS } else { &["ontimer"] };
+    let events: &[&str] = match rp_comp_type(&uname).as_str() {
+        "RDXJOYSTICK" => &rapidr_value::objects::joystick::EVENTS,
+        "RCOMPORT" => rapidr_value::objects::rqlib::look_events(),
+        _ => &["ontimer"],
+    };
     let has_handler = EVENT_HANDLERS.with(|eh| {
         let eh = eh.borrow();
         events.iter().any(|e| eh.contains_key(&(uname.clone(), e.to_string())))
@@ -2574,7 +2610,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RD3DVISUAL"
             | "RD3DWRAP"
             | "RD3DVECTOR"
-    )
+    ) || rapidr_value::objects::rqlib::is_type(type_name)
 }
 
 pub fn is_component_method(member: &str) -> bool {

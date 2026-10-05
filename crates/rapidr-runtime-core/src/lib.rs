@@ -16,6 +16,9 @@ pub(crate) mod sound;
 /// QDXJOYSTICK's gamepads (the DirectX lane's).
 pub mod joystick;
 pub mod terminal;
+/// The I/O and media objects' devices (QCOMPORT, QDOWNLOAD, …).
+pub(crate) mod io;
+pub(crate) mod serial;
 pub use rapidr_value as value;
 
 #[cfg(feature = "database")]

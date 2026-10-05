@@ -4691,6 +4691,7 @@ dependencies = [
  "rapidr-value",
  "rodio",
  "serde_json",
+ "serial2",
  "ureq",
 ]
 
@@ -5367,6 +5368,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serial2"
+version = "0.2.38"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b16809bc35793b19ce4e0c53924bc0dce3937f15487997cfdaed936004180730"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ pub mod suffix_vars;
 pub mod for_locals;
 pub mod memory;
 pub mod type_values;
+pub mod library;
 pub mod tray_calls;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
@@ -1362,6 +1363,8 @@ pub fn is_read_only_value(type_name: &str, property: &str) -> bool {
         // (RC.EXE: `N.CBSIZE is a read-only value.`, `G.HANDLE is …`)
         "RNOTIFYICONDATA" => &["cbSize"],
         "RGLASSFRAME" => &["Handle"],
+        // (QCOMPORT's: `C.CONNECTED is a read-only value.`)
+        "RCOMPORT" => &["Connected", "Handle", "InQue", "OutQue", "PendingIO"],
         _ => &[],
     };
     read_only.iter().any(|p| p.eq_ignore_ascii_case(property))
@@ -1654,11 +1657,12 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
                 if let Expression::MemberAccess(m) = &a.target {
                     if let Expression::Identifier(o) = m.object.as_ref() {
                         let t = component_types.get(&o.name.to_ascii_lowercase());
-                        if t.is_some_and(|t| is_read_only_property(t, &m.member)) {
-                            out.push((a.span, format!("Property {} of {} is read-only.", m.member, o.name)));
-                        } else if t.is_some_and(|t| is_read_only_value(t, &m.member)) {
-                            // (RC.EXE's other message: `J.ISLEFT is a read-only value.`)
+                        // (RC.EXE's own message first: `J.ISLEFT is a read-only
+                        // value.`; then the manual's read-only properties)
+                        if t.is_some_and(|t| is_read_only_value(t, &m.member)) {
                             out.push((a.span, format!("{}.{} is a read-only value.", o.name.to_ascii_uppercase(), m.member.to_ascii_uppercase())));
+                        } else if t.is_some_and(|t| is_read_only_property(t, &m.member)) {
+                            out.push((a.span, format!("Property {} of {} is read-only.", m.member, o.name)));
                         }
                     }
                 }
@@ -1866,6 +1870,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RBEVEL", "RDIGDISPLAY",
     // RapidQ's QGLASSFRAME (rapidr_value::objects::glass)
     "RGLASSFRAME",
+    // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
+    "RCGI", "RCOMPORT", "RDOWNLOAD",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1879,7 +1885,7 @@ pub const COMPONENT_TYPES: &[&str] = &[
 /// Methods RapidQ programs call without parentheses for their result —
 /// `IF Form.ShowModal THEN`, `IF OpenDialog.Execute THEN` — so that in an
 /// expression `Obj.Member` is a call, not a property read (both backends).
-pub const VALUE_METHODS: &[&str] = &["showmodal", "execute"];
+pub const VALUE_METHODS: &[&str] = &["showmodal", "execute", "leechfile"];
 
 /// RapidR's own constants, for its extensions (RapidQ's are RAPIDQ.INC's,
 /// which `rapidr_preprocessor` supplies): there without an include, and a
@@ -1896,8 +1902,7 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 // (QDIRLISTVIEW, QDOCKFORM: RapidR's own libraries, rapidr_preprocessor::
 // RAPIDR_LIBRARIES — TYPEs a program that names them gets)
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
-    "QCDAUDIO", "QCGI", "QCOMPORT",
-    "QDOWNLOAD",
+    "QCDAUDIO",
 "QMIDI", "QOLECONTAINER", "QOLEOBJECT",
     "QVIDEO", "QWAVE",
 ];
@@ -2117,7 +2122,7 @@ pub fn is_rapidq_object_type(type_name: &str) -> bool {
 /// both backends register it when it's made.
 pub fn is_timer_type(type_name: &str) -> bool {
     // (QDXJOYSTICK: its events looked for at each tick)
-    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK")
+    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT")
 }
 
 pub fn is_component_type_name(type_name: &str) -> bool {
@@ -2155,6 +2160,10 @@ pub fn component_type_reference(name: &str, own_types: &[String]) -> String {
 /// leaves every other type name unchanged.
 pub fn canonical_type_name(type_name: &str) -> String {
     let upper = type_name.to_ascii_uppercase();
+    // (RAPIDQ2.INC's `$DEFINE QCOMPORT COMPORT`: rapidr_ast::library)
+    if upper == "COMPORT" {
+        return "RCOMPORT".into();
+    }
     // (an include library's component: the parser decided already)
     if is_include_library_component(&upper) {
         return type_name.to_string();
@@ -2625,7 +2634,7 @@ pub(crate) fn statement_parts_mut(stmt: &mut Statement, into_with: bool) -> (Vec
     (exprs, bodies)
 }
 
-fn walk_expression_mut(expr: &mut Expression, f: &mut dyn FnMut(&mut Expression)) {
+pub(crate) fn walk_expression_mut(expr: &mut Expression, f: &mut dyn FnMut(&mut Expression)) {
     match expr {
         Expression::ArrayAccess(a) => {
             walk_expression_mut(&mut a.array, f);

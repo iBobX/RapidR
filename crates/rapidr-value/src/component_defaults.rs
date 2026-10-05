@@ -128,6 +128,9 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("stickyfocus", v_bool(false));
         }
         "RDXJOYSTICK" => put("enabled", v_bool(true)),
+        // (the I/O lane's QCOMPORT: the runtime looks for its OnRxChar like
+        // a timer's ticks — runtime-core io.rs, io_web.rs)
+        "RCOMPORT" => put("enabled", v_bool(true)),
         "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" => {
             put("filename", v_str(""));
             put("filetitle", v_str(""));

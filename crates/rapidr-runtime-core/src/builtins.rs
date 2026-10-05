@@ -1,6 +1,6 @@
 //! BASIC builtin functions — implementations that back the generated Rust code.
 
-use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
+use crate::value::{v_bool, v_dbl, v_int, v_null, Value};
 use std::io::{self, Write};
 
 pub use crate::value::builtins::*;
@@ -240,11 +240,9 @@ pub fn rp_command() -> Value {
     Value::String(std::env::args().skip(1).collect::<Vec<_>>().join(" "))
 }
 
+/// `ENVIRON$(name)` (rapidr_value::environ: the process's environment).
 pub fn rp_environ(name: &Value) -> Value {
-    match std::env::var(name.to_string_val()) {
-        Ok(v) => Value::String(v),
-        Err(_) => v_str(""),
-    }
+    rp_environ_get(name)
 }
 
 
@@ -489,6 +487,7 @@ pub const IDNO: i64 = 7;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::value::v_str;
 
     #[test]
     fn test_len() {

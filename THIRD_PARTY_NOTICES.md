@@ -10,7 +10,7 @@ the permissive allowlist in `deny.toml`. JavaScript and other assets vendored
 into the IDE (e.g. the Monaco editor) are credited in [LICENSES.md](LICENSES.md),
 which also carries their full license texts.
 
-**669 libraries** under 26 license expressions.
+**670 libraries** under 27 license expressions.
 
 ## Apache-2.0 OR MIT (376)
 
@@ -786,6 +786,12 @@ which also carries their full license texts.
 | Library | Version | Upstream |
 |---|---|---|
 | dpi | 0.1.2 | <https://github.com/rust-windowing/winit> |
+
+## Apache-2.0 OR BSD-2-Clause (1)
+
+| Library | Version | Upstream |
+|---|---|---|
+| serial2 | 0.2.38 | <https://github.com/de-vri-es/serial2-rs> |
 
 ## Apache-2.0 OR BSL-1.0 (1)
 

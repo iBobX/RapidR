@@ -164,6 +164,35 @@ fn open_wait(poll: impl FnMut() -> Option<Value> + 'static) -> Pending {
     Pending::Open(id)
 }
 
+/// A wait for work the runtime does in the background — QDOWNLOAD's
+/// transfer (the I/O lane's) — that the program waits for as for a dialog:
+/// `poll` gives the method's result once it's done. The runtime waits for
+/// it as for a dialog ([`finished`]), stepping at least every
+/// [`TASK_STEP`] while one is open ([`tasks_open`]).
+pub fn task_wait(poll: impl FnMut() -> Option<Value> + 'static) -> Pending {
+    TASKS.with(|t| t.set(t.get() + 1));
+    let mut poll = poll;
+    open_wait(move || {
+        let r = poll();
+        if r.is_some() {
+            TASKS.with(|t| t.set(t.get().saturating_sub(1)));
+        }
+        r
+    })
+}
+
+/// How often a step comes while a background task is waited for.
+pub const TASK_STEP: std::time::Duration = std::time::Duration::from_millis(20);
+
+/// Whether a background task's wait ([`task_wait`]) is open.
+pub fn tasks_open() -> bool {
+    TASKS.with(|t| t.get() > 0)
+}
+
+thread_local! {
+    static TASKS: Cell<u32> = const { Cell::new(0) };
+}
+
 /// The builtin's result once the dialog of wait `id` ([`Pending::Open`])
 /// answered — it's closed then, and the wait forgotten; `None` while it's
 /// open.

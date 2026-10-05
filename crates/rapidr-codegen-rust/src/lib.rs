@@ -46,6 +46,9 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
 /// (name, file) in order, built into the program with `include_bytes!` and
 /// registered at startup (`rapidr_value::resources`).
 pub fn generate_with_resources(program: &Program, target: AppTarget, resources: &[(String, String)]) -> String {
+    // (RapidQ's library objects RapidR implements, ENVIRON statements:
+    // rapidr_ast::library — the bytecode compiler runs it first too)
+    let program = &rapidr_ast::library::lower(program);
     let mut gen = RustCodegen::new(target);
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
@@ -3136,6 +3139,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         }
         "__decimal" => Some(format!("rp_set_decimal(&{a0})")),
         "__inkey_trapall" => Some(format!("rp_inkey_trap_all(&{a0})")),
+        "__environ_set" => Some(format!("rp_environ_set(&{a0})")),
         "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
         "__restore" => Some(if args.is_empty() {
             "data::restore_compiled(None)".to_string()

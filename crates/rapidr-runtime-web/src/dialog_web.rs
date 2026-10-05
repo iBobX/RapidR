@@ -216,6 +216,41 @@ pub fn pause(ms: f64) -> bool {
     true
 }
 
+/// A method that waits for the page's own asynchronous work (the I/O
+/// lane's: QDOWNLOAD's fetch, QCOMPORT's Web Serial port opening): the
+/// program sleeps — the page paints, its timers tick — until
+/// [`task_done`] gives the method's result. `false` where it can't wait
+/// (see the module docs).
+pub fn wait_task() -> bool {
+    if !can_wait() {
+        return false;
+    }
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+    true
+}
+
+/// The work [`wait_task`] waits for is done: the program continues with
+/// `value` as the method's result.
+pub fn task_done(value: Value) {
+    resume(value, None);
+}
+
+/// [`pause`] whose end gives `value` as the method's result (QCOMPORT's
+/// ReadString with a Wait: the string read).
+pub fn pause_with(ms: f64, value: Value) -> bool {
+    if !can_wait() {
+        return false;
+    }
+    WAITING.with(|w| w.set(true));
+    SUSPEND.with(|s| s.set(true));
+    let wake = Closure::once_into_js(move || resume(value, None));
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(wake.unchecked_ref(), ms.clamp(0.0, 86_400_000.0) as i32);
+    }
+    true
+}
+
 /// INPUT$'s wait: the program sleeps until a key is pressed in the page
 /// ([`key_pressed`] continues it there and then). `false` where it can't
 /// wait.

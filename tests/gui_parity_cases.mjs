@@ -282,6 +282,11 @@ export const cases = [
   // (the DirectX lane's, stage D6: QDXJOYSTICK — RapidQ's Update / IsLeft …
   // / Button(n), RapidR's X / Buttons / POV and events; `joystick`: the
   // tests' gamepad, a step a read)
+  // (the I/O lane's: QDOWNLOAD from the tests' slow local server —
+  // tests/http_test_server.mjs — its timer ticking while LeechFile waits;
+  // OutVar / State, OutFile / StateGauge, a 404)
+  { name: "download", events: "b1.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=1 1850 100 [Line ]1850 ticked -1 | 1 100 1850 | 0 11 The Server doesn't know the file"] },
   { name: "dx_joystick", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     joystick: "x=0,b=1,name=Pad;x=65535,y=0,b=2;y=65535,pov=9000,b=3,name=Pad;b=1;b=1,x=0;b=0,x=0;-",
     expect: ["lbl.caption=-1000-10 0-1-100-1 000-1-1-1 Pad,-1,32767,65535,3,9000 |down1 move0 up1 move32767 |0"] },

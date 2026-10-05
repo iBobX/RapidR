@@ -92,6 +92,10 @@ const WEB: &[&str] = &[
     "addroute", "back", "forward",
 ];
 
+/// The I/O and media objects' (objects::rqlib): `IF Download.LeechFile`,
+/// `IF CD.Open`.
+const IO: &[&str] = &["leechfile", "check", "open"];
+
 /// The methods of type `t` (RapidR's uppercase `R…` name) beyond [`ANY`].
 fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
     match t {
@@ -108,6 +112,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RSTRINGGRID" => &[GRID],
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
+        "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" => &[IO],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
         | "RWEBGEOLOCATION" | "RROUTER" => &[WEB],
         _ => &[],
@@ -117,7 +122,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO]
         .iter()
         .any(|list| list.contains(&member))
 }

@@ -1,0 +1,8 @@
+port 80 out 1 state dev 1 state 0 size 0 err 0
+gauge 200x20 check 1
+0 1 No Server Specified
+0 2 No Serverport Specified
+0 3 No File Specified
+0 4 No Outputfile Specified
+no: 5 No Connection to specified host could be established
+33 25 250

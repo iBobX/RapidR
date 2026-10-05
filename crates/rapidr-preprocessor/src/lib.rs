@@ -745,10 +745,24 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("caClose", 2),
 ];
 
+/// RapidQ's library include files whose object RapidR has built in
+/// (rapidr_ast::library), with the constants each defines: what such an
+/// `$INCLUDE` gives when the file isn't on disk.
+const LIBRARY_INCLUDES: &[(&str, &[(&str, i64)])] = &[
+    ("qcgi.inc", &[("CGI_INPUT_DEFAULT", 32767), ("CGI_INPUT_LARGE", 65535), ("CGI_INPUT_SMALL", 255), ("CGI_MAX_PAIRS", 256)]),
+    ("qdownload.inc", &[]),
+];
+
 /// Built-in replacement for an include file that isn't on disk, as a single
 /// line (so line numbers after the $INCLUDE stay correct).
 fn builtin_include(include_file: &str) -> Option<String> {
-    let name = Path::new(include_file).file_name()?.to_str()?;
+    // (RapidQ's include folders use `\`: `Object\QMidi.inc`)
+    let name = include_file.rsplit(['/', '\\']).next()?;
+    // RapidQ's libraries whose objects RapidR has built in
+    // (rapidr_ast::library): their constants, the object being RapidR's.
+    if let Some((_, consts)) = LIBRARY_INCLUDES.iter().find(|(file, _)| file.eq_ignore_ascii_case(name)) {
+        return Some(consts.iter().map(|(n, v)| format!("CONST {n} = {v}")).collect::<Vec<_>>().join(" : "));
+    }
     if !name.eq_ignore_ascii_case("RAPIDQ.INC") {
         return None;
     }

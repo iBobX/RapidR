@@ -34,6 +34,7 @@ pub mod scrollbars;
 pub mod theme;
 pub mod registry;
 pub mod resources;
+pub mod environ;
 // (Stage W3) What both runtimes' component registries give a new
 // component, and what the UI kernel reads as unset.
 pub mod component_defaults;
@@ -962,6 +963,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         }
         "__null" => return Some(Ok(Value::Null)),
         "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
+        "__environ_set" => return Some(Ok(builtins::rp_environ_set(&arg(0)))),
         // The system tray (rapidr_ast::tray_calls): Shell_NotifyIcon.
         "__shell_notifyicon" => return Some(Ok(tray::shell_notify_icon_builtin(&arg(0), &arg(1)))),
         "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),

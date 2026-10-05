@@ -1,0 +1,19 @@
+port COM2
+opened
+connected 1 handle>0 -1
+written
+notread 5 inque 5
+[read
+hel] notread 2
+purged inque 0 notread 0
+written
+read
+stream [ABCDEFABCD]
+error [There was an error opening the Comm Port.  Access is denied.]
+closed
+connected 0
+modem [OK]
+error [There was an error opening the Comm Port.  Access is denied.]
+busy connected 0 handle -1
+error [There was an error changing the Comm Port settings.  The parameter is incorrect.]
+mark connected 0

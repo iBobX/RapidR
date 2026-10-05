@@ -24,6 +24,9 @@ image = { version = "0.24", optional = true, default-features = false, features 
 rodio = { version = "0.19", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
+# QCOMPORT's serial ports (serial.rs): BSD-2-Clause OR Apache-2.0; libc on
+# Unix, windows-sys on Windows — no system package to build.
+serial2 = "0.2"
 # The UI kernel, the program glue every host shares and the winit /
 # headless host (`gui`).
 rapidr-ui-kernel = { workspace = true, optional = true }
