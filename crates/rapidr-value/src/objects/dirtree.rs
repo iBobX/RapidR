@@ -66,12 +66,30 @@ impl Default for DirTree {
     }
 }
 
+/// `path` resolved (`..`, links) as a program shows it: on Windows without
+/// the `\\?\` prefix `canonicalize` adds (`C:\Users`, `\\server\share`),
+/// as RapidQ's paths were — and as the tree's root (`C:\`) is.
+pub fn canonical(path: &Path) -> Option<PathBuf> {
+    let p = path.canonicalize().ok()?;
+    #[cfg(windows)]
+    {
+        let s = p.to_string_lossy();
+        if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+            return Some(PathBuf::from(format!(r"\\{rest}")));
+        }
+        if let Some(rest) = s.strip_prefix(r"\\?\").filter(|r| r.as_bytes().get(1) == Some(&b':')) {
+            return Some(PathBuf::from(rest));
+        }
+    }
+    Some(p)
+}
+
 impl DirTree {
     /// Selects `dir` (if it exists), opening the directories above it.
     pub fn go_to(&mut self, dir: &str) -> bool {
         let path = PathBuf::from(dir.replace('\\', "/"));
         let path = if path.is_absolute() { path } else { std::env::current_dir().unwrap_or_default().join(path) };
-        let path = path.canonicalize().unwrap_or(path);
+        let path = canonical(&path).unwrap_or(path);
         if !cfg!(target_arch = "wasm32") && !path.is_dir() {
             return false;
         }
@@ -193,7 +211,7 @@ mod tests {
         std::fs::create_dir_all(base.join("b/inner")).unwrap();
         std::fs::create_dir_all(base.join("A")).unwrap();
         std::fs::create_dir_all(base.join(".hidden")).unwrap();
-        let base = base.canonicalize().unwrap();
+        let base = canonical(&base).unwrap();
         let mut t = DirTree::default();
         assert!(t.set("directory", &v_str(&base.to_string_lossy())).unwrap());
         let rows = t.rows();

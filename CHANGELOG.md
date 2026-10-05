@@ -40,6 +40,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `ring`, rustls' crypto, needs clang to build for Windows on ARM.
 - Windows: native builds work when RapidR lives under a Windows path (the
   generated Cargo.toml's paths are escaped; `\U…` was read as an escape).
+- Windows: QDIRTREE's Directory is a plain path (`C:\Users\…`), not the
+  `\\?\C:\…` form `canonicalize` gives — the tree never found its
+  directory under its root (`C:\`), so nothing was selected.
 - Windows: INPUT$ from a pipe or a file reads its characters instead of
   waiting for the console's keys.
 - Screen readers hear labels: a QLABEL's caption (and a status bar's
