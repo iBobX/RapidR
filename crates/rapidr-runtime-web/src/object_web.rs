@@ -131,6 +131,22 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
         }
+        // QBEVEL (QBevel.inc's TYPE EXTENDS QPANEL): bsSpacer, bsLowered —
+        // no bevels (rapidr_value::objects::bevel::qbevel).
+        "RBEVEL" => {
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+            props.insert("shape".to_string(), v_int(0));
+            props.insert("style".to_string(), v_int(0));
+            props.insert("bevelouter".to_string(), v_int(0));
+            props.insert("bevelinner".to_string(), v_int(0));
+        }
+        // QDIGDISPLAY: a canvas showing its Display (objects::digdisplay).
+        "RDIGDISPLAY" => {
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+            props.insert("color".to_string(), v_int(0));
+        }
         "RCHECKBOX" | "RRADIOBUTTON" => {
             props.insert("caption".to_string(), v_str(""));
             props.insert("left".to_string(), v_int(0));
@@ -604,6 +620,23 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if let Some(other) = rapidr_value::font_dialog::alias(&lprop).filter(|_| rp_comp_type(&uname) == "RFONTDIALOG") {
         rp_comp_set_prop_only(&uname, other, val.clone());
     }
+    // A QDIGDISPLAY is as big as its Display (QDigDisplay.inc sizes it so).
+    let val = match rapidr_value::objects::digdisplay_text(name) {
+        Some(text) if matches!(lprop.as_str(), "width" | "height") => {
+            let (w, h) = rapidr_value::objects::digdisplay::size(&text);
+            v_int(if lprop == "width" { w } else { h })
+        }
+        _ => val,
+    };
+    // A QBEVEL's Shape / Style set its bevels (QBevel.inc's setters).
+    if rp_comp_type(&uname) == "RBEVEL" {
+        let other = rp_comp_get(&uname, if lprop == "shape" { "style" } else { "shape" }).to_i64();
+        if let Some(bevels) = rapidr_value::objects::bevel::qbevel_set(&lprop, val.to_i64(), other) {
+            for (p, v) in bevels {
+                rp_comp_set_prop_only(&uname, p, v_int(v));
+            }
+        }
+    }
     // A form's size before (it paints again only when it changes).
     let form_size_before = (matches!(lprop.as_str(), "width" | "height") && rp_comp_type(name) == "RFORM").then(|| rp_comp_get_stored(name, &lprop).to_i64());
     // A canvas's size before (it paints again only when it changes).
@@ -675,6 +708,14 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             Err(_) if picture && lprop == "bmp" => show_image_file(&uname, &val.to_string_val()),
             Err(e) => object_error(name, prop, &e),
             Ok(()) => {}
+        }
+        // A QDIGDISPLAY's new Display: its size.
+        if lprop == "display" {
+            if let Some(text) = rapidr_value::objects::digdisplay_text(name) {
+                let (w, h) = rapidr_value::objects::digdisplay::size(&text);
+                rp_comp_set(&uname, "width", v_int(w));
+                rp_comp_set(&uname, "height", v_int(h));
+            }
         }
         if picture {
             picture_changed(&uname);
@@ -824,7 +865,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
 
     // A panel's bevels drawn again.
-    if rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL" {
+    if (rapidr_value::objects::bevel::default(&lprop).is_some() && comp_type == "RPANEL") || (comp_type == "RBEVEL" && (rapidr_value::objects::bevel::default(&lprop).is_some() || matches!(lprop.as_str(), "shape" | "style"))) {
         gui_web::render_panel_bevels(&uname);
         return;
     }
@@ -1036,7 +1077,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         // (a panel's bevels: RapidQ's defaults until set; Anchors and
         // Constraints: akLeft + akTop, none)
         _ => stored
-            .or_else(|| (rp_comp_type(&uname) == "RPANEL").then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
+            .or_else(|| (matches!(rp_comp_type(&uname).as_str(), "RPANEL" | "RBEVEL")).then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
             .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(&uname), &lprop).map(v_int))
             .unwrap_or_else(v_null),
     }
@@ -2422,7 +2463,7 @@ fn bind_dom_event(name: &str, event: &str) {
     // QSCROLLBOX double-click (QCANVAS doesn't: RapidQ's has no OnDblClick).
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick") {
         let t = rp_comp_type(&name_owned).to_ascii_uppercase();
-        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN");
+        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RBEVEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN");
         if doubles || (t == "RCANVAS" && event == "onclick") {
             bind_vcl_clicks(&el, &name_owned, event == "onclick", doubles);
             return;
@@ -2571,6 +2612,8 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RHEADER"
             | "RRECT"
             | "RNOTIFYICONDATA"
+            | "RBEVEL"
+            | "RDIGDISPLAY"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"

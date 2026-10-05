@@ -15,6 +15,7 @@ pub mod code;
 pub mod codec;
 pub mod d3d;
 pub mod design;
+pub mod digdisplay;
 pub mod directx;
 pub mod joystick;
 pub mod dirtree;
@@ -119,6 +120,8 @@ thread_local! {
     static NATIVE_FILES: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
     /// QHEADER's sections; its surface is a canvas in OBJECTS.
     static HEADERS: RefCell<HashMap<String, header::Header>> = RefCell::new(HashMap::new());
+    /// QDIGDISPLAY's Display (its surface is a canvas in OBJECTS).
+    static DIGITS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
 }
 
 /// Sends a finished print job somewhere (`Printer.EndDoc`).
@@ -240,6 +243,15 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RBITMAP" => Object::Bitmap(Bitmap::default()),
         "RIMAGE" => Object::Bitmap(Bitmap { picture: true, ..Bitmap::default() }),
         "RCANVAS" => Object::Bitmap(Bitmap::new_canvas()),
+        // (a canvas showing its Display: digdisplay.rs)
+        "RDIGDISPLAY" => {
+            DIGITS.with(|d| d.borrow_mut().insert(id.to_lowercase(), "0".into()));
+            let mut b = Bitmap::new_canvas();
+            let (w, h) = digdisplay::size("0");
+            b.fit(w, h);
+            digdisplay::draw(&mut b, "0");
+            Object::Bitmap(b)
+        }
         "RHEADER" => {
             HEADERS.with(|h| {
                 h.borrow_mut().entry(id.to_lowercase()).or_default();
@@ -633,6 +645,26 @@ pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
 }
 
+/// QDIGDISPLAY `id`'s Display (`None`: it isn't one).
+pub fn digdisplay_text(id: &str) -> Option<String> {
+    DIGITS.with(|d| d.borrow().get(&id.to_lowercase()).cloned())
+}
+
+/// Draws QDIGDISPLAY `id`'s Display onto its surface again (it was
+/// painted, resized or cleared); its size for the runtime to give the
+/// control (`None`: it isn't one).
+pub fn digdisplay_redraw(id: &str) -> Option<(i64, i64)> {
+    let text = digdisplay_text(id)?;
+    let (w, h) = digdisplay::size(&text);
+    with(id, |o| {
+        if let Object::Bitmap(b) = o {
+            b.fit(w, h);
+            digdisplay::draw(b, &text);
+        }
+    });
+    Some((w, h))
+}
+
 /// Whether `id` is a QDXSCREEN (its runtime widget shows the front buffer
 /// again after a Flip).
 pub fn is_dxscreen(id: &str) -> bool {
@@ -834,6 +866,11 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if let Some(v) = with_header(id, |h| h.get(&prop)).flatten() {
         return Some(v);
     }
+    if prop == "display" {
+        if let Some(text) = digdisplay_text(id) {
+            return Some(v_str(&text));
+        }
+    }
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
@@ -873,6 +910,12 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         return menu::set(id, &prop, val).map(Ok);
     }
     if with_header(id, |h| h.set(&prop, val)) == Some(true) {
+        return Some(Ok(()));
+    }
+    // A QDIGDISPLAY's Display: drawn at once (the runtime sizes the control).
+    if prop == "display" && digdisplay_text(id).is_some() {
+        DIGITS.with(|d| d.borrow_mut().insert(id.to_lowercase(), val.to_string_val()));
+        digdisplay_redraw(id);
         return Some(Ok(()));
     }
     // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.

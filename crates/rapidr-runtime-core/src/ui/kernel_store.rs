@@ -40,7 +40,7 @@ impl Store for RtStore {
         let v = rp_comp_get(id, prop);
         if prop.eq_ignore_ascii_case("color")
             && matches!(v, Value::Integer(LABEL_DEFAULT_COLOR))
-            && matches!(rp_comp_type(id).as_str(), "RLABEL" | "RFORM" | "RPANEL")
+            && matches!(rp_comp_type(id).as_str(), "RLABEL" | "RFORM" | "RPANEL" | "RBEVEL")
             && !rp_comp_get(id, "__colorset").to_bool()
         {
             return Value::Null;

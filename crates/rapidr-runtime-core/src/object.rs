@@ -71,6 +71,26 @@ impl RpComponent {
                 props.insert("visible".into(), v_bool(true));
                 props.insert("color".into(), v_int(0xFFFFFF));
             }
+            // QBEVEL (QBevel.inc's TYPE EXTENDS QPANEL): bsSpacer, bsLowered —
+            // no bevels (rapidr_value::objects::bevel::qbevel).
+            "RBEVEL" => {
+                props.insert("caption".into(), v_str(""));
+                props.insert("left".into(), v_int(0));
+                props.insert("top".into(), v_int(0));
+                props.insert("visible".into(), v_bool(true));
+                props.insert("color".into(), v_int(0xFFFFFF));
+                props.insert("shape".into(), v_int(0));
+                props.insert("style".into(), v_int(0));
+                props.insert("bevelouter".into(), v_int(0));
+                props.insert("bevelinner".into(), v_int(0));
+            }
+            // QDIGDISPLAY: a canvas showing its Display (objects::digdisplay).
+            "RDIGDISPLAY" => {
+                props.insert("left".into(), v_int(0));
+                props.insert("top".into(), v_int(0));
+                props.insert("visible".into(), v_bool(true));
+                props.insert("color".into(), v_int(0));
+            }
             "RCHECKBOX" => {
                 props.insert("caption".into(), v_str(""));
                 props.insert("checked".into(), v_int(0));
@@ -575,6 +595,23 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if crate::globals::set(name, &prop_lower, &val) {
         return;
     }
+    // A QDIGDISPLAY is as big as its Display (QDigDisplay.inc sizes it so).
+    let val = match rapidr_value::objects::digdisplay_text(name) {
+        Some(text) if matches!(prop_lower.as_str(), "width" | "height") => {
+            let (w, h) = rapidr_value::objects::digdisplay::size(&text);
+            v_int(if prop_lower == "width" { w } else { h })
+        }
+        _ => val,
+    };
+    // A QBEVEL's Shape / Style set its bevels (QBevel.inc's setters).
+    if rp_comp_type(name) == "RBEVEL" {
+        let other = rp_comp_get(name, if prop_lower == "shape" { "style" } else { "shape" }).to_i64();
+        if let Some(bevels) = rapidr_value::objects::bevel::qbevel_set(&prop_lower, val.to_i64(), other) {
+            for (p, v) in bevels {
+                store_prop(name, p, v_int(v));
+            }
+        }
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if crate::scroll::set(name, &prop_lower, &val) {
         return;
@@ -673,6 +710,14 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             }
             Err(e) => eprintln!("[rapidr] {name}.{prop}: {e}"),
             Ok(()) => {}
+        }
+        // A QDIGDISPLAY's new Display: its size (the control drawn again below).
+        if prop_lower == "display" {
+            if let Some(text) = rapidr_value::objects::digdisplay_text(name) {
+                let (w, h) = rapidr_value::objects::digdisplay::size(&text);
+                rp_comp_set(name, "width", v_int(w));
+                rp_comp_set(name, "height", v_int(h));
+            }
         }
         if picture {
             picture_changed(name);
@@ -818,9 +863,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
             crate::ui::gui_apply_font(name);
         }
     });
-    // A panel's bevels drawn again.
+    // A panel's bevels drawn again (a QBEVEL's Shape / Style too).
     #[cfg(feature = "gui")]
-    if rapidr_value::objects::bevel::default(&prop_lower).is_some() {
+    if rapidr_value::objects::bevel::default(&prop_lower).is_some() || matches!(prop_lower.as_str(), "shape" | "style") {
         crate::ui::redraw_widget(name);
     }
     // Align and geometry: lay out, move the widget (layout.rs).
@@ -1060,7 +1105,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
 }
 
 fn comp_is_panel(name: &str) -> bool {
-    COMPONENTS.with(|c| c.try_borrow().ok().and_then(|c| c.get(&name.to_lowercase()).map(|x| x.type_name == "RPANEL")).unwrap_or(false))
+    COMPONENTS.with(|c| c.try_borrow().ok().and_then(|c| c.get(&name.to_lowercase()).map(|x| matches!(x.type_name.as_str(), "RPANEL" | "RBEVEL"))).unwrap_or(false))
 }
 
 /// Get the type name of a registered component.
@@ -2152,7 +2197,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
 pub fn is_component_type(type_name: &str) -> bool {
     matches!(
         type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL"
+        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY"
         | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
         | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"

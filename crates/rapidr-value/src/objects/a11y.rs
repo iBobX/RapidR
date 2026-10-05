@@ -449,6 +449,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
         "RIMAGE" | "RDLGPART" => Role::Image,
+        // (QDIGDISPLAY: a picture of its Display, named by it)
+        "RDIGDISPLAY" => Role::Image,
         "RCANVAS" | "RDXSCREEN" => Role::Canvas,
         "RMAINMENU" => Role::MenuBar,
         // (QPANEL, QSCROLLBOX and what the hosts only place)
@@ -550,7 +552,9 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
             n.states.checked = Some(flag(get, "checked", false));
             n.actions = vec![Action::Click, Action::Focus];
         }
-        "RLABEL" | "RGROUPBOX" | "RPANEL" => own_caption(&mut n, false),
+        "RLABEL" | "RGROUPBOX" | "RPANEL" | "RBEVEL" => own_caption(&mut n, false),
+        // (QDIGDISPLAY: the text it shows)
+        "RDIGDISPLAY" => n.name = super::digdisplay_text(id).unwrap_or_else(|| text(get, "display")),
         // (its text: a PasswordChar's characters for a password)
         "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" => {
             let multi = t != "REDIT";

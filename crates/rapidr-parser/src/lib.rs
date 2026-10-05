@@ -161,11 +161,22 @@ struct Parser<'a> {
     default_dim: Option<String>,
     /// Keywords the program uses as variables (`type = 2`), lowercase.
     keyword_vars: Vec<String>,
+    /// The program's own TYPEs named like one of RapidQ's include-library
+    /// components (`TYPE QBEVEL EXTENDS QPANEL`, QBevel.inc), upper case:
+    /// those names are the program's TYPE, not RapidR's built-in.
+    own_types: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, default_dim: None }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, default_dim: None, own_types: Vec::new() }
+    }
+
+    /// A type's name as written: RapidR's name for a RapidQ component
+    /// (`rapidr_ast::component_type_reference`), the program's own TYPE
+    /// first.
+    fn type_ref(&self, name: &str) -> String {
+        rapidr_ast::component_type_reference(name, &self.own_types)
     }
 
     // --- diagnostics ---
@@ -754,7 +765,7 @@ impl<'a> Parser<'a> {
                     self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, "__decimal"), args: vec![Expression::Literal(Literal { span, value })] }));
                 }
                 if let Some(t) = v.strip_prefix("DIM ").and_then(|t| t.split_whitespace().next()) {
-                    self.default_dim = Some(canonical_type_name(t));
+                    self.default_dim = Some(self.type_ref(t));
                 }
             }
         }
@@ -821,7 +832,7 @@ impl<'a> Parser<'a> {
             let type_name = match fixed_type {
                 Some(t) => t.to_string(),
                 None if self.match_kind(TokenType::As) => {
-                    let t = canonical_type_name(&self.advance()?.lexeme);
+                    let t = { let n = self.advance()?.lexeme.clone(); self.type_ref(&n) };
                     t + &self.template_args()
                 }
                 None => self.default_dim.clone().unwrap_or_else(|| "VARIANT".to_string()),
@@ -1210,7 +1221,7 @@ impl<'a> Parser<'a> {
         self.variadic.push(name.to_ascii_lowercase());
         self.skip_variadic_params();
         let return_type = if is_function && self.match_kind(TokenType::As) {
-            Some(canonical_type_name(&self.advance()?.lexeme))
+            Some({ let n = self.advance()?.lexeme.clone(); self.type_ref(&n) })
         } else {
             None
         };
@@ -1838,6 +1849,9 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::Type)?;
         let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        if rapidr_ast::is_include_library_component(&name) {
+            self.own_types.push(name.to_ascii_uppercase());
+        }
         // A template (manual 10.8): `TYPE NewClass<DataType, Size> …` —
         // made for each `DIM x AS NewClass<INTEGER, 10>` (rapidr_ast::templates).
         let mut template_params = Vec::new();
@@ -1852,7 +1866,7 @@ impl<'a> Parser<'a> {
         // `TYPE X EXTENDS QFORM` or the manual's `TYPE X AS QFORM`. QOBJECT is
         // RapidQ's empty base object: a plain TYPE with methods.
         let extends = if self.match_kind(TokenType::Extends) || self.match_kind(TokenType::As) {
-            Some(canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme))
+            Some({ let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) })
                 .filter(|base| !base.eq_ignore_ascii_case("QOBJECT") && !base.eq_ignore_ascii_case("ROBJECT"))
         } else {
             None
@@ -2056,7 +2070,7 @@ impl<'a> Parser<'a> {
                     continue;
                 }
                 let Some(type_tok) = self.advance() else { break };
-                let mut ftype = canonical_type_name(&type_tok.lexeme) + &self.template_args();
+                let mut ftype = self.type_ref(&type_tok.lexeme) + &self.template_args();
                 // `OnReady AS EVENT(Template)`: a custom event (holds a SUB).
                 if ftype.eq_ignore_ascii_case("EVENT") && self.match_kind(TokenType::LParen) {
                     while !self.at_eol() && !self.match_kind(TokenType::RParen) {
@@ -2148,7 +2162,7 @@ impl<'a> Parser<'a> {
             let dimensions = self.parse_array_dimensions().unwrap_or_default();
             self.expect(TokenType::RParen)?;
             self.expect(TokenType::As)?;
-            let type_name = canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme);
+            let type_name = { let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) };
             self.consume_eol();
             let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
             self.expect(TokenType::End);
@@ -2167,7 +2181,7 @@ impl<'a> Parser<'a> {
             }));
         }
         self.expect(TokenType::As)?;
-        let type_name = canonical_type_name(&self.expect(TokenType::Identifier)?.lexeme);
+        let type_name = { let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) };
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
         self.expect(TokenType::End);
@@ -2236,7 +2250,7 @@ impl<'a> Parser<'a> {
                 self.pos += 2;
             }
             let ptype = if self.match_kind(TokenType::As) {
-                canonical_type_name(&self.advance()?.lexeme) + &self.template_args()
+                ({ let n = self.advance()?.lexeme.clone(); self.type_ref(&n) }) + &self.template_args()
             } else {
                 rapidr_ast::suffix_type(&pname).unwrap_or("VARIANT").to_string()
             };

@@ -20,6 +20,17 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // QBEVEL and QDIGDISPLAY built in (no include library): Shape / Style
+  // set the bevels or draw a line pair; the display's size and segments.
+  // Pixels: the top line's light and dark rows, the right line's dark and
+  // light columns, a lit segment (cyan), an unlit one's dither.
+  { name: "bevel_display", events: "btn.onclick,edge.onclick,clock.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=-02021 12:34602460 FFFF00|8000|0cc"],
+    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]],
+    webCheck: `(() => { const c = document.getElementById("rr-clock"); const s = c.width / 60; const g = c.getContext("2d");
+      const px = ([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("");
+      return [[13, 15], [1, 7], [1, 8]].map(px).join(",") + " " + document.querySelectorAll("#rr-edge > .rr-bevel").length + " " + document.querySelectorAll("#rr-box > .rr-bevel").length; })()`,
+    webExpect: "00ffff,008000,000000 2 2" },
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",

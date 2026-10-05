@@ -67,6 +67,7 @@
 //   * tests/fixtures/d3d_scene.bas — Direct3D: frames, faces, lights, the camera, Render (the software rasterizer), Move, CameraLookAt.
 //   * tests/fixtures/d3d_xfile.bas — Direct3D: a .X model (frame matrix, materials, a texture on one face), SetRGB, SetTexture.
 //   * tests/fixtures/dx_joystick.bas — QDXJOYSTICK: Update, IsLeft …, Button(n); X, Buttons, POV; OnButtonDown / OnButtonUp / OnMove (the case's `joystick` script).
+//   * tests/fixtures/bevel_display.bas — QBEVEL and QDIGDISPLAY built in: Shape / Style → bevels and edge lines, Display → size and segments; the capture's pixels.
 //   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
 //     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //

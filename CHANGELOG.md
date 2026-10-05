@@ -8,6 +8,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **QBEVEL and QDIGDISPLAY built in.** The manual documents them as
+  components, but in RapidQ they are TYPEs of its include libraries
+  (QBevel.inc, QDigDisplay.inc) — the manual's own QBEVEL example doesn't
+  include it. RapidR now has both on every runtime, behaving as the
+  libraries do: QBEVEL's Shape / Style set its bevels (bsBox, bsFrame) or
+  draw two lines at an edge (bsTopLine … bsRightLine); QDIGDISPLAY shows
+  Display in 12 × 24 seven-segment cells (characters 32 … 64), in the
+  library's colours, sized to it. A program that includes the library
+  gets the library's own TYPE, as in RapidQ (QDigDisplay with its own
+  bitmaps). Screen readers: a pane named by its caption, an image named
+  by its digits.
 - **QRECT and QNOTIFYICONDATA as RapidQ's compiler has them** (checked
   against RC.EXE): one shared record model on every runtime — fields are
   32-bit integers cut toward zero (`3.7` → 3), a string stored into one is

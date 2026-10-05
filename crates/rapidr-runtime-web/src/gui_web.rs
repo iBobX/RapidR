@@ -157,7 +157,7 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RLABEL" => create_label(&id, name, props),
         "REDIT" => create_edit(&id, name, props),
         "RMEMO" | "RRICHEDIT" => create_textarea(&id, name, props),
-        "RPANEL" => create_panel(&id, name, props),
+        "RPANEL" | "RBEVEL" => create_panel(&id, name, props),
         "RCHECKBOX" => create_checkbox(&id, name, props),
         "RRADIOBUTTON" => create_radio(&id, name, props),
         // Style (RAPIDQ.INC): csDropDown = 0 (the default) and csSimple = 1
@@ -173,6 +173,11 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
         "RIMAGE" => create_image(&id, name, props),
         "RCANVAS" => create_canvas(&id, name, props),
+        // (QDIGDISPLAY: a canvas showing its Display)
+        "RDIGDISPLAY" => {
+            create_canvas(&id, name, props);
+            render_canvas(name);
+        }
         // (the DirectX lane's)
         "RDXSCREEN" => create_dxscreen(&id, name, props),
         "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK" => { /* no DOM element */ }
@@ -2294,6 +2299,27 @@ pub fn render_panel_bevels(name: &str) {
             let _ = b.style().set_property(k, &v);
         }
         let _ = el.insert_before(&b, first.as_ref());
+    }
+    // (a QBEVEL's lines at one edge: bsTopLine … bsRightLine)
+    if crate::object_web::rp_comp_type(name) == "RBEVEL" {
+        let (w, h) = (prop("width"), prop("height"));
+        for (x, y, lw, lh, light) in rapidr_value::objects::bevel::qbevel_lines(prop("shape"), prop("style"), w, h) {
+            let b = create_el("div");
+            b.set_class_name("rr-bevel");
+            let color = hex(if light { rapidr_value::objects::bevel::LIGHT } else { rapidr_value::objects::bevel::DARK });
+            for (k, v) in [
+                ("position", "absolute".to_string()),
+                ("left", format!("{x}px")),
+                ("top", format!("{y}px")),
+                ("width", format!("{lw}px")),
+                ("height", format!("{lh}px")),
+                ("pointer-events", "none".into()),
+                ("background", color),
+            ] {
+                let _ = b.style().set_property(k, &v);
+            }
+            let _ = el.insert_before(&b, first.as_ref());
+        }
     }
 }
 

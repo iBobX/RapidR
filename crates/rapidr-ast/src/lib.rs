@@ -1820,6 +1820,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
     // RapidQ's data types that are objects (rapidr_value::objects::record)
     "RNOTIFYICONDATA",
+    // RapidQ's include libraries' components (INCLUDE_LIBRARY_COMPONENTS)
+    "RBEVEL", "RDIGDISPLAY",
     // Web-exclusive components
     "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
     "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
@@ -1848,8 +1850,8 @@ pub fn rapidr_constant(name: &str) -> Option<i64> {
 }
 
 pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
-    "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",
-    "QDIGDISPLAY", "QDIRLISTVIEW",
+    "QCDAUDIO", "QCGI", "QCOMPORT",
+    "QDIRLISTVIEW",
     "QDOCKFORM", "QDOWNLOAD",
 "QGLASSFRAME", "QMIDI", "QOLECONTAINER", "QOLEOBJECT",
     "QVIDEO", "QWAVE",
@@ -2077,11 +2079,41 @@ pub fn is_component_type_name(type_name: &str) -> bool {
     COMPONENT_TYPES.contains(&type_name.to_ascii_uppercase().as_str())
 }
 
+/// RapidQ's components that its include libraries define as TYPEs —
+/// QBevel.inc's QBEVEL, QDigDisplay.inc's QDIGDISPLAY — with RapidR's
+/// built-in for each. A program that includes the library (so defines the
+/// TYPE) gets its own; one that doesn't (the manual's own examples don't)
+/// gets the built-in. `canonical_type_name` leaves these names alone: the
+/// parser decides (`component_type_reference`).
+pub const INCLUDE_LIBRARY_COMPONENTS: &[(&str, &str)] = &[("QBEVEL", "RBEVEL"), ("QDIGDISPLAY", "RDIGDISPLAY")];
+
+/// Whether `name` is one of [`INCLUDE_LIBRARY_COMPONENTS`]' RapidQ names.
+pub fn is_include_library_component(name: &str) -> bool {
+    INCLUDE_LIBRARY_COMPONENTS.iter().any(|(q, _)| q.eq_ignore_ascii_case(name))
+}
+
+/// A type named in a program (`AS QBEVEL`, `EXTENDS QPANEL`): RapidR's
+/// name for a RapidQ component (`canonical_type_name`), an include
+/// library's component the built-in unless the program defines that TYPE
+/// itself (`own_types`, upper case).
+pub fn component_type_reference(name: &str, own_types: &[String]) -> String {
+    let upper = name.to_ascii_uppercase();
+    match INCLUDE_LIBRARY_COMPONENTS.iter().find(|(q, _)| *q == upper) {
+        Some(_) if own_types.contains(&upper) => name.to_string(),
+        Some((_, r)) => (*r).to_string(),
+        None => canonical_type_name(name),
+    }
+}
+
 /// RapidQ names its components QForm, QButton, …; RapidR's are RForm,
 /// RButton, …. Maps a RapidQ component name to RapidR's (uppercase), and
 /// leaves every other type name unchanged.
 pub fn canonical_type_name(type_name: &str) -> String {
     let upper = type_name.to_ascii_uppercase();
+    // (an include library's component: the parser decided already)
+    if is_include_library_component(&upper) {
+        return type_name.to_string();
+    }
     if let Some(rest) = upper.strip_prefix('Q') {
         // RapidQ components whose RapidR counterpart has another name.
         if rest == "GAUGE" {

@@ -77,3 +77,66 @@ pub fn default(prop: &str) -> Option<i64> {
         _ => return None,
     })
 }
+
+/// QBEVEL (`QBevel.inc`, Delphi's TBevel on a QPANEL) — what its Shape
+/// and Style set, the include's rules: `bsBox` 1 is an outer bevel (Style
+/// `bsLowered` 0 lowered, `bsRaised` 1 raised), `bsFrame` 6 two (lowered:
+/// an etched line, raised: a bump), every other shape no bevel — the
+/// lines of `bsTopLine` 2 … `bsRightLine` 5 are [`qbevel_lines`]; `bsSpacer`
+/// 0 shows nothing. Setting Shape or Style sets BevelInner / BevelOuter
+/// (inner, outer) to these.
+pub fn qbevel_bevels(shape: i64, style: i64) -> (i64, i64) {
+    match shape {
+        1 => (BV_NONE, style + 1),
+        6 => (2 - style, 1 + style),
+        _ => (BV_NONE, BV_NONE),
+    }
+}
+
+/// A QBEVEL's two lines for `bsTopLine` 2, `bsBottomLine` 3, `bsLeftLine`
+/// 4 and `bsRightLine` 5 in a `w` × `h` bevel: (x, y, width, height,
+/// light) one pixel thick, the first light when Style is raised (any
+/// non-zero), dark otherwise, the second the other — at its top, bottom,
+/// left or right edge, as the include's two-pixel canvas aligned there.
+pub fn qbevel_lines(shape: i64, style: i64, w: i64, h: i64) -> Vec<(i64, i64, i64, i64, bool)> {
+    let raised = style != 0;
+    let (first, second) = match shape {
+        2 => ((0, 0, w, 1), (0, 1, w, 1)),
+        3 => ((0, h - 2, w, 1), (0, h - 1, w, 1)),
+        4 => ((0, 0, 1, h), (1, 0, 1, h)),
+        5 => ((w - 2, 0, 1, h), (w - 1, 0, 1, h)),
+        _ => return Vec::new(),
+    };
+    vec![(first.0, first.1, first.2, first.3, raised), (second.0, second.1, second.2, second.3, !raised)]
+}
+
+/// The bevel properties a QBEVEL's Shape or Style store sets, with the
+/// other read from `other` (Style for a Shape store, Shape for a Style
+/// one); `None` for any other property.
+pub fn qbevel_set(prop: &str, value: i64, other: i64) -> Option<[(&'static str, i64); 2]> {
+    let (shape, style) = match prop {
+        "shape" => (value, other),
+        "style" => (other, value),
+        _ => return None,
+    };
+    let (inner, outer) = qbevel_bevels(shape, style);
+    Some([("bevelinner", inner), ("bevelouter", outer)])
+}
+
+#[cfg(test)]
+mod qbevel_tests {
+    use super::*;
+
+    #[test]
+    fn shapes_and_styles_as_the_include_sets_them() {
+        assert_eq!(qbevel_bevels(1, 0), (BV_NONE, BV_LOWERED));
+        assert_eq!(qbevel_bevels(1, 1), (BV_NONE, BV_RAISED));
+        assert_eq!(qbevel_bevels(6, 0), (BV_RAISED, BV_LOWERED));
+        assert_eq!(qbevel_bevels(6, 1), (BV_LOWERED, BV_RAISED));
+        assert_eq!(qbevel_bevels(2, 1), (BV_NONE, BV_NONE));
+        assert_eq!(qbevel_lines(3, 0, 50, 30), vec![(0, 28, 50, 1, false), (0, 29, 50, 1, true)]);
+        assert_eq!(qbevel_lines(5, 1, 50, 30), vec![(48, 0, 1, 30, true), (49, 0, 1, 30, false)]);
+        assert!(qbevel_lines(0, 0, 50, 30).is_empty());
+        assert_eq!(qbevel_set("style", 1, 6), Some([("bevelinner", BV_LOWERED), ("bevelouter", BV_RAISED)]));
+    }
+}

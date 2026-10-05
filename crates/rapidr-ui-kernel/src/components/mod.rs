@@ -97,6 +97,9 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDLGPART", &crate::dialogs::Part),
     // (the DirectX lane's)
     ("RDXSCREEN", &dxscreen::DxScreen),
+    // (RapidQ's custom components: QBevel.inc's, QDigDisplay.inc's)
+    ("RBEVEL", &panel::Bevel),
+    ("RDIGDISPLAY", &canvas::DigDisplay),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only
