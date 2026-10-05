@@ -38,6 +38,11 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { cases } from "./gui_parity_cases.mjs";
 import { openIde, runCase, runCaseKernel, WEB_HOST } from "./web_gui_run.mjs";
+import { startHttpServer } from "./http_test_server.mjs";
+
+// (QDOWNLOAD's server: the tests' own, local — never the internet; the
+// browser's run and a desktop run made here both use it)
+process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/web_a11y");
