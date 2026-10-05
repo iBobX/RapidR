@@ -135,7 +135,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   only with faHidden.
 - **Hiding a modal form no longer ends its ShowModal** (VCL's, so RapidQ's):
   only Close or ModalResult do — a program can hide its window into the tray
-  and show it again.
+  and show it again (desktop, interpreter, and the web on both its hosts).
 - The desktop host's `Desktop` (the forms' kernel sides, stacking, the modal list, the window command and event queues, the input entry points) and runtime-core's window-command and test-input glue now live in `rapidr-ui-app`, shared by the desktop and web hosts. The desktop is unchanged: every GUI case's captures, accessibility trees and dumps are byte-identical at 1× and 2×.
 - The web runtime's wasm is built with wasm SIMD (`tools/build_web_artifacts.sh`, its own `target/wasm-simd`). With the kernel host it grows from 6.27 to 10.18 MB raw (1.95 → 2.70 MB brotli).
 - **Operands side by side read as RapidQ's compiler reads them.** RC.EXE
