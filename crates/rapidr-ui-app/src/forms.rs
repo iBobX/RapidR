@@ -212,6 +212,28 @@ pub fn show_window<R: Program + Windows>(rt: R, name: &str) {
     if state == rapidr_value::window_state::WS_MAXIMIZED && rt.headless() && !st(|s| s.normal_bounds.contains_key(&name)) {
         simulate_state(rt, &name, rapidr_value::window_state::WS_NORMAL, state);
     }
+    // (the DirectX lane's: a QDXSCREEN's FullScreen)
+    if rt.form_fullscreen(&name) {
+        fullscreen(rt, &name);
+    }
+}
+
+/// (the DirectX lane's) A form whose QDXSCREEN is FullScreen: its window
+/// covers the screen without a frame (RapidQ's DirectDraw exclusive mode,
+/// without its display mode change) — the system's borderless full screen,
+/// or on the headless host the form taking the screen itself, as a user's
+/// drag would (Left / Top / Width / Height, its layout, OnResize).
+pub fn fullscreen<R: Program + Windows>(rt: R, name: &str) {
+    push_op(WindowOp::Fullscreen(name.to_string()));
+    rt.flush();
+    if rt.headless() {
+        let (sw, sh) = rt.screen();
+        let (fw, fh) = rapidr_value::layout::form_frame(rt.get(name, "borderstyle").to_i64());
+        let (iw, ih) = ((sw - fw).max(1), (sh - fh).max(1));
+        rt.system_resized(name, (iw, ih), (0, 0));
+        push_op(WindowOp::Size(name.to_string(), (iw, ih)));
+    }
+    rt.dispatch_pending();
 }
 
 pub fn hide_window(name: &str) {

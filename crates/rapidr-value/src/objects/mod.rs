@@ -632,19 +632,46 @@ pub fn with_dxscreen<R>(id: &str, f: impl FnOnce(&mut directx::DxScreen) -> R) -
 
 /// QDXSCREEN `id`'s form was shown: it's set up, `true` the first time
 /// (the runtime fires OnInitialize and OnInitializeSurface). `props`: the
-/// control's Width, Height and AutoSize.
+/// control's Width, Height, AutoSize and FullScreen.
 pub fn dxscreen_initialize(id: &str, props: PropReader) -> bool {
-    let (w, h, autosize) = dxscreen_control(id, props);
-    with_dxscreen(id, |s| directx::initialize(s, w, h, autosize)).unwrap_or(false)
+    let c = dxscreen_control(id, props);
+    with_dxscreen(id, |s| directx::initialize(s, c.width, c.height, c.follows())).unwrap_or(false)
 }
 
-/// A QDXSCREEN control's Width, Height and AutoSize (True unless set).
-pub fn dxscreen_control(id: &str, props: PropReader) -> (i64, i64, bool) {
-    let autosize = match props(id, "autosize") {
-        Value::Null => true,
+/// What a QDXSCREEN's control says about its picture.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DxControl {
+    pub width: i64,
+    pub height: i64,
+    /// AutoSize (True unless set).
+    pub autosize: bool,
+    /// AllowStretch (True unless set).
+    pub stretch: bool,
+    pub fullscreen: bool,
+}
+
+impl DxControl {
+    /// The surface follows the control's size (AutoSize; not in
+    /// FullScreen, whose surface is the display's mode).
+    pub fn follows(&self) -> bool {
+        self.autosize && !self.fullscreen
+    }
+}
+
+/// A QDXSCREEN control's Width, Height, AutoSize, AllowStretch and
+/// FullScreen.
+pub fn dxscreen_control(id: &str, props: PropReader) -> DxControl {
+    let flag = |p: &str, default: bool| match props(id, p) {
+        Value::Null => default,
         v => v.to_bool(),
     };
-    (props(id, "width").to_i64(), props(id, "height").to_i64(), autosize)
+    DxControl {
+        width: props(id, "width").to_i64(),
+        height: props(id, "height").to_i64(),
+        autosize: flag("autosize", true),
+        stretch: flag("allowstretch", true),
+        fullscreen: flag("fullscreen", false),
+    }
 }
 
 /// QDXTIMER `id` fires at `now_ms` (the runtime's clock): it counts the
@@ -961,8 +988,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     // A QDXSCREEN's surface follows its control's size (AutoSize).
     if kind == "dxscreen" {
-        let (w, h, autosize) = dxscreen_control(id, props);
-        with_dxscreen(id, |s| s.follow_control(w, h, autosize));
+        let c = dxscreen_control(id, props);
+        with_dxscreen(id, |s| s.follow_control(c.width, c.height, c.follows()));
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).

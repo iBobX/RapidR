@@ -856,6 +856,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "enabled" | "interval") && is_timer_type(&rp_comp_type(name)) {
         crate::ui::gui_timer_changed(name);
     }
+    // (the DirectX lane's) A QDXSCREEN put on a form already shown: set up.
+    #[cfg(feature = "gui")]
+    if prop_lower == "parent" && rp_comp_type(name) == "RDXSCREEN" {
+        crate::directx::parented(name);
+    }
     // A tree's image lists: its icons shown again.
     #[cfg(feature = "gui")]
     if matches!(prop_lower.as_str(), "images" | "stateimages") && rapidr_value::objects::is_tree(name) {

@@ -151,7 +151,12 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
 - [x] Desktop: `Form.Visible = True` shows the form and fires OnShow, as Show does (RapidQ/Delphi; it did nothing for a form not shown yet) — `Visible = 1` inside the form's CREATE shows it once the program waits; OnShow from `Visible = True` on the web too (v2.106.0)
 - [x] QFORM's Visible reads False until the form is shown (RapidQ's default; both runtimes read True) (v2.106.0)
 - [x] Web: the VM yields to the page every few milliseconds, so a busy loop (`cpuhog: GOTO cpuhog`, a game loop without DoEvents) doesn't freeze the tab — the IDE's Stop always works (v2.106.0, `tests/web_vm_yield.mjs`)
-- [ ] DirectX objects on wgpu (desktop and web): QDXSCREEN (2D surface, sprites, blits), QDXIMAGELIST, QDXTIMER, QDXJOYSTICK (gamepads: `gilrs`), QD3D* (meshes, textures, frames, lights, camera) as a retained-mode scene drawn by wgpu
+- [ ] DirectX objects on wgpu (desktop and web): QDXSCREEN (2D surface, sprites, blits), QDXIMAGELIST, QDXTIMER, QDXJOYSTICK (gamepads: `gilrs`), QD3D* (meshes, textures, frames, lights, camera) as a retained-mode scene drawn by wgpu — staged in [docs/directx-plan.md](docs/directx-plan.md)
+  - [x] D1: QDXSCREEN 2D (back buffer, Flip, drawing, Init / AutoSize / AllowStretch, set-up events), QDXIMAGELIST (`.DXG` libraries), QDXTIMER (Interval 0, FrameRate) on native, interpreted and web (`dx_screen` fixture)
+  - [x] D1b: FullScreen, ActiveOnly, Rotate, View.*, Cursor, a screen added to a shown form, the screen font (MS Sans Serif 8) (`dx_more` fixture)
+  - [ ] D2: QDXSOUND (rodio / Web Audio)
+  - [ ] D3–D5: QD3D* scene and `.X` loader, software rasterizer, wgpu renderer
+  - [ ] D6: joysticks (RapidQ has no object: a RapidR `RJOYSTICK` on `gilrs` / the Gamepad API)
 
 Next up, in order:
 - [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)

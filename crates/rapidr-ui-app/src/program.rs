@@ -92,10 +92,19 @@ pub trait Program: Copy + 'static {
         None
     }
 
-    /// Timer `id` is about to fire (a QDXTIMER counts its frames).
-    fn timer_firing(self, _id: &str) {}
+    /// Timer `id` is due: whether its OnTimer fires now (a QDXTIMER with
+    /// ActiveOnly only while the program is the active application) — a
+    /// QDXTIMER counts the frames that fire.
+    fn timer_firing(self, _id: &str) -> bool {
+        true
+    }
 
     /// Form `id`'s kernel side was just made, after its OnLoad (its
     /// QDXSCREENs set up: OnInitialize).
     fn form_built(self, _id: &str) {}
+
+    /// Form `id` shows full screen (a QDXSCREEN on it has FullScreen).
+    fn form_fullscreen(self, _id: &str) -> bool {
+        false
+    }
 }

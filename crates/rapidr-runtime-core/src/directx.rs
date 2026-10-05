@@ -2,30 +2,54 @@
 //! shared models (`rapidr_value::objects::directx`) draw, the kernel shows
 //! a QDXSCREEN's last Flip (`rapidr_ui_kernel::components::dxscreen`);
 //! this is what's left to the runtime — a form's screens set up when it's
-//! first shown (OnInitialize, OnInitializeSurface) and a QDXTIMER's pace
+//! first shown (OnInitialize, OnInitializeSurface), or a screen put on a
+//! form already shown; FullScreen's window; a QDXTIMER's pace, ActiveOnly
 //! and frame count. The web runtime does the same (`directx_web.rs`).
 
 use std::time::{Duration, Instant};
 
-use crate::object::{get_children_of, rp_comp_get, rp_comp_type, rp_fire_event};
+use crate::object::{form_of, get_children_of, rp_comp_get, rp_comp_type, rp_fire_event};
 
-/// Form `form`'s window was made (it's shown the first time): each
-/// QDXSCREEN on it, in its containers too, is set up — as DirectX was once
-/// the window existed — and told: OnInitialize, then OnInitializeSurface.
-pub fn form_built(form: &str) {
+/// The QDXSCREENs on `form`, in its containers too.
+fn screens_of(form: &str) -> Vec<String> {
+    let mut out = Vec::new();
     for (child, type_name) in get_children_of(form) {
         match type_name.to_ascii_uppercase().as_str() {
-            "RDXSCREEN" => {
-                if rapidr_value::objects::dxscreen_initialize(&child, &|i, p| rp_comp_get(i, p)) {
-                    rp_fire_event(&child, "oninitialize");
-                    rp_fire_event(&child, "oninitializesurface");
-                }
-            }
+            "RDXSCREEN" => out.push(child),
             // (another form is a window of its own)
             "RFORM" => {}
-            _ => form_built(&child),
+            _ => out.extend(screens_of(&child)),
         }
     }
+    out
+}
+
+/// Form `form`'s window was made (it's shown the first time): each
+/// QDXSCREEN on it not set up yet is — as DirectX was once the window
+/// existed — and told: OnInitialize, then OnInitializeSurface.
+pub fn form_built(form: &str) {
+    for screen in screens_of(form) {
+        if rapidr_value::objects::dxscreen_initialize(&screen, &|i, p| rp_comp_get(i, p)) {
+            rp_fire_event(&screen, "oninitialize");
+            rp_fire_event(&screen, "oninitializesurface");
+        }
+    }
+}
+
+/// QDXSCREEN `name` was put on a form (its Parent): on a form whose window
+/// exists already it's set up once the program's code returns (its CREATE
+/// block has given it its size and OnInitialize by then).
+pub fn parented(name: &str) {
+    let Some(form) = form_of(name) else { return };
+    if crate::ui::form_window_exists(&form) {
+        crate::object::rp_defer_job(Box::new(move || form_built(&form)));
+    }
+}
+
+/// Whether form `form` shows full screen: one of its QDXSCREENs has
+/// FullScreen (manual: set before ShowModal; there's no way back).
+pub fn form_fullscreen(form: &str) -> bool {
+    screens_of(form).iter().any(|s| rp_comp_get(s, "fullscreen").to_bool())
 }
 
 /// Whether `name` is a QDXTIMER.
@@ -39,11 +63,22 @@ pub fn timer_interval(name: &str) -> Option<Duration> {
     is_dx_timer(name).then(|| Duration::from_millis(rapidr_value::objects::directx::timer_interval_ms(rp_comp_get(name, "interval").to_i64())))
 }
 
-/// Timer `name` fires: a QDXTIMER counts the frame (FrameRate).
-pub fn timer_fired(name: &str) {
+/// Timer `name` is due: whether its OnTimer fires — a QDXTIMER with
+/// ActiveOnly (the default) only while the program is the active
+/// application — and a QDXTIMER's frame counted (FrameRate).
+pub fn timer_fired(name: &str) -> bool {
     static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
-    if is_dx_timer(name) {
-        let ms = START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1000.0;
-        rapidr_value::objects::dxtimer_fired(name, ms);
+    if !is_dx_timer(name) {
+        return true;
     }
+    let active_only = match rp_comp_get(name, "activeonly") {
+        crate::value::Value::Null => true,
+        v => v.to_bool(),
+    };
+    if !rapidr_value::objects::directx::DxTimer::fires(active_only, crate::ui::app_active()) {
+        return false;
+    }
+    let ms = START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1000.0;
+    rapidr_value::objects::dxtimer_fired(name, ms);
+    true
 }

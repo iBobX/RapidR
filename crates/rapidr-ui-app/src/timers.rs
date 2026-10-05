@@ -109,9 +109,10 @@ pub fn fire_due_then<P: Program>(p: P, then: impl Fn()) {
             tm(|s| s.scheduled.remove(&name));
             continue;
         }
-        p.timer_firing(&name);
-        p.fire(&name, "ontimer");
-        then();
+        if p.timer_firing(&name) {
+            p.fire(&name, "ontimer");
+            then();
+        }
         let at = p.now() + interval(p, &name);
         tm(|s| {
             s.gen += 1;

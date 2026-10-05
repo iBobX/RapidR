@@ -752,6 +752,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if lprop == "parent" {
         gui_web::gui_web_set_parent(&uname, &val.to_string_val().to_uppercase());
         crate::layout_web::after_set(&uname, &lprop);
+        // (the DirectX lane's: a QDXSCREEN put on a form already shown)
+        if rp_comp_type(&uname) == "RDXSCREEN" {
+            crate::directx_web::parented(&uname);
+        }
         return;
     }
 
@@ -2495,8 +2499,9 @@ fn update_timer(name: &str) {
     if enabled && has_handler && interval > 0 {
         let name_for_closure = uname.clone();
         let closure = Closure::<dyn FnMut()>::new(move || {
-            crate::directx_web::timer_fired(&name_for_closure);
-            rp_fire_event(&name_for_closure, "ontimer");
+            if crate::directx_web::timer_fired(&name_for_closure) {
+                rp_fire_event(&name_for_closure, "ontimer");
+            }
         });
 
         if let Some(window) = web_sys::window() {

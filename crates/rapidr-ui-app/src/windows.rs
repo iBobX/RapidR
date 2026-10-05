@@ -31,6 +31,10 @@ pub enum WindowOp {
     // (the WindowState lane's)
     /// The window maximized, minimized or restored (wsNormal …).
     State(String, i64),
+    // (the DirectX lane's)
+    /// The window covers the screen without a frame (a QDXSCREEN's
+    /// FullScreen); the system's new size comes back as a resize.
+    Fullscreen(String),
 }
 
 /// A window's picture (RGBA, straight): a form's IcoHandle / Icon, else

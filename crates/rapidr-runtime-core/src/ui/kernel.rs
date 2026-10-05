@@ -230,6 +230,8 @@ fn sync_desk(desk: &mut Desktop) {
                     desk.cmds.push(HostCmd::State(f));
                 }
             }
+            // (the DirectX lane's)
+            WindowOp::Fullscreen(f) => desk.cmds.push(HostCmd::Fullscreen(f)),
         }
     }
     platform::sync(desk);
@@ -420,6 +422,12 @@ fn spec_of(name: &str) -> WindowSpec {
         // (the WindowState lane's)
         state: rapidr_value::window_state::of(rp_comp_get(name, "windowstate").to_i64()),
     }
+}
+
+/// (the DirectX lane's) The program is the active application (one of its
+/// windows has the keyboard; always on the headless host).
+pub fn app_active() -> bool {
+    with_kern(|k| k.host.active()).unwrap_or(true)
 }
 
 /// The host has no system to ask (the headless host of the GUI tests).

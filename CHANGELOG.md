@@ -7,7 +7,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **RapidQ's DirectX 2D objects on every runtime** (native, interpreted,
+  web; docs/directx-plan.md): QDXSCREEN draws on an off-screen surface that
+  shows on `Flip` (Init, AutoSize, AllowStretch, Fill's DirectDraw colours,
+  Pixel, text, Draw / StretchDraw / CopyRect, TextRect, Rotate, View.*;
+  OnInitialize / OnInitializeSurface when its form first shows, or once it's
+  put on a form already shown; FullScreen covers the screen with the surface
+  scaled to fit). QDXIMAGELIST draws DelphiX image libraries (`.DXG`) with
+  their transparency and patterns. QDXTIMER keeps FrameRate, fires once a
+  frame with Interval 0, and with ActiveOnly only while the program is
+  active. Screen text is MS Sans Serif 8, as in RapidQ.
+
 ### Fixed
+- Native builds: `Obj.Sub.Method(…)` (`DX.View.SetFront(10)`,
+  `Printer.Font.DelStyles(3)`) calls the sub-object's method by its
+  combined name on the object, as the interpreter does; it went to a value
+  read from the object instead.
 - Windows: programs built with `rapidr build` are `.exe` files. An
   interpreted build was written without the extension, and a native
   build's copy next to the source was silently skipped.

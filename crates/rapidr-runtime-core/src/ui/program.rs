@@ -83,11 +83,15 @@ impl Program for Rt {
         crate::directx::timer_interval(id)
     }
 
-    fn timer_firing(self, id: &str) {
-        crate::directx::timer_fired(id);
+    fn timer_firing(self, id: &str) -> bool {
+        crate::directx::timer_fired(id)
     }
 
     fn form_built(self, id: &str) {
         crate::directx::form_built(id);
+    }
+
+    fn form_fullscreen(self, id: &str) -> bool {
+        crate::directx::form_fullscreen(id)
     }
 }

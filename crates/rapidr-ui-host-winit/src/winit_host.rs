@@ -93,6 +93,8 @@ struct State {
     /// keyboard (macOS' menu bar shows its main menu).
     menus: NativeMenus,
     key_form: Option<String>,
+    /// (the DirectX lane's) One of the program's windows has the keyboard.
+    active: bool,
     /// Open / Save dialogs (dialogs.rs) and the waker their completion
     /// wakes the pump with.
     dialogs: crate::dialogs::Dialogs,
@@ -147,6 +149,7 @@ impl WinitHost {
                 mouse: (0, 0),
                 menus,
                 key_form: None,
+                active: true,
                 dialogs: crate::dialogs::Dialogs::default(),
                 waker,
                 hook: None,
@@ -221,6 +224,10 @@ impl Host for WinitHost {
 
     fn headless(&self) -> bool {
         false
+    }
+
+    fn active(&self) -> bool {
+        self.state.active
     }
 
     fn native_menus(&self) -> bool {
@@ -440,6 +447,13 @@ impl Shim<'_> {
                         if let Some(size) = w.window.request_inner_size(self.inner_size(lw, lh, scale)) {
                             self.size_applied(&form, size);
                         }
+                    }
+                }
+                // (the DirectX lane's: borderless over the whole screen —
+                // its Resized follows)
+                HostCmd::Fullscreen(f) => {
+                    if let Some(w) = self.s.wins.get(&f) {
+                        w.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
                     }
                 }
                 // (the WindowState lane's: the system maximizes, minimizes
@@ -835,6 +849,9 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             }
             WindowEvent::RedrawRequested => self.redraw(&f),
             WindowEvent::Focused(false) => {
+                // (the DirectX lane's: inactive until one of its windows
+                // has the keyboard again)
+                self.s.active = false;
                 // (a kernel-drawn menu closes when its window loses the
                 // keyboard, as Windows' menus do)
                 if let Some(k) = self.desk.forms.get_mut(&f) {
@@ -845,6 +862,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.after_input(&f);
             }
             WindowEvent::Focused(true) => {
+                self.s.active = true;
                 self.s.key_form = Some(f.clone());
                 self.note_state(&f);
                 // A modal form keeps the focus (macOS has no owned windows).
