@@ -56,17 +56,23 @@ case "$ART" in
             check "$(basename "$app"): Info.plist valid" plutil -lint -s "$app/Contents/Info.plist"
             check "$(basename "$app"): executable is the launcher" test "$(plutil -extract CFBundleExecutable raw "$app/Contents/Info.plist")" = rapidrw
         done
+        # (the document types: who opens .rrbc / .rr / .bas, with which rank)
+        types() { python3 -c 'import plistlib,sys; p=plistlib.load(open(sys.argv[1],"rb"))
+for d in p.get("CFBundleDocumentTypes",[]):
+    for t in d["LSItemContentTypes"]: print(t.rsplit(".",1)[-1], d["CFBundleTypeRole"], d["LSHandlerRank"])
+for k in ("UTExportedTypeDeclarations","UTImportedTypeDeclarations"):
+    for u in p.get(k,[]): print(k[2:10].lower(), *u["UTTypeTagSpecification"]["public.filename-extension"])' "$1"; }
         RT="$T/Applications/RapidR Runtime.app/Contents/Info.plist"
         if [ -f "$RT" ]; then
-            types="$(plutil -convert json -o - "$RT")"
-            check "Runtime.app owns .rrbc" has "$types" '"LSHandlerRank":"Owner","LSItemContentTypes":\["io.github.ibobx.rapidr.bytecode"\]'
-            check "Runtime.app runs .rr/.bas (Alternate)" has "$types" '"LSHandlerRank":"Alternate"'
-            check "Runtime.app declares rrbc" has "$types" '"public.filename-extension":\["rrbc"\]'
+            t="$(types "$RT")"
+            check "Runtime.app owns .rrbc (runs it)" has "$t" "bytecode Viewer Owner"
+            check "Runtime.app runs .rr/.bas (Open With)" has "$t" "rapidq-source Viewer Alternate"
+            check "Runtime.app declares rrbc" has "$t" "exported rrbc"
         fi
         if [ -f "$T/Applications/RapidR.app/Contents/Info.plist" ]; then
-            types="$(plutil -convert json -o - "$T/Applications/RapidR.app/Contents/Info.plist")"
-            check "RapidR.app edits .rr/.bas (Owner)" has "$types" '"CFBundleTypeRole":"Editor"'
-            check "RapidR.app exports rr and bas" has "$types" '"public.filename-extension":\["bas"\]'
+            t="$(types "$T/Applications/RapidR.app/Contents/Info.plist")"
+            check "RapidR.app edits .rr/.bas (Owner)" has "$t" "source Editor Owner"
+            check "RapidR.app declares rr and bas" has "$t" "exported bas"
         fi
         ;;
     *.tar.gz)
@@ -143,6 +149,7 @@ check "not asked again (a No now changes nothing)" has "$(hook No second)" "hell
 echo "== a console program opened from the desktop gets a terminal"
 printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/terminal.args"\n' "$W" > fake-terminal && chmod +x fake-terminal
 TERMINAL="$W/fake-terminal" "$R" open hello.rrbc < /dev/null > /dev/null 2>&1
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$W/terminal.args" ] && break; sleep 0.5; done
 check "the terminal runs rapidr run <program>" grep -q "run '$W/hello.rrbc'" "$W/terminal.args"
 
 if [ "$KIND" = sdk ]; then

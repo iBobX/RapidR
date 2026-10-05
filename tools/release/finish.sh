@@ -24,7 +24,7 @@ for f in *.zip *.tar.gz *.dmg *.deb; do
     [ -e "$f" ] || continue
     files="$(listing "$f" || true)"
     for l in $LICENCES; do
-        if ! grep -q "/$l\$\|^$l\$\|/${l%.md}\$" <<<"$files" && ! { [ "$l" = LICENSE ] && grep -q "/copyright$" <<<"$files"; }; then
+        if ! grep -qE "(^|/)${l//./\\.}\$" <<<"$files"; then
             echo "  $f: no $l"; fail=1
         fi
     done

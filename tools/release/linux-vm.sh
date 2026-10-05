@@ -18,7 +18,7 @@ SCRIPT="$WORK/linux-vm-job.sh"
 trap 'rm -f "$SCRIPT"' EXIT
 
 if [ "${1:-}" = --clean ]; then
-    printf 'rm -rf "$HOME/rapidr-release"\necho removed ~/rapidr-release\n' > "$SCRIPT"
+    printf 'rm -rf "$HOME/rapidr-release" /tmp/rapidr-release-* /tmp/rapidr-vm.sh /tmp/rapidr-fetch.* /tmp/rapidr-smoke.*\necho removed ~/rapidr-release\n' > "$SCRIPT"
     bash "$VM" run "$SCRIPT"
     exit 0
 fi
@@ -31,20 +31,33 @@ done
 
 cat > "$SCRIPT" <<'EOF'
 set -e
-export PATH="$HOME/.cargo/bin:$PATH"
 B="$HOME/rapidr-release"
-rm -rf "$B/src" "$B/dist" && mkdir -p "$B/src" "$B/dist/prep/web-runtime"
-for f in src.tar commit rapidr-ide.rrbc; do mv "/tmp/rapidr-release-$f" "$B/dist/prep/$f"; done
-for f in rapidrintr.js rapidrintr_bg.wasm; do mv "/tmp/rapidr-release-$f" "$B/dist/prep/web-runtime/$f"; done
-# (-m: the files' times are now, so cargo rebuilds what changed)
-tar -m -x -C "$B/src" -f "$B/dist/prep/src.tar"
+# (run again when Parallels reported a failure that wasn't one: no harm)
+if [ -f /tmp/rapidr-release-src.tar ]; then
+    rm -rf "$B/src" "$B/dist" "$B/done" && mkdir -p "$B/src" "$B/dist/prep/web-runtime"
+    for f in src.tar commit rapidr-ide.rrbc; do mv "/tmp/rapidr-release-$f" "$B/dist/prep/$f"; done
+    for f in rapidrintr.js rapidrintr_bg.wasm; do mv "/tmp/rapidr-release-$f" "$B/dist/prep/web-runtime/$f"; done
+    # (-m: the files' times are now, so cargo rebuilds what changed)
+    tar -m -x -C "$B/src" -f "$B/dist/prep/src.tar"
+fi
+pgrep -f "tools/release/linux.sh" > /dev/null && { echo running; exit 0; }
+[ -f "$B/done" ] && { echo done; exit 0; }
+# (detached: a long prlctl session can drop while the VM goes on)
 cd "$B/src"
-RAPIDR_DIST="$B/dist" CARGO_TARGET_DIR="$B/target" bash tools/release/linux.sh > "$B/build.log" 2>&1 || { tail -30 "$B/build.log"; exit 1; }
-grep -E "^==|wrote|links|  lib" "$B/build.log"
-ls "$B/dist/out"
+setsid nohup bash -c 'export PATH="$HOME/.cargo/bin:$PATH"; RAPIDR_DIST="$1/dist" CARGO_TARGET_DIR="$1/target" bash tools/release/linux.sh > "$1/build.log" 2>&1; echo $? > "$1/done"' _ "$B" > /dev/null 2>&1 &
+echo started
 EOF
 step "build and package in the VM (log: ~/rapidr-release/build.log there)"
 bash "$VM" run "$SCRIPT"
+printf 'cat "$HOME/rapidr-release/done" 2>/dev/null || true\n' > "$SCRIPT"
+while :; do
+    sleep 30
+    code="$(bash "$VM" run "$SCRIPT" 2>/dev/null || true)"
+    [ -n "$code" ] && break
+done
+printf 'grep -E "^==|wrote|links|  lib|error" "$HOME/rapidr-release/build.log" | tail -40\n' > "$SCRIPT"
+bash "$VM" run "$SCRIPT"
+[ "$code" = 0 ] || die "the VM's build failed (exit $code)"
 
 step "fetch the packages"
 printf 'ls "$HOME/rapidr-release/dist/out"\n' > "$SCRIPT"
