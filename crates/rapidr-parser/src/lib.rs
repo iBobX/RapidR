@@ -1692,9 +1692,11 @@ impl<'a> Parser<'a> {
             while self.match_kind(TokenType::Comma) {
                 values.push(self.parse_case_value()?);
             }
-            // `CASE 1: PRINT "one"` — the body may start on the same line.
-            // (RapidQ also lets the body follow the list without a colon:
-            // `CASE 4, 7  C = -2`.)
+            // `CASE 1: PRINT "one"` — the body may start on the same line
+            // (and without the colon after a keyword: `CASE 1 PRINT "one"`;
+            // `CASE 4, 7  C = -2` is the list 4, 7 — RC.EXE reads the
+            // assignment as an operand side by side with the 7:
+            // parse_stacked_expression).
             self.match_kind(TokenType::Colon);
             if self.at_eol() {
                 self.consume_eol();
@@ -2260,7 +2262,210 @@ impl<'a> Parser<'a> {
         if let Some(e) = self.try_postfix() {
             return Some(e);
         }
+        let start = self.pos;
+        let e = self.parse_logical_or();
+        // An operand right after a whole expression (`A B OR C`,
+        // `-9(COS(x))`), or inside its parentheses (`(2 3) + 1`, which the
+        // infix reading refuses): RapidQ reads the whole expression on, as
+        // parse_stacked_expression does.
+        if e.is_none() || self.operand_follows() {
+            let end = self.pos;
+            self.pos = start;
+            if let Some(stacked) = self.parse_stacked_expression() {
+                return Some(stacked);
+            }
+            self.pos = end;
+        }
+        e
+    }
+
+    /// A parenthesised group's expression: infix only — operands side by
+    /// side in it make the whole expression a stacked one
+    /// (parse_expression).
+    fn parse_group_expression(&mut self) -> Option<Expression> {
+        if let Some(e) = self.try_postfix() {
+            return Some(e);
+        }
         self.parse_logical_or()
+    }
+
+    /// Whether the next token starts an operand: a number, a string, a
+    /// name, or `(` (after a value that can't be called, such as a number).
+    fn operand_follows(&self) -> bool {
+        match self.peek_kind() {
+            Some(TokenType::Number | TokenType::StringLit | TokenType::LParen) => true,
+            Some(TokenType::Identifier) => !(self.peek_identifier_eq("SHL") || self.peek_identifier_eq("SHR") || self.peek_identifier_eq("INV")),
+            _ => false,
+        }
+    }
+
+    /// An expression as RapidQ's compiler (RC.EXE) reads one: operators and
+    /// operands through an operator stack (a shunting-yard), operands side
+    /// by side allowed — two with no operator between are both pushed, the
+    /// parentheses only group, an operator still pending applies to what
+    /// comes after — and the value is the operand stack's bottom; the
+    /// others are still worked out (a FUNCTION among them is called).
+    /// Checked against RC.EXE: `A B OR C` is A, `-9(COS(x))` is 9, `2(3)`
+    /// is 2, `10 - 2 3` is 10, `2 * 3 + 4 5` is 6, `(2 3) + 1` is 2,
+    /// `NOT 0 5` is 0, `"a" "b"` is "a", `1 Side(5)` is 1 and calls Side.
+    /// Ends where RapidQ's would: a token that is neither an operand nor an
+    /// operator (`,`, `;`, a keyword, the line's end), or a `)` it didn't
+    /// open. `None` (nothing read) if it isn't one.
+    fn parse_stacked_expression(&mut self) -> Option<Expression> {
+        enum Op {
+            Paren,
+            Binary(BinaryOperator, u8),
+            /// SHL / SHR / INV: calls of two arguments.
+            Named(&'static str, u8),
+            Unary(UnaryOperator, Option<TextSpan>, u8),
+        }
+        fn prec(op: &Op) -> u8 {
+            match op {
+                Op::Paren => 0,
+                Op::Binary(_, p) | Op::Named(_, p) | Op::Unary(_, _, p) => *p,
+            }
+        }
+        fn reduce(ops: &mut Vec<Op>, vals: &mut Vec<Expression>) -> Option<()> {
+            match ops.pop()? {
+                Op::Paren => None,
+                Op::Binary(op, _) => {
+                    let r = vals.pop()?;
+                    let l = vals.pop()?;
+                    vals.push(binary(l, op, r));
+                    Some(())
+                }
+                Op::Named(name, _) => {
+                    let r = vals.pop()?;
+                    let l = vals.pop()?;
+                    let span = TextSpan::new(expression_span(&l).start, expression_span(&r).end);
+                    vals.push(call_expr(span, name, vec![l, r]));
+                    Some(())
+                }
+                Op::Unary(operator, span, _) => {
+                    let operand = vals.pop()?;
+                    let start = span.map_or(expression_span(&operand).start, |s| s.start);
+                    vals.push(Expression::Unary(UnaryExpression {
+                        span: TextSpan::new(start, expression_span(&operand).end),
+                        operator,
+                        operand: Box::new(operand),
+                    }));
+                    Some(())
+                }
+            }
+        }
+        let mut ops: Vec<Op> = Vec::new();
+        let mut vals: Vec<Expression> = Vec::new();
+        let mut want_operand = true;
+        loop {
+            let kind = self.peek_kind();
+            if want_operand {
+                // (prefix operators: RapidR's precedence — NOT below the
+                // comparisons, `-` `+` `@` above `^`)
+                let unary = match kind {
+                    Some(TokenType::Minus) => Some((UnaryOperator::Negate, 10)),
+                    Some(TokenType::Plus) => Some((UnaryOperator::Positive, 10)),
+                    Some(TokenType::At) => Some((UnaryOperator::Ref, 10)),
+                    Some(TokenType::Not) => Some((UnaryOperator::Not, 3)),
+                    _ => None,
+                };
+                if let Some((op, p)) = unary {
+                    let span = self.advance().map(|t| t.span);
+                    ops.push(Op::Unary(op, span, p));
+                    continue;
+                }
+            }
+            match kind {
+                Some(TokenType::LParen) if want_operand || !vals.is_empty() => {
+                    self.advance();
+                    ops.push(Op::Paren);
+                    want_operand = true;
+                    continue;
+                }
+                Some(TokenType::RParen) if !want_operand && ops.iter().any(|o| matches!(o, Op::Paren)) => {
+                    self.advance();
+                    while !matches!(ops.last(), Some(Op::Paren)) {
+                        reduce(&mut ops, &mut vals)?;
+                    }
+                    ops.pop();
+                    continue;
+                }
+                _ => {}
+            }
+            if !want_operand {
+                // A binary operator (the forms the infix parser reads).
+                let binary_op = match (kind, self.peek_kind_at(1)) {
+                    (Some(TokenType::Or), _) => Some((Op::Binary(BinaryOperator::Or, 1), 1)),
+                    (Some(TokenType::Xor), _) => Some((Op::Binary(BinaryOperator::Xor, 1), 1)),
+                    (Some(TokenType::And), _) => Some((Op::Binary(BinaryOperator::And, 2), 1)),
+                    (Some(TokenType::Eq), _) => Some((Op::Binary(BinaryOperator::Equal, 4), 1)),
+                    (Some(TokenType::Neq), _) => Some((Op::Binary(BinaryOperator::NotEqual, 4), 1)),
+                    (Some(TokenType::Not), Some(TokenType::Eq)) => Some((Op::Binary(BinaryOperator::NotEqual, 4), 2)),
+                    (Some(TokenType::Lt), Some(TokenType::Eq)) => Some((Op::Binary(BinaryOperator::LessThanOrEqual, 5), 2)),
+                    (Some(TokenType::Gt), Some(TokenType::Eq)) => Some((Op::Binary(BinaryOperator::GreaterThanOrEqual, 5), 2)),
+                    (Some(TokenType::Lt), Some(TokenType::Gt)) => Some((Op::Binary(BinaryOperator::NotEqual, 5), 2)),
+                    (Some(TokenType::Lt), _) => Some((Op::Binary(BinaryOperator::LessThan, 5), 1)),
+                    (Some(TokenType::Lte), _) => Some((Op::Binary(BinaryOperator::LessThanOrEqual, 5), 1)),
+                    (Some(TokenType::Gt), _) => Some((Op::Binary(BinaryOperator::GreaterThan, 5), 1)),
+                    (Some(TokenType::Gte), _) => Some((Op::Binary(BinaryOperator::GreaterThanOrEqual, 5), 1)),
+                    (Some(TokenType::Plus), _) => Some((Op::Binary(BinaryOperator::Add, 6), 1)),
+                    (Some(TokenType::Minus), _) => Some((Op::Binary(BinaryOperator::Subtract, 6), 1)),
+                    (Some(TokenType::Ampersand), _) => Some((Op::Binary(BinaryOperator::Concat, 6), 1)),
+                    (Some(TokenType::Mod), _) => Some((Op::Binary(BinaryOperator::Modulo, 7), 1)),
+                    (Some(TokenType::Star), _) => Some((Op::Binary(BinaryOperator::Multiply, 8), 1)),
+                    (Some(TokenType::Slash), _) => Some((Op::Binary(BinaryOperator::Divide, 8), 1)),
+                    (Some(TokenType::Backslash), _) => Some((Op::Binary(BinaryOperator::IntegerDivide, 8), 1)),
+                    (Some(TokenType::Caret), _) => Some((Op::Binary(BinaryOperator::Power, 9), 1)),
+                    (Some(TokenType::Identifier), _) if self.peek_identifier_eq("INV") => Some((Op::Named("INV", 7), 1)),
+                    (Some(TokenType::Identifier), _) if self.peek_identifier_eq("SHL") => Some((Op::Named("SHL", 8), 1)),
+                    (Some(TokenType::Identifier), _) if self.peek_identifier_eq("SHR") => Some((Op::Named("SHR", 8), 1)),
+                    _ => None,
+                };
+                if let Some((op, width)) = binary_op {
+                    self.pos += width;
+                    let p = prec(&op);
+                    while ops.last().is_some_and(|top| !matches!(top, Op::Paren) && prec(top) >= p) {
+                        reduce(&mut ops, &mut vals)?;
+                    }
+                    ops.push(op);
+                    want_operand = true;
+                    continue;
+                }
+            }
+            // An operand (side by side with the one before, if no operator
+            // came between).
+            let starts_operand = match kind {
+                Some(TokenType::Number | TokenType::StringLit | TokenType::Dot) => true,
+                Some(TokenType::Identifier) => want_operand || self.operand_follows(),
+                _ => want_operand && self.peek().is_some_and(|t| t.kind != TokenType::Identifier && self.is_keyword_name(&t.lexeme)),
+            };
+            if !starts_operand {
+                break;
+            }
+            let operand = self.parse_postfix_expression()?;
+            vals.push(operand);
+            want_operand = false;
+        }
+        if want_operand {
+            return None;
+        }
+        while !ops.is_empty() {
+            reduce(&mut ops, &mut vals)?;
+        }
+        let mut vals = vals.into_iter();
+        let first = vals.next()?;
+        // (the others, when one of them calls something: worked out too)
+        let rest: Vec<Expression> = vals.collect();
+        if !rest.iter().any(calls_something) {
+            return Some(first);
+        }
+        let span = TextSpan::new(expression_span(&first).start, rest.last().map_or(expression_span(&first).end, |e| expression_span(e).end));
+        let one = Expression::Literal(Literal { span, value: LiteralValue::Integer(1) });
+        Some(rest.into_iter().rev().fold(None, |acc: Option<Expression>, e| {
+            Some(match acc {
+                None => e,
+                Some(after) => call_expr(span, "IIF", vec![one.clone(), e, after]),
+            })
+        }).map_or(first.clone(), |others| call_expr(span, "IIF", vec![one, first, others])))
     }
 
     /// RapidQ's POSTFIX (RPN) expressions (manual, Appendix C): every operand
@@ -2546,6 +2751,11 @@ impl<'a> Parser<'a> {
     fn parse_postfix_expression(&mut self) -> Option<Expression> {
         let mut expr = self.parse_primary()?;
         loop {
+            // (a number or a string can't be called: `9(COS(x))` is two
+            // operands side by side — parse_stacked_expression)
+            if self.peek_kind() == Some(TokenType::LParen) && matches!(expr, Expression::Literal(_)) {
+                break;
+            }
             if self.match_kind(TokenType::LParen) {
                 let args = self.parse_argument_list_in_parens()?;
                 expr = Expression::FunctionCall(FunctionCallExpression {
@@ -2688,7 +2898,7 @@ impl<'a> Parser<'a> {
             }
             TokenType::LParen => {
                 self.advance()?;
-                let expr = self.parse_expression()?;
+                let expr = self.parse_group_expression()?;
                 self.expect(TokenType::RParen)?;
                 Some(expr)
             }
@@ -2909,6 +3119,18 @@ fn call_expr(span: TextSpan, name: &str, args: Vec<Expression>) -> Expression {
     Expression::FunctionCall(FunctionCallExpression { span, callee: Box::new(ident(span, name)), args })
 }
 
+/// Whether working `e` out may call something (a FUNCTION, a method, a
+/// built-in) — an operand RapidQ drops is still worked out then.
+fn calls_something(e: &Expression) -> bool {
+    match e {
+        Expression::FunctionCall(_) | Expression::MethodCall(_) | Expression::ArrayAccess(_) => true,
+        Expression::Binary(b) => calls_something(&b.left) || calls_something(&b.right),
+        Expression::Unary(u) => calls_something(&u.operand),
+        Expression::MemberAccess(m) => calls_something(&m.object),
+        Expression::Identifier(_) | Expression::Literal(_) => false,
+    }
+}
+
 /// Inside a SUBI/FUNCTIONI: ParamStr$(i) → __PARAMSTR(__params, i), ParamVal(i),
 /// and the ParamStrCount / ParamValCount counts.
 fn rewrite_param_access(body: &mut [Statement]) {
@@ -3097,10 +3319,31 @@ mod tests {
 
     #[test]
     fn leftover_tokens_after_a_statement_are_an_error() {
-        let errs = errors("x = 1 y = 2\n");
+        // (`x = 1 y = 2` isn't: RapidQ reads `1 y = 2` as one expression,
+        // its operands side by side — operands_side_by_side below)
+        let errs = errors("x = 1 THEN y = 2\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert_eq!((errs[0].0, errs[0].1), (1, 7));
-        assert!(errs[0].2.contains("Expected end-of-line but got y"), "{errs:?}");
+        assert!(errs[0].2.contains("Expected end-of-line but got THEN"), "{errs:?}");
+    }
+
+    #[test]
+    fn operands_side_by_side() {
+        // RC.EXE: the operand stack's bottom (`A B OR C` is A) …
+        let stmts = parse("x = A B OR C\n");
+        assert!(matches!(&stmts[0], Statement::Assignment(a) if matches!(&a.value, Expression::Identifier(i) if i.name == "A")), "{stmts:?}");
+        // … the others still worked out when they call something (`-9(COS(t))`
+        // is 9, COS called: IIF(1, 9, -COS(t)))
+        let stmts = parse("y = -9(COS(t))\n");
+        let Statement::Assignment(a) = &stmts[0] else { panic!("{stmts:?}") };
+        let Expression::FunctionCall(c) = &a.value else { panic!("{a:?}") };
+        assert!(matches!(c.callee.as_ref(), Expression::Identifier(i) if i.name == "IIF"));
+        assert!(matches!(&c.args[1], Expression::Literal(Literal { value: LiteralValue::Integer(9), .. })), "{c:?}");
+        assert!(matches!(&c.args[2], Expression::Unary(u) if u.operator == UnaryOperator::Negate), "{c:?}");
+        // (parentheses only group: `(2 3) + 1` is 2)
+        let stmts = parse("z = (2 3) + 1\n");
+        assert!(matches!(&stmts[0], Statement::Assignment(a) if matches!(&a.value, Expression::Literal(Literal { value: LiteralValue::Integer(2), .. }))), "{stmts:?}");
+        assert_eq!(errors("w = 1 +\n").len(), 1);
     }
 
     #[test]
@@ -3427,7 +3670,8 @@ mod tests {
 
     #[test]
     fn bad_case_list_is_reported_on_its_own_line() {
-        let errs = errors("SELECT CASE n\n  CASE 1 2\n    x = 1\nEND SELECT\n");
+        // (`CASE 1 2` isn't one: RapidQ reads it as the list 1)
+        let errs = errors("SELECT CASE n\n  CASE 1 )\n    x = 1\nEND SELECT\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert_eq!(errs[0].0, 2, "{errs:?}");
     }

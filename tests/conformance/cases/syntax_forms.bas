@@ -18,10 +18,15 @@ FUNCTION Feb (o AS INTEGER) AS INTEGER
 END FUNCTION
 PRINT Feb(0); Feb(1)
 DIM n AS INTEGER
+DIM C& AS LONG
 n = 4
 SELECT CASE n
+' (RC.EXE reads `CASE 4, 7<TAB>C& = -2` as the list 4, 7: the assignment is
+' an operand side by side with the 7 — tests/conformance/cases/
+' juxtaposed_operands.bas — so the case has no body; RapidQ's own
+' dayfunction.bas example has this line)
 CASE 4, 7	C& = -2
-CASE ELSE C& = 0
+CASE ELSE C& = 5
 END SELECT
 PRINT C&
 270 FOR I = 1 TO 3

@@ -157,7 +157,7 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
   - [x] D1b: FullScreen, ActiveOnly, Rotate, View.*, Cursor, a screen added to a shown form, the screen font (MS Sans Serif 8) (`dx_more` fixture)
   - [x] D2: QDXSOUND (rodio / Web Audio) (`dx_sound` fixture)
   - [x] D3–D4: the QD3D* scene and API, the `.X` loader, the software rasterizer, shadows (`d3d_scene`, `d3d_xfile` fixtures; RapidQ's own look can't be compared: `d3drm.dll` left Windows with Vista)
-  - [ ] D5: the wgpu renderer
+  - [ ] D5: the wgpu renderer — **parked** (the software rasterizer is fast enough: Park.x, 29k faces, 4.4 ms at 1×, 8.1 ms at 2×; revisit when a real program measurably needs it — docs/directx-plan.md "Stage D5: parked")
   - [ ] D6: joysticks (RapidQ has no object: a RapidR `RJOYSTICK` on `gilrs` / the Gamepad API)
 
 Next up, in order:
