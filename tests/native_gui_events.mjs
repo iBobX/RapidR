@@ -2,7 +2,7 @@
 // Rust backend) and interpreted (`rapidr build --interp`) — which must give
 // the same results. Clicks are fired through the runtime's test hooks
 // (RAPIDR_TEST_EVENTS / RAPIDR_TEST_DUMP / RAPIDR_CAPTURE in
-// crates/rapidr-runtime-core/src/ui/testhooks.rs) on the UI kernel's
+// crates/rapidr-ui-app/src/testhooks.rs) on the UI kernel's
 // headless host: no desktop session needed (RAPIDR_CAPTURE_WINDOWS=1 shows
 // real windows instead).
 //

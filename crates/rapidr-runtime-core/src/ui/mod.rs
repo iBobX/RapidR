@@ -14,7 +14,6 @@ pub use rapidr_ui_app::{choose_dialogs, file_dialog, testhooks};
 pub mod program;
 pub mod kernel;
 pub mod kernel_store;
-pub mod kernel_lists;
 
 use crate::value::Value;
 

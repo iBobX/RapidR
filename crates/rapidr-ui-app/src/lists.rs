@@ -1,7 +1,8 @@
-//! The lists lane's runtime side of the kernel host (docs/desktop-host-
-//! plan.md §2.2 group 3): what the program does for QLISTBOX, QCOMBOBOX,
-//! QLISTVIEW, QSTRINGGRID, QHEADER, QTREEVIEW / QOUTLINE and QDIRTREE /
-//! QFILELISTBOX, host-neutrally.
+//! The lists lane's program side of the kernel (docs/desktop-host-plan.md
+//! §2.2 group 3; runtime-core's `ui/kernel_lists.rs` until Stage W2): what
+//! the program does for QLISTBOX, QCOMBOBOX, QLISTVIEW, QSTRINGGRID,
+//! QHEADER, QTREEVIEW / QOUTLINE and QDIRTREE / QFILELISTBOX,
+//! host-neutrally.
 //!
 //! - [`dispatch`]: what the user did that the program answers
 //!   (`ListAction`, queued by the kernel's components): OnChanging,
@@ -20,113 +21,139 @@ use std::collections::{HashMap, HashSet};
 use rapidr_ui_kernel::components::list::{view_size, ListAction};
 use rapidr_ui_kernel::components::tree::open_editor;
 
-use crate::object::{get_children_of, rp_comp_get, rp_comp_set, rp_fire_event, rp_fire_event_1, rp_fire_event_args, rp_fire_event_then, rp_has_handler};
-use crate::value::{v_int, v_str, Value};
+use rapidr_value::{v_int, v_str, Value};
 
-use super::kernel::{invalidate_all, is_shown_form};
+use crate::forms::form_shown;
+use crate::windows::invalidate;
+use crate::Program;
 
 // ------------------------------------------------------------ dispatch --
 
 /// What the user did to component `id` (after the pump, each to
 /// completion).
-pub fn dispatch(id: &str, action: ListAction) {
+pub fn dispatch<P: Program>(p: P, id: &str, action: ListAction) {
     match action {
-        ListAction::Fire(event, args) => rp_fire_event_args(id, &event, &args),
-        ListAction::TreeSelect(i) => tree_user_select(id, i),
-        ListAction::TreeToggle(i, open) => tree_user_toggle(id, i, open),
-        ListAction::TreeEdit(i) => tree_begin_edit(id, i),
-        ListAction::TreeEdited(i, text) => tree_end_edit(id, i, text),
+        ListAction::Fire(event, args) => p.fire_args(id, &event, &args),
+        ListAction::TreeSelect(i) => tree_user_select(p, id, i),
+        ListAction::TreeToggle(i, open) => tree_user_toggle(p, id, i, open),
+        ListAction::TreeEdit(i) => tree_begin_edit(p, id, i),
+        ListAction::TreeEdited(i, text) => tree_end_edit(p, id, i, text),
         ListAction::GridSelect(c, r, extend) => {
-            grid_user_select(id, c, r, extend);
+            grid_user_select(p, id, c, r, extend);
         }
-        ListAction::GridStore(value) => grid_store(id, value),
-        ListAction::GridListDrop(c, r, anchor) => grid_list_drop(id, c, r, anchor),
+        ListAction::GridStore(value) => grid_store(p, id, value),
+        ListAction::GridListDrop(c, r, anchor) => grid_list_drop(p, id, c, r, anchor),
     }
-    invalidate_all();
+    invalidate();
 }
 
 /// The user picked node `i`: OnChanging (Index, AllowChange) may refuse;
 /// then the selection and OnChange (Index).
-fn tree_user_select(name: &str, i: usize) {
+fn tree_user_select<P: Program>(p: P, name: &str, i: usize) {
     if rapidr_value::objects::with_tree(name, |m| m.item_index) == Some(i as i64) {
         return;
     }
     let tree = name.to_string();
-    rp_fire_event_then(name, "onchanging", &[v_int(i as i64), v_int(-1)], move |a| {
-        let allowed = a[1].to_i64() != 0;
-        if allowed {
-            rapidr_value::objects::with_tree(&tree, |m| m.select(i as i64));
-        }
-        invalidate_all();
-        if allowed {
-            rp_fire_event_1(&tree, "onchange", v_int(i as i64));
-        }
-    });
+    p.fire_then(
+        name,
+        "onchanging",
+        &[v_int(i as i64), v_int(-1)],
+        Box::new(move |a| {
+            let allowed = a[1].to_i64() != 0;
+            if allowed {
+                rapidr_value::objects::with_tree(&tree, |m| m.select(i as i64));
+            }
+            invalidate();
+            if allowed {
+                p.fire_args(&tree, "onchange", &[v_int(i as i64)]);
+            }
+        }),
+    );
 }
 
 /// The user expanded (`open`) or collapsed node `i`: OnExpanding /
 /// OnCollapsing may refuse; then OnExpanded / OnCollapsed.
-fn tree_user_toggle(name: &str, i: usize, open: bool) {
+fn tree_user_toggle<P: Program>(p: P, name: &str, i: usize, open: bool) {
     let tree = name.to_string();
-    rp_fire_event_then(name, if open { "onexpanding" } else { "oncollapsing" }, &[v_int(i as i64), v_int(-1)], move |a| {
-        let allowed = a[1].to_i64() != 0;
-        if allowed {
-            rapidr_value::objects::with_tree(&tree, |m| m.set_expanded(i, open, false));
-        }
-        invalidate_all();
-        if allowed {
-            rp_fire_event_1(&tree, if open { "onexpanded" } else { "oncollapsed" }, v_int(i as i64));
-        }
-    });
+    p.fire_then(
+        name,
+        if open { "onexpanding" } else { "oncollapsing" },
+        &[v_int(i as i64), v_int(-1)],
+        Box::new(move |a| {
+            let allowed = a[1].to_i64() != 0;
+            if allowed {
+                rapidr_value::objects::with_tree(&tree, |m| m.set_expanded(i, open, false));
+            }
+            invalidate();
+            if allowed {
+                p.fire_args(&tree, if open { "onexpanded" } else { "oncollapsed" }, &[v_int(i as i64)]);
+            }
+        }),
+    );
 }
 
 /// F2 on node `i`: not in a ReadOnly tree; OnEditing (Index, AllowEdit)
 /// may refuse; then its editor opens.
-fn tree_begin_edit(name: &str, i: usize) {
+fn tree_begin_edit<P: Program>(p: P, name: &str, i: usize) {
     if rapidr_value::objects::with_tree(name, |m| m.read_only || i >= m.nodes.len()).unwrap_or(true) {
         return;
     }
     let tree = name.to_string();
-    rp_fire_event_then(name, "onediting", &[v_int(i as i64), v_int(-1)], move |a| {
-        if a[1].to_i64() == 0 {
-            return;
-        }
-        let Some(text) = rapidr_value::objects::with_tree(&tree, |m| m.nodes.get(i).map(|n| n.text.clone())).flatten() else { return };
-        open_editor(&tree, i, &text);
-        invalidate_all();
-    });
+    p.fire_then(
+        name,
+        "onediting",
+        &[v_int(i as i64), v_int(-1)],
+        Box::new(move |a| {
+            if a[1].to_i64() == 0 {
+                return;
+            }
+            let Some(text) = rapidr_value::objects::with_tree(&tree, |m| m.nodes.get(i).map(|n| n.text.clone())).flatten() else { return };
+            open_editor(&tree, i, &text);
+            invalidate();
+        }),
+    );
 }
 
 /// The edit of node `i` kept: OnEdited (Index, S) — S the text, which the
 /// program may change — and the node gets it.
-fn tree_end_edit(name: &str, i: usize, text: String) {
+fn tree_end_edit<P: Program>(p: P, name: &str, i: usize, text: String) {
     let tree = name.to_string();
-    rp_fire_event_then(name, "onedited", &[v_int(i as i64), v_str(&text)], move |a| {
-        let text = a[1].to_string_val();
-        rapidr_value::objects::with_tree(&tree, |m| m.set_text(i, text));
-        invalidate_all();
-    });
+    p.fire_then(
+        name,
+        "onedited",
+        &[v_int(i as i64), v_str(&text)],
+        Box::new(move |a| {
+            let text = a[1].to_string_val();
+            rapidr_value::objects::with_tree(&tree, |m| m.set_text(i, text));
+            invalidate();
+        }),
+    );
 }
 
 /// A selection the user made (`StringGrid::user_select`): when it moved,
 /// OnSelectCell (Col, Row, CanSelect); `CanSelect = 0` puts it back.
-fn grid_user_select(name: &str, c: i64, r: i64, extend: bool) -> bool {
+fn grid_user_select<P: Program>(p: P, name: &str, c: i64, r: i64, extend: bool) -> bool {
     let Some(before) = rapidr_value::objects::with_grid_mut(name, |g| g.user_select(c, r, extend)).flatten() else {
         return false;
     };
     let grid = name.to_string();
-    rp_fire_event_then(name, "onselectcell", &[v_int(c), v_int(r), v_int(-1)], move |a| {
-        if a[2].to_i64() == 0 {
-            rapidr_value::objects::with_grid_mut(&grid, |g| g.set_selection(before));
-            invalidate_all();
-        }
-    });
+    p.fire_then(
+        name,
+        "onselectcell",
+        &[v_int(c), v_int(r), v_int(-1)],
+        Box::new(move |a| {
+            if a[2].to_i64() == 0 {
+                rapidr_value::objects::with_grid_mut(&grid, |g| g.set_selection(before));
+                invalidate();
+            }
+        }),
+    );
     true
 }
 
 /// The user entered `value` in the selected cell: stored, then
 /// OnSetEditText (Col, Row, Value) and OnChange, if it changed.
-fn grid_store(name: &str, value: String) {
+fn grid_store<P: Program>(p: P, name: &str, value: String) {
     let changed = rapidr_value::objects::with_grid_mut(name, |g| {
         let (c, r) = (g.col, g.row);
         if c < 0 || r < 0 || g.cell(c as usize, r as usize) == value {
@@ -137,33 +164,38 @@ fn grid_store(name: &str, value: String) {
     })
     .flatten();
     if let Some((c, r)) = changed {
-        rp_fire_event_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
-        rp_fire_event(name, "onchange");
+        p.fire_args(name, "onsetedittext", &[v_int(c), v_int(r), v_str(&value)]);
+        p.fire(name, "onchange");
     }
 }
 
 /// A gcsList column's drop-down: OnListDropDown (Col, Row, S) may change
 /// the items (its S comes back); then the kernel drops them under the
 /// cell, and a pick is stored like an edit.
-fn grid_list_drop(name: &str, c: i64, r: i64, anchor: rapidr_value::objects::ops::Rect) {
+fn grid_list_drop<P: Program>(p: P, name: &str, c: i64, r: i64, anchor: rapidr_value::objects::ops::Rect) {
     let Some(list) = rapidr_value::objects::with_grid(name, |g| g.list_text(c as usize, r as usize)).flatten() else { return };
-    let Some(form) = crate::object::form_of(name) else { return };
+    let Some(form) = p.form_of(name) else { return };
     let grid = name.to_string();
-    rp_fire_event_then(name, "onlistdropdown", &[v_int(c), v_int(r), v_str(&list)], move |a| {
-        let items = rapidr_value::objects::grid::list_lines(&a[2].to_string_val());
-        rapidr_ui_kernel::components::combo::open_list(&form, &grid, items, anchor);
-        invalidate_all();
-    });
+    p.fire_then(
+        name,
+        "onlistdropdown",
+        &[v_int(c), v_int(r), v_str(&list)],
+        Box::new(move |a| {
+            let items = rapidr_value::objects::grid::list_lines(&a[2].to_string_val());
+            rapidr_ui_kernel::components::combo::open_list(&form, &grid, items, anchor);
+            invalidate();
+        }),
+    );
 }
 
 // --------------------------------------------------- tree's own calls --
 
 /// QTREEVIEW changed: OnDeletion (Index) for the nodes the program
 /// deleted.
-pub fn tree_refresh(name: &str) {
+pub fn tree_refresh<P: Program>(p: P, name: &str) {
     let name = name.to_lowercase();
     for i in rapidr_value::objects::with_tree(&name, |m| m.take_deleted()).unwrap_or_default() {
-        rp_fire_event_1(&name, "ondeletion", v_int(i as i64));
+        p.fire_args(&name, "ondeletion", &[v_int(i as i64)]);
     }
 }
 
@@ -187,37 +219,37 @@ thread_local! {
 }
 
 /// The components of shown form `form`, depth first (id, type).
-fn components(parent: &str, out: &mut Vec<(String, String)>) {
-    for (id, t) in get_children_of(parent) {
+fn components<P: Program>(p: P, parent: &str, out: &mut Vec<(String, String)>) {
+    for (id, t) in p.children(parent) {
         let id = id.to_lowercase();
         out.push((id.clone(), t.to_ascii_uppercase()));
-        components(&id, out);
+        components(p, &id, out);
     }
 }
 
 /// Whether `id` shows: Visible up to its form (which shows).
-fn shown(id: &str) -> bool {
+fn shown<P: Program>(p: P, id: &str) -> bool {
     let mut cur = id.to_lowercase();
     for _ in 0..64 {
-        if is_shown_form(&cur) {
+        if form_shown(&cur) {
             return true;
         }
-        if !super::kernel_store::flag(&cur, "visible", true) {
+        if !p.flag(&cur, "visible", true) {
             return false;
         }
-        let p = rp_comp_get(&cur, "parent").to_string_val();
-        if p.is_empty() {
+        let parent = p.get(&cur, "parent").to_string_val();
+        if parent.is_empty() {
             return false;
         }
-        cur = p.to_lowercase();
+        cur = parent.to_lowercase();
     }
     false
 }
 
 /// A component's Width × Height (RapidQ's default size when unset).
-fn size_of(id: &str, type_name: &str) -> (i64, i64) {
+fn size_of<P: Program>(p: P, id: &str, type_name: &str) -> (i64, i64) {
     let (dw, dh) = rapidr_value::layout::default_size(type_name).unwrap_or((75, 25));
-    let int = |p: &str, d: i64| match rp_comp_get(id, p) {
+    let int = |prop: &str, d: i64| match p.get(id, prop) {
         Value::Null => d,
         v => v.to_i64(),
     };
@@ -227,23 +259,23 @@ fn size_of(id: &str, type_name: &str) -> (i64, i64) {
 /// The owner-draw events of the shown forms' components, before the
 /// windows are drawn (plan §1.5 rule 3: what OnDrawItem / OnDrawCell /
 /// OnDrawSection draw is recorded by the models as what the kernel shows).
-pub fn pre_paint(forms: &[String]) {
+pub fn pre_paint<P: Program>(p: P, forms: &[String]) {
     let mut comps = Vec::new();
     for f in forms {
-        components(f, &mut comps);
+        components(p, f, &mut comps);
     }
     for (id, t) in comps {
         match t.as_str() {
-            "RLISTBOX" | "RCOMBOBOX" if shown(&id) => list_pre_paint(&id, &t),
-            "RSTRINGGRID" if shown(&id) => {
+            "RLISTBOX" | "RCOMBOBOX" if shown(p, &id) => list_pre_paint(p, &id, &t),
+            "RSTRINGGRID" if shown(p, &id) => {
                 // (VisibleRowCount / VisibleColCount: its inside — set here,
                 // since the kernel paints only when a window does)
-                let (w, h) = size_of(&id, &t);
+                let (w, h) = size_of(p, &id, &t);
                 rapidr_value::objects::with_grid_mut(&id, |g| g.view = (w - 4, h - 4));
-                grid_owner_draw(&id);
+                grid_owner_draw(p, &id);
             }
-            "RHEADER" if shown(&id) => header_paint(&id),
-            "RTREEVIEW" if shown(&id) => tree_ask_images(&id),
+            "RHEADER" if shown(p, &id) => header_paint(p, &id),
+            "RTREEVIEW" if shown(p, &id) => tree_ask_images(p, &id),
             _ => {}
         }
     }
@@ -252,33 +284,38 @@ pub fn pre_paint(forms: &[String]) {
 /// An owner-drawn or multi-column list: its view's size, OnMeasureItem's
 /// heights (lbOwnerDrawVariable), then OnDrawItem for every item after a
 /// change.
-fn list_pre_paint(name: &str, type_name: &str) {
+fn list_pre_paint<P: Program>(p: P, name: &str, type_name: &str) {
     if !rapidr_value::objects::with_list(name, |l| l.custom_drawn() || (l.combo && l.owner_drawn())).unwrap_or(false) {
         return;
     }
-    let (w, h) = size_of(name, type_name);
+    let (w, h) = size_of(p, name, type_name);
     rapidr_value::objects::with_list_mut(name, |l| {
         let (vw, vh) = view_size(l, w, h);
         l.set_view(vw, vh);
     });
-    if list_measure(name) {
+    if list_measure(p, name) {
         return;
     }
-    list_owner_draw(name);
+    list_owner_draw(p, name);
 }
 
 /// OnMeasureItem (Index, Height) for each item of a variable-height list
 /// whose items changed: `true` while answers are still to come.
-fn list_measure(name: &str) -> bool {
-    if rp_has_handler(name, "onmeasureitem") {
+fn list_measure<P: Program>(p: P, name: &str) -> bool {
+    if p.has_handler(name, "onmeasureitem") {
         let asks = rapidr_value::objects::with_list_mut(name, |l| l.measure_needed()).unwrap_or_default();
         for (round, i, h) in asks {
             let list = name.to_string();
-            rp_fire_event_then(name, "onmeasureitem", &[v_int(i as i64), v_int(h)], move |a| {
-                if rapidr_value::objects::with_list_mut(&list, |l| l.measured(round, i, a[1].to_i64())).unwrap_or(false) {
-                    invalidate_all();
-                }
-            });
+            p.fire_then(
+                name,
+                "onmeasureitem",
+                &[v_int(i as i64), v_int(h)],
+                Box::new(move |a| {
+                    if rapidr_value::objects::with_list_mut(&list, |l| l.measured(round, i, a[1].to_i64())).unwrap_or(false) {
+                        invalidate();
+                    }
+                }),
+            );
         }
     }
     rapidr_value::objects::with_list(name, |l| l.measuring()).unwrap_or(false)
@@ -286,8 +323,8 @@ fn list_measure(name: &str) -> bool {
 
 /// OnDrawItem (Index, State, Rect) for every item after the list changed;
 /// each Rect a QRECT (a property bag).
-fn list_owner_draw(name: &str) {
-    if !rp_has_handler(name, "ondrawitem") {
+fn list_owner_draw<P: Program>(p: P, name: &str) {
+    if !p.has_handler(name, "ondrawitem") {
         return;
     }
     if !rapidr_value::objects::with_list_mut(name, |l| l.owner_drawn() && l.owner_draw_needed()).unwrap_or(false) {
@@ -297,17 +334,17 @@ fn list_owner_draw(name: &str) {
     for (i, state, (left, top, right, bottom)) in items {
         let rect = format!("{name}.itemrect({i})");
         for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
-            rp_comp_set(&rect, prop, v_int(v));
+            p.set(&rect, prop, v_int(v));
         }
-        rp_fire_event_args(name, "ondrawitem", &[v_int(i as i64), v_int(state), v_str(&rect)]);
+        p.fire_args(name, "ondrawitem", &[v_int(i as i64), v_int(state), v_str(&rect)]);
     }
-    invalidate_all();
+    invalidate();
 }
 
 /// OnDrawCell (Col, Row, State, Rect) for every cell after a shown grid
 /// changed.
-fn grid_owner_draw(name: &str) {
-    if !rp_has_handler(name, "ondrawcell") {
+fn grid_owner_draw<P: Program>(p: P, name: &str) {
+    if !p.has_handler(name, "ondrawcell") {
         return;
     }
     if !rapidr_value::objects::with_grid_mut(name, |g| g.owner_draw_needed()).unwrap_or(false) {
@@ -317,18 +354,18 @@ fn grid_owner_draw(name: &str) {
     for (col, row, state, (left, top, right, bottom)) in cells {
         let rect = format!("{name}.cellrect({col},{row})");
         for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
-            rp_comp_set(&rect, prop, v_int(v));
+            p.set(&rect, prop, v_int(v));
         }
-        rp_fire_event_args(name, "ondrawcell", &[v_int(col as i64), v_int(row as i64), v_int(state), v_str(&rect)]);
+        p.fire_args(name, "ondrawcell", &[v_int(col as i64), v_int(row as i64), v_int(state), v_str(&rect)]);
     }
-    invalidate_all();
+    invalidate();
 }
 
 /// A shown QHEADER's faces painted on its surface again when its size or
 /// sections changed (or one is pressed), and OnDrawSection (Index,
 /// Pressed, Rect) for its owner-drawn ones.
-fn header_paint(name: &str) {
-    let (w, h) = size_of(name, "RHEADER");
+fn header_paint<P: Program>(p: P, name: &str) {
+    let (w, h) = size_of(p, name, "RHEADER");
     let Some(state) = rapidr_value::objects::with_header(name, |hd| format!("{w}x{h} {:?} {:?}", hd.pressed, hd.sections)) else { return };
     if HEADERS.with(|s| s.borrow().get(name) == Some(&state)) {
         return;
@@ -337,17 +374,17 @@ fn header_paint(name: &str) {
     for (i, pressed, (left, top, right, bottom)) in rapidr_value::objects::paint_header(name, w, h) {
         let rect = format!("{name}.sectionrect({i})");
         for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
-            rp_comp_set(&rect, prop, v_int(v));
+            p.set(&rect, prop, v_int(v));
         }
-        rp_fire_event_args(name, "ondrawsection", &[v_int(i as i64), v_int(if pressed { -1 } else { 0 }), v_str(&rect)]);
+        p.fire_args(name, "ondrawsection", &[v_int(i as i64), v_int(if pressed { -1 } else { 0 }), v_str(&rect)]);
     }
-    invalidate_all();
+    invalidate();
 }
 
 /// OnGetImageIndex (Index) for each shown node, OnGetSelectedIndex (Index)
 /// for the selected one, when what the tree shows changed.
-fn tree_ask_images(name: &str) {
-    let ask = |e: &str| rp_has_handler(name, e);
+fn tree_ask_images<P: Program>(p: P, name: &str) {
+    let ask = |e: &str| p.has_handler(name, e);
     let key = name.to_lowercase();
     let Some(view) = rapidr_value::objects::with_tree(name, |m| m.view_hash()) else { return };
     if !(ask("ongetimageindex") || ask("ongetselectedindex")) || TREES_ASKED.with(|a| a.borrow().get(&key) == Some(&view)) {
@@ -360,8 +397,8 @@ fn tree_ask_images(name: &str) {
     let (rows, selected) = rapidr_value::objects::with_tree(name, |m| (m.visible_rows(), m.item_index)).unwrap_or_default();
     for i in rows {
         let event = if i as i64 == selected { "ongetselectedindex" } else { "ongetimageindex" };
-        rp_fire_event_1(name, event, v_int(i as i64));
+        p.fire_args(name, event, &[v_int(i as i64)]);
     }
     TREES_ASKING.with(|a| a.borrow_mut().remove(&key));
-    invalidate_all();
+    invalidate();
 }

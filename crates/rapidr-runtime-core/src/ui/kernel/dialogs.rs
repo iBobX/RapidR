@@ -23,7 +23,10 @@ use rapidr_ui_host_winit::{FileRequest, Frame, HostCmd, Icon, WindowSpec};
 use rapidr_ui_kernel::dialogs::{Answer, Dialog};
 use rapidr_ui_kernel::{KernelEvent, Store};
 
-use super::{ensure_host, invalidate, pump, screen, st, step, with_kern, RtStore};
+use rapidr_ui_app::forms;
+use rapidr_ui_app::windows::{invalidate, restructure};
+
+use super::{ensure_host, pump, screen, step, with_kern, RtStore};
 use crate::ui::program::Rt;
 use crate::value::{v_int, Value};
 
@@ -83,7 +86,7 @@ pub(super) fn event(form: &str, ev: KernelEvent) {
             k.desk.resized(form, w, h);
             k.desk.cmds.push(HostCmd::Size(form.to_string()));
         });
-        super::restructure();
+        restructure();
     }
     invalidate();
 }
@@ -91,7 +94,7 @@ pub(super) fn event(form: &str, ev: KernelEvent) {
 /// The form a dialog belongs over: the innermost modal one, else the
 /// frontmost shown.
 fn owner() -> Option<String> {
-    st(|s| s.modal.last().cloned()).or_else(|| with_kern(|k| k.desk.stacking().last().cloned()).flatten())
+    forms::innermost_modal().or_else(|| with_kern(|k| k.desk.stacking().last().cloned()).flatten())
 }
 
 /// The application's icon (Application.Icon) for a dialog's window.
@@ -122,7 +125,7 @@ fn run(d: Dialog) -> Answer {
         k.desk.ensure_form(&RtStore, &id, false, spec);
         k.desk.show(&id);
     });
-    st(|s| s.modal.push(id.clone()));
+    forms::push_modal(&id);
     pump(Some(Duration::ZERO));
     let answer = loop {
         if let Some(a) = ANSWERS.with(|m| m.borrow_mut().remove(&id)) {
@@ -130,7 +133,7 @@ fn run(d: Dialog) -> Answer {
         }
         step(None);
     };
-    st(|s| s.modal.retain(|m| *m != id));
+    forms::remove_modal(&id);
     with_kern(|k| k.desk.forget(&id));
     if let Some(mut d) = OPEN.with(|o| {
         let mut o = o.borrow_mut();
@@ -234,7 +237,7 @@ fn pick_files(req: &crate::ui::file_dialog::Request) -> Vec<String> {
     with_kern(|k| k.desk.cmds.push(HostCmd::FileDialog { id, form: parent.clone(), req: host_req }));
     // (app-modal: the form under the sheet takes the input there is)
     if let Some(p) = &parent {
-        st(|s| s.modal.push(p.clone()));
+        forms::push_modal(p);
     }
     // (made now, inside a pump)
     pump(Some(Duration::ZERO));
@@ -245,11 +248,7 @@ fn pick_files(req: &crate::ui::file_dialog::Request) -> Vec<String> {
         step(None);
     };
     if let Some(p) = &parent {
-        st(|s| {
-            if let Some(i) = s.modal.iter().rposition(|m| m == p) {
-                s.modal.remove(i);
-            }
-        });
+        forms::remove_last_modal(p);
     }
     paths
 }
