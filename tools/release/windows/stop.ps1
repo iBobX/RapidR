@@ -13,4 +13,8 @@ foreach ($j in $jobs) {
     $all = @(Tree $j.ProcessId) + @($j)
     foreach ($p in $all) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue; "killed $($p.ProcessId) $($p.Name)" }
 }
+# (what a stopped task leaves running: its tools, by what they work on)
+Get-CimInstance Win32_Process | Where-Object { $_.Name -ne "powershell.exe" -and ("$($_.CommandLine)" -like "*rapidr-release*" -or "$($_.CommandLine)" -like "*rapidr-smoke-*") } | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; "killed $($_.ProcessId) $($_.Name)"
+}
 exit 0
