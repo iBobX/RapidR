@@ -527,6 +527,10 @@ fn start_timers() {
 }
 
 fn timer_interval(name: &str) -> Duration {
+    // (the DirectX lane's: a QDXTIMER's Interval 0 is a screen refresh)
+    if let Some(d) = crate::directx::timer_interval(name) {
+        return d;
+    }
     let ms = rp_comp_get(name, "interval").to_i64();
     Duration::from_millis(if ms > 0 { ms as u64 } else { 1000 })
 }
@@ -573,6 +577,8 @@ fn fire_due_timers_then(then: impl Fn()) {
             st(|s| s.scheduled.remove(&name));
             continue;
         }
+        // (the DirectX lane's: a QDXTIMER counts its frames)
+        crate::directx::timer_fired(&name);
         rp_fire_event(&name, "ontimer");
         then();
         let at = Instant::now() + timer_interval(&name);
@@ -708,6 +714,8 @@ fn build_form(name: &str) {
         return;
     }
     rp_fire_event(&name, "onload");
+    // (the DirectX lane's: its QDXSCREENs set up, OnInitialize)
+    crate::directx::form_built(&name);
     st(|s| s.first_paint.insert(name));
 }
 

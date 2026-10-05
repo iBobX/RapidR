@@ -10,6 +10,8 @@ mod builtins;
 pub mod database_web;
 pub mod datascience_web;
 pub mod dialog_web;
+/// QDXSCREEN / QDXTIMER in the browser (the DirectX lane's).
+pub mod directx_web;
 
 /// The INPUT statement's line (for `rapidr-vm-host-web`).
 pub fn builtins_input_line() -> value::Value {

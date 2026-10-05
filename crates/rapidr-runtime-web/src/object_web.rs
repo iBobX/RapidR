@@ -153,6 +153,17 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
         }
+        // (the DirectX lane's) QDXSCREEN; QDXTIMER (manual: Enabled
+        // False, ActiveOnly True; DelphiX's Interval 1000).
+        "RDXSCREEN" => {
+            props.insert("left".to_string(), v_int(0));
+            props.insert("top".to_string(), v_int(0));
+        }
+        "RDXTIMER" => {
+            props.insert("enabled".to_string(), v_bool(false));
+            props.insert("interval".to_string(), v_int(1000));
+            props.insert("activeonly".to_string(), v_bool(true));
+        }
         "RHEADER" => {
             // Sections: rapidr_value::objects::header; a canvas to draw on.
             props.insert("left".to_string(), v_int(0));
@@ -717,7 +728,7 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
 
-            if comp.type_name == "RTIMER" {
+            if comp.type_name == "RTIMER" || comp.type_name == "RDXTIMER" {
                 if lprop == "enabled" || lprop == "interval" {
                     drop(comps);
                     update_timer(&uname);
@@ -1106,6 +1117,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             gui_web::refresh_header(&uname);
         } else if rapidr_value::objects::is_canvas(name) {
             gui_web::render_canvas(&uname);
+        } else if rapidr_value::objects::is_dxscreen(name) && lmethod == "flip" {
+            // (the DirectX lane's: a Flip shows the back buffer)
+            gui_web::render_dxscreen(&uname);
         }
         if rapidr_value::objects::is_dirtree(name) {
             gui_web::render_dirtree(&uname);
@@ -1917,6 +1931,8 @@ pub fn take_onshow(form: &str) {
     }
     rp_comp_set_prop_only(form, ONSHOW_PENDING, v_bool(false));
     if rp_comp_get_stored(form, SHOWN_BY_PROGRAM).to_bool() {
+        // (the DirectX lane's: its QDXSCREENs set up, OnInitialize)
+        crate::directx_web::form_shown(form);
         rp_fire_event(form, "onshow");
     }
 }
@@ -2381,7 +2397,7 @@ fn bind_dom_event(name: &str, event: &str) {
     // QSCROLLBOX double-click (QCANVAS doesn't: RapidQ's has no OnDblClick).
     if matches!(event, "onclick" | "ondblclick" | "ondoubleclick") {
         let t = rp_comp_type(&name_owned).to_ascii_uppercase();
-        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX");
+        let doubles = matches!(t.as_str(), "RFORM" | "RPANEL" | "RLABEL" | "RGROUPBOX" | "RSCROLLBOX" | "RDXSCREEN");
         if doubles || (t == "RCANVAS" && event == "onclick") {
             bind_vcl_clicks(&el, &name_owned, event == "onclick", doubles);
             return;
@@ -2474,9 +2490,12 @@ fn update_timer(name: &str) {
         eh.borrow().contains_key(&(uname.clone(), "ontimer".to_string()))
     });
 
+    // (the DirectX lane's: a QDXTIMER's Interval 0 is a screen refresh)
+    let interval = crate::directx_web::timer_interval(&uname, interval);
     if enabled && has_handler && interval > 0 {
         let name_for_closure = uname.clone();
         let closure = Closure::<dyn FnMut()>::new(move || {
+            crate::directx_web::timer_fired(&name_for_closure);
             rp_fire_event(&name_for_closure, "ontimer");
         });
 
@@ -2572,6 +2591,10 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RWEBNOTIFICATION"
             | "RWEBGEOLOCATION"
             | "RROUTER"
+            // (the DirectX lane's)
+            | "RDXSCREEN"
+            | "RDXIMAGELIST"
+            | "RDXTIMER"
     )
 }
 
