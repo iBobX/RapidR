@@ -570,7 +570,7 @@ Handled in `compiler/preprocessor.py` before lexing.
 | `$TYPECHECK ON\|OFF` | Enable/disable strict type checking | Enables undeclared variable/function errors |
 | `$OPTION EXPLICIT` | Same as `$TYPECHECK ON` | |
 | `$OPTION DIM <TYPE>` | Default DIM type | Changes default from `DOUBLE` |
-| `$THEME <name>` | The desktop look | Applied at program start (native and interpreted). The UI kernel draws Windows' classic look (`Classic`, `System`, `Light`, `Windows`, `Win95`, `Win98`, `Win2K`); any other name says once that it draws classic |
+| `$THEME <name>` | The desktop look | Applied where it stands (native and interpreted): `Classic` (RapidQ's, the default; also `System`, `Light`, `Windows`, `Win95`, `Win98`, `Win2K`), `Modern` (flat, Windows 11-like; the FLTK-era looks' names too), `Dark`, `HighContrast`, `Auto` (the system's). `Application.Theme` reads and switches it at run time; `RAPIDR_THEME` is the default for a program that names none. A theme never changes sizes or fonts, and the program's own colours stay. Any other name says once that it draws classic (`rapidr_value::theme`, docs/desktop-host-plan.md "Kernel themes") |
 
 **Line preservation:** The preprocessor replaces consumed directive lines with empty strings to preserve line numbers for error reporting.
 
