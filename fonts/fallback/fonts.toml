@@ -1,0 +1,56 @@
+# The fallback fonts: what the UI kernel draws a character with when the
+# built-in Liberation fonts (crates/rapidr-value/fonts) lack it — symbols
+# (✓ …), Chinese, Japanese and Korean (docs/web-host-plan.md §3.7, Stage W7).
+# All are Noto fonts under the SIL Open Font License 1.1 (OFL.txt here), from
+# the Noto project's official GitHub release assets, pinned by version and
+# SHA-256. None declares a Reserved Font Name (their OFL.txt and the CJK
+# LICENSE have no "Reserved Font Name" line), so the subsets keep the fonts'
+# own names.
+#
+# `committed` fonts are in this directory (unmodified, ~0.8 MB): a source
+# build without the network still covers symbols. The others are fetched by
+# `python3 tools/fonts.py fetch` into target/fonts-src (cached there) and
+# split by `python3 tools/fonts.py build <dir>` into chunks a page loads on
+# demand. An installed RapidR ships the chunks; it never downloads.
+
+[[font]]
+family = "Noto Sans"
+file = "NotoSans-Regular.otf"
+committed = true
+release = "https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.015/NotoSans-v2.015.zip"
+release_sha256 = "0c34df072a3fa7efbb7cbf34950e1f971a4447cffe365d3a359e2d4089b958f5"
+member = "NotoSans/unhinted/otf/NotoSans-Regular.otf"
+
+[[font]]
+family = "Noto Sans Symbols"
+file = "NotoSansSymbols-Regular.otf"
+committed = true
+release = "https://github.com/notofonts/symbols/releases/download/NotoSansSymbols-v2.003/NotoSansSymbols-v2.003.zip"
+release_sha256 = "0c113cdcf6c31d050b80dac39fba2d804a6985281012e76e9220c0a00da007f3"
+member = "NotoSansSymbols/unhinted/otf/NotoSansSymbols-Regular.otf"
+
+[[font]]
+family = "Noto Sans Symbols 2"
+file = "NotoSansSymbols2-Regular.otf"
+committed = true
+release = "https://github.com/notofonts/symbols/releases/download/NotoSansSymbols2-v2.008/NotoSansSymbols2-v2.008.zip"
+release_sha256 = "346c930bbe8eb946701a05c54e9c11a2094dee1d93c387bf1771c0a3e335688f"
+member = "NotoSansSymbols2/unhinted/otf/NotoSansSymbols2-Regular.otf"
+
+# (Han, kana: Simplified Chinese's forms of the Han characters)
+[[font]]
+family = "Noto Sans SC"
+file = "NotoSansSC-Regular.otf"
+committed = false
+release = "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/18_NotoSansSC.zip"
+release_sha256 = "4d107c09ada479d3e48b6e78c83835773cbd9214bf6e12cdb7b60f8e068292ec"
+member = "NotoSansSC-Regular.otf"
+
+# (Hangul)
+[[font]]
+family = "Noto Sans KR"
+file = "NotoSansKR-Regular.otf"
+committed = false
+release = "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/17_NotoSansKR.zip"
+release_sha256 = "ac7eeb4e2b0d41de8ff31b2d6e1e2a41caf253fd5cefb380bfa1f40f1747b612"
+member = "NotoSansKR-Regular.otf"

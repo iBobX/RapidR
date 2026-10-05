@@ -33,7 +33,8 @@ export async function openIde(dpr = 1) {
   const page = await browser.newPage({ deviceScaleFactor: dpr });
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
-  await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
+  // (the DOM host's runs: the IDE passes `host=dom` on to its preview)
+  await page.goto(`${URL_BASE}/web-ide/index.html?host=dom`, { waitUntil: "load" });
   await page.waitForFunction(() => document.getElementById("status")?.textContent?.includes("ready"), { timeout: 15000 });
   await page.evaluate((a) => { window.RapidR.state.project.assets = a; }, fixtureAssets());
   return { browser, page, pageErrors };
@@ -237,10 +238,10 @@ export async function runCase(page, c) {
   return { frame, missing };
 }
 
-// ---- the UI kernel as the web runtime's GUI host (docs/web-host-plan.md,
-// Stage W3): RAPIDR_WEB_HOST=kernel ----
+// ---- the UI kernel as the web runtime's GUI host (docs/web-host-plan.md;
+// the default — RAPIDR_WEB_HOST=dom runs the old DOM host until it goes) ----
 //
-// The fixture runs in tests/web_kernel.html?host=kernel with the desktop's
+// The fixture runs in tests/web_kernel.html with the desktop's
 // test hooks (rapidr_ui_app::script: RAPIDR_TEST_EVENTS fired through the
 // kernel's routing as on the desktop, RAPIDR_TEST_DUMP, the resize and the
 // splitter, the dialogs' answers), given to the runtime as its environment
@@ -248,7 +249,7 @@ export async function runCase(page, c) {
 // each window's accessibility tree and its capture (the wasm's pixels, as
 // the desktop's RAPIDR_CAPTURE BMP) — rapidr_test_results.
 
-export const WEB_HOST = process.env.RAPIDR_WEB_HOST || "dom";
+export const WEB_HOST = process.env.RAPIDR_WEB_HOST || "kernel";
 
 /// The case's environment for the test hooks, as tests/native_gui_events.mjs
 /// gives the desktop's.
@@ -272,7 +273,7 @@ export async function runCaseKernel(browser, c, dpr = 1, timeout = 30000) {
   page.on("pageerror", (e) => errors.push(e.message));
   // (the page's uncaught errors, as the DOM host's runner counts them; a 404 a program asks for — a missing file — is its own answer)
   try {
-    await page.goto(`${URL_BASE}/tests/web_kernel.html?host=kernel`, { waitUntil: "load" });
+    await page.goto(`${URL_BASE}/tests/web_kernel.html`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
     const source = readFileSync(join(HERE, "fixtures", c.name + ".bas"), "utf8");
     const host = await page.evaluate(({ source, assets, env }) => {

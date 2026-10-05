@@ -5561,6 +5561,10 @@ fn apply_shown_state(name: &str) {
 pub fn gui_web_set_parent(name: &str, parent_name: &str) {
     #[cfg(feature = "kernel")]
     if crate::kernel_web::on() {
+        // (a web-only component's element goes where its new parent is)
+        if crate::overlay_web::is_overlay(&crate::object_web::rp_comp_type(name)) {
+            crate::overlay_web::set_prop(name, "parent", &v_str(parent_name));
+        }
         return crate::kernel_web::rebuild();
     }
     if rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Item) {

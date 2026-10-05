@@ -48,7 +48,7 @@
 
 /* ── Type stack: modern system + fluid sizing for hi-DPI ───── */
 html, body {
-  font-family: "Inter", "SF Pro Text", "Segoe UI Variable", "Segoe UI",
+  font-family: "SF Pro Text", "Segoe UI Variable", "Segoe UI",
                system-ui, -apple-system, "Helvetica Neue", sans-serif;
   font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-font-smoothing: antialiased;

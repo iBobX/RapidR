@@ -17,6 +17,8 @@
 //! Layouts are made at the screen's scale, so glyphs land on device pixels.
 
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use parley::fontique::{Blob, GenericFamily};
@@ -39,6 +41,51 @@ pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off";
 pub struct TextSystem {
     pub font_cx: FontContext,
     pub layout_cx: LayoutContext<Ink>,
+    /// Goes up when a font is added ([`TextSystem::add_font`]): what was
+    /// laid out before is laid out again.
+    pub generation: u64,
+}
+
+/// What hears of a character no loaded font has.
+pub type MissingHook = Rc<dyn Fn(char)>;
+
+thread_local! {
+    /// The families a character is looked for in after a QFONT's own face
+    /// and before the system's: the fallback fonts a host loads (the web's
+    /// Noto set, docs/web-host-plan.md §3.7).
+    static FALLBACKS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    /// Told each character no loaded font has (the web host then fetches
+    /// the fallback font that has it); none on the desktop.
+    static MISSING: RefCell<Option<MissingHook>> = const { RefCell::new(None) };
+}
+
+/// The fallback families, in the order they're tried.
+pub fn set_fallback_families(names: Vec<String>) {
+    FALLBACKS.with(|f| *f.borrow_mut() = names);
+}
+
+/// What hears of characters no loaded font has (`None`: nothing).
+pub fn set_missing_glyph_hook(hook: Option<MissingHook>) {
+    MISSING.with(|m| *m.borrow_mut() = hook);
+}
+
+/// Tells the missing-glyph hook (if any) about `layout`'s characters drawn
+/// as no font's (glyph 0) — `text` is what it laid out.
+pub fn note_missing(layout: &Layout<Ink>, text: &str) {
+    let Some(hook) = MISSING.with(|m| m.borrow().clone()) else { return };
+    for line in layout.lines() {
+        for item in line.items() {
+            let parley::PositionedLayoutItem::GlyphRun(glyph_run) = item else { continue };
+            let run = glyph_run.run();
+            for cluster in run.clusters() {
+                if cluster.glyphs().any(|g| g.id == 0) {
+                    if let Some(s) = text.get(cluster.text_range()) {
+                        s.chars().filter(|c| !c.is_whitespace() && !c.is_control()).for_each(|c| hook(c));
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Default for TextSystem {
@@ -53,7 +100,14 @@ impl TextSystem {
         for data in rapidr_value::objects::text::BUILTIN_FONTS {
             font_cx.collection.register_fonts(Blob::new(Arc::new(data)), None);
         }
-        TextSystem { font_cx, layout_cx: LayoutContext::new() }
+        TextSystem { font_cx, layout_cx: LayoutContext::new(), generation: 0 }
+    }
+
+    /// Font file `data` (OpenType) added to what text is drawn with: a
+    /// fallback font's chunk the host loaded.
+    pub fn add_font(&mut self, data: Vec<u8>) {
+        self.font_cx.collection.register_fonts(Blob::new(Arc::new(data)), None);
+        self.generation += 1;
     }
 
     /// `text` (its lines) in `font`, laid out at `scale` device pixels per
@@ -65,6 +119,7 @@ impl TextSystem {
         }
         let mut layout = builder.build(text);
         layout.break_all_lines(None);
+        note_missing(&layout, text);
         layout
     }
 
@@ -100,13 +155,11 @@ pub fn font_pixels(font: &Font) -> f32 {
 /// 2, fsStrikeOut 3) drawn in `color` (0xRRGGBB).
 pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
     let face = family(&font.name);
-    // (then the system's fonts for what Liberation lacks: symbols, emoji)
-    let names = vec![
-        FontFamilyName::Named(Cow::Borrowed(face)),
-        FontFamilyName::Generic(generic(face)),
-        FontFamilyName::Generic(GenericFamily::SystemUi),
-        FontFamilyName::Generic(GenericFamily::Emoji),
-    ];
+    // (then the fallback fonts and the system's for what Liberation lacks:
+    // symbols, CJK, emoji)
+    let mut names = vec![FontFamilyName::Named(Cow::Borrowed(face)), FontFamilyName::Generic(generic(face))];
+    FALLBACKS.with(|f| names.extend(f.borrow().iter().map(|n| FontFamilyName::Named(Cow::Owned(n.clone())))));
+    names.extend([FontFamilyName::Generic(GenericFamily::SystemUi), FontFamilyName::Generic(GenericFamily::Emoji)]);
     let mut out = vec![
         StyleProperty::FontFamily(FontFamily::List(Cow::Owned(names))),
         StyleProperty::FontSize(font_pixels(font)),

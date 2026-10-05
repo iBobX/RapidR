@@ -10,8 +10,12 @@
 //   7. Running the restored project mounts both forms in the runtime iframe.
 //
 // Usage:  node tests/web_ide_phaseF.mjs    (server on http://localhost:8765)
+// (On the kernel host the preview's forms are windows the kernel draws: the
+// test reads their accessibility mirror and the program's properties,
+// tests/web_kernel_page.mjs.)
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 
@@ -119,11 +123,19 @@ await page.evaluate(() => document.querySelector('[data-cmd="run.start"]').click
 await page.waitForTimeout(2500);
 // The preview is cross-origin to the IDE (SEC-02); use Playwright's frame API.
 const previewFrame = page.frames().find(f => f.url().includes("preview.html"));
+// (the windows shown, Button1's caption in Form1's mirror; Form2 and its
+// Label1 exist in the program — their properties read — but aren't shown)
 const runtime = previewFrame
-  ? await previewFrame.evaluate(() => ({ text: document.body?.innerText || "", form2: !!document.getElementById("rr-form2"), label1: !!document.getElementById("rr-label1") }))
-  : { text: "", form2: false, label1: false };
-ok(runtime.text.includes("Button1") && !runtime.text.includes("Label1") && runtime.form2 && runtime.label1,
-   "runtime shows Form1 (Button1); Form2 (Label1) created, hidden until shown");
+  ? {
+      windows: (await k.windows(previewFrame)).map((w) => w.form),
+      button1: await k.text(previewFrame, "Button1"),
+      form2: await k.prop(previewFrame, "Form2", "Caption").catch((e) => "error: " + e.message),
+      label1: await k.prop(previewFrame, "Label1", "Caption").catch((e) => "error: " + e.message),
+      form2Shown: await k.shown(previewFrame, "Form2"),
+    }
+  : {};
+ok(runtime.windows?.join() === "form1" && runtime.button1 === "Button1" && !runtime.form2Shown && runtime.form2 === "Form2" && runtime.label1 === "Label1",
+   `runtime shows Form1 (Button1); Form2 (Label1) created, hidden until shown (${JSON.stringify(runtime)})`);
 await page.evaluate(() => document.querySelector('[data-cmd="run.stop"]').click());
 
 ok(errors.length === 0, `no page errors (got ${errors.length})`);

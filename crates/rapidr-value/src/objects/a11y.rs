@@ -321,6 +321,10 @@ pub const PART_ITEM: u64 = 2;
 pub const PART_ROW: u64 = 3;
 pub const PART_CELL: u64 = 4;
 pub const PART_MENU: u64 = 5;
+/// A grid's in-place editor.
+pub const PART_EDITOR: u64 = 6;
+/// A dropped-down list (a grid's gcsList column) and its items.
+pub const PART_POPUP: u64 = 7;
 
 /// A component's stable node id: FNV-1a of its lowercase id, kept off the
 /// top byte (parts mix their kind there) and never 0.

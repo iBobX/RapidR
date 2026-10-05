@@ -168,6 +168,11 @@ pub fn rp_input_line() -> Value {
 
 fn open_input(prompt: &str, echo: bool) {
     let text = if prompt.trim().is_empty() { "Enter a value:" } else { prompt };
+    // (the UI kernel's input box, as its message boxes)
+    #[cfg(feature = "kernel")]
+    if crate::kernel_web::on() && crate::kernel_web::input_box(&app_title(), text, echo).is_some() {
+        return;
+    }
     crate::dialog_web::open(crate::dialog_web::Dialog {
         title: "",
         text,

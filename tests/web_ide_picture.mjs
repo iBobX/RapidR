@@ -3,12 +3,16 @@
 // image without a picture, Pixel, AutoSize, Stretch, and RapidQ's mouse
 // events — OnMouseDown (Button, X, Y, Shift), OnClick — with MOUSEX / MOUSEY
 // relative to the form's client area. ($RESOURCE needs a native or
-// `--interp` build: tests/native_gui_events.mjs checks it.)
+// `--interp` build: tests/native_gui_events.mjs checks it.) (The form is
+// shown with ShowModal: the IDE shows its own start form, Form1, modally
+// after the program's code, and a modal form takes the mouse from the
+// others, as in RapidQ — the kernel draws it over a form merely Shown.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_picture.mjs
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -35,7 +39,7 @@ Pad.FillRect(0, 0, 40, 30, &HFFFFFF)
 Pad.Line(0, 5, 39, 5, &HFF)
 Pad.Circle(10, 10, 30, 28, &HFF0000, &H00FF00)
 Summary.Caption = STR$(Pad.Width) + "|" + HEX$(Pad.Pixel(10, 5)) + "|" + HEX$(Pad.Pixel(20, 19)) + "|" + HEX$(Pad.Pixel(35, 25))
-Form.Show
+Form.ShowModal
 
 SUB Down (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
   Lbl.Caption = "down" + STR$(Button) + "," + STR$(X) + "," + STR$(Y) + ";"
@@ -59,29 +63,26 @@ await page.evaluate((src) => {
 await page.waitForTimeout(2500);
 const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
-const text = (id) => frame.evaluate((id) => document.getElementById(id)?.textContent ?? null, id);
+await k.waitFor(frame, "Summary");
+const text = (name) => k.text(frame, name);
 
-ok((await text("rr-summary")) === "40|000000FF|0000FF00|00FFFFFF", `same values as the desktop builds (HEX$ gives 8 digits, as RC.EXE) (${await text("rr-summary")})`);
-// The picture is shown: its pixels, in the element.
-const shown = await frame.evaluate(() => {
-  const img = document.getElementById("rr-pad");
-  if (!img || !img.complete || !img.naturalWidth) return null;
-  const c = document.createElement("canvas");
-  c.width = img.naturalWidth; c.height = img.naturalHeight;
-  const ctx = c.getContext("2d");
-  ctx.drawImage(img, 0, 0);
-  const px = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data.slice(0, 3)).join(",");
-  return { size: `${img.naturalWidth}x${img.naturalHeight}`, line: px(10, 5), fill: px(20, 19) };
-});
-ok(shown?.size === "40x30", `the element shows the picture (${shown?.size})`);
-ok(shown?.line === "255,0,0" && shown?.fill === "0,255,0", `with its pixels (${shown?.line} / ${shown?.fill})`);
+ok((await text("Summary")) === "40|000000FF|0000FF00|00FFFFFF", `same values as the desktop builds (HEX$ gives 8 digits, as RC.EXE) (${await text("Summary")})`);
+// The picture is shown: its pixels, at the image's place in the window
+// (the kernel draws it in the window's client canvas). The picture spans
+// the 40x30 image: its red line runs from one side to the other, its white
+// reaches the far corner.
+const place = await k.rect(frame, "Pad");
+const px = async (x, y) => (await k.pixelAt(frame, "Pad", x, y))?.join(",");
+const shown = { size: place && `${Math.round(place.width)}x${Math.round(place.height)}`, ends: [await px(0, 5), await px(39, 5), await px(39, 29)], line: await px(10, 5), fill: await px(20, 19) };
+ok(shown.size === "40x30" && shown.ends.join(" ") === "255,0,0 255,0,0 255,255,255", `the image shows the picture (${shown.size}; ${shown.ends.join(" ")})`);
+ok(shown.line === "255,0,0" && shown.fill === "0,255,0", `with its pixels (${shown.line} / ${shown.fill})`);
 
 // Click at (5, 7) in the image: OnMouseDown (Button, X, Y, Shift), then OnClick
 // with MOUSEX / MOUSEY in the form's client area (the image is at 20, 10).
-const box = await frame.locator("#rr-pad").boundingBox();
-await page.mouse.click(box.x + 5, box.y + 7);
+// (a real mouse click there, through the kernel)
+await k.click(frame, "Pad", [5, 7]);
 await page.waitForTimeout(300);
-ok((await text("rr-lbl")) === "down0,5,7;click25,17", `mouse events in RapidQ's order (${await text("rr-lbl")})`);
+ok((await text("Lbl")) === "down0,5,7;click25,17", `mouse events in RapidQ's order (${await text("Lbl")})`);
 
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 await page.screenshot({ path: "scratch/web_ide_picture.png" });

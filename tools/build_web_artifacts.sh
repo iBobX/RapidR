@@ -30,6 +30,11 @@ wasm-pack build interpreter/rapidr-vm-host-web \
     --out-name rapidrintr \
     --release
 
+# The fallback fonts (fonts/fallback, docs/web-host-plan.md §3.7): Noto's
+# chunks beside the runtime, loaded by a page as its text needs them. The
+# CJK ones are fetched once into target/fonts-src (offline: left out, and
+# the script says how to get them).
+python3 tools/fonts.py build target/web/fonts
 # The open-source notices every web bundle ships with (the web IDE's bundles
 # take them from runtime/, which is target/web; docs/licensing.md)
 echo "Writing the web runtime's THIRD-PARTY-NOTICES.txt …"

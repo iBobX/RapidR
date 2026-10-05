@@ -531,3 +531,106 @@ The user's direction (2026-10-05): no opt-in. The kernel host becomes the defaul
 - every suite ported to the kernel host: `web_ide_*`, `web_bundle_*` and `web_end_timer` look for the DOM host's elements.
 
 The HTML / Monaco web IDE (`web-ide/`) stays for now, as the test harness and the only web IDE, running its preview on the kernel host. It retires when the kernel-drawn MDI IDE (ROADMAP's IDE phase, §3.9) runs in the page.
+
+---
+
+## The kernel host by default, and W6 (2026-10-05)
+
+### The default
+
+`kernel_web::on()` is true unless a page asks for the old host (`?host=dom`, or `RAPIDR_HOST = "dom"` on the page). That covers the IDE's preview (`index.html?host=dom` passes it on), `bundle-bc` bundles and `rapidr build --web` output. The switch exists only until the DOM host is deleted. In the tests, `RAPIDR_WEB_HOST` defaults to `kernel`, and `dom` runs the old host.
+
+- **Mirror ids.** A component's mirror element has the id `rr-<name>` (lowercase) and `data-rr-name`, the ids the DOM runtime gave its elements. Scripts and tests find a component by them; parts keep `rrn-<form>-<node>`.
+- **DOM listeners.** On the kernel host, `bind_dom_event` binds DOM listeners only to the web-only components' own elements. The kernel fires every other component's events.
+
+### W6: the web-only components (`overlay_web.rs`)
+
+**The elements.** RWEBVIEW (a sandboxed `<iframe>`), RDOM (the program's element), RWEBAUDIO / RWEBVIDEO and RPLOT (its chart's canvas) are real elements with the id `rr-<name>`. Each is made once the component is registered; `overlay_web::create` applies what the program set.
+
+**Placement.** The kernel places them as nodes of their form, drawn by nothing. The host (`host::set_overlay_types`, `place_overlays`) puts each element in its window's `.rr-koverlays` layer over the client canvas, at the node's place. It's clipped to its parents' rectangles (`clip-path`) and hidden with them. The element takes its own pointer events.
+
+**The page's own RDOMs.** An RDOM whose parent isn't a kernel component (none, or another RDOM by ParentId / AppendTo) stays where the program puts it in the page. `<style>` / `<script>` RDOMs go into the head.
+
+**Properties, methods and defaults.**
+- `overlay_web` handles their properties (Url, Html, Src, InnerHTML, CssStyle, TagName …), live reads (CurrentTime, Duration …) and methods (Navigate, SetHtml, AppendTo, Play …).
+- They get default sizes (`layout::default_size`: 100 × 25, the DOM runtime's) and read Visible = True until hidden.
+
+**The popup layer.** While a form has such elements, the kernel draws its open drop-down list and menus apart (`FormUi::popups_apart`, `paint_popups`). The host renders them on a transparent canvas, `.rr-kpopups`, above the elements. That canvas takes the client area's pointer while a list or menu is open, so a drop-down opens over an iframe and still picks. The desktop never sets `popups_apart` and draws exactly as before.
+
+**Test.** `tests/web_overlays.mjs` checks placement, clipping, clicks, moving and hiding, the plot's pixels, and a drop-down over the web view; it passes at 1× and 2×.
+
+### The suites on the kernel host
+
+Every `web_ide_*`, `web_bundle_*`, `web_end_timer` and `web_vm_yield` test now runs on the kernel host (31 of 31). They use `tests/web_kernel_page.mjs`:
+- components found by their mirror elements;
+- real clicks at their place (`click({ force: true })` lands on the canvas);
+- `rapidr_get_prop` for the program's state;
+- the window's canvas for pixels.
+
+Runtime fixes the ports found:
+- INPUT with windows shown opens the kernel's input box (`Dialog::input`, `dialogs::input`; the typed line echoed as before).
+- END in a native web build hides the windows directly (`kernel_web::ended`). Its unwinding leaves the host borrowed, so nothing after it would draw.
+- The bundle console docks while a kernel window shows and watches for windows appearing.
+- Typing in a combo box sets ItemIndex as Windows does (CBUpdateLBox): -1 while the list is closed, the first item the text begins while it's dropped down.
+- A grid's in-place editor and its gcsList drop-down are in the accessibility tree. The editor takes the focus, so a screen reader and an input method reach it.
+- The desktop shares the kernel changes (combo typing, the grid's tree): `native_gui_events` passes at 1× and 2×, and `gui_captures` is byte-identical apart from `dialog_timers` (timing) and `file_browser`'s directory list (the checkout's `target` is now a link).
+
+Results: kernel GUI parity has 75 of 75 cases with every expected line; windows are byte-identical in 79 of 82 at 1× and 78 of 82 at 2× (the known menus / themes / SIMD pixels), and trees in 73 of 75. Kernel a11y passes 75 of 75, web conformance 133 (3 known failures), web overlays all checks, and the DOM host (still there) 141 / 141 parity and 86 / 86 a11y.
+
+### Still before the DOM host goes
+
+- W7: the fallback fonts (CJK, symbols; then emoji).
+- A web IDE question: the preview shows every form at (100, 100) in a 480 × 320 frame (the kernel's default place), so bigger forms are cut off. That's a layout matter for the IDE's preview, not the host.
+
+---
+
+## W7: the fallback fonts on the web (2026-10-05)
+
+A browser has no system fonts the wasm can draw with. So what the Liberation fonts lack — ✓ and other symbols, Chinese, Japanese, Korean — comes from Noto fonts (SIL OFL 1.1) shipped beside the runtime and loaded as text needs them. The desktop keeps the system's fonts for now; loading the same set from an install's resources is the next step there.
+
+**The set.** It's listed in `fonts/fallback/fonts.toml`:
+- Noto Sans, Noto Sans Symbols and Noto Sans Symbols 2: in the repository (`fonts/fallback/`, unhinted OTF, 0.8 MB), so an offline source build still covers symbols;
+- Noto Sans SC (Han, kana) and Noto Sans KR (Hangul), from Noto CJK Sans 2.004: fetched by `python3 tools/fonts.py fetch` from the official release assets, pinned by SHA-256 and cached in `target/fonts-src`. Offline without a cache, the build leaves them out and names that command.
+
+None of these fonts declares a Reserved Font Name (LICENSES.md §4, docs/licensing.md §3.1).
+
+**The chunks.** `python3 tools/fonts.py build target/web/fonts` (run by `tools/build_web_artifacts.sh`, fontTools, MIT) writes:
+- the three small fonts whole;
+- the CJK fonts split by codepoint into chunks of 900 characters (about 200–300 KB each), each renamed `<family> NNN` so it loads as a family of its own (fonts of one family name would be one family to fontique, which draws from the first);
+- `index.json`, saying which file has which characters, and the first font in the list keeps a character;
+- `OFL.txt`.
+
+Altogether that's 51 files, 10.1 MB.
+
+**The runtime.**
+- `rapidr_ui_kernel::text` has:
+  - a fallback family list, tried after a QFONT's face and before the system's;
+  - a missing-glyph hook: `note_missing` reports a layout's glyph-0 characters, from labels' layouts and editors' alike;
+  - `TextSystem::add_font`, whose `generation` makes editors lay out again.
+
+  On the desktop, neither the list nor the hook is set, so its drawing is unchanged.
+- The web runtime's `fonts_web.rs` handles a missing character:
+  - it reads the index on the first one;
+  - it fetches the chunk with that character, once (`RAPIDR_FONTS` names the folder, else `fonts/` beside the page);
+  - at the next frame it adds the chunk and draws every window again, frames included (`WebHost::fonts_changed`).
+- **The IDE's preview** has an opaque origin, so it can't fetch: it asks the IDE for each file (`RAPIDR_FONT_FETCH`), and the IDE reads `runtime/fonts/`.
+
+**Shipping.**
+- `bundle-bc` puts `fonts/` (beside its `--wasm`) into the zip; the IDE's Build does the same from `runtime/fonts/`.
+- `rapidr build --web` copies them next to its page, from an install's `lib/rapidr/web/fonts` or a checkout's `target/web/fonts`.
+- An installed RapidR never downloads. The release scripts copy `target/web/fonts/` with the runtime (the packaging lane).
+- The web notices (`rapidr notices web`) carry the Noto fonts' OFL.
+
+**Test.** `tests/web_fonts.mjs` checks, on the test page and in a `bundle-bc` bundle:
+- 中, 국어 (two KR chunks), ✓ and an edit's 汉字 are drawn as glyphs, not the missing glyph's box (pixels against a private-use character's box);
+- each file comes once;
+- text Liberation has fetches nothing.
+
+It passes at 1× and 2×.
+
+**Privacy.** The web IDE no longer loads Google Fonts: its interface uses the system's fonts, and the font picker's names (Inter, Roboto …) resolve through the fallback like any unknown family. Neither the IDE, the runtime nor a bundle makes a third-party request a program doesn't make itself.
+
+**Open.**
+- Emoji: Noto Color Emoji is CBDT bitmaps or COLRv1, and whether vello_cpu draws COLR is not checked yet.
+- Chunks by frequency rather than by codepoint, so a sentence needs fewer files.
+- The desktop on the same set from the install's resources.

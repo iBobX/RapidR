@@ -2,11 +2,15 @@
 // dialogs with every button (crates/rapidr-runtime-web/src/dialog_web.rs).
 // The program waits for the answer — the VM suspends and resumes — and gets
 // the manual's return values (IDYES = 6, IDCANCEL = 2, mrNo = 7, …).
+// (On the kernel host a dialog is a modal kernel window: the test reads it
+// through its accessibility mirror and answers it with real clicks and keys,
+// tests/web_kernel_page.mjs.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_dialogs.mjs
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -67,18 +71,17 @@ await page.waitForTimeout(1500);
 const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
 const output = () => page.evaluate(() => document.querySelector('.obody[data-tab="output"]').textContent);
-const dialog = () => frame.evaluate(() => {
-  const d = document.querySelector(".rr-dialog");
+// (the frontmost dialog as its mirror has it, with the focused element's
+// accessible name — the DOM focus follows the kernel's)
+const dialog = async () => {
+  const d = await k.dialog(frame);
   if (!d) return null;
-  return {
-    title: d.querySelector(".rr-dialog-title")?.textContent || "",
-    text: d.querySelector(".rr-dialog-text")?.textContent || "",
-    buttons: [...d.querySelectorAll(".rr-dialog-button")].map((b) => b.textContent),
-    focused: document.activeElement?.textContent || document.activeElement?.className || "",
-    input: !!d.querySelector(".rr-dialog-input"),
-  };
-});
-const click = (label) => frame.evaluate((l) => [...document.querySelectorAll(".rr-dialog-button")].find((b) => b.textContent === l).click(), label);
+  Object.assign(d, await frame.evaluate(() => ({ focused: document.activeElement?.getAttribute("aria-label") ?? "", focusedTag: document.activeElement?.tagName })));
+  return d;
+};
+const click = (label) => k.clickButton(frame, label);
+// (a real key to the focused element: the kernel gets it from the mirror)
+const press = (key) => frame.locator(":focus").press(key);
 
 // 1. MESSAGEBOX with three buttons; the program waits.
 let d = await dialog();
@@ -94,15 +97,17 @@ ok(/r=2/.test(await output()), "Cancel returns IDCANCEL (2)");
 // 2. MESSAGEDLG titled by its type; Escape = No.
 d = await dialog();
 ok(d && d.title === "Confirm" && JSON.stringify(d.buttons) === '["Yes","No"]', `MESSAGEDLG (${JSON.stringify(d)})`);
-await frame.press(".rr-dialog-button", "Escape");
+await press("Escape");
 await page.waitForTimeout(300);
 ok(/d=7/.test(await output()), "Escape returns mrNo (7)");
 
 // 3. INPUT: an in-page field with the printed prompt; Enter answers.
+// (typed as the user does: real keys into the focused field)
 d = await dialog();
-ok(d && d.input && d.text === "Your name? ", `INPUT asks in the page with the prompt (${JSON.stringify(d)})`);
-await frame.fill(".rr-dialog-input", "Ada");
-await frame.press(".rr-dialog-input", "Enter");
+ok(d && d.input && d.text.trimEnd() === "Your name?", `INPUT asks in the page (a kernel dialog) with the prompt (${JSON.stringify(d)})`);
+ok(d && d.focusedTag === "INPUT", `the field has the focus (${d && d.focusedTag})`);
+await frame.locator(":focus").pressSequentially("Ada");
+await press("Enter");
 await page.waitForTimeout(300);
 const out = await output();
 ok(/hello Ada/.test(out), `INPUT stored the text (${JSON.stringify(out.slice(-60))})`);
@@ -113,25 +118,28 @@ d = await dialog();
 ok(d && d.text === "Welcome" && JSON.stringify(d.buttons) === '["OK"]', `SHOWMESSAGE (${JSON.stringify(d)})`);
 await click("OK");
 await page.waitForTimeout(500);
-ok(await frame.evaluate(() => !!document.querySelector(".rr-form")), "the form is shown after the dialogs");
+ok(await k.shown(frame, "Form"), "the form is shown after the dialogs");
 
 // 5. A dialog from an event handler: the handler waits, then continues.
-await frame.evaluate(() => [...document.querySelectorAll("button")].find((b) => b.textContent === "Ask").click());
+await k.click(frame, "Button1");
 await page.waitForTimeout(300);
 d = await dialog();
 ok(d && d.title === "From a button" && JSON.stringify(d.buttons) === '["Yes","No"]', `dialog from a button's handler (${JSON.stringify(d)})`);
-ok(await frame.evaluate(() => document.body.innerText.includes("no answer")), "the handler waits for the answer");
+ok((await k.text(frame, "Label1")) === "no answer", "the handler waits for the answer");
 // (a timer's handler runs while the box waits, as the desktop's — native
 // and interpreted: tests/fixtures/dialog_timers.bas — and RapidQ's do)
-const ticks = () => frame.evaluate(() => document.querySelector('[data-rr-name="Label2" i]')?.textContent || "");
+const ticks = async () => (await k.text(frame, "Label2")) || "";
 const before = await ticks();
 await page.waitForTimeout(400);
 const during = await ticks();
 ok(/^ticks\s*\d+$/.test(during) && during !== before && await dialog() !== null, `the timer ticks while the box waits (${before} → ${during})`);
 await click("Yes");
 await page.waitForTimeout(300);
-ok(await frame.evaluate(() => document.body.innerText.includes("answer 6") || document.body.innerText.includes("answer  6")), "the handler continued with IDYES (6)");
-ok(await frame.evaluate(() => !document.querySelector(".rr-dialog")), "no dialog left open");
+const answer = await k.text(frame, "Label1");
+ok(/^answer +6$/.test(answer), `the handler continued with IDYES (6) (${answer})`);
+// (the only modal window left is the program's own form, shown with ShowModal)
+const modals = (await k.windows(frame)).filter((w) => w.modal).map((w) => w.form);
+ok(JSON.stringify(modals) === '["form"]', `no dialog left open (modal windows: ${modals})`);
 
 ok(nativeDialogs.length === 0, `no browser alert/confirm/prompt used (${nativeDialogs.join(",")})`);
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);

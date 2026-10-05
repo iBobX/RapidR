@@ -1,6 +1,6 @@
 //! The UI kernel as the web runtime's host (docs/web-host-plan.md, Stage
-//! W3; feature `kernel`, chosen with `?host=kernel` — the DOM host stays the
-//! default until parity, Stage W5, and Stage W11 deletes it): the program's
+//! W3; feature `kernel`, the default host since W4 — `?host=dom` asks for
+//! the old DOM host until it is deleted): the program's
 //! forms drawn by the same kernel, the same display lists and the same CPU
 //! renderer as on the desktop, as windows on the page
 //! (`rapidr_ui_host_web::host`), their accessibility as an ARIA mirror.
@@ -61,22 +61,25 @@ thread_local! {
     static FILES: RefCell<std::collections::HashMap<u64, Option<Vec<String>>>> = RefCell::new(std::collections::HashMap::new());
     /// A GUI test's results once its script ended (`rapidr_test_results`).
     static RESULTS: RefCell<Option<String>> = const { RefCell::new(None) };
+    /// The program ENDed: its windows are gone, nothing more is drawn.
+    static ENDED: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Whether the kernel hosts the program's forms: the page asked for it
-/// (`?host=kernel` in its address, or `RAPIDR_HOST = "kernel"` set on the
-/// page before the runtime starts).
+/// Whether the kernel hosts the program's forms: always, unless the page
+/// asked for the old DOM host (`?host=dom` in its address, or
+/// `RAPIDR_HOST = "dom"` set on the page before the runtime starts) — only
+/// until the DOM host is deleted (docs/web-host-plan.md §5).
 pub fn on() -> bool {
     if let Some(on) = ON.with(Cell::get) {
         return on;
     }
-    let asked = web_sys::window().is_some_and(|w| {
+    let dom = web_sys::window().is_some_and(|w| {
         let search = w.location().search().unwrap_or_default();
         let global = js_sys::Reflect::get(&w, &JsValue::from_str("RAPIDR_HOST")).ok().and_then(|v| v.as_string()).unwrap_or_default();
-        search.split(['?', '&']).any(|p| p.eq_ignore_ascii_case("host=kernel")) || global.eq_ignore_ascii_case("kernel")
+        search.split(['?', '&']).any(|p| p.eq_ignore_ascii_case("host=dom")) || global.eq_ignore_ascii_case("dom")
     });
-    ON.with(|o| o.set(Some(asked)));
-    asked
+    ON.with(|o| o.set(Some(!dom)));
+    !dom
 }
 
 fn lower(s: &str) -> String {
@@ -244,6 +247,8 @@ fn ensure() {
         return;
     }
     host::install(&STORE, Rc::new(turn));
+    host::set_overlay_types(crate::overlay_web::TYPES);
+    crate::fonts_web::install();
     let capture = testhooks::Capture::from_env();
     host::with(|h, _| {
         // (carets blink, but not under a test: captures must be steady)
@@ -481,6 +486,10 @@ pub fn rebuild() {
 /// kernel's deadlines run, the dirty windows drawn; the next deadline armed.
 fn frame() {
     FRAME_ASKED.with(|f| f.set(false));
+    if ENDED.with(Cell::get) {
+        return;
+    }
+    crate::fonts_web::apply_loaded();
     if TURNING.with(Cell::get) || host::busy() {
         later();
         return;
@@ -744,6 +753,10 @@ pub fn created(_name: &str) {
 /// desktop — a form's window titled, moved, sized, shown or hidden, its
 /// frame, icon and state; anything else drawn again.
 pub fn set_prop(name: &str, prop: &str, val: &Value) {
+    // (a web-only component's element: its own properties)
+    if crate::overlay_web::is_overlay(&crate::object_web::rp_comp_type(name)) && crate::overlay_web::set_prop(name, prop, val) {
+        return;
+    }
     let is_form = forms::is_form(Web, name);
     match prop {
         "visible" if is_form => {
@@ -775,6 +788,11 @@ pub fn set_prop(name: &str, prop: &str, val: &Value) {
 /// DOM's in the DOM host): a form's Visible is whether its window shows (as
 /// the desktop's); everything else is the store's (Null: read it there).
 pub fn get_prop(name: &str, prop: &str) -> Value {
+    if crate::overlay_web::is_overlay(&crate::object_web::rp_comp_type(name)) {
+        if let Some(v) = crate::overlay_web::get_prop(name, prop) {
+            return v;
+        }
+    }
     if prop == "visible" && forms::is_form(Web, name) {
         if let Some(shown) = forms::window_shown(name) {
             return Value::Boolean(shown);
@@ -786,6 +804,9 @@ pub fn get_prop(name: &str, prop: &str) -> Value {
 /// A component's method the GUI does (`gui_web_method`'s): `None` for the
 /// ones the kernel host leaves to the rest.
 pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Option<Value> {
+    if let Some(v) = crate::overlay_web::method(name, comp_type, method, args) {
+        return Some(v);
+    }
     let v = Value::Null;
     match (comp_type, method) {
         // (the lists lane's: the drawn tree's rows)
@@ -847,6 +868,27 @@ pub fn close_form(name: &str) {
 pub fn hide_form(name: &str) {
     forms::hide_window(name);
     schedule();
+}
+
+/// END: the program's windows go now. A native web build's END unwinds
+/// from inside the host's callback (a thrown exception: nothing after it
+/// runs, what was borrowed stays borrowed), so its windows are hidden on
+/// the page directly and the host is left alone from then on.
+pub fn ended() {
+    ENDED.with(|e| e.set(true));
+    if let Some((handle, _)) = DEADLINE.with(Cell::take) {
+        if let Some(w) = web_sys::window() {
+            w.clear_timeout_with_handle(handle);
+        }
+    }
+    let Some(doc) = web_sys::window().and_then(|w| w.document()) else { return };
+    if let Ok(wins) = doc.query_selector_all(".rr-kwin") {
+        for i in 0..wins.length() {
+            if let Some(w) = wins.item(i).and_then(|n| n.dyn_into::<web_sys::HtmlElement>().ok()) {
+                let _ = w.style().set_property("display", "none");
+            }
+        }
+    }
 }
 
 /// Whether form `name`'s window was made (it showed once).
@@ -951,6 +993,31 @@ pub fn choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_valu
     }
     ensure();
     match rapidr_ui_app::dialogs::message(Web, title, text, labels, icon, beep, then) {
+        rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),
+        rapidr_ui_app::dialogs::Pending::Open(id) => {
+            begin_wait(rapidr_ui_app::waits::Wait::Dialog(id));
+            Some(Value::Null)
+        }
+    }
+}
+
+/// INPUT with windows shown (no console to type in): the kernel's input
+/// box with `prompt`; the text typed is INPUT's (shown in the program's
+/// output after the prompt when `echo`, as a terminal shows it). `None`:
+/// not here.
+pub fn input_box(title: &str, prompt: &str, echo: bool) -> Option<Value> {
+    if !dialogs_here() {
+        return None;
+    }
+    ensure();
+    let then = move |text: Option<String>| {
+        let text = text.unwrap_or_default();
+        if echo {
+            crate::dialog_web::echo_next(text.clone());
+        }
+        Value::String(text)
+    };
+    match rapidr_ui_app::dialogs::input(Web, title, prompt, "", then) {
         rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),
         rapidr_ui_app::dialogs::Pending::Open(id) => {
             begin_wait(rapidr_ui_app::waits::Wait::Dialog(id));

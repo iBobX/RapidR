@@ -205,6 +205,8 @@ pub struct TextEditor {
     /// Every paragraph laid out and placed.
     laid: bool,
     size: (f64, f64),
+    /// The text system's fonts it was laid out with ([`TextSystem::generation`]).
+    generation: u64,
 }
 
 impl TextEditor {
@@ -224,6 +226,7 @@ impl TextEditor {
             width: 0.0,
             laid: false,
             size: (0.0, 0.0),
+            generation: 0,
         }
     }
 
@@ -492,6 +495,15 @@ impl TextEditor {
 
     /// Lays out what changed and places the paragraphs.
     pub fn lay_out(&mut self, ts: &mut TextSystem) {
+        // (a font came: everything again, with the fallbacks there are now)
+        if self.generation != ts.generation {
+            self.generation = ts.generation;
+            self.style = styles(&self.look.font, self.look.color);
+            for p in &mut self.paras {
+                p.layout = None;
+            }
+            self.laid = false;
+        }
         if self.laid {
             return;
         }
@@ -532,6 +544,7 @@ impl TextEditor {
                     layout.break_all_lines(None);
                     layout.align(Alignment::Left, AlignmentOptions::default());
                 }
+                super::note_missing(&layout, &shown);
                 self.paras[i].layout = Some(layout);
             }
             let p = &mut self.paras[i];

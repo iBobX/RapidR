@@ -286,9 +286,20 @@ impl EditUi {
             })
             .unwrap_or(false),
             Source::Combo => {
+                // (typing chooses no item while the list is closed; dropped
+                // down, the first item the text begins, any case — Windows'
+                // combo box: CBUpdateLBox)
+                let open = super::combo::is_dropped(id);
                 let changed = with_list_mut(id, |l| {
                     let changed = l.text != text;
                     l.text = text.clone();
+                    if changed {
+                        let lower = text.to_lowercase();
+                        l.item_index = match open && !text.is_empty() {
+                            true => l.items.iter().position(|i| i.to_lowercase().starts_with(&lower)).map_or(-1, |i| i as i64),
+                            false => -1,
+                        };
+                    }
                     changed
                 })
                 .unwrap_or(false);

@@ -49,6 +49,7 @@ features = [
     "HtmlImageElement",
     "HtmlAudioElement",
     "HtmlVideoElement",
+    "HtmlMediaElement",
     "HtmlIFrameElement",
     "HtmlDivElement",
     "HtmlTableElement",

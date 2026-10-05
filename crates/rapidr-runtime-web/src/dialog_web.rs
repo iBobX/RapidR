@@ -53,6 +53,9 @@ thread_local! {
     static SLICE_END: Cell<f64> = const { Cell::new(0.0) };
     /// (Stage W4) The kernel host's waits the VM is suspended in.
     static KERNEL_WAITS: Cell<u32> = const { Cell::new(0) };
+    /// The line the next kernel wait's end shows in the program's output
+    /// (an INPUT's answer, as a terminal shows what was typed).
+    static ECHO_NEXT: RefCell<Option<String>> = const { RefCell::new(None) };
     static PERFORMANCE: Option<web_sys::Performance> = web_sys::window().and_then(|w| w.performance());
 }
 
@@ -259,7 +262,12 @@ pub fn suspend_for_wait() -> bool {
 /// `value` as the result of the builtin that started it.
 pub fn resume_wait(value: Value) {
     KERNEL_WAITS.with(|k| k.set(k.get().saturating_sub(1)));
-    resume(value, None);
+    resume(value, ECHO_NEXT.with(|e| e.borrow_mut().take()));
+}
+
+/// The next [`resume_wait`] shows `line` in the program's output first.
+pub fn echo_next(line: String) {
+    ECHO_NEXT.with(|e| *e.borrow_mut() = Some(line));
 }
 
 /// Whether the VM is free to be continued now (not running, not between

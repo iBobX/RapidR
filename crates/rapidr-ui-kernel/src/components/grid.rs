@@ -521,6 +521,30 @@ impl ComponentKind for Grid {
                 }
             }
         }
+        use rapidr_value::objects::a11y::{part_id, Role, PART_EDITOR, PART_POPUP};
+        // (the in-place editor: a text field over its cell, the focus in it)
+        if let (Some(ed), Some((x, y, ew, eh))) = (editing(cx.id), Self::edit_rect(cx)) {
+            let mut e = AccessNode::new(part_id(cx.id, PART_EDITOR, 0), Role::TextInput);
+            e.value = Some(ed.text.clone());
+            e.bounds = (cx.rect.0 + x, cx.rect.1 + y, ew, eh);
+            e.states.focused = true;
+            n.children.push(e);
+        }
+        // (a gcsList column's dropped list: its items, the one pointed at selected)
+        if let Some((items, hot, (ax, ay, aw, ah))) = super::combo::dropped_list(cx.id) {
+            let ih = cx.font.pixel_size() + 3;
+            let mut list = AccessNode::new(part_id(cx.id, PART_POPUP, 0), Role::ListBox);
+            list.bounds = (ax, ay + ah, aw, ih * items.len().min(super::combo::DROP_ROWS) as i64 + 2);
+            for (i, item) in items.iter().enumerate() {
+                let mut o = AccessNode::new(part_id(cx.id, PART_POPUP, i + 1), Role::ListBoxOption);
+                o.name = item.clone();
+                o.states.selected = Some(hot == Some(i));
+                o.bounds = (ax, ay + ah + 1 + i as i64 * ih, aw, ih);
+                list.children.push(o);
+            }
+            n.states.expanded = Some(true);
+            n.children.push(list);
+        }
         n
     }
 

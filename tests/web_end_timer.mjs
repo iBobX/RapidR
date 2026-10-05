@@ -4,6 +4,9 @@
 // a button's handler stops the program as on the desktop — the statement
 // after END doesn't run, the form closes, the timer stops, and the page
 // reports no error.
+// (On the kernel host the form is a window the kernel draws: the test reads
+// its accessibility mirror and clicks the button as the user does,
+// tests/web_kernel_page.mjs.)
 //
 // Usage (repo root, after building ./rapidr and tools/build_web_artifacts.sh,
 // with the repo served on http://localhost:8765):  node tests/web_end_timer.mjs
@@ -13,6 +16,7 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as k from "./web_kernel_page.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
@@ -42,17 +46,18 @@ for (const [kind, url] of Object.entries(builds)) {
   page.on("console", (m) => (m.type() === "error" ? errors : logs).push(m.text()));
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(url);
-  await page.waitForSelector("#rr-btn", { timeout: 20000 });
+  await k.waitFor(page, "Btn", 20000);
   await page.waitForTimeout(700);
-  const ticks = () => page.evaluate(() => Number((document.querySelector("#rr-lbl")?.textContent || "").replace(/\D/g, "")) || 0);
+  const ticks = async () => Number(((await k.text(page, "lbl")) || "").replace(/\D/g, "")) || 0;
   ok((await ticks()) > 0, `${kind}: the timer ticks without Enabled set`);
-  await page.click("#rr-btn");
+  ok(await k.shown(page, "Form"), `${kind}: the form is shown`);
+  await k.click(page, "Btn");
   await page.waitForTimeout(200);
   const atEnd = await ticks();
   await page.waitForTimeout(600);
   ok((await ticks()) === atEnd, `${kind}: the timer stopped at END`);
   ok(logs.includes("before end") && !logs.includes("after end"), `${kind}: the statement after END didn't run (${logs.join(" / ")})`);
-  ok(await page.evaluate(() => getComputedStyle(document.querySelector("#rr-form")).display === "none"), `${kind}: the form closed`);
+  ok(!(await k.shown(page, "Form")), `${kind}: the form closed`);
   ok(errors.length === 0, `${kind}: no page errors (${errors.join(" / ")})`);
   await page.close();
 }

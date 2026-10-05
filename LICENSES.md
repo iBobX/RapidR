@@ -111,14 +111,47 @@ character widths as Arial, Times New Roman and Courier New.
 > [`crates/rapidr-value/fonts/OFL-1.1.txt`](crates/rapidr-value/fonts/OFL-1.1.txt)
 > and at <https://openfontlicense.org>.
 
-### Fonts the web IDE names or loads
+### Noto fallback fonts — SIL Open Font License 1.1
 
-The web IDE's pages (`web-ide/index.html`, `preview.html`) load Inter,
-Roboto, Montserrat, Nunito, Playfair Display and Fira Code from Google Fonts
-(SIL OFL 1.1 / Apache-2.0); Google serves them, RapidR doesn't redistribute
-them, and programs you build don't use them. The IDE also names system fonts
-(`Tahoma`, `Arial`, `Verdana`, `Times New Roman`, `Courier New`, `Segoe UI`,
-`MS Sans Serif`) in CSS only: the operating system supplies those.
+What the Liberation fonts lack (symbols such as ✓, Chinese, Japanese,
+Korean) is drawn with Noto fonts by the Noto Project Authors. They come from
+the Noto project's official GitHub release assets, pinned by version and
+SHA-256 in [`fonts/fallback/fonts.toml`](fonts/fallback/fonts.toml):
+- Noto Sans 2.015;
+- Noto Sans Symbols 2.003;
+- Noto Sans Symbols 2 2.008;
+- Noto Sans SC and Noto Sans KR from Noto CJK Sans 2.004.
+
+**Where they are.** Noto Sans and the two Symbols fonts are in
+`fonts/fallback/`, unmodified. The CJK fonts are fetched at build time
+(`tools/fonts.py`).
+
+**What is shipped.** `tools/fonts.py` splits the fonts by Unicode range into
+the chunks the web runtime loads on demand: the runtime's `fonts/` folder,
+web bundles and `rapidr build --web` sites. A chunk of a CJK font is renamed
+`<family> NNN` (for example `Noto Sans SC 003`) so each loads as a family of
+its own. This subsetting and renaming are allowed by the OFL; none of these
+fonts declares a Reserved Font Name. `OFL.txt` travels with the chunks.
+
+> Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2: Copyright 2022 The
+> Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic,
+> https://github.com/notofonts/symbols). Noto Sans SC, Noto Sans KR (Noto
+> Sans CJK): © 2014-2021 Adobe (http://www.adobe.com/).
+>
+> This Font Software is licensed under the SIL Open Font License, Version
+> 1.1. The full license text is in
+> [`fonts/fallback/OFL.txt`](fonts/fallback/OFL.txt) and at
+> <https://openfontlicense.org>.
+
+### Font names in the IDE
+
+The IDE's own interface uses the system's font stack. Its font picker lists
+`Inter`, `Roboto`, `Montserrat`, `Nunito`, `Playfair Display`, `Fira Code`,
+`Tahoma`, `Arial`, `Verdana`, `Times New Roman`, `Courier New`, `Segoe UI`
+and `MS Sans Serif` as names a program may ask for. They are names only: no
+font file is vendored, redistributed or downloaded (no web-font service is
+contacted). A program's text is drawn with RapidR's own fonts above, the
+named families resolving through their fallback.
 
 ---
 

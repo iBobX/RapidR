@@ -62,7 +62,16 @@ impl FormUi {
             n
         });
         let id = self.nodes[i].id.clone();
-        n.states.focused = self.focus == Some(i);
+        // (a part the kind says holds the focus — a grid's in-place editor —
+        // has it while the component has it)
+        let focused = self.focus == Some(i);
+        match n.children.iter_mut().find(|c| c.states.focused) {
+            Some(part) => {
+                part.states.focused = focused;
+                n.states.focused = false;
+            }
+            None => n.states.focused = focused,
+        }
         n.states.disabled = !self.nodes[i].enabled;
         if self.can_focus(store, i) && !n.actions.contains(&Action::Focus) {
             n.actions.push(Action::Focus);

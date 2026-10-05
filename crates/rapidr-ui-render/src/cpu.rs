@@ -9,6 +9,7 @@ use rapidr_ui_kernel::display::{DisplayList, Picture};
 use rapidr_ui_kernel::{FormUi, TextSystem};
 use rapidr_value::objects::codec::Pixels;
 use vello_cpu::kurbo::{Affine, BezPath, Rect as KRect, Stroke};
+use vello_cpu::peniko::Color;
 use vello_cpu::{Pixmap, RenderContext, RenderMode, Resources};
 
 use crate::canvas::{color, draw_list, Canvas, GlyphRun, BACKGROUND};
@@ -90,6 +91,16 @@ impl CpuRenderer {
 
     /// `list` drawn into the pixmap, `width` × `height` device pixels.
     pub fn render(&mut self, width: u32, height: u32, list: &DisplayList, text: &mut TextSystem, form: &FormUi) {
+        self.render_on(width, height, list, text, form, color(BACKGROUND));
+    }
+
+    /// As [`CpuRenderer::render`], on nothing (transparent; the pixmap's
+    /// pixels premultiplied): a layer over others.
+    pub fn render_transparent(&mut self, width: u32, height: u32, list: &DisplayList, text: &mut TextSystem, form: &FormUi) {
+        self.render_on(width, height, list, text, form, Color::TRANSPARENT);
+    }
+
+    fn render_on(&mut self, width: u32, height: u32, list: &DisplayList, text: &mut TextSystem, form: &FormUi, background: Color) {
         let (w, h) = (clamp16(width), clamp16(height));
         if (w, h) != (self.ctx.width(), self.ctx.height()) {
             self.ctx = RenderContext::new(w, h);
@@ -99,7 +110,7 @@ impl CpuRenderer {
         }
         draw_list(&mut CpuCanvas { ctx: &mut self.ctx, res: &mut self.res }, text, list, form);
         self.ctx.flush();
-        let settings = vello_cpu::RasterizerSettings { render_mode: RenderMode::OptimizeSpeed, target_init: vello_cpu::TargetInit::Clear(color(BACKGROUND)), ..Default::default() };
+        let settings = vello_cpu::RasterizerSettings { render_mode: RenderMode::OptimizeSpeed, target_init: vello_cpu::TargetInit::Clear(background), ..Default::default() };
         self.ctx.render_with(&mut self.pixmap, &mut self.res, settings);
     }
 

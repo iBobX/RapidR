@@ -12,6 +12,21 @@ import { AnsiScreen } from "./ansi_screen.js";
 export function installConsole() {
   let screen = null;
   let el = null;
+  // (docked while a window of the program shows: the UI kernel's windows,
+  // `.rr-kwin`, shown or hidden by their style — watched, since a form may
+  // show after the last PRINT)
+  const shown = () => [...document.querySelectorAll(".rr-kwin")].some((w) => w.style.display !== "none") || document.querySelector(".rr-form") !== null;
+  const dock = () => el?.classList.toggle("docked", shown());
+  const watched = new WeakSet();
+  const watch = () => {
+    for (const w of document.querySelectorAll(".rr-kwin")) {
+      if (watched.has(w)) continue;
+      watched.add(w);
+      new MutationObserver(dock).observe(w, { attributes: true, attributeFilter: ["style"] });
+    }
+    dock();
+  };
+  new MutationObserver(watch).observe(document.body, { childList: true });
   window.__rapidr_print = (text) => {
     if (!screen) {
       const style = document.createElement("style");
@@ -24,7 +39,7 @@ export function installConsole() {
       document.body.appendChild(el);
       screen = new AnsiScreen(el);
     }
-    el.classList.toggle("docked", document.querySelector(".rr-form") !== null);
+    dock();
     screen.write(String(text));
   };
 }

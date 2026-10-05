@@ -17,12 +17,16 @@ use web_sys::{Document, HtmlElement};
 
 use crate::aria::{self, Spec};
 
-/// What a text field tells autofill and password managers.
+/// A component's node: its name, and what a text field tells autofill and
+/// password managers.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Hint {
     /// The `autocomplete` token ("" none: `off`).
     pub autocomplete: String,
-    /// The field's `name` (its component's).
+    /// The component's name: a field's `name`; every component's element
+    /// gets `data-rr-name` and the id `rr-<name>` (lowercase), the ids the
+    /// DOM runtime gave its elements — scripts (RJAVASCRIPT) and tests find
+    /// a component's element by them.
     pub name: String,
 }
 
@@ -147,6 +151,13 @@ impl Mirror {
                 el.set_tab_index(-1);
             } else {
                 let _ = el.remove_attribute("tabindex");
+            }
+            if let Some(h) = hints.get(&s.id) {
+                let id = format!("rr-{}", h.name.to_lowercase());
+                if el.id() != id {
+                    el.set_id(&id);
+                    let _ = el.set_attribute("data-rr-name", &h.name);
+                }
             }
             if s.tag == "div" && el.child_element_count() == 0 && el.text_content().unwrap_or_default() != s.text {
                 el.set_text_content(Some(&s.text));

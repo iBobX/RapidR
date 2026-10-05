@@ -131,6 +131,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (it was a silent no-op): split at the first `=` (or, without one, a
   space), names found in any case by `ENVIRON$` as on Windows; in the
   browser a table of the page's own.
+- **Fallback fonts on the web (W7)** (docs/web-host-plan.md, "W7"): text the built-in Liberation fonts can't draw — ✓ and other symbols, Chinese, Japanese, Korean — is drawn with Noto fonts (SIL OFL 1.1) instead of boxes.
+  - The fonts ship beside the web runtime, split by Unicode range. A page fetches a chunk the first time its text needs it: labels, edits and window titles alike.
+  - Bundles (`bundle-bc`, the IDE's Build) and `rapidr build --web` sites carry the chunks; an installed RapidR never downloads them.
+  - `python3 tools/fonts.py` fetches the CJK sources (official Noto releases, pinned by SHA-256) and builds the chunks. Noto Sans and the Symbols fonts are in the repository.
+- **The web IDE loads no Google Fonts** any more: its interface uses the system's fonts, and nothing in the IDE, the runtime or a bundle contacts a third party unless the program does.
+- **The UI kernel is the web's host by default** (docs/web-host-plan.md, "The kernel host by default, and W6"): the IDE's preview, `bundle-bc` bundles and `rapidr build --web` pages draw the program's forms with the kernel, with no query parameter. `?host=dom` keeps the old DOM host until it is deleted.
+  - **Web-only components over the canvas (W6):** RWEBVIEW, RDOM, RWEBAUDIO / RWEBVIDEO and RPLOT are the page's own elements (`#rr-<name>`), placed by the kernel at their components' places, clipped to their parents and hidden with them. Drop-down lists and menus open on a layer above them.
+  - **INPUT** with windows shown asks in the kernel's input box.
+  - **END** in a native web build closes its windows.
+  - **Combo boxes:** typing in one sets ItemIndex as Windows does: -1 while the list is closed, the first matching item while it's dropped down (desktop too).
+  - **Grids:** a grid's in-place editor and its drop-down list are in the accessibility tree, and the editor has the focus there (desktop too).
+  - **Tests:** every web suite runs on the kernel host (`tests/web_kernel_page.mjs`: mirror elements, real clicks, the canvas's pixels); `tests/web_overlays.mjs` is new.
 - **The web on the UI kernel, Stage W4** (docs/web-host-plan.md, "W4 results"): every browser GUI case now runs on the kernel host (`?host=kernel`), 70 of 70, with the desktop's dumps.
   - **Waits:** ShowModal, DOEVENTS, INPUT$ / WAITKEY and dialogs suspend the browser's VM and resume it as the desktop's interpreter serves them (`rapidr_ui_app::waits`), nested ones in order.
   - **Dialogs:** MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX, the colour and font dialogs are the kernel's own, pixel-identical to the desktop's. Open / Save go through the kernel's file-dialog request, answered by the page's picker.

@@ -592,6 +592,15 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
         eprintln!("Cannot write index.html: {e}");
         return ExitCode::from(1);
     }
+    // (the fallback fonts beside the page: loaded as its text needs them)
+    let fonts = fallback_fonts_dir().map(|d| fallback_fonts(&d)).unwrap_or_default();
+    if !fonts.is_empty() {
+        let dir = web_out.join("fonts");
+        if let Err(e) = fs::create_dir_all(&dir).and_then(|_| fonts.iter().try_for_each(|(n, data)| fs::write(dir.join(n), data))) {
+            eprintln!("Cannot write the fallback fonts: {e}");
+            return ExitCode::from(1);
+        }
+    }
     // The open-source notices the page ships with (index.html links them)
     if let Err(e) = notices::write(&web_out, &notices::Kind::Web) {
         eprintln!("{}", notices::missing(&e));
@@ -817,6 +826,7 @@ fn bundle_bc_file(
         rapidrintr_js: &js_text,
         title: None,
         assets: Some(&assets),
+        fonts: &fallback_fonts(&wasm_p.parent().unwrap_or(Path::new(".")).join("fonts")),
         notices: &notices_text,
     }) {
         Ok(b) => b,
@@ -834,6 +844,41 @@ fn bundle_bc_file(
         bundle.len(),
     );
     ExitCode::SUCCESS
+}
+
+/// The fallback fonts' files in `dir` (`index.json`, the chunks,
+/// `OFL.txt`: tools/fonts.py's, beside the web runtime — an install's
+/// `lib/rapidr/web/fonts`, a checkout's `target/web/fonts`), by name; none
+/// (with a warning) when they aren't there: the page then shows characters
+/// the built-in fonts lack as boxes.
+fn fallback_fonts(dir: &Path) -> Vec<(String, Vec<u8>)> {
+    let mut out = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".otf") || name.ends_with(".ttf") || name == "index.json" || name == "OFL.txt" {
+                if let Ok(data) = fs::read(e.path()) {
+                    out.push((name, data));
+                }
+            }
+        }
+    }
+    if !out.iter().any(|(n, _)| n == "index.json") {
+        eprintln!("warning: no fallback fonts in {} (tools/build_web_artifacts.sh makes them): characters the built-in fonts lack will show as boxes", dir.display());
+        return Vec::new();
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
+/// Where the web runtime's fallback fonts are: an install's
+/// `lib/rapidr/web/fonts`, a checkout's `target/web/fonts`.
+fn fallback_fonts_dir() -> Option<PathBuf> {
+    match Home::find() {
+        Some(home) if home.release.is_some() => Some(home.root.join("web").join("fonts")),
+        Some(home) => Some(home.root.join("target").join("web").join("fonts")),
+        None => None,
+    }
 }
 
 /// Default lookup for the rapidrintr wasm/js artifacts produced by

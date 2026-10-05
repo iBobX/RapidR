@@ -32,6 +32,14 @@ pub mod mdi_web;
 pub mod menu_web;
 pub mod network_web;
 pub mod object_web;
+/// The web-only components (RWEBVIEW, RDOM, media, the data science
+/// widgets) as elements over the UI kernel's canvases (Stage W6).
+#[cfg(feature = "kernel")]
+pub mod overlay_web;
+/// The fallback fonts (Noto: symbols, CJK) fetched as text needs them
+/// (Stage W7).
+#[cfg(feature = "kernel")]
+pub mod fonts_web;
 pub mod scroll_web;
 pub mod storage_web;
 pub mod tray_web;

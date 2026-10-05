@@ -12,6 +12,12 @@ which also carries their full license texts. Every program RapidR builds carries
 its own `THIRD-PARTY-NOTICES.txt` with the full texts for what is inside it
 (`rapidr notices`; [LEGAL.md](LEGAL.md), [docs/licensing.md](docs/licensing.md)).
 
+The fonts RapidR draws text with are credited there too (§4). They are
+the Liberation fonts and the Noto fallback fonts (Noto Sans, Noto Sans
+Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
+License 1.1. The Noto fonts' chunks ship beside the web runtime with
+their `OFL.txt`.
+
 **678 libraries** under 27 license expressions.
 
 ## Apache-2.0 OR MIT (379)

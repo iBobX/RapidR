@@ -3,9 +3,6 @@
 <head>
   <meta charset="utf-8">
   <title>RapidR program preview</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto:wght@400;500;700&family=Montserrat:wght@400;500;700&family=Nunito:wght@400;500;700&family=Playfair+Display:wght@400;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; }
   </style>
@@ -29,6 +26,16 @@
     let port = null;
     const pending = [];
     const send = (msg) => (port ? port.postMessage(msg) : pending.push(msg));
+    // (the fallback fonts' chunks, asked of the IDE: this frame's origin is
+    // opaque, so it can't fetch them itself — crates/rapidr-runtime-web's
+    // fonts_web.rs)
+    const fontWaiters = new Map();
+    let fontAsks = 0;
+    window.RAPIDR_FONT_FETCH = (file) => new Promise((resolve, reject) => {
+      const id = ++fontAsks;
+      fontWaiters.set(id, { resolve, reject });
+      send({ __rapidr_font: { id, file } });
+    });
 
     const text = (args) => args.map((a) => {
       if (typeof a === "string") return a;
@@ -121,6 +128,12 @@
       for (const msg of pending.splice(0)) port.postMessage(msg);
       port.onmessage = (e) => {
         if (e.data?.__rapidr_debug_cmd) onDebugCommand(e.data.__rapidr_debug_cmd);
+        if (e.data?.__rapidr_font_reply) {
+          const { id, bytes } = e.data.__rapidr_font_reply;
+          const w = fontWaiters.get(id);
+          fontWaiters.delete(id);
+          if (w) bytes ? w.resolve(bytes) : w.reject(new Error("no such font"));
+        }
       };
 
       window.__rapidr_assets = data.assets || {};

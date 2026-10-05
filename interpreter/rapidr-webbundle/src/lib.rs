@@ -41,6 +41,11 @@ pub struct BundleInputs<'a> {
     pub title: Option<&'a str>,
     /// Optional embedded assets map (filename -> base64 payload)
     pub assets: Option<&'a HashMap<String, String>>,
+    /// The fallback fonts' files (`fonts/`: `index.json`, the chunks,
+    /// `OFL.txt`; tools/fonts.py), by name — the page loads the ones its
+    /// text needs. Empty: none (characters the built-in fonts lack show as
+    /// boxes).
+    pub fonts: &'a [(String, Vec<u8>)],
     /// The web runtime's `THIRD-PARTY-NOTICES.txt` (RapidR's licence and
     /// every open-source component's notices: `rapidr notices web`).
     pub notices: &'a str,
@@ -85,6 +90,9 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         write_file(&mut zw, NOTICES_FILE, inputs.notices.as_bytes(), deflated)?;
         write_file(&mut zw, "bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes(), deflated)?;
         write_file(&mut zw, "ansi_screen.js", ANSI_SCREEN_JS.as_bytes(), deflated)?;
+        for (name, data) in inputs.fonts {
+            write_file(&mut zw, &format!("fonts/{name}"), data, stored)?;
+        }
 
         zw.finish().map_err(|e| format!("zip finish: {e}"))?;
     }
@@ -184,6 +192,7 @@ mod tests {
             rapidrintr_js: "export default async function init(){};\nexport function rapidr_run_bc(){}\n",
             title: None,
             assets: None,
+            fonts: &[],
             notices: "THIRD-PARTY SOFTWARE NOTICES AND LICENCES",
         })
         .expect("bundle");

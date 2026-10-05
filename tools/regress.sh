@@ -41,22 +41,18 @@ if want gui; then echo "== gui events (the UI kernel's headless host, native + i
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
-  echo "== web gui parity"; node tests/web_gui_parity.mjs 2>&1 | tail -1
-  echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 node tests/web_gui_parity.mjs 2>&1 | tail -1
-  # (the browser's accessibility tree against the UI kernel's: it makes the
-  # kernel's trees it needs — the gui stage's 2× run cleared the 1× run's)
-  echo "== web accessibility (ARIA = the UI kernel's tree; the keys)"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Web accessibility"
-  # (the UI kernel as the page's host — docs/web-host-plan.md: the cases'
-  # dumps by the desktop's own test hooks, and every window and accessibility
-  # tree byte for byte against the desktop's own captures, made here by
+  # (the UI kernel hosts the web — docs/web-host-plan.md: the cases' dumps
+  # by the desktop's own test hooks, and every window and accessibility tree
+  # byte for byte against the desktop's own captures, made here by
   # tests/gui_captures.mjs at 1× and 2×. Known ≠: menus / themes (the
   # desktop's macOS menu bar), message_icons / modal_result 2× (wasm SIMD's
   # rounding, one or two pixels by one level))
-  echo "== desktop captures for the kernel host"; node tests/gui_captures.mjs "$PWD/$W/gui_captures" 2>&1 | tail -1
-  echo "== web gui parity on the kernel host"; RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
-  echo "== web gui parity on the kernel host at 2x"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" RAPIDR_WEB_HOST=kernel node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
-  echo "== web accessibility on the kernel host (Chrome's tree over the mirror = the kernel's)"; RAPIDR_WEB_HOST=kernel node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host"
-  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs; do
+  echo "== desktop captures for the web"; node tests/gui_captures.mjs "$PWD/$W/gui_captures" 2>&1 | tail -1
+  echo "== web gui parity"; RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
+  echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
+  # (Chrome's accessibility tree over the mirror = the kernel's)
+  echo "== web accessibility"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host|Web accessibility"
+  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

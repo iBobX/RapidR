@@ -4,11 +4,15 @@
 //   * QSTATUSBAR: AddPanels, Panel(i).Caption / Width, PanelCount, SimpleText;
 //   * QLISTVIEW: AddColumns, AddItems, AddSubItem, InsertItem, Item(i),
 //     Column(i), SubItem(i, j), ItemIndex, OnClick, OnColumnClick.
+// (On the kernel host both are drawn on the window's canvas: the test reads
+// them through the accessibility mirror and the canvas's pixels and clicks
+// as the user does, tests/web_kernel_page.mjs.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_ide_components.mjs
 
 import { chromium } from "playwright";
+import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
@@ -76,49 +80,70 @@ ok(/sb=Ready\|Line 42\|3/.test(out), `panel properties read back (${JSON.stringi
 
 const frame = page.frames().find((f) => f.url().includes("preview.html"));
 ok(!!frame, "preview frame found");
+await k.waitFor(frame, "SB2");
+// (a status bar is a `status` element in the mirror, its panels the
+// elements in it with their captions as text and their places: a panel's
+// Width is the step from its left edge to the next one's)
 const got = await frame.evaluate(() => {
   const sb = document.getElementById("rr-sb");
   const sb2 = document.getElementById("rr-sb2");
   if (!sb || !sb2) return { missing: true };
-  const spans = [...sb.querySelectorAll("span")];
+  const panels = [...sb.children];
+  const left = (i) => panels[i]?.getBoundingClientRect().left ?? 0;
   return {
-    texts: spans.map((s) => s.textContent),
-    first: Math.round(spans[0]?.getBoundingClientRect().width || 0),
-    second: Math.round(spans[1]?.getBoundingClientRect().width || 0),
+    role: sb.getAttribute("role"),
+    texts: panels.map((s) => s.textContent),
+    first: Math.round(left(1) - left(0)),
+    second: Math.round(left(2) - left(1)),
     simple: sb2.textContent,
     simpleBold: !!sb2.querySelector("b"),
   };
 });
-ok(!got.missing, "status bars rendered");
+ok(!got.missing && got.role === "status", `status bars rendered (${got.role})`);
 ok(JSON.stringify(got.texts) === JSON.stringify(["Ready", "Line 42", "INS"]), `three panels with their captions (${JSON.stringify(got.texts)})`);
 ok(got.first === 150, `Panel(0).Width = 150 (${got.first})`);
 ok(got.second === 100, `default panel width 100 (${got.second})`);
 ok(got.simple === "<b>plain</b>" && !got.simpleBold, `SimpleText shown as plain text, never markup (${got.simple})`);
 
-// The list view is a canvas the shared model paints (rapidr_value::objects::
-// listview, the same on the desktop); what it holds is the program's to read.
+// The list view is drawn on the window's canvas from the shared model
+// (rapidr_value::objects::listview, the same on the desktop); what it holds
+// is the program's to read, and the mirror lists its items.
 const lv = await frame.evaluate(() => {
-  const canvas = document.getElementById("rr-lv");
-  if (!canvas || canvas.tagName !== "CANVAS") return { missing: true };
-  const rt = window.__rapidr_rt;
-  const get = (p) => rt.rapidr_get_prop("LV", p);
-  const r = canvas.getBoundingClientRect();
-  return { size: [Math.round(r.width), Math.round(r.height)], count: get("itemcount"), columns: get("columnscount"), index: get("itemindex"), painted: canvas.width > 0 };
+  const el = document.getElementById("rr-lv");
+  if (!el) return { missing: true };
+  const r = el.getBoundingClientRect();
+  const items = [...el.querySelectorAll('[role="option"]')];
+  return {
+    role: el.getAttribute("role"),
+    size: [Math.round(r.width), Math.round(r.height)],
+    items: items.map((o) => o.getAttribute("aria-label")),
+    selected: items.findIndex((o) => o.getAttribute("aria-selected") === "true"),
+  };
 });
-ok(!lv.missing, "list view rendered (a canvas)");
-ok(JSON.stringify(lv.size) === "[400,150]" && lv.painted, `drawn at its size (${JSON.stringify(lv.size)})`);
-ok(String(lv.count) === "5" && String(lv.columns) === "3", `five items in three columns (${lv.count}, ${lv.columns})`);
-ok(String(lv.index) === "2", `ItemIndex = 2 (${lv.index})`);
+const get = async (p) => String(await k.prop(frame, "LV", p));
+lv.count = await get("itemcount");
+lv.columns = await get("columnscount");
+lv.index = await get("itemindex");
+// (painted: more than one colour drawn at its place — the header, the rows'
+// texts, the selected row)
+const lvPixels = await k.pixels(frame, "LV");
+const lvColours = new Set();
+for (let i = 0; lvPixels && i < lvPixels.data.length; i += 4) lvColours.add(`${lvPixels.data[i]},${lvPixels.data[i + 1]},${lvPixels.data[i + 2]}`);
+ok(!lv.missing && lv.role === "listbox", `list view rendered (in the mirror: ${lv.role})`);
+ok(JSON.stringify(lv.size) === "[400,150]" && lvColours.size > 2, `drawn at its size (${JSON.stringify(lv.size)}, ${lvColours.size} colours)`);
+ok(lv.count === "5" && lv.columns === "3", `five items in three columns (${lv.count}, ${lv.columns})`);
+ok(JSON.stringify(lv.items) === JSON.stringify(["readme.txt", "first.txt", "photo.jpg", "data.bin", "<b>not bold</b>"]), `its items, the text as it is (${JSON.stringify(lv.items)})`);
+ok(lv.index === "2" && lv.selected === 2, `ItemIndex = 2 (${lv.index}; selected in the mirror: ${lv.selected})`);
 
-// Row 3 (the header 21 px high, rows 18: its middle at y = 1 + 21 + 3 * 18 + 9).
-const box = await frame.locator("#rr-lv").boundingBox();
-await page.mouse.click(box.x + 20, box.y + 85);
+// Row 3 (the header 21 px high, rows 18: its middle at y = 1 + 21 + 3 * 18 + 9),
+// a real click there.
+await k.click(frame, "LV", [20, 85]);
 await page.waitForTimeout(300);
-const clicked = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+const clicked = await k.text(frame, "Lbl");
 ok(clicked === "3|data.bin|Deflated|5|3|200|Method", `clicking a row sets ItemIndex and fires OnClick (${clicked})`);
-await page.mouse.click(box.x + 230, box.y + 10);
+await k.click(frame, "LV", [230, 10]);
 await page.waitForTimeout(300);
-const headed = await frame.evaluate(() => document.getElementById("rr-lbl")?.textContent);
+const headed = await k.text(frame, "Lbl");
 ok(headed === "column1", `clicking a header fires OnColumnClick(1) (${headed})`);
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 

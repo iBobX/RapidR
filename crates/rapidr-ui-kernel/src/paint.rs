@@ -429,13 +429,27 @@ impl FormUi {
         }
         // (the form's scroll bars, over its components)
         crate::components::scrollbox::paint_form_bars(&self.form, (w, h), &mut p, self.menu_offset);
-        // (an open drop-down list, over them)
-        crate::components::combo::paint_popup(self, store, ts, &mut p);
-        // (open menus over everything)
-        self.paint_menus(store, &mut p);
+        if !self.popups_apart {
+            // (an open drop-down list, over them)
+            crate::components::combo::paint_popup(self, store, ts, &mut p);
+            // (open menus over everything)
+            self.paint_menus(store, &mut p);
+        }
         self.dirty = false;
         // (the caret's blink: tick.rs)
         self.arm_caret();
+        list
+    }
+
+    /// With [`FormUi::popups_apart`]: the open drop-down list and menus
+    /// alone, on nothing (an empty list: none open), the size of
+    /// [`FormUi::paint`]'s.
+    pub fn paint_popups(&mut self, store: &dyn Store, ts: &mut TextSystem, scale: f64) -> DisplayList {
+        let (w, h) = self.client;
+        let mut list = DisplayList { size: (w, h + self.menu_offset), scale, ..Default::default() };
+        let mut p = Painter::new(&mut list);
+        crate::components::combo::paint_popup(self, store, ts, &mut p);
+        self.paint_menus(store, &mut p);
         list
     }
 
