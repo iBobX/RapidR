@@ -4,13 +4,17 @@
 #
 #   sudo bash setup-tools.sh system    the other architecture's -dev libraries (multiarch,
 #                                      from Ubuntu's archives: ports.ubuntu.com for arm64,
-#                                      archive / security.ubuntu.com for amd64), qemu-user-static
-#                                      and binfmt-support
+#                                      archive / security.ubuntu.com for amd64); where Rosetta
+#                                      doesn't run x86_64 programs, qemu-user-static and binfmt-support
 #   bash setup-tools.sh user           Zig (ziglang.org, checked against the SHA-256 its
 #                                      download index publishes), cargo-zigbuild (crates.io),
 #                                      both Rust Linux targets
-#   sudo bash setup-tools.sh qemu      a newer qemu-user for the other architecture's programs
-#                                      (24.04's crashes on Rust programs): see below
+#   sudo bash setup-tools.sh qemu      where Rosetta isn't there: a newer qemu-user for the other
+#                                      architecture's programs (24.04's crashes on Rust programs)
+#
+# The other architecture's programs (the smoke test's) run through binfmt: on an ARM VM
+# under Parallels, Rosetta for Linux (Parallels' VM settings: "Use Rosetta to run x86-64
+# binaries"; binfmt entry RosettaLinux) — fast, preferred; elsewhere qemu-user.
 #   sudo bash setup-tools.sh undo      removes what `system` added (qemu-undo: what `qemu` did)
 #
 # Why: the Linux artifacts link against a glibc baseline (linux.sh: GLIBC) with Zig as the
@@ -24,6 +28,8 @@ case "$HOST" in
     *) echo "unsupported host $HOST"; exit 1 ;;
 esac
 CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+# Rosetta for Linux runs x86_64 programs here (an ARM VM under Parallels)
+rosetta() { [ "$HOST" = arm64 ] && grep -qs "^enabled" /proc/sys/fs/binfmt_misc/RosettaLinux; }
 LIBS="libasound2-dev libfontconfig-dev libfreetype-dev"
 SOURCES=/etc/apt/sources.list.d/ubuntu.sources
 OURS="/etc/apt/sources.list.d/rapidr-$OTHER.sources"
@@ -52,8 +58,10 @@ Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
         dpkg --add-architecture "$OTHER"
         apt-get update -q
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -q $(for l in $LIBS; do echo "$l:$OTHER"; done) qemu-user-static binfmt-support
-        echo "installed: $LIBS for $OTHER, qemu-user-static, binfmt-support"
+        EMU="qemu-user-static binfmt-support"
+        rosetta && EMU=""
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -q $(for l in $LIBS; do echo "$l:$OTHER"; done) $EMU
+        echo "installed: $LIBS for $OTHER${EMU:+, $EMU}${EMU:-; x86_64 programs run by Rosetta}"
         ;;
     undo)
         [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
@@ -73,6 +81,7 @@ EOF
         # for the other architecture's programs instead of the system's (binfmt, until
         # reboot or `qemu-undo`).
         [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
+        rosetta && { echo "Rosetta runs x86_64 programs here: no qemu needed"; exit 0; }
         case "$OTHER" in amd64) QARCH=x86_64 ;; arm64) QARCH=aarch64 ;; esac
         DEST=/usr/local/lib/rapidr-qemu
         python3 - "${QEMU_SUITE:-questing}" "$HOST" "$OTHER_URIS" "$QARCH" "$DEST" <<'EOF'

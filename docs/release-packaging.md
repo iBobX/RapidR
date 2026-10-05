@@ -294,15 +294,17 @@ vendored source trees. `dist/` and `target/` may be links to a build volume
   multiarch `-dev` packages (ports.ubuntu.com for arm64, archive.ubuntu.com
   and security.ubuntu.com for amd64). The `.deb`s' Depends name packages every
   Debian / Ubuntu since 2020 has (`libasound2t64 | libasound2`, …). The other
-  architecture's packages are smoke-tested in the same VM under qemu-user
-  (binfmt): everything but a native build. Ubuntu 24.04's qemu-user (8.2)
-  crashes on every Rust program of the other architecture ("QEMU internal
-  SIGSEGV" reading /proc/self/maps), so `setup-tools.sh qemu` (as root) takes
-  qemu-user 10.1 from Ubuntu 25.10's archive — InRelease checked against
-  Ubuntu's archive key, Packages.xz and the .deb against their SHA-256s —
-  unpacks it into /usr/local/lib/rapidr-qemu (not installed) and points the
-  other architecture's binfmt entry at it until the next reboot
-  (`qemu-undo` puts the system's back). Once per VM:
+  architecture's packages are smoke-tested in the same VM: everything but a
+  native build. Its x86_64 programs run through binfmt — **Rosetta for
+  Linux** on the ARM VM (Parallels: "Use Rosetta to run x86-64 binaries";
+  fast), else qemu-user. Ubuntu 24.04's qemu-user (8.2) crashes on every Rust
+  program of the other architecture ("QEMU internal SIGSEGV" reading
+  /proc/self/maps), so where Rosetta isn't there `setup-tools.sh qemu` (as
+  root) takes qemu-user 10.1 from Ubuntu 25.10's archive — InRelease checked
+  against Ubuntu's archive key, Packages.xz and the .deb against their
+  SHA-256s — unpacks it into /usr/local/lib/rapidr-qemu (not installed) and
+  points the other architecture's binfmt entry at it until the next reboot
+  (`qemu-undo` puts the system's back); with Rosetta it does nothing. Once per VM:
   `tools/release/ubuntu-vm.sh root tools/release/linux/setup-tools.sh system`
   (as root: apt), then `… run tools/release/linux/setup-tools.sh user` (Zig
   from ziglang.org, SHA-256 checked against its download index;
