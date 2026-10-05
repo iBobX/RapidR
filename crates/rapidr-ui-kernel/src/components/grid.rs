@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::grid::{StringGrid, GCS_ELLIPSIS, GO_ALWAYS_SHOW_EDITOR, GO_COL_MOVING, GO_COL_SIZING, GO_FIXED_HORZ_LINE, GO_FIXED_VERT_LINE, GO_HORZ_LINE, GO_ROW_MOVING, GO_ROW_SIZING, GO_VERT_LINE};
-use rapidr_value::objects::ops::{lift, Op, Place, Rect};
+use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::{with_grid, with_grid_mut};
 use rapidr_value::scrollbars::{Child, Scroller};
 
@@ -33,12 +33,9 @@ use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
 use crate::store::Store;
-use crate::paint::{Painter, DARK, FACE, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
-use crate::text::bgr_to_rgb;
+use crate::paint::{ink, Painter};
 
 /// The lines between cells: silver among the cells, grey among the fixed.
-const LINE: u32 = 0xC0C0C0;
-const FIXED_LINE: u32 = 0x808080;
 
 /// What the mouse is doing on a grid.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -127,7 +124,7 @@ fn layout(id: &str, g: &StringGrid, w: i64, h: i64) -> Layout {
         sc.horz.position = before(&g.col_widths, fc, g.left_col);
         let content = Child { left: -sc.horz.position, top: -sc.vert.position, width: total(&g.col_widths), height: total(&g.row_heights), align: rapidr_value::layout::Align::None, visible: true };
         sc.update(iw, ih, &[content]);
-        (lift(sc.ops(iw, ih)), sc.client(iw, ih))
+        (crate::paint::bar_ops(sc, iw, ih), sc.client(iw, ih))
     });
     Layout { cols: spans(&g.col_widths, fc, g.left_col, cw), rows: spans(&g.row_heights, fr, g.top_row, ch), inner: (cw, ch), bars }
 }
@@ -234,7 +231,8 @@ impl ComponentKind for Grid {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
-        sunken(p, w, h, 0xFFFFFF);
+        let t = p.theme();
+        sunken(p, w, h, t.window);
         // (VisibleRowCount / VisibleColCount: the inside, as the web's grid)
         let fresh = with_grid_mut(cx.id, |g| {
             g.view = (w - 4, h - 4);
@@ -251,7 +249,7 @@ impl ComponentKind for Grid {
         let Some(g) = with_grid(cx.id, |g| g.clone()) else { return };
         let l = layout(cx.id, &g, w, h);
         let font = cx.font.clone();
-        let text_color = bgr_to_rgb(font.color);
+        let text_color = ink(cx.store, cx.id, &font, true, t.window);
         let (fc, fr) = (g.fixed_cols(), g.fixed_rows());
         p.at((2, 2), |p| {
             p.clipped((0, 0, l.inner.0, l.inner.1), |p| {
@@ -262,7 +260,7 @@ impl ComponentKind for Grid {
                     for &(c, x, cw) in &l.cols {
                         let fixed = r < fr || c < fc;
                         let (vl, hl) = if fixed { (g.has_option(GO_FIXED_VERT_LINE), g.has_option(GO_FIXED_HORZ_LINE)) } else { (g.has_option(GO_VERT_LINE), g.has_option(GO_HORZ_LINE)) };
-                        let line = if fixed { FIXED_LINE } else { LINE };
+                        let line = if fixed { t.fixed_lines } else { t.grid_lines };
                         if vl {
                             p.fill((x + cw, y, 1, rh + 1), line);
                         }
@@ -283,24 +281,34 @@ impl ComponentKind for Grid {
                         let button = if ellipsis || list { rh.min(cw) } else { 0 };
                         p.clipped(rect, |p| {
                             if fixed {
-                                p.fill(rect, FACE);
-                                p.edge(rect, &[LIGHT], &[SHADOW]);
+                                p.fill(rect, t.face);
+                                if !t.fluent() {
+                                    p.thin_raised(rect);
+                                }
                             } else {
-                                p.fill(rect, if selected { HIGHLIGHT } else { 0xFFFFFF });
+                                p.fill(rect, if selected { t.highlight } else { t.window });
                             }
                             if !(ellipsis && text == "...") {
-                                let color = if selected { HIGHLIGHT_TEXT } else { text_color };
+                                let color = if selected { t.highlight_text } else if fixed { ink(cx.store, cx.id, &font, true, t.face) } else { text_color };
                                 p.clipped((x, y, (cw - button).max(0), rh), |p| p.text((x + 2, y + 2, (cw - 4 - button).max(0), (rh - 2).max(0)), &text, &font, color, Place::TopLeft));
                             }
                             if button > 0 {
                                 let b = (x + cw - button, y, button, rh);
-                                p.fill(b, FACE);
-                                p.edge(b, &[LIGHT], &[DARK, SHADOW]);
+                                if t.fluent() {
+                                    p.round(b, t.radius, Some(t.control), Some(t.border), 1.0);
+                                } else {
+                                    p.fill(b, t.face);
+                                    p.button_edge(b);
+                                }
                                 if ellipsis {
-                                    p.text(b, "...", &font, 0x000000, Place::Center);
+                                    p.text(b, "...", &font, t.text, Place::Center);
                                 } else {
                                     let (mx, my) = (b.0 as f64 + b.2 as f64 / 2.0, b.1 as f64 + b.3 as f64 / 2.0);
-                                    p.op(Op::Arrow { points: [(mx - 4.0, my - 2.0), (mx + 4.0, my - 2.0), (mx, my + 2.0)], color: 0x000000 });
+                                    if t.fluent() {
+                                        p.chevron(mx, my, 8.0, true, t.text);
+                                    } else {
+                                        p.op(Op::Arrow { points: [(mx - 4.0, my - 2.0), (mx + 4.0, my - 2.0), (mx, my + 2.0)], color: t.text });
+                                    }
                                 }
                             }
                             if let Some(ops) = g.owner_drawing.get(&(c, r)) {

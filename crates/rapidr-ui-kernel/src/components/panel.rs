@@ -12,9 +12,8 @@ use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::text::text_size;
 
 use super::{ComponentKind, Cx, MouseIn, MouseOut};
-use crate::paint::{caption, Painter, GRAY_TEXT};
+use crate::paint::{caption, color_of, ink_of, Painter};
 use crate::store::{self, Store};
-use crate::text::bgr_to_rgb;
 
 pub struct Panel;
 
@@ -44,15 +43,23 @@ impl ComponentKind for Panel {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        let color = rapidr_value::objects::form_color(&cx.store.get(cx.id, "color"));
-        p.fill((0, 0, w, h), bgr_to_rgb(color));
+        let t = p.theme();
+        let back = color_of(cx.store, cx.id).unwrap_or(t.face);
+        p.fill((0, 0, w, h), back);
         let frames = frames(cx.store, cx.id);
         for f in &frames {
             let i = f.inset;
             if w - 2 * i < 2 || h - 2 * i < 2 {
                 break;
             }
-            p.edge((i, i, w - 2 * i, h - 2 * i), &[f.top_left], &[f.bottom_right]);
+            // (the model's light and dark lines: the theme's; a fluent
+            // theme's bevels are thin lines of its border)
+            let (lit, shaded) = match (t.fluent(), f.top_left == bevel::LIGHT) {
+                (true, _) => (t.border, t.border),
+                (false, true) => (t.light, t.shadow),
+                (false, false) => (t.shadow, t.light),
+            };
+            p.edge((i, i, w - 2 * i, h - 2 * i), &[lit], &[shaded]);
         }
         let text = store::string(cx.store, cx.id, "caption");
         if text.is_empty() {
@@ -61,7 +68,7 @@ impl ComponentKind for Panel {
         // (inside the bevels, as TPanel's DrawText)
         let i = frames.last().map_or(0, |f| f.inset + 1);
         let (x, y, iw, ih) = (i, i, (w - 2 * i).max(0), (h - 2 * i).max(0));
-        let color = if cx.state.enabled { bgr_to_rgb(cx.font.color) } else { GRAY_TEXT };
+        let color = ink_of(cx, back);
         let (shown, _) = mnemonic(&text);
         let tw = text_size(&shown, &cx.font).0;
         let rect = match store::int(cx.store, cx.id, "alignment", 2) {

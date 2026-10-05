@@ -147,21 +147,34 @@ impl Header {
     }
 
     /// [`Header::paint`] with the sections `dx` pixels to the left (a list
-    /// view's header follows its columns when they scroll sideways).
+    /// view's header follows its columns when they scroll sideways). In
+    /// the current theme (`crate::theme`): raised sections, or flat ones
+    /// (a thin line between them and under them); a caption the program
+    /// didn't colour (black, RapidQ's) in the theme's text.
     pub fn paint_scrolled(&self, surface: &mut Bitmap, font: &Font, dx: i64) -> Vec<OwnerDrawn> {
+        use crate::theme::bgr;
+        let look = crate::theme::current();
         let h = surface.img.height as i64;
         let w = surface.img.width as i64;
-        let face = 0xF0F0F0;
+        let face = bgr(look.face);
         surface.fill_rect(0, 0, w, h, face);
         let mut owner = Vec::new();
         let spans: Vec<(i64, i64)> = self.spans().into_iter().map(|(l, r)| (l - dx, r - dx)).collect();
         for (i, (s, &(l, r))) in self.sections.iter().zip(spans.iter()).enumerate() {
             let pressed = self.pressed == Some(i);
-            let (light, dark) = if pressed { (0x808080, 0xFFFFFF) } else { (0xFFFFFF, 0x808080) };
-            surface.line(l, 0, r - 1, 0, light);
-            surface.line(l, 0, l, h - 1, light);
-            surface.line(l, h - 1, r - 1, h - 1, dark);
-            surface.line(r - 1, 0, r - 1, h - 1, dark);
+            if look.fluent() {
+                if pressed {
+                    surface.fill_rect(l, 0, r, h, bgr(look.control_pressed));
+                }
+                surface.line(l, h - 1, r - 1, h - 1, bgr(look.border));
+                surface.line(r - 1, 3, r - 1, h - 4, bgr(look.border));
+            } else {
+                let (light, dark) = if pressed { (bgr(look.shadow), bgr(look.light)) } else { (bgr(look.light), bgr(look.shadow)) };
+                surface.line(l, 0, r - 1, 0, light);
+                surface.line(l, 0, l, h - 1, light);
+                surface.line(l, h - 1, r - 1, h - 1, dark);
+                surface.line(r - 1, 0, r - 1, h - 1, dark);
+            }
             let rect = (l, 0, r, h);
             if s.style == HS_OWNER_DRAW {
                 owner.push((i, pressed, rect));
@@ -175,13 +188,16 @@ impl Header {
                 _ => l + 4,
             } + i64::from(pressed);
             let ty = (h - th) / 2 + i64::from(pressed);
-            let color = font.color as u32 & 0xFFFFFF;
+            let color = match font.color as u32 & 0xFFFFFF {
+                0 => bgr(look.text),
+                c => c,
+            };
             super::text::text_out(surface, tx, ty, &s.caption, font, color, None);
         }
         // What's past the last section: the header's face (drawn raised).
         let end = spans.last().map_or(0, |s| s.1);
         if end < w {
-            surface.line(end, h - 1, w - 1, h - 1, 0x808080);
+            surface.line(end, h - 1, w - 1, h - 1, bgr(if look.fluent() { look.border } else { look.shadow }));
         }
         owner
     }

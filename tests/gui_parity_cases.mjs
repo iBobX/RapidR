@@ -230,4 +230,10 @@ export const cases = [
   { name: "d3d_xfile", events: "b1.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=faces2 verts8 255,16711680,65535,0 green65280,65280 tex16711680,65535"],
     pixels: [[20, 60, "0000ff"], [60, 60, "ffff00"], [105, 60, "0000ff"], [135, 60, "ffff00"], [80, 60, "000000"]], clientWidth: 160 },
+  // (kernel themes: a click switches to dark at run time — Application.Theme;
+  // `themes`: the desktop also captures the form under each of these,
+  // RAPIDR_THEME, without the events — the web keeps its own look and only
+  // reads the names back)
+  { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
 ];

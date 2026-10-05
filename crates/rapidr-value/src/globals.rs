@@ -45,6 +45,13 @@ pub trait Platform {
     /// `Application.Icon` / `IcoHandle` changed: forms without their own
     /// icon take it ([`application_icon`]).
     fn set_icon(&self) {}
+    /// `Application.Theme` (RapidR's): the look the desktop draws with
+    /// (`crate::theme`; the web draws its own).
+    fn theme(&self) -> String {
+        crate::theme::current().name.to_string()
+    }
+    /// `Application.Theme = name`: draw with that theme from now on.
+    fn set_theme(&self, _name: &str) {}
 }
 
 thread_local! {
@@ -116,6 +123,8 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         ("application", "hinthidepause") => stored(object, prop).unwrap_or(v_int(2500)),
         ("application", "hintshortpause") => stored(object, prop).unwrap_or(v_int(50)),
         ("application", "hintcolor") => stored(object, prop).unwrap_or(v_int(0x00E1_FFFF)),
+        // (RapidR's: the theme drawn now — `auto` reads as what it chose)
+        ("application", "theme") => v_str(&p.theme()),
         _ => stored(object, prop)?,
     };
     Some(v)
@@ -138,6 +147,7 @@ pub fn set(p: &dyn Platform, name: &str, prop: &str, value: &Value) -> bool {
             store(object, prop, value.clone());
             p.set_icon();
         }
+        ("application", "theme") => p.set_theme(&value.to_string_val()),
         // (read-only: what the platform answers)
         ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors" | "scale" | "pixelsperinch") => {}
         _ => store(object, prop, value.clone()),
@@ -257,5 +267,10 @@ mod tests {
         assert_eq!(get(&p, "application", "helpfile").unwrap().to_string_val(), "x.hlp");
         call(&p, "application", "terminate", &[]);
         assert!(*p.ended.borrow());
+        // (RapidR's Theme: the platform's theme drawn now — the classic look
+        // until one is named; setting it is the platform's to apply)
+        assert_eq!(get(&p, "application", "theme").unwrap().to_string_val(), "classic");
+        assert!(set(&p, "application", "theme", &v_str("dark")));
+        assert_eq!(get(&p, "application", "theme").unwrap().to_string_val(), "classic");
     }
 }

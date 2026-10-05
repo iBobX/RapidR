@@ -26,7 +26,7 @@ use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::grid::CellDraw;
 use rapidr_value::objects::list::ItemList;
-use rapidr_value::objects::ops::{lift, Op, Place, Rect};
+use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::trackbar::Shape;
 use rapidr_value::objects::{with_list, with_list_mut};
 use rapidr_value::scrollbars::{Child, Scroller};
@@ -37,7 +37,7 @@ use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::display::Picture;
 use crate::input::{Clipboard, KernelEvent};
-use crate::paint::{Painter, DARK, FACE, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
+use crate::paint::{ink, Painter};
 use crate::text::bgr_to_rgb;
 
 // ------------------------------------------------------------ actions --
@@ -203,8 +203,9 @@ pub fn edit_key(cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard, rect: Rect) ->
 /// Draws component `cx`'s edit in its box `rect` (in the component): a
 /// white box in a black frame with the editor in it.
 pub fn paint_editor(cx: &mut Cx, p: &mut Painter, rect: Rect) {
-    p.fill(rect, 0xFFFFFF);
-    p.edge(rect, &[0x000000], &[0x000000]);
+    let t = p.theme();
+    p.fill(rect, t.window);
+    p.frame(rect, t.frame);
     super::edit::paint_line(cx, p, editor_area(rect), Source::InPlace);
 }
 
@@ -302,7 +303,7 @@ pub fn vscroll_at(id: &str, w: i64, h: i64, content: i64, step: i64, at: Option<
         let pos = sc.vert.position;
         sc.update(w, h, &[Child { left: 0, top: -pos, width: 0, height: content, align: rapidr_value::layout::Align::None, visible: true }]);
         let (cw, _) = sc.client(w, h);
-        (sc.vert.position, cw, lift(sc.ops(w, h)))
+        (sc.vert.position, cw, crate::paint::bar_ops(sc, w, h))
     })
 }
 
@@ -319,7 +320,7 @@ pub fn hscroll(id: &str, w: i64, h: i64, content: i64, step: i64) -> (i64, i64, 
         let pos = sc.horz.position;
         sc.update(w, h, &[Child { left: -pos, top: 0, width: content, height: 0, align: rapidr_value::layout::Align::None, visible: true }]);
         let (_, ch) = sc.client(w, h);
-        (sc.horz.position, ch, lift(sc.ops(w, h)))
+        (sc.horz.position, ch, crate::paint::bar_ops(sc, w, h))
     })
 }
 
@@ -447,18 +448,44 @@ pub fn scroll_into_view(id: &str, top: i64, bottom: i64, view: i64) {
 // ----------------------------------------------------------- drawing --
 
 /// Windows' sunken client edge around a white box `w` × `h` (a list box,
-/// a tree view, a grid).
+/// a tree view, a grid); a fluent theme's rounded box with a thin border.
 pub fn sunken(p: &mut Painter, w: i64, h: i64, background: u32) {
+    if p.fluent() {
+        p.fluent_field(w, h, background, None);
+        return;
+    }
     p.fill((0, 0, w, h), background);
-    p.edge((0, 0, w, h), &[SHADOW, DARK], &[LIGHT, FACE]);
+    p.sunken_edge((0, 0, w, h));
 }
 
-/// A component's Color, else white (a list's, a tree's background).
+/// A component's Color, else the theme's window (white): a list's, a
+/// tree's background.
 pub fn background(cx: &Cx) -> u32 {
     match cx.store.get(cx.id, "color") {
         v @ (Value::Integer(_) | Value::Double(_)) => bgr_to_rgb(v.to_i64()),
-        _ => 0xFFFFFF,
+        _ => rapidr_value::theme::current().window,
     }
+}
+
+/// A selected row `(x, y, w, h)` of a list (its text then drawn in the
+/// colour this answers): Windows' highlight across it (classic); a fluent
+/// theme's soft rounded fill with the accent's mark at its left.
+pub fn selected_row(p: &mut Painter, (x, y, w, h): Rect) -> u32 {
+    let t = p.theme();
+    if !t.fluent() {
+        p.fill((x, y, w, h), t.highlight);
+        return t.highlight_text;
+    }
+    p.round((x + 1, y, w - 2, h), (t.radius - 1.0).max(2.0), Some(t.selected), None, 1.0);
+    let mark = (h - 8).clamp(3, 16);
+    p.round((x + 1, y + (h - mark) / 2, 3, mark), 1.5, Some(t.accent), None, 1.0);
+    t.selected_text
+}
+
+/// Where a list's row text starts: Windows' 2 pixels in (a fluent theme
+/// leaves room for its selection mark).
+pub fn text_indent(p: &Painter) -> i64 {
+    if p.fluent() { 7 } else { 2 }
 }
 
 /// A bitmap's screen pixels (`Bitmap::display_rgba`) as a picture.
@@ -600,7 +627,7 @@ impl ComponentKind for ListBox {
         sunken(p, w, h, background(cx));
         let Some(mut l) = with_list(cx.id, |l| l.clone()) else { return };
         let font = cx.font.clone();
-        let text_color = if cx.state.enabled { bgr_to_rgb(font.color) } else { SHADOW };
+        let text_color = ink(cx.store, cx.id, &font, cx.state.enabled, background(cx));
         let (iw, ih) = (w - 4, h - 4);
         if l.custom_drawn() {
             let (vw, vh) = view_size(&l, w, h);
@@ -647,11 +674,10 @@ impl ComponentKind for ListBox {
                         break;
                     }
                     let selected = l.is_selected(i);
-                    if selected {
-                        p.fill((0, top, cw, rh), HIGHLIGHT);
-                    }
+                    let color = if selected { selected_row(p, (0, top, cw, rh)) } else { text_color };
                     let text = l.items[i].replace(['\n', '\r', '\t'], " ");
-                    p.text((2, top, cw - 2, rh), &text, &font, if selected { HIGHLIGHT_TEXT } else { text_color }, Place::Left);
+                    let x = text_indent(p);
+                    p.text((x, top, cw - x, rh), &text, &font, color, Place::Left);
                     if cx.state.focused && l.item_index == i as i64 {
                         p.focus((0, top, cw, rh));
                     }

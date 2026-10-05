@@ -8,7 +8,7 @@ use rapidr_value::objects::ops::Place;
 use rapidr_value::Value;
 
 use super::{ComponentKind, Cx, MouseIn, MouseOut};
-use crate::paint::{caption, Painter, GRAY_TEXT};
+use crate::paint::{backdrop, caption, ink_of, Painter};
 use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
 
@@ -43,7 +43,7 @@ impl ComponentKind for Label {
             p.fill((0, 0, w, h), bgr_to_rgb(v.to_i64()));
         }
         let text = store::string(cx.store, cx.id, "caption");
-        let color = if cx.state.enabled { bgr_to_rgb(cx.font.color) } else { GRAY_TEXT };
+        let color = ink_of(cx, backdrop(cx.store, cx.id));
         caption(p, (0, 0, w, h), &text, &cx.font, color, place(cx.store, cx.id));
     }
 

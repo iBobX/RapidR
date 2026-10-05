@@ -36,19 +36,23 @@ thread_local! {
     static EDIT_SOON: RefCell<HashMap<String, (usize, u64)>> = RefCell::new(HashMap::new());
 }
 
-/// A list view's Color as &HBBGGRR (white unless the program says).
+/// A list view's Color as &HBBGGRR (the theme's window, white, unless the
+/// program says).
 fn background(cx: &Cx) -> u32 {
+    let window = rapidr_value::theme::bgr(rapidr_value::theme::current().window);
     match cx.store.get(cx.id, "color") {
-        Value::Null => 0xFFFFFF,
-        Value::String(s) if s.is_empty() => 0xFFFFFF,
+        Value::Null => window,
+        Value::String(s) if s.is_empty() => window,
         v => rapidr_value::objects::form_color(&v) as u32,
     }
 }
 
-/// The model told its control's size, font and focus (before it paints or
-/// takes input).
+/// The model told its control's size, font (its colour the one its text
+/// is drawn in: `paint::inked`) and focus (before it paints or takes
+/// input).
 fn setup(cx: &Cx) {
-    listview_setup(cx.id, cx.width(), cx.height(), &cx.font, cx.state.focused);
+    let font = crate::paint::inked(cx, rapidr_value::theme::bgr(background(cx)));
+    listview_setup(cx.id, cx.width(), cx.height(), &font, cx.state.focused);
 }
 
 /// The model's events, for the program (an edit starts here).

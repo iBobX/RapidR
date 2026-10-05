@@ -39,7 +39,7 @@ use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::display::TextItem;
 use crate::input::{Clipboard, Mods};
-use crate::paint::{Painter, DARK, FACE, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, Store};
 use crate::text::{bgr_to_rgb, Align, Ink, Look, Pos, TextEditor, TextSystem};
 use crate::tree::{FormUi, NodeUi};
@@ -521,16 +521,17 @@ impl EditUi {
             let (x, y0, y1) = ((x0 - dx).round(), (y0 - top).round(), (y1 - top).round());
             (x, y0, x + cw, y1)
         });
+        let t = rapidr_value::theme::current();
         TextItem {
             node: id.to_string(),
             para: p,
             origin: (origin.0 + dx, origin.1 + top),
             selection,
-            highlight: HIGHLIGHT,
-            highlight_text: HIGHLIGHT_TEXT,
+            highlight: t.highlight,
+            highlight_text: t.highlight_text,
             underlines: self.ed.compose_rects(p, cw),
             caret,
-            caret_color: 0x000000,
+            caret_color: t.text,
         }
     }
 
@@ -698,7 +699,7 @@ impl EditUi {
 /// How a text box's text looks now (its store's Font, PasswordChar,
 /// Alignment, WordWrap).
 pub fn look_of(store: &dyn Store, id: &str, font: &Font, enabled: bool, multi: bool) -> Look {
-    let color = if enabled { bgr_to_rgb(font.color) } else { GRAY_TEXT };
+    let color = crate::paint::ink(store, id, font, enabled, background(store, id));
     let mask = if multi { None } else { store::string(store, id, "passwordchar").chars().next() };
     let align = Align::from_prop(store::int(store, id, "alignment", 0));
     let wrap = multi && store::flag(store, id, "wordwrap", true);
@@ -716,10 +717,11 @@ fn ensure<'u>(ui: &'u mut NodeUi, ts: &mut TextSystem, id: &str, spec: &Spec, sc
     e
 }
 
-/// A text box's background: its Color, white unless set.
+/// A text box's background: its Color, the theme's window (white) unless
+/// set.
 pub fn background(store: &dyn Store, id: &str) -> u32 {
     match store.get(id, "color") {
-        rapidr_value::Value::Null => 0xFFFFFF,
+        rapidr_value::Value::Null => rapidr_value::theme::current().window,
         v => bgr_to_rgb(v.to_i64()),
     }
 }
@@ -901,7 +903,10 @@ impl Spec {
     pub fn line(cx: &Cx, area: Rect, src: Source) -> Spec {
         // (an in-place editor: plain text in the component's font)
         let look = match src {
-            Source::InPlace => Look { font: cx.font.clone(), color: bgr_to_rgb(cx.font.color), mask: None, align: Align::Left, wrap: false, syntax: rapidr_value::objects::code::Syntax::None },
+            Source::InPlace => {
+                let color = crate::paint::ink(cx.store, cx.id, &cx.font, true, rapidr_value::theme::current().window);
+                Look { font: cx.font.clone(), color, mask: None, align: Align::Left, wrap: false, syntax: rapidr_value::objects::code::Syntax::None }
+            }
             _ => look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false),
         };
         Spec { look, width: area.2 as f64, multi: false, src }
@@ -957,9 +962,14 @@ impl ComponentKind for Edit {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        p.fill((0, 0, w, h), background(cx.store, cx.id));
-        // Windows' sunken client edge.
-        p.edge((0, 0, w, h), &[SHADOW, DARK], &[LIGHT, FACE]);
+        if p.fluent() {
+            // (a rounded box, its bottom line the accent with the focus)
+            p.fluent_field(w, h, background(cx.store, cx.id), Some(cx.state.focused));
+        } else {
+            p.fill((0, 0, w, h), background(cx.store, cx.id));
+            // Windows' sunken client edge.
+            p.sunken_edge((0, 0, w, h));
+        }
         paint_line(cx, p, inner(w, h), Source::Text);
     }
 

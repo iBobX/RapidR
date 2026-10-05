@@ -16,6 +16,9 @@
 //! system's (`FormUi::system_corner`: macOS' titled windows, whose rounded
 //! corner would cut the grip off and which resize from any edge) the grip
 //! isn't drawn; its square keeps its place, its cursor and its drag.
+//!
+//! A fluent theme draws the bar flat: a thin line along its top, thin
+//! lines between the panels, the grip as a triangle of dots.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -27,9 +30,8 @@ use rapidr_value::objects::ops::{Place, Rect};
 use super::form::Container;
 use super::{ComponentKind, Cx};
 use crate::input::KernelEvent;
-use crate::paint::{Painter, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::{ink_of, Painter};
 use crate::store::{self, Store};
-use crate::text::bgr_to_rgb;
 use crate::tree::FormUi;
 
 pub struct StatusBar;
@@ -68,9 +70,19 @@ pub fn panels(store: &dyn Store, id: &str, w: i64, h: i64) -> Vec<(Rect, String)
 /// raised ridges across its bottom-right corner, each a white line over two
 /// grey ones (DrawFrameControl's DFCS_SCROLLSIZEGRIP).
 fn paint_grip(p: &mut Painter, w: i64, h: i64) {
+    let t = p.theme();
+    if t.fluent() {
+        // (six dots, 2 × 2, in a triangle against the corner)
+        for row in 0..3 {
+            for col in 0..3 - row {
+                p.fill((w - 4 - 4 * col, h - 4 - 4 * row, 2, 2), t.border_strong);
+            }
+        }
+        return;
+    }
     let (cx, cy) = (w - 1, h - 1);
     for base in [1, 5, 9] {
-        for (d, color) in [(base, SHADOW), (base + 1, SHADOW), (base + 2, LIGHT)] {
+        for (d, color) in [(base, t.shadow), (base + 1, t.shadow), (base + 2, t.light)] {
             // (the pixels d steps from the corner along the anti-diagonal)
             for k in 0..=d {
                 let (x, y) = (cx - d + k, cy - k);
@@ -137,13 +149,24 @@ impl ComponentKind for StatusBar {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        p.fill((0, 0, w, h), FACE);
-        let color = if cx.state.enabled { bgr_to_rgb(cx.font.color) } else { GRAY_TEXT };
-        for ((x, y, bw, bh), text) in panels(cx.store, cx.id, w, h) {
+        let t = p.theme();
+        p.fill((0, 0, w, h), t.face);
+        let color = ink_of(cx, t.face);
+        if t.fluent() {
+            p.fill((0, 0, w, 1), t.border);
+        }
+        let boxes = panels(cx.store, cx.id, w, h);
+        let last = boxes.len().saturating_sub(1);
+        for (k, ((x, y, bw, bh), text)) in boxes.into_iter().enumerate() {
             if bw <= 0 || bh <= 0 {
                 continue;
             }
-            p.edge((x, y, bw, bh), &[SHADOW], &[LIGHT]);
+            if !t.fluent() {
+                p.thin_sunken((x, y, bw, bh));
+            } else if k < last {
+                // (a line between this panel and the next)
+                p.fill((x + bw, y + 2, 1, (bh - 4).max(0)), t.border);
+            }
             // (the caption 3 pixels in, cut at the box's inside)
             let inside = (x + 1, y + 1, (bw - 2).max(0), (bh - 2).max(0));
             p.clipped(inside, |p| p.text((x + 3, y, (bw - 6).max(0), bh), &text, &cx.font, color, Place::Left));

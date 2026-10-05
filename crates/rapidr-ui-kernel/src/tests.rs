@@ -759,3 +759,109 @@ fn a_double_click_on_an_mdi_childs_title_bar_maximizes_it() {
     }
     assert_eq!(actions(&mut f), vec![rapidr_value::mdi::Action::Activate; 2]);
 }
+
+/// (kernel themes) A form with the main components.
+fn themed_store() -> MemStore {
+    let mut s = MemStore::new();
+    let put = |s: &mut MemStore, id: &str, t: &str, (l, top, w, h): (i64, i64, i64, i64)| {
+        s.add(id, t, Some("tf")).set(id, "left", v_int(l)).set(id, "top", v_int(top)).set(id, "width", v_int(w)).set(id, "height", v_int(h));
+    };
+    s.add("tf", "RFORM", None).set("tf", "clientwidth", v_int(420)).set("tf", "clientheight", v_int(300));
+    put(&mut s, "tlbl", "RLABEL", (8, 8, 100, 16));
+    s.set("tlbl", "caption", v_str("Hello"));
+    put(&mut s, "tred", "RLABEL", (8, 28, 100, 16));
+    s.set("tred", "caption", v_str("Mine")).set("tred", "fontcolor", v_int(0x0000FF)).set("tred", "font.color", v_int(0x0000FF)).set("tred", "color", v_int(0xC0FFFF));
+    put(&mut s, "ted", "REDIT", (8, 48, 120, 22));
+    s.set("ted", "text", v_str("text"));
+    put(&mut s, "tok", "RBUTTON", (140, 48, 75, 25));
+    s.set("tok", "caption", v_str("OK")).set("tok", "default", v_int(1));
+    put(&mut s, "tck", "RCHECKBOX", (8, 80, 100, 20));
+    s.set("tck", "caption", v_str("Check")).set("tck", "checked", v_int(1));
+    put(&mut s, "trd", "RRADIOBUTTON", (120, 80, 100, 20));
+    s.set("trd", "caption", v_str("Radio")).set("trd", "checked", v_int(1));
+    put(&mut s, "tlst", "RLISTBOX", (8, 104, 120, 60));
+    s.call("tlst", "additems", &[v_str("a"), v_str("b"), v_str("c"), v_str("d"), v_str("e"), v_str("f")]);
+    s.set("tlst", "itemindex", v_int(1));
+    put(&mut s, "tcb", "RCOMBOBOX", (140, 104, 120, 22));
+    s.call("tcb", "additems", &[v_str("one"), v_str("two")]);
+    put(&mut s, "ttb", "RTRACKBAR", (140, 130, 150, 40));
+    put(&mut s, "tpg", "RPROGRESS", (8, 170, 120, 16));
+    s.set("tpg", "position", v_int(50));
+    put(&mut s, "ttc", "RTABCONTROL", (300, 8, 110, 90));
+    s.call("ttc", "addtabs", &[v_str("A"), v_str("B")]);
+    put(&mut s, "tgb", "RGROUPBOX", (300, 110, 110, 60));
+    s.set("tgb", "caption", v_str("Group"));
+    put(&mut s, "tsb", "RSTATUSBAR", (0, 276, 420, 24));
+    s.set("tsb", "simpletext", v_str("Ready"));
+    s
+}
+
+/// The form painted under `t` (the thread's theme put back after).
+fn themed_dump(s: &MemStore, t: &'static rapidr_value::theme::Theme) -> String {
+    let was = rapidr_value::theme::current();
+    rapidr_value::theme::set(t);
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(s, "tf", false);
+    let dump = f.paint(s, &mut ts, 1.0).dump();
+    rapidr_value::theme::set(was);
+    dump
+}
+
+#[test]
+fn every_theme_draws_the_main_components_in_its_own_colours() {
+    use rapidr_value::theme::{ALL, CLASSIC};
+    let s = themed_store();
+    let dumps: Vec<String> = ALL.iter().map(|t| themed_dump(&s, t)).collect();
+    for (t, dump) in ALL.iter().zip(&dumps) {
+        let hex = |c: u32| format!("#{c:06x}");
+        // (the form's background, the label's text: the theme's)
+        assert!(dump.starts_with(&format!("fill 0,0 420x300 {}", hex(t.face))), "{}: {dump}", t.name);
+        assert!(dump.lines().any(|l| l.contains("\"Hello\"") && l.contains(&hex(t.text))), "{}: {dump}", t.name);
+        // (the program's colours win in every theme)
+        assert!(dump.lines().any(|l| l.contains("\"Mine\"") && l.contains("#ff0000")), "{}: {dump}", t.name);
+        assert!(dump.lines().any(|l| l.starts_with("fill 0,0 100x16 #ffffc0")), "{}: {dump}", t.name);
+        // (the classic look is all bevels and pixels; a fluent one rounds)
+        let smooth = dump.lines().filter(|l| l.starts_with("round ") || l.starts_with("stroke ")).count();
+        if **t == CLASSIC {
+            assert_eq!(smooth, 0, "{dump}");
+        } else {
+            assert!(smooth >= 8, "{}: {smooth} smooth shapes\n{dump}", t.name);
+            assert!(dump.contains(&hex(t.accent)), "{}: the accent\n{dump}", t.name);
+        }
+    }
+    // (four looks, not one under four names)
+    for i in 0..dumps.len() {
+        for j in i + 1..dumps.len() {
+            assert_ne!(dumps[i], dumps[j], "{} = {}", ALL[i].name, ALL[j].name);
+        }
+    }
+}
+
+#[test]
+fn a_theme_changes_no_geometry() {
+    use rapidr_value::theme::ALL;
+    // (where each component is drawn, clipped to it: the same in every
+    // theme, as the mouse and the program find it)
+    let s = themed_store();
+    let clips = |dump: &str| dump.lines().filter(|l| l.starts_with("clip ")).map(str::to_string).collect::<Vec<_>>();
+    let first = clips(&themed_dump(&s, ALL[0]));
+    assert!(first.len() > 10);
+    for t in &ALL[1..] {
+        assert_eq!(clips(&themed_dump(&s, t)), first, "{}", t.name);
+    }
+}
+
+#[test]
+fn switching_the_theme_repaints_in_the_new_one() {
+    use rapidr_value::theme::{self, CLASSIC, DARK};
+    let s = themed_store();
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "tf", false);
+    let before = f.paint(&s, &mut ts, 1.0).dump();
+    theme::set(&DARK);
+    let after = f.paint(&s, &mut ts, 1.0).dump();
+    theme::set(&CLASSIC);
+    // (the edit's box: white, then the dark theme's window, rounded)
+    assert!(before.contains("fill 0,0 120x22 #ffffff @8,48"), "{before}");
+    assert!(after.contains(&format!("round 0,0 120x22 r4 fill #{:06x}", DARK.window)), "{after}");
+}

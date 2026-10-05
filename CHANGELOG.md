@@ -8,6 +8,51 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Themes for the UI kernel's look**, beside RapidQ's classic one (still
+  the default, byte for byte): `modern` (flat, Windows 11-like: rounded
+  controls, an accent colour, focus rings, thin scroll bars), `dark` (the
+  same in Windows 11's dark colours) and `highcontrast` (Windows' High
+  Contrast Black: 7:1 text, 3-pixel focus rings). `$THEME name` picks one,
+  `Application.Theme = "dark"` switches at run time (RapidR's; RapidQ's
+  Application has no Theme), `RAPIDR_THEME` sets a default for programs
+  that name none, and `auto` follows the system's dark / high-contrast
+  setting. A theme never moves or resizes anything, nor changes fonts; the
+  program's own colours (`Color`, `Font.Color`) win. The old FLTK theme
+  names keep working (classic or modern). Real windows get a light or dark
+  title bar to match. The web keeps its own look for now and reads the
+  names back.
+
+### Changed
+- **QREGISTRY on Windows is Windows' own registry**, as RapidQ's was, in
+  native and interpreted builds alike (Microsoft's `windows-registry`
+  crate). It answers as the per-user store does — both are worked out in
+  one place (`rapidr_value::registry`): the same paths, data types, sizes
+  and 1 / 0. Keys a program may only read (HKEY_LOCAL_MACHINE without
+  elevation) open and read; changes to them answer 0 and change nothing.
+  HKEY_PERFORMANCE_DATA and Windows 9x's HKEY_DYN_DATA aren't keys there.
+  `RAPIDR_REGISTRY=<file>` still puts the keys in that file, on Windows
+  too, so test runs never touch the machine's registry; macOS, Linux and
+  the web keep the per-user store. Checked on Windows 11
+  (`tools/windows/registry_check.ps1`: one program interpreted, as an
+  interpreted build and as a native build, the same as the store's run,
+  what it left checked with `reg query`).
+
+### Fixed
+- QREGISTRY as TRegistry: GetDataType is 0 (unknown) for the registry's
+  other kinds of value (REG_MULTI_SZ, REG_QWORD, …; they were binary) and
+  the store's file keeps their kind; KeyExists of a root (`""`, `"\"`) is
+  always 1; RenameValue puts the value last (TRegistry deletes, then
+  writes); MoveKey into the key's own sub-key is refused whatever the case
+  of the names.
+
+## [2.115.0] — 2026-10-05
+
+### Added
+- RapidR is checked on Windows 11 (ARM) and Linux (Ubuntu 24.04 with
+  Wayland) besides macOS: the conformance suite on both backends, the GUI
+  events headless and with real windows, the unit tests, and on Windows
+  what a screen reader sees (`tools/windows/uia_probe.ps1`; macOS:
+  `tools/macos/ax_dump.swift`). The fixes below came from these runs.
 - **RapidQ's DirectX 2D objects on every runtime** (native, interpreted,
   web; docs/directx-plan.md): QDXSCREEN draws on an off-screen surface that
   shows on `Flip` (Init, AutoSize, AllowStretch, Fill's DirectDraw colours,
@@ -22,6 +67,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Frequency, Volume and Pan (DirectSound's decibels), Looped or once;
   Playing, Position and Size; Play, Stop. rodio plays it on the desktop,
   Web Audio in the browser.
+
+### Changed
+- The host-neutral half of the desktop's program glue (the kernel's events,
+  forms, the modal list, timers, waits, lists, menus, the GUI test script
+  and hooks, the dialogs' requests and answers) is a crate of its own,
+  `rapidr-ui-app`, behind two traits (`Program`, `Windows`), so the web host
+  can share it (docs/web-host-plan.md, W2). Nothing a program sees changed:
+  every GUI case's captures, accessibility trees and dumps are byte-for-byte
+  the same.
+- The test runners delete each native build once its program ran
+  (`tests/cargo_builds.mjs`): a full run left 50–100 GB behind.
 
 ### Fixed
 - macOS: a borderless form (BorderStyle bsNone) no longer can freeze its
@@ -40,6 +96,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `ring`, rustls' crypto, needs clang to build for Windows on ARM.
 - Windows: native builds work when RapidR lives under a Windows path (the
   generated Cargo.toml's paths are escaped; `\U…` was read as an escape).
+- Windows: QDIRTREE's Directory is a plain path (`C:\Users\…`), not the
+  `\\?\C:\…` form `canonicalize` gives — the tree never found its
+  directory under its root (`C:\`), so nothing was selected.
 - Windows: INPUT$ from a pipe or a file reads its characters instead of
   waiting for the console's keys.
 - Screen readers hear labels: a QLABEL's caption (and a status bar's

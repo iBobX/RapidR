@@ -11,6 +11,10 @@
 //! ShortCut picks its item before the key reaches anything (Windows'
 //! accelerators). QPOPUPMENU's panels are the same (`popupmenu.rs`).
 //!
+//! A fluent theme draws the panels rounded on the theme's menu colour,
+//! the item under the mouse a soft rounded highlight, vector check marks
+//! and chevrons; the bar's open and hot items the same highlight.
+//!
 //! Everything is read from the shared model (`rapidr_value::objects::menu`)
 //! when drawn or touched: the kernel keeps only which menus are open.
 //!
@@ -25,7 +29,7 @@ use rapidr_value::objects::text::text_size;
 use super::check::check_mark;
 use super::radio::disc;
 use crate::input::{KernelEvent, Mods};
-use crate::paint::{caption, Painter, DARK, FACE, GRAY_TEXT, HIGHLIGHT, HIGHLIGHT_TEXT, LIGHT, SHADOW};
+use crate::paint::{caption, Painter};
 use crate::store::Store;
 use crate::tree::FormUi;
 
@@ -157,34 +161,56 @@ fn inside((x, y, w, h): Rect, px: f64, py: f64) -> bool {
 pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<usize>) {
     let (x0, y0, w, h) = rect;
     let font = menu_font();
+    let t = p.theme();
     p.at((x0, y0), |p| {
-        p.fill((0, 0, w, h), FACE);
-        // (EDGE_RAISED: COLOR_3DLIGHT and white, dark grey and grey)
-        p.edge((0, 0, w, h), &[FACE, LIGHT], &[DARK, SHADOW]);
+        if t.fluent() {
+            p.round((0, 0, w, h), t.radius, Some(t.menu), Some(t.border), 1.0);
+        } else {
+            p.fill((0, 0, w, h), t.menu);
+            // (EDGE_RAISED: COLOR_3DLIGHT and white, dark grey and grey)
+            p.raised_edge((0, 0, w, h));
+        }
         let keys_right = w - BORDER - RIGHT;
         for (k, ((y, rh), item)) in rows(items).into_iter().zip(items).enumerate() {
             if item.separator {
                 let ly = y + rh / 2 - 1;
-                p.fill((BORDER + 1, ly, w - 2 * BORDER - 2, 1), SHADOW);
-                p.fill((BORDER + 1, ly + 1, w - 2 * BORDER - 2, 1), LIGHT);
+                if t.fluent() {
+                    p.fill((BORDER + 1, ly + 1, w - 2 * BORDER - 2, 1), t.border);
+                } else {
+                    p.fill((BORDER + 1, ly, w - 2 * BORDER - 2, 1), t.shadow);
+                    p.fill((BORDER + 1, ly + 1, w - 2 * BORDER - 2, 1), t.light);
+                }
                 continue;
             }
             let lit = hot == Some(k);
             if lit {
-                p.fill((BORDER, y, w - 2 * BORDER, rh), HIGHLIGHT);
+                if t.fluent() {
+                    p.round((BORDER + 1, y + 1, w - 2 * BORDER - 2, rh - 2), (t.radius - 1.0).max(2.0), Some(t.menu_highlight), None, 1.0);
+                } else {
+                    p.fill((BORDER, y, w - 2 * BORDER, rh), t.menu_highlight);
+                }
             }
             let color = match (item.enabled, lit) {
-                (true, true) => HIGHLIGHT_TEXT,
-                (true, false) => 0x000000,
-                (false, _) => GRAY_TEXT,
+                (true, true) => t.menu_highlight_text,
+                (true, false) => t.menu_text,
+                (false, _) => t.gray_text,
             };
-            // (a disabled item not lit is embossed: white under the grey)
-            let draws: &[(i64, u32)] = if !item.enabled && !lit { &[(1, LIGHT), (0, GRAY_TEXT)] } else { &[(0, color)] };
+            // (a disabled item not lit is embossed: white under the grey —
+            // classic)
+            let emboss = [(1, t.light), (0, t.gray_text)];
+            let draws: &[(i64, u32)] = if !item.enabled && !lit && !t.fluent() { &emboss } else { &[(0, color)] };
             for &(d, c) in draws {
                 let text_x = BORDER + GUTTER + d;
                 if item.checked {
                     let (gx, gy) = (BORDER + d, y + d);
-                    if item.radio {
+                    if t.fluent() {
+                        let (mx, my) = ((gx + GUTTER / 2) as f64, (gy + rh / 2) as f64);
+                        if item.radio {
+                            p.round(((mx - 3.0) as i64, (my - 3.0) as i64, 6, 6), 3.0, Some(c), None, 1.0);
+                        } else {
+                            p.check_glyph(mx - 6.5, my - 6.5, 13.0, c);
+                        }
+                    } else if item.radio {
                         p.shape(disc((gx + GUTTER / 2) as f64 - 0.5, (gy + rh / 2) as f64 - 0.5, 2.5, 0.0, 360.0, c));
                     } else {
                         check_mark(p, gx + (GUTTER - 7) / 2, gy + (rh - 7) / 2, c);
@@ -197,7 +223,11 @@ pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<
                 }
                 if item.submenu {
                     let (ax, ay) = ((w - BORDER - 10 + d) as f64, (y + d + rh / 2) as f64);
-                    p.op(Op::Arrow { points: [(ax, ay - 4.0), (ax + 4.0, ay), (ax, ay + 4.0)], color: c });
+                    if t.fluent() {
+                        p.chevron(ax + 2.0, ay, 8.0, false, c);
+                    } else {
+                        p.op(Op::Arrow { points: [(ax, ay - 4.0), (ax + 4.0, ay), (ax, ay + 4.0)], color: c });
+                    }
                 }
             }
         }
@@ -620,24 +650,32 @@ impl FormUi {
     /// The in-window bar (its strip of the client area's top).
     pub(crate) fn paint_menu_bar(&mut self, store: &dyn Store, p: &mut Painter) {
         let (w, h) = (self.client.0, self.menu_offset);
-        p.fill((0, 0, w, h), FACE);
+        let t = p.theme();
+        p.fill((0, 0, w, h), t.face);
         let font = menu_font();
         let m = &self.menus;
         for (i, (item, r)) in self.bar_items(store).into_iter().enumerate() {
             let open = m.open_top == Some(i) && m.popup.is_none() || m.pressed_top == Some(i);
             let hot = m.hot_top == Some(i) && m.panels.is_empty();
             let frame = (r.0, r.1 + 2, r.2, r.3 - 4);
-            if open {
-                p.edge(frame, &[SHADOW], &[LIGHT]);
+            if t.fluent() {
+                if open || hot {
+                    p.round(frame, (t.radius - 1.0).max(2.0), Some(if open { t.menu_highlight } else { t.control_hot }), None, 1.0);
+                }
+            } else if open {
+                p.thin_sunken(frame);
             } else if hot {
-                p.edge(frame, &[LIGHT], &[SHADOW]);
+                p.thin_raised(frame);
             }
-            let d = i64::from(open);
+            let d = i64::from(open && !t.fluent());
             if item.enabled {
-                caption(p, (r.0 + d, r.1 + d, r.2, r.3), &item.caption, &font, 0x000000, Place::Center);
+                let ink = if t.fluent() && open { t.menu_highlight_text } else { t.menu_text };
+                caption(p, (r.0 + d, r.1 + d, r.2, r.3), &item.caption, &font, ink, Place::Center);
             } else {
-                caption(p, (r.0 + 1, r.1 + 1, r.2, r.3), &item.caption, &font, LIGHT, Place::Center);
-                caption(p, r, &item.caption, &font, GRAY_TEXT, Place::Center);
+                if !t.fluent() {
+                    caption(p, (r.0 + 1, r.1 + 1, r.2, r.3), &item.caption, &font, t.light, Place::Center);
+                }
+                caption(p, r, &item.caption, &font, t.gray_text, Place::Center);
             }
         }
     }

@@ -363,11 +363,13 @@ impl ItemList {
         match self.owner_drawing.get(&i) {
             Some(ops) => ops.iter().for_each(|op| op.paint(&mut b, font)),
             None => {
+                // (in the current theme's colours: crate::theme)
+                let th = crate::theme::current();
                 let selected = self.is_selected(i);
                 if selected {
-                    b.fill_rect(0, 0, width, height, 0xD77800);
+                    b.fill_rect(0, 0, width, height, crate::theme::bgr(th.highlight));
                 }
-                let color = if selected { 0xFFFFFF } else { 0 };
+                let color = crate::theme::bgr(if selected { th.highlight_text } else { th.text });
                 let text = self.items.get(i).map_or("", String::as_str);
                 // Tabs go on to the TabWidth stops.
                 let avg = super::text::text_size("x", font).0;

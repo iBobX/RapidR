@@ -8,6 +8,9 @@
 //! GroupIndex 0 never stays down. The new Down values go to the store
 //! ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnClick.
 //!
+//! A fluent theme draws it flat: rounded, the accent while Down, a flat
+//! one's face only under the mouse.
+//!
 //! Its BMP glyph (`BMP` / `BMPHandle`, `NumBMPs`, `Layout`, `Spacing`) is
 //! drawn beside the caption by `image::paint_glyph` (the surfaces lane's).
 
@@ -17,9 +20,8 @@ use rapidr_value::toggle_group::{self, Member};
 
 use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
-use crate::paint::{caption, Painter, DARK, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::{caption, ink_of, Painter};
 use crate::store::{self, Store};
-use crate::text::bgr_to_rgb;
 
 /// Whether a component is a toggle button (a group's member).
 pub fn is_toggle(type_name: &str) -> bool {
@@ -87,25 +89,49 @@ impl ComponentKind for CoolBtn {
         let is_down = down(cx.store, cx.id);
         let sunk = s.pressed || is_down;
         let flat = store::flag(cx.store, cx.id, "flat", false);
-        // (down and not held: Windows' dithered face, lighter)
-        p.fill((0, 0, w, h), if is_down && !s.pressed { 0xF8F8F8 } else { FACE });
+        let t = p.theme();
         let r = (0, 0, w, h);
-        match (flat, sunk) {
-            (false, false) => p.edge(r, &[LIGHT], &[DARK, SHADOW]),
-            (false, true) => p.edge(r, &[SHADOW, DARK], &[LIGHT, FACE]),
-            (true, true) => p.edge(r, &[SHADOW], &[LIGHT]),
-            (true, false) if s.hover && s.enabled => p.edge(r, &[LIGHT], &[SHADOW]),
-            (true, false) => {}
-        }
-        let d = i64::from(sunk);
+        let face = if t.fluent() {
+            let face = match (is_down, s.pressed, s.hover && s.enabled) {
+                (true, true, _) => t.accent_pressed,
+                (true, _, true) => t.accent_hot,
+                (true, ..) => t.accent,
+                (false, true, _) => t.control_pressed,
+                (false, _, true) => t.control_hot,
+                _ => t.control,
+            };
+            if flat && !is_down && !s.pressed && !(s.hover && s.enabled) {
+                // (a flat button at rest: nothing but its caption)
+                t.face
+            } else {
+                p.round(r, t.radius, Some(face), Some(if is_down { face } else { t.border }), 1.0);
+                face
+            }
+        } else {
+            // (down and not held: Windows' dithered face, lighter)
+            let face = if is_down && !s.pressed { t.toggled } else { t.face };
+            p.fill(r, face);
+            match (flat, sunk) {
+                (false, false) => p.button_edge(r),
+                (false, true) => p.sunken_edge(r),
+                (true, true) => p.thin_sunken(r),
+                (true, false) if s.hover && s.enabled => p.thin_raised(r),
+                (true, false) => {}
+            }
+            face
+        };
+        let d = i64::from(sunk && !t.fluent());
         let text = store::string(cx.store, cx.id, "caption");
         // (its BMP glyph, the caption beside it: image.rs)
         let ((cx0, cy0, cw, ch), place) = super::image::paint_glyph(cx, p, (d, d, w, h), s.enabled, s.pressed, down(cx.store, cx.id)).unwrap_or(((d, d, w, h), Place::Center));
         if s.enabled {
-            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, bgr_to_rgb(cx.font.color), place);
+            let ink = if t.fluent() && is_down { t.accent_text } else { ink_of(cx, face) };
+            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, ink, place);
         } else {
-            caption(p, (cx0 + 1, cy0 + 1, cw, ch), &text, &cx.font, LIGHT, place);
-            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, GRAY_TEXT, place);
+            if !t.fluent() {
+                caption(p, (cx0 + 1, cy0 + 1, cw, ch), &text, &cx.font, t.light, place);
+            }
+            caption(p, (cx0, cy0, cw, ch), &text, &cx.font, t.gray_text, place);
         }
     }
 

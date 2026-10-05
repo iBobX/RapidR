@@ -143,6 +143,14 @@ pub fn work_area() -> Option<(i64, i64)> {
     imp::work_area()
 }
 
+/// (kernel themes) How the system looks — (dark, high contrast) — for
+/// `$THEME auto` (`rapidr_value::theme::auto`): macOS' appearance and its
+/// Increase Contrast setting; Windows' app mode (AppsUseLightTheme) and
+/// its high contrast; elsewhere GTK_THEME's name (…:dark, HighContrast…).
+pub fn system_look() -> (bool, bool) {
+    imp::system_look()
+}
+
 // (the dialogs lane's)
 /// A message box's sound, as Windows' MessageBeep plays it for its icon
 /// (`None`: the default beep): Windows' system sounds, macOS' alert sound
@@ -158,6 +166,15 @@ mod imp {
 
     pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {
         objc2_app_kit::NSBeep();
+    }
+
+    pub fn system_look() -> (bool, bool) {
+        use objc2_foundation::{NSString, NSUserDefaults};
+        // (the user's appearance: "Dark" when it's dark, absent when light)
+        let style = NSUserDefaults::standardUserDefaults().stringForKey(&NSString::from_str("AppleInterfaceStyle"));
+        let dark = style.is_some_and(|s| s.to_string().eq_ignore_ascii_case("dark"));
+        let contrast = objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldIncreaseContrast();
+        (dark, contrast)
     }
 
     /// The primary screen (the menu bar's: the origin of screen coordinates).
@@ -203,6 +220,31 @@ mod imp {
         };
         // SAFETY: MessageBeep takes a sound type; it only queues a sound.
         unsafe { windows_sys::Win32::System::Diagnostics::Debug::MessageBeep(kind) };
+    }
+
+    pub fn system_look() -> (bool, bool) {
+        use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+        use windows_sys::Win32::UI::Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW};
+        use windows_sys::Win32::UI::WindowsAndMessaging::SPI_GETHIGHCONTRAST;
+        let mut hc = HIGHCONTRASTW { cbSize: std::mem::size_of::<HIGHCONTRASTW>() as u32, dwFlags: 0, lpszDefaultScheme: std::ptr::null_mut() };
+        // SAFETY: SPI_GETHIGHCONTRAST fills the HIGHCONTRASTW `hc` points to
+        // (its cbSize set).
+        let contrast = unsafe { SystemParametersInfoW(SPI_GETHIGHCONTRAST, hc.cbSize, (&mut hc as *mut HIGHCONTRASTW).cast(), 0) } != 0 && hc.dwFlags & HCF_HIGHCONTRASTON != 0;
+        let (mut light, mut size) = (1u32, std::mem::size_of::<u32>() as u32);
+        // SAFETY: wide, NUL-terminated key and value names; a DWORD and its
+        // size for the value.
+        let read = unsafe {
+            RegGetValueW(
+                HKEY_CURRENT_USER,
+                windows_sys::w!("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"),
+                windows_sys::w!("AppsUseLightTheme"),
+                RRF_RT_REG_DWORD,
+                std::ptr::null_mut(),
+                (&mut light as *mut u32).cast(),
+                &mut size,
+            )
+        };
+        (read == 0 && light == 0, contrast)
     }
 
     pub fn global_mouse() -> Option<(f64, f64)> {
@@ -273,6 +315,10 @@ mod imp {
         None
     }
 
+    pub fn system_look() -> (bool, bool) {
+        super::gtk_look(&std::env::var("GTK_THEME").unwrap_or_default())
+    }
+
     pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {
         if std::env::var_os("WAYLAND_DISPLAY").is_some() {
             return;
@@ -296,6 +342,18 @@ mod imp {
         None
     }
     pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {}
+    pub fn system_look() -> (bool, bool) {
+        (false, false)
+    }
+}
+
+/// (dark, high contrast) as a GTK theme's name says (`Adwaita:dark`,
+/// `Yaru-dark`, `HighContrastInverse` …).
+#[allow(dead_code)] // (Linux's answer; the tests read it everywhere)
+fn gtk_look(name: &str) -> (bool, bool) {
+    let n = name.to_ascii_lowercase();
+    let contrast = n.contains("highcontrast") || n.contains("high-contrast");
+    (n.ends_with(":dark") || n.contains("-dark") || n.contains("inverse") || n.contains("dark"), contrast)
 }
 
 thread_local! {
@@ -326,6 +384,10 @@ mod tests {
         // DelBorderIcons(biMaximize), AddBorderIcons(biHelp): 11
         assert_eq!(frame_of(2, 11), Frame { resizable: true, close: true, minimize: true, maximize: false });
         // bsSingle: fixed size; bsDialog: no minimize / maximize
+        assert_eq!(gtk_look("Adwaita"), (false, false));
+        assert_eq!(gtk_look("Adwaita:dark"), (true, false));
+        assert_eq!(gtk_look("HighContrastInverse"), (true, true));
+        assert_eq!(gtk_look("HighContrast"), (false, true));
         assert_eq!(frame_of(1, BI_DEFAULT), Frame { resizable: false, ..Frame::default() });
         assert_eq!(frame_of(3, BI_DEFAULT), Frame { resizable: false, close: true, minimize: false, maximize: false });
         // no biSystemMenu: no buttons at all; bsSizeToolWin resizes

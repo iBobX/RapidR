@@ -19,7 +19,7 @@ use rapidr_ui_kernel::{FormUi, Ink, TextSystem};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{edge_fills, focus_dots, Op, Place, Rect};
 use rapidr_value::objects::trackbar::Shape;
-use vello_cpu::kurbo::{Affine, BezPath, Rect as KRect};
+use vello_cpu::kurbo::{Affine, BezPath, Rect as KRect, RoundedRect, Shape as _};
 use vello_cpu::peniko::{Color, FontData};
 
 /// What a renderer draws into: the few primitives a display list needs
@@ -153,6 +153,48 @@ impl<'a> Painter<'a> {
         self.canvas.fill_path(Affine::IDENTITY, rgb, &path);
     }
 
+    /// A rounded rectangle (`Op::Round`): its rectangle on the device's
+    /// pixels, its curves smooth; the border inside its edge, whole device
+    /// pixels wide where the width allows (so its straight sides are sharp).
+    fn round(&mut self, r: Rect, radius: f64, fill: Option<u32>, stroke: Option<u32>, width: f64) {
+        if r.2 <= 0 || r.3 <= 0 {
+            return;
+        }
+        let rect = self.device_rect(r);
+        let radius = (radius * self.scale).max(0.0);
+        if let Some(f) = fill {
+            let path = RoundedRect::from_rect(rect, radius).to_path(0.1);
+            self.canvas.fill_path(Affine::IDENTITY, f, &path);
+        }
+        if let Some(s) = stroke {
+            let w = (width * self.scale).round().max(1.0);
+            let inner = rect.inset(-w / 2.0);
+            if inner.width() > 0.0 && inner.height() > 0.0 {
+                let path = RoundedRect::from_rect(inner, (radius - w / 2.0).max(0.0)).to_path(0.1);
+                self.canvas.stroke_path(w, s, &path);
+            }
+        }
+    }
+
+    /// Line segments through logical points (`Op::Stroke`), `width`
+    /// logical pixels wide, round-joined, smooth.
+    fn polyline(&mut self, points: &[(f64, f64)], rgb: u32, width: f64) {
+        if points.len() < 2 {
+            return;
+        }
+        let (ox, oy) = (self.origin.0 as f64, self.origin.1 as f64);
+        let mut path = BezPath::new();
+        for (i, (x, y)) in points.iter().enumerate() {
+            let p = ((ox + x) * self.scale, (oy + y) * self.scale);
+            if i == 0 {
+                path.move_to(p)
+            } else {
+                path.line_to(p)
+            }
+        }
+        self.canvas.stroke_path(width * self.scale, rgb, &path);
+    }
+
     /// `text` in `font` and `rgb` in a logical rectangle, turned `angle`
     /// degrees (90: reading upward).
     fn text(&mut self, r: Rect, text: &str, font: &Font, rgb: u32, angle: i32, place: Place) {
@@ -198,6 +240,8 @@ impl<'a> Painter<'a> {
                 }
             }
             Op::Arrow { points, color } => self.polygon(points, *color),
+            Op::Round { rect, radius, fill, stroke, width } => self.round(*rect, *radius, *fill, *stroke, *width),
+            Op::Stroke { points, color, width } => self.polyline(points, *color, *width),
             // (a picture the display list carries: a component's own, or a
             // program's bitmap by object id with its drawing revision)
             Op::Image { source, revision, rect } => {
@@ -273,7 +317,7 @@ fn editor(canvas: &mut dyn Canvas, t: &TextItem, layout: &Layout<Ink>) {
         canvas.pop_clip();
     }
     for r in &t.underlines {
-        canvas.fill_rect(at, 0x000000, &dev(*r));
+        canvas.fill_rect(at, t.caret_color, &dev(*r));
     }
     if let Some(c) = t.caret {
         canvas.fill_rect(at, t.caret_color, &dev(c));

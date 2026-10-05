@@ -12,7 +12,7 @@ use super::progress::range;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::{Painter, DARK, FACE, GRAY_TEXT, LIGHT, SHADOW};
+use crate::paint::Painter;
 use crate::store::{self, Store};
 
 pub struct UpDown;
@@ -59,14 +59,38 @@ impl ComponentKind for UpDown {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
         let across = horizontal(cx.store, cx.id);
-        let color = if cx.state.enabled { 0x000000 } else { GRAY_TEXT };
+        let t = p.theme();
+        let color = if cx.state.enabled { t.text } else { t.gray_text };
+        if t.fluent() {
+            // (one rounded box, a thin line between its halves; chevrons)
+            p.round((0, 0, w, h), t.radius, Some(if cx.state.enabled { t.control } else { t.control_disabled }), Some(t.border), 1.0);
+        }
         for (k, r) in halves(cx.store, cx.id, w, h).into_iter().enumerate() {
             let pushed = cx.state.held && cx.ui.part == Some(k) && cx.state.hover;
-            p.fill(r, FACE);
+            if t.fluent() {
+                if pushed {
+                    p.round(r, t.radius, Some(t.control_pressed), None, 1.0);
+                }
+                if k == 1 {
+                    let sep = if across { (r.0 + r.2 - 1, 3, 1, (h - 6).max(0)) } else { (3, r.1, (w - 6).max(0), 1) };
+                    p.fill(sep, t.border);
+                }
+                let (cx0, cy0) = (r.0 as f64 + r.2 as f64 / 2.0, r.1 as f64 + r.3 as f64 / 2.0);
+                let s = ((r.2.min(r.3) as f64) / 3.0).clamp(2.0, 4.0);
+                let points = match (across, k) {
+                    (false, 0) => [(cx0 - s, cy0 + s / 2.0), (cx0, cy0 - s / 2.0), (cx0 + s, cy0 + s / 2.0)],
+                    (false, _) => [(cx0 - s, cy0 - s / 2.0), (cx0, cy0 + s / 2.0), (cx0 + s, cy0 - s / 2.0)],
+                    (true, 0) => [(cx0 - s / 2.0, cy0 - s), (cx0 + s / 2.0, cy0), (cx0 - s / 2.0, cy0 + s)],
+                    (true, _) => [(cx0 + s / 2.0, cy0 - s), (cx0 - s / 2.0, cy0), (cx0 + s / 2.0, cy0 + s)],
+                };
+                p.stroke(&points, color, 1.0);
+                continue;
+            }
+            p.fill(r, t.face);
             if pushed {
-                p.edge(r, &[SHADOW], &[SHADOW]);
+                p.frame(r, t.shadow);
             } else {
-                p.edge(r, &[FACE, LIGHT], &[DARK, SHADOW]);
+                p.raised_edge(r);
             }
             let d = if pushed { 1.0 } else { 0.0 };
             let (cx0, cy0) = (r.0 as f64 + r.2 as f64 / 2.0 + d, r.1 as f64 + r.3 as f64 / 2.0 + d);
