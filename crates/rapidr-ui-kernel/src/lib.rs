@@ -27,6 +27,12 @@
 //!   come back as the same input a user's would be
 //!   ([`FormUi::access_action`]).
 //!
+//! - **Every colour, metric and glyph style is the theme's**
+//!   ([`theme`], `rapidr_value::theme`): Windows' classic look (RapidQ's,
+//!   the default, drawn op for op as before themes), a modern flat one, a
+//!   dark one and Windows' high contrast — the same components in the same
+//!   places, drawn differently (`paint.rs`).
+//!
 //! Components are a table ([`components::kind_of`]): label, button,
 //! single-line edit, track bar and tab control so far.
 
@@ -50,6 +56,8 @@ pub use components::{kind_of, ComponentKind, Cx};
 pub use display::{DisplayList, Item, Picture, TextItem};
 pub use input::{Clipboard, KernelEvent, MemClipboard, Mods};
 pub use rapidr_value::objects::ops::{Op, Place, Rect};
+/// The themes the kernel draws with (the shared models' too).
+pub use rapidr_value::theme;
 pub use store::{MemStore, Store};
 pub use text::{Ink, TextSystem};
 pub use tree::{FormUi, Node, NodeUi};

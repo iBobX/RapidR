@@ -67,6 +67,16 @@ pub enum Op {
     Focus { rect: Rect },
     /// A filled triangle.
     Arrow { points: [(f64, f64); 3], color: u32 },
+    /// A rounded rectangle, smooth (anti-aliased, off the pixel grid where
+    /// it curves): filled with `fill`, its border `width` pixels wide
+    /// inside its edge in `stroke` — the fluent themes' buttons, boxes and
+    /// focus rings (`rapidr_value::theme`); a circle when `radius` is half
+    /// its side.
+    Round { rect: Rect, radius: f64, fill: Option<u32>, stroke: Option<u32>, width: f64 },
+    /// Line segments through `points` (pixel coordinates), `width` pixels
+    /// wide with round joins and ends, smooth: a fluent check mark, a
+    /// chevron.
+    Stroke { points: Vec<(f64, f64)>, color: u32, width: f64 },
     /// A bitmap model's picture (a QCANVAS, a QIMAGE, a form's surface) by
     /// its object id, scaled into `rect`; `revision` tells a host when to
     /// upload it again.
