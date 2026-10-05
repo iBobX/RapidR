@@ -26,6 +26,10 @@ pub mod network;
 #[cfg(feature = "gui")]
 pub mod ui;
 
+/// QDXSCREEN / QDXTIMER on the desktop (the DirectX lane's).
+#[cfg(feature = "gui")]
+pub mod directx;
+
 #[cfg(feature = "datascience")]
 pub mod datascience;
 

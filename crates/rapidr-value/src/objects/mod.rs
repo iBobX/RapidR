@@ -14,6 +14,7 @@ pub mod bitmap;
 pub mod code;
 pub mod codec;
 pub mod design;
+pub mod directx;
 pub mod dirtree;
 pub mod tree;
 pub mod font;
@@ -80,6 +81,12 @@ enum Object {
     /// RDESIGNSURFACE's designed components and selection; the runtime
     /// draws its ops and passes it the mouse.
     Design(design::DesignSurface),
+    /// QDXSCREEN's back buffer and what the last Flip showed (directx.rs).
+    DxScreen(directx::DxScreen),
+    /// QDXIMAGELIST's pictures (a DelphiX image library).
+    DxImageList(directx::DxImageList),
+    /// QDXTIMER's frame counter (FrameRate).
+    DxTimer(directx::DxTimer),
 }
 
 /// Reads a whole file (the runtime installs one; the web runtime's reads
@@ -242,6 +249,9 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RTABCONTROL" => Object::TabControl(tabcontrol::TabControl::default()),
         "RREGISTRY" => Object::Registry(crate::registry::Registry::default()),
         "RDESIGNSURFACE" => Object::Design(design::DesignSurface::default()),
+        "RDXSCREEN" => Object::DxScreen(directx::DxScreen::default()),
+        "RDXIMAGELIST" => Object::DxImageList(directx::DxImageList::default()),
+        "RDXTIMER" => Object::DxTimer(directx::DxTimer::default()),
         _ => return false,
     };
     OBJECTS.with(|o| {
@@ -606,6 +616,70 @@ pub fn is_canvas(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Bitmap(b) if b.canvas)).unwrap_or(false)
 }
 
+/// Whether `id` is a QDXSCREEN (its runtime widget shows the front buffer
+/// again after a Flip).
+pub fn is_dxscreen(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::DxScreen(_))).unwrap_or(false)
+}
+
+/// Reads or changes a QDXSCREEN (to show what its last Flip showed).
+pub fn with_dxscreen<R>(id: &str, f: impl FnOnce(&mut directx::DxScreen) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::DxScreen(s) => Some(f(s)),
+        _ => None,
+    })?
+}
+
+/// QDXSCREEN `id`'s form was shown: it's set up, `true` the first time
+/// (the runtime fires OnInitialize and OnInitializeSurface). `props`: the
+/// control's Width, Height, AutoSize and FullScreen.
+pub fn dxscreen_initialize(id: &str, props: PropReader) -> bool {
+    let c = dxscreen_control(id, props);
+    with_dxscreen(id, |s| directx::initialize(s, c.width, c.height, c.follows())).unwrap_or(false)
+}
+
+/// What a QDXSCREEN's control says about its picture.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DxControl {
+    pub width: i64,
+    pub height: i64,
+    /// AutoSize (True unless set).
+    pub autosize: bool,
+    /// AllowStretch (True unless set).
+    pub stretch: bool,
+    pub fullscreen: bool,
+}
+
+impl DxControl {
+    /// The surface follows the control's size (AutoSize; not in
+    /// FullScreen, whose surface is the display's mode).
+    pub fn follows(&self) -> bool {
+        self.autosize && !self.fullscreen
+    }
+}
+
+/// A QDXSCREEN control's Width, Height, AutoSize, AllowStretch and
+/// FullScreen.
+pub fn dxscreen_control(id: &str, props: PropReader) -> DxControl {
+    let flag = |p: &str, default: bool| match props(id, p) {
+        Value::Null => default,
+        v => v.to_bool(),
+    };
+    DxControl {
+        width: props(id, "width").to_i64(),
+        height: props(id, "height").to_i64(),
+        autosize: flag("autosize", true),
+        stretch: flag("allowstretch", true),
+        fullscreen: flag("fullscreen", false),
+    }
+}
+
+/// QDXTIMER `id` fires at `now_ms` (the runtime's clock): it counts the
+/// frame for FrameRate.
+pub fn dxtimer_fired(id: &str, now_ms: f64) {
+    with(id, |o| if let Object::DxTimer(t) = o { t.tick(now_ms) });
+}
+
 /// The font a component's properties describe (`Font = Font`, `Font.Size = …`
 /// keep them as `fontname`, `fontsize` (points), `fontcolor`, `fontbold`, …):
 /// what text drawn for the component (a form's surface, a list's items) uses.
@@ -729,6 +803,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::TabControl(t) => t.get(&prop),
         Object::Registry(r) => r.get(&prop),
         Object::Design(d) => d.get(&prop),
+        Object::DxScreen(s) => s.get(&prop),
+        Object::DxImageList(l) => l.get(&prop),
+        Object::DxTimer(t) => t.get(&prop),
     })?
 }
 
@@ -744,7 +821,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         return Some(Ok(()));
     }
     // `Printer.Font = Font` / `Bitmap.Font = Font`: the QFONT's settings.
-    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_)) || matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
+    if prop == "font" && matches!(with(id, |o| matches!(o, Object::Printer(_) | Object::DxScreen(_)) || matches!(o, Object::Bitmap(b) if !b.form)), Some(true)) {
         let font = with(&val.to_string_val(), |o| match o {
             Object::Font(f) => Some(f.clone()),
             _ => None,
@@ -753,6 +830,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         with(id, |o| match o {
             Object::Printer(p) => p.font = font,
             Object::Bitmap(b) => b.font = font,
+            Object::DxScreen(s) => s.back.font = font,
             _ => {}
         });
         return Some(Ok(()));
@@ -809,6 +887,8 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::TabControl(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Registry(r) => r.set(&prop, val).then_some(Ok(())),
         Object::Design(d) => d.set(&prop, val).then_some(Ok(())),
+        Object::DxScreen(s) => s.set(&prop, val),
+        Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
 }
 
@@ -895,6 +975,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::TabControl(_) => "tabcontrol",
         Object::Registry(_) => "registry",
         Object::Design(_) => "design",
+        Object::DxScreen(_) => "dxscreen",
+        Object::DxImageList(_) => "dximagelist",
+        Object::DxTimer(_) => "dxtimer",
     })?;
     // A file opened for reading can't be written.
     if kind == "stream" && memstream::WRITE_METHODS.contains(&method.as_str()) {
@@ -902,6 +985,11 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         if read_only {
             return Some(Err(format!("{method}: the file was opened for reading (fmOpenRead)")));
         }
+    }
+    // A QDXSCREEN's surface follows its control's size (AutoSize).
+    if kind == "dxscreen" {
+        let c = dxscreen_control(id, props);
+        with_dxscreen(id, |s| s.follow_control(c.width, c.height, c.follows()));
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).
@@ -1185,6 +1273,61 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             });
             drawn.filter(|d| *d).map(|_| Ok(Value::Null))
         }
+        // QDXSCREEN: a picture onto the back buffer — Draw(x, y, BMP),
+        // StretchDraw(Rect, BMP), CopyRect(D, Image, S) — and TextRect.
+        ("dxscreen", "draw") => {
+            let src = match load_image(&arg(2)) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            with(id, |o| if let Object::DxScreen(s) = o { s.back.draw(arg(0).to_i64(), arg(1).to_i64(), &src) });
+            Some(Ok(Value::Null))
+        }
+        ("dxscreen", "copyrect" | "stretchdraw") => {
+            let rect = |v: &Value| rect_of(v, props);
+            let (dest, src_value, src_rect) =
+                if method == "copyrect" { (rect(&arg(0)), arg(1), Some(rect(&arg(2)))) } else { (rect(&arg(0)), arg(1), None) };
+            let src = match load_image(&src_value) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            let src_rect = src_rect.unwrap_or((0, 0, src.img.width as i64, src.img.height as i64));
+            with(id, |o| if let Object::DxScreen(s) = o { s.back.copy_rect(dest, &src, src_rect) });
+            Some(Ok(Value::Null))
+        }
+        ("dxscreen", "textrect") => {
+            let r = rect_of(&arg(0), props);
+            with(id, |o| if let Object::DxScreen(s) = o { s.text_rect(r, &args[1.min(args.len())..]) });
+            Some(Ok(Value::Null))
+        }
+        // QDXIMAGELIST: an image library from a file, a `$RESOURCE` or a
+        // stream.
+        ("dximagelist", "loadfromfile" | "loadfromresource" | "loadfromstream") => {
+            let bytes = match method.as_str() {
+                "loadfromfile" => read_file(&arg(0).to_string_val()),
+                "loadfromresource" => crate::resources::bytes(arg(0).to_i64()).map(|b| b.to_vec()).ok_or_else(|| format!("no resource {}", arg(0).to_i64())),
+                _ => Ok(with(&arg(0).to_string_val(), |o| match o {
+                    Object::Stream(m) => m.read(usize::MAX),
+                    _ => Vec::new(),
+                })
+                .unwrap_or_default()),
+            };
+            Some(bytes.and_then(|b| with(id, |o| if let Object::DxImageList(l) = o { l.load(&b) } else { Ok(()) }).unwrap_or(Ok(()))).map(|_| Value::Null))
+        }
+        // Draw(Item, X, Y, Pattern) onto its Parent screen's back buffer.
+        ("dximagelist", "draw") => {
+            let (item, pattern) = (arg(0).to_i64(), arg(3).to_i64());
+            let picture = with(id, |o| match o {
+                Object::DxImageList(l) if item >= 0 => l.items.get_mut(item as usize).and_then(|p| directx::pattern_bitmap(p, pattern)),
+                _ => None,
+            })
+            .flatten();
+            let screen = props(id, "parent").to_string_val();
+            if let Some(picture) = picture {
+                with(&screen, |o| if let Object::DxScreen(s) = o { s.back.draw(arg(1).to_i64(), arg(2).to_i64(), &picture) });
+            }
+            Some(Ok(Value::Null))
+        }
         _ => call_object(id, &method, args),
     }
 }
@@ -1206,6 +1349,8 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::TabControl(t) => t.call(method, args),
         Object::Registry(r) => r.call(method, args),
         Object::Design(d) => d.call(method, args),
+        Object::DxScreen(s) => s.call(method, args),
+        Object::DxImageList(_) | Object::DxTimer(_) => None,
     })?
     .map(Ok)
     // A property read written like a call (`Icons.Count` compiled as one).

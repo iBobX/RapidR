@@ -25,11 +25,14 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync, cpSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { dropBuild } from "../cargo_builds.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../..");
 const CASES = join(HERE, "cases");
-const RAPIDR = resolve(ROOT, process.env.RAPIDR_BIN || "rapidr");
+// (Windows: programs are .exe)
+const EXE = process.platform === "win32" ? ".exe" : "";
+const RAPIDR = resolve(ROOT, process.env.RAPIDR_BIN || `rapidr${EXE}`);
 // (the programs use their own clipboard, never the user's)
 process.env.RAPIDR_TEST_CLIPBOARD = "1";
 const WORK = resolve(process.env.CONFORMANCE_WORK || join(HERE, ".work"));
@@ -94,9 +97,15 @@ function runCodegen(name, src, input) {
   }
   const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target") };
   const c = run(RAPIDR, ["build", rr, join(dir, `${name}_rust`)], { env, timeout: 600_000 });
-  const bin = join(dir, name);
-  if (!c.ok || !existsSync(bin)) return { compiled: false, output: "", diagnostics: cargoErrors(c.out + c.err) };
+  const bin = join(dir, `${name}${EXE}`);
+  if (!c.ok || !existsSync(bin)) {
+    dropBuild(env.CARGO_TARGET_DIR, name);
+    return { compiled: false, output: "", diagnostics: cargoErrors(c.out + c.err) };
+  }
   const r = run(bin, [], { input });
+  // (its build, ~350 MB, gone once it ran: tests/cargo_builds.mjs)
+  rmSync(bin, { force: true });
+  dropBuild(env.CARGO_TARGET_DIR, name);
   return { compiled: true, output: r.out, diagnostics: r.err, crashed: !r.ok };
 }
 

@@ -116,6 +116,18 @@ impl RpComponent {
                 props.insert("fontsize".into(), v_int(12));
                 props.insert("fontname".into(), v_str("Arial"));
             }
+            // (the DirectX lane's) QDXSCREEN; QDXTIMER (manual: Enabled
+            // False, ActiveOnly True; DelphiX's Interval 1000).
+            "RDXSCREEN" => {
+                props.insert("left".into(), v_int(0));
+                props.insert("top".into(), v_int(0));
+                props.insert("visible".into(), v_bool(true));
+            }
+            "RDXTIMER" => {
+                props.insert("enabled".into(), v_bool(false));
+                props.insert("interval".into(), v_int(1000));
+                props.insert("activeonly".into(), v_bool(true));
+            }
             "RHEADER" => {
                 // Sections: rapidr_value::objects::header; a canvas to draw on.
                 props.insert("left".into(), v_int(0));
@@ -424,6 +436,11 @@ pub fn rp_mark_shutting_down() {
     SHUTTING_DOWN.with(|s| s.set(true));
 }
 
+/// A timer the runtime ticks (QTIMER, and the DirectX lane's QDXTIMER).
+fn is_timer_type(type_name: &str) -> bool {
+    matches!(type_name.to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER")
+}
+
 /// Disable all RTimer components and clear their indirect handlers so
 /// that no further timer ticks attempt to dispatch into a torn down
 /// VM. Called during ShowModal shutdown and from
@@ -433,7 +450,7 @@ pub fn rp_stop_all_timers() {
         c.borrow()
             .iter()
             .filter_map(|(n, comp)| {
-                if comp.type_name.eq_ignore_ascii_case("RTIMER") {
+                if is_timer_type(&comp.type_name) {
                     Some(n.clone())
                 } else {
                     None
@@ -836,8 +853,13 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     // A timer enabled (again) or given another interval: it ticks.
     #[cfg(feature = "gui")]
-    if matches!(prop_lower.as_str(), "enabled" | "interval") && rp_comp_type(name) == "RTIMER" {
+    if matches!(prop_lower.as_str(), "enabled" | "interval") && is_timer_type(&rp_comp_type(name)) {
         crate::ui::gui_timer_changed(name);
+    }
+    // (the DirectX lane's) A QDXSCREEN put on a form already shown: set up.
+    #[cfg(feature = "gui")]
+    if prop_lower == "parent" && rp_comp_type(name) == "RDXSCREEN" {
+        crate::directx::parented(name);
     }
     // A tree's image lists: its icons shown again.
     #[cfg(feature = "gui")]
@@ -1163,6 +1185,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) {
             crate::ui::canvas_redraw(name);
+        } else if rapidr_value::objects::is_dxscreen(name) {
+            // (the DirectX lane's: a Flip shows the back buffer)
+            if method_lower == "flip" {
+                crate::ui::redraw_widget(name);
+            }
         } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
@@ -2101,6 +2128,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RLISTVIEW" | "RPROGRESSBAR"
         | "RNUM" | "RPLOT" | "RDATAFRAME"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
+        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER"
     )
 }
 

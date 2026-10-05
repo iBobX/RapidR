@@ -303,8 +303,19 @@ impl RustCodegen {
     /// the program: RapidQ's global objects by name (`Application`,
     /// `Screen`, …), anything else through the component id it holds.
     fn object_method_call(&self, object: &Expression, method: &str, args: &[&Expression]) -> String {
-        let receiver = self.receiver(object);
         let args: Vec<String> = args.iter().map(|a| self.owned_expr(a)).collect();
+        // `DX.View.SetFront(10)`, `Printer.Font.DelStyles(3)`: the
+        // sub-object's method by its combined name on the object, as the
+        // VM calls it (rapidr-bcgen's `CallMethodDyn` with `view.setfront`).
+        if let Expression::MemberAccess(inner) = object {
+            if let Expression::Identifier(id) = inner.object.as_ref() {
+                if id.name != "_with_" && !is_component_type_name(&id.name) && !id.name.eq_ignore_ascii_case("math") {
+                    let receiver = self.receiver(&inner.object);
+                    return format!("rp_comp_method({receiver}, \"{}.{}\", &[{}])", inner.member.to_lowercase(), method.to_lowercase(), args.join(", "));
+                }
+            }
+        }
+        let receiver = self.receiver(object);
         format!("rp_comp_method({receiver}, \"{}\", &[{}])", method.to_lowercase(), args.join(", "))
     }
 
@@ -878,7 +889,7 @@ impl RustCodegen {
                     let name = comp_id(&decl.name);
                     self.write_indent();
                     let _ = writeln!(self.output, "rp_create_component(\"{name}\", \"{type_name}\");");
-                    if type_name == "RTIMER" {
+                    if rapidr_ast::is_timer_type(&type_name) {
                         self.write_indent();
                         let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
                     }
@@ -2083,7 +2094,7 @@ impl RustCodegen {
         self.create_stack.pop();
 
         // Register timers declared in CREATE blocks
-        if type_upper == "RTIMER" {
+        if rapidr_ast::is_timer_type(&type_upper) {
             self.write_indent();
             let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
         }
@@ -3178,10 +3189,17 @@ pub fn crate_name(stem: &str) -> String {
     }
 }
 
+/// `s` inside a TOML string's quotes (a Windows path's `\` would start an
+/// escape).
+fn toml_escape(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 /// Generate a Cargo.toml for the output project that depends on the runtime
 /// (its default features: the UI kernel's desktop host among them).
 pub fn generate_cargo_toml(project_name: &str, runtime_path: &str) -> String {
     let project_name = crate_name(project_name);
+    let runtime_path = toml_escape(runtime_path);
     format!(
         r#"[package]
 name = "{project_name}"
@@ -3207,6 +3225,7 @@ rapidr-runtime-core = {{ path = "{runtime_path}" }}
 /// Generate a Cargo.toml for a web (WASM) project.
 pub fn generate_cargo_toml_web(project_name: &str, runtime_web_path: &str) -> String {
     let project_name = crate_name(project_name);
+    let runtime_web_path = toml_escape(runtime_web_path);
     format!(
         r#"[package]
 name = "{project_name}"
@@ -3398,6 +3417,15 @@ fn collect_expr_refs(expr: &Expression, refs: &mut HashSet<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cargo_toml_takes_windows_paths() {
+        let toml = generate_cargo_toml("app", r"C:\Users\me\rapidr\crates/rapidr-runtime-core");
+        assert!(toml.contains(r#"path = "C:\\Users\\me\\rapidr\\crates/rapidr-runtime-core""#), "{toml}");
+        let web = generate_cargo_toml_web("app", r"C:\x\rapidr-runtime-web");
+        assert!(web.contains(r#"path = "C:\\x\\rapidr-runtime-web""#), "{web}");
+    }
+
     use rapidr_lexer::Lexer;
     use rapidr_parser::parse_tokens;
 

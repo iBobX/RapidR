@@ -1,0 +1,806 @@
+//! RapidQ's DirectX 2D objects (manual, Appendix B), implemented once for
+//! every runtime (docs/directx-plan.md). RapidQ built them on DelphiX's
+//! TDXDraw, TDXImageList and TDXTimer (its D3D notes say so); RapidR has no
+//! DirectX: a screen is a CPU surface every runtime shows as a picture.
+//!
+//! - **QDXSCREEN** ([`DxScreen`]): every drawing call goes to an off-screen
+//!   surface, the back buffer; nothing shows until `Flip` copies it to what
+//!   the screen shows, the front ("always flip to see it"). The back buffer
+//!   keeps its pixels after a Flip, as a windowed DirectDraw blit does. The
+//!   screen is set up — cleared to black, OnInitialize then
+//!   OnInitializeSurface — when its form is first shown ([`initialize`]):
+//!   what a program draws before that is lost, as DirectX had no surface
+//!   yet ("you must wait for QDXScreen surface to initialize before
+//!   drawing on it").
+//! - The surface's size: `Init(Width, Height)`'s, or the control's without
+//!   one. With AutoSize (the default) a control resized after that — the
+//!   `Align = alClient` RapidQ programs set after Init — gives the surface
+//!   its new size, as DelphiX's AutoSize did on WM_SIZE
+//!   ([`DxScreen::follow_control`]; the corpus's `mgplist.bas` swaps Init's
+//!   width and height and still shows right this way). Where the surface
+//!   and the control differ, AllowStretch (the default) stretches the
+//!   picture over the control, else it shows at its own size at the top
+//!   left.
+//! - Text is drawn in the screen's Font, MS Sans Serif 8 until the program
+//!   sets one (`Font = QFont`, `Font.Size = …`): DelphiX's surface canvas
+//!   was a TCanvas with Delphi's default font, as the manual's chapter 13
+//!   screenshots show ("FPS: 20").
+//! - FullScreen (manual: set before ShowModal, with the form bsNone): the
+//!   form's window covers the screen and the surface keeps its size — as
+//!   DirectDraw's exclusive mode switched the display to it — shown scaled
+//!   to the screen with its proportions kept, black around ([`picture_rect`];
+//!   no display mode is changed).
+//! - Rotate(xOrigin, yOrigin, Angle) turns what the back buffer holds about
+//!   the point, clockwise, Angle in DelphiX's units (256 a whole turn —
+//!   its `Cos256` tables); View.SetFront / SetBack / SetPlane keep the 3D
+//!   viewport's clipping planes (front 1, back 5000 as the manual says),
+//!   View.Clear clears the back buffer to the scene's background (black).
+//! - Colours are RapidQ's &HBBGGRR everywhere but `Fill` and `FastPset`,
+//!   which write the surface's own pixel value as DirectDraw does: &HRRGGBB
+//!   on today's 32-bit screens (the manual: "Fill … &HFF = Blue, &HFF00 =
+//!   Green, &HFF0000 = Red"). `Line(0, 0, 200, 200, &HFF)` is red, as the
+//!   manual's example says.
+//! - **QDXIMAGELIST** ([`DxImageList`]): the pictures of a DelphiX image
+//!   library (`.DXG`, a TPictureCollection streamed by Delphi), drawn onto
+//!   its Parent screen with `Draw(Item, X, Y, Pattern)` — the fourth
+//!   argument (the manual's "Mask") is DelphiX's pattern index into a
+//!   picture cut into PatternWidth × PatternHeight cells; a Transparent
+//!   picture leaves out its TransparentColor.
+//! - **QDXTIMER** ([`DxTimer`]): the runtimes' timers fire it (Interval 0
+//!   is once a screen refresh, [`DX_FRAME_MS`]); it counts its OnTimers
+//!   into FrameRate, the last whole second's.
+
+use std::rc::Rc;
+
+use super::bitmap::Bitmap;
+use crate::{v_int, Value};
+
+/// A QDXSCREEN.
+#[derive(Debug, Clone)]
+pub struct DxScreen {
+    /// The off-screen surface the program draws on.
+    pub back: Bitmap,
+    /// What the last Flip showed.
+    pub front: Bitmap,
+    /// `Init(Width, Height)`: the surface's size (`None`: the control's,
+    /// DelphiX's AutoSize, until Init).
+    pub init: Option<(i64, i64)>,
+    /// Its form was shown and OnInitialize fired.
+    pub initialized: bool,
+    /// The control's size when the surface last took one (AutoSize
+    /// follows the control when it changes).
+    seen: Option<(i64, i64)>,
+    /// Flips so far.
+    pub flips: u64,
+    /// The 3D viewport's front and back clipping planes (View.SetFront /
+    /// SetBack) and its front plane's sides (View.SetPlane: left, right,
+    /// bottom, top; `None`: the camera's default field).
+    pub view_front: f64,
+    pub view_back: f64,
+    pub view_plane: Option<[f64; 4]>,
+    /// The scene's background (View.Clear's colour; SetBackgroundRGB).
+    pub background: u32,
+}
+
+/// DelphiX's surface canvas font: Delphi's default TFont.
+fn screen_font() -> super::font::Font {
+    super::font::Font { name: "MS Sans Serif".into(), size: 8, color: 0, styles: 0 }
+}
+
+impl Default for DxScreen {
+    fn default() -> Self {
+        let black = || Bitmap { background: 0, transparent_color: 0, font: screen_font(), ..Bitmap::default() };
+        Self { back: black(), front: black(), init: None, initialized: false, seen: None, flips: 0, view_front: 1.0, view_back: 5000.0, view_plane: None, background: 0 }
+    }
+}
+
+/// A DirectDraw pixel value (&HRRGGBB on a 32-bit surface) as a RapidQ
+/// colour (&HBBGGRR).
+fn device_color(c: i64) -> u32 {
+    let c = c as u32 & 0xFF_FFFF;
+    (c & 0xFF) << 16 | (c & 0xFF00) | c >> 16
+}
+
+impl DxScreen {
+    /// The surface takes size `w` × `h` (what's drawn stays where it fits;
+    /// new area is black).
+    fn size_to(&mut self, w: i64, h: i64) {
+        self.back.resize(w, h);
+        self.front.resize(w, h);
+    }
+
+    /// The control is `w` × `h` now: with AutoSize, a control resized
+    /// since the surface took its size gives the surface its size (what's
+    /// drawn stays where it fits).
+    pub fn follow_control(&mut self, w: i64, h: i64, autosize: bool) {
+        let resized = self.seen.is_some_and(|s| s != (w, h));
+        self.seen = Some((w, h));
+        if autosize && resized && w > 0 && h > 0 {
+            self.size_to(w, h);
+        }
+    }
+
+    /// Set up as DirectX did when the window came (the control `w` × `h`):
+    /// the surface sized — Init's, the control's without one or after a
+    /// resize with AutoSize — and cleared to black, nothing shown yet.
+    fn initialize(&mut self, w: i64, h: i64, autosize: bool) {
+        self.follow_control(w, h, autosize);
+        if self.back.img.width == 0 || self.back.img.height == 0 {
+            let (w, h) = self.init.unwrap_or((w, h));
+            self.size_to(w, h);
+        }
+        let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+        self.back.fill_rect(0, 0, w, h, 0);
+        self.front = self.back.clone();
+        self.initialized = true;
+    }
+
+    /// `Flip`: what the back buffer holds shows (it keeps its pixels).
+    pub fn flip(&mut self) {
+        self.front = self.back.clone();
+        self.flips += 1;
+    }
+
+    pub fn get(&self, prop: &str) -> Option<Value> {
+        if let Some(p) = prop.strip_prefix("font.") {
+            return self.back.font.get(p);
+        }
+        // (`DX.View.GetFront` read without parentheses)
+        match prop {
+            "view.getfront" => Some(Value::Double(self.view_front)),
+            "view.getback" => Some(Value::Double(self.view_back)),
+            _ => None,
+        }
+    }
+
+    /// `Rotate(xOrigin, yOrigin, Angle)`: what the back buffer holds turned
+    /// about (x0, y0) by `angle` 256ths of a turn, clockwise on the screen;
+    /// where nothing turns onto, the pixels stay.
+    pub fn rotate(&mut self, x0: i64, y0: i64, angle: i64) {
+        let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+        if w == 0 || h == 0 || angle.rem_euclid(256) == 0 {
+            return;
+        }
+        let a = angle.rem_euclid(256) as f64 * std::f64::consts::TAU / 256.0;
+        let (sin, cos) = a.sin_cos();
+        let src = self.back.img.pixels.clone();
+        for y in 0..h {
+            for x in 0..w {
+                // The pixel that turns onto (x, y): turned back.
+                let (dx, dy) = ((x - x0) as f64, (y - y0) as f64);
+                let sx = (x0 as f64 + dx * cos + dy * sin).round() as i64;
+                let sy = (y0 as f64 - dx * sin + dy * cos).round() as i64;
+                if (0..w).contains(&sx) && (0..h).contains(&sy) {
+                    self.back.img.pixels[(y * w + x) as usize] = src[(sy * w + sx) as usize];
+                }
+            }
+        }
+        self.back.invalidate_display();
+    }
+
+    pub fn set(&mut self, prop: &str, val: &Value) -> Option<Result<(), String>> {
+        if let Some(p) = prop.strip_prefix("font.") {
+            return self.back.font.set(p, val).then_some(Ok(()));
+        }
+        None
+    }
+
+    /// The drawing methods that need nothing but the surface (`Draw`,
+    /// `StretchDraw`, `CopyRect`, `TextRect`: objects::call).
+    pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+        match method {
+            "init" => {
+                let (w, h) = (n(0).clamp(0, 32767), n(1).clamp(0, 32767));
+                self.init = Some((w, h));
+                self.size_to(w, h);
+            }
+            "flip" => self.flip(),
+            // DirectDraw's own pixel values (module docs).
+            "fill" => {
+                let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+                self.back.fill_rect(0, 0, w, h, device_color(n(0)));
+            }
+            "fastpset" => self.back.pset(n(0), n(1), device_color(n(2))),
+            "rotate" => self.rotate(n(0), n(1), n(2)),
+            // The 3D viewport (`DX.View.SetFront(10)`: method `view.setfront`).
+            "view.clear" => {
+                let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+                self.back.fill_rect(0, 0, w, h, self.background);
+            }
+            "view.setfront" => self.view_front = args.first().map_or(1.0, Value::to_f64),
+            "view.setback" => self.view_back = args.first().map_or(5000.0, Value::to_f64),
+            "view.setplane" if args.len() >= 4 => {
+                let f = |i: usize| args[i].to_f64();
+                self.view_plane = Some([f(0), f(1), f(2), f(3)]);
+            }
+            "view.getfront" | "view.getback" => return self.get(method),
+            // (nothing to give back: the surface is the runtime's memory)
+            "release" => {}
+            // `Pixel(x, y)` reads; `Pixel(x, y) = c` writes (the value last).
+            "pixel" if args.len() < 3 => return Some(v_int(self.back.pixel(n(0), n(1)).map_or(-1, i64::from))),
+            "pset" | "pixel" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "textout" | "textwidth" | "textheight" => {
+                return self.back.call(method, args);
+            }
+            _ => return None,
+        }
+        Some(Value::Null)
+    }
+
+    /// `TextRect(Rect, x, y, S$, fc, bc)`: TextOut clipped to the
+    /// rectangle `(l, t, r, b)`.
+    pub fn text_rect(&mut self, (l, t, r, b): (i64, i64, i64, i64), args: &[Value]) {
+        let before = self.back.clone();
+        self.back.call("textout", args);
+        // What the text drew outside the rectangle goes back as it was.
+        let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
+        let inside = |x: i64, y: i64| x >= l && x < r && y >= t && y < b;
+        for y in 0..h {
+            for x in 0..w {
+                if !inside(x, y) {
+                    let i = (y * w + x) as usize;
+                    self.back.img.pixels[i] = before.img.pixels[i];
+                }
+            }
+        }
+        if let (Some(hi), Some(old)) = (self.back.hi.as_deref_mut(), before.hi.as_deref()) {
+            if (hi.img.width, hi.img.height, hi.scale) == (old.img.width, old.img.height, old.scale) {
+                let s = hi.scale as i64;
+                let hw = hi.img.width as i64;
+                for (i, p) in hi.img.pixels.iter_mut().enumerate() {
+                    let (x, y) = (i as i64 % hw, i as i64 / hw);
+                    if !inside(x.div_euclid(s), y.div_euclid(s)) {
+                        *p = old.img.pixels[i];
+                    }
+                }
+            }
+        }
+        self.back.touch();
+    }
+}
+
+/// Where a screen's picture goes in its control (logical pixels): the
+/// surface `surface` (w, h) in a control `control` (w, h) — over all of it
+/// with AllowStretch, at its own size at the top left without, and with
+/// FullScreen scaled to fit with its proportions kept, centred.
+pub fn picture_rect(surface: (i64, i64), control: (i64, i64), stretch: bool, fullscreen: bool) -> (i64, i64, i64, i64) {
+    let ((sw, sh), (cw, ch)) = (surface, control);
+    if fullscreen && sw > 0 && sh > 0 {
+        let k = (cw as f64 / sw as f64).min(ch as f64 / sh as f64);
+        let (w, h) = ((sw as f64 * k).round() as i64, (sh as f64 * k).round() as i64);
+        return ((cw - w) / 2, (ch - h) / 2, w, h);
+    }
+    if stretch { (0, 0, cw, ch) } else { (0, 0, sw, sh) }
+}
+
+/// Sets QDXSCREEN `screen` up (its form shown; `w` × `h` the control's
+/// size, `autosize` its AutoSize): `true` the first time — the runtime then
+/// fires OnInitialize and OnInitializeSurface.
+pub fn initialize(screen: &mut DxScreen, w: i64, h: i64, autosize: bool) -> bool {
+    if screen.initialized {
+        return false;
+    }
+    screen.initialize(w, h, autosize);
+    true
+}
+
+// ------------------------------------------------------------ QDXTIMER --
+
+/// How often a QDXTIMER with Interval 0 ("let DirectX handle FPS") fires:
+/// once a 60 Hz screen refresh, as a Flip waiting for the vertical blank
+/// paced DelphiX's idle-time timer.
+pub const DX_FRAME_MS: u64 = 16;
+
+/// A QDXTIMER's frame counter.
+#[derive(Debug, Clone, Default)]
+pub struct DxTimer {
+    /// OnTimers since `since`.
+    frames: i64,
+    /// When the current second began (the runtime's milliseconds).
+    since: Option<f64>,
+    /// FrameRate: OnTimers in the last whole second.
+    pub rate: i64,
+}
+
+impl DxTimer {
+    /// Whether the timer's OnTimer fires now: with ActiveOnly (the
+    /// default) only while the program is the active application (one of
+    /// its windows has the keyboard; on the web, the page shows).
+    pub fn fires(active_only: bool, app_active: bool) -> bool {
+        !active_only || app_active
+    }
+
+    /// The timer fires at `now_ms` (any clock the runtime keeps).
+    pub fn tick(&mut self, now_ms: f64) {
+        let since = *self.since.get_or_insert(now_ms);
+        self.frames += 1;
+        if now_ms - since >= 1000.0 {
+            self.rate = self.frames;
+            self.frames = 0;
+            self.since = Some(now_ms);
+        }
+    }
+
+    pub fn get(&self, prop: &str) -> Option<Value> {
+        (prop == "framerate").then(|| v_int(self.rate))
+    }
+}
+
+/// A QDXTIMER's milliseconds between OnTimers for its Interval `ms`.
+pub fn timer_interval_ms(ms: i64) -> u64 {
+    if ms > 0 { ms as u64 } else { DX_FRAME_MS }
+}
+
+// -------------------------------------------------------- QDXIMAGELIST --
+
+/// One picture of an image library.
+#[derive(Debug, Clone)]
+pub struct DxPicture {
+    pub name: String,
+    /// Its pixels (Transparent / TransparentColor set on it); shared so a
+    /// Draw doesn't copy it.
+    pub picture: Rc<Bitmap>,
+    /// PatternWidth, PatternHeight (0: the whole picture).
+    pub pattern: (i64, i64),
+    /// SkipWidth, SkipHeight: the gap between patterns.
+    pub skip: (i64, i64),
+}
+
+impl DxPicture {
+    /// Pattern `index`'s rectangle in the picture (DelphiX's patterns run
+    /// left to right, then down); `None` past the last.
+    pub fn pattern_rect(&self, index: i64) -> Option<(i64, i64, i64, i64)> {
+        let (w, h) = (self.picture.img.width as i64, self.picture.img.height as i64);
+        let pw = if self.pattern.0 > 0 { self.pattern.0 } else { w };
+        let ph = if self.pattern.1 > 0 { self.pattern.1 } else { h };
+        let (sw, sh) = (self.skip.0.max(0), self.skip.1.max(0));
+        let across = ((w + sw) / (pw + sw)).max(1);
+        let down = ((h + sh) / (ph + sh)).max(1);
+        if index < 0 || index >= across * down {
+            return None;
+        }
+        let (x, y) = ((index % across) * (pw + sw), (index / across) * (ph + sh));
+        Some((x, y, x + pw, y + ph))
+    }
+}
+
+/// A QDXIMAGELIST.
+#[derive(Debug, Clone, Default)]
+pub struct DxImageList {
+    pub items: Vec<DxPicture>,
+}
+
+impl DxImageList {
+    /// Loads a `.DXG` image library (replacing what was loaded).
+    pub fn load(&mut self, bytes: &[u8]) -> Result<(), String> {
+        self.items = parse_dxg(bytes)?;
+        Ok(())
+    }
+
+    pub fn get(&self, prop: &str) -> Option<Value> {
+        (prop == "count").then(|| v_int(self.items.len() as i64))
+    }
+}
+
+/// Delphi's colour names (TColor, &HBBGGRR) an image library's
+/// TransparentColor is streamed as.
+fn delphi_color(name: &str) -> Option<u32> {
+    Some(match name.to_ascii_lowercase().as_str() {
+        "clblack" => 0x000000,
+        "clmaroon" => 0x000080,
+        "clgreen" => 0x008000,
+        "clolive" => 0x008080,
+        "clnavy" => 0x800000,
+        "clpurple" => 0x800080,
+        "clteal" => 0x808000,
+        "clgray" => 0x808080,
+        "clsilver" => 0xC0C0C0,
+        "clred" => 0x0000FF,
+        "cllime" => 0x00FF00,
+        "clyellow" => 0x00FFFF,
+        "clblue" => 0xFF0000,
+        "clfuchsia" => 0xFF00FF,
+        "claqua" => 0xFFFF00,
+        "clwhite" => 0xFFFFFF,
+        _ => return None,
+    })
+}
+
+/// A value of Delphi's binary form streams (TPF0).
+#[derive(Debug, Clone, PartialEq)]
+enum Streamed {
+    Int(i64),
+    Text(String),
+    Bool(bool),
+    Binary(Vec<u8>),
+    Collection(Vec<Vec<(String, Streamed)>>),
+    Other,
+}
+
+/// A reader of Delphi's binary form streams (Classes.pas' TReader).
+struct Reader<'a> {
+    b: &'a [u8],
+    at: usize,
+}
+
+impl Reader<'_> {
+    fn bytes(&mut self, n: usize) -> Result<&[u8], String> {
+        let end = self.at.checked_add(n).filter(|&e| e <= self.b.len()).ok_or("the image library ends early")?;
+        let s = &self.b[self.at..end];
+        self.at = end;
+        Ok(s)
+    }
+
+    fn byte(&mut self) -> Result<u8, String> {
+        Ok(self.bytes(1)?[0])
+    }
+
+    fn u32(&mut self) -> Result<u32, String> {
+        Ok(u32::from_le_bytes(self.bytes(4)?.try_into().map_err(|_| "bad image library")?))
+    }
+
+    /// A short string (a length byte, then Latin-1).
+    fn name(&mut self) -> Result<String, String> {
+        let n = self.byte()? as usize;
+        Ok(self.bytes(n)?.iter().map(|&c| char::from(c)).collect())
+    }
+
+    fn value(&mut self) -> Result<Streamed, String> {
+        let latin1 = |b: &[u8]| b.iter().map(|&c| char::from(c)).collect::<String>();
+        Ok(match self.byte()? {
+            0 => Streamed::Other,
+            // vaList: values until a vaNull
+            1 => {
+                while self.b.get(self.at).is_some_and(|&t| t != 0) {
+                    self.value()?;
+                }
+                self.at += 1;
+                Streamed::Other
+            }
+            2 => Streamed::Int(i64::from(self.byte()? as i8)),
+            3 => Streamed::Int(i64::from(i16::from_le_bytes(self.bytes(2)?.try_into().map_err(|_| "bad image library")?))),
+            4 => Streamed::Int(i64::from(self.u32()? as i32)),
+            5 => {
+                self.bytes(10)?;
+                Streamed::Other
+            }
+            6 | 7 => Streamed::Text(self.name()?),
+            8 => Streamed::Bool(false),
+            9 => Streamed::Bool(true),
+            10 => {
+                let n = self.u32()? as usize;
+                Streamed::Binary(self.bytes(n)?.to_vec())
+            }
+            11 => {
+                while !self.name()?.is_empty() {}
+                Streamed::Other
+            }
+            12 | 20 => {
+                let n = self.u32()? as usize;
+                Streamed::Text(latin1(self.bytes(n)?))
+            }
+            13 => Streamed::Other,
+            14 => {
+                let mut items = Vec::new();
+                while self.b.get(self.at).is_some_and(|&t| t != 0) {
+                    // (an item's order, when streamed, then vaList)
+                    if matches!(self.b.get(self.at), Some(2..=4)) {
+                        self.value()?;
+                    }
+                    if self.b.get(self.at) == Some(&1) {
+                        self.at += 1;
+                    }
+                    items.push(self.properties()?);
+                }
+                self.at += 1;
+                Streamed::Collection(items)
+            }
+            15 => {
+                self.bytes(4)?;
+                Streamed::Other
+            }
+            16 | 17 | 19 => {
+                self.bytes(8)?;
+                Streamed::Other
+            }
+            18 => {
+                let n = self.u32()? as usize;
+                let w = self.bytes(n * 2)?;
+                Streamed::Text(char::decode_utf16(w.as_chunks::<2>().0.iter().map(|p| u16::from_le_bytes(*p))).map(|c| c.unwrap_or('?')).collect())
+            }
+            t => return Err(format!("not an image library RapidR can read (value type {t})")),
+        })
+    }
+
+    /// Named values until a vaNull.
+    fn properties(&mut self) -> Result<Vec<(String, Streamed)>, String> {
+        let mut props = Vec::new();
+        while self.b.get(self.at).is_some_and(|&t| t != 0) {
+            let name = self.name()?;
+            props.push((name, self.value()?));
+        }
+        self.at += 1;
+        Ok(props)
+    }
+}
+
+/// A picture's `Picture.Data` (a graphic class's name, then its data) as
+/// a BMP file: DelphiX's TDIB streams a BITMAPINFOHEADER, its palette and
+/// its rows; Delphi's TBitmap the size and a BMP file.
+fn picture_bmp(data: &[u8]) -> Result<Vec<u8>, String> {
+    let bad = || "a picture in the image library RapidR can't read".to_string();
+    let class_len = *data.first().ok_or_else(bad)? as usize;
+    let rest = data.get(1 + class_len..).ok_or_else(bad)?;
+    if rest.starts_with(b"BM") {
+        return Ok(rest.to_vec());
+    }
+    if rest.get(4..6) == Some(b"BM") {
+        return Ok(rest[4..].to_vec());
+    }
+    let u32_at = |i: usize| rest.get(i..i + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+    let u16_at = |i: usize| rest.get(i..i + 2).map(|b| u16::from_le_bytes([b[0], b[1]]));
+    let header = u32_at(0).ok_or_else(bad)? as usize;
+    if !matches!(header, 40 | 52 | 56 | 108 | 124) {
+        return Err(bad());
+    }
+    let bpp = u16_at(14).ok_or_else(bad)?;
+    let compression = u32_at(16).ok_or_else(bad)?;
+    let used = u32_at(32).unwrap_or(0) as usize;
+    let palette = if bpp <= 8 { (if used > 0 { used.min(256) } else { 1 << bpp }) * 4 } else { 0 };
+    let masks = if compression == 3 && header == 40 { 12 } else { 0 };
+    let offset = 14 + header + palette + masks;
+    let mut bmp = Vec::with_capacity(14 + rest.len());
+    bmp.extend_from_slice(b"BM");
+    bmp.extend_from_slice(&((14 + rest.len()) as u32).to_le_bytes());
+    bmp.extend_from_slice(&0u32.to_le_bytes());
+    bmp.extend_from_slice(&(offset as u32).to_le_bytes());
+    bmp.extend_from_slice(rest);
+    Ok(bmp)
+}
+
+/// The pictures of a DelphiX image library (`.DXG`: a resource header,
+/// then a TPictureCollectionComponent streamed as a Delphi form, `TPF0`).
+pub fn parse_dxg(bytes: &[u8]) -> Result<Vec<DxPicture>, String> {
+    let start = bytes.windows(4).position(|w| w == b"TPF0").ok_or("not a DelphiX image library (.DXG)")?;
+    let mut r = Reader { b: bytes, at: start + 4 };
+    r.name()?; // the class
+    r.name()?; // its name
+    let mut pictures = Vec::new();
+    for (prop, value) in r.properties()? {
+        let Streamed::Collection(items) = value else { continue };
+        if !prop.eq_ignore_ascii_case("list") {
+            continue;
+        }
+        for props in items {
+            let int = |n: &str| props.iter().find(|(p, _)| p.eq_ignore_ascii_case(n)).and_then(|(_, v)| if let Streamed::Int(i) = v { Some(*i) } else { None });
+            let value = |n: &str| props.iter().find(|(p, _)| p.eq_ignore_ascii_case(n)).map(|(_, v)| v);
+            let Some(Streamed::Binary(data)) = value("Picture.Data") else { continue };
+            let mut b = Bitmap::default();
+            b.load_bmp_bytes(&picture_bmp(data)?)?;
+            b.transparent = matches!(value("Transparent"), Some(Streamed::Bool(true)) | None);
+            b.transparent_color = match value("TransparentColor") {
+                Some(Streamed::Int(c)) => *c as u32 & 0xFF_FFFF,
+                Some(Streamed::Text(name)) => delphi_color(name).unwrap_or(0),
+                _ => 0,
+            };
+            let name = match value("Name") {
+                Some(Streamed::Text(n)) => n.clone(),
+                _ => String::new(),
+            };
+            pictures.push(DxPicture {
+                name,
+                picture: Rc::new(b),
+                pattern: (int("PatternWidth").unwrap_or(0), int("PatternHeight").unwrap_or(0)),
+                skip: (int("SkipWidth").unwrap_or(0), int("SkipHeight").unwrap_or(0)),
+            });
+        }
+    }
+    Ok(pictures)
+}
+
+/// Picture `item`'s pattern `pattern` as a bitmap to draw (with its
+/// transparency): the shared picture itself when it's the whole of it.
+pub fn pattern_bitmap(p: &mut DxPicture, pattern: i64) -> Option<Rc<Bitmap>> {
+    let rect = p.pattern_rect(pattern)?;
+    // (what it shows at the screen's scale made once, not at every Draw)
+    Rc::make_mut(&mut p.picture).display_revision();
+    let (w, h) = (p.picture.img.width as i64, p.picture.img.height as i64);
+    if rect == (0, 0, w, h) {
+        return Some(p.picture.clone());
+    }
+    let mut part = Bitmap { transparent: p.picture.transparent, transparent_color: p.picture.transparent_color, ..Bitmap::default() };
+    part.resize(rect.2 - rect.0, rect.3 - rect.1);
+    part.copy_rect((0, 0, rect.2 - rect.0, rect.3 - rect.1), &p.picture, rect);
+    Some(Rc::new(part))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::v_str;
+
+    /// A one-picture library as DelphiX streams it: an 8-bit TDIB, 3 × 2,
+    /// Transparent with clWhite.
+    pub(crate) fn tiny_dxg() -> Vec<u8> {
+        let mut dib = Vec::new();
+        for v in [40u32, 3, 2] {
+            dib.extend_from_slice(&v.to_le_bytes());
+        }
+        dib.extend_from_slice(&1u16.to_le_bytes());
+        dib.extend_from_slice(&8u16.to_le_bytes());
+        for v in [0u32, 8, 0, 0, 0, 0] {
+            dib.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut palette = vec![0u8; 1024];
+        palette[4..8].copy_from_slice(&[0xFF, 0xFF, 0xFF, 0]); // 1: white
+        palette[8..12].copy_from_slice(&[0, 0, 0xFF, 0]); // 2: red (B, G, R)
+        dib.extend_from_slice(&palette);
+        // bottom row first: [1 2 1], then [2 1 2]
+        dib.extend_from_slice(&[1, 2, 1, 0, 2, 1, 2, 0]);
+        let mut data = vec![4u8];
+        data.extend_from_slice(b"TDIB");
+        data.extend_from_slice(&dib);
+        let mut s = Vec::new();
+        s.extend_from_slice(b"\xFF\x0A\x00DELPHIXPICTURECOLLECTION\x00\x30\x10\x00\x00\x00\x00TPF0");
+        let name = |s: &mut Vec<u8>, n: &str| {
+            s.push(n.len() as u8);
+            s.extend_from_slice(n.as_bytes());
+        };
+        name(&mut s, "TPictureCollectionComponent");
+        name(&mut s, "");
+        name(&mut s, "List");
+        s.push(14);
+        s.push(1);
+        name(&mut s, "Name");
+        s.push(6);
+        name(&mut s, "dot");
+        name(&mut s, "PatternWidth");
+        s.extend_from_slice(&[2, 0]);
+        name(&mut s, "Picture.Data");
+        s.push(10);
+        s.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        s.extend_from_slice(&data);
+        name(&mut s, "Transparent");
+        s.push(9);
+        name(&mut s, "TransparentColor");
+        s.push(7);
+        name(&mut s, "clWhite");
+        s.extend_from_slice(&[0, 0, 0, 0]);
+        s
+    }
+
+    #[test]
+    fn dxg_pictures() {
+        let p = parse_dxg(&tiny_dxg()).unwrap();
+        assert_eq!(p.len(), 1);
+        assert_eq!(p[0].name, "dot");
+        let b = &p[0].picture;
+        assert_eq!((b.img.width, b.img.height), (3, 2));
+        // (top row first now; red is &H0000FF)
+        assert_eq!(b.img.pixels, vec![0x0000FF, 0xFFFFFF, 0x0000FF, 0xFFFFFF, 0x0000FF, 0xFFFFFF]);
+        assert!(b.transparent);
+        assert_eq!(b.transparent_color, 0xFFFFFF);
+        assert_eq!(p[0].pattern_rect(0), Some((0, 0, 3, 2)));
+        assert_eq!(p[0].pattern_rect(1), None);
+    }
+
+    #[test]
+    fn patterns() {
+        let mut p = parse_dxg(&tiny_dxg()).unwrap().remove(0);
+        p.pattern = (1, 1);
+        assert_eq!(p.pattern_rect(4), Some((1, 1, 2, 2)));
+        p.skip = (1, 0);
+        assert_eq!(p.pattern_rect(1), Some((2, 0, 3, 1)));
+        let part = pattern_bitmap(&mut p, 1).unwrap();
+        assert_eq!(part.img.pixels, vec![0x0000FF]);
+    }
+
+    /// Nothing shows until Flip; the back buffer keeps its pixels after
+    /// one; Fill takes DirectDraw's &HRRGGBB, the rest RapidQ's &HBBGGRR.
+    #[test]
+    fn flip_and_colors() {
+        let mut s = DxScreen::default();
+        s.call("init", &[v_int(4), v_int(3)]);
+        assert!(initialize(&mut s, 100, 100, true));
+        assert!(!initialize(&mut s, 100, 100, true));
+        assert_eq!((s.back.img.width, s.back.img.height), (4, 3));
+        s.call("fill", &[v_int(0xFF)]);
+        s.call("pixel", &[v_int(1), v_int(1), v_int(0xFF)]);
+        assert_eq!(s.call("pixel", &[v_int(0), v_int(0)]).unwrap().to_i64(), 0xFF0000, "&HFF is blue for Fill");
+        assert_eq!(s.call("pixel", &[v_int(1), v_int(1)]).unwrap().to_i64(), 0xFF, "&HFF is red elsewhere");
+        assert_eq!(s.front.pixel(0, 0), Some(0), "not shown before Flip");
+        s.flip();
+        assert_eq!(s.front.pixel(1, 1), Some(0xFF));
+        assert_eq!(s.back.pixel(1, 1), Some(0xFF), "the back buffer keeps its pixels");
+        assert_eq!(s.flips, 1);
+        assert!(s.call("textwidth", &[v_str("Hi")]).unwrap().to_i64() > 0);
+    }
+
+    /// Drawn before the screen is set up: lost, as DirectX had no surface.
+    #[test]
+    fn drawn_before_initialize_is_cleared() {
+        let mut s = DxScreen::default();
+        s.call("init", &[v_int(2), v_int(2)]);
+        s.call("pixel", &[v_int(0), v_int(0), v_int(0xFFFFFF)]);
+        initialize(&mut s, 10, 10, true);
+        assert_eq!(s.back.pixel(0, 0), Some(0));
+        // Without Init the surface is the control's size.
+        let mut t = DxScreen::default();
+        initialize(&mut t, 7, 5, true);
+        assert_eq!((t.back.img.width, t.back.img.height), (7, 5));
+    }
+
+    /// AutoSize: Init sizes the surface; a control resized after it (an
+    /// Align set after Init) gives the surface its size, unless AutoSize
+    /// is off; a control that keeps its size keeps Init's surface.
+    #[test]
+    fn autosize_follows_a_resized_control() {
+        let mut s = DxScreen::default();
+        s.follow_control(100, 100, true);
+        s.call("init", &[v_int(94), v_int(183)]);
+        initialize(&mut s, 183, 94, true);
+        assert_eq!((s.back.img.width, s.back.img.height), (183, 94));
+        s.follow_control(200, 50, true);
+        assert_eq!((s.front.img.width, s.front.img.height), (200, 50));
+        let mut kept = DxScreen::default();
+        kept.follow_control(300, 300, true);
+        kept.call("init", &[v_int(64), v_int(48)]);
+        initialize(&mut kept, 300, 300, true);
+        assert_eq!((kept.back.img.width, kept.back.img.height), (64, 48), "not resized since Init");
+        let mut fixed = DxScreen::default();
+        fixed.follow_control(100, 100, false);
+        fixed.call("init", &[v_int(32), v_int(16)]);
+        initialize(&mut fixed, 183, 94, false);
+        assert_eq!((fixed.back.img.width, fixed.back.img.height), (32, 16), "AutoSize off");
+    }
+
+    #[test]
+    fn text_rect_clips() {
+        let mut s = DxScreen::default();
+        s.call("init", &[v_int(60), v_int(20)]);
+        initialize(&mut s, 60, 20, true);
+        s.text_rect((0, 0, 5, 20), &[v_int(0), v_int(0), v_str("WWWW"), v_int(0xFFFFFF), v_int(0xFF)]);
+        assert_eq!(s.back.pixel(2, 2), Some(0xFF), "inside: the text's background");
+        assert_eq!(s.back.pixel(20, 2), Some(0), "outside: as it was");
+    }
+
+    /// Text in MS Sans Serif 8 by default; View.*; Rotate a quarter turn
+    /// (64) clockwise about a point.
+    #[test]
+    fn font_view_rotate() {
+        let mut s = DxScreen::default();
+        assert_eq!(s.back.font.name, "MS Sans Serif");
+        assert_eq!(s.back.font.size, 8);
+        s.call("init", &[v_int(40), v_int(30)]);
+        initialize(&mut s, 40, 30, true);
+        assert_eq!(s.get("view.getfront").unwrap().to_f64(), 1.0);
+        assert_eq!(s.call("view.getback", &[]).unwrap().to_f64(), 5000.0);
+        s.call("view.setfront", &[Value::Double(10.5)]);
+        assert_eq!(s.get("view.getfront").unwrap().to_f64(), 10.5);
+        s.call("line", &[v_int(10), v_int(10), v_int(20), v_int(10), v_int(0xFF)]);
+        s.call("rotate", &[v_int(10), v_int(10), v_int(64)]);
+        assert_eq!(s.back.pixel(10, 18), Some(0xFF), "the line points down now");
+        assert_eq!(s.back.pixel(18, 10), Some(0), "and no longer right");
+        s.call("view.clear", &[]);
+        assert_eq!(s.back.pixel(10, 18), Some(0));
+    }
+
+    #[test]
+    fn picture_placement() {
+        assert_eq!(picture_rect((100, 50), (200, 200), true, false), (0, 0, 200, 200));
+        assert_eq!(picture_rect((100, 50), (200, 200), false, false), (0, 0, 100, 50));
+        assert_eq!(picture_rect((640, 480), (1920, 1080), true, true), (240, 0, 1440, 1080), "4:3 on a 16:9 screen");
+        assert!(DxTimer::fires(false, false) && DxTimer::fires(true, true) && !DxTimer::fires(true, false));
+    }
+
+    #[test]
+    fn frame_rate() {
+        let mut t = DxTimer::default();
+        for i in 0..30 {
+            t.tick(f64::from(i) * 40.0);
+        }
+        assert_eq!(t.rate, 26, "26 OnTimers in the first second (0 … 1000 ms)");
+        assert_eq!(timer_interval_ms(0), DX_FRAME_MS);
+        assert_eq!(timer_interval_ms(10), 10);
+    }
+}

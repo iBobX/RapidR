@@ -2,7 +2,7 @@
 // Rust backend) and interpreted (`rapidr build --interp`) — which must give
 // the same results. Clicks are fired through the runtime's test hooks
 // (RAPIDR_TEST_EVENTS / RAPIDR_TEST_DUMP / RAPIDR_CAPTURE in
-// crates/rapidr-runtime-core/src/ui/testhooks.rs) on the UI kernel's
+// crates/rapidr-ui-app/src/testhooks.rs) on the UI kernel's
 // headless host: no desktop session needed (RAPIDR_CAPTURE_WINDOWS=1 shows
 // real windows instead).
 //
@@ -59,6 +59,8 @@
 //   * tests/fixtures/size_grip.bas — QSTATUSBAR's size grip resizes the window (OnResize, Width / Height).
 //   * tests/fixtures/a11y_form.bas — what a screen reader is told (its tree and keys: tests/web_a11y.mjs).
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
+//   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
+//   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
 //   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
 //     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
 //
@@ -75,6 +77,7 @@ import { mkdirSync, rmSync, existsSync, readFileSync, copyFileSync } from "node:
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
+import { dropBuild } from "./cargo_builds.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/native_gui_events");
@@ -91,17 +94,19 @@ const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!
 const BUILD_ONLY = process.env.RAPIDR_BUILD_ONLY;
 const PREBUILT = process.env.RAPIDR_PREBUILT;
 // (`RAPIDR_KINDS=interp` or `native`: only that build kind)
+// (Windows: programs are .exe)
+const EXE = process.platform === "win32" ? ".exe" : "";
 const KINDS = [false, true].filter((i) => !process.env.RAPIDR_KINDS || process.env.RAPIDR_KINDS.includes(i ? "interp" : "native"));
 
 function build(name, interp) {
-  if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}`);
+  if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}${EXE}`);
   const out = join(WORK, `${name}-${interp ? "interp" : "native"}`);
   mkdirSync(out, { recursive: true });
   const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, ...(interp ? ["--interp"] : [])];
-  execFileSync(join(ROOT, "rapidr"), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
+  execFileSync(join(ROOT, `rapidr${EXE}`), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
   // Native builds also copy the executable next to the source; don't leave it there.
-  rmSync(join(ROOT, `tests/fixtures/${name}`), { force: true });
-  return interp ? join(out, name) : join(CARGO_TARGET, "debug", name);
+  rmSync(join(ROOT, `tests/fixtures/${name}${EXE}`), { force: true });
+  return interp ? join(out, `${name}${EXE}`) : join(CARGO_TARGET, "debug", `${name}${EXE}`);
 }
 
 // (`colorDialog` / `fontDialog`: what the colour / font dialogs answer in
@@ -110,6 +115,21 @@ const dialogAnswers = (c) => ({
   ...(c.colorDialog === undefined ? {} : { RAPIDR_TEST_COLOR_DIALOG: c.colorDialog }),
   ...(c.fontDialog === undefined ? {} : { RAPIDR_TEST_FONT_DIALOG: c.fontDialog }),
 });
+
+// A captured window's pixel (x, y) as "rrggbb" (an uncompressed 24- or
+// 32-bit BMP).
+function capturePixel(file, x, y) {
+  try {
+    const b = readFileSync(file);
+    const off = b.readUInt32LE(10), w = b.readInt32LE(18), h = b.readInt32LE(22), bpp = b.readUInt16LE(28) / 8;
+    const stride = (w * bpp + 3) & ~3;
+    const row = h > 0 ? h - 1 - y : y;
+    const i = off + row * stride + x * bpp;
+    return [b[i + 2], b[i + 1], b[i]].map((v) => v.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    return "(no capture)";
+  }
+}
 
 function run(bin, events, dump, resize = "", split = "", fileDialog = undefined, extra = {}) {
   // (`fileDialog`: what the file dialogs answer, `a;b`)
@@ -123,13 +143,19 @@ function run(bin, events, dump, resize = "", split = "", fileDialog = undefined,
 rmSync(WORK, { recursive: true, force: true });
 const only = process.argv.slice(2);
 for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.includes(f)))) {
+  // (`headlessOnly`: what the case checks is the headless host's own
+  // simulation, which real windows — RAPIDR_CAPTURE_WINDOWS — can't repeat)
+  if (c.headlessOnly && process.env.RAPIDR_CAPTURE_WINDOWS && !BUILD_ONLY) {
+    console.log(`- ${c.name}: skipped with real windows (${c.headlessOnly})`);
+    continue;
+  }
   const results = {};
   for (const interp of KINDS) {
     const kind = interp ? "interpreted" : "native";
     const bin = build(c.name, interp);
     if (BUILD_ONLY) {
       mkdirSync(BUILD_ONLY, { recursive: true });
-      copyFileSync(bin, join(BUILD_ONLY, `${c.name}-${interp ? "interp" : "native"}`));
+      copyFileSync(bin, join(BUILD_ONLY, `${c.name}-${interp ? "interp" : "native"}${EXE}`));
       continue;
     }
     if (PREBUILT && !existsSync(bin)) continue;
@@ -143,6 +169,13 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     }
     results[kind] = out;
     for (const line of c.expect) ok(out.includes(line), `${c.name} (${kind}): ${line}` + (out.includes(line) ? "" : `\n    got: ${out.trim().split("\n").join(" / ")}`));
+    // (`pixels`: the window as captured)
+    if (c.pixels) {
+      const scale = Number(process.env.RAPIDR_SCALE || 1);
+      const got = c.pixels.map(([x, y]) => capturePixel(join(WORK, "window-1.bmp"), Math.floor((x + 0.5) * scale), Math.floor((y + 0.5) * scale)));
+      const want = c.pixels.map((p) => p[2]);
+      ok(got.join(",") === want.join(","), `${c.name} (${kind}): captured pixels ${want.join(",")}` + (got.join(",") === want.join(",") ? "" : `   [got: ${got.join(",")}]`));
+    }
     let trees = null;
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);
@@ -162,6 +195,8 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
       ok(shown.includes(want) && existsSync(join(WORK, `${c.name}-${theme}-${kind}-1.bmp`)), `${c.name} (${kind}, ${theme}): ${want}, captured` + (shown.includes(want) ? "" : `\n    got: ${shown.trim().split("\n").join(" / ")}`));
     }
   }
+  // (a native build, ~350 MB, gone once it ran: tests/cargo_builds.mjs)
+  if (!PREBUILT && KINDS.includes(false)) dropBuild(CARGO_TARGET, c.name);
   if (BUILD_ONLY || !("native" in results && "interpreted" in results)) continue;
   const same = results.native === results.interpreted;
   ok(same, `${c.name}: native and interpreted builds agree` + (same ? "" : `\n    native: ${results.native.trim().split("\n").join(" / ")}\n    interpreted: ${results.interpreted.trim().split("\n").join(" / ")}`));

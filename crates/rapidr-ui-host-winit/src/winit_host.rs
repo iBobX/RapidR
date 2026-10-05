@@ -93,6 +93,8 @@ struct State {
     /// keyboard (macOS' menu bar shows its main menu).
     menus: NativeMenus,
     key_form: Option<String>,
+    /// (the DirectX lane's) One of the program's windows has the keyboard.
+    active: bool,
     /// Open / Save dialogs (dialogs.rs) and the waker their completion
     /// wakes the pump with.
     dialogs: crate::dialogs::Dialogs,
@@ -130,13 +132,24 @@ impl WinitHost {
         crate::tracking::set_waker(Box::new(move || {
             ticker.send_event(UserEvent::Tick).ok();
         }));
+        let gpu = RenderContext::new();
+        // A GPU that's software — Windows' WARP, Mesa's llvmpipe / lavapipe,
+        // SwiftShader: virtual machines, remote desktops, servers — runs
+        // vello's compute shaders slower than vello_cpu draws, and WARP
+        // crashes in them (an access violation in d3d10warp.dll on Windows
+        // 11 ARM in Parallels): the CPU draws instead.
+        let kind = if kind == RendererKind::Gpu && !RendererKind::gpu_asked() && software_gpu_only(&gpu.instance) {
+            RendererKind::Cpu
+        } else {
+            kind
+        };
         Ok(WinitHost {
             event_loop,
             state: State {
                 proxy,
                 kind,
                 forced,
-                gpu: RenderContext::new(),
+                gpu,
                 renderers: Vec::new(),
                 wins: HashMap::new(),
                 ids: HashMap::new(),
@@ -145,6 +158,7 @@ impl WinitHost {
                 mouse: (0, 0),
                 menus,
                 key_form: None,
+                active: true,
                 dialogs: crate::dialogs::Dialogs::default(),
                 waker,
                 hook: None,
@@ -156,6 +170,12 @@ impl WinitHost {
     fn monitor(&self) -> ((i64, i64), f64, i64) {
         self.state.screen.unwrap_or(((1920, 1080), 1.0, 1))
     }
+}
+
+/// Whether every adapter wgpu finds is software (or there's none).
+fn software_gpu_only(instance: &wgpu::Instance) -> bool {
+    let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
+    adapters.iter().all(|a| a.get_info().device_type == wgpu::DeviceType::Cpu)
 }
 
 impl Host for WinitHost {
@@ -214,6 +234,10 @@ impl Host for WinitHost {
 
     fn headless(&self) -> bool {
         false
+    }
+
+    fn active(&self) -> bool {
+        self.state.active
     }
 
     fn native_menus(&self) -> bool {
@@ -304,6 +328,27 @@ impl Shim<'_> {
         }
     }
 
+    /// Form `f`'s window's inside is `size` now: the surface follows, and
+    /// the kernel hears it as the window system's resize. (Also when
+    /// `request_inner_size` answers that it applied a size at once — as on
+    /// Wayland — since then no `Resized` follows.)
+    fn size_applied(&mut self, f: &str, size: PhysicalSize<u32>) {
+        if size.width == 0 || size.height == 0 {
+            return;
+        }
+        let scale = self.scale_of(f);
+        if let Some(w) = self.s.wins.get_mut(f) {
+            if let Surface::Gpu(s) = &mut w.surface {
+                self.s.gpu.resize_surface(s, size.width, size.height);
+            }
+        }
+        let (lw, lh) = ((f64::from(size.width) / scale).round() as i64, (f64::from(size.height) / scale).round() as i64);
+        self.desk.resized(f, lw, lh);
+        if let Some(w) = self.s.wins.get(f) {
+            w.window.request_redraw();
+        }
+    }
+
     /// Form `f`'s window's scale.
     fn scale_of(&self, f: &str) -> f64 {
         self.s.forced.or_else(|| self.s.wins.get(f).map(|w| w.window.scale_factor())).unwrap_or(1.0)
@@ -361,7 +406,9 @@ impl Shim<'_> {
                     let scale = self.scale_of(&f);
                     if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get(&f)) {
                         let (lw, lh) = k.spec.size;
-                        let _ = w.window.request_inner_size(self.inner_size(lw, lh, scale));
+                        if let Some(size) = w.window.request_inner_size(self.inner_size(lw, lh, scale)) {
+                            self.size_applied(&f, size);
+                        }
                     }
                 }
                 HostCmd::Position(f) => {
@@ -415,7 +462,16 @@ impl Shim<'_> {
                 HostCmd::Resize { form, w: lw, h: lh } => {
                     let scale = self.scale_of(&form);
                     if let Some(w) = self.s.wins.get(&form) {
-                        let _ = w.window.request_inner_size(self.inner_size(lw, lh, scale));
+                        if let Some(size) = w.window.request_inner_size(self.inner_size(lw, lh, scale)) {
+                            self.size_applied(&form, size);
+                        }
+                    }
+                }
+                // (the DirectX lane's: borderless over the whole screen —
+                // its Resized follows)
+                HostCmd::Fullscreen(f) => {
+                    if let Some(w) = self.s.wins.get(&f) {
+                        w.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
                     }
                 }
                 // (the WindowState lane's: the system maximizes, minimizes
@@ -785,18 +841,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
         match event {
             WindowEvent::CloseRequested => self.desk.close_box(&f, Source::User),
             WindowEvent::Resized(size) => {
-                if size.width > 0 && size.height > 0 {
-                    if let Some(w) = self.s.wins.get_mut(&f) {
-                        if let Surface::Gpu(s) = &mut w.surface {
-                            self.s.gpu.resize_surface(s, size.width, size.height);
-                        }
-                    }
-                    let (lw, lh) = ((f64::from(size.width) / scale).round() as i64, (f64::from(size.height) / scale).round() as i64);
-                    self.desk.resized(&f, lw, lh);
-                    if let Some(w) = self.s.wins.get(&f) {
-                        w.window.request_redraw();
-                    }
-                }
+                self.size_applied(&f, size);
                 self.note_state(&f);
             }
             WindowEvent::Moved(p) => {
@@ -823,6 +868,9 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             }
             WindowEvent::RedrawRequested => self.redraw(&f),
             WindowEvent::Focused(false) => {
+                // (the DirectX lane's: inactive until one of its windows
+                // has the keyboard again)
+                self.s.active = false;
                 // (a kernel-drawn menu closes when its window loses the
                 // keyboard, as Windows' menus do)
                 if let Some(k) = self.desk.forms.get_mut(&f) {
@@ -833,6 +881,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.after_input(&f);
             }
             WindowEvent::Focused(true) => {
+                self.s.active = true;
                 self.s.key_form = Some(f.clone());
                 self.note_state(&f);
                 // A modal form keeps the focus (macOS has no owned windows).

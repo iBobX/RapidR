@@ -1701,6 +1701,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RDESIGNSURFACE", "RCODEEDITOR", "RGROUPBOX",
     "RCOOLBTN", "ROVALBTN",
     "RJSON",
+    // RapidQ's DirectX 2D objects (rapidr_value::objects::directx)
+    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER",
     // RapidQ's non-visual objects (rapidr_value::objects)
     "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
     // Web-exclusive components
@@ -1734,7 +1736,7 @@ pub const RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED: &[&str] = &[
     "QBEVEL", "QCDAUDIO", "QCGI", "QCOMPORT",
     "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE",
     "QD3DVECTOR", "QD3DVISUAL", "QD3DWRAP", "QDIGDISPLAY", "QDIRLISTVIEW",
-    "QDOCKFORM", "QDOWNLOAD", "QDXIMAGELIST", "QDXSCREEN", "QDXSOUND", "QDXTIMER",
+    "QDOCKFORM", "QDOWNLOAD", "QDXSOUND",
 "QGLASSFRAME", "QMIDI", "QNOTIFYICONDATA", "QOLECONTAINER", "QOLEOBJECT",
     "QRECT", "QVIDEO", "QWAVE",
 ];
@@ -1948,6 +1950,12 @@ pub fn component_indexed_members(type_name: &str) -> &'static [&'static str] {
 pub fn is_rapidq_object_type(type_name: &str) -> bool {
     is_component_type_name(&canonical_type_name(type_name))
         || RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED.contains(&type_name.to_ascii_uppercase().as_str())
+}
+
+/// A timer the runtimes tick while the program waits (QTIMER, QDXTIMER):
+/// both backends register it when it's made.
+pub fn is_timer_type(type_name: &str) -> bool {
+    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RTIMER" | "RDXTIMER")
 }
 
 pub fn is_component_type_name(type_name: &str) -> bool {

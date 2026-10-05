@@ -7,6 +7,47 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **RapidQ's DirectX 2D objects on every runtime** (native, interpreted,
+  web; docs/directx-plan.md): QDXSCREEN draws on an off-screen surface that
+  shows on `Flip` (Init, AutoSize, AllowStretch, Fill's DirectDraw colours,
+  Pixel, text, Draw / StretchDraw / CopyRect, TextRect, Rotate, View.*;
+  OnInitialize / OnInitializeSurface when its form first shows, or once it's
+  put on a form already shown; FullScreen covers the screen with the surface
+  scaled to fit). QDXIMAGELIST draws DelphiX image libraries (`.DXG`) with
+  their transparency and patterns. QDXTIMER keeps FrameRate, fires once a
+  frame with Interval 0, and with ActiveOnly only while the program is
+  active. Screen text is MS Sans Serif 8, as in RapidQ.
+
+### Fixed
+- Native builds: `Obj.Sub.Method(…)` (`DX.View.SetFront(10)`,
+  `Printer.Font.DelStyles(3)`) calls the sub-object's method by its
+  combined name on the object, as the interpreter does; it went to a value
+  read from the object instead.
+- Windows: programs built with `rapidr build` are `.exe` files. An
+  interpreted build was written without the extension, and a native
+  build's copy next to the source was silently skipped.
+- Windows on ARM builds without clang: RHTTP's TLS is Windows' own
+  (SChannel, kept current by Windows Update); elsewhere it stays rustls.
+  `ring`, rustls' crypto, needs clang to build for Windows on ARM.
+- Windows: native builds work when RapidR lives under a Windows path (the
+  generated Cargo.toml's paths are escaped; `\U…` was read as an escape).
+- Windows: INPUT$ from a pipe or a file reads its characters instead of
+  waiting for the console's keys.
+- Screen readers hear labels: a QLABEL's caption (and a status bar's
+  text) was given to AccessKit as a name, which it reads from the value
+  for labels — Narrator / NVDA (UI Automation) and VoiceOver got empty
+  text. Checked on Windows 11 with UI Automation (names, values, toggles,
+  ranges, Invoke / Toggle / SetValue running the handlers) and on macOS.
+- Computers whose only GPU is a software one (Windows' WARP, Mesa's
+  llvmpipe: virtual machines, remote desktops) draw on the CPU: WARP
+  crashed in vello's shaders (an access violation in d3d10warp.dll), and
+  vello_cpu is faster there anyway. `RAPIDR_RENDERER=gpu` still forces the
+  GPU.
+- Wayland: a size the window system applies at once (the status bar's
+  size grip, a program setting Width / Height) is a resize the program
+  hears about (OnResize, Width / Height).
+
 ## [2.114.0] — 2026-10-04
 
 ### Changed

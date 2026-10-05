@@ -1,4 +1,5 @@
-//! The GUI tests' environment, parsed once for the desktop host:
+//! The GUI tests' environment, parsed once (the script that plays it is
+//! `script.rs`):
 //!
 //! - `RAPIDR_CAPTURE=<prefix>`: after `RAPIDR_CAPTURE_DELAY` seconds (default
 //!   1.5) the host fires the test's events, prints the dump, saves every

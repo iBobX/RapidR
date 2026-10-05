@@ -628,13 +628,26 @@ pub fn http_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
 }
 
+/// An agent for one request. On Windows its TLS is the system's (SChannel:
+/// Cargo.toml); elsewhere ureq's own, rustls.
+fn http_agent(timeout: Duration) -> ureq::Agent {
+    let builder = ureq::AgentBuilder::new().timeout(timeout);
+    #[cfg(windows)]
+    let builder = match native_tls::TlsConnector::new() {
+        Ok(tls) => builder.tls_connector(std::sync::Arc::new(tls)),
+        Err(e) => {
+            eprintln!("[HTTP] TLS unavailable: {e}");
+            builder
+        }
+    };
+    builder.build()
+}
+
 fn http_get(name: &str, args: &[Value]) -> Value {
     let url = args.first().map(|v| v.to_string_val()).unwrap_or_default();
     let timeout_ms = crate::object::rp_comp_get(name, "timeout").to_i64().max(1000) as u64;
 
-    let agent = ureq::AgentBuilder::new()
-        .timeout(Duration::from_millis(timeout_ms))
-        .build();
+    let agent = http_agent(Duration::from_millis(timeout_ms));
 
     match agent.get(&url).call() {
         Ok(response) => {
@@ -659,9 +672,7 @@ fn http_post(name: &str, args: &[Value]) -> Value {
     let body = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
     let timeout_ms = crate::object::rp_comp_get(name, "timeout").to_i64().max(1000) as u64;
 
-    let agent = ureq::AgentBuilder::new()
-        .timeout(Duration::from_millis(timeout_ms))
-        .build();
+    let agent = http_agent(Duration::from_millis(timeout_ms));
 
     match agent
         .post(&url)

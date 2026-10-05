@@ -62,7 +62,7 @@ pub(super) fn theme(name: &str) {
         }
     };
     theme::set(chosen);
-    super::invalidate_all();
+    rapidr_ui_app::windows::invalidate();
 }
 
 /// How the system looks (dark, high contrast); a GUI test's headless host
@@ -81,6 +81,6 @@ fn system_theme() {
     if rapidr_value::theme::wants_system() {
         let (dark, contrast) = system_look();
         rapidr_value::theme::system_answer(dark, contrast);
-        super::invalidate_all();
+        rapidr_ui_app::windows::invalidate();
     }
 }

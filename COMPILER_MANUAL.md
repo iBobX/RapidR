@@ -88,6 +88,7 @@ The Rust migration has reached **functional transpiler status** with a complete 
 | `rapidr-codegen-rust` | ~2,100 | **Rust code generator** — walks AST, emits Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
 | `rapidr-runtime-core` | ~5,700 | **Native runtime** — the desktop GUI (through the UI kernel), builtins, database (MySQL/SQLite), networking, file I/O |
 | `rapidr-ui-kernel` | — | **UI kernel** — GUI-free: forms as retained trees over the component store, focus, input routing, display lists, parley text and editors, accessibility trees; builds for wasm too |
+| `rapidr-ui-app` | — | **Program glue** — host-neutral: kernel events as the program's events, forms shown / closed / modal, timers, the waits' bookkeeping, menus, the dialogs' requests and answers, the GUI test hooks and their script, behind the `Program` and `Windows` traits a runtime implements; builds for wasm too |
 | `rapidr-ui-host-winit` | — | **Desktop host** — winit windows pumped from the program's loop, vello on the GPU (vello_cpu without one), AccessKit, muda menus, rfd file dialogs, a headless host for tests |
 | `rapidr-runtime-web` | ~5,600 | **Web runtime** — DOM/Canvas GUI, web builtins, SQLite (compiled to wasm), data science, wasm-bindgen interop |
 | `rapidr-db` | — | **RSQLITE / RMYSQL**, shared by both runtimes: one SQLite everywhere (rusqlite), MySQL (desktop), parameter binding |
@@ -728,7 +729,7 @@ The Rust runtime is in `crates/rapidr-runtime-core/src/` with modules:
 |--------|-------|-------------|
 | `value.rs` | ~300 | `Value` enum (Int, Dbl, Str, Null) with arithmetic and comparison operators |
 | `builtins.rs` | ~450 | 100+ built-in BASIC functions (string, math, I/O, system) |
-| `ui/` | ~3,000 | The desktop UI facade (`ui/mod.rs`) and the UI kernel's glue (`ui/kernel.rs`: windows, waits, timers, events; `kernel_store.rs`, `kernel_lists.rs`, `kernel/{menus,dialogs,platform}.rs`), file / colour / font dialogs, GUI test hooks (`testhooks.rs`) |
+| `ui/` | ~1,800 | The desktop UI facade (`ui/mod.rs`) and the desktop host's glue (`ui/kernel.rs`: the pump, `step`, the waits, the tracking tick, window commands into the host, the test script's input and captures; `kernel_store.rs`, `program.rs` — the program as `rapidr-ui-app` sees it —, `kernel/{menus,dialogs,platform}.rs`); the host-neutral half (events, forms, timers, menus, lists, dialogs' requests, test hooks) is `rapidr-ui-app`'s |
 | `object.rs` | ~1,200 | Component property get/set/method dispatch via `rp_comp_*` API |
 | `database.rs` | ~40 | RSQLITE / RMYSQL: the shared `rapidr-db` components with this runtime's properties, events and messages |
 | `network.rs` | ~400 | TCP socket, server socket, HTTP client components |
@@ -755,7 +756,12 @@ components that draw display lists from the shared models in
 input routing, text editing and accessibility trees) and
 `rapidr-ui-host-winit` (winit windows, vello on the GPU or vello_cpu,
 AccessKit, muda menus on macOS / Windows, rfd's Open / Save dialogs, and a
-headless host for tests). See [docs/desktop-host-plan.md](docs/desktop-host-plan.md).
+headless host for tests). What doesn't depend on the host — the kernel's
+events as the program's, forms shown and closed, the modal list, timers,
+menus, the dialogs' requests and answers, the test hooks — is
+`rapidr-ui-app`'s, which the web runtime will share. See
+[docs/desktop-host-plan.md](docs/desktop-host-plan.md) and
+[docs/web-host-plan.md](docs/web-host-plan.md).
 
 **Component lifecycle:**
 1. `rp_create_component(name, type)` — registers the component in the store (`object.rs`)
@@ -763,7 +769,7 @@ headless host for tests). See [docs/desktop-host-plan.md](docs/desktop-host-plan
 3. `Form.Show` / `Form.ShowModal` — the kernel builds the form's tree and the host opens its window; `ShowModal` steps the host until the form closes (natively), or the VM serves the wait a step at a time
 4. Program code runs only between pumps (`ui/kernel.rs::step`): the host routes input into the kernel, and the runtime fires OnClick, OnKeyDown … after the pump
 
-**Environment:** `RAPIDR_SCALE=2` (a scale for the headless host and tests), `RAPIDR_RENDERER=cpu|gpu`, `RAPIDR_MENU=window` (a QMAINMENU inside its form on macOS too), and the GUI test hooks in `ui/testhooks.rs` (`RAPIDR_CAPTURE`, `RAPIDR_TEST_EVENTS`, `RAPIDR_TEST_DUMP`, `RAPIDR_TEST_A11Y` …, headless unless `RAPIDR_CAPTURE_WINDOWS`; `tests/native_gui_events.mjs`).
+**Environment:** `RAPIDR_SCALE=2` (a scale for the headless host and tests), `RAPIDR_RENDERER=cpu|gpu`, `RAPIDR_MENU=window` (a QMAINMENU inside its form on macOS too), and the GUI test hooks in `rapidr-ui-app`'s `testhooks.rs` (`RAPIDR_CAPTURE`, `RAPIDR_TEST_EVENTS`, `RAPIDR_TEST_DUMP`, `RAPIDR_TEST_A11Y` …, headless unless `RAPIDR_CAPTURE_WINDOWS`; `tests/native_gui_events.mjs`).
 
 **Key component types:**
 - `RFORM` — A window with its menu bar (macOS: the system menu bar), status bar, timers

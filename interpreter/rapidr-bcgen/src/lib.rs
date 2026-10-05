@@ -629,7 +629,7 @@ impl Bcgen {
                             emit(code, Op::CreateComp);
                             push_u32(code, kind_s); push_u32(code, id_s);
                             emit(code, Op::Pop);
-                            if d.type_name.eq_ignore_ascii_case("RTIMER") {
+                            if rapidr_ast::is_timer_type(&d.type_name) {
                                 self.emit_register_timer(&decl.name, code);
                             }
                         }
@@ -1973,7 +1973,7 @@ impl Bcgen {
         self.create_stack.pop();
         // RTIMER must be registered with the GUI tick loop, same as the
         // compiled mode.
-        if c.type_name.eq_ignore_ascii_case("RTIMER") {
+        if rapidr_ast::is_timer_type(&c.type_name) {
             self.emit_register_timer(&c.name, code);
         }
         Ok(())

@@ -381,9 +381,11 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
                 Some(p) => PathBuf::from(p),
                 None => out_dir.join("target"),
             };
-            let built_binary = target_root.join(profile).join(&binary_name);
+            // (`.exe` on Windows)
+            let exe = std::env::consts::EXE_SUFFIX;
+            let built_binary = target_root.join(profile).join(format!("{binary_name}{exe}"));
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
-            let dest_binary = dest_dir.join(stem);
+            let dest_binary = dest_dir.join(format!("{stem}{exe}"));
 
             if built_binary.exists() {
                 if let Err(e) = fs::copy(&built_binary, &dest_binary) {
@@ -829,7 +831,7 @@ fn build_interp_desktop(
         eprintln!("create_dir_all {}: {e}", dest_dir.display());
         return ExitCode::from(1);
     }
-    let dest = dest_dir.join(stem);
+    let dest = dest_dir.join(format!("{stem}{}", std::env::consts::EXE_SUFFIX));
 
     // 4. Attach payload.
     if let Err(e) = attach_payload(&stub, &rrbc, &dest) {
@@ -901,7 +903,7 @@ fn attach_payload(stub: &Path, rrbc: &[u8], dest: &Path) -> Result<(), String> {
 /// runner in `target/runner`, `target/release` or `target/debug` is used
 /// only if cargo can't run.
 fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
-    let exe_name = if cfg!(windows) { "rapidrintr-runner.exe" } else { "rapidrintr-runner" };
+    let exe_name = format!("rapidrintr-runner{}", std::env::consts::EXE_SUFFIX);
     // Release: the stripped `runner` profile (Cargo.toml).
     let preferred = if release { "runner" } else { "debug" };
 
@@ -914,14 +916,14 @@ fn locate_or_build_stub(release: bool) -> Result<PathBuf, String> {
     // rapidr was run), else the workspace's target/.
     let target = std::env::var_os("CARGO_TARGET_DIR").map(|t| cwd.join(t)).unwrap_or_else(|| root.join("target"));
     let built = process::Command::new("cargo").args(&args).current_dir(&root).env("CARGO_TARGET_DIR", &target).status();
-    let path = target.join(preferred).join(exe_name);
+    let path = target.join(preferred).join(&exe_name);
     match built {
         Ok(status) if status.success() && path.exists() => return Ok(path),
         Ok(status) => eprintln!("warning: cargo build rapidr-runner-stub failed ({status}); using an existing runner if there is one"),
         Err(e) => eprintln!("warning: can't run cargo ({e}); using an existing runner if there is one"),
     }
     for profile in [preferred, if release { "release" } else { "runner" }] {
-        let candidate = target.join(profile).join(exe_name);
+        let candidate = target.join(profile).join(&exe_name);
         if candidate.exists() {
             return Ok(candidate);
         }

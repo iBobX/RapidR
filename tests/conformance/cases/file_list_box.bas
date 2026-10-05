@@ -11,7 +11,8 @@ PRINT Files.ItemCount; " "; Files.Item(0); " "; Files.Item(1)
 Files.Mask = "*.TXT"
 PRINT Files.ItemCount; " "; Files.Item(0)
 Files.ItemIndex = 0
-PRINT RIGHT$(Files.FileName, 25)
+' (the path's separator is the system's: \ on Windows)
+PRINT REPLACESUBSTR$(RIGHT$(Files.FileName, 25), "\", "/")
 Files.Mask = "*.bin;*.txt"
 Files.AddFileTypes(4)
 Files.DelFileTypes(6)

@@ -14,6 +14,9 @@
 //   webClick: { comp: "css selector" } — where a browser click lands for a
 //             component whose clicks go through its rows / cells (the
 //             desktop test hook fires the handler directly)
+//   pixels: [[x, y, "rrggbb"], …] — what the desktop's capture of the
+//           (only) window shows at (x, y) of its client area (logical
+//           pixels; at RAPIDR_SCALE the device pixel there)
 
 export const cases = [
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
@@ -96,7 +99,8 @@ export const cases = [
     expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
-  { name: "window_state", events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
+  { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
+    events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
     expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 -1|0 300", "lbl3.caption=1;2;2;"] },
   { name: "file_dialogs", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
@@ -187,9 +191,31 @@ export const cases = [
   // (timers during native menu tracking: `__hold_600`, a menu held open
   // 600 ms on the headless host — the timer ticks through the tracking
   // tick; what needs the pump inside it answers as the plan says)
-  { name: "menu_hold_timers", events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
+  { name: "menu_hold_timers", headlessOnly: "`__hold_ms` makes the headless host hold its pump as a held native menu would; real windows have no such hook",
+    events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
     expect: ["lbl.caption=pop;de;modal2;ask7;|-1", "dlg.__shown=0"],
     web: false, why: "a page's menus never hold its loop: the hold and its tracking tick are the desktop host's" },
+  // (the DirectX lane's: QDXSCREEN, QDXIMAGELIST, QDXTIMER — the screen at
+  // (10, 10) shows its last Flip: blue Fill, the red corner, the sprite's
+  // see-through white, the strip's two patterns)
+  { name: "dx_screen", events: "dx.__mousedown_12_34,btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=init surface t3 down01234 |16711680,255,65280,65535|16711680,255,65535,65280|10,160x100"],
+    pixels: [[150, 100, "0000ff"], [15, 15, "ff0000"], [111, 11, "0000ff"], [118, 18, "ff0000"], [131, 41, "ffff00"], [139, 41, "00ff00"]],
+    webCheck: `(() => { const c = document.getElementById("rr-dx-screen"); const s = c.width / 160; const g = c.getContext("2d");
+      return [[140, 90], [5, 5], [101, 1], [108, 8], [121, 31], [129, 31]].map(([x, y]) => [...g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join("")).join(",")
+        + " " + c.style.width + " " + getComputedStyle(c.parentElement).backgroundColor; })()`,
+    webExpect: "0000ff,ff0000,0000ff,ff0000,ffff00,00ff00 160px rgb(0, 0, 0)" },
+  // (the DirectX lane's, stage D1b: the default font, Rotate, View.*, a
+  // screen put on a shown form, a hidden form's screen, FullScreen,
+  // ActiveOnly; the rotated line and the late screen's blue in the capture,
+  // Cursor and the full screen's 4:3 picture in the page)
+  { name: "dx_more", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick,b5.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=tick rot255,0 view10.5,5000 parented late second120 full |10x13,18|0|wide0,-1"],
+    pixels: [[30, 50, "ff0000"], [40, 40, "000000"], [140, 20, "0000ff"]],
+    webCheck: `(() => { const px = (id, x, y) => { const c = document.getElementById(id); const s = c.width / parseFloat(c.style.width); return [...c.getContext("2d").getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data.slice(0, 3)].map(v => v.toString(16).padStart(2, "0")).join(""); };
+      const full = document.getElementById("rr-dx3-screen");
+      return [getComputedStyle(document.getElementById("rr-dx")).cursor, px("rr-dx-screen", 20, 40), px("rr-late-screen", 5, 5), Math.round(parseFloat(full.style.width) / parseFloat(full.style.height) * 100)].join(" "); })()`,
+    webExpect: "none ff0000 0000ff 133" },
   // (kernel themes: a click switches to dark at run time — Application.Theme;
   // `themes`: the desktop also captures the form under each of these,
   // RAPIDR_THEME, without the events — the web keeps its own look and only
