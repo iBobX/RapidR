@@ -9,9 +9,11 @@ finds its home from the executable by it):
     lib/rapidr/ide/rapidr-ide.rrbc      the IDE (`rapidr ide`)          sdk
     lib/rapidr/runners/<os>-<arch>/     rapidrintr-runner[w][.exe]      sdk
     lib/rapidr/web/                     rapidrintr.js, _bg.wasm         sdk
+    lib/rapidr/notices/<os>-<arch>.txt, web.txt   the THIRD-PARTY-NOTICES.txt
+                                        builds carry (`rapidr notices`) sdk
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
-    share/doc/rapidr/                   LICENSE, LICENSES.md, THIRD_PARTY_NOTICES.md,
-                                        the fonts' OFL, README.md
+    share/doc/rapidr/                   LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
+                                        THIRD-PARTY-NOTICES.txt (rapidr's own), the fonts' OFL, README.md
 
     python3 tools/release/stage.py --kind sdk --os macos --out STAGE \\
         --bin target/release --home dist/<ver>/home-macos \\
@@ -23,16 +25,26 @@ import argparse
 import os
 import shutil
 import stat
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = ["LICENSE", "LICENSES.md", "THIRD_PARTY_NOTICES.md", "README.md", "crates/rapidr-value/fonts/OFL-1.1.txt"]
+DOCS = ["LICENSE", "LEGAL.md", "LICENSES.md", "THIRD_PARTY_NOTICES.md", "README.md", "crates/rapidr-value/fonts/OFL-1.1.txt"]
 
 
 def copy_exe(src, dest):
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     shutil.copy2(src, dest)
     os.chmod(dest, os.stat(dest).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def notices(kind, dest):
+    """The THIRD-PARTY-NOTICES.txt for `kind` (an <os>-<arch>, web,
+    tools-<os>), made from this checkout's dependency graph by the CLI's
+    generator (crates/rapidr-cli/src/notices.rs, docs/licensing.md)."""
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    subprocess.run(["cargo", "run", "--quiet", "--release", "-p", "rapidr-cli", "--", "notices", kind, "-o", dest],
+                   cwd=ROOT, env=dict(os.environ, RAPIDR_HOME=ROOT), check=True)
 
 
 def main():
@@ -86,6 +98,13 @@ def main():
     os.makedirs(doc)
     for f in DOCS:
         shutil.copy2(os.path.join(ROOT, f), os.path.join(doc, os.path.basename(f)))
+    # The notices: rapidr's own, and (SDK) those every build carries
+    notices(f"tools-{args.os}", os.path.join(doc, "THIRD-PARTY-NOTICES.txt"))
+    if args.kind == "sdk":
+        for spec in args.runner:
+            target = spec.split("=", 1)[0]
+            notices(target, os.path.join(lib, "notices", f"{target}.txt"))
+        notices("web", os.path.join(lib, "notices", "web.txt"))
     print(f"staged {args.kind} for {args.os} in {out}")
 
 

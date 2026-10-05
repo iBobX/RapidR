@@ -56,11 +56,19 @@ your PC": choose More info > Run anyway.
 
 ## Licences
 
-RapidR is MIT-licensed, and so is everything it ships, or under similarly
-permissive open-source licences (Apache-2.0, BSD, ISC, zlib, Unicode, MPL-2.0
-for unmodified font crates, OFL for the built-in fonts): nothing GPL, LGPL or
-AGPL. The programs you build with RapidR are yours, to ship as open source or
-commercially. Every package carries `LICENSE`, `LICENSES.md` and
-`THIRD_PARTY_NOTICES.md`.
+RapidR is MIT-licensed, and everything it ships is under similarly
+permissive open-source licences (Apache-2.0, BSD, ISC, zlib, BSL, Unicode,
+CDLA-Permissive for certificate data, MPL-2.0 for a few unmodified crates
+such as the MP3 decoder, OFL for the built-in fonts): nothing GPL, LGPL or
+AGPL is compiled into a program. **The programs you build with RapidR are
+yours**, to ship as open source or commercially: every build writes a
+`THIRD-PARTY-NOTICES.txt` beside the executable (or into the web build) with
+every notice and licence text its components ask for — ship it with the
+program, and that's all. See `LEGAL.md` (also: trademarks — RapidR is
+compatible with RapidQ and not affiliated with its author or any vendor it
+names — and no warranty) and `docs/licensing.md`.
+
+Every package carries `LICENSE`, `LEGAL.md`, `LICENSES.md`,
+`THIRD_PARTY_NOTICES.md` and RapidR's own `THIRD-PARTY-NOTICES.txt`.
 
 Built from commit @COMMIT@.

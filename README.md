@@ -32,6 +32,7 @@
 - [Test Suite](#test-suite)
 - [Development Conventions](#development-conventions)
 - [Credits](#credits)
+- [Licensing](#licensing)
 - [License](#license)
 
 ---
@@ -1407,8 +1408,27 @@ Polars, SQLite and hundreds of Rust crates. The full list, with licenses
 and links, is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 (generated from the dependency graph) and [LICENSES.md](LICENSES.md)
 (vendored JavaScript and license texts). New dependencies must be open
-source under a permissive license accepted by `deny.toml`. Every web bundle
-RapidR builds ships these notices.
+source under a permissive license accepted by `deny.toml`.
+
+---
+
+## Licensing
+
+**The programs you build with RapidR are yours**: sell them, give them away,
+keep their source closed. Ship each one with the `THIRD-PARTY-NOTICES.txt`
+RapidR writes beside it (native and interpreted executables) or into it (web
+builds): it carries the notices and licence texts of RapidR's runtime and of
+the open-source components inside, generated from the build's real
+dependency graph (`rapidr notices` prints it). That is all their licences ask;
+none restricts commercial or closed-source use, and nothing GPL, LGPL or AGPL
+is compiled into a program.
+
+- [LEGAL.md](LEGAL.md): what you may do with RapidR and your programs, what
+  to ship, trademarks (RapidR is compatible with RapidQ and not affiliated
+  with its author or any vendor it names), no warranty.
+- [docs/licensing.md](docs/licensing.md): what each kind of output contains,
+  licence by licence, and what each licence asks; codecs and patents; the
+  checks (`tools/regress.sh legal`).
 
 ---
 

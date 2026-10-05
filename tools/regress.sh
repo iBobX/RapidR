@@ -1,7 +1,8 @@
 #!/bin/bash
 # The full local check before a commit (CI on GitHub runs only by hand):
 # unit tests, the conformance suite on both backends, native examples,
-# desktop GUI events (native + interpreted), and the web suites.
+# desktop GUI events (native + interpreted), the web suites, and the legal
+# checks (licences, and the notices every build carries).
 #
 # Needs: ./rapidr built (cargo build --release -p rapidr-cli, then copy it),
 # the web artifacts (tools/build_web_artifacts.sh) and the repo served on
@@ -9,7 +10,7 @@
 #
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
-#                                     examples, gui, web), caches kept
+#                                     examples, gui, web, legal), caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
 curl -s -o /dev/null localhost:8765/ || { echo "serve the repo on http://localhost:8765 first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }
@@ -26,7 +27,7 @@ export RAPIDR_PRINT_TO="$PWD/$W/prints"
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
-[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui web); CLEAN=1; }
+[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui web legal); CLEAN=1; }
 # (what's inside $W: it may be a link to a build volume)
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -59,4 +60,11 @@ if want web; then
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi
+# Licences and notices (LEGAL.md, docs/licensing.md): a licence outside
+# deny.toml's allowlist fails; THIRD_PARTY_NOTICES.md is current; every kind
+# of output carries a THIRD-PARTY-NOTICES.txt listing every crate in it.
+if want legal; then echo "== legal"
+  cargo deny check licenses 2>&1 | tail -1
+  python3 tools/third_party_notices.py --check
+  python3 tools/check_notices.py --rapidr ./rapidr 2>&1 | grep -E "FAIL|notices: all ok"; fi
 echo ALLDONE

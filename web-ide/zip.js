@@ -103,6 +103,8 @@ function indexHtml(title, version) {
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   ${ver}
   <title>${title}</title>
+  <!-- Built with RapidR (MIT). Third-party software notices and licences: THIRD-PARTY-NOTICES.txt -->
+  <link rel="license" href="THIRD-PARTY-NOTICES.txt">
   <style>#rapidr-status { position: fixed; top: 8px; right: 12px; font-size: 12px; color: #888; pointer-events: none; }</style>
 </head>
 <body>
@@ -186,8 +188,8 @@ export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm
     [`${projectName}.rrbc`]: rrbc instanceof Uint8Array ? rrbc : new Uint8Array(rrbc),
   };
 
-  // RapidR's license and the open-source notices for the runtime the
-  // bundle redistributes ({ "LICENSE-RapidR.txt": text, ... }).
+  // The open-source notices for the runtime the bundle redistributes
+  // ({ "THIRD-PARTY-NOTICES.txt": text, ... }) and the on-page console.
   for (const [name, text] of Object.entries(notices || {})) {
     if (typeof text === "string" && text) files[name] = enc.encode(text);
   }

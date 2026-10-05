@@ -2558,6 +2558,7 @@ async function dispatchCommand(cmd) {
     case "view.source":  return showFullSource();
     case "help.about":   return showAboutDialog();
     case "help.license": return showLicenseDialog();
+    case "help.legal":   return showLegalDialog();
 
     case "view.theme.light": return setTheme("light");
     case "view.theme.dark":  return setTheme("dark");
@@ -2642,11 +2643,12 @@ function doStop() {
   }
 }
 
-/// RapidR's license, the open-source notices and the on-page console,
-/// shipped in every bundle (the same files `rapidr bundle-bc` embeds).
-/// Missing files are skipped.
+/// The open-source notices and the on-page console, shipped in every bundle
+/// (the same files `rapidr bundle-bc` writes). THIRD-PARTY-NOTICES.txt (RapidR's
+/// licence and every component's notices, `rapidr notices web`) sits beside the
+/// runtime: a bundle is never built without it.
 async function fetchNotices() {
-  const files = { "LICENSE-RapidR.txt": "../LICENSE", "THIRD_PARTY_NOTICES.md": "../THIRD_PARTY_NOTICES.md", "LICENSES.md": "../LICENSES.md",
+  const files = { "THIRD-PARTY-NOTICES.txt": "./runtime/THIRD-PARTY-NOTICES.txt",
     // The on-page console for PRINT output (loaded by the bundle's loader.js).
     "bundle_console.js": "./bundle_console.js", "ansi_screen.js": "./ansi_screen.js" };
   const out = {};
@@ -2657,6 +2659,9 @@ async function fetchNotices() {
       else console.warn(`bundle: ${url} not found; not included`);
     } catch (_) { console.warn(`bundle: ${url} not found; not included`); }
   }));
+  if (!out["THIRD-PARTY-NOTICES.txt"]) {
+    throw new Error("runtime/THIRD-PARTY-NOTICES.txt is missing (tools/build_web_artifacts.sh writes it): a bundle isn't built without its open-source notices");
+  }
   return out;
 }
 
@@ -3692,10 +3697,12 @@ function showAboutDialog() {
       <div>
         <div style="font-size:16px;font-weight:600">RapidR IDE <span style="color:var(--c-text-mute);font-weight:400;font-size:12px">v${escapeHtml(RAPIDR_IDE_VERSION)}</span></div>
         <div style="margin-top:2px">Self-hosted, zero-backend, in-browser BASIC IDE</div>
-        <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com&subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
+        <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com?subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
         <div><b>Assisted by:</b> AI pair-programming assistants</div>
         <div style="margin-top:8px"><b>License:</b> MIT (see LICENSE)</div>
         <div style="margin-top:4px">Built on hundreds of open-source libraries: see <b>Open-source credits</b>.</div>
+        <div style="margin-top:4px"><b>Legal:</b> what you may do with RapidR and the programs you build, trademarks, no warranty: <b>LEGAL.md</b>.
+          RapidR is compatible with RapidQ; it is not affiliated with or endorsed by RapidQ's author or any vendor it names.</div>
         <div style="margin-top:6px;color:var(--c-text-mute);font-size:11px">
           Compiles in WebAssembly via <code>rapidrintr.wasm</code>.
         </div>
@@ -3703,18 +3710,35 @@ function showAboutDialog() {
     </div>`;
   showDialog("About RapidR IDE", html, [
     { label: "View License", onClick: showLicenseDialog },
+    { label: "Legal", onClick: showLegalDialog },
     { label: "Open-source credits", onClick: showCreditsDialog },
     { label: "OK", primary: true },
   ]);
 }
 
+/// A file of the repository / the release's root: one folder up from the IDE
+/// in a checkout (web-ide/), beside it in the release's web zip.
+async function fetchDoc(name) {
+  for (const url of [`../${name}`, `./${name}`]) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return await r.text();
+    } catch (_) {}
+  }
+  return "";
+}
+
 async function showLicenseDialog() {
-  let txt = "(LICENSE not found)";
-  try {
-    const r = await fetch("../LICENSE");
-    if (r.ok) txt = await r.text();
-  } catch (_) {}
+  const txt = (await fetchDoc("LICENSE")) || "(LICENSE not found)";
   showDialog("License",
+    `<pre style="margin:0;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:60vh;overflow:auto">${escapeHtml(txt)}</pre>`,
+    [{ label: "Close", primary: true }]);
+}
+
+/// LEGAL.md: what users may do with RapidR and the programs they build.
+async function showLegalDialog() {
+  const txt = (await fetchDoc("LEGAL.md")) || "(LEGAL.md not found: https://github.com/iBobX/RapidR/blob/main/LEGAL.md)";
+  showDialog("Legal",
     `<pre style="margin:0;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:60vh;overflow:auto">${escapeHtml(txt)}</pre>`,
     [{ label: "Close", primary: true }]);
 }
@@ -3722,11 +3746,9 @@ async function showLicenseDialog() {
 /// The generated THIRD_PARTY_NOTICES.md plus LICENSES.md (vendored JS).
 async function showCreditsDialog() {
   let txt = "";
-  for (const url of ["../THIRD_PARTY_NOTICES.md", "../LICENSES.md"]) {
-    try {
-      const r = await fetch(url);
-      if (r.ok) txt += (txt ? "\n\n" : "") + await r.text();
-    } catch (_) {}
+  for (const name of ["THIRD_PARTY_NOTICES.md", "LICENSES.md"]) {
+    const t = await fetchDoc(name);
+    if (t) txt += (txt ? "\n\n" : "") + t;
   }
   showDialog("Open-source credits",
     `<pre style="margin:0;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:60vh;overflow:auto">${escapeHtml(txt || "(THIRD_PARTY_NOTICES.md not found)")}</pre>`,

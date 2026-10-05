@@ -35,6 +35,10 @@ wasm-pack build interpreter/rapidr-vm-host-web \
 # CJK ones are fetched once into target/fonts-src (offline: left out, and
 # the script says how to get them).
 python3 tools/fonts.py build target/web/fonts
+# The open-source notices every web bundle ships with (the web IDE's bundles
+# take them from runtime/, which is target/web; docs/licensing.md)
+echo "Writing the web runtime's THIRD-PARTY-NOTICES.txt …"
+RAPIDR_HOME="$ROOT" cargo run --quiet -p rapidr-cli -- notices web -o "$ROOT/target/web/THIRD-PARTY-NOTICES.txt"
 
 echo "Done. Artifacts in target/web/"
-ls -lh target/web/rapidrintr.js target/web/rapidrintr_bg.wasm
+ls -lh target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt

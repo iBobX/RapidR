@@ -24,7 +24,15 @@ ignore = [
 ]
 
 [licenses]
-# RapidR is MIT; these licenses are compatible for use and redistribution.
+# RapidR is MIT. Everything that can reach a user's program must be open
+# source AND allow commercial, closed-source use with no more than a notice:
+# no GPL, LGPL, AGPL, SSPL, BUSL or other copyleft / source-available terms
+# (only MPL-2.0's file-level copyleft, for unmodified files). A licence not
+# listed here fails `cargo deny check licenses` (tools/regress.sh legal).
+# The CLI's notice generator accepts exactly this list too
+# (crates/rapidr-cli/src/notices.rs, ALLOWED; a unit test keeps them equal).
+# LEGAL.md and docs/licensing.md say what each one asks of whoever ships a
+# program.
 allow = [
     "MIT",
     "Apache-2.0",
@@ -38,9 +46,15 @@ allow = [
     "Unlicense",
     "Unicode-3.0",
     "CDLA-Permissive-2.0",  # webpki-roots certificate data
-    "MPL-2.0",              # file-level copyleft (font crates); fine unmodified
+    # File-level copyleft: binaries may be closed; the MPL files' own source
+    # must stay available (unmodified, crates.io has it; the notices say so).
+    # symphonia (rodio's MP3 decoder), dwrote (Windows fonts), option-ext.
+    "MPL-2.0",
 ]
 confidence-threshold = 0.9
+# Warn about an allowlist entry nothing uses any more, so the list stays the
+# real one.
+unused-allowed-license = "warn"
 
 [[licenses.clarify]]
 # polars-arrow-format ships only a LICENSE file (Apache-2.0).

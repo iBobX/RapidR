@@ -6,7 +6,7 @@ Three flavours of the same announcement. Pick whichever matches the venue.
 
 ## A. RapidQ user-group post / forum (warm, hobbyist tone)
 
-> **RapidR 1.0.0 — a modern reincarnation of RapidQ**
+> **RapidR 1.0.0 — a modern BASIC compatible with RapidQ**
 >
 > Long-time RapidQ users — you might enjoy this. RapidR is a from-scratch
 > Rust reimplementation of the BASIC dialect we all remember, with the
@@ -92,7 +92,9 @@ Three flavours of the same announcement. Pick whichever matches the venue.
 >   Content-Security-Policy; all user-controlled strings interpolated
 >   into IDE DOM are escaped; no `eval()`/`new Function()` outside
 >   vendored Monaco + wasm-bindgen glue.
-> - Third-party attributions in [`LICENSES.md`](LICENSES.md). MIT.
+> - MIT. Programs you build are yours, commercial or not: ship them with
+>   the `THIRD-PARTY-NOTICES.txt` each build writes ([`LEGAL.md`](LEGAL.md)).
+>   RapidR is compatible with RapidQ and not affiliated with its author.
 >
 > **Try it**
 >

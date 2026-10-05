@@ -144,6 +144,11 @@ async function main() {
        `bundle has all required files (${JSON.stringify(names)})`);
     ok(names.includes("bundle_console.js") && names.includes("ansi_screen.js"),
        "bundle ships the on-page console (bundle_console.js, ansi_screen.js)");
+    // (docs/licensing.md: every bundle carries its open-source notices)
+    const notices = names.includes("THIRD-PARTY-NOTICES.txt")
+      ? await fs.readFile(path.join(tmpDir, "THIRD-PARTY-NOTICES.txt"), "utf8") : "";
+    ok(/THIRD-PARTY SOFTWARE NOTICES/.test(notices) && /wasm-bindgen/.test(notices) && /Liberation/.test(notices),
+       "bundle ships THIRD-PARTY-NOTICES.txt (the web runtime's notices)");
 
     // 3. Verify manifest.json carries the IDE version.
     const manifest = JSON.parse(await fs.readFile(path.join(tmpDir, "manifest.json"), "utf8"));

@@ -1,7 +1,7 @@
 # RapidR Roadmap
 
 > Goal: the best RapidQ / VB-style compiler, interpreter, debugger and IDE ever —
-> compatible, secure by default, AI-native, and open source. A modern RapidQ:
+> compatible, secure by default, AI-native, and open source. A modern RapidQ-compatible system:
 > old programs keep working; new ones get high-DPI, accessible, responsive
 > interfaces, the data-science and AI stacks, and the same behaviour on the
 > desktop (native and interpreted), the web and, later, mobile. Target: 2027
@@ -164,6 +164,7 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
 
 Next up, in order:
 - [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)
+- [x] Licence compliance for users: every output carries a generated `THIRD-PARTY-NOTICES.txt` (native / interpreted executables beside them, web builds in their root, linked from index.html) with every licence text, from the build's real graph (`rapidr notices`, offline in an install); `LEGAL.md` (what users may do, what to ship, trademarks, no warranty), `docs/licensing.md` (per-output tables, licence obligations, codecs and patents); RapidQ-derived library bodies and manual-example tests rewritten; `tools/regress.sh legal` (cargo deny, the notices for every kind). Open: a professional review before the first release (docs/licensing.md §8)
 - [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0)
 - [x] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` as ANSI sequences on both backends; the IDE Output panel renders them (web-ide/ansi_screen.js) (v2.17.0)
 - [x] Web bundles: an on-page console for programs that PRINT (`web-ide/bundle_console.js` + `ansi_screen.js`, CLI and IDE bundles) (v2.21.0)

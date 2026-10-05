@@ -275,7 +275,7 @@ impl Printer {
                         }
                         // The top of the text at y: its baseline an ascent below.
                         let baseline = hp - pt(*ty) - size * 0.718;
-                        s += &format!("BT /F{f} {size:.1} Tf {} rg {} {baseline:.2} Td ({}) Tj ET\n", rgb(font.color as u32 & 0xFFFFFF), x(*tx), pdf_string(text));
+                        s += &format!("BT /F{f} {size:.1} Tf {} rg {} {baseline:.2} Td ({}) Tj ET\n", rgb(crate::objects::color_bgr(font.color)), x(*tx), pdf_string(text));
                     }
                     PageOp::Image(ix, iy, iw, ih, b) => {
                         let name = format!("Im{}", images.len() + 1);

@@ -11,6 +11,7 @@
 //!   rapidrintr.js     <- wasm-bindgen JS shim for rapidr-vm-host-web
 //!   rapidrintr.wasm   <- bytecode VM compiled to wasm
 //!   <project>.rrbc    <- the user's compiled bytecode
+//!   THIRD-PARTY-NOTICES.txt <- the open-source notices (index.html links it)
 //! ```
 //!
 //! At runtime `index.html` loads `loader.js` (an ES module), which in
@@ -45,13 +46,13 @@ pub struct BundleInputs<'a> {
     /// text needs. Empty: none (characters the built-in fonts lack show as
     /// boxes).
     pub fonts: &'a [(String, Vec<u8>)],
+    /// The web runtime's `THIRD-PARTY-NOTICES.txt` (RapidR's licence and
+    /// every open-source component's notices: `rapidr notices web`).
+    pub notices: &'a str,
 }
 
-/// RapidR's own license and the credits for the open-source software in the
-/// runtime, shipped in every bundle (see tools/third_party_notices.py).
-pub const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
-pub const THIRD_PARTY_NOTICES: &str = include_str!("../../../THIRD_PARTY_NOTICES.md");
-pub const LICENSES: &str = include_str!("../../../LICENSES.md");
+/// The notices' name in the bundle's root (the CLI's notices.rs).
+pub const NOTICES_FILE: &str = "THIRD-PARTY-NOTICES.txt";
 /// The on-page console for PRINT output: loader.js installs it
 /// (web-ide/bundle_console.js, rendering with web-ide/ansi_screen.js, shared
 /// with the IDE's own bundles).
@@ -81,11 +82,12 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         write_file(&mut zw, "rapidrintr_bg.wasm", inputs.rapidrintr_wasm, stored)?;
         let rrbc_name = format!("{}.rrbc", inputs.project_name);
         write_file(&mut zw, &rrbc_name, inputs.rrbc, stored)?;
-        // The bundle redistributes RapidR's runtime, so its license and the
+        // The bundle redistributes RapidR's runtime: its licence and the
         // open-source notices travel with it.
-        write_file(&mut zw, "LICENSE-RapidR.txt", RAPIDR_LICENSE.as_bytes(), deflated)?;
-        write_file(&mut zw, "THIRD_PARTY_NOTICES.md", THIRD_PARTY_NOTICES.as_bytes(), deflated)?;
-        write_file(&mut zw, "LICENSES.md", LICENSES.as_bytes(), deflated)?;
+        if inputs.notices.trim().is_empty() {
+            return Err(format!("{NOTICES_FILE} is empty: a bundle isn't shipped without its notices"));
+        }
+        write_file(&mut zw, NOTICES_FILE, inputs.notices.as_bytes(), deflated)?;
         write_file(&mut zw, "bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes(), deflated)?;
         write_file(&mut zw, "ansi_screen.js", ANSI_SCREEN_JS.as_bytes(), deflated)?;
         for (name, data) in inputs.fonts {
@@ -131,6 +133,8 @@ fn render_index_html(title: &str, _project_name: &str, assets: Option<&HashMap<S
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{title}</title>
+  <!-- Built with RapidR (MIT). Third-party software notices and licences: {NOTICES_FILE} -->
+  <link rel="license" href="{NOTICES_FILE}">
   <style>{css}
 #rapidr-status {{ position: fixed; top: 8px; right: 12px; font-size: 12px; color: #888; pointer-events: none; }}
 </style>
@@ -189,6 +193,7 @@ mod tests {
             title: None,
             assets: None,
             fonts: &[],
+            notices: "THIRD-PARTY SOFTWARE NOTICES AND LICENCES",
         })
         .expect("bundle");
         // Smoke: zip starts with PK header and is non-trivial.
@@ -196,7 +201,7 @@ mod tests {
         assert_eq!(&bytes[0..2], b"PK");
         // Quick check that file names appear in the central dir.
         let s = String::from_utf8_lossy(&bytes);
-        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "LICENSE-RapidR.txt", "THIRD_PARTY_NOTICES.md", "LICENSES.md", "bundle_console.js", "ansi_screen.js"] {
+        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "THIRD-PARTY-NOTICES.txt", "bundle_console.js", "ansi_screen.js"] {
             assert!(s.contains(name), "missing {name} in bundle");
         }
     }

@@ -43,6 +43,7 @@ ArchitecturesInstallIn64BitMode={#Allowed}
 DisableProgramGroupPage=yes
 DisableDirPage=auto
 LicenseFile={#Stage}\share\doc\rapidr\LICENSE
+InfoBeforeFile={#Stage}\share\doc\rapidr\LEGAL.md
 OutputDir={#OutDir}
 OutputBaseFilename={#FileBase}-{#Version}-windows-{#Arch}-setup
 Compression=lzma2/max
