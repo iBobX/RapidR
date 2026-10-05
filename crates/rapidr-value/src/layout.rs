@@ -108,7 +108,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RLISTBOX" | "RTREEVIEW" => (120, 100),
         "RDIRTREE" | "RFILELISTBOX" => (150, 150),
         "RTRACKBAR" => (150, 45),
-        "RCANVAS" | "RIMAGE" => (100, 100),
+        "RCANVAS" | "RIMAGE" | "RDXSCREEN" => (100, 100),
         "RPROGRESSBAR" => (250, 25),
         // RapidR's own
         "RPROGRESS" => (200, 25),

@@ -449,7 +449,7 @@ pub fn role_of(type_name: &str) -> Role {
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
         "RIMAGE" | "RDLGPART" => Role::Image,
-        "RCANVAS" => Role::Canvas,
+        "RCANVAS" | "RDXSCREEN" => Role::Canvas,
         "RMAINMENU" => Role::MenuBar,
         // (QPANEL, QSCROLLBOX and what the hosts only place)
         _ => Role::Pane,

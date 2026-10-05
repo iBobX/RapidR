@@ -253,7 +253,7 @@ impl RustCodegen {
         self.flat_body(&c.body);
         self.with_component_stack.pop();
         self.create_stack.pop();
-        if type_upper == "RTIMER" {
+        if rapidr_ast::is_timer_type(&type_upper) {
             self.write_indent();
             let _ = writeln!(self.output, "gui_register_timer(\"{name}\");");
         }

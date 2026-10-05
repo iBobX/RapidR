@@ -39,6 +39,8 @@ pub mod tree;
 // (the surfaces lane's)
 pub mod canvas;
 pub mod image;
+// (the DirectX lane's)
+pub mod dxscreen;
 // (Stage 10: the IDE's)
 pub mod codeedit;
 pub mod design;
@@ -93,6 +95,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RCODEEDITOR", &codeedit::CodeEditor),
     // (the dialogs lane's: what only a kernel-drawn dialog draws)
     ("RDLGPART", &crate::dialogs::Part),
+    // (the DirectX lane's)
+    ("RDXSCREEN", &dxscreen::DxScreen),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

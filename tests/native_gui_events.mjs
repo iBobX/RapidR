@@ -59,6 +59,7 @@
 //   * tests/fixtures/size_grip.bas — QSTATUSBAR's size grip resizes the window (OnResize, Width / Height).
 //   * tests/fixtures/a11y_form.bas — what a screen reader is told (its tree and keys: tests/web_a11y.mjs).
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
+//   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)
@@ -111,6 +112,21 @@ const dialogAnswers = (c) => ({
   ...(c.fontDialog === undefined ? {} : { RAPIDR_TEST_FONT_DIALOG: c.fontDialog }),
 });
 
+// A captured window's pixel (x, y) as "rrggbb" (an uncompressed 24- or
+// 32-bit BMP).
+function capturePixel(file, x, y) {
+  try {
+    const b = readFileSync(file);
+    const off = b.readUInt32LE(10), w = b.readInt32LE(18), h = b.readInt32LE(22), bpp = b.readUInt16LE(28) / 8;
+    const stride = (w * bpp + 3) & ~3;
+    const row = h > 0 ? h - 1 - y : y;
+    const i = off + row * stride + x * bpp;
+    return [b[i + 2], b[i + 1], b[i]].map((v) => v.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    return "(no capture)";
+  }
+}
+
 function run(bin, events, dump, resize = "", split = "", fileDialog = undefined, extra = {}) {
   // (`fileDialog`: what the file dialogs answer, `a;b`)
   const answer = fileDialog === undefined ? {} : { RAPIDR_TEST_FILE_DIALOG: fileDialog };
@@ -149,6 +165,13 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     }
     results[kind] = out;
     for (const line of c.expect) ok(out.includes(line), `${c.name} (${kind}): ${line}` + (out.includes(line) ? "" : `\n    got: ${out.trim().split("\n").join(" / ")}`));
+    // (`pixels`: the window as captured)
+    if (c.pixels) {
+      const scale = Number(process.env.RAPIDR_SCALE || 1);
+      const got = c.pixels.map(([x, y]) => capturePixel(join(WORK, "window-1.bmp"), Math.floor((x + 0.5) * scale), Math.floor((y + 0.5) * scale)));
+      const want = c.pixels.map((p) => p[2]);
+      ok(got.join(",") === want.join(","), `${c.name} (${kind}): captured pixels ${want.join(",")}` + (got.join(",") === want.join(",") ? "" : `   [got: ${got.join(",")}]`));
+    }
     let trees = null;
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);

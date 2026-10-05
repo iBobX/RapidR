@@ -173,6 +173,9 @@ pub fn gui_web_create_widget(name: &str, comp_type: &str, props: &HashMap<String
         "RTIMER" => { /* Timers are virtual — no DOM element, handled in object_web */ }
         "RIMAGE" => create_image(&id, name, props),
         "RCANVAS" => create_canvas(&id, name, props),
+        // (the DirectX lane's)
+        "RDXSCREEN" => create_dxscreen(&id, name, props),
+        "RDXIMAGELIST" | "RDXTIMER" => { /* no DOM element */ }
         "RHEADER" => {
             create_canvas(&id, name, props);
             header_mouse_events(&id, name);
@@ -1223,6 +1226,8 @@ pub fn gui_web_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             // OnShow, as the desktop fires it on each ShowModal (before the
             // wait).
             crate::object_web::drop_onshow(name);
+            // (the DirectX lane's: its QDXSCREENs set up, OnInitialize)
+            crate::directx_web::form_shown(name);
             crate::object_web::rp_fire_event(name, "onshow");
             crate::dialog_web::begin_modal(&id);
             v_null()
@@ -3304,6 +3309,46 @@ fn create_canvas(id: &str, name: &str, props: &HashMap<String, Value>) {
     let _ = el.set_attribute("tabindex", "-1");
     let _ = el.style().set_property("outline", "none");
     setup_widget(&el, id, name, props);
+}
+
+/// (the DirectX lane's) A QDXSCREEN: black, with a `<canvas>` showing what
+/// its last Flip showed (`render_dxscreen`). It takes no focus (keys go to
+/// the form, as on the desktop).
+fn create_dxscreen(id: &str, name: &str, props: &HashMap<String, Value>) {
+    let el = create_el("div");
+    el.set_class_name("rr-widget");
+    let _ = el.style().set_property("background", "#000");
+    let _ = el.style().set_property("overflow", "hidden");
+    if let Ok(canvas) = document().create_element("canvas") {
+        canvas.set_id(&format!("{id}-screen"));
+        let _ = canvas.set_attribute("style", "position:absolute;left:0;top:0;display:block;");
+        let _ = el.append_child(&canvas);
+    }
+    setup_widget(&el, id, name, props);
+}
+
+/// Puts what a QDXSCREEN's last Flip showed on its canvas: over the whole
+/// control with AllowStretch (RapidQ's default), else at its own size.
+pub fn render_dxscreen(name: &str) {
+    let Some(canvas) = get_el(&format!("{}-screen", comp_id(name))).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else { return };
+    note_display_scale();
+    let (cw, ch, autosize) = rapidr_value::objects::dxscreen_control(name, &|i, p| crate::object_web::rp_comp_get_stored(i, p));
+    let Some((w, h, rgba, scale)) = rapidr_value::objects::with_dxscreen(name, |s| {
+        s.follow_control(cw, ch, autosize);
+        s.front.display_rgba()
+    }) else {
+        return;
+    };
+    if w == 0 || h == 0 {
+        return;
+    }
+    put_display(&canvas, w, h, &rgba, scale);
+    let stored = |p: &str| crate::object_web::rp_comp_get_stored(name, p);
+    if !matches!(stored("allowstretch"), Value::Null) && !stored("allowstretch").to_bool() {
+        return;
+    }
+    let _ = canvas.style().set_property("width", &format!("{}px", stored("width").to_i64()));
+    let _ = canvas.style().set_property("height", &format!("{}px", stored("height").to_i64()));
 }
 
 /// A QTABCONTROL: a container whose first layer draws the tabs from the
@@ -5451,6 +5496,11 @@ pub fn gui_web_finalize() {
         }
     }
     watch_scale();
+    // (the DirectX lane's) The shown forms' QDXSCREENs set up before their
+    // first OnPaint, as their windows came.
+    for form in crate::object_web::shown_forms() {
+        crate::directx_web::form_shown(&form);
+    }
     // Then the first OnPaint of each form and canvas (RapidQ programs draw
     // there); the surfaces keep what's drawn.
     if let Ok(all) = doc.query_selector_all(".rr-form, [data-rr-type=\"RCANVAS\"]") {
