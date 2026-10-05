@@ -34,6 +34,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   generated Cargo.toml's paths are escaped; `\U…` was read as an escape).
 - Windows: INPUT$ from a pipe or a file reads its characters instead of
   waiting for the console's keys.
+- Screen readers hear labels: a QLABEL's caption (and a status bar's
+  text) was given to AccessKit as a name, which it reads from the value
+  for labels — Narrator / NVDA (UI Automation) and VoiceOver got empty
+  text. Checked on Windows 11 with UI Automation (names, values, toggles,
+  ranges, Invoke / Toggle / SetValue running the handlers) and on macOS.
+- Computers whose only GPU is a software one (Windows' WARP, Mesa's
+  llvmpipe: virtual machines, remote desktops) draw on the CPU: WARP
+  crashed in vello's shaders (an access violation in d3d10warp.dll), and
+  vello_cpu is faster there anyway. `RAPIDR_RENDERER=gpu` still forces the
+  GPU.
 - Wayland: a size the window system applies at once (the status bar's
   size grip, a program setting Width / Height) is a resize the program
   hears about (OnResize, Width / Height).

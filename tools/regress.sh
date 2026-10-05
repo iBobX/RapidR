@@ -30,8 +30,9 @@ for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; 
 [ $CLEAN = 1 ] && trap 'rm -rf "$W" target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
-  # (the UI kernel stays GUI-free: it must build for the browser too)
-  cargo check -q -p rapidr-ui-kernel --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10; echo "(unit done)"; fi
+  # (the UI kernel and the program glue stay GUI-free: they must build for
+  # the browser too)
+  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10; echo "(unit done)"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi
 if want examples; then echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"

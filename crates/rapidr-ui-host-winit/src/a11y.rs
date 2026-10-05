@@ -65,7 +65,13 @@ fn node(n: &AccessNode) -> Node {
     // (a multi-line text box is its own role in AccessKit)
     let mut a = Node::new(if n.role == Role::TextInput && n.states.multiline { ARole::MultilineTextInput } else { role(n.role) });
     if !n.name.is_empty() {
-        a.set_label(n.name.as_str());
+        // (AccessKit reads a label's text from its value: UIA's Name,
+        // AXValue)
+        if a.role() == ARole::Label && n.value.is_none() {
+            a.set_value(n.name.as_str());
+        } else {
+            a.set_label(n.name.as_str());
+        }
     }
     if !n.description.is_empty() {
         a.set_description(n.description.as_str());
@@ -209,4 +215,20 @@ pub fn request(req: &ActionRequest) -> Option<(u64, Action, Option<AccessValue>)
         (AAction::SetValue | AAction::ReplaceSelectedText, Some(ActionData::Value(s))) => (target, Action::SetValue, Some(AccessValue::Text(s.to_string()))),
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_label_says_its_text_as_its_value() {
+        // (AccessKit names a label from its value: UIA's Name, AXValue)
+        let label = node(&AccessNode { name: "Name:".into(), ..AccessNode::new(1, Role::Label) });
+        assert_eq!(label.value(), Some("Name:"));
+        assert_eq!(label.label(), None);
+        let button = node(&AccessNode { name: "OK".into(), ..AccessNode::new(2, Role::Button) });
+        assert_eq!(button.label(), Some("OK"));
+        assert_eq!(button.value(), None);
+    }
 }

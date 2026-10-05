@@ -4590,6 +4590,7 @@ dependencies = [
  "plotters",
  "polars",
  "rapidr-db",
+ "rapidr-ui-app",
  "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
  "rapidr-value",
@@ -4609,6 +4610,14 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "rapidr-ui-app"
+version = "2.114.0"
+dependencies = [
+ "rapidr-ui-kernel",
+ "rapidr-value",
 ]
 
 [[package]]

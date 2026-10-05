@@ -1,0 +1,17 @@
+[package]
+name = "rapidr-ui-app"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's host-neutral program glue for the UI kernel: the kernel's events as the program's, windows shown and closed, the modal list, timers, the waits' bookkeeping, the dialogs' requests and answers, the GUI test hooks — for the desktop and the web runtime"
+
+# Host-neutral on purpose (docs/web-host-plan.md §3.1, Stage W2): no winit,
+# no DOM, no runtime. A runtime plugs in through two traits — `Program` (its
+# components, events, layout and clock) and `Windows` (what its host does
+# with the windows) — so runtime-core uses it now and the web runtime will.
+# It must keep building for wasm32-unknown-unknown (tools/regress.sh's unit
+# stage checks it, with the kernel).
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-ui-kernel = { workspace = true }

@@ -265,7 +265,7 @@ This is low risk. The pin exists only to match the installed CLI, and generated 
 - **Vector drawing at full GPU resolution, later.** Optionally, a canvas could record its vector calls (Line, Circle, Rectangle, TextOut) as `Op`s next to the low-res raster, and the host would draw them with vello. That is a ROADMAP high-DPI refinement and is not needed for parity, since the HiRes raster is already sharp.
 - **SVG.** Already rasterized per scale by `resvg` inside `bitmap.rs`. Icons use `objects::icon_pixels` → window icon via winit `set_window_icon` (Windows, X11), and a macOS platform shim for the application icon.
 - **CPU fallback.** The host defines `trait Renderer { fn render(&mut self, list, size, scale) }` with `VelloGpu` and `VelloCpu` implementations, presenting CPU frames through `softbuffer`.
-  - It falls back automatically when wgpu finds no adapter or vello's compute pipelines fail (VMs, GL-only, RDP).
+  - It falls back automatically when wgpu finds no adapter or vello's compute pipelines fail (VMs, GL-only, RDP), and when every adapter is software (`DeviceType::Cpu`: Windows' WARP, Mesa's llvmpipe / lavapipe, SwiftShader). WARP crashed in vello's shaders on Windows 11 ARM in Parallels (an access violation in d3d10warp.dll once the window redrew), and vello_cpu outdraws an emulated GPU anyway.
   - `RAPIDR_RENDERER=cpu|gpu` forces one.
   - Captures always use the CPU renderer, for determinism.
   - The vello_cpu version that matches peniko 0.6 / vello 0.11 must be checked in the Stage 3 spike. tiny-skia plus skrifa outlines is the fallback-of-the-fallback.

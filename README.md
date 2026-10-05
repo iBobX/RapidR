@@ -76,6 +76,7 @@ the supporting crates:
 | `rapidr-codegen-rust` | `crates/` | AST → Rust source targeting `rapidr-runtime-core` or `rapidr-runtime-web` |
 | `rapidr-runtime-core` | `crates/` | Native runtime — the desktop GUI (through the UI kernel), builtins, MySQL/SQLite, networking, data science, file I/O |
 | `rapidr-ui-kernel` | `crates/` | The UI kernel: forms as retained trees over the component store, focus, input routing, display lists, text editing, accessibility trees (GUI-free; builds for wasm too) |
+| `rapidr-ui-app` | `crates/` | The program's side of the kernel for every host: kernel events as the program's events, windows shown and closed, the modal list, timers, the waits' bookkeeping, menus, dialogs' requests and answers, the GUI test hooks (host-neutral; builds for wasm too) |
 | `rapidr-ui-host-winit` | `crates/` | The desktop host for the kernel: winit windows, vello on the GPU (vello_cpu without one), AccessKit, system menus and file dialogs, a headless host for tests |
 | `rapidr-runtime-web` | `crates/` | Web runtime — DOM/Canvas GUI, web-exclusive components, in-memory SQLite, RSocket-over-WebSocket |
 | `rapidr-buildserver` | `crates/` | (Legacy) axum HTTP build service used by `examples/web_ide.rr`. Superseded by the self-contained [`web-ide/`](web-ide/). |
