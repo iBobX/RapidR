@@ -33,9 +33,9 @@ lib/rapidr/                      RapidR's home
   Cargo.toml, Cargo.lock,        the runtime crates' sources and their crates.io   SDK
   crates/, vendor/, .cargo/      dependencies, vendored: native builds offline
   toolchain/                     LLVM-MinGW, trimmed (Windows): the linker         SDK
-  fonts/                         the web's fallback-font chunks (OFL), copied by   SDK
-                                 web builds (stage.py --fonts; when the web lane's
-                                 build makes them)
+  web/fonts/                     the web's Noto fallback fonts (OFL-1.1): index,   SDK
+                                 *.otf chunks; `rapidr build --web` and bundle-bc
+                                 copy them, nothing is downloaded
   notices/                       <os>-<arch>.txt per runner, web.txt: the          SDK
                                  THIRD-PARTY-NOTICES.txt every build writes
 share/doc/rapidr/                LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
@@ -288,8 +288,10 @@ vendored source trees. `dist/` and `target/` may be links to a build volume
   Windows' x64 emulation. The VM only *reads* the Mac's share (the
   repository; prepare.sh's output through a temporary copy in the
   repository's `.release-share/`, as `dist/` may be a link the share doesn't
-  follow); long jobs are started detached (WMI: `prlctl exec` ends what it
-  started) and their logs polled; files come back as base64 over `prlctl`, in
+  follow); long jobs run as a one-off scheduled task in the user's session,
+  removed when the job ends (`prlctl exec` ends what it started, and a
+  process WMI starts lives in its provider host's job object, whose quotas
+  ended long builds), and their logs are polled; files come back as base64 over `prlctl`, in
   pieces checked by SHA-256 (`windows-vm.sh fetch`).
 
 ## Cutting a release, step by step

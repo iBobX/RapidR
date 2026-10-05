@@ -30,10 +30,19 @@ step "the source ($(git rev-parse --short HEAD))"
 git archive --format=tar -o "$PREP/src.tar" HEAD
 git rev-parse HEAD > "$PREP/commit"
 
-step "the web interpreter (rapidrintr.js + .wasm)"
+if [ -f tools/fonts.py ]; then
+    step "the web's fallback fonts' sources (pinned, checked; fetched once into target/fonts-src)"
+    python3 tools/fonts.py fetch || die "the Noto fonts' sources couldn't be fetched (no network, no cache in target/fonts-src): a release needs the full set"
+fi
+
+step "the web interpreter (rapidrintr.js + .wasm, the fallback fonts)"
 tools/build_web_artifacts.sh
 mkdir -p "$PREP/web-runtime"
 cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm "$PREP/web-runtime/"
+if [ -f tools/fonts.py ]; then
+    [ -f target/web/fonts/index.json ] || die "tools/build_web_artifacts.sh made no target/web/fonts"
+    cp -R target/web/fonts "$PREP/web-runtime/fonts"
+fi
 
 step "the IDE's bytecode"
 cargo build -q --release --locked -p rapidr-cli

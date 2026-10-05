@@ -60,9 +60,12 @@ fi
 # (`wait`: a build already started — this script stopped while it ran — waited for and fetched)
 if [ "${1:-}" != wait ]; then
 step "send the release's source and prepared parts"
-for f in src.tar commit rapidr-ide.rrbc web-runtime/rapidrintr.js web-runtime/rapidrintr_bg.wasm; do
-    bash "$VM" send "$PREP/$f" "/tmp/rapidr-release-$(basename "$f")"
+# (the web interpreter's folder as one tar: its fallback fonts are many files)
+tar -C "$PREP" -cf "$WORK/web-runtime.tar" web-runtime
+for f in "$PREP/src.tar" "$PREP/commit" "$PREP/rapidr-ide.rrbc" "$WORK/web-runtime.tar"; do
+    bash "$VM" send "$f" "/tmp/rapidr-release-$(basename "$f")"
 done
+rm -f "$WORK/web-runtime.tar"
 
 cat > "$SCRIPT" <<'EOF'
 set -e
@@ -72,7 +75,7 @@ pgrep -f "tools/release/linux.sh" > /dev/null && { echo running; exit 0; }
 if [ -f /tmp/rapidr-release-src.tar ]; then
     rm -rf "$B/src" "$B/dist" "$B/done" && mkdir -p "$B/src" "$B/dist/prep/web-runtime"
     for f in src.tar commit rapidr-ide.rrbc; do mv "/tmp/rapidr-release-$f" "$B/dist/prep/$f"; done
-    for f in rapidrintr.js rapidrintr_bg.wasm; do mv "/tmp/rapidr-release-$f" "$B/dist/prep/web-runtime/$f"; done
+    rm -rf "$B/dist/prep/web-runtime" && tar -C "$B/dist/prep" -xf /tmp/rapidr-release-web-runtime.tar && rm -f /tmp/rapidr-release-web-runtime.tar
     # (-m: the files' times are now, so cargo rebuilds what changed)
     tar -m -x -C "$B/src" -f "$B/dist/prep/src.tar"
 fi

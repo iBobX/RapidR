@@ -1,10 +1,11 @@
 # Runs a script with its parameters, its output in a log, then its exit code in
 # <log>.done (tools/release/windows-vm.sh starts this detached and polls).
-#   job.ps1 -Script <x.ps1> -Log <file> [-Pass "Name=value;Switch;…"]
+#   job.ps1 -Script <x.ps1> -Log <file> [-Pass "Name=value;Switch;…"] [-Task <its scheduled task>]
 param(
     [Parameter(Mandatory = $true)][string]$Script,
     [Parameter(Mandatory = $true)][string]$Log,
-    [string]$Pass = ""
+    [string]$Pass = "",
+    [string]$Task = ""
 )
 # (the script's own parameters, by name: Name=value, or Switch alone)
 $named = @{}
@@ -25,3 +26,5 @@ try {
     $code = 1
 }
 Set-Content "$Log.done" $code
+# (the one-off scheduled task detach.ps1 made for this run)
+if ($Task) { Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction SilentlyContinue }

@@ -13,7 +13,7 @@ finds its home from the executable by it):
                                         builds carry (`rapidr notices`) sdk
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
     lib/rapidr/toolchain/               LLVM-MinGW, trimmed (Windows)   sdk
-    lib/rapidr/fonts/                   the web's fallback-font chunks  sdk (when the web build makes them)
+    lib/rapidr/web/fonts/               the web's Noto fallback fonts   sdk (index.json, *.otf, OFL.txt)
     share/icons/                        rapidr.ico, rapidr-doc.ico      Windows
     share/doc/rapidr/                   LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         THIRD-PARTY-NOTICES.txt (rapidr's own), the fonts' OFL, README.md
@@ -61,7 +61,6 @@ def main():
     ap.add_argument("--web", help="the folder with rapidrintr.js and rapidrintr_bg.wasm (sdk)")
     ap.add_argument("--ide", help="the IDE's bytecode (sdk)")
     ap.add_argument("--toolchain", help="Windows: the trimmed LLVM-MinGW native builds link with (sdk)")
-    ap.add_argument("--fonts", help="the web's fallback-font chunks (sdk): lib/rapidr/fonts, which web builds copy")
     ap.add_argument("--version", help="for a runtime's release.toml (default: home's)")
     ap.add_argument("--rust", default="", help="for a runtime's release.toml")
     args = ap.parse_args()
@@ -88,10 +87,14 @@ def main():
         os.makedirs(os.path.join(lib, "web"))
         for f in ["rapidrintr.js", "rapidrintr_bg.wasm"]:
             shutil.copy2(os.path.join(args.web, f), os.path.join(lib, "web", f))
+        # (the web's fallback fonts, beside the interpreter: `rapidr build --web`
+        # and `bundle-bc` copy them, never download — when the web build makes them)
+        if os.path.isdir(os.path.join(args.web, "fonts")):
+            shutil.copytree(os.path.join(args.web, "fonts"), os.path.join(lib, "web", "fonts"))
+        elif os.path.exists(os.path.join(ROOT, "tools", "fonts.py")):
+            sys.exit(f"no fonts/ beside the web interpreter in {args.web}: prepare.sh makes them")
         if args.toolchain:
             shutil.copytree(args.toolchain, os.path.join(lib, "toolchain"))
-        if args.fonts:
-            shutil.copytree(args.fonts, os.path.join(lib, "fonts"))
         os.makedirs(os.path.join(lib, "ide"))
         shutil.copy2(args.ide, os.path.join(lib, "ide", "rapidr-ide.rrbc"))
     else:
