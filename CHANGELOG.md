@@ -18,6 +18,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   their transparency and patterns. QDXTIMER keeps FrameRate, fires once a
   frame with Interval 0, and with ActiveOnly only while the program is
   active. Screen text is MS Sans Serif 8, as in RapidQ.
+- QDXSOUND (DirectSound) on every runtime: a WAV file played at its
+  Frequency, Volume and Pan (DirectSound's decibels), Looped or once;
+  Playing, Position and Size; Play, Stop. rodio plays it on the desktop,
+  Web Audio in the browser.
 
 ### Fixed
 - Native builds: `Obj.Sub.Method(…)` (`DX.View.SetFront(10)`,

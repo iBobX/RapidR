@@ -61,6 +61,7 @@
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
 //   * tests/fixtures/dx_screen.bas — QDXSCREEN (OnInitialize, Flip, Pixel, Fill's colours), QDXIMAGELIST (a .DXG), QDXTIMER; the capture's pixels.
 //   * tests/fixtures/dx_more.bas — QDXSCREEN's font, Rotate, View.*, a screen put on a shown form, a hidden form's, FullScreen; QDXTIMER's ActiveOnly.
+//   * tests/fixtures/dx_sound.bas — QDXSOUND: a WAV's Size and Frequency, Play / Stop, Playing and Position by the clock, Looped, the end.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)

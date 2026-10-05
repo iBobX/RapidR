@@ -46,10 +46,15 @@
 //!   argument (the manual's "Mask") is DelphiX's pattern index into a
 //!   picture cut into PatternWidth × PatternHeight cells; a Transparent
 //!   picture leaves out its TransparentColor.
+//! - **QDXSOUND** ([`DxSound`]): a WAV file played by the runtime's sound
+//!   device ([`SoundDevice`]: rodio on the desktop, Web Audio in the
+//!   browser) at Frequency, Volume and Pan (DirectSound's decibels), Looped
+//!   or once; Playing and Position follow the clock.
 //! - **QDXTIMER** ([`DxTimer`]): the runtimes' timers fire it (Interval 0
 //!   is once a screen refresh, [`DX_FRAME_MS`]); it counts its OnTimers
 //!   into FrameRate, the last whole second's.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use super::bitmap::Bitmap;
@@ -614,6 +619,322 @@ pub fn pattern_bitmap(p: &mut DxPicture, pattern: i64) -> Option<Rc<Bitmap>> {
     Some(Rc::new(part))
 }
 
+// ------------------------------------------------------------ QDXSOUND --
+
+/// A WAV file's sound: uncompressed PCM, as DirectSound buffers held it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Wav {
+    pub channels: u16,
+    /// Frames a second (a frame: a sample per channel).
+    pub rate: u32,
+    /// 8 (unsigned) or 16 (signed) bits a sample.
+    pub bits: u16,
+    /// The sound's bytes (the `data` chunk).
+    pub data: Rc<[u8]>,
+}
+
+impl Wav {
+    /// Bytes a frame.
+    pub fn block_align(&self) -> usize {
+        usize::from(self.channels) * usize::from(self.bits / 8)
+    }
+
+    /// Its frames.
+    pub fn frames(&self) -> usize {
+        self.data.len() / self.block_align().max(1)
+    }
+
+    /// Its frames as stereo samples (-1.0 … 1.0, left then right), with
+    /// `gains` (left, right) applied: what a device plays.
+    pub fn stereo(&self, gains: (f32, f32)) -> Vec<f32> {
+        let sample = |i: usize| -> f32 {
+            match self.bits {
+                8 => (f32::from(self.data[i]) - 128.0) / 128.0,
+                _ => f32::from(i16::from_le_bytes([self.data[i], self.data[i + 1]])) / 32768.0,
+            }
+        };
+        let (block, width) = (self.block_align(), usize::from(self.bits / 8));
+        let mut out = Vec::with_capacity(self.frames() * 2);
+        for f in 0..self.frames() {
+            let at = f * block;
+            let left = sample(at);
+            let right = if self.channels > 1 { sample(at + width) } else { left };
+            out.push(left * gains.0);
+            out.push(right * gains.1);
+        }
+        out
+    }
+}
+
+/// Reads a WAV file (RIFF WAVE, PCM — WAVE_FORMAT_PCM, or an extensible
+/// format holding PCM; 8 or 16 bits, mono or stereo: what DirectSound
+/// buffers took).
+pub fn parse_wav(b: &[u8]) -> Result<Wav, String> {
+    let bad = |why: &str| format!("not a WAV file RapidR can play ({why})");
+    if b.get(0..4) != Some(b"RIFF") || b.get(8..12) != Some(b"WAVE") {
+        return Err(bad("no RIFF WAVE header"));
+    }
+    let u16_at = |i: usize| b.get(i..i + 2).map(|s| u16::from_le_bytes([s[0], s[1]]));
+    let u32_at = |i: usize| b.get(i..i + 4).map(|s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]));
+    let mut at = 12;
+    let mut format: Option<(u16, u16, u32, u16)> = None;
+    let mut data: Option<&[u8]> = None;
+    while at + 8 <= b.len() {
+        let len = u32_at(at + 4).unwrap_or(0) as usize;
+        let body = &b[at + 8..(at + 8).saturating_add(len).min(b.len())];
+        match &b[at..at + 4] {
+            b"fmt " => {
+                let tag = u16_at(at + 8).ok_or_else(|| bad("short fmt chunk"))?;
+                // (WAVE_FORMAT_EXTENSIBLE: its sub-format's first two bytes)
+                let tag = if tag == 0xFFFE { u16_at(at + 8 + 24).unwrap_or(0) } else { tag };
+                format = Some((tag, u16_at(at + 10).unwrap_or(0), u32_at(at + 12).unwrap_or(0), u16_at(at + 22).unwrap_or(0)));
+            }
+            b"data" => data = Some(body),
+            _ => {}
+        }
+        at = at.saturating_add(8 + len + (len & 1));
+    }
+    let (tag, channels, rate, bits) = format.ok_or_else(|| bad("no fmt chunk"))?;
+    if tag != 1 {
+        return Err(bad("compressed"));
+    }
+    if !matches!(bits, 8 | 16) || !(1..=2).contains(&channels) || rate == 0 {
+        return Err(bad("not 8 or 16-bit mono or stereo"));
+    }
+    let data = data.ok_or_else(|| bad("no data chunk"))?;
+    Ok(Wav { channels, rate, bits, data: Rc::from(data) })
+}
+
+/// What a runtime's sound device is asked to play for a QDXSOUND.
+#[derive(Debug, Clone)]
+pub struct SoundPlay {
+    /// The QDXSOUND's id (a new play of it replaces the old).
+    pub id: String,
+    pub wav: Rc<Wav>,
+    /// The frame to start at.
+    pub from: usize,
+    /// Playback speed: Frequency over the file's own rate.
+    pub speed: f64,
+    /// Volume's gain, and Pan's (left, right) gains.
+    pub gain: f32,
+    pub pan: (f32, f32),
+    pub looped: bool,
+}
+
+/// A runtime's sound device: plays (replacing what the QDXSOUND played),
+/// sets a playing sound's gain, stops. None: silent — the GUI tests, a
+/// build without audio, a machine without a sound card.
+#[derive(Clone, Copy)]
+pub struct SoundDevice {
+    pub play: fn(&SoundPlay),
+    pub volume: fn(&str, f32),
+    pub stop: fn(&str),
+}
+
+thread_local! {
+    static DEVICE: Cell<Option<SoundDevice>> = const { Cell::new(None) };
+    static CLOCK: Cell<fn() -> f64> = const { Cell::new(default_clock) };
+}
+
+fn default_clock() -> f64 {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+        START.get_or_init(std::time::Instant::now).elapsed().as_secs_f64() * 1000.0
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        0.0
+    }
+}
+
+/// The runtime's sound device for QDXSOUND (once per process).
+pub fn set_sound_device(d: SoundDevice) {
+    DEVICE.with(|c| c.set(Some(d)));
+}
+
+/// The runtime's clock in milliseconds: native builds and the interpreter
+/// have their own; the web gives `Date.now`.
+pub fn set_clock(f: fn() -> f64) {
+    CLOCK.with(|c| c.set(f));
+}
+
+fn now() -> f64 {
+    CLOCK.with(Cell::get)()
+}
+
+fn device() -> Option<SoundDevice> {
+    DEVICE.with(Cell::get)
+}
+
+/// Volume (0 … 100, "a percentage" with 100 "normal volume") as a gain:
+/// DirectSound attenuates in hundredths of a decibel and a percent is
+/// 100 − dB — the corpus's `qdxsound2.bas` gives its volume scroll bar 70 …
+/// 100, below which it's next to silence; 0 is silent.
+pub fn volume_gain(volume: i64) -> f32 {
+    if volume <= 0 {
+        0.0
+    } else {
+        10f32.powf((volume.min(100) - 100) as f32 / 20.0)
+    }
+}
+
+/// Pan (−100 … 100) as (left, right) gains: the other side attenuated by
+/// |Pan| dB, as DirectSound pans — −100 mutes the right channel, 100 the
+/// left (the manual).
+pub fn pan_gains(pan: i64) -> (f32, f32) {
+    let p = pan.clamp(-100, 100) as f32;
+    let cut = |db: f32| if db >= 100.0 { 0.0 } else { 10f32.powf(-db / 20.0) };
+    if p >= 0.0 { (cut(p), 1.0) } else { (1.0, cut(-p)) }
+}
+
+/// A QDXSOUND (manual, Appendix B; DelphiX's wave stream on a DirectSound
+/// buffer): a WAV file played from Position — bytes into its sound, Size
+/// the sound's bytes (what Position runs to: the manual's example gives a
+/// track bar Max = Size, Position = Position) — at Frequency (the file's
+/// rate once it's loaded), Volume and Pan, Looped or once. Playing and
+/// Position follow the clock rather than the device, so they read the same
+/// on every runtime and without a sound card; a sound played to its end
+/// stops back at 0, as a DirectSound buffer's play cursor did.
+#[derive(Debug, Clone)]
+pub struct DxSound {
+    pub file_name: String,
+    pub wav: Option<Rc<Wav>>,
+    pub frequency: i64,
+    pub volume: i64,
+    pub pan: i64,
+    pub looped: bool,
+    /// Bytes into the sound while stopped.
+    position: i64,
+    /// Playing since (clock ms), from (bytes).
+    started: Option<(f64, i64)>,
+}
+
+impl Default for DxSound {
+    fn default() -> Self {
+        Self { file_name: String::new(), wav: None, frequency: 0, volume: 100, pan: 0, looped: false, position: 0, started: None }
+    }
+}
+
+impl DxSound {
+    /// Size: the sound's bytes.
+    pub fn size(&self) -> i64 {
+        self.wav.as_ref().map_or(0, |w| w.data.len() as i64)
+    }
+
+    fn block(&self) -> i64 {
+        self.wav.as_ref().map_or(1, |w| w.block_align().max(1) as i64)
+    }
+
+    /// Where it plays now (bytes, on a frame), and whether it still plays.
+    fn current(&mut self) -> (i64, bool) {
+        let Some((since, from)) = self.started else { return (self.position, false) };
+        let (size, block) = (self.size(), self.block());
+        let frames = ((now() - since).max(0.0) * self.frequency.max(0) as f64 / 1000.0) as i64;
+        let at = from + frames * block;
+        if size > 0 && at >= size {
+            if self.looped {
+                return (at % size, true);
+            }
+            self.started = None;
+            self.position = 0;
+            return (0, false);
+        }
+        (at, true)
+    }
+
+    /// Plays from where it is (again, after a change while it plays).
+    fn play(&mut self, id: &str) {
+        let (at, _) = self.current();
+        let Some(wav) = self.wav.clone() else { return };
+        self.started = Some((now(), at));
+        if let Some(d) = device() {
+            let speed = self.frequency.max(1) as f64 / f64::from(wav.rate.max(1));
+            let from = (at / self.block()) as usize;
+            (d.play)(&SoundPlay { id: id.to_lowercase(), wav, from, speed, gain: volume_gain(self.volume), pan: pan_gains(self.pan), looped: self.looped });
+        }
+    }
+
+    fn stop(&mut self, id: &str) {
+        let (at, playing) = self.current();
+        self.position = at;
+        self.started = None;
+        if let (Some(d), true) = (device(), playing) {
+            (d.stop)(&id.to_lowercase());
+        }
+    }
+
+    /// A WAV file's bytes as its sound (FileName); `Err` if it isn't one.
+    pub fn load(&mut self, id: &str, name: &str, bytes: &[u8]) -> Result<(), String> {
+        self.stop(id);
+        self.file_name = name.to_string();
+        let wav = parse_wav(bytes)?;
+        // ("a default frequency for the .WAV file will be given to you
+        // when you load a new sound file")
+        self.frequency = i64::from(wav.rate);
+        self.wav = Some(Rc::new(wav));
+        self.position = 0;
+        Ok(())
+    }
+
+    pub fn get(&mut self, prop: &str) -> Option<Value> {
+        Some(match prop {
+            "filename" => crate::v_str(&self.file_name),
+            "frequency" => v_int(self.frequency),
+            "volume" => v_int(self.volume),
+            "pan" => v_int(self.pan),
+            "looped" => v_int(if self.looped { -1 } else { 0 }),
+            "playing" => v_int(if self.current().1 { -1 } else { 0 }),
+            "position" => v_int(self.current().0),
+            "size" => v_int(self.size()),
+            _ => return None,
+        })
+    }
+
+    /// Sets a property (FileName: objects::set reads the file); a change
+    /// while it plays is heard at once.
+    pub fn set(&mut self, id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
+        let playing = self.current().1;
+        match prop {
+            "frequency" => self.frequency = val.to_i64().max(0),
+            "volume" => {
+                self.volume = val.to_i64().clamp(0, 100);
+                if let (Some(d), true) = (device(), playing) {
+                    (d.volume)(&id.to_lowercase(), volume_gain(self.volume));
+                }
+                return Some(Ok(()));
+            }
+            "pan" => self.pan = val.to_i64().clamp(-100, 100),
+            "looped" => self.looped = val.to_bool(),
+            "position" => {
+                let block = self.block();
+                let at = (val.to_i64().clamp(0, self.size()) / block) * block;
+                if playing {
+                    self.started = Some((now(), at));
+                } else {
+                    self.position = at;
+                }
+            }
+            _ => return None,
+        }
+        if playing {
+            self.play(id);
+        }
+        Some(Ok(()))
+    }
+
+    /// Play, Stop, Update (DirectSound's streaming: nothing to do).
+    pub fn call(&mut self, id: &str, method: &str) -> Option<Value> {
+        match method {
+            "play" => self.play(id),
+            "stop" => self.stop(id),
+            "update" => {}
+            _ => return None,
+        }
+        Some(Value::Null)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -802,5 +1123,86 @@ mod tests {
         assert_eq!(t.rate, 26, "26 OnTimers in the first second (0 … 1000 ms)");
         assert_eq!(timer_interval_ms(0), DX_FRAME_MS);
         assert_eq!(timer_interval_ms(10), 10);
+    }
+
+    /// A WAV of 8-bit mono at 8000 Hz, `frames` long.
+    pub(crate) fn tiny_wav(frames: usize) -> Vec<u8> {
+        let mut w = Vec::new();
+        w.extend_from_slice(b"RIFF");
+        w.extend_from_slice(&((36 + frames) as u32).to_le_bytes());
+        w.extend_from_slice(b"WAVEfmt ");
+        w.extend_from_slice(&16u32.to_le_bytes());
+        for v in [1u16, 1] {
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        w.extend_from_slice(&8000u32.to_le_bytes());
+        w.extend_from_slice(&8000u32.to_le_bytes());
+        w.extend_from_slice(&1u16.to_le_bytes());
+        w.extend_from_slice(&8u16.to_le_bytes());
+        w.extend_from_slice(b"data");
+        w.extend_from_slice(&(frames as u32).to_le_bytes());
+        w.extend((0..frames).map(|i| if i % 2 == 0 { 0xFF } else { 0x00 }));
+        w
+    }
+
+    thread_local! {
+        static FAKE_NOW: Cell<f64> = const { Cell::new(0.0) };
+        static PLAYED: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    fn fake_now() -> f64 {
+        FAKE_NOW.with(Cell::get)
+    }
+
+    /// Size, Frequency from the file; Playing and Position by the clock;
+    /// Stop keeps the place; the end stops back at 0 unless Looped; a
+    /// change while it plays plays again from where it is; the device hears
+    /// gains in dB.
+    #[test]
+    fn sound() {
+        set_clock(fake_now);
+        set_sound_device(SoundDevice {
+            play: |p| PLAYED.with(|l| l.borrow_mut().push(format!("play {} from {} x{:.2} g{:.3} {:.2},{:.2}{}", p.id, p.from, p.speed, p.gain, p.pan.0, p.pan.1, if p.looped { " loop" } else { "" }))),
+            volume: |id, g| PLAYED.with(|l| l.borrow_mut().push(format!("volume {id} {g:.3}"))),
+            stop: |id| PLAYED.with(|l| l.borrow_mut().push(format!("stop {id}"))),
+        });
+        let wav = parse_wav(&tiny_wav(4000)).unwrap();
+        assert_eq!((wav.channels, wav.rate, wav.bits, wav.frames()), (1, 8000, 8, 4000));
+        assert_eq!(&wav.stereo((1.0, 0.5))[..4], &[127.0 / 128.0, 127.0 / 256.0, -1.0, -0.5]);
+        let mut s = DxSound::default();
+        s.load("Snd", "beep.wav", &tiny_wav(4000)).unwrap();
+        assert_eq!((s.get("size").unwrap().to_i64(), s.get("frequency").unwrap().to_i64()), (4000, 8000));
+        FAKE_NOW.with(|n| n.set(1000.0));
+        s.call("Snd", "play");
+        FAKE_NOW.with(|n| n.set(1250.0));
+        assert_eq!((s.get("playing").unwrap().to_i64(), s.get("position").unwrap().to_i64()), (-1, 2000));
+        s.call("Snd", "stop");
+        FAKE_NOW.with(|n| n.set(5000.0));
+        assert_eq!((s.get("playing").unwrap().to_i64(), s.get("position").unwrap().to_i64()), (0, 2000), "Stop keeps the place");
+        s.call("Snd", "play");
+        s.set("Snd", "volume", &v_int(80));
+        s.set("Snd", "frequency", &v_int(16000));
+        FAKE_NOW.with(|n| n.set(5100.0));
+        assert_eq!(s.get("position").unwrap().to_i64(), 2000 + 1600, "at 16000 Hz: 1600 bytes in 100 ms");
+        FAKE_NOW.with(|n| n.set(5200.0));
+        assert_eq!((s.get("playing").unwrap().to_i64(), s.get("position").unwrap().to_i64()), (0, 0), "played to its end: stopped, back at 0");
+        s.set("Snd", "looped", &v_int(-1));
+        s.call("Snd", "play");
+        FAKE_NOW.with(|n| n.set(5200.0 + 750.0));
+        assert_eq!((s.get("playing").unwrap().to_i64(), s.get("position").unwrap().to_i64()), (-1, 12000 % 4000));
+        s.set("Snd", "pan", &v_int(-100));
+        assert_eq!(pan_gains(-100), (1.0, 0.0));
+        assert_eq!(pan_gains(20).1, 1.0);
+        assert!((volume_gain(80) - 0.1).abs() < 1e-6 && volume_gain(0) == 0.0 && volume_gain(100) == 1.0);
+        let log = PLAYED.with(|l| l.borrow().clone());
+        assert_eq!(log[0], "play snd from 0 x1.00 g1.000 1.00,1.00");
+        assert_eq!(log[1], "stop snd");
+        assert_eq!(log[2], "play snd from 2000 x1.00 g1.000 1.00,1.00");
+        assert_eq!(log[3], "volume snd 0.100");
+        assert_eq!(log[4], "play snd from 2000 x2.00 g0.100 1.00,1.00", "Frequency while it plays: again from where it is");
+        assert!(log.last().unwrap().ends_with("1.00,0.00 loop"));
+        assert!(parse_wav(b"RIFF\0\0\0\0WAVE").is_err());
+        set_clock(default_clock);
+        DEVICE.with(|c| c.set(None));
     }
 }

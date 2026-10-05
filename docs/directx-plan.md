@@ -89,9 +89,9 @@ Files loaded by the 3D programs: `.x` 15 uses, `.bmp` textures 8.
 
 **Recommendation**: build the scene model and the software rasterizer first (D3, D4): they are needed whatever else exists (tests, no-GPU machines, the web without WebGPU), they make the 3D programs run on all three runtimes at once, and they fix the semantics. Then wgpu (D5), the user's chosen translation layer, as the accelerated path for the desktop and WebGPU, adopted when its captures match the reference within tolerance and measurements show it pays (large windows at 2× / 3×). This is the "one implementation" rule as the desktop host keeps it: one model, two renderers required by the platforms, not an old path kept as a fallback. (If the user prefers wgpu first, D5 can go before D4; the GUI tests then need a GPU, and the web without WebGPU shows no 3D until D4.)
 
-### 2.3 Sound: QDXSOUND on what PLAYWAV uses
+### 2.3 Sound: QDXSOUND (done: "Stage D2 results" below)
 
-`rapidr-runtime-core/src/sound.rs` already plays WAV through rodio (feature `audio`). QDXSOUND becomes a shared model (`objects::directx::DxSound`: FileName, Size, Frequency from the WAV header, Volume, Pan, Looped, Position in bytes) with a player per object: rodio's `Sink` on the desktop (Frequency = playback speed relative to the file's rate, Pan as per-channel gains, Position as `try_seek`, Playing from the sink), Web Audio on the web (an `AudioBufferSourceNode` with `playbackRate`, a `StereoPannerNode`, a `GainNode`; the web runtime already has BEEP / SOUND without `js_sys::eval`). AutoUpdate / BufferLength / Update are DirectSound streaming details: accepted, no effect. StickyFocus: sound keeps playing (no focus muting on either host).
+A shared model (`objects::directx::DxSound`) holds the WAV (8 / 16-bit PCM, mono or stereo), FileName, Size, Frequency (the file's rate once loaded), Volume, Pan, Looped and where it plays; Playing and Position follow the runtime's clock, not the device, so they read the same everywhere and with no sound card. The runtime's sound device plays what the model asks for: rodio on the desktop (the `audio` feature PLAYWAV uses; a sink per QDXSOUND), Web Audio in the browser (an `AudioBufferSourceNode` with `playbackRate` through a `GainNode`, the page's shared AudioContext). AutoUpdate / BufferLength / Update / StickyFocus are DirectSound streaming details: kept, no effect.
 
 ### 2.4 Joysticks: a RapidR extension through gilrs, not winmm
 
@@ -124,7 +124,7 @@ A session is one focused agent session ending in a green commit.
 |---|---|---|
 | D1 | The 2D layer: QDXSCREEN (drawing, Flip, Init / AutoSize / AllowStretch, set-up events, mouse), QDXIMAGELIST (`.DXG`), QDXTIMER (Interval 0, FrameRate) on the kernel, the interpreter, native builds and the web's DOM runtime; the fixture; four corpus programs by eye | **done** (results below) |
 | D1b | The 2D leftovers: FullScreen, ActiveOnly, Cursor over the screen, Rotate, View.*, a QDXSCREEN put on a form already shown, the screen's font | **done** (results below) |
-| D2 | QDXSOUND on rodio and Web Audio (§2.3); `sound/*.bas` | 2 |
+| D2 | QDXSOUND on rodio and Web Audio (§2.3); `sound/*.bas` | **done** (results below) |
 | D3 | The scene model and the `.X` loader (§2.2), with unit tests over hand-written text and binary files; QD3D* types in the compilers' tables, `RapidQ_D3D.inc` compiling | 4–5 |
 | D4 | The software rasterizer; `Render` / `ForceUpdate`; goldens; the 20 3D corpus programs run on the three runtimes and compared by eye with RapidQ's look | 3–4 |
 | D5 | The wgpu renderer (desktop GPU, WebGPU with VM suspension at the readback), selection and `RAPIDR_RENDERER`; tolerance tests against D4 | 3–4 |
@@ -185,3 +185,20 @@ Each item, with the judgement it needed (the manual says little; DelphiX and the
 Tests: `tests/fixtures/dx_more.bas`, case `dx_more` (dumps: the timer's ticks with ActiveOnly, the rotated line's pixels, View's values, the late screen's and the hidden form's set-up, the full screen's width and its surface keeping 64 × 48, the font's sizes; `pixels`: the rotated line and the late screen's blue in the capture; `webCheck`: the screen's `cursor: none`, the same pixels in the page, the full-screen picture's 4:3 proportions). Unit tests: `objects::directx::tests::{font_view_rotate, picture_placement}`, the kernel's `dxscreen::tests` with FullScreen's placement. Passing native and interpreted at 1× and 2×, and on the web at DPR 1 and 2.
 
 Open: ActiveOnly can't be exercised by the GUI tests (their host is always active); a page in a background tab is "inactive" on the web, a window of another application in front on the desktop.
+
+## Stage D2 results (2026-10-05) — QDXSOUND
+
+Code: `DxSound`, `Wav` / `parse_wav`, `SoundDevice` / `SoundPlay`, `set_clock` in `rapidr-value/src/objects/directx.rs` (FileName read in `objects::set`); rodio's device in `rapidr-runtime-core/src/sound.rs` (`install_dx_device`, made when the first QDXSOUND is; never under a GUI test); Web Audio's in `rapidr-runtime-web/src/directx_web.rs` (`install_sound_device`, the clock from `Date.now`); RDXSOUND in both compilers' component types (QDXSOUND off the not-yet list).
+
+Judgement calls (the manual leaves them open):
+
+- **Volume is decibels**: DirectSound attenuates in hundredths of a decibel, and a percent is 100 − dB (gain 10^((v − 100) / 20); 0 is silent). The corpus's `qdxsound2.bas` gives its volume scroll bar 70 … 100 — below 70 it's next to silence, which a linear percent wouldn't be. **Pan** the same way: the other side attenuated by |Pan| dB, −100 muting the right channel and 100 the left (the manual).
+- **Size is the sound's bytes** (the WAV's `data` chunk), the manual's "file size" minus its header, because Position runs over the same bytes (the manual's example gives a track bar Max = Size, Position = Position).
+- **The end of a sound played once**: Playing turns False and Position goes back to 0, as a DirectSound buffer's play cursor did. Stop keeps the place; Play goes on from Position.
+- **A change while it plays is heard at once**: Volume through the device's gain; Pan, Frequency, Looped and Position play again from where the sound is (a click may be heard, where DirectSound changed a buffer's parameters in place).
+- **No sound under the GUI tests** (`RAPIDR_CAPTURE` / `RAPIDR_TEST_EVENTS`); the model's Playing and Position still run by the clock.
+
+Tests: `tests/fixtures/dx_sound.bas` with `tests/fixtures/dx_beep.wav` (made by `tools/make_dx_fixture.py`; extracted from a `$RESOURCE` with EXTRACTRESOURCE, as a RapidQ program would, and KILLed at the end), case `dx_sound`: Size and Frequency from the file, the defaults, Play / Playing, Stop keeping the place, Position and Frequency set, the end of a sound played once. Native and interpreted, and the browser (through Web Audio itself: no page errors). Unit test `objects::directx::tests::sound` (a fake clock and device: positions, the end, looping, what the device is asked — gains, speed, frames). The device paths ran for real once each, inaudibly (Volume 1). Corpus: `sound/qdxsound2.bas` runs (Size 16052, Frequency 11025, Playing after its button).
+
+Open: WAV only (DirectSound's buffers were PCM; `rodio` could decode more); 8-bit and 16-bit PCM; one device sink per QDXSOUND.
+

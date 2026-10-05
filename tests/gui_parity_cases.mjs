@@ -216,4 +216,8 @@ export const cases = [
       const full = document.getElementById("rr-dx3-screen");
       return [getComputedStyle(document.getElementById("rr-dx")).cursor, px("rr-dx-screen", 20, 40), px("rr-late-screen", 5, 5), Math.round(parseFloat(full.style.width) / parseFloat(full.style.height) * 100)].join(" "); })()`,
     webExpect: "none ff0000 0000ff 133" },
+  // (the DirectX lane's, stage D2: QDXSOUND — no sound under the tests:
+  // Playing and Position follow the clock)
+  { name: "dx_sound", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=4000,8000,100,0,0 play-1 still-1 in stop0 kept 1000,16000 end0,0 |80,-30,0,dx_beep.wav"] },
 ];

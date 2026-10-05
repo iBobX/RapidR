@@ -164,6 +164,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("interval".to_string(), v_int(1000));
             props.insert("activeonly".to_string(), v_bool(true));
         }
+        // (QDXSOUND: its sound's properties are the model's; these
+        // DirectSound streaming settings only kept — manual's defaults)
+        "RDXSOUND" => {
+            props.insert("autoupdate".to_string(), v_bool(true));
+            props.insert("bufferlength".to_string(), v_int(1000));
+            props.insert("stickyfocus".to_string(), v_bool(false));
+            crate::directx_web::install_sound_device();
+        }
         "RHEADER" => {
             // Sections: rapidr_value::objects::header; a canvas to draw on.
             props.insert("left".to_string(), v_int(0));
@@ -2600,6 +2608,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RDXSCREEN"
             | "RDXIMAGELIST"
             | "RDXTIMER"
+            | "RDXSOUND"
     )
 }
 

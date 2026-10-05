@@ -128,6 +128,13 @@ impl RpComponent {
                 props.insert("interval".into(), v_int(1000));
                 props.insert("activeonly".into(), v_bool(true));
             }
+            // (QDXSOUND: its sound's properties are the model's; these
+            // DirectSound streaming settings only kept — manual's defaults)
+            "RDXSOUND" => {
+                props.insert("autoupdate".into(), v_bool(true));
+                props.insert("bufferlength".into(), v_int(1000));
+                props.insert("stickyfocus".into(), v_bool(false));
+            }
             "RHEADER" => {
                 // Sections: rapidr_value::objects::header; a canvas to draw on.
                 props.insert("left".into(), v_int(0));
@@ -493,6 +500,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         c.borrow_mut().insert(name_lower, comp);
     });
     rapidr_value::objects::create(name, type_name);
+    // (the DirectX lane's: QDXSOUND plays on the sound device)
+    if type_name.eq_ignore_ascii_case("RDXSOUND") {
+        crate::sound::install_dx_device();
+    }
 }
 
 /// `DIM lbl(1 TO 3) AS QLABEL`: one component per element, ids `lbl(1)`,
@@ -2128,7 +2139,7 @@ pub fn is_component_type(type_name: &str) -> bool {
         | "RLISTVIEW" | "RPROGRESSBAR"
         | "RNUM" | "RPLOT" | "RDATAFRAME"
         | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
-        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER"
+        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND"
     )
 }
 
