@@ -294,6 +294,27 @@ impl Shim<'_> {
         }
     }
 
+    /// Form `f`'s window's inside is `size` now: the surface follows, and
+    /// the kernel hears it as the window system's resize. (Also when
+    /// `request_inner_size` answers that it applied a size at once — as on
+    /// Wayland — since then no `Resized` follows.)
+    fn size_applied(&mut self, f: &str, size: PhysicalSize<u32>) {
+        if size.width == 0 || size.height == 0 {
+            return;
+        }
+        let scale = self.scale_of(f);
+        if let Some(w) = self.s.wins.get_mut(f) {
+            if let Surface::Gpu(s) = &mut w.surface {
+                self.s.gpu.resize_surface(s, size.width, size.height);
+            }
+        }
+        let (lw, lh) = ((f64::from(size.width) / scale).round() as i64, (f64::from(size.height) / scale).round() as i64);
+        self.desk.resized(f, lw, lh);
+        if let Some(w) = self.s.wins.get(f) {
+            w.window.request_redraw();
+        }
+    }
+
     /// Form `f`'s window's scale.
     fn scale_of(&self, f: &str) -> f64 {
         self.s.forced.or_else(|| self.s.wins.get(f).map(|w| w.window.scale_factor())).unwrap_or(1.0)
@@ -343,7 +364,9 @@ impl Shim<'_> {
                     let scale = self.scale_of(&f);
                     if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get(&f)) {
                         let (lw, lh) = k.spec.size;
-                        let _ = w.window.request_inner_size(self.inner_size(lw, lh, scale));
+                        if let Some(size) = w.window.request_inner_size(self.inner_size(lw, lh, scale)) {
+                            self.size_applied(&f, size);
+                        }
                     }
                 }
                 HostCmd::Position(f) => {
@@ -397,7 +420,9 @@ impl Shim<'_> {
                 HostCmd::Resize { form, w: lw, h: lh } => {
                     let scale = self.scale_of(&form);
                     if let Some(w) = self.s.wins.get(&form) {
-                        let _ = w.window.request_inner_size(self.inner_size(lw, lh, scale));
+                        if let Some(size) = w.window.request_inner_size(self.inner_size(lw, lh, scale)) {
+                            self.size_applied(&form, size);
+                        }
                     }
                 }
                 // (the WindowState lane's: the system maximizes, minimizes
@@ -766,18 +791,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
         match event {
             WindowEvent::CloseRequested => self.desk.close_box(&f, Source::User),
             WindowEvent::Resized(size) => {
-                if size.width > 0 && size.height > 0 {
-                    if let Some(w) = self.s.wins.get_mut(&f) {
-                        if let Surface::Gpu(s) = &mut w.surface {
-                            self.s.gpu.resize_surface(s, size.width, size.height);
-                        }
-                    }
-                    let (lw, lh) = ((f64::from(size.width) / scale).round() as i64, (f64::from(size.height) / scale).round() as i64);
-                    self.desk.resized(&f, lw, lh);
-                    if let Some(w) = self.s.wins.get(&f) {
-                        w.window.request_redraw();
-                    }
-                }
+                self.size_applied(&f, size);
                 self.note_state(&f);
             }
             WindowEvent::Moved(p) => {

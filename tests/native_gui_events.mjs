@@ -121,6 +121,12 @@ function run(bin, events, dump, resize = "", split = "", fileDialog = undefined,
 rmSync(WORK, { recursive: true, force: true });
 const only = process.argv.slice(2);
 for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.includes(f)))) {
+  // (`headlessOnly`: what the case checks is the headless host's own
+  // simulation, which real windows — RAPIDR_CAPTURE_WINDOWS — can't repeat)
+  if (c.headlessOnly && process.env.RAPIDR_CAPTURE_WINDOWS && !BUILD_ONLY) {
+    console.log(`- ${c.name}: skipped with real windows (${c.headlessOnly})`);
+    continue;
+  }
   const results = {};
   for (const interp of KINDS) {
     const kind = interp ? "interpreted" : "native";

@@ -96,7 +96,8 @@ export const cases = [
     expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
-  { name: "window_state", events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
+  { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
+    events: "b1.onclick,b4.onclick,b2.onclick,b4.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption",
     expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 -1|0 300", "lbl3.caption=1;2;2;"] },
   { name: "file_dialogs", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
@@ -187,7 +188,8 @@ export const cases = [
   // (timers during native menu tracking: `__hold_600`, a menu held open
   // 600 ms on the headless host — the timer ticks through the tracking
   // tick; what needs the pump inside it answers as the plan says)
-  { name: "menu_hold_timers", events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
+  { name: "menu_hold_timers", headlessOnly: "`__hold_ms` makes the headless host hold its pump as a held native menu would; real windows have no such hook",
+    events: "b1.onclick,form.__hold_600,b2.onclick", dump: "lbl.caption,dlg.__shown",
     expect: ["lbl.caption=pop;de;modal2;ask7;|-1", "dlg.__shown=0"],
     web: false, why: "a page's menus never hold its loop: the hold and its tracking tick are the desktop host's" },
 ];
