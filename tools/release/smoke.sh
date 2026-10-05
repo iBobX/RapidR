@@ -24,7 +24,7 @@ ART="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 T="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/rapidr-smoke.XXXXXX")" && pwd -P)"
 MNT=""
 cleanup() {
-    [ -n "$MNT" ] && hdiutil detach -quiet "$MNT" 2>/dev/null
+    [ -n "$MNT" ] && { hdiutil detach -quiet "$MNT" 2>/dev/null; rmdir "$MNT" 2>/dev/null; }
     rm -rf "$T"
 }
 trap cleanup EXIT
@@ -45,10 +45,11 @@ BASE_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 echo "== install $(basename "$ART") into $T"
 case "$ART" in
     *.dmg)
-        MNT="$T/mnt"; mkdir -p "$MNT" "$T/Applications"
+        # (a mount point on the system disk: hdiutil refuses one on some volumes)
+        MNT="$(mktemp -d /tmp/rapidr-smoke-mnt.XXXXXX)"; mkdir -p "$T/Applications"
         hdiutil attach -quiet -nobrowse -readonly -mountpoint "$MNT" "$ART" || { echo "cannot mount"; exit 1; }
         cp -R "$MNT"/*.app "$T/Applications/"
-        hdiutil detach -quiet "$MNT"; MNT=""
+        hdiutil detach -quiet "$MNT"; rmdir "$MNT"; MNT=""
         if [ -d "$T/Applications/RapidR.app" ]; then APP="$T/Applications/RapidR.app"; else APP="$T/Applications/RapidR Runtime.app"; fi
         BIN="$APP/Contents/MacOS"
         for app in "$T/Applications"/*.app; do
@@ -117,6 +118,9 @@ check "#! script" has "$(PATH="$BIN:$BASE_PATH" ./script.rr x 2>&1)" "script x"
 "$R" build-bc hello.bas -o hello.rrbc >/dev/null
 check "rapidr hello.rrbc" has "$("$R" hello.rrbc z 2>&1)" "hello z"
 check "rapidr info: console" has "$("$R" info hello.rrbc)" "apptype: console"
+if [[ "$ART" == *.dmg ]] && lipo -archs "$R" 2>/dev/null | grep -q x86_64 && arch -x86_64 /usr/bin/true 2>/dev/null; then
+    check "the x86_64 slice runs it (Rosetta)" has "$(arch -x86_64 "$R" run hello.bas x 2>&1)" "hello x"
+fi
 RTR="$T/Applications/RapidR Runtime.app/Contents/MacOS/rapidr"
 if [ -x "$RTR" ] && [ "$RTR" != "$R" ]; then
     check "RapidR Runtime.app runs it too" has "$("$RTR" run hello.rrbc y 2>&1)" "hello y"

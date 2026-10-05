@@ -48,8 +48,10 @@ Remove-Item -Recurse -Force $Src, $Stage, "$Work\home", "$Work\toolchains" -Erro
 New-Item -ItemType Directory -Force $Src, $Out, $Stage | Out-Null
 
 Step "the release's source"
-# (-m: the files' times are now, so cargo rebuilds what changed)
-Run tar.exe @("-m", "-x", "-C", $Src, "-f", "$Prep\src.tar")
+# (Python's tarfile: Windows' tar fails on the archive's symlinks, which need a privilege to
+# make and nothing here uses; the files' times are now, so cargo rebuilds what changed)
+$untar = "import os, sys, tarfile`nwith tarfile.open(sys.argv[1]) as t:`n    m = [x for x in t if not (x.issym() or x.islnk())]`n    t.extractall(sys.argv[2], members=m, filter='data')`nfor d, _, fs in os.walk(sys.argv[2]):`n    for f in fs: os.utime(os.path.join(d, f))"
+Run $python.FullName @("-c", $untar, "$Prep\src.tar", $Src)
 Set-Location $Src
 $Version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
 $env:CARGO_TARGET_DIR = "$Work\target"

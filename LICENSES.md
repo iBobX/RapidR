@@ -136,6 +136,49 @@ FreeType notice, as its license requires:
 > Portions of this software are copyright © The FreeType Project
 > (www.freetype.org). All rights reserved.
 
+### 7.1 Windows: LLVM-MinGW, shipped with the RapidR SDK
+
+The Windows SDK ships a trimmed [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw)
+(`lib\rapidr\toolchain\`, the release it came from in its `README.txt`), and
+RapidR's own Windows executables are built with it, through Rust's
+`*-pc-windows-gnullvm` targets. Native builds (`rapidr build`) link with it,
+so they need no Visual Studio.
+
+What ships, and its licences:
+
+| Part | What it is | Licence |
+|---|---|---|
+| clang, lld, llvm-ar and the LLVM libraries they load | the compiler and linker (tools: nothing of them is in a built program) | Apache-2.0 WITH LLVM-exception (`toolchain\LICENSE.TXT`) |
+| compiler-rt builtins, libunwind | linked **statically** into every built program (Rust's unwinder and runtime helpers; `+crt-static`) | Apache-2.0 WITH LLVM-exception: the LLVM exception waives the attribution in binaries |
+| mingw-w64 runtime (crt objects, `libmingw32`, `libmingwex`, …) | linked statically into every built program | ZPL-2.1, with parts under BSD / MIT / ISC-style and public-domain terms (`toolchain\<arch>-w64-mingw32\share\mingw32\COPYING.MinGW-w64-runtime.txt`) |
+| mingw-w64 headers | used while compiling C code the crates carry (SQLite, …) | ZPL-2.1 / public domain; a few headers and IDLs imported from Wine are LGPL-2.1+ |
+| libc++, winpthreads, libomp | in the toolchain, **not** linked into Rust programs (no C++ in them) | Apache-2.0 WITH LLVM-exception / MIT and BSD |
+
+Nothing GPL is linked: there is no libgcc, libstdc++ or GNU binutils in
+LLVM-MinGW (compiler-rt and libunwind take libgcc's place). The release
+scripts check what RapidR's executables import (Windows' own DLLs only), and
+the Windows smoke test checks the same of a program built natively.
+
+**What this means for programs built with RapidR on Windows** (native builds;
+interpreted executables and the runtime are RapidR's own, MIT):
+
+- The mingw-w64 runtime is in the executable. Its licence asks for its
+  copyright notices to be reproduced with binary distributions (BSD / ZPL
+  style: a notice, nothing more). Ship
+  `COPYING.MinGW-w64-runtime.txt` (in the SDK's toolchain folder, above) with
+  your program, or its notices in your documentation. Open source or
+  commercial, either is fine.
+- The LGPL-2.1 Wine headers are only ever *compiled against* (declarations,
+  constants, small inline functions); LGPL-2.1 §5 leaves such a program's
+  licence to its author. No LGPL code is linked.
+- With `RAPIDR_TOOLCHAIN=msvc` (Microsoft's C++ Build Tools instead) the
+  program carries Microsoft's C runtime under Visual Studio's redistribution
+  terms instead.
+
+ALSA (Linux, above) is LGPL-2.1 and linked **dynamically** from the user's
+system (`libasound.so.2`), never shipped: that keeps RapidR's and its
+programs' licences their own.
+
 ---
 
 ## 8. RapidR (this project) — MIT License

@@ -4,10 +4,10 @@
 # (\\Mac\Home) — only reads; nothing is written to the share.
 #
 #   tools/release/windows-vm.sh tools        the build tools (setup-tools.ps1)
-#   tools/release/windows-vm.sh build [windows.ps1 options…]
-#                                            the installers, in the VM's
-#                                            %USERPROFILE%\rapidr-release\out
-#   tools/release/windows-vm.sh smoke <installer file name> [smoke.ps1 options…]
+#   tools/release/windows-vm.sh build [Name=value…]   the installers (windows.ps1's
+#                                            parameters: Arch=x86_64, Toolchain=msvc,
+#                                            Sign=…), in the VM's %USERPROFILE%\rapidr-release\out
+#   tools/release/windows-vm.sh smoke <installer file name> [Native] [Associations]
 #   tools/release/windows-vm.sh fetch <file in …\rapidr-release\out> <local file>
 #   tools/release/windows-vm.sh sync <script.ps1> [args…]    a short script, waited for
 #
@@ -35,13 +35,20 @@ awake() {
     esac
 }
 
-# One of tools/release/windows/*.ps1, detached, its output in a log in the VM.
+# One of tools/release/windows/*.ps1, detached, its output in a log in the VM:
+# job <script> [-Prep <share path>] [Name=value | Switch]…
 job() {
     local script="$1"; shift
+    local prep="" pass=()
+    if [ "${1:-}" = -Prep ]; then prep="-Prep $2"; shift 2; fi
+    for a in "$@"; do pass+=("$a"); done
+    # (';'-separated, unquoted: cmd reads `|` as a pipe, and quotes inside `cmd /c "…"` get lost)
+    local joined; joined="$(IFS=';'; echo "${pass[*]:-}")"
+    [ -n "$joined" ] && joined="-Pass $joined"
     local name="rr-$(date +%s)"
     awake
     # (`(if …)`: an IF without parentheses would take the rest of the line as its command)
-    "$EXEC" "(if not exist $VMREL mkdir $VMREL) & powershell -NoProfile -ExecutionPolicy Bypass -File $SHARE\\tools\\release\\windows\\detach.ps1 -Script $script -Log $VMREL\\$name.log $*"
+    "$EXEC" "(if not exist $VMREL mkdir $VMREL) & powershell -NoProfile -ExecutionPolicy Bypass -File $SHARE\\tools\\release\\windows\\detach.ps1 -Script $script -Log $VMREL\\$name.log $prep $joined"
     echo "(in the VM: $VMREL\\$name.log)"
     local done=""
     while [ -z "$done" ]; do
@@ -63,7 +70,7 @@ case "${1:-}" in
         trap 'rm -rf "$ROOT/.release-share"' EXIT
         job windows.ps1 -Prep "$SHARE\\.release-share\\prep" "$@"
         ;;
-    smoke) inst="$2"; shift 2; job smoke.ps1 -Installer "$VMREL\\out\\$inst" "$@" ;;
+    smoke) inst="$2"; shift 2; job smoke.ps1 "Installer=$VMREL\\out\\$inst" "$@" ;;
     sync)
         shift; script="${1//\//\\}"; shift
         awake

@@ -32,7 +32,9 @@ lib/rapidr/                      RapidR's home
   web/                           rapidrintr.js + .wasm: rapidr bundle-bc           SDK
   Cargo.toml, Cargo.lock,        the runtime crates' sources and their crates.io   SDK
   crates/, vendor/, .cargo/      dependencies, vendored: native builds offline
+  toolchain/                     LLVM-MinGW, trimmed (Windows): the linker         SDK
 share/doc/rapidr/                LICENSE, LICENSES.md, THIRD_PARTY_NOTICES.md, OFL-1.1.txt, README.md
+share/icons/                     rapidr.ico, rapidr-doc.ico (Windows; Linux: hicolor PNGs)
 ```
 
 On macOS `bin/` is `RapidR.app/Contents/MacOS/` and `lib/` is
@@ -66,24 +68,27 @@ source replacement, nothing downloaded).
   0.37 GB of sources instead of 1.2 GB. Checked: a native build with an empty
   `CARGO_HOME`, offline, from an install's home.
 
-### Windows' linker: the recommendation
+### Windows' linker: LLVM-MinGW, shipped
 
-Rust on Windows needs a linker. Two ways:
+Rust on Windows needs a linker. RapidR uses Rust's `*-pc-windows-gnullvm`
+targets with [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw) — open
+source (Apache-2.0 WITH LLVM-exception; mingw-w64's ZPL / permissive terms),
+x64 and ARM64, no Microsoft licence — and **ships it**: each Windows SDK
+carries a trimmed LLVM-MinGW for its architecture (`lib\rapidr\toolchain\`:
+clang, lld, llvm-ar, the headers, the mingw-w64 runtime, compiler-rt and
+libunwind for that architecture; no debugger, Python or other targets).
+`rapidr setup` installs Rust's `stable-<arch>-pc-windows-gnullvm` toolchain
+(rustup, after asking), and `rapidr build` runs cargo with it, the shipped
+clang as linker and C compiler, and `+crt-static` (libunwind and the mingw-w64
+runtime linked in: a built program needs no DLL beside it). No Visual Studio.
+What a program built this way carries, licence-wise: LICENSES.md §7.1 (the
+mingw-w64 runtime's notice).
 
-- **`gnullvm` — recommended**: the `*-pc-windows-gnullvm` targets with
-  [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw) (Apache-2.0 with LLVM
-  exception; mingw-w64's runtime under ZPL / public-domain / MIT-style terms).
-  Fully open source, x64 and ARM64, no Microsoft licence; programs link the
-  system's UCRT; nothing it adds to an executable carries obligations. Users
-  unzip it and put its `bin\` on PATH (`rapidr setup --toolchain gnullvm`
-  says how). Not yet tried in the VM: the first Windows run decides it.
-- **`msvc`**: what rustup offers by default — Microsoft's C++ Build Tools,
-  under Visual Studio's licence (free for individuals, open source and small
-  organisations; larger ones need a Visual Studio licence). Proprietary, so
-  not what the release itself is built with if gnullvm works; fine as the
-  user's own choice (`rapidr setup --toolchain msvc`). The release scripts
-  accept `-Toolchain msvc` (they then link the MSVC runtime statically, so
-  users need no VC++ redistributable).
+**MSVC stays an option**: `rapidr setup --toolchain msvc` and
+`RAPIDR_TOOLCHAIN=msvc` for builds — Rust's default toolchain with
+Microsoft's C++ Build Tools (Visual Studio's licence: free for individuals,
+open source and small organisations). The release scripts accept `-Toolchain
+msvc` (MSVC runtime linked statically; the SDK then ships no toolchain).
 
 ## File types: the RapidR Runtime on the desktop
 
@@ -93,9 +98,12 @@ Rust on Windows needs a linker. Two ways:
 | `.rr`, `.bas` (source) | opens in the IDE (SDK; the Runtime alone: runs) | Run (Windows: the Run verb; macOS / Linux: Open With > RapidR Runtime) |
 
 - **Windows** (`tools/release/windows/rapidr.iss`): `HKCU\Software\Classes`
-  ProgIDs `RapidR.Program` and `RapidR.Source` with open / run verbs and an
-  icon, `OpenWithProgids` for `.rr` / `.bas`; per user, no admin; the
-  uninstaller removes them. They go through **`rapidrw.exe`**, a windowed
+  ProgIDs `RapidR.Program` and `RapidR.Source` with open / run verbs and
+  RapidR's document icon; per user, no admin; the uninstaller removes them.
+  `.rrbc` and `.rr` are always RapidR's. `.bas` is other BASICs' too: RapidR is
+  always listed under its "Open with", and becomes its default only when the
+  installer's "Open .bas files with RapidR by default" box is ticked
+  (unticked by default). They go through **`rapidrw.exe`**, a windowed
   launcher beside the console `rapidr.exe` (as `pythonw.exe` beside
   `python.exe`): it asks `rapidr info` the program's `$APPTYPE` and gives a
   console program a new console, a windowed one none. Standalone `--interp`
@@ -178,20 +186,27 @@ authors', to ship as they like.
   Setup licence: free for any use including commercial, source available;
   no obligations on what it installs). The macOS disk image and the `.deb`
   carry no installer code; `install.sh` / `uninstall.sh` are RapidR's (MIT).
-- System libraries the Linux binaries link (not shipped): glibc, ALSA,
-  fontconfig, FreeType, xkbcommon — dynamically, which puts no obligation on
+- Windows: the trimmed LLVM-MinGW in the SDK, and what it puts into built
+  programs (compiler-rt, libunwind, the mingw-w64 runtime; no libgcc) —
+  LICENSES.md §7.1.
+- System libraries the Linux binaries link (not shipped): glibc (2.31 or
+  newer), ALSA (LGPL-2.1, dynamically), fontconfig, FreeType; X11 / Wayland /
+  xkbcommon are opened at run time — dynamically, which puts no obligation on
   RapidR's packages.
 - Build tools whose output carries no obligations: rustc / cargo (MIT /
   Apache-2.0), LLVM-MinGW (Apache-2.0 + LLVM exception), wasm-pack and
-  wasm-bindgen (MIT / Apache-2.0), Python (PSF), Inno Setup, dpkg-deb
+  wasm-bindgen (MIT / Apache-2.0), Zig and cargo-zigbuild (MIT / Apache-2.0;
+  Zig links the Linux binaries against a glibc baseline with its own glibc
+  stubs, nothing of Zig ends up in them), Python (PSF), Inno Setup, dpkg-deb
   (GPL-2.0 — a copyleft build tool: the packages it writes are not its
   work and carry no obligation), GNU tar and gzip (GPL — same), zip
-  (Info-ZIP), Docker (Apache-2.0); Apple's lipo, codesign, hdiutil, plutil
+  (Info-ZIP), qemu-user (GPL-2.0: only runs the other architecture's
+  binaries in the smoke test); Apple's lipo, codesign, hdiutil, plutil
   and Microsoft's signtool and MSVC (if chosen) are the platforms' own,
   proprietary, and add nothing to the packages' licences (MSVC's statically
   linked runtime is Microsoft's redistributable code — another reason for
-  gnullvm). Icons: none yet (the system's generic ones) — RapidR's own
-  artwork, when made, under its MIT licence.
+  gnullvm). Icons: RapidR's own original artwork (`tools/release/icons/*.svg`,
+  rendered to .icns / .ico / PNG by `make_icons.mjs`), MIT like RapidR.
 
 ## Signing and notarization — the user's decision
 
@@ -218,13 +233,49 @@ Unsigned is the default; every script works without a certificate.
   RapidR Runtime. (A later change: the payload as a Mach-O section / PE
   resource.)
 
+## Where the work happens
+
+The Mac's internal disk is kept light: the macOS artifacts are built on the
+Mac (their scratch under `dist/<ver>/work`, removed when `macos.sh` ends), and
+everything heavy happens inside the VMs (on their own disk): the Linux builds
+for both architectures, the Windows builds, the installers' smoke tests, the
+vendored source trees. `dist/` and `target/` may be links to a build volume
+(this Mac: `/Volumes/RapidRBuild/…`). Docker is not used.
+
+- **Linux** (any Ubuntu 24.04 VM, arm64 or amd64 — the user's ARM one, or an
+  x86_64 one under Parallels' emulation): both architectures from one machine.
+  `linux.sh` links with Zig (`cargo zigbuild`) against **glibc 2.31**, so the
+  binaries run on Ubuntu 20.04 / 22.04 / 24.04, Debian 11 / 12 and newer;
+  `readelf -V` checks no newer `GLIBC_` symbol version is asked for. The
+  other architecture's ALSA, FreeType and fontconfig come from Ubuntu's
+  multiarch `-dev` packages (ports.ubuntu.com for arm64, archive.ubuntu.com
+  and security.ubuntu.com for amd64). The `.deb`s' Depends name packages every
+  Debian / Ubuntu since 2020 has (`libasound2t64 | libasound2`, …). The other
+  architecture's packages are smoke-tested in the same VM under qemu-user
+  (binfmt): everything but a native build. Once per VM:
+  `tools/release/ubuntu-vm.sh root tools/release/linux/setup-tools.sh system`
+  (as root: apt), then `… run tools/release/linux/setup-tools.sh user` (Zig
+  from ziglang.org, SHA-256 checked against its download index;
+  cargo-zigbuild; the Rust targets). `… root … setup-tools.sh undo` removes
+  the system part. AppImage: not made — the `.tar.gz` runs from any folder
+  and installs per user.
+- **Windows** (the Windows 11 ARM VM): `tools/release/windows-vm.sh tools`
+  once (`setup-tools.ps1`: Python 3.13 and Inno Setup 6 by winget, which
+  checks the installers' SHA-256; LLVM-MinGW from its GitHub releases,
+  checked against the SHA-256 GitHub publishes; Rust's gnullvm toolchain).
+  The x64 installers are cross-built on ARM64 and smoke-tested there under
+  Windows' x64 emulation. The VM only *reads* the Mac's share (the
+  repository; prepare.sh's output through a temporary copy in the
+  repository's `.release-share/`, as `dist/` may be a link the share doesn't
+  follow); long jobs are started detached (WMI: `prlctl exec` ends what it
+  started) and their logs polled; files come back as base64 over `prlctl`, in
+  pieces checked by SHA-256 (`windows-vm.sh fetch`).
+
 ## Cutting a release, step by step
 
-Disk: about 10 GB free on the Mac for the macOS builds (two architectures)
-and the web interpreter; the Linux build uses ~5 GB inside the Ubuntu VM
-(or a Docker volume per architecture); the Windows build ~8 GB inside the VM.
-`dist/<ver>/out` is about 0.8 GB for the whole release. Every script removes
-its `work/` folder when it ends.
+Disk: on the Mac, about 6 GB while `macos.sh` runs (two architectures), and
+the web interpreter's build; about 10 GB inside each VM. `dist/<ver>/out` is
+about 1.2 GB for the whole release.
 
 1. **The commit.** On `development`: bump the version (`Cargo.toml`),
    `CHANGELOG.md`, tick ROADMAP; `tools/regress.sh` passes; `cargo deny check
@@ -239,24 +290,21 @@ its `work/` folder when it ends.
 3. **macOS** (Mac): `rustup target add x86_64-apple-darwin` once, then
    `tools/release/macos.sh` (`--sign …`, `--notarize …` when signing).
    Check: `tools/release/smoke.sh dist/<ver>/out/RapidR-<ver>-macos-universal.dmg`
-   and the Runtime's dmg.
-4. **Linux aarch64** (Ubuntu VM): `tools/release/linux-vm.sh` builds both
-   packages in the VM and fetches them. Check in the VM: send the artifact and
-   `tools/release/smoke.sh` (`tools/release/ubuntu-vm.sh send …` / `run …`),
-   then `tools/release/linux-vm.sh --clean`.
-   **Linux x86_64**: `tools/release/linux-docker.sh x86_64` (Docker Desktop,
-   emulated: slow, ~10 GB free on the Mac) — or `linux.sh` on any x86_64
-   Ubuntu 24.04 from the extracted src.tar. (`linux-docker.sh aarch64` is the
-   Docker way for aarch64.) AppImage: not made — the `.tar.gz` already runs
-   from any folder and installs per user, and an AppImage would add FUSE and
-   one more runtime to ship; reconsider if users ask.
-5. **Windows** (Windows VM; once: Python 3.11+, Inno Setup 6, LLVM-MinGW's
-   `bin\` on PATH — or VS Build Tools with the x64 and ARM64 tools for
-   `-Toolchain msvc`): `tools/release/windows-vm.sh build` (add
-   `-Publish \\Mac\Home\…\dist\<ver>\out` to have the VM copy the installers
-   to the Mac, or copy them from `%USERPROFILE%\rapidr-release\out`). Check:
-   `tools/release/windows-vm.sh smoke RapidR-<ver>-windows-arm64-setup.exe -Associations`,
-   and the x64 one (ARM64 Windows runs it emulated).
+   and the Runtime's dmg (no Launch Services registration: the apps' plists
+   are read).
+4. **Linux** (Ubuntu VM): `tools/release/linux-vm.sh` builds all eight
+   packages there and fetches them; `tools/release/linux-vm.sh smoke` runs
+   `smoke.sh` on each in the VM (temporary HOME / prefix; install.sh and
+   uninstall.sh, the MIME types and .desktop files checked and removed); then
+   `tools/release/linux-vm.sh --clean`.
+5. **Windows** (Windows VM): `tools/release/windows-vm.sh build` — the four
+   installers in the VM's `%USERPROFILE%\rapidr-release\out` (sizes and
+   SHA-256 printed). Check each: `tools/release/windows-vm.sh smoke
+   <installer> -Native` (the SDKs: `rapidr setup`, native builds of
+   conformance cases and a GUI fixture with the shipped LLVM-MinGW) and
+   `-Associations` (the .bas box ticked); the file types are checked, and
+   checked gone after the uninstaller. Then `tools/release/windows-vm.sh
+   fetch <installer> dist/<ver>/out/<installer>` for each.
 6. **Finish** (Mac): `tools/release/finish.sh` — every package has the
    licence files; `SHA256SUMS`.
 7. **Publish** — by hand, after looking at `dist/<ver>/out/` (the scripts
@@ -271,6 +319,7 @@ its `work/` folder when it ends.
 
    (`--draft` first to look at it on GitHub before it's public; `--prerelease`
    for a preview.)
-8. **Clean up**: `rm -rf dist/<ver>/work`, the Docker volumes
-   (`docker volume rm rapidr-release-target-<arch> rapidr-linux-registry-<arch>`),
-   `tools/release/linux-vm.sh --clean`, the Windows VM's `%USERPROFILE%\rapidr-release`.
+8. **Clean up**: `rm -rf dist/<ver>/work dist/<ver>/prep`;
+   `tools/release/linux-vm.sh --clean`; the Windows VM's
+   `%USERPROFILE%\rapidr-release` (keep `%USERPROFILE%\rapidr-tools` for the
+   next release).
