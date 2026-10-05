@@ -5,6 +5,7 @@
 
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20RapidR-5F7FFF?logo=buymeacoffee&logoColor=white)](https://www.buymeacoffee.com/roanbema)
 
 **RapidR** is an experiment. The idea is to implement a BASIC-to-Rust transpiler and native runtime that compiles `.rr` source files into standalone Rust projects, producing fast, native executables. At the current stage, it provides **52+ GUI components** (R-prefixed: `RForm`, `RButton`, `RCoolBtn`, `ROvalBtn`, `RJson`, `RStringGrid`, …), **9 web-exclusive components** (`RWebView`, `RDOM`, `RJavaScript`, …), **100+ built-in functions**, database access (MySQL + SQLite), networking, JSON processing, data science components, and a self-hosted **Visual IDE** — all compiled to native code (the GUI drawn by RapidR's own UI kernel) or to **WebAssembly** for browser deployment.
 
@@ -33,6 +34,7 @@
 - [Syntax Reference](#syntax-reference)
 - [Test Suite](#test-suite)
 - [Development Conventions](#development-conventions)
+- [Support RapidR](#support-rapidr)
 - [Credits](#credits)
 - [Licensing](#licensing)
 - [License](#license)
@@ -1398,6 +1400,14 @@ python3 -m http.server 8765 &
 - The runtime uses thread-local storage for all component state and global variables (`gv()`/`gs()` accessors).
 
 ---
+
+## Support RapidR
+
+RapidR is free and open source (MIT), built by one developer. If it's useful to you — or you'd like to see it reach its first release sooner — you can support its development:
+
+<p><a href="https://www.buymeacoffee.com/roanbema"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=roanbema&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" alt="Buy me a coffee — support RapidR's development" /></a></p>
+
+Every coffee helps pay for the tools and compute that build RapidR. Thank you!
 
 ## Credits
 
