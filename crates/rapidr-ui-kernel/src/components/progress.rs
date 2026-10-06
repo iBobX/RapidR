@@ -80,14 +80,20 @@ impl Progress {
             }
             return;
         }
-        p.fill(r, back);
+        // (a pie's and a needle's corners show what's behind the gauge, as
+        // TGauge leaves them; a bar is BackColor throughout)
+        p.fill(r, if matches!(kind, 3 | 4) { crate::paint::behind(cx.store, cx.id) } else { back });
+        // (TGauge's frame: black — clWindowFrame on Windows 98)
+        let line = if t.fluent() { t.border } else { t.text };
         if bordered {
-            p.frame(r, if t.fluent() { t.border } else { t.frame });
+            p.frame(r, line);
             r = (1, 1, w - 2, h - 2);
         }
         let (x, y, iw, ih) = r;
         // (the done part, where the text is drawn in BackColor)
         let mut done = None;
+        // (a pie's done part, for its percentage)
+        let mut wedge: Option<Vec<(f64, f64)>> = None;
         match kind {
             1 => {
                 let dw = iw * pct / 100;
@@ -104,29 +110,39 @@ impl Progress {
                 p.shape(oval(cxp, cyp, rx, ry, 0.0, 360.0, back));
                 let mut outline = oval(cxp, cyp, rx, ry, 0.0, 360.0, 0);
                 outline.fill = None;
-                outline.stroke = Some(t.frame);
+                outline.stroke = Some(line);
                 p.shape(outline);
                 if pct > 0 {
                     // (clockwise from twelve o'clock)
-                    p.shape(oval(cxp, cyp, rx, ry, 90.0 - 360.0 * pct as f64 / 100.0, 90.0, fore));
+                    let part = oval(cxp, cyp, rx, ry, 90.0 - 360.0 * pct as f64 / 100.0, 90.0, fore);
+                    wedge = Some(part.points.iter().map(|&(x, y)| (x + 0.5, y + 0.5)).collect());
+                    p.shape(part);
                 }
             }
             4 => {
                 // (a half circle, its needle from the bottom middle)
                 let (cxp, cyp, rx, ry) = (x as f64 + (iw - 1) as f64 / 2.0, (y + ih - 1) as f64, (iw - 1) as f64 / 2.0, (ih - 1) as f64);
                 let mut arc = oval(cxp, cyp, rx, ry, 0.0, 180.0, back);
-                arc.stroke = Some(t.frame);
+                arc.stroke = Some(line);
                 p.shape(arc);
                 let a = (180.0 - 180.0 * pct as f64 / 100.0).to_radians();
                 p.op(Op::Line { from: (cxp + 0.5, cyp + 0.5), to: (cxp + 0.5 + rx * a.cos(), cyp + 0.5 - ry * a.sin()), color: fore });
             }
             _ => {}
         }
-        if store::flag(cx.store, cx.id, "showtext", true) && matches!(kind, 0..=2) {
+        // (the percentage inverts what it's drawn over, as TGauge's: black on
+        // white, white on black, yellow on blue; a pie's and a needle's in
+        // the middle of the whole gauge)
+        if store::flag(cx.store, cx.id, "showtext", true) {
             let text = format!("{pct}%");
-            p.clipped(r, |p| p.text(r, &text, &cx.font, fore, Place::Center));
+            // (fluent: what reads on each)
+            let on = |c: u32| if t.fluent() { t.text_on(c) } else { c ^ 0xFFFFFF };
+            p.clipped(r, |p| p.text(r, &text, &cx.font, on(back), Place::Center));
             if let Some(d) = done.filter(|d| d.2 > 0 && d.3 > 0) {
-                p.clipped(d, |p| p.text(r, &text, &cx.font, back, Place::Center));
+                p.clipped(d, |p| p.text(r, &text, &cx.font, on(fore), Place::Center));
+            }
+            if let Some(points) = wedge {
+                p.clipped_polygon(points, |p| p.text(r, &text, &cx.font, on(fore), Place::Center));
             }
         }
     }

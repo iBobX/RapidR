@@ -508,8 +508,9 @@ impl TreeView {
 // and the lines to its siblings (ShowLines) are centred in the column
 // before its own; its icons (state image, image) and text follow.
 
-/// A tree's rows' height (GetItemAt's rows, the kernel's drawing).
-pub const ROW_HEIGHT: i64 = 18;
+/// A tree's rows' height (GetItemAt's rows, the kernel's drawing): 16, as
+/// Windows' tree view shows MS Sans Serif 8 (a line and 3; RapidQ's capture).
+pub const ROW_HEIGHT: i64 = 16;
 /// A button's box (9 × 9, centred on its column's middle).
 pub const BUTTON: i64 = 9;
 
@@ -741,7 +742,7 @@ mod tests {
         assert_eq!(t.hit(40, 40, ROW_HEIGHT), None);
         t.set_expanded(0, true, false);
         let rows = t.rows(ROW_HEIGHT, 200);
-        assert_eq!(rows.iter().map(|r| (r.node, r.top)).collect::<Vec<_>>(), [(0, 0), (1, 18), (2, 36), (3, 54)]);
+        assert_eq!(rows.iter().map(|r| (r.node, r.top)).collect::<Vec<_>>(), [(0, 0), (1, 16), (2, 32), (3, 48)]);
         // (a child: its column's middle, the root's line passing through)
         assert_eq!((rows[1].center, rows[1].left, rows[1].through.clone(), rows[2].more), (Some(28), 40, vec![9], false));
         // (cut at the height)

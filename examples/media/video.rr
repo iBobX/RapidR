@@ -62,6 +62,9 @@ IF Video.Open("clip.tmp.avi") THEN
     Video.Left = 50: Video.Top = 50
     Video.Width = Video.ImgWidth * 3
     Video.Height = Video.ImgHeight * 3
+    ' MCI keeps the video's window hidden until Show or Play: Show puts
+    ' its first frame there now
+    Video.Show
     Info.Caption = STR$(Video.Lenght) + " frames of " + STR$(Video.ImgWidth) + "x" + STR$(Video.ImgHeight)
 ELSE
     Info.Caption = "Can't open it: " + Video.Error

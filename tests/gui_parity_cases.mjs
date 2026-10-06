@@ -61,14 +61,16 @@ export const cases = [
   // light columns, a lit segment (cyan), an unlit one's dither.
   { name: "bevel_display", events: "btn.onclick,edge.onclick,clock.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=-02021 12:34602460 00FFFF00|00008000|00000000cc"],
-    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]], clientWidth: 358 },
+    pixels: [[50, 10, "ffffff"], [50, 11, "a0a0a0"], [328, 30, "a0a0a0"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]], clientWidth: 358 },
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",
     expect: ["btn(1).caption=Button1", "btn(2).caption=Hit Button2", "btn(3).caption=Hit Hit Button3"] },
   { name: "statusbar_panels", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=Ready|Line 42|INS|3|150"] },
-  { name: "listview_columns", events: "lv.__mousedown_20_67,lv.__mouseup_20_67", dump: "lbl.caption",
+  // (a click on the third row: under a 17-pixel header, rows 14 high —
+  // Windows' classic list view in MS Sans Serif 8)
+  { name: "listview_columns", events: "lv.__mousedown_20_57,lv.__mouseup_20_57", dump: "lbl.caption",
     expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
   { name: "listview_views", events: "lv.__mousedown_45_31,lv.__mouseup_45_31,lv.__mousedown_8_49,lv.__mouseup_8_49,lv.__key_40,lv.__key_32,lv.__mousedown_150_10,lv.__mouseup_150_10,btn2.onclick,lv.__mousedown_190_20,lv.__mouseup_190_20,lv.__edit,lv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0:2 k c1:2 k c0:2 c1:2 c1:2 h1 c1:2 c2:2 k c2:0 | 2 0 Apple 0 2 0"] },
@@ -77,7 +79,7 @@ export const cases = [
   { name: "string_grid", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|-1"] },
   { name: "align_layout", events: "btn.onclick", dump: "loose.caption,side.caption,bar.caption,status.simpletext", resize: "600,350", split: "split:60",
-    expect: ["loose.caption=105,40,233,205|100|245", "side.caption=moved160|160|165", "bar.caption=600x350|373x255|538|150", "status.simpletext=433|255|5|598"] },
+    expect: ["loose.caption=103,40,235,210|100|250", "side.caption=moved160|160|163", "bar.caption=600x350|375x260|538|150", "status.simpletext=435|260|5|598"] },
   { name: "list_items", events: "items.onclick", dump: "summary.caption,lbl.caption",
     expect: ["summary.caption=5|zero|four|a/b & c|3|Applepear|2|2", "lbl.caption=picked 3 four"] },
   { name: "picture_resource", events: "img.onclick,img.onclick", dump: "summary.caption,lbl.caption",
@@ -97,9 +99,9 @@ export const cases = [
   { name: "coolbtn_group", events: "b.onclick,b.onclick,d.onclick,e.onclick,e.onclick,setter.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=B-1 B-1 D0 E-1 E0 setC |00-100"] },
   { name: "canvas_onpaint", events: "btn.onclick,big.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=paints3|form1|255|15790320|220x80|36"] },
+    expect: ["lbl.caption=paints3|form1|255|15790320|220x80|35"] },
   { name: "form_draw", events: "big.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=paints2|255|14737632|36|"] },
+    expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
   { name: "dotted_paint", events: "", dump: "lbl.caption",
@@ -132,7 +134,7 @@ export const cases = [
     expect: ["lbl.caption=00000000|00000002|00000080|00FF00FF", "lbl2.caption=ok 000000FF 00123456|cancel 000000FF"] },
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
   { name: "font_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
-    expect: ["lbl.caption=Arial|10|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 000000FF|cancel Courier New"] },
+    expect: ["lbl.caption=MS Sans Serif|8|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 000000FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
   { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
@@ -175,7 +177,7 @@ export const cases = [
   { name: "tab_control", events: "tab.__key_39,tab.__key_39,tab.__mousedown_8_10,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=0Tab 2340200|1FirstTab 2|2Tab 2,0First,10|4332196"] },
   { name: "autoscroll", events: "box.__mousedown_140_90,box.__mouseup_140_90,box.__mousedown_102_90,box.__mouseup_102_90,box.__mousedown_50_30,box.__mouseup_50_30,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=301209425290-1|14679300|216184-96|881121|020096"] },
+    expect: ["lbl.caption=3012094252901|14679220|216184-96|741261|020096"] },
   { name: "onshow_scroll", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=show;333x283"] },
   { name: "form_visible", events: "btn.onclick,btn.onclick", dump: "lbl.caption",
@@ -186,7 +188,7 @@ export const cases = [
     expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
       "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
   { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=36x18 30x15"] },
+    expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
   // (Stage 10: the IDE's components)
@@ -202,8 +204,9 @@ export const cases = [
     expect: ["lbl.caption=pd5pcpu pDpd5pu ldlclu lDldlu gdgcgu gDgdgu idiciu iDidiu cdcccu cdcccu fdfcfu fDfdfu "] },
   // (a click on the selected node / item, then the double-click time —
   // a dozen events of nothing, 50 ms each — then "Renamed" and Enter;
-  // a double click instead: no edit)
-  { name: "pause_edit", events: "tv.__node_1,tv.__node_1,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,tv.__enter,lv.__mousedown_10_31,lv.__mouseup_10_31,lv.__mousedown_10_31,lv.__mouseup_10_31,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,lv.__mousedown_10_48,lv.__mouseup_10_48,lv.__dblclick_10_48,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,btn.onclick", dump: "lbl.caption",
+  // a double click instead: no edit; the list view's rows 14 high under a
+  // 17-pixel header)
+  { name: "pause_edit", events: "tv.__node_1,tv.__node_1,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,tv.__enter,lv.__mousedown_10_31,lv.__mouseup_10_31,lv.__mousedown_10_31,lv.__mouseup_10_31,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,lv.__mousedown_10_40,lv.__mouseup_10_40,lv.__dblclick_10_40,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lbl.onclick,lv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=ing1 ed1:Renamed c0:2 c0:0 c0:2 c1:2 dbl |Renamed Renamed two"] },
   // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
   // the bar, and on the corner once SizeGrip is off)
@@ -272,6 +275,11 @@ export const cases = [
   // as an independent decoder gives them, the picture at 200 %)
   { name: "video_player", events: "b1.onclick," + Array(50).fill("b2.onclick").join(","), dump: "lbl.caption",
     expect: ["lbl.caption=0 Cannot find the specified  | 1 8 0 32x24 32x24 -1 3 3 1 1 end 0 0 -1 0 | 1 34x26 video_clip.tmp.avi 128 122x55 Clip 5 3"],
+    pixels: [[23, 73, "101010"], [55, 89, "dc3c14"], [81, 115, "f0d7c8"]], clientWidth: 318 },
+  // (shown, never played: the frame it was sought to — frame 5's key
+  // frame, 4, as video_player's window is left — on the window)
+  { name: "video_show", events: "b1.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=1 3 5 0"],
     pixels: [[23, 73, "101010"], [55, 89, "dc3c14"], [81, 115, "f0d7c8"]], clientWidth: 318 },
   { name: "dx_joystick", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption",
     joystick: "x=0,b=1,name=Pad;x=65535,y=0,b=2;y=65535,pov=9000,b=3,name=Pad;b=1;b=1,x=0;b=0,x=0;-",

@@ -800,16 +800,56 @@ pub fn dxjoystick_look(id: &str) -> Vec<(&'static str, Vec<Value>)> {
     .unwrap_or_default()
 }
 
+/// RapidQ's font for every component, a canvas's and a new QFONT's (RC.EXE:
+/// `Font.Name` reads MS Sans Serif, `Font.Size` 8 — Delphi's default; the
+/// face RapidR draws it with is RapidR Sans, `objects::text`).
+pub const DEFAULT_FONT_NAME: &str = "MS Sans Serif";
+pub const DEFAULT_FONT_SIZE: i64 = 8;
+
+/// A component's font property `flat` (`fontname`, `fontsize`, `fontbold`
+/// …) as RapidQ has it: its own when the program set one, else its
+/// parent's, followed live (Delphi's ParentFont), else RapidQ's default
+/// (MS Sans Serif, 8, no styles) — what the program reads and what's drawn.
+pub fn inherited_font_prop(id: &str, flat: &str, props: &dyn Fn(&str, &str) -> Value) -> Value {
+    let mut at = id.to_string();
+    for _ in 0..32 {
+        let v = props(&at, flat);
+        if !matches!(v, Value::Null) && !(flat == "fontname" && v.to_string_val().trim().is_empty()) {
+            return v;
+        }
+        let parent = props(&at, "parent").to_string_val();
+        if parent.is_empty() || parent.eq_ignore_ascii_case(&at) {
+            break;
+        }
+        at = parent;
+    }
+    match flat {
+        "fontname" => v_str(DEFAULT_FONT_NAME),
+        "fontsize" => crate::v_int(DEFAULT_FONT_SIZE),
+        _ => crate::v_int(0),
+    }
+}
+
+/// The flat property a component's font property is kept as (`font.name`,
+/// `fontname` → `fontname`; size, bold, italic, underline, strikeout), for
+/// [`inherited_font_prop`]; None for the colour (read its own way) and the
+/// rest.
+pub fn font_flat_name(prop: &str) -> Option<&'static str> {
+    let p = prop.to_ascii_lowercase();
+    let p = p.strip_prefix("font.").map(|s| format!("font{s}")).unwrap_or(p);
+    ["fontname", "fontsize", "fontbold", "fontitalic", "fontunderline", "fontstrikeout"].into_iter().find(|f| *f == p)
+}
+
 /// The font a component's properties describe (`Font = Font`, `Font.Size = …`
 /// keep them as `fontname`, `fontsize` (points), `fontcolor`, `fontbold`, …):
 /// what text drawn for the component (a form's surface, a list's items) uses.
 pub fn font_from_props(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Font {
-    let name = props(id, "fontname").to_string_val();
-    let flag = |p: &str| props(id, p).to_bool();
-    let size = props(id, "fontsize").to_i64();
+    let name = inherited_font_prop(id, "fontname", props).to_string_val();
+    let flag = |p: &str| inherited_font_prop(id, p, props).to_bool();
+    let size = inherited_font_prop(id, "fontsize", props).to_i64();
     Font {
-        name: if name.trim().is_empty() { "Arial".into() } else { name },
-        size: if size > 0 { size } else { 10 },
+        name: if name.trim().is_empty() { DEFAULT_FONT_NAME.into() } else { name },
+        size: if size > 0 { size } else { DEFAULT_FONT_SIZE },
         color: color_bgr(props(id, "fontcolor").to_i64()) as i64,
         styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
     }

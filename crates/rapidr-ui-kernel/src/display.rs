@@ -118,6 +118,8 @@ fn op_line(op: &Op) -> String {
         }
         Op::Focus { rect: r } => format!("focus {}", rect(*r)),
         Op::Arrow { color, .. } => format!("arrow #{color:06x}"),
+        Op::Polygon { points, color } => format!("polygon {} points #{color:06x}", points.len()),
+        Op::Checker { rect: r, a, b } => format!("checker {} #{a:06x}/#{b:06x}", rect(*r)),
         Op::Round { rect: r, radius, fill, stroke, width } => {
             let c = |c: &Option<u32>| c.map_or("-".into(), |c| format!("#{c:06x}"));
             format!("round {} r{radius} fill {} stroke {} w{width}", rect(*r), c(fill), c(stroke))
@@ -125,6 +127,7 @@ fn op_line(op: &Op) -> String {
         Op::Stroke { points, color, width } => format!("stroke {} points #{color:06x} w{width}", points.len()),
         Op::Image { source, revision, rect: r } => format!("image {source}#{revision} {}", rect(*r)),
         Op::ClipPush { rect: r } => format!("clip {}", rect(*r)),
+        Op::ClipPolygon { points } => format!("clip polygon {} points", points.len()),
         Op::ClipPop => "unclip".to_string(),
     }
 }

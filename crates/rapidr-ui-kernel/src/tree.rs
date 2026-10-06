@@ -160,6 +160,10 @@ impl FormUi {
         };
         f.rebuild(store);
         f.focus = f.tab_order(store).first().copied();
+        // (a QEDIT focused as the form shows selects its text: AutoSelect)
+        if let Some(i) = f.focus {
+            crate::focus::select_on_entry(&f.nodes[i].id, &f.nodes[i].type_name);
+        }
         f
     }
 

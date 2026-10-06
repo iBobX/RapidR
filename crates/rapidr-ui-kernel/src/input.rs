@@ -191,7 +191,7 @@ impl FormUi {
                     self.pressed = Some(i);
                 }
                 if out.focus.unwrap_or(true) && self.can_focus(store, i) {
-                    self.set_focus(Some(i));
+                    self.set_focus_by_click(Some(i));
                 }
             }
         } else if button == Button::Left && clicks >= 2 && clicks.is_multiple_of(2) {

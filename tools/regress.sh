@@ -12,7 +12,8 @@
 #
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
-#                                     examples, gui, web, legal), caches kept
+#                                     examples, gui, visual, web, legal),
+#                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
 # The suites build into tests/conformance/.work and the unit tests into
@@ -28,7 +29,7 @@ export RAPIDR_PRINT_TO="$PWD/$W/prints"
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
-[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui web legal); CLEAN=1; }
+[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web legal); CLEAN=1; }
 # (what's inside $W: it may be a link to a build volume)
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -46,6 +47,10 @@ if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 
 if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | grep -E "✗|^    |Examples:"; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
+# (the visual gallery: every case and GUI example captured at 1× and 2× in
+# each theme, compared with its approved image — tests/visual/README.md;
+# a deliberate change is approved with tools/visual/gallery.py approve)
+if want visual; then echo "== visual gallery"; python3 tools/visual/gallery.py check 2>&1 | grep -E "✗|^visual:|sheet:"; fi
 if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
   # (the UI kernel hosts the web — docs/web-host-plan.md: the cases' dumps
@@ -53,8 +58,8 @@ if want web; then
   # byte for byte against the desktop's own captures, made here by
   # tests/gui_captures.mjs at 1× and 2×; what the page shows outside the
   # windows by the cases' webCheck. Known ≠: menus / themes (the desktop's
-  # macOS menu bar), message_icons / message_dialogs, design_surface 1×,
-  # modal_result 2× (wasm SIMD's rounding, one or two pixels by one level))
+  # macOS menu bar), message_icons / message_dialogs, align_layout 1× (its
+  # status bar's text) — wasm SIMD's rounding, one or two pixels by one level)
   echo "== desktop captures for the web"; node tests/gui_captures.mjs "$PWD/$W/gui_captures" 2>&1 | tail -1
   echo "== web gui parity"; RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"

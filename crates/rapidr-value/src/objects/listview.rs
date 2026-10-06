@@ -108,7 +108,8 @@ const HIGHLIGHT: u32 = 0xD77800;
 #[cfg(test)]
 const INACTIVE: u32 = 0xF0F0F0;
 #[cfg(test)]
-const BORDER: u32 = 0x908782;
+// (the classic client edge's outer line, the shadow, &HBBGGRR)
+const BORDER: u32 = 0xA0A0A0;
 #[cfg(test)]
 const CHECK_INK: u32 = 0x333333;
 
@@ -745,12 +746,15 @@ impl ListView {
     fn layout(&self) -> Layout {
         let font = &self.view.font;
         let text_h = text_size("Ag", font).1.max(1);
-        let inset = if self.border_style == 0 { 0 } else { 1 };
+        // (Windows' client edge: two pixels, in every theme)
+        let inset = if self.border_style == 0 { 0 } else { 2 };
         let (w, h) = (self.view.width.max(0), self.view.height.max(0));
-        let header_h = if self.has_header() { text_h + 6 } else { 0 };
+        // (as Windows' classic list view: a header 17 pixels high, rows 14,
+        // in MS Sans Serif 8 — RapidQ's capture)
+        let header_h = if self.has_header() { text_h + 4 } else { 0 };
         let small = self.small_size();
         let slot_h = small.map_or(0, |s| s.1).max(self.state_slot().map_or(0, |s| s.1));
-        let row_h = (text_h + 3).max(slot_h + 1);
+        let row_h = (text_h + 1).max(slot_h + 1);
         let n = self.items.len() as i64;
         // The widest caption with its images (list and small icon views).
         let item_w = |it: &Item| {
@@ -1047,7 +1051,23 @@ impl ListView {
             b.fill_rect(v.rect.0, hz.rect.1, v.rect.2, hz.rect.3, c.bar_track);
         }
         if l.inset > 0 {
-            b.rectangle(0, 0, w, h, c.border);
+            if crate::theme::current().fluent() {
+                b.rectangle(0, 0, w, h, c.border);
+                b.rectangle(1, 1, w - 1, h - 1, c.window);
+            } else {
+                // (sunken: the shadow then the dark shadow above, white then
+                // COLOR_3DLIGHT below)
+                let t = crate::theme::current();
+                let (s, d, l3, lt) = (crate::theme::bgr(t.shadow), crate::theme::bgr(t.dark_shadow), crate::theme::bgr(t.light3d), crate::theme::bgr(t.light));
+                b.line(0, 0, w - 1, 0, s);
+                b.line(0, 0, 0, h - 1, s);
+                b.line(1, 1, w - 2, 1, d);
+                b.line(1, 1, 1, h - 2, d);
+                b.line(0, h - 1, w - 1, h - 1, lt);
+                b.line(w - 1, 0, w - 1, h - 1, lt);
+                b.line(1, h - 2, w - 2, h - 2, l3);
+                b.line(w - 2, 1, w - 2, h - 2, l3);
+            }
         }
         b
     }
@@ -1487,7 +1507,7 @@ mod tests {
         let lv = report();
         let l = lv.layout();
         eprintln!("METRICS header_h={} row_h={} text_h={} view={:?}", l.header_h, l.row_h, l.text_h, l.view);
-        assert_eq!((l.header_h, l.row_h), (l.text_h + 6, l.text_h + 3));
+        assert_eq!((l.header_h, l.row_h), (l.text_h + 4, l.text_h + 1));
     }
 
     #[test]

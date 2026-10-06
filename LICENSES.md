@@ -102,6 +102,15 @@ the RapidR runtimes (desktop apps, the interpreter runner and the web
 WebAssembly), which draw text on bitmaps with them; they have the same
 character widths as Arial, Times New Roman and Courier New.
 
+Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified
+Version of Liberation Sans under the same licence, renamed as the OFL
+requires (it carries none of the Reserved Font Names): Liberation Sans with
+each Windows-1252 character as wide as MS Sans Serif's at 8 pt and MS Sans
+Serif's line metrics — the face RapidR draws RapidQ's default font with.
+`tools/fonts/make_rapidr_sans.py` makes it; the widths are measurements of
+RapidQ's `TextWidth`, no Microsoft font data
+(`crates/rapidr-value/fonts/README.md`).
+
 > Digitized data copyright (c) 2010 Google Corporation with Reserved Font
 > Arimo, Tinos and Cousine. Copyright (c) 2012 Red Hat, Inc. with Reserved
 > Font Name Liberation.

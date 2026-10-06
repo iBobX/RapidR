@@ -49,6 +49,7 @@ await page.evaluate(() => {
     '    Panel(0).Width = 150',
     '  END CREATE',
     '  CREATE SB2 AS QSTATUSBAR',
+    '    SimplePanel = 1',
     '    SimpleText = "<b>plain</b>"',
     '  END CREATE',
     'END CREATE',
@@ -135,9 +136,9 @@ ok(lv.count === "5" && lv.columns === "3", `five items in three columns (${lv.co
 ok(JSON.stringify(lv.items) === JSON.stringify(["readme.txt", "first.txt", "photo.jpg", "data.bin", "<b>not bold</b>"]), `its items, the text as it is (${JSON.stringify(lv.items)})`);
 ok(lv.index === "2" && lv.selected === 2, `ItemIndex = 2 (${lv.index}; selected in the mirror: ${lv.selected})`);
 
-// Row 3 (the header 21 px high, rows 18: its middle at y = 1 + 21 + 3 * 18 + 9),
-// a real click there.
-await k.click(frame, "LV", [20, 85]);
+// Row 3 (the client edge 2, the header 17 px high, rows 14 — Windows' classic
+// list view: its middle at y = 2 + 17 + 3 * 14 + 7), a real click there.
+await k.click(frame, "LV", [20, 68]);
 await page.waitForTimeout(300);
 const clicked = await k.text(frame, "Lbl");
 ok(clicked === "3|data.bin|Deflated|5|3|200|Method", `clicking a row sets ItemIndex and fires OnClick (${clicked})`);

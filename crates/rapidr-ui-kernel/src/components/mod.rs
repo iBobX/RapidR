@@ -16,6 +16,7 @@ pub mod mdi;
 pub mod memo;
 pub mod richedit;
 pub mod panel;
+pub mod scrollbar;
 pub mod scrollbox;
 pub mod splitter;
 pub mod statusbar;
@@ -103,6 +104,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RBEVEL", &panel::Bevel),
     ("RDIGDISPLAY", &canvas::DigDisplay),
     ("RGLASSFRAME", &glass::GlassFrame),
+    ("RSCROLLBAR", &scrollbar::ScrollBar),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

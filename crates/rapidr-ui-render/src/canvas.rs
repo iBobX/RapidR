@@ -30,6 +30,8 @@ pub trait Canvas {
     /// An outline `width` device pixels wide.
     fn stroke_path(&mut self, width: f64, rgb: u32, path: &BezPath);
     fn push_clip(&mut self, transform: Affine, rect: &KRect);
+    /// Clips to a path (device pixels) until the matching `pop_clip`.
+    fn push_clip_path(&mut self, path: &BezPath);
     fn pop_clip(&mut self);
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]);
     /// A picture scaled into `rect` (device pixels), smoothly; `source` and
@@ -47,8 +49,9 @@ pub struct GlyphRun<'a> {
     /// Synthetic italic (a horizontal skew).
     pub glyph_transform: Option<Affine>,
     pub coords: &'a [i16],
-    /// Synthetic bold: how far outlines grow (device pixels).
-    pub embolden: Option<f64>,
+    /// Synthetic bold: how far outlines grow sideways and up and down
+    /// (device pixels).
+    pub embolden: Option<(f64, f64)>,
 }
 
 /// 0xRRGGBB as a vello colour.
@@ -135,6 +138,37 @@ impl<'a> Painter<'a> {
         if let Some(s) = shape.stroke {
             self.canvas.stroke_path(lw, s, &path);
         }
+    }
+
+    /// Windows' 50 % pattern in a logical rectangle (`Op::Checker`): a
+    /// picture of it at the device's resolution — each logical pixel a
+    /// whole block of device pixels, drawn pixel for pixel, so crisp —
+    /// kept between frames by its size, phase and colours.
+    fn checker(&mut self, r: Rect, a: u32, b: u32) {
+        let (x, y, w, h) = r;
+        if w <= 0 || h <= 0 {
+            return;
+        }
+        if a == b {
+            self.fill(r, b);
+            return;
+        }
+        let dr = self.device_rect(r);
+        let (pw, ph) = (dr.width().round().max(1.0) as usize, dr.height().round().max(1.0) as usize);
+        let phase = (x + y).rem_euclid(2);
+        let source = format!("checker:{pw}x{ph}:{w}x{h}:{phase}:{a:06x}:{b:06x}");
+        let (sx, sy) = (pw as f64 / w as f64, ph as f64 / h as f64);
+        let mut rgba = Vec::with_capacity(pw * ph * 4);
+        for py in 0..ph {
+            let ly = (py as f64 / sy).floor() as i64;
+            for px in 0..pw {
+                let lx = (px as f64 / sx).floor() as i64;
+                let c = if (lx + ly + phase) % 2 == 1 { a } else { b };
+                rgba.extend_from_slice(&[(c >> 16) as u8, (c >> 8) as u8, c as u8, 255]);
+            }
+        }
+        let picture = Arc::new(Picture { width: pw, height: ph, rgba });
+        self.canvas.image(&dr, &source, 0, &picture);
     }
 
     /// A filled polygon, exactly where its logical points fall.
@@ -240,6 +274,8 @@ impl<'a> Painter<'a> {
                 }
             }
             Op::Arrow { points, color } => self.polygon(points, *color),
+            Op::Polygon { points, color } => self.polygon(points, *color),
+            Op::Checker { rect, a, b } => self.checker(*rect, *a, *b),
             Op::Round { rect, radius, fill, stroke, width } => self.round(*rect, *radius, *fill, *stroke, *width),
             Op::Stroke { points, color, width } => self.polyline(points, *color, *width),
             // (a picture the display list carries: a component's own, or a
@@ -253,6 +289,20 @@ impl<'a> Painter<'a> {
             Op::ClipPush { rect } => {
                 let r = self.device_rect(*rect);
                 self.canvas.push_clip(Affine::IDENTITY, &r);
+            }
+            Op::ClipPolygon { points } => {
+                let (ox, oy) = (self.origin.0 as f64, self.origin.1 as f64);
+                let mut path = BezPath::new();
+                for (i, (x, y)) in points.iter().enumerate() {
+                    let p = ((ox + x) * self.scale, (oy + y) * self.scale);
+                    if i == 0 {
+                        path.move_to(p)
+                    } else {
+                        path.line_to(p)
+                    }
+                }
+                path.close_path();
+                self.canvas.push_clip_path(&path);
             }
             Op::ClipPop => self.canvas.pop_clip(),
         }
@@ -281,7 +331,9 @@ pub fn draw_layout(canvas: &mut dyn Canvas, layout: &Layout<Ink>, transform: Aff
                     transform,
                     glyph_transform: synthesis.skew().map(|a| Affine::skew(f64::from(a).to_radians().tan(), 0.0)),
                     coords: run.normalized_coords(),
-                    embolden: synthesis.embolden().then(|| f64::from(size) / 48.0),
+                    // (a synthetic bold as heavy as a real one: about a pixel wider at
+                    // 8 pt, as Windows' bold is, a little taller)
+                    embolden: synthesis.embolden().then(|| (f64::from(size) / 24.0, f64::from(size) / 96.0)),
                 },
                 &glyphs,
             );

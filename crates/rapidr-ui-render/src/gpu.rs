@@ -25,6 +25,9 @@ impl Canvas for Scene {
     fn push_clip(&mut self, transform: Affine, rect: &KRect) {
         self.push_clip_layer(Fill::NonZero, transform, rect);
     }
+    fn push_clip_path(&mut self, path: &BezPath) {
+        self.push_clip_layer(Fill::NonZero, Affine::IDENTITY, path);
+    }
     fn pop_clip(&mut self) {
         self.pop_layer();
     }
@@ -37,8 +40,8 @@ impl Canvas for Scene {
             .glyph_transform(run.glyph_transform)
             .font_size(run.size)
             .normalized_coords(run.coords);
-        if let Some(a) = run.embolden {
-            draw = draw.font_embolden(FontEmbolden::new(Diagonal2::new(a, a)));
+        if let Some((ax, ay)) = run.embolden {
+            draw = draw.font_embolden(FontEmbolden::new(Diagonal2::new(ax, ay)));
         }
         draw.draw(Fill::NonZero, glyphs.iter().map(|&(id, x, y)| Glyph { id, x, y }));
     }
