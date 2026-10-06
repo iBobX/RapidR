@@ -222,6 +222,7 @@ pub fn dialog(source: &str) -> Result<String, String> {
 
 /// `rapidr __dialog <file.bas>` (the child of [`dialog`]): compile and run.
 pub fn run_dialog(path: &str) -> ExitCode {
+    rapidr_vm_host_native::set_program(path, Vec::new());
     match crate::compile_to_bytecode(path).map(|c| c.module.to_bytes()).and_then(|b| rapidr_vm_host_native::run_bytes(&b)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

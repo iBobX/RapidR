@@ -137,6 +137,9 @@
       };
 
       window.__rapidr_assets = data.assets || {};
+      // (the program's command line — COMMAND$(n), CommandCount — is its
+      // own, never this frame's query string, which is the IDE's)
+      window.RAPIDR_ARGS = Array.isArray(data.args) ? data.args.map(String) : [];
       installStorage(data.storage);
 
       const url = URL.createObjectURL(new Blob([data.runtimeJs], { type: "text/javascript" }));

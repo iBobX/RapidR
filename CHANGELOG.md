@@ -69,6 +69,27 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   authors and messages; today's tree unchanged). Clones made before
   2026-10-06 should be cloned again.
 
+### Fixed
+- **A program sees only its own command line**, however it runs. `rapidr
+  run-bc prog.rrbc a b` handed the program the runner's own arguments
+  (`COMMAND$` was "run-bc prog.rrbc a b"; the IDE opened "run-bc …" as a
+  file), and so did a standalone runner's `--bytecode <file>`; now they
+  set the program to the file with the arguments after it, as `rapidr run`,
+  `rapidr open`, the IDE and built executables do. An old macOS's `-psn_…`
+  argument (Finder's process number) is no argument either.
+- **`COMMAND$(n)` and `CommandCount`**, as RapidQ's (RC.EXE, checked in
+  the Windows VM): `CommandCount` was an unknown name (0) and `COMMAND$(n)`
+  ignored `n`. Now `COMMAND$(0)` is the program's file, `COMMAND$(1)` …
+  its arguments (`"b c"` one), any other index ""; the bare `COMMAND$`
+  stays RapidR's (the arguments joined with spaces). On the web the
+  arguments are the page's query string's parts (`?a&b%20c`: `a`, `b c`),
+  decoded, or the ones a page hands its program (`window.RAPIDR_ARGS`):
+  the web IDE's preview gives none, never its frame's own query string
+  (a program there saw "role=run&v=…"). Shared by every runtime (`rapidr_value::command_line`);
+  conformance cases `command_line_args` (with the runner's new
+  `<case>.args`) and `command_line_none`, the web bundle's query string in
+  `tests/web_bundle_console.mjs`.
+
 ## [2.117.0] — 2026-10-06
 
 ### Added

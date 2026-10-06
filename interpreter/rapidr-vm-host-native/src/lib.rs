@@ -257,7 +257,8 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "inkey" => rp_inkey(),
         "rapidr__waitkey" => rp_waitkey(),
         "sleep" => { rp_sleep(&a0); v_null() }
-        "command" => rp_command(),
+        "command" => if args.is_empty() { rp_command() } else { rp_command_arg(&a0) },
+        "commandcount" => rp_commandcount(),
         "environ" => rp_environ(&a0),
         "doevents" => { rp_doevents(); v_null() }
         "end" => { rp_end(); v_null() }
