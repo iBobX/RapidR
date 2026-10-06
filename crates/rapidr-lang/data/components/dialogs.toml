@@ -7,6 +7,7 @@ rapidq = "QOPENDIALOG"
 visual = false
 doc = "The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed."
 properties = [
+  { name = "PickFolder", type = "bool", default = false, origin = "rapidr", doc = "Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back)." },
   { name = "Caption", type = "string" },
   { name = "FileName", type = "string" },
   { name = "Filter", type = "string" },

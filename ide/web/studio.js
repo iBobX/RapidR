@@ -11,12 +11,17 @@ const t0 = performance.now();
 
 async function main() {
   const params = new URLSearchParams(location.search);
+  // (the page is Studio's window: maximized, it fills the page — unless
+  // ?window=normal, the tests' 1280 x 800, the desktop's)
   const args = ["--home", "."];
+  if (params.get("window") !== "normal") args.push("--maximized");
   if (params.get("theme")) args.push("--theme", params.get("theme"));
   if (params.has("fresh")) args.push("--fresh");
   if (params.get("do")) args.push("--do", params.get("do"));
   if (params.get("open")) args.push(params.get("open"));
   window.RAPIDR_ARGS = args;
+  // (Studio is the whole page: F5, F6 and Ctrl+Tab are its keys)
+  window.RAPIDR_APP_KEYS = true;
   window.RAPIDR_FONTS = new URL("runtime/fonts/", location.href).href;
 
   const [rt, bytes] = await Promise.all([
@@ -27,11 +32,76 @@ async function main() {
     }),
   ]);
   window.rr = rt;
-  if (window.RAPIDR_STUDIO_TEST) rt.rapidr_set_test_env(window.RAPIDR_STUDIO_TEST);
+  if (window.RAPIDR_STUDIO_TEST) {
+    rt.rapidr_set_test_env(window.RAPIDR_STUDIO_TEST);
+    // (a test's files in the page's store, as a folder picker leaves them)
+    for (const f of window.RAPIDR_STUDIO_TEST_FILES || []) rt.rapidr_store_file(f.path, new TextEncoder().encode(f.text), undefined);
+  } else {
+    // (what Studio wrote before — new projects, files saved — back in the
+    // page's store; and from now on each write kept too)
+    await restoreFiles(rt);
+    window.RAPIDR_FILE_SINK = keepFile;
+  }
   say("");
   rt.rapidr_run_bc(new Uint8Array(bytes));
   // (cold start, page load to the shell running: docs/ide-plan.md §6.2)
   window.RAPIDR_STUDIO_STARTED = performance.now() - t0;
+}
+
+// ---- Studio's files in the browser (the origin private file system) ------
+// Every file Studio writes (RAPIDR_FILE_SINK, from the runtime's file
+// writes) is kept in OPFS under rapidr-studio/, its path encoded as one
+// name; at the next visit they go back into the page's store before the
+// shell starts, so projects made or saved in the browser stay. Files the
+// user opened from the computer are written back to those files as well
+// (the runtime's pickers); OPFS keeps a copy. Without OPFS (an old
+// browser, a private window) files last for the visit.
+
+const STORE_DIR = "rapidr-studio";
+
+async function storeDir() {
+  if (!navigator.storage || !navigator.storage.getDirectory) return null;
+  try {
+    const root = await navigator.storage.getDirectory();
+    return await root.getDirectoryHandle(STORE_DIR, { create: true });
+  } catch {
+    return null;
+  }
+}
+
+async function restoreFiles(rt) {
+  const dir = await storeDir();
+  if (!dir) return 0;
+  let n = 0;
+  for await (const [name, h] of dir.entries()) {
+    if (h.kind !== "file") continue;
+    try {
+      const bytes = new Uint8Array(await (await h.getFile()).arrayBuffer());
+      rt.rapidr_store_file(decodeURIComponent(name), bytes, undefined);
+      n++;
+    } catch (e) {
+      console.warn("[studio] can't restore", name, e);
+    }
+  }
+  return n;
+}
+
+// (writes one after the other: the last of a file wins)
+let writing = Promise.resolve();
+function keepFile(path, bytes) {
+  const copy = new Uint8Array(bytes);
+  writing = writing.then(async () => {
+    const dir = await storeDir();
+    if (!dir) return;
+    try {
+      const h = await dir.getFileHandle(encodeURIComponent(path), { create: true });
+      const w = await h.createWritable();
+      await w.write(copy);
+      await w.close();
+    } catch (e) {
+      console.warn("[studio] can't keep", path, e);
+    }
+  });
 }
 
 // ---- the program under development (RPROGRAMSESSION's web host) ----------

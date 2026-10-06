@@ -2663,13 +2663,14 @@ const COMPONENT_REGISTRY = {
         name: 'ROPENDIALOG',
         description: 'The system\'s Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed.',
         rapidq: 'QOPENDIALOG',
-        props: ['caption', 'filename', 'filter', 'filterindex', 'initialdir', 'title', 'defaultext'],
+        props: ['pickfolder', 'caption', 'filename', 'filter', 'filterindex', 'initialdir', 'title', 'defaultext'],
         methods: ['execute'],
         events: [],
         methodSignatures: {
             'execute': { sig: 'Execute AS VARIANT', desc: 'Runs the component\'s action: a dialog shows itself, waits, and returns true when the user confirms.' },
         },
         propDocs: {
+            'pickfolder': 'Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back).',
             'caption': 'The text shown on the control, or a window\'s or dialog\'s title; an `&` before a letter underlines it as the keyboard shortcut.',
             'filename': 'The file chosen in a dialog (with its folder), or the file the object reads or writes.',
             'filter': 'The file types offered, as description|patterns pairs (`Text|*.txt|All Files|*.*`), patterns split by `;`.',
@@ -4629,10 +4630,11 @@ const COMPONENT_REGISTRY = {
         description: 'A RapidR project: a .rrproj file (format 2, or the web IDE\'s v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ\'s way. Lists the project\'s files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.',
         rapidq: null,
         props: ['filename', 'folder', 'kind', 'error', 'name', 'mainfile', 'filecount', 'compatmode'],
-        methods: ['open', 'save', 'new', 'addfile', 'removefile', 'close', 'file', 'filekind', 'fullpath'],
+        methods: ['open', 'openfolder', 'save', 'new', 'addfile', 'removefile', 'close', 'file', 'filekind', 'fullpath'],
         events: ['onchange'],
         methodSignatures: {
             'open': { sig: 'Open(Path AS STRING) AS INTEGER', desc: 'Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not.' },
+            'openfolder': { sig: 'OpenFolder(Folder AS STRING) AS INTEGER', desc: 'Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened.' },
             'save': { sig: 'Save([Path AS STRING]) AS INTEGER', desc: 'Writes the project file (a source file\'s project becomes <Folder>/<Name>.rrproj, or Path). True when it was written.' },
             'new': { sig: 'New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER', desc: 'A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder.' },
             'addfile': { sig: 'AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER', desc: 'Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added.' },

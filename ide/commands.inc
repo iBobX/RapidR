@@ -57,7 +57,8 @@ SUB DefineCommands
   ' ---- File ----
   AddCmd "file.newProject", "&New Project...", "File", "Ctrl+N", "", "", ""
   AddCmd "file.open", "&Open Project or File...", "File", "Ctrl+O", "", "", ""
-  AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "components/RFORM"
+  AddCmd "file.openFolder", "Open &Folder...", "File", "", "", "", "files/folder-open"
+  AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "RFORM"
   AddSep "File"
   AddCmd "file.save", "&Save", "File", "Ctrl+S", "", "document", ""
   AddCmd "file.saveAs", "Save &As...", "File", "", "", "document", "-"
@@ -109,7 +110,7 @@ SUB DefineCommands
 
   ' ---- Project ----
   AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
-  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "project", "components/RFORM"
+  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "project", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
   AddSep "Project"
   AddCmd "project.options", "Project &Options...", "Project", "", "", "project", "settings"
@@ -167,7 +168,7 @@ SUB DefineCommands
 
   ' ---- Help ----
   AddCmd "help.contents", "RapidR &Help", "Help", "F1", "", "", ""
-  AddCmd "help.examples", "&Examples", "Help", "", "", "", "components/RFORM"
+  AddCmd "help.examples", "&Examples", "Help", "", "", "", "RFORM"
   AddSep "Help"
   AddCmd "help.about", "&About RapidR Studio", "Help", "", "", "", "-"
 END SUB

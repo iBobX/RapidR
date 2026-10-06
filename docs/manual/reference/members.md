@@ -2720,6 +2720,7 @@ The system's Open dialog: Execute shows it and returns whether the user chose a 
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `PickFolder` *(RapidR)* | bool | False | Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back). |
 | `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
@@ -4599,6 +4600,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | Method | |
 |---|---|
 | `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
+| `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
 | `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
 | `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder. |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |

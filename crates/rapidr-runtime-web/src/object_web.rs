@@ -380,7 +380,33 @@ pub(crate) fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     web_store_file(path, bytes.to_vec());
     // (a name an Open / Save dialog answered: the user's real file too)
     crate::file_picker_web::written(path, bytes);
+    // (a page that keeps the files its program writes — RapidR Studio's,
+    // in the browser's private file system — hears each one:
+    // `window.RAPIDR_FILE_SINK(path, bytes)`)
+    if let Some(w) = web_sys::window() {
+        if let Ok(f) = js_sys::Reflect::get(&w, &"RAPIDR_FILE_SINK".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+            let _ = f.call2(&JsValue::NULL, &JsValue::from_str(path), &js_sys::Uint8Array::from(bytes).into());
+        }
+    }
     Ok(())
+}
+
+/// The names in the page's store under folder `folder` (directly in it):
+/// RPROJECT.OpenFolder's look at a folder picked on the web.
+pub fn stored_names_in(folder: &str) -> Vec<String> {
+    let prefix = format!("{}/", folder.trim_end_matches('/').replace('\\', "/"));
+    let lower = prefix.to_lowercase();
+    SAVED_FILES.with(|f| {
+        let mut names: Vec<String> = f
+            .borrow()
+            .keys()
+            .filter(|k| k.to_lowercase().starts_with(&lower))
+            .map(|k| k[prefix.len()..].to_string())
+            .filter(|rest| !rest.contains('/'))
+            .collect();
+        names.sort();
+        names
+    })
 }
 
 /// `bytes` as file `path` in the page's store (over a file of the same

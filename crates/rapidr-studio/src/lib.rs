@@ -34,6 +34,9 @@ pub trait Host: Copy + 'static {
     /// arguments: the program's end of the session protocol, waiting for
     /// `start`.
     fn launch(self, program: &str, args: &[String]) -> Result<Box<dyn Transport>, String>;
+    /// The files directly in `folder` (their names; RPROJECT.OpenFolder):
+    /// the disk's on the desktop, the page's store on the web.
+    fn list_files(self, folder: &str) -> Vec<String>;
 }
 
 /// Whether `type_name` (a canonical R name) is one of Studio's components.

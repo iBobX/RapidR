@@ -72,6 +72,10 @@ impl Host for Web {
             },
         )))
     }
+
+    fn list_files(self, folder: &str) -> Vec<String> {
+        crate::object_web::stored_names_in(folder)
+    }
 }
 
 /// A property of one of Studio's components (`None`: not its own).

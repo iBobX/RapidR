@@ -977,6 +977,15 @@ fn compile_for_studio(main: &str, files: Vec<(String, String)>) -> Result<Vec<u8
     compile_inner(main, &source, files, &JsValue::UNDEFINED)
 }
 
+/// (RapidR Studio's page) A file into the page's store before (or while)
+/// the program runs: the files the page keeps in the browser's private
+/// file system, restored; `handle`: a FileSystemFileHandle its writes go
+/// back to (else undefined).
+#[wasm_bindgen]
+pub fn rapidr_store_file(path: &str, bytes: &[u8], handle: JsValue) {
+    rapidr_runtime_web::file_picker_web::keep_file(path, bytes.to_vec(), Some(handle));
+}
+
 /// (RapidR Studio's page) The program under development's frame sent an
 /// event (session protocol JSON): the session's events fire.
 #[wasm_bindgen]

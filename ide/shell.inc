@@ -69,6 +69,7 @@ SUB RunCommand(Id AS STRING)
     ' ---- file ----
     CASE "file.newProject": AskNew
     CASE "file.open": AskOpen
+    CASE "file.openFolder": AskOpenFolder
     CASE "file.openExample": ShowPalette: PaletteEdit.Text = "Example"
     CASE "file.save": SaveDocument d
     CASE "file.saveAs": SaveDocumentAs
@@ -219,7 +220,8 @@ SUB ProblemOpen
 END SUB
 
 ' ---- start-up ----------------------------------------------------------------------
-' Arguments: [--home <RapidR's folder>] [--theme <name>] [--fresh] [file]:
+' Arguments: [--home <RapidR's folder>] [--theme <name>] [--fresh]
+' [--maximized] [--do id,…] [file]:
 ' `rapidr ide [file]` on the desktop, the web page's (RAPIDR_ARGS) in the
 ' browser. --fresh: the default layout and settings (the tests').
 
@@ -238,6 +240,8 @@ SUB StartStudio
       ThemeChoice = COMMAND$(i)
     ELSEIF a = "--fresh" THEN
       fresh = 1
+    ELSEIF a = "--maximized" THEN
+      Studio.WindowState = 2
     ELSEIF a = "--do" THEN
       i = i + 1
       DoList = COMMAND$(i)

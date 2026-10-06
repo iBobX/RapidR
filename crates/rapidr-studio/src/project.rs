@@ -99,6 +99,27 @@ fn project_path(folder: &str, path: &str) -> String {
     normalize_path(&p)
 }
 
+/// The file a folder opens as a project: its `.rrproj` (the one named as
+/// the folder first), else its main source — `main.rr` / `main.bas`, the
+/// source named as the folder, the one that makes a form, the first.
+pub fn main_of_folder(folder: &str, files: &[String]) -> Option<String> {
+    let base = folder.rsplit('/').next().unwrap_or(folder).to_lowercase();
+    let ext = |f: &str| f.rsplit('.').next().unwrap_or("").to_lowercase();
+    let stem = |f: &str| f.rsplit_once('.').map_or(f, |(s, _)| s).to_lowercase();
+    let mut projects: Vec<&String> = files.iter().filter(|f| ext(f) == "rrproj").collect();
+    projects.sort_by_key(|f| (stem(f) != base, f.to_lowercase()));
+    if let Some(p) = projects.first() {
+        return Some((*p).clone());
+    }
+    let mut sources: Vec<&String> = files.iter().filter(|f| matches!(ext(f).as_str(), "rr" | "bas")).collect();
+    sources.sort_by_key(|f| {
+        let s = stem(f);
+        let form = read_text(&join(folder, f)).map(|t| rapidr_project::defines_form(&t)).unwrap_or(false);
+        (s != "main", s != base, !form, f.to_lowercase())
+    });
+    sources.first().map(|f| (*f).clone())
+}
+
 /// A program's files to compile it where there is no file system (the web):
 /// its main file's name and every (path, text) — the main file and what it
 /// `$INCLUDE`s, paths relative to its folder.
@@ -214,6 +235,17 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
     };
     Some(match method {
         "open" => changing(&|m| open(m, &s(0))),
+        "openfolder" => {
+            let folder = slashes(&s(0)).trim_end_matches('/').to_string();
+            let files = host.list_files(&folder);
+            match main_of_folder(&folder, &files) {
+                Some(f) => changing(&|m| open(m, &join(&folder, &f))),
+                None => {
+                    with(name, |m| m.error = format!("{folder}: no RapidR project or source in it"));
+                    flag(false)
+                }
+            }
+        }
         "save" => changing(&|m| save(m, &s(0))),
         "new" => changing(&|m| new(m, &s(0), &s(1), &s(2))),
         "close" => changing(&|m| {
@@ -249,6 +281,9 @@ mod tests {
         fn fire(self, _name: &str, _event: &str, _args: &[Value]) {}
         fn launch(self, _p: &str, _a: &[String]) -> Result<Box<dyn crate::Transport>, String> {
             Err("no".into())
+        }
+        fn list_files(self, folder: &str) -> Vec<String> {
+            std::fs::read_dir(folder).map(|d| d.filter_map(|e| e.ok()).filter(|e| e.path().is_file()).map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default()
         }
     }
 

@@ -130,6 +130,8 @@ pub struct FileRequest {
     pub filter_index: usize,
     pub dir: Option<String>,
     pub file_name: Option<String>,
+    /// A folder is chosen (QOPENDIALOG.PickFolder, RapidR's).
+    pub folder: bool,
 }
 
 /// What a form's window looks like, as the program set it.

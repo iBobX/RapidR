@@ -11,7 +11,7 @@
 //   node tests/studio_flows.mjs [filter…]
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -48,6 +48,25 @@ const CASES = [
     dump: { "application.theme": /^dark$/, "dock.documentmode": /^tabs$/ },
   },
   {
+    // (the desktop works on a copy: Save All writes the project file)
+    name: "save-project",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    do: "file.saveAll,wait",
+    delay: 3,
+    dump: { "proj.kind": /^project$/, "proj.filename": /hello_form\.rrproj$/, "proj.filecount": /^1$/ },
+  },
+  {
+    name: "open-folder",
+    open: "",
+    folder: "examples/gui",
+    // (the web: the folder's files in the page's store, as showDirectoryPicker leaves them)
+    webFiles: ["examples/gui/dialogs.rr", "examples/gui/hello_form.rr", "examples/gui/menus.rr"],
+    do: "file.openFolder,wait,wait",
+    delay: 4,
+    dump: { "proj.mainfile": /^dialogs\.rr$/, "studio.caption": /^dialogs - RapidR Studio$/ },
+  },
+  {
     name: "palette",
     open: "",
     do: "view.commandPalette",
@@ -62,7 +81,13 @@ function runDesktop(c) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
   if (c.do) args.push("--do", c.do);
-  if (c.open) args.push(c.open);
+  if (c.open && c.copy) {
+    const to = join(dir, c.open.split("/").pop());
+    copyFileSync(join(ROOT, c.open), to);
+    args.push(to);
+  } else if (c.open) {
+    args.push(c.open);
+  }
   const r = spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: 90000,
@@ -75,6 +100,7 @@ function runDesktop(c) {
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
+      ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
     },
   });
   return parseDump(r.stdout || "", Object.keys(c.dump));
@@ -103,12 +129,15 @@ async function runWeb(browser, c) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
+    const files = (c.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
-    const q = new URLSearchParams({ theme: "rapidr-light", fresh: "" });
+    const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal" });
     if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });

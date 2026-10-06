@@ -82,7 +82,7 @@ function runDesktop(scene, theme, scale) {
   const dir = join(scratch, `${scene.name}-${theme}@${scale}x`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const args = ["run", "ide/studio.rr", "--home", ".", "--theme", theme];
+  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", theme];
   if (scene.open) args.push(scene.open);
   const r = spawnSync(RAPIDR, args, {
     cwd: ROOT,
@@ -110,7 +110,7 @@ async function runWeb(browser, scene, theme, scale) {
   page.on("pageerror", (e) => errors.push(e.message));
   try {
     await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = { RAPIDR_CAPTURE: "web" }; });
-    const q = new URLSearchParams({ theme });
+    const q = new URLSearchParams({ theme, window: "normal", fresh: "" });
     if (scene.open) q.set("open", scene.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 60000, polling: 100 });

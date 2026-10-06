@@ -18,7 +18,8 @@ properties = [
 ]
 methods = [
   { name = "Open", params = "Path AS STRING", returns = "INTEGER", test = "skip: needs a project file", doc = "Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not." },
-  { name = "Save", params = "[Path AS STRING]", returns = "INTEGER", test = "skip: writes a file", doc = "Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written." },
+  { name = "OpenFolder", params = "Folder AS STRING", returns = "INTEGER", test = "skip: needs a project folder", doc = "Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened." },
+  { name = "Save", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: writes a file", doc = "Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written." },
   { name = "New", params = "Template AS STRING, Name AS STRING, Folder AS STRING", returns = "INTEGER", test = "skip: writes files", doc = "A new project from a template (\"console\" or \"gui\"): main.rr and <Name>.rrproj written in Folder." },
   { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added." },
   { name = "RemoveFile", params = "Path AS STRING", returns = "INTEGER", doc = "Takes a file out of the project (the file itself stays). True when it was in it." },

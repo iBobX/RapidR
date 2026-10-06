@@ -88,6 +88,9 @@ const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal"
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
 const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout"];
 
+/// (I1) RPROJECT's: `IF Project.Save THEN`.
+const PROJECT: &[&str] = &["save"];
+
 /// The web's own components.
 const WEB: &[&str] = &[
     "sethtml", "navigate", "appendto", "setattribute", "getattribute",
@@ -116,6 +119,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RNUM" | "RDATAFRAME" | "RPLOT" => &[DATA_SCIENCE],
         "RDESIGNSURFACE" => &[DESIGN],
         "RPROGRAMSESSION" => &[SESSION],
+        "RPROJECT" => &[PROJECT],
         "RSTRINGGRID" => &[GRID],
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
@@ -130,7 +134,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, SESSION]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, SESSION, PROJECT]
         .iter()
         .any(|list| list.contains(&member))
 }

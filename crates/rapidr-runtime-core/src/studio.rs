@@ -53,6 +53,18 @@ impl Host for Desktop {
             .map(|t| Box::new(t) as Box<dyn Transport>)
             .map_err(|e| format!("{}: {e}", exe.display()))
     }
+
+    fn list_files(self, folder: &str) -> Vec<String> {
+        Desktop::files_in(folder)
+    }
+}
+
+impl Desktop {
+    fn files_in(folder: &str) -> Vec<String> {
+        std::fs::read_dir(folder)
+            .map(|d| d.filter_map(Result::ok).filter(|e| e.path().is_file()).map(|e| e.file_name().to_string_lossy().into_owned()).collect())
+            .unwrap_or_default()
+    }
 }
 
 /// A property of one of Studio's components (`None`: not its own).

@@ -21,7 +21,7 @@ SUB FillProjectTree
     k = ProjectTree.ItemCount - 1
     ext = FileExt(p)
     IF Proj.FileKind(i) = "form" THEN
-      TreeIcon ProjectTree, k, FileIcon("components/RFORM")
+      TreeIcon ProjectTree, k, FileIcon("RFORM")
     ELSE
       TreeIcon ProjectTree, k, FileIcon("files/" + ext)
     END IF
@@ -83,6 +83,25 @@ SUB AskOpen
   OpenDlg.Caption = "Open Project or File"
   OpenDlg.Filter = "RapidR projects and sources (*.rrproj;*.rr;*.bas;*.inc)|*.rrproj;*.rr;*.bas;*.inc|All files|*.*"
   IF OpenDlg.Execute THEN OpenProject OpenDlg.FileName
+END SUB
+
+' File > Open Folder: its project (.rrproj) or main source — on the web the
+' folder's files read in, saved back to it (showDirectoryPicker).
+SUB AskOpenFolder
+  DIM f AS STRING
+  OpenDlg.Caption = "Open Folder"
+  OpenDlg.PickFolder = 1
+  IF OpenDlg.Execute THEN
+    f = OpenDlg.FileName
+    OpenDlg.PickFolder = 0
+    IF Proj.OpenFolder(f) THEN
+      IF Proj.FileName <> "" THEN OpenProject Proj.FileName ELSE OpenProject Proj.Folder + "/" + Proj.MainFile
+    ELSE
+      OutputLine "Can't open " + f + ": " + Proj.Error
+      SetState "error", "No RapidR project in " + FileTitle(f)
+    END IF
+  END IF
+  OpenDlg.PickFolder = 0
 END SUB
 
 ' File > New Project: a form program (or a console one) where the user says.
