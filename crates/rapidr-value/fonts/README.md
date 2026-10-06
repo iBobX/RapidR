@@ -16,9 +16,11 @@ renamed, as the OFL asks: Liberation is a Reserved Font Name). It is the
 face RapidR draws MS Sans Serif with — RapidQ's default font, every
 component's — so a form laid out for RapidQ fits in RapidR as it did there:
 each Windows-1252 character is exactly as wide as MS Sans Serif's at 8 pt
-on a 96-dpi screen (its em is 11 pixels; the letters keep Liberation's
-shapes — the widths come from their side bearings, a letter narrowed at
-most 4 % or made a little smaller where it must), and a line is 13
+on a 96-dpi screen (its em is 11 pixels; the letters keep
+Liberation's shapes, scaled the same both ways — an x-height of 6 pixels,
+capitals 8 — with a pixel's gap between letters as MS Sans Serif has: the
+widths come from their side bearings, a letter narrowed at most 4 % or made
+a little smaller where it must), and a line is 13
 pixels high with the baseline 11 pixels down, as Windows draws it. The widths are RapidQ's own `TextWidth` of each
 character, measured with RapidQ's compiler on Windows 11; no Microsoft font
 data is used. `tools/fonts/make_rapidr_sans.py` makes it from

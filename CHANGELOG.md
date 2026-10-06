@@ -294,6 +294,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Text in RapidQ's default font looked cramped, letters almost touching**
+  (most visible on a Retina screen: "Type a name, then Greet.", "Your
+  name:"). RapidR Sans, the font RapidR draws MS Sans Serif with, had its
+  letters made larger twice over (12 % instead of 6 %) and squeezed into
+  MS Sans Serif's widths. Its letters now have a pixel's gap between them,
+  as MS Sans Serif has on Windows (at 1× and doubled on a 200 % screen),
+  with lower case 6 pixels high and capitals 8 at 8 pt; a letter that
+  can't keep the gap in its width is drawn a little smaller, never
+  squeezed. Every character's width is unchanged ("Password:" is still 49
+  pixels), so RapidQ forms fit as before. The visual gallery gained a
+  `hello` case with RapidQ's own capture of the same text.
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before
   the main program does (RapidQ keeps those between calls) were listed in

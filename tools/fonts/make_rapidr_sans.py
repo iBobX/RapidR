@@ -9,11 +9,12 @@ at 8 pt against MS Sans Serif's 49, and a label sized for one clips the
 other). RapidR Sans is Liberation Sans (SIL Open Font License 1.1, its
 outlines and character set) with each Windows-1252 character made exactly as
 wide as MS Sans Serif's at 8 pt on a 96-dpi screen, where its em is 11
-pixels — its letter keeping its shape (6 % larger than Liberation's, both
-ways: an x-height of 6 pixels at 8 pt), narrowed or widened at most 4 %,
+pixels — its letter keeping its shape (scaled the same both ways: an
+x-height of 6 pixels at 8 pt, capitals and digits 8), narrowed or widened
+at most 4 %, with a pixel's gap to the next letter as MS Sans Serif has,
 the rest from its side bearings (shared as they were), and where the ink
-still doesn't fit, the letter made a little smaller in both directions;
-descenders kept within the line — its upright stems moved onto whole
+doesn't fit with that gap, the letter made a little smaller in both
+directions; descenders kept within the line — its upright stems moved onto whole
 pixels at 8 pt, and MS Sans Serif's vertical metrics:
 ascent 11 pixels, descent 2, so a line is 13 pixels high (TextHeight) with
 the baseline 11 pixels down, as GDI draws it.
@@ -33,6 +34,7 @@ so.
 writes crates/rapidr-value/fonts/RapidRSans-Regular.ttf (needs fontTools).
 """
 import os
+import unicodedata
 
 from fontTools.pens.recordingPen import DecomposingRecordingPen
 from fontTools.pens.filterPen import FilterPen
@@ -60,35 +62,46 @@ WIDTHS = [int(w) for w in """
 assert len(WIDTHS) == 224
 EM_PX = 11
 ASCENT_PX, DESCENT_PX = 11, 2
-# The letters keep their shapes: a glyph's outline is narrowed or widened
-# at most this much to meet its width (barely visible) …
+# Between two letters, this much space (in pixels at 8 pt): MS Sans Serif's
+# letters have a pixel's gap between them (one blank column at 1×, two at
+# 2× — Windows draws the bitmap font doubled on a 200 % screen,
+# tests/visual/rapidq/*@2x), and text with less looks cramped. A letter
+# Liberation sets closer than that (the pointed A, V, x, y; a, f, t) keeps
+# its own gap plus EXTRA, as its designers spaced it.
+GAP = 1.0
+EXTRA = 0.4
+# The letters keep their shapes: a glyph's outline is narrowed at most this
+# much (barely visible) to keep the gap …
 SQUEEZE = (0.96, 1.04)
-# … the rest comes from its side bearings, and a glyph whose ink still
-# doesn't fit is made smaller in both directions, at most this much.
-SHRINK = 0.88
+# … and where it still doesn't fit, the letter is made smaller in both
+# directions, at most this much (spacing wins over size; the few that would
+# need more — f, j, r, t, x, y, A, C, V — keep a smaller gap).
+SHRINK = 0.9
 # Descenders kept within the line's 2 pixels below the baseline
 # (Liberation's g, p, y reach 0.212 em down; MS Sans Serif's line 2 of 11
 # pixels), so nothing is cut off at the bottom of a 13-pixel line: only
 # what lies below the baseline is shortened.
 SHORT = (DESCENT_PX / EM_PX) / 0.212
-# Every letter a little larger than Liberation's, the same in both
-# directions: an x-height of 6 pixels at 8 pt (5.7 in Liberation), as MS Sans
-# Serif's and Microsoft Sans Serif's — text as large as RapidQ's.
-BIG = 1.06
+# The letters' size, the same in both directions: lower case with an
+# x-height of exactly 6 pixels at 8 pt (Liberation's is 5.81), capitals and
+# digits 8 pixels high (7.57) — MS Sans Serif's x-height, its capitals a
+# little taller still — on whole pixels, so their tops are crisp at 1×.
+BIG = 6 / (EM_PX * 1082 / 2048)
+BIG_CAPS = 8 / (EM_PX * 1409 / 2048)
 
 
 class Fit(FilterPen):
-    """x scaled by kx, both directions by u (what's below the baseline by
-    SHORT too), then moved dx."""
+    """x scaled by kx, both directions by u times the size `big` (what's
+    below the baseline by SHORT instead), then moved dx."""
 
-    def __init__(self, out, kx=1.0, u=1.0, dx=0.0):
+    def __init__(self, out, kx=1.0, u=1.0, dx=0.0, big=BIG):
         super().__init__(out)
-        self.kx, self.u, self.dx = kx, u, dx
+        self.kx, self.u, self.dx, self.big = kx, u, dx, big
 
     def _p(self, pt):
         x, y = pt
-        u = self.u * BIG
-        return (x * self.kx * u + self.dx, y * u * (1.0 if y > 0 else SHORT / BIG))
+        u = self.u * self.big
+        return (x * self.kx * u + self.dx, y * u * (1.0 if y > 0 else SHORT / self.big))
 
     def moveTo(self, pt):
         self._outPen.moveTo(self._p(pt))
@@ -142,13 +155,17 @@ def main():
     glyf = font["glyf"]
     hmtx = font["hmtx"]
     cmap = font.getBestCmap()
-    original = font.getGlyphSet()
+    # (Liberation's outlines, from a copy of their own: a glyph set reads the
+    # glyf table as it is, and the one being made changes as it goes)
+    source = TTFont(SOURCE)
+    scale_upem(source, upm)
+    original = source.getGlyphSet()
 
-    def outline(name, kx=1.0, u=1.0, dx=0.0):
+    def outline(name, kx=1.0, u=1.0, dx=0.0, big=BIG):
         rec = DecomposingRecordingPen(original)
         original[name].draw(rec)
         pen = TTGlyphPen(None)
-        rec.replay(Fit(pen, kx, u, dx))
+        rec.replay(Fit(pen, kx, u, dx, big))
         return pen.glyph()
 
     # Every glyph's descender kept in the line (composites decomposed from
@@ -178,20 +195,27 @@ def main():
         if not base.numberOfContours:
             hmtx[name] = (target, 0)
             continue
-        # (its ink, and the space either side of it)
-        ink = base.xMax - base.xMin
-        lsb, rsb = base.xMin, advance - base.xMax
-        kx = min(max(target / (advance * BIG), SQUEEZE[0]), SQUEEZE[1])
-        u = 1.0 if ink * kx <= target else max(SHRINK, target / (ink * kx))
+        # (its ink, and the space either side of it, in Liberation's size:
+        # the outline above was made BIG)
+        x0, x1 = base.xMin / BIG, base.xMax / BIG
+        ink = x1 - x0
+        lsb, rsb = x0, advance - x1
+        big = BIG_CAPS if unicodedata.category(ch) in ("Lu", "Nd") else BIG
+        # (room for the ink: the cell less the gap between letters)
+        room = target - min(GAP, (advance - ink) * big * EM_PX / upm + EXTRA) * upm / EM_PX
+        kx = min(max(target / (advance * big), SQUEEZE[0]), SQUEEZE[1])
+        if ink * big * kx > room:
+            kx = max(SQUEEZE[0], room / (ink * big))
+        u = 1.0 if ink * big * kx <= room else max(SHRINK, room / (ink * big * kx))
         # (the side bearings share what's left as they did)
-        slack = target - ink * kx * u
+        slack = target - ink * big * kx * u
         share = lsb / (lsb + rsb) if lsb + rsb > 0 else 0.5
-        dx = slack * share - base.xMin * kx * u
-        g = outline(name, kx, u, dx)
+        dx = slack * share - x0 * big * kx * u
+        g = outline(name, kx, u, dx, big)
         # (its upright stems on whole pixels at 8 pt: crisp as a bitmap font's)
         s = stem_shift(g, glyf, upm // EM_PX)
         if s:
-            g = outline(name, kx, u, dx + s)
+            g = outline(name, kx, u, dx + s, big)
         glyf[name] = g
         g.recalcBounds(glyf)
         hmtx[name] = (target, getattr(g, "xMin", 0) if g.numberOfContours else 0)
