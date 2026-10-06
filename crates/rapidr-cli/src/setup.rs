@@ -77,6 +77,18 @@ fn rustup_steps(tc: &str, installed: &[String], tc_arch: &str, native: &str, os:
     steps
 }
 
+/// rustup has a default toolchain (`rustup default` succeeds).
+fn has_default_toolchain() -> bool {
+    Command::new(rust_tool("rustup")).arg("default").output().is_ok_and(|o| o.status.success())
+}
+
+/// The one `rustup default` setup ever runs: back to "none" when the user
+/// had no default and rustup made RapidR's toolchain the default on its own
+/// (it does that for the first toolchain installed).
+fn restore_default(had_default: bool, has_default: bool) -> Option<Vec<String>> {
+    (!had_default && has_default).then(|| vec!["default".into(), "none".into()])
+}
+
 /// What a machine with no Rust at all is set up with: rustup for the
 /// machine's native architecture, its default toolchain the install's own
 /// when that runs natively (or the same Rust for the native host).
@@ -161,8 +173,14 @@ pub fn setup(args: &[String]) -> ExitCode {
                 println!("rust: rustup is here; native builds use {tc}, which it doesn't have yet (installed beside your toolchains: your default stays as it is)");
             }
             if !check && !steps.is_empty() && (!missing || confirm(&format!("Install {tc} (`rustup toolchain install {tc} --profile minimal`)?"), yes)) {
+                let had_default = has_default_toolchain();
                 for s in &steps {
                     ok &= run_ok(Command::new(rust_tool("rustup")).args(s));
+                }
+                // (rustup makes the first toolchain it installs the default when
+                // none is set: put "none" back, as the user had it)
+                if let Some(s) = restore_default(had_default, has_default_toolchain()) {
+                    ok &= run_ok(Command::new(rust_tool("rustup")).args(&s));
                 }
             }
             match rustc_version(Some(tc)) {
@@ -368,6 +386,14 @@ mod tests {
         let a = rustup_init_args("1.98.1", "1.98.1-aarch64-pc-windows-gnullvm", "aarch64", "aarch64", "windows", false);
         assert_eq!(a[3..], ["--default-host", "aarch64-pc-windows-gnullvm", "--default-toolchain", "1.98.1-aarch64-pc-windows-gnullvm"]);
         assert_eq!(rustup_init_args("1.98.1", "1.98.1", "aarch64", "aarch64", "linux", false), ["-y", "--profile", "minimal", "--default-toolchain", "1.98.1"]);
+    }
+
+    #[test]
+    fn a_default_rustup_set_on_its_own_is_put_back() {
+        assert_eq!(restore_default(false, true), Some(vec!["default".to_string(), "none".to_string()]));
+        // the user's own default: never touched
+        assert_eq!(restore_default(true, true), None);
+        assert_eq!(restore_default(false, false), None);
     }
 
     #[test]

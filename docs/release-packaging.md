@@ -74,7 +74,10 @@ source replacement, nothing downloaded).
     x64 SDK on Windows on ARM adds `--force-non-host`). It never runs
     `rustup default`, `set default-host`, `update`, `override`, or removes a
     toolchain — unit-tested (`setup.rs`), and the smoke tests check the
-    user's `rustup default` / `show active-toolchain` are unchanged;
+    user's `rustup default` / `show active-toolchain` are unchanged. (rustup
+    itself makes the first toolchain it installs the default when there is
+    none; setup then puts "none" back with `rustup default none`, the one
+    `default` it ever runs, and only in that case);
   - **with no Rust at all**, after saying so and asking, rustup itself (MIT /
     Apache-2.0) into `~/.cargo` and `~/.rustup`, for the machine's native
     architecture (aarch64 on Windows on ARM, also when the x64 rapidr runs
