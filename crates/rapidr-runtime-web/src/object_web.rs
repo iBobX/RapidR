@@ -1194,16 +1194,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(v) = indexed_sub_object(name, &lmethod, args) {
         return v;
     }
-    if rp_comp_type(&uname) == "RSTATUSBAR" && lmethod == "addpanels" {
-        // `AddPanels "Ready", "Line 1"`: panels `panel(i).caption`, as on
-        // the desktop (rapidr-runtime-core's `statusbar_method`).
-        let mut n = rp_comp_get_stored(name, "panelcount").to_i64().max(0);
-        for a in args {
-            rp_comp_set(name, &format!("panel({n}).caption"), v_str(&a.to_string_val()));
-            n += 1;
+    // A QSTATUSBAR's AddPanels / Clear (rapidr_value::statusbar).
+    if rp_comp_type(&uname) == "RSTATUSBAR" {
+        let get = |p: &str| rp_comp_get_stored(name, p);
+        let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
+        if let Some(v) = rapidr_value::statusbar::call(&lmethod, args, &get, &mut set) {
+            return v;
         }
-        rp_comp_set(name, "panelcount", v_int(n));
-        return v_null();
     }
     let comp_type = rp_comp_type(&uname);
     if comp_type.is_empty() {

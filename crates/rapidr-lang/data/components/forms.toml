@@ -8,7 +8,7 @@ visual = true
 container = true
 size = [320, 240]
 default_event = "OnShow"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A window: the top-level container of a program's components, with its caption, border, menu and events. Show shows it; ShowModal shows it and waits until it closes."
 properties = [
   { name = "AutoScroll", type = "bool", default = true },
@@ -154,7 +154,7 @@ methods = [
   { name = "ActiveChild", params = "Index AS LONG" },
   { name = "FreeChild", params = "handle AS LONG", returns = "VARIANT" },
   { name = "SetDeskBar" },
-  { name = "Rect", value = true, only = "desktop" },
+  { name = "Rect", value = true, origin = "rapidr" },
   { name = "SetPixel", value = true, origin = "rapidr" },
   { name = "FillCircle", origin = "rapidr" },
   { name = "Ellipse", value = true, origin = "rapidr" },
@@ -174,7 +174,7 @@ visual = true
 container = true
 size = [185, 41]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -226,7 +226,7 @@ visual = true
 container = true
 size = [289, 193]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -317,7 +317,7 @@ visual = true
 container = true
 size = [320, 19]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "The bar at the bottom of a window that shows status text, as one simple text or as several panels."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alBottom" },
@@ -345,8 +345,8 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
 ]
 methods = [
-  { name = "AddPanels", params = "Items ...", only = "desktop" },
-  { name = "Clear", value = true, only = "desktop" },
+  { name = "AddPanels", params = "Items ..." },
+  { name = "Clear", value = true, doc = "Removes every panel: panels added after it start again at `Panel(0)`." },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
 ]
@@ -361,7 +361,7 @@ rapidq = "QSPLITTER"
 visual = true
 size = [3, 200]
 default_event = "OnMoved"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A bar the user drags to resize the aligned component beside it, between the panes of a window."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alLeft" },
@@ -395,7 +395,7 @@ visual = true
 container = true
 size = [185, 41]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A container that scrolls: components beyond its edges are reached with its scroll bars."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -450,7 +450,7 @@ visual = true
 container = true
 size = [185, 105]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A captioned frame around related components; the radio buttons in it form one choice."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -494,7 +494,7 @@ visual = true
 container = true
 size = [185, 41]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A box with raised or lowered 3D edges (QBevel.inc), to frame or group components."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -576,7 +576,7 @@ visual = true
 container = true
 size = [400, 300]
 default_event = "OnPaneChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

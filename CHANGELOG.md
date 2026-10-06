@@ -198,6 +198,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and by the designer; nothing a program sees changes.
 - The language registry's component sizes are the runtimes' (RapidQ's
   measured defaults); a test keeps them the same.
+- **The web answers every member the desktop does, and members RapidQ
+  doesn't have are refused as RapidQ refuses them.**
+  - QSTATUSBAR `Clear` removes every panel (panels added afterwards start
+    again at `Panel(0)`, as RapidQ does); QMEMORYSTREAM `Clear` empties the
+    stream (`Size` and `Position` 0, as RapidQ). Both did nothing before,
+    and the browser didn't know them.
+  - QIMAGE `Clear` / `Cls` remove the picture and `Load` loads one, as
+    `LoadFromFile` does, in the browser too.
+  - RapidQ's drawing methods on lists and grids draw what RapidQ draws
+    (checked against programs built by RapidQ's own compiler): `Paint`
+    flood-fills in an owner-drawn list box's, combo box's or grid's
+    handler; `Line`, `FillRect`, `Circle`, `Paint` and the rest on a list
+    box that isn't owner-drawn draw on the list, which keeps the drawing
+    until it paints those rows again; on a combo box that isn't
+    owner-drawn nothing shows. Pixel for pixel the same in the browser and
+    on the desktop, at normal and high-DPI scale.
+  - `Click`, `SetParent`, and other names RapidR's desktop runtime used to
+    accept on any component (`AddItem` on a list view or popup menu,
+    `AddItems` on an edit, `Rect`, `SetPixel`, `Ellipse`, `DrawText` on a
+    list, grid, bitmap or DirectX screen, `Clear` on a bitmap …) are now
+    the compile error RapidQ gives: "Member CLICK not part of class BTN".
+    They did nothing, or nothing useful, before.
+  - RSERVERSOCKET stays desktop only: a web page can't listen for network
+    connections.
+
 - **The VS Code extension and RapidR Studio know the language from the
   language registry.** Completion, hover, signature help and the
   compatibility warnings come from the one description of the language
@@ -307,6 +332,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   rather than -1 (so `= True` works with RAPIDQ.INC). A button, gauge,
   scroll box or tab control on a form now reads its form's Color, as in
   RapidQ.
+- **Memory and file streams read exactly as RapidQ.** Checked against
+  RapidQ's own compiler:
+  - `ReadStr(n)` always gives n characters, spaces where the stream has no
+    more bytes; a QFILESTREAM's `ReadStr(n)` and `Read(S$)` give one more
+    character, a space, as RapidQ's do (`ReadBinStr` doesn't).
+  - `ReadLine` removes only the CR right before the LF (others stay); a NUL
+    in the line ends its text and moves `Position` to the end, as in
+    RapidQ. `LineCount` counts the LFs (a last line without one isn't
+    counted).
+  - `Position` can be set past the end (and, on a memory stream, before
+    the start); reads there get no bytes and leave it where it is; a write
+    past the end fills the gap with zeros, one before the start writes
+    nothing; a `Size` that leaves `Position` past the new end moves it to
+    the old end.
+  - `ReadAll` (RapidR's) after the stream's start returned nothing, and
+    crashed debug native builds; it now gives the rest of the stream. The
+    same fix makes `LoadFromStream` (bitmaps, grids, image lists) read the
+    rest of a stream that was already read from.
+
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before
   the main program does (RapidQ keeps those between calls) were listed in

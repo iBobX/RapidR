@@ -117,6 +117,15 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // RapidQ's drawing methods on lists and a grid (an RC.EXE-built program of
+  // this layout, seen in Windows): owner-drawn items and a cell with
+  // Rectangle and Paint's flood fill inside it (blue), a plain list box
+  // drawn on (magenta flood) whose newly selected row is painted again, a
+  // plain combo box drawn on (nothing shows).
+  { name: "list_drawing", events: "btn.onclick,sel.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=drawn selected1"],
+    pixels: [[22, 25, "0000ff"], [13, 13, "ffffff"], [300, 20, "ff00ff"], [300, 32, "0078d7"], [300, 100, "ff00ff"], [290, 90, "000000"],
+      [420, 20, "0000ff"], [430, 64, "ffffff"], [98, 190, "0000ff"]], clientWidth: 600 },
   { name: "dotted_paint", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=painted 255"] },
   { name: "event_answers", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",

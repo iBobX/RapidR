@@ -7,7 +7,7 @@ rapidq = "QBUTTON"
 visual = true
 size = [75, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -65,7 +65,7 @@ rapidq = "QEDIT"
 visual = true
 size = [121, 21]
 default_event = "OnChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A one-line text box to type and edit text in, with an optional input mask, password character and length limit."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -112,7 +112,6 @@ methods = [
   { name = "PasteFromClipboard", origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "AddItems", value = true, origin = "rapidr", only = "desktop" },
   { name = "ClearSelection", origin = "rapidr" },
 ]
 events = [
@@ -131,7 +130,7 @@ rapidq = "QCHECKBOX"
 visual = true
 size = [97, 17]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A box with a caption that the user ticks on or off (Checked)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -173,7 +172,7 @@ rapidq = "QRADIOBUTTON"
 visual = true
 size = [113, 17]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "One choice of several: checking it unchecks the other radio buttons in the same container."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -214,7 +213,7 @@ rapidq = "QCOMBOBOX"
 visual = true
 size = [145, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A drop-down list, with or without a box to type in; the user picks one item (ItemIndex, Text)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -257,15 +256,15 @@ properties = [
 ]
 methods = [
   { name = "AddItems", params = "Items ...", value = true },
-  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", only = "desktop" },
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows." },
   { name = "Clear", value = true },
   { name = "CopyRect", params = "D, Image, S", missing = true },
   { name = "DelItems", params = "Items ..." },
   { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
-  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", only = "desktop" },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows." },
   { name = "InsertItem", params = "Index AS INTEGER, String AS STRING" },
-  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", only = "desktop" },
-  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER", only = "desktop" },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows." },
+  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER", doc = "Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest)." },
   { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER", missing = true },
   { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", missing = true },
   { name = "Repaint" },
@@ -279,10 +278,6 @@ methods = [
   { name = "DeleteItem", value = true, origin = "rapidr" },
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "Rect", origin = "rapidr", only = "desktop" },
-  { name = "SetPixel", origin = "rapidr", only = "desktop" },
-  { name = "Ellipse", origin = "rapidr", only = "desktop" },
-  { name = "DrawText", origin = "rapidr", only = "desktop" },
   { name = "AddString", origin = "rapidr" },
   { name = "DeleteItems", value = true, origin = "rapidr" },
   { name = "RemoveItem", value = true, origin = "rapidr" },
@@ -303,7 +298,7 @@ rapidq = "QRICHEDIT"
 visual = true
 size = [185, 89]
 default_event = "OnChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -384,7 +379,7 @@ name = "RMEMO"
 visual = true
 size = [185, 89]
 default_event = "OnChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A multi-line plain-text editor with word wrap and scroll bars. RapidR's own."
 properties = [
   { name = "Text", type = "string", default = "" },
@@ -440,7 +435,7 @@ rapidq = "QSCROLLBAR"
 visual = true
 size = [121, 17]
 default_event = "OnChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -549,7 +544,7 @@ rapidq = "QTRACKBAR"
 visual = true
 size = [150, 45]
 default_event = "OnChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A slider: the user drags its thumb to pick a Position between Min and Max, along tick marks."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -595,7 +590,7 @@ name = "RCODEEDITOR"
 visual = true
 size = [400, 300]
 default_event = "OnChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A code editor for BASIC: line numbers, syntax colours, and a list of the program's SUBs and FUNCTIONs to jump to. RapidR's own; the IDE's editor."
 properties = [
   { name = "Text", type = "string", default = "" },
@@ -659,7 +654,7 @@ rapidq = "QCOOLBTN"
 visual = true
 size = [25, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A flat toolbar button with a caption and a picture; with GroupIndex it stays down, as a toggle or one of a group."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -709,7 +704,7 @@ rapidq = "QOVALBTN"
 visual = true
 size = [100, 50]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A round button with its own colours, highlight and shadow; like a cool button, it can stay down as a toggle."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

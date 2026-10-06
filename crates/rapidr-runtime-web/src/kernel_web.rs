@@ -934,10 +934,6 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
                 });
             }
         }
-        (_, "setparent") if !args.is_empty() => {
-            rp_comp_set(name, "parent", Value::String(args[0].to_string_val()));
-            restructure();
-        }
         _ => return None,
     }
     schedule();

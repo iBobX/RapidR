@@ -96,8 +96,6 @@ A window: the top-level container of a program's components, with its caption, b
 | `Next` *(not yet)* | Activates the next MDI child window. |
 | `Previous` *(not yet)* | Activates the previous MDI child window. |
 | `Tile` *(not yet)* | Tiles the MDI child windows so none overlap. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -163,7 +161,7 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `ActiveChild(Index AS LONG)` | Brings the MDI child with index `Index` to the front, restoring it if it is minimized. |
 | `FreeChild(handle AS LONG) AS VARIANT` | Returns true when the form with handle `handle` isn't shown as an MDI child, so it can be added. |
 | `SetDeskBar` | Sets up the MDI form's bar for its child windows; RapidR accepts it and does nothing. |
-| `Rect` *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
 | `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
@@ -222,8 +220,6 @@ A container with raised or lowered bevels and an optional caption, to group comp
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -297,8 +293,6 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `DelTab` *(RapidR)* | Removes the tab at the index given. |
 | `RemoveTab` *(RapidR)* | Removes the tab at the index given. |
 | `Tabs` *(RapidR)* | Returns the caption of the tab at an index, or sets it when a second value follows. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -373,12 +367,10 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 
 | Method | |
 |---|---|
-| `AddPanels(Items, …)` *(desktop)* | Appends panels to the status bar, one per caption given. |
-| `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `AddPanels(Items, …)` | Appends panels to the status bar, one per caption given. |
+| `Clear` | Removes every panel: panels added after it start again at `Panel(0)`. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -417,11 +409,6 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -477,8 +464,6 @@ A container that scrolls: components beyond its edges are reached with its scrol
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -528,8 +513,6 @@ A captioned frame around related components; the radio buttons in it form one ch
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -580,8 +563,6 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -681,8 +662,6 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `TileHorizontal` | Tiles the documents' windows one above the other. |
 | `TileVertical` | Tiles the documents' windows side by side. |
 | `ArrangeIcons` | Lines up the icons of the minimized MDI child windows. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -741,8 +720,6 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -816,10 +793,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `PasteFromClipboard` *(RapidR)* | Inserts the clipboard's text at the caret, replacing the selection. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `AddItems` *(RapidR)* *(desktop)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` *(RapidR)* | Deletes the selected text. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -873,8 +847,6 @@ A box with a caption that the user ticks on or off (Checked).
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -922,8 +894,6 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -985,15 +955,15 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -1007,16 +977,10 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `AddString` *(RapidR)* | Appends one string as a new item or line. |
 | `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
 | `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1102,8 +1066,6 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` *(RapidR)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` *(RapidR)* | Deletes the selected text. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1169,8 +1131,6 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1222,8 +1182,6 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1349,8 +1307,6 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `ClearTicks` *(RapidR)* | Removes every tick mark put with `SetTick`. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1417,8 +1373,6 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1477,8 +1431,6 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` *(not yet)* | Starts dragging the button. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1540,8 +1492,6 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` *(not yet)* | Starts dragging the button. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1601,8 +1551,6 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1677,12 +1625,12 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile` *(RapidR)* *(desktop)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile` *(RapidR)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
-| `Cls` *(RapidR)* *(desktop)* | Clears the drawing area to its background color. |
-| `Load` *(RapidR)* *(desktop)* | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
-| `Clear` *(RapidR)* *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Cls` *(RapidR)* | Removes the picture: nothing shows. Same as `Clear`. |
+| `Load` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG). Same as `LoadFromFile`. |
+| `Clear` *(RapidR)* | Removes the picture: nothing shows. Same as `Cls`. |
 
 | Event | |
 |---|---|
@@ -1743,7 +1691,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(desktop)* | Redraws the component. |
+| `Repaint` | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
@@ -1757,10 +1705,10 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `DrawText(x, y, text, [color])` *(RapidR)* | Draws text at (x, y). Optional color argument (RGB integer). |
 | `SetFont(family, [size])` *(RapidR)* | Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
 | `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
@@ -1829,17 +1777,17 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(desktop)* | Redraws the component. |
+| `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
 | `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
@@ -1889,11 +1837,6 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 
-| Method | |
-|---|---|
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
 <a id="rprogressbar"></a>
 ## RPROGRESSBAR (QGAUGE)
 
@@ -1935,8 +1878,6 @@ RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a 
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 <a id="rdesignsurface"></a>
 ## RDESIGNSURFACE
@@ -1988,8 +1929,8 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
 | `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
 | `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
-| `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
 
 | Event | |
 |---|---|
@@ -2047,8 +1988,6 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `Cls` *(RapidR)* | Clears the drawing area to its background color. |
 | `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2120,16 +2059,16 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -2144,16 +2083,10 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `AddString` *(RapidR)* | Appends one string as a new item or line. |
 | `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
 | `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2226,8 +2159,6 @@ A list of the files in a folder that match Mask, for picking a file.
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
 | `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2285,8 +2216,6 @@ A tree of drives and folders for picking a folder (Directory).
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `DelDriveTypes` | Removes kinds of drives from those the tree lists. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2378,7 +2307,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `LoadFromFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromStream(S AS QFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from an open stream. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc` in OnDrawCell: on the cell as the grid drew it and the handler's drawing so far. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -2400,17 +2329,11 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `SetColCount` *(RapidR)* | Sets the number of columns, adding or removing them at the end. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `MoveCol` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveColumn`. |
 | `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
 | `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
 | `SetSuggestions` *(RapidR)* | Sets the suggestions offered while a cell is edited, one per line. |
 | `DeleteColumn` *(not yet)* | Removes a column from the grid. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2516,8 +2439,8 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Insert(Index AS INTEGER, String AS STRING)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `DelItem` *(RapidR)* | Removes the node at the index given. |
 | `AlphaSort` *(RapidR)* | Sorts the nodes alphabetically. Same as `Sort`. |
 | `AddRoot` *(RapidR)* | Adds a top-level node with the given text. Same as `AddNode`. |
@@ -2618,17 +2541,9 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `InsertSubItem(Index AS INTEGER, SubIndex AS INTEGER, String AS STRING)` | Inserts sub-item text `String` at column `SubIndex` of the item at `Index`. |
 | `SwapItem(Index1 AS INTEGER, Index2 AS INTEGER)` | Swaps the items at `Index1` and `Index2`. |
-| `AddItem` *(RapidR)* *(desktop)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `DeleteItem` *(RapidR)* *(desktop)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2713,7 +2628,6 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Insert(I AS INTEGER, Item AS QMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Popup(X AS INTEGER, Y AS INTEGER)` | Shows the popup menu at screen point (`X`, `Y`). |
-| `AddItem` *(RapidR)* *(desktop)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 
@@ -3130,7 +3044,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
-| `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Clear` | Empties the stream: `Size` and `Position` 0. |
 | `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
 | `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
 | `SetSize` *(not yet)* | Sets the stream's size in bytes, cutting or growing it. |
@@ -3184,10 +3098,6 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
 
 <a id="rimagelist"></a>
@@ -3381,7 +3291,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 <a id="rserversocket"></a>
 ## RSERVERSOCKET
 
-A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only.
+A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own).
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3772,15 +3682,9 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `SetRenderMode(M AS INTEGER)` | Sets the 3D view's rendering mode flags. |
 | `SetVelocity(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER)` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 | `SetTextureQuality(Quality AS INTEGER)` | Sets how textures are filtered when drawn. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
 | `CreateAnimation` *(not yet)* | Creates a Direct3D animation, a frame's motion between key positions. |
 | `CreateAnimationSet` *(not yet)* | Creates a Direct3D animation set, animations played together. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
