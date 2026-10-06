@@ -18,6 +18,14 @@ pub fn strip_type_suffix(name: &str) -> &str {
     if base.is_empty() { name } else { base }
 }
 
+/// Whether `ident` names routine `routine` (both as written): the same
+/// name, and no type suffix or the routine's own — `day&` inside FUNCTION
+/// Day is a variable of its own, as RapidQ keeps them apart.
+pub fn names_routine(ident: &str, routine: &str) -> bool {
+    let (i, r) = (strip_type_suffix(ident), strip_type_suffix(routine));
+    i.eq_ignore_ascii_case(r) && (i.len() == ident.len() || ident[i.len()..] == routine[r.len()..])
+}
+
 /// The type a suffix declares (RapidQ manual, data types): `?` BYTE, `??`
 /// WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE, `$`
 /// STRING.
@@ -1581,7 +1589,6 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
         if f.params.is_empty() {
             continue;
         }
-        let me = key(&f.name);
         let mut not_reads: HashSet<*const Expression> = HashSet::new();
         let mut set_or_called: HashSet<*const Expression> = HashSet::new();
         let mut next_token: HashMap<*const Expression, &'static str> = HashMap::new();
@@ -1627,7 +1634,7 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
                     };
                     next_token.insert(&*b.left as *const Expression, op);
                 }
-                Expression::Identifier(i) if key(&i.name) == me => reads.push((e as *const Expression, i.span)),
+                Expression::Identifier(i) if names_routine(&i.name, &f.name) => reads.push((e as *const Expression, i.span)),
                 _ => {}
             },
         );

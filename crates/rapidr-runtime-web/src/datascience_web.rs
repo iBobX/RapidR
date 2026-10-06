@@ -174,7 +174,15 @@ fn draw_plot(ctx: &web_sys::CanvasRenderingContext2d, state: &Plot, w: f64, h: f
     }
 
     // (the shared model's ranges: the desktop draws the same axes)
-    let ((x_min, x_max), (y_min, y_max)) = state.ranges();
+    // (the legend's size first: where it goes can raise the y axis)
+    let labeled: Vec<&ds::plot::Series> = state.series.iter().filter(|s| !s.label.is_empty() && s.style != "hline" && s.style != "vline").collect();
+    ctx.set_font("13px sans-serif");
+    let text_w = labeled.iter().filter_map(|s| ctx.measure_text(&s.label).ok()).map(|m| m.width()).fold(0.0, f64::max);
+    let (lw, lh) = (text_w + 52.0, labeled.len() as f64 * 22.0 + 10.0);
+    let area_w = (w - if state.ylabel.is_empty() { 62.0 } else { 78.0 } - 14.0).max(1.0);
+    let area_h = (h - if state.title.is_empty() { 14.0 } else { 46.0 } - if state.xlabel.is_empty() { 42.0 } else { 60.0 }).max(1.0);
+    let show_legend = state.legend && !labeled.is_empty();
+    let (((x_min, x_max), (y_min, y_max)), (right, top)) = ds::plot::layout(state, show_legend.then(|| ((lw + 16.0) / area_w, (lh + 16.0) / area_h)));
 
     // The plot area (the desktop's margins).
     let ml = if state.ylabel.is_empty() { 62.0 } else { 78.0 };
@@ -340,15 +348,9 @@ fn draw_plot(ctx: &web_sys::CanvasRenderingContext2d, state: &Plot, w: f64, h: f
         let _ = ctx.fill_text(&state.ylabel, 0.0, 0.0);
         ctx.restore();
     }
-    if state.legend {
-        // (a framed box in the upper right, a line, mark or swatch a series)
-        let labeled: Vec<&ds::plot::Series> = state.series.iter().filter(|s| !s.label.is_empty() && s.style != "hline" && s.style != "vline").collect();
-        if !labeled.is_empty() {
-            ctx.set_font("13px sans-serif");
-            let text_w = labeled.iter().filter_map(|s| ctx.measure_text(&s.label).ok()).map(|m| m.width()).fold(0.0, f64::max);
-            let (lw, lh) = (text_w + 52.0, labeled.len() as f64 * 22.0 + 10.0);
-            // (the corner with the fewest points, as the desktop's)
-            let (right, top) = ds::plot::legend_corner(state, (x_min, x_max), (y_min, y_max), ((lw + 16.0) / aw, (lh + 16.0) / ah));
+    if show_legend {
+        // (a framed box in the chosen corner, a line, mark or swatch a series)
+        {
             let lx = if right { ml + aw - lw - 10.0 } else { ml + 10.0 };
             let ly = if top { mt + 10.0 } else { mt + ah - lh - 10.0 };
             ctx.set_fill_style_str("rgba(255,255,255,0.9)");
@@ -356,6 +358,7 @@ fn draw_plot(ctx: &web_sys::CanvasRenderingContext2d, state: &Plot, w: f64, h: f
             ctx.set_stroke_style_str("#bebebe");
             ctx.set_line_width(1.0);
             ctx.stroke_rect(lx, ly, lw, lh);
+            ctx.set_font("13px sans-serif");
             ctx.set_text_align("left");
             for (i, s) in labeled.iter().enumerate() {
                 let ey = ly + 16.0 + i as f64 * 22.0;

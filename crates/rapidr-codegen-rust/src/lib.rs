@@ -2545,7 +2545,7 @@ impl RustCodegen {
                         // it's rapidr_ast::rapidq_checks' error, and the
                         // result variable is read only as RESULT).
                         let lower = name.to_lowercase();
-                        if let Some(fname) = self.current_function.as_deref().filter(|f| strip_type_suffix(f).eq_ignore_ascii_case(&name)) {
+                        if let Some(fname) = self.current_function.as_deref().filter(|f| rapidr_ast::names_routine(&id.name, f)) {
                             if self.returning_functions.contains(&lower) && self.function_param_counts.get(&lower).copied().unwrap_or(0) == 0 {
                                 return format!("{snake}()");
                             }

@@ -184,6 +184,9 @@ struct Bcgen {
     fn_byref: NameMap<Vec<bool>>,
     /// The SUB/FUNCTION being lowered, if any.
     fn_ctx: Option<FnCtx>,
+    /// The routine being compiled, as written (`day&` inside FUNCTION Day
+    /// isn't Day).
+    fn_name: String,
     /// Labels, GOTO/GOSUB jumps and GOSUB use of the routine being lowered.
     routine: RoutineLabels,
     /// Global arrays of objects (`DIM lbl(3) AS QLABEL`) → element type.
@@ -270,6 +273,7 @@ impl Bcgen {
             lib_of: HashMap::new(),
             fn_byref: NameMap::default(),
             fn_ctx: None,
+            fn_name: String::new(),
             routine: RoutineLabels::default(),
             global_object_arrays: NameMap::default(),
             scope: Scope::default(),
@@ -528,6 +532,7 @@ impl Bcgen {
         }
         let recursive_self = (is_func && params.is_empty() && self.fn_indices.get(name) == Some(&idx)).then_some(idx);
         let saved_ctx = self.fn_ctx.replace(FnCtx { result_slot, recursive_self });
+        let saved_name = std::mem::replace(&mut self.fn_name, name.to_string());
         let saved_loops = std::mem::take(&mut self.loop_stack);
         self.routine = RoutineLabels { uses_gosub: contains_gosub(body), ..Default::default() };
         let mut code = Vec::new();
@@ -540,6 +545,7 @@ impl Bcgen {
         self.resolve_labels(&mut code, label);
         self.loop_stack = saved_loops;
         self.fn_ctx = saved_ctx;
+        self.fn_name = saved_name;
         let n_locals = self.scope.next_slot as u32;
         let local_names = self.scope.display.clone();
         self.scope = saved_scope;
@@ -2116,7 +2122,7 @@ impl Bcgen {
                     let cs = self.module.add_const(Const::Str(id.name.clone()));
                     emit(code, Op::LoadConst);
                     push_u32(code, cs);
-                } else if let Some(fi) = self.fn_ctx.as_ref().and_then(|c| c.recursive_self).filter(|fi| self.fn_indices.get(&id.name) == Some(fi)) {
+                } else if let Some(fi) = self.fn_ctx.as_ref().filter(|_| rapidr_ast::names_routine(&id.name, &self.fn_name)).and_then(|c| c.recursive_self) {
                     // (a FUNCTION without parameters reading its own name:
                     // a call of itself, as in RapidQ — `RESULT` reads the result)
                     emit(code, Op::CallFunc);

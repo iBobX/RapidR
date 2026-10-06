@@ -82,8 +82,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   model (`Plot::ranges`, `nice_ticks`, `legend_corner`) — round 1-2-5
   ticks without `.0` on whole numbers, a light grid, 2-pixel lines, real
   dashed lines (`--`), bars wholly inside the axes standing on 0, a line
-  chart fitting its data, the legend framed in the corner with the fewest
-  points, pies from twelve o'clock with labels outside and white between
+  chart fitting its data, the legend framed in a corner free of data (the
+  y axis reaching higher when none is, as Matplotlib's headroom), pies from twelve o'clock with labels outside and white between
   slices. Desktop charts are drawn twice as fine and averaged down (smooth
   edges), with text at the web's sizes.
 - **Charts are sharp on high-DPI screens**: `Image.LoadFromPlot` keeps

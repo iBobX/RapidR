@@ -286,7 +286,8 @@ fn render_rgb(state: &Plot, scale: u32) -> Vec<u8> {
         }
 
         // (the shared model's ranges: the web draws the same axes)
-        let ((x_min, x_max), (y_min, y_max)) = state.ranges();
+        let labelled = state.legend && state.series.iter().any(|sr| !sr.label.is_empty() && sr.style != "hline" && sr.style != "vline");
+        let (((x_min, x_max), (y_min, y_max)), corner) = ds::plot::layout(state, labelled.then(|| legend_size(state)));
 
         let mut builder = ChartBuilder::on(&root);
         if !state.title.is_empty() {
@@ -384,7 +385,7 @@ fn render_rgb(state: &Plot, scale: u32) -> Vec<u8> {
         if state.legend && state.series.iter().any(|sr| !sr.label.is_empty()) {
             let _ = chart
                 .configure_series_labels()
-                .position(match ds::plot::legend_corner(state, (x_min, x_max), (y_min, y_max), legend_size(state)) {
+                .position(match corner {
                     (true, true) => SeriesLabelPosition::UpperRight,
                     (false, true) => SeriesLabelPosition::UpperLeft,
                     (true, false) => SeriesLabelPosition::LowerRight,

@@ -233,11 +233,30 @@ pub fn nice_ticks(lo: f64, hi: f64, n: usize) -> Vec<f64> {
 /// points under a legend covering `(fw, fh)` of it (fractions, its margin
 /// included) — upper right first on a tie, then upper left, lower right,
 /// lower left.
-pub fn legend_corner(p: &Plot, (x0, x1): (f64, f64), (y0, y1): (f64, f64), (fw, fh): (f64, f64)) -> (bool, bool) {
+pub fn legend_corner(p: &Plot, xr: (f64, f64), yr: (f64, f64), size: (f64, f64)) -> (bool, bool) {
+    corner_and_count(p, xr, yr, size).0
+}
+
+/// The axes' ranges and the legend's corner for a legend covering `size`
+/// of the plot area (fractions; `None` without one): where no corner is
+/// free of data, the y axis reaches higher, so the legend sits above the
+/// data (as Matplotlib's headroom) — unless `ylim` is set.
+pub fn layout(p: &Plot, size: Option<(f64, f64)>) -> (((f64, f64), (f64, f64)), (bool, bool)) {
+    let (xr, yr) = p.ranges();
+    let Some(size) = size else { return ((xr, yr), (true, true)) };
+    let (corner, under) = corner_and_count(p, xr, yr, size);
+    if under == 0 || p.ylim.is_some() || size.1 >= 0.6 {
+        return ((xr, yr), corner);
+    }
+    let yr = (yr.0, yr.0 + (yr.1 - yr.0) / (1.0 - size.1));
+    ((xr, yr), corner_and_count(p, xr, yr, size).0)
+}
+
+fn corner_and_count(p: &Plot, (x0, x1): (f64, f64), (y0, y1): (f64, f64), (fw, fh): (f64, f64)) -> ((bool, bool), usize) {
     let corners = [(true, true), (false, true), (true, false), (false, false)];
     let (wx, wy) = (x1 - x0, y1 - y0);
     if wx <= 0.0 || wy <= 0.0 {
-        return (true, true);
+        return ((true, true), 0);
     }
     let points: Vec<(f64, f64)> = p
         .series
@@ -257,7 +276,7 @@ pub fn legend_corner(p: &Plot, (x0, x1): (f64, f64), (y0, y1): (f64, f64), (fw, 
             .filter(|(x, y)| (if right { *x >= 1.0 - fw } else { *x <= fw }) && (if top { *y >= 1.0 - fh } else { *y <= fh }))
             .count()
     };
-    corners.into_iter().min_by_key(|c| under(*c)).unwrap_or((true, true))
+    corners.into_iter().map(|c| (c, under(c))).min_by_key(|(_, n)| *n).unwrap_or(((true, true), 0))
 }
 
 /// A tick's label: whole numbers without a point, others with what their
@@ -505,6 +524,10 @@ mod tests {
         p.series.push(Series { x: vec![1.0, 2.0, 3.0], y: vec![1.0, 2.0, 3.0], label: "up".into(), color: "red".into(), style: "-".into() });
         // (a rising line fills the upper right and lower left)
         assert_eq!(legend_corner(&p, (1.0, 3.0), (1.0, 3.0), (0.3, 0.3)), (false, true));
+        // (no corner free: the axis reaches higher, the legend above the data)
+        p.series.push(Series { x: vec![1.0, 3.0, 3.0], y: vec![3.0, 3.0, 1.0], label: "top".into(), color: "blue".into(), style: "o".into() });
+        let ((_, (y0, y1)), (_, top)) = layout(&p, Some((0.3, 0.3)));
+        assert!(top && y1 > 3.2 && y0 < 1.0, "{y0} {y1}");
     }
 
     #[test]
