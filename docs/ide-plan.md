@@ -101,7 +101,8 @@ rapidr-ai          NEW  the provider layer (Anthropic, OpenAI-compatible, Gemini
 rapidr-secrets     NEW  API keys: OS keychain (desktop), session / opt-in encrypted (web)
 rapidr-mcp         NEW  the MCP server: tool registry, permission tiers, audit log,       core wasm-safe
                         transports (stdio proxy over a local socket; loopback HTTP)
-rapidr-frame       NEW? the one data-frame engine for every runtime (decision D7)
+rapidr-frame       NEW  the one data-frame engine for every runtime: polars (D7); a   desktop: linked
+                        separate wasm module on the web                                  web: lazy module
 rapidr-value            + models: dock, editor view state, designer, inspector, tray,     shared models
                         data preview, plot (vector), dataset cursor
 rapidr-ui-kernel        + components: dockmanager, codeeditor (virtualized),             one per model
@@ -344,7 +345,7 @@ Each stage lists goals, components and APIs, data models, what it reuses or repl
 - **IDE**: the **component tray** (I4) shows them with their links drawn as lines on demand; **component-reference pickers** in the inspector (a drop-down of compatible components on the form, `<new …>` to create one); **RDataPreview** (public): schema (column, type, nulls, distinct), rows (virtual grid, sort / filter locally), quick stats (count, mean, median, std, min, max, top values, a histogram sparkline per column), the SQL / pipeline that produced it; opens on any source or transform selected in the designer, and on any frame while debugging (I6).
 
 **One implementation** (rule 2): today RDataFrame is polars on the desktop and string columns on the web, RPlot plotters on the desktop and an HTML canvas on the web. I7 makes each one implementation for every runtime:
-- **The frame engine** (decision **D7**): a first spike builds polars (MIT; `lazy`, `csv`, `json`, `parquet`) for `wasm32-unknown-unknown` and measures size, speed and build friction. If it fits (a separately loaded wasm module only when a program uses data frames, ≤ ~3 MB brotli), polars everywhere. If not, our own columnar engine (`rapidr-frame`: typed columns, the transforms above, CSV / JSON / Parquet readers with permissive crates) on every runtime, polars dropped. Either way, one engine, same results on all three runtimes, checked by the corpus-style comparison on data programs (`examples/demo_dataframe.rr`, `web_datascience.rr` …).
+- **The frame engine** (decision **D7**, decided by the spike: **polars everywhere** — below): a first spike builds polars (MIT; `lazy`, `csv`, `json`, `parquet`) for `wasm32-unknown-unknown` and measures size, speed and build friction. If it fits (a separately loaded wasm module only when a program uses data frames, ≤ ~3 MB brotli), polars everywhere. If not, our own columnar engine (`rapidr-frame`: typed columns, the transforms above, CSV / JSON / Parquet readers with permissive crates) on every runtime, polars dropped. Either way, one engine, same results on all three runtimes, checked by the corpus-style comparison on data programs (`examples/data/dataframe.rr` …) and conformance cases run native, interpreted and on the web.
 - **RPlot on the kernel**: a plot model in `rapidr-value` (axes, ticks, legends, marks, text) that paints the kernel's vector ops — identical on desktop and web, sharp at any scale, accessible (a summary plus the data as a table for screen readers), `SaveFig` to PNG through the CPU renderer and to SVG from the ops. Replaces plotters (desktop) and the canvas code (web).
 - **The dataset model** in `rapidr-db`: `Dataset { fields, row_count, cursor, state: Browse | Edit | Insert, read(row, field), edit / post / cancel / delete / refresh, events }` implemented by DB queries / tables (editable, posting by primary key with bound parameters) and frames (read-only, or in-memory edits).
 
@@ -365,6 +366,44 @@ Each stage lists goals, components and APIs, data models, what it reuses or repl
 - Design-time evaluation never writes (a test with a DML statement in `SQL` is refused at design time, runs at run time).
 - RDataPreview's stats equal the engine's `describe` for the corpus of data fixtures; it is fully keyboard- and screen-reader-operable.
 - `tools/regress.sh legal` passes with the engine's (and Parquet's) dependencies.
+
+### I7 / L-FRAME spike results (2026-10-06)
+
+**Question** (D7): can polars — the desktop's RDataFrame engine — be the web's too, as a module loaded only by programs that use data frames, at ≤ ~3 MB brotli? And how should RPlot draw, now that the web is the UI kernel on a canvas?
+
+**polars 0.46 on `wasm32-unknown-unknown`** (a spike crate: CSV and JSON read / write, filter, sort, group-by with sum / mean / count, a left join, mean / std / min / max / median, string upper-case, the pretty-printed table; `opt-level = "z"`, LTO, one codegen unit, `panic = "abort"`, stripped; wasm-bindgen; measured with `gzip -9` and `brotli -q 11`):
+
+| Build | Raw | gzip | brotli |
+|---|--:|--:|--:|
+| polars (`lazy csv json dtype-full strings round_series abs log fmt_no_tty`) | 12.9 MB | 2.42 MB | **1.50 MB** |
+| the same with `+simd128` (as the web runtime is built) | 12.7 MB | 2.39 MB | 1.49 MB |
+| … `+ parquet` (zstd, lz4, snappy, brotli codecs) | 16.3 MB | 3.50 MB | **2.26 MB** |
+| (after `wasm-opt -Oz`: smaller raw, *larger* compressed — not worth it) | 11.1 MB | 2.57 MB | 1.60 MB |
+| for scale: today's whole web runtime `rapidrintr_bg.wasm` (compiler + VM + kernel + SQLite) | 10.2 MB | 4.34 MB | 2.71 MB |
+| for scale: plotters (bitmap backend, every series, PNG encoder) | 0.79 MB | 0.22 MB | 0.16 MB |
+
+- **Size: fits**, with room — 1.50 MB brotli with what RDataFrame uses today, 2.26 MB with Parquet (the plan's "later"); polars' monomorphized code compresses ~8.6×.
+- **Build friction: low, three settings.** (1) getrandom 0.3 (through ahash) needs its `wasm_js` feature *and* `RUSTFLAGS='--cfg getrandom_backend="wasm_js"'`, getrandom 0.2 its `js` feature — the module gets its own build (its own target directory), so the flag never touches the other crates; (2) the `fmt` feature pulls crossterm (no wasm): `fmt_no_tty` prints the same tables; (3) Parquet's zstd is C: the wasm C toolchain and the `AR` shim SQLite already uses (`tools/wasm-ar.sh`). rayon has no threads on wasm and runs everything on the calling thread — no code change. A clean release build of the module takes 65–75 s on this machine (M-series), an incremental one ~20 s.
+- **Speed: good.** In Node (V8), single-threaded: instantiate 15 ms; the small pipeline above 33 ms; 1 M rows written to CSV, read back, filtered, sorted and grouped in **320 ms** (100 k rows: 37 ms) — the same order as the native build (390 ms at `opt-level = "z"`).
+- **Results: the same code**, so the same answers (dtype inference, float formatting, sort stability, null handling) on every runtime; the one wasm32 difference to keep in mind is a 32-bit `usize` in *our* code (polars indexes rows with `u32` on every target by default).
+- **Licences: all permissive.** 180 crates in the wasm graph; `cargo deny check licenses bans` with this repository's `deny.toml` passes (MIT / Apache-2.0 / BSD-2 / BSD-3 / Zlib / BSL-1.0 / Unicode-3.0 / Unlicense; polars-arrow-format already clarified as Apache-2.0); nothing copyleft, no MPL, no cryptography compiled in (the codecs are compression only).
+
+**Our own engine instead** (estimate for the same API): typed columns (i64 / f64 / string / bool with null masks), a CSV reader with quoting and type inference, JSON records / NDJSON through serde_json, filter / sort / group-by / join / describe / value counts / the pretty table — about 3,500–5,000 lines, 8–12 sessions plus hardening (CSV dialects, number formatting, null semantics, group and join edge cases are all ours to get right and to test), and ~0.3–0.5 MB raw / ~0.1–0.15 MB brotli on the web. Parquet would still need a reader crate (arrow-rs' `parquet` is itself large). It would win only on size, which polars already meets; it loses on cost, breadth (polars' expressions are what RDFFilter / RDFCompute compile to) and risk.
+
+**RPlot — what each option looks like** (the same six charts in one gallery program: lines with a legend and grid, bars, a scatter with a reference line, a histogram, a pie, an area with a step line; desktop at 1× and 2× through the headless host, the web on `tests/web_kernel.html` at 1× and 2×):
+
+| Option | Looks (1–5) | Why |
+|---|:-:|---|
+| plotters on the desktop (today) | 2 | A 1× bitmap: at 2× (Retina, a 200 % browser) it is stretched and blurry; text heavy and fuzzy (coverage through a square root); bars over a numeric axis (0.5 … 3.5) instead of their categories; a dense mesh for `Grid`; a saturated pure-colour palette; names it doesn't know (`royalblue`) draw black; the area and step series have no legend entries; pie labels clipped. |
+| HTML canvas on the web (today) | 3 | Smooth lines and the browser's fonts, a softer palette, a better pie — but ticks at unround numbers (0.66, 86.20, 2.53), `XLim` / `YLim` ignored (the bar chart falls below its axis), and none of it the desktop's: different fonts, sizes and colours, so the "same" program shows two charts. |
+| plotters on the web | 2 | Builds without friction (0.16 MB brotli) and would make both sides the same — the same blurry, plotters-styled bitmap. |
+| **a plot model painting the kernel's vector ops** (the recommendation) | 5 (target) | The kernel's own renderer on both hosts (vello / vello_cpu), so the same pixels on desktop and web; drawn at the device's scale, so crisp at 1×, 1.5×, 2×, 3×; the kernel's fonts through parley; nice ticks (1-2-5 steps), category axes, light gridlines, a legend with swatches, a modern palette, the theme's colours (dark, high contrast). A QIMAGE's `LoadFromPlot` keeps its 1× pixels for `Pixel` (RapidQ's rule) and shows the chart drawn again at the screen's scale (the bitmap's high-DPI layer, as SVGs already are); `SaveFig` writes a PNG through the CPU renderer. |
+
+**Decision (D7): polars everywhere.** The shape:
+- **`rapidr-frame`** (new crate): RDataFrame on polars, one implementation with a pure interface — a method call in (its arguments, and a file's bytes when it reads one), a reply out (the value, text to print, bytes to write, a grid to fill). No I/O inside: the desktop runtime (native and interpreted) links it and does the file reading itself; the web loads it as a **separate wasm module** (`rapidrframe_bg.wasm`, ~1.5 MB brotli) only when a program uses `RDATAFRAME`, and calls it through a small bridge. polars' `fmt_no_tty`, the getrandom settings and (later) `parquet` live in that crate.
+- **RNUM**: one implementation in `rapidr-value` on a plain `Vec<f64>` (ndarray dropped: every RNUM is one-dimensional).
+- **RPLOT**: one implementation — the plot model in `rapidr-value` (series, axes, ticks, legend → the kernel's ops), drawn by `rapidr-ui-render`; plotters and the web's canvas code deleted.
+- The member set is the union of both runtimes' today (the web's `AddRow`, `Create`, RNUM's `Get` / `Set` / `Push` … join the desktop's), each name meaning one thing everywhere; conformance cases hold native, interpreted and web to the same output.
 
 ### I8 — Smart (AI through MCP)
 
@@ -509,7 +548,7 @@ Checked with `cargo info` on 2026-10-05; versions move, so `tools/regress.sh leg
 | HTTPS | `ureq` 2.12 + `rustls` 0.23 + `ring` (Apache-2.0 AND ISC) | MIT OR Apache-2.0 | Already in the workspace; prefer `rustls-platform-verifier` (MIT OR Apache-2.0) over `webpki-roots` (CDLA-Permissive-2.0, outside the stricter list) for new code |
 | JSON | `serde`, `serde_json` | MIT OR Apache-2.0 | Already in the workspace |
 | TOML (project file) | `toml` | MIT OR Apache-2.0 | Use if D2 picks TOML |
-| Data frames | `polars` 0.46 (+ `parquet`) | MIT | Spike (D7); check Parquet codecs' crates (zstd, lz4, snappy, brotli — each permissive, verify) |
+| Data frames | `polars` 0.46 (+ `parquet`) | MIT | **Use** (D7, spike done): 180 crates on wasm, `cargo deny` clean; the Parquet codecs (zstd, lz4, snappy, brotli) are permissive |
 | Property tests | `proptest` | MIT OR Apache-2.0 | Dev-only |
 | Icons | Lucide (ISC), Tabler Icons (MIT) | ISC / MIT | Use one (D8); **not** VS Code's Codicons (CC-BY-4.0, outside the list) |
 | Fonts | JetBrains Mono, Cascadia Code, Inter, the shipped Liberation (all OFL-1.1) | OFL | D8 |
@@ -562,7 +601,7 @@ Release notes, per the project's messaging: full RapidQ compatibility on all thr
 | **D4** | Default document mode | MDI windows (cascade / tile); tabbed documents | MDI by default (the user's direction), tabs one click away |
 | **D5** | Registry source format | Rust tables; TOML / RON data files compiled by `build.rs` | TOML data files (reviewable, generators in Rust, tests tie them to both runtimes) |
 | **D6** | Rope | `ropey` 1.6; `ropey` 2 (beta); `crop` | `ropey` 1.6 behind a trait, revisit at ropey 2.0 |
-| **D7** | The one data-frame engine | polars everywhere (wasm spike); our own engine everywhere | Decide by the spike's numbers (size ≤ ~3 MB brotli as a lazily loaded module, build friction); polars if it fits |
+| **D7** | The one data-frame engine | polars everywhere (wasm spike); our own engine everywhere | **Decided by the spike (2026-10-06): polars everywhere** — 1.50 MB brotli as a separately loaded wasm module (2.26 MB with Parquet), three build settings, 1 M rows filtered / sorted / grouped in 320 ms in V8, every licence permissive ([I7 / L-FRAME spike results](#i7--l-frame-spike-results-2026-10-06)); `rapidr-frame` with a pure interface, RNUM and RPLOT in `rapidr-value`, RPLOT drawn with the kernel's ops |
 | **D8** | Icons and fonts | Lucide (ISC) or Tabler (MIT); editor font JetBrains Mono / Cascadia Code / Liberation Mono; UI font Inter / the shipped Liberation Sans | **Decided by the user (2026-10-06): RapidR's own icon set** — every action, component, file type and glyph drawn as our own SVGs on one grid matching the brand (design/brand), MIT, used by the IDE, the manual, the website and the VS Code extension; no Lucide / Tabler. Fonts as recommended: JetBrains Mono for the editor, Inter for the chrome |
 | **D9** | Default AI provider | none until configured; a local model (Ollama / LM Studio) first; Anthropic first | No default: a first-run chooser listing local models first (privacy) and the cloud providers equally; per-project opt-in |
 | **D10** | Extension sandboxing | RapidR bytecode in a capability-filtered VM only; also WebAssembly extensions; also native | RapidR bytecode only (sandboxable on both hosts, written in RapidR as wished); WebAssembly considered later; never native |
@@ -579,7 +618,7 @@ Release notes, per the project's messaging: full RapidQ compatibility on all thr
 2. **The editor's accessibility and IME across platforms**: text runs in AccessKit and the web mirror's window of lines are new ground. Mitigation: hands-on screen-reader and IME passes per stage, not at the end; VS Code's proven approach on the web.
 3. **Parser changes touching compatibility**: trivia and the origin map touch the lexer and preprocessor every program uses. Mitigation: one owner, no-behaviour-change commits checked by conformance, the corpus comparison and the web parity suite.
 4. **Size of the web IDE**: the kernel runtime is already ~2 MB brotli; the IDE adds the language service, the editor and fonts. Mitigation: lazy modules (the data engine, AI, fonts on demand), the web host plan's size levers, a size budget per release.
-5. **The frame engine on wasm** (D7): polars may be too large or not build. Mitigation: the spike first, our own engine as the planned alternative.
+5. **The frame engine on wasm** (D7): polars may be too large or not build. Mitigation: the spike first, our own engine as the planned alternative. **Retired by the spike**: it builds and fits (1.50 MB brotli); what remains is polars' API churn between versions (pin it, upgrade deliberately) and wasm32's 4 GB memory ceiling for very large frames.
 6. **A RapidR-written shell at scale** (D3): maintainability of a large BASIC program. Mitigation: the language service itself, conventions, moving heavy glue into components.
 7. **AI safety and cost**: prompt injection, runaway tool loops, surprise bills. Mitigation: [docs/ide-ai.md](ide-ai.md)'s tiers, previews, caps, usage display.
 8. **Scope**: ten stages. Mitigation: the release bar in §8, waves with clear owners, gaps closed before new work.
