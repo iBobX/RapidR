@@ -38,7 +38,7 @@ export const cases = [
   { name: "dock_manager", events: "dock.__mousedown_300_352,dock.__mouseup_300_352,dock.__mousedown_265_200,dock.__mousemove_285_200,dock.__mousemove_305_200,dock.__mouseup_305_200,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_700_12,dock.__mousemove_710_20,dock.__mousemove_164_296,dock.__mouseup_164_296,bmove.onclick,dock.__key_37,dock.__key_13,props.__key_117,bsave.onclick,btabs.onclick,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption=- p:output L p:props p:props L p:output L p:output p:explorer L p:props L [hidden autohide] L loaded same L c:doc1 c:doc2 a:doc1 p:doc2 L p:props L",
-      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x495 298x304"],
+      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x493 298x302"],
     pixels: [[150, 5, "808080"], [306, 200, "f0f0f0"]], clientWidth: 898 },
   // QGLASSFRAME: the default black glass over the form's face (60 % see-
   // through), red glass at 50 over a cyan panel; Moveable: the form

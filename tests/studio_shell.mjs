@@ -33,6 +33,10 @@ const filters = process.argv.slice(2);
 const SCENES = [
   { name: "project", open: "examples/gui/hello_form.rr" },
   { name: "welcome", open: "" },
+  // (Studio's own dialogs, in the chrome font: the window captured is the
+  // dialog, the second shown)
+  { name: "newproject", open: "", do: "file.newProject", window: 2 },
+  { name: "palette", open: "", do: "view.commandPalette", window: 2 },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -84,6 +88,7 @@ function runDesktop(scene, theme, scale) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", theme];
   if (scene.open) args.push(scene.open);
+  if (scene.do) args.push("--do", scene.do);
   const r = spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: 60000,
@@ -98,7 +103,7 @@ function runDesktop(scene, theme, scale) {
       RAPIDR_REGISTRY: join(scratch, "registry.reg"),
     },
   });
-  const file = join(dir, "window-1.bmp");
+  const file = join(dir, `window-${scene.window || 1}.bmp`);
   if (!existsSync(file)) throw new Error(`desktop: no capture (${(r.stderr || "").trim().split("\n").pop()})`);
   return { bmp: readFileSync(file), a11y: existsSync(join(dir, "a11y.json")) ? readFileSync(join(dir, "a11y.json"), "utf8") : null };
 }
@@ -112,6 +117,7 @@ async function runWeb(browser, scene, theme, scale) {
     await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = { RAPIDR_CAPTURE: "web" }; });
     const q = new URLSearchParams({ theme, window: "normal", fresh: "" });
     if (scene.open) q.set("open", scene.open);
+    if (scene.do) q.set("do", scene.do);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 60000, polling: 100 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
@@ -131,7 +137,9 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
     const desk = runDesktop(scene, theme, scale);
     const web = await runWeb(browser, scene, theme, scale);
     if (!web.results || !web.results.captures.length) throw new Error(`web: no capture ${web.errors.join("; ")}`);
-    const wb = Buffer.from(web.results.captures[0].bmp, "base64");
+    const shot = web.results.captures[(scene.window || 1) - 1];
+    if (!shot) throw new Error(`web: no capture of window ${scene.window} (${web.results.captures.length} captured)`);
+    const wb = Buffer.from(shot.bmp, "base64");
     const d = readBmp(desk.bmp), w = readBmp(wb);
     writeFileSync(join(OUT, `${name}-desktop.bmp`), desk.bmp);
     writeFileSync(join(OUT, `${name}-web.bmp`), wb);
