@@ -549,7 +549,10 @@ Release notes, per the project's messaging: full RapidQ compatibility on all thr
 
 ---
 
-## 9. Open decisions (need the user)
+## 9. Decisions
+
+**Decided by the user (2026-10-05):** D1 — the IDE is **RapidR Studio**; D9 — no default AI provider, a first-run chooser listing local models first; D12 — predefine `RAPIDR` (`$IFDEF RAPIDR`); D14 — the first public release is §8's scope (I0–I4, basic I6, I7's core). The other rows go with their recommendation unless the user says otherwise.
+
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
