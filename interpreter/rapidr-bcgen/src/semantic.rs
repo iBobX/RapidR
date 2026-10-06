@@ -410,7 +410,25 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// A routine's own undeclared variable, as the implicit-scope pass
+    /// renamed it (`S5__q`: RapidQ keeps it between calls, a STATIC —
+    /// rapidr_ast::implicit_scope): its routine's scope and its name.
+    fn owned(&self, name: &str) -> Option<(ScopeId, String)> {
+        let key = name_key(name);
+        self.routines
+            .iter()
+            .filter(|(r, _)| key.len() > r.len() + 2 && key.starts_with(r.as_str()) && key[r.len()..].starts_with("__"))
+            .max_by_key(|(r, _)| r.len())
+            .map(|(r, &scope)| (scope, name[r.len() + 2..].to_string()))
+    }
+
     fn use_name(&mut self, routine: &Option<String>, name: &str, span: TextSpan, target: NameUse, access: Access) {
+        if let (NameUse::Global, Some((scope, var))) = (target, self.owned(name)) {
+            let Some(at) = self.name_span(span, &var) else { return };
+            let id = self.symbol(scope, &var, SymbolKind::Static, None, Some(at), true);
+            self.reference(at, id, access);
+            return;
+        }
         let Some(at) = self.name_span(span, name) else { return };
         let scope = self.scope_of(routine);
         let symbol = match target {
@@ -514,6 +532,10 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
     for event in recorder.events {
         match event {
             Event::Declare { routine, kind, name, ty, span } => {
+                if let (SymbolKind::Global, Some((scope, var))) = (kind, b.owned(&name)) {
+                    b.declare(scope, SymbolKind::Static, &var, ty, span);
+                    continue;
+                }
                 let scope = if matches!(kind, SymbolKind::Global | SymbolKind::Constant | SymbolKind::Component) { 0 } else { b.scope_of(&routine) };
                 let ty = written.get(&span.start).cloned().or(ty);
                 b.declare(scope, kind, &name, ty, span);
@@ -577,9 +599,171 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
         }
     }
 
+    // A TYPE that extends another of the program's sees its fields and
+    // methods: the base's scope is its parent.
+    let type_scopes: HashMap<String, ScopeId> = b
+        .model
+        .scopes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| match &s.kind {
+            ScopeKind::Type(t) => Some((name_key(t), i)),
+            _ => None,
+        })
+        .collect();
+    for sym in b.model.symbols.clone() {
+        if sym.kind != SymbolKind::Type {
+            continue;
+        }
+        let (Some(&scope), Some(&base)) = (type_scopes.get(&name_key(&sym.name)), sym.ty.as_deref().and_then(|t| type_scopes.get(&name_key(t)))) else { continue };
+        if base != scope && !extends(&b.model, base, scope) {
+            b.model.scopes[scope].parent = Some(base);
+        }
+    }
+
+    members(&mut b, program, &type_scopes);
+
     let mut model = b.model;
     model.references.sort_by_key(|r| (r.span.start, r.span.end));
     model
+}
+
+/// Whether `scope`'s parent chain reaches `ancestor` (no cycles).
+fn extends(model: &SemanticModel, scope: ScopeId, ancestor: ScopeId) -> bool {
+    let mut at = model.scopes[scope].parent;
+    while let Some(s) = at {
+        if s == ancestor {
+            return true;
+        }
+        at = model.scopes[s].parent;
+    }
+    false
+}
+
+/// `Obj.Member` where Obj is an instance of one of the program's TYPEs
+/// (a variable, a parameter, a field, `This`, a WITH's `.`): a reference
+/// to the field or method (the compiler lowers these to its own calls, so
+/// they come from the program as written).
+fn members(b: &mut Builder, program: &Program, type_scopes: &HashMap<String, ScopeId>) {
+    if type_scopes.is_empty() {
+        return;
+    }
+    // (what a name's span refers to so far, and the WITH blocks)
+    let at_span: HashMap<usize, SymbolId> = b.model.references.iter().map(|r| (r.span.start, r.symbol)).collect();
+    let mut withs: Vec<(TextSpan, Expression)> = Vec::new();
+    let mut writes: std::collections::HashSet<usize> = Default::default();
+    let mut found: Vec<(Expression, Access)> = Vec::new();
+    rapidr_ast::walk(
+        &program.statements,
+        &mut |s| match s {
+            Statement::With(w) => withs.push((w.span, w.object.clone())),
+            Statement::Assignment(a) => {
+                writes.insert(expr_span(&a.target).start);
+            }
+            _ => {}
+        },
+        &mut |e| match e {
+            Expression::MemberAccess(_) => found.push((e.clone(), Access::Read)),
+            Expression::MethodCall(_) => found.push((e.clone(), Access::Call)),
+            _ => {}
+        },
+    );
+    let ctx = MemberCtx { at_span: &at_span, withs: &withs, type_scopes };
+    for (e, access) in found {
+        let (object, member) = match &e {
+            Expression::MemberAccess(m) => (&*m.object, m.member.as_str()),
+            Expression::MethodCall(m) => (&*m.object, m.method.as_str()),
+            _ => continue,
+        };
+        let Some(ty) = ctx.type_of(b, object, 0) else { continue };
+        let Some(symbol) = ctx.member(b, &ty, member) else { continue };
+        // (the member's name: right after the object and its dot)
+        let Some(source) = b.source else { continue };
+        let after = expr_span(object).end;
+        let rest = source.get(after..).unwrap_or("");
+        let lead = rest.len() - rest.trim_start_matches(['.', ' ', '\t']).len();
+        let start = after + lead;
+        let Some(at) = b.name_span(TextSpan::new(start, (start + member.len() + 3).min(source.len())), member) else { continue };
+        if at.start != start {
+            continue;
+        }
+        let access = if access == Access::Read && writes.contains(&expr_span(&e).start) { Access::Write } else { access };
+        b.reference(at, symbol, access);
+    }
+}
+
+struct MemberCtx<'c> {
+    at_span: &'c HashMap<usize, SymbolId>,
+    withs: &'c [(TextSpan, Expression)],
+    type_scopes: &'c HashMap<String, ScopeId>,
+}
+
+impl MemberCtx<'_> {
+    /// The TYPE an expression's value is an instance of.
+    fn type_of(&self, b: &Builder, e: &Expression, depth: usize) -> Option<String> {
+        if depth > 16 {
+            return None;
+        }
+        match e {
+            Expression::Identifier(id) => {
+                let key = name_key(&id.name);
+                if id.name == "_with_" {
+                    let w = self.withs.iter().filter(|(span, _)| span.start <= id.span.start && id.span.start < span.end).min_by_key(|(span, _)| span.len())?;
+                    return self.type_of(b, &w.1, depth + 1);
+                }
+                if key == "this" || key == "me" {
+                    let mut at = Some(b.model.scope_at(id.span.start));
+                    while let Some(s) = at {
+                        if let ScopeKind::Type(t) = &b.model.scopes[s].kind {
+                            return Some(t.clone());
+                        }
+                        at = b.model.scopes[s].parent;
+                    }
+                    return None;
+                }
+                let at = b.name_span(id.span, &id.name)?;
+                let sym = *self.at_span.get(&at.start)?;
+                let ty = b.model.symbols[sym].ty.clone()?;
+                self.type_scopes.contains_key(&name_key(&ty)).then_some(ty)
+            }
+            Expression::MemberAccess(m) => {
+                let ty = self.type_of(b, &m.object, depth + 1)?;
+                let sym = self.member(b, &ty, &m.member)?;
+                let ty = b.model.symbols[sym].ty.clone()?;
+                self.type_scopes.contains_key(&name_key(&ty)).then_some(ty)
+            }
+            Expression::ArrayAccess(a) => self.type_of(b, &a.array, depth + 1),
+            Expression::FunctionCall(f) => self.type_of(b, &f.callee, depth + 1),
+            _ => None,
+        }
+    }
+
+    /// A field or method of a TYPE, or of the TYPEs it extends.
+    fn member(&self, b: &Builder, ty: &str, member: &str) -> Option<SymbolId> {
+        let mut scope = Some(*self.type_scopes.get(&name_key(ty))?);
+        let key = name_key(member);
+        while let Some(s) = scope.filter(|&s| s != 0) {
+            if let Some(&id) = b.names.get(&(s, key.clone(), false)) {
+                return Some(id);
+            }
+            scope = b.model.scopes[s].parent;
+        }
+        None
+    }
+}
+
+/// The span of an expression.
+fn expr_span(e: &Expression) -> TextSpan {
+    match e {
+        Expression::ArrayAccess(x) => x.span,
+        Expression::Binary(x) => x.span,
+        Expression::FunctionCall(x) => x.span,
+        Expression::Identifier(x) => x.span,
+        Expression::Literal(x) => x.span,
+        Expression::MemberAccess(x) => x.span,
+        Expression::MethodCall(x) => x.span,
+        Expression::Unary(x) => x.span,
+    }
 }
 
 /// A SUB / FUNCTION (in the program, or a TYPE's method in its scope), its

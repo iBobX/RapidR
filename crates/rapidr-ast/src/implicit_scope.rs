@@ -125,8 +125,10 @@ fn locals(name: &str, params: &[Parameter], body: &[Statement]) -> HashSet<Strin
 }
 
 /// `name` → `new` in a routine's body (its own expressions and FOR
-/// counters, not CREATE bodies).
-fn rename(body: &mut [Statement], name: &str, new_base: &str) {
+/// counters, not CREATE bodies). Public for the debugger's evaluator
+/// (rapidr-bcgen's `compile_snippet`), which names a routine's own
+/// variables as this pass did.
+pub fn rename(body: &mut [Statement], name: &str, new_base: &str) {
     let k = key(name);
     let renamed = |n: &str| -> Option<String> {
         (key(n) == k).then(|| format!("{new_base}{}", &n[strip_type_suffix(n).len()..]))

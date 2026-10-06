@@ -40,7 +40,7 @@ The extension then runs `rapidr version`, which prints `RapidR <version>`. If `r
 
 ## Features
 
-- **Completion**: builtins, keywords, components (RapidQ's offered under their `Q` names, RapidR's own under `R` names; both names understood everywhere) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files. Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
+- **Completion**: builtins, keywords, components (RapidQ's offered under their `Q` names, RapidR's own under `R` names; both names understood everywhere) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files (as the editor has them, saved or not). Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
 - **Hover** with signatures and documentation, and **signature help** (triggered by `(` and `,`).
 - **Go to Definition**, also into `$INCLUDE` files; **Find All References**; **Rename Symbol**.
 - **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the CREATE tree.
@@ -102,6 +102,14 @@ The extension contributes the **`rapidr`** debug type. VS Code runs `rapidr dap`
 | `stopOnEntry` | Pause on the first statement. |
 | `noDebug` | Run without debugging. Ctrl+F5 sets this. |
 | `env` | Extra environment variables (`null` removes one). |
+
+The program runs as `rapidr run --session` (RapidR's program session protocol; RapidR Studio's debugger speaks it too). While it is stopped:
+
+- **Watches, hovers and the Variables view** evaluate BASIC expressions in the selected frame on the VM itself (`sum / n`, `UCASE$(name$)`, `values(k) * 2`, a component's property `Form.Caption`); arrays and TYPEs expand.
+- **The Debug Console** prints an expression (`total * 2`) and runs a statement (`total = 100`, `PRINT x`), as VB's Immediate window does. While the program runs, a line typed there is its `INPUT`.
+- **Set Value** in the Variables view takes any expression.
+- **Run-time errors** (the Breakpoints view's "Run-time errors"): the program stops at the faulting statement — in an event handler too — with its frames and locals.
+- Breakpoints work in any file of the program (`$INCLUDE` files included); pause stops a busy program at its next statement.
 
 ## Troubleshooting
 

@@ -1,21 +1,19 @@
 //! Diagnostics: the compiler's own, with the compiler's messages and
 //! places (RapidQ's wording: `.reference/rapidq-compiler-messages.txt`).
 //!
-//! They come from the very pipeline `rapidr build-bc` runs
-//! (`compile_to_bytecode` in crates/rapidr-cli: preprocessor → lexer →
-//! parser → bytecode compiler, which stops at the first stage that fails),
-//! run on the editor's text, so an editor shows exactly what a build
-//! reports. The bytecode compiler reports its errors as text
-//! (`LINE:COL: error: message`, lines of the preprocessed program); they
-//! are read in one place, [`compiler_errors`], until it returns structured
-//! diagnostics (a small change in rapidr-bcgen: its `errors` as
-//! `Diagnostic`s with spans).
+//! They come from the stages `rapidr build-bc` runs (preprocessor → lexer
+//! → parser → bytecode compiler), reporting what the first stage that
+//! fails reports — as a build does — on the editor's text (the program's
+//! open files included, saved or not). Every stage gives structured
+//! diagnostics with spans; the parser for tools' origin map puts them in
+//! their files.
 
 use std::path::{Path, PathBuf};
 
-use rapidr_diagnostics::Severity;
-use rapidr_preprocessor::{preprocess_source, PreprocessOptions, PreprocessResult};
+use rapidr_diagnostics::{Diagnostic, Severity};
+use rapidr_preprocessor::PreprocessOptions;
 
+use crate::front::Parsed;
 use crate::text::{is_name_char, LineIndex};
 
 /// A diagnostic in a file: bytes of its text.
@@ -40,139 +38,64 @@ pub fn compiler_options(base: &PreprocessOptions) -> PreprocessOptions {
     options
 }
 
-/// What compiling `text` (the content of `path`) reports, as a build
-/// would. `file_text` gives the text of other files (editor or disk).
-pub fn compile(path: &Path, text: &str, options: &PreprocessOptions, file_text: &dyn Fn(&Path) -> Option<String>) -> Vec<FileDiagnostic> {
-    let base = path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
-    let options = compiler_options(options);
-    let label = path.display().to_string();
-    let texts = Texts { root: path, root_text: text, file_text };
-    let pre = match preprocess_source(text, &base, Some(path.to_path_buf()), options) {
-        Ok(p) => p,
-        Err(e) => {
-            let d = &e.diagnostic;
-            let file = d.file_path.as_deref().map(PathBuf::from).unwrap_or_else(|| path.to_path_buf());
-            return texts.at_line_col(&file, d.location.line, d.location.column, d.severity, &d.message).into_iter().collect();
-        }
-    };
-    let pre_lines = LineIndex::new(&pre.source);
-    let tokens = match rapidr_lexer::Lexer::new(&pre.source, Some(label.clone())).tokenize() {
-        Ok(t) => t,
-        Err(e) => {
-            let d = &e.diagnostic;
-            return texts.at_pre(&pre, &pre_lines, d.span.start, d.span.end.max(d.span.start), d.severity, &d.message).into_iter().collect();
-        }
-    };
-    let program = match rapidr_parser::parse_tokens(&tokens) {
-        Ok(p) => p,
-        Err(e) => {
-            return e.diagnostics.iter().filter_map(|d| texts.at_pre(&pre, &pre_lines, d.span.start, d.span.end, d.severity, &d.message)).collect();
-        }
-    };
-    let library_lines: Vec<bool> = pre.line_map.iter().map(|(file, _)| file.as_deref().is_some_and(|f| f != path)).collect();
-    match rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines) {
-        Ok(compiled) => compiled
-            .warnings
-            .iter()
-            .filter_map(|w| {
-                let (line, col, message) = compiler_errors(w)?;
-                texts.at_pre_line_col(&pre, &pre_lines, line, col, Severity::Warning, &message)
-            })
-            .collect(),
-        Err(errors) => errors
-            .lines()
-            .filter_map(|e| {
-                let (line, col, message) = compiler_errors(e)?;
-                texts.at_pre_line_col(&pre, &pre_lines, line, col, Severity::Error, &message)
-            })
-            .collect(),
+/// What compiling the parsed program reports, as a build would.
+pub fn compile(parsed: &Parsed) -> Vec<FileDiagnostic> {
+    let tools = &parsed.tools;
+    // 1. The preprocessor stops at its first error.
+    if tools.preprocessor_diagnostics > 0 {
+        let (location, d) = &tools.diagnostic_locations()[0];
+        let at = location.as_ref().and_then(|l| Some((l.path.clone()?, l.start)));
+        let (file, start) = at.unwrap_or_else(|| (parsed.root.clone(), 0));
+        return place(parsed, &file, start, None, d).into_iter().collect();
+    }
+    let source = &tools.preprocessed.source;
+    // 2. So does the lexer.
+    if let Err(e) = rapidr_lexer::Lexer::new(source, None).tokenize() {
+        return at_pre(parsed, &e.diagnostic).into_iter().collect();
+    }
+    // 3. The parser reports every statement it couldn't parse.
+    let parse: Vec<&Diagnostic> = tools.diagnostics[tools.preprocessor_diagnostics..].iter().collect();
+    if parse.iter().any(|d| d.severity == Severity::Error) {
+        return parse.into_iter().filter_map(|d| at_pre(parsed, d)).collect();
+    }
+    // 4. The bytecode compiler, on the same program and text.
+    let library_lines: Vec<bool> = tools.preprocessed.line_map.iter().map(|(file, _)| file.as_deref().is_some_and(|f| f != parsed.root)).collect();
+    match rapidr_bcgen::compile_program_diagnostics(&parsed.program, Some(source), &library_lines) {
+        Ok(_) => Vec::new(),
+        Err(errors) => errors.iter().filter_map(|d| at_pre(parsed, d)).collect(),
     }
 }
 
-/// One line of the bytecode compiler's errors: (line, column, message) —
-/// `LINE:COL: error: message` (line 1 when it names no place).
-pub fn compiler_errors(line: &str) -> Option<(usize, usize, String)> {
-    let line = line.trim();
-    if line.is_empty() {
+/// A diagnostic whose span counts bytes of the preprocessed text.
+fn at_pre(parsed: &Parsed, d: &Diagnostic) -> Option<FileDiagnostic> {
+    // (generated text — a $DEFINE's value — maps to the source it replaced)
+    let Some(l) = parsed.tools.locate(d.span) else {
+        return place(parsed, &parsed.root, 0, None, d);
+    };
+    let file = l.path?;
+    if file.starts_with("<RapidR>") {
         return None;
     }
-    let mut parts = line.splitn(3, ':');
-    let (a, b) = (parts.next()?, parts.next());
-    if let (Ok(l), Some(Ok(c))) = (a.trim().parse::<usize>(), b.map(|b| b.trim().parse::<usize>())) {
-        let rest = parts.next().unwrap_or("").trim();
-        let message = rest.strip_prefix("error:").or_else(|| rest.strip_prefix("warning:")).unwrap_or(rest).trim();
-        return Some((l, c, message.to_string()));
-    }
-    let message = line.strip_prefix("error:").or_else(|| line.strip_prefix("warning:")).unwrap_or(line).trim();
-    Some((1, 1, message.to_string()))
+    let end = (l.exact && l.end > l.start).then_some(l.end);
+    place(parsed, &file, l.start, end, d)
 }
 
-struct Texts<'a> {
-    root: &'a Path,
-    root_text: &'a str,
-    file_text: &'a dyn Fn(&Path) -> Option<String>,
-}
-
-impl Texts<'_> {
-    fn text(&self, file: &Path) -> Option<String> {
-        if file == self.root {
-            return Some(self.root_text.to_string());
-        }
-        (self.file_text)(file).or_else(|| rapidr_preprocessor::read_source(file).ok())
+/// The diagnostic at byte `start` of `file`: from there over the name the
+/// message is about (else the word there, else the rest of the line), not
+/// past the compiler's own span when it gives one.
+fn place(parsed: &Parsed, file: &Path, start: usize, end: Option<usize>, d: &Diagnostic) -> Option<FileDiagnostic> {
+    let text = parsed.file_text(file).unwrap_or("");
+    let start = start.min(text.len());
+    let index = LineIndex::new(text);
+    let (line, col) = index.line_col(start);
+    let line_start = index.line_start(line).unwrap_or(0);
+    let line_text = index.line_text(text, line);
+    let (_, e) = focus(line_text, col.min(line_text.len()), &d.message);
+    let mut end_at = line_start + e.max(col.min(line_text.len()));
+    if let Some(span_end) = end.filter(|&x| x > start) {
+        end_at = end_at.min(span_end.max(start + 1));
     }
-
-    /// A diagnostic at a 1-based line and column of a file, over the name
-    /// the message is about (else the word there).
-    fn at_line_col(&self, file: &Path, line: usize, col: usize, severity: Severity, message: &str) -> Option<FileDiagnostic> {
-        let text = self.text(file).unwrap_or_default();
-        let index = LineIndex::new(&text);
-        let l = line.saturating_sub(1).min(index.line_count().saturating_sub(1));
-        let start_of_line = index.line_start(l).unwrap_or(0);
-        let line_text = index.line_text(&text, l);
-        let col0 = col.saturating_sub(1).min(line_text.len());
-        // (it starts where the compiler says, and runs over the name the
-        // message is about)
-        let (_, e) = focus(line_text, col0, message);
-        let s = col0;
-        let e = e.max(s);
-        Some(FileDiagnostic { file: file.to_path_buf(), start: start_of_line + s, end: start_of_line + e, severity, message: message.to_string(), code: None })
-    }
-
-    /// A diagnostic at bytes of the preprocessed text.
-    fn at_pre(&self, pre: &PreprocessResult, lines: &LineIndex, start: usize, end: usize, severity: Severity, message: &str) -> Option<FileDiagnostic> {
-        let (line, col) = lines.line_col(start);
-        let (end_line, end_col) = lines.line_col(end);
-        let mut d = self.at_pre_line_col(pre, lines, line + 1, col + 1, severity, message)?;
-        if end_line == line && end > start {
-            // (the span as the parser gave it)
-            let pre_line = lines.line_text(&pre.source, line);
-            let text = self.text(&d.file).unwrap_or_default();
-            let index = LineIndex::new(&text);
-            let (fl, _) = index.line_col(d.start);
-            let orig = index.line_text(&text, fl);
-            let ls = index.line_start(fl).unwrap_or(0);
-            d.start = ls + crate::front::map_column(pre_line, orig, col);
-            d.end = (ls + crate::front::map_column(pre_line, orig, end_col)).max(d.start);
-        }
-        Some(d)
-    }
-
-    /// A diagnostic at a 1-based line and column of the preprocessed text.
-    fn at_pre_line_col(&self, pre: &PreprocessResult, lines: &LineIndex, line: usize, col: usize, severity: Severity, message: &str) -> Option<FileDiagnostic> {
-        let Some((file, file_line)) = pre.line_map.get(line.saturating_sub(1)) else {
-            return self.at_line_col(self.root, line, col, severity, message);
-        };
-        let file = file.clone().unwrap_or_else(|| self.root.to_path_buf());
-        if file.starts_with("<RapidR>") {
-            return None;
-        }
-        let pre_line = lines.line_text(&pre.source, line.saturating_sub(1));
-        let text = self.text(&file).unwrap_or_default();
-        let index = LineIndex::new(&text);
-        let orig = index.line_text(&text, file_line.saturating_sub(1));
-        let col = crate::front::map_column(pre_line, orig, col.saturating_sub(1)) + 1;
-        self.at_line_col(&file, *file_line, col, severity, message)
-    }
+    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at.max(start), severity: d.severity, message: d.message.clone(), code: None })
 }
 
 /// The part of a line a message at column `col` is about: the name it
@@ -195,7 +118,7 @@ fn focus(line: &str, col: usize, message: &str) -> (usize, usize) {
     }
     for c in candidates {
         let c = c.to_ascii_lowercase();
-        if c.is_empty() {
+        if c.is_empty() || !lower.is_char_boundary(col.min(lower.len())) {
             continue;
         }
         let mut from = col.min(lower.len());
@@ -210,7 +133,7 @@ fn focus(line: &str, col: usize, message: &str) -> (usize, usize) {
             from = end;
         }
     }
-    if let Some((s, e)) = crate::text::word_at(line, col).filter(|(s, _)| *s >= col.saturating_sub(0)) {
+    if let Some((s, e)) = crate::text::word_at(line, col) {
         return (s, e);
     }
     let trimmed_end = line.trim_end().len();
@@ -233,12 +156,6 @@ const COMMON: &[&str] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn compiler_lines_are_read() {
-        assert_eq!(compiler_errors("3:1: error: Unknown SUB or FUNCTION 'X'"), Some((3, 1, "Unknown SUB or FUNCTION 'X'".into())));
-        assert_eq!(compiler_errors("error: something"), Some((1, 1, "something".into())));
-    }
 
     #[test]
     fn the_name_a_message_is_about_is_underlined() {

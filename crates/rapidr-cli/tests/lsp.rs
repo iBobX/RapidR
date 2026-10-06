@@ -319,3 +319,40 @@ fn diagnostics_are_the_compilers() {
     c.shutdown();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn an_include_edited_and_not_saved_is_what_the_program_sees() {
+    let dir = scratch("unsaved");
+    let main = dir.join("main.bas");
+    let util = dir.join("util.inc");
+    std::fs::write(&main, "$INCLUDE \"util.inc\"\nPRINT Twice(2)\n").unwrap();
+    std::fs::write(&util, "' (no Twice on disk)\n").unwrap();
+    let mut c = Client::start(json!({}));
+    let main_uri = c.open(&main);
+    let diags = c.diagnostics_for(&main_uri);
+    assert_eq!(diags.len(), 1, "{diags:?}");
+    // The include opened and edited in the editor, never saved.
+    let util_uri = uri(&util);
+    c.notify("textDocument/didOpen", json!({ "textDocument": { "uri": util_uri, "languageId": "rapidr", "version": 1, "text": "' (no Twice on disk)\n" } }));
+    let edited = "FUNCTION Twice(n AS INTEGER) AS INTEGER\n    Twice = n * 2\nEND FUNCTION\n";
+    c.notes.clear();
+    c.notify("textDocument/didChange", json!({ "textDocument": { "uri": util_uri, "version": 2 }, "contentChanges": [{ "text": edited }] }));
+    // (the didOpen's own publication may come first: the last one counts)
+    let mut diags = c.diagnostics_for(&main_uri);
+    for _ in 0..20 {
+        if diags.is_empty() {
+            break;
+        }
+        c.notes.clear();
+        diags = c.diagnostics_for(&main_uri);
+    }
+    assert!(diags.is_empty(), "{diags:?}");
+    let r = c.request("textDocument/definition", json!({ "textDocument": { "uri": main_uri }, "position": pos(1, 8) }));
+    assert_eq!(r[0]["uri"], util_uri);
+    assert_eq!(r[0]["range"]["start"], pos(0, 9));
+    // Completion in the main file offers it.
+    let r = c.request("textDocument/completion", json!({ "textDocument": { "uri": main_uri }, "position": pos(1, 6) }));
+    assert!(r["items"].as_array().unwrap().iter().any(|i| i["label"] == "Twice"));
+    c.shutdown();
+    let _ = std::fs::remove_dir_all(&dir);
+}

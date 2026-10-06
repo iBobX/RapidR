@@ -263,11 +263,20 @@ describe('RapidR for VS Code', () => {
                 assert.ok(names.includes('i') && names.includes('n'), `locals: ${names.join(', ')}`);
                 const ev = await session.customRequest('evaluate', { expression: 'n', frameId: top.id, context: 'watch' });
                 assert.strictEqual(ev.result, '3');
+                // Watches are expressions, evaluated by the VM in the frame.
+                const watch = (expression) => session.customRequest('evaluate', { expression, frameId: top.id, context: 'watch' }).then((r) => r.result);
+                assert.strictEqual(await watch('n * 10 + i'), '31');
+                assert.strictEqual(await watch('total + i'), '1');
+                assert.strictEqual(await watch('"i=" + STR$(i)'), '"i=1"');
+                // The debug console prints an expression, runs a statement.
+                await session.customRequest('evaluate', { expression: 'total = 100', frameId: top.id, context: 'repl' });
+                const repl = await session.customRequest('evaluate', { expression: 'total * 2', frameId: top.id, context: 'repl' });
+                assert.strictEqual(repl.result, '200');
                 vscode.debug.removeBreakpoints([bp]);
                 await session.customRequest('continue', { threadId });
                 await eventually(() => events.find((e) => e.event === 'terminated'), 'the end of the program');
                 const out = events.filter((e) => e.event === 'output').map((e) => e.body.output).join('');
-                assert.match(out, /total\s*6/, `output: ${out}`);
+                assert.match(out, /total\s*106/, `output: ${out}`);
             } finally {
                 tracker.dispose();
                 vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
@@ -286,6 +295,26 @@ describe('RapidR for VS Code', () => {
             assert.ok(d, `messages: ${diags.map((x) => x.message).join(' | ')}`);
             assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
             assert.strictEqual(d.range.start.line, at(doc, 'undeclaredThing = 2').line);
+        });
+
+        it('sees an $INCLUDEd file as the editor has it, saved or not', async () => {
+            const main = await open('unsaved.bas');
+            await eventually(() => vscode.languages.getDiagnostics(main.uri).some((d) => /Triple/.test(d.message)), 'the error before the edit');
+            const inc = await open('unsaved.inc');
+            const editor = vscode.window.activeTextEditor;
+            await editor.edit((e) => e.insert(new vscode.Position(1, 0), 'FUNCTION Triple(n AS INTEGER) AS INTEGER\n    Triple = n * 3\nEND FUNCTION\n'));
+            assert.ok(inc.isDirty, 'the include is edited and not saved');
+            try {
+                await eventually(() => vscode.languages.getDiagnostics(main.uri).length === 0, 'no error once the include has Triple');
+                const pos = at(main, 'Triple(', 2);
+                const locs = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', main.uri, pos);
+                assert.strictEqual(path.basename(targetUri(locs[0]).fsPath), 'unsaved.inc');
+                const range = locs[0].targetSelectionRange || locs[0].targetRange || locs[0].range;
+                assert.strictEqual(range.start.line, 1, 'the line the editor has it on');
+            } finally {
+                await vscode.window.showTextDocument(inc);
+                await vscode.commands.executeCommand('workbench.action.files.revert');
+            }
         });
 
         it('reports no error in a correct program', async () => {

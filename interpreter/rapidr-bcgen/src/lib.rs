@@ -33,7 +33,7 @@ use rapidr_ast::{
     SubroutineStatement, UnaryOperator, WhileStatement,
 };
 use rapidr_bytecode::{builtins, Const, Function, Module, Op, Param};
-use rapidr_diagnostics::TextSpan;
+use rapidr_diagnostics::{Diagnostic, SourceLocation, TextSpan};
 
 pub mod semantic;
 use semantic::{Access, DimTarget, NameFacts, NameUse, SymbolKind};
@@ -60,7 +60,25 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 /// doesn't know aren't errors (RapidQ's own libraries use Win32 routines
 /// and built-ins RapidR lacks); the program's own code is always checked.
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
+    compile_recording(program, source, library_lines, None).0.map_err(|errors| errors.iter().map(error_text).collect::<Vec<_>>().join("\n"))
+}
+
+/// [`compile_program_with_libraries`] with its errors as diagnostics: the
+/// message, its span of `source` (the preprocessed text the program was
+/// parsed from) and its line and column there (0 when there's no source).
+/// Editors map the spans to their files with the preprocessor's origin map.
+pub fn compile_program_diagnostics(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, Vec<Diagnostic>> {
     compile_recording(program, source, library_lines, None).0
+}
+
+/// An error as the compiler prints it: `LINE:COL: error: message`, or
+/// `error: message` without a place.
+pub fn error_text(d: &Diagnostic) -> String {
+    if d.location.line > 0 {
+        format!("{}:{}: error: {}", d.location.line, d.location.column, d.message)
+    } else {
+        format!("error: {}", d.message)
+    }
 }
 
 /// Compiles the program recording what the compiler decides about names
@@ -72,7 +90,7 @@ fn record_program(program: &Program, source: Option<&str>) -> semantic::Recorder
     std::panic::catch_unwind(run).ok().flatten().unwrap_or_default()
 }
 
-fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, String>, Option<semantic::Recorder>) {
+fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, Vec<Diagnostic>>, Option<semantic::Recorder>) {
     // (RapidQ's library objects RapidR implements, ENVIRON statements:
     // rapidr_ast::library — native builds run it first too)
     let program = &rapidr_ast::library::lower(program);
@@ -110,7 +128,13 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     }
     let result = bcgen.compile_program(program);
     let recorder = bcgen.sem.take();
-    (result.map(|()| Compiled { module: bcgen.module, warnings: bcgen.warnings }), recorder)
+    let result = match result {
+        Ok(()) => Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings }),
+        // (an error that escaped without a place: kept, at no place)
+        Err(text) if bcgen.errors.is_empty() => Err(vec![Diagnostic::error(text, TextSpan::default(), SourceLocation::new(0, 0), None)]),
+        Err(_) => Err(std::mem::take(&mut bcgen.errors)),
+    };
+    (result, recorder)
 }
 
 /// The local a snippet's value goes into ([`compile_snippet`]): an
@@ -179,9 +203,24 @@ pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Sta
     let result = b.scope.declare(SNIPPET_RESULT);
     b.scope.owner = "the evaluation".to_string();
     let index = b.module.add_function(Function { name: "<evaluate>".into(), params, ..Default::default() });
+    // A routine's own undeclared variables (RapidQ's implicit scope: kept as
+    // `Routine__name`, rapidr_ast::implicit_scope) are what its names mean
+    // in its frame, as in its code.
+    let mut statements = statements.to_vec();
+    if let Some((_, f)) = target.filter(|_| !b.in_main) {
+        let prefix = format!("{}__", name_key(&f.name));
+        for (i, s) in module.strings.iter().enumerate() {
+            let key = name_key(s);
+            if let Some(var) = key.strip_prefix(&prefix).filter(|v| !v.is_empty() && assigned_global(i)) {
+                if !b.scope.locals.contains_key(var) {
+                    rapidr_ast::implicit_scope::rename(&mut statements, var, rapidr_ast::strip_type_suffix(s));
+                }
+            }
+        }
+    }
     let mut code = Vec::new();
     let mut lines = Vec::new();
-    for stmt in statements {
+    for stmt in &statements {
         b.lower_stmt(stmt, &mut code, &mut lines)?;
     }
     emit(&mut code, Op::LoadLocal);
@@ -193,7 +232,7 @@ pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Sta
         errors.extend(deferred);
     }
     if !errors.is_empty() {
-        return Err(errors.iter().map(|e| e.strip_prefix("error: ").unwrap_or(e)).collect::<Vec<_>>().join("\n"));
+        return Err(errors.iter().map(|e| e.message.clone()).collect::<Vec<_>>().join("\n"));
     }
     let f = &mut b.module.functions[index as usize];
     f.code = code;
@@ -278,11 +317,12 @@ struct Bcgen {
     /// Errors about things only native builds can do (DLL calls, VARPTR, …)
     /// raised inside a routine: reported only if the program can reach it,
     /// so unused parts of big include libraries don't block a program.
-    deferred_errors: HashMap<String, Vec<String>>,
+    deferred_errors: HashMap<String, Vec<Diagnostic>>,
     warnings: Vec<String>,
-    /// Compile errors ("line:col: error: message"). Collected rather than
-    /// returned immediately so one compile reports every problem.
-    errors: Vec<String>,
+    /// Compile errors, with their spans (printed by [`error_text`]).
+    /// Collected rather than returned immediately so one compile reports
+    /// every problem.
+    errors: Vec<Diagnostic>,
     /// DECLARE ... LIB (external DLL) function names, by [`name_key`].
     lib_functions: HashSet<String>,
     /// Library of each `DECLARE … LIB` routine (`name_key` → lowercase DLL name).
@@ -505,8 +545,8 @@ impl Bcgen {
         // parts of RAPIDQ2.INC, windows.inc, …) don't stop it compiling.
         if !self.deferred_errors.is_empty() {
             let reachable = reachable_routines(program);
-            let mut deferred: Vec<(String, Vec<String>)> = std::mem::take(&mut self.deferred_errors).into_iter().collect();
-            deferred.sort();
+            let mut deferred: Vec<(String, Vec<Diagnostic>)> = std::mem::take(&mut self.deferred_errors).into_iter().collect();
+            deferred.sort_by(|a, b| a.0.cmp(&b.0));
             for (routine, errors) in deferred {
                 if reachable.contains(&routine) {
                     self.errors.extend(errors);
@@ -515,7 +555,7 @@ impl Bcgen {
         }
 
         if !self.errors.is_empty() {
-            return Err(self.errors.join("\n"));
+            return Err(self.errors.iter().map(error_text).collect::<Vec<_>>().join("\n"));
         }
         Ok(())
     }
@@ -532,10 +572,8 @@ impl Bcgen {
     }
 
     fn error_at(&mut self, span: TextSpan, message: String) {
-        let formatted = match self.span_location(span) {
-            Some((line, col)) => format!("{line}:{col}: error: {message}"),
-            None => format!("error: {message}"),
-        };
+        let (line, col) = self.span_location(span).unwrap_or((0, 0));
+        let formatted = Diagnostic::error(message.clone(), span, SourceLocation::new(line, col), None);
         // Features the interpreter lacks (native-only or not supported yet),
         // and names it doesn't know, only count in code the program can
         // reach: include libraries are full of routines a program never

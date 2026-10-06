@@ -12,7 +12,6 @@ use std::process::ExitCode;
 
 mod adapter;
 pub mod dap;
-mod interim;
 pub mod session_wire;
 
 /// `rapidr dap`: serves one debug session on stdin / stdout.
@@ -20,17 +19,12 @@ pub fn run_stdio() -> ExitCode {
     adapter::run_stdio()
 }
 
-/// `rapidr __debuggee <file> [args]`: the program end of a debug session
-/// (interim, until `rapidr run --session` lands).
-pub fn debuggee_main(args: &[String]) -> ExitCode {
-    interim::debuggee_main(args)
-}
-
 /// The command that runs `program` with `args` as the program's end of a
-/// session: this `rapidr`. When rapidr-session lands, the one change is
-/// `__debuggee` → `run --session`.
+/// session: this `rapidr`, `run --session` (rapidr-session's protocol on
+/// the VM: breakpoints by file, stepping, pause, evaluation, setting
+/// variables, break on error).
 pub fn program_end_command(program: &Path, args: &[String]) -> std::io::Result<std::process::Command> {
     let mut command = std::process::Command::new(std::env::current_exe()?);
-    command.arg("__debuggee").arg(program).args(args);
+    command.arg("run").arg("--session").arg(program).args(args);
     Ok(command)
 }

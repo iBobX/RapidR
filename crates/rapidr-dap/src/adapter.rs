@@ -207,9 +207,10 @@ impl<W: Write> Adapter<W> {
     }
 
     fn remember_path(&mut self, path: &Path) {
+        // (as the editor wrote it, never resolved: /var/… and /private/var/…
+        // are the same file to the system but two editors to VS Code)
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            self.paths.entry(name.to_ascii_lowercase()).or_insert(path);
+            self.paths.entry(name.to_ascii_lowercase()).or_insert_with(|| path.to_path_buf());
         }
     }
 
@@ -339,7 +340,10 @@ impl<W: Write> Adapter<W> {
                 let frame = a.frame_id.filter(|&f| f >= 1).map(|f| (f - 1) as u32);
                 if self.stopped {
                     let expr = a.expression.clone();
-                    self.send(Command::Evaluate { expr: a.expression, frame, context: a.context }, Some((seq, command, Pending::Evaluate { expr, frame })));
+                    // (the debug console: an expression is printed, as VS
+                    // Code's users expect; a statement runs — VB's Immediate)
+                    let text = if a.context.as_deref() == Some("repl") { repl_text(&a.expression) } else { a.expression };
+                    self.send(Command::Evaluate { expr: text, frame, context: a.context }, Some((seq, command, Pending::Evaluate { expr, frame })));
                 } else if a.context.as_deref() == Some("repl") && self.stdin.is_some() {
                     // (while the program runs, the debug console is its
                     // keyboard: a line for INPUT)
@@ -406,7 +410,6 @@ impl<W: Write> Adapter<W> {
         if !program.is_file() {
             return Err(format!("{}: no such file", program.display()));
         }
-        let program = program.canonicalize().unwrap_or(program);
         self.program_dir = program.parent().map(Path::to_path_buf);
         self.remember_path(&program);
         // (the files it includes, as the preprocessor finds them)
@@ -538,7 +541,7 @@ impl<W: Write> Adapter<W> {
                     .iter()
                     .map(|var| {
                         let path = child_path(parent.as_deref(), &var.name);
-                        let mut v = json!({ "name": var.name, "value": var.value, "type": var.kind, "variablesReference": var.reference, "evaluateName": path });
+                        let mut v = json!({ "name": var.name, "value": shown(&var.value, &var.kind), "type": var.kind, "variablesReference": var.reference, "evaluateName": path });
                         if var.reference != 0 {
                             self.refs.insert(var.reference, (frame, Some(path)));
                             if var.kind == "Array" {
@@ -556,7 +559,7 @@ impl<W: Write> Adapter<W> {
                 if reference != 0 {
                     self.refs.insert(reference, (frame, Some(expr.trim().trim_start_matches('?').trim().to_string())));
                 }
-                self.respond(seq, &command, Some(json!({ "result": result, "type": kind, "variablesReference": reference })));
+                self.respond(seq, &command, Some(json!({ "result": shown(&result, &kind), "type": kind, "variablesReference": reference })));
             }
             (Pending::SetVariable { path, frame }, EventBody::Evaluate { result, kind, reference }) => {
                 if reference != 0 {
@@ -612,6 +615,55 @@ impl<W: Write> Adapter<W> {
 
 /// The expression naming a child of `parent`: an element `a(1)`, a field
 /// `p.Name` (a scope's variable: just its name).
+/// A value as the editor shows it: a variable never assigned is `Empty`
+/// (the session sends no text for it).
+fn shown(value: &str, kind: &str) -> String {
+    if value.is_empty() && kind == "Empty" {
+        "Empty".to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+/// What the debug console's text is for the session's `repl` evaluation:
+/// a statement as typed (an assignment, `PRINT …`, `CALL …`, `? …`), any
+/// other text as an expression to print (`? text`).
+fn repl_text(text: &str) -> String {
+    let t = text.trim();
+    let upper = t.to_ascii_uppercase();
+    let first = upper.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$')).next().unwrap_or("");
+    const STATEMENTS: &[&str] = &[
+        "PRINT", "CALL", "DIM", "REDIM", "INC", "DEC", "SWAP", "IF", "FOR", "WHILE", "DO", "SELECT", "INPUT", "LET", "GOSUB", "GOTO", "END", "EXIT", "WITH",
+        "CREATE", "BIND", "CLS", "LOCATE", "COLOR", "SHOWMESSAGE",
+    ];
+    if t.starts_with('?') || STATEMENTS.contains(&first) || is_assignment(t) {
+        t.to_string()
+    } else {
+        format!("? {t}")
+    }
+}
+
+/// `name … = value`: a name (members, indexes) then `=` at the top level.
+fn is_assignment(t: &str) -> bool {
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut seen_name = false;
+    for c in t.chars() {
+        match c {
+            '"' => in_string = !in_string,
+            _ if in_string => {}
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            '=' if depth == 0 => return seen_name,
+            c if depth == 0 && (c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '$' | '%' | '&' | '!' | '#')) => seen_name = true,
+            c if depth == 0 && c.is_whitespace() => {}
+            _ if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
+}
+
 fn child_path(parent: Option<&str>, name: &str) -> String {
     match parent {
         None => name.to_string(),
@@ -679,6 +731,19 @@ fn spawn_stderr_reader(mut stderr: impl Read + Send + 'static, tx: Sender<Msg>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_console_prints_expressions_and_runs_statements() {
+        assert_eq!(repl_text("a + 1"), "? a + 1");
+        assert_eq!(repl_text("total = 100"), "total = 100");
+        assert_eq!(repl_text("v(i).x = 2"), "v(i).x = 2");
+        assert_eq!(repl_text("a = 1 OR b"), "a = 1 OR b");
+        assert_eq!(repl_text("(a = 1)"), "? (a = 1)");
+        assert_eq!(repl_text("x > 1 = y"), "? x > 1 = y");
+        assert_eq!(repl_text("? a"), "? a");
+        assert_eq!(repl_text("PRINT a"), "PRINT a");
+        assert_eq!(repl_text("Mean(5)"), "? Mean(5)");
+    }
 
     #[test]
     fn children_are_named_as_basic_writes_them() {
