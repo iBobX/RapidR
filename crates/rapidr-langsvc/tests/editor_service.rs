@@ -181,3 +181,24 @@ fn closed_files_are_forgotten() {
     s.close(FILE);
     assert!(s.outline(FILE).is_empty());
 }
+
+#[test]
+fn positions_are_lines_and_characters() {
+    let text = "PRINT \"é\"\nDIM x\n";
+    let mut s = service(text);
+    assert_eq!(s.position(FILE, 0), Some((1, 1)));
+    // (characters, not bytes: `é` is two)
+    assert_eq!(s.position(FILE, text.find('\n').unwrap()), Some((1, 10)));
+    assert_eq!(s.position(FILE, text.find("x").unwrap()), Some((2, 5)));
+    assert_eq!(s.position(FILE, text.len()), Some((3, 1)));
+    assert_eq!(s.position(FILE, text.len() + 1), None);
+    assert_eq!(s.position("no-such-file.bas", 0), None);
+    // a file on the disk, not open in the editor
+    let dir = std::env::temp_dir().join(format!("rapidr-editor-svc-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let disk = dir.join("lib.inc");
+    std::fs::write(&disk, "' lib\nSUB A\nEND SUB\n").unwrap();
+    // (byte 10: `A`, after `' lib\n` and `SUB `)
+    assert_eq!(s.position(&disk.to_string_lossy(), 10), Some((2, 5)));
+    let _ = std::fs::remove_dir_all(&dir);
+}

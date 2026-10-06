@@ -285,6 +285,10 @@ pub trait LanguageService {
     fn case_edits(&mut self, file: &str, offset: usize, ch: char, case: &str) -> Vec<Edit>;
     /// The characters after which [`LanguageService::case_edits`] is asked.
     fn case_triggers(&self) -> &'static [char];
+    /// Byte `offset` of `file` (the editor's text, else the disk's) as a
+    /// 1-based line and 1-based character column: where a definition or a
+    /// reference in another file is, for the program to open it there.
+    fn position(&mut self, file: &str, offset: usize) -> Option<(usize, usize)>;
     /// The characters that open completion by themselves (`.`).
     fn completion_triggers(&self) -> &'static [char] {
         &['.']

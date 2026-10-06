@@ -252,4 +252,11 @@ impl ed::LanguageService for EditorService {
     fn case_triggers(&self) -> &'static [char] {
         case::TRIGGERS
     }
+
+    fn position(&mut self, file: &str, offset: usize) -> Option<(usize, usize)> {
+        let text = self.analysis.text(&path(file))?;
+        let before = text.get(..offset)?;
+        let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+        Some((before.matches('\n').count() + 1, before[line_start..].chars().count() + 1))
+    }
 }
