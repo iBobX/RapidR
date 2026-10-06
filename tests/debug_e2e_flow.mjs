@@ -2,8 +2,7 @@ import { chromium } from "playwright";
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 
-const PORT = 8765;
-const URL_BASE = `http://localhost:${PORT}`;
+const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const SHOT_DIR = process.env.RAPIDR_SHOT_DIR || new URL("./screenshots/", import.meta.url).pathname;
 mkdirSync(SHOT_DIR, { recursive: true });
 
@@ -79,5 +78,10 @@ const DOMState = await page.evaluate(() => {
 console.log("Computed DOM state:", DOMState);
 
 await page.screenshot({ path: join(SHOT_DIR, "04_debug_started.png"), fullPage: true });
+
+// (the debugger runs the program: it waits in its form, not stopped)
+const debugging = await page.evaluate(() => window.RapidR.state.isDebugging && !window.RapidR.state.isDebugPaused);
+console.log(debugging ? "PASS" : "FAIL: the debugger didn't start the program");
+if (!debugging) process.exitCode = 1;
 
 await browser.close();

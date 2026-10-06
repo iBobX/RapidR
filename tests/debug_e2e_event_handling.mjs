@@ -1,12 +1,16 @@
 // E2E test for RapidR debugger: event handlers, breakpoints, stepping, variables, and stack.
 // Usage: node tests/debug_e2e_event_handling.mjs
 
+// (The preview's form is a window the UI kernel draws: the button is
+// clicked as the user does, tests/web_kernel_page.mjs. The debugger speaks
+// RapidR's program session protocol to the preview frame.)
+
 import { chromium } from "playwright";
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
+import * as k from "./web_kernel_page.mjs";
 
-const PORT = 8765;
-const URL_BASE = `http://localhost:${PORT}`;
+const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const SHOT_DIR = process.env.RAPIDR_SHOT_DIR || new URL("./screenshots/", import.meta.url).pathname;
 mkdirSync(SHOT_DIR, { recursive: true });
 
@@ -109,9 +113,9 @@ try {
 
   // Click the button in the app preview to fire the event handler
   console.log("→ clicking Button1 in the application preview");
-  const previewFrame = page.frameLocator("#preview");
-  const previewButton = previewFrame.locator("#rr-button1");
-  await previewButton.click();
+  const frame = page.frames().find((f) => f.url().includes("preview.html"));
+  await k.waitFor(frame, "Button1");
+  await k.click(frame, "Button1");
   await page.waitForTimeout(800);
 
   // Wait for the debugger to pause on the breakpoint (line 3)

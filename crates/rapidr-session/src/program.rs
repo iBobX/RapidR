@@ -238,7 +238,14 @@ impl ProgramEnd {
     /// Evaluates a BASIC expression in `frame`.
     pub fn evaluate<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, frame: Option<usize>, expr: &str) -> Result<Value, String> {
         let source = format!("{} = ({expr})", rapidr_bcgen::SNIPPET_RESULT);
-        let snippet = compile(vm, module, frame, &source)?;
+        // (the compiler's words, without the line it made up around it)
+        let snippet = compile(vm, module, frame, &source).map_err(|e| {
+            if e.contains(rapidr_bcgen::SNIPPET_RESULT) {
+                format!("`{expr}` isn't an expression (syntax error)")
+            } else {
+                e
+            }
+        })?;
         vm.evaluate(&snippet.module, snippet.function, frame, false, EVAL_FUEL).map_err(|e| e.to_string())
     }
 
@@ -364,8 +371,10 @@ fn index_label(bounds: &[(i64, i64)], mut k: usize) -> String {
 fn compile<H: Host + ?Sized>(vm: &Vm<'_, H>, module: &Module, frame: Option<usize>, source: &str) -> Result<rapidr_bcgen::Snippet, String> {
     let mut text = source.to_string();
     text.push('\n');
-    let tokens = rapidr_lexer::Lexer::new(&text, None).tokenize().map_err(|e| e.to_string())?;
-    let program = rapidr_parser::parse_tokens(&tokens).map_err(|e| e.to_string().trim().to_string())?;
+    // (one line, so a message's "1:5: error:" says nothing worth keeping)
+    let plain = |e: String| e.lines().map(|l| l.split_once(" error: ").map_or(l, |(_, m)| m).trim().to_string()).collect::<Vec<_>>().join("; ");
+    let tokens = rapidr_lexer::Lexer::new(&text, None).tokenize().map_err(|e| plain(e.to_string()))?;
+    let program = rapidr_parser::parse_tokens(&tokens).map_err(|e| plain(e.to_string()))?;
     let fn_index = frame.and_then(|i| vm.frames.get(i)).map(|f| f.fn_index);
     let globals = &vm.globals;
     rapidr_bcgen::compile_snippet(module, fn_index, &program.statements, &|i| globals.get(i).is_some_and(Option::is_some))

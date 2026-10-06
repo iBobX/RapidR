@@ -18,9 +18,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**651 libraries** under 23 license expressions.
+**656 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (367)
+## Apache-2.0 OR MIT (371)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -278,6 +278,7 @@ their `OFL.txt`.
 | serde_json | 1.0.149 | <https://github.com/serde-rs/json> |
 | serde_path_to_error | 0.1.20 | <https://github.com/dtolnay/path-to-error> |
 | serde_repr | 0.1.21 | <https://github.com/dtolnay/serde-repr> |
+| serde_spanned | 1.1.1 | <https://github.com/toml-rs/toml> |
 | serde_urlencoded | 0.7.1 | <https://github.com/nox/serde_urlencoded> |
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
@@ -306,9 +307,12 @@ their `OFL.txt`.
 | thiserror | 2.0.18 | <https://github.com/dtolnay/thiserror> |
 | thiserror-impl | 1.0.69 | <https://github.com/dtolnay/thiserror> |
 | thiserror-impl | 2.0.18 | <https://github.com/dtolnay/thiserror> |
+| toml | 0.9.12+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml_datetime | 0.7.5+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_datetime | 1.1.0+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_edit | 0.25.8+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_parser | 1.1.0+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml_writer | 1.1.2+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | ttf-parser | 0.25.1 | <https://github.com/harfbuzz/ttf-parser> |
 | typenum | 1.19.0 | <https://github.com/paholg/typenum> |
 | unicase | 2.9.0 | <https://github.com/seanmonstar/unicase> |
@@ -392,7 +396,7 @@ their `OFL.txt`.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (165)
+## MIT (166)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -543,6 +547,7 @@ their `OFL.txt`.
 | wayland-protocols-wlr | 0.3.12 | <https://github.com/smithay/wayland-rs> |
 | wayland-scanner | 0.31.11 | <https://github.com/smithay/wayland-rs> |
 | wayland-sys | 0.31.11 | <https://github.com/smithay/wayland-rs> |
+| winnow | 0.7.15 | <https://github.com/winnow-rs/winnow> |
 | winnow | 1.0.0 | <https://github.com/winnow-rs/winnow> |
 | x11-dl | 2.21.0 | <https://github.com/AltF02/x11-rs.git> |
 | xcursor | 0.3.11 | <https://github.com/esposm03/xcursor-rs> |

@@ -25,6 +25,21 @@ pub struct PreprocessOptions {
     /// file's own directory (like RapidQ's `include\` folder). Native builds
     /// also search the `RAPIDR_INCLUDE_PATH` environment variable.
     pub include_dirs: Vec<PathBuf>,
+    /// Files `$INCLUDE` finds without a file system — the web, where a
+    /// project's files are in memory: (name as the project names it, its
+    /// text). Looked up first, by the include's path or its last part, in
+    /// any case.
+    pub virtual_files: Vec<(String, String)>,
+}
+
+/// The virtual file `include_file` names ([`PreprocessOptions::virtual_files`]).
+fn find_virtual<'a>(files: &'a [(String, String)], include_file: &str) -> Option<&'a (String, String)> {
+    let wanted = include_file.trim().replace('\\', "/");
+    let base = wanted.rsplit('/').next().unwrap_or(&wanted).to_string();
+    files
+        .iter()
+        .find(|(name, _)| name.replace('\\', "/").eq_ignore_ascii_case(&wanted))
+        .or_else(|| files.iter().find(|(name, _)| name.replace('\\', "/").rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))))
 }
 
 /// State shared by a file and everything it includes: a `$DEFINE` or `$MACRO`
@@ -34,6 +49,7 @@ struct PpState {
     macros: HashMap<String, MacroDefinition>,
     include_stack: Vec<PathBuf>,
     include_dirs: Vec<PathBuf>,
+    virtual_files: Vec<(String, String)>,
     app_type: Option<String>,
     resources: Vec<Resource>,
     /// `$ESCAPECHARS ON` is in effect (it belongs to the file it's in: an
@@ -56,6 +72,7 @@ impl PpState {
             macros: HashMap::new(),
             include_stack: Vec::new(),
             include_dirs: options.include_dirs,
+            virtual_files: options.virtual_files,
             app_type: None,
             resources: Vec::new(),
             escape_chars: false,
@@ -504,7 +521,8 @@ fn preprocess_with_state(
                 }
                 continue;
             }
-            let include_path = match resolve_include_path(base_dir, &include_file, &state.include_dirs) {
+            let virtual_file = find_virtual(&state.virtual_files, &include_file).cloned();
+            let include_path = match virtual_file.as_ref().map(|(name, _)| PathBuf::from(name)).or_else(|| resolve_include_path(base_dir, &include_file, &state.include_dirs)) {
                 Some(path) => path,
                 None => {
                     // RapidQ programs start with `$INCLUDE "RAPIDQ.INC"`; supply
@@ -531,7 +549,7 @@ fn preprocess_with_state(
                 ));
             }
 
-            let include_source = read_source(&include_path).map_err(|error| {
+            let include_source = virtual_file.map(|(_, text)| Ok(text)).unwrap_or_else(|| read_source(&include_path)).map_err(|error| {
                 PreprocessError::new(
                     format!("Failed to include '{include_file}': {error}"),
                     line_number,
@@ -1247,6 +1265,18 @@ mod tests {
         assert!(result.source.contains("PRINT \"café\""), "{}", result.source);
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn virtual_files_are_included_without_a_file_system() {
+        let options = PreprocessOptions {
+            virtual_files: vec![("util.inc".into(), "$INCLUDE \"inner.INC\"\nSUB Hi\nEND SUB".into()), ("lib/Inner.inc".into(), "PRINT 1".into())],
+            ..Default::default()
+        };
+        let result = preprocess_source("$INCLUDE \"C:\\src\\UTIL.inc\"\nHi\n", ".", Some(std::path::PathBuf::from("main.bas")), options).unwrap();
+        assert_eq!(result.source, "PRINT 1\nSUB Hi\nEND SUB\nHi\n");
+        let origins: Vec<(String, usize)> = result.line_map.iter().map(|(f, l)| (f.as_ref().unwrap().display().to_string(), *l)).collect();
+        assert_eq!(origins, [("lib/Inner.inc".to_string(), 1), ("util.inc".into(), 2), ("util.inc".into(), 3), ("main.bas".into(), 2), ("main.bas".into(), 3)]);
     }
 
     #[test]

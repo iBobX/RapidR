@@ -358,14 +358,17 @@ function handlePreviewMessage(d) {
   }
   if (d.__rapidr_status) setStatus(d.__rapidr_status);
   if (d.__rapidr_storage) applyAppStorageOp(d.__rapidr_storage);
-  if (d.__rapidr_debug_paused) onDebugPaused(d.__rapidr_debug_paused);
-  if (d.__rapidr_debug_running) onDebugRunning();
-  if (d.__rapidr_debug_halted) onDebugHalted();
-  if (d.__rapidr_debug_properties) onDebugProperties(d.__rapidr_debug_properties);
+  // (RapidR's program session protocol, rapidr-session: JSON events)
+  if (typeof d.__rapidr_session === "string") {
+    let m = null;
+    try { m = JSON.parse(d.__rapidr_session); } catch { return; }
+    onSessionMessage(m);
+  }
 }
 
 /// Loads preview.html into #preview and boots it with `payload`
-/// (`{ run: bytecode }` or `{ debug: bytecode, breakpoints }`).
+/// (`{ run: bytecode }`, or `{ session: { bytes, program } }` to debug it
+/// through the program session protocol).
 function startPreview(role, payload) {
   closePreviewChannel();
   const gen = previewGeneration;
@@ -2497,28 +2500,28 @@ async function dispatchCommand(cmd) {
     case "run.debug":  return doDebug();
     case "debug.resume": {
       clearActiveHighlights();
-      sendDebugCommand("resume");
+      sessionSend({ type: "continue" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
     }
     case "debug.stepover": {
       clearActiveHighlights();
-      sendDebugCommand("stepOver");
+      sessionSend({ type: "stepOver" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
     }
     case "debug.stepinto": {
       clearActiveHighlights();
-      sendDebugCommand("stepInto");
+      sessionSend({ type: "stepIn" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
     }
     case "debug.stepout": {
       clearActiveHighlights();
-      sendDebugCommand("stepOut");
+      sessionSend({ type: "stepOut" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
@@ -2627,6 +2630,7 @@ async function doRun() {
 }
 
 function doStop() {
+  if (state.isDebugging) sessionSend({ type: "stop" });
   closePreviewChannel();
   const iframe = $("#preview");
   iframe.src = "about:blank";
@@ -2635,7 +2639,7 @@ function doStop() {
   if (backdrop) backdrop.hidden = true;
   setStatus("stopped");
   if (state.isDebugging) {
-    sendDebugCommand("stop");
+    // (the frame is gone already: Stop is a kill)
     onDebugHalted();
   }
 }
@@ -4171,7 +4175,7 @@ function toggleBreakpoint(fileId, line, editor) {
         unifiedBreakpoints.push(unifiedLine);
       }
     }
-    sendDebugCommand("setBreakpoints", { lines: unifiedBreakpoints });
+    sendSessionBreakpoints(unifiedBreakpoints);
   }
 }
 
@@ -4289,15 +4293,108 @@ async function doDebug() {
       }
     }
     
-    startPreview("debug", { debug: bc, breakpoints: unifiedBreakpoints });
+    state.sessionProgram = state.project.name;
+    state.sessionBreakpoints = unifiedBreakpoints;
+    startPreview("debug", { session: { bytes: bc, program: state.sessionProgram } });
   } catch (err) {
     setStatus("compile failed", "error");
     reportCompileFailure(err);
   }
 }
 
-function sendDebugCommand(type, args = {}) {
-  sendToPreview({ __rapidr_debug_cmd: { type, ...args } });
+// ─── The program session (rapidr-session's protocol) ───────────
+// The preview frame runs the program under RapidR's session protocol: the
+// IDE sends requests ({ seq, type, … } as JSON) and hears events (replies
+// carry `re`). The project is compiled as one program named after the
+// project (`state.sessionProgram`), so breakpoints and stops name that file
+// with lines of the unified source (state.lastMapping maps them back).
+
+const session = { seq: 0, pending: new Map() };
+
+/// Sends a request; returns its number.
+function sessionSend(command) {
+  const seq = ++session.seq;
+  sendToPreview({ __rapidr_session: JSON.stringify({ seq, ...command }) });
+  return seq;
+}
+
+/// Sends a request; resolves with its reply (rejects with an `error` one).
+function sessionRequest(command) {
+  return new Promise((resolve, reject) => {
+    session.pending.set(sessionSend(command), { resolve, reject });
+  });
+}
+
+function sendSessionBreakpoints(unifiedLines) {
+  sessionSend({
+    type: "setBreakpoints",
+    file: state.sessionProgram,
+    breakpoints: unifiedLines.map((line) => ({ line })),
+  });
+}
+
+function onSessionMessage(m) {
+  if (m.re) {
+    const waiting = session.pending.get(m.re);
+    if (waiting) {
+      session.pending.delete(m.re);
+      if (m.type === "error") waiting.reject(new Error(m.message));
+      else waiting.resolve(m);
+    }
+    return;
+  }
+  switch (m.type) {
+    case "ready":
+      // Breakpoints first, then the program runs.
+      sendSessionBreakpoints(state.sessionBreakpoints || []);
+      sessionSend({ type: "start", debug: true });
+      break;
+    case "stopped": onSessionStopped(m); break;
+    case "continued": onDebugRunning(); break;
+    case "output": {
+      const text = String(m.text).replace(/\n$/, "");
+      if (m.stream === "stderr") logError("error", text);
+      else logOutput(text);
+      break;
+    }
+    case "exited":
+      for (const w of session.pending.values()) w.reject(new Error("the program has ended"));
+      session.pending.clear();
+      onDebugHalted();
+      break;
+  }
+}
+
+/// A variable's value (rapidr-session's Variable) as the views show it.
+function sessionValue(v) {
+  switch (v.kind) {
+    case "String": return v.value.slice(1, -1).replace(/""/g, '"');
+    case "Integer": case "Double": return Number(v.value);
+    case "Boolean": return v.value === "True";
+    case "Empty": return null;
+    default: return v.value;
+  }
+}
+
+/// The program stopped: its stack and variables, then the debugger's views.
+async function onSessionStopped(m) {
+  state.watchValues = new Map();
+  try {
+    const { frames } = await sessionRequest({ type: "stackTrace" });
+    const top = frames[0];
+    const vars = { locals: {}, globals: {} };
+    if (top) {
+      const { scopes } = await sessionRequest({ type: "scopes", frame: top.id });
+      for (const scope of scopes) {
+        const { variables } = await sessionRequest({ type: "variables", ref: scope.ref });
+        const into = scope.name === "Globals" ? vars.globals : vars.locals;
+        for (const v of variables) into[v.name] = sessionValue(v);
+      }
+    }
+    onDebugPaused({ line: m.line, stack: frames.map((f) => ({ name: f.name, line: f.line })), vars });
+  } catch (err) {
+    logError("error", "[debugger] " + err.message);
+  }
 }
 
 function onDebugPaused(pausedData) {
@@ -4341,6 +4438,7 @@ function onDebugProperties(data) {
 
 function onDebugRunning() {
   state.isDebugPaused = false;
+  state.watchValues = new Map();
   state.currentPausedFileId = null;
   state.currentPausedLineInFile = null;
   
@@ -4378,6 +4476,17 @@ function onDebugHalted() {
   updateDebugUI();
 }
 
+/// A component's properties, from the program (the `properties` request).
+function requestProperties(id) {
+  sessionRequest({ type: "properties", object: id }).then(
+    (r) => onDebugProperties({
+      id,
+      properties: { type: r.kind, properties: Object.fromEntries(r.properties.map((p) => [p.name, sessionValue(p)])) },
+    }),
+    () => onDebugProperties({ id, properties: null }),
+  );
+}
+
 function requestComponentProperties() {
   const widgetNames = new Set();
   for (const f of state.project.forms) {
@@ -4397,7 +4506,7 @@ function requestComponentProperties() {
       }
     }
     if (casePreservedName) {
-      sendDebugCommand("getProperties", { id: casePreservedName });
+      requestProperties(casePreservedName);
     }
   }
   
@@ -4405,7 +4514,7 @@ function requestComponentProperties() {
     if (typeof v === "string") {
       const uv = v.toUpperCase();
       if (widgetNames.has(uv)) {
-        sendDebugCommand("getProperties", { id: v });
+        requestProperties(v);
       }
     }
   };
@@ -4431,7 +4540,7 @@ function requestComponentProperties() {
         }
       }
       if (casePreservedName) {
-        sendDebugCommand("getProperties", { id: casePreservedName });
+        requestProperties(casePreservedName);
       }
     }
   }
@@ -4478,8 +4587,8 @@ function renderCallStack() {
     }
     
     row.innerHTML = `
-      <span class="frame-name">${frame.name}</span>
-      <span class="frame-line">${locStr}</span>
+      <span class="frame-name">${escapeHtml(frame.name)}</span>
+      <span class="frame-line">${escapeHtml(locStr)}</span>
     `;
     
     row.addEventListener("click", () => {
@@ -4629,7 +4738,7 @@ function renderVarMap(map, parentEl) {
           typeRow.className = "debug-var-row";
           typeRow.innerHTML = `
             <span class="debug-var-name" style="color:var(--c-text-mute); font-style: italic;">type:</span>
-            <span class="debug-var-val string">"${props.type}"</span>
+            <span class="debug-var-val string">"${escapeHtml(props.type)}"</span>
           `;
           details.appendChild(typeRow);
         }
@@ -4640,8 +4749,8 @@ function renderVarMap(map, parentEl) {
           const propRow = document.createElement("div");
           propRow.className = "debug-var-row";
           propRow.innerHTML = `
-            <span class="debug-var-name" style="color:var(--c-text-mute);">${pk}:</span>
-            <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${JSON.stringify(pv)}</span>
+            <span class="debug-var-name" style="color:var(--c-text-mute);">${escapeHtml(pk)}:</span>
+            <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${escapeHtml(JSON.stringify(pv))}</span>
           `;
           details.appendChild(propRow);
         });
@@ -4682,90 +4791,20 @@ function renderVarMap(map, parentEl) {
   });
 }
 
+/// A watch's value: evaluated by the program's VM (the `evaluate` request)
+/// while it's stopped; asked for once per stop, shown when the reply comes.
 function evaluateWatchExpression(expr) {
-  if (!state.lastVars) return "(no execution context)";
-  
+  if (!state.isDebugPaused) return "(no execution context)";
   const trimmed = expr.trim();
   if (!trimmed) return "";
-  
-  const upperExpr = trimmed.toUpperCase();
-  
-  if (trimmed.includes(".")) {
-    const parts = trimmed.split(".");
-    const compName = parts[0].trim().toUpperCase();
-    const propName = parts[1].trim().toUpperCase();
-    
-    let actualCompId = null;
-    for (const cid of Object.keys(state.lastProperties)) {
-      if (cid.toUpperCase() === compName) {
-        actualCompId = cid;
-        break;
-      }
-    }
-    
-    if (actualCompId) {
-      const props = state.lastProperties[actualCompId];
-      let foundVal = undefined;
-      let found = false;
-      const propList = props.properties || props;
-      for (const [pk, pv] of Object.entries(propList)) {
-        if (pk.toUpperCase() === propName) {
-          foundVal = pv;
-          found = true;
-          break;
-        }
-      }
-      if (found) {
-        return typeof foundVal === "string" ? `"${foundVal}"` : JSON.stringify(foundVal);
-      }
-      return "(property not found)";
-    }
-    
-    let compIdVar = undefined;
-    for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
-      if (lk.toUpperCase() === compName) { compIdVar = lv; break; }
-    }
-    if (compIdVar === undefined) {
-      for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
-        if (gk.toUpperCase() === compName) { compIdVar = gv; break; }
-      }
-    }
-    
-    if (typeof compIdVar === "string") {
-      const actualId = compIdVar;
-      const props = state.lastProperties[actualId];
-      if (props) {
-        let foundVal = undefined;
-        let found = false;
-        const propList = props.properties || props;
-        for (const [pk, pv] of Object.entries(propList)) {
-          if (pk.toUpperCase() === propName) {
-            foundVal = pv;
-            found = true;
-            break;
-          }
-        }
-        if (found) {
-          return typeof foundVal === "string" ? `"${foundVal}"` : JSON.stringify(foundVal);
-        }
-      }
-    }
-    
-    return "(component not found)";
-  }
-  
-  for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
-    if (lk.toUpperCase() === upperExpr) {
-      return typeof lv === "string" ? `"${lv}"` : JSON.stringify(lv);
-    }
-  }
-  for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
-    if (gk.toUpperCase() === upperExpr) {
-      return typeof gv === "string" ? `"${gv}"` : JSON.stringify(gv);
-    }
-  }
-  
-  return "(undefined)";
+  if (!state.watchValues) state.watchValues = new Map();
+  if (state.watchValues.has(trimmed)) return state.watchValues.get(trimmed);
+  state.watchValues.set(trimmed, "…");
+  sessionRequest({ type: "evaluate", expr: trimmed, context: "watch" }).then(
+    (r) => { state.watchValues.set(trimmed, r.result); renderWatches(); },
+    (err) => { state.watchValues.set(trimmed, `(${err.message})`); renderWatches(); },
+  );
+  return "…";
 }
 
 function renderWatches() {
@@ -4782,11 +4821,18 @@ function renderWatches() {
     const val = evaluateWatchExpression(expr);
     const row = document.createElement("div");
     row.className = "debug-watch-row";
-    row.innerHTML = `
-      <span class="debug-watch-expr">${expr}</span>
-      <span class="debug-watch-val">${val}</span>
-      <button class="debug-watch-delete" data-idx="${idx}">×</button>
-    `;
+    // (text, never markup: the values come from the program)
+    const exprEl = document.createElement("span");
+    exprEl.className = "debug-watch-expr";
+    exprEl.textContent = expr;
+    const valEl = document.createElement("span");
+    valEl.className = "debug-watch-val";
+    valEl.textContent = val;
+    const del = document.createElement("button");
+    del.className = "debug-watch-delete";
+    del.dataset.idx = String(idx);
+    del.textContent = "×";
+    row.append(exprEl, valEl, del);
     
     row.querySelector(".debug-watch-delete").addEventListener("click", (e) => {
       const index = parseInt(e.target.dataset.idx, 10);

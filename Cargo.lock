@@ -4833,6 +4833,7 @@ dependencies = [
  "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-runtime-web",
+ "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
  "wasm-bindgen",
