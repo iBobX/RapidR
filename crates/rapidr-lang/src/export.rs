@@ -248,6 +248,9 @@ fn component_registry_js() -> String {
         let methods: Vec<String> = c.methods.iter().filter(|m| live(m.missing)).map(|m| lower(m.name)).collect();
         let events: Vec<String> = c.events.iter().filter(|e| live(e.missing)).map(|e| lower(e.name)).collect();
         let _ = writeln!(out, "    {}: {{", c.name);
+        // (the component's RapidR name: its entry is also under its RapidQ
+        // name and aliases, below — QFORM's entry says it is RFORM)
+        let _ = writeln!(out, "        name: {},", js_str(c.name));
         let _ = writeln!(out, "        description: {},", js_str(c.doc));
         let _ = writeln!(out, "        rapidq: {},", c.rapidq.map_or("null".into(), js_str));
         let _ = writeln!(out, "        props: [{}],", props.join(", "));

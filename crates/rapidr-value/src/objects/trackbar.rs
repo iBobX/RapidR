@@ -137,7 +137,8 @@ impl TrackBar {
     /// Where a position is along a bar `len` long (its pixel).
     fn along(&self, p: i64, len: f64) -> f64 {
         let span = (self.hi() - self.lo()) as f64;
-        let usable = (len - 2.0 * INSET).max(0.0);
+        // (Windows' channel less the thumb: 8 in from each end, 11 wide)
+        let usable = (len - 2.0 * INSET - 1.0).max(0.0);
         if span <= 0.0 {
             return INSET;
         }
@@ -147,7 +148,7 @@ impl TrackBar {
     /// The position nearest a pixel along the bar.
     fn position_at(&self, at: f64, len: f64) -> i64 {
         let span = (self.hi() - self.lo()) as f64;
-        let usable = (len - 2.0 * INSET).max(1.0);
+        let usable = (len - 2.0 * INSET - 1.0).max(1.0);
         self.clamp(self.lo() + ((at - INSET) * span / usable).round() as i64)
     }
 

@@ -15,7 +15,7 @@
 //! drawn beside the caption by `image::paint_glyph` (the surfaces lane's).
 
 use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
-use rapidr_value::objects::ops::Place;
+use rapidr_value::objects::ops::{Op, Place};
 use rapidr_value::toggle_group::{self, Member};
 
 use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
@@ -108,12 +108,18 @@ impl ComponentKind for CoolBtn {
                 face
             }
         } else {
-            // (down and not held: Windows' dithered face, lighter)
-            let face = if is_down && !s.pressed { t.toggled } else { t.face };
-            p.fill(r, face);
+            // (down and not held: Windows' dithered face — white and the face
+            // by turns, RapidQ's capture)
+            let face = t.face;
+            if is_down && !s.pressed {
+                p.op(Op::Checker { rect: r, a: t.face, b: t.light });
+            } else {
+                p.fill(r, face);
+            }
             match (flat, sunk) {
                 (false, false) => p.button_edge(r),
-                (false, true) => p.sunken_edge(r),
+                // (TSpeedButton sunk: the dark shadow outside, the shadow in)
+                (false, true) => p.edge(r, &[t.dark_shadow, t.shadow], &[t.light, t.light3d]),
                 (true, true) => p.thin_sunken(r),
                 (true, false) if s.hover && s.enabled => p.thin_raised(r),
                 (true, false) => {}
@@ -212,6 +218,6 @@ mod tests {
         assert_eq!(click(&mut f, &s, &mut ts, 335.0), vec![set("cbe", 0), KernelEvent::Click("cbe".into())]);
         // Drawn: B sunken (its edge starts grey).
         let list = f.paint(&s, &mut ts, 1.0).dump();
-        assert!(list.contains("edge 0,0 25x25 #808080/#404040 #ffffff/#f0f0f0 @90,10"), "{list}");
+        assert!(list.contains("edge 0,0 25x25 #696969/#a0a0a0 #ffffff/#e3e3e3 @90,10"), "{list}");
     }
 }

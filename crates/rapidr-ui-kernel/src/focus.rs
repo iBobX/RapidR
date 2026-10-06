@@ -7,6 +7,19 @@
 use crate::store::{self, Store};
 use crate::tree::FormUi;
 
+/// A single-line edit (QEDIT) the focus enters selects all its text
+/// (VCL's AutoSelect); the program reads it at once (the shared model).
+pub(crate) fn select_on_entry(id: &str, type_name: &str) {
+    if type_name.eq_ignore_ascii_case("REDIT") {
+        rapidr_value::objects::with_textedit_mut(id, |t| {
+            if !t.multi {
+                t.set("selstart", &rapidr_value::v_int(0));
+                t.set("sellength", &rapidr_value::v_int(i64::MAX >> 1));
+            }
+        });
+    }
+}
+
 /// A form's nodes as Tab walks them.
 struct Walk<'a> {
     ui: &'a FormUi,
@@ -71,7 +84,28 @@ impl FormUi {
         self.set_focus(Some(next));
     }
 
+    /// The focus to `i` (Tab, a mnemonic, `SetFocus`, the form showing …): a
+    /// QEDIT it enters selects its text (VCL's TEdit.AutoSelect — RC.EXE:
+    /// SelStart 0, SelLength the text's length once the form shows with
+    /// it focused, and each time the focus comes back, wherever the
+    /// program left the selection; not a QRICHEDIT or memo).
     pub fn set_focus(&mut self, i: Option<usize>) {
+        let entering = self.focus != i;
+        self.focus_to(i);
+        if entering {
+            if let Some(n) = i {
+                select_on_entry(&self.nodes[n].id, &self.nodes[n].type_name);
+            }
+        }
+    }
+
+    /// The focus to `i` by a mouse press: the caret stays where the click
+    /// put it (VCL skips AutoSelect while the left button is down).
+    pub(crate) fn set_focus_by_click(&mut self, i: Option<usize>) {
+        self.focus_to(i);
+    }
+
+    fn focus_to(&mut self, i: Option<usize>) {
         if self.focus != i {
             self.dirty = true;
             // (the input lane's: an in-place edit ends, kept, when its

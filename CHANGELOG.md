@@ -271,6 +271,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **VS Code: Format Document re-indented the second line of a string
   continued with `_` (under `$ESCAPECHARS`)**, which changed the string.
   A string that spans lines is now left exactly as written.
+
+- **Web IDE: an example or opened file showed nothing.** Picking an
+  example (Menus, Hello form, …) said "loaded", but no tab opened, the
+  Project panel stayed empty and the designer was blank. The examples are
+  written with RapidQ's component names (`CREATE Form AS QFORM`, `QMEMO`,
+  `QMAINMENU`), and the IDE's reader only knew a form as `RFORM`: it found
+  no form, so it dropped every component and the code with them. Now a
+  RapidQ name is the RapidR component it stands for, as the compiler reads
+  it (the language registry's entries in `lang-data.js` now say which
+  component they are), and the designer shows the form: its components,
+  the main menu's own menus, a status bar's text, components docked with
+  `Align` (and a status bar at the bottom), several properties on one line
+  (`Caption = "&New": OnClick = NewText`). A program with no form (the
+  console examples) opens in a code module. Opening a local `.rr` or `.bas`
+  file does the same, and it runs as it is written, as an example does.
+  The run window was already drawing programs at 1:1 (checked at pixel
+  ratio 1 and 2, the same pixels as the standalone web runtime); a test now
+  keeps it so (`tests/web_ide_examples.mjs`).
 - **Web: typing in a Save As dialog went into the program's window
   below.** In the web IDE, Notepad's File > Save As showed an in-page
   dialog; a click in its file name field lost the focus at once, and the

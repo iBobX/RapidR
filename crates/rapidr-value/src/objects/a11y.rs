@@ -445,7 +445,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RTREEVIEW" | "RDIRTREE" => Role::Tree,
         "RSTRINGGRID" => Role::Grid,
         "RTABCONTROL" => Role::TabList,
-        "RTRACKBAR" => Role::Slider,
+        // (a QSCROLLBAR too: a value between Min and Max the user moves)
+        "RTRACKBAR" | "RSCROLLBAR" => Role::Slider,
         "RUPDOWN" => Role::SpinButton,
         "RPROGRESS" | "RPROGRESSBAR" => Role::ProgressIndicator,
         "RGROUPBOX" | "RHEADER" => Role::Group,
@@ -473,6 +474,7 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
+            | "RSCROLLBAR"
     )
 }
 
@@ -501,12 +503,17 @@ pub fn caption_of(type_name: &str, get: Props) -> String {
     caption
 }
 
-/// The QSTATUSBAR's texts: a panel's each, or its SimpleText alone (no
-/// panels, or SimplePanel).
+/// The QSTATUSBAR's texts: a panel's each, or its SimpleText alone with
+/// SimplePanel; no panels and SimplePanel False (the default) is one empty
+/// box — VCL's TStatusBar shows SimpleText only with SimplePanel (RC.EXE:
+/// `SimpleText = "Ready"` leaves SimplePanel 0, and the bar shows nothing).
 pub fn status_texts(get: Props) -> Vec<String> {
     let count = int(get, "panelcount", 0).clamp(0, 256);
-    if count == 0 || flag(get, "simplepanel", false) {
+    if flag(get, "simplepanel", false) {
         return vec![text(get, "simpletext")];
+    }
+    if count == 0 {
+        return vec![String::new()];
     }
     (0..count).map(|i| text(get, &format!("panel({i}).caption"))).collect()
 }
@@ -586,6 +593,22 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
             let (min, max, pos) = progress_range(get);
             n.numeric = Some(Numeric { value: pos as f64, min: min as f64, max: max as f64, step: int(get, "increment", 1).max(1) as f64, jump: 10.0 });
             n.actions = vec![Action::Increment, Action::Decrement, Action::Focus];
+        }
+        // (Windows' scroll bar: its Position between Min and Max less a
+        // page but one, SmallChange a step, LargeChange a page)
+        "RSCROLLBAR" => {
+            let min = int(get, "min", 0);
+            let max = int(get, "max", 100).max(min);
+            let last = (max - (int(get, "pagesize", 1) - 1).max(0)).max(min);
+            n.numeric = Some(Numeric {
+                value: int(get, "position", 0).clamp(min, last) as f64,
+                min: min as f64,
+                max: last as f64,
+                step: int(get, "smallchange", 1) as f64,
+                jump: int(get, "largechange", 1) as f64,
+            });
+            n.orientation = Some(if int(get, "kind", 0) == 1 { Orientation::Vertical } else { Orientation::Horizontal });
+            n.actions = vec![Action::Increment, Action::Decrement, Action::SetValue, Action::Focus];
         }
         // (ARIA's sense: a bar between left and right panes stands up)
         "RSPLITTER" => n.orientation = Some(if matches!(int(get, "align", 3), 1 | 2) { Orientation::Horizontal } else { Orientation::Vertical }),

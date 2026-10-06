@@ -90,7 +90,9 @@ const layer = await page.evaluate(() => {
 ok(before === "none" && layer.display === "block" && layer.opaque > 500, `the open list is drawn on the layer above the elements (${before} → ${layer.display}, ${layer.opaque} pixels)`);
 // (the list's fourth item: under the combo box, over the web view)
 const combo = await k.rect(page, "Combo");
-await page.mouse.click(combo.x + 30, combo.y + combo.height + 3 * 16 + 8);
+// (the list hangs from the box — 21 high, a line of MS Sans Serif 8 and 8,
+// whatever the component's Height — its rows 13 high: the fourth)
+await page.mouse.click(combo.x + 30, combo.y + 21 + 1 + 3 * 13 + 6);
 await page.waitForTimeout(300);
 ok(Number(await k.prop(page, "Combo", "ItemIndex")) === 3, `a click on it picks the item (${await k.prop(page, "Combo", "ItemIndex")})`);
 ok(await page.evaluate(() => getComputedStyle(document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kpopups')).display) === "none", "closed, the layer goes");

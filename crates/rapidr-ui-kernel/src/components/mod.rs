@@ -16,6 +16,7 @@ pub mod mdi;
 pub mod memo;
 pub mod richedit;
 pub mod panel;
+pub mod scrollbar;
 pub mod scrollbox;
 pub mod splitter;
 pub mod statusbar;
@@ -107,6 +108,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RBEVEL", &panel::Bevel),
     ("RDIGDISPLAY", &canvas::DigDisplay),
     ("RGLASSFRAME", &glass::GlassFrame),
+    ("RSCROLLBAR", &scrollbar::ScrollBar),
     // (I1: RapidR Studio's docking — rapidr_value::dock)
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),

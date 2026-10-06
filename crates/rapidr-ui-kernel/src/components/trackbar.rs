@@ -63,6 +63,148 @@ fn paint_fluent(cx: &Cx, p: &mut Painter, parts: &rapidr_value::objects::trackba
     }
 }
 
+/// The classic thumb pointing down (ticks below), 11 × 24, as Windows'
+/// unthemed track bar draws it (RapidQ's capture, tests/visual/rapidq/
+/// ranges): `w` white, `l` COLOR_3DLIGHT, `s` the shadow, `k` the dark
+/// shadow, `.` the face (a checker of white and the face while disabled).
+/// Its row 19 is the channel's lower white line showing through, as there.
+const THUMB_DOWN: [&str; 24] = [
+    "wwwwwwwwwwk",
+    "wllllllllsk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wl.......sk",
+    "wwlwwwwwwsk",
+    "  wl...sk  ",
+    "   wl.sk   ",
+    "    wsk    ",
+    "     k     ",
+];
+
+/// The thumb's rows pointing up (ticks above) or square (ticks on both
+/// sides, or none), from [`THUMB_DOWN`]: lit from the top left still.
+fn thumb_rows(marks: i64, ticked: bool) -> Vec<String> {
+    let body = |r: &str| r.to_string();
+    if !ticked || marks == 2 {
+        let mut rows: Vec<String> = THUMB_DOWN[..19].iter().map(|r| body(r)).collect();
+        rows.extend(["wl.......sk".to_string(), "wl.......sk".to_string(), "wl.......sk".to_string(), "wsssssssssk".to_string(), "kkkkkkkkkkk".to_string()]);
+        return rows;
+    }
+    if marks == 1 {
+        // (upside down: the point's lit side stays lit, the flat end is the
+        // shaded bottom)
+        let mut rows: Vec<String> = THUMB_DOWN.iter().rev().map(|r| body(r)).collect();
+        let n = rows.len();
+        rows[n - 1] = "kkkkkkkkkkk".into();
+        rows[n - 2] = "wsssssssssk".into();
+        rows[4] = "wl.......sk".into();
+        return rows;
+    }
+    THUMB_DOWN.iter().map(|r| body(r)).collect()
+}
+
+/// The classic look (Windows' unthemed msctls_trackbar32 with a selection
+/// range, as RapidQ's TTrackBar makes it): a sunken white channel 18 pixels
+/// across, 8 pixels in from the ends; the raised grey thumb pointing at the
+/// ticks; the ticks 3 pixels long (4 the first and last); the focus a
+/// dotted frame round it. Pixel for pixel at 1×; the same pixels, crisp,
+/// at a high-DPI screen's scale.
+fn paint_classic(cx: &Cx, p: &mut Painter, bar: &rapidr_value::objects::trackbar::TrackBar) {
+    let (w, h) = (cx.width(), cx.height());
+    let t = p.theme();
+    let vertical = bar.vertical();
+    let (len, _) = if vertical { (h, w) } else { (w, h) };
+    // (along, across) → the control's (x, y)
+    let at = |a: i64, c: i64| if vertical { (c, a) } else { (a, c) };
+    let rect = |a: i64, c: i64, la: i64, lc: i64| if vertical { (c, a, lc, la) } else { (a, c, la, lc) };
+    let ticked = bar.tick_style != 0;
+    let marks = bar.tick_marks;
+    // (the thumb's band: below the ticks when they're above it)
+    let c0 = if ticked && matches!(marks, 1 | 2) { 8 } else { 2 };
+    let (lo, hi) = (bar.min.min(bar.max), bar.max.max(bar.min));
+    let span = (hi - lo).max(1) as f64;
+    let usable = (len - 27).max(0) as f64;
+    let along = |v: i64| ((v.clamp(lo, hi) - lo) as f64 * usable / span).round() as i64;
+    // The channel.
+    let (ca, cl) = (8, (len - 16).max(0));
+    let ch = rect(ca, c0 + 2, cl, 18);
+    p.fill(ch, t.window);
+    p.sunken_edge(ch);
+    if bar.sel_end > bar.sel_start {
+        let (s0, s1) = (along(bar.sel_start) + 13, along(bar.sel_end) + 13);
+        p.fill(rect(s0, c0 + 4, (s1 - s0 + 1).max(1), 14), if cx.state.enabled { t.highlight } else { t.shadow });
+    }
+    // The ticks.
+    if ticked {
+        let ticks = bar.tick_positions();
+        let n = ticks.len();
+        for (i, v) in ticks.iter().enumerate() {
+            let a = 13 + along(*v);
+            let long = i == 0 || i + 1 == n;
+            let l = if long { 4 } else { 3 };
+            if matches!(marks, 0 | 2) {
+                p.fill(rect(a, c0 + 25, 1, l), t.text);
+            }
+            if matches!(marks, 1 | 2) {
+                p.fill(rect(a, c0 - 2 - l + 1, 1, l), t.text);
+            }
+        }
+    }
+    // The thumb.
+    let a0 = 8 + along(bar.position);
+    let rows = thumb_rows(marks, ticked);
+    let enabled = cx.state.enabled;
+    for (j, row) in rows.iter().enumerate() {
+        let c = c0 + j as i64;
+        let colors: Vec<Option<u32>> = row
+            .chars()
+            .enumerate()
+            .map(|(i, ch)| match ch {
+                'w' => Some(t.light),
+                'l' => Some(t.light3d),
+                's' => Some(t.shadow),
+                'k' => Some(t.dark_shadow),
+                '.' if !enabled => {
+                    let (x, y) = at(a0 + i as i64, c);
+                    Some(if (x + y) % 2 == 1 { t.light } else { t.face })
+                }
+                '.' => Some(t.face),
+                _ => None,
+            })
+            .collect();
+        // (a row's runs of one colour as one fill)
+        let mut i = 0;
+        while i < colors.len() {
+            let start = i;
+            while i < colors.len() && colors[i] == colors[start] {
+                i += 1;
+            }
+            if let Some(color) = colors[start] {
+                p.fill(rect(a0 + start as i64, c, (i - start) as i64, 1), color);
+            }
+        }
+    }
+    if cx.state.focused {
+        // (one pixel, as Windows at 100 %: the VM's 200 % screen doubles
+        // every focus rectangle's border, buttons' too)
+        p.focus((0, 0, w, h));
+    }
+}
+
 impl ComponentKind for Trackbar {
     fn name(&self) -> &'static str {
         "RTRACKBAR"
@@ -76,12 +218,8 @@ impl ComponentKind for Trackbar {
             }
             return;
         }
-        let shapes = with_trackbar(cx.id, |t| t.shapes(w as f64, h as f64, cx.state.enabled)).unwrap_or_default();
-        for s in shapes {
-            p.shape(s);
-        }
-        if cx.state.focused {
-            p.focus((0, 0, w, h));
+        if let Some(bar) = with_trackbar(cx.id, Clone::clone) {
+            paint_classic(cx, p, &bar);
         }
     }
 

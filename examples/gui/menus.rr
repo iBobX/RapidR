@@ -67,6 +67,7 @@ CREATE Form AS QFORM
         PopupMenu = TextMenu
     END CREATE
     CREATE Status AS QSTATUSBAR
+        SimplePanel = 1
         SimpleText = "Ready"
     END CREATE
 END CREATE

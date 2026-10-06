@@ -83,30 +83,42 @@ pub fn status_grip(size_grip: bool, on_form: bool, border_style: i64, align: Ali
 }
 
 /// The Align a component type starts with (QSTATUSBAR docks at the bottom,
-/// QSPLITTER at the left, as in RapidQ), for RapidR's type names.
+/// QHEADER at the top — Delphi's THeaderControl; RC.EXE reads `Align` 1 and
+/// a header created at Left 10, Top 10, Width 300 shows across the whole
+/// top of the form — QSPLITTER at the left, as in RapidQ), for RapidR's
+/// type names.
 pub fn default_align(type_name: &str) -> Align {
     match type_name.to_ascii_uppercase().as_str() {
         "RSTATUSBAR" => Align::Bottom,
+        "RHEADER" => Align::Top,
         "RSPLITTER" => Align::Left,
         _ => Align::None,
     }
 }
 
 /// The Width × Height a component starts with, the same on every runtime
-/// (RapidR's type names). RapidQ's components get RapidQ's sizes (as the
-/// RapidQ library reimplementation in RapidQ's `tools/RQInclude.bi` lists
-/// them; a QCOMBOBOX is the height of its edit box, its list not counted);
-/// RapidR's own components, theirs.
+/// (RapidR's type names). RapidQ's components get RapidQ's sizes, as RC.EXE
+/// reads them on a component created without one (Delphi's defaults; a
+/// QCOMBOBOX is the height of its edit box, its list not counted; a QLABEL
+/// then sizes itself to its caption — AutoSize); RapidR's own components,
+/// theirs.
 pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
     Some(match type_name.to_ascii_uppercase().as_str() {
         "RFORM" => (320, 240),
-        "RBUTTON" | "RLABEL" => (75, 25),
-        "REDIT" => (120, 25),
-        "RRICHEDIT" | "RMEMO" => (200, 100),
+        "RBUTTON" => (75, 25),
+        "RLABEL" => (65, 17),
+        "REDIT" => (121, 21),
+        "RRICHEDIT" | "RMEMO" => (185, 89),
         "RCOOLBTN" => (25, 25),
-        "ROVALBTN" => (75, 40),
-        "RCHECKBOX" | "RRADIOBUTTON" | "RSCROLLBAR" => (100, 20),
-        "RPANEL" | "RBEVEL" | "RTABCONTROL" | "RGROUPBOX" | "RSCROLLBOX" | "RSTRINGGRID" | "RLISTVIEW" => (150, 100),
+        "ROVALBTN" => (100, 50),
+        "RCHECKBOX" => (97, 17),
+        "RRADIOBUTTON" => (113, 17),
+        "RSCROLLBAR" => (121, 17),
+        "RPANEL" | "RBEVEL" | "RSCROLLBOX" => (185, 41),
+        "RGROUPBOX" => (185, 105),
+        "RTABCONTROL" => (289, 193),
+        "RSTRINGGRID" => (320, 120),
+        "RLISTVIEW" => (250, 150),
         // (QDigDisplay.inc: one 12 × 24 cell, its Display "0")
         "RDIGDISPLAY" => (12, 24),
         // (RC.EXE's QGLASSFRAME)
@@ -114,16 +126,19 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         // (I1: RapidR Studio's docking)
         "RDOCKMANAGER" => (400, 300),
         "RCOMBOBOX" => (145, 25),
-        "RLISTBOX" | "RTREEVIEW" => (120, 100),
-        "RDIRTREE" | "RFILELISTBOX" => (150, 150),
+        "RLISTBOX" | "RTREEVIEW" | "RDIRTREE" => (121, 97),
+        "RFILELISTBOX" => (145, 97),
         "RTRACKBAR" => (150, 45),
-        "RCANVAS" | "RIMAGE" | "RDXSCREEN" => (100, 100),
-        "RPROGRESSBAR" => (250, 25),
+        "RCANVAS" | "RIMAGE" => (105, 105),
+        "RDXSCREEN" => (100, 100),
+        // (QGAUGE)
+        "RPROGRESSBAR" => (100, 100),
+        // (docked: the width is the parent's)
+        "RHEADER" => (320, 17),
+        "RSTATUSBAR" => (320, 19),
+        "RSPLITTER" => (3, 200),
         // RapidR's own
         "RPROGRESS" => (200, 25),
-        "RHEADER" => (200, 20),
-        "RSTATUSBAR" => (200, 24),
-        "RSPLITTER" => (5, 200),
         "RCODEEDITOR" | "RWEBVIEW" => (400, 300),
         "RDESIGNSURFACE" => (640, 480),
         // (the chart model's own size: datascience::plot)
