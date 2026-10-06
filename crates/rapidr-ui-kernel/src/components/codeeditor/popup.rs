@@ -152,6 +152,23 @@ fn wrap(text: &str, font: &Font, width: i64) -> Vec<String> {
     out
 }
 
+/// `s` cut to `width` pixels in `font`, "…" at its end when cut (empty
+/// when not even that fits).
+fn ellipsized(s: &str, font: &Font, width: i64) -> String {
+    if text_size(s, font).0 <= width {
+        return s.to_string();
+    }
+    let mut chars: Vec<char> = s.chars().collect();
+    while !chars.is_empty() {
+        chars.pop();
+        let t: String = chars.iter().collect::<String>().trim_end().to_string() + "…";
+        if text_size(&t, font).0 <= width {
+            return t;
+        }
+    }
+    String::new()
+}
+
 /// Markdown made plain: emphasis marks and backticks dropped.
 fn plain(s: &str) -> String {
     s.replace("**", "").replace('`', "").replace("\\_", "_")
@@ -367,11 +384,14 @@ fn paint_one(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, 
             }
             p.text((cx, ty, lw - (cx - lx) - 8, th), b, &cf, fg, Place::TopLeft);
             if !it.detail.is_empty() {
-                let dw = text_size(&it.detail, &uf).0.min(lw / 2);
-                let lab_end = lx + 30 + text_size(label, &cf).0 + 12;
-                let dx = (lx + lw - 10 - dw).max(lab_end);
-                if dx < lx + lw - 20 {
-                    p.clipped((dx, y, lx + lw - 8 - dx, ITEM_H), |p| p.text((dx, ty + 1, dw + 4, th), &it.detail, &uf, if selected { fg } else { sc.popup_detail }, Place::TopLeft));
+                // (the detail right-aligned, cut with "…" where it meets the label)
+                let lab_end = lx + 30 + text_size(label, &cf).0 + 16;
+                let room = lx + lw - 12 - lab_end;
+                let detail = ellipsized(&it.detail, &uf, room);
+                if !detail.is_empty() {
+                    let dw = text_size(&detail, &uf).0;
+                    let dx = lx + lw - 12 - dw;
+                    p.text((dx, ty + 1, dw + 4, th), &detail, &uf, if selected { fg } else { sc.popup_detail }, Place::TopLeft);
                 }
             }
         }
