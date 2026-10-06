@@ -9,9 +9,12 @@ at 8 pt against MS Sans Serif's 49, and a label sized for one clips the
 other). RapidR Sans is Liberation Sans (SIL Open Font License 1.1, its
 outlines and character set) with each Windows-1252 character made exactly as
 wide as MS Sans Serif's at 8 pt on a 96-dpi screen, where its em is 11
-pixels — the outline scaled horizontally to its new width (within 0.8–1.25,
-then centred) — every letter as tall as MS Sans Serif's (capitals 9 pixels
-of the 11, descenders within 2), and MS Sans Serif's vertical metrics:
+pixels — its letter keeping its shape (6 % larger than Liberation's, both
+ways: an x-height of 6 pixels at 8 pt), narrowed or widened at most 4 %,
+the rest from its side bearings (shared as they were), and where the ink
+still doesn't fit, the letter made a little smaller in both directions;
+descenders kept within the line — its upright stems moved onto whole
+pixels at 8 pt, and MS Sans Serif's vertical metrics:
 ascent 11 pixels, descent 2, so a line is 13 pixels high (TextHeight) with
 the baseline 11 pixels down, as GDI draws it.
 
@@ -57,27 +60,35 @@ WIDTHS = [int(w) for w in """
 assert len(WIDTHS) == 224
 EM_PX = 11
 ASCENT_PX, DESCENT_PX = 11, 2
-SQUEEZE = (0.8, 1.25)
-# MS Sans Serif's letters are taller in their em than Liberation's (capitals
-# 9 pixels of 11, x-height 6): every outline is stretched up this much
-# from the baseline.
-TALL = 1.10
-# …and their descenders shorter: within the line's 2 pixels below the
-# baseline (Liberation's g, p, y reach 0.212 em down; MS Sans Serif's 2 of
-# 11 pixels), so nothing is cut off at the bottom of a 13-pixel line.
+# The letters keep their shapes: a glyph's outline is narrowed or widened
+# at most this much to meet its width (barely visible) …
+SQUEEZE = (0.96, 1.04)
+# … the rest comes from its side bearings, and a glyph whose ink still
+# doesn't fit is made smaller in both directions, at most this much.
+SHRINK = 0.88
+# Descenders kept within the line's 2 pixels below the baseline
+# (Liberation's g, p, y reach 0.212 em down; MS Sans Serif's line 2 of 11
+# pixels), so nothing is cut off at the bottom of a 13-pixel line: only
+# what lies below the baseline is shortened.
 SHORT = (DESCENT_PX / EM_PX) / 0.212
+# Every letter a little larger than Liberation's, the same in both
+# directions: an x-height of 6 pixels at 8 pt (5.7 in Liberation), as MS Sans
+# Serif's and Microsoft Sans Serif's — text as large as RapidQ's.
+BIG = 1.06
 
 
-class Stretch(FilterPen):
-    """Up from the baseline by TALL, down by SHORT; x by k, then dx."""
+class Fit(FilterPen):
+    """x scaled by kx, both directions by u (what's below the baseline by
+    SHORT too), then moved dx."""
 
-    def __init__(self, out, k, dx):
+    def __init__(self, out, kx=1.0, u=1.0, dx=0.0):
         super().__init__(out)
-        self.k, self.dx = k, dx
+        self.kx, self.u, self.dx = kx, u, dx
 
     def _p(self, pt):
         x, y = pt
-        return (x * self.k + self.dx, y * (TALL if y > 0 else SHORT))
+        u = self.u * BIG
+        return (x * self.kx * u + self.dx, y * u * (1.0 if y > 0 else SHORT / BIG))
 
     def moveTo(self, pt):
         self._outPen.moveTo(self._p(pt))
@@ -133,16 +144,16 @@ def main():
     cmap = font.getBestCmap()
     original = font.getGlyphSet()
 
-    def outline(name, k=1.0, dx=0.0):
+    def outline(name, kx=1.0, u=1.0, dx=0.0):
         rec = DecomposingRecordingPen(original)
         original[name].draw(rec)
         pen = TTGlyphPen(None)
-        rec.replay(Stretch(pen, k, dx))
+        rec.replay(Fit(pen, kx, u, dx))
         return pen.glyph()
 
-    # Every glyph made taller (composites decomposed from the original
-    # outlines: a glyph outside the table keeps Liberation's shape whatever
-    # its parts become).
+    # Every glyph's descender kept in the line (composites decomposed from
+    # the original outlines: a glyph outside the table keeps Liberation's
+    # shape whatever its parts become).
     for name in font.getGlyphOrder():
         if glyf[name].isComposite() or glyf[name].numberOfContours > 0:
             glyf[name] = outline(name)
@@ -162,13 +173,25 @@ def main():
         if advance <= 0:
             hmtx[name] = (target, 0)
             continue
-        k = min(max(target / advance, SQUEEZE[0]), SQUEEZE[1])
-        dx = (target - advance * k) / 2
-        g = outline(name, k, dx)
+        base = glyf[name]
+        base.recalcBounds(glyf)
+        if not base.numberOfContours:
+            hmtx[name] = (target, 0)
+            continue
+        # (its ink, and the space either side of it)
+        ink = base.xMax - base.xMin
+        lsb, rsb = base.xMin, advance - base.xMax
+        kx = min(max(target / (advance * BIG), SQUEEZE[0]), SQUEEZE[1])
+        u = 1.0 if ink * kx <= target else max(SHRINK, target / (ink * kx))
+        # (the side bearings share what's left as they did)
+        slack = target - ink * kx * u
+        share = lsb / (lsb + rsb) if lsb + rsb > 0 else 0.5
+        dx = slack * share - base.xMin * kx * u
+        g = outline(name, kx, u, dx)
         # (its upright stems on whole pixels at 8 pt: crisp as a bitmap font's)
         s = stem_shift(g, glyf, upm // EM_PX)
         if s:
-            g = outline(name, k, dx + s)
+            g = outline(name, kx, u, dx + s)
         glyf[name] = g
         g.recalcBounds(glyf)
         hmtx[name] = (target, getattr(g, "xMin", 0) if g.numberOfContours else 0)

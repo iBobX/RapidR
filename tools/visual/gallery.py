@@ -59,6 +59,7 @@ EXTRA = [
     ("fixture-themes", "tests/fixtures/themes.bas"),
     ("example-hello_form", "examples/gui/hello_form.rr"),
     ("example-dialogs", "examples/gui/dialogs.rr"),
+    ("example-dialogs-font", "examples/gui/dialogs.rr", {"RAPIDR_TEST_EVENTS": "FontBtn.onclick", "RAPIDR_TEST_FONT_DIALOG": "", "RAPIDR_TEST_DIALOG_HOLD": "4000"}),
     ("example-menus", "examples/gui/menus.rr"),
     ("example-pantry", "examples/gui/pantry.rr"),
     ("example-stopwatch", "examples/gui/stopwatch.rr"),
