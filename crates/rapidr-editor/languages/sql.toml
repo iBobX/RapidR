@@ -1,0 +1,96 @@
+# SQL (SQLite's and MySQL's common words: RSQLITE, RMYSQL).
+
+[language]
+id = "sql"
+name = "SQL"
+extensions = ["sql"]
+case_insensitive = true
+line_comment = ["--"]
+block_comment = ["/*", "*/"]
+word = '[A-Za-z_][A-Za-z0-9_]*'
+
+[brackets]
+pairs = [["(", ")"]]
+auto_close = [["(", ")"], ["'", "'"], ['"', '"']]
+
+[indent]
+increase = '(\(|\bBEGIN|\bCASE)\s*(--.*)?$'
+decrease = '^\s*(\)|END\b)'
+
+[folding]
+offside = true
+
+[keywords]
+keyword = ["SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "CREATE", "TABLE", "INDEX", "VIEW", "TRIGGER", "DROP", "ALTER", "ADD", "COLUMN", "RENAME", "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "FULL", "CROSS", "NATURAL", "USING", "ON", "AS", "AND", "OR", "NOT", "NULL", "IS", "IN", "EXISTS", "BETWEEN", "LIKE", "GLOB", "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "OFFSET", "UNION", "INTERSECT", "EXCEPT", "ALL", "DISTINCT", "CASE", "WHEN", "THEN", "ELSE", "END", "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION", "UNIQUE", "DEFAULT", "CHECK", "CONSTRAINT", "IF", "REPLACE", "PRAGMA", "WITH", "RECURSIVE", "ASC", "DESC", "AUTOINCREMENT", "AUTO_INCREMENT", "EXPLAIN", "VACUUM", "ATTACH", "DETACH", "DATABASE", "SCHEMA", "RETURNING", "CONFLICT", "IGNORE", "ABORT", "FAIL", "TEMP", "TEMPORARY", "COLLATE", "ESCAPE", "OVER", "PARTITION", "WINDOW", "SHOW", "DESCRIBE", "USE", "GRANT", "REVOKE", "TRUNCATE", "ENGINE", "CHARSET"]
+type = ["INTEGER", "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "TEXT", "REAL", "BLOB", "NUMERIC", "VARCHAR", "CHAR", "BOOLEAN", "BOOL", "DATE", "DATETIME", "TIMESTAMP", "TIME", "DECIMAL", "FLOAT", "DOUBLE", "PRECISION", "JSON", "UNSIGNED"]
+function = ["COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "IFNULL", "NULLIF", "LENGTH", "SUBSTR", "SUBSTRING", "UPPER", "LOWER", "TRIM", "LTRIM", "RTRIM", "ROUND", "ABS", "NOW", "CAST", "PRINTF", "INSTR", "GROUP_CONCAT", "CONCAT", "STRFTIME", "JULIANDAY", "RANDOM", "TYPEOF", "TOTAL", "ROW_NUMBER", "RANK", "DENSE_RANK", "LAG", "LEAD", "JSON_EXTRACT"]
+constant = ["TRUE", "FALSE", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP"]
+
+[defaults]
+string = "string"
+quoted = "variable"
+backtick = "variable"
+comment = "comment"
+
+[[states.root]]
+match = '--.*$'
+token = "comment"
+[[states.root]]
+match = '/\*'
+token = "comment"
+push = "comment"
+[[states.root]]
+match = "'"
+token = "string"
+push = "string"
+[[states.root]]
+match = '"'
+token = "variable"
+push = "quoted"
+[[states.root]]
+match = '`'
+token = "variable"
+push = "backtick"
+[[states.root]]
+match = '0x[0-9A-Fa-f]+|([0-9]+\.?[0-9]*|\.[0-9]+)(E[+-]?[0-9]+)?'
+token = "number"
+[[states.root]]
+match = '[?:@$][A-Za-z0-9_]*'
+token = "variable.parameter"
+[[states.root]]
+match = '[A-Za-z_][A-Za-z0-9_]*'
+token = "text"
+keywords = true
+[[states.root]]
+match = '[-+*/%=<>!|&~^]+'
+token = "operator"
+[[states.root]]
+match = '[(),;.]'
+token = "punctuation"
+
+# strings may run across lines; '' is a quote
+[[states.string]]
+match = "''"
+token = "string.escape"
+[[states.string]]
+match = "'"
+token = "string"
+pop = true
+
+[[states.quoted]]
+match = '""'
+token = "variable"
+[[states.quoted]]
+match = '"'
+token = "variable"
+pop = true
+
+[[states.backtick]]
+match = '`'
+token = "variable"
+pop = true
+
+[[states.comment]]
+match = '\*/'
+token = "comment"
+pop = true

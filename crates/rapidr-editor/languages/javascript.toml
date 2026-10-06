@@ -1,0 +1,127 @@
+# JavaScript (also inside HTML's <script>).
+
+[language]
+id = "javascript"
+name = "JavaScript"
+extensions = ["js", "mjs", "cjs", "jsx"]
+line_comment = ["//"]
+block_comment = ["/*", "*/"]
+word = '[A-Za-z_$][A-Za-z0-9_$]*'
+
+[brackets]
+pairs = [["(", ")"], ["[", "]"], ["{", "}"]]
+auto_close = [["(", ")"], ["[", "]"], ["{", "}"], ['"', '"'], ["'", "'"], ["`", "`"]]
+
+[indent]
+increase = '[\{\[\(]\s*(//.*)?$'
+decrease = '^\s*[\}\]\)]'
+
+[folding]
+brackets = true
+
+[keywords]
+"keyword.control" = ["if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue", "return", "throw", "try", "catch", "finally", "await", "yield"]
+keyword = ["var", "let", "const", "function", "class", "extends", "new", "delete", "typeof", "instanceof", "in", "of", "import", "export", "from", "as", "async", "static", "get", "set", "this", "super", "void", "with", "debugger"]
+constant = ["true", "false", "null", "undefined", "NaN", "Infinity"]
+
+[defaults]
+block_comment = "comment"
+dq = "string"
+sq = "string"
+template = "string"
+
+[[states.root]]
+include = "code"
+
+[[states.code]]
+match = '//.*$'
+token = "comment"
+[[states.code]]
+match = '/\*'
+token = "comment"
+push = "block_comment"
+[[states.code]]
+match = '"'
+token = "string"
+push = "dq"
+[[states.code]]
+match = "'"
+token = "string"
+push = "sq"
+[[states.code]]
+match = '`'
+token = "string"
+push = "template"
+[[states.code]]
+match = '0[xX][0-9a-fA-F_]+n?|0[bB][01_]+n?|0[oO][0-7_]+n?|([0-9][0-9_]*\.?[0-9_]*|\.[0-9][0-9_]*)([eE][+-]?[0-9]+)?n?'
+token = "number"
+[[states.code]]
+match = '[A-Z][A-Za-z0-9_$]*'
+token = "type"
+keywords = true
+[[states.code]]
+match = '[A-Za-z_$][A-Za-z0-9_$]*'
+token = "text"
+keywords = true
+[[states.code]]
+match = '[-+*/%=<>!&|^~?]+'
+token = "operator"
+[[states.code]]
+match = '[{}()\[\],;:.]'
+token = "punctuation"
+
+[[states.block_comment]]
+match = '\*/'
+token = "comment"
+pop = true
+
+[[states.dq]]
+match = '\\(.|$)'
+token = "string.escape"
+[[states.dq]]
+match = '"'
+token = "string"
+pop = true
+[[states.dq]]
+match = '$'
+pop = true
+
+[[states.sq]]
+match = '\\(.|$)'
+token = "string.escape"
+[[states.sq]]
+match = "'"
+token = "string"
+pop = true
+[[states.sq]]
+match = '$'
+pop = true
+
+# template literals run across lines; `${ … }` is code again
+[[states.template]]
+match = '\\.'
+token = "string.escape"
+[[states.template]]
+match = '`'
+token = "string"
+pop = true
+[[states.template]]
+match = '\$\{'
+token = "punctuation"
+push = "interpolation"
+
+[[states.interpolation]]
+match = '\}'
+token = "punctuation"
+pop = true
+[[states.interpolation]]
+match = '\{'
+token = "punctuation"
+push = "interpolation"
+[[states.interpolation]]
+include = "code"
+
+[[snippets]]
+prefix = "function"
+body = "function ${1:name}(${2}) {\n\t$0\n}"
+description = "A function"

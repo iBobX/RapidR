@@ -1,0 +1,34 @@
+[package]
+name = "rapidr-editor"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR Studio's code editor model: a rope buffer, selections and transactions, the undo tree, search, declarative language definitions and their incremental tokenizer, folding, brackets and indentation (GUI-free)"
+
+# GUI-free on purpose (docs/ide-plan.md §3.1): no kernel, no host, no
+# runtime. It must keep building for wasm32-unknown-unknown. Clocks come
+# from the caller (`now_ms` arguments): std's `Instant::now` panics in the
+# browser.
+[dependencies]
+# The buffer (decision D6, MIT), behind our own `Buffer` trait. Lines break
+# at LF, CR LF and a lone CR (`cr_lines`), never at Unicode's other breaks.
+ropey = { version = "1.6.1", default-features = false, features = ["cr_lines", "simd"] }
+# Search (MIT OR Apache-2.0; already in the tree).
+regex = "1.12"
+# The tokenizer's multi-pattern matcher: one search per token says which
+# rule matched, in the rules' order (MIT OR Apache-2.0; regex's own engine).
+regex-automata = "0.4"
+# Language definitions are TOML files (docs/ide-components.md §2; MIT OR
+# Apache-2.0).
+toml = { version = "1.1", default-features = false, features = ["std", "serde", "parse"] }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+# Property tests (MIT OR Apache-2.0; dev-only, never shipped).
+proptest = { version = "1.11", default-features = false, features = ["std"] }
+# The BASIC keyword lists are checked against the compiler's own (until the
+# language registry generates them).
+rapidr-lexer = { workspace = true }
+rapidr-ast = { workspace = true }
+rapidr-bytecode = { workspace = true }
