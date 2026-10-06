@@ -156,6 +156,21 @@ pub fn set_overlay_types(types: &[&str]) {
     OVERLAY_TYPES.with(|o| *o.borrow_mut() = types.iter().map(|t| t.to_uppercase()).collect());
 }
 
+/// The performance harness's probe (docs/ide-plan.md §6.2): when the page
+/// set `window.RAPIDR_FRAME_TIMES` to an array, each drawn window frame
+/// appends [the frame's work in ms, Date.now() when it ended].
+fn frame_time(started: Instant) {
+    let Some(win) = web_sys::window() else { return };
+    let Ok(list) = js_sys::Reflect::get(&win, &JsValue::from_str("RAPIDR_FRAME_TIMES")) else { return };
+    if !js_sys::Array::is_array(&list) {
+        return;
+    }
+    let ms = started.elapsed().as_secs_f64() * 1000.0;
+    let now = js_sys::Date::now();
+    let entry = js_sys::Array::of2(&JsValue::from_f64(ms), &JsValue::from_f64(now));
+    js_sys::Array::from(&list).push(&entry);
+}
+
 fn is_overlay(type_name: &str) -> bool {
     OVERLAY_TYPES.with(|o| o.borrow().iter().any(|t| t.eq_ignore_ascii_case(type_name)))
 }
@@ -602,6 +617,7 @@ impl WebHost {
             let scale = f.scale;
             let mut drawn = false;
             if w.force || f.ui.dirty || (w.scale - scale).abs() > f64::EPSILON {
+                let started = Instant::now();
                 rapidr_value::objects::bitmap::set_display_scale(scale);
                 f.ui.popups_apart = f.ui.nodes.iter().any(|n| is_overlay(&n.type_name));
                 let list = f.ui.paint(store, text, scale);
@@ -650,6 +666,7 @@ impl WebHost {
                 }
                 w.force = false;
                 drawn = true;
+                frame_time(started);
             }
             let look = Look {
                 title: f.spec.title.clone(),

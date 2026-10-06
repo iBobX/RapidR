@@ -74,31 +74,37 @@ body = "SUB ${1:Name}(${2})\n\t$0\nEND SUB"
 
 Only the members beyond the usual visual ones (Left, Top, Width, Height, Align, Anchors, Visible, Enabled, Font, Color, Hint, TabOrder, Parent, Tag, AccessibleName …) are listed.
 
-### 3.1 RCodeEditor (stage I2; the existing RCODEEDITOR grown)
+### 3.1 RCodeEditor (I2, built: model `rapidr_value::objects::codeedit` over `rapidr-editor`'s document, kernel `components/codeeditor/`)
 
-Kept exactly as today: Text, Lines, `Line(i)` (0-based), LineCount, SelStart, SelLength, SelText, WhereX, WhereY, Modified, ReadOnly, WantTabs, AddStrings, Clear, SelectAll, GetSubList, GotoSub, `GotoLine(n)` (0-based), OnChange.
+Kept exactly as before (the `code_editor` GUI case, unchanged on native, interpreted and web): Text ('\n' breaks), Lines, `Line(i)` (0-based), LineCount, SelStart, SelLength, SelText (characters), WhereX, WhereY (0-based), Modified, ReadOnly, MaxLength, CharCase, WantTabs, AddStrings, Clear, SelectAll, ClearSelection, GetSubList, GotoSub, `GotoLine(n)` (0-based), the clipboard methods, LoadFromFile / SaveToFile, OnChange (the user's edits only). Everything new counts lines and columns from 1 (a column is a character of the line).
 
 | Kind | Member | Notes |
 |---|---|---|
-| Property | `Language` | A language id (`"rapidq-basic"`, `"sql"` …) or a definition file's path |
-| Property | `ColorScheme` | `"auto"` (follows the theme) or a scheme name |
-| Property | `TabSize`, `InsertSpaces`, `WordWrap`, `ShowLineNumbers`, `ShowFolding`, `ShowMinimap`, `ShowWhitespace`, `HighlightCurrentLine`, `Rulers` | |
-| Property | `CaretLine`, `CaretColumn` | 1-based (as users see them) |
-| Property | `CursorCount` (read-only), `CanUndo`, `CanRedo` | |
-| Property | `CompletionTrigger` | Characters that raise OnCompletionRequest (default `"."`) |
-| Method | `Undo`, `Redo` | Undo groups typing by word |
-| Method | `Find(Text, Options)` → found, `FindNext`, `Replace(Find, With, Options)`, `ReplaceAll(Find, With, Options)` → count | Options: `"case"`, `"word"`, `"regex"`, `"selection"` |
-| Method | `AddCursor(Line, Column)`, `SelectNextOccurrence`, `ClearCursors` | |
+| Property | `Language` | An id (`"rapidq-basic"` default, `"sql"`, `"json"`, `"html"` …), a file name whose extension says, or a definition file (`.toml`) |
+| Property | `ColorScheme` | `"auto"` (the theme's: `rapidr_value::code_scheme`) or `"classic"`, `"modern"`, `"dark"`, `"highcontrast"` |
+| Property | `FontName` (JetBrains Mono), `FontSize` (points, 10), `TabSize`, `InsertSpaces`, `AutoClose`, `AutoIndent`, `WordWrap`, `ShowLineNumbers`, `ShowFolding`, `ShowMinimap`, `ShowWhitespace`, `HighlightCurrentLine`, `Rulers` (`"80,120"`) | |
+| Property | `CaretLine`, `CaretColumn` | 1-based; setting moves the caret |
+| Property | `CursorCount`, `CanUndo`, `CanRedo`, `DiagnosticCount`, `FoldCount`, `Encoding`, `Outline` (read-only) | `Outline`: kind, name, line, depth tab-separated per entry (the language service's, else the SUBs / FUNCTIONs) |
+| Property | `CompletionTrigger` (`"."`), `LanguageService` (True), `KeywordCase` (`"upper"`, `"lower"`, `"proper"`, `"preserve"`) | The built-in service answers where the runtime carries it (`rapidr run`, RapidR Studio on the desktop, the web runtime built with `langsvc`); off or elsewhere, the request events |
+| Property | `FileName`, `LineEnding` (`"CRLF"`, `"LF"`, `"CR"`) | LoadFromFile keeps the file's breaks and encoding (UTF-8, UTF-8 BOM, Latin-1); SaveToFile writes them back |
+| Method | `Undo`, `Redo` | Typing grouped by word / 400 ms |
+| Method | `Find(Text, Options)` → found, `FindNext`, `FindPrevious`, `Replace(Find, With, Options)` → 1/0, `ReplaceAll(Find, With, Options)` → count | Options: `"case"`, `"word"`, `"regex"`, `"selection"`; `$1` in a regex's replacement |
+| Method | `AddCursor(Line, Column)`, `SelectNextOccurrence`, `ClearCursors`, `GotoLineColumn(Line, Column)` | |
 | Method | `Fold(Line)`, `Unfold(Line)`, `FoldAll`, `UnfoldAll` | |
-| Method | `InsertText(Text)`, `ReplaceRange(StartLine, StartCol, EndLine, EndCol, Text)`, `ApplyEdits(Json)` | `ApplyEdits` is one undo step |
-| Method | `SetDiagnostics(Json)`, `ClearDiagnostics`, `AddMarker(Line, Kind)`, `ClearMarkers(Kind)` | Kinds: breakpoint, current, error, warning, bookmark, custom |
-| Method | `ShowCompletion(Items)`, `ShowHover(Text)`, `ShowSignature(Text, ActiveParam)`, `HidePopups` | Items: a QSTRINGLIST of tab-separated lines (label, kind, detail, text to insert) or JSON |
-| Method | `LoadFromFile(File)`, `SaveToFile(File)`, `BeginUpdate`, `EndUpdate` | Line endings and encoding preserved |
-| Event | `OnCaretMove(Line, Column)`, `OnSelectionChange` | |
-| Event | `OnGutterClick(Line, Area)` | Area: `"number"`, `"marker"`, `"fold"` |
-| Event | `OnCompletionRequest(Line, Column, Prefix)`, `OnHoverRequest(Line, Column)`, `OnSignatureRequest(Line, Column)` | The program answers with ShowCompletion / ShowHover / ShowSignature |
+| Method | `InsertText(Text)`, `ReplaceRange(StartLine, StartCol, EndLine, EndCol, Text)`, `ApplyEdits(Json)`, `ToggleComment`, `Indent`, `Outdent`, `CopyText` | `ApplyEdits`: `[{"line","column","endLine","endColumn","text"}]` or `start` / `end` offsets, one undo step, refused whole on an overlap |
+| Method | `SetDiagnostics(Json)`, `ClearDiagnostics`, `AddMarker(Line, Kind)`, `RemoveMarker(Line, [Kind])`, `ClearMarkers([Kind])`, `GetMarkers([Kind])` → `"3,10"`, `HasMarker(Line, [Kind])` | Kinds: breakpoint, current, error, warning, bookmark, or the program's; markers follow their lines through edits |
+| Method | `ShowCompletion(Items)`, `ShowHover(Text)`, `ShowSignature(Text, ActiveParam)`, `HidePopups` | Items: tab-separated lines (label, kind, detail, text to insert), a QSTRINGLIST, or JSON |
+| Method | `TriggerCompletion`, `TriggerSignature`, `TriggerHover([Line, Column])`, `FormatDocument`, `GotoDefinition`, `FindReferences`, `Rename(NewName)`, `OpenFind([Mode])` | What the keys do, for a shell's menus and commands; Mode: `"find"`, `"replace"`, `"goto"`, `"rename"` |
+| Method | `BeginUpdate`, `EndUpdate` | |
+| Event | `OnCaretMove(Line, Column)`, `OnSelectionChange` | The user's moves |
+| Event | `OnGutterClick(Line, Area)` | Area: `"marker"` (breakpoints), `"number"`, `"fold"` |
+| Event | `OnCompletionRequest(Line, Column, Prefix)`, `OnHoverRequest(Line, Column)`, `OnSignatureRequest(Line, Column)` | Raised when no language service answers; the program answers with ShowCompletion / ShowHover / ShowSignature |
 | Event | `OnSave` | Ctrl / Cmd+S inside the editor |
+| Event | `OnNavigate(File, Line, Column)`, `OnReferences(Json)`, `OnFileEdits(File, Json)` | Go to definition in another file; Find references' places; a rename's edits to another file |
 | AI tools | read text / selection / range, find, replace range, apply edits (diff-previewed), go to line | §1.5 |
+
+Keys (VS Code's map; Cmd for Ctrl on macOS): arrows / Home (smart) / End / PgUp / PgDn, Ctrl+arrows by word, Ctrl+Home / End; Ctrl+Alt+Up / Down a caret above / below, Alt+click another caret, Alt+Shift+drag a column, Ctrl+D the next occurrence, Ctrl+Shift+L all of them, Escape back to one caret; Alt+Up / Down move lines, Shift+Alt+Up / Down copy them, Ctrl+Shift+K delete them, Ctrl+Enter / Ctrl+Shift+Enter a line below / above, Ctrl+/ comment, Tab / Shift+Tab (and Ctrl+] / Ctrl+[) indent, Ctrl+Shift+\ the matching bracket; Ctrl+Shift+[ / ] fold / unfold, Ctrl+K Ctrl+0 / Ctrl+J all; Ctrl+F find, Ctrl+H replace, F3 / Shift+F3, Ctrl+G go to line, F2 rename, F12 / Ctrl+click definition, Shift+F12 references, Shift+Alt+F format; Ctrl+Space completion, Ctrl+Shift+Space signature, Ctrl+K Ctrl+I hover; Ctrl+= / Ctrl+- / Ctrl+0 zoom (Ctrl+wheel too), Alt+Z word wrap; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y.
+
 
 ### 3.2 RDiffView (I2, built: `rapidr_value::objects::diffview`, kernel `components/diffview.rs`)
 
