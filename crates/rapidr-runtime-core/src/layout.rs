@@ -326,3 +326,38 @@ pub fn realign(parent: &str, changed: Option<&str>) {
         }
     }
 }
+
+/// (a QLABEL's AutoSize, `rapidr_value::autosize`) Before `rp_comp_set`
+/// stores `prop` of `name`: what can resize labels — a label's Caption,
+/// AutoSize, WordWrap; any component's font or Parent (the fonts of the
+/// labels it is or holds) — for [`labels_after_set`].
+pub(crate) fn labels_before_set(name: &str, prop: &str) -> Option<rapidr_value::autosize::Before> {
+    let t = rp_comp_type(name);
+    if t.is_empty() || t == "RUDT" || rapidr_value::objects::is_object_type(&t) {
+        return None;
+    }
+    rapidr_value::autosize::before_set(name, &t, &prop.to_ascii_lowercase(), &stored_or_null, &get_children_of, &label_font)
+}
+
+/// The property is stored: each AutoSize label it changed takes its text's
+/// size (Left too, right-aligned).
+pub(crate) fn labels_after_set(name: &str, before: rapidr_value::autosize::Before) {
+    for label in rapidr_value::autosize::changed_labels(name, before, &stored_or_null, &label_font) {
+        if let Some(r) = rapidr_value::autosize::label_bounds(&label, &|i, p| rp_comp_get(i, p)) {
+            for (p, v) in [("left", r.left), ("width", r.width), ("height", r.height)] {
+                if rp_comp_get(&label, p).to_i64() != v {
+                    rp_comp_set(&label, p, v_int(v));
+                }
+            }
+        }
+    }
+}
+
+fn stored_or_null(name: &str, prop: &str) -> Value {
+    crate::object::stored(name, prop).unwrap_or(Value::Null)
+}
+
+/// The font label `name` is drawn in, its Font.Color the one it reads.
+fn label_font(name: &str) -> rapidr_value::autosize::FontKey {
+    (rapidr_value::objects::font_from_props(name, &|i, p| rp_comp_get(i, p)), crate::object::program_font_color(name).to_i64())
+}

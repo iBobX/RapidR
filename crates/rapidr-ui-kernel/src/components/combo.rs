@@ -92,11 +92,24 @@ fn button_rect(w: i64, h: i64) -> Rect {
     (w - 2 - bw, 2, bw, (h - 4).max(0))
 }
 
+/// The box's height: a line of its font and 8 (21 for MS Sans Serif 8),
+/// however tall the component is — as Windows sizes a combo box by its
+/// font (RapidQ's capture: Height reads 25, the box shows 21).
+fn box_height(cx: &Cx) -> i64 {
+    cx.height().min(line_height(&cx.font) + 8)
+}
+
+/// A drop-down row's height: a line of the font (13 for MS Sans Serif 8,
+/// as Windows' combo boxes list them).
+fn line_height(font: &rapidr_value::objects::font::Font) -> i64 {
+    rapidr_value::objects::text::text_size("Ag", font).1
+}
+
 /// Each row's height in the drop-down (owner-drawn: its own).
-fn row_heights(id: &str, font_h: i64) -> Vec<i64> {
+fn row_heights(id: &str, line: i64) -> Vec<i64> {
     with_list(id, |l| {
         (0..l.items.len().min(rapidr_value::objects::list::MAX_OWNER_DRAWN))
-            .map(|i| if l.owner_drawn() { l.item_h(i) } else if l.item_height > 0 { l.row_height() } else { font_h + 3 })
+            .map(|i| if l.owner_drawn() { l.item_h(i) } else if l.item_height > 0 { l.row_height() } else { line })
             .collect()
     })
     .unwrap_or_default()
@@ -113,9 +126,11 @@ fn layout(f: &FormUi, d: &Dropped, store: &dyn Store) -> Option<(Rect, Rows)> {
         None => f.node(&d.id)?.abs,
     };
     let font = store.font(&d.id);
+    // (under the box, as tall as its font makes it)
+    let h = if d.anchor.is_some() { h } else { h.min(line_height(&font) + 8) };
     let heights = match &d.items {
-        Some(items) => vec![font.pixel_size() + 3; items.len()],
-        None => row_heights(&d.id, font.pixel_size()),
+        Some(items) => vec![line_height(&font); items.len()],
+        None => row_heights(&d.id, line_height(&font)),
     };
     if heights.is_empty() {
         return None;
@@ -140,7 +155,7 @@ pub fn popup_wheel(f: &mut FormUi, store: &dyn Store, _x: f64, _y: f64, dy: f64)
     let Some(d) = dropped().filter(|d| d.form == f.form) else { return false };
     let count = match &d.items {
         Some(items) => items.len(),
-        None => row_heights(&d.id, store.font(&d.id).pixel_size()).len(),
+        None => row_heights(&d.id, line_height(&store.font(&d.id))).len(),
     };
     let rows = (dy * 3.0).round() as i64;
     let max = count.saturating_sub(DROP_ROWS) as i64;
@@ -296,7 +311,7 @@ impl ComponentKind for ComboBox {
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
-        let (w, h) = (cx.width(), cx.height());
+        let (w, h) = (cx.width(), box_height(cx));
         let s = cx.state;
         let t = p.theme();
         let (bx, by, bw, bh) = button_rect(w, h);
@@ -380,7 +395,7 @@ impl ComponentKind for ComboBox {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        let (w, h) = (cx.width(), cx.height());
+        let (w, h) = (cx.width(), box_height(cx));
         if editable(cx.store, cx.id) {
             // (an editable box: a press on the text places the caret; only
             // the button drops the list)
@@ -401,7 +416,7 @@ impl ComponentKind for ComboBox {
         if !editable(cx.store, cx.id) {
             return false;
         }
-        let (w, h) = (cx.width(), cx.height());
+        let (w, h) = (cx.width(), box_height(cx));
         let area = text_area(w, h);
         let spec = super::edit::Spec::line(cx, area, super::edit::Source::Combo);
         super::edit::ime_box(cx, &spec, ime, |e| {
@@ -415,7 +430,7 @@ impl ComponentKind for ComboBox {
         if !editable(cx.store, cx.id) {
             return None;
         }
-        let (w, h) = (cx.width(), cx.height());
+        let (w, h) = (cx.width(), box_height(cx));
         Some(super::edit::ime_area_line(cx, text_area(w, h), super::edit::Source::Combo))
     }
 
@@ -427,7 +442,7 @@ impl ComponentKind for ComboBox {
         if !editable(cx.store, cx.id) {
             return None;
         }
-        let (w, h) = (cx.width(), cx.height());
+        let (w, h) = (cx.width(), box_height(cx));
         Some(super::edit::menu_line(cx, text_area(w, h), super::edit::Source::Combo))
     }
 
@@ -435,7 +450,7 @@ impl ComponentKind for ComboBox {
         // (an editable box: what isn't the list's goes to the editor)
         let list_key = matches!(k.vk, 38 | 40 | 115) || (is_dropped(cx.id) && matches!(k.vk, 13 | 27));
         if editable(cx.store, cx.id) && !list_key {
-            let (w, h) = (cx.width(), cx.height());
+            let (w, h) = (cx.width(), box_height(cx));
             return super::edit::key_line(cx, k, clip, text_area(w, h), super::edit::Source::Combo);
         }
         if k.mods.command {

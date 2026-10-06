@@ -22,6 +22,12 @@ fn prop(store: &dyn Store, id: &str, name: &str) -> i64 {
     store::int(store, id, name, bevel::default(name).unwrap_or(0))
 }
 
+/// BorderStyle = bsSingle (1): Windows' sunken client edge around the
+/// bevels, two pixels (RapidQ's capture, tests/visual/rapidq/panels).
+fn single(store: &dyn Store, id: &str) -> bool {
+    store::int(store, id, "borderstyle", 0) == 1
+}
+
 /// The panel's frames (outermost first).
 pub fn frames(store: &dyn Store, id: &str) -> Vec<bevel::Frame> {
     bevel::frames(prop(store, id, "bevelouter"), prop(store, id, "bevelinner"), prop(store, id, "bevelwidth"), prop(store, id, "borderwidth"))
@@ -46,9 +52,20 @@ impl ComponentKind for Panel {
         let t = p.theme();
         let back = color_of(cx.store, cx.id).unwrap_or(t.face);
         p.fill((0, 0, w, h), back);
+        // (bsSingle: the client edge, the bevels inside it)
+        let edge = if single(cx.store, cx.id) {
+            if t.fluent() {
+                p.ring((0, 0, w, h), t.radius, t.border, 1.0);
+            } else {
+                p.sunken_edge((0, 0, w, h));
+            }
+            2
+        } else {
+            0
+        };
         let frames = frames(cx.store, cx.id);
         for f in &frames {
-            let i = f.inset;
+            let i = f.inset + edge;
             if w - 2 * i < 2 || h - 2 * i < 2 {
                 break;
             }
@@ -66,9 +83,11 @@ impl ComponentKind for Panel {
             return;
         }
         // (inside the bevels, as TPanel's DrawText)
-        let i = frames.last().map_or(0, |f| f.inset + 1);
+        let i = edge + frames.last().map_or(0, |f| f.inset + 1);
         let (x, y, iw, ih) = (i, i, (w - 2 * i).max(0), (h - 2 * i).max(0));
-        let color = ink_of(cx, back);
+        // (classic: TPanel draws its caption in black even disabled — RapidQ's
+        // capture; fluent: greyed)
+        let color = if t.fluent() { ink_of(cx, back) } else { crate::paint::ink(cx.store, cx.id, &cx.font, true, back) };
         let (shown, _) = mnemonic(&text);
         let tw = text_size(&shown, &cx.font).0;
         let rect = match store::int(cx.store, cx.id, "alignment", 2) {
@@ -82,6 +101,16 @@ impl ComponentKind for Panel {
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         super::shared_describe(cx, self.name())
+    }
+
+    fn client_area(&self, store: &dyn Store, id: &str, w: i64, h: i64) -> crate::Rect {
+        // (inside the client edge, as Windows counts a bsSingle panel's
+        // children from)
+        if single(store, id) {
+            (2, 2, (w - 4).max(0), (h - 4).max(0))
+        } else {
+            (0, 0, w, h)
+        }
     }
 }
 
