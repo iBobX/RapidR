@@ -807,7 +807,8 @@ pub enum NameFrom {
 /// caption, asked only then, and only for a control: a label, a panel, a
 /// status bar, a picture are never named by one). Its description is its
 /// AccessibleDescription, else its Hint when the Hint isn't its name (a
-/// tooltip, as a browser reads a title).
+/// tooltip, as a browser reads a title), then what the component described
+/// of itself.
 pub fn apply_name_rule(n: &mut AccessNode, get: Props, label: impl FnOnce() -> Option<(u64, String)>) -> NameFrom {
     let hint = text(get, "hint");
     let given = text(get, "accessiblename");
@@ -831,9 +832,14 @@ pub fn apply_name_rule(n: &mut AccessNode, get: Props, label: impl FnOnce() -> O
             None => NameFrom::Own,
         }
     };
-    n.description = text(get, "accessibledescription");
+    // (what the component says of itself — a code editor's line and
+    // column — after it)
+    let own = std::mem::replace(&mut n.description, text(get, "accessibledescription"));
     if n.description.is_empty() && from != NameFrom::Hint {
         n.description = hint;
+    }
+    if !own.is_empty() {
+        n.description = if n.description.is_empty() { own } else { format!("{}. {own}", n.description) };
     }
     from
 }

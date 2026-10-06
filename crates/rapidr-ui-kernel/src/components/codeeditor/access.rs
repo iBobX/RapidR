@@ -68,10 +68,8 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
     });
     if let Some((d, kids, text)) = extra {
         n.text = Some(Box::new(text));
-        if !n.description.is_empty() {
-            n.description.push_str(". ");
-        }
-        n.description.push_str(&d);
+        // (after its AccessibleDescription: the kernel's name rule)
+        n.description = d;
 
         n.states.multiline = true;
         n.children.extend(kids);

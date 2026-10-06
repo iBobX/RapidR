@@ -146,6 +146,7 @@ fn screen_readers_read_the_window_as_text_runs() {
     f.paint(&s, &mut ts, 2.0);
     let tree = f.access_tree(&s, &mut ts);
     let n = tree.find(node_id("ce4")).unwrap();
+    assert_eq!(n.description, "Line 2, column 2", "the caret's place (after the name rule)");
     let t = n.text.as_ref().expect("text runs");
     // the runs joined are the value (the window of lines): 101 lines, the
     // long one in 3 pieces

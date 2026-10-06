@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use accesskit::{Action as AAction, ActionData, ActionRequest, Affine, Node, NodeId, Orientation as AOrientation, Rect as ARect, Role as ARole, TextPosition, TextSelection, Toggled, TreeId, TreeInfo, TreeUpdate};
+use accesskit::{Action as AAction, ActionData, ActionRequest, Affine, Node, NodeId, Orientation as AOrientation, Rect as ARect, Role as ARole, TextDirection, TextPosition, TextSelection, Toggled, TreeId, TreeInfo, TreeUpdate};
 use rapidr_ui_kernel::AccessValue;
 use rapidr_value::objects::a11y::{AccessNode, Action, Orientation, Role, TextInfo, TextPos};
 
@@ -123,6 +123,8 @@ fn node(n: &AccessNode) -> Node {
     a.set_bounds(bounds(n.bounds));
     // (a text field's text runs: its first children, AccessKit's text)
     if let Some(t) = &n.text {
+        // (the runs inherit it: without it, no character's bounds)
+        a.set_text_direction(TextDirection::LeftToRight);
         for r in &t.runs {
             a.push_child(NodeId(r.id));
         }
@@ -351,7 +353,12 @@ mod tests {
         assert_eq!(field.line_range_from_index(0).unwrap().text(), "Dim a\r\n");
         assert_eq!(field.line_range_from_index(1).unwrap().text(), "\tb = a + 1\n");
         assert_eq!(field.line_range_from_index(2).unwrap().text(), long, "the pieces read as one line");
-        assert_eq!(field.text_selection().unwrap().text(), "a + 1");
+        let sel = field.text_selection().unwrap();
+        assert_eq!(sel.text(), "a + 1");
+        // where it's drawn: characters 5 to 10 of the run at (10, 218), 8 wide
+        let boxes = sel.bounding_boxes();
+        assert_eq!(boxes.len(), 1);
+        assert_eq!((boxes[0].x0, boxes[0].x1, boxes[0].y0), (10.0 + 40.0, 10.0 + 80.0, 218.0));
         let focus = field.text_selection_focus().unwrap();
         assert_eq!(focus.to_line_index(), 1);
         assert_eq!(focus.to_global_usv_index(), "Dim a\r\n\tb = ".chars().count());
