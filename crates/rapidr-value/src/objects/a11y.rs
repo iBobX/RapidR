@@ -456,7 +456,9 @@ pub fn role_of(type_name: &str) -> Role {
         // kernel describes their rows, tabs and buttons)
         "RPROPERTYINSPECTOR" => Role::Grid,
         "RTOOLBOX" | "RPROJECTTREE" => Role::Tree,
-        "ROUTPUTCONSOLE" => Role::MultilineTextInput,
+        // (a console: its tabs, its search box, its page — a read-only
+        // multiline text, or the problems' list — inside)
+        "ROUTPUTCONSOLE" => Role::Group,
         "RTOOLBAR" => Role::Group,
         "RCOMMANDPALETTE" => Role::Dialog,
         "RSTATUSBAR" => Role::Status,

@@ -293,7 +293,7 @@ const COMPONENT_REGISTRY = {
         name: 'RTOOLBAR',
         description: 'A strip of tool buttons, usually along the top of a form: icon buttons (RapidR\'s icons or the program\'s pictures) with tooltips, separators, toggles, and a menu for the buttons that don\'t fit. With Customizable the user picks which buttons show. RapidR\'s own; components placed on it sit after its buttons, as on any container.',
         rapidq: null,
-        props: ['align', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'color', 'hint', 'showhint', 'cursor', 'parent', 'font', 'buttonsize', 'showcaptions', 'customizable', 'buttoncount', 'layout', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
+        props: ['align', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'color', 'hint', 'showhint', 'cursor', 'parent', 'font', 'buttonsize', 'showcaptions', 'customizable', 'buttoncount', 'layout', 'clickedbutton', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
         methods: ['repaint', 'refresh', 'addbutton', 'addtoggle', 'addseparator', 'removebutton', 'clear', 'button', 'buttonenabled', 'buttondown', 'buttonvisible', 'buttonhint', 'click', 'setparent'],
         events: ['onclick', 'onbuttonclick'],
         methodSignatures: {
@@ -301,7 +301,7 @@ const COMPONENT_REGISTRY = {
             'refresh': { sig: 'Refresh', desc: 'Redraws the component at once; MySQL\'s flushes the server\'s tables or caches that `RefreshFlags` names.' },
             'addbutton': { sig: 'AddButton(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])', desc: 'Adds an icon button: Icon is one of RapidR\'s icons ("save", "run", a command id such as "file.save") or a picture file; Hint its tooltip (and what a screen reader calls it); Command what OnClick reports besides the name.' },
             'addtoggle': { sig: 'AddToggle(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])', desc: 'Adds a button that stays down when clicked, until clicked again.' },
-            'addseparator': { sig: 'AddSeparator', desc: 'Adds a thin line between groups of buttons.' },
+            'addseparator': { sig: 'AddSeparator([Name AS STRING])', desc: 'Adds a thin line between groups of buttons (named, to be removed by RemoveButton).' },
             'removebutton': { sig: 'RemoveButton(Name AS STRING)', desc: 'Takes a button (or a separator, by its name) off the toolbar.' },
             'clear': { sig: 'Clear', desc: 'Removes every button.' },
             'button': { sig: 'Button(Index AS INTEGER) AS STRING', desc: 'Button Index\'s name (from 0; a separator\'s is "-").' },
@@ -330,7 +330,8 @@ const COMPONENT_REGISTRY = {
             'showcaptions': 'Whether each button shows its caption beside its icon.',
             'customizable': 'The user can choose which buttons show, from the toolbar\'s menu (its overflow button).',
             'buttoncount': 'How many buttons and separators it has.',
-            'layout': 'Which buttons the user hid, as text to keep and set back (Customizable).',
+            'layout': 'Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between.',
+            'clickedbutton': 'The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked).',
             'anchors': 'Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch.',
             'minwidth': 'The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`.',
             'minheight': 'The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`.',
@@ -340,8 +341,8 @@ const COMPONENT_REGISTRY = {
             'accessibledescription': 'A longer description a screen reader gives after the name (what the control does, a shortcut).',
         },
         eventSignatures: {
-            'onclick': { sig: 'OnClick', desc: 'Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button).' },
-            'onbuttonclick': { sig: 'OnButtonClick(Name AS STRING, Command AS STRING)', desc: 'A button was clicked (or a toggle turned): its name and command.' },
+            'onclick': { sig: 'OnClick', desc: 'A button or the strip was clicked (after OnButtonClick): ClickedButton says which button.' },
+            'onbuttonclick': { sig: 'OnButtonClick(Name AS STRING, Command AS STRING)', desc: 'A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don\'t fit): its name and command.' },
         },
     },
     RSTATUSBAR: {

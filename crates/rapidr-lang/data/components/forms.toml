@@ -308,14 +308,15 @@ properties = [
   { name = "ShowCaptions", type = "bool", default = false, origin = "rapidr", doc = "Whether each button shows its caption beside its icon." },
   { name = "Customizable", type = "bool", default = false, origin = "rapidr", doc = "The user can choose which buttons show, from the toolbar's menu (its overflow button)." },
   { name = "ButtonCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many buttons and separators it has." },
-  { name = "Layout", type = "string", design = false, origin = "rapidr", doc = "Which buttons the user hid, as text to keep and set back (Customizable)." },
+  { name = "Layout", type = "string", design = false, origin = "rapidr", doc = "Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between." },
+  { name = "ClickedButton", type = "string", access = "read", design = false, origin = "rapidr", doc = "The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked)." },
 ]
 methods = [
   { name = "Repaint" },
   { name = "Refresh", value = true },
   { name = "AddButton", params = "Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING]", origin = "rapidr", doc = "Adds an icon button: Icon is one of RapidR's icons (\"save\", \"run\", a command id such as \"file.save\") or a picture file; Hint its tooltip (and what a screen reader calls it); Command what OnClick reports besides the name." },
   { name = "AddToggle", params = "Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING]", origin = "rapidr", doc = "Adds a button that stays down when clicked, until clicked again." },
-  { name = "AddSeparator", origin = "rapidr", doc = "Adds a thin line between groups of buttons." },
+  { name = "AddSeparator", params = "[Name AS STRING]", origin = "rapidr", doc = "Adds a thin line between groups of buttons (named, to be removed by RemoveButton)." },
   { name = "RemoveButton", params = "Name AS STRING", origin = "rapidr", doc = "Takes a button (or a separator, by its name) off the toolbar." },
   { name = "Clear", value = true, origin = "rapidr", doc = "Removes every button." },
   { name = "Button", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Button Index's name (from 0; a separator's is \"-\")." },
@@ -325,8 +326,8 @@ methods = [
   { name = "ButtonHint", params = "Name AS STRING, [Hint AS STRING]", returns = "STRING", origin = "rapidr", doc = "A button's tooltip; with Hint, sets it." },
 ]
 events = [
-  { name = "OnClick" },
-  { name = "OnButtonClick", params = "Name AS STRING, Command AS STRING", origin = "rapidr", doc = "A button was clicked (or a toggle turned): its name and command." },
+  { name = "OnClick", doc = "A button or the strip was clicked (after OnButtonClick): ClickedButton says which button." },
+  { name = "OnButtonClick", params = "Name AS STRING, Command AS STRING", origin = "rapidr", doc = "A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command." },
 ]
 
 [[component]]
