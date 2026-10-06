@@ -61,6 +61,11 @@ fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
 
+    // The language service every code editor of a program run here asks
+    // (RapidR Studio's RCODEEDITOR): per thread, and programs run on this
+    // one (launch.rs, rapidr_vm_host_native::run_bytes).
+    rapidr_langsvc::editor::install();
+
     // `rapidr --log <file> <command…>`: the command's output (and that of
     // the tools it runs: cargo) in a file — for programs that run rapidr
     // (the IDE) on any system without a shell's redirections.
