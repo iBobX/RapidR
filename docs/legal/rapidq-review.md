@@ -481,9 +481,10 @@ edited fixtures (pixels and accessibility trees identical to the desktop's);
 - **Trademark filing.** If the name is kept, filing RAPIDR in classes 9 and
   42 in Uruguay (DNPI), then by the Madrid system, would give the project
   its own right; expect a narrow scope in a crowded field.
-- **Who holds RapidR's copyright.** `LICENSE` names Roberto Berrospe; if the
-  company (Ruta Internet SRL) is meant to hold it, the notices should say so
-  consistently.
+- **Who holds RapidR's copyright.** Decided 2026-10-06: Ruta Internet SRL.
+  `LICENSE`, `NOTICE`, the VS Code extension's licence and the installers'
+  metadata name it. Roberto Berrospe's rights in RapidR go to the company by
+  a written assignment the company keeps with its own records.
 - **Optional courtesy**: a note to Xojo, Inc. or William Yu asking for no
   objection would be the strongest assurance, but it isn't needed for
   anything RapidR does, and it is the owner's call whether to make contact.

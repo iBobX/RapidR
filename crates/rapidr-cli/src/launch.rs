@@ -279,7 +279,7 @@ fn basic_string(text: &str) -> String {
 pub fn about() -> ExitCode {
     let home = crate::home::Home::find();
     let text = format!(
-        "RapidR Runtime {}\n\nRuns RapidR and RapidQ programs: open a .rrbc, .rr or .bas file.\n{}\n\nMIT licence, with open-source components (THIRD-PARTY-NOTICES.txt).\nRapidR is compatible with RapidQ; it is not affiliated with RapidQ's author\nor any vendor it names. Legal: https://github.com/iBobX/RapidR/blob/main/LEGAL.md",
+        "RapidR Runtime {}\n\nRuns RapidR and RapidQ programs: open a .rrbc, .rr or .bas file.\n{}\n\nCopyright (c) 2025-2026 Ruta Internet SRL. MIT licence, with open-source\ncomponents (THIRD-PARTY-NOTICES.txt).\nRapidR is compatible with RapidQ; it is not affiliated with RapidQ's author\nor any vendor it names. Legal: https://github.com/iBobX/RapidR/blob/main/LEGAL.md",
         rapidr_bytecode::RUNTIME_VERSION,
         rapidr_bytecode::RELEASES_URL
     );

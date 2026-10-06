@@ -114,17 +114,17 @@ mod tests {
         let mut f = FormUi::build(&s, "pform", false);
         let dump = f.paint(&s, &mut ts, 1.0).dump();
         // the panel's bevels: lowered outside, 3 pixels, raised inside
-        assert!(dump.contains("edge 0,0 100x60 #808080 #ffffff @0,0"), "{dump}");
-        assert!(dump.contains("edge 4,4 92x52 #ffffff #808080 @0,0"), "{dump}");
+        assert!(dump.contains("edge 0,0 100x60 #a0a0a0 #ffffff @0,0"), "{dump}");
+        assert!(dump.contains("edge 4,4 92x52 #ffffff #a0a0a0 @0,0"), "{dump}");
         assert!(dump.contains("\"Hi\""), "{dump}");
         // the group box: etched, its caption without the &
-        assert!(dump.contains("#808080/#ffffff #ffffff/#808080 @0,70"), "{dump}");
+        assert!(dump.contains("#a0a0a0/#ffffff #ffffff/#a0a0a0 @0,70"), "{dump}");
         assert!(dump.contains("\"Group\""), "{dump}");
         // the status bar: the first panel 100 wide by default, the last the
         // rest — up to the size grip (the input lane's: a sizeable form, the
         // bar docked at the bottom)
-        assert!(dump.contains("edge 1,2 98x21 #808080 #ffffff @0,140"), "{dump}");
-        assert!(dump.contains("edge 101,2 182x21 #808080 #ffffff @0,140"), "{dump}");
+        assert!(dump.contains("edge 1,2 98x21 #a0a0a0 #ffffff @0,140"), "{dump}");
+        assert!(dump.contains("edge 101,2 182x21 #a0a0a0 #ffffff @0,140"), "{dump}");
         let tree = f.access_tree(&s, &mut ts);
         let roles: Vec<(Role, String)> = tree.children.iter().map(|n| (n.role, n.name.clone())).collect();
         // (the status bar: a polite live region, as the web's role=status)

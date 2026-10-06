@@ -55,7 +55,8 @@ Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must
 - **Find All References** (Shift+F12).
 - **Rename Symbol** (F2): a variable, SUB, FUNCTION, TYPE or component, everywhere it is used.
 - **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the forms you CREATE and their components.
-- **Format Document**.
+- **Format Document** and **Format Selection**: indentation, and keywords in one case.
+- **Automatic keyword case** as you type, as in QuickBASIC and VB: `dim x as integer` becomes `DIM x AS INTEGER` when each word is finished. Strings, comments and your own names are never touched; one Undo gives back what you typed.
 
 ![Outline](images/outline.png)
 
@@ -99,6 +100,8 @@ The extension highlights RapidQ and RapidR syntax, including every component und
 |---|---|---|
 | `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace. |
 | `rapidr.rapidqCompatible` | `false` | Warn about everything RapidQ doesn't have. |
+| `rapidr.keywordCase` | `upper` | The case of keywords, types, directives and builtins: `upper`, `lower`, `proper` (`Dim x As Integer`) or `preserve` (off). |
+| `rapidr.identifierCase` | `preserve` | `declaration`: write your names as declared, and members as RapidR spells them (`Form.Caption`). |
 | `rapidr.trace.server` | `off` | Log the language server's messages in the "RapidR Language Server" output. |
 
 ## Commands

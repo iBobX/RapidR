@@ -854,7 +854,8 @@ mod tests {
         let (x, _, w, _) = f.node("cb").unwrap().abs;
         click(&mut f, &s, &mut ts, (x + w - 8) as f64, 20.0);
         assert!(super::super::combo::is_dropped("cb"));
-        let events = click(&mut f, &s, &mut ts, 30.0, 35.0 + 16.0 + 8.0);
+        // (the list under the 21-pixel box, rows 13 high: the second row)
+        let events = click(&mut f, &s, &mut ts, 30.0, 31.0 + 13.0 + 7.0);
         assert!(!super::super::combo::is_dropped("cb"));
         assert_eq!(events, vec![KernelEvent::Change("cb".into())]);
         assert_eq!(with_list("cb", |l| (l.item_index, l.text.clone())), Some((1, "green".into())));

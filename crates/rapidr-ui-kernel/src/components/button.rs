@@ -104,7 +104,13 @@ impl ComponentKind for PushButton {
             p.button_edge(r);
         }
         let shift = i64::from(s.pressed);
-        let color = ink_of(cx, t.face);
+        let mut color = ink_of(cx, t.face);
+        if !s.enabled {
+            // (embossed, as Windows' DrawState: white a pixel down and right,
+            // the shadow over it)
+            caption(p, (shift + 1, shift + 1, w, h), &data.caption, &cx.font, t.light, Place::Center);
+            color = t.shadow;
+        }
         caption(p, (shift, shift, w, h), &data.caption, &cx.font, color, Place::Center);
         if s.focused {
             p.focus((4, 4, w - 8, h - 8));

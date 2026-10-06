@@ -210,7 +210,7 @@ impl FormUi {
                 }
                 if out.focus.unwrap_or(true) && self.can_focus(store, i) {
                     let before = self.events.len();
-                    self.set_focus(Some(i));
+                    self.set_focus_by_click(Some(i));
                     // (a list's OnEnter before what the press did to it: a
                     // list box takes the focus before it selects)
                     let entered: Vec<KernelEvent> = self.events.drain(before..).collect();

@@ -169,9 +169,11 @@ impl FormUi {
         };
         f.rebuild(store);
         f.focus = f.tab_order(store).first().copied();
-        // (the first focus is entered too: a list's OnEnter as its form shows)
+        // (the first focus is entered: a list's OnEnter as its form shows;
+        // a QEDIT focused then selects its text: AutoSelect)
         if let Some(i) = f.focus {
             f.entered(i);
+            crate::focus::select_on_entry(&f.nodes[i].id, &f.nodes[i].type_name);
         }
         f
     }

@@ -3784,6 +3784,7 @@ dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-diagnostics",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
