@@ -50,8 +50,9 @@ pub trait Host {
     /// times its size.
     fn save_plot(&self, plot: &str, file: &str, scale: f64);
     /// `Plot.Show` / `Plot.Render` (and a series added with `AddSeries`):
-    /// nothing on every runtime today — a chart is shown by
-    /// `Image.LoadFromPlot` (kept for a runtime that shows charts itself).
+    /// chart `plot` drawn again where it shows — an RPLOT on a form is a
+    /// UI-kernel component (its form painted again); a chart nowhere on a
+    /// form shows only through `Image.LoadFromPlot` or `SaveFig`.
     fn show_plot(&self, plot: &str);
 }
 

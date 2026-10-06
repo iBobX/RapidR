@@ -196,7 +196,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     // BorderStyle …)
     props.extend(rapidr_value::component_defaults::desktop(type_name));
     // (the web's own elements show until the program hides them, and say so)
-    if matches!(utype.as_str(), "RWEBVIEW" | "RDOM" | "RWEBAUDIO" | "RWEBVIDEO" | "RPLOT") {
+    if matches!(utype.as_str(), "RWEBVIEW" | "RDOM" | "RWEBAUDIO" | "RWEBVIDEO") {
         props.entry("visible".to_string()).or_insert(v_bool(true));
     }
     // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout_web).

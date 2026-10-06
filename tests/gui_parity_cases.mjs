@@ -295,4 +295,18 @@ export const cases = [
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+  // RPLOT on a form (the UI kernel's component, the one chart renderer): a
+  // line chart anchored left / top / right, widened with the form (500 ×
+  // 350); a bar chart aligned to the bottom. The click adds a dashed series
+  // and a legend, titles the bars and renders: drawn again. Pixels: the
+  // line chart's background, the form between the charts, a bar (steelblue),
+  // the legend's red and blue swatches; on the web, the red line drawn on
+  // the form's canvas (the window's capture is compared with the desktop's).
+  { name: "rplot_on_form", events: "btn.onclick", dump: "lbl.caption", resize: "500,350",
+    expect: ["lbl.caption=2 330x170 0,209 498x110 Sales 1"],
+    pixels: [[12, 34, "ffffff"], [400, 100, "f0f0f0"], [420, 270, "4682b4"], [57, 85, "ff0000"], [60, 101, "0000ff"]], clientWidth: 498,
+    webCheck: `(() => { const c = document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kclient'); const g = c && c.getContext("2d"); if (!g) return "no canvas";
+      const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) n++;
+      return n > 200 ? "red line drawn" : "red pixels: " + n; })()`,
+    webExpect: "red line drawn" },
 ];

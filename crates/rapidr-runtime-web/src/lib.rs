@@ -35,7 +35,7 @@ pub mod mdi_web;
 pub mod dock_web;
 pub mod network_web;
 pub mod object_web;
-/// The web-only components (RWEBVIEW, RDOM, media, RPLOT) as elements over
+/// The web-only components (RWEBVIEW, RDOM, media) as elements over
 /// the UI kernel's canvases.
 pub mod overlay_web;
 /// The fallback fonts (Noto: symbols, CJK) fetched as text needs them.

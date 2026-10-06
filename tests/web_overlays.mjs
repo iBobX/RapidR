@@ -1,9 +1,11 @@
 // The web-only components on the UI kernel's page (docs/web-host-plan.md
 // §3.6, Stage W6): tests/fixtures/web_overlays.bas' RWEBVIEW, RDOM
-// elements, RWEBVIDEO and RPLOT are the page's own elements, placed by the
+// elements and RWEBVIDEO are the page's own elements, placed by the
 // kernel over the form's canvas at their components' places, clipped to
 // their parents, hidden with them; they take their own clicks; an open
-// drop-down list is drawn on a layer above them and still picks.
+// drop-down list is drawn on a layer above them and still picks. (An RPLOT
+// is the kernel's own component, not an element: its chart is compared with
+// the desktop's in tests/gui_parity_cases.mjs' rplot_on_form.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo
 // served on http://localhost:8765):  node tests/web_overlays.mjs
@@ -63,18 +65,9 @@ ok(await k.text(page, "Lbl") === "dom clicked inside", `its OnClick runs on a re
 const free = await page.evaluate(() => { const e = document.getElementById("rr-free"); return e ? { parent: e.parentElement.tagName, text: e.textContent } : null; });
 ok(free?.parent === "BODY" && free.text === "free element", `an RDOM without a parent is the page's (${JSON.stringify(free)})`);
 
-// ---- RWEBVIDEO, RPLOT ----
+// ---- RWEBVIDEO ----
 const video = await placed("Video");
 ok(video?.tag === "video" && video.x === 10 && video.y === 170 && video.shown, `the video is a <video> at its place (${JSON.stringify(video)})`);
-const plotDrawn = await page.evaluate(() => {
-  const c = document.querySelector("#rr-plot1 canvas");
-  if (!c || !c.width) return 0;
-  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
-  let n = 0;
-  for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 80 && d[i + 2] < 80) n++;
-  return n;
-});
-ok(plotDrawn > 20, `the plot's red line is drawn in its element (${plotDrawn} red pixels)`);
 
 // ---- the program moves and hides them ----
 await k.click(page, "Move");

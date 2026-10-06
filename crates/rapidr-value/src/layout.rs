@@ -126,7 +126,8 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RSPLITTER" => (5, 200),
         "RCODEEDITOR" | "RWEBVIEW" => (400, 300),
         "RDESIGNSURFACE" => (640, 480),
-        "RPLOT" => (600, 400),
+        // (the chart model's own size: datascience::plot)
+        "RPLOT" => (640, 480),
         // (the web's own elements: the DOM runtime's 100 × 25)
         "RDOM" | "RWEBAUDIO" | "RWEBVIDEO" => (100, 25),
         _ => return None,
