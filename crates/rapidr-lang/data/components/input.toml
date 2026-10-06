@@ -41,7 +41,7 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
 ]
 methods = [
-  { name = "StartDrag", missing = true },
+  { name = "StartDrag" },
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
@@ -54,9 +54,9 @@ events = [
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
-  { name = "OnEndDrag", missing = true },
-  { name = "OnStartDrag", missing = true },
-  { name = "WndProc", missing = true },
+  { name = "OnEndDrag" },
+  { name = "OnStartDrag" },
+  { name = "WndProc" },
 ]
 
 [[component]]
@@ -120,7 +120,7 @@ events = [
   { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnKeyPress", params = "Key AS BYTE" },
   { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
-  { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER", missing = true },
+  { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
 ]
@@ -164,7 +164,7 @@ methods = [
 ]
 events = [
   { name = "OnClick" },
-  { name = "WndProc", missing = true },
+  { name = "WndProc" },
 ]
 
 [[component]]
@@ -205,7 +205,7 @@ methods = [
 ]
 events = [
   { name = "OnClick" },
-  { name = "WndProc", missing = true },
+  { name = "WndProc" },
 ]
 
 [[component]]
@@ -294,7 +294,7 @@ events = [
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
-  { name = "WndProc", missing = true },
+  { name = "WndProc" },
 ]
 
 [[component]]
@@ -694,7 +694,7 @@ methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "StartDrag", missing = true },
+  { name = "StartDrag" },
 ]
 events = [
   { name = "OnClick" },
@@ -749,12 +749,12 @@ methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "StartDrag", missing = true },
+  { name = "StartDrag" },
 ]
 events = [
   { name = "OnClick" },
   { name = "OnMouseDown" },
   { name = "OnMouseMove" },
   { name = "OnMouseUp" },
-  { name = "WndProc", missing = true },
+  { name = "WndProc" },
 ]

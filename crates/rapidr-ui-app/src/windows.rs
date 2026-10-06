@@ -24,6 +24,10 @@ pub enum WindowOp {
     Position(String, (i64, i64)),
     /// A frame and title bar (BorderStyle <> bsNone).
     Border(String, bool),
+    /// The title bar hidden (`HideTitleBar`: true) or shown again.
+    TitleBar(String, bool),
+    /// The window's outline changed (`ShapeForm`: `rapidr_value::shape`).
+    Shape(String),
     Icon(String, Option<Icon>),
     Minimize(String),
     /// A pop-up menu shown by the host (form, menu, x, y in its inside).
@@ -132,6 +136,17 @@ pub trait Windows: Copy + 'static {
     /// lasts that long: `waits::Wait::Menu`). A host whose pop-up menus
     /// never hold the program has none to say.
     fn popup_open(self, _form: &str) -> bool {
+        false
+    }
+    /// `X.StartDrag` on form `form`: component `comp` moves with the mouse
+    /// while a button is held (the kernel's `FormUi::start_move`); whether
+    /// it does. A host without the kernel's forms has none to move.
+    fn start_move(self, _form: &str, _comp: &str) -> bool {
+        false
+    }
+    /// Whether a drag or a StartDrag move goes on in form `form` (a wait
+    /// for one lasts that long: `waits::Wait::Drag`).
+    fn dragging(self, _form: &str) -> bool {
         false
     }
 

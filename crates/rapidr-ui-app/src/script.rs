@@ -49,6 +49,18 @@ pub fn next_step() -> Option<Instant> {
     sc(|s| s.as_ref().map(|s| s.next))
 }
 
+/// A handler waits for the user's input in place — a native build's
+/// StartDrag, moving its control until the mouse is let go: the script's
+/// next steps (that input) come meanwhile, as the user's would, rather
+/// than after the handler.
+pub fn input_awaited(now: Instant) {
+    sc(|s| {
+        if let Some(sc) = s.as_mut() {
+            sc.next = sc.next.min(now + Duration::from_millis(50));
+        }
+    });
+}
+
 /// Whether `name` shows: visible up to its form, whose window shows.
 pub fn shown_up<P: Program>(p: P, name: &str) -> bool {
     let mut cur = name.to_lowercase();

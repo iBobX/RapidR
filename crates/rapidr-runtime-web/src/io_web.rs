@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-use rapidr_value::objects::comport::{self, Flow, Link, PortError, Settings};
+use rapidr_value::objects::comport::{self, Flow, LineEvents, Link, PortError, Settings};
 use rapidr_value::objects::download::{Outcome, Shown};
 use rapidr_value::objects::{media, rqlib};
 use wasm_bindgen::prelude::*;
@@ -310,10 +310,13 @@ fn install_ports() {
     }
 }
 
-/// What a Web Serial port's reader put in, and its writer.
+/// What a Web Serial port's reader put in, its writer, and what the line
+/// did (a break — the reader's BreakError —, the ring indicator coming on —
+/// its signals, looked at every 100 ms).
 struct WebLink {
     inbox: Rc<RefCell<VecDeque<u8>>>,
     writer: JsValue,
+    line: Rc<RefCell<LineEvents>>,
 }
 
 impl Link for WebLink {
@@ -336,6 +339,19 @@ impl Link for WebLink {
             self.inbox.borrow_mut().clear();
         }
     }
+    fn line_events(&mut self) -> LineEvents {
+        std::mem::take(&mut *self.line.borrow_mut())
+    }
+}
+
+/// A promise resolved after `ms` (the page's setTimeout).
+async fn pause(ms: i32) {
+    let p = js_sys::Promise::new(&mut |resolve, _| {
+        if let Some(w) = web_sys::window() {
+            let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms);
+        }
+    });
+    let _ = JsFuture::from(p).await;
 }
 
 /// QCOMPORT's Open on Web Serial: the page's n-th port for `COMn` (one it
@@ -394,21 +410,54 @@ async fn open_port(serial: &JsValue, port: &str, s: &Settings) -> Result<Box<dyn
     let writable = js_sys::Reflect::get(&device, &"writable".into()).map_err(|_| PortError::NotFound)?;
     let get_writer: js_sys::Function = js_sys::Reflect::get(&writable, &"getWriter".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::NotFound)?;
     let writer = get_writer.call0(&writable).map_err(|_| PortError::NotFound)?;
-    let get_reader: js_sys::Function = js_sys::Reflect::get(&readable, &"getReader".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::NotFound)?;
-    let reader = get_reader.call0(&readable).map_err(|_| PortError::NotFound)?;
+    if js_sys::Reflect::get(&readable, &"getReader".into()).ok().filter(|f| f.is_function()).is_none() {
+        return Err(PortError::NotFound);
+    }
     let inbox = Rc::new(RefCell::new(VecDeque::new()));
-    let into = inbox.clone();
+    let line = Rc::new(RefCell::new(LineEvents::default()));
+    let (into, line_in, port) = (inbox.clone(), line.clone(), device.clone());
     wasm_bindgen_futures::spawn_local(async move {
-        while let Ok(chunk) = call_promise(&reader, "read", &[]).await {
-            if js_sys::Reflect::get(&chunk, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true) {
-                break;
-            }
-            if let Ok(v) = js_sys::Reflect::get(&chunk, &"value".into()) {
-                into.borrow_mut().extend(js_sys::Uint8Array::new(&v).to_vec());
+        // (a break, a framing error …: the stream ends with that error and
+        // the port's `readable` is a new one — read on from it)
+        loop {
+            let readable = js_sys::Reflect::get(&port, &"readable".into()).unwrap_or(JsValue::NULL);
+            let Some(get_reader) = js_sys::Reflect::get(&readable, &"getReader".into()).ok().and_then(|f| f.dyn_into::<js_sys::Function>().ok()) else { break };
+            let Ok(reader) = get_reader.call0(&readable) else { break };
+            let error = loop {
+                match call_promise(&reader, "read", &[]).await {
+                    Ok(chunk) => {
+                        if js_sys::Reflect::get(&chunk, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true) {
+                            break None;
+                        }
+                        if let Ok(v) = js_sys::Reflect::get(&chunk, &"value".into()) {
+                            into.borrow_mut().extend(js_sys::Uint8Array::new(&v).to_vec());
+                        }
+                    }
+                    Err(e) => break Some(js_sys::Reflect::get(&e, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default()),
+                }
+            };
+            let _ = call_promise(&reader, "releaseLock", &[]).await;
+            match error.as_deref() {
+                Some("BreakError") => line_in.borrow_mut().breaks += 1,
+                Some("FramingError" | "ParityError" | "BufferOverrunError") => {}
+                _ => break,
             }
         }
     });
-    Ok(Box::new(WebLink { inbox, writer }))
+    // (the ring indicator: its signals, looked at while the port is open)
+    let (line_ring, port) = (line.clone(), device.clone());
+    wasm_bindgen_futures::spawn_local(async move {
+        let mut ringing = false;
+        while let Ok(signals) = call_promise(&port, "getSignals", &[]).await {
+            let ring = js_sys::Reflect::get(&signals, &"ringIndicator".into()).ok().and_then(|r| r.as_bool()).unwrap_or(false);
+            if ring && !ringing {
+                line_ring.borrow_mut().rings += 1;
+            }
+            ringing = ring;
+            pause(100).await;
+        }
+    });
+    Ok(Box::new(WebLink { inbox, writer, line }))
 }
 
 /// The page's look at `name` (a QCOMPORT whose OnRxChar the program

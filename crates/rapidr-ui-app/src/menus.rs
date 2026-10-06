@@ -51,7 +51,7 @@ pub fn popup<R: Program + Windows>(rt: R, name: &str, x: i32, y: i32) {
     }
     // (the screen → the window's inside, its in-window bar included)
     let (left, top) = (rt.get(&form, "left").to_i64(), rt.get(&form, "top").to_i64());
-    let (fw, fh) = rapidr_value::layout::form_frame(rt.get(&form, "borderstyle").to_i64());
+    let (fw, fh) = rapidr_value::layout::form_frame(crate::forms::frame_style(rt, &form));
     rt.open_popup(&form, &name, i64::from(x) - left - fw / 2, i64::from(y) - top - (fh - fw / 2), true);
 }
 

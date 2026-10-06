@@ -108,6 +108,12 @@ pub struct FormUi {
     /// own elements over the window's drawing (the web's RWEBVIEW …) puts
     /// them on a layer above those.
     pub popups_apart: bool,
+    /// Where the mouse last was (logical, the window's inside).
+    pub(crate) mouse_at: (f64, f64),
+    /// A button dragged or moved (drag.rs).
+    pub(crate) drag: Option<crate::drag::Drag>,
+    /// The application's hint and the tooltip (hint.rs).
+    pub(crate) hint: crate::hint::HintUi,
 }
 
 /// Visible / Enabled as the runtimes keep them (-1, True, "0" …).
@@ -157,11 +163,16 @@ impl FormUi {
             last_click: None,
             wheel_rest: (0.0, 0.0),
             popups_apart: false,
+            mouse_at: (0.0, 0.0),
+            drag: None,
+            hint: Default::default(),
         };
         f.rebuild(store);
         f.focus = f.tab_order(store).first().copied();
-        // (a QEDIT focused as the form shows selects its text: AutoSelect)
+        // (the first focus is entered: a list's OnEnter as its form shows;
+        // a QEDIT focused then selects its text: AutoSelect)
         if let Some(i) = f.focus {
+            f.entered(i);
             crate::focus::select_on_entry(&f.nodes[i].id, &f.nodes[i].type_name);
         }
         f
@@ -325,5 +336,5 @@ pub fn client_size(store: &dyn Store, form: &str, menu: i64) -> (i64, i64) {
     }
     let (dw, dh) = rapidr_value::layout::default_size("RFORM").unwrap_or((320, 240));
     let (w, h) = (store::int(store, form, "width", dw), store::int(store, form, "height", dh));
-    rapidr_value::layout::form_client_size(w, h, store::int(store, form, "borderstyle", 2), menu)
+    rapidr_value::layout::form_client_size(w, h, rapidr_value::layout::frame_style(form, store::int(store, form, "borderstyle", 2)), menu)
 }

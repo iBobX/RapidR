@@ -114,9 +114,22 @@ impl FormUi {
                 let (id, t) = (self.nodes[old].id.clone(), self.nodes[old].type_name.clone());
                 crate::components::list::focus_left(&id, &t, &mut self.events);
             }
+            if let Some(new) = i {
+                self.entered(new);
+            }
         }
         self.focus = i;
         self.reset_caret();
+    }
+
+    /// Node `i` got the focus: a list's OnEnter (the VCL's CM_ENTER — RC.EXE
+    /// takes `QFILELISTBOX.OnEnter`; its QLISTBOX one stops the program at
+    /// the binding, RapidR fires it as the file list's).
+    pub(crate) fn entered(&mut self, i: usize) {
+        let n = &self.nodes[i];
+        if matches!(n.type_name.as_str(), "RLISTBOX" | "RFILELISTBOX") {
+            self.events.push(crate::input::KernelEvent::Fire { id: n.id.clone(), event: "onenter".into(), args: Vec::new() });
+        }
     }
 
     /// The focused component's id.

@@ -58,6 +58,18 @@ pub enum Handler {
     Closure(Rc<dyn Fn(&mut Vec<Value>)>),
 }
 
+/// What binding a handler changes besides the binding (both runtimes call
+/// it when they bind one): an OnStartDrag handler makes its button a drag
+/// source (`crate::drag`), a form's OnHint handler hears the program's
+/// hints (`crate::hints`).
+pub fn bound(name: &str, event: &str) {
+    if event.eq_ignore_ascii_case("onstartdrag") {
+        crate::drag::set_source(name);
+    } else if event.eq_ignore_ascii_case("onhint") {
+        crate::hints::set_receiver(name);
+    }
+}
+
 /// Runs `handler` for `name`'s event with `args`, the firing component
 /// last (`Sender`, as in RapidQ's `SUB Button1Click (Sender AS QBUTTON)`;
 /// handlers declaring fewer parameters don't get it). Returns the arguments

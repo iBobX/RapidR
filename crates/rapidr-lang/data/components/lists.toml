@@ -93,9 +93,9 @@ events = [
   { name = "OnClick" },
   { name = "OnDblClick" },
   { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS QRECT" },
-  { name = "OnEnter", missing = true },
+  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. (RapidQ's manual says the Enter key, and its runtime stops the program when a QLISTBOX's OnEnter is bound — RC.EXE; RapidR fires it as its QFILELISTBOX's.)" },
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
-  { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER", missing = true },
+  { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnChange", origin = "rapidr" },
 ]
 
@@ -159,7 +159,7 @@ events = [
   { name = "OnChange" },
   { name = "OnClick" },
   { name = "OnDblClick" },
-  { name = "OnEnter", missing = true },
+  { name = "OnEnter" },
 ]
 
 [[component]]

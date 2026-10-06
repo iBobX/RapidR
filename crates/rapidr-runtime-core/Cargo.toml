@@ -39,12 +39,18 @@ libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
 # QCOMPORT's serial ports (serial.rs): BSD-2-Clause OR Apache-2.0; libc on
 # Unix, windows-sys on Windows — no system package to build.
-serial2 = "0.2"
+# (`unix`: the terminal's settings, for a break marked in what's read)
+serial2 = { version = "0.2", features = ["unix"] }
 # The UI kernel, the program glue every host shares and the winit /
 # headless host (`gui`).
 rapidr-ui-kernel = { workspace = true, optional = true }
 rapidr-ui-app = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
+
+# QCOMPORT's OnBreak on Windows (serial.rs: ClearCommError); already in
+# the build through winit and serial2.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_Devices_Communication"] }
 
 [target.'cfg(unix)'.dependencies]
 # INKEY$: the terminal read a key at a time (terminal.rs); QDXJOYSTICK's

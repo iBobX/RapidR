@@ -163,13 +163,71 @@ pub const FORM_BORDER: i64 = 1;
 pub const MAIN_MENU_HEIGHT: i64 = 28;
 
 /// The frame around a form's inside: (left + right, caption + top +
-/// bottom), for its BorderStyle.
+/// bottom), for its BorderStyle — or [`FRAME_NO_CAPTION`], a frame whose
+/// title bar `HideTitleBar` took away ([`frame_style`]).
 pub fn form_frame(border_style: i64) -> (i64, i64) {
     if border_style == 0 {
         (0, 0)
+    } else if border_style == FRAME_NO_CAPTION {
+        (2 * FORM_BORDER, 2 * FORM_BORDER)
     } else {
         (2 * FORM_BORDER, FORM_CAPTION + 2 * FORM_BORDER)
     }
+}
+
+/// The frame code of a form whose title bar is hidden (`HideTitleBar`):
+/// its border without the caption. Never a BorderStyle the program sets;
+/// [`frame_style`] gives it, and every frame computation here takes it.
+pub const FRAME_NO_CAPTION: i64 = -1;
+
+thread_local! {
+    /// The forms whose title bar `HideTitleBar` hid (lowercase names).
+    static NO_TITLE_BAR: std::cell::RefCell<std::collections::HashSet<String>> = std::cell::RefCell::new(std::collections::HashSet::new());
+}
+
+/// Whether form `form`'s title bar is hidden (`HideTitleBar`, until
+/// `ShowTitleBar` or a new BorderStyle shows it again).
+pub fn title_bar_hidden(form: &str) -> bool {
+    NO_TITLE_BAR.with(|s| s.borrow().contains(&form.to_ascii_lowercase()))
+}
+
+/// Hides (or shows again) form `form`'s title bar; whether that changed
+/// anything. A form without a frame (bsNone) has no title bar to hide.
+pub fn set_title_bar_hidden(form: &str, hidden: bool, border_style: i64) -> bool {
+    let form = form.to_ascii_lowercase();
+    NO_TITLE_BAR.with(|s| {
+        let mut s = s.borrow_mut();
+        if hidden && border_style != 0 {
+            s.insert(form)
+        } else {
+            s.remove(&form)
+        }
+    })
+}
+
+/// The frame code form `form`'s frame computations take: its BorderStyle,
+/// or [`FRAME_NO_CAPTION`] while its title bar is hidden.
+pub fn frame_style(form: &str, border_style: i64) -> i64 {
+    if border_style != 0 && title_bar_hidden(form) {
+        FRAME_NO_CAPTION
+    } else {
+        border_style
+    }
+}
+
+/// `Form.HideTitleBar` / `ShowTitleBar` as RapidQ's runtime does it (RC.EXE
+/// probes, docs/manual: the form's client area keeps its size, the window
+/// loses — or gets back — its title bar's height): the form's new Height,
+/// or `None` when nothing changes (already so, or a bsNone form).
+pub fn title_bar_height_change(form: &str, show: bool, border_style: i64, height: i64) -> Option<i64> {
+    if border_style == 0 {
+        set_title_bar_hidden(form, false, 0);
+        return None;
+    }
+    if !set_title_bar_hidden(form, !show, border_style) {
+        return None;
+    }
+    Some(if show { height + FORM_CAPTION } else { (height - FORM_CAPTION).max(2 * FORM_BORDER) })
 }
 
 /// A form's client size for its Width / Height, BorderStyle and the height
@@ -685,6 +743,17 @@ mod tests {
         assert_eq!(form_client_size(400, 300, 0, 0), (400, 300), "bsNone has no frame");
         assert_eq!(form_outer_size(398, 241, 2, 28), (400, 300));
         assert_eq!(form_client_size(1, 1, 2, 0), (0, 0));
+        // (HideTitleBar: the client keeps its size, the window loses the
+        // caption's height — RC.EXE's 300 × 200 form went to 300 × 177,
+        // its 284 × 161 client the same; ShowTitleBar gave the height back)
+        assert_eq!(title_bar_height_change("tbf", false, 2, 300), Some(271));
+        assert_eq!(frame_style("TBF", 2), FRAME_NO_CAPTION);
+        assert_eq!(form_client_size(400, 271, frame_style("tbf", 2), 0), (398, 269));
+        assert_eq!(title_bar_height_change("tbf", false, 2, 271), None, "already hidden");
+        assert_eq!(title_bar_height_change("tbf", true, 2, 271), Some(300));
+        assert_eq!(title_bar_height_change("tbf", true, 2, 300), None, "already shown");
+        assert_eq!(frame_style("tbf", 2), 2);
+        assert_eq!(title_bar_height_change("tbf", false, 0, 300), None, "bsNone has none");
     }
 
     #[test]

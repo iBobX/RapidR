@@ -52,6 +52,8 @@ pub enum HostCmd {
     Position(String),
     /// [`WindowSpec::border`] again.
     Border(String),
+    /// Its outline (`rapidr_value::shape`, `ShapeForm`) applied.
+    Shape(String),
     /// [`WindowSpec::icon`] again.
     Icon(String),
     Minimize(String),
@@ -142,6 +144,8 @@ pub struct WindowSpec {
     pub position: Option<(i64, i64)>,
     /// A frame and title bar (BorderStyle <> bsNone).
     pub border: bool,
+    /// The title bar hidden (`HideTitleBar`): the frame's border alone.
+    pub no_caption: bool,
     pub icon: Option<Icon>,
     /// Resizing and the title bar's buttons (BorderStyle, BorderIcons).
     pub frame: Frame,
@@ -474,6 +478,17 @@ impl Desktop {
                     self.cmds.push(HostCmd::Border(f));
                 }
             }
+            WindowOp::TitleBar(f, hidden) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.no_caption = hidden;
+                    self.cmds.push(HostCmd::Border(f));
+                }
+            }
+            WindowOp::Shape(f) => {
+                if self.form(&f).is_some() {
+                    self.cmds.push(HostCmd::Shape(f));
+                }
+            }
             WindowOp::Icon(f, i) => {
                 if let Some(w) = self.form(&f) {
                     w.spec.icon = i;
@@ -536,6 +551,7 @@ pub fn window_spec<P: Program>(p: P, name: &str) -> WindowSpec {
         size: forms::form_window_size(p, name),
         position: Some((p.get(name, "left").to_i64(), p.get(name, "top").to_i64())),
         border: p.get(name, "borderstyle").to_i64() != 0,
+        no_caption: rapidr_value::layout::title_bar_hidden(name),
         icon: forms::icon_of(p, name),
         frame: frame(p, name),
         // (the WindowState lane's)
@@ -619,7 +635,7 @@ fn script_mouse<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &
 /// a user dragging its border would.
 fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64, h: i64) {
     let Some(form) = desk.stacking().last().cloned() else { return };
-    let (fw, fh) = rapidr_value::layout::form_frame(p.get(&form, "borderstyle").to_i64());
+    let (fw, fh) = rapidr_value::layout::form_frame(forms::frame_style(p, &form));
     let (iw, ih) = (w - fw, h - fh);
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);
@@ -638,6 +654,11 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
         return Cursor::of(desk.screen_cursor);
     }
     let Some(f) = desk.forms.get(form) else { return Cursor::Default };
+    // (a drag source dragged: nothing takes a drop — RapidQ has no
+    // OnDragOver — so the no-drop pointer, as the VCL shows it)
+    if f.ui.dragging_source() {
+        return Cursor::NoDrop;
+    }
     let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
     // (the input lane's: a status bar's size grip is the window's sizing
     // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)

@@ -3873,6 +3873,7 @@ dependencies = [
  "serde_json",
  "serial2",
  "ureq",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

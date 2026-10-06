@@ -44,9 +44,9 @@ A window: the top-level container of a program's components, with its caption, b
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `MdiChildCount` | any |  | The number of MDI child forms open. |
+| `MdiChildCount` | int | 0 | The number of MDI child windows: a QFORMMDI's ChildCount; 0 for a QFORM (RapidQ's forms are fsNormal only). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `TileMode` | any |  | How `Tile` lays out the MDI children: side by side or one above another. |
+| `TileMode` | int | 0 | How Tile lays out a QFORMMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -65,17 +65,17 @@ A window: the top-level container of a program's components, with its caption, b
 | `DelBorderIcons(Items, …)` | Removes the given border icons from the form's title bar. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
-| `HideTitleBar` *(not yet)* | Removes the form's title bar. |
+| `HideTitleBar` | Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height), as in RapidQ. ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` *(not yet)* | Shapes the form to a bitmap file's outline, its pixels of `TransparentColor` cut away. |
+| `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` | Gives the form the outline of a bitmap's pixels that aren't TransparentColor (a BMP file, or a $RESOURCE): the bitmap's pixel (x, y) is the window's (x, y) from its top left corner, frame included; what's outside — and outside the bitmap — is cut away, and the mouse reaches what's behind there. Width, Height and BorderStyle don't change; the outline stays when the form is resized. (Wayland gives no program a way to cut its window: it keeps its rectangle there.) |
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `ShowModal AS VARIANT` | Shows the form and waits until it closes; returns its modal result. |
-| `ShowTitleBar` *(not yet)* | Puts the form's title bar back. |
+| `ShowTitleBar` | Puts back the title bar HideTitleBar took away: the form gets taller by it, its client area the same. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -91,11 +91,11 @@ A window: the top-level container of a program's components, with its caption, b
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Cls` *(RapidR)* | Clears the drawing area to its background color. |
 | `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `ArrangeIcons` *(not yet)* | Lines up the icons of the minimized MDI child windows. |
-| `Cascade` *(not yet)* | Arranges the MDI child windows in an overlapping cascade. |
-| `Next` *(not yet)* | Activates the next MDI child window. |
-| `Previous` *(not yet)* | Activates the previous MDI child window. |
-| `Tile` *(not yet)* | Tiles the MDI child windows so none overlap. |
+| `ArrangeIcons` | Lines up a QFORMMDI's minimized child windows along its bottom (IconArrangeChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Cascade` | Arranges a QFORMMDI's child windows in an overlapping cascade (CascadeChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Next` | Activates a QFORMMDI's next child window (ActiveNextChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Previous` | Activates a QFORMMDI's previous child window (ActivePreviousChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Tile` | Tiles a QFORMMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -103,7 +103,7 @@ A window: the top-level container of a program's components, with its caption, b
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnClose(BYREF Action AS INTEGER)` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
-| `OnHint(Hint AS STRING)` *(not yet)* | Fires when a hint is about to be shown on the form (Hint: its text). RapidR doesn't fire it yet. |
+| `OnHint(Hint AS STRING)` | The program's hint changed: the mouse came onto a component whose hint isn't the last one — Hint is the part after `\|` of its Hint (all of it without one), else its parent's, up to the form's; "" over none or outside the windows. It fires whatever ShowHint says, the tooltip shows as usual. One handler hears the hints of every form: the one bound last, as RapidQ's Application.OnHint. |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
@@ -113,7 +113,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `OnShow` | Fires when the form is shown, by Show, ShowModal or `Visible = True`. |
-| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: it fires this with the messages of the form's system tray icon (QNOTIFYICONDATA and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks; no other message comes. |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnTimer` *(RapidR)* | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 | `OnLoad` *(RapidR)* | Fires when the content has loaded: the web view's page, a file read in the browser. |
@@ -156,8 +156,8 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `MinimizeAllChild` | Minimizes every MDI child window and lines up their icons. |
 | `MaximizeAllChild` | Maximizes every MDI child window. |
 | `RestoreChild` | Gives every MDI child window its normal size and place again. |
-| `ActiveNextChild` *(not yet)* | Activates the next MDI child window, the one under the active one. |
-| `ActivePreviousChild` *(not yet)* | Activates the previous MDI child window, sending the active one to the back. |
+| `ActiveNextChild` | Activates the next MDI child window: the bottom one comes to the top. Nothing happens with fewer than two. |
+| `ActivePreviousChild` | Activates the previous MDI child window: the active one goes to the back. Nothing happens with fewer than two. |
 | `GetChild(Title AS STRING) AS VARIANT` | Returns the index of the MDI child with the title given, or -1. |
 | `ChildExist(Title AS STRING) AS VARIANT` | Returns true when an MDI child with the title given is open. |
 | `ActiveChild(Index AS LONG)` | Brings the MDI child with index `Index` to the front, restoring it if it is minimized. |
@@ -233,7 +233,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` *(RapidR)* | Fires when the control's size changes, by the user, the program or its alignment. |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="rtabcontrol"></a>
 ## RTABCONTROL (QTABCONTROL)
@@ -680,7 +680,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `Cascade` | Cascades the documents' windows. |
 | `TileHorizontal` | Tiles the documents' windows one above the other. |
 | `TileVertical` | Tiles the documents' windows side by side. |
-| `ArrangeIcons` | Lines up the icons of the minimized MDI child windows. |
+| `ArrangeIcons` | Lines up a QFORMMDI's minimized child windows along its bottom (IconArrangeChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
 | `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -737,7 +737,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 
 | Method | |
 |---|---|
-| `StartDrag` *(not yet)* | Starts dragging the button. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
@@ -753,9 +753,9 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnEndDrag` *(not yet)* | Fires when a drag of the control ends. RapidR doesn't start drags yet, so it doesn't fire. |
-| `OnStartDrag` *(not yet)* | Fires when a drag of the control starts. RapidR doesn't start drags yet, so it doesn't fire. |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `OnEndDrag` | Fires when the drag OnStartDrag began ends: the mouse let go (instead of OnMouseUp and OnClick) or Escape pressed. No arguments. |
+| `OnStartDrag` | Binding it makes the button a drag source, as in RapidQ: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="redit"></a>
 ## REDIT (QEDIT)
@@ -827,7 +827,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 
@@ -879,7 +879,7 @@ A box with a caption that the user ticks on or off (Checked).
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="rradiobutton"></a>
 ## RRADIOBUTTON (QRADIOBUTTON)
@@ -928,7 +928,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="rcombobox"></a>
 ## RCOMBOBOX (QCOMBOBOX)
@@ -1025,7 +1025,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="rrichedit"></a>
 ## RRICHEDIT (QRICHEDIT)
@@ -1476,7 +1476,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `StartDrag` *(not yet)* | Starts dragging the button. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -1539,7 +1539,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `StartDrag` *(not yet)* | Starts dragging the button. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -1549,7 +1549,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `OnMouseDown` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="rlabel"></a>
 ## RLABEL (QLABEL)
@@ -1611,7 +1611,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 
 <a id="rimage"></a>
 ## RIMAGE (QIMAGE)
@@ -2150,9 +2150,9 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS QRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
-| `OnEnter` *(not yet)* | Fires when the list gets the keyboard focus. RapidR doesn't fire it yet. |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. (RapidQ's manual says the Enter key, and its runtime stops the program when a QLISTBOX's OnEnter is bound — RC.EXE; RapidR fires it as its QFILELISTBOX's.) |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rfilelistbox"></a>
@@ -2224,7 +2224,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` *(not yet)* | Fires when the list gets the keyboard focus. RapidR doesn't fire it yet. |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. |
 
 <a id="rdirtree"></a>
 ## RDIRTREE (QDIRTREE)
@@ -3492,15 +3492,15 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 
 | Event | |
 |---|---|
-| `OnBreak` *(not yet)* | A break condition on the serial line. RapidR accepts a handler for it but never fires it. |
+| `OnBreak` | A break condition arrived on the serial line (the other end held it low). Looked for while the program runs, as OnRxChar: on Unix the terminal marks a break in what is read, on Windows the port's error state says so, in a browser Web Serial's BreakError. (RapidQ's manual lists it as no longer supported.) |
 | `OnClose` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
 | `OnComError(ErrorMessage AS STRING)` | Fires when opening, reading, writing or closing the serial port fails; ErrorMessage says what went wrong. |
 | `OnOpen` | Fires when Open has opened the serial port. |
 | `OnReadString` | Fires after ReadString has read from the serial port and waited its Wait milliseconds. |
 | `OnWriteString` | Fires after WriteString has sent its text and waited its Wait milliseconds. |
-| `OnRing` *(not yet)* | A ring signal on the serial line (a modem's incoming call). RapidR accepts a handler for it but never fires it. |
+| `OnRing` | The ring indicator came on (a modem's incoming call): looked for while the program runs, as OnRxChar — the port's RI line; in a browser, Web Serial's signals. (RapidQ's manual lists it as no longer supported.) |
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
-| `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
+| `OnTxEmpty` | The output buffer is empty: everything a Write or WriteString sent has gone out — fired after its OnWriteString. (RapidQ's manual lists it as no longer supported.) |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rdownload"></a>

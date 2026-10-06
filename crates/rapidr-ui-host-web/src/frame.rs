@@ -28,6 +28,8 @@ pub struct Look {
     pub active: bool,
     /// A frame at all (BorderStyle <> bsNone).
     pub border: bool,
+    /// Its title bar (`HideTitleBar` takes it away: the border alone).
+    pub caption: bool,
     pub frame: Frame,
     pub maximized: bool,
     /// The theme's generation (`rapidr_value::theme::generation`): drawn
@@ -41,18 +43,24 @@ pub struct Look {
 /// A button's width on the title bar.
 const BUTTON_W: i64 = 28;
 
-/// Where the inside (the client canvas) starts in the window: (left, top).
-pub fn inset(border: bool) -> (i64, i64) {
-    if border {
-        (FORM_BORDER, FORM_BORDER + FORM_CAPTION)
-    } else {
-        (0, 0)
+/// Where the inside (the client canvas) starts in the window: (left, top)
+/// — `caption`: with its title bar.
+pub fn inset(border: bool, caption: bool) -> (i64, i64) {
+    match (border, caption) {
+        (true, true) => (FORM_BORDER, FORM_BORDER + FORM_CAPTION),
+        (true, false) => (FORM_BORDER, FORM_BORDER),
+        _ => (0, 0),
     }
 }
 
 /// The window's whole size for an inside of `inside` (logical pixels).
-pub fn outer(inside: (i64, i64), border: bool) -> (i64, i64) {
-    let (fw, fh) = rapidr_value::layout::form_frame(if border { 2 } else { 0 });
+pub fn outer(inside: (i64, i64), border: bool, caption: bool) -> (i64, i64) {
+    let style = match (border, caption) {
+        (true, true) => 2,
+        (true, false) => rapidr_value::layout::FRAME_NO_CAPTION,
+        _ => 0,
+    };
+    let (fw, fh) = rapidr_value::layout::form_frame(style);
     (inside.0 + fw, inside.1 + fh)
 }
 
@@ -99,6 +107,10 @@ pub fn paint(look: &Look, size: (i64, i64), scale: f64) -> DisplayList {
     let (bar, ink) = if look.active { (t.caption, t.caption_text) } else { (t.inactive_caption, t.inactive_caption_text) };
     p.fill((0, 0, w, h), t.face);
     p.frame((0, 0, w, h), if t.fluent() { if look.active { t.caption } else { t.border } } else { t.dark_shadow });
+    if !look.caption {
+        // (HideTitleBar: the border alone)
+        return list;
+    }
     let (bx, by, bw, bh) = (FORM_BORDER, FORM_BORDER, (w - 2 * FORM_BORDER).max(0), FORM_CAPTION);
     p.fill((bx, by, bw, bh), bar);
     let shown = buttons(look.frame);
@@ -180,7 +192,7 @@ pub enum Part {
 
 /// The part of `look`'s frame (whole size `size`) at (x, y), logical.
 pub fn hit(look: &Look, size: (i64, i64), x: f64, y: f64) -> Part {
-    if !look.border {
+    if !look.border || !look.caption {
         return Part::None;
     }
     let (w, _) = size;
@@ -202,14 +214,19 @@ mod tests {
     use super::*;
 
     fn look() -> Look {
-        Look { title: "Form1".into(), active: true, border: true, frame: Frame::default(), maximized: false, theme: 0, icon: None }
+        Look { title: "Form1".into(), active: true, border: true, caption: true, frame: Frame::default(), maximized: false, theme: 0, icon: None }
     }
 
     #[test]
     fn the_frame_is_every_runtimes() {
-        assert_eq!(outer((318, 209), true), (320, 240));
-        assert_eq!(inset(true), (1, 30));
-        assert_eq!(outer((100, 50), false), (100, 50));
+        assert_eq!(outer((318, 209), true, true), (320, 240));
+        assert_eq!(inset(true, true), (1, 30));
+        assert_eq!(outer((100, 50), false, true), (100, 50));
+        // (HideTitleBar: the border alone, no title bar to press)
+        assert_eq!(outer((318, 209), true, false), (320, 211));
+        assert_eq!(inset(true, false), (1, 1));
+        let bare = Look { caption: false, ..look() };
+        assert_eq!(hit(&bare, (320, 211), 315.0, 15.0), Part::None);
     }
 
     #[test]

@@ -172,7 +172,7 @@ pub fn form_area(form: &str) -> (i64, i64) {
         v => v.to_i64(),
     };
     let menu = if has_menu(form) { MENU_HEIGHT } else { 0 };
-    rapidr_value::layout::form_client_size(n("width").to_i64(), n("height").to_i64(), border_style, menu)
+    rapidr_value::layout::form_client_size(n("width").to_i64(), n("height").to_i64(), rapidr_value::layout::frame_style(form, border_style), menu)
 }
 
 /// The Width / Height giving a form this client size.
@@ -182,7 +182,7 @@ pub fn form_outer(form: &str, client_width: i64, client_height: i64) -> (i64, i6
         v => v.to_i64(),
     };
     let menu = if has_menu(form) { MENU_HEIGHT } else { 0 };
-    rapidr_value::layout::form_outer_size(client_width, client_height, border_style, menu)
+    rapidr_value::layout::form_outer_size(client_width, client_height, rapidr_value::layout::frame_style(form, border_style), menu)
 }
 
 /// The client area of `parent` in its children's coordinates: a form's
