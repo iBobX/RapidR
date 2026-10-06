@@ -1,0 +1,16 @@
+RapidR
+Copyright (c) 2025 Roberto Berrospe
+
+RapidR is free software under the MIT License (see LICENSE). The licences
+and notices of the open-source components it is built from are in
+THIRD_PARTY_NOTICES.md and LICENSES.md, and every program RapidR builds
+carries its own THIRD-PARTY-NOTICES.txt.
+
+RapidR is an independent, original implementation of a BASIC language
+compatible with RapidQ (Rapid-Q), the freeware compiler created by
+William Yu. It contains no code, documentation text, include files,
+examples or artwork from RapidQ, and does not include or distribute RapidQ.
+RapidR is not affiliated with, endorsed by or sponsored by RapidQ's author,
+anyone holding rights in RapidQ, or any company named in its documentation.
+"RapidQ" and the other product names RapidR mentions belong to their owners
+and are used only to describe compatibility. See LEGAL.md.

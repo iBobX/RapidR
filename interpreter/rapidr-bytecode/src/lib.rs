@@ -121,8 +121,7 @@ pub struct Module {
 
 /// What kind of program a module is: `$APPTYPE CONSOLE | GUI | CGI` (and
 /// RapidR's WEB), or, without one, GUI when it creates components, else
-/// CONSOLE — RapidQ "detects what kind of application your program is just
-/// by looking at the source code". The runtime's launchers read it: a
+/// CONSOLE — RapidQ tells which kind a program is from its source. The runtime's launchers read it: a
 /// console program opened from the desktop gets a console.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AppType {

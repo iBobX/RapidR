@@ -1,16 +1,19 @@
-SUB ArrayInsert (Array() AS LONG, Element AS LONG, Value AS LONG)
-    DIM M AS QMEMORYSTREAM
-    M.Position = 0
-    M.SaveArray(Array(LBOUND(Array)), Element-1)
-    M.Write(Value)
-    M.SaveArray(Array(Element), UBOUND(Array) - Element)
-    M.Position = 0
-    M.LoadArray(Array(LBOUND(Array)), UBOUND(Array)+1)
+' Puts V at index P of L(), moving what follows up one place (the last
+' element drops off): the two parts saved around V, then loaded back.
+SUB InsertAt (L() AS LONG, P AS LONG, V AS LONG)
+    DIM Buf AS QMEMORYSTREAM
+    DIM First AS LONG, Last AS LONG
+    First = LBOUND(L): Last = UBOUND(L)
+    Buf.SaveArray(L(First), P - First)
+    Buf.Write(V)
+    Buf.SaveArray(L(P), Last - P)
+    Buf.Position = 0
+    Buf.LoadArray(L(First), Last - First + 1)
 END SUB
 
 DIM A(1 TO 10) AS LONG
 FOR I = 1 TO 6: A(I) = I * 10: NEXT
-ArrayInsert(A, 3, 99)
+InsertAt(A, 3, 99)
 FOR I = 1 TO 7: PRINT A(I);: NEXT: PRINT
 
 DIM F(9) AS SHORT

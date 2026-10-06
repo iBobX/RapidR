@@ -24,7 +24,8 @@ ground up in pure Rust — compatible with RapidQ, not a copy of it.
 - **Every RapidQ object but OLE**: forms and every visual component, the
   dialogs, menus, grids, list and tree views, MDI, the tray icon,
   QREGISTRY, the printer, sockets, MySQL, CGI, serial ports, downloads,
-  QMIDI / QWAVE / QVIDEO, and DirectX 2D and Direct3D.
+  QMIDI / QWAVE / QVIDEO, and RapidQ's DirectX 2D and Direct3D objects
+  (reimplemented by RapidR on its own renderer).
 - **RapidR's own UI kernel** draws every window, the same on every system:
   RapidQ's classic look by default, modern / dark / high-contrast themes,
   sharp on high-DPI screens, accessible to screen readers and the keyboard.
@@ -217,8 +218,12 @@ you! Testing helps just as much: try your RapidQ programs and
 - **Roberto Berrospe** ([@iBobX](https://github.com/iBobX)) — Creator, architect, and lead developer
 - **VS Code Copilot/Claude + Antigravity/Gemini** — AI pair-programming assistant for feature implementation, testing, and documentation
 
-RapidQ was created by William Yu. RapidR is compatible with RapidQ and is
-not affiliated with its author or with any vendor it names.
+RapidQ was created by William Yu. RapidR is an independent implementation
+that is compatible with RapidQ: it contains nothing of RapidQ's (no code,
+manual text, include files or examples), and it is not affiliated with,
+endorsed or sponsored by RapidQ's author, anyone holding rights in RapidQ, or
+any vendor it names ([LEGAL.md](LEGAL.md)). Contributions follow
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 RapidR stands on the shoulders of open-source software: winit, wgpu, vello,
 parley and AccessKit (the UI), wasm-bindgen, the Monaco editor (the web

@@ -1,7 +1,7 @@
 ' Operator semantics from the RapidQ manual (Appendix C): NOT binds looser
 ' than comparisons, MOD looser than * and /, "jello" - "l" = "jeo", a NOT= b,
 ' plus SUBs named like file keywords, array parameters and @var by reference
-' (manual 3.5: `StrCat(@A$, " World!")`).
+' (`@` passes a variable by reference: manual 3.5).
 x = 3
 IF NOT x = 5 THEN PRINT "not five" ELSE PRINT "five"
 PRINT NOT x = 3
@@ -25,14 +25,14 @@ END SUB
 DIM names(2) AS STRING
 Fill names, 2
 PRINT names(0); " "; names(2)
-SUB StrCat (Source AS STRING, Text AS STRING)
-    Source = Source + Text
+SUB Append (Dest AS STRING, Extra AS STRING)
+    Dest = Dest + Extra
 END SUB
-A$ = "Hello"
-StrCat(@A$, " World!")
-PRINT A$
+G$ = "Hello"
+Append(@G$, " World!")
+PRINT G$
 B$ = "Bye"
-StrCat(B$, " now")
+Append(B$, " now")
 PRINT B$
 FUNCTION Bump (n AS INTEGER) AS INTEGER
     n = n + 1

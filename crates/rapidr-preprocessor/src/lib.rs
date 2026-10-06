@@ -620,142 +620,227 @@ fn emit_line(
     origins.push((file.clone(), line));
 }
 
-/// Constants from RapidQ's RAPIDQ.INC (Delphi/Win32 values; colors are BGR
-/// like RapidQ's, which RapidR's runtimes also use). System colours are
-/// Delphi's system-colour TColors (`&H80000000 + COLOR_…`), as the real
-/// RAPIDQ.INC has them: what a form's Color reads, drawn in the theme's
-/// colours (`rapidr_value::objects::color_bgr`).
+/// The constants a RapidQ program gets from `$INCLUDE "RAPIDQ.INC"` when no
+/// such file is next to it (RapidR doesn't ship RapidQ's include files).
+///
+/// Every entry is a name and a number: an interface fact that existing
+/// programs depend on, kept so that they run unchanged. Nothing else of
+/// RapidQ's file is reproduced — no comments, layout or order. The entries
+/// are grouped here by where each number is publicly defined, alphabetically
+/// within a group, and each group says its source (docs/legal/rapidq-review.md,
+/// "RAPIDQ.INC"). Colours are &HBBGGRR numbers, as RapidR's runtimes use them;
+/// a system colour is drawn in the theme's colours
+/// (`rapidr_value::objects::color_bgr`). No name appears twice (a test checks),
+/// so the order has no effect on any program.
 pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
-    // As in the real RAPIDQ.INC (comparisons themselves give -1 / 0).
-    ("False", 0), ("True", 1),
-    // PLAYWAV options
-    ("SND_SYNC", 0), ("SND_ASYNC", 1), ("SND_LOOP", 8),
-    // Colors (&HBBGGRR)
-    ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x00FF00),
-    ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0xFF00FF),
-    ("clTeal", 0x808000), ("clGray", 0x808080), ("clSilver", 0xC0C0C0),
-    ("clRed", 0x0000FF), ("clLime", 0x00FF00), ("clYellow", 0x00FFFF),
-    ("clBlue", 0xFF0000), ("clFuchsia", 0xFF00FF), ("clAqua", 0xFFFF00),
-    ("clWhite", 0xFFFFFF), ("clLtGray", 0xC0C0C0), ("clDkGray", 0x808080),
-    ("clBtnFace", -2147483633), ("clWindow", -2147483643), ("clWindowText", -2147483640),
-    ("clBtnText", -2147483630), ("clBtnShadow", -2147483632), ("clHighlight", -2147483635),
-    ("clHighlightText", -2147483634), ("clGrayText", -2147483631),
-    // Modal results
-    ("mrNone", 0), ("mrOk", 1), ("mrCancel", 2), ("mrAbort", 3), ("mrRetry", 4),
-    ("mrIgnore", 5), ("mrYes", 6), ("mrNo", 7), ("mrAll", 8),
-    // Message boxes
-    ("MB_OK", 0), ("MB_OKCANCEL", 1), ("MB_ABORTRETRYIGNORE", 2), ("MB_YESNOCANCEL", 3),
-    ("MB_YESNO", 4), ("MB_RETRYCANCEL", 5), ("MB_ICONHAND", 16), ("MB_ICONSTOP", 16),
-    ("MB_ICONERROR", 16), ("MB_ICONQUESTION", 32), ("MB_ICONEXCLAMATION", 48),
-    ("MB_ICONWARNING", 48), ("MB_ICONASTERISK", 64), ("MB_ICONINFORMATION", 64),
-    ("IDOK", 1), ("IDCANCEL", 2), ("IDABORT", 3), ("IDRETRY", 4), ("IDIGNORE", 5),
-    ("IDYES", 6), ("IDNO", 7),
-    // Form border styles, window states, alignment
-    ("bsNone", 0), ("bsSingle", 1), ("bsSizeable", 2), ("bsDialog", 3),
-    ("bsToolWindow", 4), ("bsSizeToolWin", 5),
-    ("wsNormal", 0), ("wsMinimized", 1), ("wsMaximized", 2),
-    ("alNone", 0), ("alTop", 1), ("alBottom", 2), ("alLeft", 3), ("alRight", 4), ("alClient", 5),
-    // Mouse buttons
-    ("mbLeft", 0), ("mbRight", 1), ("mbMiddle", 2),
-    // MessageDlg types and buttons
-    ("mtWarning", 0), ("mtError", 1), ("mtInformation", 2), ("mtConfirmation", 3), ("mtCustom", 4),
-    ("mbYes", 1), ("mbNo", 2), ("mbOK", 4), ("mbCancel", 8), ("mbHelp", 16), ("mbAbort", 32),
-    ("mbRetry", 64), ("mbIgnore", 128), ("mbAll", 256),
-    // File stream modes
-    ("fmCreate", 0xFFFF), ("fmOpenRead", 0), ("fmOpenWrite", 1), ("fmOpenReadWrite", 2),
-    // Stream seeking and number types (ReadNum/WriteNum)
+    // ── Windows SDK numbers (Microsoft's public Win32 headers and
+    // documentation, learn.microsoft.com). ──
+    // MessageBox flags (winuser.h)
+    ("MB_ABORTRETRYIGNORE", 2), ("MB_ICONASTERISK", 64), ("MB_ICONERROR", 16),
+    ("MB_ICONEXCLAMATION", 48), ("MB_ICONHAND", 16), ("MB_ICONINFORMATION", 64),
+    ("MB_ICONQUESTION", 32), ("MB_ICONSTOP", 16), ("MB_ICONWARNING", 48), ("MB_OK", 0),
+    ("MB_OKCANCEL", 1), ("MB_RETRYCANCEL", 5), ("MB_YESNO", 4), ("MB_YESNOCANCEL", 3),
+    // MessageBox results (winuser.h)
+    ("IDABORT", 3), ("IDCANCEL", 2), ("IDIGNORE", 5), ("IDNO", 7), ("IDOK", 1), ("IDRETRY", 4),
+    ("IDYES", 6),
+    // virtual-key codes (winuser.h)
+    ("VK_BACK", 8), ("VK_CONTROL", 17), ("VK_DELETE", 46), ("VK_DOWN", 40), ("VK_END", 35),
+    ("VK_ESCAPE", 27), ("VK_F1", 112), ("VK_F10", 121), ("VK_F11", 122), ("VK_F12", 123),
+    ("VK_F2", 113), ("VK_F3", 114), ("VK_F4", 115), ("VK_F5", 116), ("VK_F6", 117), ("VK_F7", 118),
+    ("VK_F8", 119), ("VK_F9", 120), ("VK_HOME", 36), ("VK_INSERT", 45), ("VK_LEFT", 37),
+    ("VK_MENU", 18), ("VK_NEXT", 34), ("VK_PAUSE", 19), ("VK_PRIOR", 33), ("VK_RETURN", 13),
+    ("VK_RIGHT", 39), ("VK_SHIFT", 16), ("VK_SPACE", 32), ("VK_TAB", 9), ("VK_UP", 38),
+    // PlaySound flags (mmsystem.h)
+    ("SND_ASYNC", 1), ("SND_LOOP", 8), ("SND_MEMORY", 4), ("SND_NODEFAULT", 2), ("SND_NOSTOP", 16),
+    ("SND_SYNC", 0),
+    // font character sets (wingdi.h)
+    ("ANSI_CHARSET", 0), ("ARABIC_CHARSET", 178), ("BALTIC_CHARSET", 186),
+    ("CHINESEBIG5_CHARSET", 136), ("DEFAULT_CHARSET", 1), ("EASTEUROPE_CHARSET", 238),
+    ("GB2312_CHARSET", 134), ("GREEK_CHARSET", 161), ("HANGEUL_CHARSET", 129),
+    ("HEBREW_CHARSET", 177), ("JOHAB_CHARSET", 130), ("MAC_CHARSET", 77), ("OEM_CHARSET", 255),
+    ("RUSSIAN_CHARSET", 204), ("SHIFTJIS_CHARSET", 128), ("SYMBOL_CHARSET", 2),
+    ("THAI_CHARSET", 222), ("TURKISH_CHARSET", 162), ("VIETNAMESE_CHARSET", 163),
+    // Windows Sockets protocol, socket type and address family numbers (winsock.h)
+    ("AF_APPLETALK", 16), ("AF_BAN", 21), ("AF_CCITT", 10), ("AF_CHAOS", 5), ("AF_DATAKIT", 9),
+    ("AF_DECnet", 12), ("AF_DLI", 13), ("AF_ECMA", 8), ("AF_FIREFOX", 19), ("AF_HYLINK", 15),
+    ("AF_IMPLINK", 3), ("AF_INET", 2), ("AF_IPX", 6), ("AF_ISO", 7), ("AF_LAT", 14),
+    ("AF_NETBIOS", 17), ("AF_NS", 6), ("AF_PUP", 4), ("AF_SNA", 11), ("AF_UNIX", 1),
+    ("AF_UNKNOWN1", 20), ("AF_UNSPEC", 0), ("AF_VOICEVIEW", 18), ("IPPROTO_ICMP", 1),
+    ("IPPROTO_IDP", 22), ("IPPROTO_IGMP", 2), ("IPPROTO_IP", 0), ("IPPROTO_PUP", 12),
+    ("IPPROTO_RAW", 255), ("IPPROTO_TCP", 6), ("IPPROTO_UDP", 17), ("SOCK_DGRAM", 2),
+    ("SOCK_RAW", 3), ("SOCK_RDM", 4), ("SOCK_SEQPACKET", 5), ("SOCK_STREAM", 1),
+    // raster-operation codes (wingdi.h: BLACKNESS, SRCCOPY, …), under the cm… names of Delphi's TCopyMode
+    ("cmBlackness", 0x000042), ("cmDstInvert", 0x550009), ("cmMergeCopy", 0xC000CA),
+    ("cmMergePaint", 0xBB0226), ("cmNotSrcCopy", 0x330008), ("cmNotSrcErase", 0x1100A6),
+    ("cmPatCopy", 0xF00021), ("cmPatInvert", 0x5A0049), ("cmPatPaint", 0xFB0A09),
+    ("cmSrcAnd", 0x8800C6), ("cmSrcCopy", 0xCC0020), ("cmSrcErase", 0x440328),
+    ("cmSrcInvert", 0x660046), ("cmSrcPaint", 0xEE0086), ("cmWhiteness", 0xFF0062),
+    // colours as COLORREF numbers, &HBBGGRR (wingdi.h RGB)
+    // (clGreen &H00FF00 and clPurple &HFF00FF are RapidQ's: programs see
+    // those, not the usual &H008000 / &H800080.)
+    ("clAqua", 0xFFFF00), ("clBlack", 0x000000), ("clBlue", 0xFF0000), ("clDkGray", 0x808080),
+    ("clFuchsia", 0xFF00FF), ("clGray", 0x808080), ("clGreen", 0x00FF00), ("clLime", 0x00FF00),
+    ("clLtGray", 0xC0C0C0), ("clMaroon", 0x000080), ("clNavy", 0x800000), ("clOlive", 0x008080),
+    ("clPurple", 0xFF00FF), ("clRed", 0x0000FF), ("clSilver", 0xC0C0C0), ("clTeal", 0x808000),
+    ("clWhite", 0xFFFFFF), ("clYellow", 0x00FFFF),
+    // system colours: &H80000000 + the GetSysColor index (winuser.h COLOR_…), the encoding Delphi uses for TColor
+    // (clInfoBk3DDkShadow is index 24, COLOR_INFOBK, under the name RapidQ
+    // programs use.)
+    ("cl3DDkShadow", -2147483627), ("cl3DLight", -2147483626), ("clActiveBorder", -2147483638),
+    ("clActiveCaption", -2147483646), ("clAppWorkSpace", -2147483636),
+    ("clBackGround", -2147483647), ("clBtnFace", -2147483633), ("clBtnHighlight", -2147483628),
+    ("clBtnShadow", -2147483632), ("clBtnText", -2147483630), ("clCaptionText", -2147483639),
+    ("clGrayText", -2147483631), ("clHighlight", -2147483635), ("clHighlightText", -2147483634),
+    ("clHilight", -2147483635), ("clHilightText", -2147483634), ("clInActiveBorder", -2147483637),
+    ("clInActiveCaption", -2147483645), ("clInActiveCaptionText", -2147483629),
+    ("clInfoBk3DDkShadow", -2147483624), ("clInfoText", -2147483625), ("clMenu", -2147483644),
+    ("clMenuText", -2147483641), ("clScrollBar", -2147483648), ("clWindow", -2147483643),
+    ("clWindowFrame", -2147483642), ("clWindowText", -2147483640),
+    // ── Names of the VCL types (Delphi's component library) that RapidQ's
+    // components expose, with the numbers RapidQ programs see: an
+    // enumeration's ordinal, i.e. its position in the type's declaration as
+    // Embarcadero documents it (docwiki.embarcadero.com, under the type's
+    // name), or a constant's value. Where RapidQ's number differs from
+    // today's Delphi (crSize), RapidQ's is kept: programs depend on it. ──
+    // file attributes (SysUtils fa…)
+    ("faAnyFile", 63), ("faArchive", 32), ("faDirectory", 16), ("faHidden", 2), ("faReadOnly", 1),
+    ("faSysFile", 4), ("faVolumeID", 8),
+    // file-open modes (SysUtils)
+    ("fmCreate", 65535), ("fmOpenRead", 0), ("fmOpenReadWrite", 2), ("fmOpenWrite", 1),
+    // seek origins (Classes)
     ("soFromBeginning", 0), ("soFromCurrent", 1), ("soFromEnd", 2),
-    ("Num_BYTE", 1), ("Num_SHORT", 2), ("Num_WORD", 3), ("Num_LONG", 4), ("Num_DWORD", 5),
-    ("Num_SINGLE", 6), ("Num_DOUBLE", 8),
-    // Font styles (AddStyles/DelStyles), special colors, bitmap formats
-    ("fsBold", 0), ("fsItalic", 1), ("fsUnderline", 2), ("fsStrikeOut", 3),
-    ("clNone", 536870911), ("clDefault", 536870912),
-    ("pfDevice", 0), ("pf1bit", 1), ("pf4bit", 2), ("pf8bit", 3), ("pf15bit", 4),
-    ("pf16bit", 5), ("pf24bit", 6), ("pf32bit", 7),
-    // Virtual key codes
-    ("VK_BACK", 8), ("VK_TAB", 9), ("VK_RETURN", 13), ("VK_SHIFT", 16), ("VK_CONTROL", 17),
-    ("VK_MENU", 18), ("VK_PAUSE", 19), ("VK_ESCAPE", 27), ("VK_SPACE", 32),
-    ("VK_PRIOR", 33), ("VK_NEXT", 34), ("VK_END", 35), ("VK_HOME", 36),
-    ("VK_LEFT", 37), ("VK_UP", 38), ("VK_RIGHT", 39), ("VK_DOWN", 40),
-    ("VK_INSERT", 45), ("VK_DELETE", 46),
-    ("VK_F1", 112), ("VK_F2", 113), ("VK_F3", 114), ("VK_F4", 115), ("VK_F5", 116),
-    ("VK_F6", 117), ("VK_F7", 118), ("VK_F8", 119), ("VK_F9", 120), ("VK_F10", 121),
-    ("VK_F11", 122), ("VK_F12", 123),
-    // The rest of RapidQ's RAPIDQ.INC (ENUM-like option numbers: alignment,
-    // styles, grid options, cursors, …). The system colors have no OS lookup
-    // in RapidR: the usual Windows defaults.
-    ("taLeftJustify", 0), ("taRightJustify", 1), ("taCenter", 2), ("SND_NODEFAULT", 2), ("SND_NOSTOP", 16),
-    ("SND_MEMORY", 4), ("clScrollBar", -2147483648), ("clBackGround", -2147483647), ("clActiveCaption", -2147483646), ("clInActiveCaption", -2147483645),
-    ("clMenu", -2147483644), ("clWindowFrame", -2147483642), ("clMenuText", -2147483641), ("clCaptionText", -2147483639), ("clActiveBorder", -2147483638),
-    ("clInActiveBorder", -2147483637), ("clAppWorkSpace", -2147483636), ("clHilight", -2147483635), ("clHilightText", -2147483634), ("clInActiveCaptionText", -2147483629),
-    ("clBtnHighlight", -2147483628), ("cl3DDkShadow", -2147483627), ("cl3DLight", -2147483626), ("clInfoText", -2147483625), ("clInfoBk3DDkShadow", -2147483624),
-    ("ssShift", 256), ("ssCtrl", 16), ("ssAlt", 1), ("fpDefault", 0), ("fpVariable", 1),
-    ("fpFixed", 2), ("ANSI_CHARSET", 0), ("DEFAULT_CHARSET", 1), ("SYMBOL_CHARSET", 2), ("MAC_CHARSET", 77),
-    ("SHIFTJIS_CHARSET", 128), ("HANGEUL_CHARSET", 129), ("JOHAB_CHARSET", 130), ("GB2312_CHARSET", 134), ("CHINESEBIG5_CHARSET", 136),
-    ("GREEK_CHARSET", 161), ("TURKISH_CHARSET", 162), ("VIETNAMESE_CHARSET", 163), ("HEBREW_CHARSET", 177), ("ARABIC_CHARSET", 178),
-    ("BALTIC_CHARSET", 186), ("RUSSIAN_CHARSET", 204), ("THAI_CHARSET", 222), ("EASTEUROPE_CHARSET", 238), ("OEM_CHARSET", 255),
-    ("fsNormal", 0), ("fsMDIChild", 1), ("fsMDIForm", 2), ("fsStayOnTop", 3), ("CtrlDown", 1),
-    ("AltDown", 16), ("ShiftDown", 256), ("biSystemMenu", 0), ("biMinimize", 1), ("biMaximize", 2),
-    ("biHelp", 3), ("caNone", 0), ("caHide", 1), ("caFree", 2), ("caMinimize", 3),
-    ("tlTop", 0), ("tlCenter", 1), ("tlBottom", 2), ("lsNone", 0), ("lsRaised", 1),
-    ("lsRecessed", 2), ("bvNone", 0), ("bvLowered", 1), ("bvRaised", 2), ("bpNone", 0),
-    ("bpSingle", 1), ("ecNormal", 0), ("ecUpperCase", 1), ("ecLowerCase", 2), ("csDropDown", 0),
-    ("csSimple", 1), ("csDropDownList", 2), ("csOwnerDrawFixed", 3), ("csOwnerDrawVariable", 4), ("ssNone", 0),
-    ("ssHorizontal", 1), ("ssVertical", 2), ("ssBoth", 3), ("mrNoToAll", 9), ("mrYesToAll", 10),
-    ("blBMPLeft", 0), ("blBMPRight", 1), ("blBMPTop", 2), ("blBMPBottom", 3), ("bkCustom", 0),
-    ("bkOK", 1), ("bkCancel", 2), ("bkHelp", 3), ("bkYes", 4), ("bkNo", 5),
-    ("bkClose", 6), ("bkAbort", 7), ("bkRetry", 8), ("bkIgnore", 9), ("bkAll", 10),
-    ("crDefault", 0), ("crNone", -1), ("crArrow", -2), ("crCross", -3), ("crIBeam", -4),
+    // TAlign
+    ("alBottom", 2), ("alClient", 5), ("alLeft", 3), ("alNone", 0), ("alRight", 4), ("alTop", 1),
+    // TAlignment
+    ("taCenter", 2), ("taLeftJustify", 0), ("taRightJustify", 1),
+    // TBevelCut
+    ("bvLowered", 1), ("bvNone", 0), ("bvRaised", 2),
+    // TBitBtnKind
+    ("bkAbort", 7), ("bkAll", 10), ("bkCancel", 2), ("bkClose", 6), ("bkCustom", 0), ("bkHelp", 3),
+    ("bkIgnore", 9), ("bkNo", 5), ("bkOK", 1), ("bkRetry", 8), ("bkYes", 4),
+    // TBorderIcon
+    ("biHelp", 3), ("biMaximize", 2), ("biMinimize", 1), ("biSystemMenu", 0),
+    // TCloseAction
+    ("caFree", 2), ("caHide", 1), ("caMinimize", 3), ("caNone", 0),
+    // TColor clNone / clDefault
+    ("clDefault", 536870912), ("clNone", 536870911),
+    // TComboBoxStyle
+    ("csDropDown", 0), ("csDropDownList", 2), ("csOwnerDrawFixed", 3), ("csOwnerDrawVariable", 4),
+    ("csSimple", 1),
+    // TCursor (crDefault … crHandPoint)
+    ("crAppStart", -19), ("crArrow", -2), ("crCross", -3), ("crDefault", 0), ("crDrag", -12),
+    ("crHandPoint", -21), ("crHelp", -20), ("crHourGlass", -11), ("crHSplit", -14),
+    ("crIBeam", -4), ("crMultiDrag", -16), ("crNo", -18), ("crNoDrop", -13), ("crNone", -1),
     ("crSize", -5), ("crSizeNESW", -6), ("crSizeNS", -7), ("crSizeNWSE", -8), ("crSizeWE", -9),
-    ("crUpArrow", -10), ("crHourGlass", -11), ("crDrag", -12), ("crNoDrop", -13), ("crHSplit", -14),
-    ("crVSplit", -15), ("crMultiDrag", -16), ("crSQLWait", -17), ("crNo", -18), ("crAppStart", -19),
-    ("crHelp", -20), ("crHandPoint", -21), ("ftReadOnly", 0), ("ftHidden", 1), ("ftSystem", 2),
-    ("ftVolumeID", 3), ("ftDirectory", 4), ("ftArchive", 5), ("ftNormal", 6), ("sbHorizontal", 0),
-    ("sbVertical", 1), ("scLineUp", 0), ("scLineDown", 1), ("scPageUp", 2), ("scPageDown", 3),
-    ("scPosition", 4), ("scTrack", 5), ("scTop", 6), ("scBottom", 7), ("scEndScroll", 8),
-    ("dsFocused", 0), ("dsSelected", 1), ("dsNormal", 2), ("dsTransparent", 3), ("itImage", 0),
-    ("itMask", 1), ("stNone", 0), ("stText", 2), ("vsIcon", 0), ("vsSmallIcon", 1),
-    ("vsList", 2), ("vsReport", 3), ("tbHorizontal", 0), ("tbVertical", 1), ("tmBottomRight", 0),
-    ("tmTopLeft", 1), ("tmBoth", 2), ("tsNone", 0), ("tsAuto", 1), ("tsManual", 2),
-    ("goFixedVertLine", 0), ("goFixedHorzLine", 1), ("goVertLine", 2), ("goHorzLine", 3), ("goRangeSelect", 4),
-    ("goDrawFocusSelected", 5), ("goRowSizing", 6), ("goColSizing", 7), ("goRowMoving", 8), ("goColMoving", 9),
-    ("goEditing", 10), ("goTabs", 11), ("goRowSelect", 12), ("goAlwaysShowEditor", 13), ("goThumbTracking", 14),
-    ("gcsList", 0), ("gcsEllipsis", 1), ("gcsNone", 2), ("osText", 0), ("osPlusMinusText", 1),
-    ("osPictureText", 2), ("osPlusMinusPictureText", 3), ("osTreeText", 4), ("osTreePictureText", 5), ("ooDrawTreeRoot", 0),
-    ("ooDrawFocusRect", 1), ("ooDrawStretchBitmaps", 2), ("gkText", 0), ("gkHorizontalBar", 1), ("gkVerticalBar", 2),
-    ("gkPie", 3), ("gkNeedle", 4), ("cmBlackness", 66), ("cmDstInvert", 5570569), ("cmMergeCopy", 12583114),
-    ("cmMergePaint", 12255782), ("cmNotSrcCopy", 3342344), ("cmNotSrcErase", 1114278), ("cmPatCopy", 15728673), ("cmPatInvert", 5898313),
-    ("cmPatPaint", 16452105), ("cmSrcAnd", 8913094), ("cmSrcCopy", 13369376), ("cmSrcErase", 4457256), ("cmSrcInvert", 6684742),
-    ("cmSrcPaint", 15597702), ("cmWhiteness", 16711778), ("tmAuto", 0), ("tmFixed", 1), ("lbStandard", 0),
-    ("lbOwnerDrawFixed", 1), ("lbOwnerDrawVariable", 2), ("br110", 0), ("br300", 1), ("br600", 2),
-    ("br1200", 3), ("br2400", 4), ("br4800", 5), ("br9600", 6), ("br14400", 7),
-    ("br19200", 8), ("br38400", 9), ("br56000", 10), ("br57600", 11), ("br115200", 12),
-    ("sbOneStopBit", 0), ("sbOne5StopBits", 1), ("sbTwoStopBits", 2), ("prNone", 0), ("prOdd", 1),
-    ("prEven", 2), ("prMark", 3), ("prSpace", 4), ("fdAnsiOnly", 0), ("fdTrueTypeOnly", 1),
-    ("fdEffects", 2), ("fdFixedPitchOnly", 3), ("fdForceFontExist", 4), ("fdNoFaceSel", 5), ("fdNoOEMFonts", 6),
-    ("fdNoSimulations", 7), ("fdNoSizeSel", 8), ("fdNoStyleSel", 9), ("fdNoVectorFonts", 10), ("fdShowHelp", 11),
-    ("fdWysiwyg", 12), ("fdLimitSize", 13), ("fdScalableOnly", 14), ("fdApplyButton", 15), ("dtReadOnly", 0),
-    ("dtHidden", 1), ("dtSystem", 2), ("dtNormal", 3), ("dtAll", 4), ("drtUnknown", 0),
-    ("drtRemovable", 1), ("drtFixed", 2), ("drtRemote", 3), ("drtCDRom", 4), ("drtRamDisk", 5),
-    ("IPPROTO_IP", 0), ("IPPROTO_ICMP", 1), ("IPPROTO_IGMP", 2), ("IPPROTO_TCP", 6), ("IPPROTO_PUP", 12),
-    ("IPPROTO_UDP", 17), ("IPPROTO_IDP", 22), ("IPPROTO_RAW", 255), ("SOCK_STREAM", 1), ("SOCK_DGRAM", 2),
-    ("SOCK_RAW", 3), ("SOCK_RDM", 4), ("SOCK_SEQPACKET", 5), ("AF_UNSPEC", 0), ("AF_UNIX", 1),
-    ("AF_INET", 2), ("AF_IMPLINK", 3), ("AF_PUP", 4), ("AF_CHAOS", 5), ("AF_IPX", 6),
-    ("AF_NS", 6), ("AF_ISO", 7), ("AF_ECMA", 8), ("AF_DATAKIT", 9), ("AF_CCITT", 10),
-    ("AF_SNA", 11), ("AF_DECnet", 12), ("AF_DLI", 13), ("AF_LAT", 14), ("AF_HYLINK", 15),
-    ("AF_APPLETALK", 16), ("AF_NETBIOS", 17), ("AF_VOICEVIEW", 18), ("AF_FIREFOX", 19), ("AF_UNKNOWN1", 20),
-    ("AF_BAN", 21), ("hsText", 0), ("hsOwnerDraw", 1), ("dupIgnore", 0), ("dupAccept", 1),
-    ("dupError", 2), ("smClip", 0), ("smCenter", 1), ("smScale", 2), ("smStretch", 3),
-    ("smAutoSize", 4), ("osEmpty", 0), ("osLoaded", 1), ("osRunning", 2), ("osOpen", 3),
-    ("osInPlaceActive", 4), ("osUIActive", 5), ("ffGeneral", 0), ("ffExponent", 1), ("ffFixed", 2),
-    ("ffNumber", 3), ("faReadOnly", 1), ("faHidden", 2), ("faSysFile", 4), ("faVolumeID", 8),
-    ("faDirectory", 16), ("faArchive", 32), ("faAnyFile", 63), ("poPortrait", 0), ("poLandscape", 1),
-    ("caClose", 2),
+    ("crSQLWait", -17), ("crUpArrow", -10), ("crVSplit", -15),
+    // TDuplicates
+    ("dupAccept", 1), ("dupError", 2), ("dupIgnore", 0),
+    // TEditCharCase
+    ("ecLowerCase", 2), ("ecNormal", 0), ("ecUpperCase", 1),
+    // TFileAttr (FileCtrl)
+    ("ftArchive", 5), ("ftDirectory", 4), ("ftHidden", 1), ("ftNormal", 6), ("ftReadOnly", 0),
+    ("ftSystem", 2), ("ftVolumeID", 3),
+    // TFloatFormat
+    ("ffExponent", 1), ("ffFixed", 2), ("ffGeneral", 0), ("ffNumber", 3),
+    // TFontDialogOption (fdAnsiOnly … fdApplyButton)
+    ("fdAnsiOnly", 0), ("fdApplyButton", 15), ("fdEffects", 2), ("fdFixedPitchOnly", 3),
+    ("fdForceFontExist", 4), ("fdLimitSize", 13), ("fdNoFaceSel", 5), ("fdNoOEMFonts", 6),
+    ("fdNoSimulations", 7), ("fdNoSizeSel", 8), ("fdNoStyleSel", 9), ("fdNoVectorFonts", 10),
+    ("fdScalableOnly", 14), ("fdShowHelp", 11), ("fdTrueTypeOnly", 1), ("fdWysiwyg", 12),
+    // TFontPitch
+    ("fpDefault", 0), ("fpFixed", 2), ("fpVariable", 1),
+    // TFontStyle
+    ("fsBold", 0), ("fsItalic", 1), ("fsStrikeOut", 3), ("fsUnderline", 2),
+    // TFormBorderStyle
+    ("bsDialog", 3), ("bsNone", 0), ("bsSingle", 1), ("bsSizeable", 2), ("bsSizeToolWin", 5),
+    ("bsToolWindow", 4),
+    // TFormStyle
+    ("fsMDIChild", 1), ("fsMDIForm", 2), ("fsNormal", 0), ("fsStayOnTop", 3),
+    // TGaugeKind
+    ("gkHorizontalBar", 1), ("gkNeedle", 4), ("gkPie", 3), ("gkText", 0), ("gkVerticalBar", 2),
+    // TGridOption (goFixedVertLine … goThumbTracking)
+    ("goAlwaysShowEditor", 13), ("goColMoving", 9), ("goColSizing", 7), ("goDrawFocusSelected", 5),
+    ("goEditing", 10), ("goFixedHorzLine", 1), ("goFixedVertLine", 0), ("goHorzLine", 3),
+    ("goRangeSelect", 4), ("goRowMoving", 8), ("goRowSelect", 12), ("goRowSizing", 6),
+    ("goTabs", 11), ("goThumbTracking", 14), ("goVertLine", 2),
+    // THeaderSectionStyle
+    ("hsOwnerDraw", 1), ("hsText", 0),
+    // TImageType
+    ("itImage", 0), ("itMask", 1),
+    // TListBoxStyle
+    ("lbOwnerDrawFixed", 1), ("lbOwnerDrawVariable", 2), ("lbStandard", 0),
+    // TModalResult
+    ("mrAbort", 3), ("mrAll", 8), ("mrCancel", 2), ("mrIgnore", 5), ("mrNo", 7), ("mrNone", 0),
+    ("mrNoToAll", 9), ("mrOk", 1), ("mrRetry", 4), ("mrYes", 6), ("mrYesToAll", 10),
+    // TMouseButton
+    ("mbLeft", 0), ("mbMiddle", 2), ("mbRight", 1),
+    // TMsgDlgType
+    ("mtConfirmation", 3), ("mtCustom", 4), ("mtError", 1), ("mtInformation", 2), ("mtWarning", 0),
+    // TObjectState (OleCtnrs)
+    ("osEmpty", 0), ("osInPlaceActive", 4), ("osLoaded", 1), ("osOpen", 3), ("osRunning", 2),
+    ("osUIActive", 5),
+    // TOutlineOption
+    ("ooDrawFocusRect", 1), ("ooDrawStretchBitmaps", 2), ("ooDrawTreeRoot", 0),
+    // TOutlineStyle
+    ("osPictureText", 2), ("osPlusMinusPictureText", 3), ("osPlusMinusText", 1), ("osText", 0),
+    ("osTreePictureText", 5), ("osTreeText", 4),
+    // TPixelFormat
+    ("pf15bit", 4), ("pf16bit", 5), ("pf1bit", 1), ("pf24bit", 6), ("pf32bit", 7), ("pf4bit", 2),
+    ("pf8bit", 3), ("pfDevice", 0),
+    // TPrinterOrientation
+    ("poLandscape", 1), ("poPortrait", 0),
+    // TScrollBarKind
+    ("sbHorizontal", 0), ("sbVertical", 1),
+    // TScrollCode
+    ("scBottom", 7), ("scEndScroll", 8), ("scLineDown", 1), ("scLineUp", 0), ("scPageDown", 3),
+    ("scPageUp", 2), ("scPosition", 4), ("scTop", 6), ("scTrack", 5),
+    // TScrollStyle
+    ("ssBoth", 3), ("ssHorizontal", 1), ("ssNone", 0), ("ssVertical", 2),
+    // TSizeMode (OleCtnrs)
+    ("smAutoSize", 4), ("smCenter", 1), ("smClip", 0), ("smScale", 2), ("smStretch", 3),
+    // TSortType
+    ("stNone", 0), ("stText", 2),
+    // TTextLayout
+    ("tlBottom", 2), ("tlCenter", 1), ("tlTop", 0),
+    // TTickMark
+    ("tmBoth", 2), ("tmBottomRight", 0), ("tmTopLeft", 1),
+    // TTickStyle
+    ("tsAuto", 1), ("tsManual", 2), ("tsNone", 0),
+    // TTrackBarOrientation
+    ("tbHorizontal", 0), ("tbVertical", 1),
+    // TViewStyle
+    ("vsIcon", 0), ("vsList", 2), ("vsReport", 3), ("vsSmallIcon", 1),
+    // TWindowState
+    ("wsMaximized", 2), ("wsMinimized", 1), ("wsNormal", 0),
+    // ── RapidQ's own numbers, with no outside origin: TRUE is 1 (comparisons
+    // themselves give -1 / 0), the Num_… sizes of ReadNum / WriteNum, the
+    // shift-state and key-state bits, QComPort's baud / stop-bit / parity
+    // codes, the MessageDlg button bits (mbYes 1 … mbAll 256), and the option
+    // numbers of a few components. Each is a fact a RapidQ program may use. ──
+    ("AltDown", 16), ("blBMPBottom", 3), ("blBMPLeft", 0), ("blBMPRight", 1), ("blBMPTop", 2),
+    ("bpNone", 0), ("bpSingle", 1), ("br110", 0), ("br115200", 12), ("br1200", 3), ("br14400", 7),
+    ("br19200", 8), ("br2400", 4), ("br300", 1), ("br38400", 9), ("br4800", 5), ("br56000", 10),
+    ("br57600", 11), ("br600", 2), ("br9600", 6), ("caClose", 2), ("CtrlDown", 1), ("drtCDRom", 4),
+    ("drtFixed", 2), ("drtRamDisk", 5), ("drtRemote", 3), ("drtRemovable", 1), ("drtUnknown", 0),
+    ("dsFocused", 0), ("dsNormal", 2), ("dsSelected", 1), ("dsTransparent", 3), ("dtAll", 4),
+    ("dtHidden", 1), ("dtNormal", 3), ("dtReadOnly", 0), ("dtSystem", 2), ("False", 0),
+    ("gcsEllipsis", 1), ("gcsList", 0), ("gcsNone", 2), ("lsNone", 0), ("lsRaised", 1),
+    ("lsRecessed", 2), ("mbAbort", 32), ("mbAll", 256), ("mbCancel", 8), ("mbHelp", 16),
+    ("mbIgnore", 128), ("mbNo", 2), ("mbOK", 4), ("mbRetry", 64), ("mbYes", 1), ("Num_BYTE", 1),
+    ("Num_DOUBLE", 8), ("Num_DWORD", 5), ("Num_LONG", 4), ("Num_SHORT", 2), ("Num_SINGLE", 6),
+    ("Num_WORD", 3), ("prEven", 2), ("prMark", 3), ("prNone", 0), ("prOdd", 1), ("prSpace", 4),
+    ("sbOne5StopBits", 1), ("sbOneStopBit", 0), ("sbTwoStopBits", 2), ("ShiftDown", 256),
+    ("ssAlt", 1), ("ssCtrl", 16), ("ssShift", 256), ("tmAuto", 0), ("tmFixed", 1), ("True", 1),
 ];
 
 /// RapidQ's library include files whose object RapidR has built in
 /// (rapidr_ast::library), with the constants each defines: what such an
-/// `$INCLUDE` gives when the file isn't on disk.
+/// `$INCLUDE` gives when the file isn't on disk. Only the names and numbers
+/// programs use with those objects (a player's state, a wave's format, the
+/// CGI object's input limits) — interface facts, listed in numeric order; no
+/// code or text of the libraries is in RapidR (their objects are RapidR's own
+/// implementations of the behaviour), and `qcgi.inc`, which is GPL, is not
+/// needed (docs/legal/rapidq-review.md, "Library includes").
 const LIBRARY_INCLUDES: &[(&str, &[(&str, i64)])] = &[
     ("qcgi.inc", &[("CGI_INPUT_DEFAULT", 32767), ("CGI_INPUT_LARGE", 65535), ("CGI_INPUT_SMALL", 255), ("CGI_MAX_PAIRS", 256)]),
     ("qdownload.inc", &[]),
@@ -1171,6 +1256,21 @@ mod tests {
         for (n, _) in crate::RAPIDQ_INC_CONSTANTS {
             assert!(seen.insert(n.to_ascii_lowercase()), "{n} is defined twice");
         }
+    }
+
+    #[test]
+    fn rapidq_inc_names_and_values_are_pinned() {
+        // The table was regrouped by source (docs/legal/rapidq-review.md);
+        // what programs get must not change: the same 483 names with the
+        // same numbers (FNV-1a over "name=value\n", sorted by name).
+        let mut pairs: Vec<_> = crate::RAPIDQ_INC_CONSTANTS.to_vec();
+        pairs.sort_by(|a, b| a.0.cmp(b.0));
+        let text: String = pairs.iter().map(|(n, v)| format!("{n}={v}\n")).collect();
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        for byte in text.bytes() {
+            hash = (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3);
+        }
+        assert_eq!((pairs.len(), hash), (483, 0x3f4b_730b_4fbe_3807));
     }
 
     #[test]

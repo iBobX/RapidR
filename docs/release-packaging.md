@@ -38,7 +38,7 @@ lib/rapidr/                      RapidR's home
                                  copy them, nothing is downloaded
   notices/                       <os>-<arch>.txt per runner, web.txt: the          SDK
                                  THIRD-PARTY-NOTICES.txt every build writes
-share/doc/rapidr/                LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
+share/doc/rapidr/                LICENSE, NOTICE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                  THIRD-PARTY-NOTICES.txt (rapidr's own), OFL-1.1.txt, README.md
   manual/                        the user manual (docs/manual)                     SDK
 share/icons/                     the apps' and file types' icons (Windows: .ico; Linux: hicolor 16–512 + scalable)

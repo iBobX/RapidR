@@ -547,7 +547,7 @@ Order rationale: the registry, the parser-for-tools and the session protocol are
 - **I5 and I9 are out** (1.1 and later).
 - **The VS Code extension ships too (the user, 2026-10-06)**: for people who prefer VS Code, the first release includes the extension as a compiled `.vsix` on the GitHub release (and on the VS Code Marketplace and Open VSX once the user has publisher accounts), as an LSP client of `rapidr lsp` — the same IntelliSense as RapidR Studio (completion of builtins, keywords, components and their members, the user's own variables, SUBs, FUNCTIONs, TYPEs; hover; signature help; go to definition; references; rename; diagnostics; outline; formatting) — plus run / build commands and debugging through `rapidr dap`.
 
-Release notes, per the project's messaging: full RapidQ compatibility on all three runtimes (native compiler, interpreter, web), extended (data science, data components, AI to come), an original implementation in pure Rust — not a clone of RapidQ or Delphi.
+Release notes, per the project's messaging: full RapidQ compatibility on all three runtimes (native compiler, interpreter, web), extended (data science, data components, AI to come), an original implementation in pure Rust — not a clone of RapidQ.
 
 ---
 

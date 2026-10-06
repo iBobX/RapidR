@@ -639,12 +639,12 @@ mod tests {
 
     #[test]
     fn nodes_in_rapidq_order() {
-        // The manual's example.
+        // Three nodes, three children under the first and the second.
         let mut t = TreeView::default();
-        t.call("additems", &[s("1"), s("2"), s("3")]);
-        t.call("addchilditems", &[v_int(0), s("Sub 1"), s("Sub 2"), s("Sub 3")]);
-        t.call("addchilditems", &[v_int(4), s("Sub 1"), s("Sub 2"), s("Sub 3")]);
-        assert_eq!(texts(&t), ["1", ".Sub 1", ".Sub 2", ".Sub 3", "2", ".Sub 1", ".Sub 2", ".Sub 3", "3"]);
+        t.call("additems", &[s("North"), s("South"), s("East")]);
+        t.call("addchilditems", &[v_int(0), s("Hill"), s("Lake"), s("Wood")]);
+        t.call("addchilditems", &[v_int(4), s("Port"), s("Bay"), s("Dune")]);
+        assert_eq!(texts(&t), ["North", ".Hill", ".Lake", ".Wood", "South", ".Port", ".Bay", ".Dune", "East"]);
         assert_eq!(t.get("itemcount").unwrap().to_i64(), 9);
         assert_eq!(t.call("item.count", &[v_int(4)]).unwrap().to_i64(), 3);
         assert_eq!(t.call("item.level", &[v_int(5)]).unwrap().to_i64(), 1);

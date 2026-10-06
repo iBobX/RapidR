@@ -1,7 +1,7 @@
 ' notepad.bas: a small text editor written the way RapidQ programs are —
 ' $TYPECHECK, DECLAREd SUBs, CREATE blocks of Q components, a QRICHEDIT,
-' open / save dialogs, a status bar with panels. Nothing in it is
-' RapidR's own: it is RapidQ code, and RapidR runs it as it is.
+' open / save dialogs, a status bar with panels. Written for RapidR in
+' RapidQ's dialect, with no RapidR extension: RapidR runs it as it is.
 '
 '   rapidr run notepad.bas
 $TYPECHECK ON

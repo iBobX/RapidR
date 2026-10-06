@@ -1,7 +1,7 @@
 //! The program's environment strings: `ENVIRON$(name)` reads one, the
-//! `ENVIRON "name=text"` statement sets one (RapidQ's manual: "Everything to
-//! the left of the equal sign or space is assumed to be a parameter, and
-//! everything to the right, text"). The process's own environment on the
+//! `ENVIRON "name=text"` statement sets one (as RapidQ's manual describes
+//! it: the name is what comes before the first `=` or space, the value what
+//! follows). The process's own environment on the
 //! desktop — a program it starts (SHELL, RUN) sees them, as RapidQ's
 //! SetEnvironmentVariable gave them on; a table of the page's own in the
 //! browser, which has no environment (empty until the program sets one).
