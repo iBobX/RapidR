@@ -70,10 +70,10 @@ Bar.AddButton "run", "run.start", "Run (F5)", "run.start"
 Bar.AddButton "stop", "run.stop", "Stop (Shift+F5)", "run.stop"
 Bar.ButtonEnabled "stop", 0
 Bar.AddSeparator
-Bar.AddToggle "grid", "view.grid", "Show the grid", "view.grid"
+Bar.AddToggle "grid", "grid", "Show the grid", "view.grid"
 Bar.ButtonDown "grid", 1
 Bar.AddSeparator
-Bar.AddButton "palette", "view.commandPalette", "Command palette (Ctrl+Shift+P)", "view.commandPalette"
+Bar.AddButton "palette", "command-palette", "Command palette (Ctrl+Shift+P)", "view.commandPalette"
 
 ' The commands the palette finds.
 Palette.AddCommand "file.new", "New File", "Ctrl+N", "File", "file.new"
