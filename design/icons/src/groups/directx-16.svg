@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>DirectX</title>
+  <path d="M4.5 4.5H11.5A3.5 3.5 0 0 1 14.5 9.5L13.5 11.5A2 2 0 0 1 11.5 12.5L9.5 10.5H6.5L4.5 12.5A2 2 0 0 1 2.5 11.5L1.5 9.5A3.5 3.5 0 0 1 4.5 4.5Z" fill="#EBE4FD" stroke="#6F42E5"/>
+  <path d="M3.5 7.5L5.5 7.5" stroke="#6F42E5"/>
+  <path d="M4.5 6.5L4.5 8.5" stroke="#6F42E5"/>
+  <rect x="10" y="7" width="2" height="2" fill="#6F42E5"/>
+</svg>

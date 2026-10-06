@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Data frame: limit rows</title>
+  <path d="M3 5L29 5" stroke="#08805E"/>
+  <path d="M3 12L29 12" stroke="#08805E"/>
+  <path d="M3 18L29 18" stroke="#08805E"/>
+  <path d="M3 26L7 26" stroke="#5B6478"/>
+  <path d="M10 26L14 26" stroke="#5B6478"/>
+  <path d="M17 26L21 26" stroke="#5B6478"/>
+  <path d="M24 26L28 26" stroke="#5B6478"/>
+</svg>

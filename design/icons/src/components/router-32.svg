@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Router</title>
+  <path d="M16 3L16 29" stroke="#5B6478"/>
+  <path d="M16 6H25L29 10L25 13H16L16 6Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M16 16H7L3 20L7 23H16L16 16Z" fill="#D7F3F9" stroke="#007F9C"/>
+</svg>

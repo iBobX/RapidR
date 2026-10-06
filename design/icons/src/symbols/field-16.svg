@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Field</title>
+  <path d="M2.5 8.5L6.5 3.5H13.5V12.5H6.5L2.5 8.5Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <rect x="5" y="7" width="2" height="2" fill="#2F5BFF"/>
+</svg>

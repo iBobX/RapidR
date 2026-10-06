@@ -1,0 +1,21 @@
+[package]
+name = "rapidr-langsvc"
+description = "RapidR's language service: completion, hover, signatures, navigation, rename, diagnostics, outline, formatting (docs/ide-plan.md, I3) — for RapidR Studio, rapidr lsp and the web IDE"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# wasm-safe, no GUI, no I/O beyond reading $INCLUDE files through the
+# preprocessor (docs/ide-plan.md §3.1).
+[dependencies]
+rapidr-ast.workspace = true
+rapidr-diagnostics.workspace = true
+rapidr-lexer.workspace = true
+rapidr-parser.workspace = true
+rapidr-preprocessor.workspace = true
+rapidr-bcgen.workspace = true
+rapidr-bytecode.workspace = true
+
+[dev-dependencies]
+rapidr-preprocessor.workspace = true

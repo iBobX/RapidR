@@ -19,7 +19,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "lsp", "dap", "__debuggee", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -103,6 +103,13 @@ fn main() -> ExitCode {
             println!("RapidR {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
+        (Some("run"), Some(flag)) if flag == "--session" => match rest.split_first() {
+            Some((path, args)) => launch::run_session(path, args.to_vec()),
+            None => {
+                eprintln!("rapidr run --session <file.rrbc|.rr|.bas> [args]");
+                ExitCode::from(2)
+            }
+        },
         (Some("run"), Some(path)) => launch::run(&path, rest, launch::From::Command),
         (Some("open"), Some(path)) => launch::run(&path, rest, launch::From::Desktop),
         (Some("info"), Some(path)) => launch::info(&path),
@@ -112,6 +119,9 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
+        (Some("lsp"), _) => rapidr_lsp::run_stdio(),
+        (Some("dap"), _) => rapidr_dap::run_stdio(),
+        (Some("__debuggee"), Some(_)) => rapidr_dap::debuggee_main(&args[1..]),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
         (Some("lex"), Some(path)) => lex_source_file(&path),
@@ -186,12 +196,15 @@ fn main() -> ExitCode {
             eprintln!("  rapidr version");
             eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
             eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
+            eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' IntelliSense");
+            eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");

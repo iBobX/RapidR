@@ -64,6 +64,15 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("bevelouter", v_int(0));
             put("bevelinner", v_int(0));
         }
+        // (I1) RDOCKMANAGER: crate::dock (DocumentMode "mdi": its model's).
+        "RDOCKMANAGER" => {
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(true));
+            put("enabled", v_bool(true));
+            put("align", v_int(0));
+            put("hint", v_str(""));
+        }
         // QGLASSFRAME (RC.EXE: 105 × 105, Transparency 60, TransparentColor
         // 0, Moveable 1, Color clBtnFace): crate::objects::glass.
         "RGLASSFRAME" => {

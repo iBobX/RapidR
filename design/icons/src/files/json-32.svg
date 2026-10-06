@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>JSON</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M13 12C11 12 11 13 11 15V16C11 17 10 18 9 18C10 18 11 19 11 20V22C11 23 11 24 13 24" stroke="#B86E00"/>
+  <path d="M19 12C21 12 21 13 21 15V16C21 17 22 18 23 18C22 18 21 19 21 20V22C21 23 21 24 19 24" stroke="#B86E00"/>
+</svg>

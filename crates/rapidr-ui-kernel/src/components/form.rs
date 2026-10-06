@@ -32,6 +32,11 @@ pub enum Container {
     /// included). The host's, not runtime-core's: `Desktop` makes it a
     /// `HostCmd::Resize`, and the window's resize comes back as the user's.
     Resize { form: String, w: i64, h: i64 },
+    /// (I1) What the user did to RDOCKMANAGER `id`: a tab or header
+    /// pressed, a button, a pane dropped on the compass or away from it, a
+    /// splitter dragged, a flyout slid out (`rapidr_value::dock::runtime::
+    /// rt_user`).
+    Dock { id: String, action: rapidr_value::dock::manager::User },
 }
 
 #[cfg(test)]

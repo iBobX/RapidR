@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Web geolocation</title>
+  <path d="M8.5 14.5C5.5 11.5 3.5 9.5 3.5 6.5A5 5 0 0 1 12.5 6.5C12.5 9.5 10.5 11.5 8.5 14.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <circle cx="8.5" cy="6.5" r="2" fill="#FFFFFF" stroke="#007F9C"/>
+</svg>

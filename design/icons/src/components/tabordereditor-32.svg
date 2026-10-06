@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Tab order editor</title>
+  <path d="M14 3H27A2 2 0 0 1 29 5V8A2 2 0 0 1 27 10H14A2 2 0 0 1 12 8V5A2 2 0 0 1 14 3Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M14 12H27A2 2 0 0 1 29 14V18A2 2 0 0 1 27 20H14A2 2 0 0 1 12 18V14A2 2 0 0 1 14 12Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M14 22H27A2 2 0 0 1 29 24V27A2 2 0 0 1 27 29H14A2 2 0 0 1 12 27V24A2 2 0 0 1 14 22Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M6 6L6 25" stroke="#5B6478"/>
+  <path d="M9 23L6 26L3 23" stroke="#5B6478"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Export</title>
+  <path d="M5 19V26A1.5 1.5 0 0 0 6 27H26A1.5 1.5 0 0 0 27 26V19" stroke="currentColor"/>
+  <path d="M16 20L16 4" stroke="currentColor"/>
+  <path d="M11 8L16 3L21 8" stroke="currentColor"/>
+</svg>

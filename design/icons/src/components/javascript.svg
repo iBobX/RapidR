@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>JavaScript</title>
+  <path d="M5.75 2.75H17.75A3 3 0 0 1 20.75 5.75V17.75A3 3 0 0 1 17.75 20.75H5.75A3 3 0 0 1 2.75 17.75V5.75A3 3 0 0 1 5.75 2.75Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M15.75 6.75C13.75 6.75 12.75 7.75 11.75 9.75L10.75 15.75C10.75 17.75 9.75 17.75 7.75 17.75" stroke="#007F9C"/>
+  <path d="M8.75 10.75L14.75 10.75" stroke="#007F9C"/>
+</svg>

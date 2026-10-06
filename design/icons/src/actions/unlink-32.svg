@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Unlink</title>
+  <path d="M22 18L26 14A5.5 5.5 0 0 0 18 6L16 8" stroke="currentColor"/>
+  <path d="M10 14L6 18A5.5 5.5 0 0 0 14 26L16 24" stroke="currentColor"/>
+  <path d="M4 4L8 8" stroke="currentColor"/>
+  <path d="M24 24L28 28" stroke="currentColor"/>
+</svg>

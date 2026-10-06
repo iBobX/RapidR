@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Group box</title>
+  <path d="M9 8H6A3 3 0 0 0 3 11V24A3 3 0 0 0 6 27H26A3 3 0 0 0 29 24V11A3 3 0 0 0 26 8H22" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M12 8L19 8" stroke="#2F5BFF"/>
+  <path d="M9 16L23 16" stroke="#5B6478"/>
+  <path d="M9 21L17 21" stroke="#5B6478"/>
+</svg>

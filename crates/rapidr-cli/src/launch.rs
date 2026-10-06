@@ -85,6 +85,42 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
     rapidr_vm_host_native::run_bytes(&bytes)
 }
 
+/// `rapidr run --session <file> [args]`: the program under RapidR Studio
+/// (or any client of the session protocol, rapidr-session): requests on
+/// standard input, events framed on standard output among what it prints.
+/// It waits for `start` (after the breakpoints) before it runs. A program
+/// that doesn't compile says why on standard error and exits with 1.
+pub fn run_session(path: &str, args: Vec<String>) -> ExitCode {
+    if !Path::new(path).is_file() {
+        eprintln!("{path}: no such file");
+        return ExitCode::from(1);
+    }
+    if let Err(e) = trust::check(Path::new(path)) {
+        eprintln!("{e}");
+        return ExitCode::from(1);
+    }
+    let bytes = match load(path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    let program = crate::home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    rapidr_vm_host_native::set_program(&program, args);
+    if let Ok(exe) = env::current_exe() {
+        env::set_var("RAPIDR_RUNTIME", exe);
+    }
+    env::set_var("RAPIDR_TEMP", env::temp_dir());
+    match rapidr_vm_host_native::session::run_session(&bytes, path) {
+        Ok(code) => ExitCode::from(code.clamp(0, 255) as u8),
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
 /// `rapidr ide [file]`: RapidR's IDE — an install's `ide/rapidr-ide.rrbc`,
 /// a checkout's `examples/ide.rr`.
 pub fn ide(args: Vec<String>) -> ExitCode {

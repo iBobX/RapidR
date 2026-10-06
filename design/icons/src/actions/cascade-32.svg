@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Cascade windows</title>
+  <path d="M3 17V6A3 3 0 0 1 6 3H17" stroke="currentColor"/>
+  <path d="M8 22V11A3 3 0 0 1 11 8H22" stroke="currentColor"/>
+  <path d="M16 13H26A3 3 0 0 1 29 16V26A3 3 0 0 1 26 29H16A3 3 0 0 1 13 26V16A3 3 0 0 1 16 13Z" stroke="currentColor"/>
+  <path d="M13 18L29 18" stroke="currentColor"/>
+</svg>

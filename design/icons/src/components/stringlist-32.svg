@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>String list</title>
+  <circle cx="5" cy="6" r="2" fill="#B86E00"/>
+  <path d="M11 6L27 6" stroke="#5B6478"/>
+  <circle cx="5" cy="13" r="2" fill="#B86E00"/>
+  <path d="M11 13L27 13" stroke="#5B6478"/>
+  <circle cx="5" cy="20" r="2" fill="#B86E00"/>
+  <path d="M11 20L22 20" stroke="#5B6478"/>
+  <circle cx="5" cy="27" r="2" fill="#B86E00"/>
+  <path d="M11 27L27 27" stroke="#5B6478"/>
+</svg>

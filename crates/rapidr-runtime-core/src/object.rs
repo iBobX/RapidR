@@ -409,6 +409,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
         return;
     }
+    // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" && crate::dock::set(name, &prop_lower, &val) {
+        return;
+    }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
     // FontName / FontSize / FontColor too: one value.
     if let Some(other) = rapidr_value::font_dialog::alias(&prop_lower).filter(|_| rp_comp_type(name) == "RFONTDIALOG") {
@@ -660,6 +664,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // (I1) A dock manager or its floating window resized: its panes placed.
+    crate::dock::after_set(name, &prop_lower);
     // A QTABCONTROL's colour, font or Enabled: drawn again (its tabs
     // measured again).
     #[cfg(feature = "gui")]
@@ -832,6 +838,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
         return v;
+    }
+    // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" {
+        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &prop_lower) {
+            return v;
+        }
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
@@ -1041,6 +1053,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi::method(name, &method_lower, args) {
+            return v;
+        }
+    }
+    // (I1) An RDOCKMANAGER's AddPane, SaveLayout, … (dock.rs).
+    if comp_type == "RDOCKMANAGER" {
+        if let Some(v) = crate::dock::method(name, &method_lower, args) {
             return v;
         }
     }
@@ -2042,7 +2060,7 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
 pub fn is_component_type(type_name: &str) -> bool {
     matches!(
         type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY" | "RGLASSFRAME"
+        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY" | "RGLASSFRAME" | "RDOCKMANAGER"
         | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
         | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"

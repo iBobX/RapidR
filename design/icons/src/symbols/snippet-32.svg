@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Snippet</title>
+  <path d="M3 8L3 12" stroke="#5B6478"/>
+  <path d="M3 20L3 24" stroke="#5B6478"/>
+  <path d="M29 8L29 12" stroke="#5B6478"/>
+  <path d="M29 20L29 24" stroke="#5B6478"/>
+  <path d="M3 8V6A3 3 0 0 1 6 3H10M22 3H26A3 3 0 0 1 29 6V8M29 24V26A3 3 0 0 1 26 29H22M10 29H6A3 3 0 0 1 3 26V24" stroke="#5B6478"/>
+  <path d="M15 3L17 3" stroke="#5B6478"/>
+  <path d="M15 29L17 29" stroke="#5B6478"/>
+  <path d="M10 16L22 16" stroke="#5B6478"/>
+</svg>

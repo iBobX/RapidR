@@ -3,6 +3,9 @@ use std::fmt;
 
 use rapidr_diagnostics::{Diagnostic, SourceLocation, TextSpan};
 
+pub mod lossless;
+pub use lossless::{lex_lossless, LineClass, LosslessFile, Piece, Trivia, TriviaKind};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenType {
     Dim,
@@ -106,6 +109,10 @@ pub enum TokenType {
     Kill,
     RustStart,
     RustEnd,
+    /// Text the lexer can't read (an unexpected character, `&H` without
+    /// digits): only from [`Lexer::tokenize_recovering`], never in the
+    /// tokens of a program that compiles.
+    Error,
     LParen,
     RParen,
     Comma,
@@ -200,6 +207,8 @@ pub struct Lexer<'src> {
     column: usize,
     /// `$ESCAPECHARS ON`: `\n`, `\t`, `\"`, `\65`, `\x41`, … in strings.
     escape_chars: bool,
+    /// Errors so far ([`Lexer::tokenize_recovering`]).
+    errors: Vec<LexError>,
 }
 
 impl<'src> Lexer<'src> {
@@ -211,10 +220,27 @@ impl<'src> Lexer<'src> {
             line: 1,
             column: 1,
             escape_chars: false,
+            errors: Vec::new(),
         }
     }
 
-    pub fn tokenize(mut self) -> Result<Vec<Token>, LexError> {
+    /// The tokens, or the first lexical error (what compilers use: a
+    /// program with an error doesn't build).
+    pub fn tokenize(self) -> Result<Vec<Token>, LexError> {
+        let (tokens, mut errors) = self.tokenize_recovering();
+        if errors.is_empty() {
+            Ok(tokens)
+        } else {
+            Err(errors.remove(0))
+        }
+    }
+
+    /// Every token and every lexical error: an error becomes a
+    /// [`TokenType::Error`] token (or, for a string left open at the end of
+    /// the file, the string as far as it goes) and lexing goes on — what
+    /// tools (editors) use. Up to the first error the tokens are
+    /// [`Lexer::tokenize`]'s.
+    pub fn tokenize_recovering(mut self) -> (Vec<Token>, Vec<LexError>) {
         let mut tokens = Vec::new();
 
         while !self.is_at_end() {
@@ -248,11 +274,11 @@ impl<'src> Lexer<'src> {
                     tokens.push(self.lex_directive(start, line, column));
                 }
                 '"' => {
-                    tokens.push(self.lex_string(start, line, column)?);
+                    tokens.push(self.lex_string(start, line, column));
                 }
                 '&' => {
                     if self.is_prefixed_number() {
-                        tokens.push(self.lex_prefixed_number(start, line, column)?);
+                        tokens.push(self.lex_prefixed_number(start, line, column));
                     } else {
                         self.advance_char();
                         tokens.push(Token::new(
@@ -513,13 +539,10 @@ impl<'src> Lexer<'src> {
                     }
                 }
                 _ => {
-                    return Err(LexError::new(
-                        format!("Unexpected character: {current}"),
-                        TextSpan::new(start, start + current.len_utf8()),
-                        line,
-                        column,
-                        self.file_path.clone(),
-                    ));
+                    self.advance_char();
+                    let span = TextSpan::new(start, self.index);
+                    self.error(format!("Unexpected character: {current}"), span, line, column);
+                    tokens.push(Token::new(TokenType::Error, current.to_string(), span, line, column));
                 }
             }
         }
@@ -533,7 +556,11 @@ impl<'src> Lexer<'src> {
         ));
 
         demote_keyword_names(&mut tokens);
-        Ok(tokens)
+        (tokens, self.errors)
+    }
+
+    fn error(&mut self, message: impl Into<String>, span: TextSpan, line: usize, column: usize) {
+        self.errors.push(LexError::new(message, span, line, column, self.file_path.clone()));
     }
 
     fn is_at_end(&self) -> bool {
@@ -797,27 +824,27 @@ impl<'src> Lexer<'src> {
 
     /// The rest of a continued string, up to its closing quote or the end
     /// of the line (lenient, like an unterminated string).
-    fn lex_string_tail(&mut self) -> Result<String, LexError> {
+    fn lex_string_tail(&mut self) -> String {
         let content_start = self.index;
         while let Some(ch) = self.current_char() {
             if ch == '"' {
                 let text = self.source[content_start..self.index].to_string();
                 self.advance_char();
-                return Ok(text);
+                return text;
             }
             if ch == '_' && self.string_continuation_follows() {
                 let mut text = self.source[content_start..self.index].to_string();
                 self.advance_char();
                 self.try_consume_line_continuation_tail();
-                text.push_str(&self.lex_string_tail()?);
-                return Ok(text);
+                text.push_str(&self.lex_string_tail());
+                return text;
             }
             if ch == '\r' || ch == '\n' {
                 break;
             }
             self.advance_char();
         }
-        Ok(self.source[content_start..self.index].to_string())
+        self.source[content_start..self.index].to_string()
     }
 
     /// RapidQ accepts names that start with digits (`SUB 01click`): digits
@@ -886,9 +913,9 @@ impl<'src> Lexer<'src> {
         start: usize,
         line: usize,
         column: usize,
-    ) -> Result<Token, LexError> {
+    ) -> Token {
         if self.escape_chars {
-            return Ok(self.lex_escaped_string(start, line, column));
+            return self.lex_escaped_string(start, line, column);
         }
         self.advance_char();
         let content_start = self.index;
@@ -900,13 +927,7 @@ impl<'src> Lexer<'src> {
             if ch == '"' {
                 let lexeme = self.source[content_start..self.index].to_string();
                 self.advance_char();
-                return Ok(Token::new(
-                    TokenType::StringLit,
-                    lexeme,
-                    TextSpan::new(start, self.index),
-                    line,
-                    column,
-                ));
+                return Token::new(TokenType::StringLit, lexeme, TextSpan::new(start, self.index), line, column);
             }
 
             // `"first part _` + newline continues the string on the next
@@ -915,33 +936,24 @@ impl<'src> Lexer<'src> {
                 let mut text = self.source[content_start..self.index].to_string();
                 self.advance_char();
                 self.try_consume_line_continuation_tail();
-                let rest = self.lex_string_tail()?;
+                let rest = self.lex_string_tail();
                 text.push_str(&rest);
-                return Ok(Token::new(TokenType::StringLit, text, TextSpan::new(start, self.index), line, column));
+                return Token::new(TokenType::StringLit, text, TextSpan::new(start, self.index), line, column);
             }
             if ch == '\r' || ch == '\n' {
                 // RapidQ ends an unterminated string at the end of the line
                 // (and real programs rely on it: `x = "error'`).
                 let lexeme = self.source[content_start..self.index].to_string();
-                return Ok(Token::new(
-                    TokenType::StringLit,
-                    lexeme,
-                    TextSpan::new(start, self.index),
-                    line,
-                    column,
-                ));
+                return Token::new(TokenType::StringLit, lexeme, TextSpan::new(start, self.index), line, column);
             }
 
             self.advance_char();
         }
 
-        Err(LexError::new(
-            "Unterminated string literal",
-            TextSpan::new(start, self.index),
-            line,
-            column,
-            self.file_path.clone(),
-        ))
+        // (at the end of the file: an error, the string as far as it goes)
+        let span = TextSpan::new(start, self.index);
+        self.error("Unterminated string literal", span, line, column);
+        Token::new(TokenType::StringLit, self.source[content_start..self.index].to_string(), span, line, column)
     }
 
     fn is_prefixed_number(&self) -> bool {
@@ -953,7 +965,7 @@ impl<'src> Lexer<'src> {
         start: usize,
         line: usize,
         column: usize,
-    ) -> Result<Token, LexError> {
+    ) -> Token {
         self.advance_char();
         let prefix = self.advance_char().unwrap();
         let digit_start = self.index;
@@ -974,13 +986,9 @@ impl<'src> Lexer<'src> {
         }
 
         if digit_start == self.index {
-            return Err(LexError::new(
-                "Invalid prefixed number literal",
-                TextSpan::new(start, self.index),
-                line,
-                column,
-                self.file_path.clone(),
-            ));
+            let span = TextSpan::new(start, self.index);
+            self.error("Invalid prefixed number literal", span, line, column);
+            return Token::new(TokenType::Error, self.source[start..self.index].to_string(), span, line, column);
         }
 
         // A long-integer suffix (`&H1&`, `&HFFFF&` in the Windows includes):
@@ -999,13 +1007,7 @@ impl<'src> Lexer<'src> {
             _ => unreachable!(),
         };
 
-        Ok(Token::new(
-            TokenType::Number,
-            normalized,
-            TextSpan::new(start, self.index),
-            line,
-            column,
-        ))
+        Token::new(TokenType::Number, normalized, TextSpan::new(start, self.index), line, column)
     }
 
     fn lex_decimal_number(&mut self, start: usize, line: usize, column: usize) -> Token {
@@ -1367,6 +1369,40 @@ mod tests {
         assert_eq!(tokens[2].kind, TokenType::Directive);
         assert_eq!(tokens[2].lexeme, "$INCLUDE");
         assert_eq!(tokens[2].trailing.as_deref(), Some("<PForms.inc>"));
+    }
+
+    #[test]
+    fn recovers_from_errors() {
+        let (tokens, errors) = Lexer::new("a = 1 ` b\nc = &HZ\nd = \"open", None).tokenize_recovering();
+        let kinds: Vec<TokenType> = tokens.iter().map(|t| t.kind).collect();
+        use TokenType::*;
+        assert_eq!(kinds, [Identifier, Eq, Number, Error, Identifier, Newline, Identifier, Eq, Error, Identifier, Newline, Identifier, Eq, StringLit, Eof]);
+        let messages: Vec<&str> = errors.iter().map(|e| e.diagnostic.message.as_str()).collect();
+        assert_eq!(messages, ["Unexpected character: `", "Invalid prefixed number literal", "Unterminated string literal"]);
+        // `tokenize` stops at the first, as before.
+        assert_eq!(Lexer::new("a = 1 ` b", None).tokenize().unwrap_err().diagnostic.message, "Unexpected character: `");
+    }
+
+    #[test]
+    fn lossless_round_trip_with_trivia() {
+        use super::lossless::{LineClass, LosslessFile, TriviaKind};
+        let text = "#!/usr/bin/env rapidr\r\n' header\r\n\r\n$INCLUDE \"x.inc\"\r\n$IFDEF NOPE\r\nPRINT \"no\"\r\n$ENDIF\r\nDIM a AS INTEGER ' the count\r\nREM old style\r\nx = a + _  ' more\r\n    1\r\n\t\r\n$TYPECHECK ON\r\nPRINT x ` oops\r\n";
+        let file = LosslessFile::lex(text, None);
+        assert_eq!(file.print(), text);
+        let kinds: Vec<TriviaKind> = file.trivia.iter().map(|t| t.kind).collect();
+        assert!(kinds.contains(&TriviaKind::Shebang) && kinds.contains(&TriviaKind::Inactive) && kinds.contains(&TriviaKind::LineContinuation) && kinds.contains(&TriviaKind::LineBreak));
+        let directives: Vec<&str> = file.trivia.iter().filter(|t| t.kind == TriviaKind::Directive).map(|t| &text[t.span.start..t.span.end]).collect();
+        assert_eq!(directives, ["$INCLUDE \"x.inc\"", "$IFDEF NOPE", "$ENDIF"]);
+        let comments: Vec<&str> = file.trivia.iter().filter(|t| t.kind == TriviaKind::Comment).map(|t| &text[t.span.start..t.span.end]).collect();
+        assert_eq!(comments, ["' header", "' the count", "REM old style", "' more"]);
+        use LineClass::*;
+        assert_eq!(file.lines(), [Shebang, Comment, Blank, Directive, Directive, Inactive, Directive, Code, Comment, Code, Code, Blank, Code, Code, Blank]);
+        assert_eq!(file.errors.len(), 1);
+        // The tokens are the compiler's (the `$TYPECHECK` directive among them).
+        assert!(file.tokens.iter().any(|t| t.kind == TokenType::Directive && t.lexeme == "$TYPECHECK"));
+        // Trivia before `DIM`: the blank and directive lines.
+        let dim = file.tokens.iter().position(|t| t.kind == TokenType::Dim).unwrap();
+        assert!(file.leading_trivia(dim).is_empty(), "the line break before DIM is a token");
     }
 
     #[test]

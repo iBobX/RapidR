@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Settings file (.toml, .ini)</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <path d="M4.5 7.5L11.5 7.5" stroke="#5B6478"/>
+  <path d="M4.5 10.5L11.5 10.5" stroke="#5B6478"/>
+  <circle cx="6.5" cy="7.5" r="1" fill="#FFFFFF" stroke="#2F5BFF"/>
+  <circle cx="9.5" cy="10.5" r="1" fill="#FFFFFF" stroke="#2F5BFF"/>
+</svg>

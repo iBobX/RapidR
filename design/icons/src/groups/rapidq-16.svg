@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>RapidQ components</title>
+  <path d="M2 2.5H14A0.5 0.5 0 0 1 14.5 3V13A0.5 0.5 0 0 1 14 13.5H2A0.5 0.5 0 0 1 1.5 13V3A0.5 0.5 0 0 1 2 2.5Z" fill="#E6EAF2" stroke="#5B6478"/>
+  <path d="M3.5 11.5H12.5V4.5" stroke="#5B6478"/>
+</svg>

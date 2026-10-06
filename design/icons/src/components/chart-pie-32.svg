@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Chart: pie</title>
+  <circle cx="16.5" cy="16.5" r="12.5" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M16 3V16H29" stroke="#08805E"/>
+  <path d="M16 3A12.5 12.5 0 0 1 29 16H16L16 3Z" fill="#08805E" stroke="#08805E"/>
+</svg>

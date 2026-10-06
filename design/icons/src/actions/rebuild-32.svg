@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Rebuild</title>
+  <path d="M5 16A10.5 10.5 0 0 1 24 9" stroke="currentColor"/>
+  <path d="M24 3L24 10L18 10" stroke="currentColor"/>
+  <path d="M27 16A10.5 10.5 0 0 1 8 23" stroke="currentColor"/>
+  <path d="M8 29L8 22L14 22" stroke="currentColor"/>
+</svg>

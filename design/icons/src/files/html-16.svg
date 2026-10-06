@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Web page (.html, .css, .js)</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <path d="M6.5 6.5L4.5 9.5L6.5 11.5" stroke="#007F9C"/>
+  <path d="M9.5 6.5L11.5 9.5L9.5 11.5" stroke="#007F9C"/>
+</svg>

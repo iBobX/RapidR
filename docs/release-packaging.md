@@ -15,6 +15,7 @@ release notes:
 | Windows x64, ARM64 | `RapidR-<ver>-windows-<x64\|arm64>-setup.exe` | `RapidR-Runtime-<ver>-windows-<arch>-setup.exe` |
 | Linux x86_64, aarch64 | `rapidr-<ver>-linux-<arch>.tar.gz`, `rapidr_<ver>_<amd64\|arm64>.deb` | `rapidr-runtime-…tar.gz`, `rapidr-runtime_…deb` |
 | Web | `rapidr-web-<ver>.zip` | |
+| VS Code | `rapidr-<ver>.vsix` (the extension: a client of `rapidr lsp` / `rapidr dap`; [VSCODE_EXTENSION.md](../VSCODE_EXTENSION.md)) | |
 | All | `SHA256SUMS`, `rapidr-<ver>.cdx.json` (CycloneDX SBOM), `RELEASE_NOTES.md` | |
 
 ## What an installed RapidR is
@@ -385,8 +386,14 @@ about 1.2 GB for the whole release.
    clean.
 2. **Prepare** (Mac): `tools/release/prepare.sh` — `dist/<ver>/prep/`
    (src.tar of the commit, the web interpreter, the IDE's bytecode) and the
-   web bundle, the SBOM and `RELEASE_NOTES.md` in `dist/<ver>/out/`. Edit the
-   notes' "What's new" from `CHANGELOG.md`.
+   web bundle, the VS Code extension, the SBOM and `RELEASE_NOTES.md` in
+   `dist/<ver>/out/`. Edit the notes' "What's new" from `CHANGELOG.md`.
+   The extension is `tools/release/vscode.sh` (Node.js 22+; runs alone too):
+   `npm ci`, a check that `utilities/vscodeext/rapidr/package.json`'s version
+   is RapidR's (`npm run version:sync` there, then commit, if not), the
+   bundle, its THIRD_PARTY_NOTICES.md (fails on a licence outside MIT / ISC /
+   BSD / Apache-2.0 / 0BSD), `rapidr-<ver>.vsix`, and a check that it carries
+   no sources, tests or `node_modules`.
 3. **macOS** (Mac): `rustup target add x86_64-apple-darwin` once, then
    `tools/release/macos.sh` (`--sign …`, `--notarize …` when signing).
    Check: `tools/release/smoke.sh dist/<ver>/out/RapidR-<ver>-macos-universal.dmg`
@@ -414,11 +421,14 @@ about 1.2 GB for the whole release.
    cd dist/<ver>/out
    gh release create v<ver> --repo iBobX/RapidR --target <commit> \
        --title "RapidR <ver>" --notes-file RELEASE_NOTES.md \
-       *.dmg *.exe *.tar.gz *.deb rapidr-web-<ver>.zip rapidr-<ver>.cdx.json SHA256SUMS
+       *.dmg *.exe *.tar.gz *.deb rapidr-web-<ver>.zip rapidr-<ver>.vsix \
+       rapidr-<ver>.cdx.json SHA256SUMS
    ```
 
    (`--draft` first to look at it on GitHub before it's public; `--prerelease`
-   for a preview.)
+   for a preview.) Then, when the user has publisher accounts, the same
+   `.vsix` to the VS Code Marketplace and Open VSX, by hand with the user's
+   own tokens: [docs/vscode-publishing.md](vscode-publishing.md).
 8. **Clean up**: `rm -rf dist/<ver>/work dist/<ver>/prep`;
    `tools/release/linux-vm.sh --clean`; the Windows VM's
    `%USERPROFILE%\rapidr-release` (keep `%USERPROFILE%\rapidr-tools` for the

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Project tree</title>
+  <path d="M3 10V3H8L10 5H15V10L3 10Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M8 10V24H15M8 17H15" stroke="#5B6478"/>
+  <path d="M16.5 14H25.5A1.5 1.5 0 0 1 27 15.5V18.5A1.5 1.5 0 0 1 25.5 20H16.5A1.5 1.5 0 0 1 15 18.5V15.5A1.5 1.5 0 0 1 16.5 14Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M16.5 21H25.5A1.5 1.5 0 0 1 27 22.5V25.5A1.5 1.5 0 0 1 25.5 27H16.5A1.5 1.5 0 0 1 15 25.5V22.5A1.5 1.5 0 0 1 16.5 21Z" fill="#FFFFFF" stroke="#5B6478"/>
+</svg>

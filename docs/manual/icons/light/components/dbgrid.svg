@@ -1,0 +1,6 @@
+<svg color="#5B6478" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="white"/><path d="M13.75 14.75V20.75A4 2 0 0 0 21.75 20.75V14.75A4 2 0 0 0 13.75 14.75Z" fill="black" stroke="black" stroke-width="3.5"/></mask></defs>
+  <g mask="url(#m1)"><path d="M4.75 3.75H18.75A2 2 0 0 1 20.75 5.75V17.75A2 2 0 0 1 18.75 19.75H4.75A2 2 0 0 1 2.75 17.75V5.75A2 2 0 0 1 4.75 3.75Z" fill="#FFFFFF" stroke="#5B6478"/><path d="M2.75 8.75V5.75A2 2 0 0 1 4.75 3.75H18.75A2 2 0 0 1 20.75 5.75V8.75L2.75 8.75Z" fill="#E3E9FF" stroke="#5B6478"/><path d="M2.75 14.75L20.75 14.75" stroke="#5B6478"/><path d="M8.75 3.75L8.75 19.75" stroke="#5B6478"/><path d="M14.75 3.75L14.75 19.75" stroke="#5B6478"/></g>
+  <path d="M13.75 14.75V20.75A4 2 0 0 0 21.75 20.75V14.75" fill="#D6F2E8" stroke="#08805E"/>
+  <ellipse cx="17.75" cy="14.75" rx="4" ry="2" fill="#D6F2E8" stroke="#08805E"/>
+</svg>

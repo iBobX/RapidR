@@ -35,6 +35,9 @@ use rapidr_ast::{
 use rapidr_bytecode::{builtins, Const, Function, Module, Op, Param};
 use rapidr_diagnostics::TextSpan;
 
+pub mod semantic;
+use semantic::{Access, DimTarget, NameFacts, NameUse, SymbolKind};
+
 /// Result of compilation: the produced module plus any non-fatal warnings.
 pub struct Compiled {
     pub module: Module,
@@ -57,6 +60,19 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 /// doesn't know aren't errors (RapidQ's own libraries use Win32 routines
 /// and built-ins RapidR lacks); the program's own code is always checked.
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
+    compile_recording(program, source, library_lines, None).0
+}
+
+/// Compiles the program recording what the compiler decides about names
+/// (for [`semantic::analyze`]).
+fn record_program(program: &Program, source: Option<&str>) -> semantic::Recorder {
+    let run = std::panic::AssertUnwindSafe(|| compile_recording(program, source, &[], Some(semantic::Recorder::default())).1);
+    // (a compiler bug never takes the IDE down: the model is then built
+    // from the program as written only)
+    std::panic::catch_unwind(run).ok().flatten().unwrap_or_default()
+}
+
+fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, String>, Option<semantic::Recorder>) {
     // (RapidQ's library objects RapidR implements, ENVIRON statements:
     // rapidr_ast::library — native builds run it first too)
     let program = &rapidr_ast::library::lower(program);
@@ -75,6 +91,7 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     let lowered = rapidr_ast::numeric::lower(lowered);
     let program = &lowered;
     let mut bcgen = Bcgen::new();
+    bcgen.sem = recorder;
     bcgen.library_lines = library_lines.to_vec();
     if let Some(src) = source {
         let mut starts = vec![0];
@@ -91,8 +108,98 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     for (span, message) in checks {
         bcgen.error_at(span, message);
     }
-    bcgen.compile_program(program)?;
-    Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings })
+    let result = bcgen.compile_program(program);
+    let recorder = bcgen.sem.take();
+    (result.map(|()| Compiled { module: bcgen.module, warnings: bcgen.warnings }), recorder)
+}
+
+/// The local a snippet's value goes into ([`compile_snippet`]): an
+/// expression `e` is compiled as `__rapidr_eval__ = (e)`.
+pub const SNIPPET_RESULT: &str = "__rapidr_eval__";
+
+/// A snippet compiled against a running program ([`compile_snippet`]): the
+/// program's module plus the snippet's function (and the strings and
+/// constants it added), run with `rapidr_vm::Vm::evaluate`.
+pub struct Snippet {
+    pub module: Module,
+    pub function: u32,
+}
+
+/// Compiles `statements` (parsed from what the debugger typed: a watch, the
+/// Immediate window, a variable's new value) against the symbols of
+/// `fn_index` in `module` — the function a stopped frame runs, `None` for
+/// the program's top level — so it reads and writes that frame's locals
+/// (the snippet's parameters are its slots, in order), the program's
+/// globals, SUBs, FUNCTIONs, components and builtins. The snippet returns
+/// the local [`SNIPPET_RESULT`] (Null if the statements don't set it).
+///
+/// The program's own symbol tables are rebuilt from the module (its
+/// functions' names, parameters and local slot names, its string pool):
+/// `assigned_global(i)` says whether global slot `i` (the string `i`) holds
+/// a value now, which picks the spelling a global is stored under. What
+/// needs the whole program's declarations (a TYPE's fields by name,
+/// numeric conversions on store) isn't known here.
+pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Statement], assigned_global: &dyn Fn(usize) -> bool) -> Result<Snippet, String> {
+    let mut b = Bcgen::new();
+    b.module = module.clone();
+    for (i, f) in module.functions.iter().enumerate() {
+        if i as u32 == module.entry || f.name.is_empty() {
+            continue;
+        }
+        // (a FUNCTION's result is the local after its parameters, named as it)
+        let is_func = f.local_names.get(f.params.len()).is_some_and(|n| name_key(n) == name_key(&f.name));
+        b.fn_indices.insert(f.name.clone(), i as u32);
+        b.fn_is_func.insert(f.name.clone(), is_func);
+        b.fn_byref.insert(f.name.clone(), f.params.iter().map(|p| p.by_ref).collect());
+    }
+    for (i, s) in module.strings.iter().enumerate() {
+        if assigned_global(i) {
+            let key = name_key(s);
+            b.globals.insert(key.clone());
+            b.global_spelling.entry(key).or_insert_with(|| s.clone());
+        }
+    }
+    let target = fn_index.and_then(|i| module.functions.get(i as usize).map(|f| (i, f)));
+    b.in_main = target.is_none_or(|(i, _)| i == module.entry);
+    let mut params = Vec::new();
+    if let Some((_, f)) = target {
+        for name in &f.local_names {
+            b.scope.declare(name);
+            params.push(Param { name: name.clone(), by_ref: false });
+        }
+        // (as in the function: `Result` is a FUNCTION's own result)
+        if !b.in_main && f.local_names.get(f.params.len()).is_some_and(|n| name_key(n) == name_key(&f.name)) && !b.scope.locals.contains_key("Result") {
+            b.scope.locals.insert("Result".to_string(), f.params.len() as u16);
+        }
+    }
+    // (slots beyond the frame's: past every one it has)
+    while (b.scope.next_slot as usize) < params.len() {
+        b.scope.next_slot += 1;
+    }
+    let result = b.scope.declare(SNIPPET_RESULT);
+    b.scope.owner = "the evaluation".to_string();
+    let index = b.module.add_function(Function { name: "<evaluate>".into(), params, ..Default::default() });
+    let mut code = Vec::new();
+    let mut lines = Vec::new();
+    for stmt in statements {
+        b.lower_stmt(stmt, &mut code, &mut lines)?;
+    }
+    emit(&mut code, Op::LoadLocal);
+    push_u16(&mut code, result);
+    emit(&mut code, Op::RetVal);
+    b.resolve_labels(&mut code, "the evaluation");
+    let mut errors = std::mem::take(&mut b.errors);
+    for (_, deferred) in std::mem::take(&mut b.deferred_errors) {
+        errors.extend(deferred);
+    }
+    if !errors.is_empty() {
+        return Err(errors.iter().map(|e| e.strip_prefix("error: ").unwrap_or(e)).collect::<Vec<_>>().join("\n"));
+    }
+    let f = &mut b.module.functions[index as usize];
+    f.code = code;
+    f.n_locals = b.scope.next_slot as u32;
+    f.local_names = b.scope.display.clone();
+    Ok(Snippet { module: b.module, function: index })
 }
 
 /// BASIC identifiers are case-insensitive and may carry a type suffix
@@ -223,6 +330,9 @@ struct Bcgen {
     in_main: bool,
     /// Starts of each line (byte offsets) to resolve line numbers for statements.
     line_starts: Option<Vec<usize>>,
+    /// Records declarations and name uses for the semantic model
+    /// ([`semantic::analyze`]); `None` when only compiling.
+    sem: Option<semantic::Recorder>,
 }
 
 struct LoopCtx {
@@ -287,6 +397,7 @@ impl Bcgen {
             component_kinds: HashMap::new(),
             in_main: false,
             line_starts: None,
+            sem: None,
         }
     }
 
@@ -379,11 +490,13 @@ impl Bcgen {
         for s in subs {
             let idx = *self.fn_indices.get(&s.name).unwrap();
             self.current_routine = Some(name_key(&s.name));
+            self.note_routine(s.span, false);
             self.compile_function_body(idx, &s.name, &format!("SUB {}", s.name), &s.params, &s.body, false)?;
         }
         for f in funcs {
             let idx = *self.fn_indices.get(&f.name).unwrap();
             self.current_routine = Some(name_key(&f.name));
+            self.note_routine(f.span, true);
             self.compile_function_body(idx, &f.name, &format!("FUNCTION {}", f.name), &f.params, &f.body, true)?;
         }
         self.current_routine = None;
@@ -597,6 +710,7 @@ impl Bcgen {
             Statement::Return(r) => self.lower_return(r, code)?,
             Statement::Const(c) => {
                 // CONST x = expr  → eval + StoreGlobal x  (treat all as globals).
+                self.note_decl(SymbolKind::Constant, &c.name, c.declared_type.as_deref(), c.span);
                 self.globals.insert(name_key(&c.name));
                 self.lower_expr(&c.value, code)?;
                 let s = self.global_str(&c.name);
@@ -609,16 +723,26 @@ impl Bcgen {
                 for decl in &d.declarators {
                     // REDIM in a SUB resizes the module-level array unless
                     // the SUB has its own (QBasic / RapidQ).
-                    let resizes_global = d.is_redim && self.scope.get(&decl.name).is_none() && self.is_known_global(&decl.name);
-                    if !self.in_main {
-                        if !resizes_global {
+                    // (the rule is semantic::dim_target, which the IDE uses too)
+                    let target = semantic::dim_target(self.in_main, d.is_redim, self.scope.get(&decl.name).is_some(), self.is_known_global(&decl.name));
+                    let component = is_component_type_name(&d.type_name) && decl.dimensions.is_empty();
+                    match target {
+                        DimTarget::ResizeGlobal => self.note_use(&decl.name, decl.span, NameUse::Global, Access::Write),
+                        DimTarget::Global if component => self.note_decl(SymbolKind::Component, &decl.name, Some(&d.type_name), decl.span),
+                        DimTarget::Global => self.note_decl(SymbolKind::Global, &decl.name, Some(&d.type_name), decl.span),
+                        DimTarget::Local => self.note_decl(SymbolKind::Local, &decl.name, Some(&d.type_name), decl.span),
+                    }
+                    match target {
+                        DimTarget::Local => {
                             self.scope.declare(&decl.name);
                             if !is_component_type_name(&d.type_name) && !rapidr_ast::is_rapidq_object_type(&d.type_name) {
                                 self.scope.shadows.insert(decl.name.to_lowercase());
                             }
                         }
-                    } else {
-                        self.globals.insert(name_key(&decl.name));
+                        DimTarget::ResizeGlobal => {}
+                        DimTarget::Global => {
+                            self.globals.insert(name_key(&decl.name));
+                        }
                     }
                     if d.is_redim && !decl.dimensions.is_empty() {
                         self.lower_redim(decl, &d.type_name, code)?;
@@ -800,11 +924,15 @@ impl Bcgen {
                         args: Vec::new(),
                     };
                     self.lower_call_stmt(&call, code)?;
-                } else if self.routine.offsets.insert(name_key(&l.name), code.len() as u32).is_some() {
-                    self.error_at(l.span, format!("Label '{}' is defined more than once", l.name));
+                } else {
+                    self.note_label(&l.name, l.span, Access::Declare);
+                    if self.routine.offsets.insert(name_key(&l.name), code.len() as u32).is_some() {
+                        self.error_at(l.span, format!("Label '{}' is defined more than once", l.name));
+                    }
                 }
             }
             Statement::Goto(j) | Statement::Gosub(j) => {
+                self.note_label(&j.label, j.span, Access::Read);
                 emit(code, if matches!(stmt, Statement::Gosub(_)) { Op::Gosub } else { Op::Jump });
                 self.routine.pending.push((j.label.clone(), code.len(), j.span));
                 push_u32(code, 0);
@@ -835,6 +963,7 @@ impl Bcgen {
     /// recursive calls (RapidQ manual, STATIC).
     fn lower_static(&mut self, d: &rapidr_ast::DimStatement, code: &mut Vec<u8>) -> Result<(), String> {
         for decl in &d.declarators {
+            self.note_decl(SymbolKind::Static, &decl.name, Some(&d.type_name), decl.span);
             let mangled = format!("{}::{}", self.scope.owner, decl.name);
             self.scope.statics.insert(decl.name.clone(), mangled.clone());
             self.globals.insert(name_key(&mangled));
@@ -863,6 +992,31 @@ impl Bcgen {
             patch_u32(code, skip, here);
         }
         Ok(())
+    }
+
+    // (the semantic model's recording: nothing without a recorder)
+    fn note_use(&mut self, name: &str, span: TextSpan, target: NameUse, access: Access) {
+        if let Some(r) = &mut self.sem {
+            r.use_name(&self.current_routine, name, span, target, access);
+        }
+    }
+
+    fn note_decl(&mut self, kind: SymbolKind, name: &str, ty: Option<&str>, span: TextSpan) {
+        if let Some(r) = &mut self.sem {
+            r.declare(&self.current_routine, kind, name, ty, span);
+        }
+    }
+
+    fn note_routine(&mut self, span: TextSpan, is_function: bool) {
+        if let (Some(r), Some(routine)) = (&mut self.sem, &self.current_routine) {
+            r.events.push(semantic::Event::Routine { routine: routine.clone(), span, is_function });
+        }
+    }
+
+    fn note_label(&mut self, name: &str, span: TextSpan, access: Access) {
+        if let Some(r) = &mut self.sem {
+            r.events.push(semantic::Event::Label { routine: self.current_routine.clone(), name: name.to_string(), span, access });
+        }
     }
 
     /// Whether `name` is a module-level variable (or a STATIC of this routine).
@@ -1422,7 +1576,9 @@ impl Bcgen {
     fn store_target(&mut self, target: &Expression, code: &mut Vec<u8>) -> Result<(), String> {
         match target {
             Expression::Identifier(id) => {
-                if let Some(slot) = self.scope.get(&id.name) {
+                let slot = self.scope.get(&id.name);
+                self.note_use(&id.name, id.span, semantic::store_target(slot.is_some()), Access::Write);
+                if let Some(slot) = slot {
                     emit(code, Op::StoreLocal);
                     push_u16(code, slot);
                 } else {
@@ -1738,8 +1894,11 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
-        let is_global = self.in_main && self.scope.get(&f.variable).is_none();
-        
+        // (the rule is semantic::for_target, which the IDE uses too)
+        let target = semantic::for_target(self.in_main, self.scope.get(&f.variable).is_some());
+        let is_global = target == NameUse::Global;
+        self.note_use(&f.variable, f.span, target, Access::Write);
+
         // var = start
         if is_global {
             self.globals.insert(name_key(&f.variable));
@@ -1979,6 +2138,7 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
+        self.note_decl(SymbolKind::Component, &c.name, Some(&c.type_name), c.span);
         let kind_s = self.module.add_string(&c.type_name.to_uppercase());
         let id_s = self.module.add_string(&c.name);
         self.module.app_type = rapidr_bytecode::AppType::Gui;
@@ -2118,47 +2278,71 @@ impl Bcgen {
                     emit(code, Op::LoadNull);
                     return Ok(());
                 }
-                if self.is_component_name(&name_lower) {
-                    let cs = self.module.add_const(Const::Str(id.name.clone()));
-                    emit(code, Op::LoadConst);
-                    push_u32(code, cs);
-                } else if let Some(fi) = self.fn_ctx.as_ref().filter(|_| rapidr_ast::names_routine(&id.name, &self.fn_name)).and_then(|c| c.recursive_self) {
-                    // (a FUNCTION without parameters reading its own name:
-                    // a call of itself, as in RapidQ — `RESULT` reads the result)
-                    emit(code, Op::CallFunc);
-                    push_u32(code, fi); code.push(0);
-                } else if let Some(slot) = self.scope.get(&id.name) {
-                    emit(code, Op::LoadLocal); push_u16(code, slot);
-                } else if !self.is_known_global(&id.name)
-                    && builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str())
-                {
-                    // `x = TIMER`: a builtin written without parentheses.
-                    let s = self.module.add_string(&id.name);
-                    emit(code, Op::CallBuiltin);
-                    push_u32(code, s); code.push(0);
-                } else if !self.is_known_global(&id.name) && matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse") {
-                    // `True` / `False` without RAPIDQ.INC's constants: -1 / 0,
-                    // as in native builds.
-                    let c = self.module.add_const(Const::Bool(name_lower.ends_with("true")));
-                    emit(code, Op::LoadConst);
-                    push_u32(code, c);
-                } else if let (false, Some(n)) = (self.is_known_global(&id.name), rapidr_ast::rapidr_constant(&id.name)) {
-                    // RapidR's own constants (akLeft …), unless the program
-                    // has its own.
-                    let c = self.module.add_const(Const::Int(n));
-                    emit(code, Op::LoadConst);
-                    push_u32(code, c);
-                } else if let (Some(&fi), Some(true), false) = (
-                    self.fn_indices.get(&id.name),
-                    self.fn_is_func.get(&id.name).copied(),
-                    self.is_known_global(&id.name),
-                ) {
-                    // A FUNCTION named without parentheses is called: `y = Five + 1`.
-                    emit(code, Op::CallFunc);
-                    push_u32(code, fi); code.push(0);
+                // (a FUNCTION without parameters reading its own name: a call
+                // of itself, as in RapidQ — `RESULT` reads the result)
+                let recursive_self = if self.is_component_name(&name_lower) {
+                    None
                 } else {
-                    let s = self.global_str(&id.name);
-                    emit(code, Op::LoadGlobal); push_u32(code, s);
+                    self.fn_ctx.as_ref().filter(|_| rapidr_ast::names_routine(&id.name, &self.fn_name)).and_then(|c| c.recursive_self)
+                };
+                if let Some(fi) = recursive_self {
+                    self.note_use(&id.name, id.span, NameUse::FunctionCall, Access::Read);
+                    emit(code, Op::CallFunc);
+                    push_u32(code, fi); code.push(0);
+                    return Ok(());
+                }
+                // (the rule is semantic::resolve_name, which the IDE uses too)
+                let facts = NameFacts {
+                    is_component: self.is_component_name(&name_lower),
+                    is_local: self.scope.get(&id.name).is_some(),
+                    is_known_global: self.is_known_global(&id.name),
+                    is_bare_builtin: builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str()),
+                    is_bool_name: matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse"),
+                    is_rapidr_constant: rapidr_ast::rapidr_constant(&id.name).is_some(),
+                    is_function: self.fn_indices.contains_key(&id.name) && self.fn_is_func.get(&id.name).copied() == Some(true),
+                };
+                let name_use = semantic::resolve_name(&facts);
+                self.note_use(&id.name, id.span, name_use, Access::Read);
+                match name_use {
+                    NameUse::Component => {
+                        let cs = self.module.add_const(Const::Str(id.name.clone()));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, cs);
+                    }
+                    NameUse::Local => {
+                        let slot = self.scope.get(&id.name).unwrap_or_default();
+                        emit(code, Op::LoadLocal); push_u16(code, slot);
+                    }
+                    NameUse::BareBuiltin => {
+                        // `x = TIMER`: a builtin written without parentheses.
+                        let s = self.module.add_string(&id.name);
+                        emit(code, Op::CallBuiltin);
+                        push_u32(code, s); code.push(0);
+                    }
+                    NameUse::BoolConstant => {
+                        // `True` / `False` without RAPIDQ.INC's constants: -1 / 0,
+                        // as in native builds.
+                        let c = self.module.add_const(Const::Bool(name_lower.ends_with("true")));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, c);
+                    }
+                    NameUse::RapidrConstant => {
+                        // RapidR's own constants (akLeft …), unless the program
+                        // has its own.
+                        let c = self.module.add_const(Const::Int(rapidr_ast::rapidr_constant(&id.name).unwrap_or_default()));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, c);
+                    }
+                    NameUse::FunctionCall => {
+                        // A FUNCTION named without parentheses is called: `y = Five + 1`.
+                        let fi = self.fn_indices.get(&id.name).copied().unwrap_or_default();
+                        emit(code, Op::CallFunc);
+                        push_u32(code, fi); code.push(0);
+                    }
+                    NameUse::Global => {
+                        let s = self.global_str(&id.name);
+                        emit(code, Op::LoadGlobal); push_u32(code, s);
+                    }
                 }
                 Ok(())
             }
@@ -2909,5 +3093,111 @@ mod tests {
         let src = "FUNCTION sq(n AS INTEGER) AS INTEGER\nRETURN n * n\nEND FUNCTION\nPRINT sq(7)";
         let h = run(src);
         assert_eq!(h.output, "49\n");
+    }
+
+    // ----- the debugger's primitives (rapidr_vm + compile_snippet) -----
+
+    fn compile_with_source(src: &str) -> Module {
+        compile_program_with_source(&parse(src), Some(src)).unwrap().module
+    }
+
+    fn snippet(module: &Module, vm: &Vm<'_, StubHost>, frame: Option<usize>, src: &str) -> Snippet {
+        let fn_index = frame.map(|i| vm.frames[i].fn_index);
+        let stmts = parse(src).statements;
+        let globals = vm.globals.clone();
+        compile_snippet(module, fn_index, &stmts, &|i| globals.get(i).is_some_and(Option::is_some)).unwrap()
+    }
+
+    #[test]
+    fn snippets_read_and_write_a_stopped_frames_variables() {
+        let src = "x = 5\nSUB Foo(a)\n  DIM b AS INTEGER\n  b = a * 2\n  PRINT b; x\nEND SUB\nFoo 21\nPRINT \"x=\"; x\n";
+        let m = compile_with_source(src);
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.debug_mode = true;
+        vm.add_breakpoint(5);
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        assert_eq!(vm.current_line(&m), Some(5));
+        let top = vm.frames.len() - 1;
+        // an expression over a parameter, a local and a global
+        let s = snippet(&m, &vm, Some(top), &format!("{SNIPPET_RESULT} = (b + a + x)"));
+        let v = vm.evaluate(&s.module, s.function, Some(top), false, rapidr_vm::EVAL_FUEL).unwrap();
+        assert_eq!(v.to_i64(), 42 + 21 + 5);
+        // setting a local and a global (written back into the frame)
+        let s = snippet(&m, &vm, Some(top), "b = 100\nx = 7");
+        vm.evaluate(&s.module, s.function, Some(top), true, rapidr_vm::EVAL_FUEL).unwrap();
+        // what was written is what's read
+        let s = snippet(&m, &vm, Some(top), &format!("{SNIPPET_RESULT} = b * 2 + x"));
+        assert_eq!(vm.evaluate(&s.module, s.function, Some(top), false, rapidr_vm::EVAL_FUEL).unwrap().to_i64(), 207);
+        // an endless loop runs out of fuel; END isn't allowed; the program is unharmed
+        let s = snippet(&m, &vm, Some(top), "DO\nLOOP");
+        let e = vm.evaluate(&s.module, s.function, Some(top), false, 10_000).unwrap_err();
+        assert!(e.to_string().contains("too long"), "{e}");
+        let s = snippet(&m, &vm, Some(top), "END");
+        assert!(vm.evaluate(&s.module, s.function, Some(top), false, rapidr_vm::EVAL_FUEL).is_err());
+        vm.resume(&m).unwrap();
+        drop(vm);
+        assert_eq!(h.output, "1007\nx=7\n");
+    }
+
+    #[test]
+    fn pause_on_demand_and_break_on_error() {
+        // pause: at the next instruction
+        let m = compile_with_source("i = 0\nDO\n  i = i + 1\nLOOP UNTIL i = 1000\nPRINT i\n");
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.debug_mode = true;
+        vm.request_pause();
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        assert_eq!(vm.stop_reason, rapidr_vm::StopReason::Pause);
+        vm.resume(&m).unwrap();
+        drop(vm);
+        assert_eq!(h.output, "1000\n");
+
+        // break on error: stopped at the faulting statement, frames intact;
+        // going on, the error unwinds as it would have
+        let m = compile_with_source("z = 0\nSUB Bad\n  y = 5 \\ z\nEND SUB\nBad\nPRINT \"after\"\n");
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.debug_mode = true;
+        vm.break_on_error = true;
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        assert_eq!(vm.stop_reason, rapidr_vm::StopReason::Exception);
+        assert!(vm.stop_error.as_deref().unwrap_or("").to_lowercase().contains("division"), "{:?}", vm.stop_error);
+        assert_eq!(vm.current_line(&m), Some(3));
+        assert_eq!(vm.frames.len(), 2);
+        let e = vm.resume(&m).unwrap_err();
+        assert!(matches!(e, rapidr_vm::VmError::At { line: 3, .. }), "{e}");
+        assert!(vm.frames.is_empty());
+        drop(vm);
+        assert_eq!(h.output, "");
+    }
+
+    #[test]
+    fn breakpoints_by_file_through_the_source_map() {
+        // compiled lines 1-3 come from inc.inc (lines 1-3), 4-6 from main.bas (lines 2-4)
+        let src = "SUB Hello\n  PRINT \"in inc\"\nEND SUB\nPRINT \"one\"\n\nHello\n";
+        let mut m = compile_with_source(src);
+        m.source_map = rapidr_bytecode::SourceMap::from_origins(
+            "dir/main.bas",
+            [(Some("inc/INC.INC"), 1), (Some("inc/INC.INC"), 2), (Some("inc/INC.INC"), 3), (None, 2), (None, 3), (None, 4)],
+        );
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.debug_mode = true;
+        // a line without code (main.bas line 3, blank) moves to the next with code
+        assert_eq!(vm.set_file_breakpoints(&m, "main.bas", &[3]), vec![Some(4)]);
+        assert_eq!(vm.set_file_breakpoints(&m, "C:\\x\\inc.inc", &[2, 9]), vec![Some(2), None]);
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        assert_eq!(vm.frame_location(&m, vm.frames.len() - 1), Some((Some("main.bas".into()), 4)));
+        assert!(matches!(vm.resume(&m), Err(rapidr_vm::VmError::Paused)));
+        assert_eq!(vm.frame_location(&m, vm.frames.len() - 1), Some((Some("INC.INC".into()), 2)));
+        // replacing a file's breakpoints leaves the other file's
+        vm.set_file_breakpoints(&m, "inc.inc", &[]);
+        assert_eq!(vm.breakpoints.len(), 1);
+        let end = vm.resume(&m);
+        assert!(end.is_ok(), "{end:?} at {:?}", vm.current_line(&m));
+        drop(vm);
+        assert_eq!(h.output, "one\nin inc\n");
     }
 }

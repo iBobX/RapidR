@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Font</title>
+  <path d="M1.5 13.5L5.5 2.5L9.5 13.5" stroke="#5B6478"/>
+  <path d="M3.5 9.5L7.5 9.5" stroke="#5B6478"/>
+  <circle cx="11.5" cy="11.5" r="2" stroke="#2F5BFF"/>
+  <path d="M13.5 8.5L13.5 13.5" stroke="#2F5BFF"/>
+</svg>

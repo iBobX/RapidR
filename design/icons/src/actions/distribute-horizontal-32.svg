@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Distribute horizontally</title>
+  <path d="M4 3L4 29" stroke="currentColor"/>
+  <path d="M28 3L28 29" stroke="currentColor"/>
+  <path d="M14 8H18A2 2 0 0 1 20 10V22A2 2 0 0 1 18 24H14A2 2 0 0 1 12 22V10A2 2 0 0 1 14 8Z" stroke="currentColor"/>
+</svg>

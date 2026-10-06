@@ -89,7 +89,7 @@ examples/                example programs (examples/README.md); ide.rr is the de
 docs/                    plans and references; docs/manual/ is the user manual
 design/brand/            logo, icons, banner (original artwork, MIT)
 fonts/                   the web's fallback fonts' sources
-utilities/vscodeext/     a VS Code extension (syntax, snippets; older, not yet registry-driven)
+utilities/vscodeext/     the VS Code extension: a client of rapidr lsp / rapidr dap (VSCODE_EXTENSION.md)
 ```
 
 | Crate | Role |

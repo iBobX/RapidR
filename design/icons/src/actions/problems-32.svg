@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Problems</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><path d="M22 15L29 28L14 28L22 15Z" fill="black" stroke="black" stroke-width="6"/></mask></defs>
+  <g mask="url(#m1)"><circle cx="11.5" cy="11.5" r="8.5" fill="#FCE1E2" stroke="#D92D36"/><path d="M9 9L15 15" stroke="#D92D36"/><path d="M15 9L9 15" stroke="#D92D36"/></g>
+  <path d="M22 15L29 28L14 28L22 15Z" fill="#FFEDC7" stroke="#B86E00"/>
+</svg>

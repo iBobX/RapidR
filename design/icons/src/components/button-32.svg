@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Button</title>
+  <path d="M7 9H25A4 4 0 0 1 29 13V19A4 4 0 0 1 25 23H7A4 4 0 0 1 3 19V13A4 4 0 0 1 7 9Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M10 16L22 16" stroke="#2F5BFF"/>
+</svg>

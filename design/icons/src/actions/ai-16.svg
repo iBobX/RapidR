@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>AI assistant</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="1.7" y1="14.3" x2="14.3" y2="1.7"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient></defs>
+  <path d="M6.6 3.45Q7.608 8.042 12.2 9.05Q7.608 10.058 6.6 14.65Q5.592 10.058 1 9.05Q5.592 8.042 6.6 3.45Z" fill="url(#g1)"/>
+  <path d="M12.55 1Q12.991 3.009 15 3.45Q12.991 3.891 12.55 5.9Q12.109 3.891 10.1 3.45Q12.109 3.009 12.55 1Z" fill="url(#g1)"/>
+</svg>

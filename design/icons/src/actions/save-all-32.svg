@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Save all</title>
+  <path d="M10 3H24L29 8V22" stroke="currentColor"/>
+  <path d="M3 9H18L23 14V29H3L3 9Z" stroke="currentColor"/>
+  <path d="M8 29V20H18V29" stroke="currentColor"/>
+</svg>

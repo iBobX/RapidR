@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>System</title>
+  <path d="M11 8H21A3 3 0 0 1 24 11V21A3 3 0 0 1 21 24H11A3 3 0 0 1 8 21V11A3 3 0 0 1 11 8Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M12.5 12H19.5A0.5 0.5 0 0 1 20 12.5V19.5A0.5 0.5 0 0 1 19.5 20H12.5A0.5 0.5 0 0 1 12 19.5V12.5A0.5 0.5 0 0 1 12.5 12Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M12 3L12 8" stroke="#5B6478"/>
+  <path d="M12 24L12 29" stroke="#5B6478"/>
+  <path d="M3 12L8 12" stroke="#5B6478"/>
+  <path d="M24 12L29 12" stroke="#5B6478"/>
+  <path d="M20 3L20 8" stroke="#5B6478"/>
+  <path d="M20 24L20 29" stroke="#5B6478"/>
+  <path d="M3 20L8 20" stroke="#5B6478"/>
+  <path d="M24 20L29 20" stroke="#5B6478"/>
+</svg>
