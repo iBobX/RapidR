@@ -52,6 +52,9 @@ struct PpState {
     /// False when only one text's lines are classified ([`scan_lines`]):
     /// `$INCLUDE`s aren't read.
     follow_includes: bool,
+    /// Recovering ([`preprocess_file_recovering`]): errors collected here,
+    /// the line in error left out, and preprocessing goes on.
+    errors: Option<Vec<PreprocessError>>,
 }
 
 impl PpState {
@@ -71,6 +74,7 @@ impl PpState {
             libraries: Vec::new(),
             files: Vec::new(),
             follow_includes: true,
+            errors: None,
         }
     }
 
@@ -252,6 +256,47 @@ pub fn preprocess_source(
     Ok(finish(out, state))
 }
 
+/// [`preprocess_file`] for tools (editors): an `$INCLUDE` that isn't found
+/// or can't be read, or a malformed `$INCLUDE` / `$RESOURCE`, is reported
+/// and its line left out, and preprocessing goes on (the error's span is
+/// that line's bytes in its file). Fails only when `path` can't be read.
+pub fn preprocess_file_recovering(path: impl AsRef<Path>, options: PreprocessOptions) -> Result<(PreprocessResult, Vec<PreprocessError>), PreprocessError> {
+    let path = path.as_ref();
+    let mut options = options;
+    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
+        options.include_dirs.extend(std::env::split_paths(&paths));
+    }
+    let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
+        PreprocessError::new(format!("Failed to read source file '{}': {error}", path.display()), 1, 1, Some(path.display().to_string()))
+    })?;
+    let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut state = PpState::new(options);
+    state.errors = Some(Vec::new());
+    let out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    let errors = state.errors.take().unwrap_or_default();
+    Ok((finish(out, state), errors))
+}
+
+/// [`preprocess_source`] for tools: errors reported, never fatal (see
+/// [`preprocess_file_recovering`]).
+pub fn preprocess_source_recovering(
+    source: &str,
+    base_dir: impl AsRef<Path>,
+    file_path: Option<PathBuf>,
+    options: PreprocessOptions,
+) -> (PreprocessResult, Vec<PreprocessError>) {
+    let mut state = PpState::new(options);
+    state.errors = Some(Vec::new());
+    match preprocess_program(source, SourceEncoding::Utf8, base_dir.as_ref(), file_path, &mut state) {
+        Ok(out) => {
+            let errors = state.errors.take().unwrap_or_default();
+            (finish(out, state), errors)
+        }
+        // (recovering never fails; kept total anyway)
+        Err(error) => (finish(Output::default(), state), vec![error]),
+    }
+}
+
 fn finish(out: Output, state: PpState) -> PreprocessResult {
     PreprocessResult {
         source: out.text,
@@ -268,6 +313,7 @@ fn finish(out: Output, state: PpState) -> PreprocessResult {
 pub fn scan_lines(source: &str, options: PreprocessOptions) -> Vec<LineKind> {
     let mut state = PpState::new(options);
     state.follow_includes = false;
+    state.errors = Some(Vec::new());
     let file = PathBuf::from("<scanned>");
     match preprocess_program(source, SourceEncoding::Utf8, Path::new("."), Some(file.clone()), &mut state) {
         Ok(_) => state.files.into_iter().find(|f| f.path.as_ref() == Some(&file)).map(|f| f.lines).unwrap_or_default(),
@@ -547,10 +593,16 @@ fn preprocess_with_state(
             let mut consts = Vec::new();
             for part in split_statements(line) {
                 let Some((name, file)) = parse_resource(part.trim()) else {
-                    if !state.follow_includes {
-                        continue;
+                    let mut error = PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone());
+                    match &mut state.errors {
+                        // (recovering: reported, the part left out)
+                        Some(errors) => {
+                            error.diagnostic.span = TextSpan::new(range.start, range.end);
+                            errors.push(error);
+                            continue;
+                        }
+                        None => return Err(error),
                     }
-                    return Err(PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone()));
                 };
                 let handle = RESOURCE_BASE + state.resources.len() as i64;
                 let path = resolve_include_path(base_dir, &file, &[]);
@@ -567,14 +619,25 @@ fn preprocess_with_state(
                 emit!(out, LineKind::Directive, blank());
                 continue;
             }
-            let include_file = parse_include_target(line).ok_or_else(|| {
-                PreprocessError::new(
-                    format!("Invalid $INCLUDE syntax: {line}"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            // (an error: the build stops — or, recovering, it's reported and
+            // the line left out)
+            macro_rules! fail {
+                ($message:expr) => {{
+                    let mut error = PreprocessError::new($message, line_number, 1, file_label.clone());
+                    match &mut state.errors {
+                        Some(errors) => {
+                            error.diagnostic.span = TextSpan::new(range.start, range.end);
+                            errors.push(error);
+                            emit!(out, LineKind::Directive, blank());
+                            continue;
+                        }
+                        None => return Err(error),
+                    }
+                }};
+            }
+            let Some(include_file) = parse_include_target(line) else {
+                fail!(format!("Invalid $INCLUDE syntax: {line}"));
+            };
             if let Some(k) = kinds.get_mut(line_index) {
                 *k = LineKind::Directive;
             }
@@ -601,32 +664,18 @@ fn preprocess_with_state(
                         emit!(out, LineKind::Directive, generated(builtin));
                         continue;
                     }
-                    return Err(PreprocessError::new(
-                        format!("Include file not found: '{include_file}'"),
-                        line_number,
-                        1,
-                        file_label.clone(),
-                    ));
+                    fail!(format!("Include file not found: '{include_file}'"));
                 }
             };
 
             if state.include_stack.iter().any(|entry| entry == &include_path) {
-                return Err(PreprocessError::new(
-                    format!("Recursive include detected: '{include_file}'"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                ));
+                fail!(format!("Recursive include detected: '{include_file}'"));
             }
 
-            let (include_source, include_encoding) = read_source_with_encoding(&include_path).map_err(|error| {
-                PreprocessError::new(
-                    format!("Failed to include '{include_file}': {error}"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            let (include_source, include_encoding) = match read_source_with_encoding(&include_path) {
+                Ok(read) => read,
+                Err(error) => fail!(format!("Failed to include '{include_file}': {error}")),
+            };
 
             // The include file has its own $ESCAPECHARS: off to begin with.
             let escape_before = state.escape_chars;

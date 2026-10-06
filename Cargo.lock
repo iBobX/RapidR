@@ -4639,6 +4639,7 @@ dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
  "rapidr-lexer",
+ "rapidr-preprocessor",
 ]
 
 [[package]]
