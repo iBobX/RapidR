@@ -331,7 +331,8 @@
     "ls": "vsce ls --no-dependencies",
     "test:unit": "mocha test/unit",
     "pretest": "node scripts/build.js",
-    "test": "mocha test/unit && node test/runTest.js"
+    "test": "mocha test/unit && node test/runTest.js",
+    "screenshots": "node test/screenshots/capture.js"
   },
   "dependencies": {
     "vscode-languageclient": "9.0.1"

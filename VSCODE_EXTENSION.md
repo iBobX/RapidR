@@ -40,7 +40,7 @@ The extension then runs `rapidr version`, which prints `RapidR <version>`. If `r
 
 ## Features
 
-- **Completion**: builtins, keywords, components (under both their `Q` and `R` names) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files. Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
+- **Completion**: builtins, keywords, components (RapidQ's offered under their `Q` names, RapidR's own under `R` names; both names understood everywhere) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files. Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
 - **Hover** with signatures and documentation, and **signature help** (triggered by `(` and `,`).
 - **Go to Definition**, also into `$INCLUDE` files; **Find All References**; **Rename Symbol**.
 - **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the CREATE tree.

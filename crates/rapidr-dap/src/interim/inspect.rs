@@ -78,7 +78,7 @@ impl Children {
     /// children (0: none).
     pub fn render(&mut self, v: &Value) -> (String, String, u32) {
         match v {
-            Value::Null => (String::new(), "Empty".into(), 0),
+            Value::Null => ("Empty".into(), "Empty".into(), 0),
             Value::Integer(_) => (rapidr_value::format::print_text(v), "Integer".into(), 0),
             Value::Double(_) => (rapidr_value::format::print_text(v), "Double".into(), 0),
             Value::Boolean(b) => ((if *b { "True" } else { "False" }).into(), "Boolean".into(), 0),

@@ -16,6 +16,7 @@
 //! '! 6 rename b error "already the name"
 //! '! diagnostic main.bas:3:1 "Unknown SUB or FUNCTION 'Nope'"
 //! '! diagnostics none
+//! '! outline Form Btn Greet          (the main file's outline, flattened)
 //! ```
 //!
 //! Positions are `file:line:column`, 1-based, columns in bytes.
@@ -132,6 +133,20 @@ fn run_case(dir: &Path) -> Vec<String> {
     for e in &expectations {
         let w = words(e);
         let fail = |msg: String| format!("{name}: '! {e}\n      {msg}");
+        if w.first().map(String::as_str) == Some("outline") {
+            fn flat(items: &[rapidr_langsvc::OutlineItem], out: &mut Vec<String>) {
+                for i in items {
+                    out.push(i.name.clone());
+                    flat(&i.children, out);
+                }
+            }
+            let mut got = Vec::new();
+            flat(&analysis.outline(&main), &mut got);
+            if got != w[1..] {
+                failures.push(fail(format!("got {got:?}")));
+            }
+            continue;
+        }
         if w.first().map(String::as_str) == Some("diagnostic") || w.first().map(String::as_str) == Some("diagnostics") {
             let diags = analysis.diagnostics(&main);
             let got: Vec<String> = diags

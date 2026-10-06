@@ -98,7 +98,10 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
         SymbolKind::Local => format!("local variable{owner}"),
         SymbolKind::Param => format!("parameter{owner}"),
         SymbolKind::Static => format!("STATIC variable{owner}"),
-        SymbolKind::Constant => "constant".to_string(),
+        SymbolKind::Constant => match (&decl, registry::constant(&sym.name)) {
+            (None, Some((_, group))) => format!("constant of {}", group.source),
+            _ => "constant".to_string(),
+        },
         SymbolKind::Component => "component".to_string(),
         SymbolKind::Sub => format!("SUB{owner}"),
         SymbolKind::Function => format!("FUNCTION{owner}"),
@@ -112,12 +115,16 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
             context::routine_statement(&s.parsed.program, &sym.name).map(|st| crate::signature::routine_label(st).0).unwrap_or_else(|| line.clone())
         }
         (Some((line, _, _)), _) if !line.is_empty() => line.clone(),
+        (None, SymbolKind::Constant) if registry::constant(&sym.name).is_some() => {
+            format!("CONST {} = {}", sym.name, registry::constant(&sym.name).map_or(0, |(v, _)| v))
+        }
         _ => match &sym.ty {
             Some(t) => format!("{} AS {t}", sym.name),
             None => sym.name.clone(),
         },
     };
-    let mut md = format!("```rapidr\n{code}\n```\n*{what}*");
+    // (a top-level SUB / FUNCTION: its signature says what it is)
+    let mut md = if what == "SUB" || what == "FUNCTION" { format!("```rapidr\n{code}\n```\n") } else { format!("```rapidr\n{code}\n```\n*{what}*") };
     if let Some(t) = &sym.ty {
         if let Some(c) = registry::component(t) {
             md.push_str(&format!(" — {}", pretty_component(c.written_name())));
@@ -130,9 +137,23 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
             md.push_str(&format!(" — `{t}`"));
         }
     }
-    if let Some((_, file, line)) = decl {
-        let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        md.push_str(&format!("\n\nDeclared in `{name}`, line {}.", line + 1));
+    let uses = s
+        .model
+        .symbols
+        .iter()
+        .position(|x| std::ptr::eq(x, sym))
+        .map_or(0, |id| s.model.references_to(id).filter(|r| r.access != crate::model::Access::Declare).count());
+    let used = match uses {
+        0 => "not used yet".to_string(),
+        1 => "used once".to_string(),
+        n => format!("used {n} times"),
+    };
+    match decl {
+        Some((_, file, line)) => {
+            let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            md.push_str(&format!("\n\nDeclared in `{name}`, line {}; {used}.", line + 1));
+        }
+        None => md.push_str(&format!("\n\n{}{}.", used[..1].to_ascii_uppercase(), &used[1..])),
     }
     md
 }

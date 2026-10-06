@@ -147,8 +147,12 @@ function findRapidr(options = {}) {
         || { path: null, tried };
 }
 
-/** `rapidr version` → "2.117.0" (it prints "RapidR <version>"); rejects when it doesn't run. */
-function rapidrVersion(file, timeoutMs = 15000) {
+/**
+ * `rapidr version` → "2.117.0" (it prints "RapidR <version>"); rejects when it doesn't run.
+ * (A freshly installed or built rapidr can take several seconds to start the
+ * first time while macOS checks it: the timeout is generous.)
+ */
+function rapidrVersion(file, timeoutMs = 60000) {
     return new Promise((resolve, reject) => {
         execFile(file, ['version'], { timeout: timeoutMs, windowsHide: true }, (err, stdout, stderr) => {
             const m = /RapidR\s+v?([0-9][^\s]*)/i.exec(String(stdout));

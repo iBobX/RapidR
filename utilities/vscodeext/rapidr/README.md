@@ -29,10 +29,12 @@ Form.          ' ← Caption, Width, ShowModal, OnClose, …
 Hover a builtin, a component member or one of your routines to see its signature and documentation. While you type a call, its parameters are shown.
 
 ```basic
-s$ = MID$(text$, 2, 3)     ' MID$(string, start [, length]) AS STRING
+s$ = MID$(text$, 2, 3)     ' MID$(str, start, [length])
 ```
 
 ![Hover](images/hover.png)
+
+![Signature help](images/signature.png)
 
 ### Diagnostics in RapidQ's words
 
@@ -54,6 +56,8 @@ Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must
 - **Rename Symbol** (F2): a variable, SUB, FUNCTION, TYPE or component, everywhere it is used.
 - **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the forms you CREATE and their components.
 - **Format Document**.
+
+![Outline](images/outline.png)
 
 ### Run, build and debug
 

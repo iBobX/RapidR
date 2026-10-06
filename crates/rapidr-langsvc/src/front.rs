@@ -126,6 +126,11 @@ impl Parsed {
         let file_line_index = file_line.checked_sub(1)?;
         let line_start = index.line_start(file_line_index)?;
         let orig_line = index.line_text(text, file_line_index);
+        // (code a directive stands for — RAPIDQ.INC's constants on its
+        // `$INCLUDE` line — is nowhere in the file)
+        if pre_line != orig_line && orig_line.trim_start().starts_with('$') {
+            return None;
+        }
         let start = line_start + map_column(pre_line, orig_line, col);
         // (a span on one line maps its end the same way; a longer one keeps
         // its length)
@@ -183,6 +188,7 @@ impl Parsed {
 /// line the preprocessor may have rewritten: the same column while the two
 /// agree, counted from the end after their last difference.
 pub(crate) fn map_column(from: &str, to: &str, col: usize) -> usize {
+    let col = col.min(from.len());
     if from == to {
         return col.min(to.len());
     }

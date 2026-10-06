@@ -232,10 +232,8 @@ fn outline_statement(s: &Snapshot, file: &Path, st: &Statement, out: &mut Vec<Ou
             }
         }
         Statement::Create(c) => {
-            let ty = pretty_component(&rapidr_ast::canonical_type_name(&c.type_name).to_ascii_uppercase());
-            let shown = crate::registry::component(&c.type_name).map_or(c.type_name.clone(), |comp| {
-                if c.type_name.to_ascii_uppercase().starts_with('Q') { pretty_component(comp.written_name()) } else { ty.clone() }
-            });
+            // (RapidQ's components under RapidQ's names, RapidR's own under RapidR's)
+            let shown = crate::registry::component(&c.type_name).map_or(c.type_name.clone(), |comp| pretty_component(comp.written_name()));
             if let Some(mut it) = item(s, file, c.span, &c.name, OutlineKind::Component, Some(shown)) {
                 for inner in &c.body {
                     if let Statement::Create(_) = inner {
