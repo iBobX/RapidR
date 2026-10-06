@@ -240,6 +240,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   flat tool buttons a soft rounded fill under the mouse; the menu bar's
   access keys underlined from the keyboard only. The classic look and every
   program's own metrics are unchanged.
+- **The dialogs the UI kernel draws** (message and input boxes, the colour
+  and font dialogs) use the look's chrome font: Inter in RapidR's look,
+  MS Sans Serif in the classic one (unchanged). RapidR Studio's own
+  dialogs follow it, with fields and buttons sized for it.
+- RDOCKMANAGER's headers are 28 pixels in every look (a pane's inside is
+  2 pixels shorter than before).
 - **On a Mac, a menu's `Ctrl+` ShortCut is ⌘** (the system menu bar's
   key equivalent; in-window menus take either), as Mac programs' keys are.
 - A flat button whose only glyph is a picture (no disabled frame) is drawn
@@ -353,6 +359,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   drawn.
 - A docked group's tabs were measured in the regular face but drawn bold:
   the shown tab's title was cut short ("Out…").
+- **A window shown from a modal form ignored the user.** Under
+  `Form.ShowModal`, `Form2.Show` opened a window that took no clicks or
+  keys (and gave the focus straight back). As in Windows, a modal form
+  now blocks only the windows that were open when it went up.
+- On Linux's Wayland sessions `Form.Hide` left the window on screen (it
+  now goes, and `Show` brings it back).
+- Keys still held when a window got the focus were typed into it (on
+  Windows, the P of a Ctrl+Shift+P that opened a window).
+- `RDOCKMANAGER.PaneTitle` of a document that wasn't the active MDI window
+  renamed the active one.
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before
   the main program does (RapidQ keeps those between calls) were listed in
