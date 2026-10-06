@@ -3743,6 +3743,8 @@ dependencies = [
  "rapidr-lang",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
 ]
 

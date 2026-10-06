@@ -51,6 +51,9 @@ fn capture(designer: Designer, scale: f64, chrome: bool) -> (Pixels, Pixels, Str
     }
     rapidr_value::objects::with_design_mut("wysiwygsurface", |s| *s = d);
     let mut ts = TextSystem::new();
+    // (bitmaps a component draws — a list view's rows — at the screen's
+    // scale, as the hosts set it for a form's)
+    rapidr_value::objects::bitmap::set_display_scale(scale);
     let mut f = FormUi::build(&store, "wysiwyghost", false);
     let list = f.paint(&store, &mut ts, scale);
     let px = rapidr_ui_render::cpu::capture(&list, &mut ts, &f);
