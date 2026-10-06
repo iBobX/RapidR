@@ -200,11 +200,12 @@ if [ "$KIND" = sdk ]; then
         PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" "$R" build native.bas > native.log 2>&1
         check "rapidr build (native)" has "$(./native 2>&1)" "native 42" || tail -5 native.log
         if [[ "$ART" == *.dmg ]]; then
-            if grep -q "this Mac's architecture only" native.log; then
-                echo "  (native build: one architecture — Rust has one macOS target here)"
-            else
-                check "the native build is universal" universal ./native
-            fi
+            # (a debug build is this Mac's architecture only; release builds are
+            # universal — setup gave the toolchain both targets)
+            check "the debug native build: this Mac's architecture" test "$(lipo -archs ./native)" = arm64
+            tc="$(sed -n 's/^rust = "\(.*\)"/\1/p' "$(dirname "$R")/../lib/rapidr/release.toml")"
+            targets="$(RUSTUP_TOOLCHAIN="$tc" "$CARGO_BIN/rustup" target list --installed 2>/dev/null | grep -c apple-darwin)"
+            check "setup gave RapidR's toolchain ($tc) both macOS targets" test "$targets" = 2
         fi
         rm -rf "$T/native-target"
         unset RUSTUP_HOME CARGO_HOME

@@ -108,10 +108,13 @@ Rosetta.
 - `rapidr build x.bas --interp` makes a universal executable by default;
   `--target macos-arm64` / `--target macos-x86_64` give one slice, taken out
   of the universal runner (`crates/rapidr-cli/src/macos.rs`, no lipo needed).
-- `rapidr build x.bas` (native) builds both slices and joins them with lipo
-  when Rust has both targets (`rustup target add aarch64-apple-darwin
+- `rapidr build x.bas --release` (native) builds both slices and joins them
+  with lipo when Rust has both targets (`rapidr setup` adds them to RapidR's
+  toolchain; by hand: `rustup target add aarch64-apple-darwin
   x86_64-apple-darwin`); with one, it builds that one and says how to get
-  universal.
+  universal. A **debug** build (`rapidr build x.bas`, the default) is this
+  Mac's architecture only: half the build time while developing; what is
+  shipped is built with `--release`.
 - **Deployment target**: `MACOSX_DEPLOYMENT_TARGET=10.13` for RapidR's own
   executables and native builds (unless the user sets it): the x86_64 slice
   runs on macOS 10.13 and later — Intel Macs up to the last macOS for them,
