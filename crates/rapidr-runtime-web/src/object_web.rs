@@ -593,6 +593,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
         return;
     }
+    // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock_web.rs).
+    if rp_comp_type(&uname) == "RDOCKMANAGER" && crate::dock_web::set(name, &lprop, &val) {
+        return;
+    }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
     // FontName / FontSize / FontColor too: one value, as on the desktop.
     if let Some(other) = rapidr_value::font_dialog::alias(&lprop).filter(|_| rp_comp_type(&uname) == "RFONTDIALOG") {
@@ -837,6 +841,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     crate::kernel_web::set_prop(&uname, &lprop, &val);
     // Align (layout_web).
     crate::layout_web::after_set(&uname, &lprop);
+    // (I1) A dock manager or its floating window resized: its panes placed.
+    crate::dock_web::after_set(&uname, &lprop);
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_header(&uname) {
         crate::kernel_web::redraw();
@@ -973,6 +979,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
+    }
+    // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" {
+        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
+            return v;
+        }
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs).
     if let Some(v) = crate::scroll_web::get(name, &lprop) {
@@ -1134,6 +1146,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // A QFORMMDI's AddChild, CascadeChild, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi_web::method(name, &lmethod, args) {
+            return v;
+        }
+    }
+    // (I1) An RDOCKMANAGER's AddPane, SaveLayout, … (dock_web.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" {
+        if let Some(v) = crate::dock_web::method(name, &lmethod, args) {
             return v;
         }
     }
@@ -2406,6 +2424,7 @@ pub fn is_component_type(type_name: &str) -> bool {
             | "RBEVEL"
             | "RDIGDISPLAY"
             | "RGLASSFRAME"
+            | "RDOCKMANAGER"
             | "RSTRINGGRID"
             | "RTABCONTROL"
             | "RTREEVIEW"

@@ -202,7 +202,9 @@ pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<
             x += wd;
         }
     }
-    let content = (1, HEADER, (w - 2).max(0), (h - HEADER - 1).max(0));
+    // (flush with the group's edges, over the header's bottom line: the
+    // pane's own border is the group's)
+    let content = (0, HEADER - 1, w, (h - HEADER + 1).max(0));
     Group { slot, panes: panes.to_vec(), active: active.min(panes.len().saturating_sub(1)), rect, tabs, buttons, content, path }
 }
 

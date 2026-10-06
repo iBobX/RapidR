@@ -212,6 +212,8 @@ impl Program for Web {
             Container::SplitMove(delta) => crate::layout_web::splitter_move(delta),
             Container::SplitEnd => crate::layout_web::splitter_end(),
             Container::Mdi { form, component, action } => crate::mdi_web::user(&form, &component, action),
+            // (I1: RDOCKMANAGER — dock_web.rs)
+            Container::Dock { id, action } => crate::dock_web::user(&id, action),
             Container::Resize { .. } => {}
         }
         invalidate();

@@ -1870,6 +1870,8 @@ pub const COMPONENT_TYPES: &[&str] = &[
     "RBEVEL", "RDIGDISPLAY",
     // RapidQ's QGLASSFRAME (rapidr_value::objects::glass)
     "RGLASSFRAME",
+    // RapidR Studio's docking (I1: rapidr_value::dock)
+    "RDOCKMANAGER",
     // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
     "RCGI", "RCOMPORT", "RDOWNLOAD", "RMIDI", "RWAVE", "RVIDEO", "RCDAUDIO",
     // Web-exclusive components

@@ -28,6 +28,9 @@ use crate::mdi;
 use crate::objects::font::Font;
 use crate::Value;
 
+/// What runs once a handler has run, with its arguments as it left them.
+pub type Then = Box<dyn FnOnce(&[Value])>;
+
 /// What a runtime provides to a dock manager.
 pub trait Runtime: Copy + 'static {
     fn get(self, name: &str, prop: &str) -> Value;
@@ -38,7 +41,7 @@ pub trait Runtime: Copy + 'static {
     fn type_of(self, name: &str) -> String;
     fn fire(self, name: &str, event: &str, args: &[Value]);
     /// Fires, then runs `then` with the arguments as the handler left them.
-    fn fire_then(self, name: &str, event: &str, args: &[Value], then: Box<dyn FnOnce(&[Value])>);
+    fn fire_then(self, name: &str, event: &str, args: &[Value], then: Then);
     /// The components parented to `name`: (name, type), in creation order.
     fn children(self, name: &str) -> Vec<(String, String)>;
     /// Components were made or moved to other parents: the windows' trees
@@ -418,7 +421,9 @@ fn place<R: Runtime>(rt: R, name: &str, parent: &str, r: Rect) {
 }
 
 fn hide<R: Runtime>(rt: R, name: &str) {
-    if rt.exists(name) && rt.get(name, "visible").to_bool() {
+    // (Visible unset reads as nothing: shown)
+    let v = rt.get(name, "visible");
+    if rt.exists(name) && (matches!(v, Value::Null) || v.to_bool()) {
         rt.set(name, "visible", int(0));
     }
 }

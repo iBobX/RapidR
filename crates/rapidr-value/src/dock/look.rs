@@ -145,7 +145,7 @@ pub fn palette(t: &Theme) -> Palette {
     Palette {
         classic: false,
         contrast: false,
-        ground: if dark { mix(t.face, 0x000000, 0.32) } else { mix(t.face, t.shadow, 0.42) },
+        ground: if dark { mix(t.face, 0x000000, 0.32) } else { mix(t.face, t.shadow, 0.62) },
         header: t.face,
         header_active: if dark { mix(t.face, t.accent, 0.10) } else { mix(t.window, t.accent, 0.07) },
         title: mix(t.text, t.face, if dark { 0.22 } else { 0.18 }),
@@ -453,7 +453,8 @@ pub fn overlay_ops(m: &Manager, g: &Geometry, t: &Theme, font: &Font) -> Vec<Op>
         let label = describe_target(target.as_ref().unwrap(), m);
         let lw = crate::objects::text::text_size(&label, font).0 + 20;
         if w > lw && h > 30 {
-            let lr = (x + (w - lw) / 2, y + (h - 24) / 2, lw, 24);
+            // (near its top, clear of the compass in its middle)
+            let lr = (x + (w - lw) / 2, y + 12.min(h / 4), lw, 24);
             ops.push(Op::Round { rect: lr, radius: if p.contrast { 0.0 } else { 4.0 }, fill: Some(p.guide_hot), stroke: None, width: 0.0 });
             text(&mut ops, lr, &label, font, if p.contrast { 0x000000 } else { t.accent_text }, Place::Center, 0);
         }
@@ -490,7 +491,14 @@ pub fn describe_target(target: &Target, m: &Manager) -> String {
     let titles = m.titles();
     let what = |a: &Anchor| match a {
         Anchor::Documents => "Documents".to_string(),
-        Anchor::Pane(p) => titles.title(p),
+        // (a group by the pane it shows)
+        Anchor::Pane(p) => match m.layout.find(p) {
+            Some(super::Where::Docked(path, _)) => match m.layout.root.at(&path) {
+                Some(super::Node::Tabs { panes, active }) => titles.title(&panes[*active]),
+                _ => titles.title(p),
+            },
+            _ => titles.title(p),
+        },
     };
     match target {
         Target::Edge(s) => format!("Dock {}", s.name()),
@@ -647,7 +655,13 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
     for (b, r) in &gr.buttons {
         let hot = hover == Some(GroupHit::Button(*b));
         let down = pressed == Some(GroupHit::Button(*b)) && hot;
-        let ink = if p.classic { t.text } else if hot { ink_title } else if active { ink_title } else { p.glyph };
+        let ink = if p.classic {
+            t.text
+        } else if hot || active {
+            ink_title
+        } else {
+            p.glyph
+        };
         if p.classic {
             fill(&mut ops, *r, t.face);
             if down {
@@ -724,7 +738,18 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
             // (a short divider between unshown tabs)
             fill(&mut ops, (x + tw, y + 8, 1, th - 16), p.border);
         }
-        let ink = if shown { p.title_active } else if hot { p.title_active } else { p.tab_text };
+        // (classic: black on the face, the unshown ones grey)
+        let ink = if p.classic {
+            if shown || hot {
+                t.text
+            } else {
+                t.gray_text
+            }
+        } else if shown || hot {
+            p.title_active
+        } else {
+            p.tab_text
+        };
         let mut tx = x + 12;
         let ic = titles.icon(&tab.pane);
         if !ic.is_empty() {

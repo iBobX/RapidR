@@ -20,8 +20,9 @@ use crate::Value;
 pub struct PaneInfo {
     /// Its component's name, lowercase.
     pub name: String,
-    /// Its component's name as the program gave it (what Pane(i) and the
-    /// events say).
+    /// Its name as Pane(i) and the events say it: lowercase, as both
+    /// runtimes' component registries keep names (a native build's
+    /// arguments arrive lowercase).
     pub given: String,
     pub title: String,
     pub icon: String,
@@ -376,7 +377,7 @@ impl Manager {
             return out;
         }
         let Some(target) = parse_where(at) else { return out };
-        self.panes.push(PaneInfo { name: name.clone(), given: component.to_string(), title: title.to_string(), icon: icon.to_string(), place: None, extent: super::DEFAULT_SIDE, float_size: super::DEFAULT_FLOAT });
+        self.panes.push(PaneInfo { name: name.clone(), given: name.clone(), title: title.to_string(), icon: icon.to_string(), place: None, extent: super::DEFAULT_SIDE, float_size: super::DEFAULT_FLOAT });
         self.initial.push((name.clone(), target.clone()));
         if self.initial.len() == 1 {
             self.initial_mode = self.layout.mode;
@@ -613,6 +614,8 @@ impl Manager {
             return out;
         }
         let was_active = self.active_document().as_deref() == Some(name);
+        // (the event names it as the program did: it's gone after this)
+        let given = self.pane(name).map_or_else(|| name.to_string(), |p| p.given.clone());
         let extent = self.extent_fn();
         self.layout.remove(name, &extent);
         self.panes.retain(|p| p.name != name);
@@ -623,7 +626,7 @@ impl Manager {
                 out.events.push(Event::pane("ondocumentactivate", &a));
             }
         }
-        out.events.push(Event::pane("onpanechange", name));
+        out.events.push(Event::pane("onpanechange", &given));
         out.changed = true;
         out
     }

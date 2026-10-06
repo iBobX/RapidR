@@ -154,7 +154,7 @@ fn geometry_places_groups_splitters_strips_and_documents() {
     assert_eq!(g.groups.len(), 3);
     let explorer = g.group_of("explorer").unwrap();
     assert_eq!(explorer.rect, (0, 0, DEFAULT_SIDE, 700));
-    assert_eq!(explorer.content, (1, HEADER, DEFAULT_SIDE - 2, 700 - HEADER - 1));
+    assert_eq!(explorer.content, (0, HEADER - 1, DEFAULT_SIDE, 700 - HEADER + 1));
     assert!(explorer.single() && explorer.buttons.iter().map(|b| b.0).eq([Button::Pin, Button::Close]));
     let output = g.group_of("output").unwrap();
     assert_eq!((output.tabs.len(), output.active), (2, 1));

@@ -51,6 +51,10 @@ pub fn set(form: &str, prop: &str, val: &Value) -> bool {
 }
 
 pub fn user(form: &str, component: &str, action: Action) {
+    // (I1: a dock manager's document area — its documents' events)
+    if rapidr_value::dock::is_docs_area(form).is_some() {
+        return crate::dock::docs_user(form, component, action);
+    }
     mdi::rt_user(Desktop, form, component, action)
 }
 

@@ -11,6 +11,8 @@ pub mod object;
 pub mod layout;
 pub mod scroll;
 pub mod mdi;
+// (I1: RDOCKMANAGER — rapidr_value::dock)
+pub mod dock;
 pub mod globals;
 pub mod program;
 pub(crate) mod sound;
