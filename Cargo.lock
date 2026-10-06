@@ -3884,6 +3884,7 @@ dependencies = [
  "js-sys",
  "rapidr-db",
  "rapidr-lang",
+ "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
  "rapidr-ui-kernel",
