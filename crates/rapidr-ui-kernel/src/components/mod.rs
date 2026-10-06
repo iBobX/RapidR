@@ -44,7 +44,7 @@ pub mod dxscreen;
 // (RapidQ's QGLASSFRAME)
 pub mod glass;
 // (Stage 10: the IDE's)
-pub mod codeedit;
+pub mod codeeditor;
 pub mod design;
 // (I1: RapidR Studio's docking)
 pub mod dock;
@@ -96,7 +96,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RRICHEDIT", &richedit::RichEdit),
     // (Stage 10: the IDE's)
     ("RDESIGNSURFACE", &design::Design),
-    ("RCODEEDITOR", &codeedit::CodeEditor),
+    ("RCODEEDITOR", &codeeditor::CodeEditor),
     // (the dialogs lane's: what only a kernel-drawn dialog draws)
     ("RDLGPART", &crate::dialogs::Part),
     // (the DirectX lane's)

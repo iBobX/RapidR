@@ -77,7 +77,7 @@ impl FormUi {
 
     /// Whether the focused component shows a caret.
     pub fn editor_focused(&self) -> bool {
-        self.focus.is_some_and(|f| self.nodes[f].ui.edit.is_some())
+        self.focus.is_some_and(|f| self.nodes[f].ui.edit.is_some() || self.nodes[f].ui.code.is_some())
     }
 
     /// When something is due next (`None`: nothing waits).

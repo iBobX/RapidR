@@ -21,6 +21,8 @@ use crate::store::{self, Store};
 pub struct NodeUi {
     /// A QEDIT's parley editor.
     pub edit: Option<Box<EditUi>>,
+    /// An RCODEEDITOR's view (components/codeeditor).
+    pub code: Option<Box<crate::components::codeeditor::CodeUi>>,
     /// A track bar's thumb being dragged.
     pub dragging: bool,
     /// The part pressed (an up-down's arrow: 0 up, 1 down).
@@ -303,7 +305,12 @@ impl FormUi {
     /// Paragraph `para`'s layout of node `id`'s editor (a memo has one per
     /// paragraph).
     pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
-        self.node(id)?.ui.edit.as_ref()?.para_layout(para)
+        let ui = &self.node(id)?.ui;
+        if let Some(code) = &ui.code {
+            // (a code editor's rows: `para` is the layout's cache slot)
+            return code.cache.layout(para);
+        }
+        ui.edit.as_ref()?.para_layout(para)
     }
 }
 

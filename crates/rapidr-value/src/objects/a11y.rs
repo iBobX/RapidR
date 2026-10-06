@@ -564,7 +564,11 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         // (its text: a PasswordChar's characters for a password)
         "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" => {
             let multi = t != "REDIT";
-            let (value, read_only) = super::with_textedit(id, |e| (e.text(), e.read_only)).unwrap_or_default();
+            // (an RCODEEDITOR's: the lines around its caret, not 10 MB)
+            let (value, read_only) = match super::with_textedit(id, |e| (e.text(), e.read_only)) {
+                Some(v) => v,
+                None => super::text_window(id).map(|w| (w.text, w.read_only)).unwrap_or_default(),
+            };
             n.value = Some(match text(get, "passwordchar").chars().next() {
                 Some(m) if !multi => std::iter::repeat_n(m, value.chars().count()).collect(),
                 _ => value,

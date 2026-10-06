@@ -207,6 +207,10 @@ pub struct CodeEditor {
     /// the whole document is replaced (or too much happened unseen).
     pub line_edits: Vec<(usize, usize, usize)>,
     pub generation: u64,
+    /// Places the view follows through edits (a snippet's tab stops): the
+    /// byte, and whether text typed at it goes before it (`true`: the
+    /// place stays at the typed text's start).
+    pub anchors: Vec<(usize, bool)>,
     /// The fold ranges, as last computed (`fold_version`: the document's
     /// version then; mapped through edits meanwhile).
     folds: Vec<FoldRange>,
@@ -314,6 +318,7 @@ impl CodeEditor {
             update_depth: 0,
             line_edits: Vec::new(),
             generation: 0,
+            anchors: Vec::new(),
             folds: Vec::new(),
             fold_anchors: Vec::new(),
             fold_version: None,
@@ -537,6 +542,9 @@ impl CodeEditor {
             for m in &mut self.markers {
                 m.at = set.map_pos(m.at, Assoc::Before);
             }
+            for (a, stays) in &mut self.anchors {
+                *a = set.map_pos(*a, if *stays { Assoc::Before } else { Assoc::After });
+            }
             for d in &mut self.diagnostics {
                 d.start = set.map_pos(d.start, Assoc::After);
                 d.end = set.map_pos(d.end, Assoc::Before).max(d.start);
@@ -758,6 +766,17 @@ impl CodeEditor {
         self.diagnostics.retain(|d| d.source != DiagSource::Service);
         self.diagnostics.extend(diags);
         self.diagnostics.sort_by_key(|d| (d.start, d.end));
+    }
+
+    /// The problems' counts: (errors, warnings, the caret line's messages).
+    pub fn line_severity_summary(&self) -> (usize, usize, Vec<String>) {
+        let errors = self.diagnostics.iter().filter(|d| d.severity == Severity::Error).count();
+        let warnings = self.diagnostics.iter().filter(|d| d.severity == Severity::Warning).count();
+        let buf = self.doc.buffer();
+        let line = buf.line_of(self.doc.selections().primary().head);
+        let (s, e) = (buf.line_start(line), buf.line_end(line));
+        let here = self.diagnostics.iter().filter(|d| d.start <= e && d.end >= s).map(|d| format!("{}: {}", d.severity.name(), d.message)).collect();
+        (errors, warnings, here)
     }
 
     /// The worst diagnostic on 0-based `line`.

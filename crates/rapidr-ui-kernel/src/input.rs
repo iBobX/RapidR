@@ -169,7 +169,7 @@ impl FormUi {
             return;
         }
         // (an open drop-down list, over everything but menus)
-        if crate::components::combo::popup_mouse_down(self, store, x, y) {
+        if crate::components::combo::popup_mouse_down(self, store, x, y) || crate::components::codeeditor::popup::popup_mouse_down(self, store, ts, x, y) {
             return;
         }
         // (scroll bars take the mouse next, over the components)
@@ -343,7 +343,7 @@ impl FormUi {
     /// else the scroll box or form whose bars it's over — Windows 10's
     /// "scroll inactive windows" rule, not the focused control's.
     pub fn mouse_wheel(&mut self, store: &dyn Store, ts: &mut TextSystem, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods) {
-        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) {
+        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) || crate::components::codeeditor::popup::popup_wheel(self, x, y, dy) {
             return;
         }
         let chain = self.hit(x, y).map(|i| self.ancestry(i)).unwrap_or_default();
