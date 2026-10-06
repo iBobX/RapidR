@@ -99,7 +99,7 @@ properties = [
   { name = "AudioOff", type = "bool", default = false },
   { name = "Error", type = "string", access = "read", design = false },
   { name = "Caption", type = "string" },
-  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSizeable" },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsNone" },
   { name = "WindowState", type = "enum", values = ["wsNormal", "wsMinimized", "wsMaximized"], default = "wsNormal" },
   { name = "Volume", type = "int", default = 0 },
   { name = "Interval", type = "int", origin = "rapidr" },

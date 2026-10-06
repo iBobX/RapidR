@@ -728,7 +728,7 @@ pub struct DxControl {
     pub height: i64,
     /// AutoSize (True unless set).
     pub autosize: bool,
-    /// AllowStretch (True unless set).
+    /// AllowStretch (False unless set: RC.EXE reads 0).
     pub stretch: bool,
     pub fullscreen: bool,
 }
@@ -752,7 +752,7 @@ pub fn dxscreen_control(id: &str, props: PropReader) -> DxControl {
         width: props(id, "width").to_i64(),
         height: props(id, "height").to_i64(),
         autosize: flag("autosize", true),
-        stretch: flag("allowstretch", true),
+        stretch: flag("allowstretch", false),
         fullscreen: flag("fullscreen", false),
     }
 }

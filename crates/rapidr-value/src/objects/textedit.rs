@@ -162,7 +162,7 @@ impl TextEdit {
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
-        let flag = |b: bool| v_int(if b { -1 } else { 0 });
+        let flag = |b: bool| v_int(b as i64);
         Some(match prop {
             "text" => v_str(&self.text()),
             "seltext" => v_str(&self.selected().replace('\n', self.line_break())),
@@ -287,12 +287,12 @@ mod tests {
         assert_eq!((r.get("wherey").unwrap().to_i64(), r.get("wherex").unwrap().to_i64()), (1, 0));
         r.set("seltext", &v_str("2"));
         assert_eq!(r.get("text").unwrap().to_string_val(), "ONE\r\n2\r\n");
-        assert_eq!(r.get("modified").unwrap().to_i64(), -1);
+        assert_eq!(r.get("modified").unwrap().to_i64(), 1);
         r.set("text", &v_str("a\r\nb"));
         assert_eq!((r.get("linecount").unwrap().to_i64(), r.get("modified").unwrap().to_i64()), (2, 0));
         r.user_edit("ab\nc", 1, 1);
         assert_eq!(r.get("seltext").unwrap().to_string_val(), "b");
-        assert_eq!(r.get("modified").unwrap().to_i64(), -1);
+        assert_eq!(r.get("modified").unwrap().to_i64(), 1);
 
         // a code editor: '\n' line breaks, its SUBs, GotoLine / GotoSub
         let mut c = TextEdit::code();

@@ -357,7 +357,7 @@ fn index(v: Option<&Value>) -> Option<usize> {
 }
 
 fn flag(b: bool) -> Value {
-    v_int(if b { -1 } else { 0 })
+    v_int(b as i64)
 }
 
 /// `text` cut to `max` pixels with "..." (as Windows shows a caption too
@@ -1544,7 +1544,7 @@ mod tests {
         let mut lv = ListView::default();
         lv.call("additems", &[s("a"), s("b"), s("c")]);
         lv.set("itemindex", &v_int(1));
-        assert_eq!(lv.call("item.selected", &[v_int(1)]).unwrap().to_i64(), -1);
+        assert_eq!(lv.call("item.selected", &[v_int(1)]).unwrap().to_i64(), 1);
         assert_eq!(lv.get("selcount").unwrap().to_i64(), 1);
         lv.call("delitems", &[v_int(2), v_int(1)]);
         assert_eq!(lv.get("itemindex").unwrap().to_i64(), -1);

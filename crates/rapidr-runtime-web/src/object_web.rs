@@ -96,27 +96,22 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         *c
     });
 
-    // What both runtimes give it (rapidr_value::component_defaults, Stage
-    // W3), then the web's own defaults by type (a type not listed: a
-    // generic place and size).
-    let mut props: HashMap<String, Value> = rapidr_value::component_defaults::shared(type_name).into_iter().collect();
+    // What every runtime gives it: the language registry's defaults,
+    // RapidQ's as RC.EXE reads them (rapidr_value::component_defaults), then
+    // the web's own by type (a type not listed: a generic place and size).
+    let mut props: HashMap<String, Value> = rapidr_value::component_defaults::creation(type_name).into_iter().collect();
     match utype.as_str() {
-        // Nothing more than both runtimes give them (and not the generic
-        // place and size below): QFORM, QBUTTON, QLABEL, the edits, check and
-        // radio buttons, the lists (items and selection:
-        // rapidr_value::objects::list), QTIMER, QIMAGE, QCANVAS, the DirectX
-        // lane's QDXSCREEN and QDXTIMER, QHEADER (sections:
-        // rapidr_value::objects::header), QSTRINGGRID, the progress bars,
-        // QSQLITE, QJSON, the file / colour / font dialogs.
+        // Nothing more (and not the generic place and size below): what the
+        // registry and the shared models give them.
         "RFORM" | "RBUTTON" | "RLABEL" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXSCREEN" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
-        | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" => {}
-        "RPANEL" | "RDESIGNSURFACE" => {
+        | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
+        | "RDATAFRAME" | "RCOOLBTN" => {}
+        "RDESIGNSURFACE" | "RPLOT" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
         }
-        // (QDXSOUND: its sound's properties are the model's; its DirectSound
-        // streaming settings are kept — manual's defaults)
+        // (QDXSOUND: its sound's properties are the model's)
         "RDXSOUND" => {
             crate::directx_web::install_sound_device();
         }
@@ -125,56 +120,13 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RDXJOYSTICK" => {
             crate::directx_web::install_joystick_source();
         }
-        // (its range and position: rapidr_value::objects::trackbar)
-        "RTRACKBAR" => {
-            props.insert("left".to_string(), v_int(0));
-            props.insert("top".to_string(), v_int(0));
-        }
-        "RWEBVIEW" => {
-            props.insert("left".to_string(), v_int(0));
-            props.insert("top".to_string(), v_int(0));
-        }
         "RWEBAUDIO" | "RWEBVIDEO" => {
             props.insert("src".to_string(), v_str(""));
-            props.insert("volume".to_string(), Value::Double(1.0));
-        }
-        "RWEBSTORAGE" => {
-            props.insert("storagetype".to_string(), v_str("local"));
-        }
-        "RWEBNOTIFICATION" => {
-            props.insert("title".to_string(), v_str("Notification"));
-            props.insert("body".to_string(), v_str(""));
-        }
-        "RNUM" => {
-            // Non-visual component — no DOM element
-        }
-        "RDATAFRAME" => {
-            // Non-visual component — no DOM element
-        }
-        "RPLOT" => {
-            props.insert("left".to_string(), v_int(0));
-            props.insert("top".to_string(), v_int(0));
-        }
-        "RCOOLBTN" => {
-            props.insert("caption".to_string(), v_str(""));
-            props.insert("left".to_string(), v_int(0));
-            props.insert("top".to_string(), v_int(0));
-            props.insert("flat".to_string(), v_bool(false));
-            props.insert("groupindex".to_string(), v_int(0));
-            props.insert("down".to_string(), v_bool(false));
-            props.insert("allowallup".to_string(), v_bool(false));
-            props.insert("numbmps".to_string(), v_int(1));
         }
         "ROVALBTN" => {
-            props.insert("caption".to_string(), v_str(""));
-            props.insert("left".to_string(), v_int(0));
-            props.insert("top".to_string(), v_int(0));
             props.insert("color".to_string(), v_int(0xDCDCDC));
             props.insert("colorhighlight".to_string(), v_int(0xFFFFFF));
             props.insert("colorshadow".to_string(), v_int(0x808080));
-            props.insert("flat".to_string(), v_bool(false));
-            props.insert("groupindex".to_string(), v_int(0));
-            props.insert("down".to_string(), v_bool(false));
         }
         "RFILESTREAM" => {
             // In-browser virtual file: text + filename, plus a download/pickfile bridge.
@@ -190,22 +142,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             props.insert("height".to_string(), v_int(25));
         }
     }
-
-    // (the desktop's own defaults too — the kernel draws, and the program
-    // reads, what it does on the desktop: a QLABEL's FontSize, a QFORM's
-    // BorderStyle …)
-    props.extend(rapidr_value::component_defaults::desktop(type_name));
     // (the web's own elements show until the program hides them, and say so)
     if matches!(utype.as_str(), "RWEBVIEW" | "RDOM" | "RWEBAUDIO" | "RWEBVIDEO") {
         props.entry("visible".to_string()).or_insert(v_bool(true));
     }
-    // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout_web).
-    let align = rapidr_value::layout::default_align(&utype);
-    if align != rapidr_value::layout::Align::None {
-        props.insert("align".to_string(), v_int(align.value()));
-    }
-    // (the input lane's: a QSTATUSBAR's SizeGrip is True, RapidQ's default —
-    // rapidr_value::component_defaults)
     // Its size: RapidQ's, the same on every runtime (rapidr_value::layout).
     if let Some((w, h)) = rapidr_value::layout::default_size(&utype) {
         props.insert("left".to_string(), props.get("left").cloned().unwrap_or(v_int(0)));
@@ -1121,7 +1061,14 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
             return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
         }
     }
-    rapidr_value::property_read(rp_comp_get(name, prop))
+    // (a property the theme draws while unset reads the registry's default:
+    // rapidr_value::component_defaults::unset_read)
+    let v = rp_comp_get(name, prop);
+    let v = match v {
+        Value::Null => rapidr_value::component_defaults::unset_read(&rp_comp_type(name), prop).unwrap_or(Value::Null),
+        v => v,
+    };
+    rapidr_value::property_read(v)
 }
 
 /// `x = Obj.Method(…)` in a program: the method's result as RapidQ gives it

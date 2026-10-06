@@ -637,6 +637,8 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     if desk.screen_cursor != 0 {
         return Cursor::of(desk.screen_cursor);
     }
+    const CR_HSPLIT: i64 = -14;
+    const CR_VSPLIT: i64 = -15;
     let Some(f) = desk.forms.get(form) else { return Cursor::Default };
     let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
     // (the input lane's: a status bar's size grip is the window's sizing
@@ -649,7 +651,11 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     }
     let id = node.map_or(f.ui.form.as_str(), |n| n.id.as_str());
     let code = rapidr_ui_kernel::store::int(store, id, "cursor", 0);
-    if code != 0 {
+    // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
+    // splitter's direction decides, as Delphi's TSplitter swaps them when
+    // its Align changes)
+    let split = node.is_some_and(|n| n.type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
+    if code != 0 && !split {
         return Cursor::of(code);
     }
     let Some(n) = node else { return Cursor::Default };

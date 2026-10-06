@@ -212,7 +212,7 @@ fn index(v: Option<&Value>) -> Option<usize> {
 }
 
 fn flag(on: bool) -> Value {
-    v_int(if on { -1 } else { 0 })
+    v_int(on as i64)
 }
 
 impl StringGrid {

@@ -23,20 +23,14 @@ pub struct RpComponent {
 
 impl RpComponent {
     pub fn new(type_name: &str) -> Self {
-        // What both runtimes give it, then the desktop's own defaults by
-        // type (rapidr_value::component_defaults, Stage W3).
-        let mut props: HashMap<String, Value> = rapidr_value::component_defaults::shared(type_name).into_iter().collect();
-        props.extend(rapidr_value::component_defaults::desktop(type_name));
+        // What every runtime gives it: the language registry's defaults,
+        // RapidQ's as RC.EXE reads them (rapidr_value::component_defaults).
+        let mut props: HashMap<String, Value> = rapidr_value::component_defaults::creation(type_name).into_iter().collect();
         let tn = type_name.to_uppercase();
         // Its size: RapidQ's, the same on every runtime (rapidr_value::layout).
         if let Some((w, h)) = rapidr_value::layout::default_size(&tn) {
             props.insert("width".into(), v_int(w));
             props.insert("height".into(), v_int(h));
-        }
-        // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout.rs).
-        let align = rapidr_value::layout::default_align(&tn);
-        if align != rapidr_value::layout::Align::None {
-            props.insert("align".into(), v_int(align.value()));
         }
         Self {
             type_name: tn,
@@ -956,7 +950,14 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
             return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
         }
     }
-    rapidr_value::property_read(rp_comp_get(name, prop))
+    // (a property the theme draws while unset reads the registry's default:
+    // rapidr_value::component_defaults::unset_read)
+    let v = rp_comp_get(name, prop);
+    let v = match v {
+        Value::Null => rapidr_value::component_defaults::unset_read(&rp_comp_type(name), prop).unwrap_or(Value::Null),
+        v => v,
+    };
+    rapidr_value::property_read(v)
 }
 
 /// `x = Obj.Method(…)` in a program: the method's result as RapidQ gives it
