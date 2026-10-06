@@ -108,7 +108,8 @@ const HIGHLIGHT: u32 = 0xD77800;
 #[cfg(test)]
 const INACTIVE: u32 = 0xF0F0F0;
 #[cfg(test)]
-const BORDER: u32 = 0x908782;
+// (the classic client edge's outer line, the shadow, &HBBGGRR)
+const BORDER: u32 = 0xA0A0A0;
 #[cfg(test)]
 const CHECK_INK: u32 = 0x333333;
 
@@ -234,6 +235,9 @@ struct Layout {
     inset: i64,
     header_h: i64,
     row_h: i64,
+    /// Above the first row of a report view with a header: 2 pixels, as
+    /// Windows' list view leaves (RapidQ's capture).
+    pad: i64,
     /// An item's cell (list, small icon and icon views).
     cell: (i64, i64),
     /// Items across a line (icon views) or down a column (list view).
@@ -749,12 +753,16 @@ impl ListView {
     fn layout(&self) -> Layout {
         let font = &self.view.font;
         let text_h = text_size("Ag", font).1.max(1);
-        let inset = if self.border_style == 0 { 0 } else { 1 };
+        // (Windows' client edge: two pixels, in every theme)
+        let inset = if self.border_style == 0 { 0 } else { 2 };
         let (w, h) = (self.view.width.max(0), self.view.height.max(0));
-        let header_h = if self.has_header() { text_h + 6 } else { 0 };
+        // (as Windows' classic list view: a header 17 pixels high, rows 14,
+        // in MS Sans Serif 8 — RapidQ's capture)
+        let header_h = if self.has_header() { text_h + 4 } else { 0 };
         let small = self.small_size();
         let slot_h = small.map_or(0, |s| s.1).max(self.state_slot().map_or(0, |s| s.1));
-        let row_h = (text_h + 3).max(slot_h + 1);
+        let row_h = (text_h + 1).max(slot_h + 1);
+        let pad = if self.view_style == VS_REPORT && header_h > 0 { 2 } else { 0 };
         let n = self.items.len() as i64;
         // The widest caption with its images (list and small icon views).
         let item_w = |it: &Item| {
@@ -777,7 +785,7 @@ impl ListView {
         // Content size for a viewport `vw` × `vh`.
         let measure = |vw: i64, vh: i64| -> ((i64, i64), i64) {
             match self.view_style {
-                VS_REPORT => ((self.columns.iter().map(|c| c.width.max(0)).sum(), n * row_h), 1),
+                VS_REPORT => ((self.columns.iter().map(|c| c.width.max(0)).sum(), n * row_h + pad), 1),
                 VS_LIST => {
                     let rows = (vh / cell.1).max(1);
                     let cols = (n + rows - 1) / rows;
@@ -812,7 +820,7 @@ impl ListView {
         // (the vertical bar reaches up beside the header)
         let vbar = need_v.then_some(Bar { vertical: true, rect: (view.2, inset, view.2 + BAR, view.3), content: ch, view: vh, pos: scroll_y });
         let hbar = need_h.then_some(Bar { vertical: false, rect: (view.0, view.3, view.2, view.3 + BAR), content: cw, view: vw, pos: scroll_x });
-        Layout { inset, header_h, row_h, cell, per_line, view, content: (cw, ch), vbar, hbar, text_h }
+        Layout { inset, header_h, row_h, pad, cell, per_line, view, content: (cw, ch), vbar, hbar, text_h }
     }
 
     /// The scroll position the layout allows.
@@ -852,7 +860,7 @@ impl ListView {
         };
         match self.view_style {
             VS_REPORT => {
-                let top = l.view.1 + i * l.row_h - sy;
+                let top = l.view.1 + l.pad + i * l.row_h - sy;
                 let width: i64 = self.columns.iter().map(|c| c.width.max(0)).sum();
                 let left = l.view.0 - sx;
                 let first = self.columns.first().map_or(0, |c| c.width.max(0));
@@ -965,7 +973,11 @@ impl ListView {
         // Grid lines (report view): under the items, over the whole area.
         if self.grid_lines && self.view_style == VS_REPORT {
             let (sx, sy) = self.scroll;
-            let mut y = l.view.1 - sy % l.row_h.max(1) + l.row_h - 1;
+            // (each row's bottom line, from the first row's, below the pad)
+            let mut y = l.view.1 + l.pad - sy + l.row_h - 1;
+            while y < l.view.1 {
+                y += l.row_h.max(1);
+            }
             while y < l.view.3 {
                 b.line(l.view.0, y, l.view.2 - 1, y, c.grid);
                 y += l.row_h.max(1);
@@ -1051,7 +1063,23 @@ impl ListView {
             b.fill_rect(v.rect.0, hz.rect.1, v.rect.2, hz.rect.3, c.bar_track);
         }
         if l.inset > 0 {
-            b.rectangle(0, 0, w, h, c.border);
+            if crate::theme::current().fluent() {
+                b.rectangle(0, 0, w, h, c.border);
+                b.rectangle(1, 1, w - 1, h - 1, c.window);
+            } else {
+                // (sunken: the shadow then the dark shadow above, white then
+                // COLOR_3DLIGHT below)
+                let t = crate::theme::current();
+                let (s, d, l3, lt) = (crate::theme::bgr(t.shadow), crate::theme::bgr(t.dark_shadow), crate::theme::bgr(t.light3d), crate::theme::bgr(t.light));
+                b.line(0, 0, w - 1, 0, s);
+                b.line(0, 0, 0, h - 1, s);
+                b.line(1, 1, w - 2, 1, d);
+                b.line(1, 1, 1, h - 2, d);
+                b.line(0, h - 1, w - 1, h - 1, lt);
+                b.line(w - 1, 0, w - 1, h - 1, lt);
+                b.line(1, h - 2, w - 2, h - 2, l3);
+                b.line(w - 2, 1, w - 2, h - 2, l3);
+            }
         }
         b
     }
@@ -1491,7 +1519,7 @@ mod tests {
         let lv = report();
         let l = lv.layout();
         eprintln!("METRICS header_h={} row_h={} text_h={} view={:?}", l.header_h, l.row_h, l.text_h, l.view);
-        assert_eq!((l.header_h, l.row_h), (l.text_h + 6, l.text_h + 3));
+        assert_eq!((l.header_h, l.row_h), (l.text_h + 4, l.text_h + 1));
     }
 
     #[test]

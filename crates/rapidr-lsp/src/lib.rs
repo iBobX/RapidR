@@ -67,6 +67,14 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
         .and_then(|v| v.as_array())
         .map(|a| a.iter().filter_map(|d| d.as_str()).map(PathBuf::from).collect())
         .unwrap_or_default();
+    // Automatic case: `keywordCase` (upper, lower, proper, preserve) and
+    // `identifierCase` (declaration, preserve).
+    let setting = |name: &str| options.and_then(|o| o.get(name)).and_then(|v| v.as_str());
+    let case = rapidr_langsvc::CaseOptions {
+        keywords: setting("keywordCase").and_then(rapidr_langsvc::KeywordCase::parse).unwrap_or_default(),
+        identifiers: setting("identifierCase").and_then(rapidr_langsvc::IdentifierCase::parse).unwrap_or_default(),
+    };
+    let mut triggers = rapidr_langsvc::case::TRIGGERS.iter().map(|c| c.to_string());
     let capabilities = ServerCapabilities {
         position_encoding: Some(if utf8 { PositionEncodingKind::UTF8 } else { PositionEncodingKind::UTF16 }),
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
@@ -82,6 +90,11 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
         rename_provider: Some(OneOf::Right(RenameOptions { prepare_provider: Some(true), work_done_progress_options: Default::default() })),
         document_symbol_provider: Some(OneOf::Left(true)),
         document_formatting_provider: Some(OneOf::Left(true)),
+        document_range_formatting_provider: Some(OneOf::Left(true)),
+        document_on_type_formatting_provider: Some(DocumentOnTypeFormattingOptions {
+            first_trigger_character: triggers.next().unwrap_or_default(),
+            more_trigger_character: Some(triggers.collect()),
+        }),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
             code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
             ..Default::default()
@@ -101,7 +114,7 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
     connection.initialize_finish(id, serde_json::to_value(result).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
 
     let mut server = Server {
-        analysis: Analysis::new(rapidr_langsvc::Options { rapidq_compatible, include_dirs }),
+        analysis: Analysis::new(rapidr_langsvc::Options { rapidq_compatible, include_dirs, case }),
         open: HashSet::new(),
         dirty: false,
         published: HashMap::new(),
@@ -302,6 +315,39 @@ impl Server {
                 let indent = if p.options.insert_spaces { " ".repeat(p.options.tab_size.clamp(1, 16) as usize) } else { "\t".into() };
                 let edits: Vec<TextEdit> =
                     self.analysis.format(&path, &indent).into_iter().map(|e| TextEdit { range: self.range(&text, &index, e.start, e.end), new_text: e.text }).collect();
+                json(serde_json::to_value(edits).unwrap())
+            }
+            request::RangeFormatting::METHOD => {
+                let p: DocumentRangeFormattingParams = params(&req)?;
+                let path = uri_to_path(&p.text_document.uri);
+                let text = self.analysis.text(&path).unwrap_or_default();
+                let index = LineIndex::new(&text);
+                let indent = if p.options.insert_spaces { " ".repeat(p.options.tab_size.clamp(1, 16) as usize) } else { "\t".into() };
+                let (start, end) = (self.offset(&text, &index, p.range.start), self.offset(&text, &index, p.range.end));
+                let edits: Vec<TextEdit> = self
+                    .analysis
+                    .format_range(&path, start, end, &indent)
+                    .into_iter()
+                    .map(|e| TextEdit { range: self.range(&text, &index, e.start, e.end), new_text: e.text })
+                    .collect();
+                json(serde_json::to_value(edits).unwrap())
+            }
+            request::OnTypeFormatting::METHOD => {
+                let p: DocumentOnTypeFormattingParams = params(&req)?;
+                let path = uri_to_path(&p.text_document_position.text_document.uri);
+                let text = self.analysis.text(&path).unwrap_or_default();
+                let index = LineIndex::new(&text);
+                let offset = self.offset(&text, &index, p.text_document_position.position);
+                // (the character typed ends right before the caret; VS Code
+                // sends "\n" for Enter, whatever the file's line ends)
+                let ch = p.ch.chars().next().unwrap_or(' ');
+                let offset = if ch == '\n' { offset } else { text[..offset].rfind(ch).map_or(offset, |i| i + ch.len_utf8()) };
+                let edits: Vec<TextEdit> = self
+                    .analysis
+                    .case_edits(&path, rapidr_langsvc::CaseScope::Typed { offset, ch })
+                    .into_iter()
+                    .map(|e| TextEdit { range: self.range(&text, &index, e.start, e.end), new_text: e.text })
+                    .collect();
                 json(serde_json::to_value(edits).unwrap())
             }
             request::SemanticTokensFullRequest::METHOD => {

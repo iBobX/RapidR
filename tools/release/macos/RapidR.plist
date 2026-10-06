@@ -31,7 +31,7 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>RapidR — MIT License</string>
+	<string>Copyright © 2025–2026 Ruta Internet SRL. MIT License.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

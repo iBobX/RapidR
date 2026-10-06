@@ -56,11 +56,39 @@ impl ComponentKind for OvalBtn {
         if sunk {
             std::mem::swap(&mut lit, &mut shade);
         }
-        // (pixel indices: the ellipse through the edge pixels' centres)
-        let (ox, oy, rx, ry) = ((w - 1) as f64 / 2.0, (h - 1) as f64 / 2.0, (w - 1) as f64 / 2.0, (h - 1) as f64 / 2.0);
-        p.shape(oval(ox, oy, rx, ry, 45.0, 225.0, lit));
-        p.shape(oval(ox, oy, rx, ry, 225.0, 405.0, shade));
-        p.shape(oval(ox, oy, (rx - 2.0).max(0.0), (ry - 2.0).max(0.0), 0.0, 360.0, face));
+        // (classic, as RapidQ draws it: a black rim, inside it a ring lit
+        // from the top left, the face — on the pixel grid at 1×, smooth at a
+        // high-DPI screen's resolution; fluent: the lit / shaded rim only)
+        let rims: &[(f64, Option<u32>)] = if t.fluent() { &[(0.0, None)] } else { &[(0.0, Some(t.text)), (1.0, None)] };
+        let inner = rims.len() as f64;
+        if p.one_to_one() {
+            // (pixel indices: the ellipse through the edge pixels' centres)
+            let (ox, oy, rx, ry) = ((w - 1) as f64 / 2.0, (h - 1) as f64 / 2.0, (w - 1) as f64 / 2.0, (h - 1) as f64 / 2.0);
+            for &(k, c) in rims {
+                let (a, b) = ((rx - k).max(0.0), (ry - k).max(0.0));
+                match c {
+                    Some(c) => p.shape(oval(ox, oy, a, b, 0.0, 360.0, c)),
+                    None => {
+                        p.shape(oval(ox, oy, a, b, 45.0, 225.0, lit));
+                        p.shape(oval(ox, oy, a, b, 225.0, 405.0, shade));
+                    }
+                }
+            }
+            p.shape(oval(ox, oy, (rx - inner).max(0.0), (ry - inner).max(0.0), 0.0, 360.0, face));
+        } else {
+            let (c, rx, ry) = ((w as f64 / 2.0, h as f64 / 2.0), w as f64 / 2.0, h as f64 / 2.0);
+            for &(k, col) in rims {
+                let r = ((rx - k).max(0.0), (ry - k).max(0.0));
+                match col {
+                    Some(col) => p.ellipse(c, r, 0.0, 360.0, col),
+                    None => {
+                        p.ellipse(c, r, 45.0, 225.0, lit);
+                        p.ellipse(c, r, 225.0, 405.0, shade);
+                    }
+                }
+            }
+            p.ellipse(c, ((rx - inner).max(0.0), (ry - inner).max(0.0)), 0.0, 360.0, face);
+        }
         let d = i64::from(sunk && !t.fluent());
         let text = store::string(cx.store, cx.id, "caption");
         // (its BMP glyph, the caption beside it: image.rs)

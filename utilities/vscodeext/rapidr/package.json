@@ -5,7 +5,7 @@
   "version": "2.117.0",
   "publisher": "rapidr",
   "license": "MIT",
-  "author": "Roberto Berrospe",
+  "author": "Ruta Internet SRL",
   "homepage": "https://github.com/iBobX/RapidR#readme",
   "bugs": {
     "url": "https://github.com/iBobX/RapidR/issues"
@@ -61,6 +61,11 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configurationDefaults": {
+      "[rapidr]": {
+        "editor.formatOnType": true
+      }
+    },
     "languages": [
       {
         "id": "rapidr",
@@ -307,6 +312,36 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Report what RapidQ doesn't have as warnings, for programs that must still compile with RapidQ: RapidR's own components, and Q-names RapidQ doesn't have (with a quick fix). How programs compile and run doesn't change."
+        },
+        "rapidr.keywordCase": {
+          "type": "string",
+          "enum": [
+            "upper",
+            "lower",
+            "proper",
+            "preserve"
+          ],
+          "enumDescriptions": [
+            "DIM x AS INTEGER (QuickBASIC's)",
+            "dim x as integer",
+            "Dim x As Integer (VB's)",
+            "As typed: no automatic case"
+          ],
+          "default": "upper",
+          "markdownDescription": "The case of BASIC's keywords, statements, types, directives and builtins, as you type (when a word is finished: space, Enter, `(`, `,`, `:`, `=`, an operator — `editor.formatOnType`) and in Format Document / Format Selection. Strings, comments, `$INCLUDE` paths and your own names are never touched; BASIC ignores case, so a program never changes."
+        },
+        "rapidr.identifierCase": {
+          "type": "string",
+          "enum": [
+            "declaration",
+            "preserve"
+          ],
+          "enumDescriptions": [
+            "Each use of a variable, SUB, FUNCTION or CONST as its declaration spells it, and a component's members as RapidR spells them (Form.Caption), as VB does",
+            "As typed"
+          ],
+          "default": "preserve",
+          "markdownDescription": "The case of your own names, as you type and in Format Document / Format Selection."
         },
         "rapidr.trace.server": {
           "type": "string",

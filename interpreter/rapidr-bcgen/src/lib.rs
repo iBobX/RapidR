@@ -203,18 +203,19 @@ pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Sta
     let result = b.scope.declare(SNIPPET_RESULT);
     b.scope.owner = "the evaluation".to_string();
     let index = b.module.add_function(Function { name: "<evaluate>".into(), params, ..Default::default() });
-    // A routine's own undeclared variables (RapidQ's implicit scope: kept as
-    // `Routine__name`, rapidr_ast::implicit_scope) are what its names mean
-    // in its frame, as in its code.
+    // A routine's own variables kept in global slots ([`global_slot`]) are
+    // what its names mean in its frame, as in its code: its STATICs and its
+    // undeclared ones (RapidQ's implicit scope, rapidr_ast::implicit_scope).
     let mut statements = statements.to_vec();
-    if let Some((_, f)) = target.filter(|_| !b.in_main) {
-        let prefix = format!("{}__", name_key(&f.name));
+    if let Some((fi, _)) = target.filter(|_| !b.in_main) {
         for (i, s) in module.strings.iter().enumerate() {
-            let key = name_key(s);
-            if let Some(var) = key.strip_prefix(&prefix).filter(|v| !v.is_empty() && assigned_global(i)) {
-                if !b.scope.locals.contains_key(var) {
-                    rapidr_ast::implicit_scope::rename(&mut statements, var, rapidr_ast::strip_type_suffix(s));
-                }
+            let GlobalSlot::Routine { function, name: var, kind } = global_slot(module, s) else { continue };
+            if function != fi || !assigned_global(i) || b.scope.locals.contains_key(var) {
+                continue;
+            }
+            match kind {
+                RoutineVariable::Static => b.scope.statics.insert(var.to_string(), s.clone()),
+                RoutineVariable::Implicit => rapidr_ast::implicit_scope::rename(&mut statements, var, rapidr_ast::strip_type_suffix(s)),
             }
         }
     }
@@ -239,6 +240,66 @@ pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Sta
     f.n_locals = b.scope.next_slot as u32;
     f.local_names = b.scope.display.clone();
     Ok(Snippet { module: b.module, function: index })
+}
+
+/// What a global slot of a compiled program holds (the VM's globals are
+/// keyed by the string pool: `rapidr_vm::Vm::global_values`), for the
+/// debugger: a global of the program, a routine's own variable the
+/// compiler keeps in a global slot, or the compiler's bookkeeping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalSlot<'m> {
+    /// One of the program's globals, under its source spelling.
+    Global,
+    /// Variable `name` (as the source spells it) of routine `function`.
+    Routine { function: u32, name: &'m str, kind: RoutineVariable },
+    /// Not a variable of the program (a STATIC's first-run flag, a
+    /// compiler-made `__` name).
+    Internal,
+}
+
+/// How a routine's own variable came to live in a global slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoutineVariable {
+    /// `STATIC n AS INTEGER` (stored as `SUB Name::n`).
+    Static,
+    /// An undeclared variable the routine used first — RapidQ keeps it
+    /// between calls (stored as `Name__n`: rapidr_ast::implicit_scope).
+    Implicit,
+}
+
+/// What the global slot named `name` (a string of `module`'s pool) is: the
+/// one place that reads the names the compiler gives a routine's variables.
+pub fn global_slot<'m>(module: &Module, name: &'m str) -> GlobalSlot<'m> {
+    if name.is_empty() || name.starts_with("__") {
+        return GlobalSlot::Internal;
+    }
+    // STATIC: `{label}::{name}` ("SUB Tick::hits"), its flag `…#init`.
+    if let Some((label, var)) = name.rsplit_once("::") {
+        if var.ends_with("#init") || var.is_empty() {
+            return GlobalSlot::Internal;
+        }
+        let routine = label.strip_prefix("SUB ").or_else(|| label.strip_prefix("FUNCTION ")).unwrap_or(label);
+        return match module.functions.iter().position(|f| f.name.eq_ignore_ascii_case(routine)) {
+            Some(i) => GlobalSlot::Routine { function: i as u32, name: var, kind: RoutineVariable::Static },
+            None => GlobalSlot::Internal,
+        };
+    }
+    // Implicit: `{routine}__{name}`, the longest routine name that fits.
+    let key = name.to_ascii_lowercase();
+    let owner = module
+        .functions
+        .iter()
+        .enumerate()
+        .filter(|(i, f)| *i as u32 != module.entry && !f.name.is_empty() && !f.name.starts_with("__") && !f.name.starts_with('<'))
+        .filter_map(|(i, f)| {
+            let r = name_key(&f.name);
+            (key.len() > r.len() + 2 && key.starts_with(&r) && key[r.len()..].starts_with("__")).then_some((i as u32, r.len()))
+        })
+        .max_by_key(|&(_, len)| len);
+    match owner {
+        Some((function, len)) => GlobalSlot::Routine { function, name: &name[len + 2..], kind: RoutineVariable::Implicit },
+        None => GlobalSlot::Global,
+    }
 }
 
 /// BASIC identifiers are case-insensitive and may carry a type suffix

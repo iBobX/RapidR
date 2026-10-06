@@ -29,6 +29,8 @@ pub enum ModelOp {
     Focus { rect: Rect },
     /// A filled triangle (a scroll button's arrow).
     Arrow { points: [(f64, f64); 3], color: u32 },
+    /// Windows' 50 % pattern (a scroll bar's track): [`Op::Checker`].
+    Checker { rect: Rect, a: u32, b: u32 },
 }
 
 /// Where text sits in its rectangle.
@@ -67,6 +69,17 @@ pub enum Op {
     Focus { rect: Rect },
     /// A filled triangle.
     Arrow { points: [(f64, f64); 3], color: u32 },
+    /// A filled polygon exactly where its points fall (logical pixel
+    /// coordinates, off the grid where they are), smooth at any scale: the
+    /// classic look's round shapes drawn at a high-DPI screen's resolution
+    /// (a radio button's well, an oval button); a chart's areas, pie slices
+    /// and markers (RPLOT).
+    Polygon { points: Vec<(f64, f64)>, color: u32 },
+    /// Windows' 50 % pattern (a scroll bar's track, a toggled button's
+    /// face): the pixels (x, y) of `rect` with x + y odd in `a`, the others
+    /// in `b` — counted from the origin (the component's corner), each a
+    /// whole logical pixel at any scale.
+    Checker { rect: Rect, a: u32, b: u32 },
     /// A rounded rectangle, smooth (anti-aliased, off the pixel grid where
     /// it curves): filled with `fill`, its border `width` pixels wide
     /// inside its edge in `stroke` — the fluent themes' buttons, boxes and
@@ -77,15 +90,15 @@ pub enum Op {
     /// wide with round joins and ends, smooth: a fluent check mark, a
     /// chevron.
     Stroke { points: Vec<(f64, f64)>, color: u32, width: f64 },
-    /// A filled polygon exactly where its points fall (smooth, off the
-    /// pixel grid): a chart's areas, pie slices and markers (RPLOT).
-    Polygon { points: Vec<(f64, f64)>, color: u32 },
     /// A bitmap model's picture (a QCANVAS, a QIMAGE, a form's surface) by
     /// its object id, scaled into `rect`; `revision` tells a host when to
     /// upload it again.
     Image { source: String, revision: u64, rect: Rect },
     /// Clips what follows to `rect`, until the matching [`Op::ClipPop`].
     ClipPush { rect: Rect },
+    /// Clips what follows to a polygon (logical points, as [`Op::Polygon`]'s),
+    /// until the matching [`Op::ClipPop`]: a pie gauge's done part.
+    ClipPolygon { points: Vec<(f64, f64)> },
     ClipPop,
 }
 
@@ -96,6 +109,7 @@ impl From<ModelOp> for Op {
             ModelOp::Text { rect, text, angle, font, color } => Op::Text { rect, text, font, color, angle, place: Place::Center },
             ModelOp::Focus { rect } => Op::Focus { rect },
             ModelOp::Arrow { points, color } => Op::Arrow { points, color },
+            ModelOp::Checker { rect, a, b } => Op::Checker { rect, a, b },
         }
     }
 }

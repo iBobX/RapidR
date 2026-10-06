@@ -1,4 +1,4 @@
-' Components start with RapidQ's sizes, the same on every runtime.
+' Components start with RapidQ's sizes (RC.EXE reads them for components created without one), the same on every runtime.
 CREATE F AS QFORM
   CREATE A1 AS QBUTTON: END CREATE
   CREATE A2 AS QLABEL: END CREATE

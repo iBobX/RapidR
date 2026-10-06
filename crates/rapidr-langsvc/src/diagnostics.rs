@@ -95,7 +95,13 @@ fn place(parsed: &Parsed, file: &Path, start: usize, end: Option<usize>, d: &Dia
     if let Some(span_end) = end.filter(|&x| x > start) {
         end_at = end_at.min(span_end.max(start + 1));
     }
-    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at.max(start), severity: d.severity, message: d.message.clone(), code: None })
+    // (never empty on a line's text: the word focused may end at the place
+    // — `Form.`'s dot — and then the character there is underlined)
+    if end_at <= start {
+        let line_end = line_start + line_text.len();
+        end_at = (start + text[start..].chars().next().map_or(0, char::len_utf8)).min(line_end).max(start);
+    }
+    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at, severity: d.severity, message: d.message.clone(), code: None })
 }
 
 /// The part of a line a message at column `col` is about: the name it
@@ -133,7 +139,9 @@ fn focus(line: &str, col: usize, message: &str) -> (usize, usize) {
             from = end;
         }
     }
-    if let Some((s, e)) = crate::text::word_at(line, col) {
+    // (a word that ends at the column — `Form` before `Form.`'s dot — isn't
+    // what the message at the dot is about)
+    if let Some((s, e)) = crate::text::word_at(line, col).filter(|&(_, e)| e > col) {
         return (s, e);
     }
     let trimmed_end = line.trim_end().len();
@@ -163,5 +171,6 @@ mod tests {
         assert_eq!(focus(line, 0, "Too many actual parameters for Pair$"), (0, 5));
         assert_eq!(focus("PRINT b + 1", 0, "Undeclared identifier b"), (6, 7));
         assert_eq!(focus("G.Caption = \"x\"", 0, "Member CAPTION not part of class G"), (2, 9));
+        assert_eq!(focus("Form.", 4, "Member  not part of class FORM"), (4, 5));
     }
 }

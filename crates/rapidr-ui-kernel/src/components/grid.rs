@@ -280,7 +280,11 @@ impl ComponentKind for Grid {
                     for &(c, x, cw) in &l.cols {
                         let rect = (x, y, cw, rh);
                         let fixed = r < fr || c < fc;
-                        let selected = g.is_selected(c, r);
+                        // (TCustomGrid's DrawCell: the focused cell of a focused grid
+                        // isn't highlighted — it gets the focus rectangle — unless
+                        // goDrawFocusSelected or goRowSelect)
+                        let current = cx.state.focused && (g.col, g.row) == (c as i64, r as i64);
+                        let selected = g.is_selected(c, r) && (!current || g.has_option(rapidr_value::objects::grid::GO_DRAW_FOCUS_SELECTED) || g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT));
                         let text = g.cell(c, r).to_string();
                         let ellipsis = has_ellipsis(&g, c, r);
                         let list = (g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some();
@@ -319,6 +323,9 @@ impl ComponentKind for Grid {
                             }
                             if let Some(ops) = g.owner_drawing.get(&(c, r)) {
                                 p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
+                            }
+                            if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
+                                p.focus(rect);
                             }
                         });
                     }

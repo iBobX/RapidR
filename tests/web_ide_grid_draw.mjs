@@ -103,7 +103,9 @@ for (let r = 1; r <= 2; r++) for (let c = 1; c <= 3; c++) {
   const p = await gridPixel(frame2, cell.x + 3, cell.y + 3);
   if (p && p.join(",") !== background.join(",")) painted++;
 }
-ok(marked === 6 && painted === 6, `the range is highlighted (${marked} cells selected, ${painted} drawn so; background ${background})`);
+// (the focused cell itself framed by the focus rectangle, not highlighted —
+// TCustomGrid's DrawCell without goDrawFocusSelected)
+ok(marked === 6 && painted === 5, `the range is highlighted (${marked} cells selected, ${painted} drawn so; background ${background})`);
 await k.click(frame2, "Grid", [a.x + 10, a.y + 5]);
 await page.waitForTimeout(400);
 ok((await text2("Lbl")) === "selected1", `a click selects one cell again (${await text2("Lbl")})`);
@@ -121,7 +123,8 @@ const dropDown = () => frame2.evaluate(({ a }) => {
   const canvas = el.closest(".rr-kwin").querySelector("canvas.rr-kclient");
   const c = canvas.getBoundingClientRect(), g = el.getBoundingClientRect(), s = canvas.width / c.width;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const dark = (x, y) => { const d = ctx.getImageData(Math.floor((g.left - c.left + x + 0.5) * s), Math.floor((g.top - c.top + y + 0.5) * s), 1, 1).data; return (d[0] + d[1] + d[2]) / 3 < 64; };
+  // (dark: the frame, clWindowFrame 646464 in the classic look, and text)
+  const dark = (x, y) => { const d = ctx.getImageData(Math.floor((g.left - c.left + x + 0.5) * s), Math.floor((g.top - c.top + y + 0.5) * s), 1, 1).data; return (d[0] + d[1] + d[2]) / 3 < 110; };
   const top = a.y + a.height;
   let height = 0;
   while (height < 200 && dark(a.x, top + height)) height++;

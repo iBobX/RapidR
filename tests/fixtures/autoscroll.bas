@@ -3,7 +3,8 @@
 ' ClientHeight lose 17 pixels to it); scrolling moves the components (their
 ' Left / Top); Position stays within 0..Range - client; an arrow moves
 ' Increment pixels, the track a page (80); no OnMouseDown on the bars;
-' AutoScroll off keeps the program's Range.
+' AutoScroll off keeps the program's Range. (L takes its caption's width,
+' AutoSize: the box's HorzRange is 200 + 20.)
 DECLARE SUB Report
 DECLARE SUB BoxDown (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
 DIM Downs AS INTEGER
