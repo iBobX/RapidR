@@ -53,8 +53,8 @@ thread_local! {
     /// A form's WindowState as the program last set it (the app's
     /// `set_window_state` wants the one before).
     static STATES: RefCell<std::collections::HashMap<String, i64>> = RefCell::new(std::collections::HashMap::new());
-    /// The page's Open / Save dialogs' answers by request id (`None`: open).
-    static FILES: RefCell<std::collections::HashMap<u64, Option<Vec<String>>>> = RefCell::new(std::collections::HashMap::new());
+    /// The Open / Save dialogs asked for, by request id: where each is.
+    static FILES: RefCell<std::collections::HashMap<u64, FileWait>> = RefCell::new(std::collections::HashMap::new());
     /// A GUI test's results once its script ended (`rapidr_test_results`).
     static RESULTS: RefCell<Option<String>> = const { RefCell::new(None) };
     /// The program ENDed: its windows are gone, nothing more is drawn.
@@ -620,27 +620,42 @@ impl Windows for Web {
         });
         schedule();
     }
-    // (Stage W8, pulled forward: the page's Open / Save dialog — the
-    // program's files, a name, Upload… — answered into FILES; the VM's wait
-    // for it is the kernel host's, as any dialog's)
+    // (the user's real files through the browser's pickers,
+    // file_picker_web; the VM's wait for them is the kernel host's, as any
+    // dialog's)
     fn ask_files(self, id: u64, _form: Option<&str>, req: &Request) {
-        FILES.with(|f| f.borrow_mut().insert(id, None));
-        let done = std::rc::Rc::new(move |paths: Vec<String>| {
-            FILES.with(|f| f.borrow_mut().insert(id, Some(paths)));
-            later();
-        });
-        crate::object_web::page_file_dialog(req.save, req.multi, req.title.as_deref().unwrap_or(""), &req.filters, req.filter_index, req.file_name.as_deref().unwrap_or(""), done);
+        pick_files(id, req.clone(), false);
     }
     fn files_answer(self, id: u64) -> Option<Vec<String>> {
-        FILES.with(|f| {
-            let mut f = f.borrow_mut();
-            match f.get(&id) {
-                Some(Some(_)) => f.remove(&id).flatten(),
-                Some(None) => None,
-                // (never asked: cancelled)
-                None => Some(Vec::new()),
-            }
-        })
+        let wait = FILES.with(|f| f.borrow_mut().remove(&id));
+        let (answer, again) = match wait {
+            // (never asked: cancelled)
+            None => (Some(Vec::new()), None),
+            Some(FileWait::Browser) => (None, Some(FileWait::Browser)),
+            Some(FileWait::Done(paths)) => (Some(paths), None),
+            Some(FileWait::Gesture { wait, req }) => match rapidr_ui_app::dialogs::finished(wait) {
+                None => (None, Some(FileWait::Gesture { wait, req })),
+                // (its first button, now a user's gesture: the picker)
+                Some(Value::Integer(0)) => {
+                    pick_files(id, req, true);
+                    return None;
+                }
+                Some(_) => (Some(Vec::new()), None),
+            },
+            Some(FileWait::Name { wait }) => match rapidr_ui_app::dialogs::finished(wait) {
+                None => (None, Some(FileWait::Name { wait })),
+                Some(Value::String(name)) if !name.trim().is_empty() => {
+                    let name = name.trim().to_string();
+                    crate::file_picker_web::save_as_download(&name);
+                    (Some(vec![name]), None)
+                }
+                Some(_) => (Some(Vec::new()), None),
+            },
+        };
+        if let Some(w) = again {
+            FILES.with(|f| f.borrow_mut().insert(id, w));
+        }
+        answer
     }
     fn script_input(self, input: ScriptInput) {
         if matches!(input, ScriptInput::Hold(_)) {
@@ -651,6 +666,73 @@ impl Windows for Web {
     }
     fn capture_and_end(self, _prefix: &str) {
         test_end();
+    }
+}
+
+// ------------------------------------------------------- Open / Save --
+
+/// Where an Open / Save dialog is.
+enum FileWait {
+    /// The browser's picker is open (or its files are being read).
+    Browser,
+    /// No user gesture was left to open the picker with: a kernel box
+    /// whose first button opens it (a click: the gesture) is waited for.
+    Gesture { wait: u64, req: Request },
+    /// No save picker here: a kernel box asks for the name.
+    Name { wait: u64 },
+    /// Answered (none: cancelled).
+    Done(Vec<String>),
+}
+
+/// Asks for request `id`'s files (`file_picker_web`): its answer into
+/// FILES, then a turn takes it.
+fn pick_files(id: u64, req: Request, gestured: bool) {
+    FILES.with(|f| f.borrow_mut().insert(id, FileWait::Browser));
+    let r = req.clone();
+    let done = move |picked: crate::file_picker_web::Picked| {
+        use crate::file_picker_web::Picked;
+        let wait = match picked {
+            Picked::Files(paths) => FileWait::Done(paths),
+            Picked::Cancelled => FileWait::Done(Vec::new()),
+            Picked::NeedsGesture => gesture_box(r),
+            Picked::NoSavePicker => name_box(&r),
+        };
+        FILES.with(|f| f.borrow_mut().insert(id, wait));
+        later();
+    };
+    if req.save {
+        crate::file_picker_web::save(&req, gestured, done);
+    } else {
+        crate::file_picker_web::open(&req, gestured, done);
+    }
+}
+
+/// The dialog's title: the program's Caption / Title, else Open / Save As.
+fn files_title(req: &Request) -> String {
+    req.title.clone().unwrap_or_else(|| if req.save { "Save As" } else { "Open" }.to_string())
+}
+
+/// The kernel box whose button is the gesture a picker needs (Execute
+/// called with none left: from a timer, long after a click).
+fn gesture_box(req: Request) -> FileWait {
+    let text = if req.save { "Choose where to save the file." } else { "Choose the file to open." };
+    let label = if req.save { "&Save As\u{2026}" } else { "&Open\u{2026}" };
+    let pending = rapidr_ui_app::dialogs::message(Web, &files_title(&req), text, &[label, "Cancel"], None, false, |b| Value::Integer(b.map_or(-1, |i| i as i64)));
+    match pending {
+        rapidr_ui_app::dialogs::Pending::Open(wait) => FileWait::Gesture { wait, req },
+        rapidr_ui_app::dialogs::Pending::Done(_) => FileWait::Done(Vec::new()),
+    }
+}
+
+/// The kernel box that asks for a saved file's name where the browser has
+/// no save picker (Firefox, Safari): what the program writes to it goes
+/// out as a download.
+fn name_box(req: &Request) -> FileWait {
+    let initial = rapidr_value::file_dialog::with_default_ext(req.file_name.as_deref().unwrap_or(""), &req.default_ext);
+    let pending = rapidr_ui_app::dialogs::prompt(Web, &files_title(req), "File name:", &initial, "&Save", Some("Cancel"), |t| t.map_or(Value::Null, Value::String));
+    match pending {
+        rapidr_ui_app::dialogs::Pending::Open(wait) => FileWait::Name { wait },
+        rapidr_ui_app::dialogs::Pending::Done(_) => FileWait::Done(Vec::new()),
     }
 }
 

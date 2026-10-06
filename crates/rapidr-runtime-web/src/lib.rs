@@ -19,6 +19,9 @@ pub fn builtins_input_line() -> value::Value {
     builtins::rp_input_line()
 }
 mod file_io_web;
+/// QOPENDIALOG / QSAVEDIALOG on the web: the user's real files, through the
+/// browser's own pickers.
+pub mod file_picker_web;
 pub mod globals_web;
 /// The I/O and media objects' devices (QCOMPORT, QDOWNLOAD, …).
 pub mod io_web;

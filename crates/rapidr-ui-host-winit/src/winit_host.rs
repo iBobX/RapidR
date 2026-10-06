@@ -96,6 +96,11 @@ struct State {
     /// keyboard (macOS' menu bar shows its main menu).
     menus: NativeMenus,
     key_form: Option<String>,
+    /// A window under a modal one took the keyboard (a click on it): the
+    /// modal window to give it back to once the system's click is over
+    /// (`apply`) — given in the focus event itself, the click's own
+    /// activation wins on macOS, and the window below covers the dialog.
+    refocus: Option<String>,
     /// (the DirectX lane's) One of the program's windows has the keyboard.
     active: bool,
     /// Open / Save dialogs (dialogs.rs) and the waker their completion
@@ -163,6 +168,7 @@ impl WinitHost {
                 mouse: (0, 0),
                 menus,
                 key_form: None,
+                refocus: None,
                 active: true,
                 dialogs: crate::dialogs::Dialogs::default(),
                 waker,
@@ -407,6 +413,16 @@ impl Shim<'_> {
     /// Runs the program's window commands.
     fn apply(&mut self, el: &ActiveEventLoop) {
         self.note_monitor(el);
+        // (a modal window takes the keyboard back from a window below it,
+        // in front of it again — Windows keeps a modal dialog over its
+        // disabled owner)
+        if let Some(m) = self.s.refocus.take() {
+            if self.desk.modal.last() == Some(&m) {
+                if let Some(w) = self.s.wins.get(&m) {
+                    w.window.focus_window();
+                }
+            }
+        }
         // (kernel themes: the program switched — the frames follow)
         let theme = rapidr_value::theme::generation();
         if theme != self.s.theme {
@@ -949,12 +965,15 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.s.active = true;
                 self.s.key_form = Some(f.clone());
                 self.note_state(&f);
-                // A modal form keeps the focus (macOS has no owned windows).
+                // A modal form keeps the focus (macOS has no owned windows):
+                // now, and again once the click that activated this one is
+                // over (`apply`).
                 if let Some(m) = self.desk.modal.last() {
                     if *m != f {
                         if let Some(w) = self.s.wins.get(m) {
                             w.window.focus_window();
                         }
+                        self.s.refocus = Some(m.clone());
                     }
                 }
             }
@@ -978,6 +997,12 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.after_input(&f);
             }
             WindowEvent::MouseInput { state, button: b, .. } => {
+                // (a click on a window under a modal one: the system may
+                // still bring it to front as the button goes up — the modal
+                // window goes back over it then, `apply`)
+                if !self.desk.accepts_input(&f) {
+                    self.s.refocus = self.desk.modal.last().cloned();
+                }
                 let Some(b) = button(b) else { return };
                 let (x, y) = self.s.wins.get(&f).map_or((0.0, 0.0), |w| w.cursor);
                 let m = self.mods();

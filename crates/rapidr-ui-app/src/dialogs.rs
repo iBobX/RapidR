@@ -318,7 +318,14 @@ pub fn message<R: Program + Windows>(
 /// holding `initial`, OK; `then` maps the text typed (`None`: Escape, the
 /// close box) to the builtin's result.
 pub fn input<R: Program + Windows>(rt: R, title: &str, text: &str, initial: &str, then: impl FnOnce(Option<String>) -> Value + 'static) -> Pending {
-    let make = || Dialog::input(next_id(), title, text, initial);
+    prompt(rt, title, text, initial, "OK", None, then)
+}
+
+/// [`input`] whose default button is captioned `ok`, with a Cancel button
+/// captioned `cancel` when there's one (a host's own prompt: the web's
+/// "Save As" name where the browser has no save picker).
+pub fn prompt<R: Program + Windows>(rt: R, title: &str, text: &str, initial: &str, ok: &str, cancel: Option<&str>, then: impl FnOnce(Option<String>) -> Value + 'static) -> Pending {
+    let make = || Dialog::prompt(next_id(), title, text, initial, ok, cancel);
     show(rt, make, None, move |a| {
         then(match a {
             Answer::Text(t) => t,
@@ -393,14 +400,17 @@ fn files<R: Program + Windows>(rt: R, name: &str, save: bool, multi: bool) -> Pe
     rt.start();
     let id = next_id();
     let parent = forms::innermost_modal().or_else(|| rt.stacking().last().cloned());
+    // (on the modal list before the host is asked: a window the host shows
+    // for it — the web's own prompts — goes over it, the innermost, and
+    // gets the focus and the keys)
+    if let Some(p) = &parent {
+        forms::push_modal(p);
+    }
     // (a test's answer: the host isn't asked — a headless one has no
     // dialog — but the program waits for it as for the user's)
     let asked = hooked.is_none();
     if asked {
         rt.ask_files(id, parent.as_deref(), &file_dialog::request(rt, name, save, multi));
-    }
-    if let Some(p) = &parent {
-        forms::push_modal(p);
     }
     if let Some(paths) = hooked {
         hold_answer(rt, Hook::Files(id, paths));
