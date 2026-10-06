@@ -810,6 +810,8 @@ mod tests {
         let mut ts = TextSystem::new();
         let mut f = FormUi::build(&s, "f", false);
         drop(f.paint(&s, &mut ts, 1.0));
+        // (a list focused as the form shows: its OnEnter, focus.rs)
+        f.take_events();
         (s, f, ts)
     }
 

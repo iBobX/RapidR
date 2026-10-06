@@ -987,6 +987,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
     }
+    // A QFORM's MDIChildCount, TileMode (form_members_web.rs).
+    if matches!(lprop.as_str(), "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members_web::get(name, &rp_comp_type(&uname), &lprop) {
+            return v;
+        }
+    }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
@@ -1135,6 +1141,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let lmethod = method.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
+        return v;
+    }
+    // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members_web.rs).
+    if let Some(v) = crate::form_members_web::method(name, &rp_comp_type(&uname), &lmethod, args) {
         return v;
     }
     // (the I/O and media lane's: io_web.rs)
@@ -2180,6 +2190,9 @@ thread_local! {
 }
 
 fn bind_dom_event(name: &str, event: &str) {
+    // (every binding comes here: OnStartDrag makes a drag source, OnHint
+    // the hints' receiver)
+    rapidr_value::events::bound(name, event);
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
     let event_owned = event.to_string();

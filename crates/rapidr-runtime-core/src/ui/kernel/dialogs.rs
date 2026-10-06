@@ -42,6 +42,7 @@ pub(super) fn open_window(id: &str, title: &str, (w, h): (i64, i64)) {
         size: (w, h),
         position: Some(((sw - w - fw) / 2, (sh - h - fh) / 2)),
         border: true,
+        no_caption: false,
         icon: app_icon(),
         frame: Frame { resizable: false, close: true, minimize: false, maximize: false },
         state: 0,

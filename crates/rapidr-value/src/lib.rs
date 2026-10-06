@@ -23,6 +23,10 @@ pub mod tray;
 pub mod mdi;
 pub mod dock;
 pub mod events;
+// (form members: OnHint, a button's drag, ShapeForm's outline)
+pub mod hints;
+pub mod drag;
+pub mod shape;
 pub mod input;
 pub mod globals;
 pub mod file_dialog;

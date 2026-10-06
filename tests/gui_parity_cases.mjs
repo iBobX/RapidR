@@ -295,4 +295,37 @@ export const cases = [
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+  // (form members) HideTitleBar / ShowTitleBar — the client keeps its
+  // size, Height loses or gets back the title bar's (RC.EXE: 300 x 200 →
+  // 300 x 177) —, QFORM's MDI members on a form without MDI children, a
+  // list's OnEnter (focused as the form shows, a click, SetFocus), OnHint
+  // (the long hint of what the mouse is over, whatever ShowHint; the form's
+  // own over its open area) and the file list's tooltip in the capture
+  // (HintPause 100 there); hidden again last: the web's frame is the
+  // border alone.
+  { name: "form_members", events: "hide.onclick,show.onclick,arr.onclick,l2.__mousedown_5_5,l2.__mouseup_5_5,foc.onclick,ed.__mousemove_5_5,form.__mousemove_300_250,hide.onclick,l2.__mousemove_5_5",
+    dump: "lbl.caption,lh.caption,form.height,form.clientheight",
+    expect: ["lbl.caption= start300,269 h271,269 h271 s300,269 m00 e1 e2 e1 h271,269 h271", "lh.caption=[Your full name][the form][the folder's files]", "form.height=271", "form.clientheight=269"],
+    webCheck: `document.querySelector('[data-rr-form="form"]').style.height`, webExpect: "271px" },
+  // (form members) A QBUTTON dragged, RapidQ's two ways (RC.EXE, the real
+  // mouse): OnStartDrag bound — the press is OnStartDrag's, the release
+  // OnEndDrag's (no OnMouseDown / Up, no OnClick); StartDrag in OnMouseDown
+  // — the button follows the mouse, StartDrag returns at the release (RC.EXE:
+  // 150,100 → 185,125), no OnMouseUp or OnClick; a cool button too.
+  { name: "button_drag", events: "drag.__mousedown_5_5,drag.__mousemove_40_30,drag.__mouseup_40_30,mover.__mousedown_5_5,mover.__mousemove_40_30,mover.__mouseup_40_30,cool.__mousedown_3_3,cool.__mousemove_13_23,cool.__mouseup_13_23",
+    dump: "lbl.caption,mover.left,mover.top,cool.left,cool.top,drag.left",
+    expect: ["lbl.caption= start end m150,100 moved185,125 cool20,80", "mover.left=185", "mover.top=125", "cool.left=20", "cool.top=80", "drag.left=10"] },
+  // (form members) QCOMPORT's line events on a scripted port that rings and
+  // sends a break once it opens: OnWriteString then OnTxEmpty, then —
+  // looked for as OnRxChar — OnBreak, OnRing, OnRxChar (the echo).
+  { name: "comport_events", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption= open written txempty break ring rx2"] },
+  // (form members) Form.ShapeForm: an oval with a square hole cut out of a
+  // borderless form, from a $RESOURCE bitmap (white transparent); its sizes
+  // and BorderStyle unchanged. The window's outline is the host's (the
+  // desktop's window system, the page's clip path) — the captures show the
+  // inside whole.
+  { name: "shape_form", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=160x120 160 0"],
+    webCheck: `document.querySelector('[data-rr-form="form"]').style.clipPath.slice(0, 20)`, webExpect: 'path("M 80 4 h 1 v 1' },
 ];

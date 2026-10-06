@@ -174,15 +174,15 @@ methods = [
   { name = "DelFlowControl" },
 ]
 events = [
-  { name = "OnBreak", missing = true },
+  { name = "OnBreak" },
   { name = "OnClose" },
   { name = "OnComError", params = "ErrorMessage AS STRING" },
   { name = "OnOpen" },
   { name = "OnReadString" },
   { name = "OnWriteString" },
-  { name = "OnRing", missing = true },
+  { name = "OnRing" },
   { name = "OnRxChar", params = "InQue AS INTEGER" },
-  { name = "OnTxEmpty", missing = true },
+  { name = "OnTxEmpty" },
   { name = "OnError", params = "Message AS STRING" },
 ]
 

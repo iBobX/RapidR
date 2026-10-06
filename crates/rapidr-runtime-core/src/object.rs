@@ -91,12 +91,7 @@ pub fn rp_clear_event_dispatcher() -> Option<IndirectDispatcher> {
 /// bytecode function index). Dispatch goes through
 /// [`rp_set_event_dispatcher`].
 pub fn rp_bind_event_indirect(name: &str, event: &str, handler_id: u32) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut().insert(
-            (name.to_lowercase(), event.to_lowercase()),
-            EventHandler::Indirect(handler_id),
-        );
-    });
+    bind_handler(name, event, EventHandler::Indirect(handler_id));
 }
 
 fn dispatch_indirect(handler_id: u32, args: &[Value]) {
@@ -437,7 +432,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         let (prop, v) = if rp_comp_type(name) == "RFORM" {
             let (cw, ch) = form_client(name);
             let (cw, ch) = if prop_lower == "clientwidth" { (val.to_i64(), ch) } else { (cw, val.to_i64()) };
-            let (w, h) = rapidr_value::layout::form_outer_size(cw, ch, rp_comp_get(name, "borderstyle").to_i64(), menu_height(name));
+            let (w, h) = rapidr_value::layout::form_outer_size(cw, ch, rapidr_value::layout::frame_style(name, rp_comp_get(name, "borderstyle").to_i64()), menu_height(name));
             if prop_lower == "clientwidth" { ("width", w) } else { ("height", h) }
         } else {
             (if prop_lower == "clientwidth" { "width" } else { "height" }, val.to_i64())
@@ -750,6 +745,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // A form with / without its frame (bsNone): the window and its inside.
     if prop_lower == "borderstyle" && rp_comp_type(name) == "RFORM" {
+        rapidr_value::layout::set_title_bar_hidden(name, false, 0);
         #[cfg(feature = "gui")]
         crate::ui::gui_set_form_border(name);
         crate::layout::client_changed(name);
@@ -767,7 +763,7 @@ pub fn form_area(name: &str) -> (i64, i64) {
     rapidr_value::layout::form_client_size(
         rp_comp_get(name, "width").to_i64(),
         rp_comp_get(name, "height").to_i64(),
-        rp_comp_get(name, "borderstyle").to_i64(),
+        rapidr_value::layout::frame_style(name, rp_comp_get(name, "borderstyle").to_i64()),
         menu_height(name),
     )
 }
@@ -838,6 +834,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
         return v;
+    }
+    // A QFORM's MDIChildCount, TileMode (form_members.rs).
+    if matches!(prop_lower.as_str(), "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members::get(name, &rp_comp_type(name), &prop_lower) {
+            return v;
+        }
     }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
@@ -1000,6 +1002,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let method_lower = method.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if let Some(v) = crate::globals::call(name, &method_lower, args) {
+        return v;
+    }
+    // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members.rs).
+    if let Some(v) = crate::form_members::method(name, &comp_type, &method_lower, args) {
         return v;
     }
     // A file dialog's Files(i): the folder (0), then the picked names.
@@ -1266,50 +1272,32 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
 
 /// Bind a 0-argument event handler to a component.
 pub fn rp_bind_event(name: &str, event: &str, handler: fn()) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut()
-            .insert((name.to_lowercase(), event.to_lowercase()), EventHandler::Arity0(handler));
-    });
+    bind_handler(name, event, EventHandler::Arity0(handler));
 }
 
 /// Bind a 1-argument event handler to a component.
 pub fn rp_bind_event_1(name: &str, event: &str, handler: fn(Value)) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut()
-            .insert((name.to_lowercase(), event.to_lowercase()), EventHandler::Arity1(handler));
-    });
+    bind_handler(name, event, EventHandler::Arity1(handler));
 }
 
 /// Bind a 2-argument event handler to a component.
 pub fn rp_bind_event_2(name: &str, event: &str, handler: fn(Value, Value)) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut()
-            .insert((name.to_lowercase(), event.to_lowercase()), EventHandler::Arity2(handler));
-    });
+    bind_handler(name, event, EventHandler::Arity2(handler));
 }
 
 /// Bind a 3-argument event handler to a component.
 pub fn rp_bind_event_3(name: &str, event: &str, handler: fn(Value, Value, Value)) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut()
-            .insert((name.to_lowercase(), event.to_lowercase()), EventHandler::Arity3(handler));
-    });
+    bind_handler(name, event, EventHandler::Arity3(handler));
 }
 
 /// Bind a 4-argument event handler to a component.
 pub fn rp_bind_event_4(name: &str, event: &str, handler: fn(Value, Value, Value, Value)) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut()
-            .insert((name.to_lowercase(), event.to_lowercase()), EventHandler::Arity4(handler));
-    });
+    bind_handler(name, event, EventHandler::Arity4(handler));
 }
 
 /// Bind a 5-argument event handler to a component.
 pub fn rp_bind_event_5(name: &str, event: &str, handler: fn(Value, Value, Value, Value, Value)) {
-    EVENT_HANDLERS.with(|h| {
-        h.borrow_mut()
-            .insert((name.to_lowercase(), event.to_lowercase()), EventHandler::Arity5(handler));
-    });
+    bind_handler(name, event, EventHandler::Arity5(handler));
 }
 
 /// Bind a compiled handler of `n` parameters that writes them back (RapidQ's
@@ -1595,6 +1583,8 @@ fn bind_handler(name: &str, event: &str, handler: EventHandler) {
     EVENT_HANDLERS.with(|h| {
         h.borrow_mut().insert((name.to_lowercase(), event.to_lowercase()), handler);
     });
+    // (OnStartDrag makes a drag source, OnHint the hints' receiver)
+    rapidr_value::events::bound(name, event);
 }
 
 /// For the bytecode VM: `ShowModal` — and every other builtin that waits
@@ -1989,7 +1979,10 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             }
             v_null()
         }
+        // (the kernel's focus, as the web's: a list hears its OnEnter)
         "setfocus" | "focus" => {
+            #[cfg(feature = "gui")]
+            crate::ui::gui_set_focus(name);
             v_null()
         }
         "click" => {

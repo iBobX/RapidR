@@ -434,6 +434,8 @@ impl FormUi {
             crate::components::combo::paint_popup(self, store, ts, &mut p);
             // (open menus over everything)
             self.paint_menus(store, &mut p);
+            // (a tooltip over them: hint.rs)
+            self.paint_hint(ts, &mut p);
         }
         self.dirty = false;
         // (the caret's blink: tick.rs)
@@ -450,6 +452,7 @@ impl FormUi {
         let mut p = Painter::new(&mut list);
         crate::components::combo::paint_popup(self, store, ts, &mut p);
         self.paint_menus(store, &mut p);
+        self.paint_hint(ts, &mut p);
         list
     }
 

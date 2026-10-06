@@ -5,7 +5,7 @@
 OnApply = { doc = "Fires when the user presses the font dialog's Apply button; the dialog's font properties already hold the font shown." }
 OnBgClick = { doc = "Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards." }
 OnBlur = { doc = "Fires when the element loses the keyboard focus (the browser's blur)." }
-OnBreak = { doc = "A break condition on the serial line. RapidR accepts a handler for it but never fires it." }
+OnBreak = { doc = "A break condition arrived on the serial line (the other end held it low). Looked for while the program runs, as OnRxChar: on Unix the terminal marks a break in what is read, on Windows the port's error state says so, in a browser Web Serial's BreakError. (RapidQ's manual lists it as no longer supported.)" }
 OnButtonDown = { doc = "Fires when a joystick button is pressed; Button is its number, from 1 (RapidR's, looked for at each of the joystick's ticks)." }
 OnButtonUp = { doc = "Fires when a joystick button is released; Button is its number, from 1." }
 OnChange = { doc = "Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state." }
@@ -33,9 +33,9 @@ OnDrawSection = { doc = "Fires for each header section to draw (Index: the secti
 OnEdited = { doc = "Fires after the user edited tree node Index's text in place; S holds the new text, and the handler can change it before it is stored." }
 OnEditing = { doc = "Fires before the user starts editing tree node Index's text; set AllowEdit to 0 to refuse." }
 OnEllipsisClick = { doc = "Fires when the user clicks the \"…\" button of an ellipsis-style grid column's cell (Col, Row)." }
-OnEndDrag = { doc = "Fires when a drag of the control ends. RapidR doesn't start drags yet, so it doesn't fire." }
+OnEndDrag = { doc = "Fires when the drag OnStartDrag began ends: the mouse let go (instead of OnMouseUp and OnClick) or Escape pressed. No arguments." }
 OnEnded = { doc = "Fires when the audio or video reaches its end." }
-OnEnter = { doc = "Fires when the list gets the keyboard focus. RapidR doesn't fire it yet." }
+OnEnter = { doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it." }
 OnError = { doc = "Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message." }
 OnExecute = { doc = "The thread's body: the code a QTHREAD runs in the background. QTHREAD isn't in RapidR yet." }
 OnExpanded = { doc = "Fires after tree node Index has been expanded." }
@@ -44,7 +44,7 @@ OnFileSelect = { doc = "Fires when the user opens a file (not a folder) in the d
 OnFocus = { doc = "Fires when the element gets the keyboard focus (the browser's focus)." }
 OnGetImageIndex = { doc = "Fires for each tree node shown (Index) when what the tree shows changed; set `Item(Index).ImageIndex` to pick its picture." }
 OnGetSelectedIndex = { doc = "Fires for the selected tree node (Index) when what the tree shows changed; set `Item(Index).SelectedIndex` to pick its picture." }
-OnHint = { doc = "Fires when a hint is about to be shown on the form (Hint: its text). RapidR doesn't fire it yet." }
+OnHint = { doc = "The program's hint changed: the mouse came onto a component whose hint isn't the last one — Hint is the part after `|` of its Hint (all of it without one), else its parent's, up to the form's; \"\" over none or outside the windows. It fires whatever ShowHint says, the tooltip shows as usual. One handler hears the hints of every form: the one bound last, as RapidQ's Application.OnHint." }
 OnInitialize = { doc = "Fires once when the DirectX screen has been set up on its built form, before OnInitializeSurface." }
 OnInitializeSurface = { doc = "Fires once when the DirectX screen's drawing surface is ready: the place to load pictures and build a 3D scene." }
 OnKeyDown = { doc = "Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state)." }
@@ -66,7 +66,7 @@ OnPlay = { doc = "Fires when the audio or video starts or resumes playing." }
 OnPopup = { doc = "Fires just before the popup menu opens; the place to enable, check or change its items." }
 OnReadString = { doc = "Fires after ReadString has read from the serial port and waited its Wait milliseconds." }
 OnResize = { doc = "Fires when the control's size changes, by the user, the program or its alignment." }
-OnRing = { doc = "A ring signal on the serial line (a modem's incoming call). RapidR accepts a handler for it but never fires it." }
+OnRing = { doc = "The ring indicator came on (a modem's incoming call): looked for while the program runs, as OnRxChar — the port's RI line; in a browser, Web Serial's signals. (RapidQ's manual lists it as no longer supported.)" }
 OnRouteChange = { doc = "Fires when the page's route (the URL's # part) changes, by Navigate, Back, Forward or the browser." }
 OnRxChar = { doc = "Fires when bytes arrive at the serial port (InQue: how many are waiting to be read)." }
 OnScroll = { doc = "Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content." }
@@ -77,9 +77,9 @@ OnSelect = { doc = "Fires when the user selects a designed component on the desi
 OnSelectCell = { doc = "Fires before the grid selects cell (Col, Row); set CanSelect to 0 to refuse it." }
 OnSetEditText = { doc = "Fires when the user has edited grid cell (Col, Row) in place; Value is the new text." }
 OnShow = { doc = "Fires when the form is shown, by Show, ShowModal or `Visible = True`." }
-OnStartDrag = { doc = "Fires when a drag of the control starts. RapidR doesn't start drags yet, so it doesn't fire." }
+OnStartDrag = { doc = "Binding it makes the button a drag source, as in RapidQ: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments." }
 OnTimer = { doc = "Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits." }
 OnTimeUpdate = { doc = "Fires as the audio or video's CurrentTime advances while it plays." }
-OnTxEmpty = { doc = "Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it." }
+OnTxEmpty = { doc = "The output buffer is empty: everything a Write or WriteString sent has gone out — fired after its OnWriteString. (RapidQ's manual lists it as no longer supported.)" }
 OnWriteString = { doc = "Fires after WriteString has sent its text and waited its Wait milliseconds." }
-WndProc = { doc = "A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire." }
+WndProc = { doc = "A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: a QBUTTON's, QEDIT's, QPANEL's, QLABEL's, QCOMBOBOX's, QLISTBOX's get no message; binding a QCHECKBOX's, QRADIOBUTTON's or QOVALBTN's stops the program)." }

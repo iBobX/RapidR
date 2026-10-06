@@ -84,6 +84,15 @@ impl PortError {
     }
 }
 
+/// What the line did since the runtime last looked ([`Link::line_events`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LineEvents {
+    /// The ring indicator came on (a modem's incoming call), how many times.
+    pub rings: usize,
+    /// Break conditions that arrived (the line held low).
+    pub breaks: usize,
+}
+
 /// An open port.
 pub trait Link {
     fn write(&mut self, bytes: &[u8]) -> Result<(), PortError>;
@@ -97,6 +106,11 @@ pub trait Link {
         0
     }
     fn purge(&mut self, input: bool, output: bool);
+    /// What the line did since the last call (OnRing, OnBreak); nothing
+    /// for a port that can't tell.
+    fn line_events(&mut self) -> LineEvents {
+        LineEvents::default()
+    }
 }
 
 /// The system's ports.
@@ -188,8 +202,8 @@ pub type StreamAccess<'a> = &'a mut dyn FnMut(&str, Option<&[u8]>) -> Vec<u8>;
 /// The members RC.EXE refuses to set (`C.CONNECTED is a read-only value.`).
 pub const READ_ONLY: &[&str] = &["Connected", "Handle", "InQue", "OutQue", "PendingIO", "BytesNotRead", "BytesNotWritten"];
 
-/// The events the runtime looks for (OnRxChar).
-pub const EVENTS: [&str; 1] = ["onrxchar"];
+/// The events the runtime looks for (OnRxChar, OnRing, OnBreak).
+pub const EVENTS: [&str; 3] = ["onrxchar", "onring", "onbreak"];
 
 impl ComPort {
     fn settings(&self) -> Result<Settings, PortError> {
@@ -378,6 +392,8 @@ impl ComPort {
         self.status();
         if self.bytes_not_written == 0 {
             self.events.push_back(("onwritestring", Vec::new()));
+            // (all sent: the output buffer is empty — Windows' EV_TXEMPTY)
+            self.events.push_back(("ontxempty", Vec::new()));
         } else {
             self.error(SEND_TIMEOUT.to_string());
         }
@@ -402,12 +418,17 @@ impl ComPort {
         got
     }
 
-    /// The runtime's look (while the program handles OnRxChar): OnRxChar
-    /// with InQue when more has arrived since it was last told.
+    /// The runtime's look (while the program handles OnRxChar, OnRing or
+    /// OnBreak): a break that arrived (OnBreak), the ring indicator come on
+    /// (OnRing), then OnRxChar with InQue when more has arrived since it was
+    /// last told.
     pub fn look(&mut self) -> Vec<(&'static str, Vec<Value>)> {
         let Some(l) = self.link.as_mut() else { return Vec::new() };
-        let n = l.in_queue();
         let mut out = Vec::new();
+        let line = l.line_events();
+        out.extend(std::iter::repeat_n(("onbreak", Vec::new()), line.breaks.min(16)));
+        out.extend(std::iter::repeat_n(("onring", Vec::new()), line.rings.min(16)));
+        let n = l.in_queue();
         if n > self.rx_told {
             out.push(("onrxchar", vec![v_int(n as i64)]));
         }
@@ -419,8 +440,9 @@ impl ComPort {
 /// The tests' ports (`RAPIDR_TEST_COMPORT` on the desktop, the page's
 /// `RAPIDR_TEST_COMPORT` in the browser): `NAME:kind` items separated by
 /// `;` — `echo` (what's written comes back), `reply:TEXT` (each write is
-/// answered with TEXT; `\r`, `\n` escapes), `busy` (in use). Any other
-/// port isn't there. Never a real device.
+/// answered with TEXT; `\r`, `\n` escapes), `busy` (in use); a kind
+/// ending `+ring` or `+break` (or both) also rings, or sends a break, once
+/// after the port opens. Any other port isn't there. Never a real device.
 pub struct TestPorts {
     ports: Vec<(String, String)>,
 }
@@ -441,6 +463,7 @@ impl TestPorts {
 struct TestLink {
     reply: Option<Vec<u8>>,
     input: VecDeque<u8>,
+    line: LineEvents,
 }
 
 impl Link for TestLink {
@@ -463,6 +486,9 @@ impl Link for TestLink {
             self.input.clear();
         }
     }
+    fn line_events(&mut self) -> LineEvents {
+        std::mem::take(&mut self.line)
+    }
 }
 
 impl Ports for TestPorts {
@@ -472,12 +498,26 @@ impl Ports for TestPorts {
         if settings.parity > 2 {
             return Err(PortError::InvalidParameter);
         }
+        // (`+ring` / `+break`: the line's events, once after it opens)
+        let mut kind = kind;
+        let mut line = LineEvents::default();
+        loop {
+            if let Some(k) = kind.strip_suffix("+ring") {
+                line.rings += 1;
+                kind = k;
+            } else if let Some(k) = kind.strip_suffix("+break") {
+                line.breaks += 1;
+                kind = k;
+            } else {
+                break;
+            }
+        }
         let reply = match kind.split_once(':') {
             Some(("reply", text)) => Some(text.replace("\\r", "\r").replace("\\n", "\n").chars().map(|c| c as u32 as u8).collect()),
             _ if kind == "busy" => return Err(PortError::AccessDenied),
             _ => None,
         };
-        Ok(Box::new(TestLink { reply, input: VecDeque::new() }))
+        Ok(Box::new(TestLink { reply, input: VecDeque::new(), line }))
     }
 }
 
@@ -503,6 +543,7 @@ mod tests {
         assert_eq!(c.get("connected").unwrap().to_i64(), 1);
         c.call("writestring", &[v_str("hi"), v_int(0)], &mut no_stream);
         assert_eq!(c.events.pop_front().map(|e| e.0), Some("onwritestring"));
+        assert_eq!(c.events.pop_front().map(|e| e.0), Some("ontxempty"));
         assert_eq!(c.get("bytesnotread").unwrap().to_i64(), 2);
         assert_eq!(c.call("readstring", &[v_int(1), v_int(0)], &mut no_stream).unwrap().to_string_val(), "h");
         assert_eq!(c.get("bytesnotread").unwrap().to_i64(), 1);
@@ -519,5 +560,22 @@ mod tests {
         modem.call("writestring", &[v_str("ATZ\r\n"), v_int(0)], &mut no_stream);
         assert_eq!(modem.call("readstring", &[v_int(100), v_int(0)], &mut no_stream).unwrap().to_string_val(), "OK\r\n");
         assert_eq!(modem.settings().unwrap().baud, 9600);
+    }
+
+    #[test]
+    fn ring_and_break_come_to_the_look() {
+        set_ports(std::rc::Rc::new(TestPorts::parse("COM5:echo+ring+break;COM6:reply:a+b+ring")));
+        let mut c = ComPort { port: "COM5".into(), ..ComPort::default() };
+        c.call("open", &[], &mut no_stream);
+        let names: Vec<&str> = c.look().into_iter().map(|e| e.0).collect();
+        assert_eq!(names, ["onbreak", "onring"]);
+        assert!(c.look().is_empty(), "once");
+        c.call("writestring", &[v_str("x"), v_int(0)], &mut no_stream);
+        assert_eq!(c.look().into_iter().map(|e| e.0).collect::<Vec<_>>(), ["onrxchar"]);
+        let mut m = ComPort { port: "COM6".into(), ..ComPort::default() };
+        m.call("open", &[], &mut no_stream);
+        assert_eq!(m.look().into_iter().map(|e| e.0).collect::<Vec<_>>(), ["onring"]);
+        m.call("writestring", &[v_str("x"), v_int(0)], &mut no_stream);
+        assert_eq!(m.call("readstring", &[v_int(9), v_int(0)], &mut no_stream).unwrap().to_string_val(), "a+b");
     }
 }

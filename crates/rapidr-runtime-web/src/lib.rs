@@ -31,6 +31,8 @@ pub mod media_web;
 pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
+// (HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)
+mod form_members_web;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock_web;
 pub mod network_web;

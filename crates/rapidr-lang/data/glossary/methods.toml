@@ -8,8 +8,8 @@ Abs = { doc = "Replaces each element with its absolute value (in place)." }
 Accept = { doc = "Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`." }
 Acos = { doc = "Replaces each element with its arc cosine, in radians (in place). Same as `ArcCos`." }
 ActiveChild = { doc = "Brings the MDI child with index `Index` to the front, restoring it if it is minimized." }
-ActiveNextChild = { doc = "Activates the next MDI child window, the one under the active one." }
-ActivePreviousChild = { doc = "Activates the previous MDI child window, sending the active one to the back." }
+ActiveNextChild = { doc = "Activates the next MDI child window: the bottom one comes to the top. Nothing happens with fewer than two." }
+ActivePreviousChild = { doc = "Activates the previous MDI child window: the active one goes to the back. Nothing happens with fewer than two." }
 Add = { doc = "Appends one entry: a line of text to an editor or string list, or an item to a menu." }
 Add_column = { doc = "Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`." }
 Add_row = { doc = "Appends a row made of the values given. Same as `AddRow`." }
@@ -64,7 +64,7 @@ ApplyRelative = { doc = "Applies the texture wrap to mesh `M`, measured relative
 ArcCos = { doc = "Replaces each element with its arc cosine, in radians (in place). Same as `Acos`." }
 ArcSin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `Asin`." }
 ArcTan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `Atan`." }
-ArrangeIcons = { doc = "Lines up the icons of the minimized MDI child windows." }
+ArrangeIcons = { doc = "Lines up a QFORMMDI's minimized child windows along its bottom (IconArrangeChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
 Asin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`." }
 At = { doc = "Reads one value: an array's element at an index, or a DataFrame's cell by row and column name." }
 Atan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`." }
@@ -79,7 +79,7 @@ Build = { doc = "Returns the strings from `Start` to `End` joined into one, sepa
 Button = { doc = "Tells whether a joystick button is pressed." }
 Call = { doc = "Calls a global JavaScript function by name with the other arguments, and returns its result." }
 CameraLookAt = { doc = "Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on." }
-Cascade = { doc = "Arranges the MDI child windows in an overlapping cascade." }
+Cascade = { doc = "Arranges a QFORMMDI's child windows in an overlapping cascade (CascadeChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
 CascadeChild = { doc = "Arranges the MDI child windows in an overlapping cascade." }
 Ceil = { doc = "Rounds each element up to a whole number (in place)." }
 Center = { doc = "Moves the form to the middle of the screen." }
@@ -235,7 +235,7 @@ HelpCommand = { doc = "Sends command `Command` with `Data` to the help system fo
 HelpContext = { doc = "Opens the program's help file at the topic with context number `Context`." }
 HelpJump = { doc = "Opens the program's help file at the topic `JumpID`." }
 Hide = { doc = "Makes the component or form invisible; it stays loaded." }
-HideTitleBar = { doc = "Removes the form's title bar." }
+HideTitleBar = { doc = "Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height), as in RapidQ. ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide." }
 Histogram = { doc = "Draws a histogram of the values. Same as `Hist`." }
 IconArrangeChild = { doc = "Lines up the icons of the minimized MDI child windows." }
 IndexOf = { doc = "Returns the index of the first string equal to `String`, or -1." }
@@ -296,7 +296,7 @@ Neg = { doc = "Changes the sign of each element (in place). Same as `Negative`."
 Negative = { doc = "Changes the sign of each element (in place). Same as `Neg`." }
 New = { doc = "Starts anew, empty: a blank recording for a wave; on the web, a data-science object." }
 NewPage = { doc = "Ends the current page and starts a new one." }
-Next = { doc = "Activates the next MDI child window." }
+Next = { doc = "Activates a QFORMMDI's next child window (ActiveNextChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
 Nonzero = { doc = "Replaces the array with the indexes of its non-zero elements. Same as `Where`." }
 Norm = { doc = "Returns the array's length as a vector (its L2 norm)." }
 Normal = { doc = "Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`." }
@@ -315,7 +315,7 @@ Poll = { doc = "Handles what is waiting on the server: new clients, messages and
 Popup = { doc = "Shows the popup menu at screen point (`X`, `Y`)." }
 Post = { doc = "Sends form data to a URL in an HTTP POST and returns the response body." }
 Pow = { doc = "Raises each element to a power (in place). Same as `Power`." }
-Previous = { doc = "Activates the previous MDI child window." }
+Previous = { doc = "Activates a QFORMMDI's previous child window (ActivePreviousChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
 Print = { doc = "Prints the contents to the console and returns them as text. Same as `Show`." }
 Pset = { doc = "Sets the pixel at (`x`, `y`) to color `c`." }
 PurgeIn = { doc = "Discards the data waiting in the serial port's receive buffer." }
@@ -439,10 +439,10 @@ SetVertChild = { doc = "Tiles the MDI child windows side by side." }
 SetXLabel = { doc = "Sets the label of the x axis." }
 SetYLabel = { doc = "Sets the label of the y axis." }
 Shape = { doc = "The array's or frame's dimensions as text: an array's length, a frame's rows and columns." }
-ShapeForm = { doc = "Shapes the form to a bitmap file's outline, its pixels of `TransparentColor` cut away." }
+ShapeForm = { doc = "Gives the form the outline of a bitmap's pixels that aren't TransparentColor (a BMP file, or a $RESOURCE): the bitmap's pixel (x, y) is the window's (x, y) from its top left corner, frame included; what's outside — and outside the bitmap — is cut away, and the mouse reaches what's behind there. Width, Height and BorderStyle don't change; the outline stays when the form is resized. (Wayland gives no program a way to cut its window: it keeps its rectangle there.)" }
 Show = { doc = "Shows the component or form; a data-science object prints its contents." }
 ShowModal = { doc = "Shows the form and waits until it closes; returns its modal result." }
-ShowTitleBar = { doc = "Puts the form's title bar back." }
+ShowTitleBar = { doc = "Puts back the title bar HideTitleBar took away: the form gets taller by it, its client area the same." }
 Shuffle = { doc = "Puts the elements in random order (in place)." }
 Sign = { doc = "Replaces each element with its sign: -1, 0 or 1 (in place)." }
 Sin = { doc = "Replaces each element with its sine (in place)." }
@@ -451,7 +451,7 @@ Speed = { doc = "Returns a transfer's speed in bytes a second, from two `TIME$` 
 Sqrt = { doc = "Replaces each element with its square root (in place)." }
 Square = { doc = "Replaces each element with its square (in place)." }
 Start = { doc = "Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened." }
-StartDrag = { doc = "Starts dragging the button." }
+StartDrag = { doc = "Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens." }
 Std = { doc = "Returns the standard deviation of the values." }
 Stop = { doc = "Stops what is running: playback (back to the start), recording, or the server." }
 StretchDraw = { doc = "Draws a bitmap scaled to fill rectangle `Rect`." }
@@ -470,7 +470,7 @@ TextHeight = { doc = "Returns the height in pixels of the text in the current fo
 TextOut = { doc = "Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font." }
 TextRect = { doc = "Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`." }
 TextWidth = { doc = "Returns the width in pixels of the text in the current font." }
-Tile = { doc = "Tiles the MDI child windows so none overlap." }
+Tile = { doc = "Tiles a QFORMMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). A QFORM has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
 To_csv = { doc = "Saves the DataFrame to a CSV file. Same as `SaveToCSV`." }
 To_grid = { doc = "Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`." }
 To_json = { doc = "Saves the DataFrame to a JSON file. Same as `SaveToJSON`." }

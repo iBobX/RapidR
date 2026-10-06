@@ -87,6 +87,12 @@ SITES = {
     ("crates/rapidr-value/src/font_dialog.rs", "alias"): "RFONTDIALOG",
     ("crates/rapidr-value/src/font_dialog.rs", "call"): "RFONTDIALOG",
     ("crates/rapidr-value/src/globals.rs", "file_rec"): "FILEREC",
+    ("crates/rapidr-value/src/globals.rs", "hint_setting"): "APPLICATION",
+    # (form members: HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)
+    ("crates/rapidr-runtime-core/src/form_members.rs", "method"): "RFORM RFORMMDI RBUTTON RCOOLBTN ROVALBTN",
+    ("crates/rapidr-runtime-core/src/form_members.rs", "get"): "RFORM RFORMMDI",
+    ("crates/rapidr-runtime-web/src/form_members_web.rs", "method"): "RFORM RFORMMDI RBUTTON RCOOLBTN ROVALBTN",
+    ("crates/rapidr-runtime-web/src/form_members_web.rs", "get"): "RFORM RFORMMDI",
     ("crates/rapidr-value/src/layout.rs", "with"): "*",
     ("crates/rapidr-value/src/layout.rs", "default_property"): "*",
     ("crates/rapidr-value/src/mdi.rs", "call"): "RFORMMDI",
