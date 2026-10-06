@@ -35,7 +35,7 @@ pub fn now_ms() -> u64 {
 }
 
 /// Sets the node's wake to the view's next deadline.
-fn schedule(cx: &mut Cx) {
+pub(super) fn schedule(cx: &mut Cx) {
     if let Some(at) = cx.ui.code.as_ref().and_then(|c| c.next_wake()) {
         cx.ui.wake = Some(cx.ui.wake.map_or(at, |w| w.min(at)));
     }
@@ -1037,12 +1037,50 @@ pub fn ime_area(cx: &mut Cx) -> Option<Rect> {
     .flatten()
 }
 
+/// The program's requests (TriggerCompletion, FormatDocument, OpenFind …).
+fn requests(x: &mut Ctx) {
+    use rapidr_value::objects::codeedit::Request;
+    for r in std::mem::take(&mut x.c.requests) {
+        let head = x.c.doc.selections().primary().head;
+        match r {
+            Request::Completion => lang::request_completion(x, true),
+            Request::Signature => lang::request_signature(x),
+            Request::Hover(at) => lang::hover(x, at),
+            Request::Format => {
+                if lang::format(x) {
+                    edited(x, None);
+                }
+            }
+            Request::Definition => {
+                lang::goto_definition(x, head);
+            }
+            Request::References => lang::references(x, head),
+            Request::Rename(name) => {
+                if let Err(e) = lang::rename(x, head, &name) {
+                    x.ui.announce = e;
+                }
+            }
+            Request::Find(mode) => find::open(
+                x,
+                match mode.as_str() {
+                    "replace" => find::Mode::Replace,
+                    "goto" => find::Mode::Goto,
+                    "rename" => find::Mode::Rename,
+                    _ => find::Mode::Find,
+                },
+            ),
+        }
+        report_moves(x);
+    }
+}
+
 /// The view's deadlines: a drag past the edge scrolls on; idle colouring,
 /// folds and change marks; the language service's timers.
 pub fn tick(cx: &mut Cx) {
     let abs = (cx.rect.0, cx.rect.1);
     with_view(cx, |x| {
         let at = now();
+        requests(x);
         if let Some(Drag::Text { anchor, unit, add, column, at: (mx, my) }) = x.ui.drag.clone() {
             let g = x.ui.geo;
             if !inside(g.text, mx, my) {

@@ -417,7 +417,18 @@ pub const ALL: [&Scheme; 4] = [&CLASSIC, &MODERN, &DARK, &HIGH_CONTRAST];
 
 /// The scheme for `theme`.
 pub fn for_theme(theme: &Theme) -> &'static Scheme {
-    by_name(theme.name).unwrap_or(&CLASSIC)
+    // (a theme without a scheme of its own — RapidR's coming RAPIDR light,
+    // dark and high contrast — takes the one of its kind: the modern
+    // schemes are RapidR's own)
+    by_name(theme.name).unwrap_or_else(|| {
+        if theme.name.contains("contrast") || theme.name.ends_with("hc") {
+            &HIGH_CONTRAST
+        } else if theme.dark {
+            &DARK
+        } else {
+            &MODERN
+        }
+    })
 }
 
 /// The scheme called `name` (a theme's name, any case).

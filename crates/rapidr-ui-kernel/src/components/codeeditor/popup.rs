@@ -175,6 +175,9 @@ fn blocks(text: &str) -> Vec<(bool, String)> {
         }
     }
     out.retain(|(_, s)| !s.trim().is_empty());
+    for (_, s) in &mut out {
+        *s = s.trim_matches('\n').to_string();
+    }
     out
 }
 

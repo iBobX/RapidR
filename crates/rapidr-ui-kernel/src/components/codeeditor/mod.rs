@@ -329,6 +329,10 @@ pub fn sync(x: &mut Ctx) {
         x.ui.changes = lang::LineChanges::default();
     }
     update_bars(x);
+    // (the program's requests: done at the next tick, whose events reach it)
+    if !x.c.requests.is_empty() {
+        x.ui.idle_at = Some(crate::tick::now());
+    }
     if x.c.reveal != x.ui.seen_reveal {
         x.ui.seen_reveal = x.c.reveal;
         reveal_caret(x, true);

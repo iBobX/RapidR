@@ -293,6 +293,7 @@ pub fn paint(cx: &mut Cx, p: &mut Painter) {
     let (w, h) = (cx.width(), cx.height());
     let caret_on = cx.state.caret_on;
     with_view(cx, |x| paint_view(x, p, w, h, caret_on));
+    super::input::schedule(cx);
 }
 
 fn paint_view(x: &mut Ctx, p: &mut Painter, w: i64, h: i64, caret_on: bool) {

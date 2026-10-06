@@ -113,6 +113,22 @@ pub struct SemanticSpan {
     pub kind: &'static str,
 }
 
+/// What the program asked the view to do (its language features and
+/// boxes, done at the view's next tick).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Request {
+    Completion,
+    Signature,
+    /// A hover at this byte.
+    Hover(usize),
+    Format,
+    Definition,
+    References,
+    Rename(String),
+    /// The find box: `find`, `replace`, `goto`, `rename`.
+    Find(String),
+}
+
 /// The editor's options (the program's properties; the view reads them).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Options {
@@ -211,6 +227,8 @@ pub struct CodeEditor {
     /// byte, and whether text typed at it goes before it (`true`: the
     /// place stays at the typed text's start).
     pub anchors: Vec<(usize, bool)>,
+    /// The program's requests for the view.
+    pub requests: Vec<Request>,
     /// The fold ranges, as last computed (`fold_version`: the document's
     /// version then; mapped through edits meanwhile).
     folds: Vec<FoldRange>,
@@ -319,6 +337,7 @@ impl CodeEditor {
             line_edits: Vec::new(),
             generation: 0,
             anchors: Vec::new(),
+            requests: Vec::new(),
             folds: Vec::new(),
             fold_anchors: Vec::new(),
             fold_version: None,
@@ -1188,6 +1207,17 @@ impl CodeEditor {
             }
             "showsignature" => self.show_signature(&arg(0), num(1, 0)),
             "hidepopups" => self.hide_popups(),
+            "triggercompletion" => self.requests.push(Request::Completion),
+            "triggersignature" => self.requests.push(Request::Signature),
+            "triggerhover" => {
+                let at = if args.len() >= 2 { self.at_line_col(num(0, 1), num(1, 1)) } else { self.doc.selections().primary().head };
+                self.requests.push(Request::Hover(at));
+            }
+            "formatdocument" => self.requests.push(Request::Format),
+            "gotodefinition" => self.requests.push(Request::Definition),
+            "findreferences" => self.requests.push(Request::References),
+            "rename" => self.requests.push(Request::Rename(arg(0))),
+            "openfind" => self.requests.push(Request::Find(if arg(0).is_empty() { "find".into() } else { arg(0).to_lowercase() })),
             "beginupdate" => self.update_depth += 1,
             "endupdate" => self.update_depth = self.update_depth.saturating_sub(1),
             "gotolinecolumn" => {
