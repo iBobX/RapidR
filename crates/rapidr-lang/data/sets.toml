@@ -23,14 +23,3 @@ properties = [
 ]
 methods = []
 events = []
-
-# Every runtime's generic dispatch answers these for any component.
-[[set]]
-name = "generic"
-origin = "rapidr"
-properties = []
-methods = [
-  { name = "Click", value = true, doc = "Runs the control's OnClick handler, as a click would." },
-  { name = "SetParent", params = "Parent", doc = "Moves the control into another form or container: the same as setting Parent." },
-]
-events = []

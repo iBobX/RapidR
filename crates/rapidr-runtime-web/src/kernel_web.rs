@@ -934,12 +934,6 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
                 });
             }
         }
-        // (RapidR's: OnClick runs, as a click would — the desktop's too)
-        (_, "click") => rp_fire_event(name, "onclick"),
-        (_, "setparent") if !args.is_empty() => {
-            rp_comp_set(name, "parent", Value::String(args[0].to_string_val()));
-            restructure();
-        }
         _ => return None,
     }
     schedule();

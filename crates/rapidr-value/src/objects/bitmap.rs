@@ -786,12 +786,6 @@ impl Bitmap {
             self.invalidate_display();
             return Some(Value::Null);
         }
-        // RapidR's canvas names on any bitmap (a QBITMAP, a QDXSCREEN's
-        // surface): `Rect`, `SetPixel`, `Ellipse`, `DrawText`, as a
-        // QCANVAS draws them.
-        if matches!(method, "rect" | "setpixel" | "ellipse" | "drawtext") {
-            return self.canvas_call(method, args);
-        }
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
         let c = |i: usize| super::color_bgr(n(i));
         match method {

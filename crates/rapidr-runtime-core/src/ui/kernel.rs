@@ -481,9 +481,6 @@ pub fn gui_set_caption(name: &str, text: &str) {
 pub fn attach_late(_name: &str) {
     restructure();
 }
-pub fn gui_set_parent(_child: &str, _parent: &str) {
-    restructure();
-}
 pub fn gui_widget_add_items(_name: &str, _items: &str) {
     invalidate();
 }

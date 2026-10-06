@@ -1224,10 +1224,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).
-    let drawing = matches!(
-        method.as_str(),
-        "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "rect" | "setpixel" | "ellipse" | "drawtext"
-    )
+    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw")
         || (method == "pixel" && args.len() >= 3);
     // A QCANVAS is always the control's size; a QFORM's surface its client
     // area's, drawing in the form's font.

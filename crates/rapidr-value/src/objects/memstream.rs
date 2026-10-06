@@ -9,7 +9,8 @@
 //! `ReadStr(n)` is always n characters, spaces where there were no bytes; a
 //! write past the end fills the gap with zeros, one before the start is
 //! dropped; a Size that leaves Position past the new end moves it to the
-//! old end.
+//! old end. Where the two kinds differ (RC.EXE, filestream_reads.bas): a
+//! QFILESTREAM's ReadStr(n) and Read(S$) give one more character, a space.
 
 use super::codec::{bytes_to_string, string_to_bytes};
 use crate::{v_dbl, v_int, v_str, Value};
@@ -96,13 +97,47 @@ impl MemStream {
         self.data[from..end].to_vec()
     }
 
-    /// `ReadStr(n)`: always `n` characters (RapidQ's), spaces where the
+    /// `ReadBinStr(n)`: always `n` characters (RapidQ's), spaces where the
     /// stream has no more bytes; none for `n` ≤ 0.
-    pub fn read_str(&mut self, n: i64) -> String {
+    pub fn read_bin_str(&mut self, n: i64) -> String {
         let n = usize::try_from(n).unwrap_or(0).min(MAX_SIZE);
         let mut bytes = self.read(n);
         bytes.resize(n, b' ');
         bytes_to_string(&bytes)
+    }
+
+    /// `ReadStr(n)` and `Read(S$)`: a memory stream's is [`Self::read_bin_str`];
+    /// a QFILESTREAM's has one more character, a space, after them —
+    /// `ReadStr(0)` too, not a negative count's (RC.EXE: every count, at the
+    /// start, the end and past it, after ReadLine; ReadBinStr doesn't).
+    pub fn read_str(&mut self, n: i64) -> String {
+        let mut s = self.read_bin_str(n);
+        if self.file.is_some() && n >= 0 && (n as usize) < MAX_SIZE {
+            s.push(' ');
+        }
+        s
+    }
+
+    /// `ReadLine` (RC.EXE, both kinds of stream): the bytes up to the next
+    /// LF, less one CR right before it (other CRs stay, and a last line's
+    /// without an LF); Position after the LF. A NUL before the LF ends the
+    /// text there and Position goes to the end of the stream. Nothing (and
+    /// Position left) outside the data.
+    pub fn read_line(&mut self) -> String {
+        let Some(from) = self.index() else { return String::new() };
+        let rest = &self.data[from..];
+        let lf = rest.iter().position(|&b| b == b'\n');
+        let mut line = rest[..lf.unwrap_or(rest.len())].to_vec();
+        if let Some(nul) = line.iter().position(|&b| b == 0) {
+            line.truncate(nul);
+            self.pos = self.data.len() as i64;
+            return bytes_to_string(&line);
+        }
+        self.pos = (from + lf.map_or(rest.len(), |i| i + 1)) as i64;
+        if lf.is_some() && line.last() == Some(&b'\r') {
+            line.pop();
+        }
+        bytes_to_string(&line)
     }
 
     pub fn set_size(&mut self, size: i64) {
@@ -132,11 +167,11 @@ impl MemStream {
         self.pos >= self.data.len() as i64
     }
 
-    /// Lines counted as RapidQ does: by LF (so CRLF is one line), plus an
-    /// unterminated last line.
+    /// Lines counted as RapidQ does (RC.EXE): the LFs in the stream (so
+    /// CRLF is one; a last line without one isn't counted, nor a lone CR;
+    /// LFs after a NUL are).
     pub fn line_count(&self) -> i64 {
-        let lf = self.data.iter().filter(|&&b| b == b'\n').count() as i64;
-        lf + i64::from(self.data.last().is_some_and(|&b| b != b'\n'))
+        self.data.iter().filter(|&&b| b == b'\n').count() as i64
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
@@ -216,17 +251,9 @@ impl MemStream {
                 self.write(&bytes);
                 Value::Null
             }
-            "readstr" | "readbinstr" => v_str(&self.read_str(arg(0).to_i64())),
-            "readline" | "readln" => {
-                let Some(from) = self.index() else { return Some(v_str("")) };
-                let rest = &self.data[from..];
-                let len = rest.iter().position(|&b| b == b'\n').map_or(rest.len(), |i| i + 1);
-                let mut line = self.read(len);
-                while matches!(line.last(), Some(b'\n' | b'\r')) {
-                    line.pop();
-                }
-                v_str(&bytes_to_string(&line))
-            }
+            "readstr" => v_str(&self.read_str(arg(0).to_i64())),
+            "readbinstr" => v_str(&self.read_bin_str(arg(0).to_i64())),
+            "readline" | "readln" => v_str(&self.read_line()),
             "readnum" => {
                 let kind = if args.is_empty() { 4 } else { arg(0).to_i64() };
                 read_number(&self.read(number_size(kind)), kind)
@@ -323,7 +350,8 @@ mod tests {
         call(&mut m, "close", &[]);
         call(&mut m, "writeline", &[v_str("one")]);
         call(&mut m, "writestr", &[v_str("two")]);
-        assert_eq!(m.line_count(), 2);
+        // (RC.EXE: the LFs; "two" has none)
+        assert_eq!(m.line_count(), 1);
         m.set_position(0);
         assert_eq!(call(&mut m, "readline", &[]).to_string_val(), "one");
         assert_eq!(call(&mut m, "readline", &[]).to_string_val(), "two");
@@ -331,6 +359,35 @@ mod tests {
         // (RapidQ's: a Position past the new end goes to the old end)
         m.set_size(2);
         assert_eq!(m.pos, 8);
+    }
+
+    #[test]
+    fn file_reads_and_lines_as_rapidq() {
+        let file = || FileSink {
+            path: "x".into(),
+            writable: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            handle: None,
+        };
+        let mut f = MemStream { data: b"ab\0cd\r\nef".to_vec(), pos: 0, file: Some(file()) };
+        // a file's ReadStr: one more character, a space; ReadBinStr: n
+        assert_eq!(call(&mut f, "readstr", &[v_int(2)]).to_string_val(), "ab ");
+        assert_eq!(f.pos, 2);
+        f.set_position(0);
+        assert_eq!(call(&mut f, "readstr", &[v_int(0)]).to_string_val(), " ");
+        assert_eq!(call(&mut f, "readstr", &[v_int(-1)]).to_string_val(), "");
+        assert_eq!(call(&mut f, "readbinstr", &[v_int(2)]).to_string_val(), "ab");
+        // ReadLine: a NUL before the LF ends the text, Position to the end
+        f.set_position(0);
+        assert_eq!((call(&mut f, "readline", &[]).to_string_val(), f.pos), ("ab".to_string(), 9));
+        f.set_position(3);
+        assert_eq!((call(&mut f, "readline", &[]).to_string_val(), f.pos), ("cd".to_string(), 7));
+        // one CR before the LF goes; others, and a last line's, stay
+        let mut m = MemStream { data: b"x\r\r\ny\r".to_vec(), ..MemStream::default() };
+        assert_eq!(call(&mut m, "readline", &[]).to_string_val(), "x\r");
+        assert_eq!(call(&mut m, "readline", &[]).to_string_val(), "y\r");
+        assert_eq!(m.line_count(), 1);
+        assert_eq!(call(&mut m, "readstr", &[v_int(0)]).to_string_val(), "");
     }
 
     #[test]

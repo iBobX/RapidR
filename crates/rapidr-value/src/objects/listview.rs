@@ -570,11 +570,7 @@ impl ListView {
                 self.columns.extend(args.iter().map(|a| Column { caption: a.to_string_val(), width: DEFAULT_COLUMN_WIDTH }));
             }
             "clearcolumns" => self.columns.clear(),
-            // RapidR's canvas names: a list view has no surface to draw on,
-            // so nothing is drawn (as a list box that isn't owner-drawn).
-            "rect" | "setpixel" | "ellipse" | "drawtext" => {}
-            // (AddItem / DeleteItem: RapidR's other names, as a list box's)
-            "additems" | "additem" => {
+            "additems" => {
                 let at = self.items.len();
                 self.insert_at(at, args.iter().map(|a| a.to_string_val()).collect());
             }
@@ -582,7 +578,7 @@ impl ListView {
                 let at = index(args.first()).unwrap_or(usize::MAX);
                 self.insert_at(at, vec![text(1)]);
             }
-            "delitems" | "deleteitem" => {
+            "delitems" => {
                 let mut gone: Vec<usize> = args.iter().filter_map(|a| index(Some(a))).filter(|&i| i < self.items.len()).collect();
                 gone.sort_unstable();
                 gone.dedup();

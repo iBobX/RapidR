@@ -1945,19 +1945,6 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 v_null()
             }
         }
-        "setparent" => {
-            let parent = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            #[cfg(feature = "gui")]
-            {
-                crate::ui::gui_set_parent(name, &parent);
-                return v_null();
-            }
-            #[cfg(not(feature = "gui"))]
-            {
-                rp_comp_set(name, "parent", v_str(&parent));
-                v_null()
-            }
-        }
         "clear" => {
             // For ListBox, ComboBox, StringGrid, etc.
             #[cfg(feature = "gui")]
@@ -2007,10 +1994,6 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         "setfocus" | "focus" => {
-            v_null()
-        }
-        "click" => {
-            rp_fire_event(name, "onclick");
             v_null()
         }
         // (the title bar's own buttons are the system's: the set is kept,

@@ -7,7 +7,7 @@ rapidq = "QDXSCREEN"
 visual = true
 size = [100, 100]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -74,10 +74,6 @@ methods = [
   { name = "SetRenderMode", params = "M AS INTEGER" },
   { name = "SetVelocity", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER" },
   { name = "SetTextureQuality", params = "Quality AS INTEGER" },
-  { name = "Rect", origin = "rapidr", doc = "Draws the outline of a rectangle on the back buffer, as a QCANVAS's `Rect`." },
-  { name = "SetPixel", origin = "rapidr", doc = "Sets one pixel of the back buffer, as a QCANVAS's `SetPixel`." },
-  { name = "Ellipse", origin = "rapidr", doc = "Draws an ellipse on the back buffer, as a QCANVAS's `Ellipse`." },
-  { name = "DrawText", origin = "rapidr", doc = "Draws text on the back buffer in the screen's font, as a QCANVAS's `DrawText`." },
   { name = "Render" },
   { name = "CreateAnimation", missing = true },
   { name = "CreateAnimationSet", missing = true },

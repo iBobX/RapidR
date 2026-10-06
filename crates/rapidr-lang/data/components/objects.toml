@@ -350,10 +350,6 @@ methods = [
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
   { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
-  { name = "Rect", value = true, origin = "rapidr", doc = "Draws the outline of a rectangle on the bitmap, as a QCANVAS's `Rect`." },
-  { name = "SetPixel", value = true, origin = "rapidr", doc = "Sets one pixel of the bitmap, as a QCANVAS's `SetPixel`." },
-  { name = "Ellipse", value = true, origin = "rapidr", doc = "Draws an ellipse on the bitmap, as a QCANVAS's `Ellipse`." },
-  { name = "DrawText", value = true, origin = "rapidr", doc = "Draws text on the bitmap in its font, as a QCANVAS's `DrawText`." },
   { name = "LoadIcon", params = "Name AS STRING, [Size AS INTEGER], [Theme AS STRING]", origin = "rapidr", doc = "Loads one of RapidR's own icons (an icon name such as \"run\", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale." },
 ]
 events = []

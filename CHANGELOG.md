@@ -148,29 +148,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
-- **The web answers every member the desktop does.** Methods the browser
-  used to report as "not implemented" now work there exactly as in desktop
-  programs, from one shared implementation:
-  - `Click` runs a control's OnClick handler on any component.
-  - `Rect`, `SetPixel`, `Ellipse` and `DrawText` (RapidR's canvas names)
-    draw on a QBITMAP and on a QDXSCREEN's back buffer (they used to do
-    nothing on the desktop too), and in an owner-drawn QLISTBOX,
-    QCOMBOBOX or QSTRINGGRID handler alongside RapidQ's `Line`, `FillRect`,
-    `Circle`. Drawn pixels are identical in the browser and on the
-    desktop, at normal and high-DPI scale.
+- **The web answers every member the desktop does, and members RapidQ
+  doesn't have are refused as RapidQ refuses them.**
   - QSTATUSBAR `Clear` removes every panel (panels added afterwards start
     again at `Panel(0)`, as RapidQ does); QMEMORYSTREAM `Clear` empties the
-    stream (RapidQ's: `Size` and `Position` 0). Both did nothing before.
-  - QIMAGE `Clear` / `Cls` remove the picture, and `Load` loads one, as
-    `LoadFromFile` does.
-  - QLISTVIEW `AddItem` / `DeleteItem` and QPOPUPMENU `AddItem` add and
-    remove rows and items (the other names of `AddItems` / `DelItems`);
-    QEDIT `AddItems` appends the strings to its text.
-  - Drawing on a list that isn't owner-drawn, on a list view, or a flood
-    fill (`Paint`) in a list's or grid's handler draws nothing on every
-    runtime (it used to be an error in the browser).
-  - The language registry no longer marks any of these as desktop only.
-    RSERVERSOCKET stays desktop only: a web page can't listen for network
+    stream (`Size` and `Position` 0, as RapidQ). Both did nothing before,
+    and the browser didn't know them.
+  - QIMAGE `Clear` / `Cls` remove the picture and `Load` loads one, as
+    `LoadFromFile` does, in the browser too.
+  - RapidQ's drawing methods on lists and grids draw what RapidQ draws
+    (checked against programs built by RapidQ's own compiler): `Paint`
+    flood-fills in an owner-drawn list box's, combo box's or grid's
+    handler; `Line`, `FillRect`, `Circle`, `Paint` and the rest on a list
+    box that isn't owner-drawn draw on the list, which keeps the drawing
+    until it paints those rows again; on a combo box that isn't
+    owner-drawn nothing shows. Pixel for pixel the same in the browser and
+    on the desktop, at normal and high-DPI scale.
+  - `Click`, `SetParent`, and other names RapidR's desktop runtime used to
+    accept on any component (`AddItem` on a list view or popup menu,
+    `AddItems` on an edit, `Rect`, `SetPixel`, `Ellipse`, `DrawText` on a
+    list, grid, bitmap or DirectX screen, `Clear` on a bitmap …) are now
+    the compile error RapidQ gives: "Member CLICK not part of class BTN".
+    They did nothing, or nothing useful, before.
+  - RSERVERSOCKET stays desktop only: a web page can't listen for network
     connections.
 
 - **The VS Code extension and RapidR Studio know the language from the
@@ -269,17 +269,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
-- **Memory and file streams read and write out of their data exactly as
-  RapidQ.** Checked against RapidQ's own compiler: `ReadStr(n)` always
-  gives n characters, spaces where the stream has no more bytes; `Position`
-  can be set past the end (and, on a memory stream, before the start), and
-  reads there get no bytes and leave it where it is; a write past the end
-  fills the gap with zeros, one before the start writes nothing; a `Size`
-  that leaves `Position` past the new end moves it to the old end.
-  `ReadAll` (RapidR's) after the stream's start returned nothing, and
-  crashed debug native builds; it now gives the rest of the stream. The
-  same fix makes `LoadFromStream` (bitmaps, grids, image lists) read the
-  rest of a stream that was already read from.
+- **Memory and file streams read exactly as RapidQ.** Checked against
+  RapidQ's own compiler:
+  - `ReadStr(n)` always gives n characters, spaces where the stream has no
+    more bytes; a QFILESTREAM's `ReadStr(n)` and `Read(S$)` give one more
+    character, a space, as RapidQ's do (`ReadBinStr` doesn't).
+  - `ReadLine` removes only the CR right before the LF (others stay); a NUL
+    in the line ends its text and moves `Position` to the end, as in
+    RapidQ. `LineCount` counts the LFs (a last line without one isn't
+    counted).
+  - `Position` can be set past the end (and, on a memory stream, before
+    the start); reads there get no bytes and leave it where it is; a write
+    past the end fills the gap with zeros, one before the start writes
+    nothing; a `Size` that leaves `Position` past the new end moves it to
+    the old end.
+  - `ReadAll` (RapidR's) after the stream's start returned nothing, and
+    crashed debug native builds; it now gives the rest of the stream. The
+    same fix makes `LoadFromStream` (bitmaps, grids, image lists) read the
+    rest of a stream that was already read from.
 
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before

@@ -74,7 +74,6 @@ methods = [
   { name = "DelItems", params = "Items ..." },
   { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
   { name = "Popup", params = "X AS INTEGER, Y AS INTEGER" },
-  { name = "AddItem", value = true, origin = "rapidr", doc = "Appends menu items. Same as `AddItems`." },
   { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
 ]

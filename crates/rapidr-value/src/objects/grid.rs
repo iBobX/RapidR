@@ -61,6 +61,10 @@ pub enum CellDraw {
     Pixel(i64, i64, u32),
     Text(i64, i64, String, u32, Option<u32>),
     Image(i64, i64, Bitmap),
+    /// `Paint(x, y, c, borderc)`: a flood fill from (x, y) with c up to the
+    /// border colour, on the pixels drawn so far (only a raster can show
+    /// it: the runtimes draw a cell or item that has one as pixels).
+    Flood(i64, i64, u32, u32),
 }
 
 impl CellDraw {
@@ -74,6 +78,7 @@ impl CellDraw {
             CellDraw::Pixel(x, y, c) => CellDraw::Pixel(x + dx, y + dy, c),
             CellDraw::Text(x, y, text, c, bg) => CellDraw::Text(x + dx, y + dy, text, c, bg),
             CellDraw::Image(x, y, b) => CellDraw::Image(x + dx, y + dy, b),
+            CellDraw::Flood(x, y, c, border) => CellDraw::Flood(x + dx, y + dy, c, border),
         }
     }
 
@@ -93,41 +98,33 @@ impl CellDraw {
             CellDraw::Pixel(x, y, c) => bmp.pset(*x, *y, *c),
             CellDraw::Text(x, y, text, c, bg) => super::text::text_out(bmp, *x, *y, text, font, *c, *bg),
             CellDraw::Image(x, y, src) => bmp.draw(*x, *y, src),
+            CellDraw::Flood(x, y, c, border) => bmp.flood_fill(*x, *y, *c, *border),
         }
     }
 }
 
-/// An owner-draw handler's drawing call (a grid's OnDrawCell, a list's
-/// OnDrawItem — and a list that isn't owner-drawn, which keeps nothing): the
-/// point whose cell or item it's on and the op, in the control's
-/// coordinates. RapidQ's methods and RapidR's canvas names for them
-/// (`Rect`, `SetPixel`, `Ellipse`, `DrawText(text, x, y [, color])` or
-/// `(x, y, text …)`; its size isn't kept: the item's font). `Some(None)`:
-/// `Paint(x, y, c, borderc)`, a flood fill, which draws nothing here (the
-/// ops are drawn as shapes, with no pixels to fill). `None`: not a drawing
-/// method (`Draw` needs the source image: rapidr_value::objects).
-#[allow(clippy::type_complexity)]
-pub fn owner_draw_op(method: &str, args: &[Value]) -> Option<Option<((i64, i64), CellDraw)>> {
+/// A drawing call on a grid or a list (RapidQ's methods: `Line`,
+/// `Rectangle`, `FillRect`, `Circle`, `Pset`, `TextOut`, and `Paint(x, y,
+/// c, borderc)`, its flood fill): the point it's anchored at and the op, in
+/// the control's coordinates. `None`: not one of them (`Draw` needs the
+/// source image: rapidr_value::objects; `Paint` with fewer arguments is a
+/// repaint).
+pub fn owner_draw_op(method: &str, args: &[Value]) -> Option<((i64, i64), CellDraw)> {
     let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
     let c = |i: usize| crate::objects::color_bgr(n(i));
     let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
     let at = (n(0), n(1));
-    Some(Some(match method {
+    Some(match method {
         "line" => (at, CellDraw::Line(n(0), n(1), n(2), n(3), c(4))),
-        "rectangle" | "rect" => (at, CellDraw::Rect(n(0), n(1), n(2), n(3), c(4))),
+        "rectangle" => (at, CellDraw::Rect(n(0), n(1), n(2), n(3), c(4))),
         "fillrect" => (at, CellDraw::Fill(n(0), n(1), n(2), n(3), c(4))),
-        "circle" | "ellipse" => (at, CellDraw::Ellipse(n(0), n(1), n(2), n(3), c(4), optional(5))),
-        "pset" | "setpixel" => (at, CellDraw::Pixel(n(0), n(1), c(2))),
+        "circle" => (at, CellDraw::Ellipse(n(0), n(1), n(2), n(3), c(4), optional(5))),
+        "pset" => (at, CellDraw::Pixel(n(0), n(1), c(2))),
         // TextOut(x, y, text, color, background (-1: transparent)).
         "textout" => (at, CellDraw::Text(n(0), n(1), args.get(2).map(Value::to_string_val).unwrap_or_default(), c(3), optional(4))),
-        "drawtext" => {
-            let text_first = !matches!(args.first(), Some(Value::Integer(_) | Value::Double(_)));
-            let (text, x, y) = if text_first { (args.first(), n(1), n(2)) } else { (args.get(2), n(0), n(1)) };
-            ((x, y), CellDraw::Text(x, y, text.map(Value::to_string_val).unwrap_or_default(), c(3), None))
-        }
-        "paint" if args.len() >= 3 => return Some(None),
+        "paint" if args.len() >= 3 => (at, CellDraw::Flood(n(0), n(1), c(2), c(3))),
         _ => return None,
-    }))
+    })
 }
 
 /// Most rows / columns a grid can have, and most cells in all.
@@ -689,11 +686,8 @@ impl StringGrid {
     /// The owner-drawing methods (except `Draw`, which needs the source
     /// image: rapidr_value::objects): [`owner_draw_op`]'s.
     fn draw(&mut self, method: &str, args: &[Value]) -> bool {
-        match owner_draw_op(method, args) {
-            Some(Some(((x, y), op))) => self.record(x, y, |l, t| op.moved(-l, -t)),
-            Some(None) => {}
-            None => return false,
-        }
+        let Some(((x, y), op)) = owner_draw_op(method, args) else { return false };
+        self.record(x, y, |l, t| op.moved(-l, -t));
         true
     }
 

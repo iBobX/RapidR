@@ -91,6 +91,7 @@ SITES = {
     ("crates/rapidr-value/src/mdi.rs", "call"): "RFORMMDI",
     ("crates/rapidr-value/src/mdi.rs", "set"): "RFORMMDI",
     ("crates/rapidr-value/src/statusbar.rs", "call"): "RSTATUSBAR",
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/registry.rs", "get"): "RREGISTRY",
     ("crates/rapidr-value/src/registry.rs", "set"): "RREGISTRY",
     ("crates/rapidr-value/src/registry.rs", "answer"): "RREGISTRY",

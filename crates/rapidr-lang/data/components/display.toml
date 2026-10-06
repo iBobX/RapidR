@@ -7,7 +7,7 @@ rapidq = "QLABEL"
 visual = true
 size = [75, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -288,7 +288,7 @@ events = [
 name = "RPROGRESS"
 visual = true
 size = [200, 25]
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR's own; RPROGRESSBAR is RapidQ's gauge."
 properties = [
   { name = "Left", type = "int", default = 0 },
@@ -314,7 +314,7 @@ name = "RPROGRESSBAR"
 rapidq = "QGAUGE"
 visual = true
 size = [250, 25]
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -396,7 +396,7 @@ from = "QDigDisplay.inc"
 visual = true
 size = [12, 24]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
