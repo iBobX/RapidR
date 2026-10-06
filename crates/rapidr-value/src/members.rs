@@ -16,7 +16,7 @@ const ANY: &[&str] = &[
 
 /// QSQLITE / QMYSQL (and RapidR's `DB.ClearParams`).
 const DATABASE: &[&str] = &[
-    "connect", "disconnect", "query", "fetchrow", "fetchfield", "fieldseek", "rowseek", "row", "rowblob",
+    "connect", "disconnect", "query", "fetchrow", "fetchfield", "fetchlengths", "fieldseek", "rowseek", "row", "rowblob",
     "escapestring", "selectdb", "createdb", "dropdb", "clearparams",
 ];
 

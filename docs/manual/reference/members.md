@@ -3277,7 +3277,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `DBCount` (read-only) | int |  | The number of databases the server lists. |
 | `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
 | `FieldCount` (read-only) | int |  | The number of fields (columns) in the last query's result. |
-| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `Length` (read-only) | int |  | `Length(i)`: how many bytes field `i` (from 0) of the row the last FetchLengths measured has (a NULL 0); 0 before any. |
 | `Row` (read-only) | string |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
 | `RowCount` (read-only) | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
 | `Table` (read-only) | string |  | A table's name, `Table(i)` from 0, as the database lists them; read-only. |
@@ -3294,23 +3294,23 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure). |
-| `CreateDB(DB AS STRING) AS INTEGER` *(not yet)* | Creates a database named `DB` on the server; returns true on success. |
-| `DropDB(DB AS STRING) AS INTEGER` *(not yet)* | Deletes database `DB` from the server; returns true on success. |
-| `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | Returns the string with quotes and special characters escaped for a MySQL query. |
+| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Connects to the MySQL server on `Host` ("": this machine; the Port property, else 3306) as `User` with password `Passwd`. Returns 1 if it did, else 0 (OnError gets the message); then Connected, DB(i) and DBCount, and OnConnect. |
+| `CreateDB(DB AS STRING) AS INTEGER` | Makes a new database named `DB` on the server. Returns 1 if it did, 0 if not (not connected, or the server refused: OnError gets its message); DB(i) and DBCount then list it. |
+| `DropDB(DB AS STRING) AS INTEGER` | Deletes database `DB` and its tables from the server. Returns 1 if it did, 0 if not (OnError gets the server's message); DB(i) and DBCount follow. |
+| `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | The first `Length` characters of `S` made safe between quotes in SQL: NUL, line feed, carriage return, backslash, both quotes and Ctrl+Z each become a backslash pair (\0 \n \r \\ \' \" \Z). Binary data (one character per byte) passes too. RapidR also takes it without `Length` (the whole text); binding values with ? is safer. |
 | `FetchField AS VARIANT` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
-| `FetchLengths AS VARIANT` *(not yet)* | Returns the lengths of the fields of the current row. |
+| `FetchLengths AS INTEGER` | Measures the current row's fields in bytes for Length(i), which keeps those values until the next FetchLengths. Returns 1, or 0 when there's no current row (before the first FetchRow, past the last). |
 | `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
 | `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
 | `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
-| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` *(not yet)* | Connects to a MySQL server with host, user, password, database, port, socket and flags; returns true on success. |
-| `Refresh(RefreshFlags AS INTEGER) AS INTEGER` *(not yet)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` *(not yet)* | Returns `Bytes` bytes of the binary field in row `Row`. |
+| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` | Connects like Connect, with more say: `DB` is the database to use ("" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP ("" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL is ignored: no TLS). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell). |
+| `Refresh(RefreshFlags AS INTEGER) AS INTEGER` | Asks the server to reload or clear what the flags name (MYSQL.INC): Refresh_Grant (1) the privilege tables, Refresh_Log (2) the logs, Refresh_Table (4) the open tables, Refresh_Hosts (8) the host cache, Refresh_Status (16) the status counters — added together for several. The user needs MySQL's RELOAD privilege. Returns 1 if all of it was done, 0 if not (OnError gets the server's message). |
+| `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` | Binary data from the current row: the first `Bytes` bytes of its field number `Row` (from 0; despite the name, a column), one character per byte, NUL and all. `Bytes` is usually Length(Row) after FetchLengths. "" without a current row or such a field. |
 | `RowSeek(Row AS INTEGER) AS VARIANT` | Moves to row `Row` of the query's result, the next one `FetchRow` reads. |
 | `SelectDB(DB AS STRING) AS INTEGER` | Makes database `DB` the current one; returns true on success. |
 | `ClearParams` *(RapidR)* | Drops the values queued with AddParam. |
-| `LoadBlob` *(not yet)* | Reads binary data (a BLOB) for a query. |
-| `SaveBlob` *(not yet)* | Writes binary data (a BLOB) for a query. |
+| `LoadBlob(File AS STRING) AS STRING` | Reads a file's bytes and returns them as EscapeString would, ready to go between quotes in an INSERT or UPDATE. "" if the file can't be read (OnError says why). |
+| `SaveBlob(Field AS INTEGER, File AS STRING)` | Writes field `Field` (from 0) of the current row, its bytes as the server sent them, to a new file `File` (no FetchLengths needed). Does nothing without a current row or such a field. |
 
 | Event | |
 |---|---|
