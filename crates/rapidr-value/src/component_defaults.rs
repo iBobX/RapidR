@@ -64,6 +64,24 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("bevelouter", v_int(0));
             put("bevelinner", v_int(0));
         }
+        // (I1 / L-PANELS) RapidR Studio's panels (crate::panels: their
+        // models answer the rest); a command palette shows when Show is
+        // called.
+        "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" => {
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(true));
+            put("enabled", v_bool(true));
+            put("align", v_int(0));
+            put("hint", v_str(""));
+        }
+        "RCOMMANDPALETTE" => {
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(false));
+            put("enabled", v_bool(true));
+            put("hint", v_str(""));
+        }
         // (I1) RDOCKMANAGER: crate::dock (DocumentMode "mdi": its model's).
         "RDOCKMANAGER" => {
             put("left", v_int(0));

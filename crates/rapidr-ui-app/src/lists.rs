@@ -41,6 +41,10 @@ pub fn dispatch<P: Program>(p: P, id: &str, action: ListAction) {
         ListAction::GridSelect(c, r, extend) => {
             grid_user_select(p, id, c, r, extend);
         }
+        // (I1 / L-PANELS: a list an inspector or a toolbar dropped)
+        ListAction::GridStore(value) if rapidr_value::panels::is_panel(&p.type_of(id)) => {
+            p.container(rapidr_ui_kernel::components::form::Container::Panel { id: id.to_string(), action: rapidr_value::panels::User::Picked(value) })
+        }
         ListAction::GridStore(value) => grid_store(p, id, value),
         ListAction::GridListDrop(c, r, anchor) => grid_list_drop(p, id, c, r, anchor),
     }

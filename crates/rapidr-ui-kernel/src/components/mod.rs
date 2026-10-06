@@ -48,6 +48,8 @@ pub mod codeedit;
 pub mod design;
 // (I1: RapidR Studio's docking)
 pub mod dock;
+// (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
+pub mod panels;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -109,6 +111,13 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),
     ("RDOCKDOCS", &dock::DockDocs),
+    // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
+    ("RPROPERTYINSPECTOR", &panels::inspector::Inspector),
+    ("RTOOLBOX", &panels::toolbox::Toolbox),
+    ("RPROJECTTREE", &panels::project_tree::ProjectTree),
+    ("ROUTPUTCONSOLE", &panels::console::Console),
+    ("RTOOLBAR", &panels::toolbar::ToolBar),
+    ("RCOMMANDPALETTE", &panels::palette::Palette),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

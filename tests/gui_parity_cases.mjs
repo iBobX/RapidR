@@ -27,6 +27,9 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // RapidR Studio's panels (I1 / L-PANELS, rapidr_value::panels): each made,
+  // placed and drawn by the kernel (the scaffold's check; each panel has its own case).
+  { name: "panels_smoke", events: "", dump: "lbl.caption", expect: ["lbl.caption=2800"] },
   // RDOCKMANAGER (I1, rapidr_value::dock): an IDE's layout. A tab clicked
   // (Output), the Explorer's splitter dragged 40 to the right, the
   // Toolbox's strip tab clicked twice (slid out, in), Properties dragged

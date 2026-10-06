@@ -13,6 +13,8 @@ pub mod scroll;
 pub mod mdi;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock;
+// (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
+pub mod panels;
 pub mod globals;
 pub mod program;
 pub(crate) mod sound;

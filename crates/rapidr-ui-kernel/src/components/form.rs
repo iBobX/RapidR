@@ -37,6 +37,10 @@ pub enum Container {
     /// splitter dragged, a flyout slid out (`rapidr_value::dock::runtime::
     /// rt_user`).
     Dock { id: String, action: rapidr_value::dock::manager::User },
+    /// (I1 / L-PANELS) What the user did to panel `id` (an inspector, a
+    /// toolbox, a project tree, a console, a toolbar, a palette:
+    /// `rapidr_value::panels::runtime::rt_user`).
+    Panel { id: String, action: rapidr_value::panels::User },
 }
 
 #[cfg(test)]

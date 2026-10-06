@@ -32,7 +32,9 @@
 //!     expression: `"alNone"`, `"akLeft + akTop"`), `access` (`read` /
 //!     `write`; else both), `design` (shown at design time: default for
 //!     read-write, non-indexed ones), `indexed` (1 or 2: `Item(i)`),
-//!     `category`, `origin`, `from`, `only`, `missing`, `doc`;
+//!     `category`, `origin`, `from`, `only`, `missing`, `editor` (the
+//!     inspector's editor beyond the type's: `strings`, `columns`, `file`,
+//!     `picture`, `multiline`, `sql`, `expression`), `doc`;
 //!   - method: `name`, `params`, `returns`, `value` (read without
 //!     parentheses calls it: `IF Dlg.Execute THEN`), `origin`, `from`,
 //!     `only`, `missing`, `test` (`skip: reason` or `args: …` for the
@@ -160,6 +162,10 @@ pub struct Property {
     pub missing: bool,
     /// The extension set it came from (sets.toml).
     pub set: Option<&'static str>,
+    /// The inspector's editor when its type's isn't enough: `strings` (a
+    /// list of lines), `columns`, `file`, `picture`, `multiline`, `sql`,
+    /// `expression` (RPropertyInspector).
+    pub editor: Option<&'static str>,
     pub doc: &'static str,
 }
 

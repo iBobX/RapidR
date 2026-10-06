@@ -413,6 +413,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rp_comp_type(name) == "RDOCKMANAGER" && crate::dock::set(name, &prop_lower, &val) {
         return;
     }
+    // (I1 / L-PANELS) A panel's Target, Filter, Page, … (panels.rs).
+    if rapidr_value::panels::is_panel(&rp_comp_type(name)) && crate::panels::set(name, &prop_lower, &val) {
+        return;
+    }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
     // FontName / FontSize / FontColor too: one value.
     if let Some(other) = rapidr_value::font_dialog::alias(&prop_lower).filter(|_| rp_comp_type(name) == "RFONTDIALOG") {
@@ -666,6 +670,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     crate::layout::after_set(name, &prop_lower);
     // (I1) A dock manager or its floating window resized: its panes placed.
     crate::dock::after_set(name, &prop_lower);
+    // (I1 / L-PANELS) An inspector showing it follows (panels.rs).
+    crate::panels::after_set(name, &prop_lower);
     // A QTABCONTROL's colour, font or Enabled: drawn again (its tabs
     // measured again).
     #[cfg(feature = "gui")]
@@ -844,6 +850,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &prop_lower) {
             return v;
         }
+    }
+    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels.rs).
+    if let Some(v) = crate::panels::get(name, &prop_lower) {
+        return v;
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
@@ -1061,6 +1071,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         if let Some(v) = crate::dock::method(name, &method_lower, args) {
             return v;
         }
+    }
+    // (I1 / L-PANELS) A panel's AddButton, AddCommand, Write, … (panels.rs).
+    if let Some(v) = crate::panels::method(name, &method_lower, args) {
+        return v;
     }
 
     // `Form.Pixel(x, y)` read: RapidQ's -1s and its children's pixels.
@@ -2062,6 +2076,15 @@ pub(crate) fn store_prop(name: &str, prop: &str, val: Value) {
             comp.properties.insert(prop.to_lowercase(), val);
         }
     });
+}
+
+/// Every component: (name, type), in creation order.
+pub fn all_components() -> Vec<(String, String)> {
+    COMPONENTS.with(|c| {
+        let mut all: Vec<(String, String, u32)> = c.borrow().iter().map(|(n, comp)| (n.clone(), comp.type_name.clone(), comp.creation_order)).collect();
+        all.sort_by_key(|c| c.2);
+        all.into_iter().map(|(n, t, _)| (n, t)).collect()
+    })
 }
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
