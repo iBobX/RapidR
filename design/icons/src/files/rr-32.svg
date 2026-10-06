@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>RapidR source (.rr)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M10 12H16A4.5 4.5 0 0 1 16 21H13V27H10L10 12ZM13 15V18L18 17L13 15ZM13 21H17L21 27H18L13 21Z" fill="#2F5BFF" fill-rule="evenodd"/>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Archive (.zip)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M13 5L15 5" stroke="#5B6478"/>
+  <path d="M17 7L19 7" stroke="#5B6478"/>
+  <path d="M13 9L15 9" stroke="#5B6478"/>
+  <path d="M17 11L19 11" stroke="#5B6478"/>
+  <path d="M13 13L15 13" stroke="#5B6478"/>
+  <path d="M17 15L19 15" stroke="#5B6478"/>
+  <path d="M14.5 18H17.5A1.5 1.5 0 0 1 19 19.5V23.5A1.5 1.5 0 0 1 17.5 25H14.5A1.5 1.5 0 0 1 13 23.5V19.5A1.5 1.5 0 0 1 14.5 18Z" fill="#E6EAF2" stroke="#5B6478"/>
+</svg>

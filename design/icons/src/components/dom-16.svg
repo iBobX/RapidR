@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>DOM</title>
+  <path d="M5.5 4.5L1.5 8.5L5.5 11.5" stroke="#007F9C"/>
+  <path d="M10.5 4.5L14.5 8.5L10.5 11.5" stroke="#007F9C"/>
+  <path d="M9.5 3.5L6.5 12.5" stroke="#007F9C"/>
+</svg>

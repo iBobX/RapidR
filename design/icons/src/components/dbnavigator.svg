@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>Data navigator</title>
+  <path d="M4.75 5.75H19.75A2 2 0 0 1 21.75 7.75V15.75A2 2 0 0 1 19.75 17.75H4.75A2 2 0 0 1 2.75 15.75V7.75A2 2 0 0 1 4.75 5.75Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <rect x="5" y="9" width="2" height="6" fill="#08805E"/>
+  <path d="M11 9L7 12L11 15Z" fill="#08805E"/>
+  <path d="M13 9L17 12L13 15Z" fill="#08805E"/>
+  <rect x="17" y="9" width="2" height="6" fill="#08805E"/>
+</svg>

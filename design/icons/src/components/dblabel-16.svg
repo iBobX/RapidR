@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Data-aware label</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><path d="M9.5 9.5V13.5A3 1 0 0 0 15.5 13.5V9.5A3 1 0 0 0 9.5 9.5Z" fill="black" stroke="black" stroke-width="2.4"/></mask></defs>
+  <g mask="url(#m1)"><path d="M2.5 10.5L5.5 2.5L9.5 10.5" stroke="#2F5BFF"/><path d="M3.5 8.5L7.5 8.5" stroke="#2F5BFF"/><path d="M2.5 13.5L7.5 13.5" stroke="#5B6478"/></g>
+  <path d="M9.5 9.5V13.5A3 1 0 0 0 15.5 13.5V9.5" fill="#D6F2E8" stroke="#08805E"/>
+  <ellipse cx="12.5" cy="9.5" rx="3" ry="1" fill="#D6F2E8" stroke="#08805E"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Serial port (QCOMPORT)</title>
+  <path d="M3 9H29L25 23H7L3 9Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <circle cx="8.5" cy="13.5" r="1.5" fill="#007F9C"/>
+  <circle cx="12.5" cy="13.5" r="1.5" fill="#007F9C"/>
+  <circle cx="16.5" cy="13.5" r="1.5" fill="#007F9C"/>
+  <circle cx="19.5" cy="13.5" r="1.5" fill="#007F9C"/>
+  <circle cx="23.5" cy="13.5" r="1.5" fill="#007F9C"/>
+  <circle cx="10.5" cy="18.5" r="1.5" fill="#007F9C"/>
+  <circle cx="14.5" cy="18.5" r="1.5" fill="#007F9C"/>
+  <circle cx="17.5" cy="18.5" r="1.5" fill="#007F9C"/>
+  <circle cx="21.5" cy="18.5" r="1.5" fill="#007F9C"/>
+</svg>

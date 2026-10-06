@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Canvas</title>
+  <path d="M3 2.5H13A1.5 1.5 0 0 1 14.5 4V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V4A1.5 1.5 0 0 1 3 2.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M3.5 11.5C5.5 5.5 7.5 5.5 8.5 8.5C8.5 10.5 10.5 10.5 12.5 5.5" stroke="#2F5BFF"/>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Breakpoint list</title>
+  <path d="M3 1.5H13A1.5 1.5 0 0 1 14.5 3V13A1.5 1.5 0 0 1 13 14.5H3A1.5 1.5 0 0 1 1.5 13V3A1.5 1.5 0 0 1 3 1.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <rect x="3" y="4" width="2" height="2" fill="#D92D36"/>
+  <path d="M6.5 5.5L11.5 5.5" stroke="#5B6478"/>
+  <rect x="3" y="9" width="2" height="2" fill="#D92D36"/>
+  <path d="M6.5 10.5L11.5 10.5" stroke="#5B6478"/>
+</svg>

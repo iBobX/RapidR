@@ -38,6 +38,9 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
   cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app -p rapidr-session -p rapidr-project --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  # (RapidR's icons: the sources, the crate's tables and the manual's copies
+  # match the geometry in design/icons/tools)
+  python3 design/icons/tools/build.py --check; python3 design/icons/tools/export.py --check
   # (the user manual's generated reference pages match the source)
   python3 tools/manual_reference.py --check; echo "(unit done)"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Component tray</title>
+  <path d="M3 17V25A3 3 0 0 0 5 28H27A3 3 0 0 0 29 25V17" stroke="#5B6478"/>
+  <circle cx="8" cy="11" r="4" fill="#FFEDC7" stroke="#B86E00"/>
+  <path d="M13.5 7H18.5A1.5 1.5 0 0 1 20 8.5V13.5A1.5 1.5 0 0 1 18.5 15H13.5A1.5 1.5 0 0 1 12 13.5V8.5A1.5 1.5 0 0 1 13.5 7Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M25 7L29 15L21 15L25 7Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>RNUM (numeric array)</title>
+  <path d="M4.5 3.5H2.5V12.5H4.5" stroke="#5B6478"/>
+  <path d="M11.5 3.5H13.5V12.5H11.5" stroke="#5B6478"/>
+  <rect x="4" y="7" width="2" height="2" fill="#08805E"/>
+  <rect x="8" y="7" width="2" height="2" fill="#08805E"/>
+</svg>

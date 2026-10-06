@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Database connection</title>
+  <path d="M1.5 3.5V9.5A4 1.5 0 0 0 9.5 9.5V3.5" fill="#D6F2E8" stroke="#08805E"/>
+  <ellipse cx="5.5" cy="3" rx="4" ry="1.5" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M5.5 11.5V13.5H9.5" stroke="#5B6478"/>
+  <path d="M9.5 11.5H11.5A2 2 0 0 1 11.5 15.5H9.5L9.5 11.5Z" fill="#D6F2E8" stroke="#08805E"/>
+</svg>

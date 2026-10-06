@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Templates</title>
+  <path d="M6 3L10 3" stroke="#5B6478"/>
+  <path d="M15 3L17 3" stroke="#5B6478"/>
+  <path d="M6 29L10 29" stroke="#5B6478"/>
+  <path d="M15 29L19 29" stroke="#5B6478"/>
+  <path d="M5 8L5 12" stroke="#5B6478"/>
+  <path d="M5 17L5 22" stroke="#5B6478"/>
+  <path d="M27 17L27 22" stroke="#5B6478"/>
+  <path d="M22 3L27 8V12" stroke="#5B6478"/>
+  <path d="M5 26L5 29" stroke="#5B6478"/>
+  <path d="M23 29L27 29" stroke="#5B6478"/>
+  <path d="M27 26L27 29" stroke="#5B6478"/>
+  <path d="M13 12H19A2 2 0 0 1 21 14V20A2 2 0 0 1 19 22H13A2 2 0 0 1 11 20V14A2 2 0 0 1 13 12Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+</svg>

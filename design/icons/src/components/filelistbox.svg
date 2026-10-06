@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>File list box</title>
+  <path d="M4.75 2.75H18.75A2 2 0 0 1 20.75 4.75V18.75A2 2 0 0 1 18.75 20.75H4.75A2 2 0 0 1 2.75 18.75V4.75A2 2 0 0 1 4.75 2.75Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M6.75 5.75H8.75L9.75 6.75V8.75H6.75L6.75 5.75Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M11.75 7.75L17.75 7.75" stroke="#5B6478"/>
+  <path d="M6.75 9.75H8.75L9.75 10.75V13.75H6.75L6.75 9.75Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M11.75 11.75L17.75 11.75" stroke="#5B6478"/>
+  <path d="M6.75 14.75H8.75L9.75 15.75V18.75H6.75L6.75 14.75Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M11.75 16.75L17.75 16.75" stroke="#5B6478"/>
+</svg>

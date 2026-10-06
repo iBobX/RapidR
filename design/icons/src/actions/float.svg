@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>Float</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="white"/><path d="M10.75 2.75H18.75A2 2 0 0 1 20.75 4.75V10.75A2 2 0 0 1 18.75 12.75H10.75A2 2 0 0 1 8.75 10.75V4.75A2 2 0 0 1 10.75 2.75Z" fill="black" stroke="black" stroke-width="4.5"/></mask></defs>
+  <g mask="url(#m1)"><path d="M4.75 7.75H14.75A2 2 0 0 1 16.75 9.75V17.75A2 2 0 0 1 14.75 19.75H4.75A2 2 0 0 1 2.75 17.75V9.75A2 2 0 0 1 4.75 7.75Z" stroke="currentColor"/></g>
+  <path d="M10.75 2.75H18.75A2 2 0 0 1 20.75 4.75V10.75A2 2 0 0 1 18.75 12.75H10.75A2 2 0 0 1 8.75 10.75V4.75A2 2 0 0 1 10.75 2.75Z" stroke="currentColor"/>
+  <path d="M8.75 6.75L20.75 6.75" stroke="currentColor"/>
+</svg>

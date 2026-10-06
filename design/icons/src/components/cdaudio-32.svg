@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>CD audio</title>
+  <circle cx="16.5" cy="16.5" r="13.5" fill="#EBE4FD" stroke="#6F42E5"/>
+  <circle cx="16.5" cy="16.5" r="3.5" fill="#FFFFFF" stroke="#6F42E5"/>
+  <path d="M16 7A9 9 0 0 1 25 16" stroke="#6F42E5"/>
+</svg>

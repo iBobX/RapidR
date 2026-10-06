@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Data-aware lookup combo box</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><path d="M18 20V28A6 2.5 0 0 0 30 28V20A6 2.5 0 0 0 18 20Z" fill="black" stroke="black" stroke-width="4.8"/></mask></defs>
+  <g mask="url(#m1)"><path d="M6 8H26A3 3 0 0 1 29 11V21A3 3 0 0 1 26 24H6A3 3 0 0 1 3 21V11A3 3 0 0 1 6 8Z" fill="#FFFFFF" stroke="#5B6478"/><circle cx="10.5" cy="15.5" r="3.5" stroke="#2F5BFF"/><path d="M13 18L15 20" stroke="#2F5BFF"/></g>
+  <path d="M18 20V28A6 2.5 0 0 0 30 28V20" fill="#D6F2E8" stroke="#08805E"/>
+  <ellipse cx="24" cy="19.5" rx="6" ry="2.5" fill="#D6F2E8" stroke="#08805E"/>
+</svg>

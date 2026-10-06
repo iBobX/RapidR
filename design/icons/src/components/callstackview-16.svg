@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Call stack</title>
+  <path d="M2.5 1.5H13.5A1 1 0 0 1 14.5 2.5V4.5A1 1 0 0 1 13.5 5.5H2.5A1 1 0 0 1 1.5 4.5V2.5A1 1 0 0 1 2.5 1.5Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M2 6.5H14A0.5 0.5 0 0 1 14.5 7V9A0.5 0.5 0 0 1 14 9.5H2A0.5 0.5 0 0 1 1.5 9V7A0.5 0.5 0 0 1 2 6.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M2.5 10.5H13.5A1 1 0 0 1 14.5 11.5V13.5A1 1 0 0 1 13.5 14.5H2.5A1 1 0 0 1 1.5 13.5V11.5A1 1 0 0 1 2.5 10.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+</svg>

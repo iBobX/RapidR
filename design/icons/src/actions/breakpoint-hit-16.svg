@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Breakpoint, stopped here</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><path d="M5.5 5.5L10.5 5.5L10.5 3.5L14.5 8.5L10.5 12.5L10.5 10.5L5.5 10.5L5.5 5.5Z" fill="black" stroke="black" stroke-width="3"/></mask></defs>
+  <g mask="url(#m1)"><circle cx="7" cy="8" r="4.5" fill="#D92D36" stroke="#D92D36"/></g>
+  <path d="M5.5 5.5L10.5 5.5L10.5 3.5L14.5 8.5L10.5 12.5L10.5 10.5L5.5 10.5L5.5 5.5Z" fill="#FFB224" stroke="#B86E00"/>
+</svg>

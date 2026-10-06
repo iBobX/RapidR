@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Label</title>
+  <path d="M1.5 10.5L5.5 1.5L9.5 10.5" stroke="#2F5BFF"/>
+  <path d="M3.5 7.5L7.5 7.5" stroke="#2F5BFF"/>
+  <path d="M1.5 13.5L14.5 13.5" stroke="#5B6478"/>
+</svg>

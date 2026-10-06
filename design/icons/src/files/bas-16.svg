@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>BASIC source (.bas)</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <rect x="5" y="5" width="1" height="2" fill="#08805E"/>
+  <path d="M7.5 5.5L10.5 5.5" stroke="#5B6478"/>
+  <rect x="5" y="8" width="1" height="1" fill="#08805E"/>
+  <path d="M7.5 8.5L10.5 8.5" stroke="#5B6478"/>
+  <rect x="5" y="11" width="1" height="1" fill="#08805E"/>
+  <path d="M7.5 11.5L10.5 11.5" stroke="#5B6478"/>
+</svg>

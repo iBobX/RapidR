@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Save</title>
+  <path d="M2.5 2.5H11.5L13.5 4.5V13.5H2.5L2.5 2.5Z" stroke="currentColor"/>
+  <path d="M5.5 2.5V5.5H9.5V2.5" stroke="currentColor"/>
+  <path d="M4.5 13.5V9.5H11.5V13.5" stroke="currentColor"/>
+</svg>

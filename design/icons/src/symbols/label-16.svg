@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Label (GOTO target)</title>
+  <path d="M2.5 3.5H10.5L13.5 8.5L10.5 12.5H2.5L2.5 3.5Z" fill="#FFEDC7" stroke="#B86E00"/>
+  <rect x="9" y="7" width="2" height="2" fill="#B86E00"/>
+</svg>

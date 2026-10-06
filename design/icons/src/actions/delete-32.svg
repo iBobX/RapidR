@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Delete</title>
+  <path d="M4 8L28 8" stroke="currentColor"/>
+  <path d="M12 8V4H20V8" stroke="currentColor"/>
+  <path d="M7 8L8 28H24L25 8" stroke="currentColor"/>
+  <path d="M13 13L13 22" stroke="currentColor"/>
+  <path d="M19 13L19 22" stroke="currentColor"/>
+</svg>

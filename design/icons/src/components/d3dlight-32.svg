@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Direct3D light</title>
+  <circle cx="16.5" cy="16.5" r="5.5" fill="#FFEDC7" stroke="#B86E00"/>
+  <path d="M25 16L29 16" stroke="#B86E00"/>
+  <path d="M22 22L25 25" stroke="#B86E00"/>
+  <path d="M16 25L16 29" stroke="#B86E00"/>
+  <path d="M10 22L7 25" stroke="#B86E00"/>
+  <path d="M7 16L3 16" stroke="#B86E00"/>
+  <path d="M10 10L7 7" stroke="#B86E00"/>
+  <path d="M16 7L16 3" stroke="#B86E00"/>
+  <path d="M22 10L25 7" stroke="#B86E00"/>
+</svg>

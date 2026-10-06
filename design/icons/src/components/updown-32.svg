@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Up-down</title>
+  <path d="M11 3H21A3 3 0 0 1 24 6V12A3 3 0 0 1 21 15H11A3 3 0 0 1 8 12V6A3 3 0 0 1 11 3Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M11 17H21A3 3 0 0 1 24 20V26A3 3 0 0 1 21 29H11A3 3 0 0 1 8 26V20A3 3 0 0 1 11 17Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M12 11L16 8L20 11" stroke="#2F5BFF"/>
+  <path d="M12 21L16 24L20 21" stroke="#2F5BFF"/>
+</svg>

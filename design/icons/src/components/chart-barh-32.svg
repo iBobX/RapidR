@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Chart: horizontal bar</title>
+  <path d="M4 4V28H28" stroke="#5B6478"/>
+  <path d="M4 6H17V10H4V6Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M4 13H24V17H4V13Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M4 20H12V24H4V20Z" fill="#D6F2E8" stroke="#08805E"/>
+</svg>

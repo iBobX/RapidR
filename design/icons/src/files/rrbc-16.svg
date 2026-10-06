@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>RapidR program (.rrbc)</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <path d="M5 6H8A2.5 2.5 0 0 1 8 11H7V13H5L5 6ZM7 7V9L9 8L7 7ZM7 11H9L11 13H9L7 11Z" fill="#2F5BFF" fill-rule="evenodd"/>
+  <path d="M7 7V9L9 8L7 7Z" fill="#FFB224"/>
+</svg>

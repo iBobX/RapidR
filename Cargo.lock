@@ -3766,6 +3766,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-icons"
+version = "2.117.0"
+dependencies = [
+ "miniz_oxide",
+ "rapidr-ast",
+ "resvg",
+]
+
+[[package]]
 name = "rapidr-launcher"
 version = "2.117.0"
 dependencies = [
@@ -3925,6 +3934,7 @@ name = "rapidr-ui-kernel"
 version = "2.117.0"
 dependencies = [
  "parley",
+ "rapidr-icons",
  "rapidr-value",
  "web-time",
 ]
@@ -3946,6 +3956,7 @@ name = "rapidr-value"
 version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
+ "rapidr-icons",
  "resvg",
  "ttf-parser",
  "windows-registry",

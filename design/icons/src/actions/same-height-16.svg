@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Make same height</title>
+  <path d="M3.5 2.5L3.5 13.5" stroke="currentColor"/>
+  <path d="M1.5 3.5L3.5 2.5L4.5 3.5" stroke="currentColor"/>
+  <path d="M4.5 12.5L3.5 13.5L1.5 12.5" stroke="currentColor"/>
+  <path d="M8 2.5H12A1.5 1.5 0 0 1 13.5 4V12A1.5 1.5 0 0 1 12 13.5H8A1.5 1.5 0 0 1 6.5 12V4A1.5 1.5 0 0 1 8 2.5Z" stroke="currentColor"/>
+</svg>

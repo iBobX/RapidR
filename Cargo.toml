@@ -21,6 +21,7 @@ members = [
     "crates/rapidr-editor",
     "crates/rapidr-project",
     "crates/rapidr-session",
+    "crates/rapidr-icons",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",
@@ -53,6 +54,7 @@ rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
 rapidr-db = { path = "crates/rapidr-db" }
 rapidr-ui-kernel = { path = "crates/rapidr-ui-kernel" }
+rapidr-icons = { path = "crates/rapidr-icons" }
 rapidr-ui-render = { path = "crates/rapidr-ui-render" }
 rapidr-ui-app = { path = "crates/rapidr-ui-app" }
 rapidr-ui-host-winit = { path = "crates/rapidr-ui-host-winit" }

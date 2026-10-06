@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Snap to grid</title>
+  <path d="M5 3H12V16A4 4 0 0 0 20 16V3H27V16A11 11 0 0 1 5 16L5 3Z" stroke="currentColor"/>
+  <path d="M5 10L12 10" stroke="currentColor"/>
+  <path d="M20 10L27 10" stroke="currentColor"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Paste</title>
+  <path d="M10 6H8A3 3 0 0 0 5 9V26A3 3 0 0 0 8 29H13" stroke="currentColor"/>
+  <path d="M22 6H24A3 3 0 0 1 27 9V13" stroke="currentColor"/>
+  <path d="M11.5 3H20.5A1.5 1.5 0 0 1 22 4.5V7.5A1.5 1.5 0 0 1 20.5 9H11.5A1.5 1.5 0 0 1 10 7.5V4.5A1.5 1.5 0 0 1 11.5 3Z" stroke="currentColor"/>
+  <path d="M18 16H27A2 2 0 0 1 29 18V28A2 2 0 0 1 27 30H18A2 2 0 0 1 16 28V18A2 2 0 0 1 18 16Z" stroke="currentColor"/>
+</svg>

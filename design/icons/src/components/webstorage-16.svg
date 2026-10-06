@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Web storage</title>
+  <path d="M4 1.5H12A1.5 1.5 0 0 1 13.5 3V13A1.5 1.5 0 0 1 12 14.5H4A1.5 1.5 0 0 1 2.5 13V3A1.5 1.5 0 0 1 4 1.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M2.5 8.5L13.5 8.5" stroke="#007F9C"/>
+  <path d="M6.5 4.5L9.5 4.5" stroke="#007F9C"/>
+  <path d="M6.5 11.5L9.5 11.5" stroke="#007F9C"/>
+</svg>

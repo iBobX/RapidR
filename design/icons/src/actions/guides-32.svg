@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Smart guides</title>
+  <path d="M12 10H21A2 2 0 0 1 23 12V21A2 2 0 0 1 21 23H12A2 2 0 0 1 10 21V12A2 2 0 0 1 12 10Z" stroke="currentColor"/>
+  <path d="M3 10L7 10" stroke="currentColor"/>
+  <path d="M25 10L29 10" stroke="currentColor"/>
+  <path d="M10 3L10 7" stroke="currentColor"/>
+  <path d="M10 25L10 29" stroke="currentColor"/>
+</svg>

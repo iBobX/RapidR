@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Copy</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><path d="M7 5.5H12A1.5 1.5 0 0 1 13.5 7V13A1.5 1.5 0 0 1 12 14.5H7A1.5 1.5 0 0 1 5.5 13V7A1.5 1.5 0 0 1 7 5.5Z" fill="black" stroke="black" stroke-width="3"/></mask></defs>
+  <g mask="url(#m1)"><path d="M4 1.5H9A1.5 1.5 0 0 1 10.5 3V10A1.5 1.5 0 0 1 9 11.5H4A1.5 1.5 0 0 1 2.5 10V3A1.5 1.5 0 0 1 4 1.5Z" stroke="currentColor"/></g>
+  <path d="M7 5.5H12A1.5 1.5 0 0 1 13.5 7V13A1.5 1.5 0 0 1 12 14.5H7A1.5 1.5 0 0 1 5.5 13V7A1.5 1.5 0 0 1 7 5.5Z" stroke="currentColor"/>
+</svg>

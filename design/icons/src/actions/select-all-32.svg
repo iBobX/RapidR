@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Select all</title>
+  <path d="M4 8L4 4L8 4" stroke="currentColor"/>
+  <path d="M28 8L28 4L24 4" stroke="currentColor"/>
+  <path d="M4 24L4 28L8 28" stroke="currentColor"/>
+  <path d="M28 24L28 28L24 28" stroke="currentColor"/>
+  <path d="M14 4L18 4" stroke="currentColor"/>
+  <path d="M14 28L18 28" stroke="currentColor"/>
+  <path d="M4 14L4 18" stroke="currentColor"/>
+  <path d="M28 14L28 18" stroke="currentColor"/>
+  <rect x="10" y="10" width="12" height="12" rx="1.5" fill="currentColor"/>
+</svg>
