@@ -1702,7 +1702,8 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
             JSON_STORES.with(|s| {
                 if let Some(root) = s.borrow_mut().get_mut(&name_lower) {
                     if let Some(obj) = root.as_object_mut() {
-                        obj.remove(&key);
+                        // (the other keys keep their order)
+                        obj.shift_remove(&key);
                     }
                 }
             });

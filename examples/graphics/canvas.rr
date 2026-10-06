@@ -1,0 +1,85 @@
+' canvas.rr: drawing on a QCANVAS — a little bar chart drawn in OnPaint,
+' and dots where the mouse clicks.
+'
+'   rapidr run canvas.rr
+'
+' Draw in the canvas's OnPaint: it runs whenever the canvas needs its
+' picture (shown, uncovered, resized, Repaint), so what is drawn there
+' always comes back. Colours are &HBBGGRR, as in RapidQ (RGB(r, g, b)
+' makes one).
+$INCLUDE "RAPIDQ.INC"
+
+DECLARE SUB PaintChart
+DECLARE SUB AddDot (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB ClearDots
+
+CONST MAXDOTS = 100
+DIM dotX(MAXDOTS) AS INTEGER, dotY(MAXDOTS) AS INTEGER
+DIM dots AS INTEGER
+DIM sales(1 TO 6) AS INTEGER
+DIM months(1 TO 6) AS STRING
+
+DATA "Jan", 30, "Feb", 45, "Mar", 38, "Apr", 60, "May", 72, "Jun", 55
+DIM i AS INTEGER
+FOR i = 1 TO 6
+    READ months(i), sales(i)
+NEXT
+
+CREATE Form AS QFORM
+    Caption = "Canvas"
+    Width = 380
+    Height = 300
+    Center
+    CREATE Chart AS QCANVAS
+        Left = 10: Top = 10: Width = 350: Height = 210
+        OnPaint = PaintChart
+        OnMouseDown = AddDot
+    END CREATE
+    CREATE ClearBtn AS QBUTTON
+        Caption = "&Clear dots": Left = 10: Top = 230: Width = 100
+        OnClick = ClearDots
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 124: Top = 234: Width = 240
+        Caption = "Click the chart to add dots."
+    END CREATE
+END CREATE
+
+SUB PaintChart
+    DIM k AS INTEGER, x AS INTEGER, h AS INTEGER
+    ' the background and the axes
+    Chart.FillRect(0, 0, Chart.Width, Chart.Height, RGB(250, 250, 245))
+    Chart.Line(30, 180, 340, 180, RGB(80, 80, 80))
+    Chart.Line(30, 10, 30, 180, RGB(80, 80, 80))
+    Chart.TextOut(36, 8, "Sales", RGB(80, 80, 80), -1)
+    ' a bar a month: the height scaled to the axis, the value on top
+    FOR k = 1 TO 6
+        x = 40 + (k - 1) * 50
+        h = sales(k) * 2
+        Chart.FillRect(x, 180 - h, x + 34, 180, RGB(70, 130, 180))
+        Chart.Rectangle(x, 180 - h, x + 34, 180, RGB(30, 70, 110))
+        Chart.TextOut(x + 6, 184, months(k), 0, -1)
+        Chart.TextOut(x + 8, 180 - h - 16, STR$(sales(k)), 0, -1)
+    NEXT
+    ' the dots clicked so far
+    FOR k = 0 TO dots - 1
+        Chart.Circle(dotX(k) - 5, dotY(k) - 5, dotX(k) + 5, dotY(k) + 5, RGB(220, 40, 40), RGB(220, 40, 40))
+    NEXT
+END SUB
+
+SUB AddDot (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    IF dots >= MAXDOTS THEN EXIT SUB
+    dotX(dots) = X
+    dotY(dots) = Y
+    dots = dots + 1
+    Chart.Repaint
+    Info.Caption = STR$(dots) + " dots, last at " + STR$(X) + "," + STR$(Y) + " (" + HEX$(Chart.Pixel(X, Y)) + ")"
+END SUB
+
+SUB ClearDots
+    dots = 0
+    Chart.Repaint
+    Info.Caption = "No dots; bar 4 is &H" + HEX$(Chart.Pixel(207, 100))
+END SUB
+
+Form.ShowModal

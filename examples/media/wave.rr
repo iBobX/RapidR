@@ -1,0 +1,84 @@
+' wave.rr: playing a WAV sound with QWAVE, and making one — a sound
+' recorded from the microphone for a second, saved and played back.
+'
+'   rapidr run wave.rr
+'
+' QWAVE is RapidQ's QWave.inc object (built into RapidR). Open / Play /
+' Stop play a file; New, Lenght (the library's spelling) and Record record
+' one, Save writes it. The first recording asks the system for the
+' microphone. chime.wav was made by tools/make_example_media.py.
+$INCLUDE "RAPIDQ.INC"
+$INCLUDE "QWave.inc"
+$RESOURCE CHIME AS "chime.wav"
+
+DECLARE SUB PlayChime
+DECLARE SUB RecordOne
+DECLARE SUB PlayMine
+DECLARE SUB Changed (Position AS LONG)
+
+DIM Wave AS QWAVE
+DIM recording AS INTEGER
+Wave.Timer.Interval = 50
+Wave.OnChange = Changed
+
+CREATE Form AS QFORM
+    Caption = "Sounds"
+    Width = 330
+    Height = 150
+    Center
+    CREATE ChimeBtn AS QBUTTON
+        Caption = "&Chime": Left = 12: Top = 12: Width = 90: OnClick = PlayChime
+    END CREATE
+    CREATE RecordBtn AS QBUTTON
+        Caption = "&Record 1 s": Left = 112: Top = 12: Width = 90: OnClick = RecordOne
+    END CREATE
+    CREATE MineBtn AS QBUTTON
+        Caption = "&Play mine": Left = 212: Top = 12: Width = 90: OnClick = PlayMine
+        Enabled = 0
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 12: Top = 56: Width = 300
+    END CREATE
+END CREATE
+
+SUB PlayChime
+    Wave.Close
+    IF Wave.Open("chime.tmp.wav") THEN
+        Wave.Play
+        Info.Caption = "Chime: " + STR$(Wave.Lenght) + " ms, " + STR$(Wave.Bits) + "-bit, " + STR$(Wave.Frequence) + " Hz"
+    END IF
+END SUB
+
+SUB RecordOne
+    Wave.Close
+    Wave.New                ' a new, empty wave (8-bit mono 11025 Hz)
+    Wave.Lenght = 1000      ' how long to record, in ms
+    Wave.Record
+    recording = 1
+    Info.Caption = "Recording..."
+END SUB
+
+SUB Changed (Position AS LONG)
+    ' (the recording has its length: it stopped by itself)
+    IF recording AND Wave.State = WV_STOP THEN
+        recording = 0
+        Wave.Save("mine.tmp.wav")
+        Info.Caption = "Recorded " + STR$(Wave.Lenght) + " ms"
+        MineBtn.Enabled = 1
+    END IF
+END SUB
+
+SUB PlayMine
+    Wave.Close
+    IF Wave.Open("mine.tmp.wav") THEN
+        Wave.Play
+        Info.Caption = "Playing my recording"
+    END IF
+END SUB
+
+EXTRACTRESOURCE CHIME, "chime.tmp.wav"
+Info.Caption = "Press Chime, or record a second."
+Form.ShowModal
+Wave.Close
+KILL "chime.tmp.wav"
+IF FILEEXISTS("mine.tmp.wav") THEN KILL "mine.tmp.wav"

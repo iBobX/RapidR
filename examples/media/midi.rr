@@ -1,0 +1,88 @@
+' midi.rr: playing a MIDI song with QMIDI — Play, Pause, Stop, a position
+' bar. Where the system has no MIDI synthesizer of its own (macOS, Linux,
+' a browser without Web MIDI) RapidR's built-in synthesizer plays it.
+'
+'   rapidr run midi.rr
+'
+' QMIDI is RapidQ's QMidi.inc object (built into RapidR: the $INCLUDE only
+' names its constants, MD_PLAY …). Its Timer ticks while it plays and
+' calls OnChange with the position in milliseconds. tune.mid is an original
+' tune made by tools/make_example_media.py; $RESOURCE builds it into the
+' program, so the program runs from anywhere, a browser too.
+$INCLUDE "RAPIDQ.INC"
+$INCLUDE "QMidi.inc"
+$RESOURCE TUNE AS "tune.mid"
+
+DECLARE SUB PlayIt
+DECLARE SUB PauseIt
+DECLARE SUB StopIt
+DECLARE SUB Moved (Position AS LONG)
+
+DIM Midi AS QMIDI
+Midi.Timer.Interval = 100
+Midi.OnChange = Moved
+
+CREATE Form AS QFORM
+    Caption = "MIDI player"
+    Width = 330
+    Height = 170
+    Center
+    CREATE PlayBtn AS QBUTTON
+        Caption = "&Play": Left = 12: Top = 12: Width = 90: OnClick = PlayIt
+    END CREATE
+    CREATE PauseBtn AS QBUTTON
+        Caption = "P&ause": Left = 112: Top = 12: Width = 90: OnClick = PauseIt
+    END CREATE
+    CREATE StopBtn AS QBUTTON
+        Caption = "&Stop": Left = 212: Top = 12: Width = 90: OnClick = StopIt
+    END CREATE
+    CREATE Bar AS QGAUGE
+        Left = 12: Top = 52: Width = 290: Height = 18
+        ForeColor = &HB4823C       ' the bar's colour (&HBBGGRR), not the classic black
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 12: Top = 82: Width = 290
+    END CREATE
+END CREATE
+
+FUNCTION StateName AS STRING
+    SELECT CASE Midi.State
+        CASE MD_PLAY: StateName = "playing"
+        CASE MD_PAUSE: StateName = "paused"
+        CASE MD_STOP: StateName = "stopped"
+        CASE ELSE: StateName = "closed"
+    END SELECT
+END FUNCTION
+
+SUB Moved (Position AS LONG)
+    Bar.Position = Position * 100 \ Midi.Lenght
+    Info.Caption = StateName + ", " + STR$(Position \ 1000) + " of " + STR$((Midi.Lenght + 500) \ 1000) + " s"
+END SUB
+
+SUB PlayIt
+    Midi.Play
+    Info.Caption = StateName
+END SUB
+
+SUB PauseIt
+    Midi.Pause
+    Info.Caption = StateName
+END SUB
+
+SUB StopIt
+    Midi.Stop
+    Midi.CurrentFrame = 0
+    Bar.Position = 0
+    Info.Caption = StateName
+END SUB
+
+' the song, from the program to a file QMIDI can open
+EXTRACTRESOURCE TUNE, "tune.tmp.mid"
+IF Midi.Open("tune.tmp.mid") THEN
+    Info.Caption = "tune.mid, " + STR$(Midi.Lenght) + " ms"
+ELSE
+    Info.Caption = "Can't open it: " + Midi.Error
+END IF
+Form.ShowModal
+Midi.Close
+KILL "tune.tmp.mid"

@@ -1467,12 +1467,42 @@ fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_str("")
             })
         }
-        "loadfile" | "savefile" => {
-            // File operations not available in web context
-            web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
-                &format!("RJSON.{}() is not available in web context", method)
-            ));
-            v_int(0)
+        // The page's files (as OPEN's and EXTRACTRESOURCE's: saved this
+        // session, else the project's), as the desktop's are on disk.
+        "loadfile" => {
+            let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            let Ok(text) = web_read_file(&filename).map(|b| String::from_utf8_lossy(&b).into_owned()) else {
+                object_error(name, "LoadFile", &format!("can't read {filename}"));
+                return v_int(0);
+            };
+            if js_sys::JSON::parse(&text).is_err() {
+                object_error(name, "LoadFile", &format!("{filename} isn't JSON"));
+                return v_int(0);
+            }
+            rp_comp_set(name, "filename", v_str(&filename));
+            rp_comp_set(name, "text", v_str(&text));
+            JSON_WEB_STORES.with(|s| s.borrow_mut().insert(name_lower, text));
+            v_int(1)
+        }
+        "savefile" => {
+            let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            // (pretty-printed, as the desktop writes it)
+            let text = JSON_WEB_STORES.with(|s| s.borrow().get(&name_lower).cloned()).unwrap_or_else(|| "{}".into());
+            let pretty = js_sys::JSON::parse(&text)
+                .ok()
+                .and_then(|v| js_sys::JSON::stringify_with_replacer_and_space(&v, &wasm_bindgen::JsValue::NULL, &wasm_bindgen::JsValue::from_f64(2.0)).ok())
+                .and_then(|s| s.as_string())
+                .unwrap_or(text);
+            match web_write_file(&filename, pretty.as_bytes()) {
+                Ok(()) => {
+                    rp_comp_set(name, "filename", v_str(&filename));
+                    v_int(1)
+                }
+                Err(e) => {
+                    object_error(name, "SaveFile", &e);
+                    v_int(0)
+                }
+            }
         }
         "clear" => {
             JSON_WEB_STORES.with(|s| {
@@ -1540,8 +1570,20 @@ fn json_web_set_path(root: &wasm_bindgen::JsValue, path: &str, val: &Value) {
         }
     }
     let last_key = wasm_bindgen::JsValue::from_str(parts.last().unwrap());
-    let js_val = wasm_bindgen::JsValue::from_str(&val.to_string_val());
-    let _ = js_sys::Reflect::set(&current, &last_key, &js_val);
+    let _ = js_sys::Reflect::set(&current, &last_key, &json_web_value(val));
+}
+
+/// A value set into JSON as the desktop's RJSON sets it
+/// (rapidr-runtime-core's value_to_json): text that is a number becomes a
+/// number, "true" / "false" a boolean, anything else a string.
+fn json_web_value(val: &Value) -> wasm_bindgen::JsValue {
+    let s = val.to_string_val();
+    match s.parse::<f64>() {
+        Ok(f) if f.is_finite() => wasm_bindgen::JsValue::from_f64(f),
+        _ if s == "true" => wasm_bindgen::JsValue::TRUE,
+        _ if s == "false" => wasm_bindgen::JsValue::FALSE,
+        _ => wasm_bindgen::JsValue::from_str(&s),
+    }
 }
 
 // ---------------------------------------------------------------------------

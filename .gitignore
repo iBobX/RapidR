@@ -3,15 +3,25 @@
 *.bak
 *_old.*
 *.db
-examples/*.db
-examples/*_rust
-examples/_ide_output
-examples/_ide_output.rp
+# examples/: only the programs and their data are tracked — not builds
+# (`rapidr build` puts the executable beside the source), nor the files a
+# program writes as it runs (the IDE's, an example's *.tmp.*)
+examples/**
+!examples/**/
+!examples/**/*.rr
+!examples/**/*.bas
+!examples/**/*.md
+!examples/**/*.csv
+!examples/**/*.json
+!examples/**/*.mid
+!examples/**/*.wav
+!examples/**/*.avi
+!examples/**/*.dxg
+!examples/**/*.x
+examples/**/*_rust/
+examples/**/*_web/
+examples/**/*.tmp.*
 examples/_ide_errors.json
-examples/*.compiled
-examples/*.interp
-examples/*.zip
-examples/**/
 examples/ide.config.json
 utilities/vscodeext/rapidr/*.vsix
 tests/node_modules

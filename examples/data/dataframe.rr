@@ -1,0 +1,120 @@
+' dataframe.rr: data science on a form — an RDATAFRAME loaded from a CSV
+' file, filtered and sorted into a grid; RNUM arrays from its columns; an
+' RPLOT chart of them shown in a QIMAGE.
+'
+'   rapidr run dataframe.rr
+'
+' RDATAFRAME is a table (pandas-like): LoadFromCsv, Filter, Sort, Cell(row,
+' column), RowCount, ColCount, Columns. RNUM holds numbers (numpy-like);
+' RPLOT draws charts (matplotlib-like), and a QIMAGE shows one with
+' LoadFromPlot. staff.csv is made-up data. $RESOURCE builds it into the
+' program, so the program runs from anywhere, a browser too.
+$RESOURCE STAFF_CSV AS "staff.csv"
+
+DECLARE SUB ShowAll
+DECLARE SUB ShowEngineers
+DECLARE SUB ShowTopPaid
+DECLARE SUB ChartByDepartment
+
+DIM df AS RDATAFRAME
+DIM Chart AS RPLOT
+
+CREATE Form AS QFORM
+    Caption = "Staff explorer"
+    Width = 620
+    Height = 490
+    Center
+    CREATE AllBtn AS QBUTTON
+        Caption = "&Everyone": Left = 10: Top = 10: Width = 100: OnClick = ShowAll
+    END CREATE
+    CREATE EngBtn AS QBUTTON
+        Caption = "E&ngineering": Left = 118: Top = 10: Width = 100: OnClick = ShowEngineers
+    END CREATE
+    CREATE TopBtn AS QBUTTON
+        Caption = "&Top paid": Left = 226: Top = 10: Width = 100: OnClick = ShowTopPaid
+    END CREATE
+    CREATE ChartBtn AS QBUTTON
+        Caption = "&Chart": Left = 334: Top = 10: Width = 100: OnClick = ChartByDepartment
+    END CREATE
+    CREATE Grid AS QSTRINGGRID
+        Left = 10: Top = 44: Width = 590: Height = 170
+        FixedCols = 0
+        DefaultColWidth = 112
+    END CREATE
+    CREATE Picture AS QIMAGE
+        Left = 10: Top = 222: Width = 590: Height = 200
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 10: Top = 430: Width = 590
+    END CREATE
+END CREATE
+
+' the frame into the grid: the column names, then a row a record
+SUB FillGrid
+    DIM r AS INTEGER, c AS INTEGER, names AS STRING
+    Grid.ColCount = df.ColCount
+    Grid.RowCount = df.RowCount + 1
+    names = df.Columns + ","
+    FOR c = 0 TO df.ColCount - 1
+        Grid.Cell(c, 0) = FIELD$(names, ",", c + 1)
+        FOR r = 0 TO df.RowCount - 1
+            Grid.Cell(c, r + 1) = df.Cell(r, c)
+        NEXT
+    NEXT
+    Info.Caption = STR$(df.RowCount) + " people"
+END SUB
+
+SUB ShowAll
+    df.LoadFromCsv("staff.tmp.csv")
+    FillGrid
+END SUB
+
+SUB ShowEngineers
+    df.LoadFromCsv("staff.tmp.csv")
+    df.Filter("Department", "==", "Engineering")
+    FillGrid
+END SUB
+
+SUB ShowTopPaid
+    df.LoadFromCsv("staff.tmp.csv")
+    df.Filter("Salary", ">", "70000")
+    df.Sort("Salary", 0)        ' 0: highest first
+    FillGrid
+    Info.Caption = Info.Caption + " earn over 70000; " + df.Cell(0, 0) + " the most"
+END SUB
+
+SUB ChartByDepartment
+    ' the average salary of each department, worked out in BASIC
+    DIM depts(1 TO 3) AS STRING, total(1 TO 3) AS DOUBLE, count(1 TO 3) AS INTEGER
+    DIM r AS INTEGER, d AS INTEGER, line AS STRING
+    depts(1) = "Engineering": depts(2) = "Marketing": depts(3) = "Sales"
+    df.LoadFromCsv("staff.tmp.csv")
+    FOR r = 0 TO df.RowCount - 1
+        FOR d = 1 TO 3
+            IF df.Cell(r, 1) = depts(d) THEN
+                total(d) = total(d) + VAL(df.Cell(r, 2))
+                count(d) = count(d) + 1
+            END IF
+        NEXT
+    NEXT
+    FOR d = 1 TO 3
+        line = line + IIF(d > 1, ",", "") + STR$(INT(total(d) / count(d) / 1000))
+    NEXT
+    ' into RNUM arrays, then a bar chart of them
+    DIM xs AS RNUM, ys AS RNUM
+    xs.FromList("1,2,3")
+    ys.FromList(line)
+    Chart.Clear
+    Chart.Width = Picture.Width     ' the chart's size in pixels
+    Chart.Height = Picture.Height
+    Chart.Title = "Average salary (thousands)"
+    Chart.XLim(0.5, 3.5)
+    Chart.Bar(xs, ys, "Average salary", "steelblue")
+    Picture.LoadFromPlot(Chart)
+    Info.Caption = "Averages: " + line + " (thousands). Highest: " + depts(ys.ArgMax + 1)
+END SUB
+
+EXTRACTRESOURCE STAFF_CSV, "staff.tmp.csv"
+ShowAll
+Form.ShowModal
+KILL "staff.tmp.csv"

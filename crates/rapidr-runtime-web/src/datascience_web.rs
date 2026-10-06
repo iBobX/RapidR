@@ -549,12 +549,13 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         "loadfromcsv" | "readcsv" | "read_csv" => {
             let mut csv_text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+            // (a file: one the program saved this session — OPEN,
+            // EXTRACTRESOURCE —, else one of the project's, as the desktop
+            // reads it from disk)
             if csv_text.ends_with(".csv") || csv_text.starts_with("assets/") {
-                if let Some(base64_data) = crate::database_web::get_rapidr_asset(&csv_text) {
-                    if let Some(decoded) = crate::database_web::decode_base64(&base64_data) {
-                        if let Ok(utf8_str) = String::from_utf8(decoded) {
-                            csv_text = utf8_str;
-                        }
+                if let Some(bytes) = crate::object_web::web_project_file(&csv_text) {
+                    if let Ok(utf8_str) = String::from_utf8(bytes) {
+                        csv_text = utf8_str;
                     }
                 }
             }

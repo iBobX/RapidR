@@ -1,0 +1,61 @@
+' browser.rr: a program that knows it is in a web page — it asks the
+' browser with RJAVASCRIPT and moves between "pages" with RROUTER (the part
+' of the address after #, so Back and Forward work).
+'
+'   rapidr build browser.rr --web          (a folder to put on any web server)
+'   rapidr bundle-bc browser.rr -o browser.zip
+'
+' RJAVASCRIPT.Eval runs a JavaScript expression and answers its value;
+' RROUTER.Navigate("name") sets the address's #name, Route reads it.
+$APPTYPE WEB
+
+DECLARE SUB ShowPage
+DECLARE SUB GoHome
+DECLARE SUB GoAbout
+
+CREATE JS AS RJAVASCRIPT
+END CREATE
+CREATE Router AS RROUTER
+END CREATE
+
+CREATE Form AS QFORM
+    Caption = "In the browser"
+    Width = 420
+    Height = 260
+    Center
+    CREATE HomeBtn AS QBUTTON
+        Caption = "&Home": Left = 12: Top = 12: Width = 90: OnClick = GoHome
+    END CREATE
+    CREATE AboutBtn AS QBUTTON
+        Caption = "&About": Left = 110: Top = 12: Width = 90: OnClick = GoAbout
+    END CREATE
+    CREATE Title AS QLABEL
+        Left = 12: Top = 52: Width = 390: Font.Size = 14
+    END CREATE
+    CREATE Body AS QLABEL
+        Left = 12: Top = 84: Width = 390: Height = 130: WordWrap = 1
+    END CREATE
+END CREATE
+
+SUB ShowPage
+    IF Router.Route = "about" THEN
+        Title.Caption = "About"
+        Body.Caption = "A RapidR program compiled for the web: the same BASIC as on the desktop, drawn on a canvas by RapidR's UI kernel."
+    ELSE
+        Title.Caption = "Home"
+        Body.Caption = "Your browser speaks " + JS.Eval("navigator.language") + "; the window is " + STR$(JS.Eval("window.innerWidth")) + " pixels wide; 6 x 7 is " + STR$(JS.Eval("6 * 7")) + "."
+    END IF
+END SUB
+
+SUB GoHome
+    Router.Navigate("home")
+    ShowPage
+END SUB
+
+SUB GoAbout
+    Router.Navigate("about")
+    ShowPage
+END SUB
+
+ShowPage
+Form.ShowModal

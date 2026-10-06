@@ -1,0 +1,10 @@
+{
+  "place": "Harbour Town",
+  "updated": "2026-10-06 06:00",
+  "unit": "C",
+  "days": [
+    { "day": "Monday", "high": 17, "low": 9, "sky": "sunny" },
+    { "day": "Tuesday", "high": 15, "low": 10, "sky": "showers" },
+    { "day": "Wednesday", "high": 13, "low": 8, "sky": "windy" }
+  ]
+}

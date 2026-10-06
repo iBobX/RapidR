@@ -1,12 +1,14 @@
 #!/bin/bash
 # The full local check before a commit (CI on GitHub runs only by hand):
-# unit tests, the conformance suite on both backends, native examples,
-# desktop GUI events (native + interpreted), the web suites, and the legal
+# unit tests, the conformance suite on both backends, the examples (each
+# run on every runtime it claims), desktop GUI events (native +
+# interpreted), the web suites, and the legal
 # checks (licences, and the notices every build carries).
 #
 # Needs: ./rapidr built (cargo build --release -p rapidr-cli, then copy it),
 # the web artifacts (tools/build_web_artifacts.sh) and the repo served on
-# http://localhost:8765 for the browser tests (Playwright). Run one at a time.
+# http://localhost:8765 (or RAPIDR_URL) for the browser tests (Playwright).
+# Run one at a time.
 #
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
@@ -31,13 +33,15 @@ for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; 
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
 # (the browser tests need the repo served: RAPIDR_URL, else port 8765)
-if want web; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
+if want web || want examples; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
   cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10; echo "(unit done)"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi
-if want examples; then echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1; fi
+# (every example in examples/ on every runtime it claims — rapidr run,
+# interpreted and native executables, the web — GUI ones by the test hooks)
+if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | grep -E "✗|^    |Examples:"; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 if want web; then

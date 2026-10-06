@@ -83,7 +83,7 @@ the supporting crates:
 | `rapidr-ui-app` | `crates/` | The program's side of the kernel for every host: kernel events as the program's events, windows shown and closed, the modal list, timers, the waits' bookkeeping, menus, dialogs' requests and answers, the GUI test hooks (host-neutral; builds for wasm too) |
 | `rapidr-ui-host-winit` | `crates/` | The desktop host for the kernel: winit windows, vello on the GPU (vello_cpu without one), AccessKit, system menus and file dialogs, a headless host for tests |
 | `rapidr-runtime-web` | `crates/` | Web runtime — DOM/Canvas GUI, web-exclusive components, in-memory SQLite, RSocket-over-WebSocket |
-| `rapidr-buildserver` | `crates/` | (Legacy) axum HTTP build service used by `examples/web_ide.rr`. Superseded by the self-contained [`web-ide/`](web-ide/). |
+| `rapidr-buildserver` | `crates/` | (Legacy) axum HTTP build service of the old `examples/web_ide.rr` (removed). Superseded by the self-contained [`web-ide/`](web-ide/). |
 | `rapidr-bytecode`     | `interpreter/` | `.rrbc` format: `RRBC` magic + ~50 stack opcodes |
 | `rapidr-bcgen`        | `interpreter/` | AST → bytecode lowering (mirrors `rapidr-codegen-rust`) |
 | `rapidr-vm`           | `interpreter/` | `Vm<Host>` stack interpreter with frames/globals/`Host` trait |
@@ -115,18 +115,20 @@ the supporting crates:
 # Run all unit tests
 cargo test
 
-# Compile and run an example
-./rapidr --release examples/hello_world.rr
-./examples/hello_world
+# Run an example (examples/README.md lists them all; `rapidr examples` too)
+./rapidr run examples/basics/hello.rr
+
+# Build it: a native executable, or an interpreted standalone one
+./rapidr build examples/basics/hello.rr
+./rapidr build examples/basics/hello.rr out --interp
 
 # Generate and build the IDE
 ./rapidr build examples/ide.rr examples/ide_rust --release
 ./examples/ide
 
-# Compile for the web (WASM)
-./rapidr --web examples/hello_web.rr
-# Serve and open in browser
-cd examples/hello_web_web && python3 -m http.server 8080
+# For the web: a static site (bytecode + the web runtime)
+./rapidr bundle-bc examples/gui/hello_form.rr -o /tmp/hello.zip
+unzip /tmp/hello.zip -d /tmp/hello && cd /tmp/hello && python3 -m http.server 8080
 ```
 
 ### Browser IDE (self-contained, zero-backend)
@@ -175,8 +177,8 @@ Files in [`web-ide/`](web-ide/):
 | [zip.js](web-ide/zip.js) | In-browser STORED PKZIP writer for the Build button |
 | `runtime/` | Symlink to `target/web/` produced by `tools/build_web_artifacts.sh` |
 
-The legacy `examples/web_ide.rr` + `crates/rapidr-buildserver` stack is
-kept in the tree for compatibility but is no longer the recommended path —
+The legacy `crates/rapidr-buildserver` (its client, the old
+`examples/web_ide.rr`, is gone) is no longer the recommended path —
 prefer `web-ide/` for any new work.
 
 ---
@@ -255,10 +257,10 @@ npm install -g @vscode/vsce
 
 ```bash
 # 1. Compile a .rr file for the web
-./rapidr --web examples/hello_web.rr
+./rapidr --web examples/gui/hello_form.rr
 
 # 2. Serve the generated files
-cd examples/hello_web_web
+cd examples/gui/hello_form_web
 python3 -m http.server 8080
 
 # 3. Open http://localhost:8080 in your browser
@@ -384,8 +386,8 @@ appends it to a pre-built `rapidrintr-runner` stub binary (footer:
 `[rrbc bytes][magic "RRBCEXE1"][u32 length]`). The runner reads its own
 appended payload at startup via `current_exe()` and runs it with
 `rapidr-vm-host-native`. The compiled and interpreted modes are
-end-to-end equivalent for every console example in the test matrix
-(`tests/full_matrix.sh`).
+end-to-end equivalent: every example runs both ways, and natively and on
+the web, in `tests/examples_run.mjs`.
 
 The bundle is fully static: unzip and serve from any HTTP host
 (GitHub Pages, S3, plain nginx, `python3 -m http.server`).
@@ -926,10 +928,10 @@ Bytecode + interpreter (recommended — single static `.zip`):
 bash tools/build_web_artifacts.sh
 
 # 2. Compile + bundle
-./rapidr bundle-bc examples/hello_web.rr -o /tmp/hello-web.zip
+./rapidr bundle-bc examples/gui/hello_form.rr -o /tmp/hello-form.zip
 
 # 3. Unzip and serve
-unzip /tmp/hello-web.zip -d /tmp/hello_web && cd /tmp/hello_web
+unzip /tmp/hello-form.zip -d /tmp/hello_form && cd /tmp/hello_form
 python3 -m http.server 8080
 # Open http://localhost:8080
 ```
@@ -937,10 +939,10 @@ python3 -m http.server 8080
 Rust codegen (per-program wasm):
 
 ```bash
-./rapidr build --web examples/hello_web.rr
-ls examples/hello_web_web/
-# index.html  hello_web.js  hello_web_bg.wasm
-cd examples/hello_web_web && python3 -m http.server 8080
+./rapidr build --web examples/gui/hello_form.rr
+ls examples/gui/hello_form_web/
+# index.html  hello_form.js  hello_form_bg.wasm
+cd examples/gui/hello_form_web && python3 -m http.server 8080
 ```
 
 Or just open the [Web IDE](#self-hosted-web-ide--web-ide) and click **⬇ Build**.
@@ -1019,27 +1021,13 @@ These components are **only available** when compiling with `--web`:
 
 ### Web Examples
 
-Six example programs demonstrate web compilation:
-
-| Example | Components Used | Description |
-|---------|----------------|-------------|
-| `hello_web.rr` | RForm, RLabel, REdit, RButton | Basic form with a click counter |
-| `web_calculator.rr` | RForm, REdit, RButton, RLabel | Calculator with 17 buttons and display |
-| `web_canvas.rr` | RForm, RCanvas, RButton, RLabel | Drawing app with freehand, circle, rectangle modes |
-| `web_todo.rr` | RForm, RListBox, REdit, RButton, RCheckBox, RLabel | Todo list with add/remove/clear |
-| `web_dashboard.rr` | RForm, RTimer, RTabControl, RStringGrid, RComboBox, RProgressBar, RLabel | Dashboard with live clock, tabs, and data grid |
-| `web_datascience.rr` | RForm, RTabControl, RStringGrid, RNum, RDataFrame, RPlot, RSQLite | Data science demo with RNum math, DataFrame CRUD, line/bar/pie charts, and in-memory SQL |
-
-Compile and test any of them — either via the bytecode bundler or the Rust-codegen path:
+Every example in [examples/](examples/README.md) says which runtimes it runs
+on — most run on the web too, and [examples/web/](examples/web/) has the
+ones only a web page can (browser storage, JavaScript, the address's route):
 
 ```bash
-# Bytecode (single combined wasm + .rrbc, recommended)
-./rapidr bundle-bc examples/web_calculator.rr -o /tmp/calc.zip
-unzip -o /tmp/calc.zip -d /tmp/calc && (cd /tmp/calc && python3 -m http.server 8080)
-
-# OR: Rust codegen (per-program wasm)
-./rapidr build --web examples/web_calculator.rr
-cd examples/web_calculator_web && python3 -m http.server 8080
+./rapidr bundle-bc examples/web/todo.rr -o /tmp/todo.zip
+unzip -o /tmp/todo.zip -d /tmp/todo && (cd /tmp/todo && python3 -m http.server 8080)
 # Open http://localhost:8080
 ```
 
@@ -1211,44 +1199,18 @@ Or just run `./build_vsc_extension.sh install` from the repo root to build and i
 
 ---
 
-## Demo Examples
+## Examples
 
-### Native Demos
+[examples/README.md](examples/README.md) is the index: the language, forms
+and events, menus and dialogs, timers, grids, themes, the tray, canvas
+drawing, DirectX sprites and a Direct3D scene, MIDI / WAV / AVI media,
+SQLite, JSON, data science (RNum, RDataFrame, RPlot), HTTP, a program in
+plain RapidQ style, web-only ones and the IDE — what each shows and where it
+runs. `rapidr examples` lists them (an installed SDK has them too) and
+`rapidr examples copy <name|all> [folder]` copies them to play with.
 
-Three demo applications showcase the data science components with full GUI integration:
-
-| Demo | Components | Description |
-|------|-----------|-------------|
-| `demo_plot.rr` | `RPlot` + `RImage` | Generates sine/cosine line plots, bar charts, and pie charts, displays them inside a `RImage` on a form |
-| `demo_num.rr` | `RNum` + `RStringGrid` | Array math operations (element-wise, statistics, linspace, dot product) shown in a grid |
-| `demo_dataframe.rr` | `RDataFrame` + `RStringGrid` | Loads CSV data, supports sort, filter, group-by, and summary statistics in a grid |
-
-Run any of them:
 ```bash
-./rapidr build --release examples/demo_num.rr
-./examples/demo_num
-```
-
-> **Note:** The RDataFrame demo expects `examples/demo_dataframe_data.csv` (included) for sample employee data.
-
-### Web Demos
-
-Five web applications demonstrate browser deployment via WASM:
-
-| Demo | Components | Description |
-|------|-----------|-------------|
-| `hello_web.rr` | RForm, RLabel, REdit, RButton | Basic "Hello Web" with click counter |
-| `web_calculator.rr` | RForm, REdit, RButton, RLabel | Full calculator with 17 buttons, display, and history |
-| `web_canvas.rr` | RForm, RCanvas, RButton, RLabel | Drawing app with freehand, circles, rectangles, and color picker |
-| `web_todo.rr` | RForm, RListBox, REdit, RButton, RCheckBox, RLabel | Todo list with add, remove, clear, and item counter |
-| `web_dashboard.rr` | RForm, RTimer, RTabControl, RStringGrid, RComboBox, RProgressBar, RLabel | Live dashboard with clock, tabs, data grid, and progress animation |
-| `web_datascience.rr` | RForm, RTabControl, RStringGrid, RNum, RDataFrame, RPlot, RSQLite | Data science demo: array math, DataFrame CRUD, sin/cos plots, bar/pie charts, in-memory SQL |
-
-Run any of them:
-```bash
-./rapidr bundle-bc examples/web_calculator.rr -o /tmp/calc.zip
-unzip -o /tmp/calc.zip -d /tmp/calc && (cd /tmp/calc && python3 -m http.server 8080)
-# Open http://localhost:8080
+./rapidr run examples/data/dataframe.rr
 ```
 
 ---
@@ -1373,10 +1335,8 @@ cargo test
 
 | Test | What it verifies |
 |------|------------------|
-| [tests/full_matrix.sh](tests/full_matrix.sh) | Compiles every example through every back-end (`compile`, `--interp` native, `bundle-bc` web) |
-| [tests/bc_smoke.sh](tests/bc_smoke.sh) | Round-trip: `build-bc` → `run-bc` parity with `compile`+run |
+| [tests/examples_run.mjs](tests/examples_run.mjs) | Runs every example on every runtime it claims (`rapidr run`, interpreted and native executables, the web), GUI ones through the test hooks |
 | [tests/web_smoke.mjs](tests/web_smoke.mjs) | In-browser `compile()` produces byte-identical output to the native CLI |
-| [tests/web_matrix.mjs](tests/web_matrix.mjs) | CLI bundles every browser-runnable example, navigates Chromium to it, asserts no console errors |
 | [tests/web_ide_smoke.mjs](tests/web_ide_smoke.mjs) | The Web IDE boots and Run renders the preview |
 | [tests/web_ide_designer.mjs](tests/web_ide_designer.mjs) | Toolbox + property grid generate valid `.rr` source and the design surface renders |
 | [tests/web_ide_e2e.mjs](tests/web_ide_e2e.mjs) | Full IDE round-trip: load example → Run → Build → unzip → serve → assert bundle renders match the IDE preview |
@@ -1386,7 +1346,7 @@ Playwright (installed under `tests/node_modules/`):
 
 ```bash
 python3 -m http.server 8765 &
-( cd tests && node web_matrix.mjs && node web_ide_e2e.mjs )
+node tests/examples_run.mjs && ( cd tests && node web_ide_e2e.mjs )
 ```
 
 ---

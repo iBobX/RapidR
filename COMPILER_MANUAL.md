@@ -114,11 +114,11 @@ cd /tmp/ide_rust && cargo build && ./target/debug/ide  # Build and run
 
 ```bash
 # Shortcut syntax — builds and places binary alongside source
-rapidr --release examples/hello_world.rr
-rapidr --debug examples/hello_world.rr
+rapidr --release examples/basics/hello.rr
+rapidr --debug examples/basics/hello.rr
 
 # Web compilation — builds WASM and generates HTML/JS output
-rapidr --web examples/hello_web.rr
+rapidr --web examples/gui/hello_form.rr
 
 # Full subcommand syntax
 rapidr codegen <file.rr> <outdir> [--release|--debug]
@@ -898,8 +898,8 @@ When `--web` is used:
 5. **Output** goes to `examples/<name>_web/` directory, ready to serve
 
 ```bash
-cargo run -- --web examples/hello_web.rr
-python3 -m http.server -d examples/hello_web_web 8080
+cargo run -- --web examples/gui/hello_form.rr
+python3 -m http.server -d examples/gui/hello_form_web 8080
 ```
 
 ### Asset Preloading & Embedding
@@ -1349,10 +1349,10 @@ re-renders the active design surface (debounced).
 | `tests/web_ide_round4.mjs` | 11 — color/font realtime + OK, Build zip wires runtime |
 | `tests/web_ide_assets.mjs` | 6 — upload → propgrid → JSON round-trip → zip entry |
 | `tests/web_ide_e2e_build.mjs` | full E2E — drive IDE → Build → unzip → spawn 2nd HTTP server → click button → assert label updates |
-| `tests/web_smoke.mjs` | In-browser `compile()` ≡ native CLI for `hello_world.rr` |
-| `tests/web_matrix.mjs` | `rapidr bundle-bc` for every web example, served + opened in Chromium, no console errors |
+| `tests/web_smoke.mjs` | In-browser `compile()` ≡ native CLI for `examples/basics/hello.rr` |
+| `tests/examples_run.mjs` | Every example run on every runtime it claims (`rapidr run`, interpreted, native, the web) |
 
-All eight (plus `tests/full_matrix.sh`) are kept green as part of the
+All eight are kept green as part of the
 1.0 release checklist.
 
 ### Subtle Bugs Already Found and Fixed
