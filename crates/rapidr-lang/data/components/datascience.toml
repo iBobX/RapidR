@@ -212,7 +212,7 @@ events = []
 [[component]]
 name = "RPLOT"
 visual = true
-size = [640, 480]
+size = [600, 400]
 sets = ["layout", "a11y"]
 doc = "A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own."
 properties = [

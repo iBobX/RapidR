@@ -382,8 +382,13 @@ mod anchor_store {
 /// Records (or, with the default anchors, forgets) where component `name`
 /// is: see [`AnchorRules::new`].
 pub fn anchor_record(name: &str, anchors: i64, rect: Rect, parent: (i64, i64)) {
+    anchor_set(name, AnchorRules::new(anchors, rect, parent));
+}
+
+/// Stores (or, with `None`, forgets) the anchoring of component `name`.
+pub fn anchor_set(name: &str, rules: Option<AnchorRules>) {
     let key = name.to_lowercase();
-    anchor_store::RULES.with(|r| match AnchorRules::new(anchors, rect, parent) {
+    anchor_store::RULES.with(|r| match rules {
         Some(rules) => {
             r.borrow_mut().insert(key, rules);
         }
@@ -582,6 +587,204 @@ pub fn splitter_drag(client: Rect, controls: &[Control], splitter: usize, min_si
     let start = size(&controls[control]);
     let max = room - min_size - taken + start;
     Some(SplitterDrag { control, horizontal, start, sign, min: min_size.min(max.max(0)), max: max.max(0) })
+}
+
+/// When layout happens: the one sequence of Align and Anchors placements
+/// every runtime runs on its component registry (`runtime-core`'s
+/// `layout.rs`, `runtime-web`'s `layout_web.rs`) and the IDE's designer
+/// runs on a designed form (`crate::designer`), so a form laid out at design
+/// time — or resized in the designer's preview — gets exactly the
+/// rectangles the running program gets.
+///
+/// * A property set by the program ([`after_set`]): an Align lays out the
+///   parent (the changed control first); Anchors, or the program placing a
+///   control, record where it is ([`anchor_here`]); a container's new size
+///   lays out its children ([`client_changed`]).
+/// * [`client_changed`]: the aligned children laid out ([`realign`]), then
+///   the anchored ones follow ([`reanchor`]); a child whose size changed
+///   lays out its own children the same way.
+///
+/// The [`LayoutStore`] is the registry: the runtime's components, or the
+/// designer's. Its stores of a laid-out rectangle must not call back into
+/// layout (the runtimes store "quietly").
+pub mod engine {
+    use super::{align_controls, anchor_controls, Align, AnchorRules, Constraints, Control, Rect, DEFAULT_ANCHORS};
+
+    /// A component registry layout works on. Names are the store's own
+    /// keys (any case it likes, as long as `children_of` gives the same).
+    pub trait LayoutStore {
+        /// `name`'s Left / Top / Width / Height.
+        fn rect(&self, name: &str) -> Rect;
+        fn align(&self, name: &str) -> Align;
+        fn visible(&self, name: &str) -> bool;
+        /// Its Anchors ([`DEFAULT_ANCHORS`] until set).
+        fn anchors(&self, name: &str) -> i64;
+        fn constraints(&self, name: &str) -> Constraints;
+        /// Its RapidR type name (upper case).
+        fn type_of(&self, name: &str) -> String;
+        /// Its parent's key ("" for none).
+        fn parent_of(&self, name: &str) -> String;
+        /// The key `name` is stored under (what `parent_of` and
+        /// `children_of` give).
+        fn key(&self, name: &str) -> String;
+        /// A container's children, in creation order (their keys).
+        fn children_of(&self, parent: &str) -> Vec<String>;
+        /// The area a container's aligned children share, in their
+        /// coordinates.
+        fn client_rect(&self, parent: &str) -> Rect;
+        /// The size a container's anchored children follow.
+        fn anchor_area(&self, parent: &str) -> (i64, i64);
+        /// Stores a rectangle layout computed (laying nothing out).
+        fn store_rect(&mut self, name: &str, r: Rect);
+        /// The anchoring recorded for `name`.
+        fn rules(&self, name: &str) -> Option<AnchorRules>;
+        fn set_rules(&mut self, name: &str, rules: Option<AnchorRules>);
+        /// Whether a container has (had) aligned / anchored children.
+        fn has_aligned(&self, parent: &str) -> bool;
+        fn mark_aligned(&mut self, parent: &str);
+        fn has_anchored(&self, parent: &str) -> bool;
+        fn mark_anchored(&mut self, parent: &str);
+        /// A component's geometry changed (the desktop moves its widget).
+        fn moved(&mut self, _name: &str) {}
+        /// A container's children or size changed (its scroll bars follow).
+        fn scroll_update(&mut self, _name: &str) {}
+    }
+
+    /// A container's children and what [`align_controls`] reads of them.
+    pub fn controls_of<S: LayoutStore + ?Sized>(s: &S, parent: &str) -> (Vec<String>, Vec<Control>) {
+        let children = s.children_of(parent);
+        let controls = children.iter().map(|n| Control { align: s.align(n), visible: s.visible(n), rect: s.rect(n), constraints: s.constraints(n) }).collect();
+        (children, controls)
+    }
+
+    /// Records where `name` is for its Anchors (they changed, or the program
+    /// placed it): from now on it follows its parent.
+    pub fn anchor_here<S: LayoutStore + ?Sized>(s: &mut S, name: &str) {
+        let anchors = s.anchors(name);
+        if anchors == DEFAULT_ANCHORS && s.rules(name).is_none() {
+            return;
+        }
+        let parent = s.parent_of(name);
+        let size = if parent.is_empty() { (0, 0) } else { s.anchor_area(&parent) };
+        let rules = AnchorRules::new(anchors, s.rect(name), size);
+        s.set_rules(name, rules);
+        if anchors != DEFAULT_ANCHORS && !parent.is_empty() {
+            s.mark_anchored(&parent);
+        }
+    }
+
+    /// `parent`'s client area changed size: its aligned children are laid
+    /// out again and its anchored ones follow.
+    pub fn client_changed<S: LayoutStore + ?Sized>(s: &mut S, parent: &str) {
+        realign(s, parent, None);
+        reanchor(s, parent);
+    }
+
+    /// Moves `parent`'s anchored children to follow its client area
+    /// ([`anchor_controls`]).
+    pub fn reanchor<S: LayoutStore + ?Sized>(s: &mut S, parent: &str) {
+        if parent.is_empty() || !s.has_anchored(parent) {
+            return;
+        }
+        let children = s.children_of(parent);
+        let list: Vec<_> = children
+            .iter()
+            .map(|n| {
+                let anchors = s.anchors(n);
+                let rules = s.rules(n).filter(|r| r.anchors() == anchors);
+                (rules, s.rect(n), s.align(n), s.constraints(n))
+            })
+            .collect();
+        let moves = anchor_controls(s.anchor_area(parent), &list);
+        if moves.is_empty() {
+            return;
+        }
+        for (i, r) in &moves {
+            s.store_rect(&children[*i], *r);
+        }
+        for (i, r) in moves {
+            let name = &children[i];
+            s.moved(name);
+            if (r.width, r.height) != (list[i].1.width, list[i].1.height) {
+                client_changed(s, name);
+                s.scroll_update(name);
+            }
+        }
+        s.scroll_update(parent);
+    }
+
+    /// Lays out the aligned children of `parent` ([`align_controls`]);
+    /// `changed` is the child whose Align, size or visibility just changed.
+    pub fn realign<S: LayoutStore + ?Sized>(s: &mut S, parent: &str, changed: Option<&str>) {
+        if parent.is_empty() || !s.has_aligned(parent) {
+            return;
+        }
+        let (children, controls) = controls_of(s, parent);
+        let changed = changed.map(|c| s.key(c)).and_then(|c| children.iter().position(|n| *n == c));
+        let moves: Vec<(String, Rect, bool)> = align_controls(s.client_rect(parent), &controls, changed)
+            .into_iter()
+            .filter(|(i, r)| *r != controls[*i].rect)
+            .map(|(i, r)| {
+                let old = controls[i].rect;
+                (children[i].clone(), r, (old.width, old.height) != (r.width, r.height))
+            })
+            .collect();
+        for (name, r, _) in &moves {
+            s.store_rect(name, *r);
+        }
+        for (name, _, resized) in moves {
+            s.moved(&name);
+            if resized {
+                client_changed(s, &name);
+            }
+        }
+    }
+
+    /// The program stored `prop` (lowercase) of `name`: what layout does
+    /// then. `Align`, `Anchors`, `Left` / `Top` / `Width` / `Height`,
+    /// `Visible` and `Parent` (other properties: nothing).
+    pub fn after_set<S: LayoutStore + ?Sized>(s: &mut S, name: &str, prop: &str) {
+        match prop {
+            "align" => {
+                let parent = s.parent_of(name);
+                if s.align(name) != Align::None && !parent.is_empty() {
+                    s.mark_aligned(&parent);
+                }
+                realign(s, &parent, Some(name));
+            }
+            "anchors" => anchor_here(s, name),
+            "left" | "top" | "width" | "height" | "visible" => {
+                if prop != "visible" {
+                    s.moved(name);
+                    anchor_here(s, name);
+                }
+                if s.align(name) != Align::None {
+                    let parent = s.parent_of(name);
+                    realign(s, &parent, Some(name));
+                }
+                if matches!(prop, "width" | "height") {
+                    client_changed(s, name);
+                    s.scroll_update(name);
+                }
+            }
+            "parent" => {
+                let parent = s.parent_of(name);
+                anchor_here(s, name);
+                if s.align(name) != Align::None {
+                    if !parent.is_empty() {
+                        s.mark_aligned(&parent);
+                    }
+                    realign(s, &parent, Some(name));
+                } else if s.type_of(name) == "RMAINMENU" {
+                    client_changed(s, &parent);
+                }
+            }
+            _ => return,
+        }
+        // A scrolling parent's bars follow its components.
+        let parent = s.parent_of(name);
+        s.scroll_update(&parent);
+    }
 }
 
 #[cfg(test)]

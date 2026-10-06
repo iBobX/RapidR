@@ -88,6 +88,12 @@ SITES = {
     ("crates/rapidr-value/src/font_dialog.rs", "call"): "RFONTDIALOG",
     ("crates/rapidr-value/src/globals.rs", "file_rec"): "FILEREC",
     ("crates/rapidr-value/src/layout.rs", "with"): "*",
+    # (the layout engine every runtime and the designer run; a label's AutoSize)
+    ("crates/rapidr-value/src/layout.rs", "after_set"): "*",
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
+    # (I4: the designer model replays CREATE blocks through that layout)
+    ("crates/rapidr-value/src/designer/layout.rs", "stored"): "*",
+    ("crates/rapidr-value/src/designer/layout.rs", "set"): "*",
     ("crates/rapidr-value/src/layout.rs", "default_property"): "*",
     ("crates/rapidr-value/src/mdi.rs", "call"): "RFORMMDI",
     ("crates/rapidr-value/src/mdi.rs", "set"): "RFORMMDI",
