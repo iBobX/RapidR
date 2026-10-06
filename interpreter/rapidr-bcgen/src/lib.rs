@@ -35,6 +35,9 @@ use rapidr_ast::{
 use rapidr_bytecode::{builtins, Const, Function, Module, Op, Param};
 use rapidr_diagnostics::TextSpan;
 
+pub mod semantic;
+use semantic::{Access, DimTarget, NameFacts, NameUse, SymbolKind};
+
 /// Result of compilation: the produced module plus any non-fatal warnings.
 pub struct Compiled {
     pub module: Module,
@@ -57,6 +60,19 @@ pub fn compile_program_with_source(program: &Program, source: Option<&str>) -> R
 /// doesn't know aren't errors (RapidQ's own libraries use Win32 routines
 /// and built-ins RapidR lacks); the program's own code is always checked.
 pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, library_lines: &[bool]) -> Result<Compiled, String> {
+    compile_recording(program, source, library_lines, None).0
+}
+
+/// Compiles the program recording what the compiler decides about names
+/// (for [`semantic::analyze`]).
+fn record_program(program: &Program, source: Option<&str>) -> semantic::Recorder {
+    let run = std::panic::AssertUnwindSafe(|| compile_recording(program, source, &[], Some(semantic::Recorder::default())).1);
+    // (a compiler bug never takes the IDE down: the model is then built
+    // from the program as written only)
+    std::panic::catch_unwind(run).ok().flatten().unwrap_or_default()
+}
+
+fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, String>, Option<semantic::Recorder>) {
     // (RapidQ's library objects RapidR implements, ENVIRON statements:
     // rapidr_ast::library — native builds run it first too)
     let program = &rapidr_ast::library::lower(program);
@@ -75,6 +91,7 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     let lowered = rapidr_ast::numeric::lower(lowered);
     let program = &lowered;
     let mut bcgen = Bcgen::new();
+    bcgen.sem = recorder;
     bcgen.library_lines = library_lines.to_vec();
     if let Some(src) = source {
         let mut starts = vec![0];
@@ -91,8 +108,9 @@ pub fn compile_program_with_libraries(program: &Program, source: Option<&str>, l
     for (span, message) in checks {
         bcgen.error_at(span, message);
     }
-    bcgen.compile_program(program)?;
-    Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings })
+    let result = bcgen.compile_program(program);
+    let recorder = bcgen.sem.take();
+    (result.map(|()| Compiled { module: bcgen.module, warnings: bcgen.warnings }), recorder)
 }
 
 /// BASIC identifiers are case-insensitive and may carry a type suffix
@@ -220,6 +238,9 @@ struct Bcgen {
     in_main: bool,
     /// Starts of each line (byte offsets) to resolve line numbers for statements.
     line_starts: Option<Vec<usize>>,
+    /// Records declarations and name uses for the semantic model
+    /// ([`semantic::analyze`]); `None` when only compiling.
+    sem: Option<semantic::Recorder>,
 }
 
 struct LoopCtx {
@@ -279,6 +300,7 @@ impl Bcgen {
             component_kinds: HashMap::new(),
             in_main: false,
             line_starts: None,
+            sem: None,
         }
     }
 
@@ -371,11 +393,13 @@ impl Bcgen {
         for s in subs {
             let idx = *self.fn_indices.get(&s.name).unwrap();
             self.current_routine = Some(name_key(&s.name));
+            self.note_routine(s.span, false);
             self.compile_function_body(idx, &s.name, &format!("SUB {}", s.name), &s.params, &s.body, false)?;
         }
         for f in funcs {
             let idx = *self.fn_indices.get(&f.name).unwrap();
             self.current_routine = Some(name_key(&f.name));
+            self.note_routine(f.span, true);
             self.compile_function_body(idx, &f.name, &format!("FUNCTION {}", f.name), &f.params, &f.body, true)?;
         }
         self.current_routine = None;
@@ -586,6 +610,7 @@ impl Bcgen {
             Statement::Return(r) => self.lower_return(r, code)?,
             Statement::Const(c) => {
                 // CONST x = expr  → eval + StoreGlobal x  (treat all as globals).
+                self.note_decl(SymbolKind::Constant, &c.name, c.declared_type.as_deref(), c.span);
                 self.globals.insert(name_key(&c.name));
                 self.lower_expr(&c.value, code)?;
                 let s = self.global_str(&c.name);
@@ -598,16 +623,26 @@ impl Bcgen {
                 for decl in &d.declarators {
                     // REDIM in a SUB resizes the module-level array unless
                     // the SUB has its own (QBasic / RapidQ).
-                    let resizes_global = d.is_redim && self.scope.get(&decl.name).is_none() && self.is_known_global(&decl.name);
-                    if !self.in_main {
-                        if !resizes_global {
+                    // (the rule is semantic::dim_target, which the IDE uses too)
+                    let target = semantic::dim_target(self.in_main, d.is_redim, self.scope.get(&decl.name).is_some(), self.is_known_global(&decl.name));
+                    let component = is_component_type_name(&d.type_name) && decl.dimensions.is_empty();
+                    match target {
+                        DimTarget::ResizeGlobal => self.note_use(&decl.name, decl.span, NameUse::Global, Access::Write),
+                        DimTarget::Global if component => self.note_decl(SymbolKind::Component, &decl.name, Some(&d.type_name), decl.span),
+                        DimTarget::Global => self.note_decl(SymbolKind::Global, &decl.name, Some(&d.type_name), decl.span),
+                        DimTarget::Local => self.note_decl(SymbolKind::Local, &decl.name, Some(&d.type_name), decl.span),
+                    }
+                    match target {
+                        DimTarget::Local => {
                             self.scope.declare(&decl.name);
                             if !is_component_type_name(&d.type_name) && !rapidr_ast::is_rapidq_object_type(&d.type_name) {
                                 self.scope.shadows.insert(decl.name.to_lowercase());
                             }
                         }
-                    } else {
-                        self.globals.insert(name_key(&decl.name));
+                        DimTarget::ResizeGlobal => {}
+                        DimTarget::Global => {
+                            self.globals.insert(name_key(&decl.name));
+                        }
                     }
                     if d.is_redim && !decl.dimensions.is_empty() {
                         self.lower_redim(decl, &d.type_name, code)?;
@@ -789,11 +824,15 @@ impl Bcgen {
                         args: Vec::new(),
                     };
                     self.lower_call_stmt(&call, code)?;
-                } else if self.routine.offsets.insert(name_key(&l.name), code.len() as u32).is_some() {
-                    self.error_at(l.span, format!("Label '{}' is defined more than once", l.name));
+                } else {
+                    self.note_label(&l.name, l.span, Access::Declare);
+                    if self.routine.offsets.insert(name_key(&l.name), code.len() as u32).is_some() {
+                        self.error_at(l.span, format!("Label '{}' is defined more than once", l.name));
+                    }
                 }
             }
             Statement::Goto(j) | Statement::Gosub(j) => {
+                self.note_label(&j.label, j.span, Access::Read);
                 emit(code, if matches!(stmt, Statement::Gosub(_)) { Op::Gosub } else { Op::Jump });
                 self.routine.pending.push((j.label.clone(), code.len(), j.span));
                 push_u32(code, 0);
@@ -824,6 +863,7 @@ impl Bcgen {
     /// recursive calls (RapidQ manual, STATIC).
     fn lower_static(&mut self, d: &rapidr_ast::DimStatement, code: &mut Vec<u8>) -> Result<(), String> {
         for decl in &d.declarators {
+            self.note_decl(SymbolKind::Static, &decl.name, Some(&d.type_name), decl.span);
             let mangled = format!("{}::{}", self.scope.owner, decl.name);
             self.scope.statics.insert(decl.name.clone(), mangled.clone());
             self.globals.insert(name_key(&mangled));
@@ -852,6 +892,31 @@ impl Bcgen {
             patch_u32(code, skip, here);
         }
         Ok(())
+    }
+
+    // (the semantic model's recording: nothing without a recorder)
+    fn note_use(&mut self, name: &str, span: TextSpan, target: NameUse, access: Access) {
+        if let Some(r) = &mut self.sem {
+            r.use_name(&self.current_routine, name, span, target, access);
+        }
+    }
+
+    fn note_decl(&mut self, kind: SymbolKind, name: &str, ty: Option<&str>, span: TextSpan) {
+        if let Some(r) = &mut self.sem {
+            r.declare(&self.current_routine, kind, name, ty, span);
+        }
+    }
+
+    fn note_routine(&mut self, span: TextSpan, is_function: bool) {
+        if let (Some(r), Some(routine)) = (&mut self.sem, &self.current_routine) {
+            r.events.push(semantic::Event::Routine { routine: routine.clone(), span, is_function });
+        }
+    }
+
+    fn note_label(&mut self, name: &str, span: TextSpan, access: Access) {
+        if let Some(r) = &mut self.sem {
+            r.events.push(semantic::Event::Label { routine: self.current_routine.clone(), name: name.to_string(), span, access });
+        }
     }
 
     /// Whether `name` is a module-level variable (or a STATIC of this routine).
@@ -1411,7 +1476,9 @@ impl Bcgen {
     fn store_target(&mut self, target: &Expression, code: &mut Vec<u8>) -> Result<(), String> {
         match target {
             Expression::Identifier(id) => {
-                if let Some(slot) = self.scope.get(&id.name) {
+                let slot = self.scope.get(&id.name);
+                self.note_use(&id.name, id.span, semantic::store_target(slot.is_some()), Access::Write);
+                if let Some(slot) = slot {
                     emit(code, Op::StoreLocal);
                     push_u16(code, slot);
                 } else {
@@ -1727,8 +1794,11 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
-        let is_global = self.in_main && self.scope.get(&f.variable).is_none();
-        
+        // (the rule is semantic::for_target, which the IDE uses too)
+        let target = semantic::for_target(self.in_main, self.scope.get(&f.variable).is_some());
+        let is_global = target == NameUse::Global;
+        self.note_use(&f.variable, f.span, target, Access::Write);
+
         // var = start
         if is_global {
             self.globals.insert(name_key(&f.variable));
@@ -1968,6 +2038,7 @@ impl Bcgen {
         code: &mut Vec<u8>,
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
+        self.note_decl(SymbolKind::Component, &c.name, Some(&c.type_name), c.span);
         let kind_s = self.module.add_string(&c.type_name.to_uppercase());
         let id_s = self.module.add_string(&c.name);
         self.module.app_type = rapidr_bytecode::AppType::Gui;
@@ -2107,42 +2178,58 @@ impl Bcgen {
                     emit(code, Op::LoadNull);
                     return Ok(());
                 }
-                if self.is_component_name(&name_lower) {
-                    let cs = self.module.add_const(Const::Str(id.name.clone()));
-                    emit(code, Op::LoadConst);
-                    push_u32(code, cs);
-                } else if let Some(slot) = self.scope.get(&id.name) {
-                    emit(code, Op::LoadLocal); push_u16(code, slot);
-                } else if !self.is_known_global(&id.name)
-                    && builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str())
-                {
-                    // `x = TIMER`: a builtin written without parentheses.
-                    let s = self.module.add_string(&id.name);
-                    emit(code, Op::CallBuiltin);
-                    push_u32(code, s); code.push(0);
-                } else if !self.is_known_global(&id.name) && matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse") {
-                    // `True` / `False` without RAPIDQ.INC's constants: -1 / 0,
-                    // as in native builds.
-                    let c = self.module.add_const(Const::Bool(name_lower.ends_with("true")));
-                    emit(code, Op::LoadConst);
-                    push_u32(code, c);
-                } else if let (false, Some(n)) = (self.is_known_global(&id.name), rapidr_ast::rapidr_constant(&id.name)) {
-                    // RapidR's own constants (akLeft …), unless the program
-                    // has its own.
-                    let c = self.module.add_const(Const::Int(n));
-                    emit(code, Op::LoadConst);
-                    push_u32(code, c);
-                } else if let (Some(&fi), Some(true), false) = (
-                    self.fn_indices.get(&id.name),
-                    self.fn_is_func.get(&id.name).copied(),
-                    self.is_known_global(&id.name),
-                ) {
-                    // A FUNCTION named without parentheses is called: `y = Five + 1`.
-                    emit(code, Op::CallFunc);
-                    push_u32(code, fi); code.push(0);
-                } else {
-                    let s = self.global_str(&id.name);
-                    emit(code, Op::LoadGlobal); push_u32(code, s);
+                // (the rule is semantic::resolve_name, which the IDE uses too)
+                let facts = NameFacts {
+                    is_component: self.is_component_name(&name_lower),
+                    is_local: self.scope.get(&id.name).is_some(),
+                    is_known_global: self.is_known_global(&id.name),
+                    is_bare_builtin: builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str()),
+                    is_bool_name: matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse"),
+                    is_rapidr_constant: rapidr_ast::rapidr_constant(&id.name).is_some(),
+                    is_function: self.fn_indices.contains_key(&id.name) && self.fn_is_func.get(&id.name).copied() == Some(true),
+                };
+                let name_use = semantic::resolve_name(&facts);
+                self.note_use(&id.name, id.span, name_use, Access::Read);
+                match name_use {
+                    NameUse::Component => {
+                        let cs = self.module.add_const(Const::Str(id.name.clone()));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, cs);
+                    }
+                    NameUse::Local => {
+                        let slot = self.scope.get(&id.name).unwrap_or_default();
+                        emit(code, Op::LoadLocal); push_u16(code, slot);
+                    }
+                    NameUse::BareBuiltin => {
+                        // `x = TIMER`: a builtin written without parentheses.
+                        let s = self.module.add_string(&id.name);
+                        emit(code, Op::CallBuiltin);
+                        push_u32(code, s); code.push(0);
+                    }
+                    NameUse::BoolConstant => {
+                        // `True` / `False` without RAPIDQ.INC's constants: -1 / 0,
+                        // as in native builds.
+                        let c = self.module.add_const(Const::Bool(name_lower.ends_with("true")));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, c);
+                    }
+                    NameUse::RapidrConstant => {
+                        // RapidR's own constants (akLeft …), unless the program
+                        // has its own.
+                        let c = self.module.add_const(Const::Int(rapidr_ast::rapidr_constant(&id.name).unwrap_or_default()));
+                        emit(code, Op::LoadConst);
+                        push_u32(code, c);
+                    }
+                    NameUse::FunctionCall => {
+                        // A FUNCTION named without parentheses is called: `y = Five + 1`.
+                        let fi = self.fn_indices.get(&id.name).copied().unwrap_or_default();
+                        emit(code, Op::CallFunc);
+                        push_u32(code, fi); code.push(0);
+                    }
+                    NameUse::Global => {
+                        let s = self.global_str(&id.name);
+                        emit(code, Op::LoadGlobal); push_u32(code, s);
+                    }
                 }
                 Ok(())
             }
