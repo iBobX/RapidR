@@ -329,7 +329,8 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `ShowCaptions` | bool | False | Whether each button shows its caption beside its icon. |
 | `Customizable` | bool | False | The user can choose which buttons show, from the toolbar's menu (its overflow button). |
 | `ButtonCount` (read-only) | int |  | How many buttons and separators it has. |
-| `Layout` | string |  | Which buttons the user hid, as text to keep and set back (Customizable). |
+| `Layout` | string |  | Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between. |
+| `ClickedButton` (read-only) | string |  | The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -344,7 +345,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `AddButton(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])` | Adds an icon button: Icon is one of RapidR's icons ("save", "run", a command id such as "file.save") or a picture file; Hint its tooltip (and what a screen reader calls it); Command what OnClick reports besides the name. |
 | `AddToggle(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])` | Adds a button that stays down when clicked, until clicked again. |
-| `AddSeparator` | Adds a thin line between groups of buttons. |
+| `AddSeparator([Name AS STRING])` | Adds a thin line between groups of buttons (named, to be removed by RemoveButton). |
 | `RemoveButton(Name AS STRING)` | Takes a button (or a separator, by its name) off the toolbar. |
 | `Clear` | Removes every button. |
 | `Button(Index AS INTEGER) AS STRING` | Button Index's name (from 0; a separator's is "-"). |
@@ -357,8 +358,8 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 
 | Event | |
 |---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned): its name and command. |
+| `OnClick` | A button or the strip was clicked (after OnButtonClick): ClickedButton says which button. |
+| `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command. |
 
 <a id="rstatusbar"></a>
 ## RSTATUSBAR (QSTATUSBAR)

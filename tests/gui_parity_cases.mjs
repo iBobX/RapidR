@@ -50,6 +50,19 @@ export const cases = [
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= S: S: S:panel_project_form.rr S:panel_project_form.rr#Form1 S:panel_project_util.inc S: S: S:panel_project_main.rr O:panel_project_main.rr | panel_project_main.rr | panel_project_form.rr#Button1 0",
       "info.caption=Demo3: panel_project_main.rr/module panel_project_form.rr/form panel_project_util.inc/include | panel_project_main3: panel_project_main.rr/module panel_project_util.inc/include panel_project_form.rr/form"] },
+  // (L-PANELS D) ROUTPUTCONSOLE: ANSI colours, CLS, LOCATE written; a link
+  // clicked in the output, the Build tab and its compiler message's link,
+  // the Problems tab and a problem, the Output tab; Find / FindNext, F3.
+  // RTOOLBAR: Save, the disabled Stop (nothing), the Grid toggle, a
+  // QCOOLBTN on it, the strip; the narrow bar's "»" and Redo in its menu,
+  // then its menu's "Cut" line (hidden: Layout); the mouse over Open.
+  { name: "panel_console", events: "cons.__mousedown_70_72,cons.__mouseup_70_72,cons.__mousedown_88_14,cons.__mouseup_88_14,cons.__mousedown_40_55,cons.__mouseup_40_55,cons.__mousedown_140_14,cons.__mouseup_140_14,cons.__mousedown_200_61,cons.__mouseup_200_61,cons.__mousedown_30_14,cons.__mouseup_30_14,bfind.onclick,cons.__key_114,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= link:Main.rr:12 page:build link:src/app.bas:3 page:problems link:src/app.bas:3 page:output find:3 next:2",
+      "info.caption=output 7 2 [RapidR output console] [           LOCATE 6, 12] line"] },
+  { name: "panel_toolbar", events: "bar.__mousedown_74_16,bar.__mouseup_74_16,bar.__mousedown_142_16,bar.__mouseup_142_16,bar.__mousedown_181_16,bar.__mouseup_181_16,bar.__mousedown_230_16,bar.__mouseup_230_16,bar.__mousedown_400_16,bar.__mouseup_400_16,bar2.__mousedown_125_16,bar2.__mouseup_125_16,bar2.__mousedown_102_37,bar2.__mouseup_102_37,bar2.__mousedown_125_16,bar2.__mouseup_125_16,bar2.__mousedown_102_63,bar2.__mouseup_102_63,breport.onclick,bar.__mousemove_45_16",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= save/file.save click:save grid/designer.showGrid click:grid cool click: redo/edit.redo", "info.caption=8 - -1 0 [cut] Open a file4"] },
   // RDOCKMANAGER (I1, rapidr_value::dock): an IDE's layout. A tab clicked
   // (Output), the Explorer's splitter dragged 40 to the right, the
   // Toolbox's strip tab clicked twice (slid out, in), Properties dragged
