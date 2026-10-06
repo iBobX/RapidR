@@ -306,7 +306,15 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
     if shows_reset {
         let hot = m.ui.hover == Some(Hover::Reset(i));
         if !l.classic {
-            p.fill((parts.reset.0 - 4, y + 1, parts.reset.2 + 6, h - 2), if selected { l.selected } else { l.hover });
+            // (the glyph's ground: the row's, so a long name ends under it)
+            let ground = match (selected, focused) {
+                (true, true) => l.selected,
+                (true, false) => l.inactive,
+                _ => l.hover,
+            };
+            if !(l.contrast && !selected) {
+                p.fill((parts.reset.0 - 4, y + 2, parts.reset.2 + 6, h - 4), ground);
+            }
             if hot {
                 p.round((parts.reset.0 - 2, parts.reset.1 - 1, parts.reset.2 + 4, parts.reset.3 + 2), 4.0, Some(mix(l.accent, l.body, 0.8)), None, 1.0);
             }

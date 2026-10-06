@@ -4678,7 +4678,7 @@ const COMPONENT_REGISTRY = {
             'resetvalue': { sig: 'ResetValue(Prop AS STRING)', desc: 'Puts a property back to its default value.' },
             'isdefault': { sig: 'IsDefault(Prop AS STRING) AS INTEGER', desc: 'True when a property has its default value.' },
             'editvalue': { sig: 'EditValue(Prop AS STRING)', desc: 'Selects a property\'s row and starts its editor, as a double click would.' },
-            'addproperty': { sig: 'AddProperty(Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING])', desc: 'Shows a property of the program\'s own (an object the registry doesn\'t know): Type is "int", "float", "string", "bool", "color", "file" or a list of constants separated by "|". Its changes come to OnPropertyChange.' },
+            'addproperty': { sig: 'AddProperty(Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING])', desc: 'Shows a property of the program\'s own (an object the registry doesn\'t know): Type is "int", "float", "string", "bool", "color", "file", "picture", "strings" (a line per row), "columns", "component", a list of constants separated by "|" (one of them) or "set:" and flags separated by "|" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it ("Misc" when left out). Its changes come to OnPropertyChange only.' },
             'clearproperties': { sig: 'ClearProperties', desc: 'Removes the properties AddProperty gave.' },
             'row': { sig: 'Row(Index AS INTEGER) AS STRING', desc: 'What row Index (from 0) shows, as "Name=Value" (a category heading as "[Name]").' },
             'click': { sig: 'Click', desc: 'Runs the control\'s OnClick handler, as a click would.' },
