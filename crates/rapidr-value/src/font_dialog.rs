@@ -203,12 +203,14 @@ pub fn call(method: &str, args: &[Value], get: &dyn Fn(&str) -> Value, set: &mut
             set("options", v_int(bits));
         }
         // (the QFONT is passed by its object id)
+        // (anything but a QFONT: nothing to take)
         "getfont" => {
-            let id = args.first()?.to_string_val();
-            let props = crate::objects::font_properties(&id)?;
-            let font = crate::objects::font_from_props(&id, &|_, p| props.iter().find(|(k, _)| *k == p).map_or(Value::Null, |(_, v)| v.clone()));
-            for (p, v) in properties(&font) {
-                set(p, v);
+            let id = args.first().map(Value::to_string_val).unwrap_or_default();
+            if let Some(props) = crate::objects::font_properties(&id) {
+                let font = crate::objects::font_from_props(&id, &|_, p| props.iter().find(|(k, _)| *k == p).map_or(Value::Null, |(_, v)| v.clone()));
+                for (p, v) in properties(&font) {
+                    set(p, v);
+                }
             }
         }
         "setfont" => {

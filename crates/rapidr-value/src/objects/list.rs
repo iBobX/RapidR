@@ -513,6 +513,15 @@ impl ItemList {
         self.item_index = current.and_then(|c| self.items.iter().position(|s| *s == c)).map_or(-1, |i| i as i64);
     }
 
+    /// Replaces the items with the lines of a stream's text, as RapidQ
+    /// splits them there ([`text_lines`]).
+    pub fn load_stream_text(&mut self, text: &str) {
+        self.clear();
+        for line in text_lines(text) {
+            self.add(line.to_string());
+        }
+    }
+
     /// Replaces the items with the lines of `text`.
     pub fn load_text(&mut self, text: &str) {
         self.clear();
@@ -701,9 +710,33 @@ impl ItemList {
     }
 }
 
+/// A stream's text as RapidQ's string list reads it (RC.EXE): a line ends
+/// at CR LF, LF or a lone CR; a last line without an end counts, an empty
+/// text has none.
+pub fn text_lines(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while !rest.is_empty() {
+        let end = rest.find(['\r', '\n']).unwrap_or(rest.len());
+        out.push(&rest[..end]);
+        rest = &rest[end..];
+        rest = rest.strip_prefix('\r').unwrap_or(rest);
+        rest = rest.strip_prefix('\n').unwrap_or(rest);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stream_lines() {
+        assert_eq!(text_lines("a\r\nb\nc\rd"), ["a", "b", "c", "d"]);
+        assert_eq!(text_lines("\nb\nc\rd"), ["", "b", "c", "d"]);
+        assert_eq!(text_lines("f1\r\nf2\r\n"), ["f1", "f2"]);
+        assert!(text_lines("").is_empty());
+    }
 
     fn s(x: &str) -> Value {
         v_str(x)

@@ -43,7 +43,11 @@ impl FileSink {
 }
 
 /// Methods that change a stream (refused on a file opened for reading).
-pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "copyfrom", "extractres"];
+pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "writebyte", "copyfrom", "memcopyfrom", "extractres"];
+
+/// What `ReadByte` gives at the end of the stream: RapidQ's value there
+/// (RC.EXE: 26, the old end-of-file character), the position unchanged.
+pub const READ_BYTE_AT_END: i64 = 26;
 
 /// Largest stream allowed, so `Mem.Size = 1E12` fails cleanly.
 const MAX_SIZE: usize = 1 << 31;
@@ -73,7 +77,7 @@ impl MemStream {
     }
 
     pub fn read(&mut self, n: usize) -> Vec<u8> {
-        let end = (self.pos + n).min(self.data.len());
+        let end = self.pos.saturating_add(n).min(self.data.len());
         let out = self.data[self.pos.min(end)..end].to_vec();
         self.pos = end;
         out
@@ -118,7 +122,8 @@ impl MemStream {
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
             "position" => self.set_position(val.to_i64()),
-            "size" => self.set_size(val.to_i64()),
+            // (`Mem.SetSize = n`: RC.EXE takes it as a property, Size's twin)
+            "size" | "setsize" => self.set_size(val.to_i64()),
             _ => return false,
         }
         true
@@ -196,6 +201,20 @@ impl MemStream {
                 v_int(self.pos as i64)
             }
             "eof" => v_int(if self.pos >= self.data.len() { -1 } else { 0 }),
+            // One byte (QFILESTREAM): its low 8 bits written; read back as
+            // 0..255, or RapidQ's 26 past the end.
+            "writebyte" => {
+                self.write(&[arg(0).to_i64() as u8]);
+                Value::Null
+            }
+            "readbyte" => match self.read(1).first() {
+                Some(&b) => v_int(i64::from(b)),
+                None => v_int(READ_BYTE_AT_END),
+            },
+            // RC.EXE's class table has them, but its compiler takes only a
+            // TYPE field as their one argument and the program then does
+            // nothing with the stream: the same here.
+            "saveudtarray" | "loadudtarray" => Value::Null,
             // `Mem.ExtractRes(Resource(0))`: the resource's bytes, written
             // at the position (rapidr_value::resources).
             "extractres" => {

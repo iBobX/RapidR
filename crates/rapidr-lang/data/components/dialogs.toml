@@ -109,7 +109,7 @@ methods = [
   { name = "AddOptions", params = "Items ..." },
   { name = "DelOptions", params = "Items ..." },
   { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)", doc = "Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result." },
-  { name = "GetFont", params = "F AS QFONT", missing = true },
+  { name = "GetFont", params = "F AS QFONT", doc = "Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to a QFONT." },
   { name = "SetFont", params = "F AS QFONT" },
 ]
 events = [

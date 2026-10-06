@@ -320,7 +320,7 @@ methods = [
   { name = "MoveColumn", origin = "rapidr" },
   { name = "MoveRow", origin = "rapidr" },
   { name = "SetSuggestions", value = true, origin = "rapidr" },
-  { name = "DeleteColumn", missing = true },
+  { name = "DeleteColumn", params = "Column AS INTEGER", doc = "Removes column `Column`, as DeleteCol does (RC.EXE knows both names)." },
 ]
 events = [
   { name = "OnDrawCell", params = "Col AS INTEGER, Row AS INTEGER, State AS INTEGER, R AS QRECT" },

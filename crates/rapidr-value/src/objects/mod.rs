@@ -934,7 +934,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
-        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall") => m.call(&prop, &[]),
+        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readbyte") => m.call(&prop, &[]),
         Object::Stream(m) => m.get(&prop),
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
@@ -1127,13 +1127,66 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             write_file(&path, &text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>()).map(|_| Value::Null)
         });
     }
-    // QSTRINGLIST AddList(Other): the other list's strings appended.
+    // QRICHEDIT LoadFromStream / SaveToStream: the same text as the file
+    // methods, from the stream's position to its end / written at it.
+    if is_textedit(id) && matches!(method.as_str(), "loadfromstream" | "savetostream") {
+        let stream = arg(0).to_string_val();
+        if method == "loadfromstream" {
+            let bytes = with(&stream, |o| match o {
+                Object::Stream(m) => Some(m.read(usize::MAX)),
+                _ => None,
+            })
+            .flatten();
+            let Some(bytes) = bytes else { return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM"))) };
+            let text: String = bytes.iter().map(|&b| char::from(b)).collect();
+            with(id, |o| {
+                if let Object::Text(t) = o {
+                    t.set_text(&text);
+                }
+            });
+        } else {
+            let text = with(id, |o| match o {
+                Object::Text(t) => t.text(),
+                _ => String::new(),
+            })
+            .unwrap_or_default();
+            let bytes: Vec<u8> = text.chars().map(|c| c as u32 as u8).collect();
+            if with(&stream, |o| if let Object::Stream(m) = o { m.write(&bytes) }).is_none() {
+                return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM")));
+            }
+        }
+        return Some(Ok(Value::Null));
+    }
+    // QSTRINGLIST LoadFromStream(S): the list becomes the stream's text from
+    // its position to its end (lines end at CR LF, LF or CR), the stream at
+    // its end. SaveToStream(S) does the same in RapidQ (RC.EXE: the list is
+    // read from the stream, the stream isn't written), so it does here too.
+    if matches!(method.as_str(), "loadfromstream" | "savetostream") && with(id, |o| matches!(o, Object::List(_)))? {
+        let stream = arg(0).to_string_val();
+        let bytes = with(&stream, |o| match o {
+            Object::Stream(m) => Some(m.read(usize::MAX)),
+            _ => None,
+        })
+        .flatten();
+        let Some(bytes) = bytes else { return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM"))) };
+        let text: String = bytes.iter().map(|&b| char::from(b)).collect();
+        with(id, |o| {
+            if let Object::List(l) = o {
+                l.load_stream_text(&text);
+            }
+        });
+        return Some(Ok(Value::Null));
+    }
+    // QSTRINGLIST AddList(Other): the other list's strings appended
+    // (anything but a list adds nothing).
     if method == "addlist" {
-        let other = with(&arg(0).to_string_val(), |o| match o {
+        let Some(other) = with(&arg(0).to_string_val(), |o| match o {
             Object::List(l) => Some(l.items.clone()),
             _ => None,
         })
-        .flatten()?;
+        .flatten() else {
+            return with(id, |o| matches!(o, Object::List(_))).filter(|&l| l).map(|_| Ok(Value::Null));
+        };
         let args: Vec<Value> = other.into_iter().map(Value::String).collect();
         return with(id, |o| match o {
             Object::List(l) => l.call("additems", &args).map(Ok),
@@ -1221,6 +1274,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             Some(Ok(Value::Null))
         }
         ("stream", "open") => Some(open_file(id, &arg(0).to_string_val(), if args.len() > 1 { arg(1).to_i64() } else { 0 })),
+        // CopyFrom(Stream, Bytes): Bytes from the other stream's position
+        // (0: all of it, from its start). RapidQ stops the program when the
+        // other stream has fewer left (EReadError "Stream read error").
         ("stream", "copyfrom") => {
             let src = arg(0).to_string_val();
             let n = arg(1).to_i64();
@@ -1229,14 +1285,45 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                     if n <= 0 {
                         s.pos = 0;
                     }
-                    Some(s.read(if n <= 0 { usize::MAX } else { n as usize }))
+                    let want = if n <= 0 { s.data.len() } else { n as usize };
+                    Some(s.read(want)).filter(|b| b.len() == want)
                 }
                 _ => None,
-            })
-            .flatten();
-            let bytes = bytes?;
+            });
+            let bytes = match bytes {
+                Some(Some(b)) => b,
+                Some(None) => return Some(Err(format!("stream read error ({src} has fewer than {n} bytes left)"))),
+                None => return Some(Err(format!("{src} is not a QFILESTREAM or QMEMORYSTREAM"))),
+            };
             with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
             Some(Ok(Value::Null))
+        }
+        // MemCopyFrom(Address, Bytes): the memory's bytes written at the
+        // position; MemCopyTo(Address, Bytes): the bytes at the position
+        // written to memory (rapidr_value::memory: an address of the
+        // program's own, never raw memory). Both move the position on.
+        ("stream", "memcopyfrom") => {
+            let n = arg(1).to_i64();
+            if n <= 0 {
+                return Some(Ok(Value::Null));
+            }
+            let bytes = match crate::memory::read(arg(0).to_i64(), n as usize) {
+                Ok(b) => b,
+                Err(e) => return Some(Err(e)),
+            };
+            with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
+            Some(Ok(Value::Null))
+        }
+        ("stream", "memcopyto") => {
+            let n = arg(1).to_i64();
+            if n <= 0 {
+                return Some(Ok(Value::Null));
+            }
+            let bytes = with(id, |o| match o {
+                Object::Stream(m) => m.read(n as usize),
+                _ => Vec::new(),
+            })?;
+            Some(crate::memory::write(arg(0).to_i64(), &bytes).map(|_| Value::Null))
         }
         ("bitmap", "loadfromfile") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {

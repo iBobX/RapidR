@@ -27,6 +27,9 @@ use rapidr_diagnostics::TextSpan;
 /// copy back the mirrors in scope.
 const MEMORY_CALLS: &[&str] = &["memcpy", "memset", "memcmp", "__cstring"];
 
+/// Stream methods that read or write memory (`Mem.MemCopyTo(VARPTR(x), 4)`).
+const STREAM_MEMORY_METHODS: &[&str] = &["memcopyfrom", "memcopyto"];
+
 fn key(name: &str) -> String {
     crate::strip_type_suffix(&name.to_ascii_lowercase()).to_string()
 }
@@ -310,6 +313,10 @@ impl Pass<'_> {
                 if let Some(n) = callee_name(&c.callee) {
                     let n = key(&n);
                     found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains(&n);
+                }
+                // A stream's MemCopyFrom / MemCopyTo (QMEMORYSTREAM).
+                if let Expression::MemberAccess(m) = &c.callee {
+                    found |= STREAM_MEMORY_METHODS.iter().any(|x| m.member.eq_ignore_ascii_case(x));
                 }
                 for a in &c.args {
                     check(a, &mut found);

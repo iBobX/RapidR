@@ -27,7 +27,7 @@ const NETWORK: &[&str] = &[
 ];
 
 /// QFILESTREAM, QMEMORYSTREAM (and the web's file bridge).
-const STREAM: &[&str] = &["open", "readall", "eof", "readline", "readln", "pickfile", "download", "loadfromurl"];
+const STREAM: &[&str] = &["open", "readall", "eof", "readline", "readln", "readbyte", "pickfile", "download", "loadfromurl"];
 
 const JSON: &[&str] = &["parse", "stringify", "prettify", "has", "remove", "keys", "loadfile", "savefile"];
 

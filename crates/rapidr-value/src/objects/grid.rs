@@ -749,7 +749,8 @@ impl StringGrid {
                     self.fix_selection();
                 }
             }
-            "deletecol" => {
+            // (DeleteColumn: RC.EXE's class table spells it both ways)
+            "deletecol" | "deletecolumn" => {
                 if let Some(at) = index(args.first()).filter(|&i| i < self.col_count) {
                     for r in &mut self.cells {
                         r.remove(at);
