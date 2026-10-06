@@ -25,6 +25,9 @@ $T = Join-Path $env:TEMP ("rapidr-smoke-" + [guid]::NewGuid().ToString("N").Subs
 New-Item -ItemType Directory -Force "$T\work", "$T\prints" | Out-Null
 $env:RAPIDR_PRINT_TO = "$T\prints"; $env:RAPIDR_REGISTRY = "$T\registry.reg"; $env:RAPIDR_CONFIG_DIR = "$T\config"
 $script:fail = 0
+# (an error the script didn't expect counts as a failure, and the rest still runs: the uninstall
+# and the clean-up, so a failed run leaves no install, file types or toolchain behind)
+trap { Write-Host "  FAIL  unexpected error: $_"; $script:fail = 1; continue }
 function Check($what, [scriptblock]$test) {
     $ok = $false
     try { $ok = [bool](& $test) } catch { $ok = $false }
@@ -105,8 +108,9 @@ if ($kind -eq "sdk") {
         $usersBefore = Users-Rust
         $env:RUSTUP_HOME = "$T\rustup-home"; $env:CARGO_HOME = "$T\cargo-home"
         New-Item -ItemType Directory -Force $env:RUSTUP_HOME, $env:CARGO_HOME | Out-Null
-        $native = if ("$env:PROCESSOR_IDENTIFIER" -like "ARM*") { "aarch64" } else { "x86_64" }
-        & $rustup set default-host "$native-pc-windows-msvc" 2>&1 | Out-Null
+        # (not $native: PowerShell's names ignore case, and that would be the -Native switch)
+        $hostArch = if ("$env:PROCESSOR_IDENTIFIER" -like "ARM*") { "aarch64" } else { "x86_64" }
+        & $rustup set default-host "$hostArch-pc-windows-msvc" 2>&1 | Out-Null
         function Rust-State { (& $rustup default 2>&1 | Out-String) + ((& $rustup show 2>&1 | Select-String "Default host") -join "") }
         $before = Rust-State
         $setup = Out-Of $R @("setup", "--yes")
