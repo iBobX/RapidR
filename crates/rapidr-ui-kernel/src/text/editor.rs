@@ -25,19 +25,14 @@
 //!
 //! **Styled runs** (Stage 10): a paragraph's [`Span`]s — a byte range and a
 //! [`RunStyle`] (colour, bold, italic, underline, strike-out, a font) laid
-//! over the editor's look by parley's ranged styles. A code editor's come
-//! from its syntax ([`Look::syntax`], `rapidr_value::objects::code`), made
-//! again only for the paragraphs laid out again (an edit's), each from the
-//! state the paragraph before left — so a syntax with constructs across
-//! lines colours the paragraphs after an edit again only while their
-//! starting state changes. Without a syntax a paragraph keeps the spans it
-//! was given ([`TextEditor::set_spans`]: QRICHEDIT's runs, later).
+//! over the editor's look by parley's ranged styles. A paragraph keeps the
+//! spans it was given ([`TextEditor::set_spans`]: QRICHEDIT's runs) until
+//! its text changes.
 
 use std::borrow::Cow;
 use std::ops::Range;
 
 use parley::{Affinity, Alignment, AlignmentOptions, Cursor, FontStyle, FontWeight, Layout, Selection, StyleProperty};
-use rapidr_value::objects::code::Syntax;
 use rapidr_value::objects::font::Font;
 
 use super::{byte_of, chars_to, styles, Ink, TextSystem};
@@ -90,7 +85,7 @@ impl Align {
 }
 
 /// How the text is shown: its font and colour (0xRRGGBB), a PasswordChar,
-/// Alignment, WordWrap, and the syntax it's coloured by (a code editor's).
+/// Alignment, WordWrap.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Look {
     pub font: Font,
@@ -98,12 +93,11 @@ pub struct Look {
     pub mask: Option<char>,
     pub align: Align,
     pub wrap: bool,
-    pub syntax: Syntax,
 }
 
 impl Default for Look {
     fn default() -> Self {
-        Look { font: Font::default(), color: 0, mask: None, align: Align::Left, wrap: false, syntax: Syntax::None }
+        Look { font: Font::default(), color: 0, mask: None, align: Align::Left, wrap: false }
     }
 }
 
@@ -121,12 +115,6 @@ pub struct RunStyle {
 }
 
 impl RunStyle {
-    /// A syntax token's colour, bold and italic (`objects::code`).
-    pub fn of_token(t: rapidr_value::objects::code::Token) -> RunStyle {
-        let st = t.style();
-        RunStyle { color: Some(st.color), bold: Some(st.bold), italic: Some(st.italic), ..RunStyle::default() }
-    }
-
     /// The parley styles that make it.
     fn props(&self) -> Vec<StyleProperty<'static, Ink>> {
         let mut out = Vec::new();
@@ -170,15 +158,13 @@ struct Para {
     height: f64,
     /// How far right its line sits (Alignment without WordWrap).
     dx: f64,
-    /// Its styled runs (a syntax's, or given).
+    /// Its styled runs (given).
     spans: Vec<Span>,
-    /// The syntax's state it was coloured from, and the one it leaves.
-    state: Option<(u32, u32)>,
 }
 
 impl Para {
     fn new(text: String) -> Para {
-        Para { text, layout: None, top: 0.0, height: 0.0, dx: 0.0, spans: Vec::new(), state: None }
+        Para { text, layout: None, top: 0.0, height: 0.0, dx: 0.0, spans: Vec::new() }
     }
 }
 
@@ -457,8 +443,8 @@ impl TextEditor {
 
     // ---------------------------------------------------------- layout --
 
-    /// Paragraph `p`'s styled runs (without a syntax: kept until its text
-    /// changes; QRICHEDIT's runs, later).
+    /// Paragraph `p`'s styled runs (kept until its text changes;
+    /// QRICHEDIT's runs).
     pub fn set_spans(&mut self, p: usize, spans: Vec<Span>) {
         if let Some(para) = self.paras.get_mut(p) {
             if para.spans != spans {
@@ -472,25 +458,6 @@ impl TextEditor {
     /// Paragraph `p`'s styled runs.
     pub fn spans(&self, p: usize) -> &[Span] {
         self.paras.get(p).map_or(&[], |p| p.spans.as_slice())
-    }
-
-    /// The syntax's runs made again for the paragraphs that need them: one
-    /// laid out again (its text changed), or one whose starting state
-    /// changed (a construct across lines above it opened or closed).
-    fn colour(&mut self) {
-        if self.look.syntax == Syntax::None {
-            return;
-        }
-        let mut state = 0;
-        for p in &mut self.paras {
-            if p.layout.is_none() || p.state.is_none_or(|(from, _)| from != state) {
-                let (tokens, out) = rapidr_value::objects::code::spans(self.look.syntax, &p.text, state);
-                p.spans = tokens.into_iter().map(|(range, t)| Span { range, style: RunStyle::of_token(t) }).collect();
-                p.state = Some((state, out));
-                p.layout = None;
-            }
-            state = p.state.map_or(0, |(_, out)| out);
-        }
     }
 
     /// Lays out what changed and places the paragraphs.
@@ -507,7 +474,6 @@ impl TextEditor {
         if self.laid {
             return;
         }
-        self.colour();
         let scale = f64::from(self.scale);
         let fallback = f64::from(self.look.font.pixel_size() as f32) * 1.15 * scale;
         let view = self.width * scale;
@@ -1057,20 +1023,8 @@ mod tests {
     }
 
     #[test]
-    fn a_syntax_colours_only_the_paragraphs_an_edit_touched() {
-        let (mut e, mut ts) = editor(true, "DIM a\nPRINT 1 ' c\nx = 2");
-        e.set_look(Look { syntax: Syntax::Basic, ..Look::default() });
-        e.lay_out(&mut ts);
-        assert_eq!(inks(&e, 0), [(3, 0x0000B4), (2, 0)], "DIM, then \" a\"");
-        assert_eq!(inks(&e, 1).iter().map(|(_, c)| *c).collect::<Vec<_>>(), [0x0000B4, 0, 0x800000, 0, 0x008000]);
-        assert!(e.spans(1)[0].style.bold == Some(true) && e.spans(1)[2].style.italic == Some(true), "keywords bold, comments italic");
-        // typing in the last paragraph lays out (and colours) only it
-        e.set_selection_chars(e.text().chars().count(), 0);
-        e.replace_selection(&mut ts, "0");
-        assert!(e.para_layout(0).is_some() && e.para_layout(1).is_some());
-        assert_eq!(e.spans(2).len(), 1, "x = 20: one number");
-        assert_eq!(e.spans(2)[0].range, 4..6);
-        // given runs, without a syntax (QRICHEDIT's, later)
+    fn a_paragraph_draws_the_runs_it_was_given() {
+        // (QRICHEDIT's runs)
         let (mut r, mut ts) = editor(true, "plain bold");
         r.set_spans(0, vec![Span { range: 6..10, style: RunStyle { color: Some(0xFF0000), underline: Some(true), ..RunStyle::default() } }]);
         r.lay_out(&mut ts);
