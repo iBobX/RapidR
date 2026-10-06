@@ -14,6 +14,7 @@ rapidr-diagnostics.workspace = true
 rapidr-parser.workspace = true
 rapidr-preprocessor.workspace = true
 rapidr-value.workspace = true
+rapidr-lang.workspace = true
 
 [dev-dependencies]
 # Property tests (MIT OR Apache-2.0; dev-only, never shipped).

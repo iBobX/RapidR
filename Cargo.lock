@@ -3740,6 +3740,7 @@ dependencies = [
  "proptest",
  "rapidr-ast",
  "rapidr-diagnostics",
+ "rapidr-lang",
  "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-value",
