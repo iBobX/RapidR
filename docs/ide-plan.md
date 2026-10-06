@@ -288,6 +288,7 @@ Each stage lists goals, components and APIs, data models, what it reuses or repl
 **Size.** L, 16–22 sessions, 4 lanes: designer model + guides (L-DMODEL), designer view + WYSIWYG + tray + menu / tab-order editors (L-DVIEW), two-way sync (L-SYNC), inspector integration + events (with L-PANELS).
 
 **Acceptance.**
+- **Anchoring is a first-release must (the user, 2026-10-06)**: anchor pins on the selected component's four sides (click to toggle, keyboard too), the inspector's Anchors / Constraints / Align editors, and a resize preview (drag the designed form's corner: anchored components follow exactly as at run time, on both hosts); the designer writes `Anchors = …` / `Align = …` into the CREATE block as the smallest edit; a scripted test resizes a designed form and compares each component's bounds with the running program's.
 - **Round trip on the corpus**: every form of the 386 RapidQ examples and of `examples/` opens in the designer; saving without a change leaves every file byte-identical; a scripted edit (move one component 8 px) changes exactly one line's value per changed property, and the program still compiles and runs identically apart from that change (checked by the corpus comparison tool).
 - Property-based test: random designer commands applied, then the text re-parsed into the designer, equals the designer's state (both directions agree); undo restores the exact bytes.
 - Guides: unit tests for each guide kind and the snapping math; 60 frames per second while dragging on a form with 300 components (guide computation < 2 ms per move).
