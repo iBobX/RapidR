@@ -9,8 +9,8 @@ DECLARE SUB Change
 DECLARE SUB Clicked
 CREATE Form AS QFORM
   Caption = "bevels and digits"
-  Width = 360
-  Height = 220
+  ClientWidth = 358
+  ClientHeight = 189
   CREATE Top AS QBEVEL
     Left = 10 : Top = 10 : Width = 100 : Height = 40
     Shape = 2 : Style = 1

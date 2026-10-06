@@ -187,22 +187,29 @@ pub struct Desktop {
     pub screen_cursor: i64,
     /// Carets blink (off under a test, so captures are steady).
     pub blinks: bool,
+    /// The scale a form has before its window is made (the host's
+    /// `default_scale`: the screen a new window opens on). What the program
+    /// draws before it shows — a QCANVAS's, a QDIGDISPLAY's digits — is
+    /// kept at it (`forms::after_show`), so the window's first frame and a
+    /// test's capture are sharp, not an enlarged 1× picture.
+    pub default_scale: f64,
     next_z: u64,
 }
 
 impl Desktop {
     pub fn new(clipboard: Box<dyn Clipboard>) -> Desktop {
-        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, screen_cursor: 0, blinks: true, next_z: 1 }
+        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, screen_cursor: 0, blinks: true, default_scale: 1.0, next_z: 1 }
     }
 
     /// Form `id`'s kernel side, made from the store the first time.
     pub fn ensure_form(&mut self, store: &dyn Store, id: &str, menu_in_window: bool, spec: WindowSpec) -> &mut Form {
         let key = id.to_lowercase();
-        let blinks = self.blinks;
+        let (blinks, scale) = (self.blinks, self.default_scale);
         self.forms.entry(key.clone()).or_insert_with(|| {
             let mut ui = FormUi::build(store, &key, menu_in_window);
             ui.blinks = blinks;
-            Form { ui, spec, shown: false, z: 0, scale: 1.0, state: 0 }
+            ui.scale = scale;
+            Form { ui, spec, shown: false, z: 0, scale, state: 0 }
         })
     }
 

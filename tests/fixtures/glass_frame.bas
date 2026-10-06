@@ -7,8 +7,8 @@ DECLARE SUB Clicked
 CREATE Form AS QFORM
   Caption = "glass frame"
   Left = 100 : Top = 100
-  Width = 360
-  Height = 220
+  ClientWidth = 358
+  ClientHeight = 189
   CREATE G AS QGLASSFRAME
     Left = 10 : Top = 10
     OnClick = Clicked

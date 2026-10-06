@@ -13,8 +13,8 @@ DECLARE SUB Docked (D AS INTEGER, A AS INTEGER)
 DECLARE SUB Closed
 CREATE Form AS QFORM
   Caption = "dock form"
-  Width = 480
-  Height = 320
+  ClientWidth = 478
+  ClientHeight = 289
   CREATE Bar AS QDOCKFORM
     Align = 1
     Height = 31

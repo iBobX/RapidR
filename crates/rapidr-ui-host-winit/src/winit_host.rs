@@ -627,11 +627,21 @@ impl Shim<'_> {
             window.set_minimized(true);
         }
         let scale = self.s.forced.unwrap_or_else(|| window.scale_factor());
+        let mut moved_scale = false;
         if let Some(k) = self.desk.forms.get_mut(f) {
-            k.scale = scale;
+            // (a window that opened on a screen of another scale than the
+            // one the form was drawn for: told as a change — OnScaleChanged,
+            // and what the program drew made again at it)
+            moved_scale = self.s.forced.is_none() && (k.scale - scale).abs() > f64::EPSILON;
+            if !moved_scale {
+                k.scale = scale;
+            }
             k.ui.dirty = true;
             k.state = spec.state;
             k.ui.system_corner = system_corner(spec.border);
+        }
+        if moved_scale {
+            self.desk.scale_changed(f, scale);
         }
         window.request_redraw();
         self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false });

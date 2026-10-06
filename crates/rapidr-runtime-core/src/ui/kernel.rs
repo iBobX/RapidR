@@ -158,6 +158,8 @@ fn ensure_host() {
     // (the text lane's: carets blink, but not under a test — captures must
     // be steady)
     desk.blinks = capture.is_none();
+    // (a form is drawn at the screen's scale before its window is made)
+    desk.default_scale = host.default_scale();
     if let Some(c) = capture {
         // (only the test's own events drive it)
         desk.ignore_user = true;

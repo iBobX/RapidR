@@ -349,6 +349,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - In `CREATE x AS Type` (a TYPE), a nested CREATE's own `Parent = …` was
   overwritten, and `Field.Member = …` (`AltPanel.Parent = Form`) wasn't the
   instance's field.
+- What a program draws before its form shows (a QCANVAS's picture, a
+  QDIGDISPLAY's digits) is made at the screen's scale from the start: a
+  form is drawn at the host's scale before its window exists, and a window
+  that opens on a screen of another scale says so (OnScaleChanged). Before,
+  a high-DPI window could show (and a test capture) an enlarged, smoothed
+  1× picture until something drew again.
+- The GUI cases `glass_frame`, `dock_form` and `bevel_display` give their
+  forms' ClientWidth, so their pixels are read at a real screen's scale
+  (they failed with real windows on a 200 % Windows screen).
 
 ## [2.116.0] — 2026-10-05
 

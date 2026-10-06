@@ -32,13 +32,13 @@ export const cases = [
   // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.
   { name: "glass_frame", events: "g.__mousedown_20_20,g.__mousemove_40_30,g.__mouseup_40_30,r.__mousedown_5_5,r.__mousemove_25_15,r.__mouseup_25_15,g.onclick", dump: "lbl.caption,form.left,form.top",
     expect: ["lbl.caption=- click120110 click120110", "form.left=120", "form.top=110"],
-    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]] },
+    pixels: [[50, 50, "909090"], [160, 40, "808080"], [5, 5, "f0f0f0"], [200, 100, "00ffff"]], clientWidth: 358 },
   // QDOCKFORM built in (RAPIDQ2.INC's dockable form, RapidR's own
   // library): docked at its alternative place, floated, brought home,
   // closed (OnClose); the toolbar-style one's grip (the capture's pixels).
   { name: "dock_form", events: "b1.onclick,b2.onclick,b3.onclick,b4.onclick", dump: "lbl.caption,p.__shown",
     expect: ["lbl.caption=- r11 f00 h10 closed c1", "p.__shown=0"],
-    pixels: [[6, 4, "808080"], [6, 5, "c0c0c0"]] },
+    pixels: [[6, 4, "808080"], [6, 5, "c0c0c0"]], clientWidth: 478 },
   // QDIRLISTVIEW built in (QDirListView.inc's component, RapidR's own
   // library): a folder the program made, a file picked and Enter
   // (OnFileSelect), a folder double-clicked (into it), Backspace (up).
@@ -61,7 +61,7 @@ export const cases = [
   // light columns, a lit segment (cyan), an unlit one's dither.
   { name: "bevel_display", events: "btn.onclick,edge.onclick,clock.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=-02021 12:34602460 00FFFF00|00008000|00000000cc"],
-    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]] },
+    pixels: [[50, 10, "ffffff"], [50, 11, "808080"], [328, 30, "808080"], [329, 30, "ffffff"], [23, 85, "00ffff"], [11, 77, "008000"], [11, 78, "000000"]], clientWidth: 358 },
   { name: "oop_events", events: "b1.onclick,b1.onclick,b2.onclick,b3.onclick", dump: "b1.caption,b2.caption,b3.caption",
     expect: ["b1.caption=Clicked 2", "b2.caption=Clicked 1", "b3.caption=Sender works"] },
   { name: "component_array_events", events: "btn(2).onclick,btn(3).onclick,btn(3).onclick", dump: "btn(1).caption,btn(2).caption,btn(3).caption",
