@@ -17,6 +17,7 @@ finds its home from the executable by it):
     share/icons/                        the apps' and file types' .ico  Windows (design/brand/icons)
     share/doc/rapidr/                   LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         THIRD-PARTY-NOTICES.txt (rapidr's own), the fonts' OFL, README.md
+    share/doc/rapidr/manual/            the user manual (docs/manual)   sdk
 
     python3 tools/release/stage.py --kind sdk --os macos --out STAGE \\
         --bin target/release --home dist/<ver>/home-macos \\
@@ -116,6 +117,9 @@ def main():
     os.makedirs(doc)
     for f in DOCS:
         shutil.copy2(os.path.join(ROOT, f), os.path.join(doc, os.path.basename(f)))
+    # (the user manual, docs/manual: the SDK's)
+    if args.kind == "sdk":
+        shutil.copytree(os.path.join(ROOT, "docs", "manual"), os.path.join(doc, "manual"))
     # The notices: rapidr's own, and (SDK) those every build carries
     notices(f"tools-{args.os}", os.path.join(doc, "THIRD-PARTY-NOTICES.txt"))
     if args.kind == "sdk":

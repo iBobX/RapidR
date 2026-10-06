@@ -7,7 +7,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **The user manual** (`docs/manual/`): getting started, the language,
+  components (RapidQ's Q names and RapidR's R names), the CLI and the
+  Runtime, the web, databases, data science, DirectX and media,
+  differences from RapidQ, troubleshooting. Its reference pages (components,
+  builtins, data-science members) are generated from the source by
+  `python3 tools/manual_reference.py` (`--check` fails when they're stale).
+  Every SDK installs it in `share/doc/rapidr/manual/`.
+- The release notes of v2.117.0, the first public release
+  (`docs/release-notes/v2.117.0.md`).
+
 ### Changed
+- README rewritten for newcomers (install from the releases first, a quick
+  start, what's in it, the platforms checked); COMPILER_MANUAL.md is now
+  the contributor manual for today's architecture, and its outdated PDF is
+  gone.
 - The git history no longer holds the earlier versions of QDockForm and
   QDirListView (close ports of user-contributed RapidQ code) or of the four
   conformance cases and the `tab_control` fixture that reused the manual's
