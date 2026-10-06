@@ -130,7 +130,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RTOOLBOX" => (220, 400),
         "RPROJECTTREE" => (240, 360),
         "ROUTPUTCONSOLE" => (480, 180),
-        "RCOMMANDPALETTE" => (520, 320),
+        "RCOMMANDPALETTE" => (560, 320),
         "RCOMBOBOX" => (145, 25),
         "RLISTBOX" | "RTREEVIEW" | "RDIRTREE" => (121, 97),
         "RFILELISTBOX" => (145, 97),

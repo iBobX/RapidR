@@ -490,6 +490,14 @@ impl Desktop {
             }
             // (the DirectX lane's)
             WindowOp::Fullscreen(f) => self.cmds.push(HostCmd::Fullscreen(f)),
+            // (L-PANELS: SetFocus)
+            WindowOp::Focus(f, comp) => {
+                if let Some(w) = self.forms.get_mut(&f) {
+                    w.ui.sync(store);
+                    w.ui.focus_id(store, &comp);
+                    w.ui.dirty = true;
+                }
+            }
         }
     }
 

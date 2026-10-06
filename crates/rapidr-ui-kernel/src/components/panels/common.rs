@@ -68,6 +68,9 @@ pub struct Look {
     pub ok: u32,
     /// The keyboard focus' ring or dotted rectangle.
     pub focus: u32,
+    /// A raised card's shadow (the command palette's, a drag's ghost):
+    /// mixed toward what it falls on.
+    pub shadow: u32,
 }
 
 /// `a` toward `b` by `t` (0..=1).
@@ -125,6 +128,7 @@ pub fn look(t: &Theme) -> Look {
             info,
             ok,
             focus: t.focus,
+            shadow: t.window,
         };
     }
     if classic {
@@ -162,6 +166,7 @@ pub fn look(t: &Theme) -> Look {
             info,
             ok,
             focus: t.focus,
+            shadow: t.dark_shadow,
         };
     }
     Look {
@@ -198,6 +203,7 @@ pub fn look(t: &Theme) -> Look {
         info,
         ok,
         focus: t.focus,
+        shadow: t.dark_shadow,
     }
 }
 

@@ -68,7 +68,7 @@ properties = [
   { name = "Filter", type = "string", default = "", design = false, doc = "The search box's text: only the components whose names match it are shown." },
   { name = "ShowNames", type = "string", default = "as-written", doc = "How components are named: \"as-written\" (RapidQ's components by their Q names, the others by their R names — what the designer writes), \"rapidr\" (every one by its R name) or \"titles\" (in words: \"Button\")." },
   { name = "Selected", type = "string", default = "", design = false, doc = "The selected component's type as the designer writes it (QBUTTON), or a template's name." },
-  { name = "Count", type = "int", access = "read", design = false, doc = "How many components are shown now (the filter applied)." },
+  { name = "Count", type = "int", access = "read", design = false, doc = "How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones)." },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
   { name = "Left", type = "int", default = 0 },
@@ -93,7 +93,7 @@ events = [
   { name = "OnPick", params = "Type AS STRING", doc = "The user chose a component to add (double click, Enter): its type as the designer writes it, or a template's name." },
   { name = "OnSelect", params = "Type AS STRING", doc = "The selected component changed." },
   { name = "OnDragStart", params = "Type AS STRING", doc = "The user started dragging a component out of the toolbox." },
-  { name = "OnDragDrop", params = "Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER", doc = "A dragged component was let go over component Target (on the same form), at (X, Y) in Target's own pixels." },
+  { name = "OnDragDrop", params = "Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER", doc = "A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is \"\" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped." },
 ]
 
 [[component]]
@@ -195,7 +195,7 @@ events = [
 [[component]]
 name = "RCOMMANDPALETTE"
 visual = true
-size = [520, 320]
+size = [560, 320]
 default_event = "OnCommand"
 sets = ["a11y", "generic"]
 doc = "A box of commands found by typing: Show opens it over the form, the user types a few letters of a command (in any order of its words, letters skipped), picks one with the arrows and Enter, and OnCommand says which. Each command shows its shortcut; the ones used last come first."
@@ -222,7 +222,7 @@ methods = [
   { name = "Clear", value = true, doc = "Removes every command." },
   { name = "CommandEnabled", params = "Id AS STRING, [On AS INTEGER]", returns = "INTEGER", doc = "Whether a command can be picked; with On, sets it (a disabled one is shown dimmed)." },
   { name = "Command", params = "Index AS INTEGER", returns = "STRING", doc = "The id of the command shown at Index (from 0) for what was typed." },
-  { name = "Show", value = true, doc = "Opens the palette over the top of its form, empty, with the keyboard in it." },
+  { name = "Show", value = true, doc = "Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first." },
   { name = "Hide", value = true, doc = "Closes it." },
 ]
 events = [

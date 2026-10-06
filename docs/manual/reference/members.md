@@ -4679,7 +4679,7 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
 | `ShowNames` | string | `"as-written"` | How components are named: "as-written" (RapidQ's components by their Q names, the others by their R names — what the designer writes), "rapidr" (every one by its R name) or "titles" (in words: "Button"). |
 | `Selected` | string | `""` | The selected component's type as the designer writes it (QBUTTON), or a template's name. |
-| `Count` (read-only) | int |  | How many components are shown now (the filter applied). |
+| `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
@@ -4715,7 +4715,7 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 | `OnPick(Type AS STRING)` | The user chose a component to add (double click, Enter): its type as the designer writes it, or a template's name. |
 | `OnSelect(Type AS STRING)` | The selected component changed. |
 | `OnDragStart(Type AS STRING)` | The user started dragging a component out of the toolbox. |
-| `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target (on the same form), at (X, Y) in Target's own pixels. |
+| `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
 
 <a id="rprojecttree"></a>
 ## RPROJECTTREE
@@ -4863,7 +4863,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `Clear` | Removes every command. |
 | `CommandEnabled(Id AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a command can be picked; with On, sets it (a disabled one is shown dimmed). |
 | `Command(Index AS INTEGER) AS STRING` | The id of the command shown at Index (from 0) for what was typed. |
-| `Show` | Opens the palette over the top of its form, empty, with the keyboard in it. |
+| `Show` | Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first. |
 | `Hide` | Closes it. |
 | `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |

@@ -2018,6 +2018,11 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         "setfocus" | "focus" => {
+            // (L-PANELS: the kernel's focus to it, as the web's SetFocus)
+            #[cfg(feature = "gui")]
+            if let Some(form) = form_of(name) {
+                rapidr_ui_app::windows::push_op(rapidr_ui_app::WindowOp::Focus(form.to_lowercase(), name.to_lowercase()));
+            }
             v_null()
         }
         "click" => {
