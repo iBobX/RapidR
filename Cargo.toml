@@ -14,6 +14,7 @@ members = [
     "crates/rapidr-value",
     "crates/rapidr-db",
     "crates/rapidr-frame",
+    "crates/rapidr-frame-web",
     "crates/rapidr-ui-kernel",
     "crates/rapidr-ui-render",
     "crates/rapidr-ui-app",
@@ -75,4 +76,15 @@ wayland-protocols-plasma = { path = "crates/patches/wayland-protocols-plasma" }
 # from: optimized like release, without symbols (64 MB → 43 MB).
 [profile.runner]
 inherits = "release"
+strip = true
+
+# RDATAFRAME's web module (crates/rapidr-frame-web: polars), loaded only by
+# programs that use data frames: built for size — ~1.5 MB brotli
+# (tools/build_web_artifacts.sh; docs/ide-plan.md, D7).
+[profile.wasm-frame]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
 strip = true

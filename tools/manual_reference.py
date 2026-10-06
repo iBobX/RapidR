@@ -16,9 +16,9 @@ What it reads (nothing is copied by hand):
   interpreter/rapidr-bytecode/src/builtins.rs (the list every runtime's
   dispatch is unit-tested against);
 - data-science.md: the `match` arms of RNUM / RDATAFRAME / RPLOT's methods
-  and properties in crates/rapidr-runtime-core/src/datascience.rs (desktop:
-  native and interpreted) and crates/rapidr-runtime-web/src/datascience_web.rs
-  (the web).
+  and properties in their one implementation every runtime uses:
+  crates/rapidr-value/src/datascience/num.rs and plot.rs, and
+  crates/rapidr-frame/src/engine.rs.
 
 The only hand-kept data here are the component categories and RapidQ's own
 component list (RC.EXE's built-in names, plus the include libraries'), both
@@ -248,7 +248,7 @@ def arms(src, fn):
         body = body[: end.start()]
     # (the match on the method's or property's name, also as `Some(x) =>
     # match prop {`)
-    mm = re.search(r"\n([ \t]*)(?:[^\n]*=> )?match (?:method|prop|lmethod|m) \{\n", body)
+    mm = re.search(r"\n([ \t]*)(?:[^\n]*=> |Some\()?match (?:method|prop|lmethod|m) \{\n", body)
     if not mm:
         return None
     lines = body[mm.end():].split("\n")
@@ -272,41 +272,45 @@ def arms(src, fn):
     return result
 
 
+def matches_names(src, fn):
+    """The names of `fn`'s `matches!(x, "a" | "b" …)`."""
+    m = re.search(r"pub fn " + re.escape(fn) + r"\s*\([^{]*\{(.*?)\n\}", src, re.S)
+    mm = m and re.search(r'matches!\(\w+, ((?:"[^"]+"\s*\|\s*)*"[^"]+")\)', m.group(1))
+    return re.findall(r'"([^"]+)"', mm.group(1)) if mm else []
+
+
 def data_science():
-    core = read("crates/rapidr-runtime-core/src/datascience.rs")
-    web = read("crates/rapidr-runtime-web/src/datascience_web.rs")
-    out = [HEADER.format(src="crates/rapidr-runtime-core/src/datascience.rs and crates/rapidr-runtime-web/src/datascience_web.rs")]
+    num = read("crates/rapidr-value/src/datascience/num.rs")
+    plot = read("crates/rapidr-value/src/datascience/plot.rs")
+    frame = read("crates/rapidr-frame/src/engine.rs")
+    out = [HEADER.format(src="crates/rapidr-value/src/datascience/num.rs, plot.rs and crates/rapidr-frame/src/engine.rs")]
     out.append("# Data-science members: RNUM, RDATAFRAME, RPLOT\n\n")
     out.append(
-        "Every method and property name the runtimes answer, with its aliases. *Desktop* is native builds and "
-        "interpreted programs (one implementation: ndarray, polars, plotters); *web* is the browser's runtime. "
-        "Names are not case-sensitive, and a method that returns a value can be read like a property on every "
-        "runtime (`PRINT arr.Sum`). The desktop and the web are two implementations today; where a row has a "
-        "dash, that runtime doesn't answer the name. How to use them: [Data science](../data-science.md).\n\n"
+        "Every method and property name RNUM, RDATAFRAME and RPLOT answer, with its aliases. Each is one "
+        "implementation every runtime uses — native builds, interpreted programs and the web (RNUM and RPLOT in "
+        "rapidr-value, RDATAFRAME on polars in rapidr-frame) — so every name here works, and answers the same, "
+        "everywhere. Names are not case-sensitive, a method that returns a value can be read like a property "
+        "(`PRINT arr.Sum`), and a property can be read like a method (`PRINT arr.Shape`). How to use them: "
+        "[Data science](../data-science.md).\n\n"
     )
-    for obj, fns in [
-        ("RNUM", [("Methods", "num_method"), ("Properties (read)", "num_get_prop"), ("Properties (set)", "num_set_prop")]),
-        ("RDATAFRAME", [("Methods", "dataframe_method"), ("Properties (read)", "dataframe_get_prop")]),
-        ("RPLOT", [("Methods", "plot_method"), ("Properties (read)", "plot_get_prop"), ("Properties (set)", "plot_set_prop")]),
+    plot_out = [("Output (the runtime's: a PNG file, …)", matches_names(plot, "is_output"))]
+    for obj, tables in [
+        ("RNUM", [("Methods", arms(num, "method")), ("Properties (read)", arms(num, "get_prop")), ("Properties (set)", arms(num, "set_prop"))]),
+        ("RDATAFRAME", [("Methods", arms(frame, "call")), ("Properties (read)", arms(frame, "get_prop"))]),
+        ("RPLOT", [("Methods", (arms(plot, "method") or []) + plot_out), ("Properties (read)", arms(plot, "get_prop")),
+                   ("Properties (set)", [("", [n]) for n in matches_names(plot, "set_prop")])]),
     ]:
         out.append(f"## {obj}\n\n")
-        for title, fn in fns:
-            d = arms(core, fn) or []
-            w = arms(web, fn) or []
-            web_names = {n for _, ns in w for n in ns}
-            desk_names = {n for _, ns in d for n in ns}
-            out.append(f"### {title}\n\n| Name (aliases) | Group | Desktop | Web |\n|---|---|:-:|:-:|\n")
+        for title, rows in tables:
+            if not rows:
+                sys.exit(f"manual_reference.py: no {obj} {title.lower()} found in the source")
+            out.append(f"### {title}\n\n| Name (aliases) | Group |\n|---|---|\n")
             seen = set()
-            for section, ns in d:
-                key = tuple(ns)
-                if key in seen:
+            for section, ns in rows:
+                if not ns or tuple(ns) in seen:
                     continue
-                seen.add(key)
-                on_web = "✓" if any(n in web_names for n in ns) else "—"
-                out.append(f"| {', '.join(f'`{n}`' for n in ns)} | {section or ''} | ✓ | {on_web} |\n")
-            for section, ns in w:
-                if not any(n in desk_names for n in ns):
-                    out.append(f"| {', '.join(f'`{n}`' for n in ns)} | {section or ''} | — | ✓ |\n")
+                seen.add(tuple(ns))
+                out.append(f"| {', '.join(f'`{n}`' for n in ns)} | {section or ''} |\n")
             out.append("\n")
     return "".join(out)
 

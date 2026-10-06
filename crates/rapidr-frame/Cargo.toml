@@ -10,6 +10,11 @@ description = "RDATAFRAME, the one data-frame engine of every RapidR runtime (po
 # MIT. What RDATAFRAME uses: lazy queries, CSV and JSON, every dtype,
 # strings, round / abs / log, and tables printed without a terminal
 # (`fmt_no_tty`: `fmt` pulls crossterm, which has no wasm).
-polars = { version = "0.46", default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log", "fmt_no_tty"] }
+polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log", "fmt_no_tty"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+
+[features]
+# The engine itself (polars). Without it, only the call and reply types:
+# what the web runtime sends to and reads from the frame module.
+default = ["engine"]
+engine = ["dep:polars"]

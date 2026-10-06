@@ -905,6 +905,19 @@ fn bundle_bc_file(
             println!("  - {}", name);
         }
     }
+    // (a program with data frames: RDATAFRAME's engine, beside the runtime)
+    let frame = if rapidr_webbundle::uses_frames(&rrbc) {
+        let dir = wasm_p.parent().unwrap_or(Path::new("."));
+        match (fs::read_to_string(dir.join("rapidrframe.js")), fs::read(dir.join("rapidrframe_bg.wasm"))) {
+            (Ok(js), Ok(wasm)) => Some((js, wasm)),
+            _ => {
+                eprintln!("error: the program uses RDATAFRAME, but the data-frame module (rapidrframe.js, rapidrframe_bg.wasm) isn't in {} — tools/build_web_artifacts.sh makes it", dir.display());
+                return ExitCode::from(1);
+            }
+        }
+    } else {
+        None
+    };
     let bundle = match rapidr_webbundle::build_bundle(&rapidr_webbundle::BundleInputs {
         project_name: &stem,
         rrbc: &rrbc,
@@ -914,6 +927,7 @@ fn bundle_bc_file(
         assets: Some(&assets),
         fonts: &fallback_fonts(&wasm_p.parent().unwrap_or(Path::new(".")).join("fonts")),
         notices: &notices_text,
+        frame: frame.as_ref().map(|(js, wasm)| (js.as_str(), wasm.as_slice())),
     }) {
         Ok(b) => b,
         Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }

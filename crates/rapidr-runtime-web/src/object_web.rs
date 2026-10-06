@@ -1296,31 +1296,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     v_null()
 }
 
-/// A QIMAGE's picture from plot `plot`'s chart (drawn first), its size
-/// with AutoSize, as the desktop's `LoadFromPlot`.
+/// A QIMAGE's picture from plot `plot`'s chart, its size with AutoSize, as
+/// the desktop's `LoadFromPlot`: the chart's pixels, drawn again at the
+/// page's scale for the screen (datascience_web.rs).
 fn image_from_plot(name: &str, plot: &str) {
-    crate::datascience_web::render_plot(&plot.to_uppercase());
-    let canvas = crate::page_web::document()
-        .get_element_by_id(&format!("rr-{}-canvas", plot.to_lowercase()))
-        .and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok());
-    let Some(canvas) = canvas else { return };
-    let (w, h) = (canvas.width(), canvas.height());
-    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
-    let Ok(data) = ctx.get_image_data(0.0, 0.0, f64::from(w), f64::from(h)) else { return };
-    let rgba = data.data().0;
-    rapidr_value::objects::with_picture(name, |b| {
-        b.resize(i64::from(w), i64::from(h));
-        for (i, p) in rgba.as_chunks::<4>().0.iter().enumerate() {
-            let (x, y) = ((i as u32 % w) as i64, (i as u32 / w) as i64);
-            // (over white where the chart is see-through, as the PNG the desktop decodes)
-            let a = u32::from(p[3]);
-            let mix = |c: u8| (u32::from(c) * a + 255 * (255 - a)) / 255;
-            b.pset(x, y, mix(p[0]) | mix(p[1]) << 8 | mix(p[2]) << 16);
-        }
-    });
+    let Some((w, h)) = crate::datascience_web::load_into_picture(name, plot) else { return };
     if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
-        rp_comp_set(name, "width", v_int(i64::from(w)));
-        rp_comp_set(name, "height", v_int(i64::from(h)));
+        rp_comp_set(name, "width", v_int(w));
+        rp_comp_set(name, "height", v_int(h));
     }
     picture_changed(name);
 }

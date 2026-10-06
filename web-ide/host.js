@@ -289,6 +289,24 @@ function loadRuntimeFiles() {
   return _runtimeFiles;
 }
 
+// RDATAFRAME's engine (polars), a module of its own: fetched the first time
+// a program with data frames runs.
+let _frameFiles = null;
+function loadFrameFiles() {
+  _frameFiles ??= Promise.all([
+    fetch(`./runtime/rapidrframe.js?v=${RAPIDR_IDE_VERSION}`).then((r) => {
+      if (!r.ok) throw new Error(`rapidrframe.js: HTTP ${r.status}`);
+      return r.text();
+    }),
+    fetch(`./runtime/rapidrframe_bg.wasm?v=${RAPIDR_IDE_VERSION}`).then((r) => {
+      if (!r.ok) throw new Error(`rapidrframe_bg.wasm: HTTP ${r.status}`);
+      return r.arrayBuffer();
+    }),
+  ]).then(([js, wasm]) => ({ js, wasm }));
+  _frameFiles.catch(() => { _frameFiles = null; });  // allow retry
+  return _frameFiles;
+}
+
 let previewPort = null;
 let previewGeneration = 0;
 
@@ -348,6 +366,17 @@ function handlePreviewMessage(d) {
     const reply = (bytes) => port?.postMessage({ __rapidr_font_reply: { id, bytes } }, bytes ? [bytes] : []);
     if (!/^[\w.-]+$/.test(file)) return reply(null);
     fetch(`./runtime/fonts/${file}`).then((r) => (r.ok ? r.arrayBuffer() : null)).then(reply, () => reply(null));
+    return;
+  }
+  // (RDATAFRAME's engine for the preview: runtime/rapidrframe.js and its
+  // wasm, beside the runtime — fetched once, loaded only by programs with
+  // data frames)
+  if (d.__rapidr_frame) {
+    const port = previewPort;
+    loadFrameFiles().then(
+      ({ js, wasm }) => port?.postMessage({ __rapidr_frame_reply: { js, wasm: wasm.slice(0) } }),
+      () => port?.postMessage({ __rapidr_frame_reply: {} }),
+    );
     return;
   }
   if (d.__rapidr_console) {
@@ -2694,6 +2723,8 @@ async function doBuild() {
       fetchNotices(),
       fetchFonts(),
     ]);
+    // (a program with data frames: RDATAFRAME's engine goes with it)
+    const frame = /\bRDATAFRAME\b/i.test(src) ? await loadFrameFiles() : null;
     const { bytes } = buildBundleZip({
       projectName: state.project.name,
       rrbc,
@@ -2704,6 +2735,7 @@ async function doBuild() {
       assets: (state.project.assets || []).map(a => ({ name: a.name, dataUrl: a.dataUrl })),
       notices,
       fonts,
+      frame,
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
     const a = document.createElement("a");

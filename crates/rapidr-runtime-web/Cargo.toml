@@ -14,6 +14,12 @@ rapidr-ui-app = { workspace = true }
 rapidr-ui-host-web = { path = "../rapidr-ui-host-web", default-features = false }
 # RSQLITE: SQLite itself, compiled to wasm (shared with the desktop runtime)
 rapidr-db = { workspace = true }
+# RDATAFRAME: only the call and reply types — the engine (polars) is a wasm
+# module of its own, loaded for programs that use it (frame_web.rs); RPLOT's
+# charts drawn by the kernel's renderer (datascience_web.rs).
+rapidr-frame = { path = "../rapidr-frame", default-features = false }
+rapidr-ui-render = { workspace = true }
+serde_json = "1"
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4.79"
 js-sys = "0.3.106"

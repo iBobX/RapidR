@@ -10,6 +10,7 @@
 mod builtins;
 pub mod database_web;
 pub mod datascience_web;
+pub mod frame_web;
 pub mod dialog_web;
 /// QDXSCREEN / QDXTIMER in the browser (the DirectX lane's).
 pub mod directx_web;

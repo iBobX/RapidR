@@ -208,6 +208,7 @@ fn add(name: &str, mut s: Series) {
 /// [`is_output`]).
 pub fn method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     match method {
+        // --- Creation ---
         "create" | "new" | "init" => with(name, |_| {}),
         "clear" => PLOTS.with(|m| {
             // (the size stays: it's the picture's)
@@ -215,6 +216,7 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let old = m.remove(&name.to_lowercase()).unwrap_or_default();
             m.insert(name.to_lowercase(), Plot { width: old.width, height: old.height, dpi: old.dpi, ..Plot::default() });
         }),
+        // --- Series ---
         "plot" | "line" => {
             let (x, y, cats) = xy(args);
             let kind = match text(args, 4).trim() {
@@ -270,6 +272,7 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let cols: Vec<u32> = text(args, 2).split(',').filter_map(colors::parse).collect();
             add(name, Series { slice_labels: labels, slice_colors: cols, ..Series::new(Kind::Pie, data.clone(), data, String::new(), None) });
         }
+        // --- Reference lines, notes, legend, grid ---
         "hline" | "axhline" => {
             let y = args.first().map(Value::to_f64).unwrap_or(0.0);
             add(name, Series::new(Kind::HLine, vec![], vec![y], text(args, 2), color_arg(args, 1).or(Some(0x808080))));
@@ -290,6 +293,7 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let on = args.first().map(|v| v.to_i64() != 0).unwrap_or(true);
             with(name, |p| p.grid = Some(on));
         }
+        // --- Size and axes ---
         "figsize" => {
             let (w, h) = (args.first().map(Value::to_f64).unwrap_or(6.4), args.get(1).map(Value::to_f64).unwrap_or(4.8));
             with(name, |p| {
@@ -317,6 +321,7 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 p.xticks = (!names.is_empty() && !names[0].is_empty()).then_some((at, names));
             });
         }
+        // --- Labels ---
         "settitle" | "set_title" | "title" => {
             let t = text(args, 0);
             with(name, |p| p.title = t);

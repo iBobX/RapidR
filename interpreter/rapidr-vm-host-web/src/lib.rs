@@ -741,6 +741,24 @@ fn install_resume_handler() {
 /// page's session: DOM events then run its handlers.
 #[wasm_bindgen]
 pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
+    // A program with data frames: RDATAFRAME's engine (a wasm module of its
+    // own, rapidr-runtime-web's frame_web.rs) loaded first, then the run.
+    if rapidr_runtime_web::frame_web::needed(bytes) && !rapidr_runtime_web::frame_web::loaded() {
+        let program = bytes.to_vec();
+        wasm_bindgen_futures::spawn_local(async move {
+            if let Err(e) = rapidr_runtime_web::frame_web::load().await {
+                web_sys::console::error_1(&JsValue::from_str(&format!("[RapidR] the data-frame module didn't load: {e}")));
+            }
+            if let Err(e) = run_bc(&program) {
+                web_sys::console::error_1(&e);
+            }
+        });
+        return Ok(());
+    }
+    run_bc(bytes)
+}
+
+fn run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     let module = Module::from_bytes(bytes)
         .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
     rapidr_runtime_web::value::resources::set_all(&module.resources);
