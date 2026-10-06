@@ -342,6 +342,56 @@ describe('RapidR for VS Code', () => {
         });
     });
 
+    describe('automatic keyword case (rapidr lsp, format on type)', () => {
+        /** Types `text` at the end of the document a character at a time, as a user does. */
+        async function typeSlowly(editor, text) {
+            for (const ch of text) {
+                await vscode.commands.executeCommand('type', { text: ch });
+                await new Promise((r) => setTimeout(r, 120));
+            }
+            await new Promise((r) => setTimeout(r, 600));
+        }
+        const lastLine = (doc) => doc.lineAt(doc.lineCount - 1).text;
+
+        it('is on for RapidR files by default', () => {
+            const cfg = vscode.workspace.getConfiguration('editor', { languageId: 'rapidr' });
+            assert.strictEqual(cfg.get('formatOnType'), true);
+            assert.strictEqual(vscode.workspace.getConfiguration('rapidr').get('keywordCase'), 'upper');
+        });
+
+        it('cases each word as it is finished; strings, comments and members stay; one undo restores what was typed', async () => {
+            // (no completion list: Enter must not accept a suggestion that
+            // happens to be the upper-case word)
+            const ed = vscode.workspace.getConfiguration('editor');
+            await ed.update('quickSuggestions', { other: 'off', comments: 'off', strings: 'off' }, vscode.ConfigurationTarget.Global);
+            await ed.update('acceptSuggestionOnEnter', 'off', vscode.ConfigurationTarget.Global);
+            await ed.update('suggestOnTriggerCharacters', false, vscode.ConfigurationTarget.Global);
+            const doc = await open('casing.bas');
+            const editor = vscode.window.activeTextEditor;
+            const end = doc.lineAt(doc.lineCount - 1).range.end;
+            editor.selection = new vscode.Selection(end, end);
+            try {
+                await typeSlowly(editor, 'dim x as integer\n');
+                assert.strictEqual(doc.lineAt(doc.lineCount - 2).text, 'DIM x AS INTEGER');
+                await typeSlowly(editor, 'print "dim as" \' dim as\n');
+                assert.strictEqual(doc.lineAt(doc.lineCount - 2).text, 'PRINT "dim as" \' dim as');
+                await typeSlowly(editor, 'form.show ');
+                assert.strictEqual(lastLine(doc), 'form.show ');
+                await typeSlowly(editor, ': dim ');
+                assert.strictEqual(lastLine(doc), 'form.show : DIM ');
+                // one undo: the case edit goes, what was typed stays
+                await vscode.commands.executeCommand('undo');
+                await new Promise((r) => setTimeout(r, 300));
+                assert.strictEqual(lastLine(doc), 'form.show : dim ');
+            } finally {
+                await vscode.commands.executeCommand('workbench.action.files.revert');
+                for (const k of ['quickSuggestions', 'acceptSuggestionOnEnter', 'suggestOnTriggerCharacters']) {
+                    await ed.update(k, undefined, vscode.ConfigurationTarget.Global);
+                }
+            }
+        });
+    });
+
     describe('diagnostics (rapidr lsp)', () => {
         it('reports an error in RapidQ\'s words, on its line', async () => {
             const doc = await open('errors.bas');

@@ -287,6 +287,31 @@ exports.run = async function () {
     await vscode.commands.executeCommand('workbench.action.debug.stop');
     tracker2.dispose();
     await sleep(1000);
+
+    // 12. Automatic keyword case, typed a key at a time (format on type):
+    // mid-line, then the line finished; the string and the comment stay.
+    await vscode.commands.executeCommand('workbench.view.explorer');
+    await vscode.commands.executeCommand('workbench.action.closePanel');
+    // (no completion list: what changes case is the automatic case alone)
+    const edCfg = vscode.workspace.getConfiguration('editor');
+    await edCfg.update('quickSuggestions', { other: 'off', comments: 'off', strings: 'off' }, vscode.ConfigurationTarget.Global);
+    await edCfg.update('suggestOnTriggerCharacters', false, vscode.ConfigurationTarget.Global);
+    ed = await open(path.join(ws, 'typing.bas'));
+    const tail = ed.document.lineAt(ed.document.lineCount - 1).range.end;
+    await placeCaret(ed, tail);
+    const typeSlowly = async (text) => {
+        for (const ch of text) {
+            await vscode.commands.executeCommand('type', { text: ch });
+            await sleep(140);
+        }
+        await sleep(700);
+    };
+    await typeSlowly('dim x as integer');
+    await shot('case-typing');
+    await typeSlowly('\nprint "dim x as integer" \' dim x as integer\nfor x = 1 to 3: print mid$("abc", x, 1): next\n');
+    await shot('case-done');
+    await vscode.commands.executeCommand('workbench.action.files.revert');
+    await sleep(500);
     fs.writeFileSync(path.join(SIG, 'ready-last'), '');
     await sleep(1500);
 };

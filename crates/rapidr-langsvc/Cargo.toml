@@ -18,4 +18,5 @@ rapidr-bcgen.workspace = true
 rapidr-lang.workspace = true
 
 [dev-dependencies]
+rapidr-bytecode.workspace = true
 rapidr-preprocessor.workspace = true

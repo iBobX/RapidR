@@ -33,6 +33,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **Automatic keyword case in VS Code, as in QuickBASIC and VB.** Type
+  `dim x as integer` and it becomes `DIM x AS INTEGER` as you go: each
+  word is put in BASIC's case when you finish it (space, Enter, Tab, `(`,
+  `)`, `,`, `:`, `=` or an operator) — keywords and statements, type
+  names, directives (`$INCLUDE`) and builtins (`MID$`). Strings, comments,
+  `$INCLUDE` paths and your own names are never touched, and one Undo
+  gives back what you typed. Format Document and Format Selection apply
+  the same rules to the whole text. Two settings:
+  - `rapidr.keywordCase`: `upper` (the default), `lower`, `proper`
+    (`Dim x As Integer`) or `preserve` (off);
+  - `rapidr.identifierCase`: `declaration` writes every use of your
+    variables, SUBs, FUNCTIONs and constants as their declaration does,
+    and a component's members as RapidR spells them (`Form.Caption`), as
+    VB did; `preserve` (the default) leaves them as typed.
+
+  BASIC ignores case, so a program never changes: a test formats every
+  conformance program and example and checks that it compiles to the same
+  code, its strings and comments byte for byte. Format on type is now on
+  by default for RapidR files (`editor.formatOnType`). RapidR Studio's
+  editor will use the same rules.
 - **The language registry** (`crates/rapidr-lang`, RapidR Studio I0): one
   description of the language (every component, property, method, event,
   builtin, statement and constant, with types, defaults, signatures and
@@ -234,6 +254,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Code (`rapidr dap`) and RapidR Studio.
 - **VS Code: an error right after a dot (`Form.` at a line's end) was
   underlined over nothing.** It now underlines the dot.
+- **VS Code: Format Document re-indented the second line of a string
+  continued with `_` (under `$ESCAPECHARS`)**, which changed the string.
+  A string that spans lines is now left exactly as written.
 - **Web: typing in a Save As dialog went into the program's window
   below.** In the web IDE, Notepad's File > Save As showed an in-page
   dialog; a click in its file name field lost the focus at once, and the
