@@ -33,6 +33,10 @@ pub enum PageOp {
     Pixel(i64, i64, u32),
     /// x, y (top left), text, font, background.
     Text(i64, i64, String, Font, Option<u32>),
+    /// TextRect: the rectangle (Left, Top, Right, Bottom) the text is
+    /// clipped to (and filled with the background, when there is one), x,
+    /// y, text, font, background.
+    TextRect((i64, i64, i64, i64), i64, i64, String, Font, Option<u32>),
     /// Left, top, width, height, the image.
     Image(i64, i64, i64, i64, Bitmap),
 }
@@ -189,6 +193,17 @@ impl Printer {
                 let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
                 self.draw(PageOp::Text(n(0), n(1), text, font, optional(4)));
             }
+            // TextRect(Rect, x, y, text, color, background): the Rect's
+            // (Left, Top, Right, Bottom) as the first four numbers
+            // (objects::call reads the QRECT).
+            "textrect" => {
+                let mut font = self.font.clone();
+                if args.len() > 7 {
+                    font.color = crate::objects::color_bgr(n(7)) as i64;
+                }
+                let text = args.get(6).map(|v| v.to_string_val()).unwrap_or_default();
+                self.draw(PageOp::TextRect((n(0), n(1), n(2), n(3)), n(4), n(5), text, font, optional(8)));
+            }
             "textwidth" => return Some(v_int(self.text_width(&args.first().map(|v| v.to_string_val()).unwrap_or_default()))),
             "textheight" => return Some(v_int(self.text_height())),
             "printers" => {
@@ -223,6 +238,13 @@ impl Printer {
         let x = |px: i64| format!("{:.2}", pt(px));
         let y = |px: i64| format!("{:.2}", hp - pt(px));
         let rgb = |c: u32| format!("{:.3} {:.3} {:.3}", (c & 0xFF) as f64 / 255.0, ((c >> 8) & 0xFF) as f64 / 255.0, ((c >> 16) & 0xFF) as f64 / 255.0);
+        // A line of text, its top at y (its baseline an ascent below).
+        let text_ops = |tx: i64, ty: i64, text: &str, font: &Font| {
+            let size = font.size.clamp(1, 1_000) as f64;
+            let f = 1 + usize::from(font.styles & 1 != 0) + 2 * usize::from(font.styles & 2 != 0);
+            let baseline = hp - pt(ty) - size * 0.718;
+            format!("BT /F{f} {size:.1} Tf {} rg {} {baseline:.2} Td ({}) Tj ET\n", rgb(crate::objects::color_bgr(font.color)), x(tx), pdf_string(text))
+        };
         let mut objects: Vec<Vec<u8>> = Vec::new();
         // 1 catalog, 2 pages, 3–6 fonts; then per page: page, content, images.
         objects.push(b"<< /Type /Catalog /Pages 2 0 R >>".to_vec());
@@ -264,18 +286,21 @@ impl Printer {
                     }
                     PageOp::Pixel(px, py, c) => s += &format!("{} rg {} {} {:.2} {:.2} re f\n", rgb(*c), x(*px), y(*py + 1), pt(1), pt(1)),
                     PageOp::Text(tx, ty, text, font, bg) => {
-                        let size = font.size.clamp(1, 1_000) as f64;
-                        let bold = font.styles & 1 != 0;
-                        let italic = font.styles & 2 != 0;
-                        let f = 1 + usize::from(bold) + 2 * usize::from(italic);
                         if let Some(bg) = bg {
                             let pr = Printer { font: font.clone(), ..self.clone() };
                             let (tw, th) = (pr.text_width(text), pr.text_height());
                             s += &format!("{} rg {} {} {:.2} {:.2} re f\n", rgb(*bg), x(*tx), y(ty + th), pt(tw), pt(th));
                         }
-                        // The top of the text at y: its baseline an ascent below.
-                        let baseline = hp - pt(*ty) - size * 0.718;
-                        s += &format!("BT /F{f} {size:.1} Tf {} rg {} {baseline:.2} Td ({}) Tj ET\n", rgb(crate::objects::color_bgr(font.color)), x(*tx), pdf_string(text));
+                        s += &text_ops(*tx, *ty, text, font);
+                    }
+                    PageOp::TextRect((l, t, r, b), tx, ty, text, font, bg) => {
+                        let (l, t, r, b) = (*l.min(r), *t.min(b), *l.max(r), *t.max(b));
+                        let area = format!("{} {} {:.2} {:.2} re", x(l), y(b), pt(r - l), pt(b - t));
+                        if let Some(bg) = bg {
+                            s += &format!("{} rg {area} f\n", rgb(*bg));
+                        }
+                        // (the text clipped to the rectangle: PDF's clipping path)
+                        s += &format!("q {area} W n\n{}Q\n", text_ops(*tx, *ty, text, font));
                     }
                     PageOp::Image(ix, iy, iw, ih, b) => {
                         let name = format!("Im{}", images.len() + 1);
@@ -347,6 +372,19 @@ fn pdf_string(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// TextRect: the rectangle filled with the background, the text drawn
+    /// inside a clipping path of it.
+    #[test]
+    fn text_rect_clips() {
+        let mut p = Printer::default();
+        p.call("begindoc", &[]);
+        p.call("textrect", &[v_int(300), v_int(300), v_int(600), v_int(400), v_int(310), v_int(310), v_str("Clipped"), v_int(0xFF), v_int(0xFF00)]);
+        let pdf = String::from_utf8_lossy(&p.pdf()).into_owned();
+        assert!(pdf.contains("0.000 1.000 0.000 rg 72.00 745.92 72.00 24.00 re f\n"), "{pdf}");
+        assert!(pdf.contains("q 72.00 745.92 72.00 24.00 re W n\nBT /F1"), "{pdf}");
+        assert!(pdf.contains("(Clipped) Tj ET\nQ\n"));
+    }
 
     #[test]
     fn pages_and_pdf() {

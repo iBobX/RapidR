@@ -115,6 +115,19 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|36|"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // TextRect (a background filling the rectangle, the text clipped to it)
+  // on a canvas, an image, an owner-drawn list box, grid and header section
+  // and the form; Rotate on a canvas (a bar a quarter turn: up) and an
+  // image; RoundRect / CopyRect / StretchDraw in OnDrawItem / OnDrawCell;
+  // ImageList.Draw onto a canvas and an image; TextWidth on lists and
+  // grids; QCANVAS Get / Put (0). Pixels: the canvas's TextRect fill and
+  // what's right of it, the turned bar, the grid cell's TextRect and
+  // CopyRect, the header's and the form's TextRect, the selected item's
+  // background stopping at its rectangle, the turned square.
+  { name: "drawing_members", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=w30 h15 cb30 g30 get0 put0 000000FF 00FFFFFF"],
+    pixels: [[109, 69, "ffff00"], [111, 75, "ffffff"], [70, 20, "ff0000"], [70, 60, "ffffff"], [135, 148, "000080"], [144, 135, "ffffff"], [88, 165, "ffff00"],
+      [445, 120, "008000"], [451, 110, "f0f0f0"], [378, 198, "ffffcc"], [355, 57, "99ccff"], [363, 45, "ffffff"], [200, 50, "008000"]], clientWidth: 518 },
   { name: "dotted_paint", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=painted 255"] },
   { name: "event_answers", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",

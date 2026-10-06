@@ -61,6 +61,10 @@ pub enum CellDraw {
     Pixel(i64, i64, u32),
     Text(i64, i64, String, u32, Option<u32>),
     Image(i64, i64, Bitmap),
+    /// RoundRect(x1, y1, x2, y2, corner width, corner height, colour).
+    RoundRect(i64, i64, i64, i64, i64, i64, u32),
+    /// TextRect: the clipping rectangle, x, y, text, colour, background.
+    TextRect((i64, i64, i64, i64), i64, i64, String, u32, Option<u32>),
 }
 
 impl CellDraw {
@@ -80,6 +84,8 @@ impl CellDraw {
             CellDraw::Pixel(x, y, c) => bmp.pset(*x, *y, *c),
             CellDraw::Text(x, y, text, c, bg) => super::text::text_out(bmp, *x, *y, text, font, *c, *bg),
             CellDraw::Image(x, y, src) => bmp.draw(*x, *y, src),
+            CellDraw::RoundRect(x1, y1, x2, y2, w, h, c) => bmp.round_rect(*x1, *y1, *x2, *y2, *w, *h, *c),
+            CellDraw::TextRect(rect, x, y, text, c, bg) => super::text::text_rect(bmp, *rect, *x, *y, text, font, *c, *bg),
         }
     }
 }
@@ -650,6 +656,7 @@ impl StringGrid {
             "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
             "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
             "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
+            "roundrect" => self.record(n(0), n(1), |l, t| CellDraw::RoundRect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, n(4), n(5), c(6))),
             // TextOut(x, y, text, color, background (-1: transparent)).
             "textout" => {
                 let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();

@@ -1219,6 +1219,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
             picture_changed(&uname);
         }
+        // `ImageList.Draw Target, X, Y, Index`: a target QIMAGE shows it.
+        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| lmethod == "draw" && rapidr_value::objects::is_picture(t)) {
+            picture_changed(&target.to_uppercase());
+        }
         // (drawn again: a tree's rows built again first)
         if rapidr_value::objects::is_tree(name) {
             crate::kernel_web::tree_refresh(&uname);

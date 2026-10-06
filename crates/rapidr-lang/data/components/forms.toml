@@ -71,7 +71,7 @@ methods = [
   { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.)" },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER" },
   { name = "Refresh", value = true, origin = "rapidr" },
   { name = "Hide", value = true, origin = "rapidr" },

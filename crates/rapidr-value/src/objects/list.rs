@@ -343,6 +343,7 @@ impl ItemList {
             "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
             "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
             "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
+            "roundrect" => self.record(n(0), n(1), |l, t| CellDraw::RoundRect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, n(4), n(5), c(6))),
             // TextOut(x, y, text, color, background (-1: transparent)).
             "textout" => {
                 let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
@@ -607,6 +608,11 @@ impl ItemList {
         }
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
         if self.owner_drawn() && self.draw(method, args) {
+            return Some(Value::Null);
+        }
+        // Drawing on a list box / combo box that isn't owner-drawn: what it
+        // draws is painted over by the items straight away (as on Windows).
+        if !self.plain && matches!(method, "line" | "rectangle" | "fillrect" | "circle" | "pset" | "roundrect" | "textout") {
             return Some(Value::Null);
         }
         // QSTRINGLIST's names for the same operations.

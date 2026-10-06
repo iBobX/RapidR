@@ -40,7 +40,10 @@ change what an existing program does.
 - **OLE / COM** (`QOLECONTAINER`, `QOLEOBJECT`): programs that declare
   them compile; their methods do nothing and print a warning.
 - RapidQ's undocumented `QD3DANIMATION` / `QD3DANIMATIONSET` (in its keyword
-  list only).
+  list only): programs that declare them compile and
+  `QDXSCREEN.CreateAnimation` / `CreateAnimationSet` take them, but as in
+  RapidQ there is nothing to do with them (RapidQ gives them no keys and
+  nothing that plays them).
 - DOS-era port I/O.
 - `ON ERROR` is accepted and ignored (it's VB's, not RapidQ's): a run-time
   error still ends the program.
@@ -57,6 +60,10 @@ something defined instead, and says so:
   a run-time error.
 - A QDXJOYSTICK with no joystick reads "not connected" rather than
   raising RapidQ's list-index error.
+- `TextRect(Rect, x, y, S$, fc, bc)` draws: the text clipped to `Rect`,
+  which a background `bc` fills first (as the Windows call under it does).
+  RapidQ's own TextRect stops the program on every object tried (an access
+  violation on a QBITMAP, a list-index error on a QCANVAS).
 - Windows on every system are drawn by RapidR in Windows' classic look,
   with real system menus, dialogs and clipboard where users expect them.
 - Documents printed with `Printer` / `LPRINT` are PDFs sent to the system's

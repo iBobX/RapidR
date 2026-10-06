@@ -643,6 +643,74 @@ impl Bitmap {
         }
     }
 
+    /// `Rotate(xOrigin, yOrigin, Angle)`, as RapidQ's QBITMAP / QIMAGE /
+    /// QCANVAS do it (RC.EXE, tests/conformance/cases/bitmap_rotate.bas):
+    /// the whole picture turned about pixel (x0, y0) by `degrees`,
+    /// anticlockwise on the screen, keeping its size. Each pixel takes the
+    /// one that turns onto it (its source, rounded to the nearest pixel);
+    /// where that is outside the picture it takes the picture's top-left
+    /// pixel's colour from before the turn.
+    pub fn rotate(&mut self, x0: i64, y0: i64, degrees: f64) {
+        let (w, h) = (self.img.width as i64, self.img.height as i64);
+        if w == 0 || h == 0 || !degrees.is_finite() {
+            return;
+        }
+        let (sin, cos) = degrees.to_radians().sin_cos();
+        // The source of (x, y), in pixels (not rounded).
+        let source = |x: f64, y: f64| {
+            let (dx, dy) = (x - x0 as f64, y - y0 as f64);
+            (x0 as f64 + dx * cos - dy * sin, y0 as f64 + dx * sin + dy * cos)
+        };
+        let inside = |sx: f64, sy: f64| {
+            let (rx, ry) = (sx.round_ties_even(), sy.round_ties_even());
+            (rx >= 0.0 && ry >= 0.0 && rx < w as f64 && ry < h as f64).then_some((rx as i64, ry as i64))
+        };
+        // What a high-DPI screen shows turns the same way, finer: each
+        // device pixel from the one under its source point, the same
+        // pixels falling outside. (Soft-edged pictures: shown again from
+        // the turned pixels, enlarged.)
+        let soft = self.alpha_channel().is_some();
+        if soft {
+            self.hi = None;
+        } else if let Some(hi) = self.hi_mut() {
+            let s = hi.scale as i64;
+            let old = hi.img.pixels.clone();
+            let (hw, hh) = (hi.img.width as i64, hi.img.height as i64);
+            let fallback = old.first().copied().unwrap_or(0);
+            for y in 0..hh {
+                for x in 0..hw {
+                    let (sx, sy) = source((x as f64 + 0.5) / s as f64 - 0.5, (y as f64 + 0.5) / s as f64 - 0.5);
+                    let c = match inside(sx, sy) {
+                        Some((lx, ly)) => {
+                            let fx = (((sx + 0.5) * s as f64).floor() as i64).clamp(lx * s, lx * s + s - 1).min(hw - 1);
+                            let fy = (((sy + 0.5) * s as f64).floor() as i64).clamp(ly * s, ly * s + s - 1).min(hh - 1);
+                            old[(fy * hw + fx) as usize]
+                        }
+                        None => fallback,
+                    };
+                    hi.img.pixels[(y * hw + x) as usize] = c;
+                }
+            }
+        }
+        self.svg = None;
+        self.redraw = None;
+        self.touch();
+        let old = self.img.pixels.clone();
+        let old_alpha = self.alpha_channel().map(<[u8]>::to_vec);
+        for y in 0..h {
+            for x in 0..w {
+                let (sx, sy) = source(x as f64, y as f64);
+                // (outside: the top-left pixel, index 0)
+                let from = inside(sx, sy).map_or(0, |(sx, sy)| (sy * w + sx) as usize);
+                let to = (y * w + x) as usize;
+                self.img.pixels[to] = old[from];
+                if let (Some(a), Some(old_a)) = (self.alpha.as_mut(), old_alpha.as_ref()) {
+                    a[to] = old_a[from];
+                }
+            }
+        }
+    }
+
     /// The opacity of each pixel, when it has one that fits.
     pub fn alpha_channel(&self) -> Option<&[u8]> {
         self.alpha.as_deref().filter(|a| a.len() == self.img.pixels.len())
@@ -808,6 +876,11 @@ impl Bitmap {
                 let font = self.font.clone();
                 super::text::text_out(self, n(0), n(1), &text, &font, color, bg);
             }
+            // Rotate(xOrigin, yOrigin, Angle): degrees, anticlockwise.
+            "rotate" => self.rotate(n(0), n(1), n(2) as f64),
+            // A QIMAGE's Repaint: shown again (the runtime shows it after
+            // any call on it).
+            "repaint" if self.picture => {}
             "textwidth" => return Some(v_int(super::text::text_size(&args.first().map(|v| v.to_string_val()).unwrap_or_default(), &self.font).0)),
             "textheight" => return Some(v_int(super::text::text_size(&args.first().map(|v| v.to_string_val()).unwrap_or_default(), &self.font).1)),
             _ => return None,
@@ -881,6 +954,10 @@ impl Bitmap {
                 self.font.name = args.first().map(Value::to_string_val).filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "Arial".into());
                 self.font.size = -args.get(1).map_or(12, Value::to_i64).clamp(1, 1000);
             }
+            // RapidQ's QCANVAS Get / Put (in RC.EXE's table, not its
+            // manual): no arguments, nothing drawn or kept, 0 back (RC.EXE:
+            // a Put after a Get doesn't bring the pixels back).
+            "get" | "put" if !self.form => return Some(v_int(0)),
             _ => return None,
         }
         Some(Value::Null)
@@ -899,7 +976,7 @@ impl Bitmap {
 
     /// A filled rectangle with corners rounded by an ellipse of w × h.
     #[allow(clippy::too_many_arguments)]
-    fn round_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, w: i64, h: i64, c: u32) {
+    pub fn round_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, w: i64, h: i64, c: u32) {
         let (l, t, r, b) = (x1.min(x2), y1.min(y2), x1.max(x2), y1.max(y2));
         let (w, h) = (w.clamp(0, r - l), h.clamp(0, b - t));
         self.fill_rect(l + w / 2, t, r - w / 2, b, c);
@@ -1144,6 +1221,64 @@ mod tests {
         let hi = c.hi.as_deref().unwrap();
         assert_eq!((hi.img.width, hi.img.height), (50, 10));
         set_display_scale(1.0);
+    }
+
+    /// Rotate as RC.EXE does it (tests/conformance/cases/bitmap_rotate.bas):
+    /// degrees, anticlockwise, the nearest source pixel, pixel (0, 0)'s old
+    /// colour where nothing turns onto.
+    #[test]
+    fn rotate_like_rapidq() {
+        let mut b = bmp(21, 21);
+        b.fill_rect(0, 0, 21, 21, 0xFF0000);
+        b.line(10, 10, 18, 10, 0xFF);
+        b.pset(0, 0, 0x123456);
+        b.call("rotate", &[v_int(10), v_int(10), v_int(90)]);
+        assert_eq!((b.pixel(10, 2), b.pixel(10, 10), b.pixel(15, 10), b.pixel(10, 15)), (Some(0xFF), Some(0xFF), Some(0xFF0000), Some(0xFF0000)));
+        // (20, 0) came from (10, 0)…; (0, 20) from (−10, 0): outside, the old (0, 0).
+        assert_eq!((b.pixel(0, 20), b.pixel(20, 20)), (Some(0x123456), Some(0xFF0000)));
+        assert_eq!((b.img.width, b.img.height), (21, 21));
+        // A whole turn and nothing are the same picture.
+        let before = b.img.clone();
+        b.rotate(3, 4, 360.0);
+        b.rotate(3, 4, 0.0);
+        assert_eq!(b.img, before);
+    }
+
+    /// At 2× what the screen shows turns too: a quarter turn keeps each
+    /// pixel's 2 × 2 block its colour.
+    #[test]
+    fn rotate_high_dpi() {
+        set_display_scale(2.0);
+        let mut b = bmp(9, 7);
+        b.fill_rect(0, 0, 9, 7, 0xFF0000);
+        b.fill_rect(4, 1, 6, 3, 0xFF);
+        b.rotate(4, 3, 90.0);
+        let hi = b.hi.as_deref().expect("shown at 2×");
+        for y in 0..7 {
+            for x in 0..9 {
+                let c = b.pixel(x, y);
+                for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                    assert_eq!(hi.pixel(x * 2 + dx, y * 2 + dy), c, "({x}, {y})");
+                }
+            }
+        }
+        set_display_scale(1.0);
+    }
+
+    /// TextRect: the rectangle filled with the background, the text only
+    /// inside it; -1 leaves what's there.
+    #[test]
+    fn text_rect_clips_and_fills() {
+        let mut b = bmp(60, 20);
+        let font = Font::default();
+        super::super::text::text_rect(&mut b, (10, 2, 30, 18), 12, 2, "WWWWWWWW", &font, 0, Some(0xFF));
+        assert_eq!((b.pixel(29, 17), b.pixel(10, 2), b.pixel(30, 5), b.pixel(9, 5)), (Some(0xFF), Some(0xFF), Some(0xFFFFFF), Some(0xFFFFFF)));
+        assert!((30..60).all(|x| (0..20).all(|y| b.pixel(x, y) == Some(0xFFFFFF))), "nothing right of the rectangle");
+        assert!((12..30).any(|x| (2..18).any(|y| b.pixel(x, y) == Some(0))), "the text inside it");
+        let mut clear = bmp(60, 20);
+        super::super::text::text_rect(&mut clear, (40, 0, 10, 20), 12, 2, "WWWWWWWW", &font, 0, None);
+        assert_eq!(clear.pixel(29, 19), Some(0xFFFFFF), "no fill");
+        assert!((40..60).all(|x| (0..20).all(|y| clear.pixel(x, y) == Some(0xFFFFFF))), "a right-to-left rectangle is the same rectangle");
     }
 
     #[test]

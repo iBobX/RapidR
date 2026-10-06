@@ -51,6 +51,7 @@
 //   * tests/fixtures/font_dialog.bas — QFONTDIALOG's Name, Size, FontName(i), GetFont / SetFont, OK / Cancel (RAPIDR_TEST_FONT_DIALOG).
 //   * tests/fixtures/window_state.bas — QFORM.WindowState: maximized (the work area, OnResize), restored, minimized.
 //   * tests/fixtures/header.bas — QHEADER: sections clicked and resized, an owner-drawn section.
+//   * tests/fixtures/drawing_members.bas — TextRect, Rotate, RoundRect / CopyRect / StretchDraw in owner drawing, ImageList.Draw, Get / Put; the capture's pixels.
 //   * tests/fixtures/outline.bas — QOUTLINE (a tree view): AddLines by indent, AddChild(Index, S), Item(i), Row.
 //   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
 //   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.

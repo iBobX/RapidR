@@ -276,28 +276,78 @@ fn glyphs(target: &mut impl Target, s: &Scaled, x: f32, y: f32, by: f32, text: &
     }
 }
 
+/// A target drawn on only inside a rectangle [l, r) × [t, b) (TextRect).
+struct Clipped<'a, T: Target> {
+    target: &'a mut T,
+    rect: (i64, i64, i64, i64),
+}
+
+impl<T: Target> Target for Clipped<'_, T> {
+    fn size(&self) -> (i64, i64) {
+        self.target.size()
+    }
+    fn get(&self, x: i64, y: i64) -> Option<u32> {
+        self.target.get(x, y)
+    }
+    fn set(&mut self, x: i64, y: i64, c: u32) {
+        let (l, t, r, b) = self.rect;
+        if x >= l && x < r && y >= t && y < b {
+            self.target.set(x, y, c);
+        }
+    }
+}
+
+/// No clipping: the whole of any bitmap.
+const UNCLIPPED: (i64, i64, i64, i64) = (i64::MIN / 4, i64::MIN / 4, i64::MAX / 4, i64::MAX / 4);
+
 /// `TextOut(x, y, text, colour, background)` on `bmp` in `font`
 /// (background `None`: transparent).
 pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color: u32, background: Option<u32>) {
-    let Some(s) = scaled(font) else { return };
-    let (tw, th) = text_size(text, font);
     if let Some(bg) = background {
+        let (tw, th) = text_size(text, font);
         bmp.fill_rect(x, y, x + tw, y + th, bg);
     }
+    clipped_text(bmp, UNCLIPPED, x, y, text, font, color);
+}
+
+/// `TextRect(Rect, x, y, text, colour, background)`: the text as TextOut
+/// draws it at (x, y), but only inside `rect` (Left, Top, Right, Bottom;
+/// the right and bottom edges excluded). A background colour fills the
+/// whole rectangle first, as Windows' ExtTextOut does for Delphi's
+/// TextRect with a solid brush; `None` (-1) leaves what's there.
+#[allow(clippy::too_many_arguments)]
+pub fn text_rect(bmp: &mut Bitmap, rect: (i64, i64, i64, i64), x: i64, y: i64, text: &str, font: &Font, color: u32, background: Option<u32>) {
+    let (l, t, r, b) = (rect.0.min(rect.2), rect.1.min(rect.3), rect.0.max(rect.2), rect.1.max(rect.3));
+    if let Some(bg) = background {
+        bmp.fill_rect(l, t, r, b, bg);
+    }
+    clipped_text(bmp, (l, t, r, b), x, y, text, font, color);
+}
+
+/// The text's glyphs (and underline / strike-out) at (x, y), only inside
+/// `clip` — on the pixels and on what a high-DPI screen shows.
+fn clipped_text(bmp: &mut Bitmap, clip: (i64, i64, i64, i64), x: i64, y: i64, text: &str, font: &Font, color: u32) {
+    let Some(s) = scaled(font) else { return };
+    let (tw, _) = text_size(text, font);
     let baseline = y as f32 + s.ascent;
-    glyphs(bmp, &s, x as f32, y as f32, 1.0, text, font, color);
+    glyphs(&mut Clipped { target: &mut *bmp, rect: clip }, &s, x as f32, y as f32, 1.0, text, font, color);
     // What a high-DPI screen shows: the same text at its scale (the glyphs
     // finer, where they start and advance the same).
     if let Some(hi) = bmp.display_mut() {
         let by = hi.scale as f32;
+        let k = hi.scale as i64;
+        let fine_clip = if clip == UNCLIPPED { UNCLIPPED } else { (clip.0 * k, clip.1 * k, clip.2 * k, clip.3 * k) };
         if let Some(fine) = scaled_by(font, by) {
-            glyphs(hi, &fine, x as f32 * by, y as f32 * by, by, text, font, color);
+            glyphs(&mut Clipped { target: hi, rect: fine_clip }, &fine, x as f32 * by, y as f32 * by, by, text, font, color);
         }
     }
     let line = |bmp: &mut Bitmap, at: f32| {
         let yy = at.round() as i64;
         let thick = (pixel_size(font) / 16.0).round().max(1.0) as i64;
-        bmp.fill_rect(x, yy, x + tw, yy + thick, color);
+        let (l, t, r, b) = (x.max(clip.0), yy.max(clip.1), (x + tw).min(clip.2), (yy + thick).min(clip.3));
+        if l < r && t < b {
+            bmp.fill_rect(l, t, r, b, color);
+        }
     };
     if font.styles & 4 != 0 {
         line(bmp, baseline + 1.0);

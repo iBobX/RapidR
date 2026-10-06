@@ -79,7 +79,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
@@ -985,24 +985,24 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -1669,13 +1669,13 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(not yet)* | Redraws the component. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `Repaint` | Shows the picture again. |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `LoadFromFile` *(RapidR)* *(desktop)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
@@ -1744,12 +1744,12 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` *(desktop)* | Redraws the component. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Cls` *(RapidR)* | Clears the canvas using the current Color. |
 | `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
@@ -1762,8 +1762,8 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
+| `Get AS INTEGER` | RapidQ's (in its compiler's member table, not its manual): takes nothing, draws and keeps nothing, and gives 0 — a Put after it doesn't bring the pixels back. |
+| `Put AS INTEGER` | RapidQ's (in its compiler's member table, not its manual): takes nothing, draws nothing and gives 0. |
 
 | Event | |
 |---|---|
@@ -1834,7 +1834,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -2110,26 +2110,26 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `StretchDraw(Rect AS QRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -2360,7 +2360,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `DeleteRow(Row AS INTEGER)` | Removes row `Row`; the rows after it move up. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
-| `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
 | `InsertCol(Column AS INTEGER)` | Inserts an empty column before column `Column`. |
@@ -2372,15 +2372,15 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(S AS QFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Writes the component's contents to an open stream. |
 | `SwapCols(Col1 AS INTEGER, Col2 AS INTEGER)` | Swaps columns `Col1` and `Col2`. |
 | `SwapRows(Row1 AS INTEGER, Row2 AS INTEGER)` | Swaps rows `Row1` and `Row2`. |
-| `StretchDraw(Rect AS QRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddRow` *(RapidR)* | Appends a row made of the values given; a grid widens to fit them. |
 | `SetCell` *(RapidR)* | Sets the text of the cell at a column and row. |
@@ -2989,7 +2989,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 
 <a id="rregistry"></a>
@@ -3165,14 +3165,14 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(Stream)` | Writes the component's contents to an open stream. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
 | `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
@@ -3208,7 +3208,7 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `AddICOHandle(ICO_Resource)` | Appends an icon resource to the list. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Delete(Index AS INTEGER)` | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
-| `Draw(QIMAGE, X AS INTEGER, Y AS INTEGER, Index AS INTEGER)` *(not yet)* | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `Draw(Target, X AS INTEGER, Y AS INTEGER, Index AS INTEGER)` | Draws image `Index` with its top left at (`X`, `Y`) on `Target`: a QBITMAP, QIMAGE, QCANVAS or QDXSCREEN (its back buffer). An `Index` out of range draws nothing; the mask colour's pixels are left out. |
 | `InsertBMPFile(Index AS INTEGER, Filename AS STRING, Mask AS INTEGER)` | Loads a bitmap file and inserts its image at position `Index`, with `Mask` as its transparent color. |
 | `InsertICOFile(Index AS INTEGER, Filename AS STRING)` | Loads an icon file and inserts it at position `Index`. |
 | `InsertBMPHandle(Index AS INTEGER, BMP_Resource, Mask AS INTEGER)` | Inserts a bitmap resource's image at position `Index`, with `Mask` as its transparent color. |
@@ -3767,8 +3767,8 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `CreateAnimation` *(not yet)* | Creates a Direct3D animation, a frame's motion between key positions. |
-| `CreateAnimationSet` *(not yet)* | Creates a Direct3D animation set, animations played together. |
+| `CreateAnimation(Ani AS QD3DANIMATION)` | Takes a Direct3D animation object. RapidQ gives such an object nothing to do (no keys, nothing that plays it), so this does nothing. |
+| `CreateAnimationSet(AniSet AS QD3DANIMATIONSET)` | Takes a Direct3D animation set. RapidQ gives such an object nothing to do (no animations to add, nothing that plays it), so this does nothing. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -3842,7 +3842,7 @@ A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or 
 | `Play` | Starts playing from the current position. |
 | `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
 | `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `RecreateBuf` *(not yet)* | Makes the sound buffer again after the device lost it. |
+| `RecreateBuf` | Makes the sound's buffer again after DirectSound lost it. RapidR's sound never loses its buffer, so this does nothing. |
 
 <a id="rdxjoystick"></a>
 ## RDXJOYSTICK (QDXJOYSTICK)
