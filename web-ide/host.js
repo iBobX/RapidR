@@ -3740,7 +3740,8 @@ function showAboutDialog() {
       <div>
         <div style="font-size:16px;font-weight:600">RapidR IDE <span style="color:var(--c-text-mute);font-weight:400;font-size:12px">v${escapeHtml(RAPIDR_IDE_VERSION)}</span></div>
         <div style="margin-top:2px">Self-hosted, zero-backend, in-browser BASIC IDE</div>
-        <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com?subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
+        <div style="margin-top:8px">Copyright © 2025–2026 Ruta Internet SRL. MIT License.</div>
+        <div style="margin-top:4px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com?subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
         <div><b>Assisted by:</b> AI pair-programming assistants</div>
         <div style="margin-top:8px"><b>License:</b> MIT (see LICENSE)</div>
         <div style="margin-top:4px">Built on hundreds of open-source libraries: see <b>Open-source credits</b>.</div>
