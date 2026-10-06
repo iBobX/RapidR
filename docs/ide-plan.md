@@ -589,3 +589,49 @@ Release notes, per the project's messaging: full RapidQ compatibility on all thr
 ## Results
 
 (Appended per stage as work lands, with dates, sizes, test counts and what changed in the plan.)
+
+### I0 / L-PARSE results (2026-10-06)
+
+The parser for tools: trivia, the origin map, lexer recovery and the semantic model. About 2,600 lines (1,400 of code, 650 of tests) in the lane's crates and `interpreter/rapidr-bcgen`; no other crate touched. Commits: preprocessor, lexer, parser, bcgen, these notes.
+
+**What landed.**
+- **Origin map** (`rapidr-preprocessor`, `origin.rs`). `PreprocessResult.origins: OriginMap` maps every byte of the preprocessed text to (file, byte offset). Exact segments are the file's own bytes; generated ones (a `$DEFINE`'s value, a `$MACRO` expansion, `$RESOURCE` / `$OPTION ICON` constants, a built-in `RAPIDQ.INC`, the `$ESCAPECHARS` lines around an include) map to the source they replace. Substitutions go through a mapped text, so the map follows every edit; the text they produce is the same as before. It also keeps each file's decoded text, its encoding (`decode_source` / `encode_source` give the bytes back: UTF-8, BOM, Windows-1252) and what each line was to the preprocessor (`LineKind`: code, directive, inactive `$IFDEF` branch, `#!`). There are lookups both ways (`origin`, `origin_span`, `to_preprocessed`). `preprocess_*_recovering` reports a missing or malformed `$INCLUDE` / `$RESOURCE` on its line and goes on. `scan_lines` classifies one file's lines without reading its includes.
+- **Lexer recovery** (`rapidr-lexer`). `Lexer::tokenize_recovering` turns unreadable text into `TokenType::Error` tokens (an unterminated string at the end of the file becomes the string as far as it goes), returns every error and goes on. `tokenize` is unchanged: it returns the first error, and the tokens are the same up to it.
+- **Trivia** (`rapidr-lexer`, `lossless.rs`). `LosslessFile` lexes one file with the compiler's own lexer: same tokens, the AST untouched. Whitespace, `'` / `REM` comments, `_` continuations and the line breaks they join, preprocessor directive lines, inactive branches and `#!` go in a side table of `Trivia`. Tokens + trivia cover every byte once, in order, and `print()` gives the file back. Blank lines are their `Newline` token with only whitespace before it; `lines()` classifies each line as blank, comment, directive, inactive or code. Directives the parser reads (`$TYPECHECK`, `$APPTYPE`, `$OPTION`, `$ESCAPECHARS`) stay `Directive` tokens.
+- **Parser for tools** (`rapidr-parser`, `tools.rs`). `parse_file_for_tools` / `parse_source_for_tools` run the compiler's preprocessor, lexer and parser (the backends' AST) and never stop at an error. `locate(span)` gives (file, byte range, line, column, exact) through `$INCLUDE`, `$DEFINE` and `$MACRO`. `files` holds every file of the program losslessly, lexed with this build's real `$IFDEF` decisions. `diagnostic_locations()` places every diagnostic in its file.
+- **Semantic model** (`rapidr-bcgen`, `semantic.rs`). `analyze(program, source)` compiles with a recorder and returns:
+  - scopes: the program, SUBs / FUNCTIONs, TYPEs and their methods;
+  - symbols: globals, locals, parameters, STATICs, constants, components, routines, DLL routines, TYPEs, fields and labels, with declaration spans and types (declared, suffix or implicit; components under their R name, one model for Q and R);
+  - references, each marked declare, read, write or call;
+  - lookups for I3: `symbol_at`, `scope_at`, `lookup`, `visible`.
+
+  bcgen now calls the model's rules itself, so the compiler and the IDE can't disagree:
+  - `resolve_name`: a bare name is a component, then a local, then a bare builtin, `True` / `False`, a RapidR constant or a FUNCTION, then a global;
+  - `dim_target`, `for_target` and `store_target`, for DIM, FOR and assignments.
+
+  Names handled through other compiler paths (`Obj.Member`'s object, a routine called by name) are looked up in the same tables, innermost scope first. `RESULT` in a FUNCTION refers to the FUNCTION.
+
+**No change to what any program means.** A fingerprint of every compiler stage covered 675 programs (the corpus' 386 examples and the repo's 289 .bas / .rr files), with and without RapidQ's `include` directory on the path. The stages: `preprocess_source` (the web's path), `preprocess_file`, tokens, the recovering parse, bytecode (`Module::to_bytes` + warnings) and the generated Rust. All are byte-identical between the base commit and the lane's head; with the includes, 603 programs reach bytecode and Rust. Two compiler hangs end, both on programs that never compiled:
+- an empty `$MACRO` / `#Const` name;
+- a macro that expands to itself (now at most 10,000 expansions per line).
+
+The suites, with the lane's `./rapidr` and web build:
+- conformance on both backends: 312 passed, 0 failed;
+- web conformance: 135 passed, 3 known failures (xfail), 0 failed, 0 page errors;
+- the desktop GUI events suite (native + interpreted): all 702 checks passed;
+- `tools/rapidq_corpus.py`: 163 / 386 programs compile, 130 / 130 portable (100%).
+
+`tools/corpus_compare.mjs` (each program run native vs interpreted) wasn't rerun. The disk was 99% full with the parallel lanes' builds, and its outcome can't change: both backends' inputs (the bytecode and the generated Rust) are byte-identical to the base for every corpus program.
+
+**Acceptance.**
+- Every RapidQ example of the corpus (386 `.bas` plus the corpus' 250 `.inc`) and every repo `.bas` / `.rr` / `.inc` (291) parses with trivia and round-trips byte for byte, to the encoded bytes (`crates/rapidr-parser/tests/tools_corpus.rs`). The same test checks every token span that maps exactly against its file's text: 790,000 tokens, including those in included files.
+- Spans in a program with `$INCLUDE`s point into the right file at the right byte: `spans_point_into_included_files` (nested include directories, CRLF, `$DEFINE` in an include, a missing include reported on its line); unit tests in the preprocessor; the semantic corpus test. That test checks 217,000 references on the 675 programs, 31,000 of them in included files: each holds its name, in the right file. It also confirms that no compiler panic happens while recording.
+- Fuzzing: `crates/rapidr-parser/tests/fuzz_edits.rs` makes random edits of real programs (deletions, snippets of directives, strings, continuations, non-ASCII, NUL, truncation) and runs them through the lossless lexer, the recovering preprocessor, lexer and parser, the origin map and the compiler's own entry points. Nothing may panic or hang (a 20 s watchdog per case). It runs 400 cases by default (about 1 s in debug), in regress's `unit` stage with the rest of `cargo test --workspace`. 100,000 cases in release and 20,000 in debug (overflow checks) ran clean. `RAPIDR_FUZZ_CASES` / `RAPIDR_FUZZ_SEED` reproduce a case.
+
+**Shared files touched.** `Cargo.lock` (the parser's new dependency on `rapidr-preprocessor`, one line); this section of the plan. Nothing in `rapidr-ast`, `regress.sh` (the fuzz test's short run comes with `cargo test --workspace`), the root `Cargo.toml`, the ROADMAP or the CHANGELOG.
+
+**For later stages.**
+- I3: build on `ToolsParse` + `semantic::analyze`. Keep requests answered from the last model, and re-run `analyze` per edit: it's a compile, milliseconds for corpus-sized programs.
+- I4: find CREATE blocks by the AST's spans and `locate`, and keep comments with `LosslessFile::leading_trivia`.
+- Line kinds come from a file's first inclusion. A file included twice under different `$DEFINE`s shows its first decisions.
+- `$IFDEF RAPIDR` (D12) isn't predefined yet. It is a preprocessor change, but a language change for programs that use the name `RAPIDR`, so it needs its own commit.
