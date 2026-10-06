@@ -1,108 +1,117 @@
-# RapidR 1.0.0 — Announcement Drafts
+# RapidR 2.117.0 — Announcement Drafts
 
-Three flavours of the same announcement. Pick whichever matches the venue.
-
----
-
-## A. RapidQ user-group post / forum (warm, hobbyist tone)
-
-> **RapidR 1.0.0 — a modern BASIC compatible with RapidQ**
->
-> Long-time RapidQ users — you might enjoy this. RapidR is a from-scratch
-> Rust reimplementation of the BASIC dialect we all remember, with the
-> same `CREATE Form1 AS RForm` / `END CREATE` flavour, the same SUBs and
-> FUNCTIONs, the same component-driven feel. It is **inspired by**
-> RapidQ but is **not** a drop-in clone — instead it goes where RapidQ
-> never quite did: the modern web.
->
-> What's in 1.0:
->
-> - **Native + Web from one source.** Compile a `.rr` file to a fast
->   native binary, or to WebAssembly that runs in a browser tab.
-> - **52+ GUI components** plus 9 web-exclusive ones (`RWebView`,
->   `RWebStorage`, `RDOM`, `RJavaScript`, …), 100+ built-ins, MySQL +
->   SQLite, networking, JSON, and a small data-science stack
->   (`RDataFrame`, `RPlot`, `RNum`).
-> - **A self-hosted Web IDE.** Open one HTML file in a browser, build
->   forms visually with a 22-component toolbox, edit code in Monaco,
->   click Run to execute it inline, click Build to download a single
->   `.zip` you can drop on any static host. No build server. No
->   network calls.
-> - **Bytecode interpreter (`rapidrintr`).** The same wasm module hosts
->   both the compiler *and* the runtime, which is what makes the
->   browser IDE a single-page download.
-> - **VS Code extension** with hover docs, IntelliSense for components
->   and built-ins, and one-click Compile / Run / Compile-for-Web.
-> - **Open source under the MIT license.**
->
-> Try it: `git clone … && ./build.sh --release`, or just open
-> `web-ide/index.html` in a browser after running
-> `bash tools/build_web_artifacts.sh`. README has the rest.
->
-> If you used RapidQ in the early 2000s, give 1.0 a try — and please
-> file an issue when something feels wrong, because backwards
-> compatibility is a goal, not a guarantee.
+Three versions of the same announcement, for different venues. The facts are
+the release notes' ([docs/release-notes/v2.117.0.md](docs/release-notes/v2.117.0.md));
+keep the two in step. Wording: RapidR is *compatible with* RapidQ — an
+original implementation, written from the ground up in pure Rust.
 
 ---
 
-## B. Hacker News / Reddit (one-paragraph, technical)
+## A. RapidQ user groups and forums (warm, for RapidQ users)
 
-> **Show HN: RapidR 1.0 — a BASIC-to-Rust transpiler with a self-hosted
-> browser IDE**
+> **RapidR 2.117.0 — your RapidQ programs, on today's computers**
 >
-> RapidR compiles a RapidQ-flavoured BASIC dialect (`.rr` files) to
-> standalone Rust projects, then to native binaries (their own GUI) or to
-> WebAssembly that runs in the browser. 1.0 ships a self-hosted Web
-> IDE — plain HTML/JS, no backend — that drives the same wasm module
-> exporting both the compiler and a small bytecode interpreter, so
-> design-time and runtime use the exact same renderer. Build a form
-> visually, hit Run to execute it in an iframe, hit Build to download
-> a STORED PKZIP containing the bytecode + runtime + a CSP-locked
-> `index.html` ready to drop on any static host. Includes 52+ GUI
-> components, MySQL/SQLite, an `RDataFrame`/`RPlot` mini data-science
-> stack, a VS Code extension, and end-to-end Playwright tests covering
-> the IDE → bundle → standalone-runtime path. MIT.
+> Long-time RapidQ users, this one is for you. RapidR runs and builds
+> RapidQ programs. It is compatible with RapidQ: an original implementation,
+> written from the ground up in pure Rust, and an existing RapidQ program
+> behaves as it does under RapidQ. This is its first public release.
+>
+> Your program runs three ways from the same source:
+>
+> - **natively**, as an executable of its own;
+> - **interpreted**, by the RapidR Runtime (or as a standalone executable
+>   that carries it) — no Rust or anything else to install;
+> - **in a browser**, the same program on a web page.
+>
+> What that means for your code:
+>
+> - **Checked against RapidQ itself.** RapidQ's own compiler (RC.EXE) runs in
+>   a Windows VM as the ground truth: numbers, PRINT, STR$, rounding, colours
+>   and more print exactly what RapidQ prints, on all three runtimes.
+> - **The whole language and every RapidQ object but OLE**: TYPEs with
+>   methods and inheritance, GOTO / GOSUB, DATA / READ, `$RESOURCE`, the
+>   visual components, dialogs, menus, QREGISTRY, the printer, sockets,
+>   QMYSQL, the tray icon, QCGI, QCOMPORT, QMIDI, QWAVE, QVIDEO, the include
+>   libraries' components (QFORMMDI, QBEVEL, QDIGDISPLAY, …) built in — and
+>   DirectX, Direct3D retained mode included, everywhere, the browser too.
+> - **RapidQ's look on macOS, Windows and Linux**, drawn by RapidR's own UI
+>   kernel: sharp on high-DPI screens, readable by screen readers, with
+>   themes (`$THEME Dark`, `Modern`, …) when you want them.
+> - **New things, without changing what RapidQ programs do**: SQLite with
+>   parameter binding, JSON and HTTP, data frames, arrays and charts
+>   (`RDataFrame`, `RNum`, `RPlot`), responsive layouts.
+>
+> Installers for Windows, macOS and Linux, plus the web IDE as a static
+> `.zip`. Install, open the IDE, write a program, press Run.
+>
+> Please try your old programs and tell me what differs:
+> https://github.com/iBobX/RapidR/issues — that is how RapidR gets to
+> "behaves as RapidQ" for everyone's code. RapidR is MIT-licensed and
+> built by one developer; if it's useful to you, you can
+> [buy me a coffee](https://www.buymeacoffee.com/roanbema).
 
 ---
 
-## C. README banner / GitHub release notes
+## B. Hacker News / Reddit (one paragraph, technical)
 
-> # RapidR 1.0.0
+> **Show HN: RapidR — RapidQ-compatible BASIC on a native compiler, a VM
+> and the web, in pure Rust**
 >
-> First stable release of RapidR — a BASIC-to-Rust transpiler, native
-> + web runtime, and self-hosted browser IDE in one repo.
+> RapidR runs and builds programs written for RapidQ, the early-2000s BASIC
+> for GUI programs. It is an original implementation, written from the
+> ground up in pure Rust and checked against RapidQ's own compiler running
+> in a Windows VM. One source has three runtimes: a native compiler (BASIC
+> → Rust → an executable), a bytecode VM (the RapidR Runtime, also as
+> standalone executables, no toolchain needed) and the browser (the VM and
+> runtime as WebAssembly). Every window is drawn by RapidR's own UI kernel
+> (winit, vello, parley, AccessKit) — RapidQ's classic Windows look on
+> macOS, Windows, Linux and a canvas in the browser, compared pixel by
+> pixel and accessibility tree by tree across them — and DirectX / Direct3D
+> programs run on its own software rasterizer. Extensions: SQLite
+> everywhere (compiled to wasm on the web) with parameter binding, JSON,
+> HTTP, data frames and charts. Every build writes the
+> `THIRD-PARTY-NOTICES.txt` its dependency graph needs; nothing copyleft
+> or cryptographic is compiled into a program. MIT.
+
+---
+
+## C. GitHub release / README banner
+
+> # RapidR 2.117.0
+>
+> **RapidR's first public release.** RapidR runs and builds RapidQ
+> programs, compatible with RapidQ on all three of its runtimes — the
+> **native compiler**, the **interpreter** (the RapidR Runtime) and the
+> **web** — as an original implementation written from the ground up in
+> pure Rust.
 >
 > **Highlights**
 >
-> - **Compiler pipeline.** `.rr` → AST → Rust → native binary
->   *or* `.rr` → bytecode (`.rrbc`) → wasm interpreter `rapidrintr`.
-> - **Self-hosted Web IDE (`web-ide/`).** Multi-form designer, 22
->   components in 3 groups, type-aware property grid (color/font live
->   pickers, asset dropdowns, enum selects), Monaco-based code editor,
->   1-click Build to a CSP-locked static-host bundle.
-> - **52+ GUI components** native, 9 web-exclusive, 100+ built-ins,
->   MySQL + SQLite, sockets, HTTP, JSON, mini data-science stack.
-> - **VS Code extension** at `utilities/vscodeext/rapidr/` with
->   IntelliSense + hover docs + Compile / Run / Compile-for-Web.
-> - **Test coverage.** Compiler, runtime, web-bundle parity, and Web
->   IDE end-to-end (Playwright drives the IDE, downloads the bundle,
->   spawns a separate HTTP server, opens the bundle, clicks a button,
->   asserts the label updates).
-> - **Security.** Bundled `index.html` ships a strict
->   Content-Security-Policy; all user-controlled strings interpolated
->   into IDE DOM are escaped; no `eval()`/`new Function()` outside
->   vendored Monaco + wasm-bindgen glue.
-> - MIT. Programs you build are yours, commercial or not: ship them with
->   the `THIRD-PARTY-NOTICES.txt` each build writes ([`LEGAL.md`](LEGAL.md)).
->   RapidR is compatible with RapidQ and not affiliated with its author.
+> - **RapidQ compatibility, checked against RapidQ's own compiler**: the
+>   whole language, every RapidQ object but OLE, DirectX and Direct3D
+>   retained mode; the 123 programs of RapidQ's example corpus that use the
+>   API its Windows and Linux versions shared all compile and run alike
+>   natively and interpreted.
+> - **RapidR's own UI kernel** on the desktop and the web: RapidQ's look
+>   everywhere, themes, high-DPI, screen-reader accessibility, responsive
+>   layouts.
+> - **The RapidR Runtime and installers** for Windows (x64, ARM64), macOS
+>   (universal) and Linux (x86_64, aarch64), and the web IDE as a static
+>   `.zip`. Programs run and standalone executables build with no Rust
+>   installed; `rapidr setup` installs Rust once for native builds.
+> - **Extensions**: `RSQLite` and QMYSQL with parameter binding, `RNum`,
+>   `RDataFrame`, `RPlot`, `RJson`, `RHttp`, and web-only components.
+> - **Your programs are yours**: every build writes its
+>   `THIRD-PARTY-NOTICES.txt`; RapidR is MIT, everything it ships is
+>   permissively licensed. RapidR is compatible with RapidQ and not
+>   affiliated with its author ([`LEGAL.md`](LEGAL.md)).
 >
-> **Try it**
+> **Known limits**: OLE / COM objects compile but do nothing; Windows API
+> calls (`DECLARE … LIB "user32"`) aren't emulated; the installers aren't
+> code-signed; the IDE is early — IntelliSense, a debugger and AI
+> assistance are the next milestone ([ROADMAP.md](ROADMAP.md)).
 >
-> ```bash
-> git clone https://…/RapidR.git
-> cd RapidR
-> ./build.sh --release
-> bash tools/build_web_artifacts.sh
-> python3 -m http.server 8765
-> open http://localhost:8765/web-ide/index.html
-> ```
+> Downloads, checksums and the full list:
+> [the release notes](docs/release-notes/v2.117.0.md) ·
+> [the user manual](docs/manual/README.md) ·
+> [CHANGELOG.md](CHANGELOG.md)

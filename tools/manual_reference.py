@@ -16,9 +16,8 @@ What it reads (nothing is copied by hand):
   interpreter/rapidr-bytecode/src/builtins.rs (the list every runtime's
   dispatch is unit-tested against);
 - data-science.md: the `match` arms of RNUM / RDATAFRAME / RPLOT's methods
-  and properties in crates/rapidr-runtime-core/src/datascience.rs (desktop:
-  native and interpreted) and crates/rapidr-runtime-web/src/datascience_web.rs
-  (the web).
+  and properties in crates/rapidr-value/src/datascience/ (the one
+  implementation every runtime runs).
 
 The only hand-kept data here are the component categories and RapidQ's own
 component list (RC.EXE's built-in names, plus the include libraries'), both
@@ -246,9 +245,9 @@ def arms(src, fn):
     end = re.search(r"\n(?:pub(?:\([a-z]+\))? )?fn |\n// -{10}", body)
     if end:
         body = body[: end.start()]
-    # (the match on the method's or property's name, also as `Some(x) =>
-    # match prop {`)
-    mm = re.search(r"\n([ \t]*)(?:[^\n]*=> )?match (?:method|prop|lmethod|m) \{\n", body)
+    # (the match on the method's or property's name, also as `read(name,
+    # |f| match prop {`)
+    mm = re.search(r"\n([ \t]*)[^\n]*?\bmatch (?:method|prop|lmethod|m) \{\n", body)
     if not mm:
         return None
     lines = body[mm.end():].split("\n")
@@ -273,40 +272,39 @@ def arms(src, fn):
 
 
 def data_science():
-    core = read("crates/rapidr-runtime-core/src/datascience.rs")
-    web = read("crates/rapidr-runtime-web/src/datascience_web.rs")
-    out = [HEADER.format(src="crates/rapidr-runtime-core/src/datascience.rs and crates/rapidr-runtime-web/src/datascience_web.rs")]
+    srcs = {
+        "RNUM": "crates/rapidr-value/src/datascience/num.rs",
+        "RDATAFRAME": "crates/rapidr-value/src/datascience/frame.rs",
+        "RPLOT": "crates/rapidr-value/src/datascience/plot.rs",
+    }
+    out = [HEADER.format(src="crates/rapidr-value/src/datascience (num.rs, frame.rs, plot.rs)")]
     out.append("# Data-science members: RNUM, RDATAFRAME, RPLOT\n\n")
     out.append(
-        "Every method and property name the runtimes answer, with its aliases. *Desktop* is native builds and "
-        "interpreted programs (one implementation: ndarray, polars, plotters); *web* is the browser's runtime. "
-        "Names are not case-sensitive, and a method that returns a value can be read like a property on every "
-        "runtime (`PRINT arr.Sum`). The desktop and the web are two implementations today; where a row has a "
-        "dash, that runtime doesn't answer the name. How to use them: [Data science](../data-science.md).\n\n"
+        "Every method and property name the components answer, with its aliases. There is one implementation "
+        "(`rapidr_value::datascience`), so every name works the same in native builds, interpreted programs and "
+        "the browser; only drawing a chart is each runtime's own (a PNG made with plotters on the desktop, an "
+        "HTML canvas on the web). Names are not case-sensitive, and a method that returns a value can be read "
+        "like a property (`PRINT arr.Sum`), as a property can be read like a method (`PRINT arr.Shape`). "
+        "How to use them: [Data science](../data-science.md).\n\n"
     )
     for obj, fns in [
         ("RNUM", [("Methods", "num_method"), ("Properties (read)", "num_get_prop"), ("Properties (set)", "num_set_prop")]),
         ("RDATAFRAME", [("Methods", "dataframe_method"), ("Properties (read)", "dataframe_get_prop")]),
         ("RPLOT", [("Methods", "plot_method"), ("Properties (read)", "plot_get_prop"), ("Properties (set)", "plot_set_prop")]),
     ]:
+        src = read(srcs[obj])
         out.append(f"## {obj}\n\n")
         for title, fn in fns:
-            d = arms(core, fn) or []
-            w = arms(web, fn) or []
-            web_names = {n for _, ns in w for n in ns}
-            desk_names = {n for _, ns in d for n in ns}
-            out.append(f"### {title}\n\n| Name (aliases) | Group | Desktop | Web |\n|---|---|:-:|:-:|\n")
+            found = arms(src, fn)
+            if not found:
+                sys.exit(f"manual_reference: no match arms in {fn} ({srcs[obj]})")
+            out.append(f"### {title}\n\n| Name (aliases) | Group |\n|---|---|\n")
             seen = set()
-            for section, ns in d:
-                key = tuple(ns)
-                if key in seen:
+            for section, ns in found:
+                if tuple(ns) in seen:
                     continue
-                seen.add(key)
-                on_web = "✓" if any(n in web_names for n in ns) else "—"
-                out.append(f"| {', '.join(f'`{n}`' for n in ns)} | {section or ''} | ✓ | {on_web} |\n")
-            for section, ns in w:
-                if not any(n in desk_names for n in ns):
-                    out.append(f"| {', '.join(f'`{n}`' for n in ns)} | {section or ''} | — | ✓ |\n")
+                seen.add(tuple(ns))
+                out.append(f"| {', '.join(f'`{n}`' for n in ns)} | {section or ''} |\n")
             out.append("\n")
     return "".join(out)
 

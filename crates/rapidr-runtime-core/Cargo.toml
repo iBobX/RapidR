@@ -21,8 +21,6 @@ rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
 # linked dynamically, never shipped; libssl-dev to build). No cryptography is
 # compiled into a program, and the certificates are the system's.
 ureq = { version = "2", optional = true, default-features = false, features = ["gzip", "native-tls"] }
-ndarray = { version = "0.16", optional = true }
-polars = { version = "0.46", optional = true, default-features = false, features = ["lazy", "csv", "json", "dtype-full", "strings", "round_series", "abs", "log"] }
 # RPLOT's charts (MIT). Their text is drawn in the built-in Liberation Sans
 # by ab_glyph (Apache-2.0) through plotters' backend interface
 # (datascience.rs), not with the system's fonts through plotters' font-kit
@@ -71,7 +69,9 @@ network = ["dep:ureq"]
 # (rapidr-ui-app) and the winit host (docs/desktop-host-plan.md), reached
 # through `src/ui`; the system clipboard.
 gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
-datascience = ["dep:ndarray", "dep:polars", "dep:plotters", "dep:plotters-backend", "dep:ab_glyph", "dep:image"]
+# RNUM, RDATAFRAME, RPLOT: the shared model is rapidr-value's
+# (datascience/); the desktop adds plotters' charts as PNGs.
+datascience = ["dep:plotters", "dep:plotters-backend", "dep:ab_glyph", "dep:image"]
 audio = ["dep:rodio", "dep:nanomp3", "dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]
