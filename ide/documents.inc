@@ -52,6 +52,18 @@ END FUNCTION
 ' ---- the form a file creates (until RFormDesigner, L-DMODEL / L-SYNC) ------------
 ' Its first top-level CREATE … AS QFORM: the form's own assignments for the
 ' Properties pane, its children's bounds and captions for the designer.
+'
+' PLUG POINT (L-SYNC): the designer model is crates/rapidr-designer's
+' Document, which RDESIGNSURFACE doesn't hold yet (it has no source-text
+' members). Once it does, this scanner goes, and:
+'   - OpenDocument / ScanForm: DesignDoc(d).Source = CodeDoc(d).Text
+'     (Document::open_bytes; the surface shows forms()(0) through designer(0));
+'   - the surface's edits: an OnSourceEdit(Start, Length, Text) per TextPatch
+'     from Document::sync(), applied to CodeDoc(d) as one undo step;
+'   - CodeChanged: DesignDoc(d).Source = CodeDoc(d).Text after the Analyzer's
+'     pause (Document::set_text), so the code's edits reach the designer;
+'   - Edit > Undo / Redo while the designer is active: DesignDoc(d).Undo / Redo
+'     (one text history per file: Document::undo / redo).
 
 SUB ScanForm(d AS INTEGER)
   DIM n AS INTEGER, i AS INTEGER, s AS STRING, u AS STRING, k AS INTEGER, depth AS INTEGER
