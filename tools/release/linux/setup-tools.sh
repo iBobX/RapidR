@@ -2,7 +2,7 @@
 # The Linux release machine's tools: build both architectures on one Ubuntu
 # (24.04, arm64 or amd64) and run the other one's programs under emulation.
 #
-#   sudo bash setup-tools.sh system    the other architecture's -dev libraries (multiarch,
+#   sudo bash setup-tools.sh system    the -dev libraries, this architecture's and the other's (multiarch,
 #                                      from Ubuntu's archives: ports.ubuntu.com for arm64,
 #                                      archive / security.ubuntu.com for amd64); where Rosetta
 #                                      doesn't run x86_64 programs, qemu-user-static and binfmt-support
@@ -18,7 +18,8 @@
 #   sudo bash setup-tools.sh undo      removes what `system` added (qemu-undo: what `qemu` did)
 #
 # Why: the Linux artifacts link against a glibc baseline (linux.sh: GLIBC) with Zig as the
-# linker, and need the other architecture's ALSA / fontconfig / FreeType to link.
+# linker, and need each architecture's ALSA / fontconfig / FreeType / OpenSSL 3 to link
+# (OpenSSL: HTTPS is the system's, through native-tls — docs/licensing.md).
 set -euo pipefail
 ZIG="${ZIG:-0.14.1}"
 HOST="$(dpkg --print-architecture)"
@@ -30,7 +31,7 @@ esac
 CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
 # Rosetta for Linux runs x86_64 programs here (an ARM VM under Parallels)
 rosetta() { [ "$HOST" = arm64 ] && grep -qs "^enabled" /proc/sys/fs/binfmt_misc/RosettaLinux; }
-LIBS="libasound2-dev libfontconfig-dev libfreetype-dev"
+LIBS="libasound2-dev libfontconfig-dev libfreetype-dev libssl-dev"
 SOURCES=/etc/apt/sources.list.d/ubuntu.sources
 OURS="/etc/apt/sources.list.d/rapidr-$OTHER.sources"
 
@@ -60,8 +61,8 @@ EOF
         apt-get update -q
         EMU="qemu-user-static binfmt-support"
         rosetta && EMU=""
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -q $(for l in $LIBS; do echo "$l:$OTHER"; done) $EMU
-        echo "installed: $LIBS for $OTHER${EMU:+, $EMU}${EMU:-; x86_64 programs run by Rosetta}"
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -q $(for l in $LIBS; do echo "$l:$HOST $l:$OTHER"; done) $EMU
+        echo "installed: $LIBS for $HOST and $OTHER${EMU:+, $EMU}${EMU:-; x86_64 programs run by Rosetta}"
         ;;
     undo)
         [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }

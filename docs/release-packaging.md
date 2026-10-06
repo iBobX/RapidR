@@ -260,15 +260,15 @@ their authors', to ship as they like.
 - System libraries the Linux binaries link (not shipped): glibc (2.31 or newer), OpenSSL 3
   (`libssl.so.3`, `libcrypto.so.3`: HTTPS), ALSA, fontconfig, xkbcommon —
   dynamically, which puts no obligation on RapidR's packages. The `.deb`s'
-  `Depends` come from `dpkg-shlibdeps`, so they name `libssl3t64` (Ubuntu
-  24.04; `libssl3` elsewhere) with the rest. The `.tar.gz` installs need it
+  `Depends` come from what the binaries need (`linux.sh`, `depends()`), so
+  they name `libssl3t64 | libssl3` (24.04 renamed it) with the rest. The `.tar.gz` installs need it
   too: it is part of every current distribution's base system.
 - **Building on Linux needs OpenSSL's development files** (since HTTPS moved
   to the system's TLS): `libssl-dev`, and for the other architecture's
   build (cross-linking) `libssl-dev:<arch>` too — e.g. on the arm64 Ubuntu
   VM, `sudo apt install libssl-dev libssl-dev:amd64` (with the amd64
-  multiarch sources the release machine's setup adds; put `libssl-dev` in
-  that setup's list of the other architecture's libraries). `openssl-sys`
+  multiarch sources the release machine's setup adds; `setup-tools.sh
+  system` installs both). `openssl-sys`
   finds them with pkg-config (`PKG_CONFIG_LIBDIR=/usr/lib/<triple>/pkgconfig`
   for the cross build, as for ALSA and fontconfig). It links them
   dynamically; never set `OPENSSL_STATIC` or enable a `vendored` feature
@@ -330,13 +330,15 @@ vendored source trees. `dist/` and `target/` may be links to a build volume
 
 - **Linux** (any Ubuntu 24.04 VM, arm64 or amd64 — the user's ARM one, or an
   x86_64 one under Parallels' emulation): both architectures from one machine.
-  `linux.sh` links with Zig (`cargo zigbuild`) against **glibc 2.31**, so the
-  binaries run on Ubuntu 20.04 / 22.04 / 24.04, Debian 11 / 12 and newer;
-  `readelf -V` checks no newer `GLIBC_` symbol version is asked for. The
-  other architecture's ALSA, FreeType and fontconfig come from Ubuntu's
-  multiarch `-dev` packages (ports.ubuntu.com for arm64, archive.ubuntu.com
-  and security.ubuntu.com for amd64). The `.deb`s' Depends name packages every
-  Debian / Ubuntu since 2020 has (`libasound2t64 | libasound2`, …). The other
+  `linux.sh` links with Zig (`cargo zigbuild`) against **glibc 2.31**;
+  `readelf -V` checks no newer `GLIBC_` symbol version is asked for. With
+  HTTPS on the system's OpenSSL 3 (`libssl.so.3`), the binaries run on
+  Ubuntu 22.04 / 24.04, Debian 12 and newer (20.04 and Debian 11 have
+  OpenSSL 1.1 only). The other architecture's ALSA, FreeType, fontconfig
+  and OpenSSL come from Ubuntu's multiarch `-dev` packages (ports.ubuntu.com for arm64, archive.ubuntu.com
+  and security.ubuntu.com for amd64). The `.deb`s' Depends name packages by both
+  their old and their 24.04 names (`libasound2t64 | libasound2`,
+  `libssl3t64 | libssl3`, …). The other
   architecture's packages are smoke-tested in the same VM: everything but a
   native build. Its x86_64 programs run through binfmt — **Rosetta for
   Linux** on the ARM VM (Parallels: "Use Rosetta to run x86-64 binaries";
