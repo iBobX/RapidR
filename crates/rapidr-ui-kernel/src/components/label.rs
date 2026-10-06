@@ -44,7 +44,25 @@ impl ComponentKind for Label {
         }
         let text = store::string(cx.store, cx.id, "caption");
         let color = ink_of(cx, backdrop(cx.store, cx.id));
-        caption(p, (0, 0, w, h), &text, &cx.font, color, place(cx.store, cx.id));
+        let wrap = store::flag(cx.store, cx.id, "wordwrap", false);
+        if !wrap && !text.contains(['\r', '\n']) {
+            caption(p, (0, 0, w, h), &text, &cx.font, color, place(cx.store, cx.id));
+            return;
+        }
+        // (DrawText: a line at each line break, and with WordWrap broken
+        // at spaces to fit the width — as AutoSize measured it,
+        // rapidr_value::autosize — one under the other)
+        let line_h = rapidr_value::objects::text::text_size(" ", &cx.font).1.max(1);
+        let lines = rapidr_value::autosize::lines(&text, &cx.font, wrap.then_some(w));
+        for (k, line) in lines.iter().enumerate() {
+            let top = k as i64 * line_h;
+            if top >= h {
+                break;
+            }
+            // (the `&`s are gone from the lines: drawn as they are)
+            let shown = line.replace('&', "&&");
+            caption(p, (0, top, w, line_h), &shown, &cx.font, color, place(cx.store, cx.id));
+        }
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {

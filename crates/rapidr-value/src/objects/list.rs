@@ -52,7 +52,8 @@ pub const CS_OWNER_VARIABLE: i64 = 4;
 /// Most items OnDrawItem is fired for after a change, and the height of an
 /// item without an `ItemHeight`.
 pub const MAX_OWNER_DRAWN: usize = 5_000;
-pub const DEFAULT_ITEM_HEIGHT: i64 = 16;
+// (13: a line of RapidQ's default font, MS Sans Serif 8, as its list boxes show them)
+pub const DEFAULT_ITEM_HEIGHT: i64 = 13;
 
 #[derive(Clone, Debug, Default)]
 pub struct ItemList {
@@ -367,9 +368,7 @@ impl ItemList {
                 // (in the current theme's colours: crate::theme)
                 let th = crate::theme::current();
                 let selected = self.is_selected(i);
-                if selected {
-                    b.fill_rect(0, 0, width, height, crate::theme::bgr(th.highlight));
-                }
+                b.fill_rect(0, 0, width, height, crate::theme::bgr(if selected { th.highlight } else { th.window }));
                 let color = crate::theme::bgr(if selected { th.highlight_text } else { th.text });
                 let text = self.items.get(i).map_or("", String::as_str);
                 // Tabs go on to the TabWidth stops.
@@ -857,7 +856,7 @@ mod tests {
         let b = l.render_item(1, 100, &Font::default());
         assert_eq!((b.img.width, b.img.height), (100, 20));
         assert_eq!((b.pixel(50, 2), b.pixel(99, 19)), (Some(0x00FF00), Some(0x00FF00)));
-        assert!((0..100).any(|x| (0..20).any(|y| b.pixel(x, y) == Some(0))), "the text was drawn");
+        assert!((0..100).any(|x| (0..20).any(|y| b.pixel(x, y).is_some_and(|c| c < 0x505050))), "the text was drawn");
         // An item nothing was drawn on: plain (unselected: white).
         assert_eq!(l.render_item(0, 100, &Font::default()).pixel(90, 10), Some(0xFFFFFF));
         // Drawing isn't a change; selecting is.

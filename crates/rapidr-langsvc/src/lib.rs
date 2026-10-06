@@ -13,15 +13,17 @@
 //! Offsets are bytes of the file's text ([`LineIndex`] converts to the
 //! UTF-16 positions editors speak).
 //!
-//! Three seams wait for the I0 foundations, each one module, so each
-//! switch is local: [`front`] (the parser for tools, L-PARSE), [`model`]
-//! (the semantic model exported from the compiler, L-PARSE) and
-//! [`registry`] (the language registry, L-REG).
+//! It stands on the I0 foundations: [`front`] is the parser for tools
+//! (`rapidr_parser::tools`), [`model`] the compiler's own semantic model
+//! (`rapidr_bcgen::semantic`), and everything it says about the language
+//! — components, members, builtins, statements, directives, constants,
+//! their docs, origins (RapidQ's or RapidR's) and gaps — comes from the
+//! language registry, `rapidr_lang` (the IDE's one source).
 
+pub mod case;
 pub mod diagnostics;
 pub mod front;
 pub mod model;
-pub mod registry;
 pub mod text;
 
 mod compat;
@@ -36,6 +38,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+pub use case::{CaseOptions, CaseScope, IdentifierCase, KeywordCase};
 pub use diagnostics::FileDiagnostic;
 pub use front::{Location, Parsed};
 pub use model::SemanticModel;
@@ -50,6 +53,9 @@ pub struct Options {
     pub rapidq_compatible: bool,
     /// More folders to look for `$INCLUDE` files in (RapidQ's `include\`).
     pub include_dirs: Vec<PathBuf>,
+    /// Automatic case of the language's words and the program's names
+    /// (on typing and in formatting).
+    pub case: CaseOptions,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -309,17 +315,21 @@ impl Analysis {
     }
 
     /// The compiler's diagnostics for the program `file` is the main file
-    /// of (some may be in its `$INCLUDE` files), plus the RapidQ
-    /// compatibility checks of a RapidQ-compatible project.
+    /// of (some may be in its `$INCLUDE` files), plus the registry's word
+    /// on what the file uses ([`compat`]): what RapidR doesn't have yet,
+    /// what one runtime only answers, and — in a RapidQ-compatible project
+    /// — RapidR's extensions, which RapidQ's compiler refuses.
     pub fn diagnostics(&mut self, file: &Path) -> Vec<FileDiagnostic> {
         if let Some(d) = self.diagnostics.get(file) {
             return d.clone();
         }
         let Some(s) = self.root_snapshot(file) else { return Vec::new() };
         let mut out = diagnostics::compile(&s.parsed);
-        if self.options.rapidq_compatible {
-            out.extend(compat::check(&s, file));
-        }
+        let compiler = out.clone();
+        // (where the compiler speaks, it's said)
+        out.extend(compat::check(&s, file, self.options.rapidq_compatible).into_iter().filter(|c| {
+            !compiler.iter().any(|d| d.file == c.file && d.start < c.end.max(c.start + 1) && c.start < d.end.max(d.start + 1))
+        }));
         self.diagnostics.insert(file.to_path_buf(), out.clone());
         out
     }
@@ -376,10 +386,41 @@ impl Analysis {
         navigate::semantic_tokens(&s, file)
     }
 
-    /// The file re-indented (`indent`: one level, e.g. four spaces).
+    /// The file formatted (`indent`: one level, e.g. four spaces):
+    /// re-indented, and its words in the case the options ask
+    /// ([`Analysis::case_edits`]).
     pub fn format(&mut self, file: &Path, indent: &str) -> Vec<TextEdit> {
         let Some(text) = self.text(file) else { return Vec::new() };
-        format::format(&text, indent)
+        self.format_range(file, 0, text.len(), indent)
+    }
+
+    /// The lines of bytes `start..end` of the file formatted (the whole
+    /// file is read for its blocks; only edits on those lines are kept).
+    pub fn format_range(&mut self, file: &Path, start: usize, end: usize, indent: &str) -> Vec<TextEdit> {
+        let Some(text) = self.text(file) else { return Vec::new() };
+        let index = LineIndex::new(&text);
+        let first = index.line_start(index.line_col(start.min(text.len())).0).unwrap_or(0);
+        // (a selection of whole lines ends at the next line's start)
+        let end = end.min(text.len());
+        let end = if end > start && index.line_col(end).1 == 0 { end - 1 } else { end };
+        let last = index.line_end(&text, index.line_col(end).0);
+        let mut edits: Vec<TextEdit> = format::format(&text, indent).into_iter().filter(|e| e.start >= first && e.end <= last).collect();
+        edits.extend(self.case_edits(file, CaseScope::Range { start: first, end: last }));
+        edits.sort_by_key(|e| e.start);
+        edits
+    }
+
+    /// The edits that put `scope` of a file in the options' case: the
+    /// language's words (keywords, statements, types, directives, builtins:
+    /// the registry's) and, when asked, the program's names as declared.
+    /// Strings, comments, directives' arguments and the program's own names
+    /// are never the language's words. Editors call it as the user types
+    /// ([`CaseScope::Typed`], after one of [`case::TRIGGERS`]) and the
+    /// formatter on a range.
+    pub fn case_edits(&mut self, file: &Path, scope: CaseScope) -> Vec<TextEdit> {
+        let Some(text) = self.text(file) else { return Vec::new() };
+        let Some(s) = self.snapshot(file) else { return Vec::new() };
+        case::case_edits(&s, file, &text, scope, self.options.case)
     }
 
     /// Fixes for the diagnostics in a range of a file.

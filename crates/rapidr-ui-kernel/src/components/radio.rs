@@ -46,17 +46,50 @@ pub fn oval(cx: f64, cy: f64, rx: f64, ry: f64, from: f64, to: f64, color: u32) 
     Shape { points, fill: Some(color), stroke: Some(color) }
 }
 
-/// The round well at (x, y): the rim's outer ring grey above / white below,
-/// its inner ring dark grey above / face below, `well` inside.
-pub fn round_well(p: &mut Painter, x: i64, y: i64, well: u32) {
+/// The classic well, 12 × 12, as Windows draws it at 1× (DFCS_BUTTONRADIO;
+/// RapidQ's capture, tests/visual/rapidq/checks_radios): the rim's outer
+/// ring the shadow above (`o`) and white below (`h`), its inner ring the
+/// dark shadow above (`i`) and COLOR_3DLIGHT below (`l`), the well (`w`).
+const WELL: [&str; 12] = [
+    "....oooo....",
+    "..ooiiiioo..",
+    ".oiiwwwwiih.",
+    ".oiwwwwwwlh.",
+    "oiwwwwwwwwlh",
+    "oiwwwwwwwwlh",
+    "oiwwwwwwwwlh",
+    "oiwwwwwwwwlh",
+    ".oiwwwwwwlh.",
+    ".ollwwwwllh.",
+    "..hhllllhh..",
+    "....hhhh....",
+];
+
+/// The dot of a checked one, 4 × 4 at (4, 4) in the well.
+const DOT: [&str; 4] = [".xx.", "xxxx", "xxxx", ".xx."];
+
+/// The round well at (x, y) (`well` inside), and its dot in `dot`: pixel
+/// for pixel at 1×; at a high-DPI screen's resolution the same rings as
+/// smooth shapes — the light from the top left, the rings split from the
+/// bottom left to the top right.
+pub fn round_well(p: &mut Painter, x: i64, y: i64, well: u32, dot: Option<u32>) {
     let t = p.theme();
-    let c = (x as f64 + 5.5, y as f64 + 5.5);
-    // (the light from the top left: the split runs from bottom left to top right)
-    p.shape(disc(c.0, c.1, 5.5, 45.0, 225.0, t.shadow));
-    p.shape(disc(c.0, c.1, 5.5, 225.0, 405.0, t.light));
-    p.shape(disc(c.0, c.1, 4.5, 45.0, 225.0, t.dark_shadow));
-    p.shape(disc(c.0, c.1, 4.5, 225.0, 405.0, t.face));
-    p.shape(disc(c.0, c.1, 3.5, 0.0, 360.0, well));
+    if p.one_to_one() {
+        p.pixels(x, y, &WELL, &[('o', t.shadow), ('i', t.dark_shadow), ('l', t.light3d), ('h', t.light), ('w', well)]);
+        if let Some(c) = dot {
+            p.pixels(x + 4, y + 4, &DOT, &[('x', c)]);
+        }
+        return;
+    }
+    let c = (x as f64 + 6.0, y as f64 + 6.0);
+    p.sector(c, 6.0, 45.0, 225.0, t.shadow);
+    p.sector(c, 6.0, 225.0, 405.0, t.light);
+    p.sector(c, 5.0, 45.0, 225.0, t.dark_shadow);
+    p.sector(c, 5.0, 225.0, 405.0, t.light3d);
+    p.sector(c, 4.0, 0.0, 360.0, well);
+    if let Some(color) = dot {
+        p.sector(c, 2.0, 0.0, 360.0, color);
+    }
 }
 
 pub struct RadioButton;
@@ -96,10 +129,8 @@ impl ComponentKind for RadioButton {
         if t.fluent() {
             fluent_mark(p, (0, y, DIAMETER), true, checked(cx.store, cx.id), s);
         } else {
-            round_well(p, 0, y, if s.pressed || !s.enabled { t.face } else { t.window });
-            if checked(cx.store, cx.id) {
-                p.shape(disc(5.5, y as f64 + 5.5, 1.5, 0.0, 360.0, if s.enabled { t.text } else { t.gray_text }));
-            }
+            let dot = checked(cx.store, cx.id).then_some(if s.enabled { t.text } else { t.shadow });
+            round_well(p, 1, y, if s.pressed || !s.enabled { t.face } else { t.window }, dot);
         }
         caption_right(cx, p, DIAMETER + 1);
     }
@@ -178,6 +209,6 @@ mod tests {
         let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. })).collect();
         assert_eq!(ev, vec![set("rb2", 1), set("rb1", 0), KernelEvent::Click("rb2".into())]);
         let list = f.paint(&s, &mut ts, 2.0).dump();
-        assert!(list.contains("shape"), "{list}");
+        assert!(list.contains("polygon"), "{list}");
     }
 }

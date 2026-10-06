@@ -218,6 +218,21 @@ export function serializeProject(project) {
 
 function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
 
+// A line's statements: split at the colons outside strings, up to a `'`
+// comment outside a string.
+function splitStatements(line) {
+  const out = [];
+  let cur = "", inStr = false;
+  for (const ch of line) {
+    if (ch === '"') inStr = !inStr;
+    else if (!inStr && ch === "'") break;
+    else if (!inStr && ch === ":") { out.push(cur.trim()); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur.trim());
+  return out.filter(Boolean);
+}
+
 export function deserializeProject(text, projectName = "untitled") {
   const lines = text.split(/\r?\n/);
   const project = {
@@ -316,40 +331,43 @@ export function deserializeProject(text, projectName = "untitled") {
       continue;
     }
 
-    // Parse properties inside CREATE block
+    // Parse properties inside CREATE block (a line may hold several,
+    // `Caption = "&New": ShortCut = "Ctrl+N": OnClick = NewText`)
     if (createStack.length > 0) {
-      const match = trimmed.match(/^(\w+)\s*=\s*(.*)/);
-      if (match) {
-        const propName = match[1].toLowerCase();
-        let propValRaw = match[2].trim();
+      for (const stmt of splitStatements(trimmed)) {
+        const match = stmt.match(/^(\w+)\s*=\s*(.*)/);
+        if (match) {
+          const propName = match[1].toLowerCase();
+          let propValRaw = match[2].trim();
         
-        let propVal = propValRaw;
-        const joined = parseBasicString(propValRaw);
-        if (joined !== null) {
-          propVal = joined;
-        } else if (propValRaw.startsWith('"') && propValRaw.endsWith('"')) {
-          propVal = propValRaw.slice(1, -1).replace(/""/g, '"');
-        } else if (propValRaw === "1") {
-          propVal = 1;
-        } else if (propValRaw === "0") {
-          propVal = 0;
-        } else if (/^-?\d+$/.test(propValRaw)) {
-          propVal = parseInt(propValRaw, 10);
-        } else if (/^-?\d+\.\d+$/.test(propValRaw)) {
-          propVal = parseFloat(propValRaw);
-        }
+          let propVal = propValRaw;
+          const joined = parseBasicString(propValRaw);
+          if (joined !== null) {
+            propVal = joined;
+          } else if (propValRaw.startsWith('"') && propValRaw.endsWith('"')) {
+            propVal = propValRaw.slice(1, -1).replace(/""/g, '"');
+          } else if (propValRaw === "1") {
+            propVal = 1;
+          } else if (propValRaw === "0") {
+            propVal = 0;
+          } else if (/^-?\d+$/.test(propValRaw)) {
+            propVal = parseInt(propValRaw, 10);
+          } else if (/^-?\d+\.\d+$/.test(propValRaw)) {
+            propVal = parseFloat(propValRaw);
+          }
 
-        const top = createStack[createStack.length - 1];
-        if (propName.startsWith("on")) {
-          top.obj.code = top.obj.code || {};
-          top.obj.code.handlers = top.obj.code.handlers || {};
-          top.obj.code.handlers[capitalize(propName)] = String(propVal);
-        } else {
-          top.obj.props[propName] = propVal;
+          const top = createStack[createStack.length - 1];
+          if (propName.startsWith("on")) {
+            top.obj.code = top.obj.code || {};
+            top.obj.code.handlers = top.obj.code.handlers || {};
+            top.obj.code.handlers[capitalize(propName)] = String(propVal);
+          } else {
+            top.obj.props[propName] = propVal;
+          }
+        } else if (stmt.toUpperCase() === "CENTER") {
+          const top = createStack[createStack.length - 1];
+          top.obj.props.center = true;
         }
-      } else if (trimmed.toUpperCase() === "CENTER") {
-        const top = createStack[createStack.length - 1];
-        top.obj.props.center = true;
       }
       continue;
     }
@@ -387,6 +405,10 @@ export function deserializeProject(text, projectName = "untitled") {
   if (project.forms.length > 0) {
     project.startupForm = project.forms[0].id;
     project.forms[0].code.source = freeCodeLines.join("\n");
+  } else if (text.trim()) {
+    // A program without a form (a console one): its code, as written, in a
+    // module of its own.
+    project.modules.push({ id: `m_${projectName.toLowerCase()}`, name: projectName, source: text });
   }
 
   return project;

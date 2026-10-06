@@ -41,6 +41,10 @@ impl Canvas for CpuCanvas<'_> {
         self.ctx.set_transform(transform);
         self.ctx.push_clip_rect(rect);
     }
+    fn push_clip_path(&mut self, path: &BezPath) {
+        self.ctx.set_transform(Affine::IDENTITY);
+        self.ctx.push_clip_path(path);
+    }
     fn pop_clip(&mut self) {
         self.ctx.pop_clip();
     }
@@ -54,8 +58,8 @@ impl Canvas for CpuCanvas<'_> {
             // synthetic italic's skew is turned over here, or it leans back)
             b = b.glyph_transform(Affine::FLIP_Y * t * Affine::FLIP_Y);
         }
-        if let Some(a) = run.embolden {
-            b = b.font_embolden(glifo::FontEmbolden::new(vello_cpu::kurbo::Diagonal2::new(a, a)));
+        if let Some((ax, ay)) = run.embolden {
+            b = b.font_embolden(glifo::FontEmbolden::new(vello_cpu::kurbo::Diagonal2::new(ax, ay)));
         }
         b.fill_glyphs(glyphs.iter().map(|&(id, x, y)| vello_cpu::Glyph { id, x, y })).ok();
     }

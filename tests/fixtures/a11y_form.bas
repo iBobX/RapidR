@@ -65,6 +65,7 @@ CREATE Form AS QFORM
     Left = 8: Top = 230: Width = 380
   END CREATE
   CREATE SB AS QSTATUSBAR
+    SimplePanel = 1
     SimpleText = "Ready"
   END CREATE
 END CREATE

@@ -40,8 +40,9 @@ impl ComponentKind for GroupBox {
         let text = store::string(cx.store, cx.id, "caption");
         let (shown, _) = mnemonic(&text);
         let (tw, th) = text_size(if shown.is_empty() { "X" } else { &shown }, &cx.font);
-        // (the frame's top through the caption's middle)
-        let top = th / 2;
+        // (the frame's top through the caption's middle: TextHeight div 2 - 1,
+        // as the VCL's TGroupBox)
+        let top = if t.fluent() { th / 2 } else { th / 2 - 1 };
         if t.fluent() {
             p.ring((0, top, w, h - top), t.radius, t.border, 1.0);
         } else {
@@ -52,8 +53,14 @@ impl ComponentKind for GroupBox {
         }
         // (the caption over the frame, a pixel of background each side)
         let tw = tw.min(w - CAPTION_LEFT - 2).max(0);
-        p.fill((CAPTION_LEFT - 2, 0, tw + 4, th), back);
-        let color = ink_of(cx, back);
+        // (classic: the text's own cell, opaque, as the VCL draws it — in black
+        // even while disabled; fluent: a margin each side, greyed)
+        if t.fluent() {
+            p.fill((CAPTION_LEFT - 2, 0, tw + 4, th), back);
+        } else {
+            p.fill((CAPTION_LEFT, 0, tw, th), back);
+        }
+        let color = if t.fluent() { ink_of(cx, back) } else { crate::paint::ink(cx.store, cx.id, &cx.font, true, back) };
         p.clipped((CAPTION_LEFT, 0, tw, th), |p| caption(p, (CAPTION_LEFT, 0, tw, th), &text, &cx.font, color, Place::TopLeft));
     }
 

@@ -65,6 +65,9 @@ pub struct Theme {
     pub shadow: u32,
     /// COLOR_3DDKSHADOW: the outer shaded line.
     pub dark_shadow: u32,
+    /// COLOR_3DLIGHT: a raised edge's inner lit line (a push button's), a
+    /// sunken one's inner lower line (a text box's, a check box's).
+    pub light3d: u32,
     /// COLOR_WINDOW: text boxes, lists, trees, grids.
     pub window: u32,
     /// COLOR_WINDOWTEXT / COLOR_BTNTEXT: text whose colour the program
@@ -164,25 +167,29 @@ pub struct Theme {
     pub ring_fields: bool,
 }
 
-/// Windows' classic look (RapidQ's): the colours the kernel always drew.
+/// Windows' classic look (RapidQ's): its system colours as Windows 11 has
+/// them, where RapidQ's programs run unthemed today (their captures are
+/// tests/visual/rapidq: the 3D greys A0A0A0 / 696969 / E3E3E3, grey text
+/// 6D6D6D, the default button's frame 646464).
 pub const CLASSIC: Theme = Theme {
     name: "classic",
     look: Look::Classic,
     dark: false,
     face: 0xF0F0F0,
     light: 0xFFFFFF,
-    shadow: 0x808080,
-    dark_shadow: 0x404040,
+    shadow: 0xA0A0A0,
+    dark_shadow: 0x696969,
+    light3d: 0xE3E3E3,
     window: 0xFFFFFF,
     text: 0x000000,
-    gray_text: 0x808080,
+    gray_text: 0x6D6D6D,
     highlight: 0x0078D7,
     highlight_text: 0xFFFFFF,
     unfocused: 0xF0F0F0,
     unfocused_strong: 0xD0D0D0,
     hot_text: 0x003CB4,
     hot: 0xE5F1FB,
-    frame: 0x000000,
+    frame: 0x646464,
     focus: 0x000000,
     toggled: 0xF8F8F8,
     caption: 0x0A246A,
@@ -195,7 +202,7 @@ pub const CLASSIC: Theme = Theme {
     menu_highlight_text: 0xFFFFFF,
     lines: 0xA0A0A0,
     grid_lines: 0xC0C0C0,
-    fixed_lines: 0x808080,
+    fixed_lines: 0x000000,
     track: 0xE6E6E6,
     track_pressed: 0x9A9A9A,
     channel: 0xE7EAEA,
@@ -241,6 +248,7 @@ pub const MODERN: Theme = Theme {
     light: 0xFFFFFF,
     shadow: 0xD1D1D1,
     dark_shadow: 0x9A9A9A,
+    light3d: 0xF9F9F9,
     window: 0xFFFFFF,
     text: 0x1B1B1B,
     gray_text: 0x8A8A8A,
@@ -307,6 +315,7 @@ pub const DARK: Theme = Theme {
     light: 0x454545,
     shadow: 0x151515,
     dark_shadow: 0x0B0B0B,
+    light3d: 0x3A3A3A,
     window: 0x2B2B2B,
     text: 0xFFFFFF,
     gray_text: 0x858585,
@@ -375,6 +384,7 @@ pub const HIGH_CONTRAST: Theme = Theme {
     light: 0xFFFFFF,
     shadow: 0xFFFFFF,
     dark_shadow: 0xFFFFFF,
+    light3d: 0xFFFFFF,
     window: 0x000000,
     text: 0xFFFFFF,
     gray_text: 0x3FF23F,
@@ -597,7 +607,7 @@ impl Theme {
             19 => self.inactive_caption_text,
             20 => self.light,          // BTNHIGHLIGHT
             21 => self.dark_shadow,
-            22 => 0xE3E3E3,            // 3DLIGHT
+            22 => self.light3d,        // 3DLIGHT
             23 => 0x000000,            // INFOTEXT
             24 => 0xFFFFE1,            // INFOBK
             26 => self.hot_text,
@@ -628,6 +638,7 @@ impl Theme {
             light,
             shadow,
             dark_shadow,
+            light3d,
             window,
             text,
             gray_text,
@@ -689,6 +700,7 @@ impl Theme {
             ("light", light),
             ("shadow", shadow),
             ("dark_shadow", dark_shadow),
+            ("light3d", light3d),
             ("window", window),
             ("text", text),
             ("gray_text", gray_text),
