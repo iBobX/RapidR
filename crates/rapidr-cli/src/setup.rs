@@ -1,14 +1,25 @@
 //! `rapidr setup`: what an installed RapidR needs beyond itself.
 //!
-//! - Rust, for native builds (`rapidr build`): installed with rustup (MIT /
-//!   Apache-2.0) into the user's `~/.cargo` and `~/.rustup`, after saying so
-//!   and asking. Interpreted programs and `--interp` executables need none.
-//! - On Windows, Rust's gnullvm toolchain, which links with the LLVM-MinGW
-//!   RapidR ships (`--toolchain gnullvm`, the default: open source, no
-//!   Visual Studio), or Rust's msvc one with Microsoft's C++ Build Tools
-//!   (`--toolchain msvc`; native builds then need RAPIDR_TOOLCHAIN=msvc).
+//! - Rust, for native builds (`rapidr build`): the exact toolchain the
+//!   install was tested with (`Home::rust_toolchain`: `1.98.1`, on Windows
+//!   `1.98.1-<arch>-pc-windows-gnullvm`), which builds always name
+//!   (RUSTUP_TOOLCHAIN). Interpreted programs and `--interp` executables need
+//!   none.
+//!   - **The user's Rust is theirs.** With rustup already there, setup only
+//!     installs that toolchain (and macOS' two targets) *beside* the user's
+//!     own: never `rustup default`, `set default-host`, `update`, overrides,
+//!     or removing a toolchain ([`rustup_steps`]; tested).
+//!   - With no Rust at all, rustup is installed (MIT / Apache-2.0) after
+//!     saying so and asking, with this machine's native architecture as its
+//!     host (aarch64 on Windows on ARM, also from the emulated x64 rapidr).
+//!   - With a Rust that isn't rustup's: reported, nothing changed.
+//! - On Windows, the gnullvm toolchain links with the LLVM-MinGW the SDK
+//!   ships (`--toolchain gnullvm`, the default: open source, no Visual
+//!   Studio), or `--toolchain msvc` with Microsoft's C++ Build Tools (native
+//!   builds then need RAPIDR_TOOLCHAIN=msvc).
 //! - The `rapidr` command on PATH, when it isn't (the macOS app, a
-//!   `.tar.gz`): a link in `/usr/local/bin` or `~/.local/bin`.
+//!   `.tar.gz`): a link in `/usr/local/bin` or `~/.local/bin` (`--no-path`:
+//!   not offered).
 //!
 //! `rapidr setup --check` only reports.
 
@@ -17,29 +28,68 @@ use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use crate::home::{rust_tool, Home};
+use crate::home::{native_arch, rust_tool, toolchain_name, Home};
 
-/// The Rust version `rustc --version` reports.
-fn rustc_version(gnullvm: bool) -> Option<String> {
+/// The Rust version `rustc --version` reports — `toolchain`'s, when named.
+fn rustc_version(toolchain: Option<&str>) -> Option<String> {
     let mut rustc = Command::new(rust_tool("rustc"));
-    if gnullvm {
-        if !gnullvm_installed() {
-            return None;
-        }
-        rustc.env("RUSTUP_TOOLCHAIN", format!("stable-{}", crate::home::windows_gnullvm_triple()));
+    if let Some(tc) = toolchain {
+        rustc.env("RUSTUP_TOOLCHAIN", tc);
     }
-    let out = rustc.arg("--version").output().ok()?;
+    let out = rustc.arg("--version").output().ok().filter(|o| o.status.success())?;
     let text = String::from_utf8_lossy(&out.stdout);
     text.split_whitespace().nth(1).map(str::to_string)
 }
 
-/// rustup has the stable gnullvm toolchain (Windows).
-fn gnullvm_installed() -> bool {
-    let want = format!("stable-{}", crate::home::windows_gnullvm_triple());
-    Command::new(rust_tool("rustup"))
-        .args(["toolchain", "list"])
-        .output()
-        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| l.starts_with(&want)))
+/// The toolchains rustup has (`rustup toolchain list`), or None: no rustup.
+fn rustup_toolchains() -> Option<Vec<String>> {
+    let out = Command::new(rust_tool("rustup")).args(["toolchain", "list"]).output().ok()?;
+    if !out.status.success() {
+        // (rustup with no toolchain at all says so on stdout and succeeds; a
+        // failure is a rustup that doesn't work)
+        return None;
+    }
+    Some(String::from_utf8_lossy(&out.stdout).lines().filter_map(|l| l.split_whitespace().next()).map(str::to_string).collect())
+}
+
+/// `tc` is among `installed`: `1.98.1` is listed with its host
+/// (`1.98.1-aarch64-apple-darwin`).
+fn has_toolchain(installed: &[String], tc: &str) -> bool {
+    installed.iter().any(|t| t == tc || (!tc.contains("-pc-") && t.starts_with(&format!("{tc}-"))))
+}
+
+/// The rustup commands that give an install its toolchain — only ever
+/// installing, beside what is there.
+fn rustup_steps(tc: &str, installed: &[String], tc_arch: &str, native: &str, os: &str) -> Vec<Vec<String>> {
+    let mut steps = Vec::new();
+    if !has_toolchain(installed, tc) {
+        let mut s: Vec<String> = ["toolchain", "install", tc, "--profile", "minimal", "--no-self-update"].map(String::from).to_vec();
+        // (the x64 SDK on Windows on ARM: its toolchain runs emulated)
+        if os == "windows" && tc_arch != native {
+            s.push("--force-non-host".into());
+        }
+        steps.push(s);
+    }
+    if os == "macos" {
+        // (universal native builds: both slices)
+        steps.push(["target", "add", "--toolchain", tc, "aarch64-apple-darwin", "x86_64-apple-darwin"].map(String::from).to_vec());
+    }
+    steps
+}
+
+/// What a machine with no Rust at all is set up with: rustup for the
+/// machine's native architecture, its default toolchain the install's own
+/// when that runs natively (or the same Rust for the native host).
+fn rustup_init_args(rust: &str, tc: &str, tc_arch: &str, native: &str, os: &str, msvc: bool) -> Vec<String> {
+    let mut a: Vec<String> = ["-y", "--profile", "minimal"].map(String::from).to_vec();
+    if os == "windows" {
+        let native_tc = toolchain_name(rust, os, native, msvc);
+        a.extend(["--default-host".into(), native_tc.trim_start_matches(&format!("{rust}-")).to_string()]);
+        a.extend(["--default-toolchain".into(), if tc_arch == native { tc.to_string() } else { rust.to_string() }]);
+    } else {
+        a.extend(["--default-toolchain".into(), rust.to_string()]);
+    }
+    a
 }
 
 fn at_least(have: &str, need: &str) -> bool {
@@ -63,6 +113,7 @@ fn confirm(question: &str, yes: bool) -> bool {
 pub fn setup(args: &[String]) -> ExitCode {
     let check = args.iter().any(|a| a == "--check");
     let yes = args.iter().any(|a| a == "--yes" || a == "-y");
+    let no_path = args.iter().any(|a| a == "--no-path");
     let toolchain = args.iter().position(|a| a == "--toolchain").and_then(|i| args.get(i + 1)).map(String::as_str).unwrap_or("gnullvm");
     if !["gnullvm", "msvc"].contains(&toolchain) {
         eprintln!("--toolchain {toolchain}: gnullvm (LLVM-MinGW, open source) or msvc (Microsoft's C++ Build Tools)");
@@ -82,32 +133,56 @@ pub fn setup(args: &[String]) -> ExitCode {
         ),
         None => println!("home: not found (set RAPIDR_HOME)"),
     }
-    let need = home.as_ref().and_then(|h| h.release.as_ref()).map(|r| r.rust.clone()).unwrap_or_default();
+    let rust = home.as_ref().and_then(|h| h.release.as_ref()).map(|r| r.rust.clone()).unwrap_or_default();
     let builds = home.as_ref().is_some_and(Home::can_build);
+    let installed_home = home.as_ref().is_some_and(|h| h.release.is_some());
     let mut ok = true;
 
-    // 1. Rust (native builds); on Windows its gnullvm toolchain, linked by
-    // the LLVM-MinGW the SDK ships
-    let shipped = home.as_ref().and_then(Home::windows_toolchain);
-    let gnullvm = cfg!(windows) && toolchain == "gnullvm";
-    let has_rustup = Command::new(rust_tool("rustup")).arg("--version").output().is_ok_and(|o| o.status.success());
-    if gnullvm && builds && has_rustup && !gnullvm_installed() {
-        let tc = format!("stable-{}", crate::home::windows_gnullvm_triple());
-        println!("rust: rustup is here without {tc}, the toolchain native builds use (links with the shipped LLVM-MinGW)");
-        if !check && confirm(&format!("Install it (`rustup toolchain install {tc} --profile minimal`)?"), yes) {
-            ok &= run_ok(Command::new(rust_tool("rustup")).args(["toolchain", "install", &tc, "--profile", "minimal"]));
-        }
-    }
-    match rustc_version(gnullvm) {
-        Some(v) if at_least(&v, &need) => println!("rust: {v} (native builds: ready)"),
-        Some(v) => {
-            println!("rust: {v}, older than the {need} this RapidR was tested with");
-            if !check && builds && confirm("Update Rust with `rustup update stable`?", yes) {
-                ok &= run_ok(Command::new(rust_tool("rustup")).args(["update", "stable"]));
+    // 1. Rust (native builds)
+    let msvc = toolchain == "msvc" || env::var("RAPIDR_TOOLCHAIN").is_ok_and(|t| t == "msvc");
+    let (os, arch, native) = (env::consts::OS, env::consts::ARCH, native_arch());
+    let tc = (installed_home && !rust.is_empty()).then(|| toolchain_name(&rust, os, arch, msvc));
+    let rustup = rustup_toolchains();
+    match (&tc, &rustup) {
+        _ if !builds => match rustc_version(None) {
+            Some(v) => println!("rust: {v} (this runtime runs programs; the RapidR SDK builds them)"),
+            None => println!("rust: not installed (this runtime runs programs; the RapidR SDK builds them)"),
+        },
+        // a checkout: the user's Rust, as it is
+        (None, _) => match rustc_version(None) {
+            Some(v) => println!("rust: {v}"),
+            None => println!("rust: not found — native builds need it (https://rustup.rs)"),
+        },
+        // rustup is here: the install's toolchain beside the user's own
+        (Some(tc), Some(installed)) => {
+            let steps = rustup_steps(tc, installed, arch, native, os);
+            let missing = !has_toolchain(installed, tc);
+            if missing {
+                println!("rust: rustup is here; native builds use {tc}, which it doesn't have yet (installed beside your toolchains: your default stays as it is)");
+            }
+            if !check && !steps.is_empty() && (!missing || confirm(&format!("Install {tc} (`rustup toolchain install {tc} --profile minimal`)?"), yes)) {
+                for s in &steps {
+                    ok &= run_ok(Command::new(rust_tool("rustup")).args(s));
+                }
+            }
+            match rustc_version(Some(tc)) {
+                Some(v) => println!("rust: {v} ({tc}: native builds ready)"),
+                None => {
+                    println!("rust: {tc} isn't installed (`rapidr setup`)");
+                    ok &= check;
+                }
             }
         }
-        None if !builds => println!("rust: not installed (this runtime runs programs; the RapidR SDK builds them)"),
-        None => {
+        // a Rust that isn't rustup's: reported, left alone
+        (Some(_), None) if rustc_version(None).is_some() => {
+            let v = rustc_version(None).unwrap_or_default();
+            println!(
+                "rust: {v}, not managed by rustup: native builds use it{}",
+                if at_least(&v, &rust) { "" } else { " — older than the Rust this RapidR was tested with, update it yourself" }
+            );
+        }
+        // no Rust at all: rustup, for this machine's architecture
+        (Some(tc), None) => {
             println!("rust: not installed — needed only for native builds (`rapidr build`); interpreted programs and `--interp` executables need none");
             if !check {
                 println!(
@@ -118,7 +193,12 @@ pub fn setup(args: &[String]) -> ExitCode {
                     println!("{}", windows_toolchain_note(toolchain));
                 }
                 if confirm("Install Rust now?", yes) {
-                    ok &= install_rust(toolchain);
+                    ok &= install_rust(&rustup_init_args(&rust, tc, arch, native, os, msvc), native);
+                    // (what the default doesn't cover: a non-native toolchain, macOS' targets)
+                    let installed = rustup_toolchains().unwrap_or_default();
+                    for s in rustup_steps(tc, &installed, arch, native, os) {
+                        ok &= run_ok(Command::new(rust_tool("rustup")).args(&s));
+                    }
                 } else {
                     ok = false;
                 }
@@ -126,8 +206,8 @@ pub fn setup(args: &[String]) -> ExitCode {
         }
     }
     if cfg!(windows) && builds {
-        match &shipped {
-            Some(tc) if gnullvm => println!("linker: LLVM-MinGW, shipped ({})", tc.display()),
+        match home.as_ref().and_then(Home::windows_toolchain) {
+            Some(dir) if !msvc => println!("linker: LLVM-MinGW, shipped ({})", dir.display()),
             _ => check_windows_linker(toolchain),
         }
     }
@@ -139,7 +219,7 @@ pub fn setup(args: &[String]) -> ExitCode {
             println!("command: {} is on PATH", exe.display());
         } else if cfg!(unix) {
             println!("command: {} is not on PATH", exe.display());
-            if !check {
+            if !check && !no_path {
                 ok &= link_on_path(&exe, yes);
             }
         }
@@ -165,24 +245,21 @@ fn run_ok(cmd: &mut Command) -> bool {
     }
 }
 
-/// rustup's installer: stable Rust (at least what the release was tested
-/// with), the minimal profile (rustc, cargo, rust-std).
-fn install_rust(toolchain: &str) -> bool {
-    let version = "stable";
+/// rustup's installer, for this machine's architecture (`native`), with
+/// `args` ([`rustup_init_args`]). Only run where there is no rustup.
+fn install_rust(args: &[String], native: &str) -> bool {
     if cfg!(windows) {
-        let arch = if env::consts::ARCH == "aarch64" { "aarch64" } else { "x86_64" };
-        let host = format!("{arch}-pc-windows-{toolchain}");
-        let url = format!("https://static.rust-lang.org/rustup/dist/{arch}-pc-windows-msvc/rustup-init.exe");
+        let url = format!("https://static.rust-lang.org/rustup/dist/{native}-pc-windows-msvc/rustup-init.exe");
         let init = env::temp_dir().join("rustup-init.exe");
         let ps = format!("Invoke-WebRequest -UseBasicParsing -Uri '{url}' -OutFile '{}'", init.display());
         if !run_ok(Command::new("powershell").args(["-NoProfile", "-Command", &ps])) {
             return false;
         }
-        let done = run_ok(Command::new(&init).args(["-y", "--profile", "minimal", "--default-toolchain", version, "--default-host", &host]));
+        let done = run_ok(Command::new(&init).args(args));
         let _ = std::fs::remove_file(&init);
         done
     } else {
-        let script = format!("curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain {version}");
+        let script = format!("curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- {}", args.join(" "));
         run_ok(Command::new("sh").args(["-c", &script]))
     }
 }
@@ -244,4 +321,61 @@ fn tempfile_in(dir: &Path) -> bool {
     let ok = std::fs::write(&probe, b"").is_ok();
     let _ = std::fs::remove_file(&probe);
     ok
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Nothing setup asks of rustup changes the user's own Rust.
+    fn only_installs(cmd: &[String]) {
+        assert!(matches!(cmd.get(..2).map(|v| v.join(" ")).as_deref(), Some("toolchain install") | Some("target add")), "rustup {cmd:?}");
+        assert!(!cmd.iter().any(|a| ["default", "set", "update", "uninstall", "remove", "override", "self", "--default-host"].contains(&a.as_str())), "rustup {cmd:?}");
+    }
+
+    #[test]
+    fn with_rustup_the_toolchain_goes_beside_the_users_own() {
+        let users = vec!["1.98.1-aarch64-pc-windows-msvc".to_string(), "stable-aarch64-pc-windows-msvc".to_string()];
+        let tc = toolchain_name("1.98.1", "windows", "aarch64", false);
+        let steps = rustup_steps(&tc, &users, "aarch64", "aarch64", "windows");
+        assert_eq!(steps, vec![["toolchain", "install", "1.98.1-aarch64-pc-windows-gnullvm", "--profile", "minimal", "--no-self-update"].map(String::from).to_vec()]);
+        steps.iter().for_each(|s| only_installs(s));
+        // the x64 SDK on Windows on ARM: its toolchain beside the native ones, emulated
+        let x64 = toolchain_name("1.98.1", "windows", "x86_64", false);
+        let steps = rustup_steps(&x64, &users, "x86_64", "aarch64", "windows");
+        assert!(steps[0].contains(&"--force-non-host".to_string()));
+        steps.iter().for_each(|s| only_installs(s));
+        // already there: nothing at all
+        assert!(rustup_steps(&tc, &[tc.clone()], "aarch64", "aarch64", "windows").is_empty());
+    }
+
+    #[test]
+    fn macos_adds_both_targets_to_its_own_toolchain_only() {
+        let users = vec!["1.98.1-aarch64-apple-darwin".to_string()];
+        let steps = rustup_steps("1.98.1", &users, "aarch64", "aarch64", "macos");
+        assert_eq!(steps, vec![["target", "add", "--toolchain", "1.98.1", "aarch64-apple-darwin", "x86_64-apple-darwin"].map(String::from).to_vec()]);
+        steps.iter().for_each(|s| only_installs(s));
+        let steps = rustup_steps("1.98.1", &["stable-aarch64-apple-darwin".to_string()], "aarch64", "aarch64", "macos");
+        assert_eq!(steps.len(), 2);
+        steps.iter().for_each(|s| only_installs(s));
+    }
+
+    #[test]
+    fn a_fresh_install_is_for_the_native_architecture() {
+        // the x64 rapidr, emulated on Windows on ARM: rustup for aarch64
+        let a = rustup_init_args("1.98.1", "1.98.1-x86_64-pc-windows-gnullvm", "x86_64", "aarch64", "windows", false);
+        assert_eq!(a, ["-y", "--profile", "minimal", "--default-host", "aarch64-pc-windows-gnullvm", "--default-toolchain", "1.98.1"]);
+        let a = rustup_init_args("1.98.1", "1.98.1-aarch64-pc-windows-gnullvm", "aarch64", "aarch64", "windows", false);
+        assert_eq!(a[3..], ["--default-host", "aarch64-pc-windows-gnullvm", "--default-toolchain", "1.98.1-aarch64-pc-windows-gnullvm"]);
+        assert_eq!(rustup_init_args("1.98.1", "1.98.1", "aarch64", "aarch64", "linux", false), ["-y", "--profile", "minimal", "--default-toolchain", "1.98.1"]);
+    }
+
+    #[test]
+    fn listed_toolchains_match_with_their_host() {
+        let l = vec!["1.98.1-aarch64-apple-darwin".to_string(), "stable-x86_64-pc-windows-gnullvm".to_string()];
+        assert!(has_toolchain(&l, "1.98.1"));
+        assert!(!has_toolchain(&l, "1.98"));
+        assert!(!has_toolchain(&l, "1.98.1-x86_64-pc-windows-gnullvm"));
+        assert!(has_toolchain(&l, "stable-x86_64-pc-windows-gnullvm"));
+    }
 }

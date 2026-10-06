@@ -17,7 +17,8 @@
 # program opened from the desktop getting a terminal ($TERMINAL, a stand-in),
 # the file-type registrations, a native build when Rust is here (offline,
 # from the shipped sources, an empty cargo home), and what a runtime-only
-# install refuses. SMOKE_NATIVE=0 skips the native build (minutes, ~2 GB).
+# install refuses. SMOKE_NATIVE=0 skips the native build (minutes, ~2 GB: setup
+# downloads RapidR's toolchain into a throwaway RUSTUP_HOME / CARGO_HOME).
 set -uo pipefail
 ART="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 [ -f "$ART" ] || { echo "usage: $0 <artifact>"; exit 2; }
@@ -182,9 +183,21 @@ if [ "$KIND" = sdk ]; then
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide 2>&1)" "statusbar.caption=Ready"
     check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide "$W/hello.bas" 2>&1)" "Opened: $W/hello.bas"
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
-        echo "== a native build: offline, the shipped sources, an empty cargo home"
+        echo "== rapidr setup and a native build: a throwaway rustup and cargo home, offline, the shipped sources"
+        # (the user's own Rust is never touched: its default, read before and after)
+        users_rust() { env -u RUSTUP_HOME -u CARGO_HOME -u RUSTUP_TOOLCHAIN "$CARGO_BIN/rustup" default 2>&1; env -u RUSTUP_HOME -u CARGO_HOME -u RUSTUP_TOOLCHAIN "$CARGO_BIN/rustup" show active-toolchain 2>&1; }
+        users_before="$(users_rust)"
+        export RUSTUP_HOME="$T/rustup-home" CARGO_HOME="$T/cargo-home"
+        mkdir -p "$RUSTUP_HOME" "$CARGO_HOME"
+        case "$(uname)" in Darwin) host=aarch64-apple-darwin ;; *) host="$(uname -m)-unknown-linux-gnu" ;; esac
+        "$CARGO_BIN/rustup" set default-host "$host" > /dev/null 2>&1
+        rust_state() { "$CARGO_BIN/rustup" default 2>&1; "$CARGO_BIN/rustup" show 2>&1 | grep -i "default host"; }
+        before="$(rust_state)"
+        PATH="$CARGO_BIN:$BASE_PATH" "$R" setup --yes --no-path > setup.log 2>&1
+        check "setup installs RapidR's toolchain beside, the defaults unchanged" test "$(rust_state)" = "$before"
+        check "setup: native builds ready" grep -q "native builds ready" setup.log || tail -5 setup.log
         printf '$APPTYPE CONSOLE\nPRINT "native "; 6 * 7\n' > native.bas
-        PATH="$CARGO_BIN:$BASE_PATH" CARGO_HOME="$T/cargo-home" CARGO_TARGET_DIR="$T/native-target" "$R" build native.bas > native.log 2>&1
+        PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" "$R" build native.bas > native.log 2>&1
         check "rapidr build (native)" has "$(./native 2>&1)" "native 42" || tail -5 native.log
         if [[ "$ART" == *.dmg ]]; then
             if grep -q "this Mac's architecture only" native.log; then
@@ -194,6 +207,8 @@ if [ "$KIND" = sdk ]; then
             fi
         fi
         rm -rf "$T/native-target"
+        unset RUSTUP_HOME CARGO_HOME
+        check "the user's own Rust unchanged (rustup default, active toolchain)" test "$(users_rust)" = "$users_before"
     else
         echo "  (no native build: Rust not found, or SMOKE_NATIVE=0)"
     fi

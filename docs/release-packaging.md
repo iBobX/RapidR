@@ -62,12 +62,30 @@ source replacement, nothing downloaded).
 - **No Rust needed** to run programs (`rapidr run`, double clicks), to make
   standalone interpreted executables (`rapidr build x.bas --interp`, from the
   shipped runner) or to use the IDE. Only native builds need Rust.
-- **`rapidr setup`** installs it when asked: rustup (MIT / Apache-2.0) into
-  `~/.cargo` and `~/.rustup`, after saying so and asking (`--yes` to agree,
-  `--check` to only report); it also offers to link `rapidr` into
-  `/usr/local/bin` or `~/.local/bin` when it isn't on PATH (the macOS app, a
-  `.tar.gz` not installed). The CLI finds cargo on PATH or in rustup's folder,
-  so the IDE started from the desktop builds too.
+- **One exact toolchain.** An install's native builds use the Rust it was
+  tested with (`release.toml`): toolchain `1.98.1`, on Windows
+  `1.98.1-<arch>-pc-windows-gnullvm`. `rapidr build` always names it in
+  cargo's environment (RUSTUP_TOOLCHAIN); it never relies on, or changes, the
+  user's rustup default.
+- **`rapidr setup`** (`--yes` to agree, `--check` to only report):
+  - **with rustup already there**, it only installs that toolchain *beside*
+    the user's own (`rustup toolchain install <exact> --profile minimal`;
+    on macOS `rustup target add --toolchain <exact>` for the two slices; the
+    x64 SDK on Windows on ARM adds `--force-non-host`). It never runs
+    `rustup default`, `set default-host`, `update`, `override`, or removes a
+    toolchain — unit-tested (`setup.rs`), and the smoke tests check the
+    user's `rustup default` / `show active-toolchain` are unchanged;
+  - **with no Rust at all**, after saying so and asking, rustup itself (MIT /
+    Apache-2.0) into `~/.cargo` and `~/.rustup`, for the machine's native
+    architecture (aarch64 on Windows on ARM, also when the x64 rapidr runs
+    there emulated);
+  - **with a Rust that isn't rustup's**, it reports it and changes nothing;
+  - it also offers to link `rapidr` into `/usr/local/bin` or `~/.local/bin`
+    when it isn't on PATH (`--no-path`: not offered). The CLI finds cargo on
+    PATH or in rustup's folder, so the IDE started from the desktop builds
+    too.
+  - Uninstalling RapidR removes no toolchain (`rustup toolchain uninstall
+    <exact>` is the user's to run).
 - **The vendored crates** are those the runtime's builds use on that OS and
   for the web: a crate only other platforms compile keeps its `Cargo.toml`
   (resolution reads it) and nothing else (`tools/release/home.py`) — about
@@ -111,8 +129,8 @@ x64 and ARM64, no Microsoft licence — and **ships it**: each Windows SDK
 carries a trimmed LLVM-MinGW for its architecture (`lib\rapidr\toolchain\`:
 clang, lld, llvm-ar, the headers, the mingw-w64 runtime, compiler-rt and
 libunwind for that architecture; no debugger, Python or other targets).
-`rapidr setup` installs Rust's `stable-<arch>-pc-windows-gnullvm` toolchain
-(rustup, after asking), and `rapidr build` runs cargo with it, the shipped
+`rapidr setup` installs Rust's `<version>-<arch>-pc-windows-gnullvm` toolchain
+beside the user's own (rustup, after asking), and `rapidr build` runs cargo with it, the shipped
 clang as linker and C compiler, and `+crt-static` (libunwind and the mingw-w64
 runtime linked in: a built program needs no DLL beside it). No Visual Studio.
 What a program built this way carries, licence-wise: LICENSES.md §7.1 (the
