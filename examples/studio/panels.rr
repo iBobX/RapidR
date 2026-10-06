@@ -11,6 +11,7 @@
 ' has its own pin editor; double-click a file in the project tree; click a
 ' `file:line` link or a problem in the console.
 $THEME modern
+$INCLUDE "RAPIDQ.INC"
 
 DECLARE SUB AddComponent (Type AS STRING)
 DECLARE SUB DropComponent (Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)

@@ -4,7 +4,7 @@ CREATE Form AS QFORM
     Caption = "Panels"
     Width = 900: Height = 600
     CREATE Bar AS RTOOLBAR
-        Align = alTop
+        Align = 1
     END CREATE
     CREATE Insp AS RPROPERTYINSPECTOR
         Left = 0: Top = 40: Width = 280: Height = 520

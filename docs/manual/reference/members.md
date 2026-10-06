@@ -1982,6 +1982,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
+| `PreviewWidth` | int |  | The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same. |
+| `PreviewHeight` | int |  | The resize preview's height (see PreviewWidth); 0 ends the preview. |
+| `ShowGuides` | bool | True | Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping). |
+| `SnapToGrid` | bool | True | Whether moves and resizes snap to the grid where no guide is near. |
+| `GridSize` | int | 8 | The grid's step in pixels. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2006,6 +2012,10 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompY` | Returns the top position of the component at the index given on the design surface. |
 | `GetCompW` | Returns the width of the component at the index given on the design surface. |
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
+| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. |
+| `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
+| `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
+| `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
 | `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
 
@@ -4272,7 +4282,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 <a id="rplot"></a>
 ## RPLOT
 
-A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own.
+A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4324,10 +4334,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
 | `SetYLabel` | Sets the label of the y axis. |
 | `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
-| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
+| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: one of the page's files, which the program can read back or offer as a download). |
 | `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `Show` | Draws the chart where it is shown (the page, on the web). |
+| `Show` | Draws the chart again where it shows: an RPLOT on a form (a chart only saved or loaded into a picture has nowhere else to show). |
 | `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
 | `Xlim(min, max)` | The X axis range. |
 | `Ylim(min, max)` | The Y axis range. |

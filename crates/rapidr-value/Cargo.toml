@@ -7,14 +7,17 @@ license.workspace = true
 description = "Shared dynamic Value type for RapidR runtimes and bytecode VM"
 
 [dependencies]
-resvg = { version = "0.48.1", default-features = false }
+# The language registry (GUI-free, static tables, no runtime dependencies):
+# the IDE's designer model (designer/) reads component names, sizes,
+# defaults and constants from it. The runtimes depend on it already.
+rapidr-lang = { workspace = true }
+resvg ={ version = "0.48.1", default-features = false }
 # RapidR's own icons (objects/icons.rs: Bitmap.LoadIcon, ImageList.AddIcon;
 # feature `icons`).
 rapidr-icons = { workspace = true, optional = true }
-# (L-PANELS, docs/ide-plan.md I1) The language registry the property
-# inspector and the toolbox read (static data, no dependencies), and the
-# project file the project tree shows (.rrproj, TOML): both wasm-safe.
-rapidr-lang = { workspace = true }
+# (L-PANELS, docs/ide-plan.md I1) The project file the project tree shows
+# (.rrproj, TOML; wasm-safe). The inspector and the toolbox read the
+# registry above.
 rapidr-project = { workspace = true }
 # JPEG pictures (objects/codec.rs); no threads, so it builds for the web too.
 jpeg-decoder = { version = "0.3", default-features = false }
@@ -35,3 +38,8 @@ windows-registry = "0.6.1"
 # that the build has no icons.
 default = ["icons"]
 icons = ["dep:rapidr-icons"]
+
+[dev-dependencies]
+# Property tests of the designer model (MIT OR Apache-2.0; dev-only, never
+# shipped; already in the tree through rapidr-editor).
+proptest = { version = "1.11", default-features = false, features = ["std"] }
