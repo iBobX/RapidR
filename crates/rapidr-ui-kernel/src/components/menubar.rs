@@ -109,15 +109,23 @@ pub fn items(parent: &str) -> Vec<ItemView> {
         .into_iter()
         .filter_map(|id| {
             let submenu = !menu::children(&id).is_empty();
-            menu::with(&id, |n| ItemView {
-                id: id.clone(),
-                caption: n.caption.clone(),
-                separator: n.caption == "-",
-                checked: n.checked,
-                radio: n.radio,
-                enabled: n.enabled,
-                submenu,
-                keys: if submenu { String::new() } else { menu::parse_shortcut(&n.shortcut).map(|s| s.text()).unwrap_or_default() },
+            menu::with(&id, |n| {
+                // (a tab in the caption: the key text after it, as Windows')
+                let (text, shown) = menu::split_caption(&n.caption);
+                ItemView {
+                    id: id.clone(),
+                    caption: text.to_string(),
+                    separator: n.caption == "-",
+                    checked: n.checked,
+                    radio: n.radio,
+                    enabled: n.enabled,
+                    submenu,
+                    keys: if submenu {
+                        String::new()
+                    } else {
+                        menu::parse_shortcut(&n.shortcut).map(|s| s.text()).unwrap_or_else(|| shown.to_string())
+                    },
+                }
             })
         })
         .collect()
@@ -556,7 +564,10 @@ impl FormUi {
             return false;
         }
         let Some(main) = self.main_menu(store) else { return false };
-        match menu::item_for_shortcut(&main, vk, mods.ctrl, mods.shift, mods.alt) {
+        // ("Ctrl+" is the platform's command key too: Cmd on a Mac)
+        let item = menu::item_for_shortcut(&main, vk, mods.ctrl, mods.shift, mods.alt)
+            .or_else(|| (mods.command && !mods.ctrl).then(|| menu::item_for_shortcut(&main, vk, true, mods.shift, mods.alt)).flatten());
+        match item {
             Some(item) => {
                 self.events.push(KernelEvent::MenuPick(item));
                 true

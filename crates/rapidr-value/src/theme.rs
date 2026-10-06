@@ -462,7 +462,13 @@ pub fn choose(name: &str) -> Choice {
         | "macos" | "linux" | "greybird" | "xfce" | "gtk" | "gleam" | "clean" | "crystal" | "svg" | "sweet" | "fleet1" | "fleet2" | "plastic" | "oxy" | "blue" => &MODERN,
         "dark" | "darkmode" | "moderndark" | "night" => &DARK,
         "highcontrast" | "contrast" | "hc" | "highcontrastblack" => &HIGH_CONTRAST,
-        "auto" => return Choice::Auto,
+        // RapidR's own look (ROADMAP Phase 3B: the default to come), in its
+        // three variants — light, dark, high contrast — today's modern,
+        // dark and highcontrast; `rapidr` alone follows the system's setting
+        "rapidrlight" => &MODERN,
+        "rapidrdark" => &DARK,
+        "rapidrhighcontrast" | "rapidrcontrast" => &HIGH_CONTRAST,
+        "auto" | "rapidr" => return Choice::Auto,
         _ => return Choice::Unknown,
     })
 }
@@ -814,6 +820,10 @@ mod tests {
             assert_eq!(choose(n), Choice::Theme(&HIGH_CONTRAST), "{n}");
         }
         assert_eq!(choose("auto"), Choice::Auto);
+        assert_eq!(choose("RapidR"), Choice::Auto);
+        assert_eq!(choose("rapidr light"), Choice::Theme(&MODERN));
+        assert_eq!(choose("RapidR-Dark"), Choice::Theme(&DARK));
+        assert_eq!(choose("rapidr high contrast"), Choice::Theme(&HIGH_CONTRAST));
         assert_eq!(choose("purple"), Choice::Unknown);
         assert_eq!((auto(false, false), auto(true, false), auto(true, true), auto(false, true)), (&MODERN, &DARK, &HIGH_CONTRAST, &HIGH_CONTRAST));
     }

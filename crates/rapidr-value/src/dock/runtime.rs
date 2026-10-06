@@ -197,6 +197,30 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
             let shown = manager::with(dock, |m| m.layout.find(&p).is_some() && m.layout.is_active(&p)).unwrap_or(false);
             return Some(int(if shown { -1 } else { 0 }));
         }
+        // (RapidR Studio's) An MDI document's window: 0 normal, 1 minimized,
+        // 2 maximized; with State, it becomes that, as its title bar's
+        // buttons would make it
+        "documentstate" => {
+            let p = name(0);
+            let docs = docs_name(dock);
+            let now = mdi::child_state(&docs, &p);
+            if args.len() < 2 {
+                return Some(int(now.map_or(-1, |s| s as i64)));
+            }
+            let want = arg(1).to_i64();
+            let action = match (now, want) {
+                (None, _) => None,
+                (Some(mdi::State::Maximized), 2) | (Some(mdi::State::Minimized), 1) | (Some(mdi::State::Normal), 0) => None,
+                (Some(mdi::State::Maximized), 0) => Some(mdi::Action::ToggleMaximize),
+                (Some(mdi::State::Minimized), 0) => Some(mdi::Action::Activate),
+                (Some(_), 1) => Some(mdi::Action::Minimize),
+                (Some(_), _) => Some(mdi::Action::ToggleMaximize),
+            };
+            if let Some(a) = action {
+                docs_user(rt, &docs, &p, a);
+            }
+            return Some(Value::Null);
+        }
         "nextdocument" => manager::with_mut(dock, |m| m.next_document(false)),
         "previousdocument" => manager::with_mut(dock, |m| m.next_document(true)),
         // (the documents' MDI client: QFORMMDI's arrangements)

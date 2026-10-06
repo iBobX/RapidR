@@ -33,6 +33,7 @@ pub mod layout;
 pub mod members;
 pub mod scrollbars;
 pub mod theme;
+pub mod ide_theme;
 pub mod registry;
 pub mod resources;
 pub mod environ;

@@ -212,6 +212,11 @@ fn find(m: &Mdi, component: &str) -> Option<usize> {
     m.children.iter().position(|c| c.component.eq_ignore_ascii_case(component))
 }
 
+/// The window state of the child showing `component` (`None`: no child shows it).
+pub fn child_state(form: &str, component: &str) -> Option<State> {
+    with(form, |m| find(m, component).map(|i| m.children[i].state))
+}
+
 /// The program's index of the child showing `component`.
 pub fn child_index(form: &str, component: &str) -> Option<i64> {
     with(form, |m| find(m, component).map(|i| m.children[i].index))
