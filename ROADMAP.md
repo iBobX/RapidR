@@ -473,6 +473,13 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 **First public release bar** (plan §8): I0–I4, I6's basic part and I7's core, the HTML IDE deleted, the accessibility and performance targets met.
 
+## Phase 3B — Look: one RapidR look, OS looks, native widgets (after the first release; the user, 2026-10-06)
+
+Programs choose how they look; old programs keep RapidQ's classic look unless they ask.
+- [ ] **`$THEME rapidr`**: RapidR's own look, pixel-identical on every OS and on the web, for developers who want their program to look exactly the same everywhere (today's `modern` / `dark` grow into it; the old names stay as aliases)
+- [ ] **`$THEME native`**: drawn themes that follow the OS the program runs on: Windows 11, macOS and Linux (GNOME / Adwaita style), light and dark following the system. On the web the page detects the visitor's OS and uses its theme. A program can also name one directly (`$THEME macos`, `windows11`, `linux`). Our own drawings only, never the OS's images (as Flutter and Qt do).
+- [ ] **Native widgets host — spike, then decide**: real OS controls, with the UI kernel kept as the model (properties, events, layout, accessibility tree) so programs don't change and RapidQ's behaviour stays exact. macOS: AppKit. Windows: the Win32 common controls (what RapidQ itself used) or WinUI. Linux: no permissive native toolkit (GTK and Qt are LGPL / GPL, against the dependency policy), so Linux and the web keep the drawn `native` theme. The spike measures: components covered, behaviour differences against RC.EXE, how the GUI tests run (pixel captures become per-OS), cost of keeping two renderers in step.
+
 ## Phase 4 — AI in the IDE (~6 weeks)
 
 Planned as the IDE's stage I8 ([docs/ide-plan.md](docs/ide-plan.md), [docs/ide-ai.md](docs/ide-ai.md)): one provider layer over plain HTTPS (Anthropic, OpenAI-compatible incl. DeepSeek / xAI / Ollama / LM Studio, Gemini), keys in the OS keychain, the IDE's own MCP server (`rapidr mcp` over a user-only local socket + token), the floating assistant with diffs before apply, permission tiers, data privacy levels. The items below are kept as the checklist; where they differ, the plan wins (e.g. no Tauri: the kernel host is the desktop shell).
