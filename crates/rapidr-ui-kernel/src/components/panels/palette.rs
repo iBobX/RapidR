@@ -31,3 +31,8 @@ impl ComponentKind for Palette {
         n
     }
 }
+
+/// The focus left it while its in-place editor was open (`super::focus_left`).
+pub fn focus_left(_id: &str, _ed: crate::components::list::InPlace) -> Vec<crate::input::KernelEvent> {
+    Vec::new()
+}

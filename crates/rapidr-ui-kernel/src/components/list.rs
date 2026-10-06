@@ -275,6 +275,8 @@ pub(crate) fn focus_left(id: &str, type_name: &str, events: &mut Vec<KernelEvent
         "RTREEVIEW" => events.push(KernelEvent::List(id, ListAction::TreeEdited(ed.target.0, ed.text))),
         "RSTRINGGRID" => events.push(KernelEvent::List(id, ListAction::GridStore(ed.text))),
         "RLISTVIEW" => events.extend(super::listview::edited(&id, ed)),
+        // (I1 / L-PANELS: a panel's search box or value editor)
+        t if rapidr_value::panels::is_panel(t) => events.extend(super::panels::focus_left(&id, t, ed)),
         _ => {}
     }
 }
