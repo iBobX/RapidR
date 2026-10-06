@@ -260,6 +260,8 @@ pub struct Language {
     pub fold_brackets: bool,
     pub fold_offside: bool,
     pub word: Regex,
+    /// Which ASCII characters `word` takes (`is_word_char` runs per character).
+    word_ascii: [bool; 128],
     pub keyword_suffixes: String,
     pub snippets: Vec<Snippet>,
     pub(crate) keywords: HashMap<Box<str>, TokenKind>,
@@ -490,6 +492,7 @@ impl Language {
             fold_marker_set,
             fold_brackets: def.folding.brackets,
             fold_offside,
+            word_ascii: std::array::from_fn(|i| in_a_word(&word, i as u8 as char)),
             word,
             keyword_suffixes: def.language.keyword_suffixes,
             snippets: def.snippets,
@@ -542,9 +545,20 @@ impl Language {
 
     /// Whether `c` is part of a word (by the `word` pattern).
     pub fn is_word_char(&self, c: char) -> bool {
-        let mut buf = [0u8; 4];
-        self.word.is_match(c.encode_utf8(&mut buf))
+        if c.is_ascii() {
+            return self.word_ascii[c as usize];
+        }
+        in_a_word(&self.word, c)
     }
+}
+
+/// Whether `word` matches `c` as part of a word: alone, after a letter
+/// (BASIC's `$` in `LEFT$`) or before one.
+fn in_a_word(word: &Regex, c: char) -> bool {
+    [c.to_string(), format!("a{c}"), format!("{c}a")].iter().any(|s| {
+        let at = s.find(c).unwrap_or(0);
+        word.find_iter(s).any(|m| m.start() <= at && at < m.end())
+    })
 }
 
 /// A set of languages: the built-in ones plus any loaded, looked up by id,

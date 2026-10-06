@@ -18,6 +18,7 @@
 //! - [`highlight`]: incremental colouring that stops once a line ends as
 //!   it did before.
 //! - [`structure`]: folding and bracket matching from the tokens.
+//! - [`snippet`]: snippet bodies expanded with their tab stops.
 
 pub mod buffer;
 pub mod document;
@@ -26,6 +27,7 @@ pub mod history;
 pub mod lang;
 pub mod search;
 pub mod selection;
+pub mod snippet;
 pub mod structure;
 pub mod transaction;
 

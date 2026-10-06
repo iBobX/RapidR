@@ -85,14 +85,24 @@ impl Document {
                 if !hits.matched_any() || !outside(line) {
                     continue;
                 }
-                hl.tokens_into(buf, line, &mut tokens);
+                // (a marker at the first word of a line that starts outside
+                // any string or comment needs no tokens: the usual case)
+                let first_word = leading_ws(&text).len();
+                let plain_start = hl.start_state(line) == crate::highlight::ROOT;
+                let mut tokenized = false;
                 for i in hits.iter() {
                     let (marker, is_end) = if i < k { (i, false) } else { (i - k, true) };
                     let re = if is_end { &lang.fold_markers[marker].1 } else { &lang.fold_markers[marker].0 };
                     let Some(m) = re.find(&text) else { continue };
                     let at = m.start() + (m.as_str().len() - m.as_str().trim_start().len());
-                    if !not_in_literal(&tokens, at) {
-                        continue;
+                    if !(plain_start && at == first_word) {
+                        if !tokenized {
+                            hl.tokens_into(buf, line, &mut tokens);
+                            tokenized = true;
+                        }
+                        if !not_in_literal(&tokens, at) {
+                            continue;
+                        }
                     }
                     if is_end {
                         if let Some(pos) = stack.iter().rposition(|&(mk, _)| mk == marker) {
