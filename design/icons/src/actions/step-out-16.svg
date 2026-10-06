@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
   <title>Step out</title>
-  <path d="M8.5 9.5L8.5 2.5" stroke="currentColor"/>
-  <path d="M5.5 3.5L8.5 1.5L10.5 3.5" stroke="currentColor"/>
+  <path d="M8.5 9.5L8.5 1.5" stroke="currentColor"/>
+  <path d="M5.5 4.5L8.5 1.5L10.5 4.5" stroke="currentColor"/>
   <circle cx="8" cy="13" r="2" fill="currentColor"/>
 </svg>

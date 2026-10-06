@@ -589,3 +589,60 @@ Release notes, per the project's messaging: full RapidQ compatibility on all thr
 ## Results
 
 (Appended per stage as work lands, with dates, sizes, test counts and what changed in the plan.)
+
+### Icons (D8) results — 2026-10-06
+
+RapidR's own icon set is done: every action, component, file type, symbol, toolbox group and glyph, our own drawings (MIT), one family with the brand (design/brand). The design system is [design/icons/README.md](../design/icons/README.md).
+
+- **344 icons**, each drawn once on a 24 px master grid (2 px padding, 1.5 px round strokes). A geometry kit of our own (`design/icons/tools`, Python standard library) hints each to 16, 24 and 32 px:
+  - 16 px: 1 px strokes, crisp;
+  - 24 px: 1.5 px strokes, crisp at 2×;
+  - 32 px: 2 px strokes, crisp.
+
+  Small sizes are simplified where they need to be.
+
+  | Category | Icons |
+  |---|---|
+  | Actions | 121 |
+  | Glyphs | 22 |
+  | Components | 145: the 96 types in COMPONENT_TYPES (RPROGRESS shares RPROGRESSBAR's), 42 planned components of this plan (IDE panels, I7's data components, RAI) and 8 chart kinds |
+  | Files | 22 |
+  | Symbols | 17 |
+  | Toolbox groups | 17 |
+- **Colour.** Monochrome action icons are in `currentColor`. Component, file, symbol and group icons are two-tone: a neutral frame plus one hue, written as colour tokens. Every theme has a palette:
+  - classic and modern share the light one;
+  - dark has its own;
+  - high contrast is monochrome.
+
+  Every hue has 3:1 against each theme's backgrounds and its own tint; a test checks it.
+- **The inventory** is `design/icons/inventory.toml`:
+  - components come from `rapidr_ast::COMPONENT_TYPES`, and from rapidr-lang's registry once it lands;
+  - it also holds the 116 commands of I1–I6, the markers, file kinds, project kinds, symbol kinds and the toolbox groups;
+  - the groups keep RapidQ's components (RC.EXE's and its include libraries' names) under "RapidQ" and the rest under "RapidR".
+
+  The build and the crate's tests fail when a component type or a command has no icon.
+- **Pipeline.** `design/icons/tools/build.py` writes the sources (`design/icons/src`), optimizes and checks them, and generates `crates/rapidr-icons`. The new crate, `rapidr-icons`:
+  - themes the icons;
+  - picks the drawing hinted for the device size (16 at 1.5× is the 24 drawing, at 2× the 32 one);
+  - renders through resvg, and builds for wasm32;
+  - stores the SVGs deflated: 459 KB of SVG become 42 KB, inflated on first use.
+
+  Measured cost (rapidr-value's feature `icons` on vs off):
+
+  | Build | Cost |
+  |---|---|
+  | Native console hello world | +224 bytes (the linker drops the icons) |
+  | Native GUI hello world | +154 KB |
+  | Web runtime wasm | +119 KB raw, +64 KB brotli (2.71 → 2.78 MB) |
+
+  The UI kernel draws icons with `Painter::icon` (`crates/rapidr-ui-kernel/src/icons.rs`), identically on both hosts.
+- **Public API (additive).** `Bitmap.LoadIcon(Name$ [, Size [, Theme$]])` and `ImageList.AddIcon(Name$ [, Theme$])` (`rapidr_value::objects::icons`, rapidr-value's default feature `icons`). They take an icon name, a component type (QBUTTON) or a command id, so RToolBar's `AddButton(Name, Icon, …)` and RDockManager's `AddPane(…, Icon)` can take the same names. The mock-ups use this API.
+- **Docs.**
+  - `design/icons/tools/export.py` writes `docs/manual/icons/`: every icon as SVG (light and dark), as PNG, and an HTML catalog with a filter.
+  - The manual's component reference (`tools/manual_reference.py`) shows each component's icon.
+  - `tools/regress.sh unit` checks that both are current.
+- **Review.** `design/icons/review/`:
+  - contact sheets per category at 16, 24 and 32 px, in the four themes, at 1× and 2× (rendered by the crate);
+  - mock-ups drawn by the UI kernel in every theme at 1× and 2×: a toolbar of flat QCOOLBTNs, a toolbox column and a problems / breakpoints list.
+- **Found on the way.** resvg's rasterizer (tiny-skia 0.12) strokes a path's implicit closing segment, and unrounded `<rect>` outlines, half a pixel soft. The kit always closes paths explicitly and draws rects as paths. `small_sizes_are_crisp` checks it, and the visual-fidelity lane was told.
+- **Changed in the plan.** I1's "vector icons (a permissive set — Lucide, ISC, or Tabler, MIT — plus our own component icons)" is now this set. The VS Code extension and the website take their icons from `docs/manual/icons/` (or `rapidr_icons::themed_svg`). Turning the file icons into a VS Code file-icon theme is a small follow-up for the extension's owner.

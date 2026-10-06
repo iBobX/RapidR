@@ -29,6 +29,7 @@ the script fails and names it.
 import os
 import re
 import sys
+import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "docs", "manual", "reference")
@@ -141,6 +142,18 @@ def q_names(r, lib_types, include_lib):
     return names
 
 
+def component_icon(r):
+    """The component's icon in the manual (docs/manual/icons, written by
+    design/icons/tools/export.py; design/icons/inventory.toml names the
+    exceptions to "the type without its R"), as an image beside its name."""
+    with open(os.path.join(ROOT, "design", "icons", "inventory.toml"), "rb") as f:
+        aliases = tomllib.load(f).get("component-aliases", {})
+    name = aliases.get(r, r[1:].lower())
+    if not os.path.exists(os.path.join(ROOT, "docs", "manual", "icons", "light", "components", name + ".svg")):
+        sys.exit(f"manual_reference: no icon for {r} (python3 design/icons/tools/export.py)")
+    return f'<img src="../icons/light/components/{name}.svg" width="20" height="20" alt="">'
+
+
 def components():
     ast = read("crates/rapidr-ast/src/lib.rs")
     types = const_list(ast, "COMPONENT_TYPES")
@@ -172,18 +185,20 @@ def components():
         "components are described in the chapters on [databases](../databases.md), [data science](../data-science.md), "
         "[the web](../web.md) and [DirectX and media](../directx-and-media.md); the data-science members are listed "
         "in [data-science.md](data-science.md).\n\n"
+        "The icons are RapidR's own (the IDE's toolbox shows the same ones); every icon is in the "
+        "[icon catalog](../icons/index.html).\n\n"
     )
     total = 0
     rq = 0
     for title, ts in CATEGORIES:
-        out.append(f"## {title}\n\n| RapidR name | RapidQ name | From | Where |\n|---|---|---|---|\n")
+        out.append(f"## {title}\n\n| | RapidR name | RapidQ name | From | Where |\n|---|---|---|---|---|\n")
         for r in ts.split():
             names = q_names(r, lib_types, include_lib)
             total += 1
             rq += 1 if names else 0
             qn = ", ".join(f"`{n}`" for n, _ in names) or "—"
             src = ", ".join(sorted({s for _, s in names})) or "RapidR"
-            out.append(f"| `{r}` | {qn} | {src} | {WHERE.get(r, 'everywhere' if title != 'Web only' else 'web')} |\n")
+            out.append(f"| {component_icon(r)} | `{r}` | {qn} | {src} | {WHERE.get(r, 'everywhere' if title != 'Web only' else 'web')} |\n")
         out.append("\n")
     out.append("## RapidQ's include libraries built in\n\n")
     out.append("A program that names these (or includes the library) gets RapidR's own implementation, written in BASIC on RapidR's components, on every runtime:\n\n")

@@ -214,9 +214,9 @@ def restart(g):
 @icon("build", A, "Build")
 def build(g):
     # a hammer: the head across the top right, the handle down to the left
-    head = rot([(8.5, 6), (20.5, 6), (20.5, 11), (8.5, 11)], 14.5, 8.5, 45)
-    g.poly(head, close=True)
-    g.line(12.25, 12.25, 4, 20.5)
+    head = rot([(8, 5.5), (21, 5.5), (21, 11), (8, 11)], 14.5, 8.25, 45)
+    g.poly(head, close=True, fill="fg")
+    g.line(12.5, 12.5, 4, 21)
 
 
 @icon("rebuild", A, "Rebuild")
@@ -255,9 +255,9 @@ def debug(g):
 
 @icon("step-into", A, "Step into")
 def step_into(g):
-    g.line(12, 3, 12, 13)
-    arrowhead(g, 12, 13, 0, 1, 4.5)
-    g.dot(12, 19, 2.5)
+    g.line(12, 2.5, 12, 12.5)
+    arrowhead(g, 12, 13, 0, 1, 5.5)
+    g.dot(12, 19.5, 2.5)
 
 
 @icon("step-over", A, "Step over")
@@ -269,9 +269,9 @@ def step_over(g):
 
 @icon("step-out", A, "Step out")
 def step_out(g):
-    g.line(12, 14, 12, 3.5)
-    arrowhead(g, 12, 3, 0, -1, 4.5)
-    g.dot(12, 19, 2.5)
+    g.line(12, 14, 12, 3)
+    arrowhead(g, 12, 2.5, 0, -1, 5.5)
+    g.dot(12, 19.5, 2.5)
 
 
 @icon("step-back", A, "Step back")

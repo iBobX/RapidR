@@ -37,7 +37,8 @@ pub struct IconData {
     pub title: &'static str,
     /// Drawn in `currentColor` only (the actions and glyphs, mostly).
     pub mono: bool,
-    pub(crate) svg: [&'static str; 3],
+    /// Where its 16, 24 and 32 px drawings are in the bundle.
+    pub(crate) svg: [(u32, u32); 3],
 }
 
 pub type Icon = IconData;
@@ -46,11 +47,12 @@ impl IconData {
     /// The SVG source of the drawing hinted for `variant` px (16, 24 or 32;
     /// other sizes get the nearest), colours as tokens.
     pub fn svg(&self, variant: u32) -> &'static str {
-        match variant {
+        let (at, len) = match variant {
             0..=19 => self.svg[0],
             20..=27 => self.svg[1],
             _ => self.svg[2],
-        }
+        };
+        &bundle()[at as usize..(at + len) as usize]
     }
 }
 
@@ -63,6 +65,18 @@ pub struct ToolboxGroup {
     /// The top group it sits under ("" for the top groups).
     pub parent: &'static str,
     pub members: &'static [&'static str],
+}
+
+/// Every drawing, one after another: the bundle (src/icons.deflate, raw
+/// deflate, about a tenth of the SVG text) inflated the first time an
+/// icon is drawn, so a program that never draws one pays only the
+/// compressed bytes.
+fn bundle() -> &'static str {
+    static BUNDLE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    BUNDLE.get_or_init(|| {
+        let raw = miniz_oxide::inflate::decompress_to_vec_with_limit(include_bytes!("icons.deflate"), generated::BUNDLE_LEN).expect("the icon bundle inflates");
+        String::from_utf8(raw).expect("the icon bundle is UTF-8")
+    })
 }
 
 /// Every icon, sorted by id.

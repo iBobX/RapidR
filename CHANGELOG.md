@@ -17,6 +17,36 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Every SDK installs it in `share/doc/rapidr/manual/`.
 - The release notes of v2.117.0, the first public release
   (`docs/release-notes/v2.117.0.md`).
+- **RapidR's own icon set** (IDE plan decision D8; `design/icons/`). There
+  are 344 icons, our own drawings (MIT), each drawn once on a 24 px grid and
+  hinted at 16, 24 and 32 px:
+  - every action and command of RapidR Studio;
+  - every component type (QBUTTON and RBUTTON share one), the IDE plan's
+    planned components and RPLOT's chart kinds;
+  - file types (the brand's R on `.rr`, `.rrbc` and `.rrproj`), symbol
+    kinds, toolbox groups and glyphs.
+
+  Monochrome action icons follow the theme; component icons are two-tone,
+  in colour tokens for the classic, modern, dark and high-contrast themes
+  (3:1 or better everywhere, monochrome in high contrast). The design system
+  is in `design/icons/README.md`.
+  - The new crate `rapidr-icons` themes and renders the icons through
+    resvg, picks the drawing hinted for the device's size (crisp at 1×,
+    1.5× and 2×) and builds for wasm32. Its SVGs are stored deflated
+    (42 KB) and inflated on first use.
+  - The UI kernel draws an icon with `Painter::icon`.
+  - New in programs (additions; RapidR's own): `Bitmap.LoadIcon(Name$
+    [, Size [, Theme$]])` and `ImageList.AddIcon(Name$ [, Theme$])`, by
+    icon name (`"run"`), component type (`"QBUTTON"`) or command id
+    (`"file.open"`).
+  - `design/icons/inventory.toml` lists what has an icon. Components come
+    from `COMPONENT_TYPES`; the toolbox groups keep RapidQ's components
+    under "RapidQ" and the rest under "RapidR". The build and the crate's
+    tests fail when a component type or a command has no icon.
+  - The manual's component reference shows each component's icon, and
+    `docs/manual/icons/` holds every icon as SVG (light and dark), PNG and
+    an HTML catalog.
+  - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
 - README rewritten for newcomers (install from the releases first, a quick

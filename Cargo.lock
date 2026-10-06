@@ -4619,6 +4619,7 @@ version = "2.117.0"
 name = "rapidr-icons"
 version = "2.117.0"
 dependencies = [
+ "miniz_oxide",
  "rapidr-ast",
  "resvg",
 ]
@@ -4761,6 +4762,7 @@ name = "rapidr-ui-kernel"
 version = "2.117.0"
 dependencies = [
  "parley",
+ "rapidr-icons",
  "rapidr-value",
  "web-time",
 ]
@@ -4782,6 +4784,7 @@ name = "rapidr-value"
 version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
+ "rapidr-icons",
  "resvg",
  "ttf-parser",
  "windows-registry",

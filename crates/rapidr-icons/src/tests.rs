@@ -85,8 +85,8 @@ fn lookups() {
 #[test]
 fn sources_are_sound() {
     for i in all() {
-        for (n, &s) in SIZES.iter().enumerate() {
-            let svg = i.svg[n];
+        for &s in &SIZES {
+            let svg = i.svg(s);
             assert!(svg.starts_with(&format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{s}\" height=\"{s}\" viewBox=\"0 0 {s} {s}\"")), "{} @{s}", i.id);
             assert!(resvg::usvg::Tree::from_str(svg, &resvg::usvg::Options::default()).is_ok(), "{} @{s} doesn't parse", i.id);
             if i.mono {

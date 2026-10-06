@@ -128,3 +128,19 @@ def templates(g):
     g.line(17, 21.5, 19.5, 21.5, c="ink")
     g.line(19.5, 19, 19.5, 21.5, c="ink") if g.size != 16 else None
     g.rect(8.5, 9, 7, 7, r=1.5, c="blue", fill="blue-tint")
+
+
+@icon("controls", GR, "Controls (RapidR's)")
+def controls(g):
+    g.rect(2.5, 4, 19, 7, r=2, c="blue", fill="blue-tint")
+    g.line(6, 7.5, 12, 7.5, c="blue")
+    g.line(3, 17, 21, 17, c="ink")
+    g.circle(15, 17, 2.5, c="blue", fill="paper")
+
+
+@icon("network", GR, "Network")
+def network(g):
+    g.path("M12 7 V12 M12 12 L5.5 17.5 M12 12 L18.5 17.5", c="ink")
+    g.circle(12, 5, 2.5, c="cyan", fill="cyan-tint")
+    g.circle(5, 18.5, 2.5, c="cyan", fill="cyan-tint")
+    g.circle(19, 18.5, 2.5, c="cyan", fill="cyan-tint")

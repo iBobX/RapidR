@@ -11,6 +11,9 @@ description = "RapidR's own icon set (docs/ide-plan.md D8): every action, compon
 [dependencies]
 # The SVG renderer rapidr-value already uses for pictures (MIT OR Apache-2.0).
 resvg = { version = "0.48.1", default-features = false }
+# The SVGs are stored deflated and inflated on first use (MIT OR Zlib OR
+# Apache-2.0; already in the tree through resvg's PNG decoder).
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 
 [dev-dependencies]
 # The component list the inventory test checks against.

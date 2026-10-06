@@ -13,7 +13,6 @@ Writes OUTDIR/<category>-<scale>x.png.
 """
 
 import argparse
-import json
 import os
 import re
 import subprocess
@@ -52,10 +51,11 @@ def layout(keys, scale, cols):
 
 
 def rust_pngs(keys, scale, out):
-    """Renders every (icon, logical size, theme) through crates/rapidr-icons."""
-    req = {"scale": scale, "sizes": list(LOGICAL), "themes": list(THEME_ORDER), "icons": keys, "out": out}
-    p = os.path.join(out, "request.json")
-    json.dump(req, open(p, "w"))
+    """Renders every (icon, logical size, theme) through crates/rapidr-icons
+    (its `render` example) into `out`."""
+    p = os.path.join(out, "request.txt")
+    with open(p, "w") as f:
+        f.write(f"{scale}\n{' '.join(map(str, LOGICAL))}\n{' '.join(THEME_ORDER)}\n{out}\n" + "\n".join(keys) + "\n")
     subprocess.run(["cargo", "run", "-q", "--release", "-p", "rapidr-icons", "--example", "render", "--", p],
                    cwd=ROOT, check=True)
 

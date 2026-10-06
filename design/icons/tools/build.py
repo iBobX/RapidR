@@ -17,14 +17,17 @@
    component, command, marker, file kind, project kind, symbol and toolbox
    group names an icon that exists at every size; every component is in one
    toolbox group.
-4. Generate crates/rapidr-icons/src/generated.rs: the optimized SVGs, the
-   palettes (palette.py) and the inventory as Rust tables.
+4. Generate crates/rapidr-icons/src/generated.rs (the palettes from
+   palette.py, the inventory, each icon's place in the bundle) and
+   crates/rapidr-icons/src/icons.deflate (every optimized SVG, one after
+   another, raw-deflated: the crate inflates it on first use).
 """
 
 import os
 import re
 import sys
 import tomllib
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -36,6 +39,7 @@ ICONS_DIR = os.path.dirname(HERE)
 ROOT = os.path.dirname(os.path.dirname(ICONS_DIR))
 SRC = os.path.join(ICONS_DIR, "src")
 OUT_RS = os.path.join(ROOT, "crates", "rapidr-icons", "src", "generated.rs")
+OUT_BIN = os.path.join(ROOT, "crates", "rapidr-icons", "src", "icons.deflate")
 CATEGORIES = ("actions", "glyphs", "components", "files", "symbols", "groups")
 
 
@@ -195,6 +199,18 @@ def inventory(icons):
         groups.append((gid, g["title"], ref, g.get("parent", ""), members))
     for t in sorted(all_types - set(seen)):
         errors.append(f"component {t} is in no toolbox group")
+    # (RapidQ's groups hold RapidQ's components, RapidR's the rest)
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import manual_reference
+    rapidq = set(manual_reference.RAPIDQ_BUILTIN) | set(manual_reference.RAPIDQ_LIBRARY)
+    def has_q_name(t):
+        return t in ("RPROGRESSBAR", "RTREEVIEW") or ("Q" + t[1:]) in rapidq
+    for gid, title, ref, parent, members in groups:
+        for mbr in members:
+            if parent == "rapidq" and not has_q_name(mbr):
+                errors.append(f"toolbox group {gid} is RapidQ's but {mbr} has no RapidQ name: put it under rapidr")
+            if parent == "rapidr" and has_q_name(mbr) and mbr in types:
+                errors.append(f"toolbox group {gid} is RapidR's but {mbr} is RapidQ's (Q{mbr[1:]}): put it under rapidq")
     if errors:
         fail("inventory:\n  " + "\n  ".join(errors))
     return components, tables, groups
@@ -230,16 +246,27 @@ def generate(icons, components, tables, groups):
         L.append(f"    ({rs_str(name)}, 0x{fg[1:].upper()}, 0x{palette.DISABLED[name][1:].upper()}, &[{bg}], [{vals}]),")
     L.append("];")
     L.append("")
-    L.append("/// Every icon, by id: its 16, 24 and 32 px drawings.")
+    L.append("/// Every icon, by id: where its 16, 24 and 32 px drawings are in the")
+    L.append("/// inflated bundle (offset, length).")
     L.append("pub(crate) static ICONS: &[IconData] = &[")
+    blob = []
+    at = 0
     for key in sorted(icons):
         spec = kit.ICONS.get(key)
         cat, name = key.split("/", 1)
         title = spec["title"] if spec else name
         mono = "true" if (spec["mono"] if spec else False) else "false"
-        svgs = ", ".join(rs_str(icons[key][s]) for s in kit.SIZES)
-        L.append(f"    IconData {{ id: {rs_str(key)}, category: {rs_str(cat)}, name: {rs_str(name)}, title: {rs_str(title)}, mono: {mono}, svg: [{svgs}] }},")
+        places = []
+        for s_ in kit.SIZES:
+            b = icons[key][s_].encode("utf-8")
+            places.append(f"({at}, {len(b)})")
+            blob.append(b)
+            at += len(b)
+        L.append(f"    IconData {{ id: {rs_str(key)}, category: {rs_str(cat)}, name: {rs_str(name)}, title: {rs_str(title)}, mono: {mono}, svg: [{', '.join(places)}] }},")
     L.append("];")
+    L.append("")
+    L.append(f"/// The bundle's inflated size.")
+    L.append(f"pub(crate) const BUNDLE_LEN: usize = {at};")
     L.append("")
     L.append("/// Every component type (the code's, then the planned ones) and its icon; true when planned.")
     L.append("pub static COMPONENTS: &[(&str, &str, bool)] = &[")
@@ -261,7 +288,10 @@ def generate(icons, components, tables, groups):
         mem = ", ".join(rs_str(m) for m in members)
         L.append(f"    ToolboxGroup {{ id: {rs_str(gid)}, title: {rs_str(title)}, icon: {rs_str(ref)}, parent: {rs_str(parent)}, members: &[{mem}] }},")
     L.append("];")
-    return "\n".join(L) + "\n"
+    raw = b"".join(blob)
+    c = zlib.compressobj(9, zlib.DEFLATED, -15, 9)
+    packed = c.compress(raw) + c.flush()
+    return "\n".join(L) + "\n", packed
 
 
 def main():
@@ -271,18 +301,23 @@ def main():
         fail("sources out of date (python3 design/icons/tools/build.py):\n  " + "\n  ".join(os.path.relpath(p, ROOT) for p in changed[:20]))
     icons = load_sources()
     components, tables, groups = inventory(icons)
-    text = generate(icons, components, tables, groups)
+    text, packed = generate(icons, components, tables, groups)
     old = open(OUT_RS, encoding="utf-8").read() if os.path.exists(OUT_RS) else None
-    if old != text:
+    old_bin = open(OUT_BIN, "rb").read() if os.path.exists(OUT_BIN) else None
+    # (the deflate stream is compared inflated: another zlib may pack it differently)
+    same_bin = old_bin is not None and zlib.decompress(old_bin, -15) == zlib.decompress(packed, -15)
+    if old != text or not same_bin:
         if check:
             fail(f"{os.path.relpath(OUT_RS, ROOT)} out of date (python3 design/icons/tools/build.py)")
         os.makedirs(os.path.dirname(OUT_RS), exist_ok=True)
         with open(OUT_RS, "w", encoding="utf-8") as f:
             f.write(text)
+        with open(OUT_BIN, "wb") as f:
+            f.write(packed)
     if not check:
         size = sum(len(v) for sizes in icons.values() for v in sizes.values())
         print(f"icons: {len(icons)} icons ({len(changed)} source files changed), {len(components)} components, "
-              f"{len(tables['commands'])} commands; {size // 1024} KB of SVG")
+              f"{len(tables['commands'])} commands; {size // 1024} KB of SVG, {len(packed) // 1024} KB deflated")
 
 
 if __name__ == "__main__":

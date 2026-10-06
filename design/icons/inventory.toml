@@ -279,7 +279,10 @@ resource = "resource"
 [toolbox-groups]
 # docs/ide-plan.md I1 (RToolbox): "RapidQ" and "RapidR", and their groups.
 # members: component types; every component type (and planned component)
-# is in exactly one group.
+# is in exactly one group. A group under "rapidq" holds only components
+# RapidQ has (RC.EXE's names and its include libraries': the lists in
+# tools/manual_reference.py), shown with their Q names; every other
+# component is under "rapidr" (build.py checks both).
 [toolbox-groups.rapidq]
 icon = "rapidq"
 title = "RapidQ"
@@ -290,12 +293,12 @@ title = "RapidR"
 icon = "standard"
 title = "Standard"
 parent = "rapidq"
-members = "RFORM RBUTTON RLABEL REDIT RMEMO RCHECKBOX RRADIOBUTTON RCOMBOBOX RLISTBOX RGROUPBOX RPANEL RIMAGE RSCROLLBAR RMAINMENU RMENUITEM RPOPUPMENU RTIMER"
+members = "RFORM RBUTTON RLABEL REDIT RCHECKBOX RRADIOBUTTON RCOMBOBOX RLISTBOX RGROUPBOX RPANEL RIMAGE RSCROLLBAR RMAINMENU RMENUITEM RPOPUPMENU RTIMER"
 [toolbox-groups.additional]
 icon = "additional"
 title = "Additional"
 parent = "rapidq"
-members = "RFORMMDI RCOOLBTN ROVALBTN RRICHEDIT RSTRINGGRID RLISTVIEW RTREEVIEW RTABCONTROL RHEADER RTRACKBAR RPROGRESSBAR RPROGRESS RSTATUSBAR RSPLITTER RSCROLLBOX RCANVAS RFILELISTBOX RDIRTREE RBEVEL RDIGDISPLAY RGLASSFRAME RTOOLBAR RUPDOWN RDATETIMEPICKER"
+members = "RFORMMDI RCOOLBTN ROVALBTN RRICHEDIT RSTRINGGRID RLISTVIEW RTREEVIEW RTABCONTROL RHEADER RTRACKBAR RPROGRESSBAR RSTATUSBAR RSPLITTER RSCROLLBOX RCANVAS RFILELISTBOX RDIRTREE RBEVEL RDIGDISPLAY RGLASSFRAME"
 [toolbox-groups.dialogs]
 icon = "dialogs"
 title = "Dialogs"
@@ -305,7 +308,7 @@ members = "ROPENDIALOG RSAVEDIALOG RFILEDIALOG RCOLORDIALOG RFONTDIALOG"
 icon = "system"
 title = "System"
 parent = "rapidq"
-members = "RFONT RBITMAP RIMAGELIST RSTRINGLIST RFILESTREAM RMEMORYSTREAM RREGISTRY RPRINTER RRECT RNOTIFYICONDATA RSOCKET RSERVERSOCKET RHTTP RCOMPORT RCGI RDOWNLOAD"
+members = "RFONT RBITMAP RIMAGELIST RSTRINGLIST RFILESTREAM RMEMORYSTREAM RREGISTRY RPRINTER RRECT RNOTIFYICONDATA RSOCKET RCOMPORT RCGI RDOWNLOAD RMYSQL"
 [toolbox-groups.media]
 icon = "media"
 title = "Media"
@@ -321,11 +324,21 @@ icon = "direct3d"
 title = "Direct3D"
 parent = "rapidq"
 members = "RD3DFRAME RD3DMESHBUILDER RD3DMESH RD3DFACE RD3DLIGHT RD3DTEXTURE RD3DVISUAL RD3DWRAP RD3DVECTOR"
+[toolbox-groups.controls]
+icon = "controls"
+title = "Controls"
+parent = "rapidr"
+members = "RMEMO RUPDOWN RDATETIMEPICKER RTOOLBAR RPROGRESS"
+[toolbox-groups.network]
+icon = "network"
+title = "Network"
+parent = "rapidr"
+members = "RHTTP RSERVERSOCKET"
 [toolbox-groups.data]
 icon = "data"
 title = "Data"
 parent = "rapidr"
-members = "RSQLITE RMYSQL RJSON RDBCONNECTION RDATAFILE RDBQUERY RDBTABLE RDATASOURCE RDBGRID RDBEDIT RDBLABEL RDBMEMO RDBCHECKBOX RDBCOMBOBOX RDBLOOKUPCOMBO RDBNAVIGATOR"
+members = "RSQLITE RJSON RDBCONNECTION RDATAFILE RDBQUERY RDBTABLE RDATASOURCE RDBGRID RDBEDIT RDBLABEL RDBMEMO RDBCHECKBOX RDBCOMBOBOX RDBLOOKUPCOMBO RDBNAVIGATOR"
 [toolbox-groups.datascience]
 icon = "datascience"
 title = "Data Science"

@@ -6,172 +6,174 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 
 Members: RapidQ's components have the members RapidQ's documentation gives them, plus the additions listed in [Components and objects](../components.md#rapidrs-additions-to-every-component). RapidR's own components are described in the chapters on [databases](../databases.md), [data science](../data-science.md), [the web](../web.md) and [DirectX and media](../directx-and-media.md); the data-science members are listed in [data-science.md](data-science.md).
 
+The icons are RapidR's own (the IDE's toolbox shows the same ones); every icon is in the [icon catalog](../icons/index.html).
+
 ## Forms and containers
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RFORM` | `QFORM` | RapidQ | everywhere |
-| `RFORMMDI` | `QFORMMDI` | RAPIDQ2.INC | everywhere |
-| `RPANEL` | `QPANEL` | RapidQ | everywhere |
-| `RGROUPBOX` | `QGROUPBOX` | RapidQ | everywhere |
-| `RTABCONTROL` | `QTABCONTROL` | RapidQ | everywhere |
-| `RSPLITTER` | `QSPLITTER` | RapidQ | everywhere |
-| `RSCROLLBOX` | `QSCROLLBOX` | RapidQ | everywhere |
-| `RBEVEL` | `QBEVEL` | QBevel.inc | everywhere |
-| `RGLASSFRAME` | `QGLASSFRAME` | RapidQ | everywhere |
-| `RTOOLBAR` | — | RapidR | everywhere |
-| `RSTATUSBAR` | `QSTATUSBAR` | RapidQ | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/form.svg" width="20" height="20" alt=""> | `RFORM` | `QFORM` | RapidQ | everywhere |
+| <img src="../icons/light/components/formmdi.svg" width="20" height="20" alt=""> | `RFORMMDI` | `QFORMMDI` | RAPIDQ2.INC | everywhere |
+| <img src="../icons/light/components/panel.svg" width="20" height="20" alt=""> | `RPANEL` | `QPANEL` | RapidQ | everywhere |
+| <img src="../icons/light/components/groupbox.svg" width="20" height="20" alt=""> | `RGROUPBOX` | `QGROUPBOX` | RapidQ | everywhere |
+| <img src="../icons/light/components/tabcontrol.svg" width="20" height="20" alt=""> | `RTABCONTROL` | `QTABCONTROL` | RapidQ | everywhere |
+| <img src="../icons/light/components/splitter.svg" width="20" height="20" alt=""> | `RSPLITTER` | `QSPLITTER` | RapidQ | everywhere |
+| <img src="../icons/light/components/scrollbox.svg" width="20" height="20" alt=""> | `RSCROLLBOX` | `QSCROLLBOX` | RapidQ | everywhere |
+| <img src="../icons/light/components/bevel.svg" width="20" height="20" alt=""> | `RBEVEL` | `QBEVEL` | QBevel.inc | everywhere |
+| <img src="../icons/light/components/glassframe.svg" width="20" height="20" alt=""> | `RGLASSFRAME` | `QGLASSFRAME` | RapidQ | everywhere |
+| <img src="../icons/light/components/toolbar.svg" width="20" height="20" alt=""> | `RTOOLBAR` | — | RapidR | everywhere |
+| <img src="../icons/light/components/statusbar.svg" width="20" height="20" alt=""> | `RSTATUSBAR` | `QSTATUSBAR` | RapidQ | everywhere |
 
 ## Buttons and input
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RBUTTON` | `QBUTTON` | RapidQ | everywhere |
-| `RCOOLBTN` | `QCOOLBTN` | RapidQ | everywhere |
-| `ROVALBTN` | `QOVALBTN` | RapidQ | everywhere |
-| `RCHECKBOX` | `QCHECKBOX` | RapidQ | everywhere |
-| `RRADIOBUTTON` | `QRADIOBUTTON` | RapidQ | everywhere |
-| `REDIT` | `QEDIT` | RapidQ | everywhere |
-| `RMEMO` | — | RapidR | everywhere |
-| `RRICHEDIT` | `QRICHEDIT` | RapidQ | everywhere |
-| `RCOMBOBOX` | `QCOMBOBOX` | RapidQ | everywhere |
-| `RSCROLLBAR` | `QSCROLLBAR` | RapidQ | everywhere |
-| `RTRACKBAR` | `QTRACKBAR` | RapidQ | everywhere |
-| `RUPDOWN` | — | RapidR | everywhere |
-| `RDATETIMEPICKER` | — | RapidR | everywhere |
-| `RCODEEDITOR` | — | RapidR | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/button.svg" width="20" height="20" alt=""> | `RBUTTON` | `QBUTTON` | RapidQ | everywhere |
+| <img src="../icons/light/components/coolbtn.svg" width="20" height="20" alt=""> | `RCOOLBTN` | `QCOOLBTN` | RapidQ | everywhere |
+| <img src="../icons/light/components/ovalbtn.svg" width="20" height="20" alt=""> | `ROVALBTN` | `QOVALBTN` | RapidQ | everywhere |
+| <img src="../icons/light/components/checkbox.svg" width="20" height="20" alt=""> | `RCHECKBOX` | `QCHECKBOX` | RapidQ | everywhere |
+| <img src="../icons/light/components/radiobutton.svg" width="20" height="20" alt=""> | `RRADIOBUTTON` | `QRADIOBUTTON` | RapidQ | everywhere |
+| <img src="../icons/light/components/edit.svg" width="20" height="20" alt=""> | `REDIT` | `QEDIT` | RapidQ | everywhere |
+| <img src="../icons/light/components/memo.svg" width="20" height="20" alt=""> | `RMEMO` | — | RapidR | everywhere |
+| <img src="../icons/light/components/richedit.svg" width="20" height="20" alt=""> | `RRICHEDIT` | `QRICHEDIT` | RapidQ | everywhere |
+| <img src="../icons/light/components/combobox.svg" width="20" height="20" alt=""> | `RCOMBOBOX` | `QCOMBOBOX` | RapidQ | everywhere |
+| <img src="../icons/light/components/scrollbar.svg" width="20" height="20" alt=""> | `RSCROLLBAR` | `QSCROLLBAR` | RapidQ | everywhere |
+| <img src="../icons/light/components/trackbar.svg" width="20" height="20" alt=""> | `RTRACKBAR` | `QTRACKBAR` | RapidQ | everywhere |
+| <img src="../icons/light/components/updown.svg" width="20" height="20" alt=""> | `RUPDOWN` | — | RapidR | everywhere |
+| <img src="../icons/light/components/datetimepicker.svg" width="20" height="20" alt=""> | `RDATETIMEPICKER` | — | RapidR | everywhere |
+| <img src="../icons/light/components/codeeditor.svg" width="20" height="20" alt=""> | `RCODEEDITOR` | — | RapidR | everywhere |
 
 ## Display and drawing
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RLABEL` | `QLABEL` | RapidQ | everywhere |
-| `RIMAGE` | `QIMAGE` | RapidQ | everywhere |
-| `RCANVAS` | `QCANVAS` | RapidQ | everywhere |
-| `RPROGRESSBAR` | `QGAUGE` | RapidQ | everywhere |
-| `RPROGRESS` | — | RapidR | everywhere |
-| `RDIGDISPLAY` | `QDIGDISPLAY` | QDigDisplay.inc | everywhere |
-| `RHEADER` | `QHEADER` | RapidQ | everywhere |
-| `RDESIGNSURFACE` | — | RapidR | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/label.svg" width="20" height="20" alt=""> | `RLABEL` | `QLABEL` | RapidQ | everywhere |
+| <img src="../icons/light/components/image.svg" width="20" height="20" alt=""> | `RIMAGE` | `QIMAGE` | RapidQ | everywhere |
+| <img src="../icons/light/components/canvas.svg" width="20" height="20" alt=""> | `RCANVAS` | `QCANVAS` | RapidQ | everywhere |
+| <img src="../icons/light/components/progressbar.svg" width="20" height="20" alt=""> | `RPROGRESSBAR` | `QGAUGE` | RapidQ | everywhere |
+| <img src="../icons/light/components/progressbar.svg" width="20" height="20" alt=""> | `RPROGRESS` | — | RapidR | everywhere |
+| <img src="../icons/light/components/digdisplay.svg" width="20" height="20" alt=""> | `RDIGDISPLAY` | `QDIGDISPLAY` | QDigDisplay.inc | everywhere |
+| <img src="../icons/light/components/header.svg" width="20" height="20" alt=""> | `RHEADER` | `QHEADER` | RapidQ | everywhere |
+| <img src="../icons/light/components/designsurface.svg" width="20" height="20" alt=""> | `RDESIGNSURFACE` | — | RapidR | everywhere |
 
 ## Lists, grids and trees
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RLISTBOX` | `QLISTBOX` | RapidQ | everywhere |
-| `RFILELISTBOX` | `QFILELISTBOX` | RapidQ | everywhere |
-| `RDIRTREE` | `QDIRTREE` | RapidQ | everywhere |
-| `RLISTVIEW` | `QLISTVIEW` | RapidQ | everywhere |
-| `RTREEVIEW` | `QTREEVIEW`, `QOUTLINE` | RapidQ | everywhere |
-| `RSTRINGGRID` | `QSTRINGGRID` | RapidQ | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/listbox.svg" width="20" height="20" alt=""> | `RLISTBOX` | `QLISTBOX` | RapidQ | everywhere |
+| <img src="../icons/light/components/filelistbox.svg" width="20" height="20" alt=""> | `RFILELISTBOX` | `QFILELISTBOX` | RapidQ | everywhere |
+| <img src="../icons/light/components/dirtree.svg" width="20" height="20" alt=""> | `RDIRTREE` | `QDIRTREE` | RapidQ | everywhere |
+| <img src="../icons/light/components/listview.svg" width="20" height="20" alt=""> | `RLISTVIEW` | `QLISTVIEW` | RapidQ | everywhere |
+| <img src="../icons/light/components/treeview.svg" width="20" height="20" alt=""> | `RTREEVIEW` | `QTREEVIEW`, `QOUTLINE` | RapidQ | everywhere |
+| <img src="../icons/light/components/stringgrid.svg" width="20" height="20" alt=""> | `RSTRINGGRID` | `QSTRINGGRID` | RapidQ | everywhere |
 
 ## Menus
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RMAINMENU` | `QMAINMENU` | RapidQ | everywhere |
-| `RMENUITEM` | `QMENUITEM` | RapidQ | everywhere |
-| `RPOPUPMENU` | `QPOPUPMENU` | RapidQ | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/mainmenu.svg" width="20" height="20" alt=""> | `RMAINMENU` | `QMAINMENU` | RapidQ | everywhere |
+| <img src="../icons/light/components/menuitem.svg" width="20" height="20" alt=""> | `RMENUITEM` | `QMENUITEM` | RapidQ | everywhere |
+| <img src="../icons/light/components/popupmenu.svg" width="20" height="20" alt=""> | `RPOPUPMENU` | `QPOPUPMENU` | RapidQ | everywhere |
 
 ## Dialogs
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `ROPENDIALOG` | `QOPENDIALOG` | RapidQ | everywhere |
-| `RSAVEDIALOG` | `QSAVEDIALOG` | RapidQ | everywhere |
-| `RFILEDIALOG` | `QFILEDIALOG` | RAPIDQ2.INC | everywhere |
-| `RCOLORDIALOG` | `QCOLORDIALOG` | RAPIDQ2.INC | everywhere |
-| `RFONTDIALOG` | `QFONTDIALOG` | RapidQ | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/opendialog.svg" width="20" height="20" alt=""> | `ROPENDIALOG` | `QOPENDIALOG` | RapidQ | everywhere |
+| <img src="../icons/light/components/savedialog.svg" width="20" height="20" alt=""> | `RSAVEDIALOG` | `QSAVEDIALOG` | RapidQ | everywhere |
+| <img src="../icons/light/components/filedialog.svg" width="20" height="20" alt=""> | `RFILEDIALOG` | `QFILEDIALOG` | RAPIDQ2.INC | everywhere |
+| <img src="../icons/light/components/colordialog.svg" width="20" height="20" alt=""> | `RCOLORDIALOG` | `QCOLORDIALOG` | RAPIDQ2.INC | everywhere |
+| <img src="../icons/light/components/fontdialog.svg" width="20" height="20" alt=""> | `RFONTDIALOG` | `QFONTDIALOG` | RapidQ | everywhere |
 
 ## Non-visual objects
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RTIMER` | `QTIMER` | RapidQ | everywhere |
-| `RFONT` | `QFONT` | RapidQ | everywhere |
-| `RBITMAP` | `QBITMAP` | RapidQ | everywhere |
-| `RIMAGELIST` | `QIMAGELIST` | RapidQ | everywhere |
-| `RSTRINGLIST` | `QSTRINGLIST` | RapidQ | everywhere |
-| `RFILESTREAM` | `QFILESTREAM` | RapidQ | everywhere |
-| `RMEMORYSTREAM` | `QMEMORYSTREAM` | RapidQ | everywhere |
-| `RREGISTRY` | `QREGISTRY` | RapidQ | everywhere |
-| `RPRINTER` | `QPRINTER` | RapidQ | everywhere |
-| `RRECT` | `QRECT` | RapidQ | everywhere |
-| `RNOTIFYICONDATA` | `QNOTIFYICONDATA` | RapidQ | everywhere |
-| `RJSON` | — | RapidR | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/timer.svg" width="20" height="20" alt=""> | `RTIMER` | `QTIMER` | RapidQ | everywhere |
+| <img src="../icons/light/components/font.svg" width="20" height="20" alt=""> | `RFONT` | `QFONT` | RapidQ | everywhere |
+| <img src="../icons/light/components/bitmap.svg" width="20" height="20" alt=""> | `RBITMAP` | `QBITMAP` | RapidQ | everywhere |
+| <img src="../icons/light/components/imagelist.svg" width="20" height="20" alt=""> | `RIMAGELIST` | `QIMAGELIST` | RapidQ | everywhere |
+| <img src="../icons/light/components/stringlist.svg" width="20" height="20" alt=""> | `RSTRINGLIST` | `QSTRINGLIST` | RapidQ | everywhere |
+| <img src="../icons/light/components/filestream.svg" width="20" height="20" alt=""> | `RFILESTREAM` | `QFILESTREAM` | RapidQ | everywhere |
+| <img src="../icons/light/components/memorystream.svg" width="20" height="20" alt=""> | `RMEMORYSTREAM` | `QMEMORYSTREAM` | RapidQ | everywhere |
+| <img src="../icons/light/components/registry.svg" width="20" height="20" alt=""> | `RREGISTRY` | `QREGISTRY` | RapidQ | everywhere |
+| <img src="../icons/light/components/printer.svg" width="20" height="20" alt=""> | `RPRINTER` | `QPRINTER` | RapidQ | everywhere |
+| <img src="../icons/light/components/rect.svg" width="20" height="20" alt=""> | `RRECT` | `QRECT` | RapidQ | everywhere |
+| <img src="../icons/light/components/notifyicondata.svg" width="20" height="20" alt=""> | `RNOTIFYICONDATA` | `QNOTIFYICONDATA` | RapidQ | everywhere |
+| <img src="../icons/light/components/json.svg" width="20" height="20" alt=""> | `RJSON` | — | RapidR | everywhere |
 
 ## Databases
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RSQLITE` | — | RapidR | everywhere |
-| `RMYSQL` | `QMYSQL` | RapidQ | desktop |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/sqlite.svg" width="20" height="20" alt=""> | `RSQLITE` | — | RapidR | everywhere |
+| <img src="../icons/light/components/mysql.svg" width="20" height="20" alt=""> | `RMYSQL` | `QMYSQL` | RapidQ | desktop |
 
 ## Network, devices and CGI
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RSOCKET` | `QSOCKET` | RapidQ | desktop (TCP); web (WebSocket) |
-| `RSERVERSOCKET` | — | RapidR | desktop |
-| `RHTTP` | — | RapidR | everywhere |
-| `RDOWNLOAD` | `QDOWNLOAD` | Qdownload.inc | everywhere |
-| `RCOMPORT` | `QCOMPORT`, `COMPORT` | RAPIDQ2.INC, RapidQ | desktop (serial2); web (Web Serial) |
-| `RCGI` | `QCGI` | qcgi.inc | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/socket.svg" width="20" height="20" alt=""> | `RSOCKET` | `QSOCKET` | RapidQ | desktop (TCP); web (WebSocket) |
+| <img src="../icons/light/components/serversocket.svg" width="20" height="20" alt=""> | `RSERVERSOCKET` | — | RapidR | desktop |
+| <img src="../icons/light/components/http.svg" width="20" height="20" alt=""> | `RHTTP` | — | RapidR | everywhere |
+| <img src="../icons/light/components/download.svg" width="20" height="20" alt=""> | `RDOWNLOAD` | `QDOWNLOAD` | Qdownload.inc | everywhere |
+| <img src="../icons/light/components/comport.svg" width="20" height="20" alt=""> | `RCOMPORT` | `QCOMPORT`, `COMPORT` | RAPIDQ2.INC, RapidQ | desktop (serial2); web (Web Serial) |
+| <img src="../icons/light/components/cgi.svg" width="20" height="20" alt=""> | `RCGI` | `QCGI` | qcgi.inc | everywhere |
 
 ## Media
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RMIDI` | `QMIDI` | QMidi.inc | everywhere |
-| `RWAVE` | `QWAVE` | QWave.inc | everywhere |
-| `RVIDEO` | `QVIDEO` | QVideo.inc | everywhere |
-| `RCDAUDIO` | `QCDAUDIO` | Qcdaudio.inc | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/midi.svg" width="20" height="20" alt=""> | `RMIDI` | `QMIDI` | QMidi.inc | everywhere |
+| <img src="../icons/light/components/wave.svg" width="20" height="20" alt=""> | `RWAVE` | `QWAVE` | QWave.inc | everywhere |
+| <img src="../icons/light/components/video.svg" width="20" height="20" alt=""> | `RVIDEO` | `QVIDEO` | QVideo.inc | everywhere |
+| <img src="../icons/light/components/cdaudio.svg" width="20" height="20" alt=""> | `RCDAUDIO` | `QCDAUDIO` | Qcdaudio.inc | everywhere |
 
 ## DirectX 2D
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RDXSCREEN` | `QDXSCREEN` | RapidQ | everywhere |
-| `RDXIMAGELIST` | `QDXIMAGELIST` | RapidQ | everywhere |
-| `RDXTIMER` | `QDXTIMER` | RapidQ | everywhere |
-| `RDXSOUND` | `QDXSOUND` | RapidQ | everywhere |
-| `RDXJOYSTICK` | `QDXJOYSTICK` | RapidQ | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/dxscreen.svg" width="20" height="20" alt=""> | `RDXSCREEN` | `QDXSCREEN` | RapidQ | everywhere |
+| <img src="../icons/light/components/dximagelist.svg" width="20" height="20" alt=""> | `RDXIMAGELIST` | `QDXIMAGELIST` | RapidQ | everywhere |
+| <img src="../icons/light/components/dxtimer.svg" width="20" height="20" alt=""> | `RDXTIMER` | `QDXTIMER` | RapidQ | everywhere |
+| <img src="../icons/light/components/dxsound.svg" width="20" height="20" alt=""> | `RDXSOUND` | `QDXSOUND` | RapidQ | everywhere |
+| <img src="../icons/light/components/dxjoystick.svg" width="20" height="20" alt=""> | `RDXJOYSTICK` | `QDXJOYSTICK` | RapidQ | everywhere |
 
 ## Direct3D (retained mode)
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RD3DFRAME` | `QD3DFRAME` | RapidQ | everywhere |
-| `RD3DMESHBUILDER` | `QD3DMESHBUILDER` | RapidQ | everywhere |
-| `RD3DMESH` | `QD3DMESH` | RapidQ | everywhere |
-| `RD3DFACE` | `QD3DFACE` | RapidQ | everywhere |
-| `RD3DLIGHT` | `QD3DLIGHT` | RapidQ | everywhere |
-| `RD3DTEXTURE` | `QD3DTEXTURE` | RapidQ | everywhere |
-| `RD3DVISUAL` | `QD3DVISUAL` | RapidQ | everywhere |
-| `RD3DWRAP` | `QD3DWRAP` | RapidQ | everywhere |
-| `RD3DVECTOR` | `QD3DVECTOR` | RapidQ | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/d3dframe.svg" width="20" height="20" alt=""> | `RD3DFRAME` | `QD3DFRAME` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dmeshbuilder.svg" width="20" height="20" alt=""> | `RD3DMESHBUILDER` | `QD3DMESHBUILDER` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dmesh.svg" width="20" height="20" alt=""> | `RD3DMESH` | `QD3DMESH` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dface.svg" width="20" height="20" alt=""> | `RD3DFACE` | `QD3DFACE` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dlight.svg" width="20" height="20" alt=""> | `RD3DLIGHT` | `QD3DLIGHT` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dtexture.svg" width="20" height="20" alt=""> | `RD3DTEXTURE` | `QD3DTEXTURE` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dvisual.svg" width="20" height="20" alt=""> | `RD3DVISUAL` | `QD3DVISUAL` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dwrap.svg" width="20" height="20" alt=""> | `RD3DWRAP` | `QD3DWRAP` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3dvector.svg" width="20" height="20" alt=""> | `RD3DVECTOR` | `QD3DVECTOR` | RapidQ | everywhere |
 
 ## Data science
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RNUM` | — | RapidR | everywhere |
-| `RDATAFRAME` | — | RapidR | everywhere |
-| `RPLOT` | — | RapidR | everywhere |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/num.svg" width="20" height="20" alt=""> | `RNUM` | — | RapidR | everywhere |
+| <img src="../icons/light/components/dataframe.svg" width="20" height="20" alt=""> | `RDATAFRAME` | — | RapidR | everywhere |
+| <img src="../icons/light/components/plot.svg" width="20" height="20" alt=""> | `RPLOT` | — | RapidR | everywhere |
 
 ## Web only
 
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| `RWEBVIEW` | — | RapidR | web |
-| `RDOM` | — | RapidR | web |
-| `RJAVASCRIPT` | — | RapidR | web |
-| `RWEBSTORAGE` | — | RapidR | web |
-| `RWEBAUDIO` | — | RapidR | web |
-| `RWEBVIDEO` | — | RapidR | web |
-| `RWEBNOTIFICATION` | — | RapidR | web |
-| `RWEBGEOLOCATION` | — | RapidR | web |
-| `RROUTER` | — | RapidR | web |
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/webview.svg" width="20" height="20" alt=""> | `RWEBVIEW` | — | RapidR | web |
+| <img src="../icons/light/components/dom.svg" width="20" height="20" alt=""> | `RDOM` | — | RapidR | web |
+| <img src="../icons/light/components/javascript.svg" width="20" height="20" alt=""> | `RJAVASCRIPT` | — | RapidR | web |
+| <img src="../icons/light/components/webstorage.svg" width="20" height="20" alt=""> | `RWEBSTORAGE` | — | RapidR | web |
+| <img src="../icons/light/components/webaudio.svg" width="20" height="20" alt=""> | `RWEBAUDIO` | — | RapidR | web |
+| <img src="../icons/light/components/webvideo.svg" width="20" height="20" alt=""> | `RWEBVIDEO` | — | RapidR | web |
+| <img src="../icons/light/components/webnotification.svg" width="20" height="20" alt=""> | `RWEBNOTIFICATION` | — | RapidR | web |
+| <img src="../icons/light/components/webgeolocation.svg" width="20" height="20" alt=""> | `RWEBGEOLOCATION` | — | RapidR | web |
+| <img src="../icons/light/components/router.svg" width="20" height="20" alt=""> | `RROUTER` | — | RapidR | web |
 
 ## RapidQ's include libraries built in
 

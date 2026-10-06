@@ -346,11 +346,12 @@ def dblookupcombo(g):
 
 @icon("dbnavigator", C, "Data navigator")
 def dbnavigator(g):
-    g.rect(2.5, 7, 19, 10, r=2, c="ink", fill="paper")
-    g.line(5.5, 9.5, 5.5, 14.5, c="teal")
-    g.poly([(9.5, 9.5), (7, 12), (9.5, 14.5)], c="teal")
-    g.poly([(14.5, 9.5), (17, 12), (14.5, 14.5)], c="teal")
-    g.line(18.5, 9.5, 18.5, 14.5, c="teal")
+    # first and last: a bar and a solid arrow each
+    g.rect(2.5, 6, 19, 12, r=2, c="ink", fill="paper")
+    g.frect(5.5, 9, 1.5, 6, fill="teal")
+    g.fpoly([(11.5, 9), (7.5, 12), (11.5, 15)], fill="teal")
+    g.fpoly([(12.5, 9), (16.5, 12), (12.5, 15)], fill="teal")
+    g.frect(17, 9, 1.5, 6, fill="teal")
 
 
 # ---- chart kinds (RPLOT's Kind) ---------------------------------------------------------------
