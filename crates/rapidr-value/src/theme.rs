@@ -5,29 +5,30 @@
 //! draws (tab controls, track bars, scroll bars, list views, headers): as
 //! Windows' own controls ask GetSysColor, they ask [`current`].
 //!
-//! - [`CLASSIC`]: Windows' classic look, RapidQ's — every program's unless
-//!   it asks for another. Its tokens are the very colours the kernel drew
-//!   before there were themes: an old program looks the same, pixel for
-//!   pixel.
-//! - [`MODERN`]: a flat look after Windows 11's (Fluent): rounded buttons
-//!   and boxes with thin borders, an accent colour, check boxes and radio
-//!   buttons filled with it, thin scroll bars, focus rings. Vector shapes
-//!   only; no artwork.
-//! - [`DARK`]: the modern look, dark.
-//! - [`HIGH_CONTRAST`]: Windows' High Contrast Black palette — white on
-//!   black, cyan selections, yellow for what's under the mouse and for the
-//!   focus, green for what's disabled — every control framed, thick focus
-//!   rings.
+//! - [`RAPIDR`], [`RAPIDR_DARK`], [`RAPIDR_HIGH_CONTRAST`]: RapidR's own
+//!   look — every program's unless it names another (`$THEME rapidr`, or
+//!   none), the one RapidR Studio draws itself in: flat controls with thin
+//!   borders and rounded corners, RapidR's blue ([`ACCENT`]) for what's
+//!   chosen, focus rings, thin scroll bars, a light window frame; Inter
+//!   for RapidQ's default font ([`Theme::ui_face`]). Light, dark and high
+//!   contrast (Windows' High Contrast Black: white on black, cyan
+//!   selections, yellow for what's under the mouse and the focus, green for
+//!   what's disabled, every control framed, thick focus rings); `rapidr`
+//!   alone follows the system's setting ([`Choice::Auto`]). The same on
+//!   every OS and on the web. Vector shapes only; no artwork.
+//! - [`CLASSIC`]: Windows' classic look, RapidQ's (`$THEME classic`). Its
+//!   tokens are the very colours the kernel drew before there were themes:
+//!   an old program looks as it always did, pixel for pixel.
 //!
-//! A theme only changes how things are drawn: never a size, a place or a
-//! font (a form's layout, ClientWidth, TextWidth and AutoSize are the same
-//! in every theme), and a colour the program chose (Color, Font.Color) is
-//! the program's in every theme, as in RapidQ.
+//! A theme only changes how things are drawn: never a size or a place (a
+//! form's layout, its components' sizes, ClientWidth / ClientHeight are
+//! the same in every theme; text measures in the face the theme draws it
+//! in), and a colour the program chose (Color, Font.Color) is the program's
+//! in every theme, as in RapidQ — Windows' system colours (clBtnFace,
+//! clWindow …) are the theme's ([`Theme::system_color`]).
 //!
 //! The current theme is the UI thread's ([`current`], [`set`]); `$THEME`,
-//! `Application.Theme` and `RAPIDR_THEME` name one ([`choose`]). The web
-//! runtime never sets it: it draws the shared models in the classic colours
-//! (its DOM is styled by rrcss) until it moves onto the kernel.
+//! `Application.Theme` and `RAPIDR_THEME` name one ([`choose`]).
 
 use std::cell::Cell;
 
@@ -55,6 +56,15 @@ pub struct Theme {
     pub look: Look,
     /// A dark look (the system's window frames follow where they can).
     pub dark: bool,
+    /// A high-contrast look (the state said by shape and strong colour).
+    pub contrast: bool,
+    /// The face RapidQ's default font (MS Sans Serif, MS Shell Dlg, a font
+    /// with no name) is drawn and measured in, and how much larger, its
+    /// pixel size times this (`objects::text::family_name`,
+    /// `Font::pixel_size`): `None` RapidR Sans at MS Sans Serif's sizes
+    /// (the classic look). Fonts a program names otherwise (Arial, Courier
+    /// New …) are the same in every theme.
+    pub ui_face: Option<(&'static str, f64)>,
 
     // ---- Windows' system colours (the names the classic look has) ----
     /// COLOR_BTNFACE: forms, buttons, panels, the menu bar.
@@ -175,6 +185,8 @@ pub const CLASSIC: Theme = Theme {
     name: "classic",
     look: Look::Classic,
     dark: false,
+    contrast: false,
+    ui_face: None,
     face: 0xF0F0F0,
     light: 0xFFFFFF,
     shadow: 0xA0A0A0,
@@ -238,12 +250,45 @@ pub const CLASSIC: Theme = Theme {
     ring_fields: false,
 };
 
-/// The modern look: Windows 11's light theme (Fluent), its translucent
-/// fills as they show over a window's background.
-pub const MODERN: Theme = Theme {
-    name: "modern",
+/// RapidR's blue (design/brand: "RapidR Blue"), the accent of RapidR's
+/// look: what's chosen, the default button, checked boxes, the active
+/// window's line — one token, every RapidR variant's accent derived from it.
+pub const ACCENT: u32 = 0x2F5BFF;
+
+/// `a` toward `b` by `permille` / 1000, per channel (rounded).
+pub const fn mix(a: u32, b: u32, permille: u32) -> u32 {
+    let mut out = 0;
+    let mut s = 0;
+    while s < 24 {
+        let (x, y) = ((a >> s) & 0xFF, (b >> s) & 0xFF);
+        let v = if y >= x { x + ((y - x) * permille + 500) / 1000 } else { x - ((x - y) * permille + 500) / 1000 };
+        out |= (v & 0xFF) << s;
+        s += 8;
+    }
+    out
+}
+
+/// The accent on a dark ground: RapidR's blue lightened to read there.
+const ACCENT_ON_DARK: u32 = mix(ACCENT, 0xFFFFFF, 400);
+
+/// The face RapidR's look draws RapidQ's default font in, and its size
+/// against MS Sans Serif's: Inter at MS Sans Serif's pixels (8 pt: 11).
+/// Inter is wider: at 11 pixels a text is about 10 % wider than RapidQ
+/// measured it, and of the RapidQ corpus' 539 texts in components of a
+/// fixed size 26 more no longer fit (12 pixels: 56, 13: 78 —
+/// `cargo run --release -p rapidr-designer --example caption_audit`).
+/// Inter's large x-height makes its 11 pixels read as Windows 11's
+/// Segoe UI 9 pt.
+pub const UI_FACE: Option<(&str, f64)> = Some(("Inter", 1.0));
+
+/// RapidR's look, light: RapidR Studio's — flat, light grey surfaces,
+/// white fields and lists, thin borders, rounded corners, RapidR's blue.
+pub const RAPIDR: Theme = Theme {
+    name: "rapidr light",
     look: Look::Fluent,
     dark: false,
+    contrast: false,
+    ui_face: UI_FACE,
     face: 0xF3F3F3,
     light: 0xFFFFFF,
     shadow: 0xD1D1D1,
@@ -252,19 +297,21 @@ pub const MODERN: Theme = Theme {
     window: 0xFFFFFF,
     text: 0x1B1B1B,
     gray_text: 0x8A8A8A,
-    highlight: 0x0067C0,
+    highlight: ACCENT,
     highlight_text: 0xFFFFFF,
     unfocused: 0xE6E6E6,
     unfocused_strong: 0xDADADA,
-    hot_text: 0x005FB8,
+    hot_text: mix(ACCENT, 0x000000, 200),
     hot: 0xF6F6F6,
     frame: 0x8A8A8A,
     focus: 0x1B1B1B,
-    toggled: 0x005FB8,
-    caption: 0x005FB8,
-    caption_text: 0xFFFFFF,
-    inactive_caption: 0xEBEBEB,
-    inactive_caption_text: 0x666666,
+    toggled: ACCENT,
+    // (a window's title bar: its surface touched by the accent while it's
+    // active, its title dimmed while it's not)
+    caption: mix(0xF3F3F3, ACCENT, 60),
+    caption_text: 0x1B1B1B,
+    inactive_caption: 0xF3F3F3,
+    inactive_caption_text: mix(0x1B1B1B, 0xF3F3F3, 350),
     menu: 0xF9F9F9,
     menu_text: 0x1B1B1B,
     menu_highlight: 0xEAEAEA,
@@ -276,7 +323,7 @@ pub const MODERN: Theme = Theme {
     track_pressed: 0xE6E6E6,
     channel: 0x8A8A8A,
     channel_edge: 0x8A8A8A,
-    slider: 0x005FB8,
+    slider: ACCENT,
     slider_edge: 0xE5E5E5,
     slider_disabled: 0xC5C5C5,
     ticks: 0x8A8A8A,
@@ -288,15 +335,15 @@ pub const MODERN: Theme = Theme {
     view_thumb_held: 0x5E5E5E,
     view_arrow: 0x8A8A8A,
     view_check: 0x5E5E5E,
-    accent: 0x005FB8,
+    accent: ACCENT,
     accent_text: 0xFFFFFF,
-    accent_hot: 0x196EBF,
-    accent_pressed: 0x317CC6,
+    accent_hot: mix(ACCENT, 0x000000, 100),
+    accent_pressed: mix(ACCENT, 0x000000, 200),
     control: 0xFDFDFD,
     control_hot: 0xF6F6F6,
     control_pressed: 0xF0F0F0,
     control_disabled: 0xF5F5F5,
-    selected: 0xE5EEF8,
+    selected: mix(0xFFFFFF, ACCENT, 120),
     selected_text: 0x1B1B1B,
     border: 0xD4D4D4,
     border_hot: 0xC4C4C4,
@@ -306,11 +353,13 @@ pub const MODERN: Theme = Theme {
     ring_fields: false,
 };
 
-/// The modern look, dark: Windows 11's dark theme.
-pub const DARK: Theme = Theme {
-    name: "dark",
+/// RapidR's look, dark.
+pub const RAPIDR_DARK: Theme = Theme {
+    name: "rapidr dark",
     look: Look::Fluent,
     dark: true,
+    contrast: false,
+    ui_face: UI_FACE,
     face: 0x202020,
     light: 0x454545,
     shadow: 0x151515,
@@ -319,19 +368,19 @@ pub const DARK: Theme = Theme {
     window: 0x2B2B2B,
     text: 0xFFFFFF,
     gray_text: 0x858585,
-    highlight: 0x0078D4,
+    highlight: ACCENT,
     highlight_text: 0xFFFFFF,
     unfocused: 0x3D3D3D,
     unfocused_strong: 0x454545,
-    hot_text: 0x60CDFF,
+    hot_text: ACCENT_ON_DARK,
     hot: 0x323232,
     frame: 0x9A9A9A,
     focus: 0xFFFFFF,
-    toggled: 0x60CDFF,
-    caption: 0x005A9E,
+    toggled: ACCENT_ON_DARK,
+    caption: mix(0x202020, ACCENT_ON_DARK, 100),
     caption_text: 0xFFFFFF,
-    inactive_caption: 0x2E2E2E,
-    inactive_caption_text: 0x9D9D9D,
+    inactive_caption: 0x202020,
+    inactive_caption_text: mix(0xFFFFFF, 0x202020, 350),
     menu: 0x2C2C2C,
     menu_text: 0xFFFFFF,
     menu_highlight: 0x3D3D3D,
@@ -343,7 +392,7 @@ pub const DARK: Theme = Theme {
     track_pressed: 0x3A3A3A,
     channel: 0x9A9A9A,
     channel_edge: 0x9A9A9A,
-    slider: 0x60CDFF,
+    slider: ACCENT_ON_DARK,
     slider_edge: 0x454545,
     slider_disabled: 0x5A5A5A,
     ticks: 0x9A9A9A,
@@ -355,15 +404,15 @@ pub const DARK: Theme = Theme {
     view_thumb_held: 0xC8C8C8,
     view_arrow: 0x9F9F9F,
     view_check: 0xC8C8C8,
-    accent: 0x60CDFF,
+    accent: ACCENT_ON_DARK,
     accent_text: 0x000000,
-    accent_hot: 0x5BB9E6,
-    accent_pressed: 0x56A6CD,
+    accent_hot: mix(ACCENT_ON_DARK, 0x000000, 100),
+    accent_pressed: mix(ACCENT_ON_DARK, 0x000000, 200),
     control: 0x2D2D2D,
     control_hot: 0x353535,
     control_pressed: 0x272727,
     control_disabled: 0x2A2A2A,
-    selected: 0x3A3F46,
+    selected: mix(0x2B2B2B, ACCENT, 220),
     selected_text: 0xFFFFFF,
     border: 0x434343,
     border_hot: 0x505050,
@@ -373,13 +422,16 @@ pub const DARK: Theme = Theme {
     ring_fields: false,
 };
 
-/// Windows' High Contrast Black: white on black, cyan selections, yellow
-/// for what's under the mouse and the focus, green for what's disabled;
-/// every control framed, thick focus rings.
-pub const HIGH_CONTRAST: Theme = Theme {
-    name: "highcontrast",
+/// RapidR's look, high contrast: Windows' High Contrast Black — white on
+/// black, cyan selections, yellow for what's under the mouse and the
+/// focus, green for what's disabled; every control framed, thick focus
+/// rings.
+pub const RAPIDR_HIGH_CONTRAST: Theme = Theme {
+    name: "rapidr high contrast",
     look: Look::Fluent,
     dark: true,
+    contrast: true,
+    ui_face: UI_FACE,
     face: 0x000000,
     light: 0xFFFFFF,
     shadow: 0xFFFFFF,
@@ -442,56 +494,53 @@ pub const HIGH_CONTRAST: Theme = Theme {
     ring_fields: true,
 };
 
-/// Every theme, the default first.
-pub const ALL: [&Theme; 4] = [&CLASSIC, &MODERN, &DARK, &HIGH_CONTRAST];
+/// Every theme, the default's variants first.
+pub const ALL: [&Theme; 4] = [&RAPIDR, &RAPIDR_DARK, &RAPIDR_HIGH_CONTRAST, &CLASSIC];
 
 /// What a `$THEME` / `Application.Theme` name asks for.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Choice {
     Theme(&'static Theme),
-    /// The system's: high contrast or dark when it is, else modern
-    /// ([`auto`]).
+    /// RapidR's look as the system is: high contrast or dark when it is,
+    /// else light ([`auto`]) — what a program that names no theme gets.
     Auto,
-    /// A name no theme has: the classic look (the runtime says so once).
+    /// A name no theme has: the default (the runtime says so once).
     Unknown,
 }
 
-/// The theme a name asks for (case, spaces, `-` and `_` ignored). Besides
-/// the four themes' own names, the names RapidR has accepted since `$THEME`
-/// came (v2.62.0: fltk-theme's themes and schemes, FLTK's schemes,
-/// platform names) go to the nearest look, and every name the classic look
-/// answers to now (v2.114.0: `Classic`, `System`, `Light`, `Windows`,
-/// `Win95`, `Win98`, `Win2K`) stays classic.
+/// The theme a name asks for (case, spaces, `-` and `_` ignored):
+///
+/// - RapidR's look: `rapidr` (and `""`, `system`, `auto`: as the system
+///   is), `rapidr light` (and `light`), `rapidr dark` (`dark`), `rapidr
+///   high contrast` (`high contrast`, `hc`). The names of the looks it grew
+///   from (`modern`, `fluent`, the platform names — Windows 7 – 11, macOS,
+///   the Linux desktops — and fltk-theme's and FLTK's schemes, accepted
+///   since v2.62.0) are its light variant.
+/// - The classic look: `classic`, `rapidq`, `windows`, `win95`, `win98`,
+///   `win2k` (and their long forms), `base`.
 pub fn choose(name: &str) -> Choice {
     let n: String = name.chars().filter(|c| !matches!(c, ' ' | '-' | '_')).flat_map(char::to_lowercase).collect();
     Choice::Theme(match n.as_str() {
-        "" | "classic" | "system" | "light" | "windows" | "win95" | "win98" | "win2k" | "windows95" | "windows98" | "win2000" | "windows2000" | "base" | "rapidq" => &CLASSIC,
-        // flat and light: Windows 7 – 11, macOS, the Linux desktops,
-        // fltk-theme's and FLTK's other looks
-        "modern" | "fluent" | "win11" | "windows11" | "win10" | "windows10" | "metro" | "win8" | "windows8" | "aero" | "win7" | "windows7" | "aqua" | "aquaclassic" | "mac"
-        | "macos" | "linux" | "greybird" | "xfce" | "gtk" | "gleam" | "clean" | "crystal" | "svg" | "sweet" | "fleet1" | "fleet2" | "plastic" | "oxy" | "blue" => &MODERN,
-        "dark" | "darkmode" | "moderndark" | "night" => &DARK,
-        "highcontrast" | "contrast" | "hc" | "highcontrastblack" => &HIGH_CONTRAST,
-        // RapidR's own look (ROADMAP Phase 3B: the default to come), in its
-        // three variants — light, dark, high contrast — today's modern,
-        // dark and highcontrast; `rapidr` alone follows the system's setting
-        "rapidrlight" => &MODERN,
-        "rapidrdark" => &DARK,
-        "rapidrhighcontrast" | "rapidrcontrast" => &HIGH_CONTRAST,
-        "auto" | "rapidr" => return Choice::Auto,
+        "" | "rapidr" | "system" | "auto" => return Choice::Auto,
+        "classic" | "rapidq" | "windows" | "win95" | "win98" | "win2k" | "windows95" | "windows98" | "win2000" | "windows2000" | "base" => &CLASSIC,
+        "rapidrlight" | "light" | "modern" | "fluent" | "win11" | "windows11" | "win10" | "windows10" | "metro" | "win8" | "windows8" | "aero" | "win7" | "windows7"
+        | "aqua" | "aquaclassic" | "mac" | "macos" | "linux" | "greybird" | "xfce" | "gtk" | "gleam" | "clean" | "crystal" | "svg" | "sweet" | "fleet1" | "fleet2"
+        | "plastic" | "oxy" | "blue" => &RAPIDR,
+        "rapidrdark" | "dark" | "darkmode" | "moderndark" | "night" => &RAPIDR_DARK,
+        "rapidrhighcontrast" | "rapidrcontrast" | "highcontrast" | "contrast" | "hc" | "highcontrastblack" => &RAPIDR_HIGH_CONTRAST,
         _ => return Choice::Unknown,
     })
 }
 
-/// `auto`'s theme for what the system says: high contrast, dark, else
-/// the modern look.
+/// RapidR's look for what the system says: high contrast, dark, else
+/// light.
 pub fn auto(dark: bool, high_contrast: bool) -> &'static Theme {
     if high_contrast {
-        &HIGH_CONTRAST
+        &RAPIDR_HIGH_CONTRAST
     } else if dark {
-        &DARK
+        &RAPIDR_DARK
     } else {
-        &MODERN
+        &RAPIDR
     }
 }
 
@@ -499,22 +548,39 @@ thread_local! {
     /// The UI thread's theme (`None` until it's first asked for), and how
     /// many times it changed.
     static CURRENT: Cell<(Option<&'static Theme>, u64)> = const { Cell::new((None, 0)) };
-    /// `auto` was asked for and the system hasn't said yet how it looks
+    /// RapidR's look waits for the system to say how it looks
     /// ([`wants_system`]).
     static WANTS_SYSTEM: Cell<bool> = const { Cell::new(false) };
+    /// The user's `RAPIDR_THEME` where a process has no environment (a
+    /// browser page's, [`set_user_choice`]).
+    static USER_CHOICE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
 }
 
-/// The theme of a program that names none: the user's `RAPIDR_THEME`
-/// (any name [`choose`] knows; `auto` the modern look until the system
-/// answers, [`system_answer`]), else the classic look.
-fn default_theme() -> &'static Theme {
-    match choose(&std::env::var("RAPIDR_THEME").unwrap_or_default()) {
-        Choice::Theme(t) => t,
-        Choice::Auto => {
-            WANTS_SYSTEM.with(|w| w.set(true));
-            &MODERN
+/// The user's `RAPIDR_THEME` for a host without a process environment (a
+/// web page's), before anything is drawn.
+pub fn set_user_choice(name: Option<String>) {
+    USER_CHOICE.with(|u| *u.borrow_mut() = name);
+    // (a theme already taken as the default's: the user's instead)
+    if CURRENT.with(|c| c.get().0.is_some()) && WANTS_SYSTEM.with(Cell::get) {
+        let chosen = default_theme();
+        if !matches!(choose(&USER_CHOICE.with(|u| u.borrow().clone()).unwrap_or_default()), Choice::Auto | Choice::Unknown) {
+            WANTS_SYSTEM.with(|w| w.set(false));
         }
-        Choice::Unknown => &CLASSIC,
+        switch(chosen);
+    }
+}
+
+/// The theme of a program that names none: the user's `RAPIDR_THEME` (any
+/// name [`choose`] knows), else RapidR's look as the system is — light
+/// until the system answers ([`system_answer`]).
+fn default_theme() -> &'static Theme {
+    let name = USER_CHOICE.with(|u| u.borrow().clone()).or_else(|| std::env::var("RAPIDR_THEME").ok()).unwrap_or_default();
+    match choose(&name) {
+        Choice::Theme(t) => t,
+        Choice::Auto | Choice::Unknown => {
+            WANTS_SYSTEM.with(|w| w.set(true));
+            &RAPIDR
+        }
     }
 }
 
@@ -530,27 +596,42 @@ pub fn current() -> &'static Theme {
     })
 }
 
-/// Draws with `theme` from now on (what the program named: the system's
-/// look is no longer waited for).
+/// Draws with `theme` from now on (a theme the program named: the
+/// system's look is no longer followed).
 pub fn set(theme: &'static Theme) {
-    let now = current();
+    current();
     WANTS_SYSTEM.with(|w| w.set(false));
-    if now != theme {
+    switch(theme);
+}
+
+fn switch(theme: &'static Theme) {
+    if current() != theme {
         CURRENT.with(|c| c.set((Some(theme), c.get().1 + 1)));
     }
 }
 
-/// Whether `auto` (`RAPIDR_THEME`'s) waits for the system's look: the
-/// desktop runtime then answers with [`system_answer`].
+/// RapidR's look as the system is, from now on (`$THEME rapidr`): what
+/// it says now — dark, high contrast — and what it says later
+/// ([`system_answer`]).
+pub fn follow_system(dark: bool, high_contrast: bool) {
+    current();
+    WANTS_SYSTEM.with(|w| w.set(true));
+    switch(auto(dark, high_contrast));
+}
+
+/// Whether the theme follows the system's look (RapidR's look, named by
+/// no theme or `rapidr`): the host then tells it how the system looks,
+/// at the start and whenever that changes ([`system_answer`]).
 pub fn wants_system() -> bool {
     current();
     WANTS_SYSTEM.with(Cell::get)
 }
 
-/// The system's look (dark, high contrast), for `auto`.
+/// How the system looks (dark, high contrast), for a theme that follows
+/// it.
 pub fn system_answer(dark: bool, high_contrast: bool) {
-    if WANTS_SYSTEM.with(Cell::get) {
-        set(auto(dark, high_contrast));
+    if wants_system() {
+        switch(auto(dark, high_contrast));
     }
 }
 
@@ -640,6 +721,8 @@ impl Theme {
             name: _,
             look: _,
             dark: _,
+            contrast: _,
+            ui_face: _,
             face,
             light,
             shadow,
@@ -785,84 +868,140 @@ mod tests {
         }
     }
 
+    /// Every pair of a theme's text and what it's drawn on, by name.
+    fn text_pairs(t: &Theme) -> Vec<(&'static str, u32, u32)> {
+        vec![
+            ("text on face", t.text, t.face),
+            ("text on window", t.text, t.window),
+            ("text on control", t.text, t.control),
+            ("text on control (hot)", t.text, t.control_hot),
+            ("highlight", t.highlight_text, t.highlight),
+            ("menu", t.menu_text, t.menu),
+            ("menu highlight", t.menu_highlight_text, t.menu_highlight),
+            ("caption", t.caption_text, t.caption),
+            ("selected", t.selected_text, t.selected),
+            ("accent", t.accent_text, t.accent),
+            ("accent (hot)", t.accent_text, t.accent_hot),
+            ("accent (pressed)", t.accent_text, t.accent_pressed),
+            ("pressed", t.text_on(t.control_pressed), t.control_pressed),
+            ("hot text on window", t.hot_text, t.window),
+        ]
+    }
+
     #[test]
-    fn text_reads_on_every_new_theme() {
-        // WCAG 2.x AA (4.5:1) for text; high contrast: AAA (7:1). (The
-        // classic look is Windows' as it was, and stays so.)
-        for t in [&MODERN, &DARK, &HIGH_CONTRAST] {
-            let need = if *t == HIGH_CONTRAST { 7.0 } else { 4.5 };
-            let pairs = [
-                ("text on face", t.text, t.face),
-                ("text on window", t.text, t.window),
-                ("text on control", t.text, t.control),
-                ("highlight", t.highlight_text, t.highlight),
-                ("menu", t.menu_text, t.menu),
-                ("menu highlight", t.menu_highlight_text, t.menu_highlight),
-                ("caption", t.caption_text, t.caption),
-                ("selected", t.selected_text, t.selected),
-            ];
-            for (what, fg, bg) in pairs {
-                assert!(contrast(fg, bg) >= need, "{}: {what} {:.2}", t.name, contrast(fg, bg));
-            }
-            // (a pressed button's text: the theme's, or what reads on it)
-            for (what, fg, bg) in [("accent", t.accent_text, t.accent), ("pressed", t.text_on(t.control_pressed), t.control_pressed)] {
-                assert!(contrast(fg, bg) >= need, "{}: {what} {:.2}", t.name, contrast(fg, bg));
+    fn text_reads_on_every_theme() {
+        // WCAG 2.x: AA (4.5:1) for text in every theme, AAA (7:1) in high
+        // contrast.
+        for t in ALL {
+            let need = if t.contrast { 7.0 } else { 4.5 };
+            for (what, fg, bg) in text_pairs(t) {
+                // (the classic look is Windows' as it was: its selection,
+                // white on 0078D7, is 4.497:1 — WCAG's 4.5 by a rounding)
+                if t.look == Look::Classic && bg == 0x0078D7 {
+                    assert!(contrast(fg, bg) >= 4.49, "{what}");
+                    continue;
+                }
+                assert!(contrast(fg, bg) >= need, "{}: {what} {fg:06X} on {bg:06X}: {:.2}", t.name, contrast(fg, bg));
             }
             // (what's disabled, the focus ring, the strong borders and the
-            // accent show: 3:1, WCAG's non-text contrast)
-            for (what, fg, bg) in [("disabled", t.gray_text, t.face), ("focus", t.focus, t.face), ("rim", t.border_strong, t.window), ("accent", t.accent, t.face)] {
-                assert!(contrast(fg, bg) >= 3.0, "{}: {what} {:.2}", t.name, contrast(fg, bg));
+            // accent show: 3:1, WCAG's non-text contrast — RapidR's look)
+            if t.fluent() {
+                for (what, fg, bg) in [("disabled", t.gray_text, t.face), ("focus", t.focus, t.face), ("rim", t.border_strong, t.window), ("accent", t.accent, t.face)] {
+                    assert!(contrast(fg, bg) >= 3.0, "{}: {what} {:.2}", t.name, contrast(fg, bg));
+                }
+                // (an inactive window's title: still text)
+                assert!(contrast(t.inactive_caption_text, t.inactive_caption) >= need, "{}: inactive caption", t.name);
             }
         }
         // (High Contrast Black: Windows' own colours)
-        assert_eq!((HIGH_CONTRAST.face, HIGH_CONTRAST.text, HIGH_CONTRAST.highlight, HIGH_CONTRAST.hot_text, HIGH_CONTRAST.gray_text), (0, 0xFFFFFF, 0x1AEBFF, 0xFFFF00, 0x3FF23F));
-        assert!(HIGH_CONTRAST.focus_width > MODERN.focus_width);
+        let hc = &RAPIDR_HIGH_CONTRAST;
+        assert_eq!((hc.face, hc.text, hc.highlight, hc.hot_text, hc.gray_text), (0, 0xFFFFFF, 0x1AEBFF, 0xFFFF00, 0x3FF23F));
+        assert!(hc.focus_width > RAPIDR.focus_width);
+        // (the classic look's inactive caption — Windows' white on grey,
+        // 3.9:1 — is the one pair under AA, kept as Windows drew it)
+        assert!(contrast(CLASSIC.inactive_caption_text, CLASSIC.inactive_caption) < 4.5);
+    }
+
+    #[test]
+    fn one_accent() {
+        assert_eq!((RAPIDR.accent, RAPIDR.highlight, RAPIDR.toggled, RAPIDR.slider), (ACCENT, ACCENT, ACCENT, ACCENT));
+        assert_eq!(RAPIDR_DARK.highlight, ACCENT);
+        assert_eq!(RAPIDR_DARK.accent, mix(ACCENT, 0xFFFFFF, 400));
+        assert_eq!(mix(0x000000, 0xFFFFFF, 500), 0x808080);
+        assert_eq!(mix(0x123456, 0xABCDEF, 0), 0x123456);
+        assert_eq!(mix(0x123456, 0xABCDEF, 1000), 0xABCDEF);
     }
 
     #[test]
     fn names_go_to_the_nearest_look() {
-        for n in ["", "Classic", "SYSTEM", "light", "Windows", "win95", "Win98", "Win2K", "base"] {
+        for n in ["", "rapidr", "RapidR", "System", "auto"] {
+            assert_eq!(choose(n), Choice::Auto, "{n}");
+        }
+        for n in ["Classic", "rapidq", "Windows", "win95", "Win98", "Win2K", "base"] {
             assert_eq!(choose(n), Choice::Theme(&CLASSIC), "{n}");
         }
-        for n in ["modern", "Fluent", "win11", "metro", "aero", "aquaclassic", "greybird", "gleam", "plastic", "blue"] {
-            assert_eq!(choose(n), Choice::Theme(&MODERN), "{n}");
+        for n in ["rapidr light", "RapidR-Light", "light", "modern", "Fluent", "win11", "metro", "aero", "aquaclassic", "greybird", "gleam", "plastic", "blue"] {
+            assert_eq!(choose(n), Choice::Theme(&RAPIDR), "{n}");
         }
-        assert_eq!(choose("Dark"), Choice::Theme(&DARK));
-        for n in ["highcontrast", "High Contrast", "high-contrast", "HC"] {
-            assert_eq!(choose(n), Choice::Theme(&HIGH_CONTRAST), "{n}");
+        for n in ["rapidr dark", "RapidR_Dark", "Dark"] {
+            assert_eq!(choose(n), Choice::Theme(&RAPIDR_DARK), "{n}");
         }
-        assert_eq!(choose("auto"), Choice::Auto);
-        assert_eq!(choose("RapidR"), Choice::Auto);
-        assert_eq!(choose("rapidr light"), Choice::Theme(&MODERN));
-        assert_eq!(choose("RapidR-Dark"), Choice::Theme(&DARK));
-        assert_eq!(choose("rapidr high contrast"), Choice::Theme(&HIGH_CONTRAST));
+        for n in ["rapidr high contrast", "rapidr-high-contrast", "highcontrast", "High Contrast", "high-contrast", "HC"] {
+            assert_eq!(choose(n), Choice::Theme(&RAPIDR_HIGH_CONTRAST), "{n}");
+        }
         assert_eq!(choose("purple"), Choice::Unknown);
-        assert_eq!((auto(false, false), auto(true, false), auto(true, true), auto(false, true)), (&MODERN, &DARK, &HIGH_CONTRAST, &HIGH_CONTRAST));
+        assert_eq!((auto(false, false), auto(true, false), auto(true, true), auto(false, true)), (&RAPIDR, &RAPIDR_DARK, &RAPIDR_HIGH_CONTRAST, &RAPIDR_HIGH_CONTRAST));
+        // (RapidR's look draws RapidQ's default font in Inter; the classic
+        // look in RapidR Sans)
+        assert_eq!(CLASSIC.ui_face, None);
+        assert!(ALL.iter().filter(|t| t.fluent()).all(|t| t.ui_face.is_some_and(|(face, _)| face == "Inter")));
     }
 
     #[test]
-    fn the_current_theme_and_text_on_the_programs_colours() {
-        assert_eq!(current(), &CLASSIC);
+    fn the_current_theme_follows_the_system_until_one_is_named() {
+        // (a program that names no theme: RapidR's look, light until the
+        // system says otherwise; RAPIDR_THEME isn't set under cargo test)
+        if std::env::var_os("RAPIDR_THEME").is_none() {
+            assert_eq!(current(), &RAPIDR);
+            assert!(wants_system());
+        }
         let g = generation();
-        set(&DARK);
-        assert_eq!((current().name, generation()), ("dark", g + 1));
-        set(&DARK);
-        assert_eq!(generation(), g + 1);
-        // `auto` waiting for the system (RAPIDR_THEME=auto): its answer
-        // decides; once answered, or a theme named, it's no longer asked.
-        WANTS_SYSTEM.with(|w| w.set(true));
-        assert!(wants_system());
-        system_answer(false, true);
-        assert_eq!((current(), wants_system()), (&HIGH_CONTRAST, false));
         system_answer(true, false);
-        assert_eq!(current(), &HIGH_CONTRAST);
+        assert_eq!(current(), &RAPIDR_DARK);
+        system_answer(false, true);
+        assert_eq!((current(), wants_system()), (&RAPIDR_HIGH_CONTRAST, true));
+        // a theme named: the system no longer followed
         set(&CLASSIC);
+        assert!(generation() > g);
+        let g = generation();
+        system_answer(true, false);
+        assert_eq!((current(), generation(), wants_system()), (&CLASSIC, g, false));
+        set(&CLASSIC);
+        assert_eq!(generation(), g);
+        // `$THEME rapidr`: followed again
+        follow_system(false, false);
+        assert_eq!((current(), wants_system()), (&RAPIDR, true));
+        system_answer(true, false);
+        assert_eq!(current(), &RAPIDR_DARK);
+        set(&CLASSIC);
+    }
+
+    #[test]
+    fn text_on_the_programs_colours() {
         // The classic look: RapidQ's black, whatever it's on.
         assert_eq!(CLASSIC.text_on(0x000000), 0x000000);
         // Dark: white on its own colours, black on a white the program chose.
-        assert_eq!(DARK.text_on(DARK.face), 0xFFFFFF);
-        assert_eq!(DARK.text_on(0xFFFFFF), 0x000000);
-        assert_eq!(MODERN.text_on(0x000080), 0xFFFFFF);
+        assert_eq!(RAPIDR_DARK.text_on(RAPIDR_DARK.face), 0xFFFFFF);
+        assert_eq!(RAPIDR_DARK.text_on(0xFFFFFF), 0x000000);
+        assert_eq!(RAPIDR.text_on(0x000080), 0xFFFFFF);
         assert_eq!(bgr(0x0078D7), 0xD77800);
+    }
+
+    #[test]
+    fn system_colours_are_the_themes() {
+        // clBtnFace (15), clWindow (5), clWindowText (8), clHighlight (13)
+        for t in ALL {
+            assert_eq!((t.system_color(15), t.system_color(5), t.system_color(8), t.system_color(13)), (t.face, t.window, t.text, t.highlight), "{}", t.name);
+        }
     }
 }

@@ -859,7 +859,7 @@ fn a_theme_changes_no_geometry() {
 
 #[test]
 fn switching_the_theme_repaints_in_the_new_one() {
-    use rapidr_value::theme::{self, CLASSIC, DARK};
+    use rapidr_value::theme::{self, CLASSIC, RAPIDR_DARK as DARK};
     let s = themed_store();
     let mut ts = TextSystem::new();
     let mut f = FormUi::build(&s, "tf", false);

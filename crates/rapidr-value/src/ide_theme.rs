@@ -1,4 +1,4 @@
-//! The four themes extended for an IDE (RapidR Studio, docs/ide-plan.md I1):
+//! The themes extended for an IDE (RapidR Studio, docs/ide-plan.md I1):
 //! the chrome the theme's system colours don't name — a tool bar, a status
 //! bar that says what the program under development is doing, a start
 //! page — and the code editor's colours, per theme. The docking chrome is
@@ -12,12 +12,13 @@
 //! - **classic** (Delphi 7 / Visual Basic 6): grey tool and status bars,
 //!   VB6's code colours (the colours RCODEEDITOR always drew: classic
 //!   programs look the same).
-//! - **modern** (Visual Studio 2022 / Xcode, light): flat bars on the
-//!   window's face, an accent-blue status bar that turns green while the
-//!   program runs and orange while it is paused in the debugger.
-//! - **dark**: the same, dark (the editor in Visual Studio Code's Dark+
-//!   colours).
-//! - **highcontrast**: black, white text and borders, the state said in
+//! - **rapidr light** (Visual Studio 2022 / Xcode, light): flat bars on
+//!   the window's face, a status bar in RapidR's blue (the theme's accent)
+//!   that turns green while the program runs and orange while it is
+//!   paused in the debugger.
+//! - **rapidr dark**: the same, dark (the editor in Visual Studio Code's
+//!   Dark+ colours).
+//! - **rapidr high contrast**: black, white text and borders, the state said in
 //!   words (never by colour alone), the editor in High Contrast Black's
 //!   colours.
 
@@ -157,11 +158,14 @@ const CONTRAST_EDITOR: EditorColors = EditorColors {
 
 /// The editor's colours in `t`.
 pub fn editor(t: &Theme) -> EditorColors {
-    match t.name {
-        "modern" => MODERN_EDITOR,
-        "dark" => DARK_EDITOR,
-        "highcontrast" => CONTRAST_EDITOR,
-        _ => CLASSIC_EDITOR,
+    if t.look == Look::Classic {
+        CLASSIC_EDITOR
+    } else if t.contrast {
+        CONTRAST_EDITOR
+    } else if t.dark {
+        DARK_EDITOR
+    } else {
+        MODERN_EDITOR
     }
 }
 
@@ -190,8 +194,8 @@ pub fn ide(t: &Theme) -> IdeColors {
             editor,
         };
     }
-    match t.name {
-        "highcontrast" => IdeColors {
+    if t.contrast {
+        return IdeColors {
             toolbar: 0x000000,
             toolbar_border: 0xFFFFFF,
             separator: 0xFFFFFF,
@@ -209,12 +213,15 @@ pub fn ide(t: &Theme) -> IdeColors {
             card: 0x000000,
             card_border: 0xFFFFFF,
             editor,
-        },
-        "dark" => IdeColors {
+        };
+    }
+    if t.dark {
+        return IdeColors {
             toolbar: t.face,
             toolbar_border: 0x2B2B2B,
             separator: 0x3D3D3D,
-            status: 0x005A9E,
+            // (RapidR's blue itself: white reads on it)
+            status: crate::theme::ACCENT,
             status_text: 0xFFFFFF,
             status_running: 0x0E7A0D,
             status_debugging: 0xB4500E,
@@ -224,31 +231,30 @@ pub fn ide(t: &Theme) -> IdeColors {
             page_text: 0xE6E6E6,
             page_dim: 0x9D9D9D,
             page_heading: 0xFFFFFF,
-            page_link: 0x60CDFF,
+            page_link: t.accent,
             card: 0x2B2B2B,
             card_border: 0x3D3D3D,
             editor,
-        },
-        // modern, and a fluent theme added later
-        _ => IdeColors {
-            toolbar: t.face,
-            toolbar_border: 0xE5E5E5,
-            separator: 0xD1D1D1,
-            status: 0x005FB8,
-            status_text: 0xFFFFFF,
-            status_running: 0x0F7B0F,
-            status_debugging: 0xC4500E,
-            status_error: 0xC42B1C,
-            status_state_text: 0xFFFFFF,
-            page: 0xFFFFFF,
-            page_text: 0x1B1B1B,
-            page_dim: 0x616161,
-            page_heading: 0x1B1B1B,
-            page_link: 0x005FB8,
-            card: 0xF9F9F9,
-            card_border: 0xE5E5E5,
-            editor,
-        },
+        };
+    }
+    IdeColors {
+        toolbar: t.face,
+        toolbar_border: 0xE5E5E5,
+        separator: 0xD1D1D1,
+        status: t.accent,
+        status_text: 0xFFFFFF,
+        status_running: 0x0F7B0F,
+        status_debugging: 0xC4500E,
+        status_error: 0xC42B1C,
+        status_state_text: 0xFFFFFF,
+        page: 0xFFFFFF,
+        page_text: 0x1B1B1B,
+        page_dim: 0x616161,
+        page_heading: 0x1B1B1B,
+        page_link: t.hot_text,
+        card: 0xF9F9F9,
+        card_border: 0xE5E5E5,
+        editor,
     }
 }
 
@@ -338,8 +344,8 @@ mod tests {
     #[test]
     fn colours_by_name() {
         assert_eq!(color_by_name(&CLASSIC, "Face"), Some(CLASSIC.face));
-        assert_eq!(color_by_name(&crate::theme::DARK, "statusbar.running"), Some(0x0E7A0D));
-        assert_eq!(color_by_name(&crate::theme::MODERN, "Editor Keyword"), Some(0x0000FF));
+        assert_eq!(color_by_name(&crate::theme::RAPIDR_DARK, "statusbar.running"), Some(0x0E7A0D));
+        assert_eq!(color_by_name(&crate::theme::RAPIDR, "Editor Keyword"), Some(0x0000FF));
         assert_eq!(color_by_name(&CLASSIC, "nope"), None);
     }
 }

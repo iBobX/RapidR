@@ -318,6 +318,8 @@ mod tests {
     use super::*;
 
     fn ms8() -> Font {
+        // (RapidQ's own metrics: the classic look's face)
+        crate::theme::set(&crate::theme::CLASSIC);
         Font { name: "MS Sans Serif".into(), size: 8, color: 0, styles: 0 }
     }
 
