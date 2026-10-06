@@ -28,7 +28,21 @@ for a in sys.argv[2:]:
             mouse(Quartz.kCGEventLeftMouseDragged,x1+(x2-x1)*k/10,y1+(y2-y1)*k/10); time.sleep(0.03)
         mouse(Quartz.kCGEventLeftMouseUp,x2,y2)
     elif kind=="k":
-        for d in (True,False): Quartz.CGEventPost(Quartz.kCGHIDEventTap,Quartz.CGEventCreateKeyboardEvent(None,int(arg),d)); time.sleep(0.05)
+        # k:code or k:code+cmd+shift+alt+ctrl (modifiers held)
+        code,*mods=arg.split("+")
+        flags=0
+        for m in mods: flags|={"cmd":Quartz.kCGEventFlagMaskCommand,"shift":Quartz.kCGEventFlagMaskShift,"alt":Quartz.kCGEventFlagMaskAlternate,"ctrl":Quartz.kCGEventFlagMaskControl}[m]
+        for d in (True,False):
+            e=Quartz.CGEventCreateKeyboardEvent(None,int(code),d)
+            if flags: Quartz.CGEventSetFlags(e,flags)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
+    elif kind=="t":
+        # t:text — each character typed (as the keyboard's Unicode string)
+        for ch in arg:
+            for d in (True,False):
+                e=Quartz.CGEventCreateKeyboardEvent(None,{" ":49,"\n":36}.get(ch,0),d)
+                if ch not in " \n": Quartz.CGEventKeyboardSetUnicodeString(e,len(ch),ch)
+                Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.03)
     elif kind=="s":
         subprocess.run(["screencapture","-x","-R%d,%d,%d,%d"%(b['X'],b['Y'],b['Width'],b['Height']),arg])
     time.sleep(0.3)

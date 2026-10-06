@@ -100,9 +100,9 @@ Kept exactly as today: Text, Lines, `Line(i)` (0-based), LineCount, SelStart, Se
 | Event | `OnSave` | Ctrl / Cmd+S inside the editor |
 | AI tools | read text / selection / range, find, replace range, apply edits (diff-previewed), go to line | §1.5 |
 
-### 3.2 RDiffView (I2)
+### 3.2 RDiffView (I2, built: `rapidr_value::objects::diffview`, kernel `components/diffview.rs`)
 
-`LeftText`, `RightText`, `Language`, `Mode` (`"split"`, `"inline"`), `HunkCount`, `AcceptHunk(i)`, `RejectHunk(i)`, `AcceptAll`, `RejectAll`, `ResultText`; `OnHunkChange(i, Accepted)`. Used by the AI flow, "compare with saved" and merge conflicts.
+`LeftText`, `RightText` (setting either compares again; CR LF → LF), `Language` (an id, a file name or a definition file; default `"rapidq-basic"`), `Mode` (`"split"`, `"inline"`), `HunkCount`, `CurrentHunk` (0-based, -1: none; setting it scrolls there), `ResultText` (the left text with the accepted hunks' right lines — undecided counts as rejected), `AcceptedCount`, `RejectedCount`; `AcceptHunk(i)`, `RejectHunk(i)`, `AcceptAll`, `RejectAll`, `HunkState(i)` (1 / -1 / 0), `NextHunk`, `PreviousHunk` (wrap around; give the index); `OnHunkChange(Index, Accepted)` — the user's decisions only. The diff is our own Myers (linear space, lines only one side has set aside first; 2 × 20,000 lines with 100 changes in ~18 ms release); hunks have no context lines; paired lines get character marks. Keys: F7 / Alt+Down, Shift+F7 / Alt+Up, Enter / Ctrl+Y accept, Backspace / Ctrl+N reject (then the next hunk), arrows, Page Up / Down, Home / End. Used by the AI flow, "compare with saved" and merge conflicts.
 
 ### 3.3 RFormDesigner (I4) and the existing RDESIGNSURFACE
 

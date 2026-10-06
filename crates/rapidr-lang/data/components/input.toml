@@ -741,6 +741,56 @@ events = [
 
 
 [[component]]
+name = "RDIFFVIEW"
+visual = true
+size = [500, 300]
+default_event = "OnHunkChange"
+sets = ["layout", "a11y", "generic"]
+doc = "Two texts compared line by line, the way a code review shows them: side by side or in one column, the removed lines tinted on one side and the added lines on the other, the changed characters marked, in the language's syntax colours. Each run of changes (a hunk) has Accept and Reject buttons; ResultText is the text the decisions give. RapidR's own; RapidR Studio's assistant and \"compare with saved\" use it."
+properties = [
+  { name = "LeftText", type = "string", default = "", category = "Data", doc = "The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF." },
+  { name = "RightText", type = "string", default = "", category = "Data", doc = "The changed text (the right side), compared with LeftText." },
+  { name = "Language", type = "string", default = "rapidq-basic", category = "Appearance", doc = "How the text is coloured: a language id (\"rapidq-basic\", \"sql\", \"json\" …), a file name whose extension says (\"query.sql\"), or a language definition file (.toml). Reading it gives the id." },
+  { name = "Mode", type = "string", default = "split", category = "Appearance", doc = "\"split\" shows the two texts side by side, \"inline\" in one column (a hunk's removed lines, then its added ones). The line at the top of the view stays there when it changes." },
+  { name = "HunkCount", type = "int", access = "read", design = false, category = "Data", doc = "How many hunks there are: runs of changed lines between unchanged ones (two changes with no unchanged line between them are one hunk)." },
+  { name = "CurrentHunk", type = "int", design = false, category = "Data", doc = "The hunk the keyboard works on, from 0 (-1 when there are none). Setting it scrolls that hunk into view." },
+  { name = "ResultText", type = "string", access = "read", design = false, category = "Data", doc = "LeftText with every accepted hunk's lines replaced by RightText's. An undecided hunk counts as rejected: its left lines stay." },
+  { name = "AcceptedCount", type = "int", access = "read", design = false, category = "Data", doc = "How many hunks are accepted." },
+  { name = "RejectedCount", type = "int", access = "read", design = false, category = "Data", doc = "How many hunks are rejected." },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Hint", type = "string" },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+]
+methods = [
+  { name = "AcceptHunk", params = "Index AS INTEGER", doc = "Accepts hunk Index (from 0): its right-side lines go into ResultText. Fires no OnHunkChange (only the user's decisions do)." },
+  { name = "RejectHunk", params = "Index AS INTEGER", doc = "Rejects hunk Index (from 0): its left-side lines stay in ResultText." },
+  { name = "AcceptAll", value = true, doc = "Accepts every hunk: ResultText is then RightText." },
+  { name = "RejectAll", value = true, doc = "Rejects every hunk: ResultText is then LeftText." },
+  { name = "HunkState", params = "Index AS INTEGER", returns = "INTEGER", doc = "Hunk Index's state: 1 accepted, -1 rejected, 0 undecided (and 0 for an index out of range)." },
+  { name = "NextHunk", returns = "INTEGER", value = true, doc = "Makes the next hunk the current one (after the last, the first) and scrolls it into view, as F7 does; gives its index (-1: no hunks)." },
+  { name = "PreviousHunk", returns = "INTEGER", value = true, doc = "Makes the previous hunk the current one (before the first, the last) and scrolls it into view, as Shift+F7 does; gives its index." },
+  { name = "SetFocus", value = true, doc = "Gives the view the keyboard: F7 / Shift+F7 (or Alt+Down / Alt+Up) go from hunk to hunk, Enter or Ctrl+Y accepts the current one, Backspace or Ctrl+N rejects it, the arrows, Page Up / Page Down, Home and End scroll." },
+  { name = "Repaint", doc = "Draws the view again." },
+]
+events = [
+  { name = "OnHunkChange", params = "Index AS INTEGER, Accepted AS INTEGER", doc = "The user accepted (Accepted = True) or rejected (False) hunk Index, with its button, a key or a screen reader. The program's own AcceptHunk / RejectHunk / AcceptAll / RejectAll don't fire it." },
+  { name = "OnClick" },
+  { name = "OnKeyDown" },
+  { name = "OnKeyUp" },
+  { name = "OnKeyPress" },
+]
+
+[[component]]
 name = "RCOOLBTN"
 rapidq = "QCOOLBTN"
 visual = true

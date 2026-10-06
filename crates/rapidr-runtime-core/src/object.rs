@@ -523,7 +523,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
             picture_changed(name);
         }
         #[cfg(feature = "gui")]
-        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
+        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) || rapidr_value::objects::is_diff(name) {
             crate::ui::redraw_widget(name);
         }
         #[cfg(feature = "gui")]
@@ -1148,7 +1148,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             if method_lower == "flip" {
                 crate::ui::redraw_widget(name);
             }
-        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
+        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) || rapidr_value::objects::is_diff(name) {
             crate::ui::redraw_widget(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);

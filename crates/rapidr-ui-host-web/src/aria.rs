@@ -23,7 +23,7 @@
 //! kernel's focused node, so screen readers announce what the kernel
 //! focused (Tab itself is the kernel's).
 
-use rapidr_value::objects::a11y::{AccessNode, Orientation, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action, Orientation, Role};
 
 /// The ARIA role for a kernel role (`None`: the element's own).
 pub fn aria_role(role: Role) -> Option<&'static str> {
@@ -58,6 +58,11 @@ pub fn aria_role(role: Role) -> Option<&'static str> {
 
 /// Whether the node takes the DOM focus when the kernel focuses it.
 fn focusable(n: &AccessNode) -> bool {
+    // (a group that takes the focus itself — RDIFFVIEW — takes the DOM's,
+    // so its keys reach it)
+    if n.role == Role::Group && n.actions.contains(&Action::Focus) {
+        return true;
+    }
     !matches!(n.role, Role::Window | Role::Dialog | Role::Pane | Role::Group | Role::Label | Role::Canvas | Role::Image | Role::Status | Role::Unknown)
 }
 

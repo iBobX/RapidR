@@ -52,7 +52,7 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
         }
         // (items, selection, cells, pictures, pens …: the shared models)
         "RPANEL" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" | "RIMAGE" | "RCANVAS" | "RDXSCREEN" | "RSTRINGGRID" | "RTABCONTROL" | "RTREEVIEW"
-        | "RGROUPBOX" | "RSPLITTER" | "RSCROLLBOX" | "RLISTVIEW" | "RTOOLBAR" | "RCODEEDITOR" => {
+        | "RGROUPBOX" | "RSPLITTER" | "RSCROLLBOX" | "RLISTVIEW" | "RTOOLBAR" | "RCODEEDITOR" | "RDIFFVIEW" => {
             put("left", v_int(0));
             put("top", v_int(0));
         }
@@ -269,6 +269,11 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
             put("text", v_str(""));
             put("visible", v_bool(true));
         }
+        // (I2: its texts and hunks are its model's — objects::diffview)
+        "RDIFFVIEW" => {
+            put("visible", v_bool(true));
+            put("enabled", v_bool(true));
+        }
         "RGROUPBOX" => {
             put("caption", v_str(""));
             put("visible", v_bool(true));
@@ -433,7 +438,7 @@ pub fn is_windowed(type_name: &str) -> bool {
         type_name.to_ascii_uppercase().as_str(),
         "RPANEL" | "RBEVEL" | "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RSCROLLBOX" | "RTABCONTROL"
             | "RGROUPBOX" | "RCHECKBOX" | "RRADIOBUTTON" | "RLISTVIEW" | "RTREEVIEW" | "RFILELISTBOX" | "RDIRTREE" | "RSTATUSBAR" | "RTRACKBAR"
-            | "RSCROLLBAR" | "RPROGRESSBAR" | "RHEADER" | "RDXSCREEN" | "RCODEEDITOR" | "RFORM"
+            | "RSCROLLBAR" | "RPROGRESSBAR" | "RHEADER" | "RDXSCREEN" | "RCODEEDITOR" | "RDIFFVIEW" | "RFORM"
     )
 }
 

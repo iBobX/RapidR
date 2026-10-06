@@ -47,6 +47,7 @@ pub mod glass;
 // (Stage 10: the IDE's)
 pub mod codeeditor;
 pub mod design;
+pub mod diffview;
 // (I1: RapidR Studio's docking)
 pub mod dock;
 
@@ -111,6 +112,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),
     ("RDOCKDOCS", &dock::DockDocs),
+    // (I2: the diff view — rapidr_value::objects::diffview)
+    ("RDIFFVIEW", &diffview::DiffViewBox),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

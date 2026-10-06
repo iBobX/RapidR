@@ -140,6 +140,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         // RapidR's own
         "RPROGRESS" => (200, 25),
         "RCODEEDITOR" | "RWEBVIEW" => (400, 300),
+        "RDIFFVIEW" => (500, 300),
         "RDESIGNSURFACE" => (640, 480),
         "RPLOT" => (600, 400),
         // (the web's own elements: the DOM runtime's 100 × 25)

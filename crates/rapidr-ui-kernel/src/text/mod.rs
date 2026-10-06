@@ -34,7 +34,7 @@ pub use editor::{Align, Look, Pos, RunStyle, Span, TextEditor};
 pub struct Ink(pub u32);
 
 /// GDI's TextOut: no kerning, no ligatures.
-pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off";
+pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off, \"calt\" off";
 
 /// The font database and parley's scratch space, shared by every component
 /// of every form (making either is costly).

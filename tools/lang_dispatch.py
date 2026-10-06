@@ -107,6 +107,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/d3d/mod.rs", "face_call"): "RD3DFACE",
     ("crates/rapidr-value/src/objects/d3d/mod.rs", "light_call"): "RD3DLIGHT",
     ("crates/rapidr-value/src/objects/design.rs", "*"): "RDESIGNSURFACE",
+    ("crates/rapidr-value/src/objects/diffview.rs", "*"): "RDIFFVIEW",
     ("crates/rapidr-value/src/objects/directx.rs", "DxScreen"): "RDXSCREEN",
     ("crates/rapidr-value/src/objects/directx.rs", "DxSound"): "RDXSOUND",
     ("crates/rapidr-value/src/objects/dirtree.rs", "*"): "RDIRTREE",

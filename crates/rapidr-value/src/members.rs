@@ -85,6 +85,9 @@ const TABS: &[&str] = &["addtabs", "tab"];
 /// (I1) RDOCKMANAGER's (crate::dock): `L$ = Dock.SaveLayout`.
 const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal", "tilevertical", "arrangeicons", "nextdocument", "previousdocument"];
 
+/// (I2) RDIFFVIEW's (crate::objects::diffview): `N = Diff.NextHunk`.
+const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
+
 /// The web's own components.
 const WEB: &[&str] = &[
     "sethtml", "navigate", "appendto", "setattribute", "getattribute",
@@ -116,6 +119,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
         "RDOCKMANAGER" => &[DOCK],
+        "RDIFFVIEW" => &[DIFF],
         "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" => &[IO],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
         | "RWEBGEOLOCATION" | "RROUTER" => &[WEB],
@@ -126,7 +130,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF]
         .iter()
         .any(|list| list.contains(&member))
 }

@@ -37,6 +37,7 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | <img src="../icons/light/components/datetimepicker.svg" width="20" height="20" alt=""> | [`RDATETIMEPICKER`](members.md#rdatetimepicker) | — | RapidR | everywhere |
 | <img src="../icons/light/components/trackbar.svg" width="20" height="20" alt=""> | [`RTRACKBAR`](members.md#rtrackbar) | `QTRACKBAR` | RapidQ | everywhere |
 | <img src="../icons/light/components/codeeditor.svg" width="20" height="20" alt=""> | [`RCODEEDITOR`](members.md#rcodeeditor) | — | RapidR | everywhere |
+| <img src="../icons/light/components/diffview.svg" width="20" height="20" alt=""> | [`RDIFFVIEW`](members.md#rdiffview) | — | RapidR | everywhere |
 | <img src="../icons/light/components/coolbtn.svg" width="20" height="20" alt=""> | [`RCOOLBTN`](members.md#rcoolbtn) | `QCOOLBTN` | RapidQ | everywhere |
 | <img src="../icons/light/components/ovalbtn.svg" width="20" height="20" alt=""> | [`ROVALBTN`](members.md#rovalbtn) | `QOVALBTN` | RapidQ | everywhere |
 
@@ -190,4 +191,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QTHREAD`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTRANSIMAGE`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-98 components; 74 of them have a RapidQ name.
+99 components; 74 of them have a RapidQ name.
