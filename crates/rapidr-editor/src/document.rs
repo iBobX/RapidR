@@ -66,6 +66,10 @@ pub struct Document {
     saved: Option<usize>,
     text_cache: OnceLock<Arc<str>>,
     last_typed: Option<CharClass>,
+    /// Every change set applied since the last [`Document::take_applied`]
+    /// (edits, undo and redo), while a view tracks them
+    /// ([`Document::track_changes`]).
+    applied: Option<Vec<ChangeSet>>,
 }
 
 impl Clone for Document {
@@ -85,6 +89,7 @@ impl Clone for Document {
             saved: self.saved,
             text_cache: OnceLock::new(),
             last_typed: self.last_typed,
+            applied: self.applied.as_ref().map(|_| Vec::new()),
         }
     }
 }
@@ -114,7 +119,21 @@ impl Document {
             saved: Some(0),
             text_cache: OnceLock::new(),
             last_typed: None,
+            applied: None,
         }
+    }
+
+    /// Keeps (or stops keeping) every change set applied, for
+    /// [`Document::take_applied`]: a view maps its marks (markers,
+    /// diagnostics, folds) through them.
+    pub fn track_changes(&mut self, on: bool) {
+        self.applied = on.then(Vec::new);
+    }
+
+    /// The change sets applied since the last call, in order (each in the
+    /// coordinates of the text it was applied to).
+    pub fn take_applied(&mut self) -> Vec<ChangeSet> {
+        self.applied.as_mut().map(std::mem::take).unwrap_or_default()
     }
 
     /// A document for a file: its language from the path.
@@ -346,6 +365,9 @@ impl Document {
         });
         self.version += 1;
         self.text_cache = OnceLock::new();
+        if let Some(log) = &mut self.applied {
+            log.push(changes.clone());
+        }
         removed
     }
 
