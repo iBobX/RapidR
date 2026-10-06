@@ -451,6 +451,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RGROUPBOX" | "RHEADER" => Role::Group,
         // (I1: a dock manager's groups and its document area — rapidr_value::dock)
         "RDOCKGROUP" | "RDOCKDOCS" => Role::Group,
+        // (I2: its hunks as groups with Accept / Reject buttons)
+        "RDIFFVIEW" => Role::Group,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
@@ -471,6 +473,7 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
+            | "RDIFFVIEW"
     )
 }
 

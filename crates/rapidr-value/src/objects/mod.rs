@@ -19,6 +19,7 @@ pub mod comport;
 pub mod codec;
 pub mod d3d;
 pub mod design;
+pub mod diffview;
 pub mod digdisplay;
 pub mod directx;
 pub mod download;
@@ -90,6 +91,9 @@ enum Object {
     /// RCODEEDITOR's document and view state (codeedit.rs); the UI kernel's
     /// code editor draws and edits it.
     Code(Box<codeedit::CodeEditor>),
+    /// RDIFFVIEW's texts, hunks and view (diffview.rs); the UI kernel's
+    /// diff view draws it.
+    Diff(Box<diffview::DiffView>),
     /// QTRACKBAR's range, position and ticks; the runtime draws its shapes.
     TrackBar(trackbar::TrackBar),
     /// QTABCONTROL's tabs and selection; the runtime draws its ops.
@@ -289,6 +293,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "REDIT" => Object::Text(textedit::TextEdit::new(false)),
         "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
         "RCODEEDITOR" => Object::Code(Box::default()),
+        "RDIFFVIEW" => Object::Diff(Box::default()),
         "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
         "RTABCONTROL" => Object::TabControl(tabcontrol::TabControl::default()),
         "RREGISTRY" => Object::Registry(crate::registry::Registry::default()),
@@ -539,6 +544,19 @@ pub fn with_code<R>(id: &str, f: impl FnOnce(&codeedit::CodeEditor) -> R) -> Opt
 pub fn with_code_mut<R>(id: &str, f: impl FnOnce(&mut codeedit::CodeEditor) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::Code(c) => Some(f(c)),
+        _ => None,
+    })?
+}
+
+/// Whether `id` is an RDIFFVIEW.
+pub fn is_diff(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Diff(_))).unwrap_or(false)
+}
+
+/// Reads or changes an RDIFFVIEW's model (its view's drawing and input).
+pub fn with_diff<R>(id: &str, f: impl FnOnce(&mut diffview::DiffView) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Diff(d) => Some(f(d)),
         _ => None,
     })?
 }
@@ -1022,6 +1040,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Printer(p) => p.get(&prop),
         Object::Text(t) => t.get(&prop),
         Object::Code(c) => c.get(&prop),
+        Object::Diff(d) => d.get(&prop),
         Object::TrackBar(t) => t.get(&prop),
         Object::TabControl(t) => t.get(&prop),
         Object::Registry(r) => r.get(&prop),
@@ -1132,6 +1151,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
         Object::Text(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Code(c) => c.set(&prop, val).then_some(Ok(())),
+        Object::Diff(d) => d.set(&prop, val).then_some(Ok(())),
         Object::TrackBar(t) => t.set(&prop, val).then_some(Ok(())),
         Object::TabControl(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Registry(r) => r.set(&prop, val).then_some(Ok(())),
@@ -1266,6 +1286,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Printer(_) => "printer",
         Object::Text(_) => "text",
         Object::Code(_) => "code",
+        Object::Diff(_) => "diff",
         Object::TrackBar(_) => "trackbar",
         Object::TabControl(_) => "tabcontrol",
         Object::Registry(_) => "registry",
@@ -1648,6 +1669,7 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Printer(p) => p.call(method, args),
         Object::Text(t) => t.call(method, args),
         Object::Code(c) => c.call(method, args),
+        Object::Diff(d) => d.call(method, args),
         Object::TrackBar(t) => t.call(method, args),
         Object::TabControl(t) => t.call(method, args),
         Object::Registry(r) => r.call(method, args),

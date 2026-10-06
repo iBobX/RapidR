@@ -1429,6 +1429,65 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 
+<a id="rdiffview"></a>
+## RDIFFVIEW
+
+Two texts compared line by line, the way a code review shows them: side by side or in one column, the removed lines tinted on one side and the added lines on the other, the changed characters marked, in the language's syntax colours. Each run of changes (a hunk) has Accept and Reject buttons; ResultText is the text the decisions give. RapidR's own; RapidR Studio's assistant and "compare with saved" use it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `LeftText` | string | `""` | The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF. |
+| `RightText` | string | `""` | The changed text (the right side), compared with LeftText. |
+| `Language` | string | `"rapidq-basic"` | How the text is coloured: a language id ("rapidq-basic", "sql", "json" …), a file name whose extension says ("query.sql"), or a language definition file (.toml). Reading it gives the id. |
+| `Mode` | string | `"split"` | "split" shows the two texts side by side, "inline" in one column (a hunk's removed lines, then its added ones). The line at the top of the view stays there when it changes. |
+| `HunkCount` (read-only) | int |  | How many hunks there are: runs of changed lines between unchanged ones (two changes with no unchanged line between them are one hunk). |
+| `CurrentHunk` | int |  | The hunk the keyboard works on, from 0 (-1 when there are none). Setting it scrolls that hunk into view. |
+| `ResultText` (read-only) | string |  | LeftText with every accepted hunk's lines replaced by RightText's. An undecided hunk counts as rejected: its left lines stay. |
+| `AcceptedCount` (read-only) | int |  | How many hunks are accepted. |
+| `RejectedCount` (read-only) | int |  | How many hunks are rejected. |
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `AcceptHunk(Index AS INTEGER)` | Accepts hunk Index (from 0): its right-side lines go into ResultText. Fires no OnHunkChange (only the user's decisions do). |
+| `RejectHunk(Index AS INTEGER)` | Rejects hunk Index (from 0): its left-side lines stay in ResultText. |
+| `AcceptAll` | Accepts every hunk: ResultText is then RightText. |
+| `RejectAll` | Rejects every hunk: ResultText is then LeftText. |
+| `HunkState(Index AS INTEGER) AS INTEGER` | Hunk Index's state: 1 accepted, -1 rejected, 0 undecided (and 0 for an index out of range). |
+| `NextHunk AS INTEGER` | Makes the next hunk the current one (after the last, the first) and scrolls it into view, as F7 does; gives its index (-1: no hunks). |
+| `PreviousHunk AS INTEGER` | Makes the previous hunk the current one (before the first, the last) and scrolls it into view, as Shift+F7 does; gives its index. |
+| `SetFocus` | Gives the view the keyboard: F7 / Shift+F7 (or Alt+Down / Alt+Up) go from hunk to hunk, Enter or Ctrl+Y accepts the current one, Backspace or Ctrl+N rejects it, the arrows, Page Up / Page Down, Home and End scroll. |
+| `Repaint` | Draws the view again. |
+| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
+| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+
+| Event | |
+|---|---|
+| `OnHunkChange(Index AS INTEGER, Accepted AS INTEGER)` | The user accepted (Accepted = True) or rejected (False) hunk Index, with its button, a key or a screen reader. The program's own AcceptHunk / RejectHunk / AcceptAll / RejectAll don't fire it. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+
 <a id="rcoolbtn"></a>
 ## RCOOLBTN (QCOOLBTN)
 
