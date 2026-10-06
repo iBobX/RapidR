@@ -127,7 +127,7 @@ export const cases = [
   // CopyRect, the header's and the form's TextRect, the selected item's
   // background stopping at its rectangle, the turned square.
   { name: "drawing_members", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=w30 h15 cb30 g30 get0 put0 000000FF 00FFFFFF"],
+    expect: ["lbl.caption=w24 h13 cb24 g24 get0 put0 000000FF 00FFFFFF"],
     pixels: [[109, 69, "ffff00"], [111, 75, "ffffff"], [70, 20, "ff0000"], [70, 60, "ffffff"], [135, 148, "000080"], [144, 135, "ffffff"], [88, 165, "ffff00"],
       [445, 120, "008000"], [451, 110, "f0f0f0"], [378, 198, "ffffcc"], [355, 57, "99ccff"], [363, 45, "ffffff"], [200, 50, "008000"]], clientWidth: 518 },
   { name: "dotted_paint", events: "", dump: "lbl.caption",

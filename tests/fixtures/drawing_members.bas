@@ -45,6 +45,7 @@ CREATE Form AS QFORM
     OnDrawCell = DrawCell
   END CREATE
   CREATE Head AS QHEADER
+    Align = alNone ' (RapidQ's QHEADER is alTop at first)
     Left = 280: Top = 100: Width = 220: Height = 24
     AddSections "Plain", "Owner"
     Sections(0).Width = 80
