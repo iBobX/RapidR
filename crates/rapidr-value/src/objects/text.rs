@@ -118,6 +118,12 @@ impl Scaled {
     }
 }
 
+/// The distance from a line's top to its text's baseline, and the line's
+/// height, in `font`, in pixels (the designer's baseline guides).
+pub fn line_metrics(font: &Font) -> (f32, f32) {
+    scaled(font).map_or((0.0, 0.0), |s| (s.ascent, s.height))
+}
+
 /// `TextWidth` / `TextHeight` of `text` in `font`, in pixels.
 pub fn text_size(text: &str, font: &Font) -> (i64, i64) {
     let Some(s) = scaled(font) else { return (0, 0) };

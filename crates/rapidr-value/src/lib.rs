@@ -30,6 +30,8 @@ pub mod format;
 pub mod toggle_group;
 pub mod objects;
 pub mod layout;
+// (I4) RapidR Studio's visual designer model, GUI-free.
+pub mod designer;
 pub mod members;
 pub mod scrollbars;
 pub mod theme;

@@ -7,12 +7,15 @@
 //! size or visibility changes, when the container is resized (by the
 //! program, or by maximizing / restoring a form), and when a form gets its
 //! main menu. Anchored children follow their parent's client area at the
-//! same moments (as on the desktop: [`client_changed`]).
+//! same moments (as on the desktop: [`client_changed`]). When all this
+//! happens is `rapidr_value::layout::engine`'s — the one sequence the
+//! desktop runtime and the IDE's designer run too; this file is this
+//! runtime's registry as its store ([`Rt`]).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 
-use rapidr_value::layout::{align_controls, anchor_controls, anchor_record, anchor_rules, splitter_drag, Align, Constraints, Control, Rect, SplitterDrag, DEFAULT_ANCHORS};
+use rapidr_value::layout::{anchor_rules, anchor_set, engine, splitter_drag, Align, AnchorRules, Constraints, Control, Rect, SplitterDrag, DEFAULT_ANCHORS};
 
 use crate::object_web::{get_children_of, rp_comp_get_stored, rp_comp_set, rp_comp_type};
 use crate::value::{v_int, Value};
@@ -28,12 +31,12 @@ thread_local! {
     static ANCHORED_PARENTS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
 }
 
-/// Runs `f` without its geometry stores laying anything out.
 /// Whether geometry is being stored internally (see [`quietly`]).
 pub fn is_quiet() -> bool {
     BUSY.with(Cell::get) > 0
 }
 
+/// Runs `f` without its geometry stores laying anything out.
 pub fn quietly<R>(f: impl FnOnce() -> R) -> R {
     BUSY.with(|b| b.set(b.get() + 1));
     let r = f();
@@ -85,74 +88,16 @@ fn anchor_parent_size(parent: &str) -> (i64, i64) {
     (r.width, r.height)
 }
 
-/// Records where `name` is for its Anchors (they changed, or the program
-/// placed it): from now on it follows its parent.
-fn anchor_here(name: &str) {
-    let anchors = anchors_of(name);
-    if anchors == DEFAULT_ANCHORS && anchor_rules(name).is_none() {
-        return;
-    }
-    let parent = parent_of(name);
-    let size = if parent.is_empty() { (0, 0) } else { anchor_parent_size(&parent) };
-    anchor_record(name, anchors, rect_of(name), size);
-    if anchors != DEFAULT_ANCHORS && !parent.is_empty() {
-        ANCHORED_PARENTS.with(|a| a.borrow_mut().insert(parent));
-    }
-}
-
 /// `parent`'s client area changed size: its aligned children are laid out
 /// again and its anchored ones follow.
 pub fn client_changed(parent: &str) {
-    realign(parent, None);
-    reanchor(parent);
+    engine::client_changed(&mut Rt, &parent.to_uppercase());
 }
 
 /// Moves `parent`'s anchored children to follow its client area
 /// (`rapidr_value::layout::anchor_controls`).
 pub fn reanchor(parent: &str) {
-    let parent = parent.to_uppercase();
-    if parent.is_empty() || !ANCHORED_PARENTS.with(|a| a.borrow().contains(&parent)) {
-        return;
-    }
-    let children = get_children_of(&parent);
-    let list: Vec<_> = children
-        .iter()
-        .map(|(n, _)| {
-            let rules = anchor_rules(n).filter(|r| r.anchors() == anchors_of(n));
-            (rules, rect_of(n), align_of(n), constraints_of(n))
-        })
-        .collect();
-    let moves = anchor_controls(anchor_parent_size(&parent), &list);
-    if moves.is_empty() {
-        return;
-    }
-    quietly(|| {
-        for (i, r) in &moves {
-            let name = &children[*i].0;
-            rp_comp_set(name, "left", v_int(r.left));
-            rp_comp_set(name, "top", v_int(r.top));
-            rp_comp_set(name, "width", v_int(r.width));
-            rp_comp_set(name, "height", v_int(r.height));
-        }
-    });
-    for (i, r) in moves {
-        let name = &children[i].0;
-        if (r.width, r.height) != (list[i].1.width, list[i].1.height) {
-            client_changed(name);
-            crate::scroll_web::update(name);
-        }
-    }
-    crate::scroll_web::update(&parent);
-}
-
-fn has_aligned_children(name: &str) -> bool {
-    ALIGNED_PARENTS.with(|a| a.borrow().contains(&name.to_uppercase()))
-}
-
-fn mark(parent: &str) {
-    if !parent.is_empty() {
-        ALIGNED_PARENTS.with(|a| a.borrow_mut().insert(parent.to_uppercase()));
-    }
+    engine::reanchor(&mut Rt, &parent.to_uppercase());
 }
 
 fn has_menu(form: &str) -> bool {
@@ -211,60 +156,92 @@ pub fn client_rect(parent: &str) -> Rect {
     Rect::new(0, 0, n("width"), n("height"))
 }
 
+/// This runtime's component registry as the layout engine's store.
+struct Rt;
+
+impl engine::LayoutStore for Rt {
+    fn rect(&self, name: &str) -> Rect {
+        rect_of(name)
+    }
+    fn align(&self, name: &str) -> Align {
+        align_of(name)
+    }
+    fn visible(&self, name: &str) -> bool {
+        visible(name)
+    }
+    fn anchors(&self, name: &str) -> i64 {
+        anchors_of(name)
+    }
+    fn constraints(&self, name: &str) -> Constraints {
+        constraints_of(name)
+    }
+    fn type_of(&self, name: &str) -> String {
+        rp_comp_type(name)
+    }
+    fn parent_of(&self, name: &str) -> String {
+        parent_of(name)
+    }
+    fn key(&self, name: &str) -> String {
+        name.to_uppercase()
+    }
+    fn children_of(&self, parent: &str) -> Vec<String> {
+        get_children_of(parent).into_iter().map(|(n, _)| n).collect()
+    }
+    fn client_rect(&self, parent: &str) -> Rect {
+        client_rect(parent)
+    }
+    fn anchor_area(&self, parent: &str) -> (i64, i64) {
+        anchor_parent_size(parent)
+    }
+    fn store_rect(&mut self, name: &str, r: Rect) {
+        quietly(|| {
+            rp_comp_set(name, "left", v_int(r.left));
+            rp_comp_set(name, "top", v_int(r.top));
+            rp_comp_set(name, "width", v_int(r.width));
+            rp_comp_set(name, "height", v_int(r.height));
+        });
+    }
+    fn rules(&self, name: &str) -> Option<AnchorRules> {
+        anchor_rules(name)
+    }
+    fn set_rules(&mut self, name: &str, rules: Option<AnchorRules>) {
+        anchor_set(name, rules);
+    }
+    fn has_aligned(&self, parent: &str) -> bool {
+        ALIGNED_PARENTS.with(|a| a.borrow().contains(&parent.to_uppercase()))
+    }
+    fn mark_aligned(&mut self, parent: &str) {
+        ALIGNED_PARENTS.with(|a| a.borrow_mut().insert(parent.to_uppercase()));
+    }
+    fn has_anchored(&self, parent: &str) -> bool {
+        ANCHORED_PARENTS.with(|a| a.borrow().contains(&parent.to_uppercase()))
+    }
+    fn mark_anchored(&mut self, parent: &str) {
+        ANCHORED_PARENTS.with(|a| a.borrow_mut().insert(parent.to_uppercase()));
+    }
+    fn scroll_update(&mut self, name: &str) {
+        crate::scroll_web::update(name);
+    }
+}
+
 /// Called by `rp_comp_set` after it stored `prop` (lowercase) of `name`.
 pub fn after_set(name: &str, prop: &str) {
-    if BUSY.with(Cell::get) > 0 {
+    if is_quiet() {
         return;
     }
     match prop {
-        "align" => {
-            let parent = parent_of(name);
-            if align_of(name) != Align::None {
-                mark(&parent);
-            }
-            realign(&parent, Some(name));
-        }
-        "anchors" => anchor_here(name),
-        "left" | "top" | "width" | "height" | "visible" => {
-            if prop != "visible" {
-                anchor_here(name);
-            }
-            if align_of(name) != Align::None {
-                realign(&parent_of(name), Some(name));
-            }
-            if matches!(prop, "width" | "height") {
-                client_changed(name);
-                crate::scroll_web::update(name);
-            }
-        }
         "borderstyle" if rp_comp_type(name) == "RFORM" => client_changed(name),
         // (a QSCROLLBOX's edge: its inside changed)
         "borderstyle" => {
             crate::scroll_web::update(name);
             reanchor(name);
         }
-        "parent" => {
-            let parent = parent_of(name);
-            anchor_here(name);
-            if align_of(name) != Align::None {
-                mark(&parent);
-                realign(&parent, Some(name));
-            } else if rp_comp_type(name) == "RMAINMENU" {
-                client_changed(&parent);
-            }
-        }
-        _ => {}
-    }
-    // A scrolling parent's bars follow its components (scroll_web.rs).
-    if matches!(prop, "align" | "left" | "top" | "width" | "height" | "visible" | "parent") {
-        crate::scroll_web::update(&parent_of(name));
+        _ => engine::after_set(&mut Rt, &name.to_uppercase(), prop),
     }
 }
 
-fn controls_of(parent: &str) -> (Vec<(String, String)>, Vec<Control>) {
-    let children = get_children_of(parent);
-    let controls = children.iter().map(|(n, _)| Control { align: align_of(n), visible: visible(n), rect: rect_of(n), constraints: constraints_of(n) }).collect();
-    (children, controls)
+fn controls_of(parent: &str) -> (Vec<String>, Vec<Control>) {
+    engine::controls_of(&Rt, &parent.to_uppercase())
 }
 
 thread_local! {
@@ -278,14 +255,14 @@ pub fn splitter_begin(splitter: &str) -> bool {
     let splitter = splitter.to_uppercase();
     let parent = parent_of(&splitter);
     let (children, controls) = controls_of(&parent);
-    let Some(i) = children.iter().position(|(n, _)| *n == splitter) else { return false };
+    let Some(i) = children.iter().position(|n| *n == splitter) else { return false };
     let min = match rp_comp_get_stored(&splitter, "minsize") {
         Value::Null => 30,
         v => v.to_i64().max(0),
     };
     let drag = splitter_drag(client_rect(&parent), &controls, i, min);
     let found = drag.is_some();
-    DRAG.with(|d| *d.borrow_mut() = drag.map(|g| (splitter, children[g.control].0.clone(), g)));
+    DRAG.with(|d| *d.borrow_mut() = drag.map(|g| (splitter, children[g.control].clone(), g)));
     found
 }
 
@@ -309,31 +286,5 @@ pub fn splitter_end() {
 /// Lays out the aligned children of `parent`; `changed` is the child whose
 /// Align, size or visibility just changed.
 pub fn realign(parent: &str, changed: Option<&str>) {
-    let parent = parent.to_uppercase();
-    if parent.is_empty() || !has_aligned_children(&parent) {
-        return;
-    }
-    let (children, controls) = controls_of(&parent);
-    let changed = changed.map(str::to_uppercase).and_then(|c| children.iter().position(|(n, _)| *n == c));
-    let moves: Vec<(String, Rect, bool)> = align_controls(client_rect(&parent), &controls, changed)
-        .into_iter()
-        .filter(|(i, r)| *r != controls[*i].rect)
-        .map(|(i, r)| {
-            let old = controls[i].rect;
-            (children[i].0.clone(), r, (old.width, old.height) != (r.width, r.height))
-        })
-        .collect();
-    quietly(|| {
-        for (name, r, _) in &moves {
-            rp_comp_set(name, "left", v_int(r.left));
-            rp_comp_set(name, "top", v_int(r.top));
-            rp_comp_set(name, "width", v_int(r.width));
-            rp_comp_set(name, "height", v_int(r.height));
-        }
-    });
-    for (name, _, resized) in moves {
-        if resized {
-            client_changed(&name);
-        }
-    }
+    engine::realign(&mut Rt, &parent.to_uppercase(), changed);
 }
