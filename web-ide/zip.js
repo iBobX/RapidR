@@ -161,7 +161,7 @@ function htaccessText() {
 `</IfModule>\n`;
 }
 
-export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm, title, assets, version, notices, fonts, frame }) {
+export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm, title, assets, version, notices, fonts }) {
   const t = title || projectName;
   // Accept rapidrintrJs as string OR as raw bytes (Uint8Array/ArrayBuffer)
   // — string is preferred (UTF-8 ESM source), bytes are pass-through.
@@ -198,13 +198,6 @@ export function buildBundleZip({ projectName, rrbc, rapidrintrJs, rapidrintrWasm
   // chunks its text needs.
   for (const [name, data] of Object.entries(fonts || {})) {
     if (data instanceof Uint8Array) files[name] = data;
-  }
-
-  // RDATAFRAME's engine ({ js, wasm }) for a program with data frames: the
-  // runtime loads it from beside the page before the program runs.
-  if (frame) {
-    files["rapidrframe.js"] = enc.encode(frame.js);
-    files["rapidrframe_bg.wasm"] = new Uint8Array(frame.wasm);
   }
 
   // Optional project-bundled assets — { name, bytes } or { name, dataUrl }.

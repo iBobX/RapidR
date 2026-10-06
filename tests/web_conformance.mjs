@@ -23,7 +23,9 @@ const filters = process.argv.slice(2);
 const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").trimEnd();
 
 const names = readdirSync(CASES).filter((f) => f.endsWith(".bas")).map((f) => f.slice(0, -4)).sort()
-  .filter((n) => existsSync(join(CASES, n + ".expected")) && !existsSync(join(CASES, n + ".input")))
+  // (not the ones with stdin or a command line: tests/web_bundle_console.mjs
+  // runs a page with a query string, the web's command line)
+  .filter((n) => existsSync(join(CASES, n + ".expected")) && !existsSync(join(CASES, n + ".input")) && !existsSync(join(CASES, n + ".args")))
   .filter((n) => !filters.length || filters.some((f) => n.includes(f)));
 
 const browser = await chromium.launch();

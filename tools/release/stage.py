@@ -11,7 +11,6 @@ finds its home from the executable by it):
                                         (`rapidr examples`: what git tracks of examples/)
     lib/rapidr/runners/<os>-<arch>/     rapidrintr-runner[w][.exe]      sdk
     lib/rapidr/web/                     rapidrintr.js, _bg.wasm         sdk
-                                        rapidrframe.js, _bg.wasm (RDATAFRAME)
     lib/rapidr/notices/<os>-<arch>.txt, web.txt   the THIRD-PARTY-NOTICES.txt
                                         builds carry (`rapidr notices`) sdk
     lib/rapidr/{Cargo.*,crates,vendor,…} the runtime's sources (home.py) sdk
@@ -89,8 +88,7 @@ def main():
             for name in names:
                 copy_exe(os.path.join(folder, f"{name}{exe}"), os.path.join(lib, "runners", target, f"{name}{exe}"))
         os.makedirs(os.path.join(lib, "web"))
-        # (and RDATAFRAME's engine, the module a bundle carries for data frames)
-        for f in ["rapidrintr.js", "rapidrintr_bg.wasm", "rapidrframe.js", "rapidrframe_bg.wasm"]:
+        for f in ["rapidrintr.js", "rapidrintr_bg.wasm"]:
             shutil.copy2(os.path.join(args.web, f), os.path.join(lib, "web", f))
         # (the web's fallback fonts, beside the interpreter: `rapidr build --web`
         # and `bundle-bc` copy them, never download — when the web build makes them)

@@ -109,8 +109,7 @@ impl Kind {
     pub fn roots(&self) -> (&'static [&'static str], &'static [&'static str]) {
         match self {
             Kind::Desktop(_) => (&["rapidr-runtime-core", "rapidr-runner-stub"], &[]),
-            // (and RDATAFRAME's engine, the module a page loads for data frames)
-            Kind::Web => (&["rapidr-vm-host-web", "rapidr-runtime-web", "rapidr-frame-web"], &[]),
+            Kind::Web => (&["rapidr-vm-host-web", "rapidr-runtime-web"], &[]),
             Kind::Tools(_) => (&["rapidr-cli", "rapidr-launcher"], &[]),
         }
     }

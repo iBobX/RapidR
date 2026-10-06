@@ -1,0 +1,11 @@
+count=4
+arg1=[a]
+arg2=[b c]
+arg3=[x=1]
+arg4=[/opt]
+arg5=[]
+neg=[]
+self ok
+exename ok
+bare=[a b c x=1 /opt]
+s=[b c]3

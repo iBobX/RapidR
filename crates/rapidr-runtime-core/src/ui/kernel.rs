@@ -875,11 +875,24 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
             #[cfg(feature = "datascience")]
             {
                 let plot = args.first().map(Value::to_string_val).unwrap_or_default();
-                // (the chart's pixels, and drawn again at the screen's scale for the screen)
-                if let Some((w, h)) = rapidr_ui_render::chart::load_into_picture(name, &plot) {
+                let png = crate::datascience::plot_render_to_bytes(&plot);
+                if !png.is_empty() {
+                    // (drawn again at the screen's scale for a high-DPI
+                    // screen: sharp, not enlarged)
+                    let redraw = crate::datascience::plot_redraw(&plot);
+                    let loaded = rapidr_value::objects::with_picture(name, |b| {
+                        b.load_bmp_bytes(&png)?;
+                        b.set_redraw(redraw);
+                        Ok::<(), String>(())
+                    });
+                    if let Some(Err(e)) = loaded {
+                        eprintln!("[rapidr] {name}.LoadFromPlot: {e}");
+                    }
                     if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
-                        rp_comp_set(name, "width", v_int(w));
-                        rp_comp_set(name, "height", v_int(h));
+                        if let Some((w, h)) = rapidr_value::objects::with_picture(name, |b| (b.img.width as i64, b.img.height as i64)) {
+                            rp_comp_set(name, "width", v_int(w));
+                            rp_comp_set(name, "height", v_int(h));
+                        }
                     }
                 }
             }

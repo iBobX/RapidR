@@ -452,7 +452,8 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] `rapidr dap` for VS Code and other DAP clients
 
 **I7 — Linked data and data science** (L, 18–26 sessions; the core in the first release)
-- [ ] One data-frame engine on every runtime (spike: polars on wasm vs our own engine) and RPlot drawn by the kernel (vector, accessible, identical on desktop and web) — replacing today's two implementations
+- [x] One data-science engine on every runtime (D7 decided: our own, `rapidr_value::datascience` — RNUM, RDATAFRAME and RPLOT's model shared by native, interpreted and web; polars and ndarray dropped; conformance cases `datascience_*` on all three runtimes)
+- [ ] RPlot drawn by the kernel (vector, accessible, identical on desktop and web) — replacing today's two renderers (plotters on the desktop, a canvas on the web) of the one chart model
 - [ ] Core: RDBConnection / RDBQuery / RDBTable (SQLite), RDataFile (CSV, JSON), `RDataFrame.Source`, RDFFilter / RDFSort / RDFGroup / RDFCompute, RDataSource, RDBGrid, RPlot's declarative binding — live at design time (read-only), with the tray, component-reference pickers and RDataPreview (schema, rows, quick stats)
 - [ ] Later: Parquet, MySQL at design time, RDFJoin / RDFSelect / RDFLimit, editable datasets with RDBEdit & co. and RDBNavigator, lookups, column-name completion in expressions
 

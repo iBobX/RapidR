@@ -1,7 +1,8 @@
-Sine x sin(x) 320x200 grid 1 series 3
-png saved: yes
-2x is larger: yes
-cleared: series 0, size kept 320x200
-series 3
-figsize 4x3 at 100 dpi: 400x300
-pie saved: yes
+|640 480 100 0
+Sine x sin(x) 1
+Waves angle value
+400 320
+7 300 80
+0
+|640
+done

@@ -236,8 +236,19 @@ pub fn rp_sleep(seconds: &Value) {
     }
 }
 
+/// A bare `COMMAND$` (RapidR's): the program's arguments, joined.
 pub fn rp_command() -> Value {
-    Value::String(crate::program::args().join(" "))
+    crate::value::command_line::command_line(&crate::program::args())
+}
+
+/// `COMMAND$(n)`: 0 the program, 1… its arguments (rapidr_value::command_line).
+pub fn rp_command_arg(n: &Value) -> Value {
+    crate::value::command_line::command_arg(&crate::program::path(), &crate::program::args(), n)
+}
+
+/// `CommandCount`.
+pub fn rp_commandcount() -> Value {
+    crate::value::command_line::command_count(&crate::program::args())
 }
 
 /// `ENVIRON$(name)` (rapidr_value::environ: the process's environment).

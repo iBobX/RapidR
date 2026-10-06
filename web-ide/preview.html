@@ -37,21 +37,6 @@
       send({ __rapidr_font: { id, file } });
     });
 
-    // (RDATAFRAME's engine, a wasm module of its own the runtime loads before
-    // a program with data frames runs — asked of the IDE too:
-    // crates/rapidr-runtime-web's frame_web.rs)
-    let frameWaiter = null;
-    window.RAPIDR_FRAME_LOAD = () => new Promise((resolve, reject) => {
-      frameWaiter = { resolve, reject };
-      send({ __rapidr_frame: true });
-    }).then(async ({ js, wasm }) => {
-      const url = URL.createObjectURL(new Blob([js], { type: "text/javascript" }));
-      const m = await import(url);
-      URL.revokeObjectURL(url);
-      await m.default({ module_or_path: wasm });
-      return m;
-    });
-
     const text = (args) => args.map((a) => {
       if (typeof a === "string") return a;
       try { return JSON.stringify(a); } catch { return String(a); }
@@ -149,15 +134,12 @@
           fontWaiters.delete(id);
           if (w) bytes ? w.resolve(bytes) : w.reject(new Error("no such font"));
         }
-        if (e.data?.__rapidr_frame_reply) {
-          const { js, wasm } = e.data.__rapidr_frame_reply;
-          const w = frameWaiter;
-          frameWaiter = null;
-          if (w) js && wasm ? w.resolve({ js, wasm }) : w.reject(new Error("the IDE has no data-frame module (runtime/rapidrframe.js)"));
-        }
       };
 
       window.__rapidr_assets = data.assets || {};
+      // (the program's command line — COMMAND$(n), CommandCount — is its
+      // own, never this frame's query string, which is the IDE's)
+      window.RAPIDR_ARGS = Array.isArray(data.args) ? data.args.map(String) : [];
       installStorage(data.storage);
 
       const url = URL.createObjectURL(new Blob([data.runtimeJs], { type: "text/javascript" }));

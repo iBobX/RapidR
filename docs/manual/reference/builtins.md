@@ -10,7 +10,7 @@ Marked *bare*: may be written without parentheses or arguments (`t = TIMER`).
 |---|---|
 | A | `ABS`, `ACOS`, `ASC`, `ASIN`, `ATAN`, `ATN` |
 | B | `BEEP`, `BIN` |
-| C | `CBOOL`, `CDBL`, `CEIL`, `CHDIR`, `CHDRIVE`, `CHR`, `CINT`, `CLNG`, `CLOSE`, `CLS`, `COLOR`, `COMMAND` *(bare)*, `CONVBASE`, `COS`, `CSNG`, `CSRLIN` *(bare)*, `CURDIR` *(bare)* |
+| C | `CBOOL`, `CDBL`, `CEIL`, `CHDIR`, `CHDRIVE`, `CHR`, `CINT`, `CLNG`, `CLOSE`, `CLS`, `COLOR`, `COMMAND` *(bare)*, `COMMANDCOUNT` *(bare)*, `CONVBASE`, `COS`, `CSNG`, `CSRLIN` *(bare)*, `CURDIR` *(bare)* |
 | D | `DATE` *(bare)*, `DELETE`, `DIR` *(bare)*, `DIREXISTS`, `DOEVENTS` |
 | E | `ENVIRON`, `EOF`, `EXP`, `EXTRACTRESOURCE` |
 | F | `FIELD`, `FILEEXISTS`, `FILELEN`, `FIX`, `FLOOR`, `FORMAT`, `FRAC`, `FREEFILE` *(bare)* |
@@ -27,4 +27,4 @@ Marked *bare*: may be written without parentheses or arguments (`t = TIMER`).
 | U | `UBOUND`, `UCASE` |
 | V | `VAL`, `VARTYPE` |
 
-119 names.
+120 names.

@@ -1,0 +1,9 @@
+# Plain text: no colours; folds by indentation.
+
+[language]
+id = "plaintext"
+name = "Plain text"
+extensions = ["txt", "text", "log"]
+
+[folding]
+offside = true

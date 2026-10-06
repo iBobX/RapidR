@@ -18,9 +18,6 @@ fi
 export AR_wasm32_unknown_unknown="${AR_wasm32_unknown_unknown:-$ROOT/tools/wasm-ar.sh}"
 
 echo "Building combined wasm (rapidr-vm-host-web → rapidrintr) …"
-# (wasm-pack optimizes every .wasm in its output folder: the data-frame
-# module, built below its own way, isn't there yet)
-rm -f "$ROOT"/target/web/rapidrframe*
 # wasm SIMD (docs/web-host-plan.md §3.4, Stage W3): the UI kernel's CPU
 # renderer (vello_cpu's fearless_simd) runs on simd128 — 2.4–2.8× faster
 # for the same pixels — and every 2026 browser has it, so the build is
@@ -33,10 +30,6 @@ wasm-pack build interpreter/rapidr-vm-host-web \
     --out-name rapidrintr \
     --release
 
-# RDATAFRAME's engine (polars), a module of its own the runtime loads only
-# for programs that use data frames (docs/ide-plan.md, D7).
-"$ROOT/tools/build_frame_module.sh" "$ROOT/target/web"
-
 # The fallback fonts (fonts/fallback, docs/web-host-plan.md §3.7): Noto's
 # chunks beside the runtime, loaded by a page as its text needs them. The
 # CJK ones are fetched once into target/fonts-src (offline: left out, and
@@ -48,4 +41,4 @@ echo "Writing the web runtime's THIRD-PARTY-NOTICES.txt …"
 RAPIDR_HOME="$ROOT" cargo run --quiet -p rapidr-cli -- notices web -o "$ROOT/target/web/THIRD-PARTY-NOTICES.txt"
 
 echo "Done. Artifacts in target/web/"
-ls -lh target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/rapidrframe_bg.wasm target/web/THIRD-PARTY-NOTICES.txt
+ls -lh target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt

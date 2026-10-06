@@ -18,9 +18,6 @@
 <script type="module">
   // (the fallback fonts beside the runtime: crates/rapidr-runtime-web's fonts_web.rs)
   window.RAPIDR_FONTS = new URL("../target/web/fonts/", location.href).href;
-  // (RDATAFRAME's engine, loaded before a program with data frames runs:
-  // crates/rapidr-runtime-web's frame_web.rs)
-  window.RAPIDR_FRAME = new URL("../target/web/rapidrframe.js", location.href).href;
   const rt = await import("../target/web/rapidrintr.js");
   await rt.default();
   window.rr = rt;

@@ -1,0 +1,122 @@
+# Rust (also RapidR's RUSTSTART … RUSTEND blocks, embedded in BASIC).
+
+[language]
+id = "rust"
+name = "Rust"
+extensions = ["rs"]
+line_comment = ["//"]
+block_comment = ["/*", "*/"]
+word = '[A-Za-z_][A-Za-z0-9_]*'
+
+[brackets]
+pairs = [["(", ")"], ["[", "]"], ["{", "}"]]
+auto_close = [["(", ")"], ["[", "]"], ["{", "}"], ['"', '"']]
+
+[indent]
+increase = '[\{\[\(]\s*(//.*)?$'
+decrease = '^\s*[\}\]\)]'
+
+[folding]
+brackets = true
+
+[keywords]
+"keyword.control" = ["if", "else", "match", "loop", "while", "for", "in", "break", "continue", "return", "yield", "await"]
+keyword = ["as", "async", "const", "crate", "dyn", "enum", "extern", "fn", "impl", "let", "mod", "move", "mut", "pub", "ref", "self", "Self", "static", "struct", "super", "trait", "type", "unsafe", "use", "where", "macro_rules"]
+type = ["bool", "char", "str", "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "f32", "f64"]
+constant = ["true", "false", "None", "Some", "Ok", "Err"]
+
+[defaults]
+block_comment = "comment"
+string = "string"
+raw0 = "string"
+raw1 = "string"
+raw2 = "string"
+
+[[states.root]]
+match = '//.*$'
+token = "comment"
+[[states.root]]
+match = '/\*'
+token = "comment"
+push = "block_comment"
+[[states.root]]
+match = 'b?r"'
+token = "string"
+push = "raw0"
+[[states.root]]
+match = 'b?r#"'
+token = "string"
+push = "raw1"
+[[states.root]]
+match = 'b?r##"'
+token = "string"
+push = "raw2"
+[[states.root]]
+match = 'b?"'
+token = "string"
+push = "string"
+[[states.root]]
+match = "b?'(\\\\(x[0-9a-fA-F]{2}|u\\{[0-9a-fA-F]{1,6}\\}|.)|[^\\\\'])'"
+token = "string"
+[[states.root]]
+match = "'[A-Za-z_][A-Za-z0-9_]*"
+token = "label"
+[[states.root]]
+match = '#!?\[[^\]]*\]?'
+token = "directive"
+[[states.root]]
+match = '0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+|[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9_]+)?'
+token = "number"
+[[states.root]]
+match = '[A-Za-z_][A-Za-z0-9_]*!'
+token = "function.macro"
+[[states.root]]
+match = '[A-Z][A-Za-z0-9_]*'
+token = "type"
+keywords = true
+[[states.root]]
+match = '[a-z_][A-Za-z0-9_]*'
+token = "text"
+keywords = true
+[[states.root]]
+match = '[-+*/%=<>!&|^~?@]+'
+token = "operator"
+[[states.root]]
+match = '[{}()\[\],;:.]'
+token = "punctuation"
+
+# block comments nest
+[[states.block_comment]]
+match = '/\*'
+token = "comment"
+push = "block_comment"
+[[states.block_comment]]
+match = '\*/'
+token = "comment"
+pop = true
+
+[[states.string]]
+match = '\\(x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]{1,6}\}|.|$)'
+token = "string.escape"
+[[states.string]]
+match = '"'
+token = "string"
+pop = true
+
+[[states.raw0]]
+match = '"'
+token = "string"
+pop = true
+[[states.raw1]]
+match = '"#'
+token = "string"
+pop = true
+[[states.raw2]]
+match = '"##'
+token = "string"
+pop = true
+
+[[snippets]]
+prefix = "fn"
+body = "fn ${1:name}(${2}) {\n\t$0\n}"
+description = "A function"

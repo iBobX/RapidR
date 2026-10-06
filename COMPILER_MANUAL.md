@@ -194,7 +194,9 @@ ops); `layout` (Align, Anchors, constraints); `theme`; `registry`
 (QREGISTRY's per-user store and Windows' registry); `globals` (Screen,
 Application, Clipboard, Mouse); `events`, `input`; `dialogs`, `mdi`,
 `window_state`, `tray`, `memory`, `component_defaults`, `members`
-(method-or-property reads).
+(method-or-property reads); `datascience` (RNUM, RDATAFRAME, RPLOT: arrays,
+frames with their CSV / JSON readers and printed form, the charts' model —
+a runtime adds only PRINT, grids and drawing through `datascience::Host`).
 
 A runtime's job is to store components, call these models, and pass input
 and drawing to its host.
@@ -235,14 +237,15 @@ the device scale.
 - **`rapidr-runtime-core`** (desktop): `object.rs` (the component store and
   `rp_comp_*` dispatch), `builtins.rs`, `ui/` (the facade over the kernel
   host: `kernel.rs`, `kernel_store.rs`, `program.rs`), `datascience.rs`
-  (ndarray, polars, plotters), `network.rs` (sockets, RHTTP over the
+  (the shared data-science model's desktop side: PRINT, grids, plotters
+  charts), `network.rs` (sockets, RHTTP over the
   system's TLS), `io.rs` / `serial.rs`, `media.rs`, `sound.rs` (rodio,
   nanomp3), `directx.rs`, `joystick*`, `ffi.rs` (DLL calls, native builds
   only), `terminal.rs`. Features (all on by default): `database`, `network`, `gui`, `datascience`, `audio`, `ffi`, `gamepad`.
 - **`rapidr-runtime-web`**: the same API for wasm — `object_web.rs`,
   `kernel_web.rs` (the kernel host, the VM's waits), `overlay_web.rs`,
   `dialog_web.rs`, `database_web.rs` (SQLite in wasm), `network_web.rs`
-  (fetch, WebSocket), `datascience_web.rs` (its own implementation),
+  (fetch, WebSocket), `datascience_web.rs` (the shared model's web side: charts on a canvas),
   `webapi_web.rs` (web-only components), `fonts_web.rs`, `tray_web.rs`.
 
 ## 9. The CLI, the Runtime and installs

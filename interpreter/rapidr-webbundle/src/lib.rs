@@ -49,17 +49,6 @@ pub struct BundleInputs<'a> {
     /// The web runtime's `THIRD-PARTY-NOTICES.txt` (RapidR's licence and
     /// every open-source component's notices: `rapidr notices web`).
     pub notices: &'a str,
-    /// RDATAFRAME's engine (`rapidrframe.js`, `rapidrframe_bg.wasm`:
-    /// crates/rapidr-frame-web) for a program that uses data frames — the
-    /// runtime loads it from beside the page before the program runs.
-    pub frame: Option<(&'a str, &'a [u8])>,
-}
-
-/// Whether a program (its bytecode) uses RDATAFRAME: its bundle then
-/// carries the data-frame module.
-pub fn uses_frames(rrbc: &[u8]) -> bool {
-    let needle = b"RDATAFRAME";
-    rrbc.windows(needle.len()).any(|w| w.eq_ignore_ascii_case(needle))
 }
 
 /// The page around a program (a bundle's, a `rapidr build --web` site's):
@@ -114,10 +103,6 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
         write_file(&mut zw, "ansi_screen.js", ANSI_SCREEN_JS.as_bytes(), deflated)?;
         for (name, data) in inputs.fonts {
             write_file(&mut zw, &format!("fonts/{name}"), data, stored)?;
-        }
-        if let Some((js, wasm)) = inputs.frame {
-            write_file(&mut zw, "rapidrframe.js", js.as_bytes(), deflated)?;
-            write_file(&mut zw, "rapidrframe_bg.wasm", wasm, deflated)?;
         }
 
         zw.finish().map_err(|e| format!("zip finish: {e}"))?;
@@ -220,7 +205,6 @@ mod tests {
             assets: None,
             fonts: &[],
             notices: "THIRD-PARTY SOFTWARE NOTICES AND LICENCES",
-            frame: Some(("export default async function init(){};", &[0x00, 0x61, 0x73, 0x6d])),
         })
         .expect("bundle");
         // Smoke: zip starts with PK header and is non-trivial.
@@ -228,7 +212,7 @@ mod tests {
         assert_eq!(&bytes[0..2], b"PK");
         // Quick check that file names appear in the central dir.
         let s = String::from_utf8_lossy(&bytes);
-        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "THIRD-PARTY-NOTICES.txt", "bundle_console.js", "ansi_screen.js", "rapidrframe.js", "rapidrframe_bg.wasm"] {
+        for name in ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "demo.rrbc", "THIRD-PARTY-NOTICES.txt", "bundle_console.js", "ansi_screen.js"] {
             assert!(s.contains(name), "missing {name} in bundle");
         }
     }
