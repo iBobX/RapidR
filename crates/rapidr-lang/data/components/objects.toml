@@ -296,7 +296,7 @@ methods = [
   { name = "ReadAll", value = true, origin = "rapidr", test = "skip: past the start it overflows (memstream.rs read: pos + usize::MAX): empty in release, a panic in debug native builds" },
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
-  { name = "Clear", value = true },
+  { name = "Clear", value = true, only = "desktop" },
   { name = "LoadUdtArray", missing = true },
   { name = "SaveUdtArray", missing = true },
   { name = "SetSize", missing = true },
@@ -350,10 +350,10 @@ methods = [
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
   { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
-  { name = "Rect", value = true, origin = "rapidr" },
-  { name = "SetPixel", value = true, origin = "rapidr" },
-  { name = "Ellipse", value = true, origin = "rapidr" },
-  { name = "DrawText", value = true, origin = "rapidr" },
+  { name = "Rect", value = true, origin = "rapidr", only = "desktop" },
+  { name = "SetPixel", value = true, origin = "rapidr", only = "desktop" },
+  { name = "Ellipse", value = true, origin = "rapidr", only = "desktop" },
+  { name = "DrawText", value = true, origin = "rapidr", only = "desktop" },
 ]
 events = []
 

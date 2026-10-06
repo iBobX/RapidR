@@ -89,8 +89,8 @@ only = "web"
 doc = "Runs JavaScript in the page: Eval a piece of code or Call a function. Web only."
 properties = []
 methods = [
-  { name = "Eval", value = true },
-  { name = "Call", value = true },
+  { name = "Eval", params = "Code AS STRING", value = true },
+  { name = "Call", params = "Function AS STRING, [Args] ...", value = true },
 ]
 events = []
 
@@ -103,12 +103,12 @@ properties = [
   { name = "StorageType", type = "string", default = "local" },
 ]
 methods = [
-  { name = "Set", value = true },
-  { name = "Get", value = true },
-  { name = "Remove", value = true },
+  { name = "Set", params = "Key AS STRING, Value AS STRING", value = true },
+  { name = "Get", params = "Key AS STRING", value = true },
+  { name = "Remove", params = "Key AS STRING", value = true },
   { name = "Clear", value = true },
   { name = "Keys", value = true },
-  { name = "HasKey", value = true },
+  { name = "HasKey", params = "Key AS STRING", value = true },
 ]
 events = []
 
@@ -241,7 +241,7 @@ properties = [
   { name = "Hash", type = "string", access = "read", design = false },
 ]
 methods = [
-  { name = "Navigate", value = true },
+  { name = "Navigate", params = "Route AS STRING", value = true },
   { name = "Back", value = true },
   { name = "Forward", value = true },
 ]

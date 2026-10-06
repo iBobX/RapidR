@@ -10,7 +10,8 @@
 //   node tests/lang_conformance.mjs --backend vm       some runtimes (vm, native, web; vm,native)
 //   node tests/lang_conformance.mjs rbutton rform      only these components
 //   node tests/lang_conformance.mjs --gaps             print what the VM reads where the
-//                                                      registry's default differs (gaps.txt lines)
+//                                                      registry's default differs (gaps.txt lines;
+//                                                      with --backend web, the web's `web:` lines)
 //
 // Native: every component in one program (one cargo build). Web: the web
 // IDE's page on RAPIDR_URL (default http://localhost:8765), after
@@ -102,7 +103,7 @@ function report(backend, name, problems) {
 }
 
 function unanswered(text) {
-  return text.split("\n").filter((l) => UNANSWERED.test(l)).slice(0, 5).map((l) => `unanswered: ${l.trim()}`);
+  return text.split("\n").filter((l) => UNANSWERED.test(l)).slice(0, 60).map((l) => `unanswered: ${l.trim()}`);
 }
 
 // --- the interpreter ----------------------------------------------------------------
@@ -158,7 +159,7 @@ function native(programs) {
 }
 
 // --- the web ---------------------------------------------------------------------------
-async function web(programs) {
+async function web(programs, onOutput = null) {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch();
   const page = await browser.newPage();
@@ -184,6 +185,10 @@ async function web(programs) {
     }
     const m = new RegExp(`^${tag}B\\n?([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text.replace(/\r\n/g, "\n"));
     const got = m ? m[1] : `<no output: ${JSON.stringify(text.slice(-200))}>`;
+    if (onOutput) {
+      onOutput(p, got);
+      continue;
+    }
     const problems = [...unanswered(consoleLines.slice(before).join("\n"))];
     const d = difference(p.expected, got);
     if (d) problems.push(d);
@@ -192,16 +197,23 @@ async function web(programs) {
   await browser.close();
 }
 
-// --- gaps: what the VM reads where the registry's default differs ------------------------
+// --- gaps: what a runtime reads where the expected value differs --------------------------
+// (the VM against the registry's defaults: gaps.txt's lines for every
+// runtime; `--backend web`: the web against those, its `web:` lines)
+function gapLines(p, out, prefix) {
+  const want = norm(p.expected).split("\n"), got = norm(out).split("\n");
+  for (let i = 0; i < want.length; i++) {
+    const w = /^([A-Za-z0-9_]+)=(.*)$/.exec(want[i]);
+    const g = got[i] !== undefined ? /^([A-Za-z0-9_]+)=(.*)$/.exec(got[i]) : null;
+    if (w && g && w[1] === g[1] && w[2] !== g[2]) console.log(`${prefix}${p.name.toUpperCase()}.${w[1]} =${g[2] === "" ? "" : " " + g[2]}`);
+  }
+}
 if (gapsMode) {
-  for (const p of generate("desktop")) {
-    const { out } = vm(p);
-    const want = norm(p.expected).split("\n"), got = norm(out).split("\n");
-    for (let i = 0; i < want.length; i++) {
-      const w = /^([A-Za-z0-9_]+)=(.*)$/.exec(want[i]);
-      const g = got[i] !== undefined ? /^([A-Za-z0-9_]+)=(.*)$/.exec(got[i]) : null;
-      if (w && g && w[1] === g[1] && w[2] !== g[2]) console.log(`${p.name.toUpperCase()}.${w[1]} =${g[2] === "" ? "" : " " + g[2]}`);
-    }
+  if (backends.length === 1 && backends[0] === "web") {
+    gapsMode = false; // (the web's against what gaps.txt already says)
+    await web(generate("web"), (p, out) => gapLines(p, out, "web: "));
+  } else {
+    for (const p of generate("desktop")) gapLines(p, vm(p).out, "");
   }
   process.exit(0);
 }

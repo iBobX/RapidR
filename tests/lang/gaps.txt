@@ -259,3 +259,17 @@ RTREEVIEW.ItemSeparator =
 RTREEVIEW.OutLineStyle =
 RTREEVIEW.ScrollBars =
 RVIDEO.BorderStyle = 0
+
+# The web's own components read their Align empty (as the desktop's controls with no default), and
+# the web gives QCOOLBTN / QOVALBTN RapidQ's False where the desktop leaves them unset.
+web: RDOM.Align =
+web: RWEBAUDIO.Align =
+web: RWEBVIDEO.Align =
+web: RWEBVIEW.Align =
+web: RCOOLBTN.AllowAllUp = 0
+web: ROVALBTN.Down = 0
+web: RCOOLBTN.Down = 0
+web: RCOOLBTN.Flat = 0
+web: RCOOLBTN.GroupIndex = 0
+web: ROVALBTN.Flat = 0
+web: ROVALBTN.GroupIndex = 0

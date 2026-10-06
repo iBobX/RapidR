@@ -426,9 +426,16 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     Ok((code, names, name.to_string(), is_component_type))
 }
 
+/// The component files in the manual's (and the toolbox's) order: what a
+/// component is for, the everyday ones first.
+const FAMILIES: &[&str] =
+    &["forms", "input", "display", "lists", "menus", "dialogs", "objects", "databases", "network", "media", "directx", "d3d", "datascience", "web", "libraries"];
+
 fn build(dir: &Path) -> Res<String> {
     let mut paths = Vec::new();
     files(dir, &mut paths);
+    let rank = |p: &PathBuf| p.file_stem().and_then(|s| s.to_str()).and_then(|s| FAMILIES.iter().position(|f| *f == s)).unwrap_or(FAMILIES.len());
+    paths.sort_by_key(|p| (p.parent().map(Path::to_path_buf), rank(p)));
     let by_name = |n: &str| paths.iter().find(|p| p.file_name().is_some_and(|f| f == n)).cloned();
     // Constants first: everything else names them.
     let consts_t = load(&by_name("constants.toml").ok_or("constants.toml missing")?)?;

@@ -16,7 +16,7 @@ properties = [
   { name = "DefaultExt", type = "string", origin = "rapidr" },
 ]
 methods = [
-  { name = "Execute", returns = "VARIANT", value = true },
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },
 ]
 events = []
 
@@ -35,7 +35,7 @@ properties = [
   { name = "DefaultExt", type = "string", origin = "rapidr" },
 ]
 methods = [
-  { name = "Execute", returns = "VARIANT", value = true },
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },
 ]
 events = []
 
@@ -63,7 +63,7 @@ properties = [
   { name = "Title", type = "string", origin = "rapidr" },
 ]
 methods = [
-  { name = "Execute", returns = "VARIANT", value = true },
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },
 ]
 events = []
 
@@ -82,7 +82,7 @@ properties = [
   { name = "Style", type = "int" },
 ]
 methods = [
-  { name = "Execute", returns = "VARIANT", value = true, doc = "Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color." },
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)", doc = "Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color." },
 ]
 events = []
 
@@ -108,7 +108,7 @@ methods = [
   { name = "DelStyles", params = "Items ..." },
   { name = "AddOptions", params = "Items ..." },
   { name = "DelOptions", params = "Items ..." },
-  { name = "Execute", returns = "VARIANT", value = true, doc = "Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result." },
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)", doc = "Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result." },
   { name = "GetFont", params = "F AS QFONT", missing = true },
   { name = "SetFont", params = "F AS QFONT" },
 ]

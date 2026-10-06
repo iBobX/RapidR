@@ -116,9 +116,9 @@ methods = [
   { name = "LoadFromFile", origin = "rapidr", only = "desktop" },
   { name = "SaveToFile", origin = "rapidr" },
   { name = "LoadFromPlot", origin = "rapidr" },
-  { name = "Cls", origin = "rapidr" },
+  { name = "Cls", origin = "rapidr", only = "desktop" },
   { name = "Load", origin = "rapidr", only = "desktop" },
-  { name = "Clear", value = true, origin = "rapidr" },
+  { name = "Clear", value = true, origin = "rapidr", only = "desktop" },
 ]
 events = [
   { name = "OnClick" },

@@ -4,68 +4,6 @@
 
 Every component RapidR creates, by what it is for. A RapidQ name and its R name are the same component (same properties, methods, events and behaviour); a program may use either and mix them freely. A name with no RapidQ name is RapidR's own. Unless the last column says otherwise, a component works in native builds, interpreted programs and the browser. Each component's members: [members.md](members.md).
 
-## Direct3D (retained mode)
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`RD3DFRAME`](members.md#rd3dframe) | `QD3DFRAME` | RapidQ | everywhere |
-| [`RD3DMESHBUILDER`](members.md#rd3dmeshbuilder) | `QD3DMESHBUILDER` | RapidQ | everywhere |
-| [`RD3DMESH`](members.md#rd3dmesh) | `QD3DMESH` | RapidQ | everywhere |
-| [`RD3DFACE`](members.md#rd3dface) | `QD3DFACE` | RapidQ | everywhere |
-| [`RD3DLIGHT`](members.md#rd3dlight) | `QD3DLIGHT` | RapidQ | everywhere |
-| [`RD3DTEXTURE`](members.md#rd3dtexture) | `QD3DTEXTURE` | RapidQ | everywhere |
-| [`RD3DVISUAL`](members.md#rd3dvisual) | `QD3DVISUAL` | RapidQ | everywhere |
-| [`RD3DWRAP`](members.md#rd3dwrap) | `QD3DWRAP` | RapidQ | everywhere |
-| [`RD3DVECTOR`](members.md#rd3dvector) | `QD3DVECTOR` | RapidQ | everywhere |
-
-## Databases
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`RSQLITE`](members.md#rsqlite) | — | RapidR | everywhere |
-| [`RMYSQL`](members.md#rmysql) | `QMYSQL` | RapidQ | desktop |
-
-## Data science
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`RNUM`](members.md#rnum) | — | RapidR | everywhere |
-| [`RDATAFRAME`](members.md#rdataframe) | — | RapidR | everywhere |
-| [`RPLOT`](members.md#rplot) | — | RapidR | everywhere |
-
-## Dialogs
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`ROPENDIALOG`](members.md#ropendialog) | `QOPENDIALOG` | RapidQ | everywhere |
-| [`RSAVEDIALOG`](members.md#rsavedialog) | `QSAVEDIALOG` | RapidQ | everywhere |
-| [`RFILEDIALOG`](members.md#rfiledialog) | `QFILEDIALOG` | RAPIDQ2.INC | everywhere |
-| [`RCOLORDIALOG`](members.md#rcolordialog) | `QCOLORDIALOG` | RAPIDQ2.INC | everywhere |
-| [`RFONTDIALOG`](members.md#rfontdialog) | `QFONTDIALOG` | RapidQ | everywhere |
-
-## DirectX 2D
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`RDXSCREEN`](members.md#rdxscreen) | `QDXSCREEN` | RapidQ | everywhere |
-| [`RDXIMAGELIST`](members.md#rdximagelist) | `QDXIMAGELIST` | RapidQ | everywhere |
-| [`RDXTIMER`](members.md#rdxtimer) | `QDXTIMER` | RapidQ | everywhere |
-| [`RDXSOUND`](members.md#rdxsound) | `QDXSOUND` | RapidQ | everywhere |
-| [`RDXJOYSTICK`](members.md#rdxjoystick) | `QDXJOYSTICK` | RapidQ | everywhere |
-
-## Display and drawing
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`RLABEL`](members.md#rlabel) | `QLABEL` | RapidQ | everywhere |
-| [`RIMAGE`](members.md#rimage) | `QIMAGE` | RapidQ | everywhere |
-| [`RCANVAS`](members.md#rcanvas) | `QCANVAS` | RapidQ | everywhere |
-| [`RHEADER`](members.md#rheader) | `QHEADER` | RapidQ | everywhere |
-| [`RPROGRESS`](members.md#rprogress) | — | RapidR | everywhere |
-| [`RPROGRESSBAR`](members.md#rprogressbar) | `QGAUGE` | RapidQ | everywhere |
-| [`RDESIGNSURFACE`](members.md#rdesignsurface) | — | RapidR | everywhere |
-| [`RDIGDISPLAY`](members.md#rdigdisplay) | `QDIGDISPLAY` | QDigDisplay.inc | everywhere |
-
 ## Forms and containers
 
 | RapidR name | RapidQ name | From | Where |
@@ -101,6 +39,19 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | [`RCOOLBTN`](members.md#rcoolbtn) | `QCOOLBTN` | RapidQ | everywhere |
 | [`ROVALBTN`](members.md#rovalbtn) | `QOVALBTN` | RapidQ | everywhere |
 
+## Display and drawing
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RLABEL`](members.md#rlabel) | `QLABEL` | RapidQ | everywhere |
+| [`RIMAGE`](members.md#rimage) | `QIMAGE` | RapidQ | everywhere |
+| [`RCANVAS`](members.md#rcanvas) | `QCANVAS` | RapidQ | everywhere |
+| [`RHEADER`](members.md#rheader) | `QHEADER` | RapidQ | everywhere |
+| [`RPROGRESS`](members.md#rprogress) | — | RapidR | everywhere |
+| [`RPROGRESSBAR`](members.md#rprogressbar) | `QGAUGE` | RapidQ | everywhere |
+| [`RDESIGNSURFACE`](members.md#rdesignsurface) | — | RapidR | everywhere |
+| [`RDIGDISPLAY`](members.md#rdigdisplay) | `QDIGDISPLAY` | QDigDisplay.inc | everywhere |
+
 ## Lists, grids and trees
 
 | RapidR name | RapidQ name | From | Where |
@@ -112,15 +63,6 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | [`RTREEVIEW`](members.md#rtreeview) | `QTREEVIEW`, `QOUTLINE` | RapidQ | everywhere |
 | [`RLISTVIEW`](members.md#rlistview) | `QLISTVIEW` | RapidQ | everywhere |
 
-## Media
-
-| RapidR name | RapidQ name | From | Where |
-|---|---|---|---|
-| [`RMIDI`](members.md#rmidi) | `QMIDI` | QMidi.inc | everywhere |
-| [`RWAVE`](members.md#rwave) | `QWAVE` | QWave.inc | everywhere |
-| [`RVIDEO`](members.md#rvideo) | `QVIDEO` | QVideo.inc | everywhere |
-| [`RCDAUDIO`](members.md#rcdaudio) | `QCDAUDIO` | Qcdaudio.inc | everywhere |
-
 ## Menus
 
 | RapidR name | RapidQ name | From | Where |
@@ -129,16 +71,15 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | [`RMENUITEM`](members.md#rmenuitem) | `QMENUITEM` | RapidQ | everywhere |
 | [`RPOPUPMENU`](members.md#rpopupmenu) | `QPOPUPMENU` | RapidQ | everywhere |
 
-## Network, devices and CGI
+## Dialogs
 
 | RapidR name | RapidQ name | From | Where |
 |---|---|---|---|
-| [`RSOCKET`](members.md#rsocket) | `QSOCKET` | RapidQ | desktop (TCP); web (WebSocket) |
-| [`RSERVERSOCKET`](members.md#rserversocket) | — | RapidR | desktop |
-| [`RHTTP`](members.md#rhttp) | — | RapidR | everywhere |
-| [`RCGI`](members.md#rcgi) | `QCGI` | qcgi.inc | everywhere |
-| [`RCOMPORT`](members.md#rcomport) | `QCOMPORT`, `COMPORT` | RapidQ | desktop (serial2); web (Web Serial) |
-| [`RDOWNLOAD`](members.md#rdownload) | `QDOWNLOAD` | Qdownload.inc | everywhere |
+| [`ROPENDIALOG`](members.md#ropendialog) | `QOPENDIALOG` | RapidQ | everywhere |
+| [`RSAVEDIALOG`](members.md#rsavedialog) | `QSAVEDIALOG` | RapidQ | everywhere |
+| [`RFILEDIALOG`](members.md#rfiledialog) | `QFILEDIALOG` | RAPIDQ2.INC | everywhere |
+| [`RCOLORDIALOG`](members.md#rcolordialog) | `QCOLORDIALOG` | RAPIDQ2.INC | everywhere |
+| [`RFONTDIALOG`](members.md#rfontdialog) | `QFONTDIALOG` | RapidQ | everywhere |
 
 ## Non-visual objects
 
@@ -156,6 +97,65 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | [`RBITMAP`](members.md#rbitmap) | `QBITMAP` | RapidQ | everywhere |
 | [`RIMAGELIST`](members.md#rimagelist) | `QIMAGELIST` | RapidQ | everywhere |
 | [`RNOTIFYICONDATA`](members.md#rnotifyicondata) | `QNOTIFYICONDATA` | RapidQ | everywhere |
+
+## Databases
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RSQLITE`](members.md#rsqlite) | — | RapidR | everywhere |
+| [`RMYSQL`](members.md#rmysql) | `QMYSQL` | RapidQ | desktop |
+
+## Network, devices and CGI
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RSOCKET`](members.md#rsocket) | `QSOCKET` | RapidQ | desktop (TCP); web (WebSocket) |
+| [`RSERVERSOCKET`](members.md#rserversocket) | — | RapidR | desktop |
+| [`RHTTP`](members.md#rhttp) | — | RapidR | everywhere |
+| [`RCGI`](members.md#rcgi) | `QCGI` | qcgi.inc | everywhere |
+| [`RCOMPORT`](members.md#rcomport) | `QCOMPORT`, `COMPORT` | RapidQ | desktop (serial2); web (Web Serial) |
+| [`RDOWNLOAD`](members.md#rdownload) | `QDOWNLOAD` | Qdownload.inc | everywhere |
+
+## Media
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RMIDI`](members.md#rmidi) | `QMIDI` | QMidi.inc | everywhere |
+| [`RWAVE`](members.md#rwave) | `QWAVE` | QWave.inc | everywhere |
+| [`RVIDEO`](members.md#rvideo) | `QVIDEO` | QVideo.inc | everywhere |
+| [`RCDAUDIO`](members.md#rcdaudio) | `QCDAUDIO` | Qcdaudio.inc | everywhere |
+
+## DirectX 2D
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RDXSCREEN`](members.md#rdxscreen) | `QDXSCREEN` | RapidQ | everywhere |
+| [`RDXIMAGELIST`](members.md#rdximagelist) | `QDXIMAGELIST` | RapidQ | everywhere |
+| [`RDXTIMER`](members.md#rdxtimer) | `QDXTIMER` | RapidQ | everywhere |
+| [`RDXSOUND`](members.md#rdxsound) | `QDXSOUND` | RapidQ | everywhere |
+| [`RDXJOYSTICK`](members.md#rdxjoystick) | `QDXJOYSTICK` | RapidQ | everywhere |
+
+## Direct3D (retained mode)
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RD3DFRAME`](members.md#rd3dframe) | `QD3DFRAME` | RapidQ | everywhere |
+| [`RD3DMESHBUILDER`](members.md#rd3dmeshbuilder) | `QD3DMESHBUILDER` | RapidQ | everywhere |
+| [`RD3DMESH`](members.md#rd3dmesh) | `QD3DMESH` | RapidQ | everywhere |
+| [`RD3DFACE`](members.md#rd3dface) | `QD3DFACE` | RapidQ | everywhere |
+| [`RD3DLIGHT`](members.md#rd3dlight) | `QD3DLIGHT` | RapidQ | everywhere |
+| [`RD3DTEXTURE`](members.md#rd3dtexture) | `QD3DTEXTURE` | RapidQ | everywhere |
+| [`RD3DVISUAL`](members.md#rd3dvisual) | `QD3DVISUAL` | RapidQ | everywhere |
+| [`RD3DWRAP`](members.md#rd3dwrap) | `QD3DWRAP` | RapidQ | everywhere |
+| [`RD3DVECTOR`](members.md#rd3dvector) | `QD3DVECTOR` | RapidQ | everywhere |
+
+## Data science
+
+| RapidR name | RapidQ name | From | Where |
+|---|---|---|---|
+| [`RNUM`](members.md#rnum) | — | RapidR | everywhere |
+| [`RDATAFRAME`](members.md#rdataframe) | — | RapidR | everywhere |
+| [`RPLOT`](members.md#rplot) | — | RapidR | everywhere |
 
 ## Web only
 

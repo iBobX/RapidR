@@ -154,7 +154,7 @@ methods = [
   { name = "ActiveChild", params = "Index AS LONG" },
   { name = "FreeChild", params = "handle AS LONG", returns = "VARIANT" },
   { name = "SetDeskBar" },
-  { name = "Rect", value = true },
+  { name = "Rect", value = true, only = "desktop" },
   { name = "SetPixel", value = true, origin = "rapidr" },
   { name = "FillCircle", origin = "rapidr" },
   { name = "Ellipse", value = true, origin = "rapidr" },
@@ -346,7 +346,7 @@ properties = [
 ]
 methods = [
   { name = "AddPanels", params = "Items ...", only = "desktop" },
-  { name = "Clear", value = true },
+  { name = "Clear", value = true, only = "desktop" },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
 ]

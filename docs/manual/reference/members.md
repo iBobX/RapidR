@@ -4,1327 +4,6 @@
 
 Every property, method and event of every component, from the language registry. *(RapidR)* marks a RapidR extension of a RapidQ component (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A Q name and its R name have the same members.
 
-<a id="rd3dframe"></a>
-## RD3DFRAME (QD3DFRAME)
-
-A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `FogColor` | color |  | The colour of the frame's fog. |
-| `FogMode` | int |  | How the fog thickens with distance: linear, exponential or exponential squared. |
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-| Method | |
-|---|---|
-| `AddFrame(Frame AS QD3DFRAME)` | Makes frame `Frame` a child of this frame, so it moves with it. |
-| `AddLight(Light AS QD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
-| `AddScale(CombineType AS INTEGER, X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Scales the frame by `X`, `Y`, `Z`; `CombineType` replaces its transform (0) or applies the scale before (1) or after (2) it. |
-| `AddVisual(Visual AS QD3DMESHBUILDER)` | Attaches a visual (a mesh builder or mesh) to the frame, so it is drawn there. |
-| `CreateFrame(Frame AS QD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
-| `DeleteFrame(Frame AS QD3DFRAME)` | Removes child frame `Frame` from this frame. |
-| `DeleteLight(Light AS QD3DLIGHT)` | Removes light `Light` from the frame. |
-| `DeleteVisual(Visual AS QD3DMESHBUILDER)` | Detaches visual `Visual` from the frame. |
-| `Load(FileName AS STRING)` | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
-| `LookAt(F AS QD3DFRAME, Constraint AS INTEGER)` | Turns the frame to face frame `F`; `Constraint` limits the axes it may turn on. |
-| `Move(D AS DOUBLE)` | Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation. |
-| `SetBackgroundImage(Texture AS QD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
-| `SetBackgroundRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the 3D scene's background color from `R`, `G`, `B` (0 to 1). |
-| `SetFogParams(Start AS DOUBLE, End AS DOUBLE, Density AS DOUBLE)` | Sets where the fog starts and ends, and its density. |
-| `SetOrientation(DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE)` | Points the frame along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction. |
-| `SetPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the frame to (`X`, `Y`, `Z`). |
-| `SetRotation(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE)` | Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`. |
-| `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
-| `SetVelocity` *(RapidR)* | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
-| `FogEnabled` | Turns fog on or off in the frame's scene. |
-
-<a id="rd3dmeshbuilder"></a>
-## RD3DMESHBUILDER (QD3DMESHBUILDER)
-
-Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `FaceCount` (read-only) | int |  | The number of faces in the mesh; read-only. |
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-| Method | |
-|---|---|
-| `AddFace(Face AS QD3DFACE)` | Adds a face to the mesh builder. |
-| `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
-| `CreateFace(Face AS QD3DFACE)` | Creates a new, empty face in variable `Face`. |
-| `CreateMesh(Mesh AS QD3DMESH)` | Builds a mesh from the mesh builder's geometry into variable `Mesh`. |
-| `DeleteFace(Face AS QD3DFACE)` | Removes face `Face` from the mesh builder. |
-| `GetFace(Index AS LONG, Face AS QD3DFACE)` | Puts face number `Index` of the mesh builder in `Face`. |
-| `Load(S AS STRING)` | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
-| `LoadTexture(S AS STRING)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
-| `Scale(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Scales the mesh by `X`, `Y`, `Z`. |
-| `SetQuality(Quality AS INTEGER)` | Sets how the mesh is drawn: points, wireframe, flat or smooth shading. |
-| `SetRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
-| `SetRGBA(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, A AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
-| `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
-| `Translate(TX AS DOUBLE, TY AS DOUBLE, TZ AS DOUBLE)` | Moves the mesh's vertices by (`TX`, `TY`, `TZ`). |
-| `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
-
-<a id="rd3dmesh"></a>
-## RD3DMESH (QD3DMESH)
-
-A finished 3D mesh, made by a mesh builder, ready to add to frames.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `MaxY` (read-only) | float |  | The highest Y of the mesh's vertices; read-only. |
-| `MinY` (read-only) | float |  | The lowest Y of the mesh's vertices; read-only. |
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-| Method | |
-|---|---|
-| `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
-
-<a id="rd3dface"></a>
-## RD3DFACE (QD3DFACE)
-
-One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `VertexCount` (read-only) | int |  | The number of vertices of the face; read-only. |
-
-| Method | |
-|---|---|
-| `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
-| `GetVertex(Index AS LONG, Position AS QD3DVECTOR, Normal AS QD3DVECTOR)` | Reads vertex `Index` of the face: its position and normal. |
-| `SetColorRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the color from `R`, `G`, `B` (0 to 1). |
-| `SetRGB` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
-| `SetColorRGBA` *(RapidR)* | Sets the colour and its opacity from red, green, blue and alpha parts (0 to 1). Same as SetRGBA. |
-| `SetRGBA` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
-
-<a id="rd3dlight"></a>
-## RD3DLIGHT (QD3DLIGHT)
-
-A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-| Method | |
-|---|---|
-| `SetLightRGB(LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the light's type and its color from `R`, `G`, `B` (0 to 1). |
-| `SetPenUmbra(Angle AS DOUBLE)` | Sets the angle of the spotlight's penumbra, the soft edge of its cone. |
-| `SetRange(Range AS DOUBLE)` | Sets how far the light reaches. |
-| `SetUmbra(Angle AS DOUBLE)` | Sets the angle of the spotlight's cone of full brightness. |
-
-<a id="rd3dtexture"></a>
-## RD3DTEXTURE (QD3DTEXTURE)
-
-A picture laid onto 3D meshes as their surface.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-<a id="rd3dvisual"></a>
-## RD3DVISUAL (QD3DVISUAL)
-
-Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-<a id="rd3dwrap"></a>
-## RD3DWRAP (QD3DWRAP)
-
-How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative.
-
-| Method | |
-|---|---|
-| `Apply(M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, giving its vertices texture coordinates. |
-| `ApplyRelative(F AS QD3DFRAME, M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, measured relative to frame `F`. |
-
-<a id="rd3dvector"></a>
-## RD3DVECTOR (QD3DVECTOR)
-
-A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `DVX` | float |  | The vector's X component. |
-| `DVY` | float |  | The vector's Y component. |
-| `DVZ` | float |  | The vector's Z component. |
-| `X` | float |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
-| `Y` | float |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
-| `Z` | float |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
-
-<a id="rsqlite"></a>
-## RSQLITE
-
-A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?` parameters, FetchRow walks the rows. RapidR's own; also in the browser.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Database` | string |  | The database in use: an SQLite file, or a MySQL database's name. |
-| `dB` | string |  | A database's name, `dB(i)` from 0, as the server lists them. |
-| `Connected` | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `RowCount` | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `ColCount` | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `FieldCount` | int |  | The number of fields (columns) in the last query's result. |
-| `Row` | int |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
-| `TableCount` | int |  | The number of tables in the database. |
-| `DBCount` | int |  | The number of databases the server lists. |
-
-| Method | |
-|---|---|
-| `Connect(file)` | Opens (or creates) the database file; ":memory:" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first). |
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Query(sql, [value, …])` | Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
-| `FetchRow` | Moves to the next row of the last query's rows: 1, or 0 past the last. |
-| `FetchField` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
-| `RowSeek(row)` | The next FetchRow fetches row `row` (from 0). |
-| `FieldSeek` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
-| `EscapeString(text)` | The text with its single quotes doubled, to put between quotes in SQL (binding with ? is safer). |
-| `ClearParams` | Drops the values queued with AddParam. |
-
-| Event | |
-|---|---|
-| `OnConnect` | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
-| `OnDisconnect` | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-
-<a id="rmysql"></a>
-## RMYSQL (QMYSQL)
-
-A client for a MySQL or MariaDB server: connect, run queries and walk the rows they return. Desktop only (a browser has no raw TCP).
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Connected` (read-only) | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `DB` (read-only) | string |  | A database's name, `dB(i)` from 0, as the server lists them. |
-| `DBCount` (read-only) | int |  | The number of databases the server lists. |
-| `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `FieldCount` (read-only) | int |  | The number of fields (columns) in the last query's result. |
-| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `Row` (read-only) | string |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
-| `RowCount` (read-only) | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `Table` (read-only) | string |  | A table's name, `Table(i)` from 0, as the database lists them; read-only. |
-| `TableCount` (read-only) | int |  | The number of tables in the database. |
-| `Host` *(RapidR)* | string |  | The server's host name or address. |
-| `User` *(RapidR)* | string |  | The user name the database connection logs in with. |
-| `Password` *(RapidR)* | string |  | The password the database connection logs in with. |
-| `Database` *(RapidR)* | string |  | The database in use: an SQLite file, or a MySQL database's name. |
-| `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
-| `NumFields` | int |  | The number of fields in the last query's result. |
-| `NumRows` | int |  | The number of rows in the last query's result. |
-
-| Method | |
-|---|---|
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure). |
-| `CreateDB(DB AS STRING) AS INTEGER` *(not yet)* | Creates a database named `DB` on the server; returns true on success. |
-| `DropDB(DB AS STRING) AS INTEGER` *(not yet)* | Deletes database `DB` from the server; returns true on success. |
-| `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | Returns the string with quotes and special characters escaped for a MySQL query. |
-| `FetchField AS VARIANT` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
-| `FetchLengths AS VARIANT` *(not yet)* | Returns the lengths of the fields of the current row. |
-| `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
-| `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
-| `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
-| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` *(not yet)* | Connects to a MySQL server with host, user, password, database, port, socket and flags; returns true on success. |
-| `Refresh(RefreshFlags AS INTEGER) AS INTEGER` *(not yet)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` *(not yet)* | Returns `Bytes` bytes of the binary field in row `Row`. |
-| `RowSeek(Row AS INTEGER) AS VARIANT` | Moves to row `Row` of the query's result, the next one `FetchRow` reads. |
-| `SelectDB(DB AS STRING) AS INTEGER` | Makes database `DB` the current one; returns true on success. |
-| `ClearParams` *(RapidR)* | Drops the values queued with AddParam. |
-| `LoadBlob` *(not yet)* | Reads binary data (a BLOB) for a query. |
-| `SaveBlob` *(not yet)* | Writes binary data (a BLOB) for a query. |
-
-| Event | |
-|---|---|
-| `OnConnect` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
-| `OnDisconnect` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-
-<a id="rnum"></a>
-## RNUM
-
-A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average, sort, compute element-wise and do linear algebra on them. RapidR's own.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `Len` (read-only) | int |  | The number of values in the array. |
-| `Data` | string |  | The array's values as text, comma-separated (`1,2,3`); setting it fills the array. |
-| `Shape` (read-only) | string |  | The size of the array or data frame as text: `(n)` or `(rows, cols)`. |
-| `NDim` (read-only) | int |  | The array's number of dimensions (1). |
-| `DType` (read-only) | string |  | The array's element type: `float64`. |
-
-| Method | |
-|---|---|
-| `Create([n])` | Makes the array n zeros (empty without n). |
-| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `Arange(start, stop, [step])` | Evenly spaced values in [start, stop) with the given step (default 1; may be negative). |
-| `LinSpace(start, stop, [num])` | num evenly spaced values from start to stop, both included (default 50). |
-| `Zeros(n)` | n zeros. |
-| `Ones(n)` | n ones. |
-| `Full(n, fillValue)` | n elements of fillValue. |
-| `FromList(v1, v2, v3, …)` | The numbers of a comma-separated list. |
-| `From_list` | Fills the array from text of comma-separated numbers. Same as `FromList`. |
-| `Set(index, value)` | Sets element index (from 0); past the end the array grows with zeros. |
-| `SetValue` | Sets the element at an index. Same as `Set`. |
-| `SetItem` | Sets the element at an index. Same as `Set`. |
-| `Get(index)` | Element index (from 0); 0 past the end. |
-| `GetValue` | Returns the element at the index given. Same as `Get`. |
-| `GetItem` | Returns the element at the index given. Same as `Get`. |
-| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
-| `Push(value)` | Adds value at the end. |
-| `Sum` | The sum of the elements. |
-| `Mean` | The arithmetic mean. |
-| `Avg` | The arithmetic mean of the elements; the same as Mean. |
-| `Average` | The arithmetic mean of the elements; the same as Mean. |
-| `Min` | Returns the smallest element. |
-| `Max` | Returns the largest element. |
-| `Std` | The (population) standard deviation. |
-| `Var` | The (population) variance. |
-| `Variance` | Returns the variance of the elements. Same as `Var`. |
-| `Median` | The median. |
-| `ArgMin` | The index of the smallest element. |
-| `ArgMax` | The index of the largest element. |
-| `Count` | The number of elements. |
-| `Ptp` | Peak to peak: max - min. |
-| `Sin` | Replaces each element with its sine (in place). |
-| `Cos` | Replaces each element with its cosine (in place). |
-| `Tan` | Replaces each element with its tangent (in place). |
-| `Asin` | Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`. |
-| `ArcSin` | Replaces each element with its arc sine, in radians (in place). Same as `Asin`. |
-| `Acos` | Replaces each element with its arc cosine, in radians (in place). Same as `ArcCos`. |
-| `ArcCos` | Replaces each element with its arc cosine, in radians (in place). Same as `Acos`. |
-| `Atan` | Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`. |
-| `ArcTan` | Replaces each element with its arc tangent, in radians (in place). Same as `Atan`. |
-| `Sqrt` | Replaces each element with its square root (in place). |
-| `Abs` | Replaces each element with its absolute value (in place). |
-| `Exp` | Replaces each element with e raised to it (in place). |
-| `Log` | Replaces each element with its natural logarithm (in place). Same as `Ln`. |
-| `Ln` | Replaces each element with its natural logarithm (in place). Same as `Log`. |
-| `Log2` | Replaces each element with its base-2 logarithm (in place). |
-| `Log10` | Replaces each element with its base-10 logarithm (in place). |
-| `Floor` | Rounds each element down to a whole number (in place). |
-| `Ceil` | Rounds each element up to a whole number (in place). |
-| `Round([decimals])` | Rounds every element (default 0 decimals). |
-| `Sign` | Replaces each element with its sign: -1, 0 or 1 (in place). |
-| `Reciprocal` | Replaces each element with 1 divided by it (in place). |
-| `Square` | Replaces each element with its square (in place). |
-| `Negative` | Changes the sign of each element (in place). Same as `Neg`. |
-| `Neg` | Changes the sign of each element (in place). Same as `Negative`. |
-| `Add(value)` | Adds a number, or another array element by element (arrays of the same length). |
-| `Subtract(value)` | Subtracts a number or another array, element by element. |
-| `Sub` | Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`. |
-| `Multiply(value)` | Multiplies by a number or another array, element by element. |
-| `Mul` | Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`. |
-| `Divide(value)` | Divides by a number or another array, element by element (by 0: NAN). |
-| `Div` | Divides each element by a number or by another array's matching element (in place). Same as `Divide`. |
-| `Power(exp)` | Raises every element to a power (default 2). |
-| `Pow` | Raises each element to a power (in place). Same as `Power`. |
-| `Mod(divisor)` | The remainder of each element. |
-| `Fmod` | Replaces each element with its remainder after division by a number (in place). Same as `Mod`. |
-| `Clip(low, high)` | Limits every element to [low, high]. |
-| `Clamp` | Limits each element to the range from a low to a high value (in place). Same as `Clip`. |
-| `Sort` | Sorts the items, nodes or elements in ascending order. |
-| `Reverse` | Reverses the order of the elements (in place). Same as `Flip`. |
-| `Flip` | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
-| `Unique` | Replaces the array with its distinct values, sorted. |
-| `Shuffle` | Puts the elements in random order (in place). |
-| `Append(v1, v2, …)` | Adds another array, a list or a number at the end. |
-| `Concatenate` | Appends the elements of another array, named by its variable, to this one. Same as `Append`. |
-| `Slice(start, end)` | Keeps the elements from start to end (not included). |
-| `Reshape` | Changes the array's shape; RapidR's arrays are one-dimensional, so it leaves it as it is. |
-| `CumSum` | Replaces each element with the running total up to it (in place). |
-| `CumProd` | Replaces each element with the product of it and all those before it (in place). |
-| `Diff` | Replaces the array with the differences between neighbouring elements, one element shorter. |
-| `Dot(otherArray)` | The dot product with another array. |
-| `Norm` | Returns the array's length as a vector (its L2 norm). |
-| `Normalize` | Scales the elements so the array's L2 norm is 1 (in place). |
-| `Any` | Returns true (1) when at least one element is non-zero. |
-| `All` | Returns true (1) when every element is non-zero. |
-| `Where` | Replaces the array with the indexes of its non-zero elements. Same as `Nonzero`. |
-| `Nonzero` | Replaces the array with the indexes of its non-zero elements. Same as `Where`. |
-| `SearchSorted(value)` | Where value would go in the sorted array. |
-| `Rand(n)` | n random values in [0, 1) (default 1). |
-| `Random` | Fills the array with `n` random values from 0 up to 1. Same as `Rand`. |
-| `Randn(n)` | n normally distributed values. |
-| `Random_normal` | Fills the array with `n` random values from a normal distribution. Same as `RandN`. |
-| `Normal` | Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`. |
-| `Uniform(low, high, n)` | n random values in [low, high). |
-| `Random_uniform` | Fills the array with `n` random values between a low and a high value. Same as `Uniform`. |
-| `Randint(low, high, n)` | n random whole numbers from low to high, both included. |
-| `Choice(n)` | One element at random (returned), or the array becomes n of them. |
-| `ToList` | The elements as "1,2,3". |
-| `ToString` | Returns the contents as text. |
-| `Print` | Prints the array as [1, 2, 3]. |
-| `Show` | Shows the component or form; a data-science object prints its contents. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-
-<a id="rdataframe"></a>
-## RDATAFRAME
-
-A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Nrows` (read-only) | int |  | The number of rows in the data frame. |
-| `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `Width` (read-only) | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Ncols` (read-only) | int |  | The number of columns in the data frame. |
-| `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
-
-| Method | |
-|---|---|
-| `Create` | Makes the frame empty. |
-| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `AddRow(v1, v2, …, v2, …)` | Adds a row (columns column_1, ... if the frame has fewer). |
-| `Add_row` | Appends a row made of the values given. Same as `AddRow`. |
-| `AppendRow` | Appends a row made of the values given. Same as `AddRow`. |
-| `Push_row` | Appends a row made of the values given. Same as `AddRow`. |
-| `LoadFromCSV(filename)` | Reads CSV (the first line the header) from a file, or the CSV text itself. |
-| `ReadCSV(filename)` | The same as loadfromcsv. |
-| `Read_csv(filename)` | Loads a CSV file into the DataFrame. Same as `ReadCSV`. |
-| `SaveToCSV(filename)` | Writes the frame as CSV (default output.csv). |
-| `To_csv(filename)` | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
-| `WriteCSV(filename)` | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
-| `LoadFromJSON(filename)` | Reads JSON records ([{...}, ...]), JSON Lines or columns ({"a": [...]}). |
-| `Read_json(filename)` | Loads a JSON file into the DataFrame. Same as `LoadFromJSON`. |
-| `SaveToJSON(filename)` | Writes the frame as an array of JSON records (default output.json). |
-| `To_json(filename)` | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
-| `Head([n])` | Keeps the first n rows (default 5). |
-| `Tail([n])` | Keeps the last n rows (default 5). |
-| `Cell(col, row)` | The text of a cell (col: an index from 0, or a column name); "" for a missing value. |
-| `CellByName(row, columnName)` | The text of a cell by its column name. |
-| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
-| `SetCell(col, row, value)` | Sets a cell (col: an index or a name); past the end the frame grows. |
-| `Iloc(row)` | Keeps rows start to end (not included). |
-| `Select(col1, col2, …)` | Keeps those columns, in that order. |
-| `Sort(column, [ascending])` | Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last. |
-| `Sort_values(column, [ascending])` | The same as sort. |
-| `Filter(column, operator, value)` | Keeps the rows that pass: =, ==, <>, !=, >, <, >=, <=, contains, startswith, endswith. |
-| `Query(expression)` | Filters with one condition: query "age > 30". |
-| `GroupBy(column, aggColumn, aggFunc)` | A row a group: the column, then mean (default), sum, count, min, max, first, last, median or std of every other column. |
-| `Group_by` | Groups the rows by a column and aggregates the other columns. Same as `GroupBy`. |
-| `Drop(column)` | Removes a column. |
-| `Drop_column` | Removes a column by name. Same as `Drop`. |
-| `Rename(oldName, newName)` | Renames a column. |
-| `Rename_column` | Renames a column. Same as `Rename`. |
-| `AddColumn(name, values)` | Adds (or replaces) a column; a frame without rows gets one a value. |
-| `Add_column` | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
-| `Set_column` | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
-| `Fillna(value)` | Missing values become value (default "0"). |
-| `Fill_null` | Replaces the missing values with the value given. Same as `FillNA`. |
-| `Dropna` | Removes the rows with a missing value. |
-| `Drop_nulls` | Removes the rows that have a missing value. Same as `DropNA`. |
-| `Describe` | The frame becomes the summary of its numeric columns: count, mean, std, min, 25%, 50%, 75%, max. |
-| `Value_counts(column)` | The frame becomes each value of the column and its count, most first. |
-| `Nunique(column)` | How many different values the column has. |
-| `Corr(col1, col2)` | Pearson's correlation of two columns. |
-| `Correlation` | Returns the correlation matrix of the numeric columns. Same as `Corr`. |
-| `Sample(n)` | Keeps n rows at random (default 5). |
-| `Nlargest(n, column)` | Keeps the n rows with the largest values (default 5). |
-| `Nsmallest(n, column)` | Keeps the n rows with the smallest values (default 5). |
-| `Info` | Prints the size and each column's type and non-null count. |
-| `Dtypes` | The columns' types: "name: str,age: i64". |
-| `Shape` | The array's or frame's dimensions as text: an array's length, a frame's rows and columns. |
-| `Merge(otherDf, onColumn, [how])` | Joins another frame on a column: inner (default), left, right, outer, cross. |
-| `Join` | Joins another DataFrame on a common column. Same as `Merge`. |
-| `Concat(otherDf)` | Adds another frame's rows (columns matched by name). |
-| `Append` | Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array. |
-| `Transpose` | Columns become rows. |
-| `T` | Swaps rows and columns. Same as `Transpose`. |
-| `Apply(column, function)` | Transforms a column: upper, lower, trim, abs, round, sqrt, log, exp. |
-| `Replace(column, oldValue, newValue)` | Cells that are oldValue become newValue. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `Columns` | The frame's column names, comma-separated. |
-| `Rows` | Returns the number of rows. |
-| `RowCount` | How many rows the frame has. |
-| `Len` | Returns the number of rows. Same as `Rows`. |
-| `ToString` | The frame as a text table. |
-| `Show` | Shows the component or form; a data-science object prints its contents. |
-| `Print` | Prints the frame as a text table. |
-| `ToGrid(gridName)` | Fills a QSTRINGGRID: the header row, then the cells. |
-| `To_grid` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
-| `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
-
-<a id="rplot"></a>
-## RPLOT
-
-A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
-| `XLabel` | string |  | The title under the plot's X axis. |
-| `YLabel` | string |  | The title beside the plot's Y axis. |
-| `Grid` | int |  | Non-zero draws grid lines on the plot. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Dpi` | int |  | The dots per inch the plot is rendered at. |
-| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Create` | Starts the object empty and ready to use (the web's name; same as `New` and `Init`). |
-| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `Clear` | Removes every series and setting. |
-| `Plot(xData, yData, [color], [label])` | A line: x and y are RNum arrays (or "1,2,3"); style "-" (default), "--" dashed, "o" points. |
-| `Bar(labels, values, [color], [label])` | Vertical bars. |
-| `Barh(labels, values, [color], [label])` | Horizontal bars. |
-| `Scatter(xData, yData, [color], [label])` | Points. |
-| `Step(xData, yData, [color], [label])` | A step line. |
-| `Area(xData, yData, [color], [label])` | A filled area under the line. |
-| `Fill_between` | Draws the area between a curve and the axis, filled. Same as `Area`. |
-| `AddSeries(label, y1, y2, …, [x1], [x2, …], [color])` | A line from numbers written in place, drawn at once where the chart shows. |
-| `Add_series` | Adds a data series to the chart. Same as `AddSeries`. |
-| `Series` | Adds a data series to the chart. Same as `AddSeries`. |
-| `Hist(data, [bins], [color], [label])` | A histogram (default 10 bins). |
-| `Histogram` | Draws a histogram of the values. Same as `Hist`. |
-| `Pie(labels, values, [colors])` | A pie chart. |
-| `Hline(y, [color], [label])` | A horizontal reference line at y. |
-| `Axhline` | Draws a horizontal line across the chart at the y given. Same as `HLine`. |
-| `Vline(x, [color], [label])` | A vertical reference line at x. |
-| `Axvline` | Draws a vertical line across the chart at the x given. Same as `VLine`. |
-| `Annotate(text, x, y, [color])` | Text at (x, y). |
-| `Legend([position])` | Shows the series labels. |
-| `SetTitle` | Sets the chart's title. |
-| `Set_title` | Sets the chart's title. Same as `SetTitle`. |
-| `SetXLabel` | Sets the label of the x axis. |
-| `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
-| `SetYLabel` | Sets the label of the y axis. |
-| `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
-| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
-| `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
-| `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `Show` | Draws the chart where it is shown (the page, on the web). |
-| `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
-| `Xlim(min, max)` | The X axis range. |
-| `Ylim(min, max)` | The Y axis range. |
-| `Xscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
-| `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
-
-<a id="ropendialog"></a>
-## ROPENDIALOG (QOPENDIALOG)
-
-The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
-| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
-| `InitialDir` | string |  | The folder the dialog or tree starts in. |
-| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
-| `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
-
-| Method | |
-|---|---|
-| `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
-
-<a id="rsavedialog"></a>
-## RSAVEDIALOG (QSAVEDIALOG)
-
-The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
-| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
-| `InitialDir` | string |  | The folder the dialog or tree starts in. |
-| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
-| `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
-
-| Method | |
-|---|---|
-| `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
-
-<a id="rfiledialog"></a>
-## RFILEDIALOG (QFILEDIALOG)
-
-RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Caption` | string | `"Open"` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `DefaultExt` | string |  | The extension added to a file name typed without one (`txt`, no dot). |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `FileTitle` (read-only) | string |  | The chosen file's name without its folder; read-only. |
-| `Files` | string |  | With `MultiSelect`, the files picked: `Files(0)` is the folder, `Files(1)` on the names. |
-| `Filter` | string | `"All Files|*.*"` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
-| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
-| `InitialDir` | string |  | The folder the dialog or tree starts in. |
-| `Mode` | int |  | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
-| `MultiSelect` | bool | False | Lets the user select more than one item or file. |
-| `NoChangeDir` | bool | False | Puts the current folder back as it was after the dialog closes. |
-| `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `SelCount` (read-only) | int | 0 | How many items (or files) are selected. |
-| `WarnIfOverWrite` | bool | True | Asks before saving over a file that's already there. |
-| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
-
-| Method | |
-|---|---|
-| `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
-
-<a id="rcolordialog"></a>
-## RCOLORDIALOG (QCOLORDIALOG)
-
-A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `Colors` | int |  | The custom colours the colour dialog offers, `Colors(1)` to `Colors(16)`. |
-| `Color` (read-only) | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Style` | int |  | A variant of the component: a combo box's `csXXX` (drop-down, simple, list only, owner-drawn), a list box's `lbXXX`, a colour dialog's options, a dock form's alternative-place mode. |
-
-| Method | |
-|---|---|
-| `Execute AS VARIANT` | Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color. |
-
-<a id="rfontdialog"></a>
-## RFONTDIALOG (QFONTDIALOG)
-
-A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with a QFONT.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `FontCount` (read-only) | int |  | The number of fonts installed; read-only. |
-| `FontName` (read-only) | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `MaxFontSize` | int |  | The largest size the font dialog offers (0: no limit). |
-| `MinFontSize` | int |  | The smallest size the font dialog offers (0: no limit). |
-| `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Name` | string |  | The font's name (`Arial`); on a joystick, the device's name. |
-
-| Method | |
-|---|---|
-| `AddStyles(Items, …)` | Turns on the font styles given (bold, italic, underline, strike-out). |
-| `DelStyles(Items, …)` | Turns off the font styles given. |
-| `AddOptions(Items, …)` | Turns on the option flags given. |
-| `DelOptions(Items, …)` | Turns off the option flags given. |
-| `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
-| `GetFont(F AS QFONT)` *(not yet)* | Copies the font chosen in the dialog into font `F`. |
-| `SetFont(F AS QFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
-
-| Event | |
-|---|---|
-| `OnApply` | Fires when the user presses the font dialog's Apply button; the dialog's font properties already hold the font shown. |
-
-<a id="rdxscreen"></a>
-## RDXSCREEN (QDXSCREEN)
-
-A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `AllowStretch` | bool | True | Whether the back buffer is stretched to fill the control when their sizes differ. |
-| `AutoSize` | bool | True | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
-| `BitCount` | int | 8 | The colour depth of the full-screen display mode, in bits per pixel (8, 16, 24 or 32). |
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `FullScreen` | bool | False | Takes the whole screen in the display mode `BitCount` and the size give. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Use3D` | bool | False | Sets the DirectX screen up for Direct3D drawing. |
-| `UseHardware` | bool | True | Uses the graphics card's acceleration when it can. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
-| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
-| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FastPset(X1 AS INTEGER, Y1 AS INTEGER, C AS INTEGER)` | Sets the back buffer's pixel at (`X1`, `Y1`) to `C`, a device pixel value. |
-| `Fill(Color AS INTEGER)` | Fills the whole back buffer with color `Color`. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
-| `Flip` | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
-| `Init(Width AS INTEGER, Height AS INTEGER)` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Release` | Gives back the DirectX surfaces; RapidR has nothing to free. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `AddLight(Light AS QD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
-| `CameraLookAt(F AS QD3DFRAME, Constraint AS INTEGER)` | Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on. |
-| `CreateFace(Face AS QD3DFACE)` | Creates a new, empty face in variable `Face`. |
-| `CreateFrame(Frame AS QD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
-| `CreateLightRGB(LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, Light AS QD3DLIGHT)` | Creates a light of type `LightType` colored `R`, `G`, `B` (0 to 1) in variable `Light`. |
-| `CreateMeshBuilder(MB AS QD3DMESHBUILDER)` | Creates an empty mesh builder in variable `MB`. |
-| `CreateShadow(MB AS QD3DMESHBUILDER, Light AS QD3DLIGHT, px AS DOUBLE, py AS DOUBLE, pz AS DOUBLE, nx AS DOUBLE, ny AS DOUBLE, nz AS DOUBLE, V AS QD3DVISUAL)` | Creates in `V` the shadow of `MB` cast by `Light` on the plane through (`px`, `py`, `pz`) with normal (`nx`, `ny`, `nz`). |
-| `CreateWrap(WrapType AS INTEGER, A AS DOUBLE, B AS DOUBLE, C AS DOUBLE, D AS DOUBLE, E AS DOUBLE, F AS DOUBLE, G AS DOUBLE, H AS DOUBLE, I AS DOUBLE, J AS DOUBLE, K AS DOUBLE, L AS DOUBLE, M AS DOUBLE, W AS QD3DWRAP)` | Creates in `W` a texture wrap of type `WrapType` (flat, cylinder, sphere, chrome) from an origin, direction, up vector, offset and scale. |
-| `ForceUpdate(X1 AS INTEGER, Y1 AS INTEGER, X2 AS INTEGER, Y2 AS INTEGER)` | Marks the rectangle (`X1`, `Y1`)–(`X2`, `Y2`) of the 3D view to be drawn again; RapidR draws the whole view at each `Render`. |
-| `LoadTexture(File AS STRING, Tex AS QD3DTEXTURE)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
-| `Move(D AS DOUBLE)` | Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation. |
-| `SetBackgroundImage(Tex AS QD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
-| `SetCameraPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the camera to (`X`, `Y`, `Z`). |
-| `SetCameraOrientation(DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE)` | Points the camera along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction. |
-| `SetRenderMode(M AS INTEGER)` | Sets the 3D view's rendering mode flags. |
-| `SetVelocity(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER)` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
-| `SetTextureQuality(Quality AS INTEGER)` | Sets how textures are filtered when drawn. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `CreateAnimation` *(not yet)* | Creates a Direct3D animation, a frame's motion between key positions. |
-| `CreateAnimationSet` *(not yet)* | Creates a Direct3D animation set, animations played together. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
-| Event | |
-|---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnInitialize` | Fires once when the DirectX screen has been set up on its built form, before OnInitializeSurface. |
-| `OnInitializeSurface` | Fires once when the DirectX screen's drawing surface is ready: the place to load pictures and build a 3D scene. |
-| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
-| `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnMouseMove(X AS INTEGER, Y AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
-| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-
-<a id="rdximagelist"></a>
-## RDXIMAGELIST (QDXIMAGELIST)
-
-A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-
-| Method | |
-|---|---|
-| `Draw(Item AS INTEGER, X AS INTEGER, Y AS INTEGER, Mask AS INTEGER)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromResource(Resource_Handle)` | Loads images from a bitmap resource. |
-| `LoadFromStream(Stream AS QFILESTREAM)` | Loads the component's contents from an open stream. |
-
-<a id="rdxtimer"></a>
-## RDXTIMER (QDXTIMER)
-
-A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `ActiveOnly` | bool | True | When true, the timer pauses while the application isn't the active one. |
-| `Enabled` | bool | False | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `FrameRate` (read-only) | int |  | How many times the timer fired in the last whole second; read-only. |
-| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-
-| Event | |
-|---|---|
-| `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
-
-<a id="rdxsound"></a>
-## RDXSOUND (QDXSOUND)
-
-A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `AutoUpdate` | bool | True | Keeps the sound's buffer filled by itself while it streams. |
-| `BufferLength` | int | 1000 | The length of the sound's streaming buffer, in milliseconds. |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Frequency` | int |  | On a DirectX sound, the playback rate in samples per second; on a track bar, the step between tick marks. |
-| `Looped` | bool | False | Plays the sound over and over until it's stopped. |
-| `Pan` | int | 0 | The left-right balance, from -100 (right muted) to 100 (left muted); 0 centred. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Playing` (read-only) | int |  | True while the sound, audio or video plays; read-only. |
-| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `StickyFocus` | bool | False | Keeps the sound audible while another application has the focus. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Volume` | int |  | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
-
-| Method | |
-|---|---|
-| `Play` | Starts playing from the current position. |
-| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
-| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `RecreateBuf` *(not yet)* | Makes the sound buffer again after the device lost it. |
-
-<a id="rdxjoystick"></a>
-## RDXJOYSTICK (QDXJOYSTICK)
-
-A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index).
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `IsLeft` | int |  | True while the joystick is pushed left, as the last `Update` read it. |
-| `IsRight` | int |  | True while the joystick is pushed right, as the last `Update` read it. |
-| `IsUp` | int |  | True while the joystick is pushed up (away from the player), as the last `Update` read it. |
-| `IsDown` | int |  | True while the joystick is pushed down (towards the player), as the last `Update` read it. |
-| `Index` *(RapidR)* | int |  | On a joystick, which one it reads (0 the first); on a tree node (`Item(i).Index`), its position from 0. |
-| `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `Name` *(RapidR)* | string |  | The font's name (`Arial`); on a joystick, the device's name. |
-| `X` *(RapidR)* | int |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
-| `Y` *(RapidR)* | int |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
-| `Z` *(RapidR)* | int |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
-| `R` *(RapidR)* | int |  | The joystick's fourth axis (rudder), 0 to 65535, 32767 at rest. |
-| `U` *(RapidR)* | int |  | The joystick's fifth axis, 0 to 65535, 32767 at rest. |
-| `V` *(RapidR)* | int |  | The joystick's sixth axis, 0 to 65535, 32767 at rest. |
-| `Buttons` *(RapidR)* | int |  | The joystick buttons held down, one bit each: bit n − 1 for button n. |
-| `Pov` *(RapidR)* | int |  | The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred. |
-
-| Method | |
-|---|---|
-| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Button(Index AS INTEGER)` | Tells whether a joystick button is pressed. |
-
-| Event | |
-|---|---|
-| `OnButtonDown(Button AS INTEGER)` *(RapidR)* | Fires when a joystick button is pressed; Button is its number, from 1 (RapidR's, looked for at each of the joystick's ticks). |
-| `OnButtonUp(Button AS INTEGER)` *(RapidR)* | Fires when a joystick button is released; Button is its number, from 1. |
-| `OnMove` *(RapidR)* | Fires when the joystick's position changes (X, Y and the other axes read the new values). |
-
-<a id="rlabel"></a>
-## RLABEL (QLABEL)
-
-Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Alignment` | enum | `taLeftJustify` | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
-| `Angle` | int | 0 | The rotation of the label's text, in degrees counter-clockwise; it needs a TrueType font. |
-| `AutoSize` | bool | False | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `LabelStyle` | enum |  | The label's text effect: plain, or raised or lowered with `UpperColor` and `LowerColor`. |
-| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `LowerColor` | color | -2147483632 | The shadow colour of a raised or lowered label, as &HBBGGRR. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
-| `UpperColor` | color | -2147483628 | The highlight colour of a raised or lowered label, as &HBBGGRR. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `WordWrap` | bool | False | Wraps long lines at the control's edge. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
-| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `Layout` | enum |  | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
-| `TextStyle` | any |  | How the label draws its text, together with `LabelStyle`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
-| Event | |
-|---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
-| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
-
-<a id="rimage"></a>
-## RIMAGE (QIMAGE)
-
-Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `AutoSize` | bool | False | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
-| `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
-| `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
-| `Center` | bool | False | Centres the picture in the control instead of placing it at the top left. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ICOHandle` (write-only) | resource |  | Sets the icon from a resource handle (`$RESOURCE`); write-only. |
-| `Icon` (write-only) | picture |  | The icon (an .ICO file name) of the window, the application or the image. |
-| `IncrementalDisplay` | bool | False | Shows a large picture bit by bit while it loads. |
-| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Stretch` | bool | False | Stretches the picture to fill the control. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
-| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
-| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(not yet)* | Redraws the component. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile` *(RapidR)* *(desktop)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `Load` *(RapidR)* *(desktop)* | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
-| `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-
-| Event | |
-|---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
-| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-
-<a id="rcanvas"></a>
-## RCANVAS (QCANVAS)
-
-A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
-| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `PenWidth` *(RapidR)* | int |  | The width of the lines the drawing methods draw, in pixels. |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws a circle outline. |
-| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
-| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills a rectangle from (x1,y1) to (x2,y2). Optional fill color. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(desktop)* | Redraws the component. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Cls` *(RapidR)* | Clears the canvas using the current Color. |
-| `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `DrawText(x, y, text, [color])` *(RapidR)* | Draws text at (x, y). Optional color argument (RGB integer). |
-| `SetFont(family, [size])` *(RapidR)* | Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
-
-| Event | |
-|---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
-| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
-| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-
-<a id="rheader"></a>
-## RHEADER (QHEADER)
-
-A row of headings (sections) the user can click and resize, as above a list's columns.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
-| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `HotTrack` | bool | False | Highlights the item, tab or header section under the mouse. |
-| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `Sections` | item |  | A header section, `Sections(i)` from 0, with its own `Caption` and `Width`. |
-| `SectionsCount` (read-only) | int |  | The number of header sections; read-only. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `SectionCount` *(RapidR)* | int |  | RapidR's name for `SectionsCount`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `AddSections(Items, …)` | Appends sections to the header, one per caption given. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
-| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
-| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(desktop)* | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
-| `AddSection` *(RapidR)* | Appends a section with the caption given. Same as `AddSections` with one. |
-
-| Event | |
-|---|---|
-| `OnDrawSection(Index AS INTEGER, Pressed AS INTEGER, Rect AS QRECT)` | Fires for each header section to draw (Index: the section, Pressed: nonzero while pressed, Rect: its rectangle). |
-| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
-| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
-| `OnSectionClick(Index AS INTEGER)` | Fires when the user clicks header section Index. |
-| `OnSectionResize(Index AS INTEGER)` | Fires after the user resized header section Index. |
-| `OnSectionTrack(Index AS INTEGER, Width AS INTEGER, State AS INTEGER)` | Fires while the user drags a header section's border (Index: the section, Width: its new width, State: begin, move or end of the drag). |
-
-<a id="rprogress"></a>
-## RPROGRESS
-
-Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR's own; RPROGRESSBAR is RapidQ's gauge.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Min` | int | 0 | The lowest value of the progress bar, scroll bar, up-down or track bar. |
-| `Max` | int | 100 | The highest value of the progress bar, scroll bar, up-down or track bar. |
-| `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
-<a id="rprogressbar"></a>
-## RPROGRESSBAR (QGAUGE)
-
-RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `BackColor` | color | 16777215 | The colour of the gauge's unfilled part, as &HBBGGRR. |
-| `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `ForeColor` | color |  | The colour of the gauge's filled part, as &HBBGGRR. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Kind` | enum | `gkHorizontalBar` | What it is: a gauge's shape (`gkHorizontalBar`, `gkPie` …), a button's stock kind (`bkOK` gives caption, glyph and ModalResult), a scroll bar's direction. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Max` | int | 100 | The highest value of the progress bar, scroll bar, up-down or track bar. |
-| `Min` | int | 0 | The lowest value of the progress bar, scroll bar, up-down or track bar. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `ShowText` | bool | True | Shows the percentage on the gauge. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
-<a id="rdesignsurface"></a>
-## RDESIGNSURFACE
-
-RapidR's form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `CompCount` | int |  | The number of components on the design surface. |
-| `Visible` | int |  | Whether the control or form is shown. |
-| `FormCaption` | string |  | The caption of the form being designed. |
-| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
-| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `AddComponent` | Puts a component on the design surface: `AddComponent(Type, Name, X, Y, W, H)`. |
-| `RemoveComponent` | Removes the component at the index given from the design surface. |
-| `ClearAll` | Removes every component from the design surface. |
-| `SelectComp` | Selects the component at the index given on the design surface (-1: none). |
-| `GetName` | Returns the name of the component at the index given on the design surface. |
-| `SetName` | Renames the component at an index on the design surface. |
-| `GetType` | Returns the type of the component at the index given on the design surface. |
-| `GetProp` | Returns the value of a property of the component at an index on the design surface: `GetProp(Index, Name)`. |
-| `SetProp` | Sets a property of the component at an index on the design surface: `SetProp(Index, Name, Value)`. |
-| `SetCompBounds` | Moves and sizes a component on the design surface: `SetCompBounds(Index, X, Y, W, H)`. |
-| `GetCompX` | Returns the left position of the component at the index given on the design surface. |
-| `GetCompY` | Returns the top position of the component at the index given on the design surface. |
-| `GetCompW` | Returns the width of the component at the index given on the design surface. |
-| `GetCompH` | Returns the height of the component at the index given on the design surface. |
-| `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
-
-| Event | |
-|---|---|
-| `OnSelect(Index AS INTEGER)` | Fires when the user selects a designed component on the design surface (Index: which). |
-| `OnDblClick(Index AS INTEGER)` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnMove(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)` | Fires when the user moved or resized a designed component on the design surface (Index, and its new X, Y, W, H). |
-| `OnBgClick(X AS INTEGER, Y AS INTEGER)` | Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards. |
-
-<a id="rdigdisplay"></a>
-## RDIGDISPLAY (QDIGDISPLAY)
-
-A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
-| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `Height` | int | 24 | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Width` | int | 12 | The width, in pixels; on `Screen`, the screen's. |
-| `Visible` | bool | True | Whether the control or form is shown. |
-| `Display` | string | `"0"` | The text the digital display shows: digits, and the few letters and signs segments can form. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
-| Event | |
-|---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
-| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
-
 <a id="rform"></a>
 ## RFORM (QFORM)
 
@@ -1484,7 +163,7 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `ActiveChild(Index AS LONG)` | Brings the MDI child with index `Index` to the front, restoring it if it is minimized. |
 | `FreeChild(handle AS LONG) AS VARIANT` | Returns true when the form with handle `handle` isn't shown as an MDI child, so it can be added. |
 | `SetDeskBar` | Sets up the MDI form's bar for its child windows; RapidR accepts it and does nothing. |
-| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `Rect` *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
 | `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
@@ -1695,7 +374,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | Method | |
 |---|---|
 | `AddPanels(Items, …)` *(desktop)* | Appends panels to the status bar, one per caption given. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
@@ -2072,7 +751,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `PasteFromClipboard` *(RapidR)* | Inserts the clipboard's text at the caret, replacing the selection. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `AddItems` *(RapidR)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
+| `AddItems` *(RapidR)* *(desktop)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` *(RapidR)* | Deletes the selected text. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
@@ -2241,15 +920,15 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -2263,10 +942,10 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
+| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `AddString` *(RapidR)* | Appends one string as a new item or line. |
 | `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
@@ -2807,6 +1486,504 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
+<a id="rlabel"></a>
+## RLABEL (QLABEL)
+
+Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Alignment` | enum | `taLeftJustify` | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
+| `Angle` | int | 0 | The rotation of the label's text, in degrees counter-clockwise; it needs a TrueType font. |
+| `AutoSize` | bool | False | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
+| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `LabelStyle` | enum |  | The label's text effect: plain, or raised or lowered with `UpperColor` and `LowerColor`. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `LowerColor` | color | -2147483632 | The shadow colour of a raised or lowered label, as &HBBGGRR. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
+| `UpperColor` | color | -2147483628 | The highlight colour of a raised or lowered label, as &HBBGGRR. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `WordWrap` | bool | False | Wraps long lines at the control's edge. |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
+| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
+| `Layout` | enum |  | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
+| `TextStyle` | any |  | How the label draws its text, together with `LabelStyle`. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Repaint` *(RapidR)* | Redraws the component. |
+| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
+| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+
+| Event | |
+|---|---|
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+
+<a id="rimage"></a>
+## RIMAGE (QIMAGE)
+
+Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `AutoSize` | bool | False | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
+| `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
+| `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
+| `Center` | bool | False | Centres the picture in the control instead of placing it at the top left. |
+| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `ICOHandle` (write-only) | resource |  | Sets the icon from a resource handle (`$RESOURCE`); write-only. |
+| `Icon` (write-only) | picture |  | The icon (an .ICO file name) of the window, the application or the image. |
+| `IncrementalDisplay` | bool | False | Shows a large picture bit by bit while it loads. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
+| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Stretch` | bool | False | Stretches the picture to fill the control. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Repaint` *(not yet)* | Redraws the component. |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `LoadFromFile` *(RapidR)* *(desktop)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
+| `Cls` *(RapidR)* *(desktop)* | Clears the drawing area to its background color. |
+| `Load` *(RapidR)* *(desktop)* | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
+| `Clear` *(RapidR)* *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+
+| Event | |
+|---|---|
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+
+<a id="rcanvas"></a>
+## RCANVAS (QCANVAS)
+
+A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
+| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
+| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `PenWidth` *(RapidR)* | int |  | The width of the lines the drawing methods draw, in pixels. |
+| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws a circle outline. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills a rectangle from (x1,y1) to (x2,y2). Optional fill color. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Repaint` *(desktop)* | Redraws the component. |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `Cls` *(RapidR)* | Clears the canvas using the current Color. |
+| `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
+| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `DrawText(x, y, text, [color])` *(RapidR)* | Draws text at (x, y). Optional color argument (RGB integer). |
+| `SetFont(family, [size])` *(RapidR)* | Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12. |
+| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
+| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
+| `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
+
+| Event | |
+|---|---|
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+
+<a id="rheader"></a>
+## RHEADER (QHEADER)
+
+A row of headings (sections) the user can click and resize, as above a list's columns.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
+| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
+| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `HotTrack` | bool | False | Highlights the item, tab or header section under the mouse. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
+| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
+| `Sections` | item |  | A header section, `Sections(i)` from 0, with its own `Caption` and `Width`. |
+| `SectionsCount` (read-only) | int |  | The number of header sections; read-only. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `SectionCount` *(RapidR)* | int |  | RapidR's name for `SectionsCount`. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `AddSections(Items, …)` | Appends sections to the header, one per caption given. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Repaint` *(desktop)* | Redraws the component. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
+| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `AddSection` *(RapidR)* | Appends a section with the caption given. Same as `AddSections` with one. |
+
+| Event | |
+|---|---|
+| `OnDrawSection(Index AS INTEGER, Pressed AS INTEGER, Rect AS QRECT)` | Fires for each header section to draw (Index: the section, Pressed: nonzero while pressed, Rect: its rectangle). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
+| `OnSectionClick(Index AS INTEGER)` | Fires when the user clicks header section Index. |
+| `OnSectionResize(Index AS INTEGER)` | Fires after the user resized header section Index. |
+| `OnSectionTrack(Index AS INTEGER, Width AS INTEGER, State AS INTEGER)` | Fires while the user drags a header section's border (Index: the section, Width: its new width, State: begin, move or end of the drag). |
+
+<a id="rprogress"></a>
+## RPROGRESS
+
+Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR's own; RPROGRESSBAR is RapidQ's gauge.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Min` | int | 0 | The lowest value of the progress bar, scroll bar, up-down or track bar. |
+| `Max` | int | 100 | The highest value of the progress bar, scroll bar, up-down or track bar. |
+| `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
+| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+
+<a id="rprogressbar"></a>
+## RPROGRESSBAR (QGAUGE)
+
+RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `BackColor` | color | 16777215 | The colour of the gauge's unfilled part, as &HBBGGRR. |
+| `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `ForeColor` | color |  | The colour of the gauge's filled part, as &HBBGGRR. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Kind` | enum | `gkHorizontalBar` | What it is: a gauge's shape (`gkHorizontalBar`, `gkPie` …), a button's stock kind (`bkOK` gives caption, glyph and ModalResult), a scroll bar's direction. |
+| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Max` | int | 100 | The highest value of the progress bar, scroll bar, up-down or track bar. |
+| `Min` | int | 0 | The lowest value of the progress bar, scroll bar, up-down or track bar. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `ShowText` | bool | True | Shows the percentage on the gauge. |
+| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Repaint` *(RapidR)* | Redraws the component. |
+| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
+| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+
+<a id="rdesignsurface"></a>
+## RDESIGNSURFACE
+
+RapidR's form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `CompCount` | int |  | The number of components on the design surface. |
+| `Visible` | int |  | Whether the control or form is shown. |
+| `FormCaption` | string |  | The caption of the form being designed. |
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `AddComponent` | Puts a component on the design surface: `AddComponent(Type, Name, X, Y, W, H)`. |
+| `RemoveComponent` | Removes the component at the index given from the design surface. |
+| `ClearAll` | Removes every component from the design surface. |
+| `SelectComp` | Selects the component at the index given on the design surface (-1: none). |
+| `GetName` | Returns the name of the component at the index given on the design surface. |
+| `SetName` | Renames the component at an index on the design surface. |
+| `GetType` | Returns the type of the component at the index given on the design surface. |
+| `GetProp` | Returns the value of a property of the component at an index on the design surface: `GetProp(Index, Name)`. |
+| `SetProp` | Sets a property of the component at an index on the design surface: `SetProp(Index, Name, Value)`. |
+| `SetCompBounds` | Moves and sizes a component on the design surface: `SetCompBounds(Index, X, Y, W, H)`. |
+| `GetCompX` | Returns the left position of the component at the index given on the design surface. |
+| `GetCompY` | Returns the top position of the component at the index given on the design surface. |
+| `GetCompW` | Returns the width of the component at the index given on the design surface. |
+| `GetCompH` | Returns the height of the component at the index given on the design surface. |
+| `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
+
+| Event | |
+|---|---|
+| `OnSelect(Index AS INTEGER)` | Fires when the user selects a designed component on the design surface (Index: which). |
+| `OnDblClick(Index AS INTEGER)` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnMove(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)` | Fires when the user moved or resized a designed component on the design surface (Index, and its new X, Y, W, H). |
+| `OnBgClick(X AS INTEGER, Y AS INTEGER)` | Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards. |
+
+<a id="rdigdisplay"></a>
+## RDIGDISPLAY (QDIGDISPLAY)
+
+A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
+| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Height` | int | 24 | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
+| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int | 12 | The width, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Display` | string | `"0"` | The text the digital display shows: digits, and the few letters and signs segments can form. |
+| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
+| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
+| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+
+| Event | |
+|---|---|
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
+
 <a id="rlistbox"></a>
 ## RLISTBOX (QLISTBOX)
 
@@ -2868,16 +2045,16 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -2892,10 +2069,10 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
+| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `AddString` *(RapidR)* | Appends one string as a new item or line. |
 | `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
@@ -3126,7 +2303,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `LoadFromFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromStream(S AS QFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from an open stream. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -3148,10 +2325,10 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `SetColCount` *(RapidR)* | Sets the number of columns, adding or removing them at the end. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
+| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `MoveCol` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveColumn`. |
 | `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
 | `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
@@ -3366,15 +2543,15 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `InsertSubItem(Index AS INTEGER, SubIndex AS INTEGER, String AS STRING)` | Inserts sub-item text `String` at column `SubIndex` of the item at `Index`. |
 | `SwapItem(Index1 AS INTEGER, Index2 AS INTEGER)` | Swaps the items at `Index1` and `Index2`. |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `DeleteItem` *(RapidR)* | Removes the item at the index given. |
+| `AddItem` *(RapidR)* *(desktop)* | Appends one item (a list entry, line, node or menu item) to the component. |
+| `DeleteItem` *(RapidR)* *(desktop)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
+| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -3385,159 +2562,6 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `OnColumnClick(Column AS INTEGER)` | Fires when the user clicks a column header of the list view (Column: its index); the usual place to sort by that column. |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-
-<a id="rmidi"></a>
-## RMIDI (QMIDI)
-
-Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
-| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
-| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
-| `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
-| `CurrentFrame` | int |  | The frame (video) or position (MIDI) playing now; setting it seeks there. |
-| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
-| `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-
-| Method | |
-|---|---|
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Open(FileName AS STRING) AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
-| `Play` | Starts playing from the current position. |
-| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
-| `Pause` | Pauses playback; `Play` goes on from there. |
-
-| Event | |
-|---|---|
-| `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-
-<a id="rwave"></a>
-## RWAVE (QWAVE)
-
-Plays, records and saves WAV sound (QWave.inc).
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
-| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
-| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
-| `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
-| `CurrentPos` | int |  | The position in the wave, in milliseconds; setting it seeks there. |
-| `Bits` | int |  | Bits per sample of a new recording (8 or 16). |
-| `Frequence` | int |  | Samples per second of a new recording (11025, 22050, 44100 …); RapidQ's spelling. |
-| `Mode` | int |  | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
-| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
-| `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
-| `DeviceType` | string |  | The device type the wave opens with (`waveaudio`). |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-
-| Method | |
-|---|---|
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Open(FileName AS STRING) AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
-| `Play` | Starts playing from the current position. |
-| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
-| `Pause` | Pauses playback; `Play` goes on from there. |
-| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Record` | Starts recording sound from the input device. |
-| `Save(FileName AS STRING) AS VARIANT` | Saves to a file: the chart as an image, or the recording as a WAV file. |
-| `Delete(Pos1 AS LONG, Pos2 AS LONG)` | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
-
-| Event | |
-|---|---|
-| `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-
-<a id="rvideo"></a>
-## RVIDEO (QVIDEO)
-
-Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
-| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
-| `LenghtTime` (read-only) | int |  | The video's length in milliseconds (RapidQ's spelling); read-only. |
-| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
-| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `ImgWidth` (read-only) | int |  | The video picture's width, in pixels; read-only. |
-| `ImgHeight` (read-only) | int |  | The video picture's height, in pixels; read-only. |
-| `CurrentFrame` | int |  | The frame (video) or position (MIDI) playing now; setting it seeks there. |
-| `AudioOff` | bool | False | True mutes the video's sound track. |
-| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `BorderStyle` | enum | `bsSizeable` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
-| `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
-| `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `LengthTime` *(RapidR)* | int |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-
-| Method | |
-|---|---|
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Open(FileName AS STRING) AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
-| `Show` | Shows the component or form; a data-science object prints its contents. |
-| `Play` | Starts playing from the current position. |
-| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
-| `Pause` | Pauses playback; `Play` goes on from there. |
-
-| Event | |
-|---|---|
-| `OnChange(position AS LONG, timePos AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-
-<a id="rcdaudio"></a>
-## RCDAUDIO (QCDAUDIO)
-
-Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
-| `Time` (read-only) | string |  | The time picked in the date-time picker, a file's time (`FileRec`), or the CD's position, as text. |
-| `TrackTime` (read-only) | string |  | The current track's length, as text; read-only. |
-| `TrackNumber` (read-only) | int |  | The number of tracks on the CD; read-only. |
-| `TimePosition` (read-only) | string |  | The position on the CD, as text; read-only. |
-| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
-| `AudioOpen` (read-only) | bool | False | True while the CD audio device is open; read-only. |
-| `Present` (read-only) | bool | False | True when there's a disc in the drive; read-only. |
-| `CurrentTrack` | int |  | The CD track playing or selected, from 1; setting it moves there. |
-| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-
-| Method | |
-|---|---|
-| `Open AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Play` | Starts playing from the current position. |
-| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
-| `Pause` | Pauses playback; `Play` goes on from there. |
-| `Eject` | Opens the CD drive's tray. |
-
-| Event | |
-|---|---|
-| `OnChange(track AS INTEGER, time AS STRING)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rmainmenu"></a>
 ## RMAINMENU (QMAINMENU)
@@ -3614,7 +2638,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Insert(I AS INTEGER, Item AS QMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Popup(X AS INTEGER, Y AS INTEGER)` | Shows the popup menu at screen point (`X`, `Y`). |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
+| `AddItem` *(RapidR)* *(desktop)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 
@@ -3622,217 +2646,119 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 |---|---|
 | `OnPopup` | Fires just before the popup menu opens; the place to enable, check or change its items. |
 
-<a id="rsocket"></a>
-## RSOCKET (QSOCKET)
+<a id="ropendialog"></a>
+## ROPENDIALOG (QOPENDIALOG)
 
-A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket.
+The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Family` | enum | `AF_INET` | The socket's address family, one of the `AF_XXX` constants (`AF_INET`). |
-| `LParam` | int |  | The extra value of the last socket message (`WMessage`). |
-| `MySocket` (read-only) | int |  | The socket's handle; read-only. |
-| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Protocol` | enum | `IPPROTO_IP` | The socket's protocol, one of the `IPPROTO_XXX` constants. |
-| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Transferred` (read-only) | int |  | Bytes sent or received by the last transfer; read-only. |
-| `WMessage` | int | 0 | The window message the socket posts on its events (0: none). |
-| `Host` *(RapidR)* | string |  | The server's host name or address. |
-| `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `Timeout` *(RapidR)* | int |  | How long to wait for the network, in milliseconds. |
-| `Type` | int |  | The socket's type: a stream (TCP) or datagram (UDP) socket. |
+| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
+| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
+| `InitialDir` | string |  | The folder the dialog or tree starts in. |
+| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
 
 | Method | |
 |---|---|
-| `Accept(Socket AS INTEGER) AS VARIANT` | Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`. |
-| `Close(Socket AS INTEGER)` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Connect(ServerName AS STRING, PortNum AS INTEGER) AS VARIANT` | Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure). |
-| `ConnectionReady(Sock AS INTEGER) AS VARIANT` | Returns true when numbered socket `Sock` is ready: a client waiting to be accepted on a server socket. |
-| `GetHostIP AS VARIANT` | Returns this computer's IP address. |
-| `GetHostName AS VARIANT` | Returns this computer's network name. |
-| `GetPeerName(Socket AS INTEGER) AS VARIANT` | Returns the address of the other end of socket `Socket`. |
-| `IsClientReady(Sock AS INTEGER, ClientSock AS INTEGER) AS VARIANT` | Returns true when client socket `ClientSock` of server socket `Sock` has data to read. |
-| `IsServerReady(Sock AS INTEGER) AS VARIANT` | Returns true when socket `Sock` has data from the server to read. |
-| `Open(PortNum AS INTEGER) AS VARIANT` *(web)* | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
-| `Peek(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Returns up to `NumBytes` bytes waiting on socket `Socket`, leaving them to be read. |
-| `Read(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
-| `ReadByte(Socket AS INTEGER) AS BYTE` | Reads one byte from the socket or stream. |
-| `ReadLine(Socket AS INTEGER) AS VARIANT` | Reads one line of text, without its line end. |
-| `Write(Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
-| `WriteByte(Socket AS INTEGER, B AS BYTE)` | Writes one byte to the socket or stream. |
-| `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. |
-| `Disconnect` *(RapidR)* | Closes the connection. Same as `Close`. |
-| `Send` *(RapidR)* *(web)* | Sends text over the WebSocket. Same as `Write`. |
-| `Receive` *(RapidR)* *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |
+| `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
+
+<a id="rsavedialog"></a>
+## RSAVEDIALOG (QSAVEDIALOG)
+
+The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
+| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
+| `InitialDir` | string |  | The folder the dialog or tree starts in. |
+| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
+
+| Method | |
+|---|---|
+| `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
+
+<a id="rfiledialog"></a>
+## RFILEDIALOG (QFILEDIALOG)
+
+RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Caption` | string | `"Open"` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `DefaultExt` | string |  | The extension added to a file name typed without one (`txt`, no dot). |
+| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `FileTitle` (read-only) | string |  | The chosen file's name without its folder; read-only. |
+| `Files` | string |  | With `MultiSelect`, the files picked: `Files(0)` is the folder, `Files(1)` on the names. |
+| `Filter` | string | `"All Files|*.*"` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
+| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
+| `InitialDir` | string |  | The folder the dialog or tree starts in. |
+| `Mode` | int |  | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
+| `MultiSelect` | bool | False | Lets the user select more than one item or file. |
+| `NoChangeDir` | bool | False | Puts the current folder back as it was after the dialog closes. |
+| `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `SelCount` (read-only) | int | 0 | How many items (or files) are selected. |
+| `WarnIfOverWrite` | bool | True | Asks before saving over a file that's already there. |
+| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+
+| Method | |
+|---|---|
+| `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
+
+<a id="rcolordialog"></a>
+## RCOLORDIALOG (QCOLORDIALOG)
+
+A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Colors` | int |  | The custom colours the colour dialog offers, `Colors(1)` to `Colors(16)`. |
+| `Color` (read-only) | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Style` | int |  | A variant of the component: a combo box's `csXXX` (drop-down, simple, list only, owner-drawn), a list box's `lbXXX`, a colour dialog's options, a dock form's alternative-place mode. |
+
+| Method | |
+|---|---|
+| `Execute AS VARIANT` | Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color. |
+
+<a id="rfontdialog"></a>
+## RFONTDIALOG (QFONTDIALOG)
+
+A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with a QFONT.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `FontCount` (read-only) | int |  | The number of fonts installed; read-only. |
+| `FontName` (read-only) | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `MaxFontSize` | int |  | The largest size the font dialog offers (0: no limit). |
+| `MinFontSize` | int |  | The smallest size the font dialog offers (0: no limit). |
+| `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Name` | string |  | The font's name (`Arial`); on a joystick, the device's name. |
+
+| Method | |
+|---|---|
+| `AddStyles(Items, …)` | Turns on the font styles given (bold, italic, underline, strike-out). |
+| `DelStyles(Items, …)` | Turns off the font styles given. |
+| `AddOptions(Items, …)` | Turns on the option flags given. |
+| `DelOptions(Items, …)` | Turns off the option flags given. |
+| `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
+| `GetFont(F AS QFONT)` *(not yet)* | Copies the font chosen in the dialog into font `F`. |
+| `SetFont(F AS QFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
 
 | Event | |
 |---|---|
-| `OnConnect(State AS STRING)` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
-| `OnDisconnect(State AS STRING)` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-
-<a id="rserversocket"></a>
-## RSERVERSOCKET
-
-A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Host` | string |  | The server's host name or address. |
-| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `ClientCount` | int |  | The number of clients connected to the server now. |
-
-| Method | |
-|---|---|
-| `Start` *(desktop)* | Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened. |
-| `Stop` *(desktop)* | Stops what is running: playback (back to the start), recording, or the server. |
-| `Broadcast` *(desktop)* | Sends a line of text to every connected client. |
-| `Listen` *(desktop)* | Starts the server listening on its `Host` and `Port`. Same as `Start`. |
-| `Accept` *(desktop)* | Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`. |
-| `Poll` *(desktop)* | Handles what is waiting on the server: new clients, messages and disconnections, each as its event. |
-| `SendTo` *(desktop)* | Sends a line of text to one client, by its address. |
-
-| Event | |
-|---|---|
-| `OnClientConnect(Address AS STRING)` | Fires when a client connects to the server socket; the handler gets the client's address. |
-| `OnClientDisconnect(Address AS STRING)` | Fires when a client disconnects from the server socket; the handler gets the client's address. |
-| `OnDataReceived(Address AS STRING, Data AS STRING)` | Fires when data arrives from a client; the handler gets the client's address and the data. |
-| `OnError` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-
-<a id="rhttp"></a>
-## RHTTP
-
-An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR's own.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Host` | string |  | The server's host name or address. |
-| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `Url` | string |  | The address: the page the web view shows, or the HTTP request's. |
-| `StatusCode` | int |  | The HTTP status of the last response (200, 404 …). |
-| `ResponseText` | string |  | The body of the last HTTP response, as text. |
-| `ResponseHeaders` | string |  | The headers of the last HTTP response, one per line. |
-| `Timeout` | int |  | How long to wait for the network, in milliseconds. |
-| `UseSSL` | int |  | Non-zero makes the request over HTTPS. |
-
-| Method | |
-|---|---|
-| `Get` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `Post` | Sends form data to a URL in an HTTP POST and returns the response body. |
-
-<a id="rcgi"></a>
-## RCGI (QCGI)
-
-For CGI programs behind a web server (qcgi.inc): the request's CGI variables as properties, and Parse / Get for its form fields.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `AutoConvert` | int | 1 | 1 (the default) decodes form values in `Parse`: `%xx` becomes its character and `+` a space; 0 keeps them as sent. |
-| `MaxInput` | int | 32767 | The most characters `Parse` reads from the request (32767). |
-| `Accept` (read-only) | string |  | The content types the browser accepts (the request's `HTTP_ACCEPT`); read-only. |
-| `AuthType` (read-only) | string |  | How the request was authenticated (the request's `AUTH_TYPE`, e.g. `Basic`); read-only. |
-| `ContentLength` (read-only) | int |  | The length in bytes of the request's body (`CONTENT_LENGTH`); read-only. |
-| `ContentType` (read-only) | string |  | The type of the request's body (`CONTENT_TYPE`); read-only. |
-| `Cookie` (read-only) | string |  | The cookies sent with the request (`HTTP_COOKIE`); read-only. |
-| `GatewayInterface` (read-only) | string |  | The CGI version the web server speaks (`GATEWAY_INTERFACE`, `CGI/1.1`); read-only. |
-| `PathInfo` (read-only) | string |  | The extra path after the script's name in the URL (`PATH_INFO`); read-only. |
-| `PathTranslated` (read-only) | string |  | `PathInfo` turned into a file path on the server (`PATH_TRANSLATED`); read-only. |
-| `Referer` (read-only) | string |  | The page the request came from (`HTTP_REFERER`); read-only. |
-| `RemoteAddr` (read-only) | string |  | The client's IP address (`REMOTE_ADDR`); read-only. |
-| `RemoteHost` (read-only) | string |  | The client's host name, when the server knows it (`REMOTE_HOST`); read-only. |
-| `RemoteIdent` (read-only) | string |  | The client's user name from an ident lookup (`REMOTE_IDENT`); read-only. |
-| `RemoteUser` (read-only) | string |  | The user name the request authenticated as (`REMOTE_USER`); read-only. |
-| `RequestMethod` (read-only) | string |  | The request's method: `GET`, `POST` … (`REQUEST_METHOD`); read-only. |
-| `ScriptName` (read-only) | string |  | The script's path in the URL (`SCRIPT_NAME`); read-only. |
-| `ServerSoftware` (read-only) | string |  | The web server's name and version (`SERVER_SOFTWARE`); read-only. |
-| `ServerName` (read-only) | string |  | The web server's host name (`SERVER_NAME`); read-only. |
-| `ServerPort` (read-only) | int |  | The port the request came in on (`SERVER_PORT`); read-only. |
-| `ServerProtocol` (read-only) | string |  | The request's protocol, such as `HTTP/1.1` (`SERVER_PROTOCOL`); read-only. |
-| `UserAgent` (read-only) | string |  | The browser's name and version (`HTTP_USER_AGENT`); read-only. |
-
-| Method | |
-|---|---|
-| `Parse` | Splits text into parts: a string list splits `Source` at `Delim` into its items and returns how many; a CGI reads the request's variables. |
-| `Get(Name AS STRING, BYREF Value AS STRING) AS INTEGER` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-
-<a id="rcomport"></a>
-## RCOMPORT (QCOMPORT)
-
-A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser.
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `BytesNotRead` (read-only) | int |  | Bytes received but not yet read, as the last read or write saw them; read-only. |
-| `BytesNotWritten` (read-only) | int |  | Bytes still waiting to be sent, as the last read or write saw them; read-only. |
-| `BaudRate` | enum | `br110` | The serial line's speed: a `brXXX` constant (`br9600` …) or the rate itself in bits per second. |
-| `Connected` (read-only) | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `DataBits` | int | 8 | Bits per character on the serial line (5 to 8). |
-| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Parity` | enum | `prNone` | The serial line's parity check: `prNone`, `prOdd`, `prEven`, `prMark` or `prSpace`. |
-| `ReadBufSize` | int | 1024 | The size of the serial port's receive buffer, in bytes, read at `Open`. |
-| `StopBits` | enum | `sbOneStopBit` | The serial line's stop bits: `sbOneStopBit`, `sbOne5StopBits` or `sbTwoStopBits`. |
-| `WriteBufSize` | int | 1024 | The size of the serial port's send buffer, in bytes, read at `Open`. |
-| `Port` | any |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `DcbFlags` *(RapidR)* | int |  | The serial port's flow-control flag bits, read at `Open`: 20625 none, 24725 hardware, 21393 XON / XOFF. |
-| `InQue` (read-only) | int |  | Bytes waiting in the receive buffer now; read-only. |
-| `OutQue` (read-only) | int |  | Bytes waiting in the send buffer now; read-only. |
-| `PendingIO` (read-only) | int |  | Writes still pending: always 0, as RapidR's I/O never stays pending; read-only. |
-
-| Method | |
-|---|---|
-| `AbortAllIO` | Cancels every read and write still pending on the serial port. |
-| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Open` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
-| `PurgeIn` | Discards the data waiting in the serial port's receive buffer. |
-| `PurgeOut` | Discards the data still waiting to be sent from the serial port. |
-| `Read(QFile, Count AS INTEGER, Wait AS INTEGER)` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
-| `ReadString(Count AS INTEGER, Wait AS INTEGER) AS VARIANT` | Reads a string: `Count` characters from the serial port, or the named string value of the open registry key. |
-| `WaitForLastIO` | Waits until the serial port's last read or write has finished. |
-| `Write(QMemoryStream, Count AS INTEGER, Wait AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
-| `WriteString(Str AS STRING, Wait AS INTEGER)` | Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key. |
-| `AddFlowControl` | Turns on flow-control options of the serial port. |
-| `DelFlowControl` | Turns off flow-control options of the serial port. |
-
-| Event | |
-|---|---|
-| `OnBreak` *(not yet)* | A break condition on the serial line. RapidR accepts a handler for it but never fires it. |
-| `OnClose` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
-| `OnComError(ErrorMessage AS STRING)` | Fires when opening, reading, writing or closing the serial port fails; ErrorMessage says what went wrong. |
-| `OnOpen` | Fires when Open has opened the serial port. |
-| `OnReadString` | Fires after ReadString has read from the serial port and waited its Wait milliseconds. |
-| `OnWriteString` | Fires after WriteString has sent its text and waited its Wait milliseconds. |
-| `OnRing` *(not yet)* | A ring signal on the serial line (a modem's incoming call). RapidR accepts a handler for it but never fires it. |
-| `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
-| `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
-| `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-
-<a id="rdownload"></a>
-## RDOWNLOAD (QDOWNLOAD)
-
-Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc).
-
-| Property | Type | Default | |
-|---|---|---|---|
-| `Server` | string |  | The host name of the server to download from. |
-| `Port` | int | 80 | The network port; on a serial port, its name (`COM1`) or number. |
-| `File` | string |  | The path of the file to download on the server (`/dir/file.zip`). |
-| `Outfile` | string |  | The file the download is written to (with `OutDevice` 2). |
-| `Outvar` (read-only) | string |  | The downloaded text (with `OutDevice` 1); read-only. |
-| `Outdevice` | int | 1 | Where the download goes: 1 into `OutVar`, 2 into the file `OutFile`. |
-| `Statedevice` | int | 1 | Where the download's progress shows: 1 in `State`, 2 in the `StateGauge` gauge. |
-| `State` (read-only) | int |  | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
-| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `LastError` (read-only) | int |  | The number of the download's last error (0: none); read-only. |
-| `LastStringError` (read-only) | string |  | The text of the download's last error; read-only. |
-| `StateGauge` | component |  | The gauge that shows the download's progress (with `StateDevice` 2). |
-
-| Method | |
-|---|---|
-| `LeechFile AS VARIANT` | Downloads the file the properties name from the server, to a file, a variable or memory; returns true on success. |
-| `Check AS VARIANT` | Returns true when an Internet connection is available; RapidR always reports one. |
-| `Percent AS VARIANT` | Returns how far a transfer is, as a whole percentage of the total. |
-| `Speed` | Returns a transfer's speed in bytes a second, from two `TIME$` values and the bytes moved. |
+| `OnApply` | Fires when the user presses the font dialog's Apply button; the dialog's font properties already hold the font shown. |
 
 <a id="rtimer"></a>
 ## RTIMER (QTIMER)
@@ -4129,7 +3055,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
 | `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
 | `SetSize` *(not yet)* | Sets the stream's size in bytes, cutting or growing it. |
@@ -4183,10 +3109,10 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
+| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 
 <a id="rimagelist"></a>
 ## RIMAGELIST (QIMAGELIST)
@@ -4236,6 +3162,1080 @@ Describes a system tray icon (its icon, tip and messages) for `Shell_NotifyIcon`
 | `uCallBackMessage` | int |  | The message number the tray icon sends its window for mouse events. |
 | `hIcon` | int |  | The handle of the icon the tray shows (`Application.Icon`, or an image's). |
 | `szTip` | string |  | The tooltip text of the tray icon. |
+
+<a id="rsqlite"></a>
+## RSQLITE
+
+A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?` parameters, FetchRow walks the rows. RapidR's own; also in the browser.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Database` | string |  | The database in use: an SQLite file, or a MySQL database's name. |
+| `dB` | string |  | A database's name, `dB(i)` from 0, as the server lists them. |
+| `Connected` | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `RowCount` | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `ColCount` | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `FieldCount` | int |  | The number of fields (columns) in the last query's result. |
+| `Row` | int |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
+| `TableCount` | int |  | The number of tables in the database. |
+| `DBCount` | int |  | The number of databases the server lists. |
+
+| Method | |
+|---|---|
+| `Connect(file)` | Opens (or creates) the database file; ":memory:" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first). |
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Query(sql, [value, …])` | Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
+| `FetchRow` | Moves to the next row of the last query's rows: 1, or 0 past the last. |
+| `FetchField` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
+| `RowSeek(row)` | The next FetchRow fetches row `row` (from 0). |
+| `FieldSeek` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
+| `EscapeString(text)` | The text with its single quotes doubled, to put between quotes in SQL (binding with ? is safer). |
+| `ClearParams` | Drops the values queued with AddParam. |
+
+| Event | |
+|---|---|
+| `OnConnect` | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
+| `OnDisconnect` | Fires when the connection is closed: a database by Close, a socket by either side. |
+| `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rmysql"></a>
+## RMYSQL (QMYSQL)
+
+A client for a MySQL or MariaDB server: connect, run queries and walk the rows they return. Desktop only (a browser has no raw TCP).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Connected` (read-only) | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `DB` (read-only) | string |  | A database's name, `dB(i)` from 0, as the server lists them. |
+| `DBCount` (read-only) | int |  | The number of databases the server lists. |
+| `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `FieldCount` (read-only) | int |  | The number of fields (columns) in the last query's result. |
+| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `Row` (read-only) | string |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
+| `RowCount` (read-only) | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `Table` (read-only) | string |  | A table's name, `Table(i)` from 0, as the database lists them; read-only. |
+| `TableCount` (read-only) | int |  | The number of tables in the database. |
+| `Host` *(RapidR)* | string |  | The server's host name or address. |
+| `User` *(RapidR)* | string |  | The user name the database connection logs in with. |
+| `Password` *(RapidR)* | string |  | The password the database connection logs in with. |
+| `Database` *(RapidR)* | string |  | The database in use: an SQLite file, or a MySQL database's name. |
+| `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
+| `NumFields` | int |  | The number of fields in the last query's result. |
+| `NumRows` | int |  | The number of rows in the last query's result. |
+
+| Method | |
+|---|---|
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure). |
+| `CreateDB(DB AS STRING) AS INTEGER` *(not yet)* | Creates a database named `DB` on the server; returns true on success. |
+| `DropDB(DB AS STRING) AS INTEGER` *(not yet)* | Deletes database `DB` from the server; returns true on success. |
+| `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | Returns the string with quotes and special characters escaped for a MySQL query. |
+| `FetchField AS VARIANT` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
+| `FetchLengths AS VARIANT` *(not yet)* | Returns the lengths of the fields of the current row. |
+| `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
+| `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
+| `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
+| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` *(not yet)* | Connects to a MySQL server with host, user, password, database, port, socket and flags; returns true on success. |
+| `Refresh(RefreshFlags AS INTEGER) AS INTEGER` *(not yet)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` *(not yet)* | Returns `Bytes` bytes of the binary field in row `Row`. |
+| `RowSeek(Row AS INTEGER) AS VARIANT` | Moves to row `Row` of the query's result, the next one `FetchRow` reads. |
+| `SelectDB(DB AS STRING) AS INTEGER` | Makes database `DB` the current one; returns true on success. |
+| `ClearParams` *(RapidR)* | Drops the values queued with AddParam. |
+| `LoadBlob` *(not yet)* | Reads binary data (a BLOB) for a query. |
+| `SaveBlob` *(not yet)* | Writes binary data (a BLOB) for a query. |
+
+| Event | |
+|---|---|
+| `OnConnect` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
+| `OnDisconnect` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
+| `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rsocket"></a>
+## RSOCKET (QSOCKET)
+
+A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Family` | enum | `AF_INET` | The socket's address family, one of the `AF_XXX` constants (`AF_INET`). |
+| `LParam` | int |  | The extra value of the last socket message (`WMessage`). |
+| `MySocket` (read-only) | int |  | The socket's handle; read-only. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Protocol` | enum | `IPPROTO_IP` | The socket's protocol, one of the `IPPROTO_XXX` constants. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Transferred` (read-only) | int |  | Bytes sent or received by the last transfer; read-only. |
+| `WMessage` | int | 0 | The window message the socket posts on its events (0: none). |
+| `Host` *(RapidR)* | string |  | The server's host name or address. |
+| `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `Timeout` *(RapidR)* | int |  | How long to wait for the network, in milliseconds. |
+| `Type` | int |  | The socket's type: a stream (TCP) or datagram (UDP) socket. |
+
+| Method | |
+|---|---|
+| `Accept(Socket AS INTEGER) AS VARIANT` | Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`. |
+| `Close(Socket AS INTEGER)` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Connect(ServerName AS STRING, PortNum AS INTEGER) AS VARIANT` | Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure). |
+| `ConnectionReady(Sock AS INTEGER) AS VARIANT` | Returns true when numbered socket `Sock` is ready: a client waiting to be accepted on a server socket. |
+| `GetHostIP AS VARIANT` | Returns this computer's IP address. |
+| `GetHostName AS VARIANT` | Returns this computer's network name. |
+| `GetPeerName(Socket AS INTEGER) AS VARIANT` | Returns the address of the other end of socket `Socket`. |
+| `IsClientReady(Sock AS INTEGER, ClientSock AS INTEGER) AS VARIANT` | Returns true when client socket `ClientSock` of server socket `Sock` has data to read. |
+| `IsServerReady(Sock AS INTEGER) AS VARIANT` | Returns true when socket `Sock` has data from the server to read. |
+| `Open(PortNum AS INTEGER) AS VARIANT` *(web)* | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Peek(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Returns up to `NumBytes` bytes waiting on socket `Socket`, leaving them to be read. |
+| `Read(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
+| `ReadByte(Socket AS INTEGER) AS BYTE` | Reads one byte from the socket or stream. |
+| `ReadLine(Socket AS INTEGER) AS VARIANT` | Reads one line of text, without its line end. |
+| `Write(Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
+| `WriteByte(Socket AS INTEGER, B AS BYTE)` | Writes one byte to the socket or stream. |
+| `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. |
+| `Disconnect` *(RapidR)* | Closes the connection. Same as `Close`. |
+| `Send` *(RapidR)* *(web)* | Sends text over the WebSocket. Same as `Write`. |
+| `Receive` *(RapidR)* *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |
+
+| Event | |
+|---|---|
+| `OnConnect(State AS STRING)` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
+| `OnDisconnect(State AS STRING)` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
+| `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rserversocket"></a>
+## RSERVERSOCKET
+
+A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Host` | string |  | The server's host name or address. |
+| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `ClientCount` | int |  | The number of clients connected to the server now. |
+
+| Method | |
+|---|---|
+| `Start` *(desktop)* | Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened. |
+| `Stop` *(desktop)* | Stops what is running: playback (back to the start), recording, or the server. |
+| `Broadcast` *(desktop)* | Sends a line of text to every connected client. |
+| `Listen` *(desktop)* | Starts the server listening on its `Host` and `Port`. Same as `Start`. |
+| `Accept` *(desktop)* | Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`. |
+| `Poll` *(desktop)* | Handles what is waiting on the server: new clients, messages and disconnections, each as its event. |
+| `SendTo` *(desktop)* | Sends a line of text to one client, by its address. |
+
+| Event | |
+|---|---|
+| `OnClientConnect(Address AS STRING)` | Fires when a client connects to the server socket; the handler gets the client's address. |
+| `OnClientDisconnect(Address AS STRING)` | Fires when a client disconnects from the server socket; the handler gets the client's address. |
+| `OnDataReceived(Address AS STRING, Data AS STRING)` | Fires when data arrives from a client; the handler gets the client's address and the data. |
+| `OnError` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rhttp"></a>
+## RHTTP
+
+An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Host` | string |  | The server's host name or address. |
+| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `Url` | string |  | The address: the page the web view shows, or the HTTP request's. |
+| `StatusCode` | int |  | The HTTP status of the last response (200, 404 …). |
+| `ResponseText` | string |  | The body of the last HTTP response, as text. |
+| `ResponseHeaders` | string |  | The headers of the last HTTP response, one per line. |
+| `Timeout` | int |  | How long to wait for the network, in milliseconds. |
+| `UseSSL` | int |  | Non-zero makes the request over HTTPS. |
+
+| Method | |
+|---|---|
+| `Get` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
+| `Post` | Sends form data to a URL in an HTTP POST and returns the response body. |
+
+<a id="rcgi"></a>
+## RCGI (QCGI)
+
+For CGI programs behind a web server (qcgi.inc): the request's CGI variables as properties, and Parse / Get for its form fields.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `AutoConvert` | int | 1 | 1 (the default) decodes form values in `Parse`: `%xx` becomes its character and `+` a space; 0 keeps them as sent. |
+| `MaxInput` | int | 32767 | The most characters `Parse` reads from the request (32767). |
+| `Accept` (read-only) | string |  | The content types the browser accepts (the request's `HTTP_ACCEPT`); read-only. |
+| `AuthType` (read-only) | string |  | How the request was authenticated (the request's `AUTH_TYPE`, e.g. `Basic`); read-only. |
+| `ContentLength` (read-only) | int |  | The length in bytes of the request's body (`CONTENT_LENGTH`); read-only. |
+| `ContentType` (read-only) | string |  | The type of the request's body (`CONTENT_TYPE`); read-only. |
+| `Cookie` (read-only) | string |  | The cookies sent with the request (`HTTP_COOKIE`); read-only. |
+| `GatewayInterface` (read-only) | string |  | The CGI version the web server speaks (`GATEWAY_INTERFACE`, `CGI/1.1`); read-only. |
+| `PathInfo` (read-only) | string |  | The extra path after the script's name in the URL (`PATH_INFO`); read-only. |
+| `PathTranslated` (read-only) | string |  | `PathInfo` turned into a file path on the server (`PATH_TRANSLATED`); read-only. |
+| `Referer` (read-only) | string |  | The page the request came from (`HTTP_REFERER`); read-only. |
+| `RemoteAddr` (read-only) | string |  | The client's IP address (`REMOTE_ADDR`); read-only. |
+| `RemoteHost` (read-only) | string |  | The client's host name, when the server knows it (`REMOTE_HOST`); read-only. |
+| `RemoteIdent` (read-only) | string |  | The client's user name from an ident lookup (`REMOTE_IDENT`); read-only. |
+| `RemoteUser` (read-only) | string |  | The user name the request authenticated as (`REMOTE_USER`); read-only. |
+| `RequestMethod` (read-only) | string |  | The request's method: `GET`, `POST` … (`REQUEST_METHOD`); read-only. |
+| `ScriptName` (read-only) | string |  | The script's path in the URL (`SCRIPT_NAME`); read-only. |
+| `ServerSoftware` (read-only) | string |  | The web server's name and version (`SERVER_SOFTWARE`); read-only. |
+| `ServerName` (read-only) | string |  | The web server's host name (`SERVER_NAME`); read-only. |
+| `ServerPort` (read-only) | int |  | The port the request came in on (`SERVER_PORT`); read-only. |
+| `ServerProtocol` (read-only) | string |  | The request's protocol, such as `HTTP/1.1` (`SERVER_PROTOCOL`); read-only. |
+| `UserAgent` (read-only) | string |  | The browser's name and version (`HTTP_USER_AGENT`); read-only. |
+
+| Method | |
+|---|---|
+| `Parse` | Splits text into parts: a string list splits `Source` at `Delim` into its items and returns how many; a CGI reads the request's variables. |
+| `Get(Name AS STRING, BYREF Value AS STRING) AS INTEGER` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
+
+<a id="rcomport"></a>
+## RCOMPORT (QCOMPORT)
+
+A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `BytesNotRead` (read-only) | int |  | Bytes received but not yet read, as the last read or write saw them; read-only. |
+| `BytesNotWritten` (read-only) | int |  | Bytes still waiting to be sent, as the last read or write saw them; read-only. |
+| `BaudRate` | enum | `br110` | The serial line's speed: a `brXXX` constant (`br9600` …) or the rate itself in bits per second. |
+| `Connected` (read-only) | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `DataBits` | int | 8 | Bits per character on the serial line (5 to 8). |
+| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Parity` | enum | `prNone` | The serial line's parity check: `prNone`, `prOdd`, `prEven`, `prMark` or `prSpace`. |
+| `ReadBufSize` | int | 1024 | The size of the serial port's receive buffer, in bytes, read at `Open`. |
+| `StopBits` | enum | `sbOneStopBit` | The serial line's stop bits: `sbOneStopBit`, `sbOne5StopBits` or `sbTwoStopBits`. |
+| `WriteBufSize` | int | 1024 | The size of the serial port's send buffer, in bytes, read at `Open`. |
+| `Port` | any |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `DcbFlags` *(RapidR)* | int |  | The serial port's flow-control flag bits, read at `Open`: 20625 none, 24725 hardware, 21393 XON / XOFF. |
+| `InQue` (read-only) | int |  | Bytes waiting in the receive buffer now; read-only. |
+| `OutQue` (read-only) | int |  | Bytes waiting in the send buffer now; read-only. |
+| `PendingIO` (read-only) | int |  | Writes still pending: always 0, as RapidR's I/O never stays pending; read-only. |
+
+| Method | |
+|---|---|
+| `AbortAllIO` | Cancels every read and write still pending on the serial port. |
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Open` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `PurgeIn` | Discards the data waiting in the serial port's receive buffer. |
+| `PurgeOut` | Discards the data still waiting to be sent from the serial port. |
+| `Read(QFile, Count AS INTEGER, Wait AS INTEGER)` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
+| `ReadString(Count AS INTEGER, Wait AS INTEGER) AS VARIANT` | Reads a string: `Count` characters from the serial port, or the named string value of the open registry key. |
+| `WaitForLastIO` | Waits until the serial port's last read or write has finished. |
+| `Write(QMemoryStream, Count AS INTEGER, Wait AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
+| `WriteString(Str AS STRING, Wait AS INTEGER)` | Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key. |
+| `AddFlowControl` | Turns on flow-control options of the serial port. |
+| `DelFlowControl` | Turns off flow-control options of the serial port. |
+
+| Event | |
+|---|---|
+| `OnBreak` *(not yet)* | A break condition on the serial line. RapidR accepts a handler for it but never fires it. |
+| `OnClose` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
+| `OnComError(ErrorMessage AS STRING)` | Fires when opening, reading, writing or closing the serial port fails; ErrorMessage says what went wrong. |
+| `OnOpen` | Fires when Open has opened the serial port. |
+| `OnReadString` | Fires after ReadString has read from the serial port and waited its Wait milliseconds. |
+| `OnWriteString` | Fires after WriteString has sent its text and waited its Wait milliseconds. |
+| `OnRing` *(not yet)* | A ring signal on the serial line (a modem's incoming call). RapidR accepts a handler for it but never fires it. |
+| `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
+| `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
+| `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rdownload"></a>
+## RDOWNLOAD (QDOWNLOAD)
+
+Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Server` | string |  | The host name of the server to download from. |
+| `Port` | int | 80 | The network port; on a serial port, its name (`COM1`) or number. |
+| `File` | string |  | The path of the file to download on the server (`/dir/file.zip`). |
+| `Outfile` | string |  | The file the download is written to (with `OutDevice` 2). |
+| `Outvar` (read-only) | string |  | The downloaded text (with `OutDevice` 1); read-only. |
+| `Outdevice` | int | 1 | Where the download goes: 1 into `OutVar`, 2 into the file `OutFile`. |
+| `Statedevice` | int | 1 | Where the download's progress shows: 1 in `State`, 2 in the `StateGauge` gauge. |
+| `State` (read-only) | int |  | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
+| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `LastError` (read-only) | int |  | The number of the download's last error (0: none); read-only. |
+| `LastStringError` (read-only) | string |  | The text of the download's last error; read-only. |
+| `StateGauge` | component |  | The gauge that shows the download's progress (with `StateDevice` 2). |
+
+| Method | |
+|---|---|
+| `LeechFile AS VARIANT` | Downloads the file the properties name from the server, to a file, a variable or memory; returns true on success. |
+| `Check AS VARIANT` | Returns true when an Internet connection is available; RapidR always reports one. |
+| `Percent AS VARIANT` | Returns how far a transfer is, as a whole percentage of the total. |
+| `Speed` | Returns a transfer's speed in bytes a second, from two `TIME$` values and the bytes moved. |
+
+<a id="rmidi"></a>
+## RMIDI (QMIDI)
+
+Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
+| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
+| `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
+| `CurrentFrame` | int |  | The frame (video) or position (MIDI) playing now; setting it seeks there. |
+| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
+| `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
+| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+
+| Method | |
+|---|---|
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Open(FileName AS STRING) AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Play` | Starts playing from the current position. |
+| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
+| `Pause` | Pauses playback; `Play` goes on from there. |
+
+| Event | |
+|---|---|
+| `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+
+<a id="rwave"></a>
+## RWAVE (QWAVE)
+
+Plays, records and saves WAV sound (QWave.inc).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
+| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
+| `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
+| `CurrentPos` | int |  | The position in the wave, in milliseconds; setting it seeks there. |
+| `Bits` | int |  | Bits per sample of a new recording (8 or 16). |
+| `Frequence` | int |  | Samples per second of a new recording (11025, 22050, 44100 …); RapidQ's spelling. |
+| `Mode` | int |  | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
+| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
+| `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
+| `DeviceType` | string |  | The device type the wave opens with (`waveaudio`). |
+| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+
+| Method | |
+|---|---|
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Open(FileName AS STRING) AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Play` | Starts playing from the current position. |
+| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
+| `Pause` | Pauses playback; `Play` goes on from there. |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Record` | Starts recording sound from the input device. |
+| `Save(FileName AS STRING) AS VARIANT` | Saves to a file: the chart as an image, or the recording as a WAV file. |
+| `Delete(Pos1 AS LONG, Pos2 AS LONG)` | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
+
+| Event | |
+|---|---|
+| `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+
+<a id="rvideo"></a>
+## RVIDEO (QVIDEO)
+
+Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
+| `LenghtTime` (read-only) | int |  | The video's length in milliseconds (RapidQ's spelling); read-only. |
+| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
+| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
+| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `ImgWidth` (read-only) | int |  | The video picture's width, in pixels; read-only. |
+| `ImgHeight` (read-only) | int |  | The video picture's height, in pixels; read-only. |
+| `CurrentFrame` | int |  | The frame (video) or position (MIDI) playing now; setting it seeks there. |
+| `AudioOff` | bool | False | True mutes the video's sound track. |
+| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
+| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `BorderStyle` | enum | `bsSizeable` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
+| `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
+| `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
+| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `LengthTime` *(RapidR)* | int |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+
+| Method | |
+|---|---|
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Open(FileName AS STRING) AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Play` | Starts playing from the current position. |
+| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
+| `Pause` | Pauses playback; `Play` goes on from there. |
+
+| Event | |
+|---|---|
+| `OnChange(position AS LONG, timePos AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+
+<a id="rcdaudio"></a>
+## RCDAUDIO (QCDAUDIO)
+
+Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Time` (read-only) | string |  | The time picked in the date-time picker, a file's time (`FileRec`), or the CD's position, as text. |
+| `TrackTime` (read-only) | string |  | The current track's length, as text; read-only. |
+| `TrackNumber` (read-only) | int |  | The number of tracks on the CD; read-only. |
+| `TimePosition` (read-only) | string |  | The position on the CD, as text; read-only. |
+| `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
+| `AudioOpen` (read-only) | bool | False | True while the CD audio device is open; read-only. |
+| `Present` (read-only) | bool | False | True when there's a disc in the drive; read-only. |
+| `CurrentTrack` | int |  | The CD track playing or selected, from 1; setting it moves there. |
+| `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
+| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+
+| Method | |
+|---|---|
+| `Open AS VARIANT` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `Play` | Starts playing from the current position. |
+| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
+| `Pause` | Pauses playback; `Play` goes on from there. |
+| `Eject` | Opens the CD drive's tray. |
+
+| Event | |
+|---|---|
+| `OnChange(track AS INTEGER, time AS STRING)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+
+<a id="rdxscreen"></a>
+## RDXSCREEN (QDXSCREEN)
+
+A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `AllowStretch` | bool | True | Whether the back buffer is stretched to fill the control when their sizes differ. |
+| `AutoSize` | bool | True | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
+| `BitCount` | int | 8 | The colour depth of the full-screen display mode, in bits per pixel (8, 16, 24 or 32). |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `FullScreen` | bool | False | Takes the whole screen in the display mode `BitCount` and the size give. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Use3D` | bool | False | Sets the DirectX screen up for Direct3D drawing. |
+| `UseHardware` | bool | True | Uses the graphics card's acceleration when it can. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `FastPset(X1 AS INTEGER, Y1 AS INTEGER, C AS INTEGER)` | Sets the back buffer's pixel at (`X1`, `Y1`) to `C`, a device pixel value. |
+| `Fill(Color AS INTEGER)` | Fills the whole back buffer with color `Color`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `Flip` | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
+| `Init(Width AS INTEGER, Height AS INTEGER)` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Release` | Gives back the DirectX surfaces; RapidR has nothing to free. |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `AddLight(Light AS QD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
+| `CameraLookAt(F AS QD3DFRAME, Constraint AS INTEGER)` | Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on. |
+| `CreateFace(Face AS QD3DFACE)` | Creates a new, empty face in variable `Face`. |
+| `CreateFrame(Frame AS QD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
+| `CreateLightRGB(LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, Light AS QD3DLIGHT)` | Creates a light of type `LightType` colored `R`, `G`, `B` (0 to 1) in variable `Light`. |
+| `CreateMeshBuilder(MB AS QD3DMESHBUILDER)` | Creates an empty mesh builder in variable `MB`. |
+| `CreateShadow(MB AS QD3DMESHBUILDER, Light AS QD3DLIGHT, px AS DOUBLE, py AS DOUBLE, pz AS DOUBLE, nx AS DOUBLE, ny AS DOUBLE, nz AS DOUBLE, V AS QD3DVISUAL)` | Creates in `V` the shadow of `MB` cast by `Light` on the plane through (`px`, `py`, `pz`) with normal (`nx`, `ny`, `nz`). |
+| `CreateWrap(WrapType AS INTEGER, A AS DOUBLE, B AS DOUBLE, C AS DOUBLE, D AS DOUBLE, E AS DOUBLE, F AS DOUBLE, G AS DOUBLE, H AS DOUBLE, I AS DOUBLE, J AS DOUBLE, K AS DOUBLE, L AS DOUBLE, M AS DOUBLE, W AS QD3DWRAP)` | Creates in `W` a texture wrap of type `WrapType` (flat, cylinder, sphere, chrome) from an origin, direction, up vector, offset and scale. |
+| `ForceUpdate(X1 AS INTEGER, Y1 AS INTEGER, X2 AS INTEGER, Y2 AS INTEGER)` | Marks the rectangle (`X1`, `Y1`)–(`X2`, `Y2`) of the 3D view to be drawn again; RapidR draws the whole view at each `Render`. |
+| `LoadTexture(File AS STRING, Tex AS QD3DTEXTURE)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
+| `Move(D AS DOUBLE)` | Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation. |
+| `SetBackgroundImage(Tex AS QD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
+| `SetCameraPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the camera to (`X`, `Y`, `Z`). |
+| `SetCameraOrientation(DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE)` | Points the camera along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction. |
+| `SetRenderMode(M AS INTEGER)` | Sets the 3D view's rendering mode flags. |
+| `SetVelocity(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER)` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
+| `SetTextureQuality(Quality AS INTEGER)` | Sets how textures are filtered when drawn. |
+| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
+| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
+| `CreateAnimation` *(not yet)* | Creates a Direct3D animation, a frame's motion between key positions. |
+| `CreateAnimationSet` *(not yet)* | Creates a Direct3D animation set, animations played together. |
+| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
+| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+
+| Event | |
+|---|---|
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnInitialize` | Fires once when the DirectX screen has been set up on its built form, before OnInitializeSurface. |
+| `OnInitializeSurface` | Fires once when the DirectX screen's drawing surface is ready: the place to load pictures and build a 3D scene. |
+| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+
+<a id="rdximagelist"></a>
+## RDXIMAGELIST (QDXIMAGELIST)
+
+A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+| Method | |
+|---|---|
+| `Draw(Item AS INTEGER, X AS INTEGER, Y AS INTEGER, Mask AS INTEGER)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromResource(Resource_Handle)` | Loads images from a bitmap resource. |
+| `LoadFromStream(Stream AS QFILESTREAM)` | Loads the component's contents from an open stream. |
+
+<a id="rdxtimer"></a>
+## RDXTIMER (QDXTIMER)
+
+A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `ActiveOnly` | bool | True | When true, the timer pauses while the application isn't the active one. |
+| `Enabled` | bool | False | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `FrameRate` (read-only) | int |  | How many times the timer fired in the last whole second; read-only. |
+| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+
+| Event | |
+|---|---|
+| `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
+
+<a id="rdxsound"></a>
+## RDXSOUND (QDXSOUND)
+
+A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `AutoUpdate` | bool | True | Keeps the sound's buffer filled by itself while it streams. |
+| `BufferLength` | int | 1000 | The length of the sound's streaming buffer, in milliseconds. |
+| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Frequency` | int |  | On a DirectX sound, the playback rate in samples per second; on a track bar, the step between tick marks. |
+| `Looped` | bool | False | Plays the sound over and over until it's stopped. |
+| `Pan` | int | 0 | The left-right balance, from -100 (right muted) to 100 (left muted); 0 centred. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Playing` (read-only) | int |  | True while the sound, audio or video plays; read-only. |
+| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `StickyFocus` | bool | False | Keeps the sound audible while another application has the focus. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Volume` | int |  | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
+
+| Method | |
+|---|---|
+| `Play` | Starts playing from the current position. |
+| `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
+| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `RecreateBuf` *(not yet)* | Makes the sound buffer again after the device lost it. |
+
+<a id="rdxjoystick"></a>
+## RDXJOYSTICK (QDXJOYSTICK)
+
+A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `IsLeft` | int |  | True while the joystick is pushed left, as the last `Update` read it. |
+| `IsRight` | int |  | True while the joystick is pushed right, as the last `Update` read it. |
+| `IsUp` | int |  | True while the joystick is pushed up (away from the player), as the last `Update` read it. |
+| `IsDown` | int |  | True while the joystick is pushed down (towards the player), as the last `Update` read it. |
+| `Index` *(RapidR)* | int |  | On a joystick, which one it reads (0 the first); on a tree node (`Item(i).Index`), its position from 0. |
+| `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `Name` *(RapidR)* | string |  | The font's name (`Arial`); on a joystick, the device's name. |
+| `X` *(RapidR)* | int |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
+| `Y` *(RapidR)* | int |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
+| `Z` *(RapidR)* | int |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
+| `R` *(RapidR)* | int |  | The joystick's fourth axis (rudder), 0 to 65535, 32767 at rest. |
+| `U` *(RapidR)* | int |  | The joystick's fifth axis, 0 to 65535, 32767 at rest. |
+| `V` *(RapidR)* | int |  | The joystick's sixth axis, 0 to 65535, 32767 at rest. |
+| `Buttons` *(RapidR)* | int |  | The joystick buttons held down, one bit each: bit n − 1 for button n. |
+| `Pov` *(RapidR)* | int |  | The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred. |
+
+| Method | |
+|---|---|
+| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Button(Index AS INTEGER)` | Tells whether a joystick button is pressed. |
+
+| Event | |
+|---|---|
+| `OnButtonDown(Button AS INTEGER)` *(RapidR)* | Fires when a joystick button is pressed; Button is its number, from 1 (RapidR's, looked for at each of the joystick's ticks). |
+| `OnButtonUp(Button AS INTEGER)` *(RapidR)* | Fires when a joystick button is released; Button is its number, from 1. |
+| `OnMove` *(RapidR)* | Fires when the joystick's position changes (X, Y and the other axes read the new values). |
+
+<a id="rd3dframe"></a>
+## RD3DFRAME (QD3DFRAME)
+
+A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `FogColor` | color |  | The colour of the frame's fog. |
+| `FogMode` | int |  | How the fog thickens with distance: linear, exponential or exponential squared. |
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+| Method | |
+|---|---|
+| `AddFrame(Frame AS QD3DFRAME)` | Makes frame `Frame` a child of this frame, so it moves with it. |
+| `AddLight(Light AS QD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
+| `AddScale(CombineType AS INTEGER, X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Scales the frame by `X`, `Y`, `Z`; `CombineType` replaces its transform (0) or applies the scale before (1) or after (2) it. |
+| `AddVisual(Visual AS QD3DMESHBUILDER)` | Attaches a visual (a mesh builder or mesh) to the frame, so it is drawn there. |
+| `CreateFrame(Frame AS QD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
+| `DeleteFrame(Frame AS QD3DFRAME)` | Removes child frame `Frame` from this frame. |
+| `DeleteLight(Light AS QD3DLIGHT)` | Removes light `Light` from the frame. |
+| `DeleteVisual(Visual AS QD3DMESHBUILDER)` | Detaches visual `Visual` from the frame. |
+| `Load(FileName AS STRING)` | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
+| `LookAt(F AS QD3DFRAME, Constraint AS INTEGER)` | Turns the frame to face frame `F`; `Constraint` limits the axes it may turn on. |
+| `Move(D AS DOUBLE)` | Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation. |
+| `SetBackgroundImage(Texture AS QD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
+| `SetBackgroundRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the 3D scene's background color from `R`, `G`, `B` (0 to 1). |
+| `SetFogParams(Start AS DOUBLE, End AS DOUBLE, Density AS DOUBLE)` | Sets where the fog starts and ends, and its density. |
+| `SetOrientation(DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE)` | Points the frame along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction. |
+| `SetPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the frame to (`X`, `Y`, `Z`). |
+| `SetRotation(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE)` | Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`. |
+| `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
+| `SetVelocity` *(RapidR)* | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
+| `FogEnabled` | Turns fog on or off in the frame's scene. |
+
+<a id="rd3dmeshbuilder"></a>
+## RD3DMESHBUILDER (QD3DMESHBUILDER)
+
+Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `FaceCount` (read-only) | int |  | The number of faces in the mesh; read-only. |
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+| Method | |
+|---|---|
+| `AddFace(Face AS QD3DFACE)` | Adds a face to the mesh builder. |
+| `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
+| `CreateFace(Face AS QD3DFACE)` | Creates a new, empty face in variable `Face`. |
+| `CreateMesh(Mesh AS QD3DMESH)` | Builds a mesh from the mesh builder's geometry into variable `Mesh`. |
+| `DeleteFace(Face AS QD3DFACE)` | Removes face `Face` from the mesh builder. |
+| `GetFace(Index AS LONG, Face AS QD3DFACE)` | Puts face number `Index` of the mesh builder in `Face`. |
+| `Load(S AS STRING)` | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
+| `LoadTexture(S AS STRING)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
+| `Scale(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Scales the mesh by `X`, `Y`, `Z`. |
+| `SetQuality(Quality AS INTEGER)` | Sets how the mesh is drawn: points, wireframe, flat or smooth shading. |
+| `SetRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
+| `SetRGBA(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, A AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
+| `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
+| `Translate(TX AS DOUBLE, TY AS DOUBLE, TZ AS DOUBLE)` | Moves the mesh's vertices by (`TX`, `TY`, `TZ`). |
+| `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
+
+<a id="rd3dmesh"></a>
+## RD3DMESH (QD3DMESH)
+
+A finished 3D mesh, made by a mesh builder, ready to add to frames.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `MaxY` (read-only) | float |  | The highest Y of the mesh's vertices; read-only. |
+| `MinY` (read-only) | float |  | The lowest Y of the mesh's vertices; read-only. |
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+| Method | |
+|---|---|
+| `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
+
+<a id="rd3dface"></a>
+## RD3DFACE (QD3DFACE)
+
+One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `VertexCount` (read-only) | int |  | The number of vertices of the face; read-only. |
+
+| Method | |
+|---|---|
+| `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
+| `GetVertex(Index AS LONG, Position AS QD3DVECTOR, Normal AS QD3DVECTOR)` | Reads vertex `Index` of the face: its position and normal. |
+| `SetColorRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the color from `R`, `G`, `B` (0 to 1). |
+| `SetRGB` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
+| `SetColorRGBA` *(RapidR)* | Sets the colour and its opacity from red, green, blue and alpha parts (0 to 1). Same as SetRGBA. |
+| `SetRGBA` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
+
+<a id="rd3dlight"></a>
+## RD3DLIGHT (QD3DLIGHT)
+
+A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+| Method | |
+|---|---|
+| `SetLightRGB(LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the light's type and its color from `R`, `G`, `B` (0 to 1). |
+| `SetPenUmbra(Angle AS DOUBLE)` | Sets the angle of the spotlight's penumbra, the soft edge of its cone. |
+| `SetRange(Range AS DOUBLE)` | Sets how far the light reaches. |
+| `SetUmbra(Angle AS DOUBLE)` | Sets the angle of the spotlight's cone of full brightness. |
+
+<a id="rd3dtexture"></a>
+## RD3DTEXTURE (QD3DTEXTURE)
+
+A picture laid onto 3D meshes as their surface.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+<a id="rd3dvisual"></a>
+## RD3DVISUAL (QD3DVISUAL)
+
+Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+<a id="rd3dwrap"></a>
+## RD3DWRAP (QD3DWRAP)
+
+How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative.
+
+| Method | |
+|---|---|
+| `Apply(M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, giving its vertices texture coordinates. |
+| `ApplyRelative(F AS QD3DFRAME, M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, measured relative to frame `F`. |
+
+<a id="rd3dvector"></a>
+## RD3DVECTOR (QD3DVECTOR)
+
+A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `DVX` | float |  | The vector's X component. |
+| `DVY` | float |  | The vector's Y component. |
+| `DVZ` | float |  | The vector's Z component. |
+| `X` | float |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
+| `Y` | float |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
+| `Z` | float |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
+
+<a id="rnum"></a>
+## RNUM
+
+A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average, sort, compute element-wise and do linear algebra on them. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `Len` (read-only) | int |  | The number of values in the array. |
+| `Data` | string |  | The array's values as text, comma-separated (`1,2,3`); setting it fills the array. |
+| `Shape` (read-only) | string |  | The size of the array or data frame as text: `(n)` or `(rows, cols)`. |
+| `NDim` (read-only) | int |  | The array's number of dimensions (1). |
+| `DType` (read-only) | string |  | The array's element type: `float64`. |
+
+| Method | |
+|---|---|
+| `Create([n])` | Makes the array n zeros (empty without n). |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `Arange(start, stop, [step])` | Evenly spaced values in [start, stop) with the given step (default 1; may be negative). |
+| `LinSpace(start, stop, [num])` | num evenly spaced values from start to stop, both included (default 50). |
+| `Zeros(n)` | n zeros. |
+| `Ones(n)` | n ones. |
+| `Full(n, fillValue)` | n elements of fillValue. |
+| `FromList(v1, v2, v3, …)` | The numbers of a comma-separated list. |
+| `From_list` | Fills the array from text of comma-separated numbers. Same as `FromList`. |
+| `Set(index, value)` | Sets element index (from 0); past the end the array grows with zeros. |
+| `SetValue` | Sets the element at an index. Same as `Set`. |
+| `SetItem` | Sets the element at an index. Same as `Set`. |
+| `Get(index)` | Element index (from 0); 0 past the end. |
+| `GetValue` | Returns the element at the index given. Same as `Get`. |
+| `GetItem` | Returns the element at the index given. Same as `Get`. |
+| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
+| `Push(value)` | Adds value at the end. |
+| `Sum` | The sum of the elements. |
+| `Mean` | The arithmetic mean. |
+| `Avg` | The arithmetic mean of the elements; the same as Mean. |
+| `Average` | The arithmetic mean of the elements; the same as Mean. |
+| `Min` | Returns the smallest element. |
+| `Max` | Returns the largest element. |
+| `Std` | The (population) standard deviation. |
+| `Var` | The (population) variance. |
+| `Variance` | Returns the variance of the elements. Same as `Var`. |
+| `Median` | The median. |
+| `ArgMin` | The index of the smallest element. |
+| `ArgMax` | The index of the largest element. |
+| `Count` | The number of elements. |
+| `Ptp` | Peak to peak: max - min. |
+| `Sin` | Replaces each element with its sine (in place). |
+| `Cos` | Replaces each element with its cosine (in place). |
+| `Tan` | Replaces each element with its tangent (in place). |
+| `Asin` | Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`. |
+| `ArcSin` | Replaces each element with its arc sine, in radians (in place). Same as `Asin`. |
+| `Acos` | Replaces each element with its arc cosine, in radians (in place). Same as `ArcCos`. |
+| `ArcCos` | Replaces each element with its arc cosine, in radians (in place). Same as `Acos`. |
+| `Atan` | Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`. |
+| `ArcTan` | Replaces each element with its arc tangent, in radians (in place). Same as `Atan`. |
+| `Sqrt` | Replaces each element with its square root (in place). |
+| `Abs` | Replaces each element with its absolute value (in place). |
+| `Exp` | Replaces each element with e raised to it (in place). |
+| `Log` | Replaces each element with its natural logarithm (in place). Same as `Ln`. |
+| `Ln` | Replaces each element with its natural logarithm (in place). Same as `Log`. |
+| `Log2` | Replaces each element with its base-2 logarithm (in place). |
+| `Log10` | Replaces each element with its base-10 logarithm (in place). |
+| `Floor` | Rounds each element down to a whole number (in place). |
+| `Ceil` | Rounds each element up to a whole number (in place). |
+| `Round([decimals])` | Rounds every element (default 0 decimals). |
+| `Sign` | Replaces each element with its sign: -1, 0 or 1 (in place). |
+| `Reciprocal` | Replaces each element with 1 divided by it (in place). |
+| `Square` | Replaces each element with its square (in place). |
+| `Negative` | Changes the sign of each element (in place). Same as `Neg`. |
+| `Neg` | Changes the sign of each element (in place). Same as `Negative`. |
+| `Add(value)` | Adds a number, or another array element by element (arrays of the same length). |
+| `Subtract(value)` | Subtracts a number or another array, element by element. |
+| `Sub` | Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`. |
+| `Multiply(value)` | Multiplies by a number or another array, element by element. |
+| `Mul` | Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`. |
+| `Divide(value)` | Divides by a number or another array, element by element (by 0: NAN). |
+| `Div` | Divides each element by a number or by another array's matching element (in place). Same as `Divide`. |
+| `Power(exp)` | Raises every element to a power (default 2). |
+| `Pow` | Raises each element to a power (in place). Same as `Power`. |
+| `Mod(divisor)` | The remainder of each element. |
+| `Fmod` | Replaces each element with its remainder after division by a number (in place). Same as `Mod`. |
+| `Clip(low, high)` | Limits every element to [low, high]. |
+| `Clamp` | Limits each element to the range from a low to a high value (in place). Same as `Clip`. |
+| `Sort` | Sorts the items, nodes or elements in ascending order. |
+| `Reverse` | Reverses the order of the elements (in place). Same as `Flip`. |
+| `Flip` | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
+| `Unique` | Replaces the array with its distinct values, sorted. |
+| `Shuffle` | Puts the elements in random order (in place). |
+| `Append(v1, v2, …)` | Adds another array, a list or a number at the end. |
+| `Concatenate` | Appends the elements of another array, named by its variable, to this one. Same as `Append`. |
+| `Slice(start, end)` | Keeps the elements from start to end (not included). |
+| `Reshape` | Changes the array's shape; RapidR's arrays are one-dimensional, so it leaves it as it is. |
+| `CumSum` | Replaces each element with the running total up to it (in place). |
+| `CumProd` | Replaces each element with the product of it and all those before it (in place). |
+| `Diff` | Replaces the array with the differences between neighbouring elements, one element shorter. |
+| `Dot(otherArray)` | The dot product with another array. |
+| `Norm` | Returns the array's length as a vector (its L2 norm). |
+| `Normalize` | Scales the elements so the array's L2 norm is 1 (in place). |
+| `Any` | Returns true (1) when at least one element is non-zero. |
+| `All` | Returns true (1) when every element is non-zero. |
+| `Where` | Replaces the array with the indexes of its non-zero elements. Same as `Nonzero`. |
+| `Nonzero` | Replaces the array with the indexes of its non-zero elements. Same as `Where`. |
+| `SearchSorted(value)` | Where value would go in the sorted array. |
+| `Rand(n)` | n random values in [0, 1) (default 1). |
+| `Random` | Fills the array with `n` random values from 0 up to 1. Same as `Rand`. |
+| `Randn(n)` | n normally distributed values. |
+| `Random_normal` | Fills the array with `n` random values from a normal distribution. Same as `RandN`. |
+| `Normal` | Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`. |
+| `Uniform(low, high, n)` | n random values in [low, high). |
+| `Random_uniform` | Fills the array with `n` random values between a low and a high value. Same as `Uniform`. |
+| `Randint(low, high, n)` | n random whole numbers from low to high, both included. |
+| `Choice(n)` | One element at random (returned), or the array becomes n of them. |
+| `ToList` | The elements as "1,2,3". |
+| `ToString` | Returns the contents as text. |
+| `Print` | Prints the array as [1, 2, 3]. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+
+<a id="rdataframe"></a>
+## RDATAFRAME
+
+A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Nrows` (read-only) | int |  | The number of rows in the data frame. |
+| `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `Width` (read-only) | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Ncols` (read-only) | int |  | The number of columns in the data frame. |
+| `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
+
+| Method | |
+|---|---|
+| `Create` | Makes the frame empty. |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `AddRow(v1, v2, …, v2, …)` | Adds a row (columns column_1, ... if the frame has fewer). |
+| `Add_row` | Appends a row made of the values given. Same as `AddRow`. |
+| `AppendRow` | Appends a row made of the values given. Same as `AddRow`. |
+| `Push_row` | Appends a row made of the values given. Same as `AddRow`. |
+| `LoadFromCSV(filename)` | Reads CSV (the first line the header) from a file, or the CSV text itself. |
+| `ReadCSV(filename)` | The same as loadfromcsv. |
+| `Read_csv(filename)` | Loads a CSV file into the DataFrame. Same as `ReadCSV`. |
+| `SaveToCSV(filename)` | Writes the frame as CSV (default output.csv). |
+| `To_csv(filename)` | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
+| `WriteCSV(filename)` | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
+| `LoadFromJSON(filename)` | Reads JSON records ([{...}, ...]), JSON Lines or columns ({"a": [...]}). |
+| `Read_json(filename)` | Loads a JSON file into the DataFrame. Same as `LoadFromJSON`. |
+| `SaveToJSON(filename)` | Writes the frame as an array of JSON records (default output.json). |
+| `To_json(filename)` | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
+| `Head([n])` | Keeps the first n rows (default 5). |
+| `Tail([n])` | Keeps the last n rows (default 5). |
+| `Cell(col, row)` | The text of a cell (col: an index from 0, or a column name); "" for a missing value. |
+| `CellByName(row, columnName)` | The text of a cell by its column name. |
+| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
+| `SetCell(col, row, value)` | Sets a cell (col: an index or a name); past the end the frame grows. |
+| `Iloc(row)` | Keeps rows start to end (not included). |
+| `Select(col1, col2, …)` | Keeps those columns, in that order. |
+| `Sort(column, [ascending])` | Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last. |
+| `Sort_values(column, [ascending])` | The same as sort. |
+| `Filter(column, operator, value)` | Keeps the rows that pass: =, ==, <>, !=, >, <, >=, <=, contains, startswith, endswith. |
+| `Query(expression)` | Filters with one condition: query "age > 30". |
+| `GroupBy(column, aggColumn, aggFunc)` | A row a group: the column, then mean (default), sum, count, min, max, first, last, median or std of every other column. |
+| `Group_by` | Groups the rows by a column and aggregates the other columns. Same as `GroupBy`. |
+| `Drop(column)` | Removes a column. |
+| `Drop_column` | Removes a column by name. Same as `Drop`. |
+| `Rename(oldName, newName)` | Renames a column. |
+| `Rename_column` | Renames a column. Same as `Rename`. |
+| `AddColumn(name, values)` | Adds (or replaces) a column; a frame without rows gets one a value. |
+| `Add_column` | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
+| `Set_column` | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
+| `Fillna(value)` | Missing values become value (default "0"). |
+| `Fill_null` | Replaces the missing values with the value given. Same as `FillNA`. |
+| `Dropna` | Removes the rows with a missing value. |
+| `Drop_nulls` | Removes the rows that have a missing value. Same as `DropNA`. |
+| `Describe` | The frame becomes the summary of its numeric columns: count, mean, std, min, 25%, 50%, 75%, max. |
+| `Value_counts(column)` | The frame becomes each value of the column and its count, most first. |
+| `Nunique(column)` | How many different values the column has. |
+| `Corr(col1, col2)` | Pearson's correlation of two columns. |
+| `Correlation` | Returns the correlation matrix of the numeric columns. Same as `Corr`. |
+| `Sample(n)` | Keeps n rows at random (default 5). |
+| `Nlargest(n, column)` | Keeps the n rows with the largest values (default 5). |
+| `Nsmallest(n, column)` | Keeps the n rows with the smallest values (default 5). |
+| `Info` | Prints the size and each column's type and non-null count. |
+| `Dtypes` | The columns' types: "name: str,age: i64". |
+| `Shape` | The array's or frame's dimensions as text: an array's length, a frame's rows and columns. |
+| `Merge(otherDf, onColumn, [how])` | Joins another frame on a column: inner (default), left, right, outer, cross. |
+| `Join` | Joins another DataFrame on a common column. Same as `Merge`. |
+| `Concat(otherDf)` | Adds another frame's rows (columns matched by name). |
+| `Append` | Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array. |
+| `Transpose` | Columns become rows. |
+| `T` | Swaps rows and columns. Same as `Transpose`. |
+| `Apply(column, function)` | Transforms a column: upper, lower, trim, abs, round, sqrt, log, exp. |
+| `Replace(column, oldValue, newValue)` | Cells that are oldValue become newValue. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Columns` | The frame's column names, comma-separated. |
+| `Rows` | Returns the number of rows. |
+| `RowCount` | How many rows the frame has. |
+| `Len` | Returns the number of rows. Same as `Rows`. |
+| `ToString` | The frame as a text table. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Print` | Prints the frame as a text table. |
+| `ToGrid(gridName)` | Fills a QSTRINGGRID: the header row, then the cells. |
+| `To_grid` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
+| `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
+
+<a id="rplot"></a>
+## RPLOT
+
+A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `XLabel` | string |  | The title under the plot's X axis. |
+| `YLabel` | string |  | The title beside the plot's Y axis. |
+| `Grid` | int |  | Non-zero draws grid lines on the plot. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Dpi` | int |  | The dots per inch the plot is rendered at. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Create` | Starts the object empty and ready to use (the web's name; same as `New` and `Init`). |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `Clear` | Removes every series and setting. |
+| `Plot(xData, yData, [color], [label])` | A line: x and y are RNum arrays (or "1,2,3"); style "-" (default), "--" dashed, "o" points. |
+| `Bar(labels, values, [color], [label])` | Vertical bars. |
+| `Barh(labels, values, [color], [label])` | Horizontal bars. |
+| `Scatter(xData, yData, [color], [label])` | Points. |
+| `Step(xData, yData, [color], [label])` | A step line. |
+| `Area(xData, yData, [color], [label])` | A filled area under the line. |
+| `Fill_between` | Draws the area between a curve and the axis, filled. Same as `Area`. |
+| `AddSeries(label, y1, y2, …, [x1], [x2, …], [color])` | A line from numbers written in place, drawn at once where the chart shows. |
+| `Add_series` | Adds a data series to the chart. Same as `AddSeries`. |
+| `Series` | Adds a data series to the chart. Same as `AddSeries`. |
+| `Hist(data, [bins], [color], [label])` | A histogram (default 10 bins). |
+| `Histogram` | Draws a histogram of the values. Same as `Hist`. |
+| `Pie(labels, values, [colors])` | A pie chart. |
+| `Hline(y, [color], [label])` | A horizontal reference line at y. |
+| `Axhline` | Draws a horizontal line across the chart at the y given. Same as `HLine`. |
+| `Vline(x, [color], [label])` | A vertical reference line at x. |
+| `Axvline` | Draws a vertical line across the chart at the x given. Same as `VLine`. |
+| `Annotate(text, x, y, [color])` | Text at (x, y). |
+| `Legend([position])` | Shows the series labels. |
+| `SetTitle` | Sets the chart's title. |
+| `Set_title` | Sets the chart's title. Same as `SetTitle`. |
+| `SetXLabel` | Sets the label of the x axis. |
+| `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
+| `SetYLabel` | Sets the label of the y axis. |
+| `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
+| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
+| `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
+| `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
+| `Show` | Draws the chart where it is shown (the page, on the web). |
+| `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
+| `Xlim(min, max)` | The X axis range. |
+| `Ylim(min, max)` | The Y axis range. |
+| `Xscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
+| `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 
 <a id="rwebview"></a>
 ## RWEBVIEW
@@ -4337,8 +4337,8 @@ Runs JavaScript in the page: Eval a piece of code or Call a function. Web only.
 
 | Method | |
 |---|---|
-| `Eval` | Runs a piece of JavaScript and returns its result. |
-| `Call` | Calls a global JavaScript function by name with the other arguments, and returns its result. |
+| `Eval(Code AS STRING)` | Runs a piece of JavaScript and returns its result. |
+| `Call(Function AS STRING, [Args, …])` | Calls a global JavaScript function by name with the other arguments, and returns its result. |
 
 <a id="rwebstorage"></a>
 ## RWEBSTORAGE
@@ -4351,12 +4351,12 @@ Keeps strings by key in the browser's localStorage or sessionStorage. Web only.
 
 | Method | |
 |---|---|
-| `Set` | Stores a value: an array's element at an index, or a value under a key in the browser's storage. |
-| `Get` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `Remove` | Removes something: a list's string by index, the element from the page, or a stored value by key. |
+| `Set(Key AS STRING, Value AS STRING)` | Stores a value: an array's element at an index, or a value under a key in the browser's storage. |
+| `Get(Key AS STRING)` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
+| `Remove(Key AS STRING)` | Removes something: a list's string by index, the element from the page, or a stored value by key. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Keys` | Returns the keys in the storage. |
-| `HasKey` | Returns true when the storage has a value under the key given. |
+| `HasKey(Key AS STRING)` | Returns true when the storage has a value under the key given. |
 
 <a id="rwebaudio"></a>
 ## RWEBAUDIO
@@ -4500,7 +4500,7 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 
 | Method | |
 |---|---|
-| `Navigate` | Goes to an address: a web view loads a URL; a router changes the page's `#` route. |
+| `Navigate(Route AS STRING)` | Goes to an address: a web view loads a URL; a router changes the page's `#` route. |
 | `Back` | Goes back one step in the browser's history. |
 | `Forward` | Goes forward one step in the browser's history. |
 
