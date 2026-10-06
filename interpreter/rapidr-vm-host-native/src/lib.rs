@@ -22,6 +22,9 @@ use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
 use rapidr_value::events::QueuedEvent;
 use rapidr_vm::{Host, Vm};
 
+#[cfg(feature = "session")]
+pub mod session;
+
 /// Native host: routes the [`Host`] surface to `rapidr-runtime-core`.
 #[derive(Default)]
 pub struct NativeHost {
@@ -32,6 +35,13 @@ pub struct NativeHost {
     /// Set to true once any GUI component has been created — signals
     /// the CLI driver that it should call [`run_event_loop`].
     pub has_components: bool,
+    /// Where PRINT goes instead of standard output (a session: the IDE).
+    pub output: Option<Box<dyn FnMut(&str)>>,
+    /// Where INPUT reads a line instead of standard input (a session);
+    /// `None` from it: no more input.
+    pub input_source: Option<Box<dyn FnMut() -> Option<String>>>,
+    /// Told when a form is shown (`true`) or closed / hidden (a session).
+    pub on_form: Option<Box<dyn FnMut(&str, bool)>>,
 }
 
 impl Host for NativeHost {
@@ -83,6 +93,16 @@ impl Host for NativeHost {
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+        if let Some(on_form) = self.on_form.as_mut() {
+            let shown = match method.to_ascii_lowercase().as_str() {
+                "show" | "showmodal" => Some(true),
+                "close" | "hide" => Some(false),
+                _ => None,
+            };
+            if let Some(shown) = shown.filter(|_| obj::rp_comp_type(id).to_ascii_uppercase().contains("FORM")) {
+                on_form(id, shown);
+            }
+        }
         Ok(rp_comp_call(id, method, args))
     }
 
@@ -124,6 +144,10 @@ impl Host for NativeHost {
     fn print(&mut self, s: &str) -> Result<(), String> {
         // Keep the shared console cursor current (CSRLIN, POS, LOCATE).
         rapidr_value::console::track(s);
+        if let Some(output) = self.output.as_mut() {
+            output(s);
+            return Ok(());
+        }
         let stdout = io::stdout();
         let mut h = stdout.lock();
         h.write_all(s.as_bytes()).map_err(|e| e.to_string())?;
@@ -132,6 +156,9 @@ impl Host for NativeHost {
     }
 
     fn input(&mut self) -> Result<String, String> {
+        if let Some(source) = self.input_source.as_mut() {
+            return source().ok_or_else(|| "INPUT: no more input".to_string());
+        }
         let mut line = String::new();
         // (INKEY$ may have left the terminal reading a key at a time)
         rapidr_runtime_core::terminal::line_mode();
@@ -462,11 +489,17 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     rapidr_runtime_core::value::resources::set_all(&module.resources);
     let mut host = NativeHost::default();
     let mut vm = Vm::new(&mut host);
+    run_module(&module, &mut vm)
+}
+
+/// Runs `module`'s main program on `vm`, then its windows until they're
+/// all closed; then the program's end (timers stopped, files closed).
+pub fn run_module(module: &Module, vm: &mut Vm<'_, NativeHost>) -> Result<(), String> {
     let prev = install_event_queue();
 
-    let main_result = vm.run(&module).map_err(|e| format!("vm error: {e}"));
+    let main_result = vm.run(module).map_err(|e| format!("vm error: {e}"));
     if main_result.is_ok() && vm.host_mut().has_components {
-        serve_app(&module, &mut vm);
+        serve_app(module, vm);
     }
 
     // Stop timers first so ticks due before the loop ended don't fire

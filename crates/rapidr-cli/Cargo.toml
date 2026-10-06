@@ -13,7 +13,7 @@ rapidr-preprocessor.workspace = true
 rapidr-bcgen.workspace = true
 rapidr-bytecode.workspace = true
 rapidr-vm.workspace = true
-rapidr-vm-host-native = { workspace = true, features = ["full"] }
+rapidr-vm-host-native = { workspace = true, features = ["full", "session"] }
 rapidr-webbundle.workspace = true
 base64 = "0.22"
 # Downloaded files are remembered by content (SHA-256)
@@ -28,3 +28,7 @@ libc = "0.2"
 [[bin]]
 name = "rapidr"
 path = "src/main.rs"
+
+[dev-dependencies]
+# (tests/session.rs: the IDE's end of a session against `rapidr run --session`)
+rapidr-session.workspace = true

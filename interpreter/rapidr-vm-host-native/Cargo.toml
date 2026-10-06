@@ -14,9 +14,13 @@ database = ["rapidr-runtime-core/database"]
 ffi = ["rapidr-runtime-core/ffi"]
 datascience = ["rapidr-runtime-core/datascience"]
 full = ["gui", "network", "database", "ffi", "datascience"]
+# `rapidr run --session`: the program's end of RapidR Studio's session
+# protocol (the rapidr CLI; never in a program's own runner).
+session = ["dep:rapidr-session"]
 
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
 rapidr-runtime-core = { workspace = true }
+rapidr-session = { workspace = true, features = ["program"], optional = true }

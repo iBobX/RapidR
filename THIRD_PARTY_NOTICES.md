@@ -18,9 +18,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**567 libraries** under 22 license expressions.
+**570 libraries** under 22 license expressions.
 
-## Apache-2.0 OR MIT (325)
+## Apache-2.0 OR MIT (327)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -271,7 +271,9 @@ their `OFL.txt`.
 | thiserror | 2.0.18 | <https://github.com/dtolnay/thiserror> |
 | thiserror-impl | 1.0.69 | <https://github.com/dtolnay/thiserror> |
 | thiserror-impl | 2.0.18 | <https://github.com/dtolnay/thiserror> |
+| toml | 0.9.12+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml | 1.1.6+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml_datetime | 0.7.5+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_datetime | 1.1.1+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_edit | 0.25.8+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_parser | 1.1.3+spec-1.1.0 | <https://github.com/toml-rs/toml> |
@@ -350,7 +352,7 @@ their `OFL.txt`.
 | x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
 
-## MIT (130)
+## MIT (131)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -467,6 +469,7 @@ their `OFL.txt`.
 | wayland-protocols-wlr | 0.3.12 | <https://github.com/smithay/wayland-rs> |
 | wayland-scanner | 0.31.11 | <https://github.com/smithay/wayland-rs> |
 | wayland-sys | 0.31.11 | <https://github.com/smithay/wayland-rs> |
+| winnow | 0.7.15 | <https://github.com/winnow-rs/winnow> |
 | winnow | 1.0.0 | <https://github.com/winnow-rs/winnow> |
 | x11-dl | 2.21.0 | <https://github.com/AltF02/x11-rs.git> |
 | xcursor | 0.3.11 | <https://github.com/esposm03/xcursor-rs> |

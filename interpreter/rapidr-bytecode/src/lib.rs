@@ -78,19 +78,17 @@ pub struct Function {
 }
 
 impl Function {
+    /// The source line of the instruction at `ip`: the last `line_info`
+    /// entry at or before it (entries are in code order).
     pub fn get_line_for_ip(&self, ip: usize) -> Option<u32> {
-        if self.line_info.is_empty() {
-            return None;
-        }
-        let mut best_line = None;
-        for &(off, line) in &self.line_info {
-            if off as usize <= ip {
-                best_line = Some(line);
-            } else {
-                break;
-            }
-        }
-        best_line
+        self.line_at(ip).map(|(line, _)| line)
+    }
+
+    /// [`Self::get_line_for_ip`], and whether a statement starts at `ip`
+    /// (a breakpoint stops there, not where a call returns mid-line).
+    pub fn line_at(&self, ip: usize) -> Option<(u32, bool)> {
+        let after = self.line_info.partition_point(|&(off, _)| off as usize <= ip);
+        after.checked_sub(1).map(|i| (self.line_info[i].1, self.line_info[i].0 as usize == ip))
     }
 }
 
@@ -221,6 +219,25 @@ impl SourceMap {
         let r = self.runs.iter().find(|r| (r.0..r.0.saturating_add(r.3)).contains(&line))?;
         Some((self.files.get(r.1 as usize)?.as_str(), r.2 + (line - r.0)))
     }
+
+    /// The index of `file` in [`Self::files`]: its name (any case, a path
+    /// is reduced to its name, as the map keeps only names).
+    pub fn file_index(&self, file: &str) -> Option<u32> {
+        let name = file.rsplit(['/', '\\']).next().unwrap_or(file);
+        self.files.iter().position(|f| f.eq_ignore_ascii_case(name)).map(|i| i as u32)
+    }
+
+    /// The compiled lines that came from line `line` of `file` (a file
+    /// included twice has two), in order — what a breakpoint in that file
+    /// stops at.
+    pub fn compiled_lines(&self, file: &str, line: u32) -> Vec<u32> {
+        let Some(idx) = self.file_index(file) else { return Vec::new() };
+        self.runs
+            .iter()
+            .filter(|r| r.1 == idx && (r.2..r.2.saturating_add(r.3)).contains(&line))
+            .map(|r| r.0 + (line - r.2))
+            .collect()
+    }
 }
 
 impl Module {
@@ -234,6 +251,15 @@ impl Module {
         if let Some(t) = directive.and_then(AppType::from_directive) {
             self.app_type = t;
         }
+    }
+
+    /// Every compiled line where a statement starts — the lines the
+    /// debugger can stop at — sorted, once each.
+    pub fn code_lines(&self) -> Vec<u32> {
+        let mut lines: Vec<u32> = self.functions.iter().flat_map(|f| f.line_info.iter().map(|&(_, l)| l)).collect();
+        lines.sort_unstable();
+        lines.dedup();
+        lines
     }
 
     /// Intern a constant; returns its index.

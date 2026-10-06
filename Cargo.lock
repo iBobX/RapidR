@@ -3707,6 +3707,7 @@ dependencies = [
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-session",
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
@@ -3761,7 +3762,7 @@ dependencies = [
  "regex-automata",
  "ropey",
  "serde",
- "toml",
+ "toml 1.1.6+spec-1.1.0",
 ]
 
 [[package]]
@@ -3796,6 +3797,15 @@ name = "rapidr-preprocessor"
 version = "2.117.0"
 dependencies = [
  "rapidr-diagnostics",
+]
+
+[[package]]
+name = "rapidr-project"
+version = "2.117.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -3844,6 +3854,20 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "rapidr-session"
+version = "2.117.0"
+dependencies = [
+ "rapidr-bcgen",
+ "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-value",
+ "rapidr-vm",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3941,6 +3965,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-runtime-core",
+ "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
 ]
@@ -3956,6 +3981,7 @@ dependencies = [
  "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-runtime-web",
+ "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
  "wasm-bindgen",
@@ -4897,6 +4923,21 @@ dependencies = [
 
 [[package]]
 name = "toml"
+version = "0.9.12+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
+dependencies = [
+ "indexmap",
+ "serde_core",
+ "serde_spanned",
+ "toml_datetime 0.7.5+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 0.7.15",
+]
+
+[[package]]
+name = "toml"
 version = "1.1.6+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "920602543f0911ab71da12c50d59701da54c196d1a2bf5cb4b75667f137a406a"
@@ -4904,10 +4945,19 @@ dependencies = [
  "indexmap",
  "serde_core",
  "serde_spanned",
- "toml_datetime",
+ "toml_datetime 1.1.1+spec-1.1.0",
  "toml_parser",
  "toml_writer",
- "winnow",
+ "winnow 1.0.0",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.7.5+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
+dependencies = [
+ "serde_core",
 ]
 
 [[package]]
@@ -4926,9 +4976,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16bff38f1d86c47f9ff0647e6838d7bb362522bdf44006c7068c2b1e606f1f3c"
 dependencies = [
  "indexmap",
- "toml_datetime",
+ "toml_datetime 1.1.1+spec-1.1.0",
  "toml_parser",
- "winnow",
+ "winnow 1.0.0",
 ]
 
 [[package]]
@@ -4937,7 +4987,7 @@ version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
 dependencies = [
- "winnow",
+ "winnow 1.0.0",
 ]
 
 [[package]]
@@ -6075,6 +6125,12 @@ dependencies = [
 
 [[package]]
 name = "winnow"
+version = "0.7.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
+
+[[package]]
+name = "winnow"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a90e88e4667264a994d34e6d1ab2d26d398dcdca8b7f52bec8668957517fc7d8"
@@ -6302,7 +6358,7 @@ dependencies = [
  "uds_windows",
  "uuid",
  "windows-sys 0.61.2",
- "winnow",
+ "winnow 1.0.0",
  "zbus_macros",
  "zbus_names",
  "zvariant",
@@ -6354,7 +6410,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8bf88b4a3ff53e883001e0e0115b297a9d53c31b9c1edd2bfdd853e3428624e"
 dependencies = [
  "serde",
- "winnow",
+ "winnow 1.0.0",
  "zvariant",
 ]
 
@@ -6365,7 +6421,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1586c021a01ca0a9216dcd874e546382e156a5cbab5fab6cb5f10087e22682a"
 dependencies = [
  "serde",
- "winnow",
+ "winnow 1.0.0",
  "zbus_names",
  "zvariant",
 ]
@@ -6481,7 +6537,7 @@ dependencies = [
  "endi",
  "enumflags2",
  "serde",
- "winnow",
+ "winnow 1.0.0",
  "zcheapstr",
  "zvariant_derive",
  "zvariant_utils",
@@ -6510,5 +6566,5 @@ dependencies = [
  "quote",
  "serde",
  "syn 3.0.6",
- "winnow",
+ "winnow 1.0.0",
 ]

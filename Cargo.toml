@@ -19,6 +19,8 @@ members = [
     "crates/rapidr-ui-host-winit",
     "crates/rapidr-launcher",
     "crates/rapidr-editor",
+    "crates/rapidr-project",
+    "crates/rapidr-session",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",
@@ -54,6 +56,8 @@ rapidr-ui-kernel = { path = "crates/rapidr-ui-kernel" }
 rapidr-ui-render = { path = "crates/rapidr-ui-render" }
 rapidr-ui-app = { path = "crates/rapidr-ui-app" }
 rapidr-ui-host-winit = { path = "crates/rapidr-ui-host-winit" }
+rapidr-project = { path = "crates/rapidr-project" }
+rapidr-session = { path = "crates/rapidr-session" }
 rapidr-bytecode = { path = "interpreter/rapidr-bytecode" }
 rapidr-vm = { path = "interpreter/rapidr-vm" }
 rapidr-bcgen = { path = "interpreter/rapidr-bcgen" }
