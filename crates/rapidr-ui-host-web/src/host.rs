@@ -168,7 +168,7 @@ fn frame_time(started: Instant) {
     let ms = started.elapsed().as_secs_f64() * 1000.0;
     let now = js_sys::Date::now();
     let entry = js_sys::Array::of2(&JsValue::from_f64(ms), &JsValue::from_f64(now));
-    js_sys::Array::from(&list).push(&entry);
+    list.unchecked_into::<js_sys::Array>().push(&entry);
 }
 
 fn is_overlay(type_name: &str) -> bool {

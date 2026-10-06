@@ -59,7 +59,10 @@ fn filter(c: &Model) -> Vec<usize> {
     if ranked.len() == 1 && list.items[ranked[0].2].label == typed && list.items[ranked[0].2].insert.is_none() {
         return Vec::new();
     }
-    ranked.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.to_lowercase().cmp(&b.1.to_lowercase())));
+    // (by how well each matches, then the service's group — its sort key's
+    // first character — then the label: `Show` before `ShowHint`)
+    let label = |i: usize| list.items[i].label.to_lowercase();
+    ranked.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.chars().next().cmp(&b.1.chars().next())).then_with(|| label(a.2).cmp(&label(b.2))));
     ranked.into_iter().map(|r| r.2).collect()
 }
 
