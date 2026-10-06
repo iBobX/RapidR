@@ -85,10 +85,10 @@ pub(crate) fn rename(s: &Snapshot, file: &Path, offset: usize, new_name: &str) -
     if !valid {
         return Err(format!("'{new_name}' is not a valid name"));
     }
-    if crate::registry::statement(new_base).is_some() || crate::registry::type_name(new_base).is_some() {
+    if rapidr_lang::statement(new_base).is_some() || rapidr_lang::keyword(new_base).is_some() || rapidr_lang::type_name(new_base).is_some() {
         return Err(format!("'{new_name}' is a reserved word"));
     }
-    if crate::registry::is_builtin_name(new_base) && !matches!(sym.kind, SymbolKind::Field | SymbolKind::Label) {
+    if rapidr_lang::builtin(new_name).is_some() && !matches!(sym.kind, SymbolKind::Field | SymbolKind::Label) {
         return Err(format!("'{new_name}' is a builtin's name"));
     }
     if name_key(new_name) == name_key(&sym.name) {
@@ -233,7 +233,7 @@ fn outline_statement(s: &Snapshot, file: &Path, st: &Statement, out: &mut Vec<Ou
         }
         Statement::Create(c) => {
             // (RapidQ's components under RapidQ's names, RapidR's own under RapidR's)
-            let shown = crate::registry::component(&c.type_name).map_or(c.type_name.clone(), |comp| pretty_component(comp.written_name()));
+            let shown = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |comp| pretty_component(comp.written_name()));
             if let Some(mut it) = item(s, file, c.span, &c.name, OutlineKind::Component, Some(shown)) {
                 for inner in &c.body {
                     if let Statement::Create(_) = inner {
@@ -246,7 +246,7 @@ fn outline_statement(s: &Snapshot, file: &Path, st: &Statement, out: &mut Vec<Ou
         Statement::Const(c) if top => out.extend(item(s, file, c.span, &c.name, OutlineKind::Constant, None)),
         Statement::Dim(d) if top => {
             for v in &d.declarators {
-                let kind = if crate::registry::component(&d.type_name).is_some() { OutlineKind::Component } else { OutlineKind::Variable };
+                let kind = if rapidr_lang::resolve_component(&d.type_name).is_some() { OutlineKind::Component } else { OutlineKind::Variable };
                 let detail = (!d.type_name.is_empty()).then(|| d.type_name.clone());
                 let span = if v.span.is_empty() { d.span } else { v.span };
                 out.extend(item(s, file, span, &v.name, kind, detail));

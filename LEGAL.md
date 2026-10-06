@@ -9,6 +9,7 @@ licence by licence, are in [docs/licensing.md](docs/licensing.md).
 ## In short
 
 - **RapidR is free and open source**, under the [MIT License](LICENSE).
+  Its copyright holder is Ruta Internet SRL (Uruguay), the company that develops it.
 - **The programs you build with RapidR are yours.** Sell them, give them
   away, keep their source closed, use them in a business: no fee, no
   royalty, no registration, and no need to publish your source code.

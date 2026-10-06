@@ -252,4 +252,5 @@ or AGPL is compiled into a program.
   licence by licence, and what each licence asks; codecs and patents; the
   checks (`tools/regress.sh legal`).
 
-RapidR itself is licensed under the [MIT License](LICENSE).
+RapidR itself is licensed under the [MIT License](LICENSE), copyright © 2025–2026
+Ruta Internet SRL (Uruguay).

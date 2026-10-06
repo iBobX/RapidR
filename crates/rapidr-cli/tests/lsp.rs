@@ -228,8 +228,10 @@ fn an_editor_session() {
     assert!(r["data"].as_array().unwrap().len() >= 5 * 4);
     let r = c.request("textDocument/formatting", json!({ "textDocument": doc, "options": { "tabSize": 4, "insertSpaces": true } }));
     let edits = r.as_array().unwrap();
-    assert_eq!(edits.len(), 1, "PRINT who goes in one level");
-    assert_eq!(edits[0]["newText"], "    PRINT who");
+    // (only the line's leading blanks change; the words are upper case already)
+    assert_eq!(edits.len(), 1, "PRINT who goes in one level: {edits:?}");
+    assert_eq!(edits[0]["newText"], "    ");
+    assert_eq!(edits[0]["range"], json!({ "start": pos(6, 0), "end": pos(6, 0) }));
 
     // Fix the line: the diagnostics go.
     let fixed = std::fs::read_to_string(&main).unwrap().replace("Nope total\nForm.\n", "Form.ShowModal\n");
@@ -262,6 +264,29 @@ fn rapidq_compatible_projects_get_fixes() {
     );
     assert_eq!(r[0]["title"], "Write RPlot");
     assert_eq!(r[0]["edit"]["changes"][&main_uri][0]["newText"], "RPlot");
+    c.shutdown();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn keywords_are_cased_as_typed_and_formatted() {
+    let dir = scratch("case");
+    let main = dir.join("main.bas");
+    std::fs::write(&main, "dim total as integer\r\nsub Go\r\nprint \"dim as\" ' dim as\r\nend sub\r\ndim ").unwrap();
+    let mut c = Client::start(json!({ "keywordCase": "upper", "identifierCase": "declaration" }));
+    let main_uri = c.open(&main);
+    let doc = json!({ "uri": main_uri });
+    // The word just typed (`dim` and a space, on line 5).
+    let r = c.request("textDocument/onTypeFormatting", json!({ "textDocument": doc, "position": pos(4, 4), "ch": " ", "options": { "tabSize": 4, "insertSpaces": true } }));
+    assert_eq!(r, json!([{ "range": { "start": pos(4, 0), "end": pos(4, 3) }, "newText": "DIM" }]));
+    // Enter: the line left, whole.
+    let r = c.request("textDocument/onTypeFormatting", json!({ "textDocument": doc, "position": pos(1, 0), "ch": "\n", "options": { "tabSize": 4, "insertSpaces": true } }));
+    let texts: Vec<&str> = r.as_array().unwrap().iter().map(|e| e["newText"].as_str().unwrap()).collect();
+    assert_eq!(texts, ["DIM", "AS", "INTEGER"]);
+    // A range: lines 2-4 re-indented and cased; the string and the comment stay.
+    let r = c.request("textDocument/rangeFormatting", json!({ "textDocument": doc, "range": { "start": pos(1, 0), "end": pos(3, 7) }, "options": { "tabSize": 4, "insertSpaces": true } }));
+    let edits: Vec<(u64, &str)> = r.as_array().unwrap().iter().map(|e| (e["range"]["start"]["line"].as_u64().unwrap(), e["newText"].as_str().unwrap())).collect();
+    assert_eq!(edits, [(1, "SUB"), (2, "    "), (2, "PRINT"), (3, "END"), (3, "SUB")]);
     c.shutdown();
     let _ = std::fs::remove_dir_all(&dir);
 }

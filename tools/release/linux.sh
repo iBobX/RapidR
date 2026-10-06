@@ -102,7 +102,7 @@ deb() {
 Package: $pkg
 Version: $VERSION
 Architecture: $debarch
-Maintainer: RapidR <https://github.com/iBobX/RapidR>
+Maintainer: Ruta Internet SRL <https://github.com/iBobX/RapidR>
 Installed-Size: $(du -sk "$root/usr" | cut -f1)
 Depends: $(depends "$root/usr/bin/rapidr")
 Conflicts: $other
