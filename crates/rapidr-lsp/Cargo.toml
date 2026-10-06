@@ -1,0 +1,15 @@
+[package]
+name = "rapidr-lsp"
+description = "`rapidr lsp`: the Language Server Protocol over stdio, on rapidr-langsvc (docs/ide-plan.md, I3)"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# Synchronous: no async runtime (docs/ide-plan.md §6.6).
+[dependencies]
+rapidr-langsvc.workspace = true
+lsp-server = "0.10"
+lsp-types = "0.97"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
