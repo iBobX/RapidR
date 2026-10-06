@@ -56,14 +56,8 @@ confidence-threshold = 0.9
 # real one.
 unused-allowed-license = "warn"
 
-[[licenses.clarify]]
-# polars-arrow-format ships only a LICENSE file (Apache-2.0).
-crate = "polars-arrow-format"
-expression = "Apache-2.0"
-license-files = []
-
 [bans]
-# Duplicate versions are common in a tree this size (polars, wgpu, wasm-bindgen);
+# Duplicate versions are common in a tree this size (wgpu, wasm-bindgen);
 # report them without failing. Wildcard version requirements are denied.
 multiple-versions = "warn"
 wildcards = "deny"

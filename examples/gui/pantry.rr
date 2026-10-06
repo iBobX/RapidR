@@ -1,0 +1,97 @@
+' pantry.rr: a list and a grid working together — pick a shelf in the
+' QLISTBOX, its items show in the QSTRINGGRID; add an item, the totals
+' follow.
+'
+'   rapidr run pantry.rr
+'
+' The data lives in arrays; the grid is only a view of the chosen shelf.
+' Grid.Cell(column, row) reads and writes a cell (row 0 is the header).
+$INCLUDE "RAPIDQ.INC"
+
+DECLARE SUB ShowShelf
+DECLARE SUB AddItem
+
+CONST MAXITEMS = 50
+DIM itemShelf(MAXITEMS) AS INTEGER
+DIM itemName(MAXITEMS) AS STRING
+DIM itemQty(MAXITEMS) AS INTEGER
+DIM itemPrice(MAXITEMS) AS DOUBLE
+DIM itemCount AS INTEGER
+
+SUB Stock(shelf AS INTEGER, name AS STRING, qty AS INTEGER, price AS DOUBLE)
+    itemShelf(itemCount) = shelf
+    itemName(itemCount) = name
+    itemQty(itemCount) = qty
+    itemPrice(itemCount) = price
+    itemCount = itemCount + 1
+END SUB
+
+CREATE Form AS QFORM
+    Caption = "Pantry"
+    Width = 520
+    Height = 330
+    Center
+    CREATE Shelves AS QLISTBOX
+        Left = 10: Top = 10: Width = 120: Height = 230
+        AddItems "Fruit", "Vegetables", "Bakery"
+        OnClick = ShowShelf
+    END CREATE
+    CREATE Grid AS QSTRINGGRID
+        Left = 140: Top = 10: Width = 360: Height = 200
+        ColCount = 4: RowCount = 2
+        Cell(0, 0) = "Item": Cell(1, 0) = "Qty": Cell(2, 0) = "Price": Cell(3, 0) = "Total"
+        ColWidths(0) = 156
+    END CREATE
+    CREATE Total AS QLABEL
+        Left = 140: Top = 216: Width = 360
+    END CREATE
+    CREATE NameEdit AS QEDIT
+        Left = 10: Top = 254: Width = 160: Text = "Leeks"
+    END CREATE
+    CREATE QtyEdit AS QEDIT
+        Left = 178: Top = 254: Width = 50: Text = "2"
+    END CREATE
+    CREATE PriceEdit AS QEDIT
+        Left = 236: Top = 254: Width = 70: Text = "0.80"
+    END CREATE
+    CREATE AddBtn AS QBUTTON
+        Caption = "&Add to shelf": Left = 314: Top = 252: Width = 110
+        OnClick = AddItem
+    END CREATE
+END CREATE
+
+SUB ShowShelf
+    DIM i AS INTEGER, row AS INTEGER
+    DIM sum AS DOUBLE
+    IF Shelves.ItemIndex < 0 THEN EXIT SUB
+    Grid.RowCount = 1
+    FOR i = 0 TO itemCount - 1
+        IF itemShelf(i) = Shelves.ItemIndex THEN
+            row = Grid.RowCount
+            Grid.RowCount = row + 1
+            Grid.Cell(0, row) = itemName(i)
+            Grid.Cell(1, row) = STR$(itemQty(i))
+            Grid.Cell(2, row) = FORMAT$("%.2f", itemPrice(i))
+            Grid.Cell(3, row) = FORMAT$("%.2f", itemQty(i) * itemPrice(i))
+            sum = sum + itemQty(i) * itemPrice(i)
+        END IF
+    NEXT
+    ' (a grid keeps a row under its header even when the shelf is empty)
+    IF Grid.RowCount = 1 THEN Grid.RowCount = 2: Grid.Cell(0, 1) = "(empty)"
+    Total.Caption = Shelves.Item(Shelves.ItemIndex) + ": " + STR$(Grid.RowCount - 1) + " items, worth " + FORMAT$("%.2f", sum)
+END SUB
+
+SUB AddItem
+    IF Shelves.ItemIndex < 0 OR NameEdit.Text = "" OR itemCount > MAXITEMS THEN EXIT SUB
+    Stock Shelves.ItemIndex, NameEdit.Text, VAL(QtyEdit.Text), VAL(PriceEdit.Text)
+    ShowShelf
+END SUB
+
+Stock 0, "Apples", 6, 0.35
+Stock 0, "Bananas", 5, 0.25
+Stock 1, "Carrots", 8, 0.15
+Stock 1, "Potatoes", 10, 0.20
+Stock 2, "Bread", 1, 2.40
+Shelves.ItemIndex = 0
+ShowShelf
+Form.ShowModal

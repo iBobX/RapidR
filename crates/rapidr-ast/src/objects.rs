@@ -357,7 +357,7 @@ impl Lowering<'_> {
         // themselves, not builtins they look up)
         // (the builtins written without parentheses — `f = DIR$`, `TIMER` —
         // are the language's too, whatever the component has)
-        const BARE: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "freefile", "inkey", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
+        const BARE: &[&str] = &["command", "commandcount", "csrlin", "curdir", "date", "dir", "freefile", "inkey", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
         if BARE.contains(&strip_type_suffix(&key(name))) {
             return false;
         }

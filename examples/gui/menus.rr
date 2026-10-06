@@ -1,0 +1,104 @@
+' menus.rr: a main menu with shortcuts, a check item, radio items and a
+' submenu; a pop-up menu on the text; a status bar that says what happened.
+'
+'   rapidr run menus.rr
+'
+' QMAINMENU holds QMENUITEMs; an item made inside another is in its
+' submenu. Caption "-" is a separator, "&" marks the access key.
+' RAPIDQ.INC (built in) names RapidQ's constants: alClient, mrOk, …
+$INCLUDE "RAPIDQ.INC"
+
+DECLARE SUB NewText
+DECLARE SUB QuitApp
+DECLARE SUB ToggleWrap
+DECLARE SUB PickSize
+DECLARE SUB ShowAbout
+DECLARE SUB Upper
+
+CREATE Form AS QFORM
+    Caption = "Menus"
+    Width = 420
+    Height = 300
+    Center
+    CREATE MainMenu AS QMAINMENU
+        CREATE FileMenu AS QMENUITEM
+            Caption = "&File"
+            CREATE NewItem AS QMENUITEM
+                Caption = "&New": ShortCut = "Ctrl+N": OnClick = NewText
+            END CREATE
+            CREATE Sep1 AS QMENUITEM
+                Caption = "-"
+            END CREATE
+            CREATE QuitItem AS QMENUITEM
+                Caption = "E&xit": ShortCut = "Ctrl+Q": OnClick = QuitApp
+            END CREATE
+        END CREATE
+        CREATE ViewMenu AS QMENUITEM
+            Caption = "&View"
+            CREATE WrapItem AS QMENUITEM
+                Caption = "&Word wrap": Checked = 1: OnClick = ToggleWrap
+            END CREATE
+            CREATE SizeMenu AS QMENUITEM
+                Caption = "Text &size"
+                CREATE SmallItem AS QMENUITEM
+                    Caption = "&Small": RadioItem = 1: OnClick = PickSize
+                END CREATE
+                CREATE LargeItem AS QMENUITEM
+                    Caption = "&Large": RadioItem = 1: Checked = 1: OnClick = PickSize
+                END CREATE
+            END CREATE
+        END CREATE
+        CREATE HelpMenu AS QMENUITEM
+            Caption = "&Help"
+            CREATE AboutItem AS QMENUITEM
+                Caption = "&About": OnClick = ShowAbout
+            END CREATE
+        END CREATE
+    END CREATE
+    CREATE TextMenu AS QPOPUPMENU
+        CREATE UpperItem AS QMENUITEM
+            Caption = "&UPPER CASE": OnClick = Upper
+        END CREATE
+    END CREATE
+    CREATE Text AS QMEMO
+        Align = alClient
+        Text = "Right-click me for the pop-up menu."
+        WordWrap = 1
+        PopupMenu = TextMenu
+    END CREATE
+    CREATE Status AS QSTATUSBAR
+        SimpleText = "Ready"
+    END CREATE
+END CREATE
+
+SUB NewText
+    Text.Text = ""
+    Status.SimpleText = "New text"
+END SUB
+
+SUB QuitApp
+    Form.Close
+END SUB
+
+SUB ToggleWrap
+    WrapItem.Checked = IIF(WrapItem.Checked, 0, 1)
+    Text.WordWrap = WrapItem.Checked
+    Status.SimpleText = "Word wrap " + IIF(WrapItem.Checked, "on", "off")
+END SUB
+
+SUB PickSize (Sender AS QMENUITEM)
+    ' one handler for both radio items: Sender says which was picked
+    Sender.Checked = 1
+    Text.Font.Size = IIF(Sender.Caption = "&Small", 9, 14)
+    Status.SimpleText = "Text size " + STR$(Text.Font.Size)
+END SUB
+
+SUB ShowAbout
+    Status.SimpleText = "Menus example, " + STR$(FileMenu.Count) + " items in File"
+END SUB
+
+SUB Upper
+    Text.Text = UCASE$(Text.Text)
+END SUB
+
+Form.ShowModal

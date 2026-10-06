@@ -35,6 +35,9 @@ pub mod theme;
 pub mod registry;
 pub mod resources;
 pub mod environ;
+pub mod command_line;
+// RNUM, RDATAFRAME, RPLOT: one implementation for every runtime.
+pub mod datascience;
 // (Stage W3) What both runtimes' component registries give a new
 // component, and what the UI kernel reads as unset.
 pub mod component_defaults;

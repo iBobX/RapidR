@@ -877,7 +877,14 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let plot = args.first().map(Value::to_string_val).unwrap_or_default();
                 let png = crate::datascience::plot_render_to_bytes(&plot);
                 if !png.is_empty() {
-                    let loaded = rapidr_value::objects::with_picture(name, |b| b.load_bmp_bytes(&png));
+                    // (drawn again at the screen's scale for a high-DPI
+                    // screen: sharp, not enlarged)
+                    let redraw = crate::datascience::plot_redraw(&plot);
+                    let loaded = rapidr_value::objects::with_picture(name, |b| {
+                        b.load_bmp_bytes(&png)?;
+                        b.set_redraw(redraw);
+                        Ok::<(), String>(())
+                    });
                     if let Some(Err(e)) = loaded {
                         eprintln!("[rapidr] {name}.LoadFromPlot: {e}");
                     }

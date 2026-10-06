@@ -7,6 +7,8 @@ finds its home from the executable by it):
     bin/rapidrw[.exe]                   Windows' and macOS' desktop launcher
     lib/rapidr/release.toml             version, Rust, kind (sdk | runtime)
     lib/rapidr/ide/rapidr-ide.rrbc      the IDE (`rapidr ide`)          sdk
+    lib/rapidr/examples/                the example programs, by topic  sdk
+                                        (`rapidr examples`: what git tracks of examples/)
     lib/rapidr/runners/<os>-<arch>/     rapidrintr-runner[w][.exe]      sdk
     lib/rapidr/web/                     rapidrintr.js, _bg.wasm         sdk
     lib/rapidr/notices/<os>-<arch>.txt, web.txt   the THIRD-PARTY-NOTICES.txt
@@ -98,6 +100,14 @@ def main():
             shutil.copytree(args.toolchain, os.path.join(lib, "toolchain"))
         os.makedirs(os.path.join(lib, "ide"))
         shutil.copy2(args.ide, os.path.join(lib, "ide", "rapidr-ide.rrbc"))
+        # (a checkout's tracked files — no builds, nothing a run left; a
+        # release archive's examples/ is only those)
+        tracked = subprocess.run(["git", "ls-files", "examples"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines() \
+            if os.path.exists(os.path.join(ROOT, ".git")) else \
+            [os.path.relpath(os.path.join(d, f), ROOT) for d, _, fs in os.walk(os.path.join(ROOT, "examples")) for f in fs]
+        for f in tracked:
+            os.makedirs(os.path.dirname(os.path.join(lib, f)), exist_ok=True)
+            shutil.copy2(os.path.join(ROOT, f), os.path.join(lib, f))
     else:
         os.makedirs(lib)
         version = args.version

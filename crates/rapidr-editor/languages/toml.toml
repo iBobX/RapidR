@@ -1,0 +1,99 @@
+# TOML (RapidR's project files, Cargo.toml, these definitions).
+
+[language]
+id = "toml"
+name = "TOML"
+extensions = ["toml", "rrproj"]
+filenames = ["Cargo.lock"]
+line_comment = ["#"]
+
+[brackets]
+pairs = [["[", "]"], ["{", "}"]]
+auto_close = [["[", "]"], ["{", "}"], ['"', '"'], ["'", "'"]]
+
+[indent]
+increase = '[\[\{]\s*(#.*)?$'
+decrease = '^\s*[\]\}]'
+
+[folding]
+brackets = true
+
+[keywords]
+constant = ["true", "false", "inf", "nan"]
+
+[defaults]
+ml_basic = "string"
+ml_literal = "string"
+basic = "string"
+literal = "string"
+
+[[states.root]]
+match = '#.*$'
+token = "comment"
+[[states.root]]
+match = '^\s*\[\[[^\]]*\]\]|^\s*\[[^\]]*\]'
+token = "type.table"
+[[states.root]]
+match = "^(\\s*)([A-Za-z0-9_.-]+|\"[^\"]*\"|'[^']*')(\\s*)(=)"
+groups = ["", "variable.key", "", "operator"]
+[[states.root]]
+match = '"""'
+token = "string"
+push = "ml_basic"
+[[states.root]]
+match = "'''"
+token = "string"
+push = "ml_literal"
+[[states.root]]
+match = '"'
+token = "string"
+push = "basic"
+[[states.root]]
+match = "'"
+token = "string"
+push = "literal"
+[[states.root]]
+match = '[0-9]{4}-[0-9]{2}-[0-9]{2}([Tt ][0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})?)?|[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?'
+token = "constant.date"
+[[states.root]]
+match = '[+-]?(0x[0-9A-Fa-f_]+|0o[0-7_]+|0b[01_]+|[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9_]+)?)'
+token = "number"
+[[states.root]]
+match = '[A-Za-z_][A-Za-z0-9_-]*'
+token = "text"
+keywords = true
+[[states.root]]
+match = '[\[\]{},.=]'
+token = "punctuation"
+
+[[states.ml_basic]]
+match = '\\(.|$)'
+token = "string.escape"
+[[states.ml_basic]]
+match = '"""'
+token = "string"
+pop = true
+
+[[states.ml_literal]]
+match = "'''"
+token = "string"
+pop = true
+
+[[states.basic]]
+match = '\\(.|$)'
+token = "string.escape"
+[[states.basic]]
+match = '"'
+token = "string"
+pop = true
+[[states.basic]]
+match = '$'
+pop = true
+
+[[states.literal]]
+match = "'"
+token = "string"
+pop = true
+[[states.literal]]
+match = '$'
+pop = true

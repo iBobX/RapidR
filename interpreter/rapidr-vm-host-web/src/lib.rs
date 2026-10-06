@@ -261,7 +261,8 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
             }
             v_null()
         }
-        "command" => rp_command(),
+        "command" => if args.is_empty() { rp_command() } else { rp_command_arg(&a0) },
+        "commandcount" => rp_commandcount(),
         "environ" => rp_environ(&a0),
         // The events waiting for the program run (right after this:
         // Host::take_events). Once its time slice is over, the program

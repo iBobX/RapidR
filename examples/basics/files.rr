@@ -1,0 +1,45 @@
+' files.rr: writing and reading text files, the BASIC way and with a
+' QFILESTREAM.
+'
+'   rapidr run files.rr
+'
+' OPEN … FOR OUTPUT / APPEND / INPUT AS #n, PRINT #n and LINE INPUT #n are
+' classic BASIC; FILEEXISTS, FILELEN and KILL look after files.
+$APPTYPE CONSOLE
+
+CONST LOGFILE = "shopping.txt"
+
+' Write a list, one item a line
+OPEN LOGFILE FOR OUTPUT AS #1
+PRINT #1, "bread"
+PRINT #1, "apples"
+PRINT #1, "cheese"
+CLOSE #1
+
+' Add to it
+OPEN LOGFILE FOR APPEND AS #1
+PRINT #1, "coffee"
+CLOSE #1
+
+PRINT LOGFILE + " has " + STR$(FILELEN(LOGFILE)) + " bytes"
+
+' Read it back, a line at a time, until the end of the file
+DIM item AS STRING
+DIM n AS INTEGER
+OPEN LOGFILE FOR INPUT AS #1
+WHILE NOT EOF(1)
+    LINE INPUT #1, item
+    n = n + 1
+    PRINT STR$(n) + ". " + item
+WEND
+CLOSE #1
+
+' The same file through a QFILESTREAM: open it, read every line
+DIM fs AS QFILESTREAM
+fs.Open(LOGFILE, fmOpenRead)
+PRINT "First line again: " + fs.ReadLine
+PRINT "Stream size: " + STR$(fs.Size)
+fs.Close
+
+KILL LOGFILE
+PRINT "Removed: " + IIF(FILEEXISTS(LOGFILE), "no", "yes")

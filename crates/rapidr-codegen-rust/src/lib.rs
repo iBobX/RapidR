@@ -2497,7 +2497,8 @@ impl RustCodegen {
                     "pi" => Some("v_dbl(std::f64::consts::PI)"),
                     "time" | "time$" => Some("rp_time()"),
                     "date" | "date$" => Some("rp_date()"),
-                    "command$" => Some("rp_command()"),
+                    "command" | "command$" => Some("rp_command()"),
+                    "commandcount" => Some("rp_commandcount()"),
                     "timer" => Some("rp_timer()"),
                     "inkey" | "inkey$" => Some("rp_inkey()"),
                     "freefile" => Some("rp_freefile()"),
@@ -2540,9 +2541,17 @@ impl RustCodegen {
                             }
                         }
                         // A FUNCTION named without parentheses is called
-                        // (`y = Five + 1`), except inside itself, where the
-                        // name is its result variable.
+                        // (`y = Five + 1`) — inside itself too, as RC.EXE
+                        // compiles it (`G = G + 1` recurses; with parameters
+                        // it's rapidr_ast::rapidq_checks' error, and the
+                        // result variable is read only as RESULT).
                         let lower = name.to_lowercase();
+                        if let Some(fname) = self.current_function.as_deref().filter(|f| rapidr_ast::names_routine(&id.name, f)) {
+                            if self.returning_functions.contains(&lower) && self.function_param_counts.get(&lower).copied().unwrap_or(0) == 0 {
+                                return format!("{snake}()");
+                            }
+                            return format!("_{}.clone()", to_snake(fname));
+                        }
                         // A SUB's name as a value (`WndProc = MyProc`) is
                         // nothing, as in the VM.
                         if !self.returning_functions.contains(&lower)
@@ -3021,7 +3030,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "rapidr__waitkey" => Some("rp_waitkey()".to_string()),
         "isnumeric" => Some(format!("rp_isnumeric(&{a0})")),
         "sleep" => Some(format!("rp_sleep(&{a0})")),
-        "command" => Some("rp_command()".to_string()),
+        "command" if args.is_empty() => Some("rp_command()".to_string()),
+        "command" => Some(format!("rp_command_arg(&{a0})")),
+        "commandcount" => Some("rp_commandcount()".to_string()),
         "environ" => Some(format!("rp_environ(&{a0})")),
         "doevents" => Some("rp_doevents()".to_string()),
         "end" => Some("rp_end()".to_string()),

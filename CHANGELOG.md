@@ -17,8 +17,81 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Every SDK installs it in `share/doc/rapidr/manual/`.
 - The release notes of v2.117.0, the first public release
   (`docs/release-notes/v2.117.0.md`).
+- Conformance cases `datascience_num`, `datascience_frame` and
+  `datascience_plot`: every documented RNUM, RDATAFRAME and RPLOT member,
+  checked on the VM, native builds and the web (`tests/web_conformance.mjs`).
+- Data-science members the desktop or the web lacked now work everywhere:
+  RNUM `create`, `set`, `get`, `push`, `avg`, and `Sum` / `Mean` / `Min` /
+  `Max` / `Std` / `Count` as properties; RDATAFRAME `create`, `addrow`,
+  `savetocsv`, `loadfromjson`, `savetojson`, `iloc`, `sort_values`,
+  `query`, `groupby`, `value_counts`, `nunique`, `corr`, `nlargest`,
+  `nsmallest`, `dtypes`, `merge`, `concat`, `apply`, `replace` on the web;
+  RPLOT `addseries`, `settitle` / `setxlabel` / `setylabel`, `show` /
+  `render` on the desktop, and `xscale` / `yscale`, `xlim` / `ylim`, `DPI`
+  on the web. `LoadFromCSV` / `LoadFromJSON` also take the data itself;
+  `filter` also takes `=`, `<>`, `startswith`, `endswith`, and `contains`
+  is a substring test on every runtime; `groupby` also takes `median` and
+  `std`; `cell` / `setcell` also take a column name.
+- **The examples, curated for the first release** (`examples/`, indexed by
+  `examples/README.md`): 26 small commented programs by topic — basics/
+  (hello, INPUT, files, the language), gui/ (a form and its events, menus,
+  dialogs, a timer, a list and a grid, themes, the tray icon), graphics/
+  (canvas), directx/ (QDXSCREEN sprites, a Direct3D cube from a `.X`
+  model), media/ (QMIDI with the built-in synthesizer, QWAVE, QVIDEO), data/
+  (SQLite with parameters, JSON, RNum, RDataFrame and RPlot), network/
+  (RHTTP + RJSON, QDOWNLOAD), rapidq/ (a notepad in plain RapidQ code),
+  web/ (browser storage, RJAVASCRIPT and RROUTER) — plus the IDE. All of
+  them RapidR's own; their media and models are made by
+  `tools/make_example_media.py` (nothing downloaded). The old test scraps
+  and demos went (and the scripts that drove them: `tools/native_examples.sh`,
+  `tests/full_matrix.sh`, `tests/bc_smoke.sh`, `tests/web_matrix.mjs` and the
+  demos' ad-hoc page scripts); the web IDE's examples list shows the new ones,
+  with the files their `$RESOURCE` lines name.
+- `tests/examples_run.mjs` (the `examples` stage of `tools/regress.sh`, in
+  place of `tools/native_examples.sh`'s `cargo check`): every example RUNS on
+  every runtime it claims — `rapidr run`, interpreted and native executables
+  (each native build dropped after its run), the web (the UI kernel's page)
+  — GUI ones through the test hooks (events, then the components' properties
+  read back), network ones against the tests' own local server; the table
+  must list every program and the README every entry.
+- `rapidr examples` lists the examples and `rapidr examples copy <name|all>
+  [folder]` copies one (with the data files it names) or all of them; SDK
+  installs ship them in `lib/rapidr/examples/` (the home's, as a checkout's
+  `examples/`: `tools/release/stage.py`).
 
 ### Changed
+- **RNUM, RDATAFRAME and RPLOT are one implementation for every runtime**
+  (`rapidr_value::datascience`, docs/ide-plan.md decision D7): native
+  builds, interpreted programs and the browser run the same arrays, frames
+  (with their CSV and JSON readers and writers) and chart model; a runtime
+  adds only PRINT, filling a QSTRINGGRID and drawing (plotters on the
+  desktop, a canvas on the web). polars and ndarray are no longer
+  dependencies — 89 fewer crates in the tree, smaller native builds — and
+  THIRD_PARTY_NOTICES.md is regenerated. Where the two implementations
+  disagreed, one behaviour was chosen: `setcell(row, col, value)` (the
+  web took the column first), `randint` includes both ends, `reciprocal`
+  of 0 is INF, a missing array reads as empty, `Shape` of an RNUM is
+  `(3,)`, `groupby` puts the group column first and orders groups by key,
+  `describe` summarises the numeric columns (count, mean, std, min,
+  quartiles, max), `transpose` names its first column `column`, charts
+  default to 640 × 480 px without a grid, and computed numbers print as
+  RapidR prints numbers (`0.3`, not `0.30000000000000004`).
+  `examples/web_datascience.rr` and the web IDE's hover help follow.
+- **RPLOT's charts look the same, and better, on the desktop and the
+  web**: the axes' ranges, bar widths and legend place come from the shared
+  model (`Plot::ranges`, `nice_ticks`, `legend_corner`) — round 1-2-5
+  ticks without `.0` on whole numbers, a light grid, 2-pixel lines, real
+  dashed lines (`--`), bars wholly inside the axes standing on 0, a line
+  chart fitting its data, the legend framed in a corner free of data (the
+  y axis reaching higher when none is, as Matplotlib's headroom), pies from twelve o'clock with labels outside and white between
+  slices. Desktop charts are drawn twice as fine and averaged down (smooth
+  edges), with text at the web's sizes.
+- **Charts are sharp on high-DPI screens**: `Image.LoadFromPlot` keeps
+  what draws the chart again at the screen's scale (`Bitmap::set_redraw`,
+  as an SVG picture is), and the web's chart canvas draws at the page's
+  scale; the pixels a program reads stay the 1× ones.
+- `ToGrid` makes the header the grid's fixed row and no column fixed, so
+  every column of the frame shows as data.
 - README rewritten for newcomers (install from the releases first, a quick
   start, what's in it, the platforms checked); COMPILER_MANUAL.md is now
   the contributor manual for today's architecture, and its outdated PDF is
@@ -29,6 +102,59 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   examples: every commit carries the clean versions instead (same commits,
   authors and messages; today's tree unchanged). Clones made before
   2026-10-06 should be cloned again.
+
+### Fixed
+- **A program sees only its own command line**, however it runs. `rapidr
+  run-bc prog.rrbc a b` handed the program the runner's own arguments
+  (`COMMAND$` was "run-bc prog.rrbc a b"; the IDE opened "run-bc …" as a
+  file), and so did a standalone runner's `--bytecode <file>`; now they
+  set the program to the file with the arguments after it, as `rapidr run`,
+  `rapidr open`, the IDE and built executables do. An old macOS's `-psn_…`
+  argument (Finder's process number) is no argument either.
+- **`COMMAND$(n)` and `CommandCount`**, as RapidQ's (RC.EXE, checked in
+  the Windows VM): `CommandCount` was an unknown name (0) and `COMMAND$(n)`
+  ignored `n`. Now `COMMAND$(0)` is the program's file, `COMMAND$(1)` …
+  its arguments (`"b c"` one), any other index ""; the bare `COMMAND$`
+  stays RapidR's (the arguments joined with spaces). On the web the
+  arguments are the page's query string's parts (`?a&b%20c`: `a`, `b c`),
+  decoded, or the ones a page hands its program (`window.RAPIDR_ARGS`):
+  the web IDE's preview gives none, never its frame's own query string
+  (a program there saw "role=run&v=…"). Shared by every runtime (`rapidr_value::command_line`);
+  conformance cases `command_line_args` (with the runner's new
+  `<case>.args`) and `command_line_none`, the web bundle's query string in
+  `tests/web_bundle_console.mjs`.
+- `RDataFrame.ToString` / `Print` on the desktop showed only
+  `shape: (2, 2)` and a note about polars' `fmt` feature, and `Print`
+  printed twice: a frame now prints once, as a plain-text table that is the
+  same on every runtime (a header, a rule, the rows — numbers
+  right-aligned, `null` for a missing value, the first and last ten rows of
+  a longer frame — and `[2 rows x 3 columns]`); `ToString` returns it
+  without printing.
+- `RDataFrame.Cell` / `CellByName` returned text cells in double quotes
+  (`"bob"`) on the desktop: they return the plain text.
+- `RNum.Shape` printed "RNum.shape() not implemented" instead of the
+  array's shape; a property read the way methods are (`PRINT a.Shape`)
+  now reads the property on every data-science component.
+- On the web, `RDataFrame.SaveToCSV` / `SaveToJSON` before any other file
+  I/O wrote nowhere: data frames use the page's files from the start.
+- QSTRINGGRID with `FixedCols = 0` (or `FixedRows = 0`) showed from column
+  (row) 1: the first scrollable column stays the first one shown, as in
+  Delphi's grid.
+- RJSON on the web: `LoadFile` / `SaveFile` work (the page's files, as
+  OPEN's), values `Set` as numbers / booleans as on the desktop; on the
+  desktop an object's keys keep their order (as the browser's), `Remove`
+  too.
+- **A FUNCTION's own name inside it** follows RapidQ's compiler (RC.EXE):
+  without parameters it is a call of itself (`G = G + 1` recurses);
+  with parameters, reading it without arguments is the compile error
+  `Expected ( but got "+"` on every runtime. The interpreter read the
+  result variable instead, and native builds failed to compile such a
+  program. `RESULT` reads the result. Conformance cases
+  `function_self_name`, `function_self_read` (checked against RC.EXE).
+- `ANNOUNCEMENT.md` announced "1.0.0" and called RapidR a reimplementation:
+  it now announces 2.117.0 as the release notes do — RapidR is compatible
+  with RapidQ, an original implementation written from the ground up in
+  pure Rust.
 
 ## [2.117.0] — 2026-10-06
 

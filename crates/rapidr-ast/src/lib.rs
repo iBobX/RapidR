@@ -18,6 +18,14 @@ pub fn strip_type_suffix(name: &str) -> &str {
     if base.is_empty() { name } else { base }
 }
 
+/// Whether `ident` names routine `routine` (both as written): the same
+/// name, and no type suffix or the routine's own — `day&` inside FUNCTION
+/// Day is a variable of its own, as RapidQ keeps them apart.
+pub fn names_routine(ident: &str, routine: &str) -> bool {
+    let (i, r) = (strip_type_suffix(ident), strip_type_suffix(routine));
+    i.eq_ignore_ascii_case(r) && (i.len() == ident.len() || ident[i.len()..] == routine[r.len()..])
+}
+
 /// The type a suffix declares (RapidQ manual, data types): `?` BYTE, `??`
 /// WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE, `$`
 /// STRING.
@@ -1570,6 +1578,70 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
     );
     for (callee, argc, span) in calls {
         count(&callee, argc, span, &mut out);
+    }
+    // A FUNCTION with parameters naming itself without them, other than to
+    // set its result (`F = F + x`): RapidQ reads the name as a call, so it
+    // wants the arguments — `Expected ( but got "+"` (RC.EXE; RESULT reads
+    // the result). Without parameters the name is a call of itself, which
+    // both compilers make.
+    for s in &outside_types {
+        let Statement::Function(f) = s else { continue };
+        if f.params.is_empty() {
+            continue;
+        }
+        let mut not_reads: HashSet<*const Expression> = HashSet::new();
+        let mut set_or_called: HashSet<*const Expression> = HashSet::new();
+        let mut next_token: HashMap<*const Expression, &'static str> = HashMap::new();
+        let mut reads: Vec<(*const Expression, TextSpan)> = Vec::new();
+        walk(
+            &f.body,
+            &mut |st| match st {
+                Statement::Assignment(a) => {
+                    set_or_called.insert(&a.target as *const Expression);
+                }
+                Statement::Call(c) => {
+                    set_or_called.insert(&c.callee as *const Expression);
+                }
+                _ => {}
+            },
+            &mut |e| match e {
+                Expression::FunctionCall(c) => {
+                    not_reads.insert(&*c.callee as *const Expression);
+                }
+                Expression::ArrayAccess(a) => {
+                    not_reads.insert(&*a.array as *const Expression);
+                }
+                Expression::Binary(b) => {
+                    use BinaryOperator as B;
+                    let op = match b.operator {
+                        B::Add => "+",
+                        B::Subtract => "-",
+                        B::Multiply => "*",
+                        B::Divide => "/",
+                        B::IntegerDivide => "\\",
+                        B::Power => "^",
+                        B::Concat => "&",
+                        B::Equal => "=",
+                        B::NotEqual => "<>",
+                        B::LessThan => "<",
+                        B::LessThanOrEqual => "<=",
+                        B::GreaterThan => ">",
+                        B::GreaterThanOrEqual => ">=",
+                        B::Modulo => "MOD",
+                        B::And => "AND",
+                        B::Or => "OR",
+                        B::Xor => "XOR",
+                    };
+                    next_token.insert(&*b.left as *const Expression, op);
+                }
+                Expression::Identifier(i) if names_routine(&i.name, &f.name) => reads.push((e as *const Expression, i.span)),
+                _ => {}
+            },
+        );
+        for (at, span) in reads.into_iter().filter(|(at, _)| !not_reads.contains(at) && !set_or_called.contains(at)) {
+            let got = next_token.get(&at).map_or("end-of-line".to_string(), |t| format!("\"{t}\""));
+            out.push((span, format!("Expected ( but got {got}")));
+        }
     }
     fn dims(stmts: &[Statement], seen: &mut HashSet<String>, out: &mut Vec<(TextSpan, String)>) {
         for s in stmts {

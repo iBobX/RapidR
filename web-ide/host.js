@@ -2900,6 +2900,27 @@ function setupHistory() {
 
 // ─── File loaders ──────────────────────────────────────────────
 
+/// An example's data files — the ones its `$RESOURCE name AS "file"` lines
+/// name, beside it under examples/ — added to the project's assets, as a
+/// user adds them under Assets.
+async function addExampleResources(proj, source, exampleUrl) {
+  const dir = exampleUrl.slice(0, exampleUrl.lastIndexOf("/") + 1);
+  const files = [...source.matchAll(/^\s*\$RESOURCE\s+\w+\s+AS\s+"([^"]+)"/gim)].map((m) => m[1]);
+  for (const file of files) {
+    try {
+      const resp = await fetch(dir + file);
+      if (!resp.ok) continue;
+      const bytes = new Uint8Array(await resp.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      proj.assets = proj.assets || [];
+      proj.assets.push({ name: file.split("/").pop(), mime: "application/octet-stream", dataUrl: `data:application/octet-stream;base64,${btoa(bin)}` });
+    } catch (e) {
+      console.error(`Failed to preload ${file}`, e);
+    }
+  }
+}
+
 function setupFileLoaders() {
   const examplesSel = $("#examples");
   if (examplesSel) {
@@ -2910,28 +2931,14 @@ function setupFileLoaders() {
         const resp = await fetch(val);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const text = await resp.text();
-        const name = val.split("/").pop().replace(/\.rr$/i, "");
+        const name = val.split("/").pop().replace(/\.(rr|bas)$/i, "");
 
         const proj = deserializeProject(text, name);
-        if (name === "demo_dataframe") {
-          try {
-            const csvResp = await fetch("../examples/demo_dataframe_data.csv");
-            if (csvResp.ok) {
-              const csvText = await csvResp.text();
-              const base64Data = btoa(unescape(encodeURIComponent(csvText)));
-              const dataUrl = `data:text/csv;base64,${base64Data}`;
-              proj.assets = proj.assets || [];
-              proj.assets.push({
-                name: "demo_dataframe_data.csv",
-                mime: "text/csv",
-                dataUrl: dataUrl
-              });
-            }
-          } catch (e) {
-            console.error("Failed to preload CSV asset", e);
-          }
-        }
+        await addExampleResources(proj, text, val);
         loadProjectModel(proj);
+        // (an example runs as it is written: its own CREATE blocks and code,
+        // which the designer's model doesn't hold)
+        state.project.rawSource = text;
         setStatus(`loaded ${name}`, "ok");
       } catch (err) {
         setStatus("load example failed: " + err.message, "error");
@@ -2947,24 +2954,6 @@ function setupFileLoaders() {
       const text = await f.text();
       const name = f.name.replace(/\.rr$/i, "");
       const proj = deserializeProject(text, name);
-      if (name === "demo_dataframe") {
-        try {
-          const csvResp = await fetch("../examples/demo_dataframe_data.csv");
-          if (csvResp.ok) {
-            const csvText = await csvResp.text();
-            const base64Data = btoa(unescape(encodeURIComponent(csvText)));
-            const dataUrl = `data:text/csv;base64,${base64Data}`;
-            proj.assets = proj.assets || [];
-            proj.assets.push({
-              name: "demo_dataframe_data.csv",
-              mime: "text/csv",
-              dataUrl: dataUrl
-            });
-          }
-        } catch (err) {
-          console.error("Failed to preload CSV asset", err);
-        }
-      }
       loadProjectModel(proj);
       setStatus(`loaded ${f.name}`, "ok");
     } catch (err) {
@@ -2982,24 +2971,6 @@ function setupFileLoaders() {
       if (f.name.toLowerCase().endsWith(".rr")) {
         const name = f.name.replace(/\.rr$/i, "");
         proj = deserializeProject(text, name);
-        if (name === "demo_dataframe") {
-          try {
-            const csvResp = await fetch("../examples/demo_dataframe_data.csv");
-            if (csvResp.ok) {
-              const csvText = await csvResp.text();
-              const base64Data = btoa(unescape(encodeURIComponent(csvText)));
-              const dataUrl = `data:text/csv;base64,${base64Data}`;
-              proj.assets = proj.assets || [];
-              proj.assets.push({
-                name: "demo_dataframe_data.csv",
-                mime: "text/csv",
-                dataUrl: dataUrl
-              });
-            }
-          } catch (err) {
-            console.error("Failed to preload CSV asset", err);
-          }
-        }
       } else {
         proj = JSON.parse(text);
       }

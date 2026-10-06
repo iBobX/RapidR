@@ -1,0 +1,77 @@
+' todo.rr: a to-do list for the web that remembers itself — the tasks are
+' kept in the browser's storage (RWEBSTORAGE), so they are there again when
+' the page is opened next time.
+'
+'   rapidr build todo.rr --web          (a folder to put on any web server)
+'   rapidr bundle-bc todo.rr -o todo.zip
+'
+' RWEBSTORAGE is one of RapidR's web components: Set(key, value), Get(key),
+' HasKey(key), Remove(key), Keys. StorageType "local" (the default) keeps
+' the values for good, "session" until the tab closes.
+$APPTYPE WEB
+
+DECLARE SUB AddTask
+DECLARE SUB DoneTask
+DECLARE SUB Save
+
+CREATE Store AS RWEBSTORAGE
+    StorageType = "local"
+END CREATE
+
+CREATE Form AS QFORM
+    Caption = "To do"
+    Width = 360
+    Height = 330
+    Center
+    CREATE TaskEdit AS QEDIT
+        Left = 12: Top = 12: Width = 240: Text = "Water the plants"
+    END CREATE
+    CREATE AddBtn AS QBUTTON
+        Caption = "&Add": Left = 260: Top = 10: Width = 80: OnClick = AddTask
+        Default = 1
+    END CREATE
+    CREATE Tasks AS QLISTBOX
+        Left = 12: Top = 44: Width = 328: Height = 200
+    END CREATE
+    CREATE DoneBtn AS QBUTTON
+        Caption = "&Done": Left = 12: Top = 252: Width = 80: OnClick = DoneTask
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 104: Top = 256: Width = 236
+    END CREATE
+END CREATE
+
+' The list, one key: the tasks joined by a line break
+SUB Save
+    DIM i AS INTEGER, all AS STRING
+    FOR i = 0 TO Tasks.ItemCount - 1
+        all = all + IIF(i > 0, CHR$(10), "") + Tasks.Item(i)
+    NEXT
+    Store.Set("todo.tasks", all)
+    Info.Caption = STR$(Tasks.ItemCount) + " to do, saved"
+END SUB
+
+SUB AddTask
+    IF TaskEdit.Text = "" THEN EXIT SUB
+    Tasks.AddItems TaskEdit.Text
+    TaskEdit.Text = ""
+    Save
+END SUB
+
+SUB DoneTask
+    IF Tasks.ItemIndex >= 0 THEN Tasks.DelItems Tasks.ItemIndex
+    Save
+END SUB
+
+' Back from the browser's storage, if this page was here before
+IF Store.HasKey("todo.tasks") THEN
+    DIM saved AS STRING, k AS INTEGER
+    saved = Store.Get("todo.tasks")
+    FOR k = 1 TO TALLY(saved, CHR$(10)) + 1
+        IF FIELD$(saved, CHR$(10), k) <> "" THEN Tasks.AddItems FIELD$(saved, CHR$(10), k)
+    NEXT
+    Info.Caption = "Welcome back: " + STR$(Tasks.ItemCount) + " to do"
+ELSE
+    Info.Caption = "Nothing to do yet"
+END IF
+Form.ShowModal

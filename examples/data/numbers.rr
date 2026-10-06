@@ -1,0 +1,44 @@
+' numbers.rr: arrays of numbers with RNUM (numpy-like) — make them,
+' summarise them, do arithmetic on every element at once.
+'
+'   rapidr run numbers.rr
+'
+' An RNUM holds a list of numbers. Methods make one (Arange, Linspace,
+' FromList …), change it in place (Multiply, Add, Sqrt, Sort …) or answer
+' about it (Sum, Mean, Max, Std …). ToList gives the numbers as text.
+$APPTYPE CONSOLE
+
+DIM temps AS RNUM
+DIM steps AS RNUM
+DIM squares AS RNUM
+
+' A week of noon temperatures, in Celsius
+temps.FromList("14.5,16,15.5,19,21.5,18,17")
+PRINT "Temperatures: " + temps.ToList
+PRINT "Days: " + STR$(temps.Size) + ", mean " + FORMAT$("%.2f", temps.Mean) + ", warmest " + STR$(temps.Max) + " on day " + STR$(temps.ArgMax + 1)
+PRINT "Spread (max - min): " + STR$(temps.Ptp)
+
+' Every element at once: Celsius to Fahrenheit is * 9 / 5 + 32
+temps.Multiply(9 / 5)
+temps.Add(32)
+temps.Round
+PRINT "In Fahrenheit, rounded: " + temps.ToList
+
+' Ranges: from, to (not included), step; and n evenly spaced numbers
+steps.Arange(0, 10, 2)
+PRINT "Arange(0, 10, 2): " + steps.ToList
+steps.Linspace(0, 1, 5)
+PRINT "Linspace(0, 1, 5): " + steps.ToList
+
+' Squares and their running total
+squares.Arange(1, 6, 1)
+squares.Square
+PRINT "Squares: " + squares.ToList + ", sum " + STR$(squares.Sum)
+squares.Cumsum
+PRINT "Running total: " + squares.ToList
+
+' Sorting and unique values
+DIM rolls AS RNUM
+rolls.FromList("4,2,6,2,5,4,1,6,6")
+rolls.Unique
+PRINT "Dice faces seen: " + rolls.ToList

@@ -1,0 +1,71 @@
+# Markdown (CommonMark's common parts).
+
+[language]
+id = "markdown"
+name = "Markdown"
+extensions = ["md", "markdown", "mdown"]
+filenames = ["README", "CHANGELOG"]
+block_comment = ["<!--", "-->"]
+
+[brackets]
+pairs = [["[", "]"], ["(", ")"]]
+auto_close = [["[", "]"], ["(", ")"], ["`", "`"]]
+
+[folding]
+offside = true
+
+[defaults]
+fence = "string.code"
+comment = "comment"
+
+[[states.root]]
+match = '^\s{0,3}(```|~~~).*$'
+token = "string.code"
+push = "fence"
+[[states.root]]
+match = '^\s{0,3}#{1,6}(\s.*)?$'
+token = "keyword.heading"
+[[states.root]]
+match = '^\s{0,3}>.*$'
+token = "comment.quote"
+[[states.root]]
+match = '^\s{0,3}((\*\s*){3,}|(-\s*){3,}|(_\s*){3,})$'
+token = "punctuation"
+[[states.root]]
+match = '^\s*([-*+]|[0-9]+[.)])\s'
+token = "punctuation.list"
+[[states.root]]
+match = '<!--'
+token = "comment"
+push = "comment"
+[[states.root]]
+match = '`[^`]+`'
+token = "string.code"
+[[states.root]]
+match = '\*\*[^*]+\*\*|__[^_]+__'
+token = "variable.strong"
+[[states.root]]
+match = '\*[^*\s][^*]*\*|\b_[^_\s][^_]*_\b'
+token = "variable.emphasis"
+[[states.root]]
+match = '!?\[[^\]]*\]\([^)]*\)|!?\[[^\]]*\]\[[^\]]*\]'
+token = "function.link"
+[[states.root]]
+match = '^\s{0,3}\[[^\]]+\]:\s*\S.*$'
+token = "function.link"
+[[states.root]]
+match = '<(https?|mailto):[^>\s]+>|https?://[^\s)>]+'
+token = "string.url"
+[[states.root]]
+match = '\\[\\`*_{}\[\]()#+\-.!|]'
+token = "string.escape"
+
+[[states.fence]]
+match = '^\s{0,3}(```|~~~)\s*$'
+token = "string.code"
+pop = true
+
+[[states.comment]]
+match = '-->'
+token = "comment"
+pop = true

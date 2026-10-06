@@ -8,6 +8,7 @@ use rapidr_lexer::lex_file as lexer_lex_file;
 use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
+mod examples;
 mod home;
 mod lang;
 mod macos;
@@ -19,7 +20,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -108,6 +109,7 @@ fn main() -> ExitCode {
         (Some("info"), Some(path)) => launch::info(&path),
         (Some("about"), _) => launch::about(),
         (Some("ide"), _) => launch::ide(args[1..].to_vec()),
+        (Some("examples"), _) => examples::command(&args[1..]),
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
@@ -165,7 +167,7 @@ fn main() -> ExitCode {
             }
             build_bytecode_file(&path, out)
         }
-        (Some("run-bc"), Some(path)) => run_bytecode_file(&path),
+        (Some("run-bc"), Some(path)) => run_bytecode_file(&path, rest),
         (Some("bundle-bc"), Some(path)) => {
             let mut out: Option<String> = None;
             let mut wasm: Option<String> = None;
@@ -190,6 +192,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
             eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
+            eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
             eprintln!("  rapidr lang export --json|--prompt|--vscode|--web-ide|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
@@ -201,7 +204,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
             eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
-            eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
+            eprintln!("  rapidr run-bc <file.rrbc> [args]                 Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
             eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
@@ -820,11 +823,16 @@ fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn run_bytecode_file(path: &str) -> ExitCode {
+fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     let bytes = match fs::read(path) {
         Ok(b) => b,
         Err(e) => { eprintln!("read {path}: {e}"); return ExitCode::from(1); }
     };
+    // The program is the file, with the arguments after it — never
+    // `run-bc <file>` (COMMAND$, CommandCount, Application.ExeName), as
+    // `rapidr run` and a built executable.
+    let program = home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    rapidr_vm_host_native::set_program(&program, args);
     // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
     // indirect event dispatcher *before* `MAIN` runs — required for any
     // program that calls `Form.ShowModal` from MAIN (the VM serves the

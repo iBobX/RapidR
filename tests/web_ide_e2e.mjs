@@ -32,12 +32,12 @@ mkdirSync(OUTDIR, { recursive: true });
 
 // Subset of the matrix that exercises distinct runtime paths.
 const EXAMPLES = [
-  "hello_web",          // basic form + button + label
-  "web_calculator",     // dense button grid + event handlers
-  "web_dashboard",      // tabs, ListView, ProgressBar, ComboBox
-  "web_canvas",         // canvas drawing
-  "demo_plot",          // canvas + multiple buttons
-  "demo_sqlite",        // sqlite-via-wasm + table render
+  "gui/hello_form",     // basic form + button + label
+  "gui/pantry",         // a list box and a string grid working together
+  "gui/stopwatch",      // a timer, a list box
+  "graphics/canvas",    // canvas drawing in OnPaint
+  "data/dataframe",     // a data frame from a $RESOURCE CSV, a chart in an image
+  "web/todo",           // the browser's storage, a list box
 ];
 
 const filter = process.argv[2];
@@ -45,7 +45,6 @@ const target = filter ? EXAMPLES.filter(e => e === filter) : EXAMPLES;
 if (target.length === 0) { console.error("no examples matched"); process.exit(2); }
 
 const isAllowedConsoleErr = (name, text) => {
-  if (name === "demo_chat_client" && /WebSocket|connect/i.test(text)) return true;
   return false;
 };
 
@@ -55,6 +54,8 @@ const ctx = await browser.newContext({ acceptDownloads: true });
 const results = [];
 for (const name of target) {
   const r = { name, ok: false, errors: [], previewLen: 0, bundleLen: 0 };
+  // (an example's path in examples/ as one file name)
+  const slug = name.replace(/\//g, "_");
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", e => errs.push(`pageerror: ${e.message}`));
@@ -94,7 +95,7 @@ for (const name of target) {
     r.previewLen = previewBody.length;
     if (r.previewLen < 50) throw new Error(`empty IDE preview (len=${r.previewLen})`);
 
-    await page.screenshot({ path: join(SHOTS, `ide-${name}-preview.png`), fullPage: true });
+    await page.screenshot({ path: join(SHOTS, `ide-${slug}-preview.png`), fullPage: true });
 
     // Close preview window to reveal the toolbar buttons
     await step("close-preview", () => page.click("#preview-close"));
@@ -105,11 +106,11 @@ for (const name of target) {
       page.waitForEvent("download", { timeout: 15000 }),
       page.click("#btn-build"),
     ]));
-    const zipPath = join(OUTDIR, `${name}.zip`);
+    const zipPath = join(OUTDIR, `${slug}.zip`);
     await download.saveAs(zipPath);
 
     // 5. Unzip and serve
-    const serveDir = join(OUTDIR, name);
+    const serveDir = join(OUTDIR, slug);
     mkdirSync(serveDir, { recursive: true });
     execFileSync("unzip", ["-o", "-q", zipPath, "-d", serveDir]);
 
@@ -123,7 +124,7 @@ for (const name of target) {
         if (!isAllowedConsoleErr(name, t)) bundleErrs.push(`console.error: ${t}`);
       }
     });
-    const bundleUrl = `${URL_BASE}/tests/.ide-matrix/${name}/index.html`;
+    const bundleUrl = `${URL_BASE}/tests/.ide-matrix/${slug}/index.html`;
     await bundlePage.goto(bundleUrl, { waitUntil: "load", timeout: 15000 });
     await bundlePage.waitForFunction(() => {
       const s = document.getElementById("rapidr-status")?.textContent || "";
@@ -133,7 +134,7 @@ for (const name of target) {
     const bundleBody = await bundlePage.locator("body").innerHTML();
     r.bundleLen = bundleBody.length;
 
-    await bundlePage.screenshot({ path: join(SHOTS, `ide-${name}-bundle.png`), fullPage: true });
+    await bundlePage.screenshot({ path: join(SHOTS, `ide-${slug}-bundle.png`), fullPage: true });
     await bundlePage.close();
 
     // 7. Parity check: bundle render should be at least 60% the size
@@ -155,7 +156,7 @@ for (const name of target) {
   results.push(r);
   const tag = r.ok ? "PASS" : "FAIL";
   console.log(
-    `${tag.padEnd(4)}  ${r.name.padEnd(18)}  preview=${String(r.previewLen).padStart(5)}  bundle=${String(r.bundleLen).padStart(5)}` +
+    `${tag.padEnd(4)}  ${r.name.padEnd(20)}  preview=${String(r.previewLen).padStart(5)}  bundle=${String(r.bundleLen).padStart(5)}` +
     (r.errors.length ? "  | " + r.errors.join("; ") : "")
   );
 }

@@ -1,0 +1,81 @@
+' themes.rr: RapidR's looks for the same form — classic (RapidQ's own,
+' every program's unless it asks for another), modern, dark and
+' highcontrast — chosen with $THEME and switched while the program runs
+' with Application.Theme.
+'
+'   rapidr run themes.rr
+'
+' A theme changes colours and how controls are drawn, never their places,
+' sizes or fonts; colours a program sets itself (Color, Font.Color) stay.
+' (RAPIDR_THEME=dark in the environment sets the theme of programs that
+' don't name one.)
+$THEME modern
+
+DECLARE SUB Switch
+
+CREATE Form AS QFORM
+    Caption = "Themes"
+    Width = 380
+    Height = 300
+    Center
+    CREATE Pick AS QRADIOBUTTON
+        Caption = "&Classic": Left = 16: Top = 16: Width = 90
+        OnClick = Switch
+    END CREATE
+    CREATE PickModern AS QRADIOBUTTON
+        Caption = "&Modern": Left = 16: Top = 40: Width = 90: Checked = 1
+        OnClick = Switch
+    END CREATE
+    CREATE PickDark AS QRADIOBUTTON
+        Caption = "&Dark": Left = 16: Top = 64: Width = 90
+        OnClick = Switch
+    END CREATE
+    CREATE PickContrast AS QRADIOBUTTON
+        Caption = "&High contrast": Left = 16: Top = 88: Width = 110
+        OnClick = Switch
+    END CREATE
+    CREATE Box AS QGROUPBOX
+        Caption = "Some controls": Left = 140: Top = 10: Width = 210: Height = 170
+        CREATE Edit AS QEDIT
+            Left = 12: Top = 24: Width = 186: Text = "Text to edit"
+        END CREATE
+        CREATE Check AS QCHECKBOX
+            Caption = "A check box": Left = 12: Top = 56: Width = 150: Checked = 1
+        END CREATE
+        CREATE Combo AS QCOMBOBOX
+            Left = 12: Top = 84: Width = 186
+            AddItems "One", "Two", "Three"
+            ItemIndex = 1
+        END CREATE
+        CREATE Bar AS QGAUGE
+            Left = 12: Top = 118: Width = 186: Height = 18: Position = 65
+        END CREATE
+        CREATE Off AS QBUTTON
+            Caption = "Disabled": Left = 12: Top = 140: Width = 90: Enabled = 0
+        END CREATE
+    END CREATE
+    CREATE Own AS QLABEL
+        Caption = "My own colours stay": Left = 16: Top = 196: Width = 334
+        Color = &HE0FFFF: Font.Color = &H800000
+    END CREATE
+    CREATE Now AS QLABEL
+        Left = 16: Top = 226: Width = 334
+    END CREATE
+END CREATE
+
+SUB Switch (Sender AS QRADIOBUTTON)
+    SELECT CASE Sender.Caption
+        CASE "&Classic"
+            Application.Theme = "classic"
+        CASE "&Modern"
+            Application.Theme = "modern"
+        CASE "&Dark"
+            Application.Theme = "dark"
+        CASE ELSE
+            Application.Theme = "highcontrast"
+    END SELECT
+    Now.Caption = "Theme: " + Application.Theme
+END SUB
+
+Now.Caption = "Theme: " + Application.Theme
+Form.ShowModal

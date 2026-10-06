@@ -99,8 +99,12 @@ Form.Show               ' shows it; the program waits at its end
 | `Mouse` | `X`, `Y` |
 
 A program run by the RapidR Runtime sees itself as if it were built:
-`Application.ExeName` and `Application.Path` name its file and `COMMAND$`
-holds its arguments.
+`Application.ExeName` and `Application.Path` name its file, and
+`COMMAND$(n)` / `CommandCount` see only its own arguments, as in RapidQ
+(`COMMAND$(0)` is the program's file; a bare `COMMAND$`, RapidR's, is the
+arguments joined with spaces) — however it runs: `rapidr run`, `rapidr
+run-bc`, a double-clicked file, a built executable. On the web they are the
+page's query string's parts (`?a&b%20c`: `a`, `b c`).
 
 ## RapidR's additions to every component
 
