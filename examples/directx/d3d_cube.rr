@@ -1,0 +1,98 @@
+' d3d_cube.rr: a small Direct3D scene — a cube loaded from a DirectX .X
+' model, lit by an ambient and a directional light, turning on a timer.
+'
+'   rapidr run d3d_cube.rr
+'
+' RapidQ's 3D objects are Direct3D Retained Mode: frames (positions and
+' rotations), mesh builders (the shapes), lights and a camera. The screen
+' renders the scene into its back buffer (DX.Render), then Flip shows it.
+' cube.x was written by tools/make_example_media.py.
+$INCLUDE "RAPIDQ.INC"
+$RESOURCE CUBE_X AS "cube.x"
+
+CONST D3DRMLIGHT_AMBIENT = 0
+CONST D3DRMLIGHT_DIRECTIONAL = 3
+
+DECLARE SUB Setup
+DECLARE SUB Spin
+DECLARE SUB Faster
+DECLARE SUB Slower
+
+DIM CubeFrame AS QD3DFRAME
+DIM LightFrame AS QD3DFRAME
+DIM Cube AS QD3DMESHBUILDER
+DIM speed AS DOUBLE
+DIM turns AS LONG
+
+DIM Timer AS QDXTIMER
+Timer.Interval = 20
+Timer.OnTimer = Spin
+
+CREATE Form AS QFORM
+    Caption = "Direct3D cube"
+    ClientWidth = 320
+    ClientHeight = 290
+    Center
+    CREATE DX AS QDXSCREEN
+        Left = 0: Top = 0: Width = 320: Height = 240
+        Init(320, 240)
+        Use3D = 1
+        OnInitialize = Setup
+    END CREATE
+    CREATE SlowerBtn AS QBUTTON
+        Caption = "&Slower": Left = 8: Top = 254: Width = 80
+        OnClick = Slower
+    END CREATE
+    CREATE FasterBtn AS QBUTTON
+        Caption = "&Faster": Left = 96: Top = 254: Width = 80
+        OnClick = Faster
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 186: Top = 258: Width = 130
+    END CREATE
+END CREATE
+
+SUB Setup
+    DIM Ambient AS QD3DLIGHT
+    DIM Sun AS QD3DLIGHT
+    ' the model, from the resource built into the program to a file
+    EXTRACTRESOURCE CUBE_X, "cube.tmp.x"
+    DX.CreateFrame(CubeFrame)
+    DX.CreateMeshBuilder(Cube)
+    Cube.Load("cube.tmp.x")
+    KILL "cube.tmp.x"
+    CubeFrame.AddVisual(Cube)
+    CubeFrame.SetPosition(0, 0, 7)
+    ' a dim light everywhere, and a bright one from the upper left
+    DX.CreateLightRGB(D3DRMLIGHT_AMBIENT, 0.3, 0.3, 0.3, Ambient)
+    DX.AddLight(Ambient)
+    DX.CreateFrame(LightFrame)
+    DX.CreateLightRGB(D3DRMLIGHT_DIRECTIONAL, 0.9, 0.9, 0.9, Sun)
+    LightFrame.AddLight(Sun)
+    LightFrame.SetOrientation(1, -1, 1, 0, 1, 0)
+    DX.SetCameraPosition(0, 0, 0)
+    speed = 0.03
+    Info.Caption = STR$(Cube.FaceCount) + " faces"
+    Timer.Enabled = 1
+END SUB
+
+SUB Spin
+    ' turn the cube's frame a little about a tilted axis each tick
+    CubeFrame.SetRotation(0.4, 1, 0.2, speed)
+    DX.Move(1)
+    turns = turns + 1
+    DX.Render
+    DX.TextOut(8, 8, "speed " + FORMAT$("%.2f", speed), &HFFFFFF, -1)
+    DX.Flip
+END SUB
+
+SUB Faster
+    speed = speed + 0.02
+END SUB
+
+SUB Slower
+    speed = speed - 0.02
+    IF speed < 0 THEN speed = 0
+END SUB
+
+Form.ShowModal

@@ -1,0 +1,93 @@
+' sprites.rr: DirectX 2D the RapidQ way — a QDXSCREEN, sprites from a
+' QDXIMAGELIST and a QDXTIMER moving them, a frame at a time.
+'
+'   rapidr run sprites.rr
+'
+' Draw on the screen's back buffer, then Flip shows it all at once (no
+' flicker). sprites.dxg is a DelphiX image library with two pictures,
+' "ball" and "star" (made by tools/make_example_media.py); $RESOURCE builds
+' it into the program. Click the screen to add a ball.
+$INCLUDE "RAPIDQ.INC"
+$RESOURCE SPRITE_FILE AS "sprites.dxg"
+
+DECLARE SUB Frame
+DECLARE SUB AddBall (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
+DECLARE SUB PauseGo
+
+CONST W = 320
+CONST H = 200
+CONST MAXBALLS = 40
+DIM bx(MAXBALLS) AS DOUBLE, by(MAXBALLS) AS DOUBLE
+DIM vx(MAXBALLS) AS DOUBLE, vy(MAXBALLS) AS DOUBLE
+DIM balls AS INTEGER
+DIM frames AS LONG
+
+DIM Timer AS QDXTIMER
+Timer.Interval = 16          ' about 60 frames a second
+Timer.OnTimer = Frame
+
+CREATE Form AS QFORM
+    Caption = "DirectX sprites"
+    ClientWidth = W + 20
+    ClientHeight = H + 60
+    Center
+    CREATE Screen AS QDXSCREEN
+        Left = 10: Top = 10: Width = W: Height = H
+        Init(W, H)
+        OnMouseDown = AddBall
+        CREATE Sprites AS QDXIMAGELIST
+            LoadFromResource(SPRITE_FILE)
+        END CREATE
+    END CREATE
+    CREATE PauseBtn AS QBUTTON
+        Caption = "&Pause": Left = 10: Top = H + 20: Width = 80
+        OnClick = PauseGo
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 100: Top = H + 24: Width = W - 90
+    END CREATE
+END CREATE
+
+SUB AddBall (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
+    IF balls > MAXBALLS THEN EXIT SUB
+    bx(balls) = X - 8: by(balls) = Y - 8
+    vx(balls) = 1.5 + RND * 2: vy(balls) = -2 - RND * 2
+    IF RND < 0.5 THEN vx(balls) = -vx(balls)
+    balls = balls + 1
+    Info.Caption = STR$(balls) + " balls"
+END SUB
+
+SUB Frame
+    DIM i AS INTEGER, k AS INTEGER
+    frames = frames + 1
+    ' the sky, the ground, and stars that twinkle (Fill takes DirectDraw's
+    ' &HRRGGBB; the other drawing RapidQ's &HBBGGRR)
+    Screen.Fill(&H101830)
+    Screen.FillRect(0, H - 20, W, H, &H306020)
+    FOR k = 0 TO 5
+        IF (frames \ 20 + k) MOD 3 > 0 THEN Sprites.Draw(1, 20 + k * 50, 12 + (k MOD 2) * 18, 0)
+    NEXT
+    ' the balls: move, fall, bounce off the ground and the sides
+    FOR i = 0 TO balls - 1
+        vy(i) = vy(i) + 0.15
+        bx(i) = bx(i) + vx(i)
+        by(i) = by(i) + vy(i)
+        IF by(i) > H - 36 THEN by(i) = H - 36: vy(i) = -vy(i) * 0.9
+        IF bx(i) < 0 OR bx(i) > W - 16 THEN vx(i) = -vx(i)
+        Sprites.Draw(0, bx(i), by(i), 0)
+    NEXT
+    Screen.TextOut(6, H - 16, "frame " + STR$(frames), &HFFFFFF, -1)
+    Screen.Flip
+END SUB
+
+SUB PauseGo
+    Timer.Enabled = IIF(Timer.Enabled, 0, 1)
+    PauseBtn.Caption = IIF(Timer.Enabled, "&Pause", "&Go")
+END SUB
+
+RANDOMIZE TIMER
+AddBall 0, 60, 60
+AddBall 0, 160, 40
+AddBall 0, 260, 80
+Timer.Enabled = 1
+Form.ShowModal

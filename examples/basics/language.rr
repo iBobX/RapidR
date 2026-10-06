@@ -1,0 +1,75 @@
+' language.rr: a tour of the language — constants, arrays, TYPEs, SELECT
+' CASE, DO loops, string functions, and an object TYPE with methods.
+'
+'   rapidr run language.rr
+$APPTYPE CONSOLE
+
+CONST PLANETS = 4
+
+' A TYPE groups fields (a record)
+TYPE Planet
+    Name AS STRING
+    Moons AS INTEGER
+    Distance AS DOUBLE   ' from the Sun, in millions of km
+END TYPE
+
+DIM sky(1 TO PLANETS) AS Planet
+DIM names(1 TO PLANETS) AS STRING
+DIM i AS INTEGER
+
+' DATA lines read in order with READ
+DATA "Mercury", 0, 57.9, "Venus", 0, 108.2, "Earth", 1, 149.6, "Mars", 2, 227.9
+FOR i = 1 TO PLANETS
+    READ sky(i).Name, sky(i).Moons, sky(i).Distance
+    names(i) = sky(i).Name
+NEXT
+
+' SELECT CASE picks a branch
+FOR i = 1 TO PLANETS
+    DIM moons AS STRING
+    SELECT CASE sky(i).Moons
+        CASE 0
+            moons = "no moons"
+        CASE 1
+            moons = "one moon"
+        CASE ELSE
+            moons = STR$(sky(i).Moons) + " moons"
+    END SELECT
+    PRINT sky(i).Name + ": " + moons + ", " + FORMAT$("%.1f", sky(i).Distance) + " million km"
+NEXT
+
+' DO … LOOP UNTIL, and string functions
+DIM total AS DOUBLE
+i = 0
+DO
+    i = i + 1
+    total = total + sky(i).Distance
+LOOP UNTIL i = PLANETS
+PRINT "Average distance: " + FORMAT$("%.1f", total / PLANETS)
+PRINT "Longest name: " + IIF(LEN(names(1)) >= LEN(names(4)), names(1), names(4))
+PRINT "Initials: " + LEFT$(names(1), 1) + LEFT$(names(2), 1) + LEFT$(names(3), 1) + LEFT$(names(4), 1)
+PRINT "Where is 'art'? In Earth at " + STR$(INSTR(names(3), "art"))
+
+' An object TYPE: fields, a constructor and methods (RapidQ's EXTENDS QOBJECT)
+TYPE Counter EXTENDS QOBJECT
+    Count AS INTEGER
+    Step AS INTEGER
+
+    SUB Add
+        This.Count = This.Count + This.Step
+    END SUB
+
+    FUNCTION Report AS STRING
+        Result = "counted to " + STR$(This.Count)
+    END FUNCTION
+
+    CONSTRUCTOR
+        Step = 5
+    END CONSTRUCTOR
+END TYPE
+
+DIM c AS Counter
+FOR i = 1 TO 3
+    c.Add
+NEXT
+PRINT "The counter " + c.Report

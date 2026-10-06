@@ -438,12 +438,31 @@ impl StringGrid {
         match prop {
             "colcount" | "cols" => self.resize(self.row_count(), count),
             "rowcount" | "rows" => self.resize(count, self.col_count),
+            // (a grid not scrolled, its current cell the first one beside the
+            // fixed ones, stays so: with FixedCols = 0 column 0 shows and is
+            // the current one, as Delphi's grid does)
             "fixedcols" => {
+                let old = self.fixed_cols() as i64;
                 self.want_fixed_cols = count;
+                let new = self.fixed_cols() as i64;
+                if self.left_col == old {
+                    self.left_col = new;
+                }
+                if self.col == old {
+                    self.col = new;
+                }
                 self.fix_selection();
             }
             "fixedrows" => {
+                let old = self.fixed_rows() as i64;
                 self.want_fixed_rows = count;
+                let new = self.fixed_rows() as i64;
+                if self.top_row == old {
+                    self.top_row = new;
+                }
+                if self.row == old {
+                    self.row = new;
+                }
                 self.fix_selection();
             }
             // Setting the default size sizes every column / row (Delphi).
@@ -813,6 +832,20 @@ mod tests {
         assert_eq!(g.get("visiblerowcount").unwrap().to_i64(), 3);
         g.view = (1000, 1000);
         assert_eq!(g.get("visiblecolcount").unwrap().to_i64(), 4);
+    }
+
+    #[test]
+    fn no_fixed_column_shows_column_0() {
+        let mut g = StringGrid::default();
+        g.set("fixedcols", &v_int(0));
+        assert_eq!((g.left_col, g.col, g.fixed_cols()), (0, 0, 0));
+        g.set("fixedrows", &v_int(0));
+        assert_eq!((g.top_row, g.row), (0, 0));
+        // (scrolled, it stays where it was)
+        let mut g = StringGrid::default();
+        g.left_col = 3;
+        g.set("fixedcols", &v_int(2));
+        assert_eq!(g.left_col, 3);
     }
 
     #[test]

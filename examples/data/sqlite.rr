@@ -1,0 +1,64 @@
+' sqlite.rr: a small book catalogue in SQLite with RSQLITE — create a
+' table, insert with parameters, query, update, and see why parameters
+' matter.
+'
+'   rapidr run sqlite.rr
+'
+' Values after the SQL are bound to its ? placeholders: never pasted into
+' the SQL text, so a title with quotes (or someone's attempt to change the
+' statement) is only ever a value. The database here lives in memory;
+' Connect("books.db") would keep it in a file.
+$APPTYPE CONSOLE
+
+DIM DB AS RSQLITE
+
+SUB ShowRows
+    DIM i AS INTEGER, line AS STRING
+    WHILE DB.FetchRow
+        line = ""
+        FOR i = 0 TO DB.ColCount - 1
+            IF i > 0 THEN line = line + " | "
+            line = line + DB.Row(i)
+        NEXT
+        PRINT "  " + line
+    WEND
+END SUB
+
+SUB Failed (Msg AS STRING)
+    PRINT "SQLite says: " + Msg
+END SUB
+
+DB.OnError = Failed
+DB.Connect(":memory:")
+DB.Query("CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT, author TEXT, year INTEGER, rating REAL)")
+
+' Insert: one value a placeholder, in order
+DIM title AS STRING
+title = "The Hitch-Hiker's Guide to the Galaxy"
+DB.Query("INSERT INTO books (title, author, year, rating) VALUES (?, ?, ?, ?)", title, "Douglas Adams", 1979, 4.6)
+DB.Query("INSERT INTO books (title, author, year, rating) VALUES (?, ?, ?, ?)", "A Wizard of Earthsea", "Ursula K. Le Guin", 1968, 4.4)
+DB.Query("INSERT INTO books (title, author, year, rating) VALUES (?, ?, ?, ?)", "Neuromancer", "William Gibson", 1984, 4.1)
+DB.Query("INSERT INTO books (title, author, year, rating) VALUES (?, ?, ?, ?)", "The Dispossessed", "Ursula K. Le Guin", 1974, 4.3)
+
+PRINT "Books before 1980, oldest first:"
+DB.Query("SELECT year, title FROM books WHERE year < ? ORDER BY year", 1980)
+ShowRows
+
+PRINT "By author:"
+DB.Query("SELECT author, COUNT(*), ROUND(AVG(rating), 2) FROM books GROUP BY author ORDER BY author")
+ShowRows
+
+' One value back: QueryScalar
+PRINT "Best rated: " + DB.QueryScalar("SELECT title FROM books ORDER BY rating DESC LIMIT 1")
+
+' Update with parameters too
+DB.Query("UPDATE books SET rating = ? WHERE title = ?", 4.8, "Neuromancer")
+PRINT "Neuromancer is now rated " + DB.QueryScalar("SELECT rating FROM books WHERE title = ?", "Neuromancer")
+
+' What a user might type into a search box: as a parameter it's just text
+DIM typed AS STRING
+typed = "x' OR '1'='1"
+PRINT "Searching for " + typed + " finds " + STR$(VAL(DB.QueryScalar("SELECT COUNT(*) FROM books WHERE title = ?", typed))) + " books"
+
+DB.Close
+PRINT "Done."

@@ -181,7 +181,7 @@ checked by inspection only (no Intel Mac in the loop yet).
 git clone https://github.com/iBobX/RapidR.git
 cd RapidR
 cargo build --release -p rapidr-cli && cp target/release/rapidr .
-./rapidr run examples/hello_world.rr
+./rapidr run examples/basics/hello.rr
 ```
 
 You need Rust (via [rustup](https://rustup.rs/)) and a C compiler (some

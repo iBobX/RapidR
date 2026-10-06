@@ -474,6 +474,15 @@ fn df_store_get(name: &str) -> DataFrame {
     })
 }
 
+/// A cell as a program reads it: a string as it is (polars' Display quotes
+/// it), anything else as polars writes it — what the web's frames give.
+fn cell_text(av: &AnyValue) -> String {
+    match av.get_str() {
+        Some(s) => s.to_string(),
+        None => format!("{}", av),
+    }
+}
+
 fn df_store_set(name: &str, df: DataFrame) {
     PANDAS_FRAMES.with(|m| {
         m.borrow_mut().insert(name.to_lowercase(), df);
@@ -587,7 +596,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
             if col_idx < df.width() && row < df.height() {
                 let series = df.get_columns()[col_idx].as_materialized_series();
                 match series.get(row) {
-                    Ok(av) => v_str(&format!("{}", av)),
+                    Ok(av) => v_str(&cell_text(&av)),
                     Err(_) => v_str(""),
                 }
             } else {
@@ -603,7 +612,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let s = col.as_materialized_series();
                 if row < s.len() {
                     match s.get(row) {
-                        Ok(av) => return v_str(&format!("{}", av)),
+                        Ok(av) => return v_str(&cell_text(&av)),
                         Err(_) => {}
                     }
                 }
@@ -620,7 +629,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let col = df.get_columns()[col_idx].as_materialized_series();
                 let col_name = col.name().to_string();
                 let mut values: Vec<String> = (0..col.len()).map(|i| {
-                    col.get(i).map(|av| format!("{}", av)).unwrap_or_default()
+                    col.get(i).map(|av| cell_text(&av)).unwrap_or_default()
                 }).collect();
                 if row < values.len() { values[row] = val; }
                 let new_col: Column = Series::new(PlSmallStr::from(col_name.as_str()), &values).into();
