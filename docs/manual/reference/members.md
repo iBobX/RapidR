@@ -1088,10 +1088,10 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromStream(Stream AS QFILESTREAM)` *(not yet)* | Loads the component's contents from an open stream. |
+| `LoadFromStream(Stream AS QFILESTREAM)` | Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(Stream AS QFILESTREAM)` *(not yet)* | Writes the component's contents to an open stream. |
+| `SaveToStream(Stream AS QFILESTREAM)` | Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it. |
 | `SelectAll` | Selects all the text. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
@@ -2398,7 +2398,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
 | `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
 | `SetSuggestions` *(RapidR)* | Sets the suggestions offered while a cell is edited, one per line. |
-| `DeleteColumn` *(not yet)* | Removes a column from the grid. |
+| `DeleteColumn(Column AS INTEGER)` | Removes column `Column`, as DeleteCol does (RC.EXE knows both names). |
 | `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -2818,7 +2818,7 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `AddOptions(Items, …)` | Turns on the option flags given. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
-| `GetFont(F AS QFONT)` *(not yet)* | Copies the font chosen in the dialog into font `F`. |
+| `GetFont(F AS QFONT)` | Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to a QFONT. |
 | `SetFont(F AS QFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
 
 | Event | |
@@ -2870,9 +2870,9 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `CopyFrom(Stream, Bytes AS INTEGER)` *(not yet)* | Copies `Bytes` bytes from another stream into this one. |
+| `CopyFrom(Stream, Bytes AS INTEGER)` | Copies `Bytes` bytes from another stream's position into this one (0: the whole other stream, from its start). As in RapidQ, asking for more bytes than the other stream has left stops the program with a stream read error. |
 | `ExtractRes(Resource AS LONG)` | Writes the program's embedded resource number `Resource` into the stream. |
-| `LoadArray(Array)` *(not yet)* | Reads an array's elements from the stream. |
+| `LoadArray(Element, Count AS LONG)` | Reads `Count` elements into an array, starting at the element given (`Mem.LoadArray(A(1), 10)`), each as many bytes as the array's type takes. |
 | `Open(FileName AS STRING, Method AS INTEGER)` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
 | `Read(variable)` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadLine AS STRING` | Reads one line of text, without its line end. |
@@ -2880,7 +2880,7 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `ReadBinStr(n) AS STRING` | Reads `n` bytes from the stream and returns them as a string. |
 | `ReadStr(n) AS STRING` | Reads `n` characters from the stream. |
 | `ReadUDT(MyType)` | Reads a user-defined type variable from the stream, field by field. |
-| `SaveArray(Array)` *(not yet)* | Writes an array's elements to the stream. |
+| `SaveArray(Element, Count AS LONG)` | Writes `Count` elements of an array, starting at the element given (`Mem.SaveArray(A(1), 10)`), each as many bytes as the array's type takes (a STRING array: the strings' characters, one after another). |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. |
@@ -2894,10 +2894,10 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
-| `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
-| `ReadByte` *(not yet)* | Reads one byte from the socket or stream. |
-| `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
-| `WriteByte` *(not yet)* | Writes one byte to the socket or stream. |
+| `LoadUdtArray(Field)` | RC.EXE takes it with one argument, a TYPE field (`Mem.LoadUDTArray(A(1).X)`), and then does nothing with the stream; RapidR does the same. Use SaveArray / LoadArray, or WriteUDT / ReadUDT in a loop. |
+| `ReadByte AS BYTE` | Reads one byte at the position (0 to 255) and moves past it; at the end of the stream it gives 26, as RapidQ does, and stays there. |
+| `SaveUdtArray(Field)` | RC.EXE takes it with one argument, a TYPE field (`Mem.SaveUDTArray(A(1).X)`), and then does nothing with the stream; RapidR does the same. Use SaveArray / LoadArray, or WriteUDT / ReadUDT in a loop. |
+| `WriteByte(Value AS BYTE)` | Writes one byte (the value's low 8 bits) at the position. |
 
 <a id="rstringlist"></a>
 ## RSTRINGLIST (QSTRINGLIST)
@@ -2919,7 +2919,7 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `AddList(List AS QSTRINGLIST)` *(not yet)* | Appends every string of another string list. |
+| `AddList(List AS QSTRINGLIST)` | Appends every string of another string list. |
 | `Build(Start AS INTEGER, End AS INTEGER, Delim AS STRING) AS STRING` | Returns the strings from `Start` to `End` joined into one, separated by `Delim`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
@@ -2927,10 +2927,10 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `IndexOf(String AS STRING) AS VARIANT` | Returns the index of the first string equal to `String`, or -1. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `LoadFromFile(File AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromStream(File AS QSTREAM)` *(not yet)* | Loads the component's contents from an open stream. |
+| `LoadFromStream(File AS QSTREAM)` | Replaces the items with the stream's text from its position to its end, a line per item (lines end at CR LF, LF or CR); the stream is left at its end. |
 | `Parse(Source AS STRING, Delim AS STRING) AS LONG` | Splits text into parts: a string list splits `Source` at `Delim` into its items and returns how many; a CGI reads the request's variables. |
 | `SaveToFile(File AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(File AS QSTREAM)` *(not yet)* | Writes the component's contents to an open stream. |
+| `SaveToStream(File AS QSTREAM)` | In RapidQ (RC.EXE) this reads the list from the stream, exactly as LoadFromStream does, and writes nothing (its manual warns that it erases the list); RapidR keeps that. To write the items to a stream, use `Stream.WriteStr(List.Text, LEN(List.Text))`. |
 | `Sort` | Sorts the items, nodes or elements in ascending order. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `Delete` *(RapidR)* | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
@@ -3091,6 +3091,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `LineCount` (read-only) | int |  | The number of lines of text (on a tree, of nodes). |
 | `Pointer` (read-only) | int |  | The address of the stream's memory; read-only. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `SetSize` (write-only) | int |  | Sets the size in bytes, as Size does: RC.EXE takes `Mem.SetSize = n` (a property, not a method). |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
 | `FileName` *(RapidR)* | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Text` *(RapidR)* | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
@@ -3098,18 +3099,18 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `CopyFrom(Stream, Bytes AS INTEGER)` *(not yet)* | Copies `Bytes` bytes from another stream into this one. |
+| `CopyFrom(Stream, Bytes AS INTEGER)` | Copies `Bytes` bytes from another stream's position into this one (0: the whole other stream, from its start). As in RapidQ, asking for more bytes than the other stream has left stops the program with a stream read error. |
 | `ExtractRes(Resource AS LONG)` | Writes the program's embedded resource number `Resource` into the stream. |
-| `LoadArray(Array)` *(not yet)* | Reads an array's elements from the stream. |
-| `MemCopyFrom(Address AS LONG, Bytes AS LONG)` *(not yet)* | Copies `Bytes` bytes from memory address `Address` into the stream. |
-| `MemCopyTo(Address AS LONG, Bytes AS LONG)` *(not yet)* | Copies `Bytes` bytes of the stream to memory address `Address`. |
+| `LoadArray(Element, Count AS LONG)` | Reads `Count` elements into an array, starting at the element given (`Mem.LoadArray(A(1), 10)`), each as many bytes as the array's type takes. |
+| `MemCopyFrom(Address AS LONG, Bytes AS LONG)` | Writes `Bytes` bytes from memory address `Address` (VARPTR, Pointer) at the position, moving it past them. |
+| `MemCopyTo(Address AS LONG, Bytes AS LONG)` | Copies `Bytes` bytes from the position to memory address `Address` (VARPTR, Pointer), moving the position past them. |
 | `Read(variable)` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadLine AS STRING` | Reads one line of text, without its line end. |
 | `ReadNum(Num_Type) AS DOUBLE` | Reads a number stored in binary as the type given (`Num_Byte`, `Num_Long`, `Num_Double` …). |
 | `ReadStr(n) AS STRING` | Reads `n` characters from the stream. |
 | `ReadBinStr(n) AS STRING` | Reads `n` bytes from the stream and returns them as a string. |
 | `ReadUDT(MyType)` | Reads a user-defined type variable from the stream, field by field. |
-| `SaveArray(Array)` *(not yet)* | Writes an array's elements to the stream. |
+| `SaveArray(Element, Count AS LONG)` | Writes `Count` elements of an array, starting at the element given (`Mem.SaveArray(A(1), 10)`), each as many bytes as the array's type takes (a STRING array: the strings' characters, one after another). |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. |
@@ -3121,9 +3122,8 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
-| `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
-| `SetSize` *(not yet)* | Sets the stream's size in bytes, cutting or growing it. |
+| `LoadUdtArray(Field)` | RC.EXE takes it with one argument, a TYPE field (`Mem.LoadUDTArray(A(1).X)`), and then does nothing with the stream; RapidR does the same. Use SaveArray / LoadArray, or WriteUDT / ReadUDT in a loop. |
+| `SaveUdtArray(Field)` | RC.EXE takes it with one argument, a TYPE field (`Mem.SaveUDTArray(A(1).X)`), and then does nothing with the stream; RapidR does the same. Use SaveArray / LoadArray, or WriteUDT / ReadUDT in a loop. |
 
 <a id="rbitmap"></a>
 ## RBITMAP (QBITMAP)

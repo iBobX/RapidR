@@ -80,6 +80,7 @@ SITES = {
     ("crates/rapidr-runtime-web/src/overlay_web.rs", "get_prop"): WEB,
     ("crates/rapidr-runtime-web/src/overlay_web.rs", "method"): WEB,
     # --- the shared models
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/data.rs", "builtin"): "-",
     ("crates/rapidr-value/src/input.rs", "vk_of_key"): "-",
     ("crates/rapidr-value/src/lib.rs", "shared_builtin"): "-",
